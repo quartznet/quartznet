@@ -81,6 +81,9 @@ internal static class SchedulerEndpoints
         yield return builder.MapPost(options.PatternFor(SchedulerRoutes.FetchJobRunStatuses), FetchJobRunStatuses)
             .WithQuartzDefaults(SchedulerRoutes.FetchJobRunStatuses, "Get the run statuses of a set of jobs");
 
+        yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryExecutionStatistics), QueryExecutionStatistics)
+            .WithQuartzDefaults(SchedulerRoutes.QueryExecutionStatistics, "Count and time the scheduler's runs in buckets of fire time");
+
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.GetExecutionLimits), GetExecutionLimits)
             .WithQuartzDefaults(SchedulerRoutes.GetExecutionLimits, "Get execution group limits");
 
@@ -630,8 +633,64 @@ internal static class SchedulerEndpoints
     }
 
     /// <summary>
-    /// A status read, with a store's <see cref="NotSupportedException" /> answered as the <c>501</c> it is
-    /// rather than as a server fault.
+    /// This scheduler's runs, counted by result and timed, one bucket per stretch of fire time that holds a
+    /// run, oldest first.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// From 4.4. Narrowed as <see cref="QueryExecutionHistory" /> narrows its page, so a chart beside it counts
+    /// the rows it lists — except that <c>jobGroup</c> alone counts a whole group. <c>bucket</c> is a
+    /// <c>TimeSpan</c>, <c>01:00:00</c> when absent and at least a minute; buckets start at whole multiples of
+    /// it, so an hour starts on the hour and a day at midnight, UTC.
+    /// </para>
+    /// <para>
+    /// A store that cannot count answers <c>501</c>, naming <see cref="NotSupportedException" />. A host older
+    /// than 4.4 has no such route and answers <c>404</c> without problem details.
+    /// </para>
+    /// </remarks>
+    [ProducesResponseType(typeof(ExecutionStatisticsDto), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryExecutionStatistics(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
+        string schedulerName,
+        string? schedulerInstanceId = null,
+        string? jobContains = null,
+        string? triggerContains = null,
+        bool? failedFinally = null,
+        [Description("The job's group; alone, the whole group")] string? jobGroup = null,
+        [Description("The job's name; needs jobGroup")] string? jobName = null,
+        [Description("Only executions fired at or after this instant")] DateTimeOffset? firedFrom = null,
+        [Description("Only executions fired before this instant")] DateTimeOffset? firedBefore = null,
+        [Description(ResultsDescription)] string[]? results = null,
+        [Description("How much fire time a bucket covers, as a TimeSpan: 01:00:00 when absent, at least 00:01:00")] TimeSpan? bucket = null,
+        CancellationToken cancellationToken = default)
+    {
+        HistoryParameters filters = new()
+        {
+            JobGroup = jobGroup,
+            JobName = jobName,
+            FiredFrom = firedFrom,
+            FiredBefore = firedBefore,
+            Results = results
+        };
+
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => Served(() => SchedulerOperations.QueryExecutionStatistics(
+            scheduler,
+            HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+            schedulerInstanceId,
+            jobContains,
+            triggerContains,
+            failedFinally,
+            filters,
+            bucket,
+            cancellationToken)));
+    }
+
+    /// <summary>
+    /// A status or statistics read, with a store's <see cref="NotSupportedException" /> answered as the
+    /// <c>501</c> it is rather than as a server fault.
     /// </summary>
     private static async ValueTask<T> Served<T>(Func<ValueTask<T>> read)
     {

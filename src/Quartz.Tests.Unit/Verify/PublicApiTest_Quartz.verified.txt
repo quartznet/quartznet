@@ -500,6 +500,44 @@ namespace Quartz
         public bool TryGetRemaining(string? executionGroup, out int? remaining) { }
         public bool TryTake(string? executionGroup, string triggerGroup) { }
     }
+    public sealed record ExecutionStatistics : System.IEquatable<Quartz.ExecutionStatistics>
+    {
+        public const int DefaultRowLimit = 10000;
+        public ExecutionStatistics() { }
+        public System.TimeSpan BucketSize { get; init; }
+        public System.Collections.Generic.List<Quartz.ExecutionStatisticsBucket> Buckets { get; init; }
+        public bool Truncated { get; init; }
+    }
+    public sealed record ExecutionStatisticsBucket : System.IEquatable<Quartz.ExecutionStatisticsBucket>
+    {
+        public ExecutionStatisticsBucket(System.DateTimeOffset StartUtc) { }
+        public long CancelledCount { get; init; }
+        public long FailedCount { get; init; }
+        public System.TimeSpan MaxDuration { get; init; }
+        public System.TimeSpan P50Duration { get; init; }
+        public System.TimeSpan P95Duration { get; init; }
+        public long RunCount { get; }
+        public long SkippedCount { get; init; }
+        public System.DateTimeOffset StartUtc { get; init; }
+        public long SucceededCount { get; init; }
+        public long CountOf(Quartz.JobRunResult result) { }
+    }
+    public sealed record ExecutionStatisticsQuery : System.IEquatable<Quartz.ExecutionStatisticsQuery>
+    {
+        public static readonly System.TimeSpan MinimumBucketSize;
+        public ExecutionStatisticsQuery() { }
+        public System.TimeSpan BucketSize { get; init; }
+        public bool? FailedFinally { get; init; }
+        public System.DateTimeOffset? FiredBefore { get; init; }
+        public System.DateTimeOffset? FiredFrom { get; init; }
+        public Quartz.JobKey? Job { get; init; }
+        public string? JobContains { get; init; }
+        public string? JobGroup { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.JobRunResult>? Results { get; init; }
+        public string? SchedulerInstanceId { get; init; }
+        public required string SchedulerName { get; init; }
+        public string? TriggerContains { get; init; }
+    }
     public sealed record FireInstance : System.IEquatable<Quartz.FireInstance>
     {
         public FireInstance(string FireInstanceId, Quartz.TriggerKey TriggerKey, Quartz.JobKey? JobKey, string SchedulerInstanceId, Quartz.FireInstanceState State, System.DateTimeOffset FireTimeUtc, System.DateTimeOffset? ScheduledFireTimeUtc, string? ExecutionGroup) { }
@@ -2373,6 +2411,7 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask<int> CountMisfires(string schedulerName, System.DateTimeOffset since, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.ExecutionHistoryEntry?> GetExecution(string schedulerName, string entryId, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.JobRunStatus?> GetJobRunStatus(string schedulerName, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default); // default implementation
+        System.Threading.Tasks.ValueTask<Quartz.ExecutionStatistics> QueryExecutionStatistics(Quartz.ExecutionStatisticsQuery query, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.ExecutionHistoryEntry>> QueryExecutions(Quartz.ExecutionHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobRunStatus>> QueryJobRunStatuses(Quartz.JobRunStatusQuery query, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.MisfireHistoryEntry>> QueryMisfires(Quartz.MisfireHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);

@@ -22,6 +22,7 @@
 using System.Collections.Frozen;
 using System.Data.Common;
 using System.Globalization;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -461,31 +462,7 @@ public partial class StdAdoDelegate
         StringBuilder predicateBuilder = new();
         List<KeyValuePair<string, object?>> parameters = [];
 
-        predicateBuilder.Append(StdAdoConstants.SqlExecutionHistoryNotBefore);
-        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryCutoff, GetDbDateTimeValue(notBefore)));
-
-        AppendNodePredicate(predicateBuilder, parameters, query.SchedulerInstanceId);
-        AppendContainsPredicate(
-            predicateBuilder,
-            parameters,
-            SqlParameters.HistoryJobContains,
-            HistoryKeyExpression(AdoConstants.ColumnJobGroup, AdoConstants.ColumnJobName),
-            query.JobContains);
-        AppendContainsPredicate(
-            predicateBuilder,
-            parameters,
-            SqlParameters.HistoryTriggerContains,
-            HistoryKeyExpression(AdoConstants.ColumnTriggerGroup, AdoConstants.ColumnTriggerName),
-            query.TriggerContains);
-        AppendFailedFinallyPredicate(predicateBuilder, parameters, query.FailedFinally);
-        AppendJobPredicate(predicateBuilder, parameters, query.Job);
-        AppendInstantPredicate(predicateBuilder, parameters, StdAdoConstants.SqlExecutionHistoryFiredFrom, SqlParameters.HistoryFiredFrom, query.FiredFrom);
-        AppendInstantPredicate(predicateBuilder, parameters, StdAdoConstants.SqlExecutionHistoryFiredBefore, SqlParameters.HistoryFiredBefore, query.FiredBefore);
-
-        if (query.Results is { } results)
-        {
-            AppendResultsPredicate(predicateBuilder, parameters, results);
-        }
+        AppendExecutionHistoryPredicates(predicateBuilder, parameters, query, notBefore);
 
         string predicate = predicateBuilder.ToString();
         string schedulerName = query.SchedulerName;
@@ -523,6 +500,174 @@ public partial class StdAdoDelegate
 
         return new PagedResult<ExecutionHistoryEntry>(items, hasMore, totalCount);
     }
+
+    /// <summary>
+    /// How a dialect writes the bucket a row falls in: its fire time's ticks divided by the bucket size's,
+    /// as an integer.
+    /// </summary>
+    /// <remarks>
+    /// <c>/</c> divides two integers as integers in PostgreSQL, SQL Server, SQLite and Firebird. MySQL and
+    /// Oracle divide exactly, and override this; Firebird overrides it to cast the bucket size.
+    /// </remarks>
+    internal virtual string HistoryStatisticsBucketExpression => StdAdoConstants.SqlStatisticsBucketByDivision;
+
+    /// <summary>
+    /// Whether the dialect has <c>PERCENTILE_CONT</c> as an aggregate that a <c>GROUP BY</c> can carry, as
+    /// PostgreSQL and Oracle do.
+    /// </summary>
+    /// <remarks>
+    /// Without it the run statistics read the runs either side of each percentile's rank, ranked by
+    /// <c>ROW_NUMBER</c>, and interpolate between them here — the same arithmetic, so the same answer. SQL
+    /// Server has <c>PERCENTILE_CONT</c> only as a window function, which sorts every row of the window
+    /// once more for each percentile; the ranked read sorts them once.
+    /// </remarks>
+    internal virtual bool HistoryHasPercentileAggregate => false;
+
+    /// <summary>Counts and times the recorded executions in buckets of fire time.</summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="query">Which executions to count, and the bucket size.</param>
+    /// <param name="notBefore">The age bound: rows older than this are not part of the history.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<ExecutionStatistics> SelectExecutionStatistics(
+        ConnectionAndTransactionHolder conn,
+        ExecutionStatisticsQuery query,
+        DateTimeOffset notBefore,
+        CancellationToken cancellationToken = default)
+    {
+        StringBuilder predicate = new();
+        List<KeyValuePair<string, object?>> parameters = [];
+
+        AppendExecutionHistoryPredicates(predicate, parameters, query.AsHistoryQuery(skip: 0, take: 0), notBefore);
+        if (query.JobGroup is { } jobGroup)
+        {
+            predicate.Append(StdAdoConstants.SqlHistoryJobGroupPredicate);
+            parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryJobGroup, jobGroup));
+        }
+
+        bool aggregate = HistoryHasPercentileAggregate;
+        string sql = (aggregate ? StdAdoConstants.SqlSelectExecutionStatisticsAggregate : StdAdoConstants.SqlSelectExecutionStatisticsRanked)
+                     + HistoryStatisticsBucketExpression
+                     + StdAdoConstants.SqlSelectExecutionStatisticsRows
+                     + predicate
+                     + (aggregate ? StdAdoConstants.SqlSelectExecutionStatisticsAggregateTail : StdAdoConstants.SqlSelectExecutionStatisticsRankedTail);
+
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
+
+        // In the order the statement names them: the two in the derived table's SELECT list come before
+        // its WHERE.
+        AddCommandParameter(cmd, SqlParameters.HistoryBucketSize, query.BucketSize.Ticks);
+        AddCommandParameter(cmd, SqlParameters.HistoryStatisticsSucceeded, GetDbBooleanValue(true));
+        BindHistoryParameters(cmd, query.SchedulerName, parameters);
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        List<ExecutionStatisticsBucket> buckets = aggregate
+            ? await ReadAggregatedBuckets(rs, query.BucketSize, cancellationToken).ConfigureAwait(false)
+            : await ReadRankedBuckets(rs, query.BucketSize, cancellationToken).ConfigureAwait(false);
+
+        return new ExecutionStatistics { BucketSize = query.BucketSize, Buckets = buckets };
+    }
+
+    /// <summary>One bucket a row, its percentiles already the database's.</summary>
+    internal static async ValueTask<List<ExecutionStatisticsBucket>> ReadAggregatedBuckets(
+        DbDataReader rs,
+        TimeSpan bucketSize,
+        CancellationToken cancellationToken)
+    {
+        List<ExecutionStatisticsBucket> buckets = [];
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            buckets.Add(new ExecutionStatisticsBucket(ExecutionStatisticsBuilder.StartOf(ReadLong(rs, 0), bucketSize))
+            {
+                SucceededCount = ReadLong(rs, 1),
+                FailedCount = ReadLong(rs, 2),
+                CancelledCount = ReadLong(rs, 3),
+                SkippedCount = ReadLong(rs, 4),
+                MaxDuration = TimeSpan.FromTicks(ReadLong(rs, 5)),
+                P50Duration = TimeSpan.FromTicks(ReadLong(rs, 6)),
+                P95Duration = TimeSpan.FromTicks(ReadLong(rs, 7))
+            });
+        }
+
+        return buckets;
+    }
+
+    /// <summary>
+    /// Up to five rows a bucket, by bucket and then rank: the runs either side of each percentile's rank and
+    /// the longest, each carrying the bucket's counts.
+    /// </summary>
+    internal static async ValueTask<List<ExecutionStatisticsBucket>> ReadRankedBuckets(
+        DbDataReader rs,
+        TimeSpan bucketSize,
+        CancellationToken cancellationToken)
+    {
+        List<ExecutionStatisticsBucket> buckets = [];
+        Dictionary<long, long> durationByRank = [];
+        long? current = null;
+        ExecutionStatisticsBucket? counts = null;
+        long runs = 0;
+
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            long bucket = ReadLong(rs, 0);
+            if (bucket != current)
+            {
+                if (counts is not null)
+                {
+                    buckets.Add(Timed(counts, durationByRank, runs));
+                }
+
+                current = bucket;
+                durationByRank.Clear();
+                runs = ReadLong(rs, 3);
+                counts = new ExecutionStatisticsBucket(ExecutionStatisticsBuilder.StartOf(bucket, bucketSize))
+                {
+                    SucceededCount = ReadLong(rs, 4),
+                    FailedCount = ReadLong(rs, 5),
+                    CancelledCount = ReadLong(rs, 6),
+                    SkippedCount = ReadLong(rs, 7)
+                };
+            }
+
+            durationByRank[ReadLong(rs, 2)] = ReadLong(rs, 1);
+        }
+
+        if (counts is not null)
+        {
+            buckets.Add(Timed(counts, durationByRank, runs));
+        }
+
+        return buckets;
+
+        static ExecutionStatisticsBucket Timed(ExecutionStatisticsBucket counts, Dictionary<long, long> durationByRank, long runs) => counts with
+        {
+            P50Duration = PercentileOfRanks(durationByRank, runs, ExecutionStatisticsBuilder.Median),
+            P95Duration = PercentileOfRanks(durationByRank, runs, ExecutionStatisticsBuilder.NinetyFifth),
+            MaxDuration = TimeSpan.FromTicks(durationByRank[runs])
+        };
+    }
+
+    /// <summary>
+    /// A percentile from the durations at the ranks either side of it, ranks counted from one as
+    /// <c>ROW_NUMBER</c> counts them.
+    /// </summary>
+    private static TimeSpan PercentileOfRanks(Dictionary<long, long> durationByRank, long runs, int hundredths)
+    {
+        (int lower, int remainder) = ExecutionStatisticsBuilder.Rank(runs, hundredths);
+        long below = durationByRank[lower + 1];
+        long above = remainder == 0 ? below : durationByRank[lower + 2];
+        return ExecutionStatisticsBuilder.Interpolate(below, above, remainder);
+    }
+
+    /// <summary>
+    /// An integer column: not <c>GetInt64</c>, because Oracle hands back a decimal for a <c>NUMBER</c> and a
+    /// floored quotient, and Firebird 4 an <c>INT128</c>, as a <see cref="BigInteger" />, for a <c>SUM</c> of
+    /// <c>BIGINT</c>s.
+    /// </summary>
+    private static long ReadLong(DbDataReader rs, int ordinal) => rs.GetValue(ordinal) switch
+    {
+        BigInteger wide => (long) wide,
+        object value => Convert.ToInt64(value, CultureInfo.InvariantCulture)
+    };
 
     /// <summary>Reads one page of the recorded misfires, newest first.</summary>
     /// <param name="conn">The unit of work, which is the history store's own connection.</param>
@@ -812,6 +957,43 @@ public partial class StdAdoDelegate
     // ---------------------------------------------------------------------------------------------
     // Building the reads
     // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The age bound and every filter of a history listing, which the run statistics apply too, so a chart
+    /// counts the rows its page lists.
+    /// </summary>
+    private void AppendExecutionHistoryPredicates(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        ExecutionHistoryQuery query,
+        DateTimeOffset notBefore)
+    {
+        predicate.Append(StdAdoConstants.SqlExecutionHistoryNotBefore);
+        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryCutoff, GetDbDateTimeValue(notBefore)));
+
+        AppendNodePredicate(predicate, parameters, query.SchedulerInstanceId);
+        AppendContainsPredicate(
+            predicate,
+            parameters,
+            SqlParameters.HistoryJobContains,
+            HistoryKeyExpression(AdoConstants.ColumnJobGroup, AdoConstants.ColumnJobName),
+            query.JobContains);
+        AppendContainsPredicate(
+            predicate,
+            parameters,
+            SqlParameters.HistoryTriggerContains,
+            HistoryKeyExpression(AdoConstants.ColumnTriggerGroup, AdoConstants.ColumnTriggerName),
+            query.TriggerContains);
+        AppendFailedFinallyPredicate(predicate, parameters, query.FailedFinally);
+        AppendJobPredicate(predicate, parameters, query.Job);
+        AppendInstantPredicate(predicate, parameters, StdAdoConstants.SqlExecutionHistoryFiredFrom, SqlParameters.HistoryFiredFrom, query.FiredFrom);
+        AppendInstantPredicate(predicate, parameters, StdAdoConstants.SqlExecutionHistoryFiredBefore, SqlParameters.HistoryFiredBefore, query.FiredBefore);
+
+        if (query.Results is { } results)
+        {
+            AppendResultsPredicate(predicate, parameters, results);
+        }
+    }
 
     private async ValueTask<DateTimeOffset?> SelectHistoryBoundary(
         ConnectionAndTransactionHolder conn,

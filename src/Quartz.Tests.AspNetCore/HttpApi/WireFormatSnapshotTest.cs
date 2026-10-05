@@ -656,6 +656,37 @@ public class WireFormatSnapshotTest : WebApiTest
         await VerifyBody(body);
     }
 
+    [Test]
+    public async Task ExecutionStatisticsBody()
+    {
+        string firedFrom = Uri.EscapeDataString(HistoryInstant.AddHours(-2).ToString("O"));
+        string body = await GetWithHistory(
+            $"{SchedulerUrl}/history/statistics?firedFrom={firedFrom}&bucket=01:00:00",
+            async history =>
+            {
+                ExecutionHistoryEntry run = new(
+                    SchedulerName: TestData.SchedulerName,
+                    SchedulerInstanceId: "TEST_NON_CLUSTERED",
+                    JobGroup: "billing",
+                    JobName: "release-stale",
+                    TriggerGroup: "billing",
+                    TriggerName: "hourly",
+                    FiredAtUtc: HistoryInstant.AddMinutes(-90),
+                    Duration: TimeSpan.FromMilliseconds(100),
+                    Succeeded: true,
+                    ExceptionMessage: null)
+                {
+                    Result = JobRunResult.Succeeded
+                };
+
+                await history.AddExecution(run);
+                await history.AddExecution(run with { FiredAtUtc = HistoryInstant.AddMinutes(-80), Duration = TimeSpan.FromMilliseconds(300), Succeeded = false, Result = JobRunResult.Failed });
+                await history.AddExecution(run with { FiredAtUtc = HistoryInstant.AddMinutes(-10), Duration = TimeSpan.FromMilliseconds(50), Result = JobRunResult.Skipped });
+            });
+
+        await VerifyBody(body);
+    }
+
     /// <summary>
     /// The instant the history bodies are pinned at, fixed like every other instant in these snapshots.
     /// </summary>

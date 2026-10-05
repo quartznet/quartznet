@@ -84,6 +84,23 @@ internal sealed record HistoryParameters
     }
 
     /// <summary>
+    /// The job both halves name, or the group alone: the run statistics count a whole group, where a listing
+    /// takes both halves or neither.
+    /// </summary>
+    /// <exception cref="InvalidRequestException">A name without its group.</exception>
+    public (JobKey? Job, string? Group) JobOrGroup()
+    {
+        bool hasGroup = !string.IsNullOrWhiteSpace(JobGroup);
+        bool hasName = !string.IsNullOrWhiteSpace(JobName);
+        if (hasName && !hasGroup)
+        {
+            throw new InvalidRequestException("jobName needs jobGroup: a job is named by both halves of its key");
+        }
+
+        return hasName ? (new JobKey(JobName!, JobGroup!), null) : (null, hasGroup ? JobGroup : null);
+    }
+
+    /// <summary>
     /// The results asked for, or <see langword="null" /> for every result.
     /// </summary>
     /// <exception cref="InvalidRequestException">A value names no result.</exception>

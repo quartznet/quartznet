@@ -322,6 +322,18 @@ internal static class SqlParameters
     /// <summary><see cref="MisfireReason.Vetoed" />, for the reason filter.</summary>
     public const string HistoryReasonVetoed = "historyReasonVetoed";
 
+    /// <summary>The run statistics' bucket size, in ticks.</summary>
+    public const string HistoryBucketSize = "historyBucketSize";
+
+    /// <summary>
+    /// The <see cref="Succeeded" /> that makes a row without a result a success, for the run statistics'
+    /// effective result.
+    /// </summary>
+    public const string HistoryStatisticsSucceeded = "historyStatisticsSucceeded";
+
+    /// <summary>The one job group the run statistics are narrowed to.</summary>
+    public const string HistoryJobGroup = "historyJobGroup";
+
     // JOB_STATUS, which the ADO-backed execution history keeps beside its rows. The insert names each
     // column once; the updates' placeholders are generated per occurrence by JobStatusStatement, because
     // the fire time is compared column by column and a dialect that binds by position needs one

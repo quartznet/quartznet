@@ -83,6 +83,10 @@ internal static class SchedulerRoutes
     public static readonly WireRoute QueryJobRunStatuses = Route(nameof(QueryJobRunStatuses), Get, History + "/job-status");
     public static readonly WireRoute GetJobRunStatus = Route(nameof(GetJobRunStatus), Get, History + "/job-status/{jobGroup}/{jobName}");
     public static readonly WireRoute FetchJobRunStatuses = Route(nameof(FetchJobRunStatuses), Post, History + "/job-status/fetch");
+
+    // From 4.4, as the statuses are. A 4.3 host answers 404 without problem details; the HTTP client reads
+    // the host's version first and does not ask one.
+    public static readonly WireRoute QueryExecutionStatistics = Route(nameof(QueryExecutionStatistics), Get, History + "/statistics");
     public static readonly WireRoute GetExecutionLimits = Route(nameof(GetExecutionLimits), Get, Scheduler + "/execution-limits");
     public static readonly WireRoute SetExecutionLimits = Route(nameof(SetExecutionLimits), Post, Scheduler + "/execution-limits");
     public static readonly WireRoute ClearExecutionLimits = Route(nameof(ClearExecutionLimits), Delete, Scheduler + "/execution-limits");

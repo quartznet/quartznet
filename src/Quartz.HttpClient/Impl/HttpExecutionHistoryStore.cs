@@ -49,9 +49,9 @@ namespace Quartz.Impl;
 /// </para>
 /// <para>
 /// A host before 4.4 ignores the query parameters it does not know, and would answer a filtered read with
-/// rows the filter excludes. So before the first read that carries a 4.4 filter, the host's version is
-/// read from <c>GET …/schedulers/{name}</c>, and a host older than 4.4 is refused with
-/// <see cref="NotSupportedException" /> before anything filtered is sent.
+/// rows the filter excludes. So before the first read that carries a 4.4 filter, and before the first run
+/// statistics read, the host's version is read from <c>GET …/schedulers/{name}</c>, and a host older than
+/// 4.4 is refused with <see cref="NotSupportedException" /> before anything is sent.
 /// </para>
 /// <para>
 /// A row from a newer host that carries a name this client does not know is read as far as it can be: a
@@ -70,6 +70,22 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// The most keys one status fetch may carry, as the host enforces it.
     /// </summary>
     private const int MaxKeysPerFetch = 1000;
+
+    /// <summary>
+    /// What a per-job status read says a host does not serve.
+    /// </summary>
+    private static readonly Unserved RunStatus = new(
+        "keeps no per-job run status",
+        "serves no per-job run status",
+        "read its jobs' run statuses");
+
+    /// <summary>
+    /// What a statistics read says a host does not serve.
+    /// </summary>
+    private static readonly Unserved RunStatistics = new(
+        "cannot count its runs over time",
+        "serves no run statistics",
+        "count its runs over time");
 
     private readonly string schedulerName;
     private readonly WireClient wire;
@@ -361,15 +377,103 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     }
 
     /// <summary>
+    /// The target's runs, counted by result and timed in buckets of fire time:
+    /// <c>GET …/history/statistics</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A host before 4.4 has no such route. Its version is read first, as before a filtered read, and an
+    /// older host is refused without being asked. An empty <see cref="ExecutionStatisticsQuery.Results" />
+    /// counts nothing, and is answered without asking.
+    /// </para>
+    /// <para>
+    /// The host's store does the counting, so the answer is whatever that store gives: every run for the
+    /// shipped stores, the newest <see cref="ExecutionStatistics.DefaultRowLimit" /> for one that leaves the
+    /// count to the default implementation.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="NotSupportedException">
+    /// The host is older than 4.4, or its history store cannot count.
+    /// </exception>
+    public async ValueTask<ExecutionStatistics> QueryExecutionStatistics(ExecutionStatisticsQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        if (query.Results is { Count: 0 })
+        {
+            return new ExecutionStatistics { BucketSize = query.BucketSize };
+        }
+
+        await RequireHost44(
+            "which has no run statistics route",
+            "to count its runs over time",
+            cancellationToken).ConfigureAwait(false);
+
+        QueryStringBuilder parameters = new();
+        AddFilters(parameters, query.SchedulerInstanceId, query.TriggerContains);
+
+        if (!string.IsNullOrWhiteSpace(query.JobContains))
+        {
+            parameters.Add("jobContains", query.JobContains);
+        }
+
+        if (query.FailedFinally is { } failedFinally)
+        {
+            parameters.Add("failedFinally", failedFinally);
+        }
+
+        if (query.Job is { } job)
+        {
+            AddJob(parameters, job);
+        }
+        else if (!string.IsNullOrWhiteSpace(query.JobGroup))
+        {
+            parameters.Add("jobGroup", query.JobGroup);
+        }
+
+        if (query.FiredFrom is { } firedFrom)
+        {
+            parameters.Add("firedFrom", firedFrom.ToString("O", CultureInfo.InvariantCulture));
+        }
+
+        if (query.FiredBefore is { } firedBefore)
+        {
+            parameters.Add("firedBefore", firedBefore.ToString("O", CultureInfo.InvariantCulture));
+        }
+
+        foreach (JobRunResult wanted in query.Results ?? [])
+        {
+            parameters.Add("results", wanted.ToString());
+        }
+
+        parameters.Add("bucket", query.BucketSize.ToString("c", CultureInfo.InvariantCulture));
+
+        ExecutionStatisticsDto statistics = await ReadServed<ExecutionStatisticsDto>(
+                At(SchedulerRoutes.QueryExecutionStatistics).WithQuery(parameters.ToString()), body: null, RunStatistics, cancellationToken)
+            .ConfigureAwait(false) ?? throw new HttpClientException("Could not deserialize response");
+
+        return statistics.AsExecutionStatistics();
+    }
+
+    /// <summary>
     /// Sends one status read and reads its answer: <see langword="null" /> for the <c>404</c> that says
     /// there is no such status.
     /// </summary>
+    private ValueTask<T?> ReadStatus<T>(WireRequest request, JobKeySetRequest? body, CancellationToken cancellationToken) where T : class
+    {
+        return ReadServed<T>(request, body, RunStatus, cancellationToken);
+    }
+
+    /// <summary>
+    /// Sends one read of a 4.4 route and reads its answer: <see langword="null" /> for a <c>404</c> with
+    /// problem details, which names a thing the host does not have.
+    /// </summary>
     /// <remarks>
-    /// Two answers are the target saying it keeps no status, and both are raised as
+    /// Two answers are the target saying it does not serve the read, and both are raised as
     /// <see cref="NotSupportedException" />: the <c>404</c> without problem details of a host that predates
-    /// the routes, and the <c>501</c> of a host whose history store keeps rows only, whose detail says so.
+    /// the route, and the <c>501</c> of a host whose history store cannot answer it, whose detail says why.
     /// </remarks>
-    private async ValueTask<T?> ReadStatus<T>(WireRequest request, JobKeySetRequest? body, CancellationToken cancellationToken) where T : class
+    private async ValueTask<T?> ReadServed<T>(WireRequest request, JobKeySetRequest? body, Unserved unserved, CancellationToken cancellationToken) where T : class
     {
         WireResponse response = body is null
             ? await wire.Exchange(request, cancellationToken).ConfigureAwait(false)
@@ -379,7 +483,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         {
             throw new NotSupportedException(
                 wire.ProblemDetail(response)
-                ?? $"The scheduler '{schedulerName}' is reached over HTTP and its host keeps no per-job run status.");
+                ?? $"The scheduler '{schedulerName}' is reached over HTTP and its host {unserved.Keeps}.");
         }
 
         try
@@ -389,9 +493,9 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {
             throw new NotSupportedException(
-                $"The scheduler '{schedulerName}' is reached over HTTP and the target serves no per-job run status: "
+                $"The scheduler '{schedulerName}' is reached over HTTP and the target {unserved.Serves}: "
                 + "it answered 404 without problem details for the route, which a Quartz HTTP API older than 4.4 does. "
-                + "Upgrade the scheduler's host to read its jobs' run statuses.",
+                + $"Upgrade the scheduler's host to {unserved.UpgradeTo}.",
                 exception);
         }
     }
@@ -402,7 +506,23 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// <param name="filters">The filters, as the refusal names them.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="NotSupportedException">The host is older than 4.4.</exception>
-    private async ValueTask RequireFilters(string filters, CancellationToken cancellationToken)
+    private ValueTask RequireFilters(string filters, CancellationToken cancellationToken)
+    {
+        return RequireHost44(
+            $"whose history routes ignore the {filters} filters and would answer with rows they exclude",
+            "to filter its history by them",
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Refuses a read before it is sent to a host older than 4.4, whose version is read once and kept once
+    /// it is new enough.
+    /// </summary>
+    /// <param name="why">What the old host would do with the read, as the refusal says it.</param>
+    /// <param name="upgradeTo">What upgrading the host would let the caller do.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="NotSupportedException">The host is older than 4.4.</exception>
+    private async ValueTask RequireHost44(string why, string upgradeTo, CancellationToken cancellationToken)
     {
         if (hostFilters)
         {
@@ -421,9 +541,14 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
 
         throw new NotSupportedException(
             $"The scheduler '{schedulerName}' is reached over HTTP and its host runs Quartz {reported ?? "(unknown)"}, "
-            + $"whose history routes ignore the {filters} filters and would answer with rows they exclude. "
-            + "Upgrade the scheduler's host to 4.4 or later to filter its history by them.");
+            + $"{why}. Upgrade the scheduler's host to 4.4 or later {upgradeTo}.");
     }
+
+    /// <summary>The words a refusal of a 4.4 read uses, so each read says what it was.</summary>
+    /// <param name="Keeps">What a host's store that cannot answer does not do: "keeps no …".</param>
+    /// <param name="Serves">What a host that predates the route does not serve: "serves no …".</param>
+    /// <param name="UpgradeTo">What upgrading the host lets the caller do.</param>
+    private sealed record Unserved(string Keeps, string Serves, string UpgradeTo);
 
     private static void AddJob(QueryStringBuilder parameters, JobKey? job)
     {

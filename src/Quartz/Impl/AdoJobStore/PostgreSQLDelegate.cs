@@ -34,4 +34,10 @@ public class PostgreSQLDelegate : StdAdoDelegate
     /// PostgreSQL limits rows with a trailing <c>LIMIT n</c>.
     /// </summary>
     protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.AtStatementEnd("LIMIT", count);
+
+    /// <summary>
+    /// PostgreSQL has <c>percentile_cont</c> as an ordered-set aggregate, so the run statistics' percentiles
+    /// are the database's.
+    /// </summary>
+    internal override bool HistoryHasPercentileAggregate => true;
 }

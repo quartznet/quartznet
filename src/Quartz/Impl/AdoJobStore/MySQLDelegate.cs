@@ -73,6 +73,12 @@ public class MySQLDelegate : StdAdoDelegate
     }
 
     /// <summary>
+    /// MySQL's <c>/</c> divides exactly, so the run statistics name a bucket with <c>DIV</c>, which divides
+    /// integers as integers.
+    /// </summary>
+    internal override string HistoryStatisticsBucketExpression => StdAdoConstants.SqlStatisticsBucketByIntegerDivide;
+
+    /// <summary>
     /// The acquisition statement carries a FORCE INDEX hint pointing at IDX_*_T_NFT_ST.
     /// </summary>
     protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)

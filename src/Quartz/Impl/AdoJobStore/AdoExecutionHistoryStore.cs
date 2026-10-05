@@ -354,6 +354,21 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
             cancellationToken);
     }
 
+    /// <remarks>
+    /// One statement, which groups the listing's rows by bucket in the database and counts every one of
+    /// them: the age bound applies as it does to the listing. PostgreSQL and Oracle compute the percentiles
+    /// with <c>PERCENTILE_CONT</c>; the other dialects return the runs either side of each percentile's
+    /// rank, and the store interpolates between them.
+    /// </remarks>
+    public ValueTask<ExecutionStatistics> QueryExecutionStatistics(ExecutionStatisticsQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        return Execute(
+            conn => Delegate.SelectExecutionStatistics(conn, query, ExecutionFloor(), cancellationToken),
+            cancellationToken);
+    }
+
     /// <summary>
     /// Deletes what has fallen out of any bound, for every scheduler this store has seen.
     /// </summary>

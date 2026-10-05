@@ -152,6 +152,7 @@ public class SchedulerRoutesTest
     [TestCase("GET", "schedulers/reporting/history/job-status", "QueryJobRunStatuses")]
     [TestCase("GET", "schedulers/reporting/history/job-status/exports/nightly", "GetJobRunStatus")]
     [TestCase("POST", "schedulers/reporting/history/job-status/fetch", "FetchJobRunStatuses")]
+    [TestCase("GET", "schedulers/reporting/history/statistics?bucket=01:00:00", "QueryExecutionStatistics")]
     public void MatchRoutesAPathAsAspNetCoreDoes(string method, string path, string routeName)
     {
         string matched = SchedulerRoutes.Match(method, path)?.Route.Name;

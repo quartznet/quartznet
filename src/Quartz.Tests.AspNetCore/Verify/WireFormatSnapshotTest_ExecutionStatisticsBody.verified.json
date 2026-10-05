@@ -1,0 +1,28 @@
+﻿{
+  "bucketSize": "01:00:00",
+  "buckets": [
+    {
+      "startUtc": "2026-08-26T10:00:00+00:00",
+      "runCount": 2,
+      "succeededCount": 1,
+      "failedCount": 1,
+      "cancelledCount": 0,
+      "skippedCount": 0,
+      "p50Duration": "00:00:00.2000000",
+      "p95Duration": "00:00:00.2900000",
+      "maxDuration": "00:00:00.3000000"
+    },
+    {
+      "startUtc": "2026-08-26T11:00:00+00:00",
+      "runCount": 1,
+      "succeededCount": 0,
+      "failedCount": 0,
+      "cancelledCount": 0,
+      "skippedCount": 1,
+      "p50Duration": "00:00:00.0500000",
+      "p95Duration": "00:00:00.0500000",
+      "maxDuration": "00:00:00.0500000"
+    }
+  ],
+  "truncated": false
+}

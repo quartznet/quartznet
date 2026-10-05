@@ -1653,4 +1653,99 @@ internal static class StdAdoConstants
     /// </remarks>
     public static readonly string SqlDeleteOrphanedJobStatuses =
         Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableJobStatus} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnLastFiredTime} < @{SqlParameters.HistoryCutoff} AND NOT EXISTS (SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} j WHERE j.{AdoConstants.ColumnSchedulerName} = {TablePrefixSubst}{AdoConstants.TableJobStatus}.{AdoConstants.ColumnSchedulerName} AND j.{AdoConstants.ColumnJobGroup} = {TablePrefixSubst}{AdoConstants.TableJobStatus}.{AdoConstants.ColumnJobGroup} AND j.{AdoConstants.ColumnJobName} = {TablePrefixSubst}{AdoConstants.TableJobStatus}.{AdoConstants.ColumnJobName})");
+
+    // -----------------------------------------------------------------------------------------
+    // Run statistics
+    //
+    // One statement counts a window's runs per bucket of fire time. The rows are read in a derived
+    // table or a common table expression first, each with its bucket and its effective result, so the
+    // statement groups by a column: grouping by an expression that holds a parameter is refused by Oracle
+    // and Firebird, which cannot prove the SELECT list's occurrence is the GROUP BY's. A statement is
+    // built as a head, the dialect's bucket expression, SqlSelectExecutionStatisticsRows, the listing's
+    // predicates, and a tail.
+    // -----------------------------------------------------------------------------------------
+
+    private const string StatisticsBucket = "STAT_BUCKET";
+    private const string StatisticsResult = "STAT_RESULT";
+    private const string StatisticsRank = "STAT_RANK";
+    private const string StatisticsRuns = "STAT_RUNS";
+    private const string StatisticsRows = "STAT_ROWS";
+
+    /// <summary>
+    /// The bucket a row falls in as integer division of its tick count by the bucket size's, which
+    /// PostgreSQL, SQL Server, SQLite and Firebird do for two integers.
+    /// </summary>
+    public static readonly string SqlStatisticsBucketByDivision =
+        Invariant($"{AdoConstants.ColumnFiredTime} / @{SqlParameters.HistoryBucketSize}");
+
+    /// <summary>
+    /// Firebird's: integer division as above, with the bucket size cast, because Firebird cannot type a bare
+    /// parameter in a division inside a common table expression.
+    /// </summary>
+    public static readonly string SqlStatisticsBucketByTypedDivision =
+        Invariant($"{AdoConstants.ColumnFiredTime} / CAST(@{SqlParameters.HistoryBucketSize} AS BIGINT)");
+
+    /// <summary>MySQL's: its <c>/</c> divides exactly, and <c>DIV</c> is the integer one.</summary>
+    public static readonly string SqlStatisticsBucketByIntegerDivide =
+        Invariant($"{AdoConstants.ColumnFiredTime} DIV @{SqlParameters.HistoryBucketSize}");
+
+    /// <summary>Oracle's: a <c>NUMBER</c> divides exactly, so the quotient is floored.</summary>
+    public static readonly string SqlStatisticsBucketByFloor =
+        Invariant($"FLOOR({AdoConstants.ColumnFiredTime} / @{SqlParameters.HistoryBucketSize})");
+
+    /// <summary>
+    /// The rest of the derived table after the bucket expression: the duration, and the effective result —
+    /// <c>RESULT</c>, or on a row a 4.3 node wrote, or one with a value this version does not know, what
+    /// <c>SUCCEEDED</c> implies. The caller appends the listing's predicates.
+    /// </summary>
+    public static readonly string SqlSelectExecutionStatisticsRows =
+        Invariant($" AS {StatisticsBucket}, {AdoConstants.ColumnRunTime}, CASE WHEN {AdoConstants.ColumnResult} IN ({(int) JobRunResult.Succeeded}, {(int) JobRunResult.Failed}, {(int) JobRunResult.Cancelled}, {(int) JobRunResult.Skipped}) THEN {AdoConstants.ColumnResult} WHEN {AdoConstants.ColumnSucceeded} = @{SqlParameters.HistoryStatisticsSucceeded} THEN {(int) JobRunResult.Succeeded} ELSE {(int) JobRunResult.Failed} END AS {StatisticsResult} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+
+    /// <summary>The runs of one job group, matched exactly: a prefix of <c>IDX_QRTZ_EH_JOB_TIME</c>.</summary>
+    public static readonly string SqlHistoryJobGroupPredicate =
+        Invariant($" AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.HistoryJobGroup}");
+
+    /// <summary>
+    /// The head of the statement for a dialect with <c>PERCENTILE_CONT</c> as an ordered-set aggregate,
+    /// PostgreSQL's and Oracle's: one row per bucket, the percentiles exact and rounded to a tick.
+    /// </summary>
+    public static readonly string SqlSelectExecutionStatisticsAggregate =
+        Invariant($"SELECT {StatisticsBucket}, {ResultCount(JobRunResult.Succeeded)}, {ResultCount(JobRunResult.Failed)}, {ResultCount(JobRunResult.Cancelled)}, {ResultCount(JobRunResult.Skipped)}, MAX({AdoConstants.ColumnRunTime}), ROUND(PERCENTILE_CONT({ExecutionStatisticsBuilder.Median / 100m}) WITHIN GROUP (ORDER BY {AdoConstants.ColumnRunTime})), ROUND(PERCENTILE_CONT({ExecutionStatisticsBuilder.NinetyFifth / 100m}) WITHIN GROUP (ORDER BY {AdoConstants.ColumnRunTime})) FROM (SELECT ");
+
+    /// <inheritdoc cref="SqlSelectExecutionStatisticsAggregate" />
+    public static readonly string SqlSelectExecutionStatisticsAggregateTail =
+        Invariant($") h GROUP BY {StatisticsBucket} ORDER BY {StatisticsBucket}");
+
+    /// <summary>
+    /// The head of the statement for every other dialect: the runs each side of each percentile's rank,
+    /// and the longest, each row carrying its bucket's counts — at most five rows a bucket.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The rows are a common table expression read twice: ranked with <c>ROW_NUMBER</c>, the one window
+    /// function used, and counted with a <c>GROUP BY</c>, joined on the bucket. Counting in the window as
+    /// well — <c>COUNT(*) OVER</c> and a <c>SUM … OVER</c> per result — cost MySQL a buffered pass of every
+    /// row per function: 25 seconds over a million rows, where this takes 2.5.
+    /// </para>
+    /// <para>
+    /// Which ranks to keep is decided with integers alone — a rank within one of <c>(n - 1) * p</c>, with
+    /// <c>p</c> in hundredths — because the dialects divide integers differently.
+    /// </para>
+    /// </remarks>
+    public static readonly string SqlSelectExecutionStatisticsRanked =
+        Invariant($"WITH {StatisticsRows} AS (SELECT ");
+
+    /// <inheritdoc cref="SqlSelectExecutionStatisticsRanked" />
+    public static readonly string SqlSelectExecutionStatisticsRankedTail =
+        Invariant($") SELECT r.{StatisticsBucket}, r.{AdoConstants.ColumnRunTime}, r.{StatisticsRank}, c.{StatisticsRuns}, c.STAT_SUCCEEDED, c.STAT_FAILED, c.STAT_CANCELLED, c.STAT_SKIPPED FROM (SELECT {StatisticsBucket}, {AdoConstants.ColumnRunTime}, ROW_NUMBER() OVER (PARTITION BY {StatisticsBucket} ORDER BY {AdoConstants.ColumnRunTime}) AS {StatisticsRank} FROM {StatisticsRows}) r JOIN (SELECT {StatisticsBucket}, COUNT(*) AS {StatisticsRuns}, {ResultCount(JobRunResult.Succeeded)} AS STAT_SUCCEEDED, {ResultCount(JobRunResult.Failed)} AS STAT_FAILED, {ResultCount(JobRunResult.Cancelled)} AS STAT_CANCELLED, {ResultCount(JobRunResult.Skipped)} AS STAT_SKIPPED FROM {StatisticsRows} GROUP BY {StatisticsBucket}) c ON c.{StatisticsBucket} = r.{StatisticsBucket} WHERE r.{StatisticsRank} = c.{StatisticsRuns} OR {NearRank(ExecutionStatisticsBuilder.Median)} OR {NearRank(ExecutionStatisticsBuilder.NinetyFifth)} ORDER BY r.{StatisticsBucket}, r.{StatisticsRank}");
+
+    private static string ResultCount(JobRunResult result) =>
+        Invariant($"SUM(CASE WHEN {StatisticsResult} = {(int) result} THEN 1 ELSE 0 END)");
+
+    /// <summary>
+    /// The ranks within one of a percentile's position <c>(n - 1) * p</c>, multiplied through by a hundred:
+    /// the rank at or below it, and the one above when it falls between two.
+    /// </summary>
+    private static string NearRank(int hundredths) =>
+        Invariant($"((r.{StatisticsRank} - 1) * 100 > (c.{StatisticsRuns} - 1) * {hundredths} - 100 AND (r.{StatisticsRank} - 1) * 100 < (c.{StatisticsRuns} - 1) * {hundredths} + 100)");
 }

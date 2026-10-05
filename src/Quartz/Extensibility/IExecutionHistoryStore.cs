@@ -17,6 +17,8 @@
  */
 #endregion
 
+using Quartz.Impl;
+
 namespace Quartz.Extensibility;
 
 /// <summary>
@@ -43,7 +45,8 @@ namespace Quartz.Extensibility;
 /// </para>
 /// <para>
 /// Beside the feeds, a store may keep a <see cref="JobRunStatus" /> per job, read with
-/// <see cref="QueryJobRunStatuses" /> and <see cref="GetJobRunStatus" />.
+/// <see cref="QueryJobRunStatuses" /> and <see cref="GetJobRunStatus" />. Every store counts its runs over
+/// time with <see cref="QueryExecutionStatistics" />.
 /// </para>
 /// </remarks>
 public interface IExecutionHistoryStore
@@ -176,5 +179,68 @@ public interface IExecutionHistoryStore
             cancellationToken).ConfigureAwait(false);
 
         return page.Items.Count > 0 ? page.Items[0] : null;
+    }
+
+    /// <summary>
+    /// Counts a scheduler's runs by result and times them, in buckets of fire time.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What a chart of runs over time reads: one answer for a whole window, however many rows it holds,
+    /// where a page of <see cref="QueryExecutions" /> holds a few.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a store written against an earlier 4.x keeps compiling. The default
+    /// reads <see cref="QueryExecutions" /> a thousand rows at a time, newest first, and counts them here. It
+    /// stops after <see cref="ExecutionStatistics.DefaultRowLimit" /> rows and sets
+    /// <see cref="ExecutionStatistics.Truncated" />, so its oldest buckets may then be short. A store that can
+    /// count where it keeps the rows overrides it; the shipped ones do.
+    /// </para>
+    /// </remarks>
+    /// <param name="query">Which runs to count, and the bucket size.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask<ExecutionStatistics> QueryExecutionStatistics(ExecutionStatisticsQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        const int PageSize = 1000;
+
+        ExecutionStatisticsBuilder builder = new(query.BucketSize);
+        HashSet<string> counted = new(StringComparer.Ordinal);
+        int read = 0;
+
+        while (true)
+        {
+            // A group alone is narrowed by the key filter, which finds every row of the group and a few more;
+            // the group is then matched exactly here.
+            ExecutionHistoryQuery page = query.AsHistoryQuery(read, PageSize);
+            if (query.JobGroup is not null && query.JobContains is null)
+            {
+                page = page with { JobContains = query.JobGroup };
+            }
+
+            PagedResult<ExecutionHistoryEntry> rows = await QueryExecutions(page, cancellationToken).ConfigureAwait(false);
+
+            foreach (ExecutionHistoryEntry row in rows.Items)
+            {
+                // A row recorded while this reads pushes the older ones down a page, and is then read twice.
+                bool seen = row.EntryId is { } entryId && !counted.Add(entryId);
+                if (!seen && (query.JobGroup is null || string.Equals(row.JobGroup, query.JobGroup, StringComparison.Ordinal)))
+                {
+                    builder.Add(row);
+                }
+            }
+
+            read += rows.Items.Count;
+            if (!rows.HasMore || rows.Items.Count == 0)
+            {
+                return builder.Build(truncated: false);
+            }
+
+            if (read >= ExecutionStatistics.DefaultRowLimit)
+            {
+                return builder.Build(truncated: true);
+            }
+        }
     }
 }

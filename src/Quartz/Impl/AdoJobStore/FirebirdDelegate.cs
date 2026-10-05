@@ -28,4 +28,10 @@ public class FirebirdDelegate : StdAdoDelegate
         AdoConstants.ColumnLastFailureMessage => 1000,
         _ => null,
     };
+
+    /// <summary>
+    /// Firebird divides two integers as integers, but cannot type a bare parameter that divides a column inside
+    /// a common table expression, which the run statistics read their rows in; so the bucket size is cast.
+    /// </summary>
+    internal override string HistoryStatisticsBucketExpression => StdAdoConstants.SqlStatisticsBucketByTypedDivision;
 }

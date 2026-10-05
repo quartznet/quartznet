@@ -206,11 +206,20 @@ public sealed class HistoryStatementTest
     }
 
     /// <summary>
-    /// No history statement uses a window function.
+    /// No history statement that writes or sweeps uses a window function.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Six dialects spell <c>ROW_NUMBER() OVER (…)</c> differently or, on old Firebird and MySQL, not at all.
-    /// The bounds are found by paging to a boundary row and by <c>GROUP BY … HAVING</c>.
+    /// The bounds are found by paging to a boundary row and by <c>GROUP BY … HAVING</c>, so a database that
+    /// lacks them still records and sweeps.
+    /// </para>
+    /// <para>
+    /// The run statistics' ranked read is the one exception, and the only one: a read made when a chart asks,
+    /// never on the firing or sweeping path, with one window function — <c>ROW_NUMBER() OVER (PARTITION BY …
+    /// ORDER BY …)</c>, no frame — that SQL Server 2012, MySQL 8, SQLite 3.25 and Firebird 3 read alike.
+    /// Firebird 3 is the floor <c>OFFSET … FETCH</c> paging already sets.
+    /// </para>
     /// </remarks>
     [Test]
     public void NoHistoryStatementUsesAWindowFunction()
@@ -218,11 +227,17 @@ public sealed class HistoryStatementTest
         IEnumerable<string> statements = typeof(StdAdoConstants)
             .GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
             .Where(field => field.FieldType == typeof(string))
+            .Where(field => field.Name != nameof(StdAdoConstants.SqlSelectExecutionStatisticsRankedTail))
             .Select(field => (string) field.GetValue(null)!)
             .Concat(statusUpdates.Select(statement => statement.Sql));
 
         statements.Should().NotContain(sql => sql.Contains("OVER (", StringComparison.OrdinalIgnoreCase)
                                               || sql.Contains("OVER(", StringComparison.OrdinalIgnoreCase));
+        string ranked = StdAdoConstants.SqlSelectExecutionStatisticsRankedTail;
+        ranked.Should().Contain("ROW_NUMBER() OVER (PARTITION BY STAT_BUCKET ORDER BY RUN_TIME)")
+            .And.NotContainAny(["ROWS BETWEEN", "RANGE BETWEEN", "LAG(", "LEAD(", "PERCENT_RANK"],
+                "the ranked read keeps to the one window function every shipped dialect spells the same way");
+        ranked.Split("OVER (").Should().HaveCount(2, "the counts come from a GROUP BY, which no dialect buffers per function");
     }
 
     /// <summary>

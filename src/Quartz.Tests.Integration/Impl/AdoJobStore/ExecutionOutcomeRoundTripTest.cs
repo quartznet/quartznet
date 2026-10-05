@@ -351,7 +351,88 @@ public abstract class ExecutionOutcomeRoundTripTest
         }
     }
 
+    /// <summary>
+    /// The run statistics on this dialect: its bucket expression, its effective result, and its percentiles
+    /// — the database's own on PostgreSQL and Oracle, interpolated from ranked rows elsewhere — against the
+    /// fixture <c>ExecutionHistoryStoreContractTest</c> works out by hand.
+    /// </summary>
+    /// <remarks>
+    /// Nine o'clock holds 100, 200, 300, 400 and 1,000 ms: a median of 300 and a 95th percentile of
+    /// 400 + 0.8 × 600 = 880. Ten holds 50 and 150: 100 and 145. Eleven holds nothing, and the hour now holds
+    /// one run of another group.
+    /// </remarks>
+    [Test]
+    public async Task RunsAreCountedByResultAndTimedPerBucket()
+    {
+        using AdoExecutionHistoryStore store = await CreateStore(_ => { });
+
+        DateTimeOffset hour = new(Now.UtcTicks / TimeSpan.TicksPerHour * TimeSpan.TicksPerHour, TimeSpan.Zero);
+        DateTimeOffset nine = hour.AddHours(-3);
+
+        ExecutionHistoryEntry[] runs =
+        [
+            Timed("hourly", "s1", nine.AddMinutes(5), 100, JobRunResult.Succeeded),
+            Timed("hourly", "s2", nine.AddMinutes(10), 200, JobRunResult.Succeeded),
+            Timed("hourly", "k1", nine.AddMinutes(20), 300, JobRunResult.Skipped),
+            Timed("hourly", "f1", nine.AddMinutes(30), 400, JobRunResult.Failed),
+            Timed("hourly", "c1", nine.AddMinutes(59).AddSeconds(59), 1000, JobRunResult.Cancelled),
+            Timed("daily", "f2", nine.AddMinutes(75), 50, JobRunResult.Failed) with { RetryScheduled = true },
+            Timed("daily", "s3", nine.AddMinutes(105), 150, JobRunResult.Succeeded) with { SchedulerInstanceId = "node-b" },
+            Timed("elsewhere", "k2", hour, 70, JobRunResult.Skipped) with { JobGroup = "other" },
+            Timed("legacy", "legacy", nine.AddMinutes(150), 20, JobRunResult.Failed) with { JobGroup = "legacy", Result = null }
+        ];
+
+        foreach (ExecutionHistoryEntry run in runs)
+        {
+            await store.AddExecution(run);
+        }
+
+        ExecutionStatistics statistics = await store.QueryExecutionStatistics(Statistics() with { JobGroup = "outcome" });
+
+        statistics.Buckets.Select(bucket => bucket.StartUtc).Should().Equal([nine, nine.AddHours(1)],
+            "a bucket starts on the hour, in this dialect's integer division");
+
+        ExecutionStatisticsBucket first = statistics.Buckets[0];
+        (first.SucceededCount, first.SkippedCount, first.FailedCount, first.CancelledCount).Should().Be((2L, 1L, 1L, 1L));
+        first.P50Duration.Should().Be(TimeSpan.FromMilliseconds(300));
+        first.P95Duration.Should().Be(TimeSpan.FromMilliseconds(880), "rank 3.8 lies 0.8 of the way from 400 to 1,000");
+        first.MaxDuration.Should().Be(TimeSpan.FromMilliseconds(1000));
+
+        ExecutionStatisticsBucket second = statistics.Buckets[1];
+        (second.SucceededCount, second.FailedCount).Should().Be((1L, 1L));
+        second.P50Duration.Should().Be(TimeSpan.FromMilliseconds(100));
+        second.P95Duration.Should().Be(TimeSpan.FromMilliseconds(145));
+        second.MaxDuration.Should().Be(TimeSpan.FromMilliseconds(150));
+
+        ExecutionStatisticsBucket legacy = (await store.QueryExecutionStatistics(Statistics() with { JobGroup = "legacy" }))
+            .Buckets.Should().ContainSingle().Subject;
+        legacy.FailedCount.Should().Be(1, "a row without a RESULT counts as its SUCCEEDED says, in this dialect's spelling of false");
+
+        (await RunCount(store, Statistics())).Should().Be(9);
+        (await RunCount(store, Statistics() with { Job = new JobKey("hourly", "outcome") })).Should().Be(5);
+        (await RunCount(store, Statistics() with { JobGroup = "outcome", FiredFrom = nine.AddHours(1), FiredBefore = hour })).Should().Be(2);
+        (await RunCount(store, Statistics() with { Results = [JobRunResult.Failed, JobRunResult.Cancelled] })).Should().Be(4);
+        (await RunCount(store, Statistics() with { SchedulerInstanceId = "node-b" })).Should().Be(1);
+        (await RunCount(store, Statistics() with { JobContains = "daily" })).Should().Be(2);
+
+        ExecutionStatistics daily = await store.QueryExecutionStatistics(Statistics() with { BucketSize = TimeSpan.FromDays(1) });
+        daily.Buckets.Sum(bucket => bucket.RunCount).Should().Be(9);
+        daily.Buckets.Should().OnlyContain(bucket => bucket.StartUtc.TimeOfDay == TimeSpan.Zero, "a day bucket starts at midnight UTC");
+    }
+
     // ---------------------------------------------------------------------------------------------
+
+    private ExecutionStatisticsQuery Statistics() => new() { SchedulerName = schedulerName };
+
+    private static async Task<long> RunCount(AdoExecutionHistoryStore store, ExecutionStatisticsQuery query)
+    {
+        return (await store.QueryExecutionStatistics(query)).Buckets.Sum(bucket => bucket.RunCount);
+    }
+
+    private ExecutionHistoryEntry Timed(string jobName, string entryId, DateTimeOffset firedAt, int milliseconds, JobRunResult result)
+    {
+        return Run(jobName, entryId, firedAt, result) with { Duration = TimeSpan.FromMilliseconds(milliseconds) };
+    }
 
     private ExecutionHistoryQuery Query() => new() { SchedulerName = schedulerName };
 
