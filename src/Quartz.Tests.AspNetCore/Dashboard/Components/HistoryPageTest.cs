@@ -472,6 +472,49 @@ public class HistoryPageTest
     }
 
     /// <summary>
+    /// A listing that carries the input, as the in-memory history's does, is not read again.
+    /// </summary>
+    [Test]
+    public void RunAgainUsesAnInputTheListingAlreadyCarries()
+    {
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false) with { EntryId = "entry-1", Input = "\"listed\"" });
+
+        IRenderedComponent<History> page = context.Render<History>();
+        IElement button = page.Find("[data-testid=history-run-again]");
+        button.GetAttribute("title").Should().Be("Fires the job again with the original input");
+
+        button.Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName,
+                A<JobKeyDto>._,
+                A<JobDataMap?>.That.Matches(data => data != null && data.GetString(SchedulerConstants.JobInput) == "\"listed\""),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+
+        A.CallTo(() => context.Api.GetExecution(A<string>._, A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A row trimmed from the history since the listing was read has no input left to give.
+    /// </summary>
+    [Test]
+    public void RunAgainOfARowTrimmedSinceTheListingFiresWithoutInput()
+    {
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false) with { EntryId = "entry-1" });
+        A.CallTo(() => context.Api.GetExecution(A<string>._, A<string>._, A<CancellationToken>._))
+            .Returns((DashboardHistoryEntry?) null);
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("[data-testid=history-run-again]").GetAttribute("title").Should().Contain("when the history recorded one");
+        page.Find("[data-testid=history-run-again]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName, A<JobKeyDto>._, null, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+    }
+
+    /// <summary>
     /// A target that serves no single executions has no input to give, so Run again fires the job as before.
     /// </summary>
     [Test]
