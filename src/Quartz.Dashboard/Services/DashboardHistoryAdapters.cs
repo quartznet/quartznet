@@ -59,7 +59,9 @@ internal static class DashboardHistoryMapping
             Summary = entry.Summary,
             MetricsJson = entry.MetricsJson,
             Manual = entry.Manual,
-            FireInstanceId = entry.FireInstanceId
+            FireInstanceId = entry.FireInstanceId,
+            Input = entry.Input,
+            InputTooLarge = entry.InputTooLarge
         };
     }
 
@@ -85,7 +87,9 @@ internal static class DashboardHistoryMapping
             Summary = entry.Summary,
             MetricsJson = entry.MetricsJson,
             Manual = entry.Manual,
-            FireInstanceId = entry.FireInstanceId
+            FireInstanceId = entry.FireInstanceId,
+            Input = entry.Input,
+            InputTooLarge = entry.InputTooLarge
         };
     }
 

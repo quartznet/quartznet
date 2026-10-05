@@ -115,6 +115,20 @@ public sealed record DashboardHistoryEntry(
 
     /// <inheritdoc cref="ExecutionHistoryEntry.EffectiveResult" />
     public JobRunResult EffectiveResult => Result ?? (Succeeded ? JobRunResult.Succeeded : JobRunResult.Failed);
+
+    /// <summary>
+    /// The input the run was given, or <see langword="null" /> when none was recorded. Read by
+    /// <see cref="IQuartzApiClient.GetExecution" />; a listing may leave it out, as it may <see cref="Log" />.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ExecutionHistoryEntry.Input" />, carried over, and what the history page's <em>Run again</em>
+    /// passes back to <see cref="IQuartzApiClient.TriggerJob" />. A non-positional <c>init</c> property,
+    /// added in 4.4.
+    /// </remarks>
+    public string? Input { get; init; }
+
+    /// <inheritdoc cref="ExecutionHistoryEntry.InputTooLarge" />
+    public bool InputTooLarge { get; init; }
 }
 
 /// <summary>
