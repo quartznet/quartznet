@@ -7,12 +7,23 @@
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
 @inject IOptions<QuartzDashboardOptions> Options
+@inject ToastService Toasts
+@inject DashboardActionLog ActionLog
 
 <div class="qz-page">
     <h1>Execution</h1>
 
     <div class="qz-row">
         <a class="qz-details-link" href="@DashboardLink.To(Options.Value, "history")">Back to execution history</a>
+        @* Only on a final failure, as on the history page; the label says whether the run's input goes with it. *@
+        @if (_entry is not null && !Options.Value.ReadOnly && !_entry.Succeeded && !_entry.RetryScheduled)
+        {
+            <button type="button"
+                    class="qz-button qz-button-primary"
+                    data-testid="execution-run-again"
+                    disabled="@_running"
+                    @onclick="RunAgainAsync">Run again @RunAgainInput.Label(_entry)</button>
+        }
     </div>
 
     @if (_isLoading)
@@ -51,8 +62,15 @@
                 <tr><th>Attempt</th><td>@AttemptLabel(_entry)</td></tr>
                 <tr><th>Error</th><td>@(string.IsNullOrEmpty(_entry.ExceptionMessage) ? "—" : _entry.ExceptionMessage)</td></tr>
                 <tr><th>Fire instance</th><td class="qz-table-cell-mono" data-testid="execution-fire-instance">@(string.IsNullOrEmpty(_entry.FireInstanceId) ? "—" : _entry.FireInstanceId)</td></tr>
+                <tr><th>Input</th><td data-testid="execution-input-state">@RunAgainInput.State(_entry)</td></tr>
             </tbody>
         </table>
+
+        @if (_entry.Input is { } input)
+        {
+            <h2>Input</h2>
+            <pre class="qz-execution-log" data-testid="execution-input">@input</pre>
+        }
 
         <h2>Metrics</h2>
         @if (_metrics.Count == 0)
@@ -98,6 +116,7 @@
     private bool _historyUnavailable;
     private DashboardHistoryEntry? _entry;
     private List<KeyValuePair<string, string>> _metrics = [];
+    private bool _running;
 
     [Parameter]
     public string EntryId { get; set; } = string.Empty;
@@ -150,6 +169,40 @@
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Fires the run's job again, by hand, with its recorded input when it has one, as the history page's
+    /// <em>Run again</em> does and under the same action-log names.
+    /// </summary>
+    private async Task RunAgainAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (_entry is not { } run || Options.Value.ReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        string target = DisplayValueHelper.FormatKey(run.JobGroup, run.JobName);
+        JobDataMap? input = RunAgainInput.DataFor(run);
+        string action = input is null ? "TriggerJob" : "TriggerJobWithData";
+
+        _running = true;
+        try
+        {
+            await Api.TriggerJob(schedulerName, new JobKeyDto(run.JobGroup, run.JobName), input);
+            ActionLog.Record(schedulerName, action, target, succeeded: true);
+            Toasts.Success("Triggered job " + target + " " + RunAgainInput.Describe(run) + ".");
+        }
+        catch (Exception ex)
+        {
+            ActionLog.Record(schedulerName, action, target, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+        }
+        finally
+        {
+            _running = false;
         }
     }
 

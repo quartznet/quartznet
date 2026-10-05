@@ -210,6 +210,8 @@ namespace Quartz.Dashboard.Services
         public string? ExceptionMessage { get; init; }
         public string? FireInstanceId { get; init; }
         public System.DateTimeOffset FiredAtUtc { get; init; }
+        public string? Input { get; init; }
+        public bool InputTooLarge { get; init; }
         public string JobGroup { get; init; }
         public string JobName { get; init; }
         public string? Log { get; init; }

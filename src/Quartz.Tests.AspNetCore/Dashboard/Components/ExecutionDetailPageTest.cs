@@ -114,6 +114,95 @@ public class ExecutionDetailPageTest
         });
     }
 
+    /// <summary>
+    /// A failure whose input the history recorded shows it, and Run again says it carries it and does.
+    /// </summary>
+    [Test]
+    public void ARecordedInputIsShownAndRunAgainCarriesIt()
+    {
+        const string input = "{\"invoiceId\":42,\"note\":\"café\"}";
+        GivenExecution(Entry() with { Succeeded = false, ExceptionMessage = "the mail server refused", Input = input });
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=execution-input]").TextContent.Should().Be(input, "the input is shown as the scheduler stored it");
+            page.Find("[data-testid=execution-input-state]").TextContent.Should().Be("Recorded, 31 bytes",
+                "the size is in UTF-8 bytes, which is what the cap counts");
+            page.Find("[data-testid=execution-run-again]").TextContent.Should().Be("Run again with the original input");
+        });
+
+        page.Find("[data-testid=execution-run-again]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName,
+                A<JobKeyDto>.That.Matches(key => key.Group == "DummyGroup" && key.Name == "DummyJob"),
+                A<JobDataMap?>.That.Matches(data => data != null && data.GetString(SchedulerConstants.JobInput) == input),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+
+        context.ActionLog.GetLatest().Should().ContainSingle().Which.Action.Should().Be("TriggerJobWithData");
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Triggered job DummyGroup.DummyJob with the original input.");
+    }
+
+    /// <summary>
+    /// A failure with no recorded input says how to record one, and Run again says it carries none.
+    /// </summary>
+    [Test]
+    public void AFailureWithoutARecordedInputRunsAgainWithoutOne()
+    {
+        GivenExecution(Entry() with { Succeeded = false, ExceptionMessage = "the mail server refused" });
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=execution-input-state]").TextContent.Should().Contain("RecordInput",
+                "a reader who expected an input needs to know recording one is a choice");
+            page.FindAll("[data-testid=execution-input]").Should().BeEmpty();
+            page.Find("[data-testid=execution-run-again]").TextContent.Should().Be("Run again without input");
+        });
+
+        page.Find("[data-testid=execution-run-again]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName, A<JobKeyDto>._, null, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+
+        context.ActionLog.GetLatest().Should().ContainSingle().Which.Action.Should().Be("TriggerJob");
+    }
+
+    [Test]
+    public void AnInputTooLargeToRecordIsSaidToBe()
+    {
+        GivenExecution(Entry() with { Succeeded = false, InputTooLarge = true });
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=execution-input-state]").TextContent.Should().Contain("MaxInputBytes");
+            page.Find("[data-testid=execution-run-again]").TextContent.Should().Be("Run again without input");
+        });
+    }
+
+    [Test]
+    public void ASuccessOrARunBeingRetriedOffersNoRunAgain()
+    {
+        GivenExecution(Entry() with { Input = "{}" });
+        IRenderedComponent<ExecutionDetail> success = Render("entry-1");
+        success.WaitForAssertion(() => success.Find("[data-testid=execution-input]").TextContent.Should().Be("{}"));
+        success.FindAll("[data-testid=execution-run-again]").Should().BeEmpty("a success has nothing to run again");
+
+        GivenExecution(Entry() with { Succeeded = false, RetryScheduled = true });
+        IRenderedComponent<ExecutionDetail> retrying = Render("entry-1");
+        retrying.WaitForAssertion(() => retrying.Find("[data-testid=execution-input-state]"));
+        retrying.FindAll("[data-testid=execution-run-again]").Should().BeEmpty(
+            "the trigger already has another attempt coming, and a button here would add a second one");
+    }
+
     [Test]
     public void AnExecutionThatIsGoneIsSaidToBeGone()
     {

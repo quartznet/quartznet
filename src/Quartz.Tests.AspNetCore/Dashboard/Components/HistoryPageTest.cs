@@ -1,3 +1,5 @@
+using AngleSharp.Dom;
+
 using Bunit;
 
 using FakeItEasy;
@@ -390,6 +392,103 @@ public class HistoryPageTest
                 "every mutation the dashboard makes is recorded, and this one is a mutation like any other")
             .Which.Should().Match<DashboardActionLogEntry>(
                 entry => entry.Action == "TriggerJob" && entry.Target == "DummyGroup.DummyJob" && entry.Succeeded);
+    }
+
+    /// <summary>
+    /// Run again reads the row by its key, because a listing leaves the input out, and fires the job with
+    /// the input the failed run had.
+    /// </summary>
+    [Test]
+    public void RunAgainPassesTheRecordedInputBack()
+    {
+        const string input = "{\"invoiceId\":42}";
+        DashboardHistoryEntry listed = Failed(retryAttempt: 1, retryScheduled: false) with { EntryId = "entry-1" };
+        GivenHistory(listed);
+        A.CallTo(() => context.Api.GetExecution(TestData.SchedulerName, "entry-1", A<CancellationToken>._))
+            .Returns(listed with { Input = input });
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("[data-testid=history-run-again]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName,
+                A<JobKeyDto>.That.Matches(key => key.Group == "DummyGroup" && key.Name == "DummyJob"),
+                A<JobDataMap?>.That.Matches(data => data != null && data.GetString(SchedulerConstants.JobInput) == input),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+
+        context.ActionLog.GetLatest().Should().ContainSingle()
+            .Which.Action.Should().Be("TriggerJobWithData", "the run carries data, as Job Detail's Trigger with data does");
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Triggered job DummyGroup.DummyJob with the original input.");
+    }
+
+    /// <summary>
+    /// A row the history recorded no input for fires the job with no map, as Run again always did.
+    /// </summary>
+    [Test]
+    public void RunAgainWithoutARecordedInputIsAPlainTriggerJob()
+    {
+        DashboardHistoryEntry listed = Failed(retryAttempt: 1, retryScheduled: false) with { EntryId = "entry-1" };
+        GivenHistory(listed);
+        A.CallTo(() => context.Api.GetExecution(TestData.SchedulerName, "entry-1", A<CancellationToken>._))
+            .Returns(listed);
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("[data-testid=history-run-again]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName, A<JobKeyDto>._, null, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+
+        context.ActionLog.GetLatest().Should().ContainSingle().Which.Action.Should().Be("TriggerJob");
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Triggered job DummyGroup.DummyJob without input.",
+                "the operator is told the job ran without the input, rather than left to assume it had it");
+    }
+
+    /// <summary>
+    /// A row whose input was too large to keep says so on the button and in the toast, and is fired
+    /// without asking for an input it knows is not there.
+    /// </summary>
+    [Test]
+    public void RunAgainOfARowWhoseInputWasTooLargeSaysSo()
+    {
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false) with { EntryId = "entry-1", InputTooLarge = true });
+
+        IRenderedComponent<History> page = context.Render<History>();
+        IElement button = page.Find("[data-testid=history-run-again]");
+        button.GetAttribute("title").Should().Contain("without input").And.Contain("too large");
+
+        button.Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName, A<JobKeyDto>._, null, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+
+        A.CallTo(() => context.Api.GetExecution(A<string>._, A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Triggered job DummyGroup.DummyJob without input: the run's input was too large for the history to keep.");
+    }
+
+    /// <summary>
+    /// A target that serves no single executions has no input to give, so Run again fires the job as before.
+    /// </summary>
+    [Test]
+    public void RunAgainAgainstATargetWithoutSingleExecutionsFiresWithoutInput()
+    {
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false) with { EntryId = "entry-1" });
+        A.CallTo(() => context.Api.GetExecution(A<string>._, A<string>._, A<CancellationToken>._))
+            .Throws(new NotSupportedException("the target does not serve single executions"));
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("[data-testid=history-run-again]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName, A<JobKeyDto>._, null, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+
+        context.Toasts.Messages.Should().ContainSingle().Which.Message.Should().EndWith("without input.");
     }
 
     [Test]

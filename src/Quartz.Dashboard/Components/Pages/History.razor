@@ -198,6 +198,7 @@
                                     <button type="button"
                                             class="qz-button qz-button-primary"
                                             data-testid="history-run-again"
+                                            title="@RunAgainInput.Hint(entry)"
                                             @onclick="() => RunAgainAsync(entry)">Run again</button>
                                 }
                             </td>
@@ -866,14 +867,15 @@
     private static bool FailedFinally(DashboardHistoryEntry entry) => !entry.Succeeded && !entry.RetryScheduled;
 
     /// <summary>
-    /// Fires the row's job again, by hand.
+    /// Fires the row's job again, by hand, with the input the run had when the history recorded it.
     /// </summary>
     /// <remarks>
-    /// <see cref="IQuartzApiClient.TriggerJob" />, which is the same mutation the
-    /// jobs listing's <em>Trigger now</em> is — so it is recorded in the action log under the same
-    /// name, and refused in the same place when the dashboard is read-only. It carries no job data
-    /// map: a history row records that an execution happened, not the merged map it ran with, and
-    /// inventing one here would fire the job with data it was never given.
+    /// <see cref="IQuartzApiClient.TriggerJob" />, which is the same mutation the jobs listing's
+    /// <em>Trigger now</em> is — so it is recorded in the action log under the same name, or under Job
+    /// Detail's <c>TriggerJobWithData</c> when it carries the input, and refused in the same place when
+    /// the dashboard is read-only. The input is read on demand, from the row's own entry, because a
+    /// listing leaves it out; a row without one fires the job with no map, as before, because inventing
+    /// one would fire the job with data it was never given. The toast says which it was.
     /// </remarks>
     private async Task RunAgainAsync(DashboardHistoryEntry entry)
     {
@@ -884,18 +886,23 @@
         }
 
         string target = DisplayValueHelper.FormatKey(entry.JobGroup, entry.JobName);
+        string action = "TriggerJob";
 
         try
         {
-            await Api.TriggerJob(schedulerName, new JobKeyDto(entry.JobGroup, entry.JobName));
-            ActionLog.Record(schedulerName, "TriggerJob", target, succeeded: true);
-            Toasts.Success("Triggered job " + target + ".");
+            DashboardHistoryEntry recorded = await RunAgainInput.Read(Api, schedulerName, entry);
+            JobDataMap? input = RunAgainInput.DataFor(recorded);
+            action = input is null ? "TriggerJob" : "TriggerJobWithData";
+
+            await Api.TriggerJob(schedulerName, new JobKeyDto(entry.JobGroup, entry.JobName), input);
+            ActionLog.Record(schedulerName, action, target, succeeded: true);
+            Toasts.Success("Triggered job " + target + " " + RunAgainInput.Describe(recorded) + ".");
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, "TriggerJob", target, succeeded: false, ex.Message);
+            ActionLog.Record(schedulerName, action, target, succeeded: false, ex.Message);
             Toasts.Error(ex.Message);
         }
     }
