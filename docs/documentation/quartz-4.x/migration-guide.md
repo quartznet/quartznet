@@ -260,6 +260,11 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * **The dashboard's *Pause selected* with a reason is one call.** 4.3 paused a key at a time. A refusal now
   fails the whole selection, as the reasonless pause always did. An `IQuartzApiClient` of your own gets the
   `PauseTriggersWith` default, which still pauses a key at a time through your `PauseTriggerWith`.
+* **A replace that ends a trigger's pause forgets its reason.** 4.3 left `PAUSE_REASON`, `PAUSED_BY` and
+  `PAUSED_AT` on the row, so a later pause without a reason read the old one back. The trigger UPDATE now
+  clears them in any state but paused, and keeps them when the replacement stays paused, in a paused group say.
+  A `StdAdoDelegate` subclass that overrides `UpdateTrigger` with a statement of its own keeps the 4.3
+  behaviour.
 * **The new `*With` set defaults keep the details.** The other `*With` defaults drop them. A scheduler or
   store of your own gets `PauseTriggersWith` and `PauseJobsWith` as one `PauseTriggerWith` or `PauseJobWith`
   call per key, so it records the reason with no change. Override them only to pause the set in one call.

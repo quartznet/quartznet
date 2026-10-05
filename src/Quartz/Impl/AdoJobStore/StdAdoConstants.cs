@@ -1164,6 +1164,38 @@ internal static class StdAdoConstants
                         {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{OverlapSetClause}{PreferredNodeSetClause}
                     WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
+    // What a trigger row written in a state that is not paused forgets: the record of the pause it
+    // may have had. The record is read only while the row is paused and a resume clears it, but a write
+    // that ends the pause some other way — a replace, above all — would leave it for a later reasonless
+    // pause to bring back. Folded into the UPDATE that write makes anyway rather than a statement of its
+    // own, and after every parameter, so the binding is the same in every flavour.
+    private const string PauseClearSetClause =
+        $", {AdoConstants.ColumnPauseReason} = NULL, {AdoConstants.ColumnPausedBy} = NULL, {AdoConstants.ColumnPausedAt} = NULL ";
+
+    /// <summary>
+    /// <see cref="SqlUpdateTrigger" />, for a row written in a state that is not paused: it also forgets
+    /// the pause's record.
+    /// </summary>
+    public static readonly string SqlUpdateTriggerClearingPause = ClearingPause(SqlUpdateTrigger);
+
+    /// <inheritdoc cref="SqlUpdateTriggerClearingPause" />
+    public static readonly string SqlUpdateTriggerWithPreferredNodeClearingPause = ClearingPause(SqlUpdateTriggerWithPreferredNode);
+
+    /// <inheritdoc cref="SqlUpdateTriggerClearingPause" />
+    public static readonly string SqlUpdateTriggerSkipDataClearingPause = ClearingPause(SqlUpdateTriggerSkipData);
+
+    /// <inheritdoc cref="SqlUpdateTriggerClearingPause" />
+    public static readonly string SqlUpdateTriggerSkipDataWithPreferredNodeClearingPause = ClearingPause(SqlUpdateTriggerSkipDataWithPreferredNode);
+
+    /// <summary>
+    /// The trigger UPDATE with <see cref="PauseClearSetClause" /> as the last assignment of its SET list.
+    /// </summary>
+    private static string ClearingPause(string update)
+    {
+        int where = update.IndexOf("WHERE ", StringComparison.Ordinal);
+        return update.Insert(where, PauseClearSetClause);
+    }
+
     // Compare-and-swap for the auto-pin claim/steal: only writes when the columns still hold the
     // values observed at acquisition time, so a concurrent re-pin or clear wins over the claim.
     public static readonly string SqlUpdateTriggerPreferredNodeConditional =

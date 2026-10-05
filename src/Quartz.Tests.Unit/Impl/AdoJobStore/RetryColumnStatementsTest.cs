@@ -36,8 +36,8 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 public class RetryColumnStatementsTest
 {
     /// <summary>
-    /// The four flavours of the trigger UPDATE. Each is picked by a different pair of decisions
-    /// (dirty job data, changed pin), and all four write the whole trigger row.
+    /// The eight flavours of the trigger UPDATE. Each is picked by a different set of decisions (dirty
+    /// job data, changed pin, a state that is not paused), and all eight write the whole trigger row.
     /// </summary>
     public static IEnumerable<TestCaseData> TriggerUpdates()
     {
@@ -45,6 +45,35 @@ public class RetryColumnStatementsTest
         yield return new TestCaseData(StdAdoConstants.SqlUpdateTriggerWithPreferredNode).SetName("update, with the pin");
         yield return new TestCaseData(StdAdoConstants.SqlUpdateTriggerSkipData).SetName("update, skipping job data");
         yield return new TestCaseData(StdAdoConstants.SqlUpdateTriggerSkipDataWithPreferredNode).SetName("update, skipping job data, with the pin");
+
+        foreach (TestCaseData clearing in ClearingTriggerUpdates())
+        {
+            yield return clearing;
+        }
+    }
+
+    /// <summary>
+    /// The four flavours written for a row whose new state is not paused, which also forget the pause's
+    /// record.
+    /// </summary>
+    public static IEnumerable<TestCaseData> ClearingTriggerUpdates()
+    {
+        yield return new TestCaseData(StdAdoConstants.SqlUpdateTriggerClearingPause).SetName("update, clearing the pause");
+        yield return new TestCaseData(StdAdoConstants.SqlUpdateTriggerWithPreferredNodeClearingPause).SetName("update, with the pin, clearing the pause");
+        yield return new TestCaseData(StdAdoConstants.SqlUpdateTriggerSkipDataClearingPause).SetName("update, skipping job data, clearing the pause");
+        yield return new TestCaseData(StdAdoConstants.SqlUpdateTriggerSkipDataWithPreferredNodeClearingPause).SetName("update, skipping job data, with the pin, clearing the pause");
+    }
+
+    [TestCaseSource(nameof(ClearingTriggerUpdates))]
+    public void AnUnpausingUpdateClearsThePauseAfterEveryParameter(string sql)
+    {
+        int clear = sql.IndexOf($"{AdoConstants.ColumnPauseReason} = NULL", StringComparison.Ordinal);
+        int lastParameter = sql.LastIndexOf('@', sql.IndexOf("WHERE", StringComparison.Ordinal));
+
+        clear.Should().BeGreaterThan(lastParameter,
+            "the clearing binds nothing and comes last in the SET list, so every flavour binds its parameters in the same order");
+        sql.Should().Contain($"{AdoConstants.ColumnPausedBy} = NULL").And.Contain($"{AdoConstants.ColumnPausedAt} = NULL");
+        sql.Should().MatchRegex(@"= NULL\s+WHERE ", "the statement is still one SET list and one WHERE");
     }
 
     [TestCaseSource(nameof(TriggerUpdates))]

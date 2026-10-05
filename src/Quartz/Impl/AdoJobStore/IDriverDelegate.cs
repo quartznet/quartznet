@@ -285,6 +285,12 @@ public interface IDriverDelegate
     /// <summary>
     /// Update the base trigger data.
     /// </summary>
+    /// <remarks>
+    /// In a <paramref name="state" /> that is not paused, <c>StdAdoDelegate</c> also clears the row's
+    /// <c>PAUSE_REASON</c>, <c>PAUSED_BY</c> and <c>PAUSED_AT</c> in the same statement, so a pause that a
+    /// replace ended cannot be read back by a later reasonless pause. An override that writes its own
+    /// statement and leaves them out keeps the behaviour before 4.4.
+    /// </remarks>
     /// <param name="conn">the DB Connection</param>
     /// <param name="trigger">The trigger.</param>
     /// <param name="state">The state.</param>

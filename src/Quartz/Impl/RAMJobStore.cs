@@ -742,8 +742,14 @@ public sealed class RAMJobStore : IJobStore
         }
 
         TriggerWrapper tw = new((IOperableTrigger) trigger.Clone());
+
+        // The record of the pause the replaced trigger had, which the replacement keeps if it stays
+        // paused, as the ADO store's row does; a replacement stored unpaused has no pause to explain.
+        PauseInfo? replacedPause = null;
         if (triggersByKey.TryGetValue(tw.TriggerKey, out TriggerWrapper? replaced))
         {
+            replacedPause = replaced.pause;
+
             if (!replace)
             {
                 Throw.ObjectAlreadyExistsException(trigger);
@@ -802,6 +808,10 @@ public sealed class RAMJobStore : IJobStore
         {
             // The trigger's own record, which GetTriggerPause answers before any group's.
             tw.pause = pause;
+        }
+        else if (tw.state is StoredTriggerState.Paused or StoredTriggerState.PausedBlocked)
+        {
+            tw.pause = replacedPause;
         }
     }
 
