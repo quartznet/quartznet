@@ -179,6 +179,44 @@ public sealed class RAMJobStoreFireOnAcquireTest
         A.CallTo(() => signaler.NotifySchedulerListenersTriggerInError(calendared, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
     }
 
+    /// <summary>
+    /// Something the fire does not expect, thrown from code of a trigger type Quartz did not write, fails
+    /// that trigger's fire and nothing beside it. Thrown out of the round instead, it would strand the round:
+    /// the scheduler releases what a call it made acquired (#3981), and a round that throws hands it nothing
+    /// to release.
+    /// </summary>
+    [Test]
+    public async Task AnUnexpectedThrowFiringOneTriggerFailsItAloneAndLeavesItReleasable()
+    {
+        CloneFault fault = new();
+        IOperableTrigger brittle = new BrittleCloneTrigger(fault)
+        {
+            Key = new TriggerKey("brittle", Group),
+            JobKey = ordinaryJobKey,
+            StartTimeUtc = epoch,
+            Priority = 10,
+        };
+        brittle.ComputeFirstFireTimeUtc(calendar: null);
+        await store.AddTrigger(brittle);
+        await Schedule("ordinary", ordinaryJobKey, epoch, priority: 5);
+
+        // The round takes its copy of each trigger, and the fire of a type Quartz did not write takes
+        // another, to restore if the fire fails; that second one throws.
+        fault.ThrowOnClone = 2;
+
+        TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(Request(maxCount: 10));
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["brittle", "ordinary"]);
+        round.Fired[0].Exception.Should().BeOfType<InvalidOperationException>("the brittle trigger's fire failed, and says what with");
+        round.Fired[1].TriggerFiredBundle.Should().NotBeNull("the trigger beside it fired");
+
+        // What the scheduler thread does with a failed result.
+        await store.ReleaseAcquiredTrigger(round.Due[0]);
+
+        (await store.GetTriggerState(new TriggerKey("brittle", Group))).Should().Be(TriggerState.Normal, "released, for a later round to fire");
+        (await FireInstances(FireInstanceState.Acquired)).Should().BeEmpty("nothing is left reserved");
+    }
+
     private TriggerAcquisitionRequest Request(int maxCount, TimeSpan window = default)
     {
         return new TriggerAcquisitionRequest
@@ -220,6 +258,29 @@ public sealed class RAMJobStoreFireOnAcquireTest
     public sealed class SerialJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>When a <see cref="BrittleCloneTrigger" /> and every copy of it throws from <c>Clone</c>.</summary>
+    private sealed class CloneFault
+    {
+        /// <summary>The clone, counting from the next, that throws; zero for none.</summary>
+        public int ThrowOnClone { get; set; }
+    }
+
+    /// <summary>
+    /// A trigger type of somebody's own, whose <c>Clone</c> throws when <see cref="CloneFault" /> says.
+    /// </summary>
+    private sealed class BrittleCloneTrigger(CloneFault fault) : Quartz.Impl.Triggers.SimpleTriggerImpl
+    {
+        public override ITrigger Clone()
+        {
+            if (fault.ThrowOnClone > 0 && --fault.ThrowOnClone == 0)
+            {
+                throw new InvalidOperationException("the trigger cannot be copied");
+            }
+
+            return base.Clone();
+        }
     }
 
     /// <summary>Throws while it is told to, from both of the calendar members a fire consults.</summary>
