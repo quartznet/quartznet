@@ -124,7 +124,8 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
 
     /// <summary>
     /// The retry policy in the stored form the <c>RETRY_POLICY</c> column carries — for example
-    /// <c>fixed;3;00:00:30</c> — or <see langword="null" /> to stop retrying.
+    /// <c>fixed;3;00:00:30</c>. <see langword="null" /> removes the trigger's own policy, so it inherits its
+    /// job type's or the scheduler's; <c>none</c> means it is never retried.
     /// </summary>
     public string? RetryPolicy { get; init; }
 

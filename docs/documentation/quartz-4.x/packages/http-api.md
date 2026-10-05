@@ -1012,7 +1012,7 @@ pin, execution group, retry policy and overlap policy unchanged.
 | `preferredNode` | string or `null` | Node pin: `null` clears, `"*"` requests an automatic pin, else a scheduler instance id |
 | `preferredNodeAuto` | bool | Sent with `preferredNode`: whether the pin was assigned automatically |
 | `executionGroup` | string or `null` | The [execution group](../tutorial/execution-groups.md) whose thread limit applies; `null` leaves every group |
-| `retryPolicy` | string or `null` | The [retry policy](../how-tos/retrying-failed-jobs.md) in stored form, e.g. `"fixed;3;00:00:30"`; `null` stops retrying |
+| `retryPolicy` | string or `null` | The [retry policy](../how-tos/retrying-failed-jobs.md) in stored form, e.g. `"fixed;3;00:00:30"`; `"none"` never retries; `null` removes the trigger's own, so it inherits the job type's or the scheduler's |
 | `overlapPolicy` | string or `null` | The [overlap policy](../how-tos/overlap-policy.md) by name: `Skip`, `BufferOne`, `CancelPrevious`, `AllowAll`, `Default`; `null` is `Default`. From 4.3 |
 
 **Name the misfire instruction's family.** `misfireInstructionFamily` is `Simple`, `Cron`, `CalendarInterval`,

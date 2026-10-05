@@ -55,7 +55,7 @@ public sealed record DashboardHistoryEntry(
 {
     /// <summary>
     /// Which attempt at the occurrence this execution was: <c>0</c> on the regular fire, <c>n</c> on
-    /// the <c>n</c>-th retry under the trigger's retry policy.
+    /// the <c>n</c>-th retry under its retry policy: the trigger's, the job type's or the scheduler's default.
     /// </summary>
     /// <remarks>
     /// Non-positional <c>init</c> properties, so the record's constructor is unchanged and a store an

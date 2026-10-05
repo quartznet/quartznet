@@ -82,7 +82,7 @@
             <input id="trigger-edit-retry-policy"
                    class="qz-input qz-input-mono"
                    placeholder="fixed;3;00:05:00"
-                   title="fixed;attempts;delay · exp;attempts;initial delay;factor · list;delay;delay… — blank for no retries"
+                   title="fixed;attempts;delay · exp;attempts;initial delay;factor · list;delay;delay… · none for never retried — blank inherits the job type's or the scheduler's"
                    @bind="_form.RetryPolicy" />
         </div>
         <div class="qz-form-group">
