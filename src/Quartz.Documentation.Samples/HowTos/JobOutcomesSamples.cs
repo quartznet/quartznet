@@ -138,4 +138,25 @@ public sealed class JobOutcomesSamples
 
         #endregion
     }
+
+    public static async Task CountingRunsOverTime(IExecutionHistoryStore history, string schedulerName, DateTimeOffset since)
+    {
+        #region sample_job_outcome_statistics
+
+        ExecutionStatistics statistics = await history.QueryExecutionStatistics(new ExecutionStatisticsQuery
+        {
+            SchedulerName = schedulerName,
+            Job = new JobKey("release-stale", "billing"),
+            FiredFrom = since,
+            BucketSize = TimeSpan.FromHours(1)
+        });
+
+        foreach (ExecutionStatisticsBucket bucket in statistics.Buckets)
+        {
+            // One bucket per hour that holds a run, oldest first.
+            Console.WriteLine($"{bucket.StartUtc:O} {bucket.RunCount} runs, {bucket.FailedCount} failed, p95 {bucket.P95Duration}");
+        }
+
+        #endregion
+    }
 }

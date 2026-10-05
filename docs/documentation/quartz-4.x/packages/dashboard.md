@@ -162,8 +162,8 @@ An implementation must follow the interface's two promises to render like the sh
 
 **Members added during 4.x arrive as default interface members**, so your implementation keeps compiling. The
 default body reports the datum as unavailable, like `CannotReport`; override it when your source can answer.
-`GetJobRunStatus` and `GetJobRunStatuses` (4.4) throw `NotSupportedException` by default, and the pages leave
-out what they would show.
+`GetJobRunStatus`, `GetJobRunStatuses` and `QueryExecutionStatistics` (4.4) throw `NotSupportedException` by
+default, and the pages leave out what they would show.
 
 ## The pages
 
@@ -377,8 +377,8 @@ the last refresh time in the header so a stalled page is visible.
 
 ### Execution History
 
-`/quartz/history`: one row per execution with the node that ran it, a node filter, four stat cards whose titles
-name their scope, and a misfires section. Details under
+`/quartz/history`: one row per execution with the node that ran it, a node filter, a window, four stat cards whose
+titles name their scope, a chart of runs over time, and a misfires section. Details under
 [Execution history and misfires](#execution-history-and-misfires).
 
 Each row's fire time links to `/quartz/history/{EntryId}`, the execution's own page: job, trigger, node, fire
@@ -725,8 +725,13 @@ and the error if any.
 - **Result**: *Succeeded*, *Skipped*, *Failed*, *Failed (retrying)* or *Cancelled*; a *Manual* badge on a run
   asked for with *Trigger now*. A row written before 4.4 shows *Succeeded* or *Failed*. See
   [Job Outcomes](../how-tos/job-outcomes.md).
-- **Stat cards** over the page in view: success rate, failures, average duration, P95 duration.
-- **Filters**: job, trigger, node, outcome and, from 4.4, results and one job exactly.
+- **Stat cards** over every run the filters and the window match: runs, success rate, failed, longest run. A
+  source that cannot count runs over time shows the page's success rate, failures, average and P95 duration,
+  titled *(page)*.
+- **The chart**, from 4.4: runs per bucket stacked by result, and beneath it the median and 95th percentile
+  duration. It follows every filter and the window. Hover a column for its figures; *Show as a table* lists
+  them. See [Run statistics](#run-statistics).
+- **Filters**: window, job, trigger, node, outcome and, from 4.4, results and one job exactly.
 - **The node filter** narrows to one machine, and the stat card titles then say so, so one node's success rate
   is not read as the fleet's.
 - **The outcome filter** handles retries. A job with a retry policy of three writes four failed rows for one bad
@@ -755,6 +760,7 @@ Every filter is a query parameter, so a narrowed view is a link:
 | Failed after retries | `outcome=failed` |
 | Results | `result=failed,cancelled` |
 | One job exactly | `jobGroup` and `jobName`, which the Job Detail page's *View execution history* link writes |
+| Window | `window=1h`, `24h`, `7d` or `30d`; absent is all retained |
 
 Below, **misfires** lists firings that did not happen, which never appear as executions: trigger, its job, the
 node that noticed, the missed firing, when it was noticed, and the reason — `Misfire`, `Overlap` for one a
@@ -773,6 +779,31 @@ occurrences in a row failed for good. See [Read a job's status](../how-tos/job-o
 
 A source that keeps no status (an `IDashboardHistoryStore` of your own, a scheduler in another process whose host
 is older than 4.4) leaves the columns and the panel out.
+
+### Run statistics
+
+From 4.4, the History page charts what its filters list, and the Job Detail page charts that job. Both read
+`IExecutionHistoryStore.QueryExecutionStatistics`; see
+[Count runs over time](../how-tos/job-outcomes.md#count-runs-over-time).
+
+| Window | Buckets |
+|---|---|
+| All retained | A day each; an hour each while every run is from the last three days |
+| Last hour | 5 minutes |
+| Last 24 hours | An hour |
+| Last 7 days | 6 hours |
+| Last 30 days | A day |
+
+- A window starts on a bucket boundary, so its first bucket is whole. Buckets are UTC; labels are in the selected
+  time zone.
+- Counts and durations are two panels over one time axis, never one chart with two scales.
+- The History page reads the statistics when a filter changes and every 30 seconds; the rows refresh every second.
+- An empty stretch is a gap. A store that stopped counting at its row limit says so under the chart.
+- A source that cannot count (an `IQuartzApiClient` of your own, a scheduler in another process whose host is older
+  than 4.4) leaves the chart out.
+- With the [database history](../tutorial/job-stores.md#execution-history-in-the-database), the chart needs
+  PostgreSQL, Oracle, SQL Server 2012+, MySQL 8.0+, SQLite 3.25+ or Firebird 3+. On an older server the read
+  fails and the chart is left out; the stat cards count the page.
 
 The history belongs to Quartz: `AddQuartzExecutionHistory()`'s recorder writes it, the container's
 `IExecutionHistoryStore` holds it, and the [HTTP API](http-api.md#execution-history) serves the same rows. The

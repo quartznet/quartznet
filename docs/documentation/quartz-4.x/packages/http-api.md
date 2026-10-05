@@ -102,7 +102,7 @@ builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 
 ## Every endpoint
 
-Seventy routes in four groups.
+Seventy-one routes in four groups.
 
 - `{ApiPath}` is `/quartz-api` unless changed. `{name}` is the scheduler; every route but the first has one.
 - Every route with `{name}` is subject to [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when set.
@@ -111,7 +111,7 @@ Seventy routes in four groups.
   `{ applied }` is the one-flag form; `{ groups }` / `{ jobs }` / `{ triggers }` are the group-matcher and
   key-set forms; *paged* is the [paged envelope](#listing-endpoints-are-paged).
 
-### Schedulers — 21
+### Schedulers — 22
 
 | Method | Path | Answers |
 |---|---|---|
@@ -133,6 +133,7 @@ Seventy routes in four groups.
 | `GET` | `{ApiPath}/schedulers/{name}/history/job-status` | *paged* [job run statuses](#job-run-status) |
 | `GET` | `{ApiPath}/schedulers/{name}/history/job-status/{jobGroup}/{jobName}` | One job's run status; `404` when no run is recorded |
 | `POST` | `{ApiPath}/schedulers/{name}/history/job-status/fetch` | The run statuses of up to 1000 jobs; a read |
+| `GET` | `{ApiPath}/schedulers/{name}/history/statistics` | [Runs per bucket](#run-statistics), by result, with duration percentiles |
 | `GET` | `{ApiPath}/schedulers/{name}/execution-limits` | `{ limits, useTriggerGroupWhenUnset }`; `limits` is `null` when nothing is limited. Keys are configuration's: a group, `_`, `*`, or a [prefix](../tutorial/execution-groups.md#per-tenant-limits) such as `tenant:*` |
 | `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; replaces the whole set |
 | `DELETE` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; same as posting an empty set |
@@ -620,7 +621,7 @@ From .NET, `AddQuartzHttpClient` registers a reader for this route that reconnec
 ## Execution history
 
 A job store holds what is *scheduled*. What *happened* (what ran, for how long, what it achieved, what was
-missed) is in the container's `IExecutionHistoryStore`, served by seven routes:
+missed) is in the container's `IExecutionHistoryStore`, served by eight routes:
 
 | Path | Query | Answers |
 |---|---|---|
@@ -631,6 +632,7 @@ missed) is in the container's `IExecutionHistoryStore`, served by seven routes:
 | `GET {ApiPath}/schedulers/{name}/history/job-status` | `skip`, `take`, `includeTotalCount`, `failing` | A page of [run statuses](#job-run-status) |
 | `GET {ApiPath}/schedulers/{name}/history/job-status/{jobGroup}/{jobName}` | none | One job's run status |
 | `POST {ApiPath}/schedulers/{name}/history/job-status/fetch` | body: `{ "jobs": [ { "name", "group" } ] }` | The statuses of those jobs |
+| `GET {ApiPath}/schedulers/{name}/history/statistics` | the listing's filters, `jobGroup` alone, `bucket` | [Runs per bucket](#run-statistics) |
 
 ```json
 {
@@ -779,6 +781,53 @@ Which history a route reads follows the [dashboard's rule](dashboard.md#executio
 To keep history elsewhere, register your own `IExecutionHistoryStore` before `AddQuartzHttpApi()`. The shipped
 registration is a `TryAdd`, and `UseExecutionHistory()` replaces only the in-memory default. A dashboard in the
 same process reads the same store.
+
+### Run statistics
+
+From 4.4. A scheduler's runs counted by result and timed, per bucket of fire time. See
+[Count runs over time](../how-tos/job-outcomes.md#count-runs-over-time).
+
+```http
+GET /quartz-api/schedulers/QuartzScheduler/history/statistics?jobGroup=billing&jobName=release-stale&firedFrom=2026-08-26T10:00:00Z&bucket=01:00:00
+```
+
+```json
+{
+  "bucketSize": "01:00:00",
+  "buckets": [
+    {
+      "startUtc": "2026-08-26T10:00:00+00:00",
+      "runCount": 2,
+      "succeededCount": 1,
+      "failedCount": 1,
+      "cancelledCount": 0,
+      "skippedCount": 0,
+      "p50Duration": "00:00:00.2000000",
+      "p95Duration": "00:00:00.2900000",
+      "maxDuration": "00:00:00.3000000"
+    }
+  ],
+  "truncated": false
+}
+```
+
+| Parameter | Matches |
+|---|---|
+| `schedulerInstanceId`, `jobContains`, `triggerContains`, `failedFinally`, `firedFrom`, `firedBefore`, `results` | As on `…/history/executions` |
+| `jobGroup` and `jobName` | One job exactly. `jobGroup` alone counts the group; `jobName` alone is `400` |
+| `bucket` | A `TimeSpan`: `01:00:00` when absent, `1.00:00:00` for a day. Under `00:01:00` is `400` |
+
+- A bucket starts at a whole multiple of `bucket`: an hour on the hour, a day at midnight UTC. One with no run
+  is left out.
+- `truncated` is `true` when the host's store stopped counting at its row limit; the shipped stores never do.
+
+| Case | Answer |
+|---|---|
+| The store cannot count | `501`, `Quartz-ExceptionType: NotSupportedException` |
+| A host before 4.4 | `404` without problem details: no such route |
+
+`HttpExecutionHistoryStore` reads the host's version first and does not ask a host before 4.4. It raises
+`NotSupportedException` for that host and for both answers above.
 
 ## Pause and resume report what they did
 

@@ -263,15 +263,71 @@ foreach (ExecutionHistoryEntry row in page.Items)
   `MisfireReason`s. An empty set matches nothing. A row a 4.2 node wrote has no reason and matches `Missed`.
 * A cancelled run matches `FailedFinally = true`.
 
+## Count runs over time
+
+From 4.4. One call counts every run a window holds, per bucket of fire time:
+
+<!-- snippet: sample_job_outcome_statistics -->
+```csharp
+ExecutionStatistics statistics = await history.QueryExecutionStatistics(new ExecutionStatisticsQuery
+{
+    SchedulerName = schedulerName,
+    Job = new JobKey("release-stale", "billing"),
+    FiredFrom = since,
+    BucketSize = TimeSpan.FromHours(1)
+});
+
+foreach (ExecutionStatisticsBucket bucket in statistics.Buckets)
+{
+    // One bucket per hour that holds a run, oldest first.
+    Console.WriteLine($"{bucket.StartUtc:O} {bucket.RunCount} runs, {bucket.FailedCount} failed, p95 {bucket.P95Duration}");
+}
+```
+<!-- endSnippet -->
+
+| `ExecutionStatisticsQuery` | What |
+|---|---|
+| `SchedulerName` | Required |
+| `SchedulerInstanceId`, `JobContains`, `TriggerContains`, `FailedFinally`, `Job`, `FiredFrom`, `FiredBefore`, `Results` | As on `ExecutionHistoryQuery` |
+| `JobGroup` | One job group, exactly |
+| `BucketSize` | Default one hour; at least `MinimumBucketSize`, one minute |
+
+| `ExecutionStatisticsBucket` | What |
+|---|---|
+| `StartUtc` | A whole multiple of the bucket size: an hour starts on the hour, a day at midnight UTC |
+| `SucceededCount`, `FailedCount`, `CancelledCount`, `SkippedCount`, `RunCount` | Runs by `EffectiveResult`. A retried failure counts as failed |
+| `P50Duration`, `P95Duration`, `MaxDuration` | Over every run in the bucket, whatever its result |
+
+* A bucket with no run is left out. `Buckets` is oldest first.
+* A percentile interpolates between the two runs either side of rank `(n - 1) * p`, as SQL's
+  `PERCENTILE_CONT` does. Every store gives the same answer.
+* The age bound applies, as it does to a listing.
+
+| Store | How it counts |
+|---|---|
+| In-memory history | Every row it holds |
+| [Database history](../tutorial/job-stores.md#execution-history-in-the-database), PostgreSQL and Oracle | One `GROUP BY`; the percentiles are `PERCENTILE_CONT` |
+| Database history, SQL Server, MySQL, SQLite and Firebird | One statement; `ROW_NUMBER` returns at most five runs a bucket, and the store interpolates. Needs SQL Server 2012+, MySQL 8.0+, SQLite 3.25+ or Firebird 3+; an older server fails the read |
+| The one [`AddQuartzHttpClient`](../packages/http-client.md) registers | The host's store, through [`…/history/statistics`](../packages/http-api.md#run-statistics). `NotSupportedException` from a host before 4.4 |
+| A store of your own | The default: reads `QueryExecutions` 1,000 rows at a time, newest first, and stops at `ExecutionStatistics.DefaultRowLimit` (10,000) with `Truncated` set |
+
+Measured on 1,000,000 rows over 30 days:
+
+| Read | PostgreSQL 15 | SQL Server 2022 | MySQL 8.0 |
+|---|---|---|---|
+| Whole scheduler, last 24 hours, by the hour | 30 ms | 140 ms | 430 ms |
+| Whole scheduler, 30 days, by the day | 550 ms | 155 ms | 2.5 s |
+| One job, 7 days, by 6 hours | 2 ms | 20 ms | 10 ms |
+
 ## See it in the dashboard and over HTTP
 
 | Where | What |
 |---|---|
-| History page | The result, the summary, a chip per metric and a *Manual* badge on each row. Filters for results and for one job. See [Execution history and misfires](../packages/dashboard.md#execution-history-and-misfires) |
+| History page | The result, the summary, a chip per metric and a *Manual* badge on each row. Filters for results, for one job and for a window. A chart of runs over time. See [Execution history and misfires](../packages/dashboard.md#execution-history-and-misfires) |
 | Jobs page | *Last run*, *Last success* and *failing ×N* per job. See [Job run status](../packages/dashboard.md#job-run-status) |
-| Job Detail page | A *Runs* panel. *View execution history* opens that job's rows only |
+| Job Detail page | A *Runs* panel and the job's chart. *View execution history* opens that job's rows only |
 | Execution page | The result, the summary, a table of metrics, *Manual*, the fire instance id and the input. *Run again* on a final failure |
-| HTTP API | The members on each row, `input` on one execution, the four filters, and the `…/history/job-status` routes. See [Execution history](../packages/http-api.md#execution-history) |
+| HTTP API | The members on each row, `input` on one execution, the four filters, the `…/history/job-status` routes and `…/history/statistics`. See [Execution history](../packages/http-api.md#execution-history) |
 
 ```http
 GET /quartz-api/schedulers/QuartzScheduler/history/executions?jobGroup=billing&jobName=release-stale&results=Failed,Cancelled
@@ -354,3 +410,5 @@ or under the scheduler's name for a named scheduler.
 * `QueryJobRunStatuses` and `GetJobRunStatus` are default interface members. The first throws
   `NotSupportedException`; the second asks the first for one job. Implement `QueryJobRunStatuses` to keep
   a status beside the rows, updated as each row is recorded.
+* `QueryExecutionStatistics` is a default interface member that counts through `QueryExecutions`, up to
+  10,000 rows. Implement it to count where the rows are kept. See [Count runs over time](#count-runs-over-time).
