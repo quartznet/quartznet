@@ -72,6 +72,7 @@ public sealed class JobExecutionObservabilityTest
     private const string JobGroupTag = "quartz.job.group";
     private const string JobNameTag = "quartz.job.name";
     private const string ExecutionGroupTag = "quartz.execution.group";
+    private const string JobResultTag = "quartz.job.result";
 
     private readonly List<RecordedMeasurement> measurements = [];
     private readonly List<Activity> stoppedActivities = [];
@@ -178,14 +179,18 @@ public sealed class JobExecutionObservabilityTest
                 .And.Contain(new KeyValuePair<string, object>(JobGroupTag, execution.JobKey.Group))
                 .And.Contain(new KeyValuePair<string, object>(JobNameTag, execution.JobKey.Name));
 
-            measurement.Tags.Should().HaveCount(6,
-                "an execution is identified by the scheduler that ran it — name and node id both — its "
-                + "trigger and its job, and nothing else is added to it");
-
             measurement.Tags.Should().NotContainKey(ExecutionGroupTag,
                 "this trigger names no execution group, and an attribute that is absent is not the same "
                 + "series as one that is present and empty");
         }
+
+        active.Should().AllSatisfy(m => m.Tags.Should().HaveCount(6,
+            "an execution is identified by the scheduler that ran it — name and node id both — its "
+            + "trigger and its job, and nothing else is added to it"));
+
+        duration.Tags.Should().HaveCount(7,
+            "the duration adds the one thing only the end of a run knows, its result, and nothing else");
+        duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "succeeded"));
     }
 
     /// <summary>
@@ -235,6 +240,7 @@ public sealed class JobExecutionObservabilityTest
         ActivityTags.JobGroup.Should().Be(JobGroupTag);
         ActivityTags.JobName.Should().Be(JobNameTag);
         ActivityTags.ExecutionGroup.Should().Be(ExecutionGroupTag);
+        ActivityTags.JobResult.Should().Be(JobResultTag);
         ActivityTags.TriggerCount.Should().Be("quartz.jobstore.trigger.count");
         ActivityTags.BatchSize.Should().Be("quartz.jobstore.batch.size");
         ActivityTags.JobStoreOperation.Should().Be("quartz.jobstore.operation");
@@ -375,6 +381,77 @@ public sealed class JobExecutionObservabilityTest
 
         ActivityFor(execution.JobKey).GetTagItem(ErrorTypeTag).Should().Be(typeof(JobExecutionException).FullName,
             "the span and the duration histogram answer the same question the same way");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // quartz.job.result: what the run achieved, as the execution history records it
+    // ---------------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task ARunThatSucceeded_IsTaggedSucceeded()
+    {
+        RecordedMeasurement duration = DurationOf(await RunJob<SucceedingJob>());
+
+        duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "succeeded"));
+        duration.Tags.Should().NotContainKey(ErrorTypeTag, "nothing failed");
+    }
+
+    [Test]
+    public async Task ARunThatThrew_IsTaggedFailedAndKeepsItsErrorType()
+    {
+        RecordedMeasurement duration = DurationOf(await RunJob<ThrowingJob>());
+
+        duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "failed"));
+        duration.Tags.Should().ContainKey(ErrorTypeTag).WhoseValue.Should().Be(typeof(InvalidOperationException).FullName,
+            "the result says the run failed, and error.type still says with what");
+    }
+
+    [Test]
+    public async Task ARunThatWasInterrupted_IsTaggedCancelledWithNoErrorType()
+    {
+        RecordedMeasurement duration = DurationOf(await RunJob<SelfInterruptingJob>());
+
+        duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "cancelled"),
+            "the history records an interrupted run as Cancelled, and the histogram reads it the same way");
+        duration.Tags.Should().NotContainKey(ErrorTypeTag,
+            "a cancellation is something asked for, not a failure, so there is no error to name");
+    }
+
+    [Test]
+    public async Task ARunThatReportedItselfSkipped_IsTaggedSkipped()
+    {
+        RecordedMeasurement duration = DurationOf(await RunJob<SkippingJob>());
+
+        duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "skipped"),
+            "the job's own JobRunReport decides when nothing failed or was cancelled, as it does in the history");
+        duration.Tags.Should().NotContainKey(ErrorTypeTag);
+    }
+
+    /// <summary>
+    /// <c>error.type</c> keeps its meaning: the name of what a failed run threw.
+    /// </summary>
+    [Test]
+    public async Task ARunItsReportCalledFailed_IsTaggedFailedWithNoErrorType()
+    {
+        RecordedMeasurement duration = DurationOf(await RunJob<ReportedFailureJob>());
+
+        duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "failed"),
+            "the job's report said it failed, and the history row says so too");
+        duration.Tags.Should().NotContainKey(ErrorTypeTag,
+            "nothing was thrown, so there is no exception type to name");
+    }
+
+    [Test]
+    public async Task TheRunningCountCarriesNoResult()
+    {
+        Execution execution = await RunJob<ThrowingJob>();
+
+        List<RecordedMeasurement> active = MeasurementsFor(execution.JobKey).Where(m => m.Instrument == ExecuteActive).ToList();
+
+        active.Should().HaveCount(2).And.AllSatisfy(m => m.Tags.Should().NotContainKey(JobResultTag,
+            "the increment is made before there is a result, and the decrement has to carry the increment's "
+            + "attributes or the running count never comes back to zero"));
+        active.Sum(m => m.Value).Should().Be(0);
     }
 
     [Test]
@@ -890,6 +967,12 @@ public sealed class JobExecutionObservabilityTest
         }
     }
 
+    private RecordedMeasurement DurationOf(Execution execution)
+    {
+        return MeasurementsFor(execution.JobKey).Should().ContainSingle(m => m.Instrument == ExecuteDuration,
+            "one measurement is what an execution records, whatever it achieved").Subject;
+    }
+
     private List<RecordedMeasurement> MeasurementsFor(JobKey jobKey)
     {
         lock (measurements)
@@ -1028,6 +1111,42 @@ public sealed class JobExecutionObservabilityTest
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             throw new InvalidOperationException("this job fails on purpose");
+        }
+    }
+
+    /// <summary>
+    /// Interrupts its own firing and stops, as a job does whose fire instance is interrupted.
+    /// </summary>
+    public sealed class SelfInterruptingJob : IJob
+    {
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            await context.Scheduler.InterruptFireInstance(context.FireInstanceId, CancellationToken.None);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+    }
+
+    /// <summary>
+    /// Finds nothing to do and says so through its report.
+    /// </summary>
+    public sealed class SkippingJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            context.Result = JobRunReport.Skipped("nothing to do");
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// Fails without throwing, through its report.
+    /// </summary>
+    public sealed class ReportedFailureJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            context.Result = JobRunReport.Failed("the upstream system said no");
+            return default;
         }
     }
 

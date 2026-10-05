@@ -71,6 +71,20 @@ public static class ActivityTags
     /// </remarks>
     public const string ExecutionGroup = "quartz.execution.group";
 
+    /// <summary>
+    /// What a job run achieved: <c>succeeded</c>, <c>failed</c>, <c>cancelled</c> or <c>skipped</c>, the
+    /// <see cref="JobRunResult" /> the execution history records, in lower case.
+    /// </summary>
+    /// <remarks>
+    /// On <c>quartz.job.execution.duration</c> only, so the histogram's count splits by result as the
+    /// history does. Not on <c>quartz.job.execution.active</c>, whose increment is made before there is
+    /// a result and whose decrement has to carry the increment's attributes. <c>error.type</c> stays the
+    /// name of what a failed run threw: a cancelled run has none, nor has a run its own
+    /// <see cref="JobRunReport" /> called failed without throwing. A result outside the enum is
+    /// <c>_OTHER</c>.
+    /// </remarks>
+    public const string JobResult = "quartz.job.result";
+
     // Job store operation tags
     /// <summary>
     /// How many triggers a store operation was asked for, or handed back.

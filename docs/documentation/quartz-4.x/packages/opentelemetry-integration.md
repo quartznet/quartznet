@@ -126,7 +126,7 @@ constants equal to what the meter emits and snapshot the name, kind, unit and de
 
 | Instrument | Type | Unit | Extra attributes | Measures |
 |---|---|---|---|---|
-| `quartz.job.execution.duration` | `Histogram<double>` | `s` | `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group`, `quartz.job.name`, `quartz.execution.group`¹, `error.type`² | Job duration; **count** = executions |
+| `quartz.job.execution.duration` | `Histogram<double>` | `s` | `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group`, `quartz.job.name`, `quartz.execution.group`¹, `quartz.job.result`³, `error.type`² | Job duration; **count** = executions |
 | `quartz.job.execution.active` | `UpDownCounter<long>` | `{job}` | the same identity attributes, `quartz.execution.group`¹ | Jobs running now |
 | `quartz.trigger.misfire` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Firings not made on time |
 | `quartz.trigger.retry` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Retries scheduled after a job failed |
@@ -141,6 +141,8 @@ constants equal to what the meter emits and snapshot the name, kind, unit and de
 ¹ Only when the trigger names an execution group. A trigger in no group has no such attribute (not an empty
 one), so the two are separate series.
 ² Only when the operation failed. The value is the exception type's fully-qualified name.
+³ Always. `succeeded`, `failed`, `cancelled` or `skipped`: the run's [`JobRunResult`](../how-tos/job-outcomes.md),
+lower-cased, as the execution history records it. Constant: `ActivityTags.JobResult`.
 
 - `quartz.trigger.retry` counts retries scheduled, not attempts configured: an unused policy adds nothing.
 - `quartz.trigger.retries_exhausted` counts once per occurrence that gave up, never per attempt. It has the same
@@ -164,15 +166,23 @@ other eight work with any store.
 ### Reading the numbers
 
 - There is no execution counter and no error counter. Executions are the count of
-  `quartz.job.execution.duration`; failures are the part tagged with `error.type`, which also names the
-  exception.
-- `error.type` is the OpenTelemetry convention. It is not on `quartz.job.execution.active`: an up-down
-  counter's increment and decrement need identical attributes, and failure is not known at start.
+  `quartz.job.execution.duration`; group it by `quartz.job.result` for each result.
+- `error.type` names what a run threw, so it is on thrown failures only:
+
+  | `quartz.job.result` | `error.type` |
+  |---|---|
+  | `succeeded`, `skipped`, `cancelled` | absent |
+  | `failed`, the job threw | the exception type |
+  | `failed`, from `JobRunReport.Failed` | absent |
+
+- `error.type` is the OpenTelemetry convention. Neither it nor `quartz.job.result` is on
+  `quartz.job.execution.active`: an up-down counter's increment and decrement need identical attributes, and
+  the result is not known at start.
 
 ::: warning Cardinality
 `quartz.job.name` and `quartz.trigger.name` are per job and per trigger, and `quartz.scheduler.id` is per node,
 so a backend can get a series per node per trigger. Unless you need them, drop the name attributes in a view;
-the group attributes are usually the ones to keep.
+the group attributes are usually the ones to keep. `quartz.job.result` has four values.
 :::
 
 The meter is created from the container's `IMeterFactory` when there is one. `AddMetrics()`, and so every

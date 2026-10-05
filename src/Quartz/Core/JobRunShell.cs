@@ -309,8 +309,22 @@ internal sealed class JobRunShell
 
                     context.JobRunTime = timeProvider.GetElapsedTime(startTimestamp, endTimestamp);
 
+                    // How the firing ended, worked out once and used by every exit below. It says what
+                    // happened and nothing else: a job that ran and threw failed, whether or not the
+                    // trigger then asked for another attempt. Whether that failure is the occurrence's
+                    // last word is the instruction's to say, and SchedulerInstruction.RetryTrigger is
+                    // what says it is not — which is why every store skips settling continuations on
+                    // that instruction rather than on the outcome. Worked out here rather than beside
+                    // the settling, so the duration histogram classifies the run as its history row will.
+                    ExecutionOutcome outcome = (cancelled, jobExEx) switch
+                    {
+                        (true, _) => ExecutionOutcome.Cancelled,
+                        (_, not null) => ExecutionOutcome.Failed,
+                        _ => ExecutionOutcome.Succeeded
+                    };
+
                     activity.Stop(timeProvider, jobExEx);
-                    instrumentation.EndJobExecute(context.JobRunTime, jobExEx);
+                    instrumentation.EndJobExecute(context.JobRunTime, outcome, context.Result, jobExEx);
 
                     instructionCode = SchedulerInstruction.NoInstruction;
 
@@ -358,19 +372,6 @@ internal sealed class JobRunShell
                         context.IncrementRefireCount();
                         continue;
                     }
-
-                    // How the firing ended, worked out once and used by every exit below. It says what
-                    // happened and nothing else: a job that ran and threw failed, whether or not the
-                    // trigger then asked for another attempt. Whether that failure is the occurrence's
-                    // last word is the instruction's to say, and SchedulerInstruction.RetryTrigger is
-                    // what says it is not — which is why every store skips settling continuations on
-                    // that instruction rather than on the outcome.
-                    ExecutionOutcome outcome = (cancelled, jobExEx) switch
-                    {
-                        (true, _) => ExecutionOutcome.Cancelled,
-                        (_, not null) => ExecutionOutcome.Failed,
-                        _ => ExecutionOutcome.Succeeded
-                    };
 
                     // Published on the context before any completion notification goes out, so that a
                     // job listener's JobWasExecuted and a trigger listener's TriggerComplete can read

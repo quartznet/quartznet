@@ -42,8 +42,8 @@ namespace Quartz.Tests.Unit.Diagnostics;
 /// breaking their build. The snapshot is the review: none of them can land unread.
 /// </para>
 /// <para>
-/// The counterpart of <c>TracingJobStoreTest_SpanNames</c>, which does the same for the thirty-three
-/// store span names, and the table on the
+/// The counterpart of <c>TracingJobStoreTest_SpanNames</c>, which does the same for the store span
+/// names, and the table on the
 /// <a href="https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/opentelemetry-integration.html">OpenTelemetry
 /// integration</a> page is what a reader sees of it.
 /// </para>
@@ -90,6 +90,23 @@ public sealed class MeterCatalogueTest
             .UseDirectory("../Verify")
             .UseFileName("MeterCatalogueTest_Instruments")
             .DisableRequireUniquePrefix();
+    }
+
+    /// <summary>
+    /// The values <c>quartz.job.result</c> can take on <c>quartz.job.execution.duration</c>: a closed set,
+    /// because an attribute's cardinality multiplies every series it is on.
+    /// </summary>
+    [Test]
+    public void TheJobResultAttributeHasOneLowerCaseValuePerJobRunResult()
+    {
+        JobRunResult[] results = Enum.GetValues<JobRunResult>();
+
+        results.Select(Meters.JobResultTag).Should().Equal(["succeeded", "failed", "cancelled", "skipped"],
+            "the values are JobRunResult's members in lower case, which is how the documentation names them; "
+            + "a fifth result is a fifth series on every dashboard, and arrives here as a reviewed change");
+
+        Meters.JobResultTag((JobRunResult) 42).Should().Be("_OTHER",
+            "a job sets its own report's result, and a number outside the enum must not become a series of its own");
     }
 
     /// <summary>

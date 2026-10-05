@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
+using Quartz.Impl;
+
 namespace Quartz.Diagnostics;
 
 /// <summary>
@@ -439,12 +441,22 @@ internal sealed class Meters : IDisposable
     /// <summary>
     /// Records the end of an execution on the instruments that started it.
     /// </summary>
-    internal void EndJobExecute(TagList tags, TimeSpan duration, Exception? exception)
+    /// <param name="tags">The tags the execution was started with.</param>
+    /// <param name="duration">How long the execution took.</param>
+    /// <param name="outcome">How the firing ended, as the run shell is about to settle it.</param>
+    /// <param name="jobResult">What the job set as <see cref="IJobExecutionContext.Result" />.</param>
+    /// <param name="exception">What the job threw, or <see langword="null" />.</param>
+    internal void EndJobExecute(TagList tags, TimeSpan duration, ExecutionOutcome outcome, object? jobResult, Exception? exception)
     {
         // The running count only nets back to zero if the decrement carries exactly the tags the
         // increment carried — an up-down counter is aggregated per attribute set — so it is measured
-        // before the failure tag is added.
+        // before the result and the failure tags are added.
         jobExecuteInProgress.Add(-1, tags);
+
+        // The run's result as the execution history records it, by the same rule, so a dashboard reading
+        // the histogram and one reading the history agree on what a run achieved.
+        JobRunResult result = JobRunClassifier.ResultOf(outcome, jobResult as IJobRunReport, exception);
+        tags.Add(ActivityTags.JobResult, JobResultTag(result));
 
         if (exception != null)
         {
@@ -458,6 +470,25 @@ internal sealed class Meters : IDisposable
         // two extra instrument writes per fire for something the exporter already had.
         jobExecuteDuration.Record(duration.TotalSeconds, tags);
     }
+
+    /// <summary>
+    /// The value of <see cref="ActivityTags.JobResult" />: the <see cref="JobRunResult" /> member's name in
+    /// lower case.
+    /// </summary>
+    /// <remarks>
+    /// Literals rather than <see cref="Enum.ToString()" />, so a measurement allocates no string, and a
+    /// result outside the enum — <see cref="IJobRunReport.Result" /> is the job's to set — is
+    /// <c>_OTHER</c>, OpenTelemetry's spelling for a value outside a closed set, rather than a number that
+    /// would make the attribute's cardinality the job's choice.
+    /// </remarks>
+    internal static string JobResultTag(JobRunResult result) => result switch
+    {
+        JobRunResult.Succeeded => "succeeded",
+        JobRunResult.Failed => "failed",
+        JobRunResult.Cancelled => "cancelled",
+        JobRunResult.Skipped => "skipped",
+        _ => "_OTHER"
+    };
 }
 
 internal readonly struct Instrumentation
@@ -471,9 +502,9 @@ internal readonly struct Instrumentation
         this.tagList = tagList;
     }
 
-    public void EndJobExecute(TimeSpan duration, Exception? exception)
+    public void EndJobExecute(TimeSpan duration, ExecutionOutcome outcome, object? jobResult, Exception? exception)
     {
         // Nothing was recorded at the start — no listener was collecting — so there is nothing to close.
-        meters?.EndJobExecute(tagList, duration, exception);
+        meters?.EndJobExecute(tagList, duration, outcome, jobResult, exception);
     }
 }

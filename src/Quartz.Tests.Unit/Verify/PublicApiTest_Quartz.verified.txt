@@ -2260,6 +2260,7 @@ namespace Quartz.Diagnostics
         public const string FireInstanceId = "quartz.fire.instance.id";
         public const string JobGroup = "quartz.job.group";
         public const string JobName = "quartz.job.name";
+        public const string JobResult = "quartz.job.result";
         public const string JobStoreLock = "quartz.jobstore.lock";
         public const string JobStoreOperation = "quartz.jobstore.operation";
         public const string JobType = "quartz.job.type";
