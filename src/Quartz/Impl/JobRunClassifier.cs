@@ -49,26 +49,34 @@ internal static class JobRunClassifier
     internal static JobRunClassification Classify(IJobExecutionContext context, JobExecutionException? jobException)
     {
         IJobRunReport? report = context.Result as IJobRunReport;
+        return new JobRunClassification(ResultOf(context.Outcome, report, jobException), report?.Summary, report?.Metrics);
+    }
 
-        JobRunResult result;
-        if (context.Outcome == ExecutionOutcome.Cancelled)
+    /// <summary>
+    /// The result alone, by the rule <see cref="Classify" /> states, for a caller that has the firing's
+    /// outcome before the run shell has settled it on the context.
+    /// </summary>
+    /// <remarks>
+    /// The duration histogram is recorded before the completion notifications, and so before
+    /// <see cref="IJobExecutionContext.Outcome" /> is written; the run shell hands it the outcome it is
+    /// about to settle, and the histogram's <c>quartz.job.result</c> is then the history row's result.
+    /// </remarks>
+    /// <param name="outcome">How the firing ended.</param>
+    /// <param name="report">The job's <see cref="IJobRunReport" />, or <see langword="null" />.</param>
+    /// <param name="jobException">What the job threw, or <see langword="null" />.</param>
+    internal static JobRunResult ResultOf(ExecutionOutcome outcome, IJobRunReport? report, Exception? jobException)
+    {
+        if (outcome == ExecutionOutcome.Cancelled)
         {
-            result = JobRunResult.Cancelled;
-        }
-        else if (jobException is not null)
-        {
-            result = JobRunResult.Failed;
-        }
-        else if (report is not null)
-        {
-            result = report.Result;
-        }
-        else
-        {
-            result = JobRunResult.Succeeded;
+            return JobRunResult.Cancelled;
         }
 
-        return new JobRunClassification(result, report?.Summary, report?.Metrics);
+        if (jobException is not null)
+        {
+            return JobRunResult.Failed;
+        }
+
+        return report?.Result ?? JobRunResult.Succeeded;
     }
 
     /// <summary>

@@ -34,6 +34,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | Added | What it is |
 |---|---|
 | `JobRunResult` | `Succeeded = 0`, `Failed = 1`, `Cancelled = 2`, `Skipped = 3`: what a run achieved. Stored as the integer. See [Job Outcomes](how-tos/job-outcomes.md) |
+| `ActivityTags.JobResult` | `"quartz.job.result"`, on `quartz.job.execution.duration`: `succeeded`, `failed`, `cancelled` or `skipped`. See [Metrics](packages/opentelemetry-integration.md#metrics) |
 | `IJobRunReport`, `JobRunReport` | A job's result, summary and metrics, set as `context.Result`. `JobRunReport.Succeeded`, `Skipped` and `Failed(summary)`, `With(name, value)`, `MaxSummaryLength` (`1000`), `MaxMetricsLength` (`4000`) |
 | `ExecutionHistoryEntry.Result`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId` | `init`. `Result` is `null` on a row written before 4.4 |
 | `ExecutionHistoryEntry.EffectiveResult` | `Result`, or `Succeeded`/`Failed` from `Succeeded` on an older row |
@@ -90,6 +91,10 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 
 * **`context.Outcome` reads `ExecutionOutcome.Vetoed` inside `IJobListener.JobExecutionVetoed`.** It read
   `Succeeded`.
+* **`quartz.job.execution.duration` carries `quartz.job.result`**
+  ([#3967](https://github.com/quartznet/quartznet/issues/3967)), which splits a job's series by result.
+  `error.type` is unchanged: a cancelled run still has none. A view with an attribute allow-list drops the new
+  attribute until you add it.
 * **A vetoed firing is recorded in the misfire feed**, with `MisfireReason.Vetoed`. `CountMisfires` does
   not count it. An `IExecutionHistoryStore` of your own receives it through `AddMisfire`; count only
   `MisfireReason.Missed` rows.
