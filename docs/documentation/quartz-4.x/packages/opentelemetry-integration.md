@@ -173,8 +173,8 @@ constants equal to what the meter emits and snapshot the name, kind, unit and de
 | `quartz.trigger.misfire` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Firings not made on time |
 | `quartz.trigger.retry` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Retries scheduled after a job failed |
 | `quartz.trigger.retries_exhausted` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Failed occurrences whose retry policy ran out |
-| `quartz.trigger.acquisition.duration` | `Histogram<double>` | `s` | — | Loop's wait on the store for the next batch |
-| `quartz.trigger.acquired` | `Counter<long>` | `{trigger}` | — | Triggers returned by those rounds |
+| `quartz.trigger.acquisition.duration` | `Histogram<double>` | `s` | — | Loop's wait on the store for the next batch, the fire of the triggers already due included |
+| `quartz.trigger.acquired` | `Counter<long>` | `{trigger}` | — | Triggers returned by those rounds, fired or pending |
 | `quartz.cluster.checkin.duration` | `Histogram<double>` | `s` | `error.type`² | Cluster check-in duration, per attempt |
 | `quartz.cluster.recovery.trigger` | `Counter<long>` | `{trigger}` | `quartz.cluster.recovered.instance.id` | Fired-trigger rows recovered from a failed node |
 | `quartz.jobstore.operation.duration` | `Histogram<double>` | `s` | `quartz.jobstore.operation`, `error.type`² | Every store round trip, by operation |

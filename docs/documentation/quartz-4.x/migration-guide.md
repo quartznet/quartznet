@@ -78,6 +78,14 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | Package `Quartz.Weasel.MySQL`: `MySqlWeaselStoreBuilderExtensions.UseWeaselForMySql`, `MySqlWeaselOptions` (`AutoCreate`, `LockName`, `LockTimeout`, `DefaultLockName`) | A MySQL store's schema under Weasel. See [MySQL](packages/weasel.md#mysql) |
 | Package `Quartz.Weasel.Oracle`: `OracleWeaselStoreBuilderExtensions.UseWeaselForOracle`, `OracleWeaselOptions` (`AutoCreate`) | An Oracle store's schema under Weasel. See [Oracle](packages/weasel.md#oracle) |
 | Package `Quartz.Weasel.Firebird`: `FirebirdWeaselStoreBuilderExtensions.UseWeaselForFirebird`, `FirebirdWeaselOptions` (`AutoCreate`, `MaxIdentifierLength`) | A Firebird store's schema under Weasel. See [Firebird](packages/weasel.md#firebird) |
+| `IJobStore.AcquireNextTriggersAndFireDue`, `TriggerAcquisitionResult` (`Due`, `Fired`, `Pending`) | Acquires, and fires the triggers already due in the same operation. The scheduler calls it. Default interface member: answers `AcquireNextTriggers` as `Pending` and fires nothing. See [The fire cycle](how-tos/custom-job-store.md#the-fire-cycle) |
+| `RAMJobStore.AcquireNextTriggersAndFireDue` | Acquires and fires under one lock |
+| `DelegatingJobStore.AcquireNextTriggersAndFireDue` | `virtual`. Answers through this store's `AcquireNextTriggers` and fires nothing. See [Forward it](how-tos/custom-job-store.md#forward-acquirenexttriggersandfiredue-to-keep-firing-on-acquisition) |
+| `IDriverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime`, `ApplyTriggersFired`; `TriggerClaim` | A round's claims and fire writes, together. Default interface members: the single-trigger member for each, in order |
+| `StdAdoDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime`, `ApplyTriggersFired` | `virtual`. One `DbBatch` each from the shipped delegates, where the connection can batch |
+| `TriggerFiredUpdate.FiredOnAcquire` | `init`. `true`: the fire inserts its fired-trigger row as `EXECUTING`; no `ACQUIRED` row exists |
+| `ActivityTags.TriggersFiredOnAcquire` | `quartz.jobstore.trigger.fired_on_acquire`, on the `Quartz.JobStore.AcquireNextTriggers` span |
+| Log events `3051`, `3052` | Warnings: a round's batched fire writes failed, or a batch of claims did not say which took. The round runs again a trigger at a time |
 
 **Behaviour changes:**
 
@@ -166,6 +174,34 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   + services.AddQuartzExecutionHistory(options => options.RecordInput = true);
   ```
 
+* **Triggers already due are fired in the transaction that acquires them**
+  ([#3864](https://github.com/quartznet/quartznet/issues/3864)). This applies to a persistent store that
+  acquires under `TRIGGER_ACCESS`: any batch over one trigger, or `AcquireTriggersWithinLock`. The fired-trigger
+  row is inserted as `EXECUTING`, with no `ACQUIRED` row before it. A trigger due later in the batch window is
+  reserved and fires at its own time, as before. A lock-free acquisition of one trigger stays two
+  transactions. The in-memory store does both under one lock.
+* **A trigger fired on acquisition has no `Quartz.JobStore.TriggersFired` span.** The
+  `Quartz.JobStore.AcquireNextTriggers` span counts it in `quartz.jobstore.trigger.fired_on_acquire`, and
+  `quartz.trigger.acquisition.duration` includes its fire. A dashboard that counts fires from
+  `TriggersFired` spans adds that attribute.
+* **A `DelegatingJobStore` subclass fires nothing on acquisition.** It keeps working, at two transactions a
+  round. To keep the saving, forward the new member:
+
+  ```diff
+    public sealed class MyJobStore(IJobStore inner) : DelegatingJobStore(inner)
+    {
+  +     public override ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(
+  +         TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
+  +         => InnerJobStore.AcquireNextTriggersAndFireDue(request, cancellationToken);
+    }
+  ```
+
+* **A `StdAdoDelegate` subclass does not batch a round.** It gets one claim and one `ApplyTriggerFired` call
+  per trigger, so its overrides still run. An `ApplyTriggerFired` override that does not call the base must
+  insert the fired-trigger row when `TriggerFiredUpdate.FiredOnAcquire` is set. The Oracle, Firebird and
+  SQLite drivers cannot batch, so those stores send the statements one at a time. See
+  [A subclass does not batch](how-tos/dialect-delegate.md#what-the-delegate-cannot-reach).
+
 * **The dashboard's History page labels a success *Succeeded*, not *Complete***, in a column named *Result*.
   The Job Detail page's *View execution history* opens that job's rows only, where it used to filter by a
   fragment of the key.
@@ -253,6 +289,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   the reason.
 * A 4.3 client's key-set pause on a 4.4 host is the reasonless pause, even from an authenticated caller.
 * A 4.3 node leaves `JOB_INPUT` `NULL`, and a 4.3 host sends no `input`: *Run again* fires those rows without input.
+* A trigger a 4.4 node fires on acquisition leaves the fired-trigger row a 4.3 fire leaves: `EXECUTING`, with
+  the job named. A 4.3 node's `[DisallowConcurrentExecution]` check and recovery read it as their own.
 
 ### The 4.4 schema migration
 

@@ -143,6 +143,15 @@ issues the statement instead: every `IDriverDelegate` member on `StdAdoDelegate`
 trigger. More `GetXxxSql()` hooks can be added compatibly; ask if you need one.
 :::
 
+::: warning A subclass does not batch an acquisition round
+A round that fires what is due as it acquires it sends its claims and its fire writes as one `DbBatch` each,
+from the delegates Quartz ships only, on a connection that reports `CanCreateBatch`. A subclass gets one `UpdateTriggerStateFromOtherStateWithNextFireTime`
+and one `ApplyTriggerFired` call per trigger, so its overrides are never bypassed; the round is still one
+transaction. To batch, override `UpdateTriggerStatesFromOtherStateWithNextFireTime` and `ApplyTriggersFired`
+with your own `DbBatch`. An `ApplyTriggerFired` override that does not call the base inserts the fired-trigger
+row itself when `TriggerFiredUpdate.FiredOnAcquire` is set.
+:::
+
 ::: warning The value conversions are not all seams
 `GetDbBooleanValue` / `GetBooleanFromDbValue` are `virtual`. `GetDbDateTimeValue`, `GetDateTimeFromDbValue`,
 `GetDbTimeSpanValue` and `GetTimeSpanFromDbValue` are not: UTC ticks and whole milliseconds are schema

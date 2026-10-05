@@ -63,6 +63,28 @@ public sealed class MetricsJobStore(IJobStore inner, IMeterFactory meters) : Del
 
 #endregion
 
+#region sample_custom_job_store_fire_on_acquire
+
+public sealed class RoundCountingJobStore(IJobStore inner) : DelegatingJobStore(inner)
+{
+    private long rounds;
+
+    public long Rounds => Interlocked.Read(ref rounds);
+
+    // The member the scheduler calls. Forwarded, the inner store fires what is already due in the
+    // transaction that acquires it. Left to DelegatingJobStore, it fires nothing, and the scheduler
+    // fires every trigger in a second transaction.
+    public override ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        Interlocked.Increment(ref rounds);
+        return InnerJobStore.AcquireNextTriggersAndFireDue(request, cancellationToken);
+    }
+}
+
+#endregion
+
 #region sample_custom_job_store_acquisition_budget
 
 public sealed class BudgetedJobStore(IJobStore inner, int nodeBudget) : DelegatingJobStore(inner)
@@ -71,9 +93,20 @@ public sealed class BudgetedJobStore(IJobStore inner, int nodeBudget) : Delegati
         TriggerAcquisitionRequest request,
         CancellationToken cancellationToken = default)
     {
-        return base.AcquireNextTriggers(
-            request with { MaxCount = Math.Min(request.MaxCount, nodeBudget) },
-            cancellationToken);
+        return base.AcquireNextTriggers(Narrow(request), cancellationToken);
+    }
+
+    // The same request, rewritten the same way, so the inner store still fires what is due on acquisition.
+    public override ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return InnerJobStore.AcquireNextTriggersAndFireDue(Narrow(request), cancellationToken);
+    }
+
+    private TriggerAcquisitionRequest Narrow(TriggerAcquisitionRequest request)
+    {
+        return request with { MaxCount = Math.Min(request.MaxCount, nodeBudget) };
     }
 }
 
