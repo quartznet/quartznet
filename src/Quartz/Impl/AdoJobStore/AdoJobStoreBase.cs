@@ -218,9 +218,10 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// </summary>
     /// <remarks>
     /// Derived state rather than a setting of the store: it reports what
-    /// <see cref="ClusteringOptions.Enabled" /> says.
+    /// <see cref="ClusteringOptions.Enabled" /> says. The internal setter is for tests that drive two
+    /// stores on one SQLite file as nodes of a cluster, which a SQLite store refuses to be configured as.
     /// </remarks>
-    public bool Clustered { get; }
+    public bool Clustered { get; internal set; }
 
     /// <summary>
     /// The frequency at which this instance "checks-in"

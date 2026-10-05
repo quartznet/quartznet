@@ -191,13 +191,15 @@ public partial class StdAdoDelegate
 
     /// <summary>
     /// The triggers pinned to this node and due by <paramref name="noLaterThan" /> that a firing on another
-    /// node holds <c>BLOCKED</c>, and when the latest such firing was fired (#3988).
+    /// node holds <c>BLOCKED</c>, and when the latest such firing of a job that disallows concurrent
+    /// execution was fired (#3988).
     /// </summary>
     /// <remarks>
     /// Internal rather than a member of <see cref="IDriverDelegate" />: it is a hint for how soon the
     /// scheduler looks again, and a delegate without it costs a node nothing but that hint. The statement
     /// is <see cref="StdAdoConstants.SqlSelectPinnedTriggersBlockedElsewhere" />, plain SQL every dialect
-    /// Quartz ships reads as it is.
+    /// Quartz ships reads as it is; the store asks it only of those dialects, not of a subclass, whose SQL
+    /// it cannot vouch for.
     /// </remarks>
     /// <param name="conn">The acquisition's connection.</param>
     /// <param name="noLaterThan">The end of the acquisition's window.</param>
@@ -209,6 +211,7 @@ public partial class StdAdoDelegate
     {
         // In the statement's token order, for providers that bind positionally.
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectPinnedTriggersBlockedElsewhere));
+        AddCommandParameter(cmd, SqlParameters.IsNonConcurrent, GetDbBooleanValue(true));
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(StoredTriggerState.Blocked));
         AddCommandParameter(cmd, SqlParameters.NoLaterThan, GetDbDateTimeValue(noLaterThan));

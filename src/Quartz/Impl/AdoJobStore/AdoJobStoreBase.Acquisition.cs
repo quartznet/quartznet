@@ -486,12 +486,15 @@ internal abstract partial class AdoJobStoreBase
                 // A round that took nothing says as well how many of this node's pinned triggers a firing on
                 // another node holds BLOCKED. Its read never sees them, and that firing's end wakes only its own
                 // node, so without this the round's node would find them an idle wait later (#3988). Asked only
-                // of a cluster, and only by a round that is about to leave its node idle.
-                PinnedTriggersBlocked pinned = acquiredTriggers.Count == 0 && Clustered
+                // of a cluster, only by a round that is about to leave its node idle, and only through a
+                // delegate whose dialect is known to accept the statement.
+                PinnedTriggersBlocked pinned = acquiredTriggers.Count == 0 && AsksAfterPinnedTriggersHeld
                     ? await SelectPinnedTriggersBlockedElsewhere(conn, request.NoLaterThan + request.TimeWindow, cancellationToken).ConfigureAwait(false)
                     : PinnedTriggersBlocked.None;
 
-                return new AcquiredTriggers(acquiredTriggers, blocked + pinned.Count, pinned.LatestBlockingFiredUtc);
+                // Off a cluster every firing that holds a trigger back runs on this node, whose end wakes
+                // it, so nothing held is news worth looking again early for.
+                return new AcquiredTriggers(acquiredTriggers, Clustered ? blocked + pinned.Count : 0, pinned.LatestBlockingFiredUtc);
             },
             "acquire next trigger");
     }
@@ -517,6 +520,18 @@ internal abstract partial class AdoJobStoreBase
             ? shipped.SelectPinnedTriggersBlockedElsewhere(conn, noLaterThan, cancellationToken)
             : new ValueTask<PinnedTriggersBlocked>(PinnedTriggersBlocked.None);
     }
+
+    /// <summary>
+    /// Whether a round that took nothing asks after this node's pinned triggers a firing on another node
+    /// holds (#3988): on a cluster, through a delegate Quartz ships.
+    /// </summary>
+    /// <remarks>
+    /// Not through a subclass of one, as fire on acquisition is not (<see cref="IDriverDelegate.SupportsFireOnAcquire" />):
+    /// its dialect may not take the statement, and a statement that fails there would fail every round that
+    /// found nothing — and, on PostgreSQL, the transaction around it. Such a node finds a held pinned
+    /// trigger after its idle wait, as before.
+    /// </remarks>
+    internal virtual bool AsksAfterPinnedTriggersHeld => Clustered && Delegate is StdAdoDelegate { IsShipped: true };
 
     /// <summary>
     /// What one acquisition took, and how many due triggers a running firing holds back from it: ones it
@@ -928,7 +943,8 @@ internal abstract partial class AdoJobStoreBase
         {
             // BLOCKED is another fire of a job that disallows concurrent execution, which moved this
             // reservation out of reach when it started (#3926): that firing's end is what lets go of it.
-            return header?.State == StoredTriggerState.Blocked ? TriggerFiredResult.Blocked : TriggerFiredResult.NotFired;
+            // Said only on a cluster, where that end may be another node's.
+            return header?.State == StoredTriggerState.Blocked && Clustered ? TriggerFiredResult.Blocked : TriggerFiredResult.NotFired;
         }
 
         try
@@ -984,7 +1000,7 @@ internal abstract partial class AdoJobStoreBase
             if (alreadyExecuting)
             {
                 Logger.ConcurrentExecutionDeclined(trigger.Key, trigger.JobKey);
-                return TriggerFiredResult.Blocked;
+                return Clustered ? TriggerFiredResult.Blocked : TriggerFiredResult.NotFired;
             }
         }
 

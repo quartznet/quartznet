@@ -79,6 +79,12 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
         await nodeB.GetRequiredService<ISchedulerFactory>().GetScheduler();
         storeB = nodeB.GetRequiredService<IJobStore>();
 
+        // Nodes of one cluster, which is what they stand in for: what a store tells its scheduler about a
+        // trigger held back by a firing it may not see end is said on a cluster alone (#3988). A SQLite
+        // store refuses to be configured clustered, so it is told after it has started.
+        ((AdoJobStoreBase) storeA).Clustered = true;
+        ((AdoJobStoreBase) storeB).Clustered = true;
+
         // Ahead of now, so the misfire cutoff keeps out of the acquisition read, and by a known margin,
         // so the fire-time order — the serial job's triggers first, the ordinary ones behind them — is
         // the order every read below returns.
@@ -219,6 +225,64 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
         acquired.Due.Should().BeEmpty();
         acquired.Pending.Should().BeEmpty("every trigger due belongs to the job executing on A");
         acquired.Blocked.Should().Be(2, "both of the job's waiting triggers were passed over because it is executing");
+    }
+
+    /// <summary>
+    /// Off a cluster the same refusal and the same passed-over triggers say nothing about being blocked:
+    /// the firing holding them runs on this node, whose end wakes its scheduler, so a scheduler told to
+    /// look again early would only make rounds for nothing (#3988).
+    /// </summary>
+    [Test]
+    public async Task OffAClusterNothingHeldBackIsReported()
+    {
+        await ScheduleSerialTriggers(3);
+        ((AdoJobStoreBase) storeB).Clustered = false;
+
+        IOperableTrigger onA = await ReserveOne(storeA);
+        IOperableTrigger onB = await ReserveOne(storeB);
+        await Fire(storeA, onA);
+
+        List<TriggerFiredResult> refusedOnB = await storeB.TriggersFired([onB]);
+        refusedOnB.Should().ContainSingle().Which.IsBlocked.Should().BeFalse(
+            "a store that is not clustered answers the refusal as a trigger it did not fire");
+        await storeB.ReleaseAcquiredTrigger(onB);
+
+        await LeaveWaitingAsAnUnfixedNodeWould("serial-2", "serial-3");
+        TriggerAcquisitionResult acquired = await storeB.AcquireNextTriggersAndFireDue(RequestFor(maxCount: 2));
+
+        acquired.Pending.Should().BeEmpty();
+        acquired.Blocked.Should().Be(0, "nothing passed over is news to a scheduler its own completions wake");
+    }
+
+    /// <summary>
+    /// A pinned trigger held by its own overlap policy — <c>CancelPrevious</c> behind a firing of it on
+    /// another node — belongs to a job that lets its other triggers fire beside it. Their fire times say
+    /// nothing about when it is let go, so it is counted with no fire time, and other firings of the job do
+    /// not have its node start looking every tenth of a second again.
+    /// </summary>
+    [Test]
+    public async Task ATriggerHeldByItsOwnOverlapPolicyIsCountedWithoutTheFireTimesOfItsJobsOtherFirings()
+    {
+        await ScheduleOrdinaryTriggers(2);
+        await schedulerA.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity("pinned-b", Group)
+            .ForJob(ordinaryJobKey)
+            .WithPreferredNode(PreferredNode.For("node-b"))
+            .WithOverlapPolicy(OverlapPolicy.CancelPrevious)
+            .StartAt(due.AddSeconds(5))
+            .Build());
+
+        await Fire(storeA, await ReserveOne(storeA));
+        await ExecuteNonQuery("UPDATE QRTZ_TRIGGERS SET TRIGGER_STATE = 'BLOCKED' WHERE TRIGGER_NAME = @name", "pinned-b");
+
+        PinnedTriggersBlocked held = await PinnedBlockedElsewhere(storeB);
+        await Task.Delay(TimeSpan.FromMilliseconds(20));
+        await Fire(storeA, await ReserveOne(storeA));
+        PinnedTriggersBlocked heldStill = await PinnedBlockedElsewhere(storeB);
+
+        held.Count.Should().Be(1, "the trigger is B's, and something holds it");
+        held.LatestBlockingFiredUtc.Should().BeNull("the job's firings are not what holds it, and may change every round");
+        heldStill.Should().Be(held, "another firing of the job beside it is not the job changing hands");
     }
 
     /// <summary>

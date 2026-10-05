@@ -112,9 +112,24 @@ internal sealed class QuartzSchedulerThread
     /// <summary>
     /// How long a round that acquired nothing waits before the loop looks again, the first time, once due
     /// work is blocked behind a running firing of a job that disallows concurrent execution. Each such
-    /// round after it waits twice as long, up to the idle wait (#3988).
+    /// round after it waits twice as long, up to <see cref="HeldRetryLimit" /> while the store still says
+    /// something is held, and up to the idle wait once it does not (#3988).
     /// </summary>
     internal static readonly TimeSpan BlockedRetryStart = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// The longest a round that acquired nothing waits, below the idle wait, while the store says due work
+    /// is held back behind a firing this loop may not be told the end of: a held trigger is found within
+    /// this of its holder ending, however long the holder ran.
+    /// </summary>
+    internal static readonly TimeSpan HeldRetryLimit = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// How far the count has to have grown, in multiples of <see cref="BlockedRetryStart" />, before a job
+    /// changing hands starts it again: a job that changes hands every round is looked for at most at the
+    /// first two steps, not at the first one over and over.
+    /// </summary>
+    private const int ChangedHandsRestartSteps = 4;
 
     /// <summary>
     /// How long the next round that acquires nothing waits before the loop looks again, while due work is
@@ -853,17 +868,20 @@ internal sealed class QuartzSchedulerThread
     /// would find a trigger held back behind it — one it could not fire, one the store passed over, or one
     /// pinned to it — only after its idle wait, and a pinned trigger, which no other node may fire, waited
     /// that long every time (#3988). So the loop looks again after <see cref="BlockedRetryStart" />, and
-    /// after twice as long each time it still finds nothing, until the wait is the idle wait: a job that
-    /// runs for hours elsewhere costs a handful of looks, not a poll.
+    /// after twice as long each time it still finds nothing. While the store still says something is held
+    /// the wait stops growing at <see cref="HeldRetryLimit" />, so a trigger is found within that of its
+    /// holder ending; a job that runs for hours elsewhere costs a look every few seconds, not a poll.
     /// </para>
     /// <para>
     /// A trigger the loop could not fire starts the count again, as it is fresh news. So does a round
-    /// whose held triggers are held by a later firing than the last round's: the job ended and was taken
-    /// again in between, and a job changing hands that often frees up often too. Otherwise a round the
-    /// store says triggers are held back in starts the count only when it is not running already, since
-    /// the store says so of the same triggers every round until the firing ends, and while it does the
-    /// wait stays at the idle wait rather than starting over. A round with no such news lets the count run
-    /// out. Nothing changes for a loop with nothing held back: every wait is the idle wait, as it was.
+    /// whose held triggers are held by a later firing than the last round's, once the count has grown to
+    /// <see cref="ChangedHandsRestartSteps" /> times its start: the job ended and was taken again in
+    /// between, and a job changing hands that often frees up often too, but not so often that looking
+    /// every tenth of a second for it is worth it. Otherwise a round the store says triggers are held
+    /// back in starts the count only when it is not running already, since the store says so of the same
+    /// triggers every round until the firing ends. A round with no such news lets the count run on to the
+    /// idle wait and out. Nothing changes for a loop with nothing held back: every wait is the idle wait,
+    /// as it was.
     /// </para>
     /// </remarks>
     /// <param name="heldBack">Whether the store said due triggers are held back behind a running firing this round.</param>
@@ -877,7 +895,7 @@ internal sealed class QuartzSchedulerThread
             bool changedHands = blockingFiredUtc is not null && blockingFiredUtc != lastBlockingFiredUtc;
             lastBlockingFiredUtc = blockingFiredUtc;
 
-            if (blockedRetry == TimeSpan.Zero || changedHands)
+            if (blockedRetry == TimeSpan.Zero || (changedHands && blockedRetry >= BlockedRetryStart * ChangedHandsRestartSteps))
             {
                 blockedRetry = BlockedRetryStart;
             }
@@ -888,18 +906,26 @@ internal sealed class QuartzSchedulerThread
             return idleWait;
         }
 
-        TimeSpan wait = blockedRetry < idleWait ? blockedRetry : idleWait;
-
-        // Doubled while that is still short of the idle wait; written as a comparison with the remainder
-        // so that a configured idle wait near the limit of a TimeSpan cannot overflow it.
+        // The highest the count goes: the held limit while something is held, the idle wait once nothing
+        // is, which is where it runs out.
         TimeSpan limit = qsRsrcs.IdleWaitTime;
-        if (blockedRetry < limit - blockedRetry)
+        TimeSpan ceiling = heldBack && HeldRetryLimit < limit ? HeldRetryLimit : limit;
+
+        TimeSpan wait = blockedRetry < ceiling ? blockedRetry : ceiling;
+        if (idleWait < wait)
+        {
+            wait = idleWait;
+        }
+
+        // Doubled while that is still short of the ceiling; written as a comparison with the remainder so
+        // that a configured idle wait near the limit of a TimeSpan cannot overflow it.
+        if (blockedRetry < ceiling - blockedRetry)
         {
             blockedRetry += blockedRetry;
         }
         else
         {
-            blockedRetry = heldBack ? limit : TimeSpan.Zero;
+            blockedRetry = heldBack ? ceiling : TimeSpan.Zero;
         }
 
         return wait;

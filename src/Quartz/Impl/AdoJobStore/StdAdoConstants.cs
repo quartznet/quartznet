@@ -307,7 +307,7 @@ internal static class StdAdoConstants
     /// <summary>
     /// Counts the triggers pinned to this node and due by <c>@noLaterThan</c> that are <c>BLOCKED</c>
     /// behind a firing on another node — no fired-trigger row of their job is this node's — and says when
-    /// the latest of the firings holding them was fired (#3988).
+    /// the latest firing of a job that disallows concurrent execution holding them was fired (#3988).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -318,16 +318,19 @@ internal static class StdAdoConstants
     /// firing on this node is left out, since that firing's end wakes this node itself.
     /// </para>
     /// <para>
-    /// The count is of rows the join returns: a trigger whose job somehow has two firings is counted
-    /// twice, which says no more than that something holds it. <c>@instanceId</c> and
-    /// <c>@instanceName</c> are bound to the same value, because each named parameter is referenced once
+    /// The join reads only the firings of a job that disallows concurrent execution, one at a time, so a
+    /// later fire time is the job having changed hands. A trigger held by its own overlap policy —
+    /// <c>BufferOne</c> or <c>CancelPrevious</c> behind its own long firing — belongs to a job whose other
+    /// triggers keep firing beside it, and their fire times say nothing about when it is let go: it is
+    /// counted, with no fire time. <c>@instanceId</c> and <c>@instanceName</c> are bound to the same value,
+    /// and <c>@isNonConcurrent</c> to the dialect's true, because each named parameter is referenced once
     /// for providers that bind positionally.
     /// </para>
     /// </remarks>
     public static readonly string SqlSelectPinnedTriggersBlockedElsewhere =
         Invariant($@"SELECT COUNT(t.{AdoConstants.ColumnTriggerName}), MAX(f.{AdoConstants.ColumnFiredTime})
               FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t
-              LEFT JOIN {TablePrefixSubst}{AdoConstants.TableFiredTriggers} f ON (f.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND f.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName} AND f.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup})
+              LEFT JOIN {TablePrefixSubst}{AdoConstants.TableFiredTriggers} f ON (f.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND f.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName} AND f.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND f.{AdoConstants.ColumnIsNonConcurrent} = @{SqlParameters.IsNonConcurrent})
               WHERE t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND t.{AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NoLaterThan} AND t.{AdoConstants.ColumnPreferredNode} = @{SqlParameters.InstanceId}
                 AND NOT EXISTS (SELECT o.{AdoConstants.ColumnEntryId} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} o WHERE o.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND o.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName} AND o.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND o.{AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName})");
 
