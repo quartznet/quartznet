@@ -2747,6 +2747,32 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
+    public async Task ARoundNeverFiresATriggerStoredPaused()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        IJobDetail held = CreateJob("held-in-round", JobGroupA);
+        IOperableTrigger heldTrigger = CreateTrigger("held-in-round", TriggerGroupA, held.Key, startAt: now);
+        await Store.ScheduleJobs(
+            new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> { [held] = [heldTrigger] },
+            new ScheduleJobOptions { PauseReason = "awaiting approval" });
+
+        IJobDetail free = CreateJob("free-in-round", JobGroupA);
+        await Store.ScheduleJob(free, CreateTrigger("free-in-round", TriggerGroupA, free.Key, startAt: now));
+
+        TriggerAcquisitionResult round = await Store.AcquireNextTriggersAndFireDue(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = now.AddMinutes(1),
+            MaxCount = 5,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["free-in-round"],
+            "both are due, and the one stored paused was never in a state a round claims");
+        round.Pending.Should().BeEmpty();
+        (await Store.GetTriggerState(heldTrigger.Key)).Should().Be(TriggerState.Paused);
+    }
+
+    [Test]
     public async Task AStoreWithoutItsOwnAnswerLeavesEveryTriggerToTheScheduler()
     {
         IJobDetail job = CreateJob("due", JobGroupA);
