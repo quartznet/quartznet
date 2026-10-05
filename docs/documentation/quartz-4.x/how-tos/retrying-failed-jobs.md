@@ -300,8 +300,8 @@ What a hand-back does:
   after a crash. The job sees `Recovering` and `RecoveringTriggerKey`.
 * Counts no retry: `RetryAttempt` does not move, and the policy is not consulted.
 * Moves what awaits the trigger onto the recovery trigger, so the replay's outcome settles it: an
-  `OnSuccess` continuation runs once the replay succeeds, an `OnFailure` one once it fails. A spent
-  one-shot trigger is deleted as usual.
+  `OnSuccess` continuation runs once the replay succeeds, an `OnFailure` one once it fails with no retry
+  left. A spent one-shot trigger is deleted as usual.
 * Does not write the job's data, even with `[PersistJobDataAfterExecution]`: the replay starts from the data
   the cancelled run started with.
 * Releases a `[DisallowConcurrentExecution]` job's other triggers, and a `BufferOne` or `CancelPrevious`
@@ -309,8 +309,11 @@ What a hand-back does:
 * Records a `Cancelled` history row with the summary *Handed back for recovery: the scheduler shut down
   while it ran.* Log event `3054` names the recovery trigger.
 
-The replay is a plain recovery trigger, as after a crash: it fires once, with no retry policy. Handed back
-again, it keeps the markers of the original firing.
+The replay is an ordinary recovery trigger, as after a crash. It has no policy of its own, nor the original
+trigger's, so a failed replay is retried by the job type's `[RetryPolicy]` or the scheduler's default, from
+attempt `0`; see
+[Declare it on the job, or set a default](#declare-it-on-the-job-or-set-a-default). Handed back again, it
+keeps the markers of the original firing.
 
 A completion that arrives after the store has closed is refused, as before. Its fired-trigger row stays, and
 recovery replays the job when a peer, or this node at its next start, recovers it. A 4.3 node ignores the
