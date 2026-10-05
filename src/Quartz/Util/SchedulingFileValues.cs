@@ -34,7 +34,8 @@ namespace Quartz.Util;
 internal static class SchedulingFileValues
 {
     /// <summary>
-    /// Reads a trigger's retry policy from its stored form, for example <c>fixed;3;00:00:30</c>.
+    /// Reads a trigger's retry policy from its stored form, for example <c>fixed;3;00:00:30</c>, or
+    /// <c>none</c> for a trigger that is never retried.
     /// </summary>
     /// <param name="value">The value the file stated, or <see langword="null" /> when it stated none.</param>
     /// <param name="trigger">How the reader names the trigger in a diagnostic, for example <c>Trigger 'nightly'</c>.</param>

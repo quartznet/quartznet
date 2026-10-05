@@ -608,6 +608,30 @@ public class JsonObjectSerializerTest
     }
 
     /// <summary>
+    /// A trigger that refuses retries, which both serializers must read back as refusing them rather than
+    /// as a trigger with no policy of its own — the second inherits its job type's or the scheduler's.
+    /// </summary>
+    [Test]
+    public void ATriggerGivenRetryPolicyNoneKeepsItAcrossBothSerializers()
+    {
+        FakeTimeProvider timeProvider = CreateFakeTimeProvider();
+
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(timeProvider)
+            .WithSimpleSchedule(builder => builder.WithInterval(TimeSpan.FromMinutes(15)).WithRepeatCount(1))
+            .WithIdentity("NeverRetriedTriggerKey", "NeverRetriedTriggerGroup")
+            .ForJob("NeverRetriedJobKey", "NeverRetriedJobGroup")
+            .WithRetryPolicy(RetryPolicy.None)
+            .StartAt(timeProvider.GetUtcNow())
+            .Build();
+
+        SetTimeProvider(timeProvider, trigger);
+
+        CompareSerialization<IOperableTrigger>(
+            trigger,
+            (deserialized, _) => deserialized.RetryPolicy.Should().BeSameAs(RetryPolicy.None));
+    }
+
+    /// <summary>
     /// A trigger that waits for another one's firing, in the blob both serializers write.
     /// </summary>
     /// <remarks>

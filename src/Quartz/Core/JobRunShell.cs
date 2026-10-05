@@ -344,10 +344,12 @@ internal sealed class JobRunShell
                             // Reported at Information, unlike the instruction itself: a job that keeps
                             // failing and retrying is the thing an operator wants in the log without
                             // turning Debug on, and the retry instant is what tells them when to look.
+                            // The policy the firing was retried under, which is the trigger's own only
+                            // when it has one: a job type's or the scheduler's is never on the trigger.
                             logger.TriggerRetryScheduled(
                                 trigger.Key,
                                 trigger.RetryAttempt,
-                                trigger.RetryPolicy?.MaxAttempts ?? 0,
+                                context.RetryPolicy?.MaxAttempts ?? 0,
                                 trigger.NextFireTimeUtc.GetValueOrDefault());
 
                             qs.resources.Meters.TriggerRetryScheduled(qs.resources.Name, qs.resources.InstanceId, trigger);
@@ -401,13 +403,13 @@ internal sealed class JobRunShell
                         break;
                     }
 
-                    // The occurrence failed for the last time: it has a policy, it threw, and the
-                    // trigger is not trying again. Between the two completion notifications, so a
-                    // listener hearing it has already had JobWasExecuted for the same firing and has
-                    // not yet had TriggerComplete.
+                    // The occurrence failed for the last time: a policy applies — the trigger's, its
+                    // job type's or the scheduler's — it threw, and the trigger is not trying again.
+                    // Between the two completion notifications, so a listener hearing it has already
+                    // had JobWasExecuted for the same firing and has not yet had TriggerComplete.
                     if (outcome == ExecutionOutcome.Failed
                         && instructionCode != SchedulerInstruction.RetryTrigger
-                        && trigger.RetryPolicy is { } spentPolicy)
+                        && context.RetryPolicy is { } spentPolicy)
                     {
                         await NotifyRetriesExhausted(qs, context, jobExEx!, spentPolicy, cancellationToken).ConfigureAwait(false);
                     }

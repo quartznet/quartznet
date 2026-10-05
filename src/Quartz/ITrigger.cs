@@ -126,10 +126,16 @@ public interface ITrigger
 
     /// <summary>
     /// How the scheduler re-fires this trigger when its job fails, or <see langword="null" /> —
-    /// the default — when a failed job is simply reported and the trigger waits for its next
-    /// scheduled occurrence.
+    /// the default — when the trigger has no policy of its own.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// A trigger with no policy of its own is retried under its job type's
+    /// <see cref="RetryPolicyAttribute" /> or the scheduler's default; with neither, a failed job is
+    /// reported and the trigger waits for its next scheduled occurrence.
+    /// <see cref="Quartz.RetryPolicy.None" /> refuses both. This is only ever the trigger's own policy;
+    /// <see cref="IJobExecutionContext.RetryPolicy" /> is the one a firing is retried under.
+    /// </para>
     /// <para>
     /// A retry never displaces the next scheduled occurrence: one that would land at or within a
     /// second of it is dropped and the ordinary schedule wins.

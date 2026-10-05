@@ -1052,7 +1052,7 @@ public static class QuartzBuilderExtensions
     /// job's <see cref="IJobExecutionContext.CancellationToken" /> — the one it was handed — is
     /// cancelled and <see cref="ISchedulerListener.JobInterrupted(IScheduler, JobKey, string, CancellationToken)" /> is raised. The middleware then
     /// raises a <see cref="JobExecutionException" /> naming the budget, which is what makes a timeout a
-    /// <em>failure</em>: without it an interrupt looks like a completed job, and the trigger's
+    /// <em>failure</em>: without it an interrupt looks like a completed job, and the firing's
     /// <see cref="RetryPolicy" /> would never be consulted. With it, a timed-out firing is retried like
     /// any other failure, and each attempt gets the whole budget again.
     /// </para>
@@ -1190,6 +1190,38 @@ public static class QuartzBuilderExtensions
     private sealed record JobLogScopeMarker(string SchedulerName);
 
     /// <summary>
+    /// Retries a failed firing under <paramref name="policy" /> when neither its trigger nor its job type
+    /// names a policy of its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The last of three places a policy is looked for: the trigger's own
+    /// <see cref="ITrigger.RetryPolicy" />, then the job type's <see cref="RetryPolicyAttribute" />, then
+    /// this. A trigger given <see cref="RetryPolicy.None" />, or a job type declaring
+    /// <c>[RetryPolicy(0)]</c>, is never retried whatever the default says.
+    /// </para>
+    /// <para>
+    /// Looked up when a firing fails, not written to triggers as they are stored, so it covers triggers
+    /// stored before it was set, and a trigger's <c>RETRY_POLICY</c> column stays its own. Each node of a
+    /// cluster applies its own default, so set the same one on every node; a node older than 4.4 has none.
+    /// </para>
+    /// <para>
+    /// Set in code only, because a <see cref="RetryPolicy" /> is built by its factories. Calling this
+    /// again replaces the default.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="policy">The policy, for example <c>RetryPolicy.Exponential(5, TimeSpan.FromSeconds(30))</c>.</param>
+    public static IQuartzBuilder UseDefaultRetryPolicy(this IQuartzBuilder builder, RetryPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(policy);
+
+        builder.Services.Configure<SchedulerRetryOptions>(builder.SchedulerName, options => options.DefaultPolicy = policy);
+        return builder;
+    }
+
+    /// <summary>
     /// Pauses a trigger whose retry policy has given up, recording why, so it stops failing on schedule
     /// until an operator resumes it.
     /// </summary>
@@ -1199,8 +1231,8 @@ public static class QuartzBuilderExtensions
     /// with <see cref="IScheduler.PauseTriggerWith" />: the reason is the message of what the job threw,
     /// cut to <see cref="PauseDetails.MaxReasonLength" />, and the requester
     /// <c>quartz:retries-exhausted</c>. <see cref="IScheduler.GetTriggerPause" /> and the dashboard show
-    /// both. Only a trigger with a <see cref="ITrigger.RetryPolicy" /> can exhaust its retries, so only
-    /// those are ever paused.
+    /// both. Only a firing that a retry policy applies to — the trigger's, its job type's or the
+    /// scheduler's default — can exhaust its retries, so only those triggers are ever paused.
     /// </para>
     /// <para>
     /// A trigger with no next occurrence is finished by the same completion, and there is nothing left of

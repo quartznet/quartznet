@@ -56,7 +56,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// overlaps itself, whichever version runs it.
 /// Every continuation is settled once, by a parent that completed on either node. The pause and overlap
 /// columns the working tree wrote survive the released node firing, misfiring, updating, pausing and
-/// resuming the rows around them. And every execution is in the history once: the released node's rows
+/// resuming the rows around them, and a trigger the working tree gave <c>RetryPolicy.None</c> is fired by the
+/// released node, which reads <c>none</c> as no policy and writes the column back empty. And every execution is
+/// in the history once: the released node's rows
 /// carry no outcome and read back as succeeded, the working tree's carry it, and each job's
 /// <c>RUN_COUNT</c> counts the working tree's runs alone.
 /// </para>
@@ -178,7 +180,7 @@ public sealed class MixedVersionClusterPostgresTest
         "SELECT job_group, job_name, run_count, last_instance_name FROM qrtzv_job_status WHERE sched_name = @schedulerName";
 
     private const string SelectTriggerColumns =
-        "SELECT trigger_state, overlap_policy, pause_reason, paused_by, paused_at, description, priority "
+        "SELECT trigger_state, overlap_policy, pause_reason, paused_by, paused_at, description, priority, retry_policy "
         + "FROM qrtzv_triggers WHERE sched_name = @schedulerName AND trigger_group = @group AND trigger_name = @name";
 
     private const string SelectTriggerGroupPause =
@@ -229,6 +231,7 @@ public sealed class MixedVersionClusterPostgresTest
             await ScheduleHalf(workingTree, first: 1, due);
             StateArrangement state = await ArrangeWorkingTreeState(workingTree, due);
             await Backdate(connectionString, "held", "overlap-misfired", TimeSpan.FromMinutes(10));
+            string retryPolicyAsScheduled = (await ReadTriggerColumns(connectionString, "state", "retry-none")).RetryPolicy;
 
             (DateTimeOffset.UtcNow + TimeSpan.FromSeconds(1)).Should().BeBefore(due,
                 "both nodes have to be up and every trigger written before the work is due, or part of the upgrade "
@@ -267,6 +270,7 @@ public sealed class MixedVersionClusterPostgresTest
                 AssertNoOverlap(runs);
                 AssertContinuationsSettled(runs, columns);
                 AssertWorkingTreeColumnsSurvived(runs, columns, state, around);
+                AssertTheReleasedNodeReadsRetryPolicyNoneAsNoPolicy(runs, columns, retryPolicyAsScheduled);
                 AssertTheWorkingTreeReadsThemBack(columns, triggerPause, groupPause, jobGroupPause);
                 AssertProgressSurvived(runs);
                 AssertEachRunIsInTheHistoryOnce(runs, history);
@@ -351,6 +355,11 @@ public sealed class MixedVersionClusterPostgresTest
         await workingTree.Send("schedule",
             ("name", "overlap-fired"), ("group", "state"), ("job", "state"), ("type", "state"),
             ("start", due), ("intervalMs", 1000), ("pin", Released), ("policy", nameof(OverlapPolicy.Skip)));
+
+        // Refusing any retry policy it would inherit, in a form the released node cannot parse, and fired by it.
+        await workingTree.Send("schedule",
+            ("name", "retry-none"), ("group", "state"), ("job", "state"), ("type", "state"),
+            ("start", due), ("intervalMs", 1000), ("pin", Released), ("retry", "none"));
 
         // Paused with a reason, and updated by the released node while it is. Its start is past the run, so
         // nothing but the pause is keeping it from firing.
@@ -450,6 +459,7 @@ public sealed class MixedVersionClusterPostgresTest
                         && runs.Count(x => x.TriggerGroup == "progress") >= 2 * ProgressFirings
                         && runs.Count(x => x.Trigger == "state.overlap-fired" && x.FiredUtc > around.Updated.UtcTicks) >= 3
                         && runs.Count(x => x.Trigger == "held.overlap-misfired") >= 3
+                        && runs.Count(x => x.Trigger == "state.retry-none") >= 3
                         && runs.Any(x => x.Trigger == "state.sibling" && x.FiredUtc > around.SiblingResumed.UtcTicks)
                         && DateTimeOffset.UtcNow >= due + SerialAfter + SerialFor;
 
@@ -657,6 +667,24 @@ public sealed class MixedVersionClusterPostgresTest
         columns.JobGroupPause?.PausedAt.Should().BeInRange(state.BeforeGroupPauses.UtcTicks - TimeSpan.TicksPerSecond, state.AfterGroupPauses.UtcTicks + TimeSpan.TicksPerSecond);
         columns.Triggers["state.parked"].State.Should().Be("PAUSED", "the released node read the job group row the working tree wrote");
         NoViolations("state.parked was born paused", runs.Where(x => x.Trigger == "state.parked").Select(x => x.ToString()));
+    }
+
+    /// <summary>
+    /// A trigger the working tree gave <c>RetryPolicy.None</c> is stored as <c>none</c>, which the released node
+    /// cannot parse: it reads no policy, fires the trigger, and writes the column back empty. That last part is
+    /// why the retry page says to give a trigger <c>None</c> once every node is on 4.4.
+    /// </summary>
+    private static void AssertTheReleasedNodeReadsRetryPolicyNoneAsNoPolicy(List<Run> runs, ColumnsAfter columns, string asScheduled)
+    {
+        asScheduled.Should().Be("none", "the working tree stores RetryPolicy.None as a value of its own, distinct from an empty column");
+
+        runs.Count(x => x.Trigger == "state.retry-none" && x.Node == Released).Should().BeGreaterThanOrEqualTo(3,
+            "the released node reads a RETRY_POLICY it cannot parse as no policy and fires the trigger like any other");
+        NoViolations("state.retry-none is pinned to the released node",
+            runs.Where(x => x.Trigger == "state.retry-none" && x.Node != Released).Select(x => x.ToString()));
+
+        columns.Triggers["state.retry-none"].RetryPolicy.Should().BeNull(
+            "the released node writes the trigger it fired back with the policy it read, which was none at all");
     }
 
     /// <summary>
@@ -973,6 +1001,38 @@ public sealed class MixedVersionClusterPostgresTest
         return new HistoryThroughTheApi([.. all.Items], succeeded.Items.Count, oneOff);
     }
 
+    private static async Task<TriggerColumns> ReadTriggerColumns(string connectionString, string group, string name)
+    {
+        await using NpgsqlConnection connection = new(connectionString);
+        await connection.OpenAsync();
+        return await ReadTriggerColumns(connection, group, name);
+    }
+
+    private static async Task<TriggerColumns> ReadTriggerColumns(NpgsqlConnection connection, string group, string name)
+    {
+        await using NpgsqlCommand command = new(SelectTriggerColumns, connection);
+        command.Parameters.AddWithValue("schedulerName", SchedulerName);
+        command.Parameters.AddWithValue("group", group);
+        command.Parameters.AddWithValue("name", name);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            // Asserted on with everything else rather than here, so one gone row does not hide the rest.
+            return new TriggerColumns("<no row>", null, null, null, null, null, null, null);
+        }
+
+        return new TriggerColumns(
+            reader.GetString(0),
+            reader.IsDBNull(1) ? null : reader.GetInt32(1),
+            reader.IsDBNull(2) ? null : reader.GetString(2),
+            reader.IsDBNull(3) ? null : reader.GetString(3),
+            reader.IsDBNull(4) ? null : reader.GetInt64(4),
+            reader.IsDBNull(5) ? null : reader.GetString(5),
+            reader.IsDBNull(6) ? null : reader.GetInt32(6),
+            reader.IsDBNull(7) ? null : reader.GetString(7));
+    }
+
     private static async Task<ColumnsAfter> ReadColumns(string connectionString)
     {
         await using NpgsqlConnection connection = new(connectionString);
@@ -980,29 +1040,9 @@ public sealed class MixedVersionClusterPostgresTest
 
         Dictionary<string, TriggerColumns> triggers = new(StringComparer.Ordinal);
         foreach ((string group, string name) in (IEnumerable<(string, string)>)
-                 [("state", "overlap-fired"), ("state", "paused-with-reason"), ("held", "overlap-misfired"), ("held", "born-paused"), ("state", "parked")])
+                 [("state", "overlap-fired"), ("state", "paused-with-reason"), ("held", "overlap-misfired"), ("held", "born-paused"), ("state", "parked"), ("state", "retry-none")])
         {
-            await using NpgsqlCommand command = new(SelectTriggerColumns, connection);
-            command.Parameters.AddWithValue("schedulerName", SchedulerName);
-            command.Parameters.AddWithValue("group", group);
-            command.Parameters.AddWithValue("name", name);
-            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
-
-            if (!await reader.ReadAsync())
-            {
-                // Asserted on with everything else rather than here, so one gone row does not hide the rest.
-                triggers[group + "." + name] = new TriggerColumns("<no row>", null, null, null, null, null, null);
-                continue;
-            }
-
-            triggers[group + "." + name] = new TriggerColumns(
-                reader.GetString(0),
-                reader.IsDBNull(1) ? null : reader.GetInt32(1),
-                reader.IsDBNull(2) ? null : reader.GetString(2),
-                reader.IsDBNull(3) ? null : reader.GetString(3),
-                reader.IsDBNull(4) ? null : reader.GetInt64(4),
-                reader.IsDBNull(5) ? null : reader.GetString(5),
-                reader.IsDBNull(6) ? null : reader.GetInt32(6));
+            triggers[group + "." + name] = await ReadTriggerColumns(connection, group, name);
         }
 
         Dictionary<string, string> leftoverChain = new(StringComparer.Ordinal);
@@ -1176,7 +1216,8 @@ public sealed class MixedVersionClusterPostgresTest
         string PausedBy,
         long? PausedAt,
         string Description,
-        int? Priority);
+        int? Priority,
+        string RetryPolicy);
 
     private sealed record PauseColumns(string PauseReason, string PausedBy, long? PausedAt);
 

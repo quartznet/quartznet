@@ -98,6 +98,13 @@ internal static class StoreCheck
     private static readonly TaskCompletionSource<string> reflectedDelegateFired = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
+    /// The policy <see cref="RetryingCanaryJob" />'s retry ran under. Its trigger names none, so the retry
+    /// happening at all says the scheduler read the job type's <see cref="RetryPolicyAttribute" />, which
+    /// is a custom attribute instantiated from metadata in a publish with no reflection left.
+    /// </summary>
+    private static readonly TaskCompletionSource<string> retriedByAttribute = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
     /// Runs the check, returning <see langword="null" /> when it passed and a message when it did not.
     /// </summary>
     public static async Task<string?> Run()
@@ -208,6 +215,16 @@ internal static class StoreCheck
                     .UsingInput(new CanaryInput("the typed input round-trips out of a trimmed publish", 7))
                     .Build()).ConfigureAwait(false);
 
+            // A job whose type declares its retry policy, on a trigger that declares none.
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<RetryingCanaryJob>()
+                    .WithIdentity("retrying", "store")
+                    .Build(),
+                TriggerBuilder.Create()
+                    .WithIdentity("retrying", "store")
+                    .StartNow()
+                    .Build()).ConfigureAwait(false);
+
             await scheduler.Start().ConfigureAwait(false);
 
             // Signalled by the job itself. A sleep would pass on a machine slow enough to make it
@@ -266,6 +283,18 @@ internal static class StoreCheck
                 return $"FAIL store: the delegate job passed as a Delegate ran as '{reflectedDelegateRun}'.";
             }
 
+            Task retried = await Task.WhenAny(retriedByAttribute.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+            if (retried != retriedByAttribute.Task)
+            {
+                return "FAIL store: the job declaring [RetryPolicy] failed and was never retried within a minute, so its type's attribute was not read.";
+            }
+
+            string retryPolicy = await retriedByAttribute.Task.ConfigureAwait(false);
+            if (retryPolicy != "fixed;1;00:00:00.2000000")
+            {
+                return $"FAIL store: the job declaring [RetryPolicy] was retried under '{retryPolicy}'.";
+            }
+
             CanaryInput received = await typedInput.Task.ConfigureAwait(false);
             CanaryInput expected = new("the typed input round-trips out of a trimmed publish", 7);
             if (received != expected)
@@ -299,6 +328,7 @@ internal static class StoreCheck
 
             Console.WriteLine($"PASS delegate: {delegateRun}");
             Console.WriteLine($"PASS delegate: {reflectedDelegateRun}");
+            Console.WriteLine($"PASS retry: a job declaring [RetryPolicy] was retried under {retryPolicy} on a trigger that names no policy.");
             Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input, jobs declared with [CronTrigger] and [SimpleTrigger] on configured schedules and two delegate jobs, one bound at compile time and one by reflection, included.");
             return null;
         }
@@ -398,6 +428,25 @@ internal static class StoreCheck
         public ValueTask Execute(IJobExecutionContext context, CanaryInput input, CancellationToken cancellationToken = default)
         {
             typedInput.TrySetResult(input);
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// Fails its first attempt and reports the policy its retry ran under. The policy is declared here
+    /// and nowhere else, so a retry is the scheduler having read this attribute out of the type's metadata.
+    /// </summary>
+    [RetryPolicy(1, "00:00:00.200")]
+    public sealed class RetryingCanaryJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            if (context.RetryAttempt == 0)
+            {
+                throw new InvalidOperationException("The canary fails its first attempt, so that its type's [RetryPolicy] is what retries it.");
+            }
+
+            retriedByAttribute.TrySetResult(context.RetryPolicy?.ToStoredString() ?? "no policy");
             return default;
         }
     }

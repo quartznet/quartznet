@@ -662,6 +662,7 @@ namespace Quartz
         int RefireCount { get; }
         object? Result { get; set; }
         int RetryAttempt { get; }
+        Quartz.RetryPolicy? RetryPolicy { get; } // default implementation
         bool RetryScheduled { get; } // default implementation
         System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         Quartz.IScheduler Scheduler { get; }
@@ -1610,6 +1611,7 @@ namespace Quartz
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<T>> trigger, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>>? job = null)
             where T : Quartz.IJob { }
+        public static Quartz.IQuartzBuilder UseDefaultRetryPolicy(this Quartz.IQuartzBuilder builder, Quartz.RetryPolicy policy) { }
         public static Quartz.IQuartzBuilder UseExecutionLimits(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ExecutionLimitsBuilder> configure) { }
         public static Quartz.IQuartzBuilder UseExecutionLogCapture(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ExecutionLogCaptureOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseSimpleTypeLoader(this Quartz.IQuartzBuilder builder) { }
@@ -1754,6 +1756,7 @@ namespace Quartz
         public double Jitter { get; }
         public int MaxAttempts { get; }
         public System.TimeSpan? MaxDelay { get; }
+        public static Quartz.RetryPolicy None { get; }
         public System.TimeSpan DelayFor(int attempt) { }
         public bool Equals(Quartz.RetryPolicy? other) { }
         public override bool Equals(object? obj) { }
@@ -1768,6 +1771,18 @@ namespace Quartz
         public static bool TryParse(string? value, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.RetryPolicy? policy) { }
         public static bool operator !=(Quartz.RetryPolicy? left, Quartz.RetryPolicy? right) { }
         public static bool operator ==(Quartz.RetryPolicy? left, Quartz.RetryPolicy? right) { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Interface)]
+    public sealed class RetryPolicyAttribute : System.Attribute
+    {
+        public RetryPolicyAttribute(int maxAttempts) { }
+        public RetryPolicyAttribute(params string[] delays) { }
+        public RetryPolicyAttribute(int maxAttempts, string delay) { }
+        public RetryPolicyAttribute(int maxAttempts, string initialDelay, double factor) { }
+        public double Jitter { get; init; }
+        public int MaxAttempts { get; }
+        public string? MaxDelay { get; init; }
+        public Quartz.RetryPolicy Policy { get; }
     }
     public readonly record struct ScheduleJobOptions : System.IEquatable<Quartz.ScheduleJobOptions>
     {
@@ -3917,6 +3932,7 @@ namespace Quartz.Impl
         public int RefireCount { get; }
         public object? Result { get; set; }
         public int RetryAttempt { get; }
+        public Quartz.RetryPolicy? RetryPolicy { get; }
         public bool RetryScheduled { get; }
         public System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         public Quartz.IScheduler Scheduler { get; }

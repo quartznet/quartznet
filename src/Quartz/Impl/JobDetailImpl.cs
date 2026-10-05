@@ -21,6 +21,7 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 
 using Quartz.Util;
 
@@ -37,11 +38,18 @@ internal sealed class JobTypeInformation
 {
     private static readonly ConcurrentDictionary<Type, JobTypeInformation> jobTypeCache = new ConcurrentDictionary<Type, JobTypeInformation>();
 
-    public JobTypeInformation(bool concurrentExecutionDisallowed, bool persistJobDataAfterExecution, TimeSpan? timeout)
+    public JobTypeInformation(
+        bool concurrentExecutionDisallowed,
+        bool persistJobDataAfterExecution,
+        TimeSpan? timeout,
+        RetryPolicy? retryPolicy,
+        Exception? retryPolicyError)
     {
         ConcurrentExecutionDisallowed = concurrentExecutionDisallowed;
         PersistJobDataAfterExecution = persistJobDataAfterExecution;
         Timeout = timeout;
+        RetryPolicy = retryPolicy;
+        RetryPolicyError = retryPolicyError;
     }
 
     /// <summary>
@@ -70,7 +78,36 @@ internal sealed class JobTypeInformation
         var persistJobDataAfterExecution = IsAttributePresentOnTypeOrItsInterfaces(jobType, typeof(PersistJobDataAfterExecutionAttribute));
         var timeout = (FindAttributeOnTypeOrItsInterfaces(jobType, typeof(JobTimeoutAttribute)) as JobTimeoutAttribute)?.Timeout;
 
-        return new JobTypeInformation(concurrentExecutionDisallowed, persistJobDataAfterExecution, timeout);
+        // Read on its own, so that an attribute whose arguments are not a policy costs the job its retry
+        // policy and nothing else: what the type says about concurrency is still needed to fire it at all.
+        // The scheduler refuses to add such a job, with this exception as the reason.
+        RetryPolicy? retryPolicy = null;
+        Exception? retryPolicyError = null;
+        try
+        {
+            retryPolicy = (FindAttributeOnTypeOrItsInterfaces(jobType, typeof(RetryPolicyAttribute)) as RetryPolicyAttribute)?.Policy;
+        }
+        catch (Exception e) when (e is ArgumentException or CustomAttributeFormatException)
+        {
+            retryPolicyError = CauseOf(e);
+        }
+
+        return new JobTypeInformation(concurrentExecutionDisallowed, persistJobDataAfterExecution, timeout, retryPolicy, retryPolicyError);
+    }
+
+    /// <summary>
+    /// What the attribute itself threw. A constructor's exception arrives as it was thrown, but one from a
+    /// named argument's setter arrives wrapped twice, under a message saying the property was not found.
+    /// </summary>
+    private static Exception CauseOf(Exception e)
+    {
+        Exception cause = e;
+        while (cause is CustomAttributeFormatException or TargetInvocationException && cause.InnerException is { } inner)
+        {
+            cause = inner;
+        }
+
+        return cause;
     }
 
     /// <summary>
@@ -98,9 +135,9 @@ internal sealed class JobTypeInformation
     /// <see cref="DynamicallyAccessedMemberTypes.Interfaces" /> instead of travelling.
     /// </para>
     /// <para>
-    /// For <see cref="JobTimeoutAttribute" />, which carries a value rather than merely being present,
-    /// the type's own declaration wins over an interface's: a job that states its own budget is not
-    /// overruled by a contract it happens to fulfil.
+    /// For <see cref="JobTimeoutAttribute" /> and <see cref="RetryPolicyAttribute" />, which carry a value
+    /// rather than merely being present, the type's own declaration wins over an interface's: a job that
+    /// states its own budget or policy is not overruled by a contract it happens to fulfil.
     /// </para>
     /// <para>
     /// No annotation is needed on the attribute lookup itself: an attribute is part of the metadata of a
@@ -138,6 +175,19 @@ internal sealed class JobTypeInformation
     /// <see langword="null" /> when the type says nothing and the scheduler's own default applies.
     /// </summary>
     public TimeSpan? Timeout { get; }
+
+    /// <summary>
+    /// What <see cref="RetryPolicyAttribute" /> says a failed firing of this job is retried under —
+    /// <see cref="Quartz.RetryPolicy.None" /> included — or <see langword="null" /> when the type says
+    /// nothing and the scheduler's default applies.
+    /// </summary>
+    public RetryPolicy? RetryPolicy { get; }
+
+    /// <summary>
+    /// Why the type's <see cref="RetryPolicyAttribute" /> could not be read, or <see langword="null" />
+    /// when it could, or there is none.
+    /// </summary>
+    public Exception? RetryPolicyError { get; }
 }
 
 /// <summary>

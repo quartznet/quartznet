@@ -312,7 +312,7 @@ internal sealed class Node
 
     /// <summary>
     /// One simple trigger every <c>intervalMs=</c>, repeating forever unless <c>repeat=</c> says how often
-    /// or <c>end=</c> when to stop, optionally pinned to a node and given an overlap policy.
+    /// or <c>end=</c> when to stop, optionally pinned to a node and given an overlap policy and a retry policy.
     /// </summary>
     private async Task<List<KeyValuePair<string, string>>> Schedule(Command command)
     {
@@ -343,6 +343,13 @@ internal sealed class Node
         if (command.OptionalText("policy") is { } policy)
         {
             trigger = trigger.WithOverlapPolicy(Enum.Parse<OverlapPolicy>(policy));
+        }
+
+        // The stored form, parsed by whichever Quartz this node runs: the released one cannot read
+        // 'none', so only the working tree is sent it.
+        if (command.OptionalText("retry") is { } retry)
+        {
+            trigger = trigger.WithRetryPolicy(RetryPolicy.Parse(retry));
         }
 
         DateTimeOffset first = await scheduler.ScheduleJob(trigger.Build()).ConfigureAwait(false);

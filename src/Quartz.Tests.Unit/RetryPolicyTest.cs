@@ -248,6 +248,43 @@ public class RetryPolicyTest
     }
 
     // -----------------------------------------------------------------------------------------
+    // None
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public void NoneHasNoAttemptsAndNothingToWaitFor()
+    {
+        RetryPolicy none = RetryPolicy.None;
+
+        none.MaxAttempts.Should().Be(0, "None is the one policy that retries nothing, which is what lets it refuse an inherited one");
+        none.InitialDelay.Should().Be(TimeSpan.Zero);
+        none.BackoffFactor.Should().Be(1);
+        none.MaxDelay.Should().BeNull();
+        none.Jitter.Should().Be(0);
+        none.Delays.Should().BeEmpty();
+        none.IsNone.Should().BeTrue();
+        RetryPolicy.Fixed(1, TimeSpan.Zero).IsNone.Should().BeFalse();
+    }
+
+    [Test]
+    public void NoneComputesNoWait()
+    {
+        Action act = () => RetryPolicy.None.DelayFor(1);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*None*",
+            "no attempt is ever made under None, so any wait it answered with would be one nothing uses");
+    }
+
+    [Test]
+    public void NoneIsOneValue()
+    {
+        RetryPolicy.None.Should().BeSameAs(RetryPolicy.None);
+        RetryPolicy.Parse("none").Should().BeSameAs(RetryPolicy.None, "parsing the stored form hands back the one instance");
+        RetryPolicy.None.Should().NotBe(RetryPolicy.Fixed(1, TimeSpan.Zero));
+        RetryPolicy.None.GetHashCode().Should().Be(RetryPolicy.Parse("none").GetHashCode());
+    }
+
+    // -----------------------------------------------------------------------------------------
     // Jitter
     // -----------------------------------------------------------------------------------------
 

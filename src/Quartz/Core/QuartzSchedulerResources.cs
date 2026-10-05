@@ -333,6 +333,12 @@ internal sealed class QuartzSchedulerResources
     /// </summary>
     public bool RecordExceptionSpanEvents { get; set; } = ExceptionSignal.RecordsSpanEvents(configured: null);
 
+    /// <summary>
+    /// The policy a failed firing is retried under when neither its trigger nor its job type names one,
+    /// as <c>UseDefaultRetryPolicy</c> set it; <see langword="null" /> when the scheduler has none.
+    /// </summary>
+    public RetryPolicy? DefaultRetryPolicy { get; set; }
+
     public TimeProvider TimeProvider { get; set; }
 
     /// <summary>
