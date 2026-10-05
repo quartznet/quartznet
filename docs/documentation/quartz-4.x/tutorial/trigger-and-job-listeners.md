@@ -11,7 +11,7 @@ use one when the application must hear about events without the job notifying it
 | Listener | Events |
 |---|---|
 | `ITriggerListener` | trigger firings, misfires, and completions (the job the trigger fired has finished) |
-| `IJobListener` | a job is about to run, was vetoed, or has finished |
+| `IJobListener` | a job is about to run, was vetoed, reported progress, or has finished |
 
 ::: danger
 Make sure your trigger and job listeners never throw an exception (use a try-catch) and that they can handle
@@ -75,10 +75,15 @@ public interface IJobListener
     ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default);
 
     ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default);
+
+    ValueTask JobProgressChanged(IJobExecutionContext context, FireInstanceProgress progress, CancellationToken cancellationToken = default);
 }
 ```
 
-`jobException` is null when the job completed without throwing, so check for null before logging it.
+* `jobException` is null when the job completed without throwing, so check for null before logging it.
+* `JobProgressChanged` hears `context.ReportProgress` in this process, at most once a second per firing
+  and only on a change. A listener that throws here is logged and costs the firing nothing. See
+  [Hear progress in a listener](../how-tos/progress-and-execution-logs.md#hear-progress-in-a-listener).
 
 ## Using Your Own Listeners
 

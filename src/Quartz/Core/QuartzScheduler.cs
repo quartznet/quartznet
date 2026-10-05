@@ -127,6 +127,12 @@ internal sealed class QuartzScheduler
     public ISchedulerSignaler SchedulerSignaler { get; } = null!;
 
     /// <summary>
+    /// <see cref="NotifyJobListenersProgressChanged" /> as the delegate each reporting firing's
+    /// <see cref="FireProgressWriter" /> holds, made once here rather than once per firing that reports.
+    /// </summary>
+    internal Func<IJobExecutionContext, FireInstanceProgress, CancellationToken, ValueTask> JobProgressAnnouncer { get; }
+
+    /// <summary>
     /// The <see cref="IScheduler" /> facade this scheduler is seen through — the one handed to every
     /// listener callback and to every <see cref="IJobExecutionContext" />.
     /// </summary>
@@ -307,6 +313,7 @@ internal sealed class QuartzScheduler
 
         SchedulerSignaler = new SchedulerSignalerImpl(this, schedThread, loggerFactory.CreateLogger<SchedulerSignalerImpl>());
         Scheduler = new StdScheduler(this);
+        JobProgressAnnouncer = NotifyJobListenersProgressChanged;
 
         logger.SchedulerCreated();
     }
@@ -2946,6 +2953,49 @@ internal sealed class QuartzScheduler
             context,
             jobExecutionException,
             cancellationToken);
+    }
+
+    /// <summary>
+    /// Tells the job listeners whose matchers match the job what a running firing has reported.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="FireProgressWriter" />'s to call, through <see cref="JobProgressAnnouncer" />, at the
+    /// cadence it writes the job store. Unlike the other job-listener notifications this one cannot
+    /// cost the firing anything, so a listener that throws — or whose matcher does — is logged and the
+    /// next listener is told regardless, rather than the loop being abandoned.
+    /// </para>
+    /// </remarks>
+    internal ValueTask NotifyJobListenersProgressChanged(
+        IJobExecutionContext context,
+        FireInstanceProgress progress,
+        CancellationToken cancellationToken = default)
+    {
+        AttachedListener<IJobListener, JobKey>[] listeners = listenerManager.GetAttachedJobListeners();
+        return listeners.Length == 0 ? default : NotifyAwaited(listeners, context, progress, logger, cancellationToken);
+
+        static async ValueTask NotifyAwaited(
+            AttachedListener<IJobListener, JobKey>[] listeners,
+            IJobExecutionContext context,
+            FireInstanceProgress progress,
+            ILogger logger,
+            CancellationToken cancellationToken)
+        {
+            foreach (AttachedListener<IJobListener, JobKey> attached in listeners)
+            {
+                try
+                {
+                    if (attached.Matches(context.JobDetail.Key))
+                    {
+                        await attached.Listener.JobProgressChanged(context, progress, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.JobProgressListenerFailed(attached.Name, context.FireInstanceId, context.JobDetail.Key, e);
+                }
+            }
+        }
     }
 
     // optimized version to reduce state machine creations

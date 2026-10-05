@@ -202,6 +202,162 @@ public sealed class FireProgressWriterTest
     }
 
     [Test]
+    public async Task EachWriteIsAnnouncedAfterItIsMadeAndOnlyAChangeIs()
+    {
+        Channel<FireInstanceProgress> heard = Channel.CreateUnbounded<FireInstanceProgress>();
+        List<string> order = [];
+        A.CallTo(() => store.UpdateFireInstanceProgress(A<string>._, A<FireInstanceProgress>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, FireInstanceProgress progress, CancellationToken _) =>
+            {
+                lock (order)
+                {
+                    order.Add("write " + progress.Percent);
+                }
+
+                return default;
+            });
+
+        JobExecutionContextImpl context = Context();
+        IJobExecutionContext? announcedFor = null;
+        FireProgressWriter writer = FireProgressWriter.Attach(context, store, clock, logger, (c, progress, _) =>
+        {
+            lock (order)
+            {
+                announcedFor = c;
+                order.Add("announce " + progress.Percent);
+            }
+
+            heard.Writer.TryWrite(progress);
+            return default;
+        });
+
+        context.ReportProgress(10, "starting");
+        (await Next(heard)).Percent.Should().Be(10, "the first report is announced at once, as it is written at once");
+        await Idle(writer);
+
+        context.ReportProgress(20);
+        context.ReportProgress(30);
+        context.ReportProgress(40, "nearly");
+        clock.Advance(TimeSpan.FromSeconds(1));
+
+        FireInstanceProgress coalesced = await Next(heard);
+        coalesced.Percent.Should().Be(40, "the reports inside the interval are coalesced, and the listeners hear the latest");
+        coalesced.Message.Should().Be("nearly");
+        await Idle(writer);
+
+        clock.Advance(TimeSpan.FromSeconds(5));
+        context.ReportProgress(40, "nearly");
+        clock.Advance(TimeSpan.FromSeconds(5));
+        await Idle(writer);
+
+        heard.Reader.TryRead(out _).Should().BeFalse("a report that changes nothing is neither written nor announced");
+        order.Should().Equal(["write 10", "announce 10", "write 40", "announce 40"],
+            "a listener is told after the store, so one that reads the fire instance finds what it was told");
+        announcedFor.Should().BeSameAs(context, "a listener is handed the firing that reported");
+    }
+
+    [Test]
+    public async Task TheLastReportIsAnnouncedWhenTheJobReturnsAndNotWritten()
+    {
+        Channel<FireInstanceProgress> heard = Channel.CreateUnbounded<FireInstanceProgress>();
+        JobExecutionContextImpl context = Context();
+        FireProgressWriter writer = FireProgressWriter.Attach(context, store, clock, logger, Recorder(heard));
+
+        context.ReportProgress(10);
+        await NextWrite();
+        (await Next(heard)).Percent.Should().Be(10);
+        await Idle(writer);
+
+        context.ReportProgress(100, "done");
+        await writer.Complete();
+
+        FireInstanceProgress last = await Next(heard);
+        last.Percent.Should().Be(100, "the listeners had not heard the job's last report, and the job has returned");
+        last.Message.Should().Be("done");
+
+        writer.WritesStarted.Should().Be(1,
+            "the fire instance is about to be completed, so writing the last report would be a round trip for a row that is going");
+        writes.Reader.TryRead(out _).Should().BeFalse();
+
+        clock.Advance(TimeSpan.FromSeconds(1));
+        heard.Reader.TryRead(out _).Should().BeFalse("the tick that would have written it was stopped, so nothing is announced twice");
+    }
+
+    [Test]
+    public async Task NothingTheListenersHaveHeardIsAnnouncedAgainWhenTheJobReturns()
+    {
+        Channel<FireInstanceProgress> heard = Channel.CreateUnbounded<FireInstanceProgress>();
+        JobExecutionContextImpl context = Context();
+        FireProgressWriter writer = FireProgressWriter.Attach(context, store, clock, logger, Recorder(heard));
+
+        context.ReportProgress(100, "done");
+        (await Next(heard)).Percent.Should().Be(100);
+        await Idle(writer);
+
+        context.ReportProgress(100, "done");
+        await writer.Complete();
+
+        heard.Reader.TryRead(out _).Should().BeFalse("the listeners already heard the value the job ended on");
+    }
+
+    [Test]
+    public async Task TheJobsReturnWaitsForTheAnnouncementInFlightAndTheLastOneFollowsIt()
+    {
+        TaskCompletionSource<bool> release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<bool> firstHeard = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        List<int> heard = [];
+
+        JobExecutionContextImpl context = Context();
+        FireProgressWriter writer = FireProgressWriter.Attach(context, store, clock, logger, async (_, progress, _) =>
+        {
+            lock (heard)
+            {
+                heard.Add(progress.Percent);
+            }
+
+            if (progress.Percent == 10)
+            {
+                firstHeard.TrySetResult(true);
+                await release.Task.WaitAsync(waitLimit);
+            }
+        });
+
+        context.ReportProgress(10);
+        await firstHeard.Task.WaitAsync(waitLimit);
+
+        context.ReportProgress(60);
+        ValueTask completion = writer.Complete();
+
+        completion.IsCompleted.Should().BeFalse(
+            "a listener is still hearing the first report, and the job's completion is not announced over the top of it");
+
+        release.TrySetResult(true);
+        await completion.AsTask().WaitAsync(waitLimit);
+
+        heard.Should().Equal([10, 60], "one announcement of a firing at a time, and the last report after the one in flight");
+    }
+
+    [Test]
+    public async Task NothingIsWrittenOrAnnouncedAfterTheJobReturns()
+    {
+        Channel<FireInstanceProgress> heard = Channel.CreateUnbounded<FireInstanceProgress>();
+        JobExecutionContextImpl context = Context();
+        FireProgressWriter writer = FireProgressWriter.Attach(context, store, clock, logger, Recorder(heard));
+
+        context.ReportProgress(10);
+        (await Next(heard)).Percent.Should().Be(10);
+        await Idle(writer);
+        await writer.Complete();
+
+        clock.Advance(TimeSpan.FromSeconds(5));
+        context.ReportProgress(70, "from work the job left running");
+        clock.Advance(TimeSpan.FromSeconds(5));
+
+        writer.WritesStarted.Should().Be(1, "the job has returned, and its fire instance is going");
+        heard.Reader.TryRead(out _).Should().BeFalse("and JobWasExecuted is the last thing a listener hears of the firing");
+    }
+
+    [Test]
     public void ProgressOutsideZeroToOneHundredIsRefused()
     {
         JobExecutionContextImpl context = Context();
@@ -302,6 +458,21 @@ public sealed class FireProgressWriterTest
     {
         using CancellationTokenSource timeout = new(waitLimit);
         return await writes.Reader.ReadAsync(timeout.Token);
+    }
+
+    private static Func<IJobExecutionContext, FireInstanceProgress, CancellationToken, ValueTask> Recorder(Channel<FireInstanceProgress> heard)
+    {
+        return (_, progress, _) =>
+        {
+            heard.Writer.TryWrite(progress);
+            return default;
+        };
+    }
+
+    private static async Task<FireInstanceProgress> Next(Channel<FireInstanceProgress> heard)
+    {
+        using CancellationTokenSource timeout = new(waitLimit);
+        return await heard.Reader.ReadAsync(timeout.Token);
     }
 
     /// <summary>

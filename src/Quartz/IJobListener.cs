@@ -96,4 +96,42 @@ public interface IJobListener
         IJobExecutionContext context,
         JobExecutionException? jobException,
         CancellationToken cancellationToken = default) => default;
+
+    /// <summary>
+    /// Called by the <see cref="IScheduler" /> when what a running <see cref="IJob" /> reports through
+    /// <see cref="IJobExecutionContext.ReportProgress" /> has changed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Raised at the cadence the scheduler writes progress to the job store: the first report at once,
+    /// then at most once a second per firing, and only when the value has changed. Reports in between
+    /// are coalesced, so <paramref name="progress" /> is the latest. A report the listeners have not
+    /// heard by the time the job returns is raised then, before <see cref="JobWasExecuted" />; every
+    /// call for a firing has returned before that one is made.
+    /// </para>
+    /// <para>
+    /// Never made on the job's own flow, so <see cref="IJobExecutionContext.ReportProgress" /> stays
+    /// cheap: the call comes from the thread pool, outside the firing's execution context, and one call
+    /// for a firing is made at a time. Only listeners whose matchers match the job hear it. A listener
+    /// that throws is logged, and the job, the job store and the other listeners carry on.
+    /// </para>
+    /// <para>
+    /// In-process only: a listener hears the firings this scheduler runs, not those another node of a
+    /// cluster runs. <see cref="IScheduler.QueryFireInstances" />, the HTTP API and the dashboard read
+    /// progress from anywhere.
+    /// </para>
+    /// <para>
+    /// The default implementation does nothing.
+    /// </para>
+    /// </remarks>
+    /// <param name="context">The running firing.</param>
+    /// <param name="progress">
+    /// What the job reported, with its message already cut to
+    /// <see cref="FireInstanceProgress.MaxMessageLength" />: the value the job store is handed.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask JobProgressChanged(
+        IJobExecutionContext context,
+        FireInstanceProgress progress,
+        CancellationToken cancellationToken = default) => default;
 }

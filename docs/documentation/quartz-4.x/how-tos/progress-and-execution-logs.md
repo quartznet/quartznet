@@ -6,8 +6,9 @@ title: Progress and Execution Logs
 # Progress and Execution Logs
 
 A running job can say how far it has got, and what it logs while it runs can be kept with its history
-row. Progress shows on the dashboard's Currently Executing page, on every node of a cluster; the log
-shows on the execution's own page, reached from Execution History.
+row. Progress shows on the dashboard's Currently Executing page, on every node of a cluster, and a job
+listener in the same process hears it change; the log shows on the execution's own page, reached from
+Execution History.
 
 ## Report progress
 
@@ -40,7 +41,7 @@ public sealed class ExportJob : IJob
 | `percent` | `0` to `100`; anything else throws `ArgumentOutOfRangeException` |
 | `message` | Optional; cut to 250 characters (`FireInstanceProgress.MaxMessageLength`), and on Firebird to [250 bytes](../db/index.md#text-columns-that-count-bytes-oracle-and-firebird) |
 | Store writes | At most one per second per firing, only when the value changed |
-| The last report | Always written, however quickly the reports came |
+| The last report | Always written while the job runs, however quickly the reports came |
 | The job's thread | Never waits: the write is queued off the job's flow and enlists in nothing |
 | A failed write | Logged as event [`1058`](../log-events.md), and the job carries on |
 | Lifetime | The firing's: gone when the job completes; a retry starts with none |
@@ -67,6 +68,56 @@ foreach (FireInstance firing in running.Items)
   Run [`4.3/add_fire_progress_<db>.sql`](../../database/schema-changes.md#version-4-3) first.
 * Over HTTP, `GET …/jobs/fire-instances` carries `progress` and `progressMessage`.
 * The dashboard draws a bar on [Currently Executing](../packages/dashboard.md#currently-executing).
+
+## Hear progress in a listener
+
+Implement `IJobListener.JobProgressChanged` to hear progress without polling:
+
+<!-- snippet: sample_progress_listener -->
+```csharp
+public sealed class ProgressFeed : IJobListener
+{
+    private readonly ILogger<ProgressFeed> logger;
+
+    public ProgressFeed(ILogger<ProgressFeed> logger)
+    {
+        this.logger = logger;
+    }
+
+    // Off the job's thread, at most once a second per firing, and only on a change.
+    public ValueTask JobProgressChanged(IJobExecutionContext context, FireInstanceProgress progress, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("{JobKey} ({FireInstanceId}): {Percent}% {Message}",
+            context.JobDetail.Key, context.FireInstanceId, progress.Percent, progress.Message);
+        return default;
+    }
+}
+```
+<!-- endSnippet -->
+
+Register it like any job listener. Its matchers choose the jobs it hears:
+
+<!-- snippet: sample_progress_listener_registration -->
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    // Hears the export jobs only, as its matcher says.
+    q.AddJobListener<ProgressFeed>(GroupMatcher<JobKey>.GroupEquals("exports"));
+});
+```
+<!-- endSnippet -->
+
+| Rule | Value |
+|---|---|
+| When | With each store write: the first report at once, then at most once a second per firing |
+| An unchanged report | Not raised |
+| The last report | Raised when the job returns, if the listeners have not heard it. Not written to the store |
+| Order | One call per firing at a time, every one before `JobWasExecuted` |
+| Thread | The thread pool, outside the firing's execution context. Never the job's thread |
+| `progress` | A `FireInstanceProgress` (`Quartz.Extensibility`), as the store is handed it: `Percent`, and `Message` cut to 250 characters |
+| A listener that throws | Logged as event [`1061`](../log-events.md). The job, the store write and the other listeners carry on |
+| Reach | This process only. Other nodes of a cluster do not hear it: read `QueryFireInstances`, the HTTP API or the dashboard there |
+| Default | Does nothing, so a listener written for 4.3 is unchanged |
 
 ## Keep a job's log lines
 

@@ -379,6 +379,16 @@ internal sealed class JobRunShell
                     // handed against RetryTrigger.
                     context.Settle(outcome, instructionCode == SchedulerInstruction.RetryTrigger);
 
+                    // A firing that reported progress stops writing it here, and the job listeners hear
+                    // the last report now if they have not yet: every JobProgressChanged of the firing is
+                    // over before its JobWasExecuted begins. A firing that never reported has no writer,
+                    // and costs one table lookup.
+                    FireProgressWriter? progressWriter = FireProgressWriter.Find(context);
+                    if (progressWriter is not null)
+                    {
+                        await progressWriter.Complete().ConfigureAwait(false);
+                    }
+
                     // notify all job listeners
                     if (!await NotifyJobListenersComplete(qs, context, jobExEx, cancellationToken).ConfigureAwait(false))
                     {

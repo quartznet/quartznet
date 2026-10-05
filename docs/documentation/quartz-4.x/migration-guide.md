@@ -55,6 +55,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | Log event `3163` | Debug: this node leaves the database history's sweep to a live node with a lower instance id. Logged once |
 | `QuartzHealthCheckOptions.RequiredJobs`, `RequireSuccessWithin(job, within, status)`, `RequiredJobOptions` | Opt-in: the health check reports a job that has not succeeded within its window. See [Alert when a job stops succeeding](how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding) |
 | `InMemoryJobStoreOptions.MaxConsecutiveFireFailures` | The same setting for the in-memory store: `int`, default `5`, same flat key |
+| `IJobListener.JobProgressChanged(context, progress)` | Default interface member; does nothing. Hears `ReportProgress` in this process. See [Hear progress in a listener](how-tos/progress-and-execution-logs.md#hear-progress-in-a-listener) |
+| Log event `1061` | Warning: a job listener threw from `JobProgressChanged`. The job carries on |
 | Log events `2008`, `2009` | Errors from the in-memory store: a fire failed; a trigger set `ERROR` after that many in a row |
 | `IQuartzApiClient.GetJobRunStatus`, `GetJobRunStatuses` | Default interface members; the defaults throw `NotSupportedException`, and the pages leave the status out. See [Job run status](packages/dashboard.md#job-run-status) |
 | `DashboardHistoryEntry.Result`, `EffectiveResult`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId` | `init`, as on `ExecutionHistoryEntry`. `EffectiveResult` is get-only |
