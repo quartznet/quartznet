@@ -107,6 +107,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `RetryPolicy.None` | Never retried, whatever the job type or the scheduler would supply. Stored as `none` |
 | `IJobExecutionContext.RetryPolicy` | Default interface member: the policy the firing is retried under. The default answers with the trigger's own |
 | `JobExecutionContextImpl.RetryPolicy` | The trigger's own policy, the job type's or the scheduler's default |
+| `QZ0006` InvalidRetryPolicyDelay | Error: a `[RetryPolicy]` delay that is not a `TimeSpan`, or is negative. See [Compile-Time Checks](tutorial/compile-time-checks.md#qz0006-invalidretrypolicydelay) |
 
 **Behaviour changes:**
 
