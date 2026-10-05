@@ -98,8 +98,9 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
     /// </summary>
     /// <remarks>
     /// A fire fails when the trigger's <see cref="ICalendar" />, or a trigger type of your own, throws
-    /// while the store moves the trigger on. That trigger is left as it was and released, and the rest of
-    /// its batch fires. One that fails every time is acquired again at once, ahead of its
+    /// while the store moves the trigger on - as it fires, or as its misfire is handled. That trigger is
+    /// left as it was and released, and the rest of its batch fires. One that fails every time is
+    /// acquired again at once, ahead of its
     /// <see cref="DisallowConcurrentExecutionAttribute" /> job's other triggers, so after this many
     /// failures in a row it is set to <c>ERROR</c> and an error is logged.
     /// <see cref="IScheduler.ResetTriggerFromErrorState" /> brings it back once the cause is fixed. Set
@@ -108,7 +109,7 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
     public virtual int MaxConsecutiveFireFailures { get; set; } = 5;
 
     /// <summary>
-    /// The fires of each trigger that have failed in a row (#3974).
+    /// The fires of each trigger that have failed in a row, misfire handling included (#3974, #3985).
     /// </summary>
     private readonly Quartz.Impl.AdoJobStore.FireFailureLedger fireFailures = new();
 
@@ -1492,7 +1493,10 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                 tw.state = InternalTriggerState.Waiting;
             }
 
-            ApplyMisfire(tw);
+            // A calendar that throws leaves the trigger resumed as it was, for acquisition to handle the
+            // misfire again, or ERROR if that failure reached the limit; the rest of a group is resumed
+            // all the same (#3985).
+            TryApplyMisfire(tw, out _);
 
             if (tw.state == InternalTriggerState.Waiting)
             {
@@ -1705,7 +1709,26 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
         var originalFireTime = tnft;
         var now = SystemTime.UtcNow();
 
-        tw.Trigger.UpdateAfterMisfire(cal);
+        // The stored trigger as it was, kept only while application code moves it on: a calendar, or a
+        // trigger type Quartz did not write. A throw out of either leaves the trigger as it found it, as a
+        // fire that fails does, and TryApplyMisfire answers it as a failure of this trigger alone (#3985).
+        IOperableTrigger? unapplied = cal != null || !IsQuartzTrigger(tw.Trigger)
+            ? (IOperableTrigger) tw.Trigger.Clone()
+            : null;
+
+        try
+        {
+            tw.Trigger.UpdateAfterMisfire(cal);
+        }
+        catch
+        {
+            if (unapplied != null)
+            {
+                tw.Trigger = unapplied;
+            }
+
+            throw;
+        }
 
         // Only save for "fire now" misfire policies (FireOnceNow, FireNow, RescheduleNowWith*).
         // These set nextFireTimeUtc to ~SystemTime.UtcNow(). "Reschedule next" policies
@@ -1735,6 +1758,34 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Applies the trigger's misfire policy with <see cref="ApplyMisfire" />, and answers a throw out of it
+    /// as a failure of this trigger alone, so that the acquisition pass, completion or resume that
+    /// handles it goes on with the rest (#3985).
+    /// </summary>
+    /// <param name="tw">The trigger wrapper.</param>
+    /// <param name="misfired">What <see cref="ApplyMisfire" /> answered, or <see langword="false" /> when it threw.</param>
+    /// <returns>
+    /// <see langword="false" /> when the policy threw. The trigger is left as it was, to have its misfire
+    /// handled again once it is back in the schedule, and the failure counts toward
+    /// <see cref="MaxConsecutiveFireFailures" />: the one that reaches it sets the trigger ERROR.
+    /// </returns>
+    private bool TryApplyMisfire(TriggerWrapper tw, out bool misfired)
+    {
+        try
+        {
+            misfired = ApplyMisfire(tw);
+            return true;
+        }
+        catch (Exception e)
+        {
+            misfired = false;
+            Log.ErrorException($"Misfire handling of trigger {tw.TriggerKey} failed; the trigger is left as it was, to be handled again, and the rest goes on without it", e);
+            CountFailure(tw);
+            return false;
+        }
     }
 
     /// <summary>
@@ -1795,7 +1846,19 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                     continue;
                 }
 
-                if (ApplyMisfire(tw))
+                if (!TryApplyMisfire(tw, out bool misfired))
+                {
+                    // Left as it was, and out of this pass, which goes on without it. It goes back with
+                    // the triggers the pass passed over, for the next pass to handle, unless the failure
+                    // set it ERROR (#3985).
+                    if (tw.state == InternalTriggerState.Waiting)
+                    {
+                        excludedTriggers.Add(tw);
+                    }
+                    continue;
+                }
+
+                if (misfired)
                 {
                     if (tw.Trigger.GetNextFireTimeUtc() != null)
                     {
@@ -2037,19 +2100,31 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
 
         Log.ErrorException($"Fire of trigger {tw.TriggerKey} failed; the rest of the batch fires without it", exception);
 
-        if (MaxConsecutiveFireFailures > 0)
-        {
-            // Counted with the previous fire time it was acquired with, which only a fire moves.
-            int failures = fireFailures.RecordFailure(tw.TriggerKey, tw.Trigger.GetPreviousFireTimeUtc());
-            if (failures >= MaxConsecutiveFireFailures)
-            {
-                fireFailures.Clear(tw.TriggerKey);
-                tw.state = InternalTriggerState.Error;
-                Log.Error($"Trigger {tw.TriggerKey} failed to fire {failures} times in a row and is set to ERROR state; ResetTriggerFromErrorState returns it once the cause is fixed");
-            }
-        }
+        CountFailure(tw);
 
         return new TriggerFiredResult(exception);
+    }
+
+    /// <summary>
+    /// Counts one more failure in a row of application code to move the trigger on - as it fires, or as
+    /// its misfire is handled - and sets the trigger ERROR on the one that reaches
+    /// <see cref="MaxConsecutiveFireFailures" /> (#3974, #3985).
+    /// </summary>
+    private void CountFailure(TriggerWrapper tw)
+    {
+        if (MaxConsecutiveFireFailures <= 0)
+        {
+            return;
+        }
+
+        // Counted with the trigger's previous fire time as it was before the failure, which only a fire moves.
+        int failures = fireFailures.RecordFailure(tw.TriggerKey, tw.Trigger.GetPreviousFireTimeUtc());
+        if (failures >= MaxConsecutiveFireFailures)
+        {
+            fireFailures.Clear(tw.TriggerKey);
+            tw.state = InternalTriggerState.Error;
+            Log.Error($"Trigger {tw.TriggerKey} failed to fire {failures} times in a row and is set to ERROR state; ResetTriggerFromErrorState returns it once the cause is fixed");
+        }
     }
 
     /// <summary>
@@ -2128,14 +2203,16 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                             // the trigger would be handed to a caller with a past-due fire time still on
                             // it until then. The ADO store applies the policy as it unblocks
                             // (RecoverUnblockedMisfires, in the same transaction), and this is the same
-                            // moment (#3463).
-                            ApplyMisfire(ttw);
+                            // moment (#3463). One whose calendar throws is left as it was: waiting, for
+                            // acquisition to handle again, or ERROR if that failure reached the limit -
+                            // and the job's other triggers are let go all the same (#3985).
+                            bool handled = TryApplyMisfire(ttw, out _);
 
                             if (ttw.state == InternalTriggerState.Waiting)
                             {
                                 timeTriggers.Add(ttw);
                             }
-                            else
+                            else if (handled)
                             {
                                 // Nothing left to fire. The ADO store deletes such a trigger rather than
                                 // leaving a COMPLETE row that GetTrigger would keep handing back, so a
