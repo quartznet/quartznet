@@ -1,0 +1,14 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public sealed class FirebirdWeaselOptions
+    {
+        public FirebirdWeaselOptions() { }
+        public JasperFx.AutoCreate? AutoCreate { get; set; }
+        public int MaxIdentifierLength { get; set; }
+    }
+    public static class FirebirdWeaselStoreBuilderExtensions
+    {
+        public static Quartz.IPersistentStoreBuilder UseWeaselForFirebird(this Quartz.IPersistentStoreBuilder store, System.Action<Quartz.FirebirdWeaselOptions>? configure = null) { }
+    }
+}

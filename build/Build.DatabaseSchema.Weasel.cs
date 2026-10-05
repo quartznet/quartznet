@@ -20,7 +20,9 @@ using System.Text;
 /// reads a column's direction back per index column. MySQL rewrites a type as it stores it
 /// (<c>BOOLEAN</c> is <c>TINYINT(1)</c>, <c>NUMERIC</c> is <c>DECIMAL</c>) and names an unnamed foreign key
 /// <c>&lt;table&gt;_ibfk_1</c>; Oracle stores <c>NUMERIC</c> as <c>NUMBER</c> and keeps the constraint
-/// names its script gives. The names that depend on the table prefix are computed at run time by the
+/// names its script gives. Firebird folds the script's names to upper case and keeps its <c>PK_</c>,
+/// <c>FK_&lt;table&gt;_1</c> and <c>IDX_</c> names and its <c>DEFAULT NULL</c>; its indexes have one
+/// direction each. The names that depend on the table prefix are computed at run time by the
 /// naming class beside the generated file, which is hand-written because it is the one part that is a
 /// rule rather than data.
 /// </para>
@@ -85,6 +87,9 @@ partial class Build
             IndexColumns: ColumnNamesAndDescending,
             PrimaryKeyArguments: table => $", \"{table.OracleStem ?? table.Name}\"",
             ForeignKeyArguments: foreignKey => $", \"{foreignKey.OracleName}\""),
+        new("firebird", "Quartz.Weasel.Firebird", "Weasel.Firebird.Tables",
+            Type: AsDeclared, Default: AsDeclared, ColumnName: AsDeclared, KeyColumn: AsDeclared, Cascades: false,
+            IndexColumns: ColumnNamesWithoutDirection, PrimaryKeyArguments: NoArguments, ForeignKeyArguments: NoArguments),
     ];
 
     /// <summary>Every generated model, as a path under <c>src/</c> and its content.</summary>
@@ -229,18 +234,22 @@ partial class Build
     /// Splits a column definition from the model into its type, its nullability and its default.
     /// </summary>
     /// <remarks>
-    /// Every dialect's definitions are <c>TYPE [NOT NULL | NULL] [DEFAULT value]</c> or Oracle's
-    /// <c>TYPE [DEFAULT value] [NOT NULL | NULL]</c>, with no space inside a type. How the catalog spells
-    /// the parts is the dialect's <see cref="WeaselDialect.Type" /> and <see cref="WeaselDialect.Default" />.
+    /// Every dialect's definitions are <c>TYPE [NOT NULL | NULL] [DEFAULT value]</c>, or
+    /// <c>TYPE [DEFAULT value] [NOT NULL | NULL]</c> on Oracle and Firebird. A type runs to the first
+    /// <c>NOT</c>, <c>NULL</c> or <c>DEFAULT</c>, so Firebird's <c>BLOB SUB_TYPE TEXT</c> is taken whole. How
+    /// the catalog spells the parts is the dialect's <see cref="WeaselDialect.Type" /> and
+    /// <see cref="WeaselDialect.Default" />.
     /// </remarks>
     static WeaselColumn ParseWeaselColumn(string definition)
     {
         string[] tokens = definition.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        string type = tokens[0];
+        int typeLength = Array.FindIndex(tokens, 1, t => t.ToUpperInvariant() is "NOT" or "NULL" or "DEFAULT");
+        typeLength = typeLength < 0 ? tokens.Length : typeLength;
+        string type = string.Join(' ', tokens.Take(typeLength));
         bool notNull = false;
         string defaultValue = null;
 
-        for (int i = 1; i < tokens.Length; i++)
+        for (int i = typeLength; i < tokens.Length; i++)
         {
             switch (tokens[i].ToUpperInvariant())
             {
@@ -340,6 +349,24 @@ partial class Build
 
         string names = StringArray(parts.Select(p => p[0]));
         return descending.Length == 0 ? names : $"{names}, descending: {StringArray(descending)}";
+    }
+
+    /// <summary>
+    /// An array of column names, and a refusal for a column with a direction: a Firebird index has one
+    /// direction for all its columns, and <see cref="Target4X" /> gives Firebird an acquisition index without
+    /// the mixed directions it cannot express, so a direction here is a mistake in the model.
+    /// </summary>
+    static string ColumnNamesWithoutDirection(IndexDef index)
+    {
+        string[][] parts = IndexColumnParts(index);
+
+        if (parts.Any(p => p.Length > 1))
+        {
+            throw new InvalidOperationException(
+                $"{index.Name} gives a column a direction on Firebird, whose indexes have one direction for all their columns");
+        }
+
+        return StringArray(parts.Select(p => p[0]));
     }
 
     /// <summary>
