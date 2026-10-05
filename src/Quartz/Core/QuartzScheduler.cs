@@ -746,7 +746,9 @@ internal sealed class QuartzScheduler
                 {
                     try
                     {
-                        job.Interrupt();
+                        // Recorded as the shutdown's, which is what lets a job that requests recovery be
+                        // handed back rather than completed, when the store is set to.
+                        job.InterruptForShutdown();
                     }
                     catch (ObjectDisposedException)
                     {

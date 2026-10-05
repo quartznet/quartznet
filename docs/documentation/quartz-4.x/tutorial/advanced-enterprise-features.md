@@ -251,6 +251,8 @@ q.AddJob<ChargeInvoicesJob>(j => j
   peer left. If the job requested recovery, the row becomes a new trigger in the `RECOVERING_JOBS` group
   with the original trigger's job data. Otherwise the row is deleted and that occurrence is lost.
 * Read it with `IJobDetail.RequestsRecovery`. A recovery firing sets `IJobExecutionContext.Recovering`.
+* A firing a graceful shutdown cancels is not recovered unless the store says so; see
+  [A job a shutdown stops](../how-tos/retrying-failed-jobs.md#a-job-a-shutdown-stops).
 
 Which jobs should ask, what recovery re-runs and what it does not, and how a recovered firing identifies
 itself: [What RequestsRecovery re-runs, and when](../../best-practices.md#what-requestsrecovery-re-runs-and-when),

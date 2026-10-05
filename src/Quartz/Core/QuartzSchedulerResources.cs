@@ -320,6 +320,18 @@ internal sealed class QuartzSchedulerResources
     public ShutdownJobInterruption ShutdownJobInterruption { get; set; }
 
     /// <summary>
+    /// Whether a firing of a job that requests recovery, cancelled by this scheduler's shutdown, is
+    /// handed back for recovery rather than completed as cancelled.
+    /// </summary>
+    /// <remarks>
+    /// The job store's own <see cref="AdoJobStoreOptions.RecoverFiringsCancelledByShutdown" />, read once
+    /// when the scheduler is built, because the run shell decides before the store is told and the store
+    /// it holds may be wrapped. <see langword="false" /> for any other store: the in-memory store has no
+    /// recovery to hand a firing back to.
+    /// </remarks>
+    public bool RecoverFiringsCancelledByShutdown { get; set; }
+
+    /// <summary>
     /// Whether a trigger carries the trace context of the call that scheduled it. Mirrors
     /// <see cref="QuartzSchedulerOptions.PropagateTraceContext" />, and defaults to the same value, so a
     /// scheduler assembled without the container behaves the way one assembled with it does.

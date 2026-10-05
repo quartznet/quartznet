@@ -795,6 +795,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             ["quartz.jobStore.maxTransientRetries"] = "10",
             ["quartz.jobStore.makeThreadsDaemons"] = "true",
             ["quartz.jobStore.maxConsecutiveFireFailures"] = "0",
+            ["quartz.jobStore.recoverFiringsCancelledByShutdown"] = "true",
         });
 
         using var provider = services.BuildServiceProvider();
@@ -804,6 +805,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         options.MaxTransientRetries.Should().Be(10);
         options.UseBackgroundThreads.Should().BeTrue();
         options.MaxConsecutiveFireFailures.Should().Be(0, "zero is how a flat configuration keeps 4.3's behaviour, so it must not read as unset");
+        options.RecoverFiringsCancelledByShutdown.Should().BeTrue("the flat key turns on the hand-back a shutdown's cancellation gets (#4014)");
     }
 
     /// <summary>

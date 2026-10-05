@@ -218,6 +218,12 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3053, Level = LogLevel.Error, Message = "Work the store does after a committed operation failed; the operation stands, and the rest of that work is done")]
     public static partial void WorkAfterCommitFailed(this ILogger logger, Exception exception);
 
+    [LoggerMessage(EventId = 3054, Level = LogLevel.Information, Message = "Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is handed back for recovery as trigger {RecoveryTriggerKey}")]
+    public static partial void FiringHandedBack(this ILogger logger, string? fireInstanceId, JobKey jobKey, TriggerKey recoveryTriggerKey);
+
+    [LoggerMessage(EventId = 3055, Level = LogLevel.Information, Message = "Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is not handed back: another node has already recovered it")]
+    public static partial void FiringRecoveredBeforeHandBack(this ILogger logger, string? fireInstanceId, JobKey jobKey);
+
     [LoggerMessage(EventId = 3100, Level = LogLevel.Debug, Message = "Prepared SQL: {Sql}")]
     public static partial void SqlPrepared(this ILogger logger, string sql);
 

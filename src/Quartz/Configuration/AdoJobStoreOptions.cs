@@ -197,6 +197,27 @@ public sealed class AdoJobStoreOptions
     public int MaxConsecutiveFireFailures { get; set; } = 5;
 
     /// <summary>
+    /// Whether a firing that a shutdown interrupts is handed back for recovery, rather than completed as
+    /// cancelled, when its job <see cref="IJobDetail.RequestsRecovery" />. Defaults to
+    /// <see langword="false" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A job interrupted by <see cref="QuartzSchedulerOptions.ShutdownJobInterruption" /> that stops by
+    /// throwing <see cref="OperationCanceledException" /> is completed by storing a recovery trigger, in
+    /// the same transaction, as cluster recovery would after a crash. Another node fires it at once, or
+    /// this node does when it starts again; the job sees <see cref="IJobExecutionContext.Recovering" />.
+    /// </para>
+    /// <para>
+    /// Nothing else changes. A job that is not asked to stop, or that returns when it is, has finished. An
+    /// <see cref="IScheduler.Interrupt(JobKey, CancellationToken)" /> is still a cancellation. The firing
+    /// settles no continuation and is not a retry attempt, and its execution history row is
+    /// <see cref="JobRunResult.Cancelled" /> with a summary saying it was handed back.
+    /// </para>
+    /// </remarks>
+    public bool RecoverFiringsCancelledByShutdown { get; set; }
+
+    /// <summary>
     /// Whether database row locks are used for synchronization. Required for clustering.
     /// </summary>
     public bool UseDbLocks { get; set; }

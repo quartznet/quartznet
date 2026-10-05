@@ -220,7 +220,8 @@ A job fails when `Execute` throws anything; there is nothing to implement or ann
 * A `JobExecutionException` asking for `RefireImmediately`, `UnscheduleFiringTrigger` or
   `UnscheduleAllTriggers`: the job's own decision wins over the policy.
 * A cancellation on the scheduler's own token (shutdown, interrupt). For a node vanishing mid-execution, use
-  [`RequestsRecovery`](../tutorial/more-about-jobs.md).
+  [`RequestsRecovery`](../tutorial/more-about-jobs.md); for a shutdown, see
+  [A job a shutdown stops](#a-job-a-shutdown-stops).
 * Anything, when no policy applies (the default).
 
 A job can catch a failure that retrying cannot fix and return, saving its attempts:
@@ -260,6 +261,52 @@ public sealed class SelectiveImportJob : IJob
 }
 ```
 <!-- endSnippet -->
+
+## A job a shutdown stops
+
+A shutdown's cancellation is not a failure, so no policy retries it. From 4.4 a persistent store can hand
+the firing back for recovery instead: the job runs again on another node at once, or on this one when it
+starts. Off by default.
+
+<!-- snippet: sample_retry_hand_back_on_shutdown -->
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    // The shutdown asks running jobs to stop, and waits for them.
+    q.ConfigureScheduler(options => options.ShutdownJobInterruption = ShutdownJobInterruption.WhenWaitingForJobs);
+
+    q.UsePersistentStore(store =>
+    {
+        store.UsePostgres(connectionString);
+        store.ConfigureStore(options => options.RecoverFiringsCancelledByShutdown = true);
+    });
+
+    q.AddJob<ImportJob>(j => j.WithIdentity("import", "nightly").RequestRecovery());
+});
+
+builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+```
+<!-- endSnippet -->
+
+| What | Must be |
+|---|---|
+| The store | Persistent, with `RecoverFiringsCancelledByShutdown` (flat key `quartz.jobStore.recoverFiringsCancelledByShutdown`). The in-memory store has nothing to hand back to; the setting does not exist there |
+| The job | `RequestRecovery()`, and it stops by throwing `OperationCanceledException`. A job that returns has finished |
+| The cancellation | The shutdown's, through [`ShutdownJobInterruption`](../configuration/reference.md#scheduler). `Interrupt`, `InterruptFireInstance` and `[JobTimeout]` never hand back |
+
+What a hand-back does:
+
+* Stores a recovery trigger in `RECOVERING_JOBS`, in the completion's transaction, as cluster recovery does
+  after a crash. The job sees `Recovering` and `RecoveringTriggerKey`.
+* Counts no retry: `RetryAttempt` does not move, and the policy is not consulted.
+* Settles nothing awaiting the trigger: an `OnCancellation` continuation keeps waiting.
+* Releases a `[DisallowConcurrentExecution]` job's other triggers, as any completion does.
+* Records a `Cancelled` history row with the summary *Handed back for recovery: the scheduler shut down
+  while it ran.* Log event `3054` names the recovery trigger.
+
+A completion that arrives after the store has closed is refused, as before. Its fired-trigger row stays, and
+recovery replays the job when a peer, or this node at its next start, recovers it. A 4.3 node ignores the
+setting, and fires a recovery trigger a 4.4 node stored.
 
 ## What the job sees
 

@@ -23,4 +23,11 @@ internal interface IInterruptableJobExecutionContext : IJobExecutionContext
     /// execution stops is up to the job, which has to observe the token.
     /// </summary>
     void Interrupt();
+
+    /// <summary>
+    /// Cancels the token as <see cref="Interrupt" /> does, and records that the scheduler's shutdown asked,
+    /// unless something else cancelled it first. The run shell reads the record to tell a firing it may
+    /// hand back for recovery from one a caller interrupted.
+    /// </summary>
+    void InterruptForShutdown();
 }
