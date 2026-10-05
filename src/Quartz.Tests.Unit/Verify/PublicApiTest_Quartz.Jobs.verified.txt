@@ -83,6 +83,7 @@ namespace Quartz.Jobs
         public required string SmtpHost { get; init; }
         public int? SmtpPort { get; init; }
     }
+    [Quartz.RetryPolicy(0)]
     public class NativeJob : Quartz.IJob
     {
         public const string PropertyCommand = "command";
@@ -109,6 +110,7 @@ namespace Quartz.Jobs
         public NoOpJob() { }
         public System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    [Quartz.RetryPolicy(0)]
     public class SendMailJob : Quartz.IJob
     {
         public const string PropertyCcRecipient = "cc_recipient";

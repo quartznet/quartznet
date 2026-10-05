@@ -325,6 +325,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   ```
 
 * **`TriggerRetriesExhausted` and `PauseTriggerWhenRetriesExhausted()` cover an inherited policy too.**
+* **`SendMailJob` and `NativeJob` carry `[RetryPolicy(0)]`**: the scheduler's default never retries them, because
+  a retry sends the mail or runs the command again. A policy on the trigger still applies; to retry one, give
+  its trigger a policy of its own.
 * **`none` is a retry policy** in a scheduling file, an HTTP API request and the dashboard's trigger editor.
 
 * **The dashboard's *Pause selected* with a reason is one call.** 4.3 paused a key at a time. A refusal now

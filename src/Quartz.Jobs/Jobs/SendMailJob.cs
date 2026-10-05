@@ -47,9 +47,14 @@ namespace Quartz.Jobs;
 /// <see cref="PropertyUsername" /> and <see cref="PropertyPassword" /> keys are still read when
 /// nothing is registered, so a job scheduled by an earlier version keeps sending — with a warning.
 /// </para>
+/// <para>
+/// Never retried unless its trigger names a retry policy of its own: it carries
+/// <c>[RetryPolicy(0)]</c>, so the scheduler's default does not apply. A retry would send the message again.
+/// </para>
 /// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
+[RetryPolicy(0)]
 public class SendMailJob : IJob
 {
     private readonly ILogger<SendMailJob> logger;
