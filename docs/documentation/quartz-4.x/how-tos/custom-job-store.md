@@ -61,6 +61,39 @@ The shipped stores cannot be derived from: `RAMJobStore` is sealed and the ADO.N
 no override could preserve. Wrap it instead.
 :::
 
+### Forward `AcquireNextTriggersAndFireDue` to keep firing on acquisition
+
+The scheduler calls `AcquireNextTriggersAndFireDue`. The shipped stores fire the triggers already due in the
+operation that acquires them; on a persistent store that saves a transaction a round.
+`DelegatingJobStore` does not forward it: it answers through its own `AcquireNextTriggers` and fires
+nothing, so an override of `AcquireNextTriggers` or `TriggersFired` still sees every trigger. The decorator
+keeps working, at two transactions a round. Forward the call to keep the saving:
+
+<!-- snippet: sample_custom_job_store_fire_on_acquire -->
+```csharp
+public sealed class RoundCountingJobStore(IJobStore inner) : DelegatingJobStore(inner)
+{
+    private long rounds;
+
+    public long Rounds => Interlocked.Read(ref rounds);
+
+    // The member the scheduler calls. Forwarded, the inner store fires what is already due in the
+    // transaction that acquires it. Left to DelegatingJobStore, it fires nothing, and the scheduler
+    // fires every trigger in a second transaction.
+    public override ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        Interlocked.Increment(ref rounds);
+        return InnerJobStore.AcquireNextTriggersAndFireDue(request, cancellationToken);
+    }
+}
+```
+<!-- endSnippet -->
+
+A decorator that rewrites the request forwards it rewritten, as `BudgetedJobStore` in
+[Narrowing what a node picks up](#narrowing-what-a-node-picks-up) does.
+
 ## Registering a store
 
 All four overloads register a singleton, keyed by scheduler name for a named scheduler:
@@ -123,12 +156,17 @@ the firings this node owns**, so `QueryFireInstances` can say which node runs wh
 
 Once per acquisition batch, in order:
 
-1. **`AcquireNextTriggers(TriggerAcquisitionRequest request, ct)`** — reserve triggers. Never return one
+1. **`AcquireNextTriggersAndFireDue(TriggerAcquisitionRequest request, ct)`** — the scheduler's call. The
+   default interface member calls `AcquireNextTriggers` and returns everything in `Pending`, so a store need
+   not implement it. One that does fires the triggers already due as `TriggersFired` would, in
+   `TriggerAcquisitionResult.Due` and `Fired`, index-aligned, and returns the rest in `Pending`.
+2. **`AcquireNextTriggers(TriggerAcquisitionRequest request, ct)`** — reserve triggers. Never return one
    firing later than `request.NoLaterThan`, or more than `request.MaxCount`.
-2. **`TriggersFired(triggers, ct)`** — **return a list the same length as the input, index-aligned**; the
-   caller reads `results[i]` against `triggers[i]`. Use `TriggerFiredResult.NotFired` for a trigger that
-   should not fire after all and `TriggerFiredResult.Failed(exception)` for one that could not be processed.
-3. **`TriggeredJobComplete(trigger, jobDetail, instruction, ct)`** — the firing is over. This releases a
+3. **`TriggersFired(triggers, ct)`** — called for the `Pending` triggers once they are due. **Return a list
+   the same length as the input, index-aligned**; the caller reads `results[i]` against `triggers[i]`. Use
+   `TriggerFiredResult.NotFired` for a trigger that should not fire after all and
+   `TriggerFiredResult.Failed(exception)` for one that could not be processed.
+4. **`TriggeredJobComplete(trigger, jobDetail, instruction, ct)`** — the firing is over. This releases a
    `[DisallowConcurrentExecution]` job's siblings, and is called even when the job never ran.
    `ReleaseAcquiredTrigger` is only for a trigger acquired and never fired.
 
@@ -200,9 +238,20 @@ public sealed class BudgetedJobStore(IJobStore inner, int nodeBudget) : Delegati
         TriggerAcquisitionRequest request,
         CancellationToken cancellationToken = default)
     {
-        return base.AcquireNextTriggers(
-            request with { MaxCount = Math.Min(request.MaxCount, nodeBudget) },
-            cancellationToken);
+        return base.AcquireNextTriggers(Narrow(request), cancellationToken);
+    }
+
+    // The same request, rewritten the same way, so the inner store still fires what is due on acquisition.
+    public override ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return InnerJobStore.AcquireNextTriggersAndFireDue(Narrow(request), cancellationToken);
+    }
+
+    private TriggerAcquisitionRequest Narrow(TriggerAcquisitionRequest request)
+    {
+        return request with { MaxCount = Math.Min(request.MaxCount, nodeBudget) };
     }
 }
 ```

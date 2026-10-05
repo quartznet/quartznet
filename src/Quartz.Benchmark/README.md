@@ -1609,3 +1609,84 @@ firing in every sitting, and in all but one arm a throughput 1-17 % below it, on
 within 5 ms of it. That one, sitting 1's four-node arm, ran at half speed with every lock wait slower
 (p50 48.9 ms against 29.7-32.0) and the same round structure, which is what slower commits look like
 rather than a stalled node; it did not recur in three more sittings.
+## What #3864 changed (2026-10-05, AMD Ryzen 9 5950X)
+
+A round of triggers already due is acquired and fired in one transaction. The claims go as one batch, the
+headers and jobs are read once for the round, and each fire inserts its fired-trigger row as `EXECUTING`
+instead of updating an `ACQUIRED` one. The shipped delegates send the round's claims and fire writes as one
+`DbBatch` each where the driver can batch, split at 7 KiB. Triggers due later in the batch window, and a
+lock-free round of one trigger, fire in a second transaction as before.
+
+**Taken on `33d764dfd8`, before, and on the change on top of it, after**, each from its own tree,
+alternating sittings, on a `postgres:15.1` container at its shipped durability, pool 10. The box was shared
+with other builds and test runs throughout, and S4 moved with it: the after sittings span 68-98 %.
+
+### Punctuality
+
+`--recurring-postgres`, four sittings before and five after. Median, with the range:
+
+| Load | `MaxBatchSize` | | within ±50 ms | within ±250 ms | Max deviation |
+|---:|---|---|---:|---:|---:|
+| 20 | automatic | before | 40.1 % (22.9-48.2) | 96.3 % (86.6-100) | 101-1,638 ms |
+| 20 | automatic | after | **83.6 %** (68.5-97.8) | **100 %** (88.8-100) | **51-935 ms** |
+| 20 | 1 | before | 18.3 % (11.2-20.8) | 89.9 % (56.3-97.9) | 392-3,790 ms |
+| 20 | 1 | after | 20.2 % (13.0-21.8) | 95.8 % (67.4-100) | 206-4,380 ms |
+| 100 | automatic | before | 9.0 % (6.6-9.9) | 54.3 % (39.2-60.3) | 489-2,353 ms |
+| 100 | automatic | after | **17.5 %** (12.7-21.0) | **95.5 %** (79.0-100) | **191-3,339 ms** |
+
+**#3864's target was 90 % within ±50 ms at twenty a second; the median is 83.6 %.** The two quietest
+sittings made it, at 97.0 and 97.8 % with every firing inside 58 ms. A second of twenty firings is two
+rounds of ten, and the second can start only once the first ten complete; on a loaded box the second round's
+nine land 50-65 ms late. One trigger a round is unchanged: its acquisition takes no lock, so it fires in a
+second transaction, and at a hundred a second it falls behind before and after.
+
+### Throughput and round trips
+
+`OneOffThroughputPostgresBenchmark`, one sitting a side:
+
+| Profile | Before | After | Allocated, before | after |
+|---|---:|---:|---:|---:|
+| `Defaults` | 4.013 ms | **2.558 ms** | 72.08 KB | 60.69 KB |
+| `BatchOnly` | 4.024 ms | 2.481 ms | 72.07 KB | 60.68 KB |
+| `Tuned` | 4.399 ms | 2.449 ms | 72.07 KB | 60.68 KB |
+
+`--one-off-census`, `Defaults`, one sitting a side: 248.2 firings a second before and 470.7 after, at 16.54
+and **13.42 statements a firing**. Its commit column reads 2.07 and 0.95, and the second is the publication
+lag described above: a 4.1-second drain leaves more commits unpublished than a 5.0-second one. The clustered
+gate reads commits the corrected way.
+
+### The clustered gate
+
+`ClusteredOneOffDrainPostgresTest` on the same durable server, one sitting:
+
+| Nodes | `MaxBatchSize` | Firings/s | `TRIGGER_ACCESS` p99 | Triggers/round | Commits/firing | Smallest share |
+|---:|---|---:|---:|---:|---:|---:|
+| 2 | automatic (10) | 423.7 | 75.0 ms | 4.99 | 2.39 | 50 % |
+| 4 | automatic (10) | 511.2 | 67.3 ms | 4.80 | 2.53 | 23 % |
+
+PASS, at 5.68 and 4.67 times one trigger a round; #3900's sittings read 228.7-266.7 and 248.4-268.7
+firings a second at 2.79-2.81 commits a firing.
+
+### In memory
+
+`FireThroughputBenchmark`, one sitting a side: 1.31-1.33 µs a firing after against 1.40-1.47 before at one
+trigger a round, and 1.27-1.49 against 1.21-1.42 at the pool, which is noise either way. A firing allocates 30 bytes less at one trigger a round,
+and up to 80 bytes more at the pool, for the round's result. `--recurring`: every Quartz arm 100 % within
+±50 ms after, the worst firing 15.5 ms late.
+
+### Why the round's batches are split
+
+A round's fire writes are about 2.4 KB a fire. Traced at twenty a second on the Windows box, the median
+round of nine due fires:
+
+| Fires a batch | Round |
+|---|---:|
+| all nine, 22 KB | 52.5 ms |
+| five, 12.2 KB | 52.4 ms |
+| four, 9.8 KB | 11.6 ms |
+| two, 4.9 KB (shipped, 7 KiB) | 11.2 ms |
+
+The forty milliseconds is a delayed acknowledgement, and the edge is near the 8 KiB Npgsql writes at a time.
+The same statements sent alone once a second, from 2.4 to 39 KB, never stalled; it takes the round around
+them. Between two containers on Linux nothing stalled: 7.4 ms as one batch, 8.0 ms split, and 100 and
+99.7 % within ±50 ms. The split costs Linux 0.6 ms a round and saves a Windows development box forty.
