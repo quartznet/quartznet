@@ -265,8 +265,8 @@ public sealed class SelectiveImportJob : IJob
 ## A job a shutdown stops
 
 A shutdown's cancellation is not a failure, so no policy retries it. From 4.4 a persistent store can hand
-the firing back for recovery instead: the job runs again on another node at once, or on this one when it
-starts. Off by default.
+the firing back for recovery instead: the job runs again on a peer's next acquisition, or on this node when
+it starts. Off by default.
 
 <!-- snippet: sample_retry_hand_back_on_shutdown -->
 ```csharp
@@ -299,10 +299,18 @@ What a hand-back does:
 * Stores a recovery trigger in `RECOVERING_JOBS`, in the completion's transaction, as cluster recovery does
   after a crash. The job sees `Recovering` and `RecoveringTriggerKey`.
 * Counts no retry: `RetryAttempt` does not move, and the policy is not consulted.
-* Settles nothing awaiting the trigger: an `OnCancellation` continuation keeps waiting.
-* Releases a `[DisallowConcurrentExecution]` job's other triggers, as any completion does.
+* Moves what awaits the trigger onto the recovery trigger, so the replay's outcome settles it: an
+  `OnSuccess` continuation runs once the replay succeeds, an `OnFailure` one once it fails. A spent
+  one-shot trigger is deleted as usual.
+* Does not write the job's data, even with `[PersistJobDataAfterExecution]`: the replay starts from the data
+  the cancelled run started with.
+* Releases a `[DisallowConcurrentExecution]` job's other triggers, and a `BufferOne` or `CancelPrevious`
+  trigger's hold, as any completion does.
 * Records a `Cancelled` history row with the summary *Handed back for recovery: the scheduler shut down
   while it ran.* Log event `3054` names the recovery trigger.
+
+The replay is a plain recovery trigger, as after a crash: it fires once, with no retry policy. Handed back
+again, it keeps the markers of the original firing.
 
 A completion that arrives after the store has closed is refused, as before. Its fired-trigger row stays, and
 recovery replays the job when a peer, or this node at its next start, recovers it. A 4.3 node ignores the
