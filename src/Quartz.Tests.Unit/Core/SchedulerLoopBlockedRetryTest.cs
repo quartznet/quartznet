@@ -70,6 +70,21 @@ public sealed class SchedulerLoopBlockedRetryTest
         TimeSpan.FromMilliseconds(6400),
     ];
 
+    /// <summary>
+    /// The same waits while the store keeps saying triggers are held: they stop growing at five seconds,
+    /// and stay there.
+    /// </summary>
+    private static readonly TimeSpan[] heldBackoff =
+    [
+        TimeSpan.FromMilliseconds(100),
+        TimeSpan.FromMilliseconds(200),
+        TimeSpan.FromMilliseconds(400),
+        TimeSpan.FromMilliseconds(800),
+        TimeSpan.FromMilliseconds(1600),
+        TimeSpan.FromMilliseconds(3200),
+        TimeSpan.FromSeconds(5),
+    ];
+
     private ArmingRecordingTimeProvider clock;
     private ScriptedAcquisitionJobStore store;
     private QuartzSchedulerThread thread;
@@ -99,10 +114,12 @@ public sealed class SchedulerLoopBlockedRetryTest
     }
 
     [Test]
-    public void TheFirstLookAfterABlockedTriggerIsATenthOfASecondAway()
+    public void TheFirstLookAfterABlockedTriggerIsATenthOfASecondAwayAndAHeldOneAtMostFiveSeconds()
     {
         QuartzSchedulerThread.BlockedRetryStart.Should().Be(backoff[0],
             "the waits this fixture expects start where the loop's do");
+        QuartzSchedulerThread.HeldRetryLimit.Should().Be(heldBackoff[^1],
+            "and stop growing where the loop's do while something is held");
     }
 
     /// <summary>
@@ -146,20 +163,22 @@ public sealed class SchedulerLoopBlockedRetryTest
     /// <summary>
     /// The store passing due triggers over behind an executing job says as much as a trigger it could
     /// not fire. Unlike that, the same triggers are passed over every round until the job ends, so the
-    /// count is not started again by each: it runs up to the idle wait and stays there.
+    /// count is not started again by each: it runs up to five seconds and stays there, which bounds how
+    /// late a held trigger is found after its holder ends without polling for it.
     /// </summary>
     [Test]
-    public async Task TriggersPassedOverEveryRoundLeaveTheWaitAtTheIdleWaitOnceItGetsThere()
+    public async Task WhileTriggersStayHeldTheWaitStopsGrowingAtFiveSeconds()
     {
         store.PassOverEveryRound = 1;
         StartLoop();
 
-        List<TimeSpan> waits = await WaitsOfTheNextRounds(backoff.Length + 3);
+        List<TimeSpan> waits = await WaitsOfTheNextRounds(heldBackoff.Length + 3);
 
-        waits.Take(backoff.Length).Should().Equal(backoff,
+        waits.Take(heldBackoff.Length).Should().Equal(heldBackoff,
             "the first round to pass triggers over starts the count, and each one after it doubles the wait");
-        waits.Skip(backoff.Length).Should().OnlyContain(x => x >= shortestIdleWait && x <= idleWaitTime,
-            "triggers passed over for as long as the job runs must not keep the loop polling: the wait stays at the idle wait");
+        waits.Skip(heldBackoff.Length).Should().OnlyContain(x => x == QuartzSchedulerThread.HeldRetryLimit,
+            "triggers held for as long as the job runs are looked for every five seconds: not polled for, and not left "
+            + "an idle wait behind the end of the run");
     }
 
     /// <summary>
@@ -193,15 +212,17 @@ public sealed class SchedulerLoopBlockedRetryTest
         store.PassOverEveryRound = 1;
         StartLoop();
 
-        List<TimeSpan> blocked = await WaitsOfTheNextRounds(backoff.Length);
+        List<TimeSpan> blocked = await WaitsOfTheNextRounds(heldBackoff.Length);
         blocked.Add(await NextWait());
         store.PassOverEveryRound = 0;
         Pass(blocked[^1]);
         List<TimeSpan> after = await WaitsOfTheNextRounds(2);
         after.Add(await NextWait());
 
-        blocked.Take(backoff.Length).Should().Equal(backoff);
-        after.Should().OnlyContain(x => x >= shortestIdleWait && x <= idleWaitTime);
+        blocked.Take(heldBackoff.Length).Should().Equal(heldBackoff);
+        after[0].Should().Be(QuartzSchedulerThread.HeldRetryLimit, "the count runs on from where it was");
+        after.Skip(1).Should().OnlyContain(x => x >= shortestIdleWait && x <= idleWaitTime,
+            "and runs out at the idle wait once nothing is held");
 
         store.PassOverEveryRound = 1;
         Pass(after[^1]);
@@ -232,6 +253,24 @@ public sealed class SchedulerLoopBlockedRetryTest
         sameRun.Should().Equal([backoff[0], backoff[1], backoff[2]], "one firing holding the triggers throughout");
         laterRun.Should().Equal([backoff[0], backoff[1]],
             "the triggers are held by another firing than before, so the job was free in between and may be again soon");
+    }
+
+    /// <summary>
+    /// A job that changes hands every round starts the count again only once it has grown to four times its
+    /// start, so the loop does not look every tenth of a second for as long as the job keeps changing hands.
+    /// </summary>
+    [Test]
+    public async Task AJobChangingHandsEveryRoundIsNotLookedForEveryTenthOfASecond()
+    {
+        store.PassOverEveryRound = 1;
+        store.BlockingFiredUtc = new DateTimeOffset(2026, 10, 5, 7, 59, 0, TimeSpan.Zero);
+        store.AdvanceBlockingFiredUtcEveryRound = true;
+        StartLoop();
+
+        List<TimeSpan> waits = await WaitsOfTheNextRounds(6);
+
+        waits.Should().Equal([backoff[0], backoff[1], backoff[0], backoff[1], backoff[0], backoff[1]],
+            "a later firing every round is news, but restarting on each would be a look every tenth of a second");
     }
 
     /// <summary>
@@ -342,6 +381,9 @@ public sealed class SchedulerLoopBlockedRetryTest
             set => passOverEveryRound = value;
         }
 
+        /// <summary>Whether each unscripted round says a firing a second later holds them than the last.</summary>
+        public bool AdvanceBlockingFiredUtcEveryRound { get; set; }
+
         /// <summary>When the firing holding them was fired, as each unscripted round says.</summary>
         public DateTimeOffset? BlockingFiredUtc
         {
@@ -381,10 +423,16 @@ public sealed class SchedulerLoopBlockedRetryTest
                 }
             }
 
+            DateTimeOffset? blockingFiredUtc = BlockingFiredUtc;
+            if (AdvanceBlockingFiredUtcEveryRound && blockingFiredUtc is { } fired)
+            {
+                BlockingFiredUtc = fired.AddSeconds(1);
+            }
+
             return new ValueTask<TriggerAcquisitionResult>(new TriggerAcquisitionResult
             {
                 Blocked = PassOverEveryRound,
-                LatestBlockingFiredUtc = BlockingFiredUtc,
+                LatestBlockingFiredUtc = blockingFiredUtc,
             });
         }
 

@@ -50,7 +50,7 @@ public sealed class TriggerFiredResult
     /// than after its idle wait: the firing may be on another node, whose end it is not told of (#3988).
     /// </summary>
     /// <remarks>
-    /// Internal: the ADO.NET store is the one that answers it. A store whose blocking firings all end on
+    /// Internal: the clustered ADO.NET store is the one that answers it. A store whose blocking firings all end on
     /// the scheduler it answers — the in-memory one — has that firing's completion wake the scheduler,
     /// and answers <see cref="NotFired" />.
     /// </remarks>

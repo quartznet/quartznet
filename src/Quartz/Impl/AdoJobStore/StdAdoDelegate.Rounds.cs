@@ -69,9 +69,10 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
-    /// Whether this is one of the delegates Quartz ships, asked once.
+    /// Whether this is one of the delegates Quartz ships, asked once. The store asks it too, before a
+    /// statement only those dialects are known to accept (#3988).
     /// </summary>
-    private bool IsShipped => shipped ??= IsShippedDelegate();
+    internal bool IsShipped => shipped ??= IsShippedDelegate();
 
     /// <inheritdoc />
     /// <remarks>

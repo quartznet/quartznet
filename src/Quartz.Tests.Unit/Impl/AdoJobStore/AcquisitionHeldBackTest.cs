@@ -138,6 +138,73 @@ public class AcquisitionHeldBackTest
         result.LatestBlockingFiredUtc.Should().BeNull();
     }
 
+    /// <summary>
+    /// Which stores ask after their pinned triggers at all: a cluster's, through a delegate Quartz ships.
+    /// A subclass of one keeps the behaviour it had, because its dialect may not take the statement, and a
+    /// statement that failed would fail every round that found nothing.
+    /// </summary>
+    [TestCase(true, nameof(PostgreSQLDelegate), true)]
+    [TestCase(true, nameof(SqlServerDelegate), true)]
+    [TestCase(true, nameof(SubclassedDelegate), false)]
+    [TestCase(true, "fake", false)]
+    [TestCase(false, nameof(PostgreSQLDelegate), false)]
+    public void OnlyAClusterWithAShippedDelegateAsksAfterItsPinnedTriggers(bool clustered, string delegateKind, bool asks)
+    {
+        AdoJobStoreBaseTest.TestAdoJobStoreBase store = new(clustered)
+        {
+            DirectDelegate = delegateKind switch
+            {
+                nameof(PostgreSQLDelegate) => new PostgreSQLDelegate(),
+                nameof(SqlServerDelegate) => new SqlServerDelegate(),
+                nameof(SubclassedDelegate) => new SubclassedDelegate(),
+                _ => driverDelegate,
+            },
+        };
+
+        store.AsksAfterPinnedTriggersHeld.Should().Be(asks);
+    }
+
+    /// <summary>
+    /// The triggers a round passes over because their serial job is executing are counted on a cluster,
+    /// where that execution may be on another node, and not otherwise: off a cluster it is this node's,
+    /// and its end wakes the scheduler already (#3988).
+    /// </summary>
+    [TestCase(true, 1)]
+    [TestCase(false, 0)]
+    public async Task TriggersPassedOverBehindAnExecutingJobAreCountedOnlyOnACluster(bool clustered, int counted)
+    {
+        GivenCandidates(serial: true, "t1");
+        A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(A<ConnectionAndTransactionHolder>._, jobKey, A<CancellationToken>._))
+            .Returns(new ValueTask<bool>(true));
+        ProbingStore store = Store(clustered, answer: 0);
+
+        TriggerAcquisitionResult result = await store.AcquireNextTriggersAndFireDue(Request(maxCount: 2));
+
+        result.Pending.Should().BeEmpty("the trigger's job is executing");
+        result.Blocked.Should().Be(counted);
+    }
+
+    /// <summary>
+    /// A fire refused because another fire of its serial job blocked the reservation is answered
+    /// <see cref="TriggerFiredResult.Blocked" /> on a cluster, and <see cref="TriggerFiredResult.NotFired" />
+    /// otherwise, so a scheduler that is woken by the firing's end anyway does not look again early.
+    /// </summary>
+    [TestCase(true, true)]
+    [TestCase(false, false)]
+    public async Task AFireRefusedBehindABlockingFireIsAnsweredBlockedOnlyOnACluster(bool clustered, bool blocked)
+    {
+        IOperableTrigger trigger = CreateTrigger("t1", DateTimeOffset.UtcNow);
+        A.CallTo(() => driverDelegate.SelectTriggerHeader(A<ConnectionAndTransactionHolder>._, trigger.Key, A<CancellationToken>._))
+            .Returns(new ValueTask<StoredTriggerHeader>(new StoredTriggerHeader(trigger.Key, jobKey, StoredTriggerState.Blocked, trigger.NextFireTimeUtc, AdoConstants.TriggerTypeSimple)));
+        ProbingStore store = Store(clustered, answer: 0);
+
+        List<TriggerFiredResult> fired = await store.TriggersFired([trigger]);
+
+        TriggerFiredResult result = fired.Should().ContainSingle().Subject;
+        result.TriggerFiredBundle.Should().BeNull();
+        result.IsBlocked.Should().Be(blocked);
+    }
+
     private ProbingStore Store(bool clustered, int? answer)
     {
         return new ProbingStore(clustered, answer)
@@ -160,7 +227,9 @@ public class AcquisitionHeldBackTest
     /// <summary>
     /// Candidates due in an hour, so that a round reserves them and fires nothing.
     /// </summary>
-    private void GivenCandidates(params string[] names)
+    private void GivenCandidates(params string[] names) => GivenCandidates(serial: false, names);
+
+    private void GivenCandidates(bool serial, params string[] names)
     {
         DateTimeOffset nextFireTimeUtc = DateTimeOffset.UtcNow.AddHours(1);
 
@@ -169,7 +238,10 @@ public class AcquisitionHeldBackTest
                 A<TriggerAcquisitionCriteria>._,
                 A<CancellationToken>._))
             .ReturnsLazily(() => new ValueTask<List<TriggerAcquireResult>>(
-                names.Select(name => new TriggerAcquireResult(new TriggerKey(name, "g1"), typeof(NoOpJob).AssemblyQualifiedName, null)).ToList()));
+                names.Select(name => new TriggerAcquireResult(new TriggerKey(name, "g1"), typeof(NoOpJob).AssemblyQualifiedName, null)
+                {
+                    ConcurrentExecutionDisallowed = serial,
+                }).ToList()));
 
         A.CallTo(() => driverDelegate.SelectTriggers(
                 A<ConnectionAndTransactionHolder>._,
@@ -199,6 +271,9 @@ public class AcquisitionHeldBackTest
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
+    /// <summary>A dialect of somebody's own, built on a shipped one.</summary>
+    private sealed class SubclassedDelegate : PostgreSQLDelegate;
+
     /// <summary>
     /// Counts the times the store asks about pinned triggers held elsewhere, and answers with a fixed
     /// count and fire time — or, with no count, the way the store answers for a delegate it cannot ask.
@@ -208,6 +283,10 @@ public class AcquisitionHeldBackTest
         private int probes;
 
         public int Probes => Volatile.Read(ref probes);
+
+        // Every cluster asks here, whatever its delegate: the question is answered by the override below,
+        // and which delegates are asked for real is a test of its own.
+        internal override bool AsksAfterPinnedTriggersHeld => Clustered;
 
         internal override ValueTask<PinnedTriggersBlocked> SelectPinnedTriggersBlockedElsewhere(
             ConnectionAndTransactionHolder conn,

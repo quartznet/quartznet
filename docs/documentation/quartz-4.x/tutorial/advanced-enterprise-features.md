@@ -143,19 +143,27 @@ q.ConfigureScheduler(options =>
 ## A serial job across nodes
 
 A `[DisallowConcurrentExecution]` job runs on one node at a time, and its other triggers wait. The run's end
-wakes only the node it ran on, which fires the ones it may. A node with nothing to do looks again sooner when
-a run elsewhere holds back a trigger of its own:
+wakes only the node it ran on, which fires the ones it may. On a cluster, a node with nothing to do looks again
+sooner when a run elsewhere holds back a trigger of its own:
 
 | The trigger | Its node looks again |
 |---|---|
-| Its fire was refused, or acquisition passed it over, because the job runs elsewhere | after 100 ms, then twice as long each round, up to `IdleWaitTime` |
+| Its fire was refused, or acquisition passed it over, because the job runs elsewhere | after 100 ms, then twice as long each round |
 | [Pinned](node-affinity.md) to the node, and held back by a run elsewhere | the same |
 | None held back | after `IdleWaitTime`, as before |
 
+* While the store still reports the trigger held, the wait stops growing at 5 seconds, or `IdleWaitTime` if
+  that is shorter. A held trigger fires within about 5 seconds of the run ending, and a run that lasts hours
+  costs the node a look every 5 seconds.
+* Once nothing is held, the wait doubles on to `IdleWaitTime` and stays there.
+* When a pinned trigger's serial job has changed hands since the last look, the wait starts again at 100 ms,
+  once it has grown to 400 ms.
+* Off a cluster nothing changes: a run's end wakes its own node. Through a subclassed driver delegate a held
+  pinned trigger is found after `IdleWaitTime`; see
+  [What the delegate cannot reach](../how-tos/dialect-delegate.md#what-the-delegate-cannot-reach).
+
 Before 4.4 a node waited the whole `IdleWaitTime` in each case, and a pinned trigger fired that late every
-time ([#3988](https://github.com/quartznet/quartznet/issues/3988)). A run that lasts hours elsewhere costs a
-node about six extra looks in its first `IdleWaitTime`, then none. When a pinned trigger's job has changed
-hands since the last look, the node starts again at 100 ms.
+time ([#3988](https://github.com/quartznet/quartznet/issues/3988)).
 
 ## Seeing the cluster
 

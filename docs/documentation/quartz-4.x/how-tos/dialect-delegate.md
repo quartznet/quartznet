@@ -154,6 +154,15 @@ firing did. Answer `true` for the shipped shape once an `ApplyTriggerFired` over
 subclass's round is never sent as a `DbBatch`.
 :::
 
+::: tip A subclass's node finds a held pinned trigger after its idle wait
+On a cluster, a round that acquires nothing through a shipped delegate asks one more statement: which of
+this node's [pinned](../tutorial/node-affinity.md) triggers a run on another node holds `BLOCKED`. The node
+then looks again within seconds rather than after `IdleWaitTime`
+([A serial job across nodes](../tutorial/advanced-enterprise-features.md#a-serial-job-across-nodes)). The
+statement is not asked through a subclass, whose dialect may not accept it, so a subclass's node behaves as
+4.3 did. There is no hook for it.
+:::
+
 ::: warning The value conversions are not all seams
 `GetDbBooleanValue` / `GetBooleanFromDbValue` are `virtual`. `GetDbDateTimeValue`, `GetDateTimeFromDbValue`,
 `GetDbTimeSpanValue` and `GetTimeSpanFromDbValue` are not: UTC ticks and whole milliseconds are schema
