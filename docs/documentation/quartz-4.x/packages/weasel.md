@@ -5,7 +5,7 @@ title: Weasel Schema Management
 The Quartz.Weasel packages put the ADO.NET job store's tables under [Weasel](https://weasel.jasperfx.net/),
 the schema tool behind Marten and Wolverine. An application already on that stack then creates and migrates
 Quartz's tables with the workflow it runs for its own: `db-apply`, `db-assert`, `db-patch`,
-`resources setup`, and AutoCreate at startup. Requires Quartz 4.3 or later; 4.4 for MySQL and Oracle.
+`resources setup`, and AutoCreate at startup. Requires Quartz 4.3 or later; 4.4 for MySQL, Oracle and Firebird.
 
 An application not using Weasel keeps [`ProvisionSchema()`](../tutorial/job-stores.md#creating-the-schema) and
 the scripts under `database/migrations/`.
@@ -18,17 +18,17 @@ the scripts under `database/migrations/`.
 | `Quartz.Weasel.SqlServer` | SQL Server 2016 or later, disk-based tables |
 | `Quartz.Weasel.MySQL` | MySQL 8.0 or later, through MySqlConnector |
 | `Quartz.Weasel.Oracle` | Oracle, in the session's current schema |
+| `Quartz.Weasel.Firebird` | Firebird 3, 4 and 5 |
 | `Quartz.Weasel.SQLite` | SQLite, through Microsoft.Data.Sqlite |
 | `Quartz.Weasel` | the shared glue; installed by any of the above |
 
 | Dependency | Version |
 |---|---|
 | Weasel | `[9.36.0, 10.0.0)` from Quartz 4.4; `[9.35.1, 10.0.0)` in 4.3 |
+| Weasel.Firebird | `[9.39.0, 10.0.0)`, the first release with it |
 | JasperFx | 2.76.0 or later, through Weasel 9.36.0 |
 
 An application beside Marten or Wolverine resolves both at least that high.
-
-Firebird is not planned: Weasel has no Firebird provider.
 
 ```shell
 dotnet add package Quartz.Weasel.PostgreSQL
@@ -87,6 +87,16 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
+<!-- snippet: sample_weasel_firebird -->
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseFirebird(connectionString);
+    store.UseWeaselForFirebird();
+}));
+```
+<!-- endSnippet -->
+
 <!-- snippet: sample_weasel_sqlite -->
 ```csharp
 services.AddQuartz(q => q.UsePersistentStore(store =>
@@ -103,7 +113,7 @@ Checked at startup:
 
 * The store's driver matches the package: Npgsql for PostgreSQL, Microsoft.Data.SqlClient for SQL Server,
   MySqlConnector for MySQL (`UseMySqlConnector`, not `UseMySql`), Oracle.ManagedDataAccess for Oracle,
-  Microsoft.Data.Sqlite for SQLite.
+  FirebirdSql.Data.FirebirdClient for Firebird, Microsoft.Data.Sqlite for SQLite.
 * The store does not also call `ProvisionSchema()`. A schema has one owner.
 
 Each scheduler is one Weasel database. Its identifier is the scheduler name and its subject URI is
@@ -320,6 +330,45 @@ finished it (event 10009). It gives up after 10 attempts.
 |---|---|
 | an index's tablespace | kept; not compared |
 | a `NUMBER`'s precision, a column default | not compared |
+
+## Firebird
+
+Firebird 3, 4 and 5. Firebird has no schemas, so a table prefix with a dot is refused. Every name is the
+script's: `PK_QRTZ_TRIGGERS`, `FK_QRTZ_TRIGGERS_1`, `IDX_QRTZ_T_NFT_ST`.
+
+No lock is taken: Weasel.Firebird has none. Every statement it runs is guarded, so a statement that loses a race
+to another applier runs again and finds the object there. An apply that still fails reads the schema again, and
+stops when another process has finished it (event 10009).
+
+| Firebird | Longest name | Table prefix |
+|---|---|---|
+| 3 | 31 bytes, the default | at most 6 characters |
+| 4 and 5 | 63 characters, with `MaxIdentifierLength = 63` | at most 38 characters |
+
+A prefix too long for the limit is refused before anything runs. Names are never truncated.
+
+<!-- snippet: sample_weasel_firebird_options -->
+```csharp
+// IDX_QRTZ_REPORTING_FT_INST_JOB_REQ_RCVRY is 40 characters, past Firebird 3's 31 bytes
+store.ConfigureStore(options => options.TablePrefix = "QRTZ_REPORTING_");
+store.UseWeaselForFirebird(weasel =>
+{
+    // unset: the active JasperFx profile's ResourceAutoCreate, else CreateOrUpdate
+    weasel.AutoCreate = AutoCreate.CreateOrUpdate;
+    // only for a database Firebird 3 never opens
+    weasel.MaxIdentifierLength = 63;
+});
+```
+<!-- endSnippet -->
+
+| Case | Weasel |
+|---|---|
+| a UTF8 database | needs a page size of 16384 for the keys over Quartz's `VARCHAR` columns |
+| a column you widened | refused before anything runs: Firebird cannot narrow it back |
+| a foreign key's delete rule | none, as in the script; read back as `RESTRICT` |
+
+Weasel.Firebird was contributed to Weasel in [JasperFx/weasel#666](https://github.com/JasperFx/weasel/pull/666).
+Thanks to the JasperFx maintainers for merging it.
 
 ## SQLite
 
