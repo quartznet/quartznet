@@ -53,6 +53,12 @@ namespace Quartz.Tests.Unit.Impl;
 /// <see cref="InMemoryJobStoreOptions.MaxConsecutiveFireFailures" /> failures in a row, as the persistent
 /// store does since #3963, rather than released and acquired again ahead of its job-mates for good.
 /// </para>
+/// <para>
+/// The store consults the calendar again when it handles a misfire: as a trigger is acquired, as a
+/// serial job's completion lets go of its other triggers, as a <see cref="OverlapPolicy.BufferOne" />
+/// firing lets go of its own, and as a trigger is resumed. A throw there fails that trigger alone in the
+/// same way, and counts toward the same limit (#3985).
+/// </para>
 /// </remarks>
 [NonParallelizable]
 public sealed class RAMJobStoreThrowingCalendarTest
@@ -69,6 +75,9 @@ public sealed class RAMJobStoreThrowingCalendarTest
     /// <summary>Log event <c>RAMJobStoreLog.FailingTriggerSetToError</c>.</summary>
     private const int FailingTriggerSetToError = 2009;
 
+    /// <summary>Log event <c>RAMJobStoreLog.TriggerMisfireHandlingFailed</c>.</summary>
+    private const int TriggerMisfireHandlingFailed = 2010;
+
     private static readonly DateTimeOffset epoch = new(2031, 6, 17, 10, 0, 0, TimeSpan.Zero);
     private static readonly TimeSpan waitLimit = TimeSpan.FromSeconds(20);
 
@@ -78,6 +87,7 @@ public sealed class RAMJobStoreThrowingCalendarTest
     private static readonly TriggerKey firstKey = new("first", Group);
     private static readonly TriggerKey calendaredKey = new("calendared", Group);
     private static readonly TriggerKey mateKey = new("mate", Group);
+    private static readonly TriggerKey laterKey = new("later", Group);
 
     private FakeTimeProvider clock = null!;
     private RecordingSignaler signals = null!;
@@ -338,6 +348,241 @@ public sealed class RAMJobStoreThrowingCalendarTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // The same calendar while a misfire is handled (#3985)
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// A pass of four triggers, all due at once and ordered by priority: <c>first</c> and its job-mate
+    /// ignore misfires, <c>calendared</c> has its misfire handled and its calendar throws, and
+    /// <c>later</c> is behind it. The pass acquires <c>first</c> and <c>later</c>, puts the job-mate it
+    /// passed over back, and leaves <c>calendared</c> as it was, in the schedule.
+    /// </summary>
+    [Test]
+    public async Task AMisfiredTriggerWhoseCalendarThrowsIsLeftOutOfTheAcquisitionPassAlone()
+    {
+        await GivenAPassWithAMisfiredCalendaredTrigger();
+        IOperableTrigger before = (await store.GetTrigger(calendaredKey))!;
+
+        // Past the misfire threshold, and short of the next hourly fire time.
+        clock.Advance(TimeSpan.FromMinutes(30));
+        fault.ThrowOnce();
+
+        List<IOperableTrigger> acquired = await Acquire();
+
+        acquired.Select(x => x.Key).Should().Equal([firstKey, laterKey],
+            "the throw costs the pass only calendared: first was acquired before it and later after it, and the mate is first's job-mate");
+        fault.Thrown.Should().Be(1);
+        ShouldBeAsItWas(await store.GetTrigger(calendaredKey), before);
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Normal);
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == TriggerMisfireHandlingFailed)
+            .Which.Exception.Should().BeSameAs(fault.LastThrown);
+
+        List<TriggerFiredResult> results = await store.TriggersFired(acquired);
+        results.Should().OnlyContain(x => x.TriggerFiredBundle != null, "what the pass acquired fires");
+        (await store.GetTriggerState(mateKey)).Should().Be(TriggerState.Blocked, "first's job is running");
+
+        await Acquire();
+
+        (await store.GetTrigger(calendaredKey))!.NextFireTimeUtc.Should().Be(epoch.AddHours(1),
+            "calendared stayed in the schedule, so the next pass handled its misfire once the calendar answered");
+
+        await Complete(results[0]);
+        (await store.GetTriggerState(mateKey)).Should().Be(TriggerState.Normal, "first's completion lets go of its job-mate");
+    }
+
+    /// <summary>
+    /// The round that acquires and fires under one lock acquires as a pass does, so the same throw
+    /// leaves the misfired trigger out of it alone, and what the round acquired fires.
+    /// </summary>
+    [Test]
+    public async Task AMisfiredTriggerWhoseCalendarThrowsIsLeftOutOfTheRoundThatFiresOnAcquisition()
+    {
+        await GivenAPassWithAMisfiredCalendaredTrigger();
+        IOperableTrigger before = (await store.GetTrigger(calendaredKey))!;
+        clock.Advance(TimeSpan.FromMinutes(30));
+        fault.ThrowOnce();
+
+        TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = clock.GetUtcNow().AddSeconds(1),
+            MaxCount = 10,
+            TimeWindow = TimeSpan.Zero
+        });
+
+        round.Due.Select(x => x.Key).Should().Equal([firstKey, laterKey]);
+        round.Fired.Should().OnlyContain(x => x.TriggerFiredBundle != null, "what the round acquired, it fires");
+        fault.Thrown.Should().Be(1);
+        ShouldBeAsItWas(await store.GetTrigger(calendaredKey), before);
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Normal);
+    }
+
+    /// <summary>
+    /// A misfired trigger whose calendar throws on every pass is set ERROR by the pass whose failure
+    /// reaches the limit, and no pass handles it after that.
+    /// </summary>
+    [Test]
+    public async Task AMisfiredTriggerWhoseCalendarAlwaysThrowsIsSetErrorOnTheFailureThatReachesTheLimit()
+    {
+        await AddJob(ordinaryJobKey, serial: false);
+        await Schedule(calendaredKey, ordinaryJobKey, onCalendar: true);
+        clock.Advance(TimeSpan.FromMinutes(30));
+        fault.ThrowAlways();
+
+        for (int failure = 1; failure < DefaultMaxConsecutiveFireFailures; failure++)
+        {
+            (await Acquire()).Should().BeEmpty();
+            (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Normal,
+                $"{failure} failure(s) in a row is short of the limit, and the trigger stays in the schedule");
+        }
+
+        signals.TriggersInError.Should().BeEmpty();
+
+        (await Acquire()).Should().BeEmpty();
+
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Error,
+            "a failure while the misfire is handled counts toward the limit as a failed fire does");
+        fault.Thrown.Should().Be(DefaultMaxConsecutiveFireFailures, "one failure a pass");
+        signals.TriggersInError.Should().Equal([calendaredKey]);
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == FailingTriggerSetToError);
+        logs.Entries.Count(x => x.EventId.Id == TriggerMisfireHandlingFailed).Should().Be(DefaultMaxConsecutiveFireFailures);
+
+        await Acquire();
+        fault.Thrown.Should().Be(DefaultMaxConsecutiveFireFailures, "an ERROR trigger is out of the schedule, so no pass handles its misfire");
+    }
+
+    /// <summary>
+    /// A limit of zero never sets the trigger ERROR, and each pass still tries its misfire once: the
+    /// pass that fails it does not take it up again.
+    /// </summary>
+    [Test]
+    public async Task ALimitOfZeroLeavesAMisfiredTriggerWhoseCalendarThrowsToEachPassOnce()
+    {
+        store.MaxConsecutiveFireFailures = 0;
+        await AddJob(ordinaryJobKey, serial: false);
+        await Schedule(calendaredKey, ordinaryJobKey, onCalendar: true);
+        clock.Advance(TimeSpan.FromMinutes(30));
+        fault.ThrowAlways();
+
+        int passes = DefaultMaxConsecutiveFireFailures * 2;
+        for (int pass = 0; pass < passes; pass++)
+        {
+            (await Acquire()).Should().BeEmpty();
+        }
+
+        fault.Thrown.Should().Be(passes, "a failed trigger is put back after the pass, not where the same pass would take it up again");
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Normal);
+    }
+
+    /// <summary>
+    /// A serial job's trigger that was blocked while the job ran past its fire time has its misfire
+    /// handled as the job completes. A calendar that throws there fails that trigger alone: the
+    /// completion finishes, the job's other triggers are let go, and the trigger is left as it was, in
+    /// the schedule.
+    /// </summary>
+    [Test]
+    public async Task ACalendarThatThrowsAsACompletionLetsGoOfTheJobsTriggersFailsThatTriggerAlone()
+    {
+        TriggerFiredResult fired = await GivenASerialJobRunningPastItsTriggersFireTime();
+        IOperableTrigger before = (await store.GetTrigger(calendaredKey))!;
+        fault.ThrowOnce();
+
+        await store.TriggeredJobComplete(
+            fired.TriggerFiredBundle!.Trigger,
+            fired.TriggerFiredBundle.JobDetail,
+            SchedulerInstruction.SetTriggerComplete);
+
+        fault.Thrown.Should().Be(1);
+        (await store.GetTriggerState(mateKey)).Should().Be(TriggerState.Normal,
+            "the job's triggers after the one that threw are let go all the same");
+        (await store.GetTriggerState(firstKey)).Should().Be(TriggerState.Complete,
+            "the completion goes on to carry out its instruction");
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Normal);
+        ShouldBeAsItWas(await store.GetTrigger(calendaredKey), before);
+
+        await Acquire();
+
+        (await store.GetTrigger(calendaredKey))!.NextFireTimeUtc.Should().Be(epoch.AddHours(1),
+            "calendared went back in the schedule, so the next pass handled its misfire");
+    }
+
+    /// <summary>
+    /// The failure counts toward the limit here too, and the one that reaches it leaves the trigger
+    /// ERROR rather than removing it as a trigger with nothing left to fire.
+    /// </summary>
+    [Test]
+    public async Task AFailureAsACompletionLetsGoOfTheJobsTriggersThatReachesTheLimitSetsTheTriggerError()
+    {
+        store.MaxConsecutiveFireFailures = 1;
+        TriggerFiredResult fired = await GivenASerialJobRunningPastItsTriggersFireTime();
+        fault.ThrowOnce();
+
+        await Complete(fired);
+
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Error, "kept, and ERROR");
+        (await store.GetTriggerState(mateKey)).Should().Be(TriggerState.Normal);
+        signals.TriggersInError.Should().Equal([calendaredKey]);
+
+        await Acquire();
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Error, "an ERROR trigger is not acquired");
+    }
+
+    /// <summary>
+    /// A <see cref="OverlapPolicy.BufferOne" /> firing holds its own trigger back while it runs and
+    /// handles what came due meanwhile as it ends. A calendar that throws there fails that trigger alone;
+    /// at the limit it is kept ERROR, not removed as a trigger with nothing left to fire.
+    /// </summary>
+    [Test]
+    public async Task ACalendarThatThrowsAsABufferOneFiringLetsGoOfItsTriggerFailsThatTriggerAlone()
+    {
+        store.MaxConsecutiveFireFailures = 1;
+        await AddJob(ordinaryJobKey, serial: false);
+        await Schedule(calendaredKey, ordinaryJobKey, onCalendar: true, policy: OverlapPolicy.BufferOne);
+
+        TriggerFiredResult fired = (await store.TriggersFired(await Acquire())).Single();
+        fired.TriggerFiredBundle.Should().NotBeNull();
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Executing, "its own firing runs, and holds it back");
+
+        // Past the next fire time and the misfire threshold.
+        clock.Advance(TimeSpan.FromMinutes(90));
+        fault.ThrowOnce();
+
+        await Complete(fired);
+
+        fault.Thrown.Should().Be(1);
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Error, "kept, and ERROR at the limit");
+        signals.TriggersInError.Should().Equal([calendaredKey]);
+    }
+
+    /// <summary>
+    /// Resuming triggers handles the misfires they accrued while paused. A calendar that throws there
+    /// fails that trigger alone: the rest of the group is resumed, the trigger is resumed as it was, and
+    /// the caller is not handed the calendar's exception.
+    /// </summary>
+    [Test]
+    public async Task ACalendarThatThrowsAsATriggerIsResumedFailsThatTriggerAlone()
+    {
+        await AddJob(ordinaryJobKey, serial: false);
+        await Schedule(calendaredKey, ordinaryJobKey, priority: 5, onCalendar: true);
+        await Schedule(laterKey, ordinaryJobKey, priority: 1);
+        await store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(Group));
+        IOperableTrigger before = (await store.GetTrigger(calendaredKey))!;
+        clock.Advance(TimeSpan.FromMinutes(30));
+        fault.ThrowOnce();
+
+        await store.ResumeTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(Group));
+
+        fault.Thrown.Should().Be(1);
+        (await store.GetTriggerState(laterKey)).Should().Be(TriggerState.Normal, "the rest of the group is resumed");
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Normal);
+        ShouldBeAsItWas(await store.GetTrigger(calendaredKey), before);
+
+        await Acquire();
+
+        (await store.GetTrigger(calendaredKey))!.NextFireTimeUtc.Should().Be(epoch.AddHours(1),
+            "calendared was resumed into the schedule, so the next pass handled its misfire");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // A running scheduler
     //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -416,6 +661,50 @@ public sealed class RAMJobStoreThrowingCalendarTest
         inError.Heard.Should().Equal([calendaredKey]);
     }
 
+    /// <summary>
+    /// Two triggers that came due while the scheduler stood by, so the first pass after it starts takes
+    /// both: <c>first</c> ignores misfires and is acquired, then <c>calendared</c> has its misfire handled
+    /// and its calendar throws. <c>first</c> runs. The throw used to end the pass, and what it had
+    /// acquired was never handed to the scheduler, so <c>first</c> stayed reserved for a firing that
+    /// never came (#3985).
+    /// </summary>
+    [Test]
+    public async Task AMisfiredTriggerWhoseCalendarThrowsDoesNotStrandWhatItsPassAcquired()
+    {
+        await using ServiceProvider container = BuildContainer(misfireThreshold: TimeSpan.FromMilliseconds(100));
+        IScheduler scheduler = await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        FaultyCalendar calendar = new();
+        await scheduler.AddCalendar(CalendarName, calendar);
+        await scheduler.AddJob(Job(ordinaryJobKey, serial: false));
+
+        // Due soon rather than in the past, which scheduling would move up to now; the same time for
+        // both, so that the priorities order them.
+        DateTimeOffset due = TimeProvider.System.GetUtcNow().AddMilliseconds(200);
+        await scheduler.ScheduleJob(Trigger(firstKey, ordinaryJobKey, due, priority: 10, ignoreMisfires: true));
+        await scheduler.ScheduleJob(Trigger(calendaredKey, ordinaryJobKey, due, priority: 5, onCalendar: true));
+        calendar.Fault.ThrowOnce();
+
+        // Standing by until both are past the misfire threshold.
+        await Task.Delay(TimeSpan.FromMilliseconds(600));
+
+        await scheduler.Start();
+        try
+        {
+            await WaitFor(() => RecordingJob.RunsOf(firstKey) > 0 && calendar.Fault.Thrown > 0,
+                "first to run, beside the misfired trigger whose calendar threw");
+
+            (await scheduler.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Normal,
+                "one failure is short of the limit, and the trigger stays in the schedule");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+
+        RecordingJob.RunsOf(calendaredKey).Should().Be(0, "its misfire policy moved it to the next hour, once the calendar answered");
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Helpers
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -431,6 +720,45 @@ public sealed class RAMJobStoreThrowingCalendarTest
         await Schedule(firstKey, serialJobKey, priority: 10);
         await Schedule(calendaredKey, ordinaryJobKey, priority: 5, onCalendar: true);
         await Schedule(mateKey, serialJobKey, priority: 1);
+    }
+
+    /// <summary>
+    /// <c>first</c> and its job-mate on the serial job, <c>calendared</c> and <c>later</c> on the ordinary
+    /// job, all due at once and in that order by priority. All but <c>calendared</c> ignore misfires, so
+    /// once the clock has moved past the threshold, <c>calendared</c> is the one whose misfire a pass
+    /// handles.
+    /// </summary>
+    private async Task GivenAPassWithAMisfiredCalendaredTrigger()
+    {
+        await AddJob(serialJobKey, serial: true);
+        await AddJob(ordinaryJobKey, serial: false);
+        await Schedule(firstKey, serialJobKey, priority: 10, ignoreMisfires: true);
+        await Schedule(mateKey, serialJobKey, priority: 7, ignoreMisfires: true);
+        await Schedule(calendaredKey, ordinaryJobKey, priority: 5, onCalendar: true);
+        await Schedule(laterKey, ordinaryJobKey, priority: 1, ignoreMisfires: true);
+    }
+
+    /// <summary>
+    /// <c>first</c>, <c>calendared</c> and <c>mate</c>, in that order, on the serial job, all due at
+    /// once: <c>first</c> fires, which blocks the other two, and the job runs half an hour, past their
+    /// fire time and the misfire threshold. Answers <c>first</c>'s fire.
+    /// </summary>
+    private async Task<TriggerFiredResult> GivenASerialJobRunningPastItsTriggersFireTime()
+    {
+        await AddJob(serialJobKey, serial: true);
+        await Schedule(firstKey, serialJobKey, priority: 10);
+        await Schedule(calendaredKey, serialJobKey, priority: 5, onCalendar: true);
+        await Schedule(mateKey, serialJobKey, priority: 1);
+
+        List<IOperableTrigger> acquired = await Acquire();
+        acquired.Select(x => x.Key).Should().Equal([firstKey], "a batch takes one trigger of a serial job");
+        TriggerFiredResult fired = (await store.TriggersFired(acquired)).Single();
+        fired.TriggerFiredBundle.Should().NotBeNull();
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Blocked);
+        (await store.GetTriggerState(mateKey)).Should().Be(TriggerState.Blocked);
+
+        clock.Advance(TimeSpan.FromMinutes(30));
+        return fired;
     }
 
     private static async Task<CalendarFault> GivenTheBatch(IScheduler scheduler)
@@ -461,18 +789,23 @@ public sealed class RAMJobStoreThrowingCalendarTest
             : JobBuilder.Create<RecordingJob>().WithIdentity(key).StoreDurably().Build();
     }
 
+    /// <remarks>
+    /// Hourly from now. A trigger that misfires has its misfire handled by the simple trigger's smart
+    /// policy, which consults the calendar for the next fire time, unless it ignores misfires.
+    /// </remarks>
     private async Task Schedule(
         TriggerKey key,
         JobKey jobKey,
         int priority = TriggerConstants.DefaultPriority,
         bool onCalendar = false,
-        OverlapPolicy policy = OverlapPolicy.Default)
+        OverlapPolicy policy = OverlapPolicy.Default,
+        bool ignoreMisfires = false)
     {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(clock)
             .WithIdentity(key)
             .ForJob(jobKey)
             .StartAt(clock.GetUtcNow())
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .WithSimpleSchedule(x => Hourly(x, ignoreMisfires))
             .WithPriority(priority)
             .WithCalendarName(onCalendar ? CalendarName : null)
             .WithOverlapPolicy(policy)
@@ -483,16 +816,31 @@ public sealed class RAMJobStoreThrowingCalendarTest
         await store.AddTrigger(trigger);
     }
 
-    private static ITrigger Trigger(TriggerKey key, JobKey jobKey, DateTimeOffset due, int priority, bool onCalendar = false)
+    private static ITrigger Trigger(
+        TriggerKey key,
+        JobKey jobKey,
+        DateTimeOffset due,
+        int priority,
+        bool onCalendar = false,
+        bool ignoreMisfires = false)
     {
         return TriggerBuilder.Create()
             .WithIdentity(key)
             .ForJob(jobKey)
             .StartAt(due)
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .WithSimpleSchedule(x => Hourly(x, ignoreMisfires))
             .WithPriority(priority)
             .WithCalendarName(onCalendar ? CalendarName : null)
             .Build();
+    }
+
+    private static void Hourly(SimpleScheduleBuilder schedule, bool ignoreMisfires)
+    {
+        schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever();
+        if (ignoreMisfires)
+        {
+            schedule.WithMisfireInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires);
+        }
     }
 
     private async Task<List<IOperableTrigger>> Acquire()
@@ -564,18 +912,26 @@ public sealed class RAMJobStoreThrowingCalendarTest
             "a fire that failed is not counted as one");
     }
 
-    private static ServiceProvider BuildContainer()
+    private static ServiceProvider BuildContainer(TimeSpan? misfireThreshold = null)
     {
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddQuartz(q => q.ConfigureScheduler(options =>
+        services.AddQuartz(q =>
         {
-            options.InstanceName = "throwing-calendar-" + Guid.NewGuid().ToString("N");
-            options.InstanceId = "one";
+            q.ConfigureScheduler(options =>
+            {
+                options.InstanceName = "throwing-calendar-" + Guid.NewGuid().ToString("N");
+                options.InstanceId = "one";
 
-            // Batched, so a running scheduler fires the calendared trigger beside the rest of its batch.
-            options.MaxBatchSize = 4;
-        }));
+                // Batched, so a running scheduler fires the calendared trigger beside the rest of its batch.
+                options.MaxBatchSize = 4;
+            });
+
+            if (misfireThreshold is { } threshold)
+            {
+                q.UseInMemoryStore(options => options.MisfireThreshold = threshold);
+            }
+        });
 
         return services.BuildServiceProvider();
     }

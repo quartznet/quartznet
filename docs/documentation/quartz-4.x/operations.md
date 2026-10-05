@@ -636,6 +636,12 @@ first in the next round again. What fails a fire depends on the store:
 |---|---|---|
 | Persistent | The database refuses it for a reason a retry will not cure, such as a constraint violation | Warning **3049** |
 | In-memory (4.4) | The trigger's calendar, or a trigger type of your own, throws while the trigger is moved on | Error **2008** |
+| Either (4.4) | The same calendar or trigger type throws while the trigger's misfire is handled | Error **3603**, **2010** in memory |
+
+A misfire whose calendar throws fails that trigger alone. Nothing of the misfire is written: the trigger
+keeps its fire time, and the next pass handles the misfire again. The acquisition, completion, resume or
+misfire scan it was part of goes on. A database failure in the same step is still rolled back and
+retried, and is not counted.
 
 After `JobStore:MaxConsecutiveFireFailures` failures in a row (default 5), new in 4.4:
 

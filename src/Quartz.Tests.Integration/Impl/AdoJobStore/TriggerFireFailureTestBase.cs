@@ -27,6 +27,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// a scheduler beside a trigger whose every fire fails, which is stored <c>ERROR</c> after five failures
 /// in a row (#3963), and watches the rest of its batch and its job's other trigger fire.
 /// </para>
+/// <para>
+/// The last two complete a <see cref="DisallowConcurrentExecutionAttribute" /> job beside a trigger it
+/// held back whose calendar throws as its misfire is handled (#4006). The completion commits, and the
+/// failure counts toward the limit; a database failure in the same step is still rolled back and retried.
+/// </para>
 /// </remarks>
 public abstract class TriggerFireFailureTestBase : ClusteredJobStoreTestBase
 {
@@ -212,6 +217,150 @@ public abstract class TriggerFireFailureTestBase : ClusteredJobStoreTestBase
             ("schedulerName", SchedulerName))).Should().Be(0,
             "nothing is executing after the shutdown, so nothing may be blocked; each failed fire used to move the poison's job-mate to "
             + "BLOCKED and commit it, with nothing executing to let go of it");
+    }
+
+    /// <summary>
+    /// A serial job's completion handles the misfires of the triggers it unblocks, and the calendar of one
+    /// of them throws. The completion commits and lets go of the job's other triggers, and the one that
+    /// threw is <c>WAITING</c> with its fire time as it was. The failure counts: with a limit of two, the
+    /// misfire handler's failure after it stores the trigger <c>ERROR</c> (#4006).
+    /// </summary>
+    /// <remarks>
+    /// Before, the throw rolled the completion back, and the completion is retried until it commits: the
+    /// job stayed <c>BLOCKED</c>, its fired row stayed, and the worker that ran it never returned.
+    /// </remarks>
+    [Test]
+    public async Task ACompletionCommitsBesideABlockedTriggerWhoseCalendarThrowsAndTheFailureCounts()
+    {
+        SchedulerHost host = await CreateSchedulerHost(Node, configure: properties =>
+        {
+            UseFaultingDelegate(properties);
+            properties["quartz.jobStore.misfireThreshold"] = "1000";
+            properties["quartz.jobStore.maxConsecutiveFireFailures"] = "2";
+        });
+        try
+        {
+            IJobStore store = host.Services.GetRequiredService<IJobStore>();
+            (TriggerFiredBundle firing, DateTimeOffset due) = await GivenASerialJobRunningPastItsTriggersFireTime(host.Scheduler, store);
+            FireFault.CalendarFault.ThrowAlways();
+
+            await CompleteWithin(store, firing);
+
+            FireFault.CalendarFault.Thrown.Should().Be(1);
+            (await ExecuteScalar("SELECT COUNT(*) FROM QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = @schedulerName AND TRIGGER_NAME = @name",
+                ("schedulerName", SchedulerName), ("name", "first"))).Should().Be(0, "the completion committed");
+            (await TriggerState("mate")).Should().Be("WAITING", "the job's other triggers are let go all the same");
+            (await TriggerState("calendared")).Should().Be("WAITING", "released, with nothing of its misfire written");
+            (await store.GetTrigger(new TriggerKey("calendared", Group)))!.NextFireTimeUtc.Should().Be(due);
+
+            // The misfire handler, which a started scheduler runs, meets the same calendar.
+            await host.Scheduler.Start();
+            await WaitForCondition(
+                async () => await TriggerState("calendared") == "ERROR",
+                20_000,
+                "the misfire handler's failure, the second in a row, to store the trigger ERROR");
+
+            FireFault.CalendarFault.Thrown.Should().Be(2, "the completion's failure and the misfire handler's are one run of failures");
+        }
+        finally
+        {
+            await host.Scheduler.Shutdown();
+            await host.Services.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// The database failing to read the calendar in the same step is not the trigger's failure: the
+    /// completion is rolled back and retried, and nothing is counted. With a limit of one, the trigger is
+    /// not stored <c>ERROR</c>, and the retry handles its misfire.
+    /// </summary>
+    [Test]
+    public async Task ADatabaseFailureAsACompletionLetsGoOfTheJobsTriggersIsRetriedAndNotCounted()
+    {
+        SchedulerHost host = await CreateSchedulerHost(Node, configure: properties =>
+        {
+            UseFaultingDelegate(properties);
+            properties["quartz.jobStore.misfireThreshold"] = "1000";
+            properties["quartz.jobStore.maxConsecutiveFireFailures"] = "1";
+            properties["quartz.jobStore.dbRetryInterval"] = "200";
+        });
+        try
+        {
+            IJobStore store = host.Services.GetRequiredService<IJobStore>();
+            (TriggerFiredBundle firing, DateTimeOffset due) = await GivenASerialJobRunningPastItsTriggersFireTime(host.Scheduler, store);
+            int readsBefore = FireFault.CalendarFault.Reads;
+            FireFault.CalendarFault.FailNextRead();
+
+            await CompleteWithin(store, firing);
+
+            (FireFault.CalendarFault.Reads - readsBefore).Should().Be(2, "the rolled-back attempt read the calendar, and so did the retry");
+            (await TriggerState("calendared")).Should().Be("WAITING", "a database failure is not the trigger's, so nothing was counted");
+            (await store.GetTrigger(new TriggerKey("calendared", Group)))!.NextFireTimeUtc.Should().BeAfter(due, "the retry handled its misfire");
+            (await TriggerState("mate")).Should().Be("WAITING");
+        }
+        finally
+        {
+            await host.Scheduler.Shutdown();
+            await host.Services.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// <c>first</c>, <c>calendared</c> and <c>mate</c>, in that order, on the serial job and all due at
+    /// once, <c>calendared</c> on the faulty calendar: <c>first</c> fires, which blocks the other two, and
+    /// the job runs past their fire time and the one-second misfire threshold. Answers <c>first</c>'s
+    /// firing and the fire time the three were due at.
+    /// </summary>
+    private async Task<(TriggerFiredBundle Firing, DateTimeOffset Due)> GivenASerialJobRunningPastItsTriggersFireTime(IScheduler scheduler, IJobStore store)
+    {
+        await scheduler.AddJob(JobBuilder.Create<SerialNamingJob>().WithIdentity(serialJobKey).StoreDurably().Build());
+
+        DateTimeOffset due = TimeProvider.System.GetUtcNow().AddMilliseconds(500);
+        foreach ((string name, int priority, string calendar) in ((string, int, string)[]) [("first", 10, null), ("calendared", 5, FireFault.FaultyCalendarName), ("mate", 1, null)])
+        {
+            await scheduler.ScheduleJob(TriggerBuilder.Create()
+                .WithIdentity(name, Group)
+                .ForJob(serialJobKey)
+                .StartAt(due)
+                .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+                .WithPriority(priority)
+                .WithCalendarName(calendar)
+                .Build());
+        }
+
+        List<IOperableTrigger> acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = due.AddMinutes(1),
+            MaxCount = 4,
+            TimeWindow = TimeSpan.FromSeconds(5),
+        });
+        acquired.Select(x => x.Key.Name).Should().Equal(["first"], "a batch takes one trigger of a serial job");
+
+        TriggerFiredBundle firing = (await store.TriggersFired(acquired)).Should().ContainSingle().Subject.TriggerFiredBundle;
+        firing.Should().NotBeNull();
+        (await TriggerState("calendared")).Should().Be("BLOCKED");
+        (await TriggerState("mate")).Should().Be("BLOCKED");
+
+        // Past the fire time and the misfire threshold, while the job runs.
+        TimeSpan pastThreshold = due.AddMilliseconds(1500) - TimeProvider.System.GetUtcNow();
+        if (pastThreshold > TimeSpan.Zero)
+        {
+            await Task.Delay(pastThreshold);
+        }
+
+        return (firing, due);
+    }
+
+    /// <summary>
+    /// Completes the firing, failing the test rather than hanging it if the completion does not return:
+    /// one that rolls back is retried until it commits.
+    /// </summary>
+    private static async Task CompleteWithin(IJobStore store, TriggerFiredBundle firing)
+    {
+        Task completing = store.TriggeredJobComplete(firing.Trigger, firing.JobDetail, SchedulerInstruction.NoInstruction).AsTask();
+        Task finished = await Task.WhenAny(completing, Task.Delay(TimeSpan.FromSeconds(30)));
+        finished.Should().BeSameAs(completing, "the completion commits; one that rolled back for the calendar's throw was retried for good");
+        await completing;
     }
 
     private void UseFaultingDelegate(NameValueCollection properties)

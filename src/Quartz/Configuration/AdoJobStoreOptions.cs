@@ -173,8 +173,10 @@ public sealed class AdoJobStoreOptions
     /// database no longer has — is rolled back alone, and the trigger is released and acquired again.
     /// One that fails every time was acquired again forever: each round cost a rolled-back transaction,
     /// and a <see cref="DisallowConcurrentExecutionAttribute" /> job's other triggers never fired behind
-    /// it. After this many failures in a row the trigger is stored <c>ERROR</c>, the scheduler listeners
-    /// hear <see cref="ISchedulerListener.TriggerInError" />, and event 3050 is logged.
+    /// it. A misfire whose <see cref="ICalendar" />, or a trigger type of your own, throws counts as a
+    /// failed fire too, and logs event 3603. After this many failures in a row the trigger is stored
+    /// <c>ERROR</c>, the scheduler listeners hear <see cref="ISchedulerListener.TriggerInError" />, and
+    /// event 3050 is logged.
     /// <see cref="IScheduler.ResetTriggerFromErrorState" /> brings it back once the cause is fixed.
     /// </para>
     /// <para>

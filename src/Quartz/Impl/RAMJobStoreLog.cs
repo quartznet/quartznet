@@ -60,4 +60,7 @@ internal static partial class RAMJobStoreLog
 
     [LoggerMessage(EventId = 2009, Level = LogLevel.Error, Message = "Trigger {TriggerKey} failed to fire {Failures} times in a row and is set to ERROR state; ResetTriggerFromErrorState returns it once the cause is fixed")]
     public static partial void FailingTriggerSetToError(this ILogger logger, TriggerKey triggerKey, int failures);
+
+    [LoggerMessage(EventId = 2010, Level = LogLevel.Error, Message = "Misfire handling of trigger {TriggerKey} failed; the trigger is left as it was, to be handled again, and the rest goes on without it")]
+    public static partial void TriggerMisfireHandlingFailed(this ILogger logger, TriggerKey triggerKey, Exception exception);
 }
