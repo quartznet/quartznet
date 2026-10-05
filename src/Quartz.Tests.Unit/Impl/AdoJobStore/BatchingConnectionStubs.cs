@@ -34,13 +34,20 @@ internal sealed class StubBatchingConnection : DbConnection
 
     public List<StubBatch> Batches { get; } = [];
 
+    /// <summary>
+    /// What each batch command reports it affected, given its position in the batch; unset, a batch
+    /// reports every command as one row affected in its total and nothing on the commands themselves.
+    /// </summary>
+    public Func<int, int> RecordsAffected { get; init; }
+
     public override bool CanCreateBatch => SupportsBatching;
 
     protected override DbBatch CreateDbBatch()
     {
         var batch = new StubBatch
         {
-            Failure = BatchFailure ?? (FailBatchExecution ? () => new InvalidOperationException("batch execution failed") : null)
+            Failure = BatchFailure ?? (FailBatchExecution ? () => new InvalidOperationException("batch execution failed") : null),
+            RecordsAffected = RecordsAffected,
         };
         Batches.Add(batch);
         return batch;
@@ -65,6 +72,8 @@ internal sealed class StubBatch : DbBatch
 
     public Func<Exception> Failure { get; init; }
 
+    public Func<int, int> RecordsAffected { get; init; }
+
     public int ExecuteCount { get; private set; }
 
     public List<StubBatchCommand> Commands => commands.Items;
@@ -81,7 +90,19 @@ internal sealed class StubBatch : DbBatch
             throw Failure();
         }
 
-        return Task.FromResult(commands.Count);
+        if (RecordsAffected is null)
+        {
+            return Task.FromResult(commands.Count);
+        }
+
+        int total = 0;
+        for (int i = 0; i < commands.Items.Count; i++)
+        {
+            commands.Items[i].Affected = RecordsAffected(i);
+            total += Math.Max(commands.Items[i].Affected, 0);
+        }
+
+        return Task.FromResult(total);
     }
 
     public override int ExecuteNonQuery() => throw new NotSupportedException();
@@ -123,7 +144,11 @@ internal sealed class StubBatchCommand : DbBatchCommand
 
     public override string CommandText { get; set; } = "";
     public override CommandType CommandType { get; set; }
-    public override int RecordsAffected => 0;
+
+    /// <summary>What <see cref="RecordsAffected" /> reports, as the batch set it.</summary>
+    public int Affected { get; set; }
+
+    public override int RecordsAffected => Affected;
     protected override DbParameterCollection DbParameterCollection => parameters;
 
     // Left at the default (false) on purpose: the delegate has to cope with providers that have not

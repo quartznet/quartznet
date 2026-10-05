@@ -78,16 +78,33 @@ internal abstract partial class AdoJobStoreBase
         // The failed triggers whose failure was the last one in a row the store allows, with how many.
         List<(TriggerKey TriggerKey, int Failures)>? failing = null;
 
+        // Whether the round claims and writes one trigger at a time rather than together: once a batch has
+        // failed without saying which trigger it failed on, which the one-at-a-time run says.
+        bool oneByOne = false;
+
         while (true)
         {
             FireOnAcquireAttempt attempt;
             try
             {
+                FireOnAcquireRound round = new(failed, oneByOne);
                 attempt = await ExecuteInLocalTransactionLock(
                     SchedulerLock.TriggerAccess,
-                    conn => AcquireAndFireDue(conn, request, failed, cancellationToken),
+                    conn => AcquireAndFireDue(conn, request, round, cancellationToken),
                     (conn, result) => ValidateAcquiredAndFired(conn, result, cancellationToken),
                     cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            catch (TriggerWriteFailedException batch)
+            {
+                Logger.RoundBatchWriteFailed(batch);
+                oneByOne = true;
+                continue;
+            }
+            catch (ClaimOutcomeUnknownException unknown)
+            {
+                Logger.RoundBatchClaimUnknown(unknown);
+                oneByOne = true;
+                continue;
             }
             catch (TriggerFireFailedException failure)
             {
@@ -159,10 +176,11 @@ internal abstract partial class AdoJobStoreBase
     private async ValueTask<FireOnAcquireAttempt> AcquireAndFireDue(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionRequest request,
-        Dictionary<TriggerKey, Exception>? failed,
+        FireOnAcquireRound round,
         CancellationToken cancellationToken)
     {
-        FireOnAcquireRound round = new(failed);
+        // Every attempt decides for itself, from the clock when it claims its first trigger.
+        round.Reset();
         List<IOperableTrigger> acquired = await AcquireNextTrigger(conn, request, round, cancellationToken).ConfigureAwait(false);
 
         List<IOperableTrigger> due = [];
@@ -182,7 +200,7 @@ internal abstract partial class AdoJobStoreBase
         }
 
         TriggerFiredResult?[] fired = due.Count > 0
-            ? await FireDue(conn, due, failed, cancellationToken).ConfigureAwait(false)
+            ? await FireDue(conn, due, round, cancellationToken).ConfigureAwait(false)
             : [];
 
         return new FireOnAcquireAttempt(due, fired, pending);
@@ -190,18 +208,26 @@ internal abstract partial class AdoJobStoreBase
 
     /// <summary>
     /// Fires the due triggers of a round in its transaction, having read their headers and jobs once for
-    /// all of them.
+    /// all of them, and writes every fire's rows together once all of them are decided.
     /// </summary>
     /// <returns>
     /// A result for each trigger, index-aligned with <paramref name="due" />; <see langword="null" /> for
     /// one that failed in an earlier attempt, which acquisition reserved and this does not fire.
     /// </returns>
+    /// <exception cref="TriggerFireFailedException">
+    /// One fire's writes failed for a reason a retry will not cure.
+    /// </exception>
+    /// <exception cref="TriggerWriteFailedException">
+    /// The fires' writes failed as one batch, which does not say whose; the round runs again one trigger at
+    /// a time.
+    /// </exception>
     private async ValueTask<TriggerFiredResult?[]> FireDue(
         ConnectionAndTransactionHolder conn,
         List<IOperableTrigger> due,
-        Dictionary<TriggerKey, Exception>? failed,
+        FireOnAcquireRound round,
         CancellationToken cancellationToken)
     {
+        Dictionary<TriggerKey, Exception>? failed = round.Failed;
         List<TriggerKey> triggerKeys = new(due.Count);
         List<JobKey> jobKeys = new(due.Count);
         foreach (IOperableTrigger trigger in due)
@@ -232,6 +258,11 @@ internal abstract partial class AdoJobStoreBase
         // reserves the triggers it does not fire, for the scheduler to release.
         List<IOperableTrigger>? unfired = null;
 
+        // The writes of every fire, applied together once all of them are decided, with the position in
+        // the round of the trigger each belongs to. Null when the round writes each fire as it decides it.
+        List<TriggerFiredUpdate>? writes = round.WritesTogether ? new(triggerKeys.Count) : null;
+        List<int>? writers = round.WritesTogether ? new(triggerKeys.Count) : null;
+
         for (int i = 0; i < due.Count; i++)
         {
             IOperableTrigger trigger = due[i];
@@ -246,7 +277,12 @@ internal abstract partial class AdoJobStoreBase
                 // A copy, so that Triggered() does not move the acquired trigger on: a rolled-back attempt
                 // leaves it as it was, and the scheduler releases the acquired instance.
                 IOperableTrigger triggerCopy = (IOperableTrigger) trigger.Clone();
-                result = await FireTrigger(conn, triggerCopy, prefetch, cancellationToken).ConfigureAwait(false);
+                int written = writes?.Count ?? 0;
+                result = await FireTrigger(conn, triggerCopy, prefetch, writes, cancellationToken).ConfigureAwait(false);
+                if (writes is not null && writes.Count > written)
+                {
+                    writers!.Add(i);
+                }
             }
             catch (JobPersistenceException jpe)
             {
@@ -277,6 +313,11 @@ internal abstract partial class AdoJobStoreBase
             results[i] = result;
         }
 
+        if (writes is { Count: > 0 })
+        {
+            await ApplyWrites(conn, due, writes, writers!, triggerKeys.Count, cancellationToken).ConfigureAwait(false);
+        }
+
         if (unfired is not null)
         {
             await Guarded(
@@ -285,15 +326,102 @@ internal abstract partial class AdoJobStoreBase
         }
 
         return results;
+    }
 
-        static TriggerFireFailedException FireFailed(int index, IOperableTrigger trigger, int batchSize, Exception failure)
+    private static TriggerFireFailedException FireFailed(int index, IOperableTrigger trigger, int batchSize, Exception failure)
+    {
+        return new TriggerFireFailedException(index, trigger.Key, failure)
         {
-            return new TriggerFireFailedException(index, trigger.Key, failure)
-            {
-                PreviousFireTimeUtc = trigger.PreviousFireTimeUtc,
-                BatchSize = batchSize,
-            };
+            PreviousFireTimeUtc = trigger.PreviousFireTimeUtc,
+            BatchSize = batchSize,
+        };
+    }
+
+    /// <summary>
+    /// Applies the writes of a round's fires together, and says whose failed when that is known.
+    /// </summary>
+    /// <param name="conn">The round's transaction.</param>
+    /// <param name="due">The round's due triggers.</param>
+    /// <param name="writes">The writes of each fire, in the order the fires were decided.</param>
+    /// <param name="writers">The position in <paramref name="due" /> of the trigger each write belongs to.</param>
+    /// <param name="batchSize">How many triggers the round is firing, for the log line of a failure.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask ApplyWrites(
+        ConnectionAndTransactionHolder conn,
+        List<IOperableTrigger> due,
+        List<TriggerFiredUpdate> writes,
+        List<int> writers,
+        int batchSize,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Delegate.ApplyTriggersFired(conn, writes, cancellationToken).ConfigureAwait(false);
         }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            Exception cause = e is TriggerWriteFailedException { InnerException: { } inner } ? inner : e;
+            if (IsTransient(cause))
+            {
+                throw new JobPersistenceException("Transient error firing triggers: " + cause.Message, cause);
+            }
+
+            // One fire's writes failed, and which one is known: answered as the fire of an acquired trigger
+            // is (#3931), by running the round again without firing that trigger.
+            if (e is TriggerWriteFailedException { Index: >= 0 } one && one.Index < writers.Count)
+            {
+                // Described as the fire of an acquired trigger describes its failed write, so that what
+                // the scheduler is handed — and releases the trigger on — is the same either way.
+                int position = writers[one.Index];
+                IOperableTrigger trigger = due[position];
+                JobPersistenceException recorded = cause as JobPersistenceException
+                    ?? new JobPersistenceException($"Couldn't record the fire of trigger '{trigger.Key}' for '{trigger.JobKey}' job: {cause.Message}", cause);
+                throw FireFailed(position, trigger, batchSize, recorded);
+            }
+
+            // Written as one batch, or by a delegate of its own that did not say whose failed: the round runs
+            // again one trigger at a time, which finds it.
+            throw e as TriggerWriteFailedException ?? new TriggerWriteFailedException(-1, cause);
+        }
+    }
+
+    /// <summary>
+    /// Claims the triggers one acquisition pass of a round took, together, and takes back out of what the
+    /// pass acquired and reserves each whose row another node moved first.
+    /// </summary>
+    /// <remarks>
+    /// The pass counted each as acquired while it went, so its batch window is the first trigger's whether
+    /// that trigger's claim took or not: a window no wider than it would have been, never wider.
+    /// </remarks>
+    /// <param name="conn">The round's transaction.</param>
+    /// <param name="planned">The claims the pass made, in the order it made them.</param>
+    /// <param name="acquired">What the pass acquired, the claimed triggers exactly.</param>
+    /// <param name="reservations">The triggers the pass reserves.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask ClaimPlanned(
+        ConnectionAndTransactionHolder conn,
+        List<TriggerClaim> planned,
+        List<IOperableTrigger> acquired,
+        List<IOperableTrigger> reservations,
+        CancellationToken cancellationToken)
+    {
+        List<TriggerKey> claimed = await Delegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+            conn,
+            planned,
+            StoredTriggerState.Acquired,
+            StoredTriggerState.Waiting,
+            cancellationToken).ConfigureAwait(false);
+
+        if (claimed.Count == planned.Count)
+        {
+            return;
+        }
+
+        // Not worth a warning, for the reason a lost claim of one trigger is not: losing a row to another
+        // node is the ordinary outcome of two nodes reaching for the same batch.
+        HashSet<TriggerKey> took = [.. claimed];
+        acquired.RemoveAll(trigger => !took.Contains(trigger.Key));
+        reservations.RemoveAll(trigger => !took.Contains(trigger.Key));
     }
 
     /// <summary>
@@ -359,15 +487,37 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// What one attempt at a fire-on-acquire round decides its triggers by.
+    /// What an attempt at a fire-on-acquire round decides its triggers by.
     /// </summary>
-    private sealed class FireOnAcquireRound(Dictionary<TriggerKey, Exception>? failed)
+    /// <param name="failed">The triggers whose fire failed in an earlier attempt, claimed but not fired.</param>
+    /// <param name="oneByOne">
+    /// Whether the round claims and writes one trigger at a time, as it does once a batch has failed without
+    /// saying which trigger it failed on.
+    /// </param>
+    private sealed class FireOnAcquireRound(Dictionary<TriggerKey, Exception>? failed, bool oneByOne)
     {
         /// <summary>
         /// The store's clock when the attempt claimed its first trigger. A trigger due at or before it is
         /// due in this attempt.
         /// </summary>
         private DateTimeOffset? now;
+
+        public Dictionary<TriggerKey, Exception>? Failed => failed;
+
+        /// <summary>
+        /// Whether the round's claims are made together, at the end of each acquisition pass.
+        /// </summary>
+        public bool ClaimsTogether => !oneByOne;
+
+        /// <summary>
+        /// Whether the round's fire writes are applied together, once every fire is decided.
+        /// </summary>
+        public bool WritesTogether => !oneByOne;
+
+        /// <summary>
+        /// Forgets the clock reading, for an attempt the transaction wrapper runs again.
+        /// </summary>
+        public void Reset() => now = null;
 
         /// <summary>
         /// Whether the trigger just claimed is fired in this attempt, and so gets no reservation row: it is
@@ -399,6 +549,12 @@ internal abstract partial class AdoJobStoreBase
         /// The job keys already handed to a fire in this round, whose next fire gets a copy.
         /// </summary>
         private HashSet<JobKey>? handedOut;
+
+        /// <summary>
+        /// The jobs that disallow concurrent execution which a fire of this round has started, with its
+        /// writes still to go.
+        /// </summary>
+        private HashSet<JobKey>? firedInRound;
 
         public FireOnAcquirePrefetch(List<StoredTriggerHeader> headers, Dictionary<JobKey, IJobDetail>? jobs)
         {
@@ -433,6 +589,23 @@ internal abstract partial class AdoJobStoreBase
             handedOut ??= [];
             return handedOut.Add(jobKey) ? job : job.Clone();
         }
+
+        /// <summary>
+        /// Whether a fire of this round has already started the job, which disallows concurrent execution.
+        /// </summary>
+        /// <remarks>
+        /// Acquisition takes one trigger of such a job a round, by the flag the delegate read with each
+        /// candidate. Where a delegate does not read it, acquisition asks the job's type instead, and a job
+        /// made serial by its builder rather than an attribute gets two triggers into the round. The
+        /// fired-trigger table cannot hold the second back while the first one's row is still to be
+        /// written, so this does: the second is not fired, as when the table says the job is executing.
+        /// </remarks>
+        public bool FiredInRound(JobKey jobKey) => firedInRound is not null && firedInRound.Contains(jobKey);
+
+        /// <summary>
+        /// Records that a fire of this round started the job, whose row the round writes later.
+        /// </summary>
+        public void MarkFiredInRound(JobKey jobKey) => (firedInRound ??= []).Add(jobKey);
     }
 
     /// <summary>

@@ -2663,6 +2663,50 @@ public abstract class JobStoreContractTest
         fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull();
     }
 
+    [Test]
+    public async Task TwoDueTriggersOfASerialJobFireOnceInARoundAndTheOtherIsBlocked()
+    {
+        IJobDetail job = JobBuilder.Create<NonConcurrentContractTestJob>()
+            .WithIdentity("serial", JobGroupA)
+            .Build();
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        IOperableTrigger first = CreateTrigger("serial-first", TriggerGroupA, job.Key, startAt: now.AddSeconds(-2));
+        IOperableTrigger second = CreateTrigger("serial-second", TriggerGroupA, job.Key, startAt: now.AddSeconds(-1));
+        await Store.ScheduleJob(job, first);
+        await Store.AddTrigger(second);
+
+        TriggerAcquisitionResult round = await Store.AcquireNextTriggersAndFireDue(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = now.AddMinutes(1),
+            MaxCount = 5,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+
+        round.Due.Select(x => x.Key).Should().Equal([first.Key], "a round takes one trigger of a job that disallows concurrent execution");
+        TriggerFiredBundle bundle = round.Fired.Should().ContainSingle().Which.TriggerFiredBundle;
+        bundle.Should().NotBeNull();
+        round.Pending.Should().BeEmpty("the job's other trigger is not acquired at all while the first one is in the round");
+
+        PagedResult<FireInstance> executing = await Store.QueryFireInstances(new FireInstanceQuery { State = FireInstanceState.Executing, Take = PagedQuery.All });
+        executing.Items.Select(x => x.TriggerKey).Should().Equal([first.Key], "the job runs once at a time");
+        PagedResult<FireInstance> reserved = await Store.QueryFireInstances(new FireInstanceQuery { State = FireInstanceState.Acquired, Take = PagedQuery.All });
+        reserved.Items.Should().BeEmpty("nothing else was acquired");
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Blocked, "the fire blocks the rest of its job's triggers");
+
+        await Store.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Normal, "the completion lets the job's other trigger go");
+        TriggerAcquisitionResult next = await Store.AcquireNextTriggersAndFireDue(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 5,
+            TimeWindow = TimeSpan.Zero
+        });
+        next.Due.Select(x => x.Key).Should().Equal([second.Key], "and the next round fires it");
+        next.Fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull();
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Persisting a job's data map across firings
     //

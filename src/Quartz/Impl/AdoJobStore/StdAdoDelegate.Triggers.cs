@@ -956,8 +956,27 @@ public partial class StdAdoDelegate
     {
         ArgumentNullException.ThrowIfNull(update);
 
-        IOperableTrigger trigger = update.Trigger;
         List<SqlStatement> statements = [];
+        TriggerTypeTableWrite? typeTableWrite = DescribeTriggerFired(update, statements);
+
+        await ExecuteStatements(conn, statements, cancellationToken).ConfigureAwait(false);
+
+        if (typeTableWrite is { } write)
+        {
+            await WriteTriggerTypeTable(conn, update.Trigger, update.NewState, update.JobDetail, update.StoredTriggerType, write.Type, write.PersistenceDelegate, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Adds the statements one fire makes to <paramref name="statements" />, in the order they have to run.
+    /// </summary>
+    /// <returns>
+    /// The type-table write that could not be described as a statement, to be issued once the statements
+    /// have run; <see langword="null" /> when the type table's write is among them.
+    /// </returns>
+    private TriggerTypeTableWrite? DescribeTriggerFired(TriggerFiredUpdate update, List<SqlStatement> statements)
+    {
+        IOperableTrigger trigger = update.Trigger;
 
         if (update.FiredOnAcquire)
         {
@@ -1015,13 +1034,15 @@ public partial class StdAdoDelegate
             && tDel is not null
             && tDel.TryDescribeUpdateExtendedTriggerProperties(trigger, update.NewState, update.JobDetail, statements);
 
-        await ExecuteStatements(conn, statements, cancellationToken).ConfigureAwait(false);
-
-        if (!describedTypeTable)
-        {
-            await WriteTriggerTypeTable(conn, trigger, update.NewState, update.JobDetail, update.StoredTriggerType, type, tDel, cancellationToken).ConfigureAwait(false);
-        }
+        return describedTypeTable ? null : new TriggerTypeTableWrite(tDel, type);
     }
+
+    /// <summary>
+    /// A fire's write to its trigger's type table that has to be issued on its own, after the fire's
+    /// statements: the persistence delegate cannot describe it, or the trigger changed type.
+    /// </summary>
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
+    private readonly record struct TriggerTypeTableWrite(ITriggerPersistenceDelegate? PersistenceDelegate, string Type);
 
     /// <inheritdoc />
     public virtual async ValueTask<int> DeleteBlobTrigger(
@@ -3041,36 +3062,12 @@ public partial class StdAdoDelegate
     {
         try
         {
-            using var batch = conn.CreateBatch();
-
-            // A batch is not prepared through AdoUtil, so the configured command timeout has to be
-            // applied here as well; otherwise this one round-trip would be the only statement the store
-            // issues that can outlive it.
-            if (adoUtil.CommandTimeoutSeconds is { } timeoutSeconds)
-            {
-                batch.Timeout = timeoutSeconds;
-            }
-
             // Providers are not required to implement DbBatchCommand.CreateParameter, so keep one
             // throwaway command around to mint parameter instances for those that do not. Asked of the
             // connection rather than of the provider, because a driver reached through a factory or a
             // data source describes no command type for the provider to construct one from.
             using var parameterFactory = conn.Connection.CreateCommand();
-
-            for (var i = offset; i < offset + length; i++)
-            {
-                var statement = statements[i];
-                var batchCommand = batch.CreateBatchCommand();
-                // A batch command never passes through PrepareCommand, so the driver's parameter
-                // spelling has to be applied to its text here.
-                batchCommand.CommandText = adoUtil.RewriteParameterNames(statement.Sql);
-                foreach (var parameter in statement.Parameters)
-                {
-                    adoUtil.AddCommandParameter(batchCommand, parameterFactory, parameter.Name, parameter.Value, parameter.DataType);
-                }
-
-                batch.BatchCommands.Add(batchCommand);
-            }
+            using var batch = CreateStatementBatch(conn, parameterFactory, statements, offset, length);
 
             await batch.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -3088,6 +3085,52 @@ public partial class StdAdoDelegate
             logger.BatchedStatementExecutionFailed(length, e);
             await ExecuteStatementsIndividually(conn, statements, offset, length, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// A <see cref="DbBatch" /> of <paramref name="length" /> statements from <paramref name="offset" />,
+    /// enlisted in the unit of work.
+    /// </summary>
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="parameterFactory">
+    /// A command to mint parameters with, for a provider whose batch commands do not.
+    /// </param>
+    /// <param name="statements">The statements.</param>
+    /// <param name="offset">The first statement to add.</param>
+    /// <param name="length">How many to add.</param>
+    private DbBatch CreateStatementBatch(
+        ConnectionAndTransactionHolder conn,
+        DbCommand parameterFactory,
+        List<SqlStatement> statements,
+        int offset,
+        int length)
+    {
+        DbBatch batch = conn.CreateBatch();
+
+        // A batch is not prepared through AdoUtil, so the configured command timeout has to be applied
+        // here as well; otherwise this one round-trip would be the only statement the store issues that
+        // can outlive it.
+        if (adoUtil.CommandTimeoutSeconds is { } timeoutSeconds)
+        {
+            batch.Timeout = timeoutSeconds;
+        }
+
+        for (var i = offset; i < offset + length; i++)
+        {
+            var statement = statements[i];
+            var batchCommand = batch.CreateBatchCommand();
+            // A batch command never passes through PrepareCommand, so the driver's parameter spelling has
+            // to be applied to its text here.
+            batchCommand.CommandText = adoUtil.RewriteParameterNames(statement.Sql);
+            foreach (var parameter in statement.Parameters)
+            {
+                adoUtil.AddCommandParameter(batchCommand, parameterFactory, parameter.Name, parameter.Value, parameter.DataType);
+            }
+
+            batch.BatchCommands.Add(batchCommand);
+        }
+
+        return batch;
     }
 
     private async ValueTask ExecuteStatementsIndividually(
