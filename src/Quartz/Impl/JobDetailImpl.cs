@@ -87,13 +87,25 @@ internal sealed class JobTypeInformation
         {
             retryPolicy = (FindAttributeOnTypeOrItsInterfaces(jobType, typeof(RetryPolicyAttribute)) as RetryPolicyAttribute)?.Policy;
         }
-        catch (Exception e) when (e is ArgumentException or CustomAttributeFormatException)
+        catch (Exception e) when (IsUnreadableAttribute(e))
         {
             retryPolicyError = CauseOf(e);
         }
 
         return new JobTypeInformation(concurrentExecutionDisallowed, persistJobDataAfterExecution, timeout, retryPolicy, retryPolicyError);
     }
+
+    /// <summary>
+    /// Whether reading an attribute failed because of what the attribute itself said, which costs the type
+    /// its retry policy and nothing else.
+    /// </summary>
+    /// <remarks>
+    /// A constructor's own exception, the wrapping a named argument's setter arrives in, and the
+    /// <see cref="TargetInvocationException" /> a runtime that invokes the constructor by reflection may wrap
+    /// either in: none of them may escape <see cref="GetOrCreate" />, which every firing of the type asks.
+    /// </remarks>
+    internal static bool IsUnreadableAttribute(Exception e)
+        => e is ArgumentException or CustomAttributeFormatException or TargetInvocationException;
 
     /// <summary>
     /// What the attribute itself threw. A constructor's exception arrives as it was thrown, but one from a

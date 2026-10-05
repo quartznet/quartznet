@@ -18,6 +18,7 @@
 #endregion
 
 using System.Globalization;
+using System.Reflection;
 
 using Quartz.Impl;
 
@@ -181,6 +182,20 @@ public sealed class RetryPolicyAttributeTest
         JobTypeInformation.GetOrCreate(typeof(CeilingOnFixedJob)).RetryPolicyError
             .Should().BeOfType<ArgumentException>()
             .Which.Message.Should().Contain("exponential");
+    }
+
+    [Test]
+    public void EveryWayReadingTheAttributeCanFailStaysInsideTheTypeInformation()
+    {
+        JobTypeInformation.IsUnreadableAttribute(new ArgumentOutOfRangeException("delay")).Should().BeTrue(
+            "a constructor's own exception arrives as it was thrown");
+        JobTypeInformation.IsUnreadableAttribute(new CustomAttributeFormatException("not found", new TargetInvocationException(new ArgumentException("x"))))
+            .Should().BeTrue("a named argument's setter arrives wrapped twice");
+        JobTypeInformation.IsUnreadableAttribute(new TargetInvocationException(new ArgumentException("x"))).Should().BeTrue(
+            "a runtime that invokes the constructor by reflection may wrap it, and every firing of the type asks for this information, "
+            + "so nothing the attribute says may escape it");
+        JobTypeInformation.IsUnreadableAttribute(new InvalidOperationException("x")).Should().BeFalse(
+            "something that is not about the attribute's arguments is not the attribute's to swallow");
     }
 
     [Test]
