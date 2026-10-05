@@ -312,6 +312,7 @@ From 4.4:
 | `ExecutionHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results`; `MisfireHistoryQuery.Job`, `Reasons` | [Query parameters](http-api.md#filtering-by-job-time-and-result); `NotSupportedException` against a host before 4.4 |
 | `QueryMisfires` | Names every `MisfireReason`, so `Vetoed` rows are [listed](http-api.md#vetoes-are-listed-when-asked-for) |
 | `QueryJobRunStatuses`, `GetJobRunStatus` | The [`…/history/job-status` routes](http-api.md#job-run-status); `NotSupportedException` when the host keeps no status |
+| `QueryExecutionStatistics` | [`…/history/statistics`](http-api.md#run-statistics); `NotSupportedException` against a host before 4.4, which is not asked |
 | `ExecutionHistoryEntry.MetricsJson` | A JSON object, handed back as the text the recorder wrote |
 
 - A host before 4.4 ignores the filters and would answer every row. The store reads the host's version before

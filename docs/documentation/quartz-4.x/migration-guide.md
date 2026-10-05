@@ -63,6 +63,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | Log event `1061` | Warning: a job listener threw from `JobProgressChanged`. The job carries on |
 | Log events `2008`, `2009` | Errors from the in-memory store: a fire failed; a trigger set `ERROR` after that many in a row |
 | `IQuartzApiClient.GetJobRunStatus`, `GetJobRunStatuses` | Default interface members; the defaults throw `NotSupportedException`, and the pages leave the status out. See [Job run status](packages/dashboard.md#job-run-status) |
+| `ExecutionStatisticsQuery`, `ExecutionStatistics`, `ExecutionStatisticsBucket` | A scheduler's runs per bucket of fire time: counts by result, and median, 95th percentile and longest duration. See [Count runs over time](how-tos/job-outcomes.md#count-runs-over-time) |
+| `IExecutionHistoryStore.QueryExecutionStatistics` | Default interface member. Counts through `QueryExecutions`, at most `ExecutionStatistics.DefaultRowLimit` (`10_000`) rows, newest first |
+| `IQuartzApiClient.QueryExecutionStatistics` | Default interface member; throws `NotSupportedException`, and the pages leave the chart out. See [Run statistics](packages/dashboard.md#run-statistics) |
 | `DashboardHistoryEntry.Result`, `EffectiveResult`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId`, `Input`, `InputTooLarge` | `init`, as on `ExecutionHistoryEntry`. `EffectiveResult` is get-only |
 | `DashboardHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results` | `init`, as on `ExecutionHistoryQuery`. `Job` is a `JobKeyDto` |
 | `DashboardMisfireQuery.Job`, `Reasons` | `init`, as on `MisfireHistoryQuery` |
@@ -70,6 +73,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | HTTP: `GET …/history/job-status`, `GET …/history/job-status/{jobGroup}/{jobName}`, `POST …/history/job-status/fetch` | See [Job run status](packages/http-api.md#job-run-status). `501` when the store keeps no status |
 | HTTP: `result`, `summary`, `metrics`, `manual`, `fireInstanceId`, `inputTooLarge` on an execution row | `metrics` is a JSON object |
 | HTTP: `input` on `GET …/history/executions/{entryId}` | `null` on every listing row |
+| HTTP: `GET …/history/statistics` | Runs per bucket. `501` when the store cannot count. See [Run statistics](packages/http-api.md#run-statistics) |
 | Log event `9008` | Debug: a status route answered `501` |
 | Log events `9200`–`9203` | `Quartz.HttpClient`, a new range: a live event skipped, a listing item left out, a name read as another. See [A host newer than the client](packages/http-client.md#a-host-newer-than-the-client) |
 | `IScheduler.PauseTriggersWith`, `PauseJobsWith`; the same on `IJobStore` | A set of keys paused with a `PauseDetails`, in one call. Default interface members. See [Pausing with a Reason](how-tos/pausing-with-a-reason.md) |
@@ -217,6 +221,17 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   and the Oracle, Firebird and SQLite drivers cannot batch. See
   [A subclass keeps its overrides](how-tos/dialect-delegate.md#what-the-delegate-cannot-reach).
 
+* **The dashboard's History page stat cards count every run the filters match, not the page in view**
+  ([#4015](https://github.com/quartznet/quartznet/issues/4015)). They are *Runs*, *Success rate*, *Failed* and
+  *Longest run*, titled with the window. A chart of runs over time sits above the table, and a *Window* filter
+  (`window=24h`) narrows the chart, the cards and the rows. A source that cannot count keeps the 4.3 cards. A
+  test or scraper that reads a card by its title reads the new one:
+
+  ```diff
+  - Success rate (page)
+  + Success rate (all retained)
+  ```
+
 * **The dashboard's History page labels a success *Succeeded*, not *Complete***, in a column named *Result*.
   The Job Detail page's *View execution history* opens that job's rows only, where it used to filter by a
   fragment of the key.
@@ -303,6 +318,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * A 4.4 dashboard or HTTP client reading a 4.3 host: the new history filters throw `NotSupportedException`
   rather than return unfiltered rows, and there is no run status. The dashboard says so and leaves the status
   out. Upgrade the hosts to use them.
+* A 4.4 dashboard or HTTP client reading a 4.3 host has no run statistics. The client reads the host's version
+  and throws `NotSupportedException` without asking; the dashboard leaves the chart out and its stat cards count
+  the page.
 * A 4.3 node never parks a failing trigger. Each 4.4 node counts its own failures, so a trigger may be
   tried five times on each 4.4 node before one parks it.
 * A 4.4 dashboard or HTTP client pausing a set with a reason on a 4.3 host: the host pauses the set without
