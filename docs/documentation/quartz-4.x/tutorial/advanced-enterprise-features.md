@@ -140,6 +140,23 @@ q.ConfigureScheduler(options =>
 * `MaxBatchSize` may not exceed the thread pool's `MaxConcurrency`; startup rejects it. Triggers acquired
   beyond the available threads are held by this node, unfireable by any other, until the pool drains.
 
+## A serial job across nodes
+
+A `[DisallowConcurrentExecution]` job runs on one node at a time, and its other triggers wait. The run's end
+wakes only the node it ran on, which fires the ones it may. A node with nothing to do looks again sooner when
+a run elsewhere holds back a trigger of its own:
+
+| The trigger | Its node looks again |
+|---|---|
+| Its fire was refused, or acquisition passed it over, because the job runs elsewhere | after 100 ms, then twice as long each round, up to `IdleWaitTime` |
+| [Pinned](node-affinity.md) to the node, and held back by a run elsewhere | the same |
+| None held back | after `IdleWaitTime`, as before |
+
+Before 4.4 a node waited the whole `IdleWaitTime` in each case, and a pinned trigger fired that late every
+time ([#3988](https://github.com/quartznet/quartznet/issues/3988)). A run that lasts hours elsewhere costs a
+node about six extra looks in its first `IdleWaitTime`, then none. When a pinned trigger's job has changed
+hands since the last look, the node starts again at 100 ms.
+
 ## Seeing the cluster
 
 Check-ins land in `QRTZ_SCHEDULER_STATE`. `IScheduler.QueryClusterNodes()` reads them without SQL:

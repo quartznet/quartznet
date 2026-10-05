@@ -263,6 +263,15 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   override handles `TriggerFiredUpdate.FiredOnAcquire` or calls the base. A subclass's round is never batched,
   and the Oracle, Firebird and SQLite drivers cannot batch. See
   [A subclass keeps its overrides](how-tos/dialect-delegate.md#what-the-delegate-cannot-reach).
+* **A clustered node looks again soon for a trigger a `[DisallowConcurrentExecution]` job holds back**
+  ([#3988](https://github.com/quartznet/quartznet/issues/3988)). The job's run on another node wakes only that
+  node when it ends, so 4.3 found the trigger a whole `IdleWaitTime` later, and a trigger pinned to the node
+  fired that late every time. Now a node that acquires nothing looks again after 100 ms, then twice as long each
+  round, up to `IdleWaitTime`, when such a run holds back a trigger it could not fire, one acquisition passed
+  over, or one pinned to it. A clustered round that acquires nothing makes one more query, to find the last
+  kind. A node with nothing held back waits as before. Drop a workaround that kept a node awake, such as a
+  trigger pinned to it and due every second. See
+  [A serial job across nodes](tutorial/advanced-enterprise-features.md#a-serial-job-across-nodes).
 
 * **The dashboard's History page stat cards count every run the filters match, not the page in view**
   ([#4015](https://github.com/quartznet/quartznet/issues/4015)). They are *Runs*, *Success rate*, *Failed* and
@@ -420,6 +429,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * A 4.3 node reads a stored `none` as no policy, then writes the column back empty when it fires the trigger,
   which then inherits on a 4.4 node. Give a trigger `RetryPolicy.None` once every node is on 4.4.
 * A 4.3 HTTP API host refuses `none` in a trigger update as not a valid retry policy.
+* A 4.3 node still waits a whole `IdleWaitTime` for a trigger a `[DisallowConcurrentExecution]` job running
+  on another node holds back. Keep a workaround that keeps it awake until it is upgraded.
 
 ### The 4.4 schema migration
 

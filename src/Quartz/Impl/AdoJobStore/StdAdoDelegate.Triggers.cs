@@ -189,6 +189,44 @@ public partial class StdAdoDelegate
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
     }
 
+    /// <summary>
+    /// The triggers pinned to this node and due by <paramref name="noLaterThan" /> that a firing on another
+    /// node holds <c>BLOCKED</c>, and when the latest such firing was fired (#3988).
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than a member of <see cref="IDriverDelegate" />: it is a hint for how soon the
+    /// scheduler looks again, and a delegate without it costs a node nothing but that hint. The statement
+    /// is <see cref="StdAdoConstants.SqlSelectPinnedTriggersBlockedElsewhere" />, plain SQL every dialect
+    /// Quartz ships reads as it is.
+    /// </remarks>
+    /// <param name="conn">The acquisition's connection.</param>
+    /// <param name="noLaterThan">The end of the acquisition's window.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal async ValueTask<PinnedTriggersBlocked> SelectPinnedTriggersBlockedElsewhere(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset noLaterThan,
+        CancellationToken cancellationToken = default)
+    {
+        // In the statement's token order, for providers that bind positionally.
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectPinnedTriggersBlockedElsewhere));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(StoredTriggerState.Blocked));
+        AddCommandParameter(cmd, SqlParameters.NoLaterThan, GetDbDateTimeValue(noLaterThan));
+        AddCommandParameter(cmd, SqlParameters.InstanceId, instanceId);
+        AddCommandParameter(cmd, SqlParameters.InstanceName, instanceId);
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return PinnedTriggersBlocked.None;
+        }
+
+        // Read through the boxed values: the count is a NUMBER on Oracle and a BIGINT elsewhere.
+        return new PinnedTriggersBlocked(
+            Convert.ToInt32(rs.GetValue(0), CultureInfo.InvariantCulture),
+            GetDateTimeFromDbValue(rs.GetValue(1)));
+    }
+
     /// <inheritdoc />
     public virtual async ValueTask<List<IOperableTrigger>> SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
