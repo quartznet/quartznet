@@ -58,23 +58,20 @@ public static class ComingFromSamples
         #endregion
     }
 
-    public static void Retry(IServiceCollection services)
+    public static void RetryByDefault(IServiceCollection services)
     {
-        #region sample_coming_from_hangfire_retry
+        #region sample_coming_from_hangfire_retry_default
 
-        // [AutomaticRetry(Attempts = 5, DelaysInSeconds = new[] { 60, 300, 900 })]
+        // GlobalJobFilters.Filters.Add(new AutomaticRetryAttribute { Attempts = 10 })
         services.AddQuartz(q =>
         {
-            q.AddJob<NightlyImportJob>(j => j.WithIdentity("nightly-import"));
-            q.AddTrigger<NightlyImportJob>(t => t
-                .ForJob("nightly-import")
-                .WithCronSchedule("0 0 2 * * ?")
-                // The policy is on the trigger, not on the job type, and nothing is retried
-                // without one.
-                .WithRetryPolicy(RetryPolicy.Explicit(
-                    TimeSpan.FromMinutes(1),
-                    TimeSpan.FromMinutes(5),
-                    TimeSpan.FromMinutes(15))));
+            // Every trigger whose own policy and job type name none.
+            q.UseDefaultRetryPolicy(RetryPolicy.Exponential(
+                maxAttempts: 10,
+                initialDelay: TimeSpan.FromSeconds(15),
+                factor: 2,
+                maxDelay: TimeSpan.FromHours(1),
+                jitter: 0.2));
         });
 
         #endregion
@@ -209,10 +206,16 @@ public interface IMailer
     ValueTask SendWelcome(string emailAddress, CancellationToken cancellationToken = default);
 }
 
+#region sample_coming_from_hangfire_retry
+
+// [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 900 })]
+[RetryPolicy("00:01:00", "00:05:00", "00:15:00")]
 public sealed class NightlyImportJob : IJob
 {
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 }
+
+#endregion
 
 public sealed class CleanupJob : IJob
 {

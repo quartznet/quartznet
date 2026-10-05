@@ -5,8 +5,10 @@ title: Retrying Failed Jobs
 
 # Retrying Failed Jobs
 
-A trigger's **retry policy** says how many times, and how far apart, the scheduler re-fires it when its job
-fails. With a policy set, a job that throws is retried and one that succeeds is not.
+A **retry policy** says how many times, and how far apart, the scheduler re-fires a trigger when its job
+fails. With a policy set, a job that throws is retried and one that succeeds is not. The policy is the
+trigger's own, its job type's or the scheduler's default: see
+[Declare it on the job, or set a default](#declare-it-on-the-job-or-set-a-default).
 
 ## Give the trigger a policy
 
@@ -103,6 +105,105 @@ builder.Services.AddQuartz(q =>
 `MaxAttempts` counts retries *after* the first failure: `Fixed(3, …)` runs a job that keeps failing four
 times.
 
+## Declare it on the job, or set a default
+
+The first policy found applies:
+
+| Order | Set with | Applies to |
+|---|---|---|
+| 1. The trigger's own | `.WithRetryPolicy(…)` | that trigger |
+| 2. The job type's | `[RetryPolicy(…)]` on the class, a base class or an interface | the job's triggers with no policy of their own |
+| 3. The scheduler's default | `q.UseDefaultRetryPolicy(…)` | triggers whose trigger and job type name none |
+| None found | — | a failed job is reported, not retried |
+
+`RetryPolicy.None` found at any level means no retry.
+
+Declare the policy on the job when whether it is safe to retry is a property of its code:
+
+<!-- snippet: sample_retry_policy_attribute -->
+```csharp
+// Five retries, 30s, 1m, 2m, 4m and 8m apart, but never more than ten minutes, for
+// every trigger of this job that names no policy of its own.
+[RetryPolicy(5, "00:00:30", 2, MaxDelay = "00:10:00")]
+public sealed class FeedImportJob : IJob
+{
+    private readonly IImportService importer;
+
+    public FeedImportJob(IImportService importer)
+    {
+        this.importer = importer;
+    }
+
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        await importer.Run(cancellationToken);
+    }
+}
+```
+<!-- endSnippet -->
+
+| Attribute | Policy |
+|---|---|
+| `[RetryPolicy(3, "00:05:00")]` | `RetryPolicy.Fixed(3, …)` |
+| `[RetryPolicy(5, "00:00:30", 2, MaxDelay = "00:10:00", Jitter = 0.2)]` | `RetryPolicy.Exponential(…)` |
+| `[RetryPolicy("00:00:10", "00:01:00", "01:00:00")]` | `RetryPolicy.Explicit(…)` |
+| `[RetryPolicy(0)]` | `RetryPolicy.None` |
+
+Durations are invariant `TimeSpan` strings. An attribute whose arguments are not a policy fails
+`AddJob` and `ScheduleJob` with a `SchedulerException` naming the job type.
+
+Set a default for everything else:
+
+<!-- snippet: sample_retry_default_policy -->
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    // Any trigger whose own policy and job type name none: three retries, one minute apart.
+    q.UseDefaultRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(1)));
+});
+```
+<!-- endSnippet -->
+
+Opt a job type or a trigger out of what it would inherit:
+
+<!-- snippet: sample_retry_never_retried_job -->
+```csharp
+// Charging a card twice is worse than not charging it: never retried, whatever the
+// scheduler's default says.
+[RetryPolicy(0)]
+public sealed class ChargeCardJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_retry_none_on_trigger -->
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.AddJob<ImportJob>(j => j.WithIdentity("import", "nightly"));
+    q.AddTrigger<ImportJob>(t => t
+        .ForJob("import", "nightly")
+        .WithCronSchedule("0 0 2 * * ?")
+        // Never retried, whatever ImportJob declares or the scheduler defaults to.
+        .WithRetryPolicy(RetryPolicy.None));
+});
+```
+<!-- endSnippet -->
+
+**The policy is looked up when the job fails.** Nothing is written to the trigger, so the job type's policy
+and the default cover triggers stored before them, and the `RETRY_POLICY` column stays the trigger's own.
+`IJobExecutionContext.RetryPolicy` is the policy that applies to a firing.
+
+**Every node decides for itself.** A node reads the attribute from its own build and the default from its
+own configuration, so deploy the same on every node. A node older than 4.4 ignores both.
+
+::: warning RetryPolicy.None on a trigger needs every node on 4.4
+`None` is stored as `none`. A 4.3 node reads it as no policy, which means the same there, but writes the
+column back empty when it fires the trigger. The trigger then inherits on a 4.4 node.
+:::
+
 ## What counts as a failure
 
 A job fails when `Execute` throws anything; there is nothing to implement or annotate. Not failures:
@@ -111,7 +212,7 @@ A job fails when `Execute` throws anything; there is nothing to implement or ann
   `UnscheduleAllTriggers`: the job's own decision wins over the policy.
 * A cancellation on the scheduler's own token (shutdown, interrupt). For a node vanishing mid-execution, use
   [`RequestsRecovery`](../tutorial/more-about-jobs.md).
-* Anything, on a trigger with no policy (the default, unchanged behaviour).
+* Anything, when no policy applies (the default).
 
 A job can catch a failure that retrying cannot fix and return, saving its attempts:
 
@@ -242,7 +343,7 @@ A job that threw is `ExecutionOutcome.Failed` whether or not it will be retried;
 whether the occurrence is finished.
 
 **2. `ITriggerListener.TriggerRetriesExhausted`**, raised once per occurrence, between `JobWasExecuted` and
-`TriggerComplete`, when the trigger has a policy, the job threw, and no attempt follows because:
+`TriggerComplete`, when a policy applies, the job threw, and no attempt follows because:
 
 * the policy's attempts are **spent**;
 * a retry was **declined for lack of room**: it would land at or within a second of the next occurrence,
@@ -251,8 +352,8 @@ whether the occurrence is finished.
 * the job's `JobExecutionException` asked for **`UnscheduleFiringTrigger` or `UnscheduleAllTriggers`**, so no
   retry was attempted.
 
-Tell them apart with `context.RetryAttempt` against the policy's `MaxAttempts`, and `TriggerComplete`'s
-instruction.
+Tell them apart with `context.RetryAttempt` against `context.RetryPolicy.MaxAttempts`, and
+`TriggerComplete`'s instruction.
 
 <!-- snippet: sample_retry_listener_gave_up -->
 ```csharp
@@ -299,7 +400,7 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-Never raised for a trigger with **no** policy, a failure being retried, a cancelled, vetoed or successful
+Never raised when **no** policy applies, nor for a failure being retried, a cancelled, vetoed or successful
 firing, or a `RefireImmediately` run other than the one that ends the firing. It is a default interface
 member, so listeners written for 4.0 or 4.1 are unchanged.
 
@@ -346,7 +447,19 @@ await scheduler.UpdateTriggerDetails(
 ```
 <!-- endSnippet -->
 
-`null` stops retries:
+`RetryPolicy.None` stops retries:
+
+<!-- snippet: sample_retry_stop_stored_trigger -->
+```csharp
+await scheduler.UpdateTriggerDetails(
+    new TriggerKey("nightly", "imports"),
+    new TriggerDetailsUpdate().WithRetryPolicy(RetryPolicy.None),
+    cancellationToken);
+```
+<!-- endSnippet -->
+
+`null` removes the trigger's own policy, so it inherits its job type's or the scheduler's default. With
+neither, that also stops retries:
 
 <!-- snippet: sample_retry_clear_stored_trigger -->
 ```csharp
@@ -370,8 +483,9 @@ belongs to the occurrence in flight.
   attempts spent, and the last exception.
 * `ITriggerListener.TriggerComplete` with `SchedulerInstruction.RetryTrigger`, and
   `ITriggerListener.TriggerRetriesExhausted` once per occurrence that gives up.
-* `QRTZ_TRIGGERS` columns: `RETRY_POLICY` (the policy's stored string form) and `RETRY_ATTEMPT` (progress of
-  the current occurrence). Both queryable; shown on the dashboard's trigger page.
+* `QRTZ_TRIGGERS` columns: `RETRY_POLICY` (the trigger's own policy in its stored string form, `none`, or
+  empty when it inherits) and `RETRY_ATTEMPT` (progress of the current occurrence, whichever policy applies).
+  Both queryable; shown on the dashboard's trigger page.
 * `QRTZ_EXECUTION_HISTORY`, where history is in the database: `RETRY_ATTEMPT` and `RETRY_SCHEDULED` per row.
 
 ## See also

@@ -367,7 +367,8 @@ removing `ConfigurationKey`.
 
 Write these as registrations beside `AddDeclaredJobs()`:
 
-* **A start or end time, a calendar, job data, a retry policy, a preferred node.** Use `AddTrigger<T>`.
+* **A start or end time, a calendar, job data, a preferred node.** Use `AddTrigger<T>`. A retry policy is
+  [`[RetryPolicy]`](../how-tos/retrying-failed-jobs.md#declare-it-on-the-job-or-set-a-default) on the class.
   To give a declared job more triggers, use `ForJob` with the key the attribute declared.
 * **A calendar-interval, daily-time-interval or recurrence schedule.** Cron and a fixed interval are
   the schedules an attribute can carry without becoming a builder.
