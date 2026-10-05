@@ -3,6 +3,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Time.Testing;
 
 using Quartz.HttpApiContract;
@@ -215,7 +216,81 @@ public class HttpSchedulerEventReaderTest
         handler.Requests.Should().Be(1, "the stream was never cut, so it was never reopened");
     }
 
+    /// <summary>
+    /// A kind a later release adds — progress, say — is one this client has no member for. Until 4.4 its
+    /// first frame ended the subscription, so every release kept new kinds off the stream instead.
+    /// </summary>
+    [Test]
+    public async Task AnEventOfAKindThisClientDoesNotKnowIsSkippedAndTheStreamCarriesOn()
+    {
+        FakeLogger logger = new();
+        await using Subscriber subscriber = await Subscriber.Watching(Reader(logger), handler);
+
+        await handler.SendRaw(FutureFrame("JobProgressChanged"));
+        await handler.SendRaw(FutureFrame("JobProgressChanged"));
+        await handler.Send(Event(SchedulerEventKind.TriggerFired));
+
+        (await subscriber.Next()).Kind.Should().Be(SchedulerEventKind.TriggerFired,
+            "the frames after one this client cannot read are still delivered");
+        handler.Requests.Should().Be(1, "a skipped frame is not a dropped connection, so nothing was reopened");
+
+        FakeLogRecord record = logger.Collector.GetSnapshot().Should().ContainSingle(
+            "two frames of one kind are one thing to tell an operator").Which;
+        record.Id.Id.Should().Be(9200);
+        record.Message.Should().Be(
+            "Skipped live events of kind JobProgressChanged from scheduler Remote: this version of Quartz.HttpClient "
+            + "does not know the kind. Upgrade the client to receive them.");
+    }
+
+    /// <summary>
+    /// A frame that is not an event at all is skipped the same way: one unreadable event is not a reason to
+    /// tear a live view down.
+    /// </summary>
+    [Test]
+    public async Task AMalformedFrameIsSkippedAndTheStreamCarriesOn()
+    {
+        FakeLogger logger = new();
+        await using Subscriber subscriber = await Subscriber.Watching(Reader(logger), handler);
+
+        await handler.SendRaw("event: JobExecuted\ndata: {\"kind\":\"JobExecuted\",\"occurredAtUtc\":\"not an instant\"}\nid: 1\n\n");
+        await handler.SendRaw("event: TriggerFired\ndata: this is not JSON\nid: 2\n\n");
+        await handler.SendRaw("event: TriggerFired\ndata: this is not JSON either\nid: 3\n\n");
+        await handler.Send(Event(SchedulerEventKind.JobPaused));
+
+        (await subscriber.Next()).Kind.Should().Be(SchedulerEventKind.JobPaused);
+        handler.Requests.Should().Be(1);
+
+        logger.Collector.GetSnapshot().Should().HaveCount(2, "once per event type, with the failure")
+            .And.OnlyContain(x => x.Id.Id == 9201 && x.Exception is JsonException);
+    }
+
+    /// <summary>
+    /// A member a later release adds to an event is skipped, and the event is delivered.
+    /// </summary>
+    [Test]
+    public async Task AMemberThisClientDoesNotKnowIsSkipped()
+    {
+        await using Subscriber subscriber = await Subscriber.Watching(Reader(), handler);
+
+        await handler.SendRaw(
+            "event: JobExecuting\ndata: {\"kind\":\"JobExecuting\",\"schedulerName\":\"Remote\",\"schedulerInstanceId\":\"node-a\","
+            + "\"occurredAtUtc\":\"2026-09-12T10:00:00+00:00\",\"progress\":{\"percent\":42}}\nid: 1\n\n");
+
+        SchedulerEvent read = await subscriber.Next();
+        read.Kind.Should().Be(SchedulerEventKind.JobExecuting);
+        read.SchedulerInstanceId.Should().Be("node-a");
+    }
+
     private HttpSchedulerEventReader Reader() => new("Remote", httpClient, jsonSerializerOptions: null, clock);
+
+    private HttpSchedulerEventReader Reader(FakeLogger logger) => new("Remote", httpClient, jsonSerializerOptions: null, clock, logger);
+
+    /// <summary>
+    /// A frame of a kind no version of Quartz has, written as the route writes every frame.
+    /// </summary>
+    private static string FutureFrame(string kind) =>
+        $"event: {kind}\ndata: {{\"kind\":\"{kind}\",\"schedulerName\":\"Remote\",\"schedulerInstanceId\":\"node-a\","
+        + "\"occurredAtUtc\":\"2026-09-12T10:00:00+00:00\",\"progress\":42}\nid: 1\n\n";
 
     private static SchedulerEvent Event(SchedulerEventKind kind) => new()
     {
@@ -328,8 +403,14 @@ public class HttpSchedulerEventReaderTest
         public async Task Send(SchedulerEvent schedulerEvent)
         {
             string json = JsonSerializer.Serialize(schedulerEvent, wireOptions);
-            string frame = $"event: {schedulerEvent.Kind}\ndata: {json}\nid: 1\n\n";
+            await SendRaw($"event: {schedulerEvent.Kind}\ndata: {json}\nid: 1\n\n");
+        }
 
+        /// <summary>
+        /// Writes a frame exactly as given, for one no event of this version could serialize to.
+        /// </summary>
+        public async Task SendRaw(string frame)
+        {
             Pipe stream = Current();
             await stream.Writer.WriteAsync(Encoding.UTF8.GetBytes(frame));
             await stream.Writer.FlushAsync();

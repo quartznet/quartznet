@@ -23,6 +23,8 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
 using Quartz.Serialization.SystemTextJson;
@@ -50,6 +52,11 @@ namespace Quartz.Impl;
 /// rows the filter excludes. So before the first read that carries a 4.4 filter, the host's version is
 /// read from <c>GET …/schedulers/{name}</c>, and a host older than 4.4 is refused with
 /// <see cref="NotSupportedException" /> before anything filtered is sent.
+/// </para>
+/// <para>
+/// A row from a newer host that carries a name this client does not know is read as far as it can be: a
+/// result it cannot name is no result, as on a row written before 4.4, and a misfire reason or a status's
+/// last result it cannot name leaves that one row out of the page, with a line in the log.
 /// </para>
 /// </remarks>
 internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
@@ -82,10 +89,15 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// Optional serializer options. A copy is taken and Quartz's own converters are added to the copy, so
     /// the instance passed in is left untouched.
     /// </param>
+    /// <param name="logger">
+    /// Where a row left out of a listing for a name this client does not know is reported;
+    /// <see langword="null" /> for whatever <c>LogProvider</c> was given.
+    /// </param>
     public HttpExecutionHistoryStore(
         string schedulerName,
         HttpClient httpClient,
-        JsonSerializerOptions? jsonSerializerOptions = null)
+        JsonSerializerOptions? jsonSerializerOptions = null,
+        ILogger? logger = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
         ArgumentNullException.ThrowIfNull(httpClient);
@@ -96,7 +108,9 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             ? new JsonSerializerOptions(JsonSerializerDefaults.Web)
             : new JsonSerializerOptions(jsonSerializerOptions);
 
-        serializerOptions.ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
+        serializerOptions.ConfigureClientWireFormat(
+            new SystemTextJsonSerializerRegistry(),
+            new UnknownWireNames(logger ?? HttpClientLog.Fallback(), schedulerName));
 
         wire = new WireClient(new HttpWireTransport(httpClient), serializerOptions);
     }
