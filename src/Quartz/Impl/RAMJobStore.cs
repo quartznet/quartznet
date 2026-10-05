@@ -3198,7 +3198,18 @@ public sealed class RAMJobStore : IJobStore
             List<TriggerFiredResult> fired = new(due.Count);
             foreach (IOperableTrigger trigger in due)
             {
-                fired.Add(FireAcquiredTriggerNoLock(trigger, ref pending));
+                try
+                {
+                    fired.Add(FireAcquiredTriggerNoLock(trigger, ref pending));
+                }
+                catch (Exception e)
+                {
+                    // Something the fire does not expect, from code of a trigger type Quartz did not write.
+                    // TriggersFired throws it, and the scheduler releases the batch it acquired (#3981); a
+                    // round that threw would hand the scheduler nothing to release, so the fire fails alone,
+                    // as one the fire does expect fails, for the scheduler to release.
+                    fired.Add(FailFireNoLock(triggersByKey[trigger.Key], unfired: null, e, ref pending));
+                }
             }
 
             return notDue is null
