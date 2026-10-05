@@ -56,6 +56,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `AdoConstants.ColumnFirstFiredTime`, `ColumnLastFiredTime`, `ColumnLastResult`, `ColumnLastRunTime`, `ColumnLastInstanceName`, `ColumnLastEntryId`, `ColumnLastSummary`, `ColumnLastSuccessTime`, `ColumnLastFailureTime`, `ColumnLastFailureMessage`, `ColumnConsecutiveFailures`, `ColumnRunCount`, `ColumnFailureCount` | The columns of `QRTZ_JOB_STATUS` |
 | `AdoJobStoreOptions.MaxConsecutiveFireFailures` | `int`, default `5`; `0` never parks. Flat key `quartz.jobStore.maxConsecutiveFireFailures`. See [A trigger that fails to fire](operations.md#a-trigger-that-fails-to-fire) |
 | Log event `3050` | Error: a trigger stored `ERROR` after that many failed fires in a row |
+| `AdoJobStoreOptions.RecoverFiringsCancelledByShutdown` | `bool`, default `false`. Hands a firing the shutdown cancelled back for recovery. Flat key `quartz.jobStore.recoverFiringsCancelledByShutdown`. See [A job a shutdown stops](how-tos/retrying-failed-jobs.md#a-job-a-shutdown-stops) |
+| Log events `3054`, `3055` | Information: a firing the shutdown cancelled is handed back as a recovery trigger; or is not, because another node recovered it first |
 | Log event `3163` | Debug: this node leaves the database history's sweep to a live node with a lower instance id. Logged once |
 | `QuartzHealthCheckOptions.RequiredJobs`, `RequireSuccessWithin(job, within, status)`, `RequiredJobOptions` | Opt-in: the health check reports a job that has not succeeded within its window. See [Alert when a job stops succeeding](how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding) |
 | `InMemoryJobStoreOptions.MaxConsecutiveFireFailures` | The same setting for the in-memory store: `int`, default `5`, same flat key |
@@ -210,6 +212,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   + TriggerState state = await scheduler.GetTriggerState(key); // Error once the limit is reached
   ```
 
+* **A recovery trigger from cluster recovery carries `SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime`**,
+  as one from a node's own recovery at startup always did. A job reading it no longer finds it missing.
 * **The scheduler releases what it acquired when a store throws something other than a
   `SchedulerException`** while firing. It used to log event `1035` and leave the batch reserved.
 
@@ -394,6 +398,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   the page.
 * A 4.3 node never parks a failing trigger. Each 4.4 node counts its own failures, so a trigger may be
   tried five times on each 4.4 node before one parks it.
+* A 4.3 node ignores `RecoverFiringsCancelledByShutdown` and completes a shutdown's cancellation as
+  cancelled. A recovery trigger a 4.4 node hands back is an ordinary trigger in `RECOVERING_JOBS`, which a 4.3
+  node fires.
 * A 4.4 dashboard or HTTP client pausing a set with a reason on a 4.3 host: the host pauses the set without
   the reason.
 * A 4.3 client's key-set pause on a 4.4 host is the reasonless pause, even from an authenticated caller.

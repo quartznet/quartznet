@@ -89,6 +89,18 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     private int numRefires;
     private TimeSpan? jobRunTime;
 
+    private const int NotInterrupted = 0;
+    private const int InterruptedByCaller = 1;
+    private const int InterruptedByShutdown = 2;
+    private const int HandedBackForRecovery = 3;
+
+    /// <summary>
+    /// Who first asked for this firing to stop, and whether it was then handed back for recovery: one of
+    /// the four constants above. An <see langword="int" /> beside <see cref="numRefires" /> rather than two
+    /// flags, so the context is no larger for it.
+    /// </summary>
+    private int interruption;
+
     /// <summary>
     /// Published the same way as <see cref="jobDataMap" />, and for the same reason.
     /// </summary>
@@ -449,7 +461,44 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
 
     void IInterruptableJobExecutionContext.Interrupt()
     {
+        Interrupt(InterruptedByCaller);
+    }
+
+    void IInterruptableJobExecutionContext.InterruptForShutdown()
+    {
+        Interrupt(InterruptedByShutdown);
+    }
+
+    /// <summary>
+    /// Records who asked first, then cancels. A later request of either kind changes neither.
+    /// </summary>
+    private void Interrupt(int requestedBy)
+    {
+        Interlocked.CompareExchange(ref interruption, requestedBy, NotInterrupted);
         CancellationTokenSource.Cancel();
+    }
+
+    /// <summary>
+    /// Whether the first request to cancel this firing came from the scheduler's shutdown rather than
+    /// from <see cref="IScheduler.Interrupt(JobKey, CancellationToken)" />, its fire-instance form or a
+    /// job timeout.
+    /// </summary>
+    internal bool CancelledByShutdown => Volatile.Read(ref interruption) is InterruptedByShutdown or HandedBackForRecovery;
+
+    /// <summary>
+    /// Whether the run shell handed this firing back for recovery: a shutdown cancelled it, its job
+    /// requests recovery, and the store recovers such firings. Read by the execution history, which
+    /// records the firing as cancelled with a summary saying so.
+    /// </summary>
+    internal bool HandedBack => Volatile.Read(ref interruption) == HandedBackForRecovery;
+
+    /// <summary>
+    /// Records that the run shell is handing this firing back for recovery. Only a firing a shutdown
+    /// cancelled can be.
+    /// </summary>
+    internal void HandBack()
+    {
+        Interlocked.CompareExchange(ref interruption, HandedBackForRecovery, InterruptedByShutdown);
     }
 
     /// <inheritdoc />

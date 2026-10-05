@@ -186,6 +186,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `RetryableActionErrorLogThreshold` | int | `4` | Consecutive failures before they are logged as errors. |
 | `IsTransient` | `Func<Exception, bool>?` | `null` | Extra transient test for a driver the built-in list misses. Code only. See below. |
 | `MaxConsecutiveFireFailures` | int | `5` | Failed fires in a row after which a trigger is stored `ERROR`. `0`: never. See below. |
+| `RecoverFiringsCancelledByShutdown` | bool | `false` | Hands a firing the shutdown cancelled back for recovery, when its job requests recovery. See [A job a shutdown stops](../how-tos/retrying-failed-jobs.md#a-job-a-shutdown-stops). |
 | `UseDbLocks` | bool | `false` | Uses database row locks. Required for clustering, and implied by `UseClustering()`. |
 | `LockOnInsert` | bool | `true` | Takes a lock when inserting rows. |
 | `AcquireTriggersWithinLock` | bool | `false` | Acquires triggers inside the database lock. |
@@ -916,6 +917,7 @@ above and produces the same result.
 | `quartz.jobStore.commandTimeout` | `JobStore:CommandTimeout` — added in 3.22, in milliseconds; `0` means the provider's default, i.e. the option left unset |
 | `quartz.jobStore.retryableActionErrorLogThreshold` | `JobStore:RetryableActionErrorLogThreshold` |
 | `quartz.jobStore.maxConsecutiveFireFailures` | `JobStore:MaxConsecutiveFireFailures` |
+| `quartz.jobStore.recoverFiringsCancelledByShutdown` | `JobStore:RecoverFiringsCancelledByShutdown` |
 | `quartz.jobStore.dataSource` | set by the database methods |
 | `quartz.dataSource.NAME.provider` | `DataSource:NAME:Provider` |
 | `quartz.dataSource.NAME.connectionString` | `DataSource:NAME:ConnectionString` |

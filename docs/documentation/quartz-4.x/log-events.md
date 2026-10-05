@@ -174,6 +174,8 @@ matching on its text is not.
 | 3051 | Warning | `Quartz` | `"The fires of an acquisition round, written as one batch, failed; the round is rolled back and its triggers fired one at a time to find the one that failed"` |
 | 3052 | Warning | `Quartz` | `"A batch of trigger claims did not report which of them took; the round is rolled back and its triggers claimed one at a time"` |
 | 3053 | Error | `Quartz` | `"Work the store does after a committed operation failed; the operation stands, and the rest of that work is done"` |
+| 3054 | Information | `Quartz` | `"Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is handed back for recovery as trigger {RecoveryTriggerKey}"` |
+| 3055 | Information | `Quartz` | `"Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is not handed back: another node has already recovered it"` |
 | 3100 | Debug | `Quartz` | `"Prepared SQL: {Sql}"` |
 | 3110 | Error | `Quartz` | `"Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."` |
 | 3111 | Debug | `Quartz` | `"Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown."` |

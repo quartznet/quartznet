@@ -49,8 +49,23 @@ internal static class JobRunClassifier
     internal static JobRunClassification Classify(IJobExecutionContext context, JobExecutionException? jobException)
     {
         IJobRunReport? report = context.Result as IJobRunReport;
-        return new JobRunClassification(ResultOf(context.Outcome, report, jobException), report?.Summary, report?.Metrics);
+        string? summary = report?.Summary;
+
+        // Cancelled like any cancellation, and told apart by its summary rather than by a result of its
+        // own: the occurrence has not ended, a recovery trigger will run it again (#4014).
+        if (context is JobExecutionContextImpl { HandedBack: true })
+        {
+            summary = summary is null ? HandedBackSummary : HandedBackSummary + " " + summary;
+        }
+
+        return new JobRunClassification(ResultOf(context.Outcome, report, jobException), summary, report?.Metrics);
     }
+
+    /// <summary>
+    /// The summary of a firing the scheduler's shutdown cancelled and handed back for recovery, ahead of
+    /// any summary the job set itself.
+    /// </summary>
+    internal const string HandedBackSummary = "Handed back for recovery: the scheduler shut down while it ran.";
 
     /// <summary>
     /// The result alone, by the rule <see cref="Classify" /> states, for a caller that has the firing's

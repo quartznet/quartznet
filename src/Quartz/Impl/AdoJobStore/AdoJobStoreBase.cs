@@ -120,6 +120,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         RetryableActionErrorLogThreshold = options.RetryableActionErrorLogThreshold;
         configuredIsTransient = options.IsTransient;
         MaxConsecutiveFireFailures = options.MaxConsecutiveFireFailures;
+        RecoverFiringsCancelledByShutdown = options.RecoverFiringsCancelledByShutdown;
         UseDbLocks = options.UseDbLocks;
         LockOnInsert = options.LockOnInsert;
         AcquireTriggersWithinLock = options.AcquireTriggersWithinLock;
@@ -285,6 +286,16 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// <see cref="FireFailureLedger" /> of this store's own.
     /// </remarks>
     internal int MaxConsecutiveFireFailures { get; }
+
+    /// <summary>
+    /// Whether a firing a shutdown interrupted is handed back for recovery when its job requests it.
+    /// </summary>
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.RecoverFiringsCancelledByShutdown" />. The
+    /// scheduler reads it once, as it is built, and marks the completions it applies to; see
+    /// <see cref="TriggeredJobCompleteContext.HandBackForRecovery" />.
+    /// </remarks>
+    internal bool RecoverFiringsCancelledByShutdown { get; }
 
     /// <summary>
     /// Whether this instance uses database-based thread synchronization.

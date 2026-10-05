@@ -197,7 +197,9 @@ internal abstract partial class AdoJobStoreBase
     /// </remarks>
     private bool CompletionTakesLock(TriggeredJobCompleteContext context)
     {
-        if (LockAllOperations || context.JobDetail.ConcurrentExecutionDisallowed)
+        // A hand-back stores a recovery trigger, and decides to from a read of this firing's row that a
+        // peer's cluster recovery, which runs under the lock, could otherwise delete in between (#4014).
+        if (LockAllOperations || context.JobDetail.ConcurrentExecutionDisallowed || HandsBack(context))
         {
             return true;
         }
@@ -221,6 +223,22 @@ internal abstract partial class AdoJobStoreBase
         return trigger.OverlapPolicy == OverlapPolicy.Skip
                && trigger.NextFireTimeUtc is { } next
                && trigger.GetFireTimeAfter(next) is null;
+    }
+
+    /// <summary>
+    /// Whether this completion hands its firing back for recovery rather than settling it: the scheduler
+    /// marked it as one a shutdown cancelled, of a job that requests recovery, and this store is set to
+    /// recover such firings.
+    /// </summary>
+    /// <remarks>
+    /// The store's own setting is asked again, so a context marked by hand for a store that is not set to
+    /// recover completes as the cancellation it is.
+    /// </remarks>
+    private bool HandsBack(TriggeredJobCompleteContext context)
+    {
+        return context.HandBackForRecovery
+               && RecoverFiringsCancelledByShutdown
+               && context.Outcome == ExecutionOutcome.Cancelled;
     }
 
     /// <summary>
@@ -313,6 +331,7 @@ internal abstract partial class AdoJobStoreBase
         IOperableTrigger trigger = context.Trigger;
         IJobDetail jobDetail = context.JobDetail;
         SchedulerInstruction triggerInstructionCode = context.Instruction;
+        bool handBack = HandsBack(context);
 
         // Whether the trigger's row went, which also says that its fired rows went with it:
         // DeleteTriggerAndChildren sweeps QRTZ_FIRED_TRIGGERS by trigger key, and this firing's row
@@ -343,8 +362,17 @@ internal abstract partial class AdoJobStoreBase
                 // has been written. It is skipped when there is nothing it could find that matters —
                 // an occurrence that did not happen settles no continuation, and a trigger that stays
                 // has no deletion to settle them for — so the count of statements is the locked path's.
+                //
+                // A firing handed back settles nothing either: it has not ended, it has been put back for
+                // recovery to run again. What awaits the trigger is left as a crash would leave it. The
+                // recovery trigger is stored first, before an instruction below can delete the trigger, so
+                // that a job which is not durable still has a trigger when the deletion counts them.
                 bool continuationsSettled = false;
-                if (triggerInstructionCode != SchedulerInstruction.RetryTrigger)
+                if (handBack)
+                {
+                    await HandBackForRecovery(conn, trigger, cancellationToken).ConfigureAwait(false);
+                }
+                else if (triggerInstructionCode != SchedulerInstruction.RetryTrigger)
                 {
                     if (holdsLock)
                     {

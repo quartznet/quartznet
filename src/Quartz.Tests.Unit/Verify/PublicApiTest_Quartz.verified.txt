@@ -42,6 +42,7 @@ namespace Quartz
         public System.TimeSpan? MisfireHandlerFrequency { get; set; }
         public System.TimeSpan MisfireThreshold { get; set; }
         public bool OpenConnection { get; set; }
+        public bool RecoverFiringsCancelledByShutdown { get; set; }
         public int RetryableActionErrorLogThreshold { get; set; }
         public Quartz.SchemaProvisioning SchemaProvisioning { get; set; }
         public string? SelectWithLockSql { get; set; }
@@ -3913,6 +3914,7 @@ namespace Quartz.Impl
     public sealed class JobExecutionContextImpl : Quartz.IJobExecutionContext, System.IDisposable
     {
         // explicit interface implementation: Quartz.Core.IInterruptableJobExecutionContext.Interrupt()
+        // explicit interface implementation: Quartz.Core.IInterruptableJobExecutionContext.InterruptForShutdown()
         // explicit interface implementation: Quartz.IJobInputSource.JobInputSerializer
         public JobExecutionContextImpl(Quartz.IScheduler scheduler, Quartz.Extensibility.TriggerFiredBundle firedBundle, Quartz.IJob job, Quartz.Extensibility.IJobInputSerializer? inputSerializer = null) { }
         public Quartz.ICalendar? Calendar { get; }

@@ -738,36 +738,110 @@ internal abstract partial class AdoJobStoreBase
 
         foreach (FiredTriggerRecord firedTrigger in residue.Recoverable)
         {
-            JobKey jobKey = firedTrigger.JobKey!;
-            if (!await JobExists(conn, jobKey, cancellationToken).ConfigureAwait(false))
+            if (await StoreRecoveryTrigger(conn, firedTrigger, naming.Next(record.SchedulerInstanceId), cancellationToken).ConfigureAwait(false))
             {
-                Logger.FailedJobNoLongerExists(jobKey);
-                jobsGone++;
-                continue;
+                scheduled++;
             }
-
-            TriggerKey triggerKey = firedTrigger.TriggerKey;
-            SimpleTriggerImpl recoveryTrigger = new SimpleTriggerImpl(timeProvider)
+            else
             {
-                Key = naming.Next(record.SchedulerInstanceId),
-                StartTimeUtc = firedTrigger.FireTimestamp,
-                JobKey = jobKey,
-                MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow,
-                Priority = firedTrigger.Priority
-            };
-
-            JobDataMap jobDataMap = await Delegate.SelectTriggerJobDataMap(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerName] = triggerKey.Name;
-            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerGroup] = triggerKey.Group;
-            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(firedTrigger.FireTimestamp, CultureInfo.InvariantCulture);
-            recoveryTrigger.JobDataMap = jobDataMap;
-
-            recoveryTrigger.ComputeFirstFireTimeUtc(null);
-            await AddTrigger(conn, recoveryTrigger, null, false, StoredTriggerState.Waiting, false, true, cancellationToken).ConfigureAwait(false);
-            scheduled++;
+                jobsGone++;
+            }
         }
 
         return new RecoveryScheduling(scheduled, jobsGone);
+    }
+
+    /// <summary>
+    /// Stores the trigger that runs again the execution one fired-trigger row records: once, at the time
+    /// the execution fired, in <see cref="SchedulerConstants.DefaultRecoveryGroup" />, with the original
+    /// trigger's data map and the markers that say which firing it stands in for.
+    /// </summary>
+    /// <remarks>
+    /// Shared by cluster recovery and by a firing a shutdown hands back (#4014), so a job reads a
+    /// recovery the same way whichever produced it. Any version of Quartz fires the trigger: it is an
+    /// ordinary simple trigger, and only its group makes the firing <see cref="IJobExecutionContext.Recovering" />.
+    /// </remarks>
+    /// <returns>
+    /// <see langword="false" /> when the job has been deleted since, which leaves nothing to run.
+    /// </returns>
+    private async ValueTask<bool> StoreRecoveryTrigger(
+        ConnectionAndTransactionHolder conn,
+        FiredTriggerRecord firedTrigger,
+        TriggerKey recoveryKey,
+        CancellationToken cancellationToken)
+    {
+        JobKey jobKey = firedTrigger.JobKey!;
+        if (!await JobExists(conn, jobKey, cancellationToken).ConfigureAwait(false))
+        {
+            Logger.FailedJobNoLongerExists(jobKey);
+            return false;
+        }
+
+        TriggerKey triggerKey = firedTrigger.TriggerKey;
+        SimpleTriggerImpl recoveryTrigger = new SimpleTriggerImpl(timeProvider)
+        {
+            Key = recoveryKey,
+            StartTimeUtc = firedTrigger.FireTimestamp,
+            JobKey = jobKey,
+            MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow,
+            Priority = firedTrigger.Priority
+        };
+
+        JobDataMap jobDataMap = await Delegate.SelectTriggerJobDataMap(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        jobDataMap[SchedulerConstants.FailedJobOriginalTriggerName] = triggerKey.Name;
+        jobDataMap[SchedulerConstants.FailedJobOriginalTriggerGroup] = triggerKey.Group;
+        jobDataMap[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(firedTrigger.FireTimestamp, CultureInfo.InvariantCulture);
+
+        // As the recovery a node runs over its own rows at startup writes it, which cluster recovery used
+        // to leave out.
+        jobDataMap[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(firedTrigger.ScheduleTimestamp, CultureInfo.InvariantCulture);
+        recoveryTrigger.JobDataMap = jobDataMap;
+
+        recoveryTrigger.ComputeFirstFireTimeUtc(null);
+        await AddTrigger(conn, recoveryTrigger, null, false, StoredTriggerState.Waiting, false, true, cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>
+    /// Stores a recovery trigger for a firing the scheduler's shutdown cancelled, as cluster recovery
+    /// stores one for a firing whose node died (#4014).
+    /// </summary>
+    /// <remarks>
+    /// Built from this firing's fired-trigger row, which is what cluster recovery reads. A row that is
+    /// gone was recovered already, by a peer that judged this node failed while the job ran; a second
+    /// recovery trigger would run the job twice, so none is stored.
+    /// </remarks>
+    private async ValueTask HandBackForRecovery(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        CancellationToken cancellationToken)
+    {
+        List<FiredTriggerRecord> rows = await Delegate.SelectFiredTriggerRecords(
+            conn,
+            new FiredTriggerQuery { Trigger = trigger.Key },
+            cancellationToken).ConfigureAwait(false);
+
+        FiredTriggerRecord? row = null;
+        foreach (FiredTriggerRecord candidate in rows)
+        {
+            if (string.Equals(candidate.FireInstanceId, trigger.FireInstanceId, StringComparison.Ordinal))
+            {
+                row = candidate;
+                break;
+            }
+        }
+
+        if (row is null)
+        {
+            Logger.FiringRecoveredBeforeHandBack(trigger.FireInstanceId, trigger.JobKey);
+            return;
+        }
+
+        TriggerKey recoveryKey = new RecoveryTriggerNaming(timeProvider.GetTimestamp()).Next(InstanceId);
+        if (await StoreRecoveryTrigger(conn, row, recoveryKey, cancellationToken).ConfigureAwait(false))
+        {
+            Logger.FiringHandedBack(trigger.FireInstanceId, trigger.JobKey, recoveryKey);
+        }
     }
 
     /// <summary>

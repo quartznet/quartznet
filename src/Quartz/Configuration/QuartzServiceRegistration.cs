@@ -256,6 +256,7 @@ internal static class QuartzServiceRegistration
                     : QuartzSchedulerResources.AutomaticMaxBatchSize(jobStore, threadPool),
                 BatchTimeWindow = options.BatchTriggerAcquisitionFireAheadTimeWindow,
                 ShutdownJobInterruption = options.ShutdownJobInterruption,
+                RecoverFiringsCancelledByShutdown = jobStore is AdoJobStoreBase { RecoverFiringsCancelledByShutdown: true },
                 PropagateTraceContext = options.PropagateTraceContext,
                 RecordExceptionSpanEvents = recordExceptionSpanEvents,
                 DefaultRetryPolicy = provider.GetSchedulerOptions<SchedulerRetryOptions>(key).DefaultPolicy,

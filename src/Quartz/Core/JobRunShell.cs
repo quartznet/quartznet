@@ -328,6 +328,20 @@ internal sealed class JobRunShell
                         _ => ExecutionOutcome.Succeeded
                     };
 
+                    // A firing the shutdown cancelled, of a job that asked to be recovered, on a store set to
+                    // recover such firings: the store stores a recovery trigger for it rather than completing
+                    // it, and settles nothing awaiting it (#4014). Decided here, before any listener hears of
+                    // the firing, so that the execution history can say so. Still a cancellation in every
+                    // other respect: the outcome, the span and the instruction are the ones it always had.
+                    bool handBack = cancelled
+                                    && context.CancelledByShutdown
+                                    && jobDetail.RequestsRecovery
+                                    && qs.resources.RecoverFiringsCancelledByShutdown;
+                    if (handBack)
+                    {
+                        context.HandBack();
+                    }
+
                     activity.Stop(timeProvider, outcome, context.Result, jobExEx, qs.resources.RecordExceptionSpanEvents);
                     instrumentation.EndJobExecute(context.JobRunTime, outcome, context.Result, jobExEx);
 
@@ -402,7 +416,7 @@ internal sealed class JobRunShell
                     {
                         await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
                         await qs.NotifyJobStoreJobComplete(
-                            CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
+                            CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx, handBack),
                             cancellationToken).ConfigureAwait(false);
                         break;
                     }
@@ -423,13 +437,13 @@ internal sealed class JobRunShell
                     {
                         await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
                         await qs.NotifyJobStoreJobComplete(
-                            CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
+                            CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx, handBack),
                             cancellationToken).ConfigureAwait(false);
                         break;
                     }
 
                     await qs.NotifyJobStoreJobComplete(
-                        CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx),
+                        CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx, handBack),
                         cancellationToken).ConfigureAwait(false);
 
                     break;
@@ -498,7 +512,8 @@ internal sealed class JobRunShell
         IJobDetail jobDetail,
         SchedulerInstruction instruction,
         ExecutionOutcome outcome,
-        Exception? exception)
+        Exception? exception,
+        bool handBack = false)
     {
         return new TriggeredJobCompleteContext
         {
@@ -506,7 +521,8 @@ internal sealed class JobRunShell
             JobDetail = jobDetail,
             Instruction = instruction,
             Outcome = outcome,
-            Exception = exception
+            Exception = exception,
+            HandBackForRecovery = handBack
         };
     }
 

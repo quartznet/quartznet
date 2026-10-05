@@ -110,6 +110,7 @@ public class LegacyPropertyKeyExhaustivenessTest
         "quartz.jobStore.misfireHandlerFrequency",
         "quartz.jobStore.misfireThreshold",
         "quartz.jobStore.performSchemaValidation",
+        "quartz.jobStore.recoverFiringsCancelledByShutdown",
         "quartz.jobStore.retryableActionErrorLogThreshold",
         "quartz.jobStore.schemaProvisioning",
         "quartz.jobStore.selectWithLockSQL",

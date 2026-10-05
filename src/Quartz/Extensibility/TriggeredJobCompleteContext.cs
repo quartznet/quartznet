@@ -81,4 +81,16 @@ public sealed class TriggeredJobCompleteContext
     /// on.
     /// </remarks>
     public Exception? Exception { get; init; }
+
+    /// <summary>
+    /// Whether the firing was cancelled by the scheduler's shutdown and is to be handed back for
+    /// recovery rather than completed: a recovery trigger is stored for it, and nothing awaiting the
+    /// trigger is settled.
+    /// </summary>
+    /// <remarks>
+    /// Internal, because only the persistent store has a recovery trigger to store. The run shell sets
+    /// it only when that store's <see cref="AdoJobStoreOptions.RecoverFiringsCancelledByShutdown" /> is on
+    /// and the job requests recovery, so every other store, the in-memory one included, never sees it set.
+    /// </remarks>
+    internal bool HandBackForRecovery { get; init; }
 }

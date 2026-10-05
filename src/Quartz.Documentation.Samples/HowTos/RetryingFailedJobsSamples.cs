@@ -237,6 +237,29 @@ public sealed class RetryingFailedJobsSamples
 
     #endregion
 
+    public static void HandingBackWhatAShutdownStops(IHostApplicationBuilder builder, string connectionString)
+    {
+        #region sample_retry_hand_back_on_shutdown
+
+        builder.Services.AddQuartz(q =>
+        {
+            // The shutdown asks running jobs to stop, and waits for them.
+            q.ConfigureScheduler(options => options.ShutdownJobInterruption = ShutdownJobInterruption.WhenWaitingForJobs);
+
+            q.UsePersistentStore(store =>
+            {
+                store.UsePostgres(connectionString);
+                store.ConfigureStore(options => options.RecoverFiringsCancelledByShutdown = true);
+            });
+
+            q.AddJob<ImportJob>(j => j.WithIdentity("import", "nightly").RequestRecovery());
+        });
+
+        builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+        #endregion
+    }
+
     public static async ValueTask ChangingThePolicyOfAStoredTrigger(IScheduler scheduler, CancellationToken cancellationToken)
     {
         #region sample_retry_update_stored_trigger
