@@ -82,6 +82,8 @@
     "The metrics job {JobKey} reported were not recorded: as JSON they come to more than {MaxLength} characters"
 1060  Warning  CoreLog.JobRunMetricsUnwritable
     "The metrics job {JobKey} reported were not recorded: writing metric {MetricName} threw"
+1061  Warning  CoreLog.JobProgressListenerFailed
+    "Job listener {ListenerName} threw while hearing the progress of fire instance {FireInstanceId} of job {JobKey}; the job carries on"
 1070  Information  CoreLog.SchedulerSignalerInitialized
     "Initialized Scheduler Signaller of type: {Type}"
 1071  Error  CoreLog.ListenerNotificationOfMisfireFailed

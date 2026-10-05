@@ -31,7 +31,8 @@ namespace Quartz.Core;
 
 /// <summary>
 /// Keeps what one firing last reported through <see cref="IJobExecutionContext.ReportProgress" />, and
-/// hands it to the job store at most once every <see cref="WriteInterval" />, only when it has changed.
+/// hands it to the job store and to the job listeners at most once every <see cref="WriteInterval" />,
+/// only when it has changed.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -41,16 +42,23 @@ namespace Quartz.Core;
 /// firing that does not report is not allowed to pay for. The table lets the writer go with its context.
 /// </para>
 /// <para>
-/// The job's thread never waits on the store. A write is queued to the thread pool without the job's
-/// execution context — so it carries neither the firing's ambient state nor a transaction the job opened,
-/// and enlists in nothing — and a report that arrives inside the interval only replaces the value a
-/// pending tick will write. The first report is written at once; the last one is always written,
-/// however quickly the reports came, because the tick that fires after it is what writes it.
+/// The job's thread never waits on the store or on a listener. A write is queued to the thread pool
+/// without the job's execution context — so it carries neither the firing's ambient state nor a
+/// transaction the job opened, and enlists in nothing — and a report that arrives inside the interval
+/// only replaces the value a pending tick will write. The first report is written at once; the last one
+/// is always written while the job runs, however quickly the reports came, because the tick that fires
+/// after it is what writes it. Each write then tells the job listeners, through
+/// <see cref="IJobListener.JobProgressChanged" />, on the same work item: one announcement per write,
+/// one at a time per firing, and in the order the values were written.
 /// </para>
 /// <para>
-/// A failed write is logged and forgotten; the next change tries again. Once the firing is over — the
-/// ambient holder it was reported from no longer carries its context — nothing more is written, so a
-/// report made in the last second of a job cannot reach a store that is shutting down.
+/// A failed write is logged and forgotten, and the listeners are told all the same; the next change
+/// tries again. When the job returns, <see cref="Complete" /> ends it: nothing more is written, a write in
+/// flight is waited for, and a last report the listeners have not heard is announced to them — not
+/// written, because the firing's fire instance is about to go. The run shell awaits that before
+/// <see cref="IJobListener.JobWasExecuted" />, so no announcement of a firing comes after it. A firing
+/// that ends without reaching <see cref="Complete" /> stops once the ambient holder it was reported from
+/// no longer carries its context, so a late report cannot reach a store that is shutting down.
 /// </para>
 /// </remarks>
 internal sealed class FireProgressWriter : IThreadPoolWorkItem
@@ -66,6 +74,7 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
     private readonly JobExecutionContextImpl context;
     private readonly AmbientJobExecution.Holder? holder;
     private readonly IJobStore? store;
+    private readonly Func<IJobExecutionContext, FireInstanceProgress, CancellationToken, ValueTask>? announce;
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
     private readonly string fireInstanceId;
@@ -74,10 +83,9 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
     private int percent;
     private string? message;
 
-    // The latest value a write was started for, which is what "only on a change" compares against.
-    private bool written;
-    private int writtenPercent;
-    private string? writtenMessage;
+    // The latest value a write or an announcement was started for, which is what "only on a change"
+    // compares against.
+    private FireInstanceProgress? published;
     private long lastWriteTimestamp;
 
     private FireInstanceProgress? pending;
@@ -86,10 +94,20 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
     private ITimer? tick;
     private int writesStarted;
 
-    private FireProgressWriter(JobExecutionContextImpl context, IJobStore? store, TimeProvider timeProvider, ILogger logger)
+    // Set by Complete: the job has returned, and nothing more is written.
+    private bool completed;
+    private TaskCompletionSource? drained;
+
+    private FireProgressWriter(
+        JobExecutionContextImpl context,
+        IJobStore? store,
+        Func<IJobExecutionContext, FireInstanceProgress, CancellationToken, ValueTask>? announce,
+        TimeProvider timeProvider,
+        ILogger logger)
     {
         this.context = context;
         this.store = store;
+        this.announce = announce;
         this.timeProvider = timeProvider;
         this.logger = logger;
         fireInstanceId = context.FireInstanceId;
@@ -110,12 +128,18 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
     }
 
     /// <summary>
-    /// Gives a context a writer over a store and a clock of the caller's choosing, which is what a test
-    /// of the throttle needs and what <see cref="For" /> otherwise works out from the scheduler.
+    /// Gives a context a writer over a store, listeners and a clock of the caller's choosing, which is
+    /// what a test of the throttle needs and what <see cref="For" /> otherwise works out from the
+    /// scheduler.
     /// </summary>
-    internal static FireProgressWriter Attach(JobExecutionContextImpl context, IJobStore store, TimeProvider timeProvider, ILogger logger)
+    internal static FireProgressWriter Attach(
+        JobExecutionContextImpl context,
+        IJobStore store,
+        TimeProvider timeProvider,
+        ILogger logger,
+        Func<IJobExecutionContext, FireInstanceProgress, CancellationToken, ValueTask>? announce = null)
     {
-        FireProgressWriter writer = new(context, store, timeProvider, logger);
+        FireProgressWriter writer = new(context, store, announce, timeProvider, logger);
         writers.AddOrUpdate(context, writer);
         return writer;
     }
@@ -128,13 +152,14 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
             return new FireProgressWriter(
                 context,
                 resources.JobStore,
+                std.scheduler.JobProgressAnnouncer,
                 resources.TimeProvider ?? TimeProvider.System,
                 resources.LoggerFactory.CreateLogger<JobRunShell>());
         }
 
         // A context built by hand over a scheduler of somebody else's: the value is kept, and there is no
-        // store to write it to.
-        return new FireProgressWriter(context, store: null, TimeProvider.System, NullLogger.Instance);
+        // store to write it to and no listener to tell.
+        return new FireProgressWriter(context, store: null, announce: null, TimeProvider.System, NullLogger.Instance);
     }
 
     /// <summary>
@@ -175,7 +200,7 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
     }
 
     /// <summary>
-    /// Whether a write is queued or in flight.
+    /// Whether a write, or the announcement that follows it, is queued or in flight.
     /// </summary>
     internal bool Writing
     {
@@ -209,6 +234,54 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
         }
     }
 
+    /// <summary>
+    /// Ends the writer's part in the firing, once the job has returned: nothing more is written, a write
+    /// in flight is waited for, and a last report the listeners have not heard is announced to them.
+    /// </summary>
+    /// <remarks>
+    /// The announcement goes through the same work item as every other, so it too is made outside the
+    /// firing's execution context, and the run shell's awaiting it is what puts it before
+    /// <see cref="IJobListener.JobWasExecuted" />. It is not written to the store: the fire instance is
+    /// about to be completed, and a write now would be a round trip for a row that is going.
+    /// </remarks>
+    internal async ValueTask Complete()
+    {
+        Task? inFlight;
+        lock (gate)
+        {
+            if (completed)
+            {
+                return;
+            }
+
+            completed = true;
+            tick?.Dispose();
+            tick = null;
+            tickArmed = false;
+            inFlight = writing ? DrainNoLock() : null;
+        }
+
+        if (inFlight is not null)
+        {
+            await inFlight.ConfigureAwait(false);
+        }
+
+        Task last;
+        lock (gate)
+        {
+            if (announce is null || IsPublishedNoLock())
+            {
+                return;
+            }
+
+            PublishNoLock();
+            last = DrainNoLock();
+        }
+
+        ThreadPool.UnsafeQueueUserWorkItem(this, preferLocal: false);
+        await last.ConfigureAwait(false);
+    }
+
     void IThreadPoolWorkItem.Execute()
     {
         _ = Write();
@@ -217,32 +290,56 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
     private async Task Write()
     {
         FireInstanceProgress progress;
+        bool toStore;
         lock (gate)
         {
             progress = pending!;
             pending = null;
+            toStore = !completed;
         }
 
         try
         {
-            // No token: the write is a record of something the job said, and the firing's token is the
-            // job's to cancel, not this one's.
-            await store!.UpdateFireInstanceProgress(fireInstanceId, progress, CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            logger.FireProgressWriteFailed(fireInstanceId, context.JobDetail.Key, e);
+            if (toStore)
+            {
+                try
+                {
+                    // No token: the write is a record of something the job said, and the firing's token is
+                    // the job's to cancel, not this one's.
+                    await store!.UpdateFireInstanceProgress(fireInstanceId, progress, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    logger.FireProgressWriteFailed(fireInstanceId, context.JobDetail.Key, e);
+                }
+            }
+
+            // After the write, so a listener that reads the fire instance finds the value it was told; and
+            // whether or not the write worked, because what the job said does not depend on the store. The
+            // announcer logs a listener that throws, so nothing it does reaches the job or the next write.
+            if (announce is not null)
+            {
+                await announce(context, progress, CancellationToken.None).ConfigureAwait(false);
+            }
         }
         finally
         {
+            TaskCompletionSource? done = null;
             lock (gate)
             {
                 writing = false;
-                if (!tickArmed)
+                if (completed)
+                {
+                    done = drained;
+                    drained = null;
+                }
+                else if (!tickArmed)
                 {
                     ScheduleNoLock();
                 }
             }
+
+            done?.TrySetResult();
         }
     }
 
@@ -264,7 +361,7 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
     /// </summary>
     private void ScheduleNoLock()
     {
-        if (store is null)
+        if (store is null || completed)
         {
             return;
         }
@@ -277,12 +374,12 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
             return;
         }
 
-        if (written && writtenPercent == percent && string.Equals(writtenMessage, message, StringComparison.Ordinal))
+        if (IsPublishedNoLock())
         {
             return;
         }
 
-        if (written)
+        if (published is not null)
         {
             TimeSpan since = timeProvider.GetElapsedTime(lastWriteTimestamp);
             if (since < WriteInterval)
@@ -292,15 +389,41 @@ internal sealed class FireProgressWriter : IThreadPoolWorkItem
             }
         }
 
-        written = true;
-        writtenPercent = percent;
-        writtenMessage = message;
+        PublishNoLock();
         lastWriteTimestamp = timeProvider.GetTimestamp();
-        pending = new FireInstanceProgress { Percent = percent, Message = message };
-        writing = true;
         writesStarted++;
 
         ThreadPool.UnsafeQueueUserWorkItem(this, preferLocal: false);
+    }
+
+    /// <summary>
+    /// Whether the latest report is the value the last write or announcement was started for.
+    /// </summary>
+    private bool IsPublishedNoLock()
+    {
+        return published is not null
+            && published.Percent == percent
+            && string.Equals(published.Message, message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Hands the latest report to the work item, which <see cref="writing" /> then says is queued.
+    /// </summary>
+    private void PublishNoLock()
+    {
+        published = new FireInstanceProgress { Percent = percent, Message = message };
+        pending = published;
+        writing = true;
+    }
+
+    /// <summary>
+    /// What the work item queued or in flight completes once it is over, which is what
+    /// <see cref="Complete" /> waits on.
+    /// </summary>
+    private Task DrainNoLock()
+    {
+        drained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        return drained.Task;
     }
 
     private void ArmTickNoLock(TimeSpan dueTime)

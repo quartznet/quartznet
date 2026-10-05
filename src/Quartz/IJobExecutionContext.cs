@@ -126,10 +126,16 @@ public interface IJobExecutionContext
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Call it as often as is convenient: it returns at once and never waits on the job store. The
-    /// scheduler keeps the latest value and writes it to the store at most once a second per firing,
-    /// only when it has changed, and off the job's own flow. The last value reported is always the one
-    /// written, however quickly the reports came. A write that fails is logged, and the job carries on.
+    /// Call it as often as is convenient: it returns at once and never waits on the job store or a
+    /// listener. The scheduler keeps the latest value and writes it to the store at most once a second
+    /// per firing, only when it has changed, and off the job's own flow. While the job runs, the last
+    /// value reported is always the one written, however quickly the reports came. A write that fails
+    /// is logged, and the job carries on.
+    /// </para>
+    /// <para>
+    /// Each write is announced to the job listeners through <see cref="IJobListener.JobProgressChanged" />,
+    /// and a last report they have not heard is announced once the job returns, before
+    /// <see cref="IJobListener.JobWasExecuted" />.
     /// </para>
     /// <para>
     /// A message longer than <see cref="Extensibility.FireInstanceProgress.MaxMessageLength" />

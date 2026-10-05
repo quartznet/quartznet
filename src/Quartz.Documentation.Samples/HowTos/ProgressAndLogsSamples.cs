@@ -91,6 +91,41 @@ public sealed class ProgressAndLogsSamples
 
     #endregion
 
+    #region sample_progress_listener
+
+    public sealed class ProgressFeed : IJobListener
+    {
+        private readonly ILogger<ProgressFeed> logger;
+
+        public ProgressFeed(ILogger<ProgressFeed> logger)
+        {
+            this.logger = logger;
+        }
+
+        // Off the job's thread, at most once a second per firing, and only on a change.
+        public ValueTask JobProgressChanged(IJobExecutionContext context, FireInstanceProgress progress, CancellationToken cancellationToken = default)
+        {
+            logger.LogInformation("{JobKey} ({FireInstanceId}): {Percent}% {Message}",
+                context.JobDetail.Key, context.FireInstanceId, progress.Percent, progress.Message);
+            return default;
+        }
+    }
+
+    #endregion
+
+    public static void RegisteringAProgressListener(IHostApplicationBuilder builder)
+    {
+        #region sample_progress_listener_registration
+
+        builder.Services.AddQuartz(q =>
+        {
+            // Hears the export jobs only, as its matcher says.
+            q.AddJobListener<ProgressFeed>(GroupMatcher<JobKey>.GroupEquals("exports"));
+        });
+
+        #endregion
+    }
+
     public static async Task ReadingProgress(IScheduler scheduler)
     {
         #region sample_progress_reading

@@ -168,6 +168,9 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1060, Level = LogLevel.Warning, Message = "The metrics job {JobKey} reported were not recorded: writing metric {MetricName} threw")]
     public static partial void JobRunMetricsUnwritable(this ILogger logger, JobKey jobKey, string? metricName, Exception exception);
 
+    [LoggerMessage(EventId = 1061, Level = LogLevel.Warning, Message = "Job listener {ListenerName} threw while hearing the progress of fire instance {FireInstanceId} of job {JobKey}; the job carries on")]
+    public static partial void JobProgressListenerFailed(this ILogger logger, string listenerName, string fireInstanceId, JobKey jobKey, Exception exception);
+
     [LoggerMessage(EventId = 1070, Level = LogLevel.Information, Message = "Initialized Scheduler Signaller of type: {Type}")]
     public static partial void SchedulerSignalerInitialized(this ILogger logger, Type type);
 
