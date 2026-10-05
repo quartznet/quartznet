@@ -175,7 +175,7 @@
       </xs:element>
       <xs:element name="retry-policy" type="xs:string" minOccurs="0">
         <xs:annotation>
-          <xs:documentation>The trigger's retry policy in its stored form, for example fixed;3;00:00:30.</xs:documentation>
+          <xs:documentation>The trigger's retry policy in its stored form, for example fixed;3;00:00:30, or none for a trigger that is never retried. Leave it out to inherit the job type's [RetryPolicy] or the scheduler's default.</xs:documentation>
         </xs:annotation>
       </xs:element>
       <xs:element name="preferred-node" type="xs:string" minOccurs="0">

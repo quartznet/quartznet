@@ -30,7 +30,7 @@ namespace Quartz;
 /// </para>
 /// <para>
 /// It says what the firing did, and nothing about what the schedule makes of it. A job that ran and
-/// threw is <see cref="Failed" /> whether or not the trigger's <see cref="ITrigger.RetryPolicy" />
+/// threw is <see cref="Failed" /> whether or not its <see cref="IJobExecutionContext.RetryPolicy" />
 /// then asked for another attempt — that request is
 /// <see cref="SchedulerInstruction.RetryTrigger" />, on
 /// <see cref="Extensibility.TriggeredJobCompleteContext.Instruction" />, and it is what tells a store

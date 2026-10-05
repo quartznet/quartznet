@@ -52,9 +52,8 @@ public interface IJobExecutionContext
     int RefireCount { get; }
 
     /// <summary>
-    /// How many times this occurrence has already been retried under the trigger's
-    /// <see cref="ITrigger.RetryPolicy" />: <c>0</c> on a regular fire, <c>n</c> on the <c>n</c>-th
-    /// retry.
+    /// How many times this occurrence has already been retried under its <see cref="RetryPolicy" />:
+    /// <c>0</c> on a regular fire, <c>n</c> on the <c>n</c>-th retry.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -64,11 +63,36 @@ public interface IJobExecutionContext
     /// slot while it waits.
     /// </para>
     /// <para>
-    /// <c>0</c> for every trigger with no retry policy, which is the default.
+    /// <c>0</c> for every firing with no retry policy, which is the default.
     /// </para>
     /// </remarks>
     /// <seealso cref="Quartz.RetryPolicy" />
     int RetryAttempt { get; }
+
+    /// <summary>
+    /// The policy a failure of this firing is retried under, or <see langword="null" /> when a failure
+    /// is not retried.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The first of three, in order: the trigger's own <see cref="ITrigger.RetryPolicy" />, the job
+    /// type's <see cref="RetryPolicyAttribute" />, and the scheduler's default. Whichever is found first
+    /// decides, and <see cref="Quartz.RetryPolicy.None" /> found at any level means no retry, so this
+    /// never answers <see cref="Quartz.RetryPolicy.None" />. It is looked up when it is read rather than
+    /// stored on the trigger, so a trigger stored before a job type or a scheduler declared a policy is
+    /// covered by it.
+    /// </para>
+    /// <para>
+    /// Its <see cref="Quartz.RetryPolicy.MaxAttempts" /> beside <see cref="RetryAttempt" /> says how many
+    /// attempts an occurrence has left.
+    /// </para>
+    /// <para>
+    /// A default interface member, so an <see cref="IJobExecutionContext" /> implemented outside this
+    /// repository compiles unchanged. The default answers with the trigger's own policy only.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="Quartz.RetryPolicy" />
+    RetryPolicy? RetryPolicy => Trigger.RetryPolicy is { IsNone: false } own ? own : null;
 
     /// <summary>
     /// How this firing ended, as the scheduler classified it — the same value the job store is told on
@@ -85,9 +109,8 @@ public interface IJobExecutionContext
     /// </para>
     /// <para>
     /// It says what the firing did and nothing about what the schedule makes of it: a job that ran and
-    /// threw is <see cref="ExecutionOutcome.Failed" /> whether or not the trigger's
-    /// <see cref="ITrigger.RetryPolicy" /> then asked for another attempt. <see cref="RetryScheduled" />
-    /// is what tells those two apart.
+    /// threw is <see cref="ExecutionOutcome.Failed" /> whether or not its <see cref="RetryPolicy" /> then
+    /// asked for another attempt. <see cref="RetryScheduled" /> is what tells those two apart.
     /// </para>
     /// <para>
     /// A default interface member, so an <see cref="IJobExecutionContext" /> implemented outside
@@ -103,8 +126,8 @@ public interface IJobExecutionContext
     /// <remarks>
     /// <para>
     /// <see langword="true" /> exactly when the scheduler decided
-    /// <see cref="SchedulerInstruction.RetryTrigger" />: the job failed, the trigger has a
-    /// <see cref="ITrigger.RetryPolicy" />, it has attempts left, and there was room for the retry
+    /// <see cref="SchedulerInstruction.RetryTrigger" />: the job failed, a <see cref="RetryPolicy" />
+    /// applies, it has attempts left, and there was room for the retry
     /// before the next scheduled occurrence. A failed firing with
     /// <see langword="false" /> here is the occurrence's last word — that is what
     /// <see cref="ITriggerListener.TriggerRetriesExhausted" /> announces.

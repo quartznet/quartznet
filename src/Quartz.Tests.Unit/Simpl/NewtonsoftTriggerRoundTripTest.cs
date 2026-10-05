@@ -232,6 +232,25 @@ public class NewtonsoftTriggerRoundTripTest
         restored.RetryAttempt.Should().Be(0);
     }
 
+    [Test]
+    public void ATriggerThatRefusesRetriesComesBackRefusingThem()
+    {
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("never-retried", "group"),
+            JobKey = new JobKey("job", "jobGroup"),
+            StartTimeUtc = startTime,
+            EndTimeUtc = startTime.AddDays(1),
+            RepeatCount = 1,
+            RepeatInterval = TimeSpan.FromMinutes(1),
+            RetryPolicy = RetryPolicy.None
+        };
+
+        RoundTrip(trigger).RetryPolicy.Should().BeSameAs(RetryPolicy.None,
+            "None and no policy at all mean different things once a job type or a scheduler supplies a default, "
+            + "so the blob has to tell them apart");
+    }
+
     [TestCase(OverlapPolicy.Skip)]
     [TestCase(OverlapPolicy.BufferOne)]
     [TestCase(OverlapPolicy.CancelPrevious)]

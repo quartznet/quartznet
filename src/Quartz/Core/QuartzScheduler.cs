@@ -888,6 +888,7 @@ internal sealed class QuartzScheduler
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
         RefusePausedContinuation(trig, options);
+        RetryPolicyResolution.EnsureReadable(jobDetail);
 
         PrepareJobData(jobDetail.JobDataMap);
         PrepareTriggerData(trig);
@@ -1122,6 +1123,7 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException("Jobs added with no trigger must be durable.");
         }
 
+        RetryPolicyResolution.EnsureReadable(jobDetail);
         PrepareJobData(jobDetail.JobDataMap);
 
         await resources.JobStore.AddJob(jobDetail, options, cancellationToken).ConfigureAwait(false);
@@ -1237,6 +1239,8 @@ internal sealed class QuartzScheduler
             {
                 continue;
             }
+
+            RetryPolicyResolution.EnsureReadable(job);
             PrepareJobData(job.JobDataMap);
 
             if (triggers is null) // this is possible because the job may be durable, and not yet be having triggers

@@ -178,10 +178,10 @@ public interface ITriggerListener
         CancellationToken cancellationToken = default) => default;
 
     /// <summary>
-    /// Called by the <see cref="IScheduler" /> when a failed occurrence of a trigger with a retry
-    /// policy is over without another attempt: the trigger carries a
-    /// <see cref="ITrigger.RetryPolicy" />, the job ran and threw, and the firing did not end in a
-    /// retry.
+    /// Called by the <see cref="IScheduler" /> when a failed occurrence under a retry policy is over
+    /// without another attempt: a <see cref="IJobExecutionContext.RetryPolicy" /> applies — the
+    /// trigger's own, its job type's or the scheduler's default — the job ran and threw, and the firing
+    /// did not end in a retry.
     /// </summary>
     /// <param name="trigger">The <see cref="ITrigger" /> whose occurrence has given up.</param>
     /// <param name="context">

@@ -85,8 +85,8 @@ public enum SchedulerInstruction
     /// </para>
     /// <para>
     /// The trigger is left waiting, not in error — a failed occurrence with attempts left is not a
-    /// broken trigger. It is decided by <c>TriggerBase.ExecutionComplete</c> from the trigger's
-    /// <see cref="ITrigger.RetryPolicy" />, and never returned by a trigger that has none.
+    /// broken trigger. It is decided by <c>TriggerBase.ExecutionComplete</c> from the firing's
+    /// <see cref="IJobExecutionContext.RetryPolicy" />, and never returned when none applies.
     /// </para>
     /// </remarks>
     /// <seealso cref="Quartz.RetryPolicy" />

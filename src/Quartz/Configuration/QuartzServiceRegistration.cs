@@ -258,6 +258,7 @@ internal static class QuartzServiceRegistration
                 ShutdownJobInterruption = options.ShutdownJobInterruption,
                 PropagateTraceContext = options.PropagateTraceContext,
                 RecordExceptionSpanEvents = recordExceptionSpanEvents,
+                DefaultRetryPolicy = provider.GetSchedulerOptions<SchedulerRetryOptions>(key).DefaultPolicy,
                 TimeProvider = timeProvider,
                 LoggerFactory = provider.GetSchedulerLoggerFactory(),
                 Meters = meters,

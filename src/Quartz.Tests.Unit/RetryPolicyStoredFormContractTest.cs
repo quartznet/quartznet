@@ -54,6 +54,9 @@ public class RetryPolicyStoredFormContractTest
         yield return new TestCaseData(RetryPolicy.Exponential(5, TimeSpan.FromSeconds(10), 2, null, 1), "exp;5;00:00:10;2;j1").SetName("exponential, jittered to the full band");
         yield return new TestCaseData(RetryPolicy.Explicit(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30)), "list;00:00:01;00:00:05;00:00:30").SetName("explicit table");
         yield return new TestCaseData(RetryPolicy.Explicit(TimeSpan.FromMinutes(2)), "list;00:02:00").SetName("explicit table of one");
+        // A marker of its own rather than an empty column: an empty column is a trigger with no policy of
+        // its own, which inherits one, and this is a trigger that refuses to.
+        yield return new TestCaseData(RetryPolicy.None, "none").SetName("none");
     }
 
     [TestCaseSource(nameof(StoredForms))]
@@ -196,6 +199,9 @@ public class RetryPolicyStoredFormContractTest
     [TestCase("list;")]
     [TestCase("list;00:00:01;nonsense")]
     [TestCase("FIXED;3;00:00:30")]
+    [TestCase("none;0")]
+    [TestCase("none;")]
+    [TestCase("NONE")]
     public void WhatIsNotAStoredPolicyIsRefused(string value)
     {
         RetryPolicy.TryParse(value, out RetryPolicy policy).Should().BeFalse();

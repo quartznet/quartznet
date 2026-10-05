@@ -32,7 +32,14 @@ namespace Quartz;
 /// A policy is a value: two policies of the same shape that would produce the same waits are equal.
 /// There is no public constructor — <see cref="Fixed" />, <see cref="Exponential(int, TimeSpan, double, TimeSpan?)" /> and
 /// <see cref="Explicit" /> are the only ways to make one, so a policy that could not be honoured
-/// (no attempts, a negative wait, a backoff that shrinks) cannot be built at all.
+/// (no attempts, a negative wait, a backoff that shrinks) cannot be built at all. <see cref="None" />
+/// is the one policy with no attempts: it retries nothing, and is how a trigger or a job type refuses a
+/// policy it would otherwise inherit.
+/// </para>
+/// <para>
+/// A failed firing is retried under the first policy found among the trigger's own
+/// <see cref="ITrigger.RetryPolicy" />, its job type's <see cref="RetryPolicyAttribute" /> and the
+/// scheduler's default. <see cref="IJobExecutionContext.RetryPolicy" /> says which one applied.
 /// </para>
 /// <para>
 /// <see cref="MaxAttempts" /> counts retries <i>after</i> the first failure, not fires: a trigger
@@ -57,6 +64,7 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
         Fixed,
         Exponential,
         Explicit,
+        None,
     }
 
     /// <summary>
@@ -69,6 +77,7 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     private const string FixedMarker = "fixed";
     private const string ExponentialMarker = "exp";
     private const string ExplicitMarker = "list";
+    private const string NoneMarker = "none";
 
     /// <summary>
     /// What a jitter token in the stored form starts with. The maximum delay before it is optional, so
@@ -104,7 +113,32 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     }
 
     /// <summary>
-    /// How many times the scheduler retries after the first failure. Always at least one.
+    /// The policy that retries nothing, whatever the job type or the scheduler would otherwise supply.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A trigger with no policy of its own — <see cref="ITrigger.RetryPolicy" /> is
+    /// <see langword="null" /> — inherits its job type's <see cref="RetryPolicyAttribute" /> or the
+    /// scheduler's default. A trigger given <see cref="None" /> inherits neither, and a failed firing goes
+    /// back to the ordinary schedule as it would with no policy anywhere.
+    /// <c>[RetryPolicy(0)]</c> says the same for every trigger of a job type that has no policy of its own.
+    /// </para>
+    /// <para>
+    /// Stored as <c>none</c>. A node older than 4.4 reads that as no policy, which is what it means there
+    /// too, but writes the column back empty when it fires the trigger, so the trigger then inherits on a
+    /// 4.4 node. Give a trigger <see cref="None" /> once every node is on 4.4.
+    /// </para>
+    /// </remarks>
+    public static RetryPolicy None { get; } = new(Shape.None, maxAttempts: 0, TimeSpan.Zero, backoffFactor: 1, maxDelay: null, jitter: 0, ImmutableArray<TimeSpan>.Empty);
+
+    /// <summary>
+    /// Whether this is <see cref="None" />, the policy that retries nothing.
+    /// </summary>
+    internal bool IsNone => shape == Shape.None;
+
+    /// <summary>
+    /// How many times the scheduler retries after the first failure. At least one, except on
+    /// <see cref="None" />, where it is zero.
     /// </summary>
     /// <remarks>
     /// This is the authoritative count: an <see cref="Explicit" /> policy's is the length of its
@@ -342,6 +376,7 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
     /// </para>
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="attempt" /> is less than one.</exception>
+    /// <exception cref="InvalidOperationException">The policy is <see cref="None" />, which has no retry to wait for.</exception>
     /// <remarks>
     /// A wait too long to be represented is not an error. The arithmetic saturates, and the scheduler
     /// treats a retry it cannot express an instant for the way it treats one that would land on top of
@@ -366,6 +401,10 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
 
             case Shape.Explicit:
                 return Delays[Math.Min(attempt, Delays.Length) - 1];
+
+            case Shape.None:
+                // No attempt is ever made under it, so no answer here would be a wait anything uses.
+                throw new InvalidOperationException("RetryPolicy.None retries nothing, so it has no wait to compute.");
 
             default:
                 // Ticks as a double: an exponential policy left running long enough overflows a
@@ -494,9 +533,19 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
                 case ExplicitMarker:
                     return TryParseExplicit(parts, out policy, out problem);
 
+                case NoneMarker when parts.Length == 1:
+                    policy = None;
+                    problem = null;
+                    return true;
+
+                case NoneMarker:
+                    policy = null;
+                    problem = $"'{NoneMarker}' stands alone";
+                    return false;
+
                 default:
                     policy = null;
-                    problem = $"'{parts[0]}' is not one of the policy shapes '{FixedMarker}', '{ExponentialMarker}' and '{ExplicitMarker}'";
+                    problem = $"'{parts[0]}' is not one of the policy shapes '{FixedMarker}', '{ExponentialMarker}', '{ExplicitMarker}' and '{NoneMarker}'";
                     return false;
             }
         }
@@ -702,6 +751,11 @@ public sealed class RetryPolicy : IEquatable<RetryPolicy>
         {
             case Shape.Fixed:
                 return FixedMarker + Separator + attempts + Separator + FormatDelay(initialDelay);
+
+            case Shape.None:
+                // A marker of its own rather than an empty column: an empty column is a trigger with no
+                // policy of its own, which inherits one, and this is a trigger that refuses to.
+                return NoneMarker;
 
             case Shape.Explicit:
                 StringBuilder explicitForm = new StringBuilder(ExplicitMarker);

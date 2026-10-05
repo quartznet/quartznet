@@ -354,13 +354,15 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
 
     /// <summary>
     /// Gets or sets how the scheduler re-fires this trigger when its job fails.
-    /// <see langword="null" /> — the default — means a failed job is reported and the trigger waits
-    /// for its next scheduled occurrence.
+    /// <see langword="null" /> — the default — means the trigger has no policy of its own: a failed job
+    /// is retried under its job type's <see cref="RetryPolicyAttribute" /> or the scheduler's default,
+    /// and with neither it is reported and the trigger waits for its next scheduled occurrence.
+    /// <see cref="Quartz.RetryPolicy.None" /> means it is never retried.
     /// </summary>
     /// <remarks>
     /// Held as the policy's stored string form, which is what the trigger's row and a serialized
     /// trigger both carry; the value is parsed on first read and kept for as long as the string
-    /// does not change.
+    /// does not change. Only the trigger's own policy is held: an inherited one is never written here.
     /// </remarks>
     /// <seealso cref="Quartz.RetryPolicy" />
     public RetryPolicy? RetryPolicy
@@ -725,7 +727,7 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
         // nothing-left-to-fire check below, which a scheduled retry has to be able to postpone: a
         // one-shot trigger waiting to retry may still fire again, and announcing it as finalized
         // here would be announcing it twice.
-        if (result is not null && RetryPolicy is { } policy && RetryAttempt < policy.MaxAttempts && TryScheduleRetry(policy))
+        if (result is not null && RetryPolicyFor(context) is { } policy && RetryAttempt < policy.MaxAttempts && TryScheduleRetry(policy))
         {
             return SchedulerInstruction.RetryTrigger;
         }
@@ -742,6 +744,29 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
         }
 
         return SchedulerInstruction.NoInstruction;
+    }
+
+    /// <summary>
+    /// The policy this trigger's failed firing is retried under, or <see langword="null" /> when it is not
+    /// retried.
+    /// </summary>
+    /// <remarks>
+    /// The trigger's own policy wins, and <see cref="Quartz.RetryPolicy.None" /> is how it refuses the
+    /// rest. A trigger with none of its own asks the context, which knows the job type's
+    /// <see cref="RetryPolicyAttribute" /> and the scheduler's default — asked here, as the firing
+    /// completes, so a trigger stored before either existed is covered and its row is never written on
+    /// their behalf. A context that knows neither answers <see langword="null" />, which is what a
+    /// trigger with no policy has always meant.
+    /// </remarks>
+    private RetryPolicy? RetryPolicyFor(IJobExecutionContext context)
+    {
+        RetryPolicy? own = RetryPolicy;
+        if (own is not null)
+        {
+            return own.IsNone ? null : own;
+        }
+
+        return context.RetryPolicy;
     }
 
     /// <summary>

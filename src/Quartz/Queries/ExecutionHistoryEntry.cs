@@ -60,12 +60,12 @@ public sealed record ExecutionHistoryEntry(
 {
     /// <summary>
     /// Which attempt at the occurrence this execution was: <c>0</c> on the regular fire, <c>n</c> on
-    /// the <c>n</c>-th retry under the trigger's <see cref="ITrigger.RetryPolicy" />.
+    /// the <c>n</c>-th retry under its <see cref="IJobExecutionContext.RetryPolicy" />.
     /// </summary>
     /// <remarks>
     /// A non-positional <c>init</c> property, so the record's constructor is unchanged and a store
-    /// written against 4.1 still compiles. <c>0</c> for every execution of a trigger with no policy,
-    /// which is the default.
+    /// written against 4.1 still compiles. <c>0</c> for every execution no policy applies to, which is
+    /// the default.
     /// </remarks>
     public int RetryAttempt { get; init; }
 
