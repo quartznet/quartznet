@@ -36,6 +36,7 @@ exception would have carried.
 | [`QZ0003`](#qz0003-persistjobdatawithoutdisallowconcurrent) | Warning | A job that persists its data map and allows concurrent firings |
 | [`QZ0004`](#qz0004-cancellationtokennotobserved) | Info | A job body that awaits or loops without reading its cancellation token |
 | [`QZ0005`](#qz0005-invalidsimpletriggerschedule) | Error | A `[SimpleTrigger]` interval that is not a positive `TimeSpan`, or a `RepeatCount` below `-1` |
+| [`QZ0006`](#qz0006-invalidretrypolicydelay) | Error | A `[RetryPolicy]` delay that is not a `TimeSpan`, or is negative |
 
 Only values the compiler already knows are checked: a string literal, a `const`, an interpolated string
 with nothing interpolated. A value built at run time, read from configuration or passed in a variable is
@@ -159,6 +160,22 @@ public class PollJob : IJob   // interval the way TimeSpan does, invariantly: "0
 is not generated, so with the severity lowered the job builds without it.
 **Suppress** with `dotnet_diagnostic.QZ0005.severity` in `.editorconfig`.
 
+### QZ0006 InvalidRetryPolicyDelay
+
+**Reports** a [`[RetryPolicy]`](../how-tos/retrying-failed-jobs.md#declare-it-on-the-job-or-set-a-default) (4.4)
+delay that is not an invariant `TimeSpan` string, or is negative: the second argument of the fixed and
+exponential forms, each argument of the explicit form, and `MaxDelay`. Nothing parses it until the job is added
+to a scheduler, which then refuses the job.
+
+```csharp
+[RetryPolicy(3, "5 minutes")] // error QZ0006: '5 minutes' is not a TimeSpan. Spell a retry delay the
+public class ImportJob : IJob  // way TimeSpan does, invariantly: "00:00:30" for thirty seconds.
+```
+
+**Fix** by spelling the delay as `TimeSpan` does: `"00:05:00"` for five minutes. The attempt count, the
+factor and the jitter are not checked here; the attribute refuses them when the job is added.
+**Suppress** with `dotnet_diagnostic.QZ0006.severity` in `.editorconfig`.
+
 ## Changing a severity, or turning it off
 
 Each diagnostic is an ordinary compiler diagnostic, so `.editorconfig` sets its severity:
@@ -194,7 +211,7 @@ work: the .NET 10 SDK still passes the assembly to the compiler.
   cannot be linked into an assembly the compiler loads.
 * **Time-zone ids** (`TimeZones.FindById`). The build machine's zone database is not the run-time
   machine's; refusing a zone your server has would be worse than no check.
-* **Retry policies, preferred nodes, key names and type-name strings.** Each is rare in code, refused by
+* **Stored-form retry policies, a `[RetryPolicy]`'s counts and factor, preferred nodes, key names and type-name strings.** Each is rare in code, refused by
   name at startup, or already `[RequiresUnreferencedCode]`.
 
 ## Related

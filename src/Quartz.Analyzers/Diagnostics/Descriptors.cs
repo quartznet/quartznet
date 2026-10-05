@@ -125,6 +125,23 @@ internal static class Descriptors
         helpLinkUri: HelpLink + "#qz0005-invalidsimpletriggerschedule");
 
     /// <summary>
+    /// A <c>[RetryPolicy]</c> delay that is not a <see cref="TimeSpan" />, or is negative.
+    /// </summary>
+    /// <remarks>
+    /// Its own id rather than <see cref="InvalidJobTimeout" />'s, for the reason
+    /// <see cref="InvalidSimpleTriggerSchedule" /> has one: the parse is the same, the thing parsed is not.
+    /// </remarks>
+    internal static readonly DiagnosticDescriptor InvalidRetryPolicyDelay = new DiagnosticDescriptor(
+        id: "QZ0006",
+        title: "Retry policy delay cannot be parsed",
+        messageFormat: "{0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "The attribute's constructor parses each delay, and nothing runs that constructor until the job is added to a scheduler, which refuses the job then. A delay that cannot parse, or is negative, is therefore a start-up failure unless it is caught here.",
+        helpLinkUri: HelpLink + "#qz0006-invalidretrypolicydelay");
+
+    /// <summary>
     /// A <c>[QuartzJob]</c> class the generated registration could not name, or could not schedule.
     /// </summary>
     /// <remarks>
