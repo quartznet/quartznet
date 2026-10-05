@@ -450,7 +450,8 @@ public partial class StdAdoDelegate
         var tDel = FindTriggerPersistenceDelegate(trigger);
         string type = tDel?.GetHandledTriggerTypeDiscriminator() ?? AdoConstants.TriggerTypeBlob;
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildUpdateTriggerSql(trigger, state, out bool updateJobData, out bool writePreferredNode)));
+        string sql = BuildUpdateTriggerSql(trigger, ClearsPause(state), out bool updateJobData, out bool writePreferredNode);
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
         BindUpdateTrigger(cmd, trigger, state, type, updateJobData, writePreferredNode);
 
         var updateResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -465,9 +466,8 @@ public partial class StdAdoDelegate
     /// picked it, because the parameter binding has to make exactly the same ones.
     /// </summary>
     /// <param name="trigger">The trigger being written.</param>
-    /// <param name="state">
-    /// The state it is written in. In any state but paused the statement also clears the pause's record,
-    /// which only a paused row carries; a row that stays paused keeps the one it has.
+    /// <param name="clearPause">
+    /// Whether the statement also clears the pause's record; see <see cref="ClearsPause" />.
     /// </param>
     /// <param name="updateJobData">
     /// Whether the job data map goes into the statement. Skipped when the map is not dirty, which saves
@@ -479,11 +479,10 @@ public partial class StdAdoDelegate
     /// writing that back would clobber a concurrent re-pin (ClusterRecover's failover reset, an
     /// <c>UpdateTriggerDetails</c> re-pin).
     /// </param>
-    private static string BuildUpdateTriggerSql(IOperableTrigger trigger, StoredTriggerState state, out bool updateJobData, out bool writePreferredNode)
+    private static string BuildUpdateTriggerSql(IOperableTrigger trigger, bool clearPause, out bool updateJobData, out bool writePreferredNode)
     {
         updateJobData = trigger.JobDataMap.Dirty;
         writePreferredNode = (trigger as TriggerBase)?.PreferredNodeDirty == true;
-        bool clearPause = state is not (StoredTriggerState.Paused or StoredTriggerState.PausedBlocked);
 
         return (updateJobData, writePreferredNode, clearPause) switch
         {
@@ -517,13 +516,28 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
+    /// Whether a trigger row written in <paramref name="state" /> forgets the record of the pause it may
+    /// have had: in any state but paused, since only a paused row carries one. A row that stays paused —
+    /// a replace inside a paused group, say — keeps the record it has.
+    /// </summary>
+    private static bool ClearsPause(StoredTriggerState state)
+    {
+        return state is not (StoredTriggerState.Paused or StoredTriggerState.PausedBlocked);
+    }
+
+    /// <summary>
     /// The trigger UPDATE as data, for the paths that send it inside a batch rather than on a command of
     /// its own. Same statement and same binding as <see cref="UpdateTrigger" /> — deliberately so, since
     /// two spellings of this statement would be two things to keep in step.
     /// </summary>
+    /// <remarks>
+    /// Without the pause clearing, which is the one difference: the only batch is a round's fire writes,
+    /// whose rows were claimed from <c>WAITING</c> and so carry no record, and the round's batches are
+    /// sized by the bytes they send, so three more assignments on every fire would be fewer fires a batch.
+    /// </remarks>
     private SqlStatement BuildUpdateTriggerStatement(IOperableTrigger trigger, StoredTriggerState state, string type)
     {
-        string sql = BuildUpdateTriggerSql(trigger, state, out bool updateJobData, out bool writePreferredNode);
+        string sql = BuildUpdateTriggerSql(trigger, clearPause: false, out bool updateJobData, out bool writePreferredNode);
         return new SqlStatement(
             ReplaceTablePrefix(sql),
             BuildUpdateTriggerParameters(trigger, state, type, updateJobData, writePreferredNode));
