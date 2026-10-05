@@ -250,8 +250,14 @@ not paged.
 - `status` and `schedulerInstanceId` are both `null` for a registration nothing has built; listing does not
   build it. This is the only way to tell "this tenant has not started" from "no such tenant": the scheduler's
   own routes answer `404` for both.
-- `origin` is `Container` for a scheduler registered by `AddQuartz()` or `AddQuartz(name, …)`, and `Runtime` for
-  one in the repository without a registration (bound by hand, or remote from `AddQuartzHttpClient`).
+- `origin` says where the scheduler came from:
+
+  | `origin` | The scheduler |
+  |---|---|
+  | `Container` | registered by `AddQuartz()` or `AddQuartz(name, …)` |
+  | `Runtime` | bound into the repository by hand, such as one built by `QuartzSchedulerBuilder` |
+  | `Remote` | an `HttpScheduler` from `AddQuartzHttpClient`; it runs in another process |
+  | `Window` | a never-started scheduler over a [store the dashboard attached](dashboard.md#store-attached-targets); `target` names the store |
 
 ## Enums travel as names
 
