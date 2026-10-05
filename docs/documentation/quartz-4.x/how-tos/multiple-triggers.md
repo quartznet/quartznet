@@ -137,11 +137,15 @@ builder.Services.AddQuartz(q =>
   start and deleted once it has fired. `context.Trigger.Key.Group` tells a startup run from a scheduled one.
 - It is an ordinary trigger: `[DisallowConcurrentExecution]`, listeners and history apply.
 - On a persistent store it is stored until it has fired. A run that a crash interrupts is recovered like any
-  other firing, and one that a crash prevented still fires, alongside the next start's.
+  other firing.
+- **A run that a crash prevented is replaced, not added to.** The next start of the same node unschedules that
+  node's unfired startup triggers for the job. In a cluster it leaves other nodes' alone, and one already
+  reserved or running is left to finish.
 - In a cluster it is pinned to its node with [`PreferredNode.For`](../tutorial/node-affinity.md). It fails over
   to another node only while that node is down.
 - The job has to be stored by then, durably or with a trigger of its own. If it is not, the start fails with
   `SchedulerException`.
+- Naming the same job twice registers one run.
 
 ## Firing once, with data of its own
 

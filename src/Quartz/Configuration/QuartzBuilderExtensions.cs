@@ -364,8 +364,9 @@ public static class QuartzBuilderExtensions
     /// <para>
     /// It is an ordinary trigger, so <see cref="DisallowConcurrentExecutionAttribute" />, the job's
     /// listeners and the execution history apply to it as to any other. A persistent store keeps it until
-    /// it has fired: a firing a crash interrupts is recovered as any firing is, and a run a crash prevented
-    /// still fires, beside the next start's.
+    /// it has fired, so a firing a crash interrupts is recovered as any firing is. A run a crash prevented
+    /// is replaced by the next start's run of the same node rather than added to it; one already reserved
+    /// or running is left to finish.
     /// </para>
     /// <para>
     /// In a cluster it runs once per node that starts: each node's trigger is pinned to that node with
@@ -373,7 +374,8 @@ public static class QuartzBuilderExtensions
     /// </para>
     /// <para>
     /// The job has to be stored by then — durable, or with a trigger of its own — or the start fails with
-    /// <see cref="SchedulerException" />. Each call is one run at each start. This is what a cron
+    /// <see cref="SchedulerException" />. Naming the job again registers nothing more: one run at each
+    /// start. This is what a cron
     /// <c>@reboot</c> would have meant, which a cron expression cannot express: it has no instant to fire
     /// at.
     /// </para>
@@ -385,6 +387,18 @@ public static class QuartzBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(jobKey);
 
+        // Once per job per scheduler, however often it is said: a registration made by two modules that
+        // both want the job warm is one run at each start, not two.
+        StartupRunRegistration registration = new(builder.SchedulerName ?? "", jobKey);
+        foreach (ServiceDescriptor descriptor in builder.Services)
+        {
+            if (descriptor.ServiceType == typeof(StartupRunRegistration) && registration.Equals(descriptor.ImplementationInstance))
+            {
+                return builder;
+            }
+        }
+
+        builder.Services.AddSingleton(registration);
         return builder.AddPlugin(_ => new StartupRunPlugin(jobKey));
     }
 
