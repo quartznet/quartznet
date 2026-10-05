@@ -65,6 +65,18 @@ public class FireOnAcquireRoundTripTest
                 A<CancellationToken>._))
             .Returns(new ValueTask<int>(1));
 
+        // The round's claims and fire writes through the interface's defaults — the single-trigger calls,
+        // each arranged here — unless a test answers them itself.
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._,
+                A<IReadOnlyList<TriggerClaim>>._,
+                A<StoredTriggerState>._,
+                A<StoredTriggerState>._,
+                A<CancellationToken>._))
+            .CallsBaseMethod();
+        A.CallTo(() => driverDelegate.ApplyTriggersFired(A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerFiredUpdate>>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+
         // Every claimed trigger reads back ACQUIRED, as a claim in this transaction leaves it.
         A.CallTo(() => driverDelegate.SelectStoredTriggerHeaders(
                 A<ConnectionAndTransactionHolder>._,
@@ -216,6 +228,99 @@ public class FireOnAcquireRoundTripTest
         A.CallTo(() => driverDelegate.SelectJobDetail(A<ConnectionAndTransactionHolder>._, jobKey, A<ITypeLoader>._, A<CancellationToken>._))
             .MustHaveHappened(2, Times.Exactly);
         store.Transactions.Should().Be(1, "a batch read that did not read is not a failed fire, so nothing is rolled back");
+    }
+
+    /// <summary>
+    /// The round's claims are one call and its fire writes another, which a delegate that batches sends as
+    /// one batch each.
+    /// </summary>
+    [Test]
+    public async Task ARoundClaimsInOneCallAndWritesItsFiresInAnother()
+    {
+        GivenCandidates("t1", "t2", "t3");
+
+        await AcquireAndFire(maxCount: 3);
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._,
+                A<IReadOnlyList<TriggerClaim>>.That.Matches(x => x.Count == 3),
+                StoredTriggerState.Acquired,
+                StoredTriggerState.Waiting,
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => driverDelegate.ApplyTriggersFired(
+                A<ConnectionAndTransactionHolder>._,
+                A<IReadOnlyList<TriggerFiredUpdate>>.That.Matches(x => x.Count == 3 && x.All(update => update.FiredOnAcquire)),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// A claim another node took first is not this round's: it is neither fired nor reserved.
+    /// </summary>
+    [Test]
+    public async Task AClaimAnotherNodeTookIsNeitherFiredNorReserved()
+    {
+        GivenCandidates("t1", "t2", "t3");
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerClaim>>._, A<StoredTriggerState>._, A<StoredTriggerState>._, A<CancellationToken>._))
+            .Returns(new ValueTask<List<TriggerKey>>([new TriggerKey("t1", "g1"), new TriggerKey("t3", "g1")]));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 3);
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1", "t3"]);
+        round.Fired.Should().OnlyContain(x => x.TriggerFiredBundle != null);
+        A.CallTo(() => driverDelegate.InsertFiredTriggers(A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<IOperableTrigger>>._, A<StoredTriggerState>._, A<IJobDetail>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A batch of fire writes that failed without saying whose rolls the round back, and it runs again
+    /// claiming and writing one trigger at a time — which finds the one that failed, and fires the rest once
+    /// (#3931).
+    /// </summary>
+    [Test]
+    public async Task AWriteBatchThatFailedWithoutSayingWhoseRunsTheRoundAgainOneTriggerAtATime()
+    {
+        GivenCandidates("t1", "t2", "t3");
+        A.CallTo(() => driverDelegate.ApplyTriggersFired(A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerFiredUpdate>>._, A<CancellationToken>._))
+            .Throws(new TriggerWriteFailedException(-1, new InvalidOperationException("the batch failed")));
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(A<ConnectionAndTransactionHolder>._, A<TriggerFiredUpdate>.That.Matches(x => x.Trigger.Key.Name == "t2"), A<CancellationToken>._))
+            .Throws(new InvalidOperationException("t2's fire cannot be written"));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 3);
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1", "t2", "t3"]);
+        round.Fired[0].TriggerFiredBundle.Should().NotBeNull();
+        round.Fired[1].Exception.Should().NotBeNull("the fire that failed is found once the round writes one trigger at a time");
+        round.Fired[2].TriggerFiredBundle.Should().NotBeNull();
+        store.Transactions.Should().Be(3, "the batch that failed, the run that found the failed fire, and the run that committed without it");
+
+        // Only the first run claims together; the runs after it claim one trigger at a time.
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerClaim>>._, A<StoredTriggerState>._, A<StoredTriggerState>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// A batch of claims that could not say which took rolls the round back, and it claims one trigger at a
+    /// time instead.
+    /// </summary>
+    [Test]
+    public async Task AClaimOutcomeTheBatchCouldNotTellClaimsTheRoundAgainOneTriggerAtATime()
+    {
+        GivenCandidates("t1", "t2");
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerClaim>>._, A<StoredTriggerState>._, A<StoredTriggerState>._, A<CancellationToken>._))
+            .Throws(new ClaimOutcomeUnknownException(1, 2));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 2);
+
+        round.Fired.Should().HaveCount(2).And.OnlyContain(x => x.TriggerFiredBundle != null);
+        store.Transactions.Should().Be(2);
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<TriggerKey>._, A<StoredTriggerState>._, A<StoredTriggerState>._, A<DateTimeOffset>._, A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly();
     }
 
     private ValueTask<TriggerAcquisitionResult> AcquireAndFire(int maxCount, TimeSpan window = default)

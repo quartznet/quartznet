@@ -431,6 +431,57 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Update each of the given triggers to the given new state, if it is in the given old state and still
+    /// has the next fire time it is claimed with.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The plural of <see cref="UpdateTriggerStateFromOtherStateWithNextFireTime" />, for an acquisition
+    /// that fires what is due in the same transaction (#3864): its claims go together, where the provider
+    /// can batch them. <c>StdAdoDelegate</c> sends them as one <see cref="System.Data.Common.DbBatch" />.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a delegate written against an earlier 4.x keeps working: the default
+    /// is the single-trigger call for each claim, in order.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="claims">The triggers to claim, each with the next fire time it was read with.</param>
+    /// <param name="newState">The new state for the triggers.</param>
+    /// <param name="oldState">The old state each trigger must be in.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>
+    /// The keys of the triggers whose row moved, in the order given. A claim that found its row in another
+    /// state, or due at another time, is absent.
+    /// </returns>
+    async ValueTask<List<TriggerKey>> UpdateTriggerStatesFromOtherStateWithNextFireTime(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<TriggerClaim> claims,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
+        CancellationToken cancellationToken = default)
+    {
+        List<TriggerKey> moved = new(claims.Count);
+        foreach (TriggerClaim claim in claims)
+        {
+            int updated = await UpdateTriggerStateFromOtherStateWithNextFireTime(
+                conn,
+                claim.TriggerKey,
+                newState,
+                oldState,
+                claim.NextFireTimeUtc,
+                cancellationToken).ConfigureAwait(false);
+
+            if (updated > 0)
+            {
+                moved.Add(claim.TriggerKey);
+            }
+        }
+
+        return moved;
+    }
+
+    /// <summary>
     /// Update all triggers the group matcher selects to the given new state, if they are in one of the
     /// given old states.
     /// </summary>
@@ -579,6 +630,61 @@ public interface IDriverDelegate
         ConnectionAndTransactionHolder conn,
         TriggerFiredUpdate update,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Apply every row change the fires of one acquisition round make.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The plural of <see cref="ApplyTriggerFired" />, for an acquisition that fires what is due in the
+    /// same transaction (#3864): the round decides every fire before it writes any, so the writes of all of
+    /// them can go together. <c>StdAdoDelegate</c> sends them as one
+    /// <see cref="System.Data.Common.DbBatch" /> where the provider can batch. The writes of one fire keep
+    /// their order, and the fires keep the order given.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a delegate written against an earlier 4.x keeps working: the default
+    /// is <see cref="ApplyTriggerFired" /> for each update, in order. A failure that is not the caller's
+    /// cancellation comes out wrapped in a <see cref="JobPersistenceException" /> that says which update
+    /// failed, so that the store can roll back that fire alone.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="updates">The changes each fire makes, in the order the round fired them.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask ApplyTriggersFired(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<TriggerFiredUpdate> updates,
+        CancellationToken cancellationToken = default)
+    {
+        return ApplyEachTriggerFired(this, conn, updates, cancellationToken);
+    }
+
+    /// <summary>
+    /// <see cref="ApplyTriggerFired" /> for each update in turn, saying which one failed.
+    /// </summary>
+    /// <remarks>
+    /// Shared by the interface's default and by <c>StdAdoDelegate</c> where it does not batch, so that the
+    /// two report a failed fire the same way.
+    /// </remarks>
+    internal static async ValueTask ApplyEachTriggerFired(
+        IDriverDelegate driverDelegate,
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<TriggerFiredUpdate> updates,
+        CancellationToken cancellationToken)
+    {
+        for (int i = 0; i < updates.Count; i++)
+        {
+            try
+            {
+                await driverDelegate.ApplyTriggerFired(conn, updates[i], cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                throw new TriggerWriteFailedException(i, e);
+            }
+        }
+    }
 
     /// <summary>
     /// Delete the BLOB trigger data for a trigger.

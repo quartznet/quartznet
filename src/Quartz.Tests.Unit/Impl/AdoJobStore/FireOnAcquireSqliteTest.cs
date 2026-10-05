@@ -288,6 +288,59 @@ public sealed class FireOnAcquireSqliteTest
     }
 
     /// <summary>
+    /// Two due triggers of one job that disallows concurrent execution, both let into one round, with the
+    /// round's fire writes deferred until every fire is decided. The first fires; the second is held back
+    /// although the fired-trigger table cannot say the job is executing yet, and is left <c>BLOCKED</c> by
+    /// the first one's fire, as a fire of an acquired trigger leaves it.
+    /// </summary>
+    /// <remarks>
+    /// Acquisition keeps a second trigger of such a job out of the round by the flag the delegate reads
+    /// with each candidate. A delegate that does not read it leaves acquisition asking the job's type,
+    /// which a job made serial by its builder does not carry — so this is how two get in.
+    /// </remarks>
+    [Test]
+    public async Task TwoTriggersOfASerialJobInOneRoundFireOnceAndTheOtherIsLeftBlocked()
+    {
+        JobKey builderSerialJobKey = new("builder-serial", Group);
+        await scheduler.AddJob(JobBuilder.Create<RecordingJob>()
+            .WithIdentity(builderSerialJobKey)
+            .DisallowConcurrentExecution()
+            .StoreDurably()
+            .Build());
+
+        DateTimeOffset now = TimeProvider.System.GetUtcNow();
+        await Schedule("serial-a", builderSerialJobKey, now, priority: 10);
+        await Schedule("serial-b", builderSerialJobKey, now, priority: 5);
+        RecordingSqliteDelegate.ForgetConcurrencyFlag = true;
+
+        TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(RequestFor(maxCount: 2));
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["serial-a", "serial-b"],
+            "without the stored flag, acquisition asks the job's type, which carries no attribute");
+        round.Fired[0].TriggerFiredBundle.Should().NotBeNull();
+        round.Fired[1].TriggerFiredBundle.Should().BeNull(
+            "the job is running from the first fire on, though that fire's row is not written until the round's writes go out");
+        round.Fired[1].IsDeclined.Should().BeFalse();
+        round.Fired[1].Exception.Should().BeNull("held back is not failed, and is not counted towards parking the trigger");
+
+        RecordingSqliteDelegate.Fires.Should().Equal([("serial-a", true)], "one fire of the job is written, and only one");
+        (await FiredRow("serial-a")).Should().Be(("EXECUTING", "builder-serial"));
+        (await FiredRow("serial-b")).Should().Be(("ACQUIRED", null), "reserved as acquisition reserves a trigger it does not fire");
+        (await TriggerState("serial-b")).Should().Be("BLOCKED", "the first fire blocks every other trigger of its job");
+        (await AcquiredWithoutAFiredRow()).Should().Be(0);
+
+        // What the scheduler thread does with a trigger that did not fire.
+        await store.ReleaseAcquiredTrigger(round.Due[1]);
+
+        (await TriggerState("serial-b")).Should().Be("BLOCKED", "a release lets go of a reservation, not of the block");
+        (await FiredRowCount("serial-b")).Should().Be(0);
+
+        await store.TriggeredJobComplete(round.Fired[0].TriggerFiredBundle!.Trigger, round.Fired[0].TriggerFiredBundle!.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await TriggerState("serial-b")).Should().Be("WAITING", "the completion lets the job's other trigger go");
+    }
+
+    /// <summary>
     /// A running scheduler handed a round of triggers that are already due fires them without the second
     /// transaction.
     /// </summary>
@@ -421,6 +474,12 @@ public sealed class FireOnAcquireSqliteTest
         /// <summary>The trigger whose next fire fails as a busy database would make it fail, once.</summary>
         public static string? FailFireOfTransientlyOnce { get; set; }
 
+        /// <summary>
+        /// Whether acquisition candidates come back without the job's stored concurrency flag, as from a
+        /// delegate whose acquisition query does not read it.
+        /// </summary>
+        public static bool ForgetConcurrencyFlag { get; set; }
+
         /// <summary>Every fire the delegate was asked to write, in order, a rolled-back attempt's included.</summary>
         public static List<(string Trigger, bool FiredOnAcquire)> Fires
         {
@@ -446,6 +505,15 @@ public sealed class FireOnAcquireSqliteTest
             Volatile.Write(ref headerReads, 0);
             FailFireOf = null;
             FailFireOfTransientlyOnce = null;
+            ForgetConcurrencyFlag = false;
+        }
+
+        public override async ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(ConnectionAndTransactionHolder conn, TriggerAcquisitionCriteria criteria, CancellationToken cancellationToken = default)
+        {
+            List<TriggerAcquireResult> candidates = await base.SelectTriggersToAcquire(conn, criteria, cancellationToken);
+            return ForgetConcurrencyFlag
+                ? candidates.ConvertAll(candidate => candidate with { ConcurrentExecutionDisallowed = null })
+                : candidates;
         }
 
         public override ValueTask<StoredTriggerHeader?> SelectTriggerHeader(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default)

@@ -209,6 +209,12 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3050, Level = LogLevel.Error, Message = "Trigger {TriggerKey} failed to fire {Failures} times in a row and is stored ERROR; ResetTriggerFromErrorState returns it once the cause is fixed")]
     public static partial void FailingTriggerParkedInError(this ILogger logger, TriggerKey triggerKey, int failures);
 
+    [LoggerMessage(EventId = 3051, Level = LogLevel.Warning, Message = "The fires of an acquisition round, written as one batch, failed; the round is rolled back and its triggers fired one at a time to find the one that failed")]
+    public static partial void RoundBatchWriteFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 3052, Level = LogLevel.Warning, Message = "A batch of trigger claims did not report which of them took; the round is rolled back and its triggers claimed one at a time")]
+    public static partial void RoundBatchClaimUnknown(this ILogger logger, Exception exception);
+
     [LoggerMessage(EventId = 3100, Level = LogLevel.Debug, Message = "Prepared SQL: {Sql}")]
     public static partial void SqlPrepared(this ILogger logger, string sql);
 

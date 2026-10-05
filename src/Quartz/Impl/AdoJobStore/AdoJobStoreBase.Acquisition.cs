@@ -261,6 +261,11 @@ internal abstract partial class AdoJobStoreBase
                     // loop asks the database can see them.
                     List<IOperableTrigger> firedTriggerRows = [];
 
+                    // The claims of a round that fires what is due as it acquires it, made together at the
+                    // end of the pass: one batch, where the delegate sends one. Null for every other
+                    // acquisition, which claims each trigger as it comes to it.
+                    List<TriggerClaim>? planned = round is { ClaimsTogether: true } ? [] : null;
+
                     foreach (var result in results)
                     {
                         // Only a round reading past skipped rows can have more rows than it may take.
@@ -353,18 +358,27 @@ internal abstract partial class AdoJobStoreBase
                             break;
                         }
 
-                        // We now have a acquired trigger, let's add to return list.
-                        // If our trigger was no longer in the expected state, try a new one.
-                        int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Waiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
-                        if (rowsUpdated <= 0)
+                        // We now have a acquired trigger, let's add to return list. A round claiming its
+                        // triggers together counts this one as acquired until its claim says otherwise.
+                        if (planned is not null)
                         {
-                            // Not worth a warning: the row was no longer WAITING, which is what losing
-                            // the race to another node looks like, and in a cluster that is the ordinary
-                            // outcome of two nodes reaching for the same batch. Logging it would produce
-                            // noise proportional to how well the cluster is sharing its work.
-                            raced++;
-                            continue; // next trigger
+                            planned.Add(new TriggerClaim(triggerKey, nextFireTimeUtc.Value));
                         }
+                        else
+                        {
+                            // If our trigger was no longer in the expected state, try a new one.
+                            int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Waiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
+                            if (rowsUpdated <= 0)
+                            {
+                                // Not worth a warning: the row was no longer WAITING, which is what losing
+                                // the race to another node looks like, and in a cluster that is the ordinary
+                                // outcome of two nodes reaching for the same batch. Logging it would produce
+                                // noise proportional to how well the cluster is sharing its work.
+                                raced++;
+                                continue; // next trigger
+                            }
+                        }
+
                         nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
 
                         // A trigger this transaction fires has its row written by the fire; every other
@@ -384,6 +398,12 @@ internal abstract partial class AdoJobStoreBase
                         }
 
                         acquiredTriggers.Add(nextTrigger);
+                    }
+
+                    if (planned is { Count: > 0 })
+                    {
+                        await ClaimPlanned(conn, planned, acquiredTriggers, firedTriggerRows, cancellationToken).ConfigureAwait(false);
+                        raced += planned.Count - acquiredTriggers.Count;
                     }
 
                     if (firedTriggerRows.Count > 0)
@@ -711,7 +731,7 @@ internal abstract partial class AdoJobStoreBase
             {
                 // Clone so that trigger.Triggered() mutation doesn't affect retries
                 var triggerCopy = (IOperableTrigger) trigger.Clone();
-                result = await FireTrigger(conn, triggerCopy, prefetch: null, cancellationToken).ConfigureAwait(false);
+                result = await FireTrigger(conn, triggerCopy, prefetch: null, deferredWrites: null, cancellationToken).ConfigureAwait(false);
             }
             catch (JobPersistenceException jpe)
             {
@@ -784,7 +804,7 @@ internal abstract partial class AdoJobStoreBase
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        TriggerFiredResult result = await FireTrigger(conn, trigger, prefetch: null, cancellationToken).ConfigureAwait(false);
+        TriggerFiredResult result = await FireTrigger(conn, trigger, prefetch: null, deferredWrites: null, cancellationToken).ConfigureAwait(false);
         return result.TriggerFiredBundle;
     }
 
@@ -800,11 +820,16 @@ internal abstract partial class AdoJobStoreBase
     /// write their rows rather than update a reservation; <see langword="null" /> for the fire of a
     /// trigger acquired earlier, which reads its own.
     /// </param>
+    /// <param name="deferredWrites">
+    /// Where a round that writes its fires together collects this fire's writes instead of applying them;
+    /// <see langword="null" /> to apply them here.
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     private async ValueTask<TriggerFiredResult> FireTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         FireOnAcquirePrefetch? prefetch,
+        List<TriggerFiredUpdate>? deferredWrites,
         CancellationToken cancellationToken)
     {
         IJobDetail? job;
@@ -866,12 +891,14 @@ internal abstract partial class AdoJobStoreBase
         // This runs under the TRIGGER_ACCESS lock, providing serialized access.
         // The current trigger's own fired record has JOB_NAME=null (set during
         // AcquireNextTrigger), or does not exist yet when it fires as it is acquired,
-        // so it won't appear in the query results.
+        // so it won't appear in the query results. Nor does the row of a fire earlier in
+        // the same round whose writes are deferred, so the round answers for those itself.
         if (job.ConcurrentExecutionDisallowed)
         {
-            bool alreadyExecuting = await Guarded(
-                () => Delegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, cancellationToken),
-                $"check concurrent execution for job '{trigger.JobKey}'").ConfigureAwait(false);
+            bool alreadyExecuting = prefetch is not null && prefetch.FiredInRound(trigger.JobKey)
+                || await Guarded(
+                    () => Delegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, cancellationToken),
+                    $"check concurrent execution for job '{trigger.JobKey}'").ConfigureAwait(false);
 
             if (alreadyExecuting)
             {
@@ -1003,19 +1030,36 @@ internal abstract partial class AdoJobStoreBase
             state2 = await ApplyPausedGroupState(conn, trigger.Key.Group, trigger.JobKey.Group, state2, cancellationToken).ConfigureAwait(false);
         }
 
-        await Guarded(
-            () => Delegate.ApplyTriggerFired(conn, new TriggerFiredUpdate
+        TriggerFiredUpdate update = new()
+        {
+            Trigger = trigger,
+            JobDetail = job,
+            NewState = state2,
+            StoredTriggerType = header.TriggerType,
+            ScheduledFireTimeUtc = scheduledFireTimeUtc,
+            ClearMisfireOriginalFireTime = scheduledFireTime.HasValue,
+            BlockJobTriggers = job.ConcurrentExecutionDisallowed,
+            FiredOnAcquire = prefetch is not null,
+        };
+
+        if (deferredWrites is not null)
+        {
+            // Written with the rest of the round's fires once every one of them is decided. The one thing
+            // a later fire of the round decides on that this fire writes is whether the job is executing,
+            // and the round remembers that itself. Every other write is to the fire's own rows.
+            if (job.ConcurrentExecutionDisallowed)
             {
-                Trigger = trigger,
-                JobDetail = job,
-                NewState = state2,
-                StoredTriggerType = header.TriggerType,
-                ScheduledFireTimeUtc = scheduledFireTimeUtc,
-                ClearMisfireOriginalFireTime = scheduledFireTime.HasValue,
-                BlockJobTriggers = job.ConcurrentExecutionDisallowed,
-                FiredOnAcquire = prefetch is not null,
-            }, cancellationToken),
-            $"record the fire of trigger '{trigger.Key}' for '{trigger.JobKey}' job").ConfigureAwait(false);
+                prefetch!.MarkFiredInRound(trigger.JobKey);
+            }
+
+            deferredWrites.Add(update);
+        }
+        else
+        {
+            await Guarded(
+                () => Delegate.ApplyTriggerFired(conn, update, cancellationToken),
+                $"record the fire of trigger '{trigger.Key}' for '{trigger.JobKey}' job").ConfigureAwait(false);
+        }
 
         job.JobDataMap.ClearDirtyFlag();
 

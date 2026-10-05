@@ -169,6 +169,8 @@ matching on its text is not.
 | 3048 | Information | `Quartz` | `"Using configured lock handler {LockHandlerType} for data access locking (synchronization)."` |
 | 3049 | Warning | `Quartz` | `"Fire of trigger {TriggerKey} failed; the batch of {BatchSize} trigger(s) is rolled back and fired again without it, {Remaining} trigger(s) left"` |
 | 3050 | Error | `Quartz` | `"Trigger {TriggerKey} failed to fire {Failures} times in a row and is stored ERROR; ResetTriggerFromErrorState returns it once the cause is fixed"` |
+| 3051 | Warning | `Quartz` | `"The fires of an acquisition round, written as one batch, failed; the round is rolled back and its triggers fired one at a time to find the one that failed"` |
+| 3052 | Warning | `Quartz` | `"A batch of trigger claims did not report which of them took; the round is rolled back and its triggers claimed one at a time"` |
 | 3100 | Debug | `Quartz` | `"Prepared SQL: {Sql}"` |
 | 3110 | Error | `Quartz` | `"Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."` |
 | 3111 | Debug | `Quartz` | `"Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown."` |
