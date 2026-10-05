@@ -43,6 +43,11 @@
     --qz-color-awaiting: #0d9488;
     --qz-color-awaiting-bg: #ccfbf1;
 
+    /* The run chart's two duration lines: a pair of their own, checked for colour-blind separation
+       against each theme's surface, so neither reads as a state the other pages colour. */
+    --qz-chart-p50: #0d9488;
+    --qz-chart-p95: #7c3aed;
+
     /* --- Spacing (4px increments) --- */
     --qz-space-xs: 4px;
     --qz-space-sm: 8px;
@@ -126,6 +131,8 @@
         --qz-color-executing-bg: #3b0764;
         --qz-color-awaiting: #2dd4bf;
         --qz-color-awaiting-bg: #042f2e;
+        --qz-chart-p50: #0891b2;
+        --qz-chart-p95: #8b5cf6;
 
         --qz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
         --qz-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4),
@@ -172,6 +179,8 @@ body{
     --qz-color-executing-bg: #ede9fe;
     --qz-color-awaiting: #0d9488;
     --qz-color-awaiting-bg: #ccfbf1;
+    --qz-chart-p50: #0d9488;
+    --qz-chart-p95: #7c3aed;
 
     --qz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --qz-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
@@ -212,6 +221,8 @@ body{
     --qz-color-executing-bg: #3b0764;
     --qz-color-awaiting: #2dd4bf;
     --qz-color-awaiting-bg: #042f2e;
+    --qz-chart-p50: #0891b2;
+    --qz-chart-p95: #8b5cf6;
 
     --qz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --qz-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4),
@@ -1750,6 +1761,176 @@ body{
     .qz-history-table .qz-col-summary {
         display: none;
     }
+}
+
+/* The run chart: runs per bucket stacked by result, and the two duration lines beneath on an axis of their
+   own. Every colour is a token, so it follows the theme; the results wear the colours their state dots do. */
+.qz-run-chart {
+    margin: var(--qz-space-md) 0;
+    padding: var(--qz-space-md);
+    background-color: var(--qz-color-surface);
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-lg);
+}
+
+.qz-run-chart-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--qz-space-sm);
+}
+
+.qz-run-chart-title {
+    margin: 0;
+    font-size: var(--qz-font-size-lg);
+    font-weight: var(--qz-font-weight-semibold);
+}
+
+.qz-run-chart-summary {
+    color: var(--qz-color-text-secondary);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-run-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--qz-space-xs) var(--qz-space-md);
+    margin: var(--qz-space-sm) 0;
+    padding: 0;
+    list-style: none;
+    color: var(--qz-color-text-secondary);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-run-chart-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--qz-space-xs);
+}
+
+.qz-run-chart-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+.qz-run-chart-line-key {
+    display: inline-block;
+    width: 14px;
+    border-top: 2px solid;
+}
+
+.qz-run-chart-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.qz-run-chart-panel-label {
+    fill: var(--qz-color-text-secondary);
+    font-size: 11px;
+    font-weight: var(--qz-font-weight-semibold);
+}
+
+.qz-run-chart-tick {
+    fill: var(--qz-color-text-secondary);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.qz-run-chart-grid {
+    stroke: var(--qz-color-border);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+
+.qz-run-chart-hit {
+    fill: transparent;
+}
+
+.qz-run-chart-bucket:hover .qz-run-chart-hit {
+    fill: var(--qz-color-surface-hover);
+}
+
+.qz-run-succeeded {
+    fill: var(--qz-color-success);
+    background-color: var(--qz-color-success);
+}
+
+.qz-run-skipped {
+    fill: var(--qz-color-info);
+    background-color: var(--qz-color-info);
+}
+
+.qz-run-cancelled {
+    fill: var(--qz-color-warning);
+    background-color: var(--qz-color-warning);
+}
+
+.qz-run-failed {
+    fill: var(--qz-color-danger);
+    background-color: var(--qz-color-danger);
+}
+
+.qz-run-chart-line {
+    fill: none;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.qz-run-chart-p50 {
+    stroke: var(--qz-chart-p50);
+}
+
+.qz-run-chart-p95 {
+    stroke: var(--qz-chart-p95);
+}
+
+.qz-run-chart-dot {
+    stroke: var(--qz-color-surface);
+    stroke-width: 2;
+}
+
+.qz-run-chart-p50-dot {
+    fill: var(--qz-chart-p50);
+}
+
+.qz-run-chart-p95-dot {
+    fill: var(--qz-chart-p95);
+}
+
+.qz-run-chart-key-p50 {
+    border-top-color: var(--qz-chart-p50);
+}
+
+.qz-run-chart-key-p95 {
+    border-top-color: var(--qz-chart-p95);
+}
+
+.qz-run-chart-details {
+    margin-top: var(--qz-space-sm);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-run-chart-details > summary {
+    cursor: pointer;
+    color: var(--qz-color-text-secondary);
+}
+
+.qz-run-chart-details .qz-table td,
+.qz-run-chart-details .qz-table th {
+    font-variant-numeric: tabular-nums;
+}
+
+/* The pages' window choice for the chart, beside the heading it scopes. */
+.qz-run-window {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--qz-space-sm);
 }
 
 /* ==========================================================================

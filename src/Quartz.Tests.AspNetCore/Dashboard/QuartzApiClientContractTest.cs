@@ -532,6 +532,30 @@ public sealed class QuartzApiClientContractTest
     }
 
     /// <summary>
+    /// The run statistics read the same through the client over both carriers: from the store the history is
+    /// read from, and for the HTTP carrier through <c>…/history/statistics</c> once the host has said it is 4.4.
+    /// </summary>
+    [Test]
+    public async Task RunStatisticsAreReadThroughTheClient()
+    {
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await history.AddExecution(Execution(start, "healthy") with { Result = JobRunResult.Succeeded, Duration = TimeSpan.FromMilliseconds(100) });
+        await history.AddExecution(Failure(start.AddMinutes(1), "sick") with { Duration = TimeSpan.FromMilliseconds(300) });
+
+        ExecutionStatistics statistics = await client.QueryExecutionStatistics(new ExecutionStatisticsQuery
+        {
+            SchedulerName = scheduler.SchedulerName,
+            JobGroup = "contract",
+            BucketSize = TimeSpan.FromDays(1)
+        });
+
+        statistics.Buckets.Sum(bucket => bucket.RunCount).Should().Be(2);
+        statistics.Buckets.Sum(bucket => bucket.FailedCount).Should().Be(1);
+        statistics.Buckets.Max(bucket => bucket.MaxDuration).Should().Be(TimeSpan.FromMilliseconds(300));
+        statistics.BucketSize.Should().Be(TimeSpan.FromDays(1));
+    }
+
+    /// <summary>
     /// What a scheduler does is watchable from this container, from the process the scheduler runs in.
     /// </summary>
     /// <remarks>

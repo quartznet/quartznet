@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Globalization;
+
 namespace Quartz.Dashboard.Components.Shared;
 
 /// <summary>
@@ -35,6 +37,30 @@ internal static class DisplayValueHelper
         string safeGroup = string.IsNullOrWhiteSpace(group) ? "DEFAULT" : group;
         string safeName = string.IsNullOrWhiteSpace(name) ? "(unknown)" : name;
         return safeGroup + "." + safeName;
+    }
+
+    /// <summary>
+    /// A duration in the largest unit that keeps it readable: sub-second runs in milliseconds, anything up to
+    /// a minute in seconds, anything longer spelled out; <c>n/a</c> for none.
+    /// </summary>
+    public static string FormatDuration(TimeSpan duration)
+    {
+        if (duration <= TimeSpan.Zero)
+        {
+            return "n/a";
+        }
+
+        if (duration < TimeSpan.FromSeconds(1))
+        {
+            return duration.TotalMilliseconds.ToString("0.###", CultureInfo.InvariantCulture) + " ms";
+        }
+
+        if (duration < TimeSpan.FromMinutes(1))
+        {
+            return duration.TotalSeconds.ToString("0.##", CultureInfo.InvariantCulture) + " s";
+        }
+
+        return duration.ToString("g", CultureInfo.InvariantCulture);
     }
 
     /// <summary>

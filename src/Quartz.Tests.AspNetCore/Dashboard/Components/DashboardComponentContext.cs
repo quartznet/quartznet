@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
@@ -67,6 +68,11 @@ internal sealed class DashboardComponentContext : BunitContext
         AuthenticationState = new TestAuthenticationStateProvider();
 
         Services.AddSingleton(Api);
+
+        // The clock the History and Job Detail pages measure their chart's window on, so a case can say which
+        // instant "the last 24 hours" ends at.
+        Clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 5, 14, 23, 0, TimeSpan.Zero));
+        Services.AddSingleton<TimeProvider>(Clock);
 
         // The process's event stream, which is what the Live Logs page reads for a scheduler this container
         // runs. A context told of a scheduler somewhere else holds a keyed one beside it, which is what the
@@ -132,6 +138,11 @@ internal sealed class DashboardComponentContext : BunitContext
         A.CallTo(() => Api.GetJobRunStatuses(A<string>._, A<IReadOnlyCollection<JobKeyDto>>._, A<CancellationToken>._))
             .CallsBaseMethod();
 
+        // Nor counts runs over time, so the pages leave the chart out and the History page's stat cards stay
+        // over the page, unless a case is about the chart.
+        A.CallTo(() => Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+
         // And no pause recorded anything, rather than the dummy record a fake would invent.
         A.CallTo(() => Api.GetTriggerPause(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
             .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
@@ -145,6 +156,9 @@ internal sealed class DashboardComponentContext : BunitContext
     }
 
     public IQuartzApiClient Api { get; }
+
+    /// <summary>The pages' clock: 14:23 UTC on 5 October 2026 until a case moves it.</summary>
+    public FakeTimeProvider Clock { get; }
 
     public TestSchedulerAuthorizationService AuthorizationService { get; }
 
