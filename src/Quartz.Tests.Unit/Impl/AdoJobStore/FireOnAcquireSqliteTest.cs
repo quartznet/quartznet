@@ -385,6 +385,33 @@ public sealed class FireOnAcquireSqliteTest
     }
 
     /// <summary>
+    /// The database refusing the round's read of its jobs fails the round, rather than leaving each fire to
+    /// read its own job. On PostgreSQL a refused statement aborts the transaction, so every read after it
+    /// would fail too, and each trigger of the round would be blamed — and counted towards parking — for a
+    /// failure that was not its own.
+    /// </summary>
+    [Test]
+    public async Task TheDatabaseRefusingTheRoundsJobReadFailsTheRoundAndBlamesNoTrigger()
+    {
+        DateTimeOffset now = TimeProvider.System.GetUtcNow();
+        await Schedule("ordinary-1", ordinaryJobKey, now, priority: 10);
+        await Schedule("ordinary-2", ordinaryJobKey, now, priority: 5);
+        RecordingSqliteDelegate.RefuseJobReadOnce = true;
+
+        Func<Task> round = async () => await store.AcquireNextTriggersAndFireDue(RequestFor(maxCount: 2));
+
+        (await round.Should().ThrowAsync<JobPersistenceException>("the database's refusal is the round's failure, retried by the scheduler as any failed acquisition is"))
+            .Which.InnerException.Should().BeAssignableTo<DbException>();
+        RecordingSqliteDelegate.Fires.Should().BeEmpty("no fire was decided on a transaction the database may have aborted");
+        (await TriggerState("ordinary-1")).Should().Be("WAITING", "the round was rolled back whole, claims included");
+        (await TriggerState("ordinary-2")).Should().Be("WAITING");
+        (await FiredRowCount("ordinary-1")).Should().Be(0);
+
+        TriggerAcquisitionResult next = await store.AcquireNextTriggersAndFireDue(RequestFor(maxCount: 2));
+        next.Fired.Should().HaveCount(2).And.OnlyContain(x => x.TriggerFiredBundle != null, "the next round reads the jobs and fires both");
+    }
+
+    /// <summary>
     /// A running scheduler handed a round of triggers that are already due fires them without the second
     /// transaction.
     /// </summary>
@@ -525,6 +552,11 @@ public sealed class FireOnAcquireSqliteTest
         public static bool ForgetConcurrencyFlag { get; set; }
 
         /// <summary>
+        /// Whether the next read of a round's jobs is refused by the database itself; once.
+        /// </summary>
+        public static bool RefuseJobReadOnce { get; set; }
+
+        /// <summary>
         /// The trigger another node fires as it acquires it, between the acquisition's read of the candidates
         /// and its read-back of their rows; once.
         /// </summary>
@@ -564,6 +596,23 @@ public sealed class FireOnAcquireSqliteTest
             ForgetConcurrencyFlag = false;
             FireElsewhereBeforeReadBack = null;
             LoseFireTimeOnReadBack = null;
+            RefuseJobReadOnce = false;
+        }
+
+        public override async ValueTask<List<IJobDetail>> SelectJobDetails(ConnectionAndTransactionHolder conn, IReadOnlyCollection<JobKey> jobKeys, ITypeLoader typeLoader, CancellationToken cancellationToken = default)
+        {
+            if (RefuseJobReadOnce)
+            {
+                RefuseJobReadOnce = false;
+
+                // A statement the database itself refuses, which is what aborts a PostgreSQL transaction.
+                using DbCommand command = conn.Connection.CreateCommand();
+                conn.Attach(command);
+                command.CommandText = "SELECT JOB_DATA FROM QRTZ_NO_SUCH_TABLE";
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            return await base.SelectJobDetails(conn, jobKeys, typeLoader, cancellationToken);
         }
 
         public override async ValueTask<List<IOperableTrigger>> SelectTriggers(ConnectionAndTransactionHolder conn, IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
