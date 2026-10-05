@@ -55,8 +55,10 @@ The first rule that holds wins:
 * The summary and metrics are recorded whichever rule wins.
 * Any other `context.Result` is ignored. `NativeJob` keeps an exit code there.
 * `ExecutionHistoryEntry.Succeeded` is `true` for `Succeeded` and `Skipped`.
-* The `quartz.job.execution.duration` histogram carries the same result, lower-cased, as `quartz.job.result`,
-  with or without the history. See [Metrics](../packages/opentelemetry-integration.md#metrics).
+* The `quartz.job.execution.duration` histogram and the `Quartz.Job.Execute` span carry the same result,
+  lower-cased, as `quartz.job.result`, with or without the history. See
+  [Metrics](../packages/opentelemetry-integration.md#metrics) and
+  [Failed spans](../packages/opentelemetry-integration.md#failed-spans).
 
 ## Throw to make the scheduler act
 

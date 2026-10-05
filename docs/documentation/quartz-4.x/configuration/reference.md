@@ -59,6 +59,7 @@ still accepts them. See [Legacy property keys](#legacy-property-keys).
 | `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may join the current batch. At zero, a batch takes the triggers already due. |
 | `ShutdownJobInterruption` | `ShutdownJobInterruption` | `Never` | When a shutting-down scheduler signals cancellation to running jobs. |
 | `PropagateTraceContext` | bool | `true` | Stores the ambient trace context on a trigger scheduled inside an `Activity`, so the firing's span links back. See below. |
+| `RecordExceptionSpanEvents` | bool? | `null`: follows `OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN`, which records them unless it is `logs` | Records a thrown exception as an `exception` event on the failed span. See [Exceptions as span events](../packages/opentelemetry-integration.md#exceptions-as-span-events). |
 | `Context` | dictionary | empty | Values seeded into `SchedulerContext`. Get-only: add to it (`options.Context["environment"] = "staging"`). |
 
 - `MaxBatchSize` at `0` resolves when the scheduler is built: `ThreadPool:MaxConcurrency` on a persistent

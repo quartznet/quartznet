@@ -270,13 +270,78 @@ public sealed class TracingJobStoreTest
 
         Activity span = SpanFor(OperationName.JobStore.PauseAll);
         span.Status.Should().Be(ActivityStatusCode.Error);
-        span.Events.Should().ContainSingle(e => e.Name == "exception");
+        span.StatusDescription.Should().Be("the database is gone");
+        span.Events.Should().ContainSingle(e => e.Name == "exception",
+            "exceptions are recorded as span events unless the application or the environment opts out");
+        span.GetTagItem(ErrorTypeTag).Should().Be(typeof(JobPersistenceException).FullName,
+            "the span names the failure the way its measurement does, as OpenTelemetry asks of a failed operation");
 
         measurements.Should().ContainSingle()
             .Which.Tags.Should().ContainKey(ErrorTypeTag)
             .WhoseValue.Should().Be(typeof(JobPersistenceException).FullName,
                 "a store that is failing is the thing an alert on this histogram is for, and it would "
                 + "otherwise be indistinguishable from a fast one");
+    }
+
+    /// <summary>
+    /// With exception events off, a failed operation's span loses the event and keeps everything else.
+    /// </summary>
+    [Test]
+    public async Task WithExceptionEventsOff_AFailedOperationKeepsItsStatusAndErrorType()
+    {
+        IJobStore inner = StubStore();
+        A.CallTo(() => inner.PauseAll(A<CancellationToken>.Ignored))
+            .Throws(new JobPersistenceException("the database is gone"));
+
+        IJobStore store = await Decorated(inner, recordExceptionEvents: false);
+
+        Func<Task> act = async () => await store.PauseAll();
+        await act.Should().ThrowAsync<JobPersistenceException>("turning the event off changes no behaviour");
+
+        Activity span = SpanFor(OperationName.JobStore.PauseAll);
+        span.Events.Should().BeEmpty("the exception goes to whoever catches it, not onto the span");
+        span.Status.Should().Be(ActivityStatusCode.Error);
+        span.StatusDescription.Should().Be("the database is gone");
+        span.GetTagItem(ErrorTypeTag).Should().Be(typeof(JobPersistenceException).FullName,
+            "error.type is what is left of the exception's type on the span, so it has to stay");
+    }
+
+    /// <summary>
+    /// The scheduler option reaches the decorator the container wraps around the store.
+    /// </summary>
+    [Test]
+    public async Task TheSchedulerOption_TurnsTheStoreSpansExceptionEventsOff()
+    {
+        string schedulerName = $"no-exception-events-{Guid.NewGuid():N}";
+        ServiceCollection services = new();
+        services.AddQuartz(quartz => quartz.ConfigureScheduler(options =>
+        {
+            options.InstanceName = schedulerName;
+            options.RecordExceptionSpanEvents = false;
+        }));
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job", "jobs").StoreDurably().Build();
+        await scheduler.AddJob(job);
+
+        Func<Task> act = async () => await scheduler.AddJob(job);
+        await act.Should().ThrowAsync<ObjectAlreadyExistsException>(
+            "the in-memory store refuses a second job under the same key, which is a failure inside a store span");
+
+        Activity failed;
+        lock (stoppedActivities)
+        {
+            failed = stoppedActivities.Should().ContainSingle(a =>
+                    a.OperationName == OperationName.JobStore.AddJob
+                    && a.Status == ActivityStatusCode.Error
+                    && Equals(a.GetTagItem(SchedulerNameTag), schedulerName))
+                .Subject;
+        }
+
+        failed.Events.Should().BeEmpty("the scheduler was configured to record no exception events");
+        failed.GetTagItem(ErrorTypeTag).Should().Be(typeof(ObjectAlreadyExistsException).FullName);
     }
 
     /// <summary>
@@ -513,12 +578,12 @@ public sealed class TracingJobStoreTest
         return store;
     }
 
-    private static async Task<IJobStore> Decorated(IJobStore inner)
+    private static async Task<IJobStore> Decorated(IJobStore inner, bool recordExceptionEvents = true)
     {
         SchedulerIdentity identity = new() { SchedulerName = "traced", InstanceId = "node-1" };
         await inner.Initialize(identity);
 
-        TracingJobStore store = new(inner, new Meters(meterFactory: null), TimeProvider.System);
+        TracingJobStore store = new(inner, new Meters(meterFactory: null), TimeProvider.System, recordExceptionEvents);
         await store.Initialize(identity);
         return store;
     }

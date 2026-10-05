@@ -384,61 +384,116 @@ public sealed class JobExecutionObservabilityTest
     }
 
     // ---------------------------------------------------------------------------------------------
-    // quartz.job.result: what the run achieved, as the execution history records it
+    // quartz.job.result: what the run achieved, as the execution history records it, on the duration
+    // histogram and on the Quartz.Job.Execute span alike
     // ---------------------------------------------------------------------------------------------
 
     [Test]
     public async Task ARunThatSucceeded_IsTaggedSucceeded()
     {
-        RecordedMeasurement duration = DurationOf(await RunJob<SucceedingJob>());
+        Execution execution = await RunJob<SucceedingJob>();
+        RecordedMeasurement duration = DurationOf(execution);
+        Activity span = ActivityFor(execution.JobKey);
 
         duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "succeeded"));
         duration.Tags.Should().NotContainKey(ErrorTypeTag, "nothing failed");
+
+        span.GetTagItem(JobResultTag).Should().Be("succeeded",
+            "the span says what the histogram says, so a run can be found by its result in a trace too");
+        span.Status.Should().Be(ActivityStatusCode.Unset);
+        span.GetTagItem(ErrorTypeTag).Should().BeNull();
     }
 
     [Test]
     public async Task ARunThatThrew_IsTaggedFailedAndKeepsItsErrorType()
     {
-        RecordedMeasurement duration = DurationOf(await RunJob<ThrowingJob>());
+        Execution execution = await RunJob<ThrowingJob>();
+        RecordedMeasurement duration = DurationOf(execution);
+        Activity span = ActivityFor(execution.JobKey);
 
         duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "failed"));
         duration.Tags.Should().ContainKey(ErrorTypeTag).WhoseValue.Should().Be(typeof(InvalidOperationException).FullName,
             "the result says the run failed, and error.type still says with what");
+
+        span.GetTagItem(JobResultTag).Should().Be("failed");
+        span.Status.Should().Be(ActivityStatusCode.Error, "the job threw, which is what ends a firing's span in error");
+        span.GetTagItem(ErrorTypeTag).Should().Be(typeof(InvalidOperationException).FullName);
     }
 
     [Test]
     public async Task ARunThatWasInterrupted_IsTaggedCancelledWithNoErrorType()
     {
-        RecordedMeasurement duration = DurationOf(await RunJob<SelfInterruptingJob>());
+        Execution execution = await RunJob<SelfInterruptingJob>();
+        RecordedMeasurement duration = DurationOf(execution);
+        Activity span = ActivityFor(execution.JobKey);
 
         duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "cancelled"),
             "the history records an interrupted run as Cancelled, and the histogram reads it the same way");
         duration.Tags.Should().NotContainKey(ErrorTypeTag,
             "a cancellation is something asked for, not a failure, so there is no error to name");
+
+        span.GetTagItem(JobResultTag).Should().Be("cancelled");
+        span.Status.Should().Be(ActivityStatusCode.Unset, "a cancellation was asked for, so the span is not an error");
+        span.GetTagItem(ErrorTypeTag).Should().BeNull();
     }
 
     [Test]
     public async Task ARunThatReportedItselfSkipped_IsTaggedSkipped()
     {
-        RecordedMeasurement duration = DurationOf(await RunJob<SkippingJob>());
+        Execution execution = await RunJob<SkippingJob>();
+        RecordedMeasurement duration = DurationOf(execution);
+        Activity span = ActivityFor(execution.JobKey);
 
         duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "skipped"),
             "the job's own JobRunReport decides when nothing failed or was cancelled, as it does in the history");
         duration.Tags.Should().NotContainKey(ErrorTypeTag);
+
+        span.GetTagItem(JobResultTag).Should().Be("skipped");
+        span.Status.Should().Be(ActivityStatusCode.Unset);
     }
 
     /// <summary>
-    /// <c>error.type</c> keeps its meaning: the name of what a failed run threw.
+    /// <c>error.type</c> keeps its meaning: the name of what a failed run threw. And the span's status
+    /// keeps its rule: error when the job threw, not when its report says it failed.
     /// </summary>
     [Test]
     public async Task ARunItsReportCalledFailed_IsTaggedFailedWithNoErrorType()
     {
-        RecordedMeasurement duration = DurationOf(await RunJob<ReportedFailureJob>());
+        Execution execution = await RunJob<ReportedFailureJob>();
+        RecordedMeasurement duration = DurationOf(execution);
+        Activity span = ActivityFor(execution.JobKey);
 
         duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "failed"),
             "the job's report said it failed, and the history row says so too");
         duration.Tags.Should().NotContainKey(ErrorTypeTag,
             "nothing was thrown, so there is no exception type to name");
+
+        span.GetTagItem(JobResultTag).Should().Be("failed", "the span reports the result the history records");
+        span.Status.Should().Be(ActivityStatusCode.Unset,
+            "the firing itself went through: the job ran and returned, so nothing about the span is an error");
+        span.GetTagItem(ErrorTypeTag).Should().BeNull("nothing was thrown, so there is no exception type to name");
+        span.Events.Should().BeEmpty("there is no exception to record");
+    }
+
+    /// <summary>
+    /// The result is the execution's to report: a veto never ran, and a store operation is not a run.
+    /// </summary>
+    [Test]
+    public async Task TheResultIsOnTheExecuteSpanAndNoOther()
+    {
+        Execution executed = await RunJob<SucceedingJob>();
+        Execution vetoed = await RunJob<SucceedingJob>(veto: true);
+
+        ActivityFor(executed.JobKey).GetTagItem(JobResultTag).Should().Be("succeeded");
+        ActivityFor(vetoed.JobKey, "Quartz.Job.Veto").GetTagItem(JobResultTag).Should().BeNull(
+            "a vetoed firing never ran, so it achieved nothing to report");
+
+        List<Activity> others = StoppedActivities().Where(a => a.OperationName != "Quartz.Job.Execute").ToList();
+
+        others.Should().Contain(a => a.OperationName == "Quartz.JobStore.TriggersFired",
+            "both schedulers fired a trigger through their store, so the sweep below is over real store spans");
+        others.Should().AllSatisfy(a => a.GetTagItem(JobResultTag).Should().BeNull(
+            $"{a.OperationName} is not a job run, and a result on it would be counted as one"));
     }
 
     [Test]
@@ -562,7 +617,9 @@ public sealed class JobExecutionObservabilityTest
     [Test]
     public async Task FailingJobExecution_EmitsActivityWithErrorStatusAndException()
     {
-        Execution execution = await RunJob<ThrowingJob>();
+        // Cleared rather than assumed unset, so that a machine exporting the variable cannot pass this off
+        // as the default.
+        Execution execution = await UnderExceptionSignalOptIn(null, () => RunJob<ThrowingJob>());
 
         Activity activity = ActivityFor(execution.JobKey);
 
@@ -578,6 +635,88 @@ public sealed class JobExecutionObservabilityTest
         failed.Tags[ErrorTypeTag].Should().Be(activity.GetTagItem(ErrorTypeTag),
             "the two signals are read together, and disagreeing about what failed is worse than either "
             + "of them being silent");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Exceptions as span events: on by default, off by the option or by OpenTelemetry's opt-in
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Turning the event off removes the copy of the exception on the span and nothing else.
+    /// </summary>
+    [Test]
+    public async Task TurningExceptionEventsOff_KeepsTheStatusTheDescriptionAndTheErrorType()
+    {
+        Execution execution = await RunJob<DeliberatelyFailingJob>(recordExceptionSpanEvents: false);
+
+        Activity activity = ActivityFor(execution.JobKey);
+
+        activity.Events.Should().BeEmpty(
+            "the application asked for exceptions as logs only, and Quartz has already logged this one");
+        activity.Status.Should().Be(ActivityStatusCode.Error, "the firing still failed");
+        activity.StatusDescription.Should().Be("this job reports its own failure",
+            "the description is what a backend shows beside the status, and it does not depend on the event");
+        activity.GetTagItem(ErrorTypeTag).Should().Be(typeof(JobExecutionException).FullName,
+            "error.type is what is left of the exception's type on the span, so it has to stay");
+        activity.GetTagItem(JobResultTag).Should().Be("failed");
+    }
+
+    [Test]
+    public async Task TheOptInVariableSetToLogs_StopsTheExceptionEvent()
+    {
+        Execution execution = await UnderExceptionSignalOptIn("logs", () => RunJob<DeliberatelyFailingJob>());
+
+        Activity activity = ActivityFor(execution.JobKey);
+
+        activity.Events.Should().BeEmpty(
+            "OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN=logs asks for exceptions as logs only, and the option was left unset");
+        activity.Status.Should().Be(ActivityStatusCode.Error);
+        activity.StatusDescription.Should().Be("this job reports its own failure");
+        activity.GetTagItem(ErrorTypeTag).Should().Be(typeof(JobExecutionException).FullName);
+    }
+
+    [Test]
+    public async Task TheOptInVariableSetToLogsDup_KeepsTheExceptionEvent()
+    {
+        Execution execution = await UnderExceptionSignalOptIn("logs/dup", () => RunJob<DeliberatelyFailingJob>());
+
+        ActivityFor(execution.JobKey).Events.Should().ContainSingle(e => e.Name == "exception",
+            "logs/dup asks for both, and Quartz logs the exception either way");
+    }
+
+    [Test]
+    public async Task TheTypedOptionWinsOverTheOptInVariable()
+    {
+        Execution execution = await UnderExceptionSignalOptIn(
+            "logs",
+            () => RunJob<DeliberatelyFailingJob>(recordExceptionSpanEvents: true));
+
+        ActivityFor(execution.JobKey).Events.Should().ContainSingle(e => e.Name == "exception",
+            "an application that set the option said what it wants, and the environment does not overrule it");
+    }
+
+    /// <summary>
+    /// Runs <paramref name="body" /> with <c>OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN</c> set to
+    /// <paramref name="value" />, or cleared when it is <see langword="null" />, and puts the variable back.
+    /// </summary>
+    /// <remarks>
+    /// Safe because the fixture is non-parallelizable: the variable is read when a scheduler is built, and no
+    /// other fixture builds one while this one runs.
+    /// </remarks>
+    private static async Task<T> UnderExceptionSignalOptIn<T>(string value, Func<Task<T>> body)
+    {
+        const string OptIn = "OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN";
+
+        string previous = Environment.GetEnvironmentVariable(OptIn);
+        Environment.SetEnvironmentVariable(OptIn, value);
+        try
+        {
+            return await body();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(OptIn, previous);
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -863,7 +1002,8 @@ public sealed class JobExecutionObservabilityTest
         string executionGroup = null,
         IJobExecutionMiddleware middleware = null,
         bool propagateTraceContext = true,
-        Activity scheduledUnder = null) where TJob : IJob
+        Activity scheduledUnder = null,
+        bool? recordExceptionSpanEvents = null) where TJob : IJob
     {
         string id = Guid.NewGuid().ToString("N");
         JobKey jobKey = new($"job-{id}", $"job-group-{id}");
@@ -880,6 +1020,7 @@ public sealed class JobExecutionObservabilityTest
             {
                 options.InstanceName = $"observability-{id}";
                 options.PropagateTraceContext = propagateTraceContext;
+                options.RecordExceptionSpanEvents = recordExceptionSpanEvents;
             });
             quartz.AddJobListener(completion);
             if (veto)

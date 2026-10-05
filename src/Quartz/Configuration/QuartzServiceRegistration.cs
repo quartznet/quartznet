@@ -240,6 +240,10 @@ internal static class QuartzServiceRegistration
             var threadPool = provider.GetScheduler<IThreadPool>(key);
             var jobStore = provider.GetScheduler<IJobStore>(key);
 
+            // Resolved once, here, for both places a span records an exception: the run shell's and the
+            // store decorator's.
+            bool recordExceptionSpanEvents = ExceptionSignal.RecordsSpanEvents(options.RecordExceptionSpanEvents);
+
             var resources = new QuartzSchedulerResources
             {
                 Name = instanceName,
@@ -253,12 +257,13 @@ internal static class QuartzServiceRegistration
                 BatchTimeWindow = options.BatchTriggerAcquisitionFireAheadTimeWindow,
                 ShutdownJobInterruption = options.ShutdownJobInterruption,
                 PropagateTraceContext = options.PropagateTraceContext,
+                RecordExceptionSpanEvents = recordExceptionSpanEvents,
                 TimeProvider = timeProvider,
                 LoggerFactory = provider.GetSchedulerLoggerFactory(),
                 Meters = meters,
                 JobInputSerializer = provider.GetScheduler<IJobInputSerializer>(key),
                 ThreadPool = threadPool,
-                JobStore = Instrument(jobStore, meters, timeProvider),
+                JobStore = Instrument(jobStore, meters, timeProvider, recordExceptionSpanEvents),
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
                 SchedulerRepository = provider.GetRequiredService<ISchedulerRepository>(),
                 JobExecutionPipeline = ComposeJobExecutionPipeline(provider, key),
@@ -378,14 +383,14 @@ internal static class QuartzServiceRegistration
     /// scheduler that is about to be built from these resources.
     /// </para>
     /// </remarks>
-    private static TracingJobStore Instrument(IJobStore jobStore, Meters meters, TimeProvider timeProvider)
+    private static TracingJobStore Instrument(IJobStore jobStore, Meters meters, TimeProvider timeProvider, bool recordExceptionSpanEvents)
     {
         if (JobStores.Unwrap(jobStore) is AdoJobStoreBase persistent)
         {
             persistent.Meters = meters;
         }
 
-        return new TracingJobStore(jobStore, meters, timeProvider);
+        return new TracingJobStore(jobStore, meters, timeProvider, recordExceptionSpanEvents);
     }
 
     /// <summary>

@@ -180,42 +180,74 @@ internal readonly struct StartedActivity
     }
 
     /// <summary>
-    /// Closes the span, timing it by the clock the rest of the firing is timed by.
+    /// Closes an execution's span, timing it by the clock the rest of the firing is timed by, and tags it
+    /// with what the run achieved.
     /// </summary>
     /// <remarks>
     /// The clock is read inside, and only when there is a span to stamp — see
-    /// <see cref="QuartzActivitySource.StartJobExecute" />.
+    /// <see cref="QuartzActivitySource.StartJobExecute" />. So is the result: a firing nobody is tracing
+    /// classifies nothing here.
     /// </remarks>
-    public void Stop(TimeProvider timeProvider, JobExecutionException? jobExEx) => StopCore(timeProvider, jobExEx);
-
-    /// <summary>
-    /// Closes the span, timing it by <see cref="Activity" />'s own clock.
-    /// </summary>
-    public void Stop() => StopCore(timeProvider: null, jobExEx: null);
-
-    private void StopCore(TimeProvider? timeProvider, JobExecutionException? jobExEx)
+    /// <param name="timeProvider">The clock the firing is timed by.</param>
+    /// <param name="outcome">How the firing ended, as the run shell is about to settle it.</param>
+    /// <param name="jobResult">What the job set as <see cref="IJobExecutionContext.Result" />.</param>
+    /// <param name="jobExEx">What the job threw, or <see langword="null" />.</param>
+    /// <param name="recordExceptionEvent">
+    /// Whether a thrown exception is also recorded as a span event. See <see cref="ExceptionSignal" />.
+    /// </param>
+    public void Stop(
+        TimeProvider timeProvider,
+        ExecutionOutcome outcome,
+        object? jobResult,
+        JobExecutionException? jobExEx,
+        bool recordExceptionEvent)
     {
         if (activity is null)
         {
             return;
         }
 
-        if (timeProvider is not null)
-        {
-            activity.SetEndTime(timeProvider.GetUtcNow().UtcDateTime);
-        }
+        activity.SetEndTime(timeProvider.GetUtcNow().UtcDateTime);
 
+        // The result the duration histogram is tagged with and the history row records, by the same rule,
+        // so a trace and a metric agree on what a run achieved.
+        JobRunResult result = JobRunClassifier.ResultOf(outcome, jobResult as IJobRunReport, jobExEx);
+        activity.SetTag(ActivityTags.JobResult, Meters.JobResultTag(result));
+
+        // Error only when the job threw. A run its own report calls failed is tagged failed above and
+        // otherwise left alone: nothing went wrong with the firing, and error.type would have nothing to
+        // name.
         if (jobExEx != null)
         {
             activity.SetStatus(ActivityStatusCode.Error, jobExEx.Message);
             // The same value the duration measurement is tagged with, so a failure can be found by the same
-            // attribute in a trace and in a metric. The exception event below keeps the whole chain,
-            // wrappers included, because that is where the stack traces are.
+            // attribute in a trace and in a metric. The exception event below, when it is recorded, keeps
+            // the whole chain, wrappers included, because that is where the stack traces are.
             activity.SetTag(ErrorType.TagName, ErrorType.Of(jobExEx));
-            activity.AddException(jobExEx);
+
+            if (recordExceptionEvent)
+            {
+                activity.AddException(jobExEx);
+            }
         }
 
-        activity.Stop();
+        StopCore(activity);
+    }
+
+    /// <summary>
+    /// Closes the span, timing it by <see cref="Activity" />'s own clock.
+    /// </summary>
+    public void Stop()
+    {
+        if (activity is not null)
+        {
+            StopCore(activity);
+        }
+    }
+
+    private void StopCore(Activity span)
+    {
+        span.Stop();
 
         // Stopping a root puts nothing back, since a root has no parent — so the activity the caller was
         // running under is restored by hand. The span's shape is this type's business; what the run shell

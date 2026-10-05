@@ -43,7 +43,7 @@ public class FiringSpanClockTest
         JobExecutionContextImpl context = Context();
 
         StartedActivity activity = QuartzActivitySource.StartJobExecute(context, clock);
-        activity.Stop(clock, jobExEx: null);
+        activity.Stop(clock, ExecutionOutcome.Succeeded, jobResult: null, jobExEx: null, recordExceptionEvent: true);
 
         clock.Reads.Should().Be(0,
             "no listener means no span to stamp, so both readings would have been handed to a default struct and thrown away - and this is the shape of every scheduler that is not being traced");
@@ -76,7 +76,7 @@ public class FiringSpanClockTest
 
         JobExecutionContextImpl context = Context(fireInstanceId);
         StartedActivity activity = QuartzActivitySource.StartJobExecute(context, clock);
-        activity.Stop(clock, jobExEx: null);
+        activity.Stop(clock, ExecutionOutcome.Succeeded, jobResult: null, jobExEx: null, recordExceptionEvent: true);
 
         recorded.Should().NotBeNull("the listener records everything this source produces");
         recorded.StartTimeUtc.Should().Be(start.UtcDateTime,

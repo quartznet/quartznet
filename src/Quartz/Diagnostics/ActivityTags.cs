@@ -76,11 +76,12 @@ public static class ActivityTags
     /// <see cref="JobRunResult" /> the execution history records, in lower case.
     /// </summary>
     /// <remarks>
-    /// On <c>quartz.job.execution.duration</c> only, so the histogram's count splits by result as the
-    /// history does. Not on <c>quartz.job.execution.active</c>, whose increment is made before there is
-    /// a result and whose decrement has to carry the increment's attributes. <c>error.type</c> stays the
-    /// name of what a failed run threw: a cancelled run has none, nor has a run its own
-    /// <see cref="JobRunReport" /> called failed without throwing. A result outside the enum is
+    /// On <c>quartz.job.execution.duration</c>, so the histogram's count splits by result as the history
+    /// does, and on the <c>Quartz.Job.Execute</c> span. Not on <c>quartz.job.execution.active</c>, whose
+    /// increment is made before there is a result and whose decrement has to carry the increment's
+    /// attributes, nor on any other span. <c>error.type</c> stays the name of what a failed run threw: a
+    /// cancelled run has none, nor has a run its own <see cref="JobRunReport" /> called failed without
+    /// throwing, and only a run that threw ends its span in error. A result outside the enum is
     /// <c>_OTHER</c>.
     /// </remarks>
     public const string JobResult = "quartz.job.result";
@@ -126,8 +127,8 @@ public static class ActivityTags
 }
 
 /// <summary>
-/// OpenTelemetry's <c>error.type</c> attribute: what a failed job execution failed with, named the
-/// same way on the span and on the duration histogram.
+/// OpenTelemetry's <c>error.type</c> attribute: what a failed job execution or store operation failed
+/// with, named the same way on its span and on its duration histogram.
 /// </summary>
 internal static class ErrorType
 {

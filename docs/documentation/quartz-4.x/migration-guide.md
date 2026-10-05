@@ -34,7 +34,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | Added | What it is |
 |---|---|
 | `JobRunResult` | `Succeeded = 0`, `Failed = 1`, `Cancelled = 2`, `Skipped = 3`: what a run achieved. Stored as the integer. See [Job Outcomes](how-tos/job-outcomes.md) |
-| `ActivityTags.JobResult` | `"quartz.job.result"`, on `quartz.job.execution.duration`: `succeeded`, `failed`, `cancelled` or `skipped`. See [Metrics](packages/opentelemetry-integration.md#metrics) |
+| `ActivityTags.JobResult` | `"quartz.job.result"`, on `quartz.job.execution.duration` and the `Quartz.Job.Execute` span: `succeeded`, `failed`, `cancelled` or `skipped`. See [Metrics](packages/opentelemetry-integration.md#metrics) |
+| `QuartzSchedulerOptions.RecordExceptionSpanEvents` | `bool?`, default `null`. `false` stops recording a thrown exception as a span event; `null` follows `OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN`. See [Exceptions as span events](packages/opentelemetry-integration.md#exceptions-as-span-events) |
 | `IJobRunReport`, `JobRunReport` | A job's result, summary and metrics, set as `context.Result`. `JobRunReport.Succeeded`, `Skipped` and `Failed(summary)`, `With(name, value)`, `MaxSummaryLength` (`1000`), `MaxMetricsLength` (`4000`) |
 | `ExecutionHistoryEntry.Result`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId` | `init`. `Result` is `null` on a row written before 4.4 |
 | `ExecutionHistoryEntry.EffectiveResult` | `Result`, or `Succeeded`/`Failed` from `Succeeded` on an older row |
@@ -96,6 +97,22 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   ([#3967](https://github.com/quartznet/quartznet/issues/3967)), which splits a job's series by result.
   `error.type` is unchanged: a cancelled run still has none. A view with an attribute allow-list drops the new
   attribute until you add it.
+* **The `Quartz.Job.Execute` span carries `quartz.job.result` too**
+  ([#4016](https://github.com/quartznet/quartznet/issues/4016)). Its status is unchanged: `Error` only when the
+  job threw. A run whose `JobRunReport` says `Failed` is tagged `failed` and its status stays `Unset`.
+* **A failed `Quartz.JobStore.*` span carries `error.type`**, the exception type's full name, as its
+  measurement already did.
+* **`OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN=logs` stops Quartz recording exceptions as span events.** 4.3
+  ignored the variable. The span keeps its `Error` status, description and `error.type`. To keep the events
+  where the variable is set:
+
+  ```diff
+    services.AddQuartz(q => q.ConfigureScheduler(options =>
+    {
+  +     options.RecordExceptionSpanEvents = true;
+    }));
+  ```
+
 * **A vetoed firing is recorded in the misfire feed**, with `MisfireReason.Vetoed`. `CountMisfires` does
   not count it. An `IExecutionHistoryStore` of your own receives it through `AddMisfire`; count only
   `MisfireReason.Missed` rows.
