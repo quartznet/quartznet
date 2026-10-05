@@ -37,14 +37,14 @@ namespace Quartz.Weasel.SqlServer;
 /// the connection's command timeout — 30 seconds by default — still bounds, so a longer wait ends in a
 /// client-side timeout exception rather than a refusal; this asks in slices of half the command
 /// timeout instead, until <see cref="SqlServerWeaselOptions.LockTimeout" /> is spent. And it takes the
-/// lock on the connection Weasel passes in, which Weasel releases only when the apply succeeds and
-/// disposes either way.
+/// lock on the connection Weasel passes in, which Weasel disposes when the apply ends.
 /// </para>
 /// <para>
 /// A session lock on a pooled connection is not released by disposing the connection: the pool keeps the
-/// session, and only resets it when the connection is next handed out. A failed apply would therefore
-/// leave every later applier waiting out its timeout. This connection is released in
-/// <see cref="DisposeAsync" />, whichever way the apply ended.
+/// session, and only resets it when the connection is next handed out. A lock left on it would therefore
+/// leave every later applier waiting out its timeout. Weasel releases the lock after a failed apply too
+/// (from 9.37.0, JasperFx/weasel#659), but gives up quietly if that release fails, so this connection is
+/// also released in <see cref="DisposeAsync" />, whichever way the apply ended.
 /// </para>
 /// </remarks>
 internal sealed class SqlServerApplicationLock : IGlobalLock<SqlConnection>, IAsyncDisposable

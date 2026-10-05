@@ -45,8 +45,9 @@ namespace Quartz.Weasel.MySQL;
 /// <para>
 /// A user lock belongs to the session, and a pooled connection keeps its session when it is disposed until
 /// the pool resets it on the next use. A failed apply would therefore leave every later applier waiting
-/// out its timeout. Weasel releases the lock only after an apply that succeeded, so this connection is
-/// released in <see cref="DisposeAsync" />, whichever way the apply ended.
+/// out its timeout. Weasel releases the lock after a failed apply too (from 9.37.0, JasperFx/weasel#659),
+/// but gives up quietly if that release fails, so this connection is also released in
+/// <see cref="DisposeAsync" />, whichever way the apply ended.
 /// </para>
 /// </remarks>
 internal sealed class MySqlUserLock : IGlobalLock<MySqlConnection>, IAsyncDisposable
