@@ -789,6 +789,35 @@ public abstract class JobStoreContractTest
         (await Store.GetTriggerGroupPause(TriggerGroupA)).Reason.Should().Be("database maintenance");
     }
 
+    [Test]
+    public async Task AReplaceThatUnpausesATriggerForgetsItsPause()
+    {
+        IOperableTrigger original = await ScheduleJobWithTrigger("unpaused-by-replace", JobGroupA, TriggerGroupA);
+        await Store.PauseTriggerWith(original.Key, Maintenance);
+
+        await Store.AddTrigger(CreateTrigger("unpaused-by-replace", TriggerGroupA, original.JobKey), AddTriggerOptions.Replacing);
+        (await Store.GetTriggerState(original.Key)).Should().Be(TriggerState.Normal, "a replace decides the state afresh");
+
+        await Store.PauseTrigger(original.Key);
+
+        (await Store.GetTriggerPause(original.Key)).Should().BeNull(
+            "the replace ended the pause, so a later pause that says nothing must not bring its reason back");
+    }
+
+    [Test]
+    public async Task AReplaceThatStaysPausedKeepsThePauseItHad()
+    {
+        IOperableTrigger original = await ScheduleJobWithTrigger("kept-by-replace", JobGroupA, TriggerGroupA);
+        await Store.PauseTriggerWith(original.Key, Maintenance);
+        await Store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA), new PauseDetails { Reason = "group closed" });
+
+        await Store.AddTrigger(CreateTrigger("kept-by-replace", TriggerGroupA, original.JobKey), AddTriggerOptions.Replacing);
+
+        (await Store.GetTriggerState(original.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerPause(original.Key)).Reason.Should().Be("database maintenance",
+            "the replacement stays paused, so the pause the trigger had stands");
+    }
+
     private ValueTask<List<IOperableTrigger>> AcquireDue()
     {
         return Store.AcquireNextTriggers(new TriggerAcquisitionRequest

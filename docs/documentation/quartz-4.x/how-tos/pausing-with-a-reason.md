@@ -85,7 +85,8 @@ if (pause is not null)
 | `TriggerHeader.Pause` | the trigger's own record, on every [`QueryTriggers`](../tutorial/querying-jobs-and-triggers.md#headers-not-entities) row |
 
 Each is `null` when the trigger or group is not paused, does not exist, was paused without a reason, or was paused
-by a 4.2 node (see [below](#a-mixed-cluster)). **Resuming clears the record.**
+by a 4.2 node (see [below](#a-mixed-cluster)). **Resuming clears the record**, and so does a replace that leaves
+the trigger unpaused; one that stays paused keeps it.
 
 ## Scheduling a trigger paused
 

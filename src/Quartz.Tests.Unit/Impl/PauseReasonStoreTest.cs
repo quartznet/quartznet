@@ -589,6 +589,55 @@ public sealed class PauseReasonStoreTest
         (await store.GetTriggerPause(key)).Should().Be(new PauseInfo("re-planned", null, epoch.AddHours(2)));
     }
 
+    [Test]
+    public async Task AReplaceThatUnpausesATriggerForgetsItsPause()
+    {
+        TriggerKey key = await Schedule("nightly");
+        IJobDetail job = (await store.GetJob(new JobKey("job-nightly-" + Group, Group)))!;
+
+        // Paused with a reason, then replaced while paused: outside a paused group the replacement is
+        // stored waiting, so the pause is over without a resume having forgotten it.
+        await store.PauseTriggerWith(key, maintenance);
+        await store.AddTrigger(NewTrigger("nightly", job), AddTriggerOptions.Replacing);
+        (await store.GetTriggerState(key)).Should().Be(TriggerState.Normal, "a replace decides the state afresh");
+
+        await store.PauseTrigger(key);
+
+        (await store.GetTriggerPause(key)).Should().BeNull(
+            "the replace ended the pause, so a later pause that says nothing must not bring its reason back");
+        if (kind == PauseStoreKind.Sqlite)
+        {
+            (await ReadColumn(AdoConstants.ColumnPauseReason, key)).Should().BeNull(
+                "the write that stored the replacement unpaused cleared the record, in the same statement");
+        }
+
+        // And the order that goes through a resume, which forgets the record on its own.
+        await store.ResumeTrigger(key);
+        await store.PauseTriggerWith(key, maintenance);
+        await store.ResumeTrigger(key);
+        await store.AddTrigger(NewTrigger("nightly", job), AddTriggerOptions.Replacing);
+        await store.PauseTrigger(key);
+
+        (await store.GetTriggerPause(key)).Should().BeNull();
+    }
+
+    [Test]
+    public async Task AReplaceThatStaysPausedKeepsThePauseItHad()
+    {
+        TriggerKey key = await Schedule("nightly");
+        IJobDetail job = (await store.GetJob(new JobKey("job-nightly-" + Group, Group)))!;
+        await store.PauseTriggerWith(key, maintenance);
+
+        clock.Advance(TimeSpan.FromMinutes(10));
+        await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals(Group), new PauseDetails { Reason = "group closed", RequestedBy = "bob" });
+
+        await store.AddTrigger(NewTrigger("nightly", job), AddTriggerOptions.Replacing);
+
+        (await store.GetTriggerState(key)).Should().Be(TriggerState.Paused, "its group is paused, so the replacement is too");
+        (await store.GetTriggerPause(key)).Should().Be(new PauseInfo("database maintenance", "alice", epoch),
+            "the replacement stays paused, so the pause the trigger had stands, in both stores alike");
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Beside a 4.2 node
     //////////////////////////////////////////////////////////////////////////////////////////////
