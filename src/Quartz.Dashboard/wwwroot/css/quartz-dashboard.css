@@ -1569,6 +1569,125 @@ body{
     overflow-wrap: break-word;
 }
 
+/* The History listing has nine columns, and sized by their content the keys, the fire time and the error
+   pushed Run again off the page at 1500px. Here every column but the two keys has a width, the keys share
+   what is left and cut with an ellipsis, as a key badge does, and a long summary or error is cut to two
+   lines with its whole text in the title. The node column gives way first on narrower screens. */
+.qz-history-table {
+    table-layout: fixed;
+}
+
+.qz-history-table th,
+.qz-history-table td {
+    padding-left: var(--qz-space-sm);
+    padding-right: var(--qz-space-sm);
+}
+
+.qz-history-table th.qz-col-node,
+.qz-history-table td.qz-col-node {
+    width: 128px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qz-history-table th.qz-col-fired,
+.qz-history-table td.qz-col-fired {
+    width: 128px;
+}
+
+.qz-history-table th.qz-col-duration,
+.qz-history-table td.qz-col-duration {
+    width: 84px;
+    white-space: nowrap;
+}
+
+.qz-history-table th.qz-col-result,
+.qz-history-table td.qz-col-result {
+    width: 136px;
+}
+
+.qz-history-table th.qz-col-summary,
+.qz-history-table td.qz-col-summary {
+    width: 180px;
+}
+
+.qz-history-table th.qz-col-error,
+.qz-history-table td.qz-col-error {
+    width: 200px;
+}
+
+.qz-history-table th.qz-col-actions,
+.qz-history-table td.qz-col-actions {
+    width: 112px;
+    white-space: nowrap;
+}
+
+/* The date and the time each stay whole: two lines at most, never the five a narrow column made. */
+.qz-history-fired > span {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.qz-history-clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 1599px) {
+    .qz-history-table .qz-col-node {
+        display: none;
+    }
+
+    .qz-history-table th.qz-col-summary,
+    .qz-history-table td.qz-col-summary {
+        width: 160px;
+    }
+
+    .qz-history-table th.qz-col-error,
+    .qz-history-table td.qz-col-error {
+        width: 180px;
+    }
+}
+
+@media (max-width: 1439px) {
+    .qz-history-table th.qz-col-fired,
+    .qz-history-table td.qz-col-fired {
+        width: 124px;
+    }
+
+    .qz-history-table th.qz-col-duration,
+    .qz-history-table td.qz-col-duration {
+        width: 76px;
+    }
+
+    .qz-history-table th.qz-col-result,
+    .qz-history-table td.qz-col-result {
+        width: 132px;
+    }
+
+    .qz-history-table th.qz-col-summary,
+    .qz-history-table td.qz-col-summary {
+        width: 128px;
+    }
+
+    .qz-history-table th.qz-col-error,
+    .qz-history-table td.qz-col-error {
+        width: 140px;
+    }
+}
+
+/* Narrower still, the summary gives its width to the keys; the run's own page shows it. */
+@media (max-width: 1279px) {
+    .qz-history-table .qz-col-summary {
+        display: none;
+    }
+}
+
 /* ==========================================================================
    15. TOASTS
    ========================================================================== */
