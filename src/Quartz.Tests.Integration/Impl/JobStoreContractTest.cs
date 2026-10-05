@@ -1634,6 +1634,27 @@ public abstract class JobStoreContractTest
         retrieved.RetryAttempt.Should().Be(0);
     }
 
+    [Test]
+    public async Task ATriggerThatRefusesRetriesComesBackRefusingThem()
+    {
+        IJobDetail job = CreateJob("never-retried", JobGroupA);
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("never-retried", TriggerGroupA)
+            .ForJob(job.Key)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .StartAt(RoundTripStart)
+            .WithRetryPolicy(RetryPolicy.None)
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        await Store.ScheduleJob(job, trigger);
+
+        IOperableTrigger retrieved = await Store.GetTrigger(trigger.Key);
+
+        retrieved.RetryPolicy.Should().BeSameAs(RetryPolicy.None,
+            "a trigger that refuses an inherited policy and one with no policy of its own are different rows");
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Calendars
     //////////////////////////////////////////////////////////////////////////////////////////////
