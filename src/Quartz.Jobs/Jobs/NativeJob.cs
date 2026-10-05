@@ -53,11 +53,16 @@ namespace Quartz.Jobs;
 /// </example>
 /// If PropertyWaitForProcess is true, then the integer exit value of the process
 /// will be saved as the job execution result in the JobExecutionContext.
+/// <para>
+/// Never retried unless its trigger names a retry policy of its own: it carries
+/// <c>[RetryPolicy(0)]</c>, so the scheduler's default does not apply. A retry would run the command again.
+/// </para>
 /// </remarks>
 /// <author>Matthew Payne</author>
 /// <author>James House</author>
 /// <author>Steinar Overbeck Cook</author>
 /// <author>Marko Lahma (.NET)</author>
+[RetryPolicy(0)]
 public class NativeJob : IJob
 {
     /// <summary>
