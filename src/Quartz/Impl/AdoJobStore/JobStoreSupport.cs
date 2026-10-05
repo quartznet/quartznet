@@ -347,8 +347,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// database no longer has — is rolled back alone, and the trigger is released and acquired again.
     /// One that fails every time was acquired again forever: each round cost a rolled-back transaction,
     /// and a <see cref="DisallowConcurrentExecutionAttribute" /> job's other triggers never fired behind
-    /// it. After this many failures in a row the trigger is stored <c>ERROR</c> and an error is logged.
-    /// <see cref="IScheduler.ResetTriggerFromErrorState" /> brings it back once the cause is fixed.
+    /// it. A misfire whose <see cref="ICalendar" />, or a trigger type of your own, throws counts as a
+    /// failed fire too. After this many failures in a row the trigger is stored <c>ERROR</c> and an error
+    /// is logged. <see cref="IScheduler.ResetTriggerFromErrorState" /> brings it back once the cause is
+    /// fixed.
     /// </para>
     /// <para>
     /// Only such failures count. A transient one is retried, a failure of the whole batch fails every
@@ -1620,13 +1622,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
             try
             {
-                if (useOptimizedPath)
+                MisfireOutcome outcome = useOptimizedPath
+                    ? await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, batchCalendarCache!, cancellationToken).ConfigureAwait(false)
+                    : await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering, cancellationToken).ConfigureAwait(false);
+
+                // A policy that throws has been settled as that trigger's failure: it stays WAITING for the
+                // next scan, or is stored ERROR at the limit, rather than lead every batch for good (#4006).
+                if (outcome != MisfireOutcome.Applied)
                 {
-                    await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, batchCalendarCache!, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
+                    continue;
                 }
             }
             catch (Exception e)
@@ -1762,16 +1766,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 return false;
             }
 
-            if (Delegate is INextVersionDelegate)
-            {
-                await DoUpdateOfMisfiredTriggerOptimized(conn, trig, newStateIfNotComplete, batchCalendarCache: null, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await DoUpdateOfMisfiredTrigger(conn, trig, forceState, newStateIfNotComplete, false).ConfigureAwait(false);
-            }
+            MisfireOutcome outcome = Delegate is INextVersionDelegate
+                ? await DoUpdateOfMisfiredTriggerOptimized(conn, trig, newStateIfNotComplete, batchCalendarCache: null, cancellationToken).ConfigureAwait(false)
+                : await DoUpdateOfMisfiredTrigger(conn, trig, forceState, newStateIfNotComplete, false, cancellationToken).ConfigureAwait(false);
 
-            return true;
+            // Whether the row was written. A policy that threw short of the limit wrote nothing, and the
+            // caller goes on as if the trigger had not misfired: a resume resumes it as it was, and a
+            // completion lets go of it. One that reached the limit stored it ERROR (#4006).
+            return outcome != MisfireOutcome.Failed;
         }
         catch (Exception e)
         {
@@ -1779,8 +1781,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         }
     }
 
-    private async Task DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trig,
-        bool forceState, string newStateIfNotComplete, bool recovering)
+    private async Task<MisfireOutcome> DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trig,
+        bool forceState, string newStateIfNotComplete, bool recovering, CancellationToken cancellationToken)
     {
         ICalendar? cal = null;
         if (trig.CalendarName != null)
@@ -1793,7 +1795,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         var originalFireTime = trig.GetNextFireTimeUtc();
         var now = SystemTime.UtcNow();
 
-        trig.UpdateAfterMisfire(cal);
+        MisfireOutcome? failed = await TryUpdateAfterMisfire(conn, trig, cal, cancellationToken).ConfigureAwait(false);
+        if (failed.HasValue)
+        {
+            return failed.Value;
+        }
 
         if (!trig.GetNextFireTimeUtc().HasValue)
         {
@@ -1818,6 +1824,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 await misfireDelegate.UpdateMisfireOriginalFireTime(conn, trig.Key, originalFireTime, CancellationToken.None).ConfigureAwait(false);
             }
         }
+
+        return MisfireOutcome.Applied;
     }
 
     /// <summary>
@@ -1829,7 +1837,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// This covers triggers found in WAITING state during batch recovery as well as
     /// single-trigger misfire handling in the acquisition and resume paths.
     /// </summary>
-    private async Task DoUpdateOfMisfiredTriggerOptimized(
+    private async Task<MisfireOutcome> DoUpdateOfMisfiredTriggerOptimized(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trig,
         string newStateIfNotComplete,
@@ -1857,7 +1865,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         DateTimeOffset? originalFireTime = trig.GetNextFireTimeUtc();
         DateTimeOffset now = SystemTime.UtcNow();
 
-        trig.UpdateAfterMisfire(cal);
+        MisfireOutcome? failed = await TryUpdateAfterMisfire(conn, trig, cal, cancellationToken).ConfigureAwait(false);
+        if (failed.HasValue)
+        {
+            return failed.Value;
+        }
 
         // Determine new state.
         string newState = trig.GetNextFireTimeUtc().HasValue ? newStateIfNotComplete : StateComplete;
@@ -1882,6 +1894,82 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         {
             await schedSignaler.NotifySchedulerListenersFinalized(trig).ConfigureAwait(false);
         }
+
+        return MisfireOutcome.Applied;
+    }
+
+    /// <summary>
+    /// What handling one trigger's misfire came to (#4006).
+    /// </summary>
+    private enum MisfireOutcome
+    {
+        /// <summary>The misfire policy was applied and written.</summary>
+        Applied,
+
+        /// <summary>The policy threw short of the limit; nothing was written.</summary>
+        Failed,
+
+        /// <summary>The policy threw for the last time allowed, and the trigger was stored <c>ERROR</c>.</summary>
+        StoredError
+    }
+
+    /// <summary>
+    /// Applies the trigger's misfire policy, and settles a throw out of it — the trigger's calendar, or a
+    /// trigger type Quartz did not write — as a failure of that trigger alone (#4006).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only the policy is guarded: a database failure, reading the calendar included, propagates, so the
+    /// caller's transaction rolls back and is retried as before.
+    /// </para>
+    /// <para>
+    /// Nothing of a failed misfire is written: the row keeps its state and fire time, for the misfire
+    /// handler to try again. The failure counts toward <see cref="MaxConsecutiveFireFailures" /> in the
+    /// ledger a failed fire counts in, and the one that reaches it stores the trigger <c>ERROR</c> in the
+    /// caller's transaction, which holds <c>TRIGGER_ACCESS</c>. The ledger moves only once that
+    /// transaction has committed, because one that rolls back is retried and would meet the same throw
+    /// again. As for a failed fire, nothing is raised to the listeners.
+    /// </para>
+    /// </remarks>
+    /// <returns><see langword="null" /> when the policy was applied; otherwise what the failure came to.</returns>
+    private async Task<MisfireOutcome?> TryUpdateAfterMisfire(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trig,
+        ICalendar? cal,
+        CancellationToken cancellationToken)
+    {
+        TriggerKey triggerKey = trig.Key;
+        DateTimeOffset? previousFireTime = trig.GetPreviousFireTimeUtc();
+        try
+        {
+            trig.UpdateAfterMisfire(cal);
+            return null;
+        }
+        catch (Exception e)
+        {
+            Log.ErrorException($"Misfire handling of trigger {triggerKey} failed; the trigger is left as it was, to be handled again, and the rest goes on without it", e);
+        }
+
+        if (MaxConsecutiveFireFailures <= 0)
+        {
+            return MisfireOutcome.Failed;
+        }
+
+        int failures = fireFailures.FailuresWithOneMore(triggerKey, previousFireTime);
+        if (failures < MaxConsecutiveFireFailures)
+        {
+            conn.AfterCommit(() => fireFailures.RecordFailure(triggerKey, previousFireTime));
+            return MisfireOutcome.Failed;
+        }
+
+        await Delegate.UpdateTriggerState(conn, triggerKey, StateError, cancellationToken).ConfigureAwait(false);
+        conn.AfterCommit(() =>
+        {
+            fireFailures.Clear(triggerKey);
+            Log.Error($"Trigger {triggerKey} failed to fire {failures} times in a row and is stored ERROR; ResetTriggerFromErrorState returns it once the cause is fixed");
+        });
+
+        return MisfireOutcome.StoredError;
     }
 
     /// <summary>
@@ -5192,6 +5280,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     var state = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
                     if (state.Equals(StateWaiting))
                     {
+                        // One whose calendar throws fails alone: it stays WAITING for the misfire handler,
+                        // or is stored ERROR at the limit and kept, and this completion commits (#4006).
                         var misfired = await UpdateMisfiredTrigger(conn, trig.Key, StateWaiting, false, cancellationToken).ConfigureAwait(false);
                         if (misfired)
                         {
@@ -5313,6 +5403,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             }
 
             CommitConnection(conn, false);
+            conn.RunAfterCommit();
             return result;
         }
         catch (JobPersistenceException jpe)
@@ -6495,6 +6586,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     SignalSchedulingChangeImmediately(sigTime);
                 }
 
+                conn.RunAfterCommit();
                 return result;
             }
             catch (JobPersistenceException jpe)

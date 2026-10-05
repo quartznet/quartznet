@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 
@@ -253,6 +254,42 @@ public class ConnectionAndTransactionHolder : IDisposable
     /// attempt back as it does for any other failed fire (#3931).
     /// </summary>
     internal TriggerKey? SettledFireFailure { get; set; }
+
+    /// <summary>
+    /// The store's own bookkeeping to do once this unit of work has committed; <see langword="null" />
+    /// until the first.
+    /// </summary>
+    private List<Action>? actionsAfterCommit;
+
+    /// <summary>
+    /// Records bookkeeping of the store's own to do once this unit of work's transaction has committed,
+    /// and to drop if it rolls back: a misfire whose calendar threw is counted only then, because a
+    /// transaction that rolls back is retried and would meet the same throw again (#4006).
+    /// </summary>
+    internal void AfterCommit(Action action)
+    {
+        (actionsAfterCommit ??= new List<Action>()).Add(action);
+    }
+
+    /// <summary>
+    /// Does what <see cref="AfterCommit" /> recorded, in order, and forgets it. Called by the store's
+    /// transaction wrappers once the work has committed, or, where the transaction is the application's,
+    /// once the store's own part is done, which is as late as the store can see.
+    /// </summary>
+    internal void RunAfterCommit()
+    {
+        List<Action>? actions = actionsAfterCommit;
+        actionsAfterCommit = null;
+        if (actions == null)
+        {
+            return;
+        }
+
+        foreach (Action action in actions)
+        {
+            action();
+        }
+    }
 
     private void CheckNotZombied()
     {

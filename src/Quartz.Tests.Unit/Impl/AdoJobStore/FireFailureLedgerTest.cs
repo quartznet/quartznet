@@ -92,4 +92,24 @@ public class FireFailureLedgerTest
         ledger.RecordFailure(poison, previous).Should().Be(2);
         ledger.RecordFailure(poison, previous.AddHours(1)).Should().Be(1);
     }
+
+    /// <summary>
+    /// A failure inside a transaction is weighed against the limit before it is counted, and counted
+    /// only once the transaction has committed (#4006): the answer is the count recording it would give.
+    /// </summary>
+    [Test]
+    public void TheCountWithOneMoreFailureIsAnsweredWithoutCountingIt()
+    {
+        FireFailureLedger ledger = new FireFailureLedger();
+        ledger.FailuresWithOneMore(poison, previous).Should().Be(1, "an empty ledger has nothing to add to");
+
+        ledger.RecordFailure(poison, previous);
+        ledger.RecordFailure(other, null);
+
+        ledger.FailuresWithOneMore(poison, previous).Should().Be(2);
+        ledger.FailuresWithOneMore(poison, previous).Should().Be(2, "asking counts nothing");
+        ledger.FailuresWithOneMore(poison, previous.AddHours(1)).Should().Be(1, "a fire committed since the last failure");
+        ledger.FailuresWithOneMore(new TriggerKey("unseen", "ledger"), null).Should().Be(1);
+        ledger.RecordFailure(poison, previous).Should().Be(2);
+    }
 }

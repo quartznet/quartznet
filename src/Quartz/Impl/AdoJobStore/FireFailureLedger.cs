@@ -28,7 +28,8 @@ namespace Quartz.Impl.AdoJobStore;
 /// <summary>
 /// Counts, per trigger, the fires in a row that failed for a reason a retry will not cure, so that a
 /// trigger whose every fire fails is stored <c>ERROR</c> instead of being released and acquired again
-/// forever (#3963).
+/// forever (#3963). A misfire whose calendar, or trigger type of the application's own, throws counts as
+/// one of them (#3985, #4006).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -71,6 +72,27 @@ internal sealed class FireFailureLedger
             entries[triggerKey] = new Entry(failures, previousFireTimeUtc);
             Volatile.Write(ref count, entries.Count);
             return failures;
+        }
+    }
+
+    /// <summary>
+    /// Answers how many failures in a row the trigger would have with one more counted, without counting
+    /// it: for a failure inside a transaction, which is counted only once that transaction has committed.
+    /// </summary>
+    /// <param name="triggerKey">The trigger that failed.</param>
+    /// <param name="previousFireTimeUtc">The trigger's previous fire time as the failure found it.</param>
+    public int FailuresWithOneMore(TriggerKey triggerKey, DateTimeOffset? previousFireTimeUtc)
+    {
+        if (IsEmpty)
+        {
+            return 1;
+        }
+
+        lock (gate)
+        {
+            return entries.TryGetValue(triggerKey, out Entry entry) && entry.PreviousFireTimeUtc == previousFireTimeUtc
+                ? entry.Failures + 1
+                : 1;
         }
     }
 
