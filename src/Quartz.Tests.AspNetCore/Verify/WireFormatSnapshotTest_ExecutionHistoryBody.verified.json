@@ -18,7 +18,9 @@
       "summary": null,
       "metrics": null,
       "manual": false,
-      "fireInstanceId": null
+      "fireInstanceId": null,
+      "input": null,
+      "inputTooLarge": false
     }
   ],
   "hasMore": false,

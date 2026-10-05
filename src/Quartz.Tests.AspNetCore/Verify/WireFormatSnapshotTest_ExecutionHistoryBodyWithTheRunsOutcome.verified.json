@@ -21,7 +21,9 @@
         "released": 0
       },
       "manual": true,
-      "fireInstanceId": "TEST_NON_CLUSTERED-17"
+      "fireInstanceId": "TEST_NON_CLUSTERED-17",
+      "input": null,
+      "inputTooLarge": false
     }
   ],
   "hasMore": false,

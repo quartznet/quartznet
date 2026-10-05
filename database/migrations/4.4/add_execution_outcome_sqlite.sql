@@ -31,7 +31,10 @@
 --   METRICS           the reported values, as JSON
 --   MANUAL            whether IScheduler.TriggerJob fired it
 --   FIRE_INSTANCE_ID  the firing's id, linking the row to its span and log scope
--- All five are nullable with no default. A row a 4.3 node wrote leaves them NULL, and its
+-- and what the run was given, kept only with ExecutionHistoryOptions.RecordInput:
+--   JOB_INPUT            the run's input, the string stored under QRTZ_JOB_INPUT
+--   JOB_INPUT_TOO_LARGE  whether the input was over MaxInputBytes, and so not kept
+-- All seven are nullable with no default. A row a 4.3 node wrote leaves them NULL, and its
 -- outcome is read from SUCCEEDED as before.
 --
 -- FIRE_INSTANCE_ID is neither unique nor indexed. A fire instance id is not durable across
@@ -64,6 +67,10 @@ ALTER TABLE QRTZ_EXECUTION_HISTORY ADD COLUMN METRICS TEXT NULL;
 ALTER TABLE QRTZ_EXECUTION_HISTORY ADD COLUMN MANUAL BIT NULL;
 
 ALTER TABLE QRTZ_EXECUTION_HISTORY ADD COLUMN FIRE_INSTANCE_ID NVARCHAR(140) NULL;
+
+ALTER TABLE QRTZ_EXECUTION_HISTORY ADD COLUMN JOB_INPUT TEXT NULL;
+
+ALTER TABLE QRTZ_EXECUTION_HISTORY ADD COLUMN JOB_INPUT_TOO_LARGE BIT NULL;
 
 -- === 2. The index a job's own history reads ===
 

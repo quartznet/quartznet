@@ -605,6 +605,50 @@ public abstract partial class ExecutionHistoryStoreContractTest
     }
 
     // ---------------------------------------------------------------------------------------------
+    // The run's input
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The single read carries the input whole, which is what Run again passes back to <c>TriggerJob</c>.
+    /// </summary>
+    [Test]
+    public async Task TheRecordedInputIsReadByTheRowsKey()
+    {
+        IExecutionHistoryStore store = await CreateStore(_ => { });
+        const string input = "{\"invoiceId\":42,\"note\":\"café 日本\"}";
+
+        await store.AddExecution(Failed(Start, nightly.Name, retryAttempt: 0, retryScheduled: false) with { EntryId = "with-input", Input = input });
+        await store.AddExecution(Execution(Start.AddMinutes(-1), nightly.Name) with { EntryId = "without-input" });
+
+        ExecutionHistoryEntry read = (await store.GetExecution(SchedulerName, "with-input"))!;
+        read.Input.Should().Be(input, "a cut or re-encoded input would run the job with something it was never given");
+        read.InputTooLarge.Should().BeFalse();
+
+        ExecutionHistoryEntry none = (await store.GetExecution(SchedulerName, "without-input"))!;
+        none.Input.Should().BeNull("a run recorded without an input has none, rather than an empty one");
+        none.InputTooLarge.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// A row whose input was over the cap says so, in the listing and in the single read, so Run again can
+    /// say it has no input rather than pass a cut one.
+    /// </summary>
+    [Test]
+    public async Task AnInputTooLargeToRecordIsFlaggedOnTheRow()
+    {
+        IExecutionHistoryStore store = await CreateStore(_ => { });
+
+        await store.AddExecution(Execution(Start, nightly.Name) with { EntryId = "too-large", InputTooLarge = true });
+
+        (await Executions(store)).Items.Should().ContainSingle().Which.InputTooLarge.Should().BeTrue(
+            "the flag is small, so the listing carries it even where it leaves the input out");
+
+        ExecutionHistoryEntry read = (await store.GetExecution(SchedulerName, "too-large"))!;
+        read.InputTooLarge.Should().BeTrue();
+        read.Input.Should().BeNull();
+    }
+
+    // ---------------------------------------------------------------------------------------------
 
     /// <summary>
     /// Makes <paramref name="job" /> one the scheduler still has, for a store that forgets the status of a

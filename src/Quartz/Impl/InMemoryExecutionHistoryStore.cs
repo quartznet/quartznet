@@ -65,12 +65,15 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        // Named when it arrives without, so every row this store returns is one GetExecution can find.
-        ExecutionHistoryEntry named = entry.EntryId is null
-            ? entry with { EntryId = ExecutionHistoryPlugin.NewEntryId() }
-            : entry;
-
         ExecutionHistoryOptions bounds = options.Value;
+
+        // Named when it arrives without, so every row this store returns is one GetExecution can find;
+        // and held to the input cap whoever recorded it, because that cap is what bounds this store's
+        // memory for inputs.
+        ExecutionHistoryEntry named = ExecutionHistoryPlugin.WithinInputCap(
+            entry.EntryId is null ? entry with { EntryId = ExecutionHistoryPlugin.NewEntryId() } : entry,
+            bounds.MaxInputBytes);
+
         ExecutionFeed feed = executionsByScheduler.GetOrAdd(named.SchedulerName, static _ => new ExecutionFeed());
 
         lock (feed)

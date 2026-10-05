@@ -697,6 +697,27 @@ public sealed class InMemoryExecutionHistoryStoreContractTest : ExecutionHistory
         (await StatusNames(store)).Should().Equal(["b", "c"],
             "a scheduler keeps at most MaxEntriesPerScheduler statuses, and the one to go is the job that ran longest ago");
     }
+
+    /// <summary>
+    /// The in-memory history holds an input to the recorder's cap whoever hands it the row, because that
+    /// cap is what bounds its memory.
+    /// </summary>
+    [Test]
+    public async Task AnInputOverTheCapIsDroppedAndFlaggedWhoeverRecordedIt()
+    {
+        IExecutionHistoryStore store = await CreateStore(options => options.MaxInputBytes = 4);
+
+        await store.AddExecution(Execution(Start, "fits") with { EntryId = "fits", Input = "éé" });
+        await store.AddExecution(Execution(Start, "over") with { EntryId = "over", Input = "ééé" });
+
+        ExecutionHistoryEntry fits = (await store.GetExecution(SchedulerName, "fits"))!;
+        fits.Input.Should().Be("éé", "four bytes of UTF-8 is exactly the cap");
+        fits.InputTooLarge.Should().BeFalse();
+
+        ExecutionHistoryEntry over = (await store.GetExecution(SchedulerName, "over"))!;
+        over.Input.Should().BeNull("the cap counts UTF-8 bytes, and three characters of two bytes each are over four");
+        over.InputTooLarge.Should().BeTrue("a row that lost its input says so, rather than reading as a run that had none");
+    }
 }
 
 /// <summary>
@@ -853,6 +874,37 @@ public sealed partial class AdoExecutionHistoryStoreContractTest : ExecutionHist
         await using SqliteCommand read = connection.CreateCommand();
         read.CommandText = "SELECT EXECUTION_LOG FROM QRTZ_EXECUTION_HISTORY WHERE ENTRY_ID = 'entry-1'";
         (await read.ExecuteScalarAsync()).Should().Be("a captured line", "the log is kept in the row's own column");
+    }
+
+    /// <summary>
+    /// The listing leaves the input out as it leaves the log out, and a row without one writes
+    /// <c>NULL</c> into <c>JOB_INPUT</c> and false into its flag.
+    /// </summary>
+    [Test]
+    public async Task TheListingLeavesTheInputOutAndARowWithoutOneWritesNull()
+    {
+        IExecutionHistoryStore store = await CreateStore(TimeSpan.FromHours(1), 10);
+        await store.AddExecution(Execution(Start, "nightly") with { EntryId = "with-input", Input = "{\"id\":7}" });
+        await store.AddExecution(Execution(Start.AddMinutes(-1), "nightly") with { EntryId = "without-input" });
+
+        (await Executions(store)).Items.Should().OnlyContain(row => row.Input == null,
+            "JOB_INPUT is not in the listing's SELECT, so a page of history does not carry every row's input");
+        (await store.GetExecution(SchedulerName, "with-input"))!.Input.Should().Be("{\"id\":7}");
+
+        await using SqliteConnection connection = new(database.ConnectionString);
+        await connection.OpenAsync();
+        await using SqliteCommand read = connection.CreateCommand();
+        read.CommandText = "SELECT ENTRY_ID, JOB_INPUT, JOB_INPUT_TOO_LARGE FROM QRTZ_EXECUTION_HISTORY ORDER BY ENTRY_ID";
+        await using SqliteDataReader rows = await read.ExecuteReaderAsync();
+
+        (await rows.ReadAsync()).Should().BeTrue();
+        rows.GetString(0).Should().Be("with-input");
+        rows.GetString(1).Should().Be("{\"id\":7}", "the input is kept in the row's own column");
+
+        (await rows.ReadAsync()).Should().BeTrue();
+        rows.GetString(0).Should().Be("without-input");
+        rows.IsDBNull(1).Should().BeTrue("no input is NULL, which is what Run again reads as none");
+        rows.GetBoolean(2).Should().BeFalse("the flag says false rather than nothing on a row this version wrote");
     }
 
     /// <summary>

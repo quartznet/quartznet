@@ -203,6 +203,42 @@ public abstract class ExecutionOutcomeRoundTripTest
     }
 
     /// <summary>
+    /// A run's input goes into <c>JOB_INPUT</c> whole and comes back on the single read only, and the flag
+    /// that says one was too large is written and read in this dialect's spelling of true and false.
+    /// </summary>
+    /// <remarks>
+    /// The input is longer than any string column, in characters of more than one byte, so it goes through
+    /// the large-text binding as the metrics do.
+    /// </remarks>
+    [Test]
+    public async Task TheInputAndItsTooLargeFlagRoundTrip()
+    {
+        string input = "{\"note\":\"" + string.Concat(Enumerable.Repeat("é日本", 2_000)) + "\"}";
+        Encoding.UTF8.GetByteCount(input).Should().BeGreaterThan(4_000 * 4);
+
+        using AdoExecutionHistoryStore store = await CreateStore(_ => { });
+        await store.AddExecution(Run("invoice", "with-input", Now.AddMinutes(-2), JobRunResult.Failed) with { Input = input });
+        await store.AddExecution(Run("invoice", "too-large", Now.AddMinutes(-1), JobRunResult.Failed) with { InputTooLarge = true });
+        await store.AddExecution(Run("invoice", "without-input", Now, JobRunResult.Succeeded));
+
+        List<ExecutionHistoryEntry> rows = (await store.QueryExecutions(Query())).Items.ToList();
+        rows.Should().HaveCount(3);
+        rows.Should().OnlyContain(row => row.Input == null, "the listing leaves JOB_INPUT out, as it leaves the log out");
+        rows.Single(row => row.EntryId == "too-large").InputTooLarge.Should().BeTrue("JOB_INPUT_TOO_LARGE is read back from this dialect's true");
+        rows.Single(row => row.EntryId == "with-input").InputTooLarge.Should().BeFalse("and from its false");
+
+        ExecutionHistoryEntry withInput = await store.GetExecution(schedulerName, "with-input");
+        withInput.Should().NotBeNull("on Oracle a Varchar2 parameter past 4,000 bytes into the CLOB fails the whole unit");
+        withInput.Input.Should().Be(input, "the input is kept whole: a cut one would run the job with something else");
+
+        ExecutionHistoryEntry tooLarge = await store.GetExecution(schedulerName, "too-large");
+        tooLarge.Input.Should().BeNull();
+        tooLarge.InputTooLarge.Should().BeTrue();
+
+        (await store.GetExecution(schedulerName, "without-input")).Input.Should().BeNull("no input is NULL, not an empty string");
+    }
+
+    /// <summary>
     /// The status row is inserted by a job's first run and updated by every later one, each kind of run
     /// through its own statement, and ends where <see cref="JobRunStatusFold" /> ends.
     /// </summary>

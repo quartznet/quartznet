@@ -199,7 +199,8 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     }
 
     /// <remarks>
-    /// <c>GET …/history/executions/{entryId}</c>, the one history route that carries the captured log. A
+    /// <c>GET …/history/executions/{entryId}</c>, the one history route that carries the captured log and
+    /// the recorded input; a 4.3 host sends no input, so its rows read as having none. A
     /// row the target does not have answers <see langword="null" />; a target older than 4.3, which has no
     /// such route, answers <see cref="NotSupportedException" />, as a target with no history routes at
     /// all does.

@@ -180,7 +180,7 @@ public sealed class PostgresWeaselSchemaTest
         after.Columns.Except(before.Columns)
             .Where(x => x.StartsWith("EXECUTION_HISTORY|", StringComparison.Ordinal))
             .Select(x => x.Split('|')[1])
-            .Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID"]);
+            .Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
         after.Indexes.Except(before.Indexes).Select(x => x.Split('|')[1]).Distinct().Should().Equal(["IDX_EH_JOB_TIME"]);
 
         await using PostgresWeaselDatabase fresh = await PostgresWeaselDatabase.CreateAsync();
@@ -414,7 +414,7 @@ public sealed class PostgresWeaselSchemaTest
     {
         (await database.ScalarAsync(
                 "SELECT count(*) FROM qrtz_execution_history WHERE entry_id = 'entry-43' AND error_message = 'failed on 4.3'"
-            + " AND result IS NULL AND summary IS NULL AND metrics IS NULL AND manual IS NULL AND fire_instance_id IS NULL"))
+            + " AND result IS NULL AND summary IS NULL AND metrics IS NULL AND manual IS NULL AND fire_instance_id IS NULL AND job_input IS NULL AND job_input_too_large IS NULL"))
             .Should().Be(1L, "a row a 4.3 node wrote keeps its values and reads NULL in every column 4.4 added");
     }
 

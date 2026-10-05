@@ -154,4 +154,32 @@ public sealed record ExecutionHistoryEntry(
     /// restart.
     /// </remarks>
     public string? FireInstanceId { get; init; }
+
+    /// <summary>
+    /// The input the run was given — the string the scheduler stored under
+    /// <see cref="SchedulerConstants.JobInput" /> — or <see langword="null" /> when none was recorded.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Recorded only with <see cref="ExecutionHistoryOptions.RecordInput" />, because a job's input can
+    /// hold secrets, and only up to <see cref="ExecutionHistoryOptions.MaxInputBytes" />. Passing it back
+    /// under <see cref="SchedulerConstants.JobInput" /> to <see cref="IScheduler.TriggerJob" /> runs the job
+    /// with what it had, which is what the dashboard's <em>Run again</em> does.
+    /// </para>
+    /// <para>
+    /// A listing is entitled to leave it out, as it leaves out <see cref="Log" />, and
+    /// <see cref="Extensibility.IExecutionHistoryStore.GetExecution" /> always carries it.
+    /// </para>
+    /// </remarks>
+    public string? Input { get; init; }
+
+    /// <summary>
+    /// Whether the run had an input over <see cref="ExecutionHistoryOptions.MaxInputBytes" />, which was
+    /// then not recorded at all.
+    /// </summary>
+    /// <remarks>
+    /// Nothing rather than a cut input, because a cut payload is a different input: run again with it, a
+    /// job would do something it was never asked to.
+    /// </remarks>
+    public bool InputTooLarge { get; init; }
 }

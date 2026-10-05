@@ -31,7 +31,10 @@
 --   METRICS           the reported values, as JSON
 --   MANUAL            whether IScheduler.TriggerJob fired it
 --   FIRE_INSTANCE_ID  the firing's id, linking the row to its span and log scope
--- All five are nullable with no default. A row a 4.3 node wrote leaves them NULL, and its
+-- and what the run was given, kept only with ExecutionHistoryOptions.RecordInput:
+--   JOB_INPUT            the run's input, the string stored under QRTZ_JOB_INPUT
+--   JOB_INPUT_TOO_LARGE  whether the input was over MaxInputBytes, and so not kept
+-- All seven are nullable with no default. A row a 4.3 node wrote leaves them NULL, and its
 -- outcome is read from SUCCEEDED as before.
 --
 -- FIRE_INSTANCE_ID is neither unique nor indexed. A fire instance id is not durable across
@@ -108,6 +111,28 @@ BEGIN
   WHERE table_name = 'QRTZ_EXECUTION_HISTORY' AND column_name = 'FIRE_INSTANCE_ID';
   IF column_exists = 0 THEN
     EXECUTE IMMEDIATE 'ALTER TABLE QRTZ_EXECUTION_HISTORY ADD (FIRE_INSTANCE_ID VARCHAR2(140) NULL)';
+  END IF;
+END;
+/
+
+DECLARE
+  column_exists NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO column_exists FROM user_tab_columns
+  WHERE table_name = 'QRTZ_EXECUTION_HISTORY' AND column_name = 'JOB_INPUT';
+  IF column_exists = 0 THEN
+    EXECUTE IMMEDIATE 'ALTER TABLE QRTZ_EXECUTION_HISTORY ADD (JOB_INPUT CLOB NULL)';
+  END IF;
+END;
+/
+
+DECLARE
+  column_exists NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO column_exists FROM user_tab_columns
+  WHERE table_name = 'QRTZ_EXECUTION_HISTORY' AND column_name = 'JOB_INPUT_TOO_LARGE';
+  IF column_exists = 0 THEN
+    EXECUTE IMMEDIATE 'ALTER TABLE QRTZ_EXECUTION_HISTORY ADD (JOB_INPUT_TOO_LARGE VARCHAR2(1) NULL)';
   END IF;
 END;
 /

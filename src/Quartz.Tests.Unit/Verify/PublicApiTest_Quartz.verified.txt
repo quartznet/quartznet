@@ -411,6 +411,8 @@ namespace Quartz
         public string? ExceptionMessage { get; init; }
         public string? FireInstanceId { get; init; }
         public System.DateTimeOffset FiredAtUtc { get; init; }
+        public string? Input { get; init; }
+        public bool InputTooLarge { get; init; }
         public string JobGroup { get; init; }
         public string JobName { get; init; }
         public string? Log { get; init; }
@@ -431,7 +433,9 @@ namespace Quartz
         public ExecutionHistoryOptions() { }
         public int MaxEntriesPerJob { get; set; }
         public int MaxEntriesPerScheduler { get; set; }
+        public int MaxInputBytes { get; set; }
         public System.TimeSpan? MisfireRetention { get; set; }
+        public bool RecordInput { get; set; }
         public System.TimeSpan Retention { get; set; }
         public System.Collections.Generic.Dictionary<Quartz.JobRunResult, System.TimeSpan> RetentionByResult { get; }
     }
@@ -2652,6 +2656,8 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnJobClass = "JOB_CLASS_NAME";
         public const string ColumnJobDataMap = "JOB_DATA";
         public const string ColumnJobGroup = "JOB_GROUP";
+        public const string ColumnJobInput = "JOB_INPUT";
+        public const string ColumnJobInputTooLarge = "JOB_INPUT_TOO_LARGE";
         public const string ColumnJobName = "JOB_NAME";
         public const string ColumnLastCheckinTime = "LAST_CHECKIN_TIME";
         public const string ColumnLastEntryId = "LAST_ENTRY_ID";
