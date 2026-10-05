@@ -264,13 +264,17 @@ Select it with `quartz.jobStore.type`:
 quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
 ```
 
-| Property Name                    | Required | Type | Default Value |
-|----------------------------------|----------|------|---------------|
-| quartz.jobStore.misfireThreshold | no       | int  | 60000         |
+| Property Name                              | Required | Type | Default Value |
+|--------------------------------------------|----------|------|---------------|
+| quartz.jobStore.misfireThreshold           | no       | int  | 60000         |
+| quartz.jobStore.maxConsecutiveFireFailures | no       | int  | 5             |
 
 ### `quartz.jobStore.misfireThreshold`
 
 Milliseconds a trigger may pass its next-fire-time before it counts as misfired. Default 60000 (60 seconds).
+
+RAMJobStore reads [`quartz.jobStore.maxConsecutiveFireFailures`](#quartz-jobstore-maxconsecutivefirefailures)
+too. In memory a fire fails only when the trigger's calendar, or a trigger type of your own, throws.
 
 ## JobStoreTX (ADO.NET)
 
@@ -295,6 +299,7 @@ quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
 | quartz.jobStore.clusterCheckinInterval       | no       | long    | 7500 (7.5 seconds)                                                           |
 | quartz.jobStore.clusterCheckinMisfireThreshold | no     | long    | 7500 (7.5 seconds)                                                           |
 | quartz.jobStore.maxMisfiresToHandleAtATime   | no       | int     | 20                                                                           |
+| quartz.jobStore.maxConsecutiveFireFailures   | no       | int     | 5                                                                            |
 | quartz.jobStore.selectWithLockSQL            | no       | string  | "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = {1} AND LOCK_NAME = ? FOR UPDATE" |
 | quartz.jobStore.txIsolationLevelSerializable | no       | boolean | false                                                                        |
 | quartz.jobStore.acceptEnlistedTransactions        | no       | boolean | false                                                                        |
@@ -372,6 +377,25 @@ Since 3.22.0 it is also the window in which this instance retries a failed check
 ### `quartz.jobStore.maxMisfiresToHandleAtATime`
 
 Maximum number of misfired triggers the job store handles in one pass. Handling more than a couple dozen at once can lock the tables long enough to slow the firing of other, not yet misfired, triggers.
+
+### `quartz.jobStore.maxConsecutiveFireFailures`
+
+Since 3.22.4. How many fires of one trigger in a row may fail before the trigger is stored `ERROR`; the
+default is 5. `0` never stores it `ERROR` for this, which is how 3.22.3 and earlier behaved: the trigger was
+released and acquired again forever, first in every round, so a `[DisallowConcurrentExecution]` job's other
+triggers never fired. JobStoreTX, JobStoreCMT and RAMJobStore all read it.
+
+| Counts as a failed fire | Does not count |
+|---|---|
+| A fire that fails for a reason a retry will not cure, such as a constraint violation | A transient failure, which is retried |
+| A trigger whose calendar, or a trigger type of your own, throws as it fires | A failure of the whole batch |
+| A misfire whose calendar throws, at most once per `misfireThreshold` | A failed acquisition, so a database outage parks nothing |
+
+* A misfire failure inside a transaction your application owns is not counted.
+* A fire that commits, on any node, starts the count again. So does a misfire handled.
+* Each node counts alone, so a cluster may try a trigger this many times on each node.
+* The failure that reaches the limit is logged as an error, and the trigger reads `TriggerState.Error`. Fix
+  the cause, then call `IScheduler.ResetTriggerFromErrorState`.
 
 ### `quartz.jobStore.selectWithLockSQL`
 
