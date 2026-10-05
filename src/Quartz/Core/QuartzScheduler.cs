@@ -861,7 +861,8 @@ internal sealed class QuartzScheduler
     /// as it always has been, so that member keeps its caller and the span and metric a store reports
     /// for the ordinary call keep their names. Replacing goes through
     /// <see cref="IJobStore.ScheduleJobs" /> instead, because over-writing a job and its trigger has to
-    /// be one store operation under one lock.
+    /// be one store operation under one lock. So does storing paused, for the same reason, when the
+    /// store can; see <see cref="PausedOnStore" /> for one that cannot.
     /// </remarks>
     public async ValueTask<DateTimeOffset> ScheduleJob(
         IJobDetail jobDetail,
@@ -886,6 +887,7 @@ internal sealed class QuartzScheduler
 
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
+        RefusePausedContinuation(trig, options);
 
         PrepareJobData(jobDetail.JobDataMap);
         PrepareTriggerData(trig);
@@ -908,24 +910,99 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException(message);
         }
 
-        if (options.Replace)
+        ScheduleJobOptions storeOptions = ForStore(options);
+        if (storeOptions.Replace || storeOptions.Paused)
         {
             // One store operation rather than an AddJob followed by an AddTrigger: the store takes its
             // lock once, so a caller replacing a job and its trigger together cannot be seen half
             // applied and cannot lose a race with another node doing the same thing.
             Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> one = new(1) { [jobDetail] = [trig] };
-            await resources.JobStore.ScheduleJobs(one, options, cancellationToken).ConfigureAwait(false);
+            await resources.JobStore.ScheduleJobs(one, storeOptions, cancellationToken).ConfigureAwait(false);
         }
         else
         {
             await resources.JobStore.ScheduleJob(jobDetail, trig, cancellationToken).ConfigureAwait(false);
         }
 
+        List<TriggerKey> paused = await PausedOnStore(options, [trig.Key], cancellationToken).ConfigureAwait(false);
+
         await NotifySchedulerListenersJobAdded(jobDetail, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(trigger.NextFireTimeUtc);
         await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
+        await NotifySchedulerListenersStoredPaused(paused, cancellationToken).ConfigureAwait(false);
 
         return ft.Value;
+    }
+
+    /// <summary>
+    /// What the store is handed of <paramref name="options" />: all of it for a store that says
+    /// <see cref="IJobStore.SupportsStoringPaused" />, and for one that does not only what it understood
+    /// before a trigger could be stored paused.
+    /// </summary>
+    private ScheduleJobOptions ForStore(ScheduleJobOptions options)
+    {
+        return options.Paused && !resources.JobStore.SupportsStoringPaused
+            ? new ScheduleJobOptions { Replace = options.Replace }
+            : options;
+    }
+
+    /// <summary>
+    /// The triggers just stored that <paramref name="options" /> asked to be paused, and are.
+    /// </summary>
+    /// <remarks>
+    /// A store that says <see cref="IJobStore.SupportsStoringPaused" /> stored them paused, in the operation
+    /// that stored them. For one that does not, they are paused here, straight after the store call: the
+    /// fallback, which leaves a window in which a trigger due at once can be acquired and fire. A trigger
+    /// that fired and finished in that window is not paused, and is not in the answer.
+    /// </remarks>
+    private async ValueTask<List<TriggerKey>> PausedOnStore(
+        ScheduleJobOptions options,
+        List<TriggerKey> stored,
+        CancellationToken cancellationToken)
+    {
+        if (!options.Paused || stored.Count == 0)
+        {
+            return [];
+        }
+
+        if (resources.JobStore.SupportsStoringPaused)
+        {
+            return stored;
+        }
+
+        PauseDetails? details = options.Pause;
+        if (stored.Count == 1)
+        {
+            bool moved = PauseDetails.SaysNothing(details)
+                ? await resources.JobStore.PauseTrigger(stored[0], cancellationToken).ConfigureAwait(false)
+                : await resources.JobStore.PauseTriggerWith(stored[0], details, cancellationToken).ConfigureAwait(false);
+            return moved ? stored : [];
+        }
+
+        return PauseDetails.SaysNothing(details)
+            ? await resources.JobStore.PauseTriggers(stored, cancellationToken).ConfigureAwait(false)
+            : await resources.JobStore.PauseTriggersWith(stored, details, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Refuses a continuation asked to be stored paused: it waits for its parent's firing rather than for
+    /// a resume, and is released by that firing whatever a pause would have said.
+    /// </summary>
+    private static void RefusePausedContinuation(IOperableTrigger trigger, ScheduleJobOptions options)
+    {
+        if (options.Paused && !trigger.Continuation.IsNone)
+        {
+            Throw.SchedulerException(
+                $"Trigger '{trigger.Key}' is a continuation, which waits for its parent rather than for a resume, so it cannot be stored paused.");
+        }
+    }
+
+    private async ValueTask NotifySchedulerListenersStoredPaused(List<TriggerKey> paused, CancellationToken cancellationToken)
+    {
+        foreach (TriggerKey key in paused)
+        {
+            await NotifySchedulerListenersPausedTrigger(key, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -938,12 +1015,17 @@ internal sealed class QuartzScheduler
         CancellationToken cancellationToken = default)
     {
         (IOperableTrigger trig, DateTimeOffset firstFireTimeUtc) = await PrepareTriggerToStore(trigger, cancellationToken).ConfigureAwait(false);
+        RefusePausedContinuation(trig, options);
 
         // Replacing is the store's own operation, taken under the store's lock, so an upsert is one
         // call rather than a CheckExists / UnscheduleJob / ScheduleJob a caller has to serialize itself.
-        await resources.JobStore.AddTrigger(trig, new AddTriggerOptions { Replace = options.Replace }, cancellationToken).ConfigureAwait(false);
+        // Storing paused is too, when the store can.
+        await resources.JobStore.AddTrigger(trig, AddTriggerOptions.From(ForStore(options)), cancellationToken).ConfigureAwait(false);
+        List<TriggerKey> paused = await PausedOnStore(options, [trig.Key], cancellationToken).ConfigureAwait(false);
+
         NotifySchedulerThread(trigger.NextFireTimeUtc);
         await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
+        await NotifySchedulerListenersStoredPaused(paused, cancellationToken).ConfigureAwait(false);
 
         return firstFireTimeUtc;
     }
@@ -1171,6 +1253,7 @@ internal sealed class QuartzScheduler
 
                 AdjustSimpleTriggerStartTimeIfInPast(trigger);
                 trigger.Validate();
+                RefusePausedContinuation(trigger, options);
 
                 PrepareTriggerData(trigger);
 
@@ -1204,7 +1287,15 @@ internal sealed class QuartzScheduler
             validated.Add(job, operableTriggers);
         }
 
-        await resources.JobStore.ScheduleJobs(validated, options, cancellationToken).ConfigureAwait(false);
+        await resources.JobStore.ScheduleJobs(validated, ForStore(options), cancellationToken).ConfigureAwait(false);
+
+        List<TriggerKey> paused = [];
+        if (options.Paused)
+        {
+            List<TriggerKey> stored = [.. validated.Values.SelectMany(triggers => triggers).Select(trigger => trigger.Key)];
+            paused = await PausedOnStore(options, stored, cancellationToken).ConfigureAwait(false);
+        }
+
         NotifySchedulerThread(earliestFireTimeUtc);
         foreach (var pair in validated)
         {
@@ -1217,6 +1308,8 @@ internal sealed class QuartzScheduler
                 await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
             }
         }
+
+        await NotifySchedulerListenersStoredPaused(paused, cancellationToken).ConfigureAwait(false);
     }
 
     public ValueTask ScheduleJob(

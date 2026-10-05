@@ -238,12 +238,46 @@ internal interface ScheduleJobRequest
     /// says whether it was created, replaced or kept.
     /// </summary>
     TriggerConflict? OnConflict { get; }
+
+    /// <summary>
+    /// Store the trigger paused, so it never fires until it is resumed. From 4.4; a host before 4.4
+    /// ignores it and stores the trigger unpaused. Set by either text as well. Not with <c>onConflict</c>.
+    /// </summary>
+    bool Paused { get; }
+
+    /// <summary>
+    /// Why the trigger is stored paused, read back as the pause's <c>reason</c>. Implies <c>paused</c>.
+    /// </summary>
+    string? PauseReason { get; }
+
+    /// <summary>
+    /// Who asked for it, read back as the pause's <c>requestedBy</c>. Implies <c>paused</c>. Left out
+    /// beside a reason, it is the authenticated user's name.
+    /// </summary>
+    string? PauseRequestedBy { get; }
 }
 
 internal interface ScheduleJobsRequest
 {
     ScheduleJobsRequestItem[] JobsAndTriggers { get; }
     bool Replace { get; }
+
+    /// <summary>
+    /// Store every trigger paused, so none fires until it is resumed. From 4.4; a host before 4.4
+    /// ignores it and stores them unpaused. Set by either text as well.
+    /// </summary>
+    bool Paused { get; }
+
+    /// <summary>
+    /// Why the triggers are stored paused, read back as the pause's <c>reason</c>. Implies <c>paused</c>.
+    /// </summary>
+    string? PauseReason { get; }
+
+    /// <summary>
+    /// Who asked for it, read back as the pause's <c>requestedBy</c>. Implies <c>paused</c>. Left out
+    /// beside a reason, it is the authenticated user's name.
+    /// </summary>
+    string? PauseRequestedBy { get; }
 }
 
 internal interface ScheduleJobsRequestItem

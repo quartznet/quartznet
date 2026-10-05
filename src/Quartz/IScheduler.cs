@@ -396,14 +396,15 @@ public interface IScheduler : IAsyncDisposable
     /// <param name="options">
     /// Whether an already stored job or trigger with the same key is over-written. The whole operation
     /// is one store operation under one lock, so an upsert needs no read-then-write of its own and
-    /// cannot lose a race with another node doing the same thing.
+    /// cannot lose a race with another node doing the same thing. <see cref="ScheduleJobOptions.Paused" />
+    /// stores the trigger paused in that same operation.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="ArgumentNullException"><paramref name="jobDetail" /> or <paramref name="trigger" /> is <see langword="null" />.</exception>
     /// <exception cref="SchedulerException">
     /// The scheduler has been shut down; or <paramref name="trigger" /> names a different job, names a
     /// calendar that is not registered, or will never fire; or it is not one of Quartz's own trigger
-    /// implementations.
+    /// implementations; or it is a continuation asked to be stored paused.
     /// </exception>
     /// <exception cref="ObjectAlreadyExistsException">
     /// The job or the trigger is already stored under the same key and
@@ -424,7 +425,8 @@ public interface IScheduler : IAsyncDisposable
     /// Whether an already stored trigger with the same key is over-written. Replacing is one store
     /// operation under the store's own lock, so scheduling over an existing trigger needs no
     /// <c>CheckExists</c> / <c>UnscheduleJob</c> / <c>ScheduleJob</c> dance and cannot lose a race with
-    /// another node doing the same thing.
+    /// another node doing the same thing. <see cref="ScheduleJobOptions.Paused" /> stores the trigger
+    /// paused in that same operation.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <remarks>
@@ -435,7 +437,8 @@ public interface IScheduler : IAsyncDisposable
     /// <exception cref="ArgumentNullException"><paramref name="trigger" /> is <see langword="null" />.</exception>
     /// <exception cref="SchedulerException">
     /// The scheduler has been shut down; or <paramref name="trigger" /> names a calendar that is not
-    /// registered, or will never fire; or it is not one of Quartz's own trigger implementations.
+    /// registered, or will never fire; or it is not one of Quartz's own trigger implementations; or it is
+    /// a continuation asked to be stored paused.
     /// </exception>
     /// <exception cref="ObjectAlreadyExistsException">
     /// A trigger is already stored under the same key and

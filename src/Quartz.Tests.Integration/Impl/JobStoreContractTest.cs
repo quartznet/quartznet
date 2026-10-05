@@ -722,6 +722,83 @@ public abstract class JobStoreContractTest
     private static DateTimeOffset TruncatedToTheSecond(DateTimeOffset value) =>
         new(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second, value.Offset);
 
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Storing paused (#4018)
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task ATriggerStoredPausedIsNeverAcquiredAndCarriesItsRecord()
+    {
+        Store.SupportsStoringPaused.Should().BeTrue("every store Quartz ships honours the option");
+
+        IJobDetail job = CreateJob("held", JobGroupA);
+        IOperableTrigger trigger = CreateTrigger("held", TriggerGroupA, job.Key, startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+
+        DateTimeOffset before = TruncatedToTheSecond(DateTimeOffset.UtcNow);
+        await Store.ScheduleJobs(
+            new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> { [job] = [trigger] },
+            new ScheduleJobOptions { PauseReason = "awaiting approval", PauseRequestedBy = "alice" });
+
+        (await AcquireDue()).Should().BeEmpty("the trigger is due, and was stored paused, so there was never anything to acquire");
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused);
+
+        PauseInfo pause = await Store.GetTriggerPause(trigger.Key);
+        pause.Should().NotBeNull("the record is written by the call that stored the trigger");
+        pause.Reason.Should().Be("awaiting approval");
+        pause.RequestedBy.Should().Be("alice");
+        pause.PausedAtUtc.Should().BeOnOrAfter(before);
+
+        (await Store.ResumeTrigger(trigger.Key)).Should().BeTrue();
+        (await Store.GetTriggerPause(trigger.Key)).Should().BeNull();
+
+        List<IOperableTrigger> acquired = await AcquireDue();
+        acquired.Select(x => x.Key).Should().Equal([trigger.Key], "resumed, it is the trigger it would have been");
+        await Store.ReleaseAcquiredTrigger(acquired[0]);
+    }
+
+    [Test]
+    public async Task AddTriggerStoredPausedOverAPausedTriggerReplacesItsRecord()
+    {
+        IOperableTrigger original = await ScheduleJobWithTrigger("replaced", JobGroupA, TriggerGroupA);
+        await Store.PauseTriggerWith(original.Key, Maintenance);
+
+        await Store.AddTrigger(CreateTrigger("replaced", TriggerGroupA, original.JobKey), new AddTriggerOptions { Replace = true, Paused = true });
+
+        (await Store.GetTriggerState(original.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerPause(original.Key)).Should().BeNull(
+            "the replacement was paused without a reason, so the record of the pause it replaced is not read as its own");
+
+        await Store.AddTrigger(CreateTrigger("replaced", TriggerGroupA, original.JobKey), new AddTriggerOptions { Replace = true, PauseReason = "re-planned" });
+
+        (await Store.GetTriggerPause(original.Key)).Reason.Should().Be("re-planned");
+    }
+
+    [Test]
+    public async Task ATriggerStoredPausedIntoAPausedGroupAnswersItsOwnReason()
+    {
+        await Store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA), Maintenance);
+
+        IJobDetail job = CreateJob("own-reason", JobGroupA);
+        IOperableTrigger trigger = CreateTrigger("own-reason", TriggerGroupA, job.Key);
+        await Store.ScheduleJobs(
+            new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> { [job] = [trigger] },
+            new ScheduleJobOptions { PauseReason = "awaiting approval" });
+
+        (await Store.GetTriggerPause(trigger.Key)).Reason.Should().Be("awaiting approval",
+            "the explicit reason is the trigger's own, and a trigger's own record is answered before its group's");
+        (await Store.GetTriggerGroupPause(TriggerGroupA)).Reason.Should().Be("database maintenance");
+    }
+
+    private ValueTask<List<IOperableTrigger>> AcquireDue()
+    {
+        return Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 5,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+    }
+
     [Test]
     public async Task ATriggerAddedToAPausedGroupIsBornPaused()
     {

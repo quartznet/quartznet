@@ -397,6 +397,7 @@ namespace Quartz.Dashboard.Services
     {
         public ScheduleJobRequest(Quartz.ITrigger Trigger, Quartz.Dashboard.Services.JobDetailDto? Job) { }
         public Quartz.Dashboard.Services.JobDetailDto? Job { get; init; }
+        public Quartz.PauseDetails? Paused { get; init; }
         public Quartz.ITrigger Trigger { get; init; }
     }
     public sealed record SchedulerDetailDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerDetailDto>

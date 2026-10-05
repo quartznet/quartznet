@@ -17,6 +17,9 @@ namespace Quartz
     }
     public readonly record struct AddTriggerOptions : System.IEquatable<Quartz.AddTriggerOptions>
     {
+        public string? PauseReason { get; init; }
+        public string? PauseRequestedBy { get; init; }
+        public bool Paused { get; init; }
         public bool Replace { get; init; }
         public static Quartz.AddTriggerOptions Replacing { get; }
     }
@@ -1730,6 +1733,9 @@ namespace Quartz
     }
     public readonly record struct ScheduleJobOptions : System.IEquatable<Quartz.ScheduleJobOptions>
     {
+        public string? PauseReason { get; init; }
+        public string? PauseRequestedBy { get; init; }
+        public bool Paused { get; init; }
         public bool Replace { get; init; }
         public static Quartz.ScheduleJobOptions Replacing { get; }
     }
@@ -2390,6 +2396,7 @@ namespace Quartz.Extensibility
         bool Clustered { get; }
         System.TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; }
         bool SupportsPersistence { get; }
+        bool SupportsStoringPaused { get; } // default implementation
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Extensibility.TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default);
@@ -3683,6 +3690,7 @@ namespace Quartz.Impl
         public virtual System.TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; }
         protected Quartz.Extensibility.IJobStore InnerJobStore { get; }
         public virtual bool SupportsPersistence { get; }
+        public virtual bool SupportsStoringPaused { get; }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.Extensibility.TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3912,6 +3920,7 @@ namespace Quartz.Impl
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
         public System.TimeSpan MisfireThreshold { get; }
         public bool SupportsPersistence { get; }
+        public bool SupportsStoringPaused { get; }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.Extensibility.TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }

@@ -220,6 +220,24 @@ The six paged `Query…` members are abstract:
 Key-set members such as `PauseJobs(keys)`, `ResumeTriggers(keys)` and `DeleteJobs(keys)` default to looping
 the single-key member (one lock or round trip per key). Override those your store can do in one pass.
 
+### Storing a trigger paused
+
+From 4.4, `AddTriggerOptions` and `ScheduleJobOptions` carry `Paused`, `PauseReason` and `PauseRequestedBy`.
+
+| `bool SupportsStoringPaused` | What the scheduler does |
+|---|---|
+| `false`, the default | Hands the store `Replace` alone, then pauses each trigger with `PauseTriggerWith`. A due trigger can fire in between |
+| `true` | Hands the store the options; the store stores each trigger paused |
+
+To answer `true`, store each trigger paused in the same operation as the rest of `AddTrigger` or `ScheduleJobs`:
+
+* Paused-blocked while a `[DisallowConcurrentExecution]` job of it is running.
+* With its record, cut and stamped as `PauseTriggerWith` writes one. Over a replaced trigger, it replaces the old
+  record.
+* A continuation stays awaiting; the scheduler refuses one before it reaches the store.
+
+`DelegatingJobStore` answers what its inner store answers.
+
 ### Two properties that are answers, not settings
 
 `bool Clustered` and `bool SupportsPersistence` are read-only: they describe what the store *is*. A store

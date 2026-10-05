@@ -70,7 +70,13 @@ namespace Quartz;
 /// </remarks>
 public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler
 {
+    /// <summary>The first version whose schedule routes store a trigger paused.</summary>
+    private static readonly Version FirstStoringPausedVersion = new(4, 4);
+
     private readonly WireClient wire;
+
+    /// <summary>Whether the host has been found to be 4.4 or later; see <see cref="RequireStoringPaused" />.</summary>
+    private volatile bool hostStoresPaused;
 
     /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler.</param>
     /// <param name="httpClient">The client to call the remote scheduler with.</param>
@@ -409,17 +415,23 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <see cref="ScheduleJobOptions.Paused" /> needs a host at 4.4 or later, which stores the trigger paused
+    /// in the call that stores it. An older host would ignore it and store the trigger unpaused, so the host's
+    /// version is read first and an older one is refused with <see cref="NotSupportedException" />, having
+    /// stored nothing.
+    /// </remarks>
     public ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(jobDetail);
 
-        return DoScheduleJob(jobDetail, trigger, options.Replace, cancellationToken);
+        return DoScheduleJob(jobDetail, trigger, options, cancellationToken);
     }
 
-    /// <inheritdoc />
+    /// <inheritdoc cref="ScheduleJob(IJobDetail, ITrigger, ScheduleJobOptions, CancellationToken)" />
     public ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
-        return DoScheduleJob(null, trigger, options.Replace, cancellationToken);
+        return DoScheduleJob(null, trigger, options, cancellationToken);
     }
 
     /// <inheritdoc cref="IScheduler.ScheduleTrigger" path="/summary|/param|/returns|/exception" />
@@ -444,14 +456,24 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         return new ScheduleTriggerResult(result.FirstFireTimeUtc, result.Outcome ?? ScheduleOutcome.Created);
     }
 
-    private async ValueTask<DateTimeOffset> DoScheduleJob(IJobDetail? jobDetail, ITrigger trigger, bool replace, CancellationToken cancellationToken)
+    private async ValueTask<DateTimeOffset> DoScheduleJob(IJobDetail? jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(trigger);
+
+        if (options.Paused)
+        {
+            await RequireStoringPaused(cancellationToken).ConfigureAwait(false);
+        }
 
         var jobDetailsDto = jobDetail is not null ? JobDetailDto.Create(jobDetail) : null;
         var result = await wire.SendAndRead<ScheduleJobRequest, ScheduleJobResponse>(
             At(SchedulerRoutes.ScheduleJob),
-            new ScheduleJobRequest(trigger, jobDetailsDto, replace),
+            new ScheduleJobRequest(trigger, jobDetailsDto, options.Replace)
+            {
+                Paused = options.Paused,
+                PauseReason = options.PauseReason,
+                PauseRequestedBy = options.PauseRequestedBy
+            },
             cancellationToken
         ).ConfigureAwait(false);
 
@@ -459,20 +481,65 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     }
 
     /// <inheritdoc />
-    public ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// <see cref="ScheduleJobOptions.Paused" /> is refused with <see cref="NotSupportedException" /> by a host
+    /// older than 4.4, as <see cref="ScheduleJob(IJobDetail, ITrigger, ScheduleJobOptions, CancellationToken)" />
+    /// says.
+    /// </remarks>
+    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(triggersAndJobs);
 
-        var requestItems = triggersAndJobs.Select(CreateRequestItem).ToArray();
-        var request = new ScheduleJobsRequest(requestItems, options.Replace);
+        if (options.Paused)
+        {
+            await RequireStoringPaused(cancellationToken).ConfigureAwait(false);
+        }
 
-        return wire.Send(At(SchedulerRoutes.ScheduleJobs), request, cancellationToken);
+        var requestItems = triggersAndJobs.Select(CreateRequestItem).ToArray();
+        var request = new ScheduleJobsRequest(requestItems, options.Replace)
+        {
+            Paused = options.Paused,
+            PauseReason = options.PauseReason,
+            PauseRequestedBy = options.PauseRequestedBy
+        };
+
+        await wire.Send(At(SchedulerRoutes.ScheduleJobs), request, cancellationToken).ConfigureAwait(false);
 
         static ScheduleJobsRequestItem CreateRequestItem(KeyValuePair<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJob)
         {
             var (job, triggers) = (triggersAndJob.Key, triggersAndJob.Value);
             return new ScheduleJobsRequestItem(JobDetailDto.Create(job), triggers.ToArray());
         }
+    }
+
+    /// <summary>
+    /// Refuses a paused schedule before it is sent to a host that would store it unpaused.
+    /// </summary>
+    /// <remarks>
+    /// The host's version is read from its scheduler details. A 4.4 answer is kept, so the read happens once
+    /// per client; an older one is not, so a host upgraded under a running client is noticed.
+    /// </remarks>
+    /// <exception cref="NotSupportedException">The host is older than 4.4.</exception>
+    private async ValueTask RequireStoringPaused(CancellationToken cancellationToken)
+    {
+        if (hostStoresPaused)
+        {
+            return;
+        }
+
+        SchedulerDto details = await GetSchedulerDetails(cancellationToken).ConfigureAwait(false);
+
+        string? reported = details.Statistics?.Version;
+        if (Version.TryParse(reported, out Version? version) && version >= FirstStoringPausedVersion)
+        {
+            hostStoresPaused = true;
+            return;
+        }
+
+        throw new NotSupportedException(
+            $"The scheduler '{SchedulerName}' is reached over HTTP and its host runs Quartz {reported ?? "(unknown)"}, "
+            + "which ignores ScheduleJobOptions.Paused and would store the trigger unpaused. Upgrade the host to 4.4 "
+            + "or later, or schedule the trigger and pause it in two calls.");
     }
 
     /// <inheritdoc />

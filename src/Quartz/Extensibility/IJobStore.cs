@@ -46,6 +46,19 @@ public interface IJobStore
     bool SupportsPersistence { get; }
 
     /// <summary>
+    /// Whether the store honours <see cref="AddTriggerOptions.Paused" /> and
+    /// <see cref="ScheduleJobOptions.Paused" />, storing a trigger paused in the operation that stores it.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, added in 4.4, answering <see langword="false" />. A store that answers
+    /// so is handed <see cref="AddTriggerOptions.Replace" /> alone, as before 4.4, and the scheduler then
+    /// pauses each trigger through <see cref="PauseTriggerWith" />, so a trigger due at once can fire in
+    /// between. Answer <see langword="true" /> once <see cref="AddTrigger" /> and
+    /// <see cref="ScheduleJobs" /> honour the option. Every store Quartz ships does.
+    /// </remarks>
+    bool SupportsStoringPaused => false;
+
+    /// <summary>
     /// How long the <see cref="IJobStore" /> implementation estimates that it will take to
     /// release a trigger and acquire a new one.
     /// </summary>
@@ -138,6 +151,8 @@ public interface IJobStore
     ///     How to store them. <see cref="ScheduleJobOptions.Replace" /> over-writes any job or trigger
     ///     already stored under one of the same keys; without it, a key that exists throws
     ///     <see cref="ObjectAlreadyExistsException" /> and none of the batch is stored.
+    ///     <see cref="ScheduleJobOptions.Paused" /> stores every trigger paused; it reaches only a store
+    ///     that says <see cref="SupportsStoringPaused" />.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="ObjectAlreadyExistsException">
@@ -218,7 +233,8 @@ public interface IJobStore
     /// <param name="options">
     ///     How to store it. <see cref="AddTriggerOptions.Replace" /> over-writes a trigger already
     ///     stored under the same key; without it, storing one whose key exists throws
-    ///     <see cref="ObjectAlreadyExistsException" />.
+    ///     <see cref="ObjectAlreadyExistsException" />. <see cref="AddTriggerOptions.Paused" /> stores it
+    ///     paused; it reaches only a store that says <see cref="SupportsStoringPaused" />.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="ObjectAlreadyExistsException">

@@ -184,8 +184,8 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/keys/resume` | `{ triggers }` |
 | `GET` | `…/triggers/groups` | paged trigger groups; the four `name*` filters, `paused` |
 | `GET` | `…/triggers/groups/{triggerGroup}/paused` | `{ paused, pause }` |
-| `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }`; one job and its trigger. A trigger alone may carry `onConflict` (`Throw`, `Replace`, `Keep`, `KeepEarlier`); the answer then adds `outcome` (`Created`, `Replaced`, `Kept`). See [One-off job](../how-tos/one-off-job.md#scheduling-over-a-firing-that-is-already-there) |
-| `POST` | `…/triggers/schedule-multiple` | empty; several jobs and their triggers |
+| `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }`; one job and its trigger. A trigger alone may carry `onConflict` (`Throw`, `Replace`, `Keep`, `KeepEarlier`); the answer then adds `outcome` (`Created`, `Replaced`, `Kept`). See [One-off job](../how-tos/one-off-job.md#scheduling-over-a-firing-that-is-already-there). May store it [paused](#a-trigger-can-be-scheduled-paused) |
+| `POST` | `…/triggers/schedule-multiple` | empty; several jobs and their triggers; may store them [paused](#a-trigger-can-be-scheduled-paused) |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/unschedule` | `{ applied }` |
 | `POST` | `…/triggers/unschedule` | `{ triggers }` |
 | `POST` | `…/triggers/unschedule-by-group` | `{ triggers }`; group matcher in the query string |
@@ -861,6 +861,31 @@ The record is read back as `pause`:
 
 `pause` is `null` for a pause that said nothing; in a record, either text may be `null`. A 4.2 client ignores
 `pause`; a 4.2 host ignores the body. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
+
+### A trigger can be scheduled paused
+
+From 4.4. The `…/triggers/schedule` and `…/triggers/schedule-multiple` bodies take the members of
+`ScheduleJobOptions` that store the triggers paused, in the call that stores them:
+
+```http
+POST /quartz-api/schedulers/core/triggers/schedule
+Content-Type: application/json
+
+{ "trigger": { … }, "job": { … }, "pauseReason": "awaiting approval", "pauseRequestedBy": "alice" }
+```
+
+| Member | Means |
+|---|---|
+| `paused` | Store the triggers paused. Either text sets it too |
+| `pauseReason` | The record's `reason` |
+| `pauseRequestedBy` | The record's `requestedBy`. Beside a reason, left out is the authenticated user's name |
+
+- **`paused` with neither text is the reasonless pause, even from an authenticated caller.**
+- `onConflict` beside any of them is `400`: `ScheduleTrigger` takes no options.
+- A 4.3 host ignores all three and stores the triggers unpaused. `AddQuartzHttpClient` reads the host's version
+  first and throws `NotSupportedException` against one older than 4.4, having sent nothing.
+
+See [Scheduling a trigger paused](../how-tos/pausing-with-a-reason.md#scheduling-a-trigger-paused).
 
 ### A whole set of keys in one call
 

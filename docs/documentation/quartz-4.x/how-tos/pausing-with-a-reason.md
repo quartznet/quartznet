@@ -87,6 +87,47 @@ if (pause is not null)
 Each is `null` when the trigger or group is not paused, does not exist, was paused without a reason, or was paused
 by a 4.2 node (see [below](#a-mixed-cluster)). **Resuming clears the record.**
 
+## Scheduling a trigger paused
+
+From 4.4. `ScheduleJobOptions` can store the triggers paused, in the call that stores them, so none can fire
+first. Scheduling and then pausing leaves a moment in which a trigger that is due can fire.
+
+<!-- snippet: sample_schedule_paused -->
+```csharp
+IJobDetail job = JobBuilder.Create<ExportJob>().WithIdentity("export").Build();
+ITrigger trigger = TriggerBuilder.Create()
+    .WithIdentity("nightly-export")
+    .ForJob(job)
+    .WithCronSchedule("0 0 2 * * ?")
+    .Build();
+
+// Stored paused by the call that stores it, so it cannot fire before somebody resumes it.
+await scheduler.ScheduleJob(job, trigger, new ScheduleJobOptions
+{
+    PauseReason = "awaiting sign-off from finance",
+    PauseRequestedBy = "alice"
+});
+```
+<!-- endSnippet -->
+
+| `ScheduleJobOptions` | Means |
+|---|---|
+| `Paused` | Store the triggers paused. Either text sets it too |
+| `PauseReason` | The record's `Reason` |
+| `PauseRequestedBy` | The record's `RequestedBy` |
+
+- Every `ScheduleJob` and `ScheduleJobs` overload that takes `ScheduleJobOptions` honours it. `ScheduleTrigger`
+  takes no options.
+- **The trigger's own reason wins** over its group's: `GetTriggerPause` answers it inside a paused group.
+- With `Replace`, the replacement is stored paused with this record.
+- A trigger whose `[DisallowConcurrentExecution]` job is running is stored paused-blocked, as `PauseTrigger`
+  would leave it.
+- Listeners hear `JobScheduled`, then `TriggerPaused`.
+- A continuation (`StartAfter`) waits for its parent, not a resume, so it is refused with `SchedulerException`.
+- A store of your own answers [`SupportsStoringPaused`](custom-job-store.md#storing-a-trigger-paused) `false` by
+  default. The scheduler then pauses each trigger straight after storing it, and **a trigger due at once can fire
+  in between**.
+
 ## Pausing when retries run out
 
 `PauseTriggerWhenRetriesExhausted()` pauses a trigger whose [retry policy](retrying-failed-jobs.md) gives up,
@@ -139,6 +180,9 @@ Content-Type: application/json
   [HTTP API](../packages/http-api.md#a-pause-can-say-why).
 - `AddQuartzHttpClient` sends and reads the rest, so `PauseTriggerWith` on a remote scheduler records the reason
   on the server.
+- From 4.4, the schedule routes take `paused`, `pauseReason` and `pauseRequestedBy`: see
+  [A trigger can be scheduled paused](../packages/http-api.md#a-trigger-can-be-scheduled-paused). Against a 4.3
+  host, `AddQuartzHttpClient` throws `NotSupportedException` for a paused schedule and stores nothing.
 
 ## In the dashboard
 
@@ -149,6 +193,7 @@ Content-Type: application/json
 - A paused trigger shows **Paused: reason (by who, when)** on its page and in the listings; a paused job group
   shows its record on the Jobs page.
 - Read-only mode hides the prompts and keeps the notes.
+- From 4.4, `IQuartzApiClient.ScheduleJob` stores the trigger paused when `ScheduleJobRequest.Paused` is set.
 
 ## A mixed cluster
 

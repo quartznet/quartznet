@@ -199,11 +199,36 @@ internal record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job, bool Rep
     /// </remarks>
     public TriggerConflict? OnConflict { get; init; }
 
+    /// <summary>
+    /// Whether the trigger is stored paused, as <see cref="ScheduleJobOptions.Paused" /> says it.
+    /// </summary>
+    /// <remarks>
+    /// Optional, with the two texts beside it, so a body without them means what it always did. A host
+    /// older than 4.4 ignores all three and stores the trigger unpaused, which is why <c>HttpScheduler</c>
+    /// asks the host's version before it sends them.
+    /// </remarks>
+    public bool Paused { get; init; }
+
+    /// <inheritdoc cref="ScheduleJobOptions.PauseReason" />
+    public string? PauseReason { get; init; }
+
+    /// <inheritdoc cref="ScheduleJobOptions.PauseRequestedBy" />
+    public string? PauseRequestedBy { get; init; }
+
+    /// <inheritdoc cref="SchedulePause.Options" />
+    public ScheduleJobOptions AsOptions(string? authenticatedUser) =>
+        SchedulePause.Options(Replace, Paused, PauseReason, PauseRequestedBy, authenticatedUser);
+
     public IEnumerable<string> Validate()
     {
         if (Trigger is null)
         {
             yield return "Missing trigger details";
+        }
+
+        if (OnConflict is not null && AsOptions(authenticatedUser: null).Paused)
+        {
+            yield return "paused applies to replace or to a plain schedule; a trigger scheduled under onConflict cannot be stored paused";
         }
 
         if (Job is not null)
@@ -244,7 +269,47 @@ internal record ScheduleJobResponse(DateTimeOffset FirstFireTimeUtc)
 // When updating these, make same changes also into Quartz.AspNetCore.HttpApi.OpenApi.ScheduleJobsRequest/ScheduleJobsRequestItem
 internal record ScheduleJobsRequest(ScheduleJobsRequestItem[] JobsAndTriggers, bool Replace) : IValidatable
 {
+    /// <inheritdoc cref="ScheduleJobRequest.Paused" />
+    public bool Paused { get; init; }
+
+    /// <inheritdoc cref="ScheduleJobOptions.PauseReason" />
+    public string? PauseReason { get; init; }
+
+    /// <inheritdoc cref="ScheduleJobOptions.PauseRequestedBy" />
+    public string? PauseRequestedBy { get; init; }
+
+    /// <inheritdoc cref="SchedulePause.Options" />
+    public ScheduleJobOptions AsOptions(string? authenticatedUser) =>
+        SchedulePause.Options(Replace, Paused, PauseReason, PauseRequestedBy, authenticatedUser);
+
     public IEnumerable<string> Validate() => JobsAndTriggers is null ? ["Missing jobs and triggers"] : JobsAndTriggers.SelectMany(x => x.Validate());
+}
+
+/// <summary>
+/// What a schedule body says about storing its triggers paused.
+/// </summary>
+internal static class SchedulePause
+{
+    /// <summary>
+    /// The options the body asks for, with <paramref name="authenticatedUser" /> as the pause's requester
+    /// when the body gives a reason and names no requester.
+    /// </summary>
+    /// <remarks>
+    /// A paused body with neither text is the reasonless pause and is not put in the caller's name, as a
+    /// key-set pause body with neither is not: a requester filled in there would turn every authenticated
+    /// client's reasonless pause into one that records something.
+    /// </remarks>
+    public static ScheduleJobOptions Options(bool replace, bool paused, string? reason, string? requestedBy, string? authenticatedUser)
+    {
+        PauseDetails? details = KeySetPause.Details(reason, requestedBy, authenticatedUser);
+        return new ScheduleJobOptions
+        {
+            Replace = replace,
+            Paused = paused,
+            PauseReason = details?.Reason,
+            PauseRequestedBy = details?.RequestedBy
+        };
+    }
 }
 
 internal record ScheduleJobsRequestItem(JobDetailDto Job, ITrigger[] Triggers) : IValidatable

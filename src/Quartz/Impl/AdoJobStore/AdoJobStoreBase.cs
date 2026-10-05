@@ -1340,4 +1340,12 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// Indicates whether this job store supports persistence.
     /// </summary>
     public bool SupportsPersistence => true;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <see langword="true" />: <see cref="AddTrigger(IOperableTrigger, AddTriggerOptions, CancellationToken)" />
+    /// and <see cref="ScheduleJobs" /> insert a trigger asked to be stored paused with the paused state,
+    /// and write its record in the same transaction.
+    /// </remarks>
+    public bool SupportsStoringPaused => true;
 }

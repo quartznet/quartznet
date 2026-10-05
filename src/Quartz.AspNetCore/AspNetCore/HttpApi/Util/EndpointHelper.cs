@@ -162,7 +162,11 @@ internal sealed class EndpointHelper
         return request.AsPauseDetails(AuthenticatedUser(context));
     }
 
-    private static string? AuthenticatedUser(HttpContext context)
+    /// <summary>
+    /// The authenticated caller's name, or <see langword="null" /> for an anonymous or nameless one: the
+    /// requester of a pause whose body names none.
+    /// </summary>
+    public static string? AuthenticatedUser(HttpContext context)
     {
         string? user = context.User.Identity?.Name;
         return string.IsNullOrWhiteSpace(user) ? null : user;

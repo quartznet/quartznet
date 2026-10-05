@@ -77,6 +77,11 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | HTTP: `reason`, `requestedBy` on the `…/triggers/keys/pause` and `…/jobs/keys/pause` bodies | Optional. See [A pause can say why](packages/http-api.md#a-pause-can-say-why) |
 | `QuartzBuilderExtensions.RunAtStartup(JobKey)` | Runs a stored job once each time the scheduler starts, once per node in a cluster. See [Once each time the scheduler starts](how-tos/multiple-triggers.md#once-each-time-the-scheduler-starts) |
 | `SchedulerConstants.StartupGroup` | `"QRTZ_STARTUP"`, the group of `RunAtStartup`'s one-shot triggers |
+| `ScheduleJobOptions.Paused`, `PauseReason`, `PauseRequestedBy`; the same on `AddTriggerOptions` | `init`. Store the triggers paused, with the record, in the call that stores them. See [Scheduling a trigger paused](how-tos/pausing-with-a-reason.md#scheduling-a-trigger-paused) |
+| `IJobStore.SupportsStoringPaused` | Default interface member, `false`: the scheduler pauses each trigger straight after storing it. See [Storing a trigger paused](how-tos/custom-job-store.md#storing-a-trigger-paused) |
+| `RAMJobStore.SupportsStoringPaused`, `DelegatingJobStore.SupportsStoringPaused` | `true`; the inner store's answer, `virtual` |
+| `ScheduleJobRequest.Paused` | `Quartz.Dashboard`. `init`, a `PauseDetails`: `IQuartzApiClient.ScheduleJob` stores the trigger paused |
+| HTTP: `paused`, `pauseReason`, `pauseRequestedBy` on the `…/triggers/schedule` and `…/schedule-multiple` bodies | Optional. See [A trigger can be scheduled paused](packages/http-api.md#a-trigger-can-be-scheduled-paused) |
 | Package `Quartz.Weasel.MySQL`: `MySqlWeaselStoreBuilderExtensions.UseWeaselForMySql`, `MySqlWeaselOptions` (`AutoCreate`, `LockName`, `LockTimeout`, `DefaultLockName`) | A MySQL store's schema under Weasel. See [MySQL](packages/weasel.md#mysql) |
 | Package `Quartz.Weasel.Oracle`: `OracleWeaselStoreBuilderExtensions.UseWeaselForOracle`, `OracleWeaselOptions` (`AutoCreate`) | An Oracle store's schema under Weasel. See [Oracle](packages/weasel.md#oracle) |
 | Package `Quartz.Weasel.Firebird`: `FirebirdWeaselStoreBuilderExtensions.UseWeaselForFirebird`, `FirebirdWeaselOptions` (`AutoCreate`, `MaxIdentifierLength`) | A Firebird store's schema under Weasel. See [Firebird](packages/weasel.md#firebird) |
@@ -304,6 +309,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * A 4.3 node may log warning `3028` ("returned null on nextFireTime") for a one-off a 4.4 node fired as it
   acquired it. It is harmless: the trigger is spent and its completion deletes it. A 4.4 node counts it as a
   race and logs nothing.
+* A 4.4 dashboard or HTTP client scheduling a trigger paused on a 4.3 host: `NotSupportedException`, and
+  nothing is stored. Schedule and pause in two calls until the host is upgraded.
 
 ### The 4.4 schema migration
 
