@@ -30,6 +30,15 @@ namespace Quartz.Impl.AdoJobStore;
 /// at this time, which is what tells a row another node claimed or rescheduled in between from one that is
 /// this node's to take.
 /// </remarks>
-/// <param name="TriggerKey">The trigger to claim.</param>
-/// <param name="NextFireTimeUtc">The next fire time the acquisition read the trigger with.</param>
-public readonly record struct TriggerClaim(TriggerKey TriggerKey, DateTimeOffset NextFireTimeUtc);
+public readonly record struct TriggerClaim
+{
+    /// <summary>
+    /// The trigger to claim.
+    /// </summary>
+    public required TriggerKey TriggerKey { get; init; }
+
+    /// <summary>
+    /// The next fire time the acquisition read the trigger with.
+    /// </summary>
+    public required DateTimeOffset NextFireTimeUtc { get; init; }
+}

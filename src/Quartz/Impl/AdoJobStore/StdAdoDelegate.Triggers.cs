@@ -2089,7 +2089,8 @@ public partial class StdAdoDelegate
     /// <remarks>
     /// One <see cref="System.Data.Common.DbBatch" /> for the whole round where the provider can batch,
     /// and the statement-per-row loop where it cannot, decided per call exactly as it is for misfire
-    /// recovery.
+    /// recovery. A subclass gets <see cref="InsertFiredTrigger" /> for each row instead, so that an override
+    /// of it is called for every row, as it was before rows were batched.
     /// </remarks>
     public virtual async ValueTask InsertFiredTriggers(
         ConnectionAndTransactionHolder conn,
@@ -2108,6 +2109,16 @@ public partial class StdAdoDelegate
             // A batch of one is one round trip either way, and assembling it costs more than issuing
             // the command. The scheduler's default batch size is one, so this is the common round.
             await InsertFiredTrigger(conn, triggers[0], state, jobDetail, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (!IsShipped)
+        {
+            for (int i = 0; i < triggers.Count; i++)
+            {
+                await InsertFiredTrigger(conn, triggers[i], state, jobDetail, cancellationToken).ConfigureAwait(false);
+            }
+
             return;
         }
 

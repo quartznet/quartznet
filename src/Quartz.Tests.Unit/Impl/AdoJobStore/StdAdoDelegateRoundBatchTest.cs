@@ -182,7 +182,7 @@ public class StdAdoDelegateRoundBatchTest
         PostgreSQLDelegate driverDelegate = Shipped(new PostgreSQLDelegate());
         StubBatchingConnection connection = new();
         string name = new('日', 1_500);
-        List<TriggerClaim> claims = [.. Enumerable.Range(0, 3).Select(i => new TriggerClaim(new TriggerKey(name + i, "g"), FireTime))];
+        List<TriggerClaim> claims = [.. Enumerable.Range(0, 3).Select(i => new TriggerClaim { TriggerKey = new TriggerKey(name + i, "g"), NextFireTimeUtc = FireTime })];
 
         List<TriggerKey> moved = await driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
             Holder(connection), claims, StoredTriggerState.Acquired, StoredTriggerState.Waiting);
@@ -318,7 +318,7 @@ public class StdAdoDelegateRoundBatchTest
 
     private static List<TriggerClaim> Claims(int count)
     {
-        return [.. Enumerable.Range(0, count).Select(i => new TriggerClaim(new TriggerKey("t" + i, "g"), FireTime))];
+        return [.. Enumerable.Range(0, count).Select(i => new TriggerClaim { TriggerKey = new TriggerKey("t" + i, "g"), NextFireTimeUtc = FireTime })];
     }
 
     private static List<TriggerFiredUpdate> Updates(int count)

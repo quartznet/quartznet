@@ -143,13 +143,15 @@ issues the statement instead: every `IDriverDelegate` member on `StdAdoDelegate`
 trigger. More `GetXxxSql()` hooks can be added compatibly; ask if you need one.
 :::
 
-::: warning A subclass does not batch an acquisition round
-A round that fires what is due as it acquires it sends its claims and its fire writes as one `DbBatch` each,
-from the delegates Quartz ships only, on a connection that reports `CanCreateBatch`. A subclass gets one `UpdateTriggerStateFromOtherStateWithNextFireTime`
-and one `ApplyTriggerFired` call per trigger, so its overrides are never bypassed; the round is still one
-transaction. To batch, override `UpdateTriggerStatesFromOtherStateWithNextFireTime` and `ApplyTriggersFired`
-with your own `DbBatch`. An `ApplyTriggerFired` override that does not call the base inserts the fired-trigger
-row itself when `TriggerFiredUpdate.FiredOnAcquire` is set.
+::: warning A subclass keeps its overrides in an acquisition round
+A round that fires what is due as it acquires it can read, claim and write through round members that stand
+in for the single-trigger ones, and each fire then inserts its fired-trigger row. `StdAdoDelegate` answers
+`SupportsFireOnAcquire` `true` only for the delegates Quartz ships. A subclass answers `false`: its round is
+still one transaction, but it calls `UpdateTriggerStateFromOtherStateWithNextFireTime`, `InsertFiredTrigger`,
+`SelectTriggerHeader`, `SelectJobDetail` and `ApplyTriggerFired` for each trigger, as acquiring and then
+firing did. Answer `true` for the shipped shape once an `ApplyTriggerFired` override handles
+`TriggerFiredUpdate.FiredOnAcquire` or calls the base, and your other overrides have round counterparts. A
+subclass's round is never sent as a `DbBatch`.
 :::
 
 ::: warning The value conversions are not all seams

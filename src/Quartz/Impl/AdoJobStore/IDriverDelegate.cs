@@ -439,6 +439,8 @@ public interface IDriverDelegate
     /// The plural of <see cref="UpdateTriggerStateFromOtherStateWithNextFireTime" />, for an acquisition
     /// that fires what is due in the same transaction (#3864): its claims go together, where the provider
     /// can batch them. <c>StdAdoDelegate</c> sends them as one <see cref="System.Data.Common.DbBatch" />.
+    /// Called only for a delegate that answers <see cref="SupportsFireOnAcquire" /> with
+    /// <see langword="true" />.
     /// </para>
     /// <para>
     /// A default interface member, so a delegate written against an earlier 4.x keeps working: the default
@@ -632,6 +634,32 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Whether the store may fire a trigger in the transaction that acquires it through this delegate's round
+    /// members, in place of its single-trigger ones.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A round that fires what is due as it acquires it (#3864) can claim its triggers with
+    /// <see cref="UpdateTriggerStatesFromOtherStateWithNextFireTime" />, read their headers and jobs with
+    /// <see cref="SelectStoredTriggerHeaders" /> and <see cref="SelectJobDetails" />, and write its fires with
+    /// <see cref="ApplyTriggersFired" />, each fire inserting its fired-trigger row
+    /// (<see cref="TriggerFiredUpdate.FiredOnAcquire" />) rather than updating a reservation. Those stand in
+    /// for <see cref="UpdateTriggerStateFromOtherStateWithNextFireTime" />, <see cref="InsertFiredTrigger" />,
+    /// <see cref="SelectTriggerHeader" /> and <see cref="SelectJobDetail" />, and change what
+    /// <see cref="ApplyTriggerFired" /> has to write: a delegate that overrides any of those would be bypassed.
+    /// </para>
+    /// <para>
+    /// A default interface member answering <see langword="false" />, so a delegate written against an earlier
+    /// 4.x has every one of its members called as before. Its round is still one transaction, but each trigger
+    /// is claimed and reserved, its header and job read, and its fire written as an update of that reservation,
+    /// through the single-trigger members, exactly as acquiring and then firing it did. <c>StdAdoDelegate</c>
+    /// answers <see langword="true" /> for the delegates Quartz ships and <see langword="false" /> for a
+    /// subclass; a subclass whose overrides the round members cover may answer <see langword="true" />.
+    /// </para>
+    /// </remarks>
+    bool SupportsFireOnAcquire => false;
+
+    /// <summary>
     /// Apply every row change the fires of one acquisition round make.
     /// </summary>
     /// <remarks>
@@ -640,13 +668,16 @@ public interface IDriverDelegate
     /// same transaction (#3864): the round decides every fire before it writes any, so the writes of all of
     /// them can go together. <c>StdAdoDelegate</c> sends them as one
     /// <see cref="System.Data.Common.DbBatch" /> where the provider can batch. The writes of one fire keep
-    /// their order, and the fires keep the order given.
+    /// their order, and the fires keep the order given. Called only for a delegate that answers
+    /// <see cref="SupportsFireOnAcquire" /> with <see langword="true" />.
     /// </para>
     /// <para>
     /// A default interface member, so a delegate written against an earlier 4.x keeps working: the default
-    /// is <see cref="ApplyTriggerFired" /> for each update, in order. A failure that is not the caller's
-    /// cancellation comes out wrapped in a <see cref="JobPersistenceException" /> that says which update
-    /// failed, so that the store can roll back that fire alone.
+    /// is <see cref="ApplyTriggerFired" /> for each update, in order, and tells the store which update
+    /// failed, so that it rolls back that fire alone. An override cannot tell it — the exception that
+    /// carries the position is internal — so a failure out of an override makes the store roll the round
+    /// back and run it again one trigger at a time, through <see cref="ApplyTriggerFired" />, which finds
+    /// the fire that failed.
     /// </para>
     /// </remarks>
     /// <param name="conn">The DB Connection</param>

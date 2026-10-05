@@ -40,6 +40,13 @@ namespace Quartz.Impl.AdoJobStore;
 /// without <see cref="AcquireTriggersWithinLock" /> — stays two transactions, so an idle or pending-only
 /// round still never waits for the lock.
 /// </para>
+/// <para>
+/// The round reads and inserts through the delegate's round members, which stand in for its single-trigger
+/// ones, only for a delegate that says it supports them (<see cref="IDriverDelegate.SupportsFireOnAcquire" />):
+/// the ones Quartz ships. Any other delegate's round is still one transaction, but it claims, reserves, reads
+/// and fires each trigger through the members acquiring and then firing it called, so that no override of
+/// them is bypassed.
+/// </para>
 /// </remarks>
 internal abstract partial class AdoJobStoreBase
 {
@@ -87,7 +94,7 @@ internal abstract partial class AdoJobStoreBase
             FireOnAcquireAttempt attempt;
             try
             {
-                FireOnAcquireRound round = new(failed, oneByOne);
+                FireOnAcquireRound round = new(failed, oneByOne, Delegate.SupportsFireOnAcquire);
                 attempt = await ExecuteInLocalTransactionLock(
                     SchedulerLock.TriggerAccess,
                     conn => AcquireAndFireDue(conn, request, round, cancellationToken),
@@ -245,17 +252,24 @@ internal abstract partial class AdoJobStoreBase
             return results;
         }
 
-        // The state and type discriminator of each, read in one statement rather than one per trigger. The
-        // state is ACQUIRED — this transaction has just claimed them under the lock — and the discriminator
-        // is what the fire's write compares the trigger's current type with.
-        List<StoredTriggerHeader> headers = await Guarded(
-            () => Delegate.SelectStoredTriggerHeaders(conn, triggerKeys, cancellationToken),
-            "select trigger states").ConfigureAwait(false);
+        // Null for a round through the single-trigger members, each of whose fires reads its own header and
+        // job, and updates the reservation acquisition wrote for it.
+        FireOnAcquirePrefetch? prefetch = null;
+        if (round.ReadsTogether)
+        {
+            // The state and type discriminator of each, read in one statement rather than one per trigger.
+            // The state is ACQUIRED — this transaction has just claimed them under the lock — and the
+            // discriminator is what the fire's write compares the trigger's current type with.
+            List<StoredTriggerHeader> headers = await Guarded(
+                () => Delegate.SelectStoredTriggerHeaders(conn, triggerKeys, cancellationToken),
+                "select trigger states").ConfigureAwait(false);
 
-        FireOnAcquirePrefetch prefetch = new(headers, await ReadJobsToFire(conn, jobKeys, cancellationToken).ConfigureAwait(false));
+            prefetch = new FireOnAcquirePrefetch(headers, await ReadJobsToFire(conn, jobKeys, cancellationToken).ConfigureAwait(false));
+        }
 
-        // The due triggers that did not fire after all, left ACQUIRED: reserved below, as acquisition
-        // reserves the triggers it does not fire, for the scheduler to release.
+        // The due triggers that did not fire after all, left ACQUIRED with no row: reserved below, as
+        // acquisition reserves the triggers it does not fire, for the scheduler to release. A round that
+        // reserved every trigger as it claimed it leaves none.
         List<IOperableTrigger>? unfired = null;
 
         // The writes of every fire, applied together once all of them are decided, with the position in
@@ -305,7 +319,7 @@ internal abstract partial class AdoJobStoreBase
                 throw FireFailed(i, trigger, triggerKeys.Count, ex);
             }
 
-            if (result.TriggerFiredBundle is null && !result.IsDeclined && result.Exception is null)
+            if (result.TriggerFiredBundle is null && !result.IsDeclined && result.Exception is null && !round.ReservesEveryTrigger)
             {
                 (unfired ??= []).Add(trigger);
             }
@@ -494,7 +508,12 @@ internal abstract partial class AdoJobStoreBase
     /// Whether the round claims and writes one trigger at a time, as it does once a batch has failed without
     /// saying which trigger it failed on.
     /// </param>
-    private sealed class FireOnAcquireRound(Dictionary<TriggerKey, Exception>? failed, bool oneByOne)
+    /// <param name="throughRoundMembers">
+    /// Whether the delegate's round members stand in for its single-trigger ones
+    /// (<see cref="IDriverDelegate.SupportsFireOnAcquire" />). Without them the round claims, reserves, reads
+    /// and fires each trigger through the members acquiring and then firing it called.
+    /// </param>
+    private sealed class FireOnAcquireRound(Dictionary<TriggerKey, Exception>? failed, bool oneByOne, bool throughRoundMembers)
     {
         /// <summary>
         /// The store's clock when the attempt claimed its first trigger. A trigger due at or before it is
@@ -507,12 +526,24 @@ internal abstract partial class AdoJobStoreBase
         /// <summary>
         /// Whether the round's claims are made together, at the end of each acquisition pass.
         /// </summary>
-        public bool ClaimsTogether => !oneByOne;
+        public bool ClaimsTogether => throughRoundMembers && !oneByOne;
 
         /// <summary>
         /// Whether the round's fire writes are applied together, once every fire is decided.
         /// </summary>
-        public bool WritesTogether => !oneByOne;
+        public bool WritesTogether => throughRoundMembers && !oneByOne;
+
+        /// <summary>
+        /// Whether the round reads the headers and jobs of its due triggers once for all of them, and their
+        /// fires insert their rows rather than update a reservation.
+        /// </summary>
+        public bool ReadsTogether => throughRoundMembers;
+
+        /// <summary>
+        /// Whether every trigger the round claims is reserved as acquisition reserves it, due or not, so that
+        /// its fire updates the reservation as the fire of an acquired trigger does.
+        /// </summary>
+        public bool ReservesEveryTrigger => !throughRoundMembers;
 
         /// <summary>
         /// Forgets the clock reading, for an attempt the transaction wrapper runs again.
@@ -520,16 +551,17 @@ internal abstract partial class AdoJobStoreBase
         public void Reset() => now = null;
 
         /// <summary>
-        /// Whether the trigger just claimed is fired in this attempt, and so gets no reservation row: it is
-        /// due, and its fire has not failed in an earlier attempt.
+        /// Whether the trigger just claimed gets no reservation row, because its fire in this attempt inserts
+        /// its row: the round fires through its round members, the trigger is due, and its fire has not
+        /// failed in an earlier attempt.
         /// </summary>
-        public bool FiresOnAcquire(TriggerKey triggerKey, DateTimeOffset nextFireTimeUtc, TimeProvider clock)
+        public bool FiresWithoutReservation(TriggerKey triggerKey, DateTimeOffset nextFireTimeUtc, TimeProvider clock)
         {
             // Read once, when there is a trigger to decide about: a reading taken before the candidates were
             // read would leave the triggers that came due while they were read waiting for a second
             // transaction.
             now ??= clock.GetUtcNow();
-            return nextFireTimeUtc <= now.Value && (failed is null || !failed.ContainsKey(triggerKey));
+            return throughRoundMembers && nextFireTimeUtc <= now.Value && (failed is null || !failed.ContainsKey(triggerKey));
         }
 
         /// <summary>
