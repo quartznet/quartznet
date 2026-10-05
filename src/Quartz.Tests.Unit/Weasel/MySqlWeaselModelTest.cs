@@ -106,7 +106,8 @@ public sealed class MySqlWeaselModelTest
             feature.WriteFeatureCreation(feature.Migrator, creation);
             creation.ToString().Should().Contain("CREATE TABLE IF NOT EXISTS `schedules`.`QRTZ_JOB_DETAILS`")
                 .And.Contain("`PRIORITY` DESC", "the acquisition index keeps its mixed direction")
-                .And.Contain("ADD CONSTRAINT `QRTZ_TRIGGERS_ibfk_1`")
+                .And.Contain("CONSTRAINT `QRTZ_TRIGGERS_ibfk_1`",
+                    "the foreign key is created under InnoDB's name: after the table up to Weasel 9.39, inline in CREATE TABLE from 9.40")
                 .And.NotContain("IDX_QRTZ_T_G_J", "a retired index is never created");
         }
     }

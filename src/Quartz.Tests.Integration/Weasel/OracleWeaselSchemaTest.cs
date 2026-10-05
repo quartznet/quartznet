@@ -73,6 +73,14 @@ public sealed class OracleWeaselSchemaTest
             (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Create);
             (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,
                 "what Weasel just created reads back as the model");
+
+            const string AcquisitionIndexSql = "SELECT object_id FROM user_objects WHERE object_type = 'INDEX' AND object_name = 'IDX_QRTZ_T_NFT_ST'";
+            long acquisitionIndex = await database.CountAsync(AcquisitionIndexSql);
+
+            (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.None,
+                "a second apply finds nothing to do");
+            (await database.CountAsync(AcquisitionIndexSql)).Should().Be(acquisitionIndex,
+                "IDX_QRTZ_T_NFT_ST is neither dropped nor recreated: its descending PRIORITY reads back whole on the apply's own comparison");
         }
 
         await ShouldMatchFreshInstallAsync(database,

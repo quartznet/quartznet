@@ -226,26 +226,23 @@ public sealed class OracleWeaselModelTest
     }
 
     /// <summary>
-    /// A comparison splits its queries into one command per statement, and Weasel 9.36.0's split commands
-    /// read a <c>LONG</c> back empty — the expression behind a descending index key among them. The migrator
-    /// the model is compared with sets the fetch size on every command it splits off.
+    /// Weasel's table query sets <c>InitialLONGFetchSize</c> on the builder's command, because ODP.NET reads a
+    /// <c>LONG</c> back empty without it — the expression behind a descending index key among them. A
+    /// comparison splits its queries into one command per statement, and from Weasel 9.37.0 each one keeps the
+    /// setting (JasperFx/weasel#660), so the migrator needs no command builder of its own.
     /// </summary>
     [Test]
-    public void EveryCommandAComparisonSplitsOffReadsALongWhole()
+    public void EveryCommandAComparisonSplitsOffKeepsTheLongFetchSize()
     {
-        static IReadOnlyList<DbCommand> Split(global::Weasel.Core.DbCommandBuilder builder)
-        {
-            builder.Append("SELECT column_expression FROM all_ind_expressions");
-            builder.StartNewCommand();
-            builder.Append("SELECT column_name FROM all_ind_columns");
-            return builder.CompileCommands();
-        }
+        global::Weasel.Core.DbCommandBuilder builder = OracleQuartzDatabase.CreateMigrator().CreateCommandBuilder(new OracleConnection(ConnectionString));
+        ((OracleCommand) builder.Command).InitialLONGFetchSize = -1;
 
-        Split(new OracleMigrator().CreateCommandBuilder(new OracleConnection(ConnectionString))).Cast<OracleCommand>()
-            .Select(x => x.InitialLONGFetchSize).Should().Equal([0, 0], "the premise: Weasel's own split commands fetch none of a LONG");
+        builder.Append("SELECT column_expression FROM all_ind_expressions");
+        builder.StartNewCommand();
+        builder.Append("SELECT column_name FROM all_ind_columns");
 
-        Split(new QuartzOracleMigrator().CreateCommandBuilder(new OracleConnection(ConnectionString))).Cast<OracleCommand>()
-            .Select(x => x.InitialLONGFetchSize).Should().Equal([-1, -1], "every command reads the whole of a LONG");
+        builder.CompileCommands().Cast<OracleCommand>().Select(x => x.InitialLONGFetchSize).Should().Equal([-1, -1],
+            "a split command reads the whole of a LONG, as the command it was split from does");
     }
 
     /// <summary>
