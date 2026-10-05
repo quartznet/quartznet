@@ -105,7 +105,7 @@ services.AddQuartz(q =>
 
 | Hangfire | Quartz.NET | Difference |
 |---|---|---|
-| `[AutomaticRetry(Attempts = n)]` | [`RetryPolicy`](retrying-failed-jobs.md) on the trigger | **opt-in, and per trigger**; see [Retry](#retry-is-opt-in-and-it-is-on-the-trigger) |
+| `[AutomaticRetry(Attempts = n)]` | [`[RetryPolicy(…)]`](retrying-failed-jobs.md#declare-it-on-the-job-or-set-a-default) on the job type, or `RetryPolicy` on a trigger | **opt-in**: nothing is retried without a policy; see [Retry](#retry-is-opt-in) |
 | `[DisableConcurrentExecution(seconds)]` | `[DisallowConcurrentExecution]` | no timeout, because nothing waits; see [below](#disableconcurrentexecution-waits-disallowconcurrentexecution-does-not) |
 | `[Queue("critical")]` | [an execution group](../tutorial/execution-groups.md) and a limit | **bounds concurrency; does not route.** See [Queues](#queues-become-limits-not-routes) |
 | `[JobDisplayName("…")]` | `.WithDescription("…")` on the job or trigger | |
@@ -217,32 +217,43 @@ services.AddQuartz(q =>
 * There is no routing. To run on particular machines, pin a trigger to an instance with
   [`PreferredNode`](../tutorial/node-affinity.md), or use a second scheduler with its own store.
 
-### Retry is opt-in, and it is on the trigger
+### Retry is opt-in
 
 Hangfire's `AutomaticRetryAttribute` is in `GlobalJobFilters` by default: every job retries ten times.
-Quartz retries only a trigger that carries a policy:
+Quartz retries only when a policy applies: the trigger's own, the job type's `[RetryPolicy]`, or the
+scheduler's default. The attribute is the counterpart of `[AutomaticRetry]`:
 
 <!-- snippet: sample_coming_from_hangfire_retry -->
 ```csharp
-// [AutomaticRetry(Attempts = 5, DelaysInSeconds = new[] { 60, 300, 900 })]
+// [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 900 })]
+[RetryPolicy("00:01:00", "00:05:00", "00:15:00")]
+public sealed class NightlyImportJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
+```
+<!-- endSnippet -->
+
+`UseDefaultRetryPolicy` is the counterpart of the global filter:
+
+<!-- snippet: sample_coming_from_hangfire_retry_default -->
+```csharp
+// GlobalJobFilters.Filters.Add(new AutomaticRetryAttribute { Attempts = 10 })
 services.AddQuartz(q =>
 {
-    q.AddJob<NightlyImportJob>(j => j.WithIdentity("nightly-import"));
-    q.AddTrigger<NightlyImportJob>(t => t
-        .ForJob("nightly-import")
-        .WithCronSchedule("0 0 2 * * ?")
-        // The policy is on the trigger, not on the job type, and nothing is retried
-        // without one.
-        .WithRetryPolicy(RetryPolicy.Explicit(
-            TimeSpan.FromMinutes(1),
-            TimeSpan.FromMinutes(5),
-            TimeSpan.FromMinutes(15))));
+    // Every trigger whose own policy and job type name none.
+    q.UseDefaultRetryPolicy(RetryPolicy.Exponential(
+        maxAttempts: 10,
+        initialDelay: TimeSpan.FromSeconds(15),
+        factor: 2,
+        maxDelay: TimeSpan.FromHours(1),
+        jitter: 0.2));
 });
 ```
 <!-- endSnippet -->
 
-* Two triggers of one job can retry differently.
-* The policy is stored with the trigger, so a retry survives a restart and any node runs it.
+* A trigger's own policy beats the job type's, so two triggers of one job can retry differently.
+* A scheduled retry is stored with the trigger, so it survives a restart and any node runs it.
 * Waits are exact unless `Exponential` is given jitter (its fifth argument), which spreads them as
   Hangfire's do.
 * A retry never displaces the trigger's next occurrence, running out is not an error, and a retry uses no

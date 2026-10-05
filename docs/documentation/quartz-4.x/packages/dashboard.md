@@ -238,7 +238,7 @@ times and state are kept; the cron editor is the one that reschedules.
 | Priority | a whole number |
 | Calendar | a calendar name, suggested from the scheduler's; blank clears it |
 | Misfire instruction | the trigger family's instructions by name; a bare code for a trigger in none of the five |
-| Retry policy | the stored form, `fixed;3;00:05:00`, `exp;5;00:00:10;2` or `list;00:00:05;00:01:00`; blank for none |
+| Retry policy | the stored form, `fixed;3;00:05:00`, `exp;5;00:00:10;2` or `list;00:00:05;00:01:00`; `none` never retries; blank inherits the job type's or the scheduler's |
 | Preferred node | any node, the first node to fire it, or a named node |
 | Overlap policy | one of the five; disabled, with the reason, for a trigger that does not derive from `TriggerBase` |
 | `JobDataMap` | add, edit and remove entries; an entry nobody edited keeps its value and type |

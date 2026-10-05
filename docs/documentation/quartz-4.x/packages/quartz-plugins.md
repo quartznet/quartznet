@@ -276,7 +276,8 @@ namespace, and a file written before these elements existed still validates with
 - **Order matters.** The schema is a sequence, so the five elements go where shown above.
 - `<preferred-node>` takes a scheduler instance id, or `*` for
   [an automatic pin](../tutorial/node-affinity.md#auto-pin-mode).
-- `<retry-policy>` takes the policy's stored form.
+- `<retry-policy>` takes the policy's stored form, or `none` to refuse the job type's policy and the
+  scheduler's default. Leave it out to inherit them.
 - An unreadable value is refused when the file is read, naming the trigger.
 
 `<continues-after>` names a trigger like `<delete-trigger>` does: a `<name>` and an optional `<group>`

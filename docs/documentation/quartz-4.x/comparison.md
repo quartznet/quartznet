@@ -124,14 +124,14 @@ up" is counted by the store, not per process.
 
 | | Quartz.NET 4.3 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
-| Retry on failure | [`RetryPolicy` on the trigger](how-tos/retrying-failed-jobs.md): `Fixed`, `Exponential`, `Explicit`; opt-in | [`AutomaticRetryAttribute` on every job by default: ten attempts, `(attempt − 1)⁴ + 15 + rand(30) × attempt` seconds apart](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/AutomaticRetryAttribute.cs) | [`Retries` and `RetryIntervals` (seconds) per ticker](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/error-handling.mdx) | the message's retry policies and dead-letter queue | [none: `OnError` and a `ScheduledEventFailed` broadcast](https://docs.coravel.net/Scheduler/) |
+| Retry on failure | [`RetryPolicy` on the trigger](how-tos/retrying-failed-jobs.md): `Fixed`, `Exponential`, `Explicit`; opt-in. From 4.4 also [on the job type or as a scheduler default](how-tos/retrying-failed-jobs.md#declare-it-on-the-job-or-set-a-default) | [`AutomaticRetryAttribute` on every job by default: ten attempts, `(attempt − 1)⁴ + 15 + rand(30) × attempt` seconds apart](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/AutomaticRetryAttribute.cs) | [`Retries` and `RetryIntervals` (seconds) per ticker](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/error-handling.mdx) | the message's retry policies and dead-letter queue | [none: `OnError` and a `ScheduledEventFailed` broadcast](https://docs.coravel.net/Scheduler/) |
 | What holds the wait | the job store: a new fire time on the trigger, which survives a restart and runs on any node | the storage: the job waits in `Scheduled` | [a `Task.Delay` in the execution, holding the worker slot and the lease; lost with the process](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ/Src/TickerExecutionTaskHandler.cs) | the message store | — |
 | Jitter | [opt-in on `Exponential`: each wait × `[1 − jitter, 1 + jitter]`](how-tos/retrying-failed-jobs.md#give-the-trigger-a-policy) | [always, `rand(30) × attempt` seconds](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/AutomaticRetryAttribute.cs) | none | the bus's policy | — |
 | Attempts run out | back to the ordinary schedule, not an error state, or [paused, with the error as the reason](how-tos/pausing-with-a-reason.md#pausing-when-retries-run-out) when you ask; reported by [`ITriggerListener.TriggerRetriesExhausted`, a log event, a counter and a final history row](how-tos/retrying-failed-jobs.md#when-the-policy-gives-up) | [`Failed`, never expires](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/States/FailedState.cs); requeue from the dashboard | recorded as failed | dead-letter queue | — |
 | Per-job timeout | [`[JobTimeout]`, enforced once `AddJobTimeout` registers the middleware](tutorial/job-execution-middleware.md#timing-a-job-out) | none | [none](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/configuration.mdx) | the message's own | none |
 
-Hangfire retries by default; Quartz retries only triggers with a policy, and jitters only when the policy
-says so. Quartz holds the wait in the store, so a node that dies during a backoff does not lose the retry.
+Hangfire retries by default; Quartz retries when the trigger, its job type or the scheduler names a policy,
+and jitters only when the policy says so. Quartz holds the wait in the store, so a node that dies during a backoff does not lose the retry.
 
 ## Continuations and chaining
 
@@ -214,8 +214,10 @@ run, last success and a *failing ×N* count from its [run status](how-tos/job-ou
   and each firing costs a few more. TickerQ's in-memory default and Coravel are a dictionary insert. For
   thousands of short-lived one-off firings, use
   [one durable job per job type with a trigger per firing](how-tos/one-off-job.md).
-- **Retry and jitter are opt-in.** Hangfire retries every job by default and spreads the attempts; Quartz
-  retries only triggers with a policy, at exactly the policy's waits unless it names a `jitter`.
+- **Retry and jitter are opt-in.** Hangfire retries every job by default and spreads the attempts. Quartz
+  retries nothing until a trigger, a job type (`[RetryPolicy]`) or the scheduler (`UseDefaultRetryPolicy`)
+  names a policy, and waits exactly the policy's waits unless it names a `jitter`. From 4.4, one line opts a
+  whole scheduler in.
 - **There are no queues.** Hangfire's `[Queue]`, with servers subscribing to different sets, routes work.
   [Execution groups](tutorial/execution-groups.md) bound how much of a category runs at once but do not
   choose the node, and `PreferredNode` pins rather than balances.

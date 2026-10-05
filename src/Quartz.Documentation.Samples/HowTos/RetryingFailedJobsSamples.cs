@@ -251,6 +251,18 @@ public sealed class RetryingFailedJobsSamples
 
     public static async ValueTask StoppingATriggerFromRetrying(IScheduler scheduler, CancellationToken cancellationToken)
     {
+        #region sample_retry_stop_stored_trigger
+
+        await scheduler.UpdateTriggerDetails(
+            new TriggerKey("nightly", "imports"),
+            new TriggerDetailsUpdate().WithRetryPolicy(RetryPolicy.None),
+            cancellationToken);
+
+        #endregion
+    }
+
+    public static async ValueTask ClearingATriggersOwnPolicy(IScheduler scheduler, CancellationToken cancellationToken)
+    {
         #region sample_retry_clear_stored_trigger
 
         await scheduler.UpdateTriggerDetails(
@@ -260,6 +272,70 @@ public sealed class RetryingFailedJobsSamples
 
         #endregion
     }
+
+    public static void ADefaultForEveryTrigger(IHostApplicationBuilder builder)
+    {
+        #region sample_retry_default_policy
+
+        builder.Services.AddQuartz(q =>
+        {
+            // Any trigger whose own policy and job type name none: three retries, one minute apart.
+            q.UseDefaultRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(1)));
+        });
+
+        #endregion
+    }
+
+    public static void ATriggerThatIsNeverRetried(IHostApplicationBuilder builder)
+    {
+        #region sample_retry_none_on_trigger
+
+        builder.Services.AddQuartz(q =>
+        {
+            q.AddJob<ImportJob>(j => j.WithIdentity("import", "nightly"));
+            q.AddTrigger<ImportJob>(t => t
+                .ForJob("import", "nightly")
+                .WithCronSchedule("0 0 2 * * ?")
+                // Never retried, whatever ImportJob declares or the scheduler defaults to.
+                .WithRetryPolicy(RetryPolicy.None));
+        });
+
+        #endregion
+    }
+
+    #region sample_retry_policy_attribute
+
+    // Five retries, 30s, 1m, 2m, 4m and 8m apart, but never more than ten minutes, for
+    // every trigger of this job that names no policy of its own.
+    [RetryPolicy(5, "00:00:30", 2, MaxDelay = "00:10:00")]
+    public sealed class FeedImportJob : IJob
+    {
+        private readonly IImportService importer;
+
+        public FeedImportJob(IImportService importer)
+        {
+            this.importer = importer;
+        }
+
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            await importer.Run(cancellationToken);
+        }
+    }
+
+    #endregion
+
+    #region sample_retry_never_retried_job
+
+    // Charging a card twice is worse than not charging it: never retried, whatever the
+    // scheduler's default says.
+    [RetryPolicy(0)]
+    public sealed class ChargeCardJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    #endregion
 
     public sealed class ImportJob : IJob
     {

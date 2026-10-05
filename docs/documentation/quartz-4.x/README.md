@@ -29,8 +29,9 @@ All of this ships in Quartz's own packages; none of it needs a third-party packa
 * **Two concurrency limits.** `[DisallowConcurrentExecution]` stops a job overlapping itself. An
   [execution group](tutorial/execution-groups.md) caps a category of work, per node or across every
   node sharing the store.
-* **Retry policies on the trigger.** `RetryPolicy.Fixed`, `Exponential` and `Explicit` are persisted,
-  survive a restart and are visible to every node. A policy that runs out is reported to a listener, a
+* **Retry policies.** `RetryPolicy.Fixed`, `Exponential` and `Explicit`, on a trigger, on a job type with
+  `[RetryPolicy]` or as the scheduler's default. A scheduled retry is persisted, survives a restart and is
+  visible to every node. A policy that runs out is reported to a listener, a
   counter and the history — [Retrying Failed Jobs](how-tos/retrying-failed-jobs.md).
 * **Jobs declared on the class, checked by the compiler.** `[QuartzJob]`, `[CronTrigger]` and
   `[SimpleTrigger]` declare a job and its schedules, and a source generator writes the registration. An analyzer in the package

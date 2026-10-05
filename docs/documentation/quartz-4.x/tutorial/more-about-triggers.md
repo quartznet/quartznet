@@ -89,6 +89,8 @@ waits. (A misfire is a firing that never happened; a retry follows a firing that
 .WithRetryPolicy(RetryPolicy.Exponential(maxAttempts: 3, initialDelay: TimeSpan.FromSeconds(30)))
 ```
 
+* A trigger with no policy of its own inherits its job type's `[RetryPolicy]` or the scheduler's
+  `UseDefaultRetryPolicy`. `RetryPolicy.None` refuses both.
 * A retry never displaces the trigger's next scheduled occurrence and uses no repeat count.
 * When attempts run out, the trigger returns to its ordinary schedule, not to an error state.
 

@@ -102,6 +102,11 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `TriggerFiredUpdate.FiredOnAcquire` | `init`. `true`: the fire inserts its fired-trigger row as `EXECUTING`; no `ACQUIRED` row exists. Set only for a delegate that supports the round members |
 | `ActivityTags.TriggersFiredOnAcquire` | `quartz.jobstore.trigger.fired_on_acquire`, on the `Quartz.JobStore.AcquireNextTriggers` span |
 | Log events `3051`, `3052` | Warnings: a round's batched fire writes failed, or a batch of claims did not say which took. The round runs again a trigger at a time |
+| `RetryPolicyAttribute` | `[RetryPolicy(…)]` on a job type: the policy for its triggers that name none. Constructors `(int)`, `(int, string)`, `(int, string, double)`, `(params string[])`; `init` `MaxDelay`, `Jitter`; `MaxAttempts`, `Policy`. See [Declare it on the job, or set a default](how-tos/retrying-failed-jobs.md#declare-it-on-the-job-or-set-a-default) |
+| `QuartzBuilderExtensions.UseDefaultRetryPolicy(RetryPolicy)` | The policy for triggers whose trigger and job type name none |
+| `RetryPolicy.None` | Never retried, whatever the job type or the scheduler would supply. Stored as `none` |
+| `IJobExecutionContext.RetryPolicy` | Default interface member: the policy the firing is retried under. The default answers with the trigger's own |
+| `JobExecutionContextImpl.RetryPolicy` | The trigger's own policy, the job type's or the scheduler's default |
 
 **Behaviour changes:**
 
@@ -301,6 +306,27 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   + catch (SchedulerException e) when (e.InnerException is InvalidOperationException)
   ```
 
+* **A trigger with no retry policy of its own inherits one**
+  ([#4013](https://github.com/quartznet/quartznet/issues/4013)): its job type's `[RetryPolicy]`, else
+  `UseDefaultRetryPolicy`. Without either, nothing changes. `ITrigger.RetryPolicy` stays the trigger's own, so
+  read the policy that applies from the context:
+
+  ```diff
+  - int left = trigger.RetryPolicy!.MaxAttempts - context.RetryAttempt;
+  + int left = context.RetryPolicy!.MaxAttempts - context.RetryAttempt;
+  ```
+
+* **`WithRetryPolicy(null)` on `TriggerDetailsUpdate` now means "inherit".** With a job-type policy or a
+  default it no longer stops retries. To stop them:
+
+  ```diff
+  - new TriggerDetailsUpdate().WithRetryPolicy(null)
+  + new TriggerDetailsUpdate().WithRetryPolicy(RetryPolicy.None)
+  ```
+
+* **`TriggerRetriesExhausted` and `PauseTriggerWhenRetriesExhausted()` cover an inherited policy too.**
+* **`none` is a retry policy** in a scheduling file, an HTTP API request and the dashboard's trigger editor.
+
 * **The dashboard's *Pause selected* with a reason is one call.** 4.3 paused a key at a time. A refusal now
   fails the whole selection, as the reasonless pause always did. An `IQuartzApiClient` of your own gets the
   `PauseTriggersWith` default, which still pauses a key at a time through your `PauseTriggerWith`.
@@ -363,6 +389,11 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   race and logs nothing.
 * A 4.4 dashboard or HTTP client scheduling a trigger paused on a 4.3 host: `NotSupportedException`, and
   nothing is stored. Schedule and pause in two calls until the host is upgraded.
+* A 4.3 node ignores `[RetryPolicy]` and `UseDefaultRetryPolicy`: a trigger with no policy of its own is not
+  retried when it fails there.
+* A 4.3 node reads a stored `none` as no policy, then writes the column back empty when it fires the trigger,
+  which then inherits on a 4.4 node. Give a trigger `RetryPolicy.None` once every node is on 4.4.
+* A 4.3 HTTP API host refuses `none` in a trigger update as not a valid retry policy.
 
 ### The 4.4 schema migration
 
