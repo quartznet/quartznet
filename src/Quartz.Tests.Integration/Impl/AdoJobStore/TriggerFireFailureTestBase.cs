@@ -223,7 +223,7 @@ public abstract class TriggerFireFailureTestBase : ClusteredJobStoreTestBase
     /// A serial job's completion handles the misfires of the triggers it unblocks, and the calendar of one
     /// of them throws. The completion commits and lets go of the job's other triggers, and the one that
     /// threw is <c>WAITING</c> with its fire time as it was. The failure counts: with a limit of two, the
-    /// misfire handler's failure after it stores the trigger <c>ERROR</c> (#4006).
+    /// misfire handler's failure a misfire threshold later stores the trigger <c>ERROR</c> (#4006).
     /// </summary>
     /// <remarks>
     /// Before, the throw rolled the completion back, and the completion is retried until it commits: the
@@ -260,7 +260,9 @@ public abstract class TriggerFireFailureTestBase : ClusteredJobStoreTestBase
                 20_000,
                 "the misfire handler's failure, the second in a row, to store the trigger ERROR");
 
-            FireFault.CalendarFault.Thrown.Should().Be(2, "the completion's failure and the misfire handler's are one run of failures");
+            // A misfire failure counts once per misfire threshold, so the misfire handler may meet the
+            // calendar more often than it counts it.
+            FireFault.CalendarFault.Thrown.Should().BeGreaterThanOrEqualTo(2, "the completion's failure and the misfire handler's are one run of failures");
         }
         finally
         {

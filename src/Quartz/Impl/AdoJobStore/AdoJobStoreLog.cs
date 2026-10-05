@@ -215,6 +215,9 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3052, Level = LogLevel.Warning, Message = "A batch of trigger claims did not report which of them took; the round is rolled back and its triggers claimed one at a time")]
     public static partial void RoundBatchClaimUnknown(this ILogger logger, Exception exception);
 
+    [LoggerMessage(EventId = 3053, Level = LogLevel.Error, Message = "Work the store does after a committed operation failed; the operation stands, and the rest of that work is done")]
+    public static partial void WorkAfterCommitFailed(this ILogger logger, Exception exception);
+
     [LoggerMessage(EventId = 3100, Level = LogLevel.Debug, Message = "Prepared SQL: {Sql}")]
     public static partial void SqlPrepared(this ILogger logger, string sql);
 

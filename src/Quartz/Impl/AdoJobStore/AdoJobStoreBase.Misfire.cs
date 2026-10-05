@@ -217,6 +217,18 @@ internal abstract partial class AdoJobStoreBase
             return new PreparedMisfire(Update: null, storedError);
         }
 
+        // A misfire handled ends the trigger's run of failures, once it has committed. One volatile read
+        // while nothing has failed.
+        if (!fireFailures.IsEmpty && DecidesOwnOutcome(conn))
+        {
+            TriggerKey handled = trigger.Key;
+            conn.NotifyAfterCommit((_, _) =>
+            {
+                fireFailures.Clear(handled);
+                return default;
+            });
+        }
+
         // The occurrence that was waiting to be retried has been missed, and misfire handling has just
         // recomputed the trigger from its schedule. Whatever it fires next is a fresh occurrence, so it
         // starts with no retries behind it; the trigger's own misfire instruction decides what that
@@ -243,12 +255,25 @@ internal abstract partial class AdoJobStoreBase
     /// Settles a misfire whose policy threw as a failure of that trigger alone (#4006). Nothing of the
     /// misfire is written: the row keeps its state and fire time, for the misfire handler to try again. The
     /// failure counts toward <see cref="MaxConsecutiveFireFailures" /> in the ledger a failed fire counts in,
-    /// and the one that reaches it stores the trigger <c>ERROR</c> in the caller's transaction.
+    /// at most once per <see cref="MisfireThreshold" />, and the one that reaches it stores the trigger
+    /// <c>ERROR</c> in the caller's transaction.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The ledger moves only once that transaction has committed: one that rolls back for a database
     /// failure is retried, and the retry runs the policy again, which would count one failure twice. The
     /// caller holds <see cref="SchedulerLock.TriggerAccess" />, so the <c>ERROR</c> is written by key.
+    /// </para>
+    /// <para>
+    /// At most once per misfire threshold, because a backlog of misfires has the misfire handler pass every
+    /// few milliseconds, and the trigger that failed is first in every pass: counted each time, a calendar
+    /// that is briefly unreachable would park its trigger in a fraction of a second.
+    /// </para>
+    /// <para>
+    /// Not counted at all when the transaction is the application's, enlisted or ambient: the callbacks
+    /// run when the store's part is done, before the application commits or rolls back, so a count there
+    /// could record a failure that never happened. The failure is logged all the same.
+    /// </para>
     /// </remarks>
     /// <returns>Whether the failure stored the trigger <c>ERROR</c>.</returns>
     private async ValueTask<bool> SettleFailedMisfire(
@@ -260,33 +285,63 @@ internal abstract partial class AdoJobStoreBase
     {
         Logger.MisfireUpdatePreparationFailed(triggerKey, failure);
 
-        if (MaxConsecutiveFireFailures <= 0)
+        if (MaxConsecutiveFireFailures <= 0 || !DecidesOwnOutcome(conn))
         {
             return false;
         }
 
-        int failures = fireFailures.FailuresWithOneMore(triggerKey, previousFireTimeUtc);
+        DateTimeOffset nowUtc = timeProvider.GetUtcNow();
+        int? failures = fireFailures.MisfireFailuresWithOneMore(triggerKey, previousFireTimeUtc, nowUtc, MisfireThreshold);
+        if (failures is null)
+        {
+            // Counted less than a misfire threshold ago.
+            return false;
+        }
+
         if (failures < MaxConsecutiveFireFailures)
         {
             // Not a listener notification, but the one hook that runs only once the work has committed.
             conn.NotifyAfterCommit((_, _) =>
             {
-                fireFailures.RecordFailure(triggerKey, previousFireTimeUtc);
+                fireFailures.RecordMisfireFailure(triggerKey, previousFireTimeUtc, nowUtc);
                 return default;
             });
 
             return false;
         }
 
+        int parkedAfter = failures.Value;
         await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
-        conn.NotifyAfterCommit((notifier, token) =>
+
+        // Three callbacks rather than one, so that a logger that throws costs neither the count nor the
+        // listeners their notification.
+        conn.NotifyAfterCommit((_, _) =>
         {
             fireFailures.Clear(triggerKey);
-            Logger.FailingTriggerParkedInError(triggerKey, failures);
-            return notifier.NotifySchedulerListenersTriggerInError(triggerKey, token);
+            return default;
+        });
+        conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersTriggerInError(triggerKey, token));
+        conn.NotifyAfterCommit((_, _) =>
+        {
+            Logger.FailingTriggerParkedInError(triggerKey, parkedAfter);
+            return default;
         });
 
         return true;
+    }
+
+    /// <summary>
+    /// Whether this unit of work's outcome is the store's to decide: it began the transaction itself.
+    /// </summary>
+    /// <remarks>
+    /// Not on a connection the application enlisted, nor inside an ambient transaction, where what the
+    /// store records after "commit" runs before the application has committed or rolled back. A connection
+    /// with no transaction and no ambient one runs each statement on its own, so its work is done when the
+    /// store's part is.
+    /// </remarks>
+    private static bool DecidesOwnOutcome(ConnectionAndTransactionHolder conn)
+    {
+        return conn.OwnsResources && (conn.Transaction is not null || System.Transactions.Transaction.Current is null);
     }
 
     /// <summary>

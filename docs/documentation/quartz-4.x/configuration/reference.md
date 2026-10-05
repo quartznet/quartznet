@@ -216,8 +216,8 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
   it cannot stop a retry Quartz already makes. It receives the store's own exception; reach the driver's
   with `GetBaseException()`. There is no `quartz.*` key for a delegate.
 - **`MaxConsecutiveFireFailures`**: counts fires that fail for a reason a retry will not cure, such as a
-  constraint violation, and misfires whose calendar throws. The trigger is stored `ERROR`, listeners hear
-  `TriggerInError`, and event **3050** is logged. See
+  constraint violation, and misfires whose calendar throws, at most once per `MisfireThreshold`. The
+  trigger is stored `ERROR`, listeners hear `TriggerInError`, and event **3050** is logged. See
   [A trigger that fails to fire](../operations.md#a-trigger-that-fails-to-fire).
   - Not counted: a transient failure, a failure of the whole batch, a failed acquisition. A database
     outage fails acquisition first, so it parks nothing.

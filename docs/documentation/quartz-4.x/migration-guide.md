@@ -63,6 +63,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | Log event `1061` | Warning: a job listener threw from `JobProgressChanged`. The job carries on |
 | Log events `2008`, `2009` | Errors from the in-memory store: a fire failed; a trigger set `ERROR` after that many in a row |
 | Log event `2010` | Error from the in-memory store: a trigger's misfire handling failed, and the trigger was left as it was |
+| Log event `3053` | Error from the persistent store: its bookkeeping after a committed operation failed. The operation stands |
 | `IQuartzApiClient.GetJobRunStatus`, `GetJobRunStatuses` | Default interface members; the defaults throw `NotSupportedException`, and the pages leave the status out. See [Job run status](packages/dashboard.md#job-run-status) |
 | `DashboardHistoryEntry.Result`, `EffectiveResult`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId`, `Input`, `InputTooLarge` | `init`, as on `ExecutionHistoryEntry`. `EffectiveResult` is get-only |
 | `DashboardHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results` | `init`, as on `ExecutionHistoryQuery`. `Job` is a `JobKeyDto` |
@@ -168,10 +169,12 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 
 * **A calendar that throws while a misfire is handled fails only its own trigger**
   ([#3985](https://github.com/quartznet/quartznet/issues/3985),
-  [#4006](https://github.com/quartznet/quartznet/issues/4006)). The trigger keeps its fire time, error
-  `2010` (in-memory) or `3603` (persistent) is logged, and the failure counts toward
-  `MaxConsecutiveFireFailures` as a failed fire does. A database failure in the same step is still retried.
-  What 4.3 did:
+  [#4006](https://github.com/quartznet/quartznet/issues/4006)). The trigger keeps its fire time, and error
+  `2010` (in-memory) or `3603` (persistent) is logged. The failure counts toward
+  `MaxConsecutiveFireFailures` at most once per misfire threshold, so a calendar that always throws parks
+  its trigger after five failures a threshold apart. A misfire handled starts the count again. A failure
+  inside a transaction the application owns is not counted, and a database failure in the same step is
+  still retried. `MaxConsecutiveFireFailures = 0` turns the parking off. What 4.3 did:
 
   | Where | 4.3 |
   |---|---|

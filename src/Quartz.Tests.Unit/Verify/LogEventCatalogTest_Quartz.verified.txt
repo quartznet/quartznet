@@ -228,6 +228,8 @@
     "The fires of an acquisition round, written as one batch, failed; the round is rolled back and its triggers fired one at a time to find the one that failed"
 3052  Warning  AdoJobStoreLog.RoundBatchClaimUnknown
     "A batch of trigger claims did not report which of them took; the round is rolled back and its triggers claimed one at a time"
+3053  Error  AdoJobStoreLog.WorkAfterCommitFailed
+    "Work the store does after a committed operation failed; the operation stands, and the rest of that work is done"
 3100  Debug  AdoJobStoreLog.SqlPrepared
     "Prepared SQL: {Sql}"
 3110  Error  AdoJobStoreLog.ConnectionCloseFailed
