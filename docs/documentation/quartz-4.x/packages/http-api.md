@@ -266,6 +266,15 @@ member name:
 - The names are the contract and are stable across versions.
 - Numeric forms are still *accepted* on input, so an older client's `?state=1` works.
 - Query-string filters take a name too: `?state=Paused`.
+- A name the server does not know, in a request, is `400`.
+
+**A new name and an older client.** A later release can add a member to an enum on the wire.
+
+| Client | A name it does not know |
+|---|---|
+| `Quartz.HttpClient` 4.4 or later, which a dashboard's HTTP target uses | Reads it: see [A host newer than the client](http-client.md#a-host-newer-than-the-client). A new name needs no hiding |
+| `Quartz.HttpClient` 4.3 or earlier | Fails the whole call, or ends the event stream. A 4.4 host keeps its new names from it: `Vetoed` misfires are [listed only when asked for](#vetoes-are-listed-when-asked-for) |
+| Your own | Should skip what it does not know, because a later host may send it |
 
 ## A job type is a name, and its two attribute flags may be absent
 
@@ -578,6 +587,7 @@ Fourteen kinds:
 - Every event carries `kind`, the raising node's `schedulerName` and `schedulerInstanceId`, and `occurredAtUtc`.
   In a cluster each node raises its own events, so the instance id tells a local event from a peer's.
 - Every member is always present; facets a kind does not carry are `null`.
+- A later release may add a kind. Skip one you do not know; `Quartz.HttpClient` does from 4.4.
 
 **Heartbeats are not events.** One is sent when the stream opens (which sends the response headers), then one
 whenever [`EventStreamHeartbeatInterval`](#configuration-options) (fifteen seconds) passes with nothing to send.
