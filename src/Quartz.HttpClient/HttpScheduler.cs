@@ -23,6 +23,8 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.HttpApiContract;
 using Quartz.Impl;
 using Quartz.Serialization.SystemTextJson;
@@ -81,6 +83,12 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     /// their serializers are given here — the remote scheduler's own registrations are not visible in this
     /// process. Defaults to the built-in types.
     /// </param>
+    /// <remarks>
+    /// What this client cannot read of a newer host's answers — a name it has no member for, an item left
+    /// out of a listing — is logged under the <c>Quartz.HttpClient</c> category, through whatever
+    /// <c>LogProvider.SetLogProvider</c> was given. <c>AddQuartzHttpClient</c> logs through the container's
+    /// logger factory instead.
+    /// </remarks>
     public HttpScheduler(
         string schedulerName,
         HttpClient httpClient,
@@ -91,14 +99,34 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     }
 
     /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler.</param>
+    /// <param name="httpClient">The client to call the remote scheduler with.</param>
+    /// <param name="jsonSerializerOptions">Optional serializer options, copied as the public constructor copies them.</param>
+    /// <param name="serializerRegistry">The trigger and calendar serializers to understand.</param>
+    /// <param name="logger">Where what a newer host sent that this client cannot read is reported.</param>
+    internal HttpScheduler(
+        string schedulerName,
+        HttpClient httpClient,
+        JsonSerializerOptions? jsonSerializerOptions,
+        SystemTextJsonSerializerRegistry? serializerRegistry,
+        ILogger logger)
+        : this(RequireName(schedulerName), OverHttp(httpClient), jsonSerializerOptions, serializerRegistry, logger)
+    {
+    }
+
+    /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler.</param>
     /// <param name="transport">What carries the requests to the remote scheduler and its answers back.</param>
     /// <param name="jsonSerializerOptions">Optional serializer options, copied as the public constructor copies them.</param>
     /// <param name="serializerRegistry">The trigger and calendar serializers to understand.</param>
+    /// <param name="logger">
+    /// Where what a newer host sent that this client cannot read is reported; <see langword="null" /> for
+    /// whatever <c>LogProvider</c> was given.
+    /// </param>
     internal HttpScheduler(
         string schedulerName,
         IWireTransport transport,
         JsonSerializerOptions? jsonSerializerOptions,
-        SystemTextJsonSerializerRegistry? serializerRegistry)
+        SystemTextJsonSerializerRegistry? serializerRegistry,
+        ILogger? logger = null)
     {
         SchedulerName = RequireName(schedulerName);
         ArgumentNullException.ThrowIfNull(transport);
@@ -110,7 +138,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
             ? new JsonSerializerOptions(JsonSerializerDefaults.Web)
             : new JsonSerializerOptions(jsonSerializerOptions);
 
-        serializerOptions.ConfigureWireFormat(serializerRegistry ?? new SystemTextJsonSerializerRegistry());
+        serializerOptions.ConfigureClientWireFormat(
+            serializerRegistry ?? new SystemTextJsonSerializerRegistry(),
+            new UnknownWireNames(logger ?? HttpClientLog.Fallback(), SchedulerName));
 
         wire = new WireClient(transport, serializerOptions);
     }

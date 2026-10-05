@@ -23,6 +23,9 @@ using System.Net;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+
+using Microsoft.Extensions.Logging;
 
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
@@ -44,6 +47,11 @@ namespace Quartz.Impl;
 /// <para>
 /// The heartbeats the route emits are consumed here. They exist so that a reader can tell a quiet
 /// scheduler from a dead connection, which is this class's question rather than its caller's.
+/// </para>
+/// <para>
+/// So is a frame this client cannot read: a kind a newer host added, or a body that is not an event. It is
+/// skipped and logged once per kind, and the subscription carries on with the frames after it. From 4.4 a
+/// host may therefore add a kind without hiding it from 4.4 readers; only a broken connection ends one.
 /// </para>
 /// <para>
 /// An enumeration is pulled, so everything above happens while a subscriber is asking for the next event:
@@ -79,6 +87,7 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
     private readonly HttpClient httpClient;
     private readonly JsonSerializerOptions jsonSerializerOptions;
     private readonly TimeProvider timeProvider;
+    private readonly UnknownWireNames unknownNames;
 
     /// <param name="schedulerName">The remote scheduler's name, which the route is addressed to.</param>
     /// <param name="httpClient">The client to call the remote scheduler with.</param>
@@ -87,11 +96,15 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
     /// the instance passed in is left untouched.
     /// </param>
     /// <param name="timeProvider">The clock the delay between reconnections is measured on.</param>
+    /// <param name="logger">
+    /// Where a skipped frame is reported; <see langword="null" /> for whatever <c>LogProvider</c> was given.
+    /// </param>
     public HttpSchedulerEventReader(
         string schedulerName,
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        ILogger? logger = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
         ArgumentNullException.ThrowIfNull(httpClient);
@@ -99,12 +112,13 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
         this.schedulerName = schedulerName;
         this.httpClient = httpClient;
         this.timeProvider = timeProvider ?? TimeProvider.System;
+        unknownNames = new UnknownWireNames(logger ?? HttpClientLog.Fallback(), schedulerName);
 
         this.jsonSerializerOptions = jsonSerializerOptions is null
             ? new JsonSerializerOptions(JsonSerializerDefaults.Web)
             : new JsonSerializerOptions(jsonSerializerOptions);
 
-        this.jsonSerializerOptions.ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
+        this.jsonSerializerOptions.ConfigureClientWireFormat(new SystemTextJsonSerializerRegistry(), unknownNames);
     }
 
     /// <inheritdoc />
@@ -170,7 +184,7 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
                 .GetStream(SchedulerRoutes.StreamEvents.For(schedulerName).Path, jsonSerializerOptions, cancellationToken)
                 .ConfigureAwait(false);
 
-            return await Connection.Read(response, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+            return await Connection.Read(response, jsonSerializerOptions, unknownNames, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -250,21 +264,54 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
         public static async ValueTask<Connection> Read(
             HttpResponseMessage response,
             JsonSerializerOptions jsonSerializerOptions,
+            UnknownWireNames unknownNames,
             CancellationToken cancellationToken)
         {
             Stream body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
             // The generated metadata for the event, which is what keeps the parse trimmable: the frame's
             // bytes are the same JSON the API writes every other body as.
-            SseParser<SchedulerEvent?> parser = SseParser.Create(
-                body,
-                (_, data) => JsonSerializer.Deserialize(data, HttpClientExtensions.WireFormatOf<SchedulerEvent>(jsonSerializerOptions)));
+            JsonTypeInfo<SchedulerEvent> eventFormat = HttpClientExtensions.WireFormatOf<SchedulerEvent>(jsonSerializerOptions);
+            SseParser<SchedulerEvent?> parser = SseParser.Create(body, (kind, data) => Parse(kind, data, eventFormat, unknownNames));
 
             return new Connection(
                 response,
                 body,
                 parser.EnumerateAsync(cancellationToken).GetAsyncEnumerator(CancellationToken.None),
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// One frame's event, or <see langword="null" /> for a frame that is skipped.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The parser calls this from inside its own read, so anything thrown here would end the
+        /// connection, and the reconnection after it would meet the same frame again on the next event of
+        /// its kind. A frame this client cannot read is therefore skipped here, and the frames after it are
+        /// delivered.
+        /// </para>
+        /// <para>
+        /// A kind this client does not know is a newer host's, and is reported once per kind. A frame that
+        /// fails to read for any other reason is reported once per SSE event type, with the failure.
+        /// </para>
+        /// </remarks>
+        private static SchedulerEvent? Parse(string kind, ReadOnlySpan<byte> data, JsonTypeInfo<SchedulerEvent> eventFormat, UnknownWireNames unknownNames)
+        {
+            try
+            {
+                return JsonSerializer.Deserialize(data, eventFormat);
+            }
+            catch (UnknownWireNameException unknown) when (unknown.EnumType == typeof(SchedulerEventKind))
+            {
+                unknownNames.EventKindSkipped(unknown.Name);
+                return null;
+            }
+            catch (JsonException unreadable)
+            {
+                unknownNames.EventUnreadable(kind, unreadable);
+                return null;
+            }
         }
 
         /// <summary>
@@ -298,8 +345,9 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
                 SchedulerEvent? read = frames.Current.Data;
 
                 // A heartbeat is the route saying the connection is alive, which is what this class reads
-                // it for. A frame whose body could not be read at all is dropped the same way: one
-                // unreadable event is not a reason to tear a live view down.
+                // it for. A frame whose body could not be read at all — a kind this client does not know,
+                // or a body that is not an event — is dropped the same way: one unreadable event is not a
+                // reason to tear a live view down.
                 if (read is not null && read.Kind != SchedulerEventKind.Heartbeat)
                 {
                     return read;

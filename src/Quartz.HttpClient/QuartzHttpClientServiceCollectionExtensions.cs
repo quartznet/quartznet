@@ -24,6 +24,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Configuration;
 using Quartz.Extensibility;
@@ -151,7 +152,8 @@ public static class QuartzHttpClientServiceCollectionExtensions
                 options.SchedulerName,
                 httpClient,
                 options.JsonSerializerOptions,
-                serviceProvider.GetRequiredService<SystemTextJsonSerializerRegistry>());
+                serviceProvider.GetRequiredService<SystemTextJsonSerializerRegistry>(),
+                ClientLogger(serviceProvider));
 
             // Bound under its own name rather than under an instance id read from the remote scheduler:
             // that property costs a request, and one registration is one remote scheduler, so the name
@@ -167,7 +169,8 @@ public static class QuartzHttpClientServiceCollectionExtensions
             new HttpExecutionHistoryStore(
                 options.SchedulerName,
                 serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client,
-                options.JsonSerializerOptions));
+                options.JsonSerializerOptions,
+                ClientLogger(serviceProvider)));
 
         // The target's own events, keyed by the scheduler's name for the reason its history is: a reader
         // asking for "this scheduler's events" is asking the process the scheduler runs in. Keyed only —
@@ -178,7 +181,8 @@ public static class QuartzHttpClientServiceCollectionExtensions
                 options.SchedulerName,
                 serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client,
                 options.JsonSerializerOptions,
-                serviceProvider.GetService<TimeProvider>()));
+                serviceProvider.GetService<TimeProvider>(),
+                ClientLogger(serviceProvider)));
 
         // Keyed by name like any other scheduler, and unkeyed as well so that a container holding one
         // remote scheduler and nothing else answers GetRequiredService<IScheduler>() with it. TryAdd,
@@ -196,5 +200,15 @@ public static class QuartzHttpClientServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, HttpSchedulerBinder>());
 
         return services;
+    }
+
+    /// <summary>
+    /// The client's logger, from the container's logger factory when it has one and from
+    /// <c>LogProvider</c> when it does not: a container built without <c>AddLogging()</c> is a legitimate
+    /// one for a client, and this is not the place to require it.
+    /// </summary>
+    private static ILogger ClientLogger(IServiceProvider serviceProvider)
+    {
+        return serviceProvider.GetService<ILoggerFactory>()?.CreateLogger(HttpClientLog.Category) ?? HttpClientLog.Fallback();
     }
 }

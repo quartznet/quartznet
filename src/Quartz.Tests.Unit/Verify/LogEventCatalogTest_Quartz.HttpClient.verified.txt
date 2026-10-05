@@ -1,0 +1,8 @@
+﻿9200  Warning  HttpClientLog.UnknownEventKindSkipped
+    "Skipped live events of kind {Kind} from scheduler {SchedulerName}: this version of Quartz.HttpClient does not know the kind. Upgrade the client to receive them."
+9201  Warning  HttpClientLog.UnreadableEventSkipped
+    "Skipped a live event of kind {Kind} from scheduler {SchedulerName} that could not be read."
+9202  Warning  HttpClientLog.UnknownItemLeftOut
+    "Left a {Item} out of a listing from scheduler {SchedulerName}: its {EnumType} is {Name}, which this version of Quartz.HttpClient does not know. Upgrade the client to list it."
+9203  Information  HttpClientLog.UnknownNameReadAs
+    "Read the {EnumType} {Name} from scheduler {SchedulerName} as {ReadAs}: this version of Quartz.HttpClient does not know the name."
