@@ -68,6 +68,9 @@ public sealed class FireOnAcquireSqliteTest
     /// <summary>Log event <c>AdoJobStoreLog.FailingTriggerParkedInError</c>.</summary>
     private const int FailingTriggerParkedInError = 3050;
 
+    /// <summary>Log event <c>AdoJobStoreLog.TriggerHasNoNextFireTime</c>.</summary>
+    private const int TriggerHasNoNextFireTime = 3028;
+
     private static readonly TimeSpan observationDeadline = TimeSpan.FromSeconds(30);
 
     private SqliteTestDatabase database = null!;
@@ -341,6 +344,47 @@ public sealed class FireOnAcquireSqliteTest
     }
 
     /// <summary>
+    /// A candidate another node fired between this round's read of the candidates and its read-back of their
+    /// rows. Fired as it was acquired, a one-off is <c>COMPLETE</c> with no fire time until its completion
+    /// deletes it, so the read-back finds no fire time: a race lost, not a trigger with bad data. The round
+    /// takes the rest and says nothing.
+    /// </summary>
+    [Test]
+    public async Task ACandidateAnotherNodeFiredMeanwhileIsARaceLostNotABadTrigger()
+    {
+        DateTimeOffset now = TimeProvider.System.GetUtcNow();
+        await Schedule("taken", ordinaryJobKey, now, priority: 10);
+        await Schedule("ours", ordinaryJobKey, now, priority: 5);
+        RecordingSqliteDelegate.FireElsewhereBeforeReadBack = "taken";
+
+        TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(RequestFor(maxCount: 2));
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["ours"], "the other node has the one it fired");
+        round.Fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull();
+        logs.Entries.Should().NotContain(x => x.EventId.Id == TriggerHasNoNextFireTime,
+            "the warning is for a waiting trigger with no fire time, which an operator has to fix by hand; this one is spent and its completion deletes it");
+    }
+
+    /// <summary>
+    /// A waiting row that reads back with no fire time is what the warning is for: a trigger whose stored
+    /// form has lost its schedule, which nothing but an operator will clear.
+    /// </summary>
+    [Test]
+    public async Task AWaitingTriggerThatReadsBackWithNoFireTimeIsStillWarnedAbout()
+    {
+        DateTimeOffset now = TimeProvider.System.GetUtcNow();
+        await Schedule("broken-schedule", ordinaryJobKey, now, priority: 10);
+        await Schedule("ours", ordinaryJobKey, now, priority: 5);
+        RecordingSqliteDelegate.LoseFireTimeOnReadBack = "broken-schedule";
+
+        TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(RequestFor(maxCount: 2));
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["ours"]);
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == TriggerHasNoNextFireTime, "the row is still waiting, so this is bad data and not a race");
+        (await TriggerState("broken-schedule")).Should().Be("WAITING");
+    }
+
+    /// <summary>
     /// A running scheduler handed a round of triggers that are already due fires them without the second
     /// transaction.
     /// </summary>
@@ -480,6 +524,18 @@ public sealed class FireOnAcquireSqliteTest
         /// </summary>
         public static bool ForgetConcurrencyFlag { get; set; }
 
+        /// <summary>
+        /// The trigger another node fires as it acquires it, between the acquisition's read of the candidates
+        /// and its read-back of their rows; once.
+        /// </summary>
+        public static string? FireElsewhereBeforeReadBack { get; set; }
+
+        /// <summary>
+        /// The trigger whose read-back comes without a fire time while its row still waits, as a trigger
+        /// whose stored form lost its schedule would; once.
+        /// </summary>
+        public static string? LoseFireTimeOnReadBack { get; set; }
+
         /// <summary>Every fire the delegate was asked to write, in order, a rolled-back attempt's included.</summary>
         public static List<(string Trigger, bool FiredOnAcquire)> Fires
         {
@@ -506,6 +562,35 @@ public sealed class FireOnAcquireSqliteTest
             FailFireOf = null;
             FailFireOfTransientlyOnce = null;
             ForgetConcurrencyFlag = false;
+            FireElsewhereBeforeReadBack = null;
+            LoseFireTimeOnReadBack = null;
+        }
+
+        public override async ValueTask<List<IOperableTrigger>> SelectTriggers(ConnectionAndTransactionHolder conn, IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+        {
+            if (FireElsewhereBeforeReadBack is { } name && triggerKeys.Any(key => key.Name == name))
+            {
+                FireElsewhereBeforeReadBack = null;
+
+                // What the other node's commit leaves: a spent one-off, still there for its completion to delete.
+                using DbCommand command = conn.Connection.CreateCommand();
+                conn.Attach(command);
+                command.CommandText = "UPDATE QRTZ_TRIGGERS SET TRIGGER_STATE = 'COMPLETE', NEXT_FIRE_TIME = NULL WHERE TRIGGER_NAME = @name";
+                DbParameter parameter = command.CreateParameter();
+                parameter.ParameterName = "@name";
+                parameter.Value = name;
+                command.Parameters.Add(parameter);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            List<IOperableTrigger> triggers = await base.SelectTriggers(conn, triggerKeys, cancellationToken);
+            if (LoseFireTimeOnReadBack is { } lost && triggers.Find(trigger => trigger.Key.Name == lost) is { } broken)
+            {
+                LoseFireTimeOnReadBack = null;
+                broken.NextFireTimeUtc = null;
+            }
+
+            return triggers;
         }
 
         public override async ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(ConnectionAndTransactionHolder conn, TriggerAcquisitionCriteria criteria, CancellationToken cancellationToken = default)

@@ -291,6 +291,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * A 4.3 node leaves `JOB_INPUT` `NULL`, and a 4.3 host sends no `input`: *Run again* fires those rows without input.
 * A trigger a 4.4 node fires on acquisition leaves the fired-trigger row a 4.3 fire leaves: `EXECUTING`, with
   the job named. A 4.3 node's `[DisallowConcurrentExecution]` check and recovery read it as their own.
+* A 4.3 node may log warning `3028` ("returned null on nextFireTime") for a one-off a 4.4 node fired as it
+  acquired it. It is harmless: the trigger is spent and its completion deletes it. A 4.4 node counts it as a
+  race and logs nothing.
 
 ### The 4.4 schema migration
 

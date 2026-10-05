@@ -345,6 +345,16 @@ internal abstract partial class AdoJobStoreBase
                         // able to be clean up by Quartz since we are not returning it to be processed.
                         if (nextFireTimeUtc is null)
                         {
+                            // The candidates were read by their fire time, so a row read back without one
+                            // has changed since. A row no longer waiting is a race lost — another node fired
+                            // it, and a spent one-off waits for its completion to delete it — which a node
+                            // firing what it acquires makes common. Only a waiting row is bad data.
+                            if (await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false) != StoredTriggerState.Waiting)
+                            {
+                                raced++;
+                                continue;
+                            }
+
                             Logger.TriggerHasNoNextFireTime(nextTrigger.Key);
                             skipped++;
                             continue;
