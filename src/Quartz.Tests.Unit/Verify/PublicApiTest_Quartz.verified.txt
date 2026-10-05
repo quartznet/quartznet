@@ -1780,7 +1780,6 @@ namespace Quartz
         public RetryPolicyAttribute(int maxAttempts, string delay) { }
         public RetryPolicyAttribute(int maxAttempts, string initialDelay, double factor) { }
         public double Jitter { get; init; }
-        public int MaxAttempts { get; }
         public string? MaxDelay { get; init; }
         public Quartz.RetryPolicy Policy { get; }
     }

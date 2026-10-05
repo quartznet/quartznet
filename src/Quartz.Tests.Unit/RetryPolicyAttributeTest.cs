@@ -50,15 +50,25 @@ public sealed class RetryPolicyAttributeTest
         attribute.Policy.Should().Be(RetryPolicy.Exponential(5, TimeSpan.FromSeconds(30), 2, TimeSpan.FromMinutes(10), 0.2));
         attribute.MaxDelay.Should().Be("00:10:00");
         attribute.Jitter.Should().Be(0.2);
-        attribute.MaxAttempts.Should().Be(5);
     }
 
     [Test]
-    public void MaxAttemptsIsWhatThePolicyRetries()
+    public void TheNamedArgumentsKeepEachOtherWhicheverIsWrittenFirst()
     {
-        new RetryPolicyAttribute(0).MaxAttempts.Should().Be(0);
-        new RetryPolicyAttribute(3, "00:00:01").MaxAttempts.Should().Be(3);
-        new RetryPolicyAttribute("00:00:01", "00:00:02").MaxAttempts.Should().Be(2, "an explicit policy retries once per delay");
+        RetryPolicyAttribute jitterFirst = new(5, "00:00:30", 2) { Jitter = 0.2, MaxDelay = "00:10:00" };
+
+        jitterFirst.Policy.Should().Be(RetryPolicy.Exponential(5, TimeSpan.FromSeconds(30), 2, TimeSpan.FromMinutes(10), 0.2),
+            "each named argument rebuilds the policy from the policy, so the ceiling keeps the jitter assigned before it");
+        jitterFirst.Jitter.Should().Be(0.2, "the property reads back what the policy holds");
+        new RetryPolicyAttribute(5, "00:00:30", 2).Jitter.Should().Be(0, "a policy given no jitter has none");
+    }
+
+    [Test]
+    public void ThePolicySaysHowManyTimesTheJobIsRetried()
+    {
+        new RetryPolicyAttribute(0).Policy.MaxAttempts.Should().Be(0);
+        new RetryPolicyAttribute(3, "00:00:01").Policy.MaxAttempts.Should().Be(3);
+        new RetryPolicyAttribute("00:00:01", "00:00:02").Policy.MaxAttempts.Should().Be(2, "an explicit policy retries once per delay");
     }
 
     [Test]

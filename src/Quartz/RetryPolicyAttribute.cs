@@ -70,13 +70,10 @@ namespace Quartz;
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
 public sealed class RetryPolicyAttribute : Attribute
 {
-    // What the exponential constructor was given, kept so that MaxDelay and Jitter can rebuild the
-    // policy around them: an attribute's named arguments are assigned after its constructor has run.
+    // Whether the exponential constructor ran, which is the one form MaxDelay and Jitter belong to. They
+    // rebuild the policy from the policy itself: an attribute's named arguments are assigned after its
+    // constructor has run, so each one replaces the policy with the same policy and its own argument.
     private readonly bool exponential;
-    private readonly TimeSpan initialDelay;
-    private readonly double factor;
-    private TimeSpan? maxDelay;
-    private double jitter;
 
     /// <summary>
     /// Declares that the job is never retried: <see cref="RetryPolicy.None" />.
@@ -92,7 +89,6 @@ public sealed class RetryPolicyAttribute : Attribute
                 string.Create(CultureInfo.InvariantCulture, $"[RetryPolicy({maxAttempts})] names no delay. Write [RetryPolicy({maxAttempts}, \"00:01:00\")] for a fixed wait, or [RetryPolicy(0)] for a job that is never retried."));
         }
 
-        MaxAttempts = 0;
         Policy = RetryPolicy.None;
     }
 
@@ -109,7 +105,6 @@ public sealed class RetryPolicyAttribute : Attribute
     {
         EnsureAttempts(maxAttempts);
 
-        MaxAttempts = maxAttempts;
         Policy = RetryPolicy.Fixed(maxAttempts, ParseDelay(delay, nameof(delay)));
     }
 
@@ -131,11 +126,7 @@ public sealed class RetryPolicyAttribute : Attribute
         EnsureAttempts(maxAttempts);
 
         exponential = true;
-        this.initialDelay = ParseDelay(initialDelay, nameof(initialDelay));
-        this.factor = factor;
-
-        MaxAttempts = maxAttempts;
-        Policy = RetryPolicy.Exponential(maxAttempts, this.initialDelay, factor, maxDelay: null, jitter: 0);
+        Policy = RetryPolicy.Exponential(maxAttempts, ParseDelay(initialDelay, nameof(initialDelay)), factor, maxDelay: null, jitter: 0);
     }
 
     /// <summary>
@@ -160,17 +151,11 @@ public sealed class RetryPolicyAttribute : Attribute
         }
 
         Policy = RetryPolicy.Explicit(parsed);
-        MaxAttempts = Policy.MaxAttempts;
     }
 
     /// <summary>
-    /// How many times the job is retried after the first failure: <c>0</c> for <c>[RetryPolicy(0)]</c>,
-    /// and the number of delays for the explicit form.
-    /// </summary>
-    public int MaxAttempts { get; }
-
-    /// <summary>
-    /// The policy the attribute declares.
+    /// The policy the attribute declares. Its <see cref="RetryPolicy.MaxAttempts" /> is how many times the
+    /// job is retried: <c>0</c> for <c>[RetryPolicy(0)]</c>, the number of delays for the explicit form.
     /// </summary>
     public RetryPolicy Policy { get; private set; }
 
@@ -187,8 +172,8 @@ public sealed class RetryPolicyAttribute : Attribute
         {
             EnsureExponential(nameof(MaxDelay));
 
-            maxDelay = value is null ? null : ParseDelay(value, nameof(MaxDelay));
-            Policy = RetryPolicy.Exponential(MaxAttempts, initialDelay, factor, maxDelay, jitter);
+            TimeSpan? parsed = value is null ? null : ParseDelay(value, nameof(MaxDelay));
+            Policy = RetryPolicy.Exponential(Policy.MaxAttempts, Policy.InitialDelay, Policy.BackoffFactor, parsed, Policy.Jitter);
             field = value;
         }
     }
@@ -199,16 +184,15 @@ public sealed class RetryPolicyAttribute : Attribute
     /// </summary>
     /// <exception cref="ArgumentException">The attribute is not the exponential form.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The value is outside <c>[0, 1]</c>.</exception>
+    /// <remarks>Read from <see cref="Policy" />, which holds it: <c>0</c> unless it was given.</remarks>
     public double Jitter
     {
-        get;
+        get => Policy.Jitter;
         init
         {
             EnsureExponential(nameof(Jitter));
 
-            jitter = value;
-            Policy = RetryPolicy.Exponential(MaxAttempts, initialDelay, factor, maxDelay, jitter);
-            field = value;
+            Policy = RetryPolicy.Exponential(Policy.MaxAttempts, Policy.InitialDelay, Policy.BackoffFactor, Policy.MaxDelay, value);
         }
     }
 
