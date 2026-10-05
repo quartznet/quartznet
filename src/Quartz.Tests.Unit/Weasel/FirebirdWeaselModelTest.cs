@@ -200,6 +200,15 @@ public sealed class FirebirdWeaselModelTest
     }
 
     [Test]
+    public void OnlyFirebirdsOwnErrorsAreClassified()
+    {
+        FirebirdQuartzDatabase.LostRaceErrors.Should().BeEquivalentTo(
+            [336068740, 336068743, 336068859, 336068876, 335544665, 335544345, 335544510, 335544336, 335544451],
+            "the errors the Firebird legs' FirebirdWeaselSchemaTest raises from Firebird 3, 4 and 5");
+        FirebirdQuartzDatabase.IsLostRace(FakeItEasy.A.Fake<DbException>()).Should().BeFalse("another provider's error is that provider's to classify");
+    }
+
+    [Test]
     public async Task TheDatabaseDescribesTheStoresOwnConnection()
     {
         (ServiceProvider services, IDatabase database) = await BuildAsync("weasel-fb-described");
@@ -282,15 +291,17 @@ public sealed class FirebirdWeaselModelTest
     }
 
     [Test]
-    public async Task AnApplyThatCannotReachTheServerFailsAfterReadingAgain()
+    public async Task AnApplyThatCannotReachTheServerFailsAtOnce()
     {
         (ServiceProvider services, IDatabase database) = await BuildAsync("weasel-fb-unreachable", connectionString: Unreachable);
         await using (services)
         {
             Func<Task> apply = () => database.ApplyAllConfiguredChangesToDatabaseAsync();
-            // FbException where the refusal is immediate, TimeoutException where Windows retries the
-            // connect for longer than the one-second connection timeout.
-            await apply.Should().ThrowAsync<Exception>("nothing listens on port 1, and reading the schema again after the failure fails the same way");
+
+            // An FbException where the refusal is immediate, a TimeoutException where Windows retries the
+            // connect for longer than the one-second connection timeout: neither is a lost race.
+            (await apply.Should().ThrowAsync<SchedulerException>().WithMessage("*'weasel-fb-unreachable'*not retried*"))
+                .Which.InnerException.Should().Match<Exception>(x => x is FbException || x is TimeoutException, "nothing listens on port 1");
         }
     }
 

@@ -317,8 +317,10 @@ trigger moves the session to. Weasel's own default, `WEASEL`, is never used. Eve
 `QRTZ_TRIGGERS_PK`, `QRTZ_TRIGGER_TO_JOBS_FK`, `IDX_QRTZ_T_NFT_ST`.
 
 No lock is taken, because `DBMS_LOCK` needs an `EXECUTE` grant the store never needs. Appliers race instead, as
-`ProvisionSchema()` does: an apply that fails reads the schema again, and stops when another process has
-finished it (event 10009). It gives up after 10 attempts.
+`ProvisionSchema()` does: an apply that loses a statement to another session (ORA-00054, ORA-00955, ORA-01418,
+ORA-01430, ORA-02260, ORA-02275) reads the schema again, and stops when another process has finished it
+(event 10009). It gives up after 10 attempts. Any other failure fails the apply at once, as a
+`SchedulerException` naming the scheduler and the database.
 
 | Privilege | Needed for |
 |---|---|
@@ -336,8 +338,10 @@ Firebird 3, 4 and 5. Firebird has no schemas, so a table prefix with a dot is re
 script's: `PK_QRTZ_TRIGGERS`, `FK_QRTZ_TRIGGERS_1`, `IDX_QRTZ_T_NFT_ST`.
 
 No lock is taken: Weasel.Firebird has none. Every statement it runs is guarded, so a statement that loses a race
-to another applier runs again and finds the object there. An apply that still fails reads the schema again, and
-stops when another process has finished it (event 10009).
+to another applier runs again and finds the object there. An apply that still fails with a race error (an object
+that already exists, a catalog unique key, a lock conflict or time-out, an update conflict) reads the schema
+again, and stops when another process has finished it (event 10009). Any other failure fails the apply at once,
+as a `SchedulerException` naming the scheduler and the database.
 
 | Firebird | Longest name | Table prefix |
 |---|---|---|
@@ -373,7 +377,8 @@ Thanks to the JasperFx maintainers for merging it.
 
 * The store must use `UseSqlite`: Weasel speaks Microsoft.Data.Sqlite only.
 * No lock is taken. The file serializes writers, every `CREATE` is guarded, and an `ADD COLUMN` that loses a
-  race is re-read and found done.
+  race is re-read and found done. Any other failure fails the apply at once, as a `SchedulerException` naming
+  the scheduler and the database.
 * SQLite makes some changes by rebuilding the table. The rebuild keeps your own columns, indexes and foreign
   keys, with their rows, and so does rolling it back with `db-patch`'s `.drop.sql`.
 * A rebuild that fails rolls back and changes nothing. The usual cause is a row that the restored foreign key

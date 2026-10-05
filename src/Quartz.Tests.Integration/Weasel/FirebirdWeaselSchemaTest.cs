@@ -30,6 +30,7 @@ using MELT;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Tests.Integration.Impl.AdoJobStore;
+using Quartz.Weasel.Firebird;
 
 using Weasel.Core;
 using Weasel.Core.Migrations;
@@ -415,7 +416,7 @@ public sealed class FirebirdWeaselSchemaTest
 
     /// <summary>
     /// An application widened a Quartz column. Firebird cannot narrow it back, so Weasel reads the table
-    /// as a change it cannot make and refuses the apply before anything runs.
+    /// as a change it cannot make and refuses the apply before anything runs — once: a refusal is no race.
     /// </summary>
     [Test]
     public async Task AColumnTheApplicationWidenedIsRefusedBeforeAnythingRuns()
@@ -425,14 +426,19 @@ public sealed class FirebirdWeaselSchemaTest
 
         (SchemaSnapshot before, List<string> beforeDetails) = await database.ReadAsync();
 
-        (ServiceProvider services, IDatabase weasel) = await database.WeaselAsync("weasel-fb-widened");
+        ITestLoggerFactory loggerFactory = TestLoggerFactory.Create();
+        (ServiceProvider services, IDatabase weasel) = await database.WeaselAsync("weasel-fb-widened", loggerFactory: loggerFactory);
         await using (services)
         {
             (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.Invalid);
 
             Func<Task> apply = () => weasel.ApplyAllConfiguredChangesToDatabaseAsync();
-            await apply.Should().ThrowAsync<SchemaMigrationException>().WithMessage("*DESCRIPTION*Firebird only widens*");
+            (await apply.Should().ThrowAsync<SchedulerException>().WithMessage("*'weasel-fb-widened'*not retried*"))
+                .WithInnerException<SchemaMigrationException>().WithMessage("*DESCRIPTION*Firebird only widens*");
         }
+
+        loggerFactory.Sink.LogEntries.Select(x => x.EventId.Id).Should().NotContain([10008, 10009],
+            "a refusal is not retried, nor is the schema read again for it");
 
         (SchemaSnapshot after, List<string> afterDetails) = await database.ReadAsync();
         after.Columns.Should().BeEquivalentTo(before.Columns, "nothing was changed");
@@ -607,7 +613,8 @@ public sealed class FirebirdWeaselSchemaTest
             await read.Should().ThrowAsync<InvalidOperationException>().WithMessage(refusal, "db-assert and db-patch read the catalog first");
 
             Func<Task> apply = () => weasel.ApplyAllConfiguredChangesToDatabaseAsync();
-            await apply.Should().ThrowAsync<InvalidOperationException>().WithMessage(refusal);
+            (await apply.Should().ThrowAsync<SchedulerException>().WithMessage("*'weasel-fb-63-on-3'*not retried*"))
+                .WithInnerException<InvalidOperationException>().WithMessage(refusal);
         }
 
         (await database.CountAsync("SELECT COUNT(*) FROM RDB$RELATIONS WHERE COALESCE(RDB$SYSTEM_FLAG, 0) = 0"))
@@ -615,6 +622,177 @@ public sealed class FirebirdWeaselSchemaTest
     }
 
     /// <summary>What <c>db-patch</c> writes for this database, read back.</summary>
+    /// <summary>
+    /// A statement run a second time, failed the way the applier that loses it fails — the object is
+    /// already there — and, for contrast, failures no race causes. The numbers are the server's own, which
+    /// is what <see cref="FirebirdQuartzDatabase.LostRaceErrors" /> is held to.
+    /// </summary>
+    [TestCaseSource(nameof(FailedStatements))]
+    public async Task OnlyAnErrorALostRaceRaisesIsReadAgain(string[] setup, string statement, int number, bool lostRace)
+    {
+        await database.ExecuteAsync(setup);
+
+        Func<Task> execute = () => database.ExecuteAsync(statement);
+        FbException error = (await execute.Should().ThrowAsync<FbException>()).Which;
+
+        Numbers(error).Should().Contain(number, error.Message);
+        FirebirdQuartzDatabase.IsLostRace(error).Should().Be(lostRace, error.Message);
+    }
+
+    /// <summary>
+    /// A column another applier is adding, committed or not, is the catalog's unique key to the one that
+    /// adds it second, whether its transaction waits or not.
+    /// </summary>
+    [TestCase(FbTransactionBehavior.NoWait, false)]
+    [TestCase(FbTransactionBehavior.Wait, false)]
+    [TestCase(FbTransactionBehavior.Wait, true)]
+    public async Task AColumnAnotherApplierIsAddingIsALostRace(FbTransactionBehavior behavior, bool otherCommits)
+    {
+        const string AddColumn = "ALTER TABLE RACE_T ADD NOTE VARCHAR(10)";
+
+        await database.ExecuteAsync("CREATE TABLE RACE_T (ID INTEGER NOT NULL)");
+        FbException error = await RaceAsync(AddColumn, AddColumn, behavior, otherCommits);
+
+        Numbers(error).Should().Contain(335544665, error.Message);
+        FirebirdQuartzDatabase.IsLostRace(error).Should().BeTrue(error.Message);
+    }
+
+    /// <summary>
+    /// A catalog row another applier is changing — here a column's type — is a deadlock and an update
+    /// conflict to the one that changes it second, whether it waits or not; once the other commits, an
+    /// update conflict.
+    /// </summary>
+    [TestCase(FbTransactionBehavior.NoWait, false, new[] { 335544336, 335544451 })]
+    [TestCase(FbTransactionBehavior.Wait, false, new[] { 335544336, 335544451 })]
+    [TestCase(FbTransactionBehavior.Wait, true, new[] { 335544451 })]
+    public async Task ACatalogRowAnotherApplierIsChangingIsALostRace(FbTransactionBehavior behavior, bool otherCommits, int[] numbers)
+    {
+        const string AlterType = "ALTER TABLE RACE_T ALTER NOTE TYPE VARCHAR(20)";
+
+        await database.ExecuteAsync("CREATE TABLE RACE_T (ID INTEGER NOT NULL, NOTE VARCHAR(10))");
+        FbException error = await RaceAsync(AlterType, AlterType, behavior, otherCommits);
+
+        Numbers(error).Should().Contain(numbers, error.Message);
+        FirebirdQuartzDatabase.IsLostRace(error).Should().BeTrue(error.Message);
+    }
+
+    /// <summary>
+    /// An index created on a table another attachment is writing to — a node still running, during a
+    /// rolling upgrade — is refused at commit, the table being in use: a lock conflict to a <c>NO WAIT</c>
+    /// transaction, a lock time-out to a <c>WAIT</c> one, both SQLSTATE 40001.
+    /// </summary>
+    [TestCase(FbTransactionBehavior.NoWait, 335544345)]
+    [TestCase(FbTransactionBehavior.Wait, 335544510)]
+    public async Task AnIndexOnATableAnotherAttachmentIsWritingToIsALostRace(FbTransactionBehavior behavior, int number)
+    {
+        await database.ExecuteAsync("CREATE TABLE RACE_T (ID INTEGER NOT NULL)");
+        FbException error = await RaceAsync("INSERT INTO RACE_T (ID) VALUES (1)", "CREATE INDEX IDX_RACE ON RACE_T (ID)", behavior, otherCommits: false);
+
+        Numbers(error).Should().Contain(number, error.Message);
+        error.SQLSTATE.Should().Be("40001");
+        FirebirdQuartzDatabase.IsLostRace(error).Should().BeTrue(error.Message);
+    }
+
+    /// <summary>
+    /// <c>too many keys defined for index</c> under <c>unsuccessful metadata update</c> is what the second
+    /// loser of a <c>CREATE INDEX</c> race gets at commit. The one way to raise it at will is an index over
+    /// more than 16 columns, which reads the same — and which Weasel refuses before anything runs.
+    /// </summary>
+    [Test]
+    public async Task TooManyKeysUnderAFailedMetadataUpdateIsALostRace()
+    {
+        string[] columns = [.. Enumerable.Range(1, 17).Select(i => $"C{i}")];
+        await database.ExecuteAsync($"CREATE TABLE RACE_T ({string.Join(", ", columns.Select(x => x + " INTEGER"))})");
+
+        Func<Task> execute = () => database.ExecuteAsync($"CREATE INDEX IDX_RACE ON RACE_T ({string.Join(", ", columns)})");
+        FbException error = (await execute.Should().ThrowAsync<FbException>()).Which;
+
+        Numbers(error).Should().Contain([335544351, 335544631], error.Message);
+        FirebirdQuartzDatabase.IsLostRace(error).Should().BeTrue(error.Message);
+    }
+
+    private static IEnumerable<TestCaseData> FailedStatements()
+    {
+        const string Table = "CREATE TABLE RACE_T (ID INTEGER NOT NULL, NOTE VARCHAR(10))";
+        const string Index = "CREATE INDEX IDX_RACE ON RACE_T (ID)";
+        const string Procedure = "CREATE PROCEDURE RACE_P AS BEGIN END";
+        const string Function = "CREATE FUNCTION RACE_F RETURNS INTEGER AS BEGIN RETURN 1; END";
+
+        yield return Case("A CREATE TABLE another applier made first", [Table], Table, 336068740, true);
+        yield return Case("A CREATE INDEX another applier made first", [Table, Index], Index, 336068859, true);
+        yield return Case("A CREATE PROCEDURE another applier made first", [Procedure], Procedure, 336068743, true);
+        yield return Case("A CREATE FUNCTION another applier made first", [Function], Function, 336068876, true);
+
+        yield return Case("A table that is not there", [], "ALTER TABLE NO_SUCH_TABLE ADD NOTE VARCHAR(10)", 335544351, false);
+        yield return Case("A column narrowed", [Table], "ALTER TABLE RACE_T ALTER NOTE TYPE VARCHAR(5)", 335544351, false);
+        yield return Case("A syntax error", [], "CREATE TABLE", 335544569, false);
+
+        static TestCaseData Case(string name, string[] setup, string statement, int number, bool lostRace) =>
+            new TestCaseData(setup, statement, number, lostRace).SetArgDisplayNames(name);
+    }
+
+    private static HashSet<int> Numbers(FbException error) => [error.ErrorCode, .. error.Errors.Select(x => x.Number)];
+
+    /// <summary>
+    /// Runs <paramref name="otherSql" /> on the other applier's connection, left uncommitted, and then
+    /// <paramref name="sql" /> on this applier's, under <paramref name="behavior" /> with a two-second wait,
+    /// committing it. The other commits after this one has started waiting, or rolls back after it failed.
+    /// </summary>
+    private async Task<FbException> RaceAsync(string otherSql, string sql, FbTransactionBehavior behavior, bool otherCommits)
+    {
+        // Unpooled, so both attachments end with the race and the database can be dropped.
+        string unpooled = new FbConnectionStringBuilder(database.ConnectionString) { Pooling = false }.ConnectionString;
+
+        await using FbConnection other = new(unpooled);
+        await other.OpenAsync();
+        await using FbTransaction otherTransaction = await other.BeginTransactionAsync();
+        await using (FbCommand first = new(otherSql, other, otherTransaction))
+        {
+            await first.ExecuteNonQueryAsync();
+        }
+
+        await using FbConnection applier = new(unpooled);
+        await applier.OpenAsync();
+        await using FbTransaction transaction = await applier.BeginTransactionAsync(new FbTransactionOptions
+        {
+            TransactionBehavior = behavior | FbTransactionBehavior.ReadCommitted | FbTransactionBehavior.RecVersion,
+            WaitTimeout = behavior == FbTransactionBehavior.Wait ? TimeSpan.FromSeconds(2) : null,
+        });
+
+        await using FbCommand second = new(sql, applier, transaction);
+        Task losing = Task.Run(async () =>
+        {
+            await second.ExecuteNonQueryAsync();
+            await transaction.CommitAsync();
+        });
+
+        if (otherCommits)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(500));
+            await otherTransaction.CommitAsync();
+        }
+
+        bool finished = await Task.WhenAny(losing, Task.Delay(TimeSpan.FromSeconds(30))) == losing;
+        if (!finished)
+        {
+            // Closing the other attachment is what lets a statement waiting on it go, so the test fails
+            // instead of hanging the leg.
+            await other.DisposeAsync();
+        }
+
+        finished.Should().BeTrue($"'{sql}' has to fail, not wait on the other applier for good");
+
+        Func<Task> lose = () => losing;
+        FbException error = (await lose.Should().ThrowAsync<FbException>()).Which;
+
+        if (!otherCommits)
+        {
+            await otherTransaction.RollbackAsync();
+        }
+
+        return error;
+    }
+
     private static async Task<string> WritePatchAsync(IDatabase weasel)
     {
         string file = Path.Combine(Path.GetTempPath(), $"quartz-weasel-fb-{Guid.NewGuid():N}.sql");

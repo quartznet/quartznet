@@ -123,7 +123,8 @@ public sealed class SqliteWeaselHostingTest
 
         Func<Task> start = () => host.StartAsync();
 
-        await start.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Rebuilding table QRTZ_TRIGGERS*rolled back*");
+        (await start.Should().ThrowAsync<SchedulerException>().WithMessage("*'weasel-fail-fast'*"))
+            .WithInnerException<InvalidOperationException>().WithMessage("*Rebuilding table QRTZ_TRIGGERS*rolled back*");
     }
 
     /// <summary>

@@ -147,6 +147,17 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * **`Quartz.Weasel.SQLite` rebuilds a table that carries your own columns, indexes or foreign keys.** 4.3
   refused the apply with a `SchedulerException` ("Weasel would rebuild table …") and changed nothing. The
   rebuild now keeps those objects and their rows. Drop any workaround that removed them before an apply.
+* **A `Quartz.Weasel.SQLite` apply retries only a lost race, and fails as a `SchedulerException`**
+  ([#4002](https://github.com/quartznet/quartznet/issues/4002)). 4.3 applied any failure twice more, then threw
+  the failure itself, such as Weasel's `InvalidOperationException`. Now a failure no race causes fails at
+  once, and every failure is a `SchedulerException` naming the scheduler and the database. Read the cause from
+  `InnerException`:
+
+  ```diff
+  - catch (InvalidOperationException e)
+  + catch (SchedulerException e) when (e.InnerException is InvalidOperationException)
+  ```
+
 * **The dashboard's *Pause selected* with a reason is one call.** 4.3 paused a key at a time. A refusal now
   fails the whole selection, as the reasonless pause always did. An `IQuartzApiClient` of your own gets the
   `PauseTriggersWith` default, which still pauses a key at a time through your `PauseTriggerWith`.

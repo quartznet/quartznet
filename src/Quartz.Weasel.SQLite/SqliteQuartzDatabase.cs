@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Data.Common;
+
 using JasperFx;
 using JasperFx.Descriptors;
 
@@ -40,7 +42,7 @@ namespace Quartz.Weasel.SQLite;
 /// creating the schema at once both succeed; and the one statement that is not guarded,
 /// <c>ALTER TABLE … ADD COLUMN</c>, fails for whichever applier loses the race. That failure is answered
 /// the way <c>ProvisionSchema()</c> answers a lost race — by reading the schema again, and finding that
-/// nothing is left to do.
+/// nothing is left to do. Any other failure is not retried: see <see cref="IsLostRace" />.
 /// </para>
 /// <para>
 /// Every apply goes through <see cref="IDatabase.ApplyAllConfiguredChangesToDatabaseAsync" />, which is
@@ -62,8 +64,11 @@ internal sealed class SqliteQuartzDatabase : DatabaseBase<SqliteConnection>, IQu
         AcceptsConnection = static connection => connection is SqliteConnection,
     };
 
-    /// <summary>How many times an apply that failed is read again and retried before the failure stands.</summary>
+    /// <summary>How many applies are made, each losing a race, before the failure stands.</summary>
     private const int ApplyAttempts = 3;
+
+    /// <summary>SQLite's <c>SQLITE_ERROR</c>, which a syntax error is too: the message tells them apart.</summary>
+    private const int SqliteError = 1;
 
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(200);
 
@@ -126,10 +131,21 @@ internal sealed class SqliteQuartzDatabase : DatabaseBase<SqliteConnection>, IQu
         LockFreeApply.ApplyAsync(
             this,
             cancellationToken => ApplyAllConfiguredChangesToDatabaseAsync(@override, reconnectionOptions, cancellationToken),
+            IsLostRace,
             ApplyAttempts,
             RetryDelay,
             timeProvider,
             ct);
+
+    /// <summary>
+    /// Whether SQLite's error is one a statement raises when another applier made the same change first: an
+    /// <c>ADD COLUMN</c> it added (<c>duplicate column name</c>), or an object it created
+    /// (<c>already exists</c>).
+    /// </summary>
+    internal static bool IsLostRace(DbException exception) =>
+        exception is SqliteException { SqliteErrorCode: SqliteError } sqlite
+        && (sqlite.Message.Contains("duplicate column name", StringComparison.Ordinal)
+            || sqlite.Message.Contains("already exists", StringComparison.Ordinal));
 
     /// <summary>The schema's objects as the one feature the database has.</summary>
     private sealed class QuartzSqliteFeatureSchema : FeatureSchemaBase

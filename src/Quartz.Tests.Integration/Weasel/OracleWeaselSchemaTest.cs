@@ -28,6 +28,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Oracle.ManagedDataAccess.Client;
 
 using Quartz.Tests.Integration.Impl.AdoJobStore;
+using Quartz.Weasel.Oracle;
 
 using Weasel.Core;
 using Weasel.Core.Migrations;
@@ -359,6 +360,120 @@ public sealed class OracleWeaselSchemaTest
         }
 
         await ShouldMatchFreshInstallAsync(database, "five appliers racing build the schema one applier builds");
+    }
+
+    /// <summary>
+    /// Each statement an apply issues, failed the way it fails for the applier that loses it — the change
+    /// is already there — and, for contrast, failures no race causes. The error numbers are the server's own,
+    /// which is what <see cref="OracleQuartzDatabase.LostRaceErrors" /> is held to.
+    /// </summary>
+    [TestCaseSource(nameof(FailedStatements))]
+    public async Task OnlyAnErrorALostRaceRaisesIsReadAgain(string[] setup, string statement, int number, bool lostRace)
+    {
+        await database.ExecuteAsync(setup);
+
+        Func<Task> execute = () => database.ExecuteAsync(statement);
+        OracleException error = (await execute.Should().ThrowAsync<OracleException>()).Which;
+
+        error.Number.Should().Be(number, error.Message);
+        OracleQuartzDatabase.IsLostRace(error).Should().Be(lostRace, error.Message);
+    }
+
+    /// <summary>
+    /// An index created on a table another session is writing to — a node still running, during a rolling
+    /// upgrade — fails at once rather than waiting for the writer, which is gone a moment later.
+    /// </summary>
+    [Test]
+    public async Task AnIndexOnATableAnotherSessionIsWritingIsALostRace()
+    {
+        await database.ExecuteAsync("CREATE TABLE RACE_T (ID NUMBER(10) NOT NULL)");
+
+        // Unpooled, so both sessions end with the test and the schema's user can be dropped.
+        string unpooled = new OracleConnectionStringBuilder(database.ConnectionString) { Pooling = false }.ConnectionString;
+
+        await using OracleConnection writer = new(unpooled);
+        await writer.OpenAsync();
+        await using OracleTransaction transaction = (OracleTransaction) await writer.BeginTransactionAsync();
+        await using (OracleCommand insert = new("INSERT INTO RACE_T (ID) VALUES (1)", writer) { Transaction = transaction })
+        {
+            await insert.ExecuteNonQueryAsync();
+        }
+
+        await using OracleConnection applier = new(unpooled);
+        await applier.OpenAsync();
+
+        // Bounded, so that a server whose DDL waits for the writer fails the test instead of hanging it.
+        await using OracleCommand index = new("CREATE INDEX IDX_RACE ON RACE_T (ID)", applier) { CommandTimeout = 30 };
+
+        Func<Task> execute = () => index.ExecuteNonQueryAsync();
+        OracleException error = (await execute.Should().ThrowAsync<OracleException>()).Which;
+
+        error.Number.Should().Be(54, error.Message);
+        OracleQuartzDatabase.IsLostRace(error).Should().BeTrue("the writer's lock goes when its transaction does");
+
+        await transaction.RollbackAsync();
+    }
+
+    /// <summary>
+    /// A schema the login may not create in fails the apply at once: no other process applying the same
+    /// schema would change that, so it is neither read again nor applied again.
+    /// </summary>
+    [Test]
+    public async Task AnApplyNoRaceFailsFailsAtOnceAsASchedulerException()
+    {
+        (ServiceProvider services, IDatabase weasel) = await database.WeaselAsync("weasel-ora-refused", "SYSTEM.QRTZ_");
+        await using (services)
+        {
+            Func<Task> apply = () => weasel.ApplyAllConfiguredChangesToDatabaseAsync();
+
+            SchedulerException failure = (await apply.Should().ThrowAsync<SchedulerException>()).Which;
+            failure.Message.Should().Contain("'weasel-ora-refused'").And.Contain(weasel.Describe().DatabaseUri().ToString())
+                .And.Contain("not retried");
+
+            OracleException? error = null;
+            for (Exception? current = failure; current is not null; current = current.InnerException)
+            {
+                error ??= current as OracleException;
+            }
+
+            error.Should().NotBeNull("the server's own refusal is kept, under Weasel's");
+            OracleQuartzDatabase.IsLostRace(error!).Should().BeFalse(error!.Message);
+        }
+    }
+
+    private static IEnumerable<TestCaseData> FailedStatements()
+    {
+        const string Table = "CREATE TABLE RACE_T (ID NUMBER(10) NOT NULL, P_ID NUMBER(10) NULL)";
+        const string Parent = "CREATE TABLE RACE_P (ID NUMBER(10) NOT NULL, CONSTRAINT RACE_P_PK PRIMARY KEY (ID))";
+        const string Index = "CREATE INDEX IDX_RACE ON RACE_T (ID)";
+        const string Column = "ALTER TABLE RACE_T ADD NOTE VARCHAR2(10)";
+        const string PrimaryKey = "ALTER TABLE RACE_T ADD CONSTRAINT RACE_T_PK PRIMARY KEY (ID)";
+        const string ForeignKey = "ALTER TABLE RACE_T ADD CONSTRAINT RACE_T_FK FOREIGN KEY (P_ID) REFERENCES RACE_P (ID)";
+
+        yield return Case("A CREATE TABLE another applier made first", [Table], Table, 955, true);
+        yield return Case(
+            "A guarded CREATE TABLE whose check another applier beat",
+            [Table],
+            $"BEGIN EXECUTE IMMEDIATE '{Table}'; END;",
+            955,
+            true);
+        yield return Case("A CREATE INDEX another applier made first", [Table, Index], Index, 955, true);
+        yield return Case("An ADD another applier made first", [Table, Column], Column, 1430, true);
+        yield return Case("A primary key another applier added first", [Table, PrimaryKey], PrimaryKey, 2260, true);
+        yield return Case("A foreign key another applier added first", [Parent, Table, ForeignKey], ForeignKey, 2275, true);
+        yield return Case("A DROP INDEX another applier made first", [Table, Index, "DROP INDEX IDX_RACE"], "DROP INDEX IDX_RACE", 1418, true);
+
+        yield return Case("A schema the login may not create in", [], "CREATE TABLE SYSTEM.RACE_T (ID NUMBER(10))", 1031, false);
+        yield return Case("A table that is not there", [], Column, 942, false);
+        yield return Case(
+            "A NOT NULL column on a table with rows",
+            [Table, "INSERT INTO RACE_T (ID) VALUES (1)"],
+            "ALTER TABLE RACE_T ADD NOTE VARCHAR2(10) NOT NULL",
+            1758,
+            false);
+
+        static TestCaseData Case(string name, string[] setup, string statement, int number, bool lostRace) =>
+            new TestCaseData(setup, statement, number, lostRace).SetArgDisplayNames(name);
     }
 
     private static IEnumerable<string> IndexNames(SchemaSnapshot schema) => schema.Indexes.Select(x => x.Split('|')[1]).Distinct();
