@@ -36,6 +36,9 @@ partial class Build : FalloutBuild, ICompile, IPack
     [Parameter("Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, redis, basic, all)")]
     readonly string Database;
 
+    [Parameter("Firebird image for the firebird leg instead of the default (firebirdsql/firebird:3, :4 or :5); the leg then runs only the tests that touch Firebird's catalog")]
+    readonly string FirebirdImage;
+
     [Parameter("Collect line and branch coverage while running the unit tests, in OpenCover format")]
     readonly bool Coverage;
 
@@ -909,6 +912,18 @@ partial class Build : FalloutBuild, ICompile, IPack
     const string LongRunningCategory = "LongRunning";
 
     /// <summary>
+    /// What a Firebird leg on an image of its own (<see cref="FirebirdImage" />) runs: the tests that read or
+    /// write Firebird's catalog — provisioning, the migration scripts and the Weasel model.
+    /// </summary>
+    /// <remarks>
+    /// That is where Firebird 3, 4 and 5 differ: system tables, identifier limits, how DDL is run. The
+    /// store's queries are the same SQL on every version, and the default image runs them all. A leg is a
+    /// compile and about a minute of tests, against about four for the whole category.
+    /// </remarks>
+    const string FirebirdCatalogFilter =
+        "TestCategory=db-firebird&(TestCategory=provisioning|TestCategory=migrations|FullyQualifiedName~Quartz.Tests.Integration.Weasel.)";
+
+    /// <summary>
     /// What one integration leg runs: the fixtures for its database, and never a release gate.
     /// </summary>
     /// <remarks>
@@ -924,6 +939,7 @@ partial class Build : FalloutBuild, ICompile, IPack
             "sqlserver" => "TestCategory=db-sqlserver",
             "mysql" => "TestCategory=db-mysql",
             "oracle" => "TestCategory=db-oracle",
+            "firebird" when !string.IsNullOrEmpty(FirebirdImage) => FirebirdCatalogFilter,
             "firebird" => "TestCategory=db-firebird",
             "sqlite" => "TestCategory=db-sqlite",
             "redis" => "TestCategory=db-redis",
@@ -962,6 +978,11 @@ partial class Build : FalloutBuild, ICompile, IPack
         {
             var database = Database?.ToLowerInvariant();
             Environment.SetEnvironmentVariable("QUARTZ_TEST_DATABASE", database ?? "all");
+
+            if (!string.IsNullOrEmpty(FirebirdImage))
+            {
+                Environment.SetEnvironmentVariable("QUARTZ_FIREBIRD_IMAGE", FirebirdImage);
+            }
 
             var filter = GetTestFilter(database);
 

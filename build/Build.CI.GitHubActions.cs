@@ -48,6 +48,11 @@ using Quartz.Build;
 [DatabaseIntegrationGitHubActions("pr-integration-mysql", "mysql")]
 [DatabaseIntegrationGitHubActions("pr-integration-oracle", "oracle")]
 [DatabaseIntegrationGitHubActions("pr-integration-firebird", "firebird")]
+// Firebird 3, 4 and 5 on their official images, each running only the tests that touch the catalog: see
+// FirebirdCatalogFilter in Build.cs for what that is and why it is enough.
+[DatabaseIntegrationGitHubActions("pr-integration-firebird3", "firebird", FirebirdImage = "firebirdsql/firebird:3")]
+[DatabaseIntegrationGitHubActions("pr-integration-firebird4", "firebird", FirebirdImage = "firebirdsql/firebird:4")]
+[DatabaseIntegrationGitHubActions("pr-integration-firebird5", "firebird", FirebirdImage = "firebirdsql/firebird:5")]
 [DatabaseIntegrationGitHubActions("pr-integration-sqlite", "sqlite")]
 [DatabaseIntegrationGitHubActions("pr-integration-redis", "redis")]
 // The push leg runs 'basic' — the container-free negation of every db-* category. Left unset the build
@@ -151,7 +156,7 @@ namespace Quartz.Build
     /// A workflow that pins the database its integration tests run against. The database is handed to the
     /// build as an <c>env:</c> entry on the generated run step, which Fallout resolves into the
     /// <c>Database</c> parameter — the same mechanism <see cref="GitHubActionsAttribute.ImportSecrets"/>
-    /// uses, so no custom step needs to be written.
+    /// uses, so no custom step needs to be written. <see cref="FirebirdImage" /> travels the same way.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     internal class DatabaseGitHubActionsAttribute : GitHubActionsAttribute
@@ -168,9 +173,13 @@ namespace Quartz.Build
             this.database = database;
         }
 
+        /// <summary>The Firebird image the leg runs on in place of the default, or none.</summary>
+        public string FirebirdImage { get; set; }
+
         protected override IEnumerable<(string Key, string Value)> GetImports()
         {
-            return base.GetImports().Concat([("Database", database)]);
+            IEnumerable<(string Key, string Value)> imports = base.GetImports().Concat([("Database", database)]);
+            return string.IsNullOrEmpty(FirebirdImage) ? imports : imports.Concat([("FirebirdImage", FirebirdImage)]);
         }
     }
 

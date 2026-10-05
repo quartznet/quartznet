@@ -62,6 +62,9 @@ Integration tests provision their database dependencies through Testcontainers f
   and Redis, and two for SQL Server; the Oracle one is what makes that wait long. `redis` starts two:
   its own, and a PostgreSQL for the two schedulers of `RedisTwoNodeTest` to share, because Redis there
   is the lock rather than the store.
+* `--database firebird --firebird-image firebirdsql/firebird:3` (or `:4`, `:5`) runs the tests that touch
+  Firebird's catalog — provisioning, migrations and Quartz.Weasel.Firebird — on that version. CI runs all
+  three.
 
 This builds and runs tests the way the CI server does. `IntegrationTest` is skipped on one machine
 only: a Windows or macOS CI leg, neither of which has a Docker daemon. It runs on yours.
