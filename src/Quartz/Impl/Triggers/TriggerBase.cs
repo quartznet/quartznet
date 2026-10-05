@@ -117,6 +117,22 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     [NonSerialized]
     private bool retryAttemptCleared;
 
+    // What ExecutionComplete decided about the completion it was last handed, which the run shell reads
+    // straight after: whether it decided at all, which policy answered a failure, whether that policy was
+    // inherited rather than the trigger's own, and whether a retry it allowed found no room. Not
+    // serialized, for the reason retryAttemptCleared is not.
+    [NonSerialized]
+    private bool retryPolicyDecided;
+
+    [NonSerialized]
+    private RetryPolicy? appliedRetryPolicy;
+
+    [NonSerialized]
+    private bool appliedRetryPolicyInherited;
+
+    [NonSerialized]
+    private bool retryDeclinedForRoom;
+
     // Parsing the stored form once per trigger rather than once per read. Not serialized: it is
     // derived from the field above, which is.
     [NonSerialized]
@@ -705,6 +721,10 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// <seealso cref="Triggered" />
     public virtual SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException? result)
     {
+        // Decided before the directives, and kept: the run shell reports an occurrence that gave up by the
+        // policy that was applied to it, including one whose job asked to be unscheduled.
+        DecideRetryPolicy(context, result);
+
         if (result is not null && result.RefireImmediately)
         {
             // An explicit directive wins over the trigger's retry policy, and the two are different
@@ -727,9 +747,14 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
         // nothing-left-to-fire check below, which a scheduled retry has to be able to postpone: a
         // one-shot trigger waiting to retry may still fire again, and announcing it as finalized
         // here would be announcing it twice.
-        if (result is not null && RetryPolicyFor(context) is { } policy && RetryAttempt < policy.MaxAttempts && TryScheduleRetry(policy))
+        if (result is not null && appliedRetryPolicy is { } policy && RetryAttempt < policy.MaxAttempts)
         {
-            return SchedulerInstruction.RetryTrigger;
+            if (TryScheduleRetry(policy))
+            {
+                return SchedulerInstruction.RetryTrigger;
+            }
+
+            retryDeclinedForRoom = true;
         }
 
         // Everything else settles the occurrence: it succeeded, the trigger has no policy, its
@@ -747,8 +772,7 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     }
 
     /// <summary>
-    /// The policy this trigger's failed firing is retried under, or <see langword="null" /> when it is not
-    /// retried.
+    /// Records which policy a failed firing is answered under: none for a success.
     /// </summary>
     /// <remarks>
     /// The trigger's own policy wins, and <see cref="Quartz.RetryPolicy.None" /> is how it refuses the
@@ -758,16 +782,52 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// their behalf. A context that knows neither answers <see langword="null" />, which is what a
     /// trigger with no policy has always meant.
     /// </remarks>
-    private RetryPolicy? RetryPolicyFor(IJobExecutionContext context)
+    private void DecideRetryPolicy(IJobExecutionContext context, JobExecutionException? result)
     {
+        retryPolicyDecided = true;
+        retryDeclinedForRoom = false;
+        appliedRetryPolicy = null;
+        appliedRetryPolicyInherited = false;
+
+        if (result is null)
+        {
+            return;
+        }
+
         RetryPolicy? own = RetryPolicy;
         if (own is not null)
         {
-            return own.IsNone ? null : own;
+            appliedRetryPolicy = own.IsNone ? null : own;
+            return;
         }
 
-        return context.RetryPolicy;
+        appliedRetryPolicy = context.RetryPolicy;
+        appliedRetryPolicyInherited = appliedRetryPolicy is not null;
     }
+
+    /// <summary>
+    /// Whether <see cref="ExecutionComplete" /> decided the completion it was last handed. A subclass that
+    /// overrides it without calling the base never does, and its retries are its own business.
+    /// </summary>
+    internal bool RetryPolicyDecided => retryPolicyDecided;
+
+    /// <summary>
+    /// The policy the last failure <see cref="ExecutionComplete" /> was handed was answered under, or
+    /// <see langword="null" /> when none applied.
+    /// </summary>
+    internal RetryPolicy? AppliedRetryPolicy => appliedRetryPolicy;
+
+    /// <summary>
+    /// Whether <see cref="AppliedRetryPolicy" /> came from the job type or the scheduler rather than from
+    /// the trigger itself.
+    /// </summary>
+    internal bool AppliedRetryPolicyInherited => appliedRetryPolicyInherited;
+
+    /// <summary>
+    /// Whether the applied policy had attempts left but the retry found no room: it would have landed at
+    /// or beside the next occurrence, after the end time, or past the end of representable time.
+    /// </summary>
+    internal bool RetryDeclinedForRoom => retryDeclinedForRoom;
 
     /// <summary>
     /// How close to the next scheduled occurrence a retry may be scheduled before the occurrence

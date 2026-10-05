@@ -100,6 +100,7 @@ matching on its text is not.
 | 1059 | Warning | `Quartz` | `"The metrics job {JobKey} reported were not recorded: as JSON they come to more than {MaxLength} characters"` |
 | 1060 | Warning | `Quartz` | `"The metrics job {JobKey} reported were not recorded: writing metric {MetricName} threw"` |
 | 1061 | Warning | `Quartz` | `"Job listener {ListenerName} threw while hearing the progress of fire instance {FireInstanceId} of job {JobKey}; the job carries on"` |
+| 1062 | Debug | `Quartz` | `"Job of trigger {TriggerKey} failed after {Attempt} of {MaxAttempts} retries under an inherited retry policy, and the next retry had no room before the trigger's next occurrence or end; the trigger keeps its ordinary schedule"` |
 | 1070 | Information | `Quartz` | `"Initialized Scheduler Signaller of type: {Type}"` |
 | 1071 | Error | `Quartz` | `"Error notifying listeners of trigger misfire."` |
 | 1072 | Error | `Quartz` | `"Error notifying listeners of a skipped trigger firing."` |

@@ -75,12 +75,18 @@ public interface IJobExecutionContext
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The first of three, in order: the trigger's own <see cref="ITrigger.RetryPolicy" />, the job
-    /// type's <see cref="RetryPolicyAttribute" />, and the scheduler's default. Whichever is found first
-    /// decides, and <see cref="Quartz.RetryPolicy.None" /> found at any level means no retry, so this
-    /// never answers <see cref="Quartz.RetryPolicy.None" />. It is looked up when it is read rather than
-    /// stored on the trigger, so a trigger stored before a job type or a scheduler declared a policy is
-    /// covered by it.
+    /// For a trigger derived from <c>TriggerBase</c>, which every built-in trigger is, the first of three,
+    /// in order: the trigger's own <see cref="ITrigger.RetryPolicy" />, the job type's
+    /// <see cref="RetryPolicyAttribute" />, and the scheduler's default. Whichever is found first decides,
+    /// and <see cref="Quartz.RetryPolicy.None" /> found at any level means no retry, so this never answers
+    /// <see cref="Quartz.RetryPolicy.None" />. It is looked up when it is read rather than stored on the
+    /// trigger, so a trigger stored before a job type or a scheduler declared a policy is covered by it.
+    /// </para>
+    /// <para>
+    /// The inherited policies are applied by <c>TriggerBase.ExecutionComplete</c>. Any other
+    /// <see cref="Extensibility.IOperableTrigger" /> is answered with its own policy alone, and a
+    /// <c>TriggerBase</c> subclass that overrides <c>ExecutionComplete</c> without calling the base is
+    /// answered as though it applied them, though it does not.
     /// </para>
     /// <para>
     /// Its <see cref="Quartz.RetryPolicy.MaxAttempts" /> beside <see cref="RetryAttempt" /> says how many

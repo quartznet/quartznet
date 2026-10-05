@@ -199,19 +199,26 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     /// <inheritdoc />
     /// <remarks>
     /// <para>
-    /// The trigger's own policy, else its job type's <see cref="RetryPolicyAttribute" />, else the default
-    /// of the scheduler that fired it. Looked up on each read rather than when the context is built,
-    /// because only a failed firing asks: a firing that succeeds pays nothing for it.
+    /// For a trigger derived from <see cref="Triggers.TriggerBase" />: its own policy, else its job type's
+    /// <see cref="RetryPolicyAttribute" />, else the default of the scheduler that fired it. For any other
+    /// trigger, its own policy alone, because only <c>TriggerBase.ExecutionComplete</c> applies an inherited
+    /// one. Looked up on each read rather than when the context is built, because only a failed firing
+    /// asks: a firing that succeeds pays nothing for it.
     /// </para>
     /// <para>
-    /// The default is read through <see cref="Scheduler" />, so a context built by hand over a scheduler
-    /// Quartz did not build sees the trigger's policy and the job type's, and no default.
+    /// A context built by hand has no scheduler default, which the run shell hands over as it builds the
+    /// context, so it sees the trigger's policy and the job type's.
     /// </para>
     /// </remarks>
-    public RetryPolicy? RetryPolicy => RetryPolicyResolution.Effective(
-        trigger.RetryPolicy,
-        jobDetail,
-        scheduler is StdScheduler std ? std.scheduler.resources.DefaultRetryPolicy : null);
+    public RetryPolicy? RetryPolicy => trigger is Triggers.TriggerBase
+        ? RetryPolicyResolution.Effective(trigger.RetryPolicy, jobDetail, SchedulerDefaultRetryPolicy)
+        : trigger.RetryPolicy is { IsNone: false } own ? own : null;
+
+    /// <summary>
+    /// The default retry policy of the scheduler running this firing, which the run shell hands over as it
+    /// builds the context.
+    /// </summary>
+    internal RetryPolicy? SchedulerDefaultRetryPolicy { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

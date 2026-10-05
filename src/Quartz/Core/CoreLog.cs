@@ -171,6 +171,9 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1061, Level = LogLevel.Warning, Message = "Job listener {ListenerName} threw while hearing the progress of fire instance {FireInstanceId} of job {JobKey}; the job carries on")]
     public static partial void JobProgressListenerFailed(this ILogger logger, string listenerName, string fireInstanceId, JobKey jobKey, Exception exception);
 
+    [LoggerMessage(EventId = 1062, Level = LogLevel.Debug, Message = "Job of trigger {TriggerKey} failed after {Attempt} of {MaxAttempts} retries under an inherited retry policy, and the next retry had no room before the trigger's next occurrence or end; the trigger keeps its ordinary schedule")]
+    public static partial void InheritedRetryHadNoRoom(this ILogger logger, TriggerKey triggerKey, int attempt, int maxAttempts);
+
     [LoggerMessage(EventId = 1070, Level = LogLevel.Information, Message = "Initialized Scheduler Signaller of type: {Type}")]
     public static partial void SchedulerSignalerInitialized(this ILogger logger, Type type);
 
