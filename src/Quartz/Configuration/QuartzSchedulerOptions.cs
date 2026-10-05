@@ -127,6 +127,25 @@ public sealed class QuartzSchedulerOptions
     public bool PropagateTraceContext { get; set; } = true;
 
     /// <summary>
+    /// Whether a failed span records the exception as an <c>exception</c> span event, or
+    /// <see langword="null" /> to follow the <c>OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN</c> environment
+    /// variable. Records them by default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// OpenTelemetry deprecated span events in 2026, exception events included, in favour of exceptions
+    /// emitted as logs. Quartz already logs each of these exceptions through <c>ILogger</c> while the span
+    /// is current, so <see langword="false" /> removes only the copy on the span. The span still ends in
+    /// error, with the exception's message as the status description and its type as <c>error.type</c>.
+    /// </para>
+    /// <para>
+    /// Unset, the environment decides: <c>OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN=logs</c> stops the events,
+    /// and <c>logs/dup</c> or no value keeps them. A value set here wins over the variable.
+    /// </para>
+    /// </remarks>
+    public bool? RecordExceptionSpanEvents { get; set; }
+
+    /// <summary>
     /// Values seeded into <see cref="SchedulerContext"/> when the scheduler is created.
     /// </summary>
     /// <remarks>Replaces the <c>quartz.context.key.*</c> property keys.</remarks>

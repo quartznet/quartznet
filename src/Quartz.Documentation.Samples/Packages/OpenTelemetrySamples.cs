@@ -27,4 +27,13 @@ public static class OpenTelemetrySamples
 
         #endregion
     }
+
+    public static void RecordExceptionsAsLogsOnly(IServiceCollection services)
+    {
+        #region sample_opentelemetry_exception_span_events
+
+        services.AddQuartz(q => q.ConfigureScheduler(options => options.RecordExceptionSpanEvents = false));
+
+        #endregion
+    }
 }

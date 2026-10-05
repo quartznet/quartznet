@@ -421,7 +421,9 @@ firing logs; see [A log scope per firing](../tutorial/job-execution-middleware.m
 * **View details** shows `quartz.job.name`, `quartz.job.group`, `quartz.trigger.name` and
   `quartz.trigger.group`. `quartz.scheduler.name`, `quartz.scheduler.id`, `quartz.job.type` and
   `quartz.fire.instance.id` appear only when the span is sampled for full data.
-* A failed firing sets error status, adds an exception event and tags `error.type`.
+* A failed firing sets error status and tags `error.type`. It adds an exception event unless
+  [turned off](../packages/opentelemetry-integration.md#exceptions-as-span-events). Every
+  `Quartz.Job.Execute` span carries `quartz.job.result`.
 * One `Quartz.JobStore.*` span per store operation (`Quartz.JobStore.AcquireNextTriggers`, `.TriggersFired`,
   `.ScheduleJob` and the rest), `ActivityKind.Client`, from every store including in-memory.
 

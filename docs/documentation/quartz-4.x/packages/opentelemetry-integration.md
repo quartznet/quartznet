@@ -33,7 +33,7 @@ see the [complete old → new table](../migration-guide.md#old-and-new-telemetry
 
 | Span | Kind | When |
 |---|---|---|
-| `Quartz.Job.Execute` | `Internal` | A job runs; covers the whole fire and records a thrown exception |
+| `Quartz.Job.Execute` | `Internal` | A job runs; covers the whole fire and carries its result |
 | `Quartz.Job.Veto` | `Internal` | A trigger listener vetoed the fire; the job did not run |
 | `Quartz.JobStore.<operation>` | `Client` | One per store operation; names are the members of `Quartz.Diagnostics.OperationName.JobStore` |
 
@@ -84,12 +84,53 @@ constants on `Quartz.Diagnostics.ActivityTags`:
 | `quartz.trigger.name`, `quartz.trigger.group` | job spans; store spans about one trigger |
 | `quartz.execution.group` | job spans, when the trigger names an execution group |
 | `quartz.fire.instance.id` | job spans |
+| `quartz.job.result` | `Quartz.Job.Execute`: `succeeded`, `failed`, `cancelled` or `skipped`, from 4.4 |
 | `quartz.job.name`, `quartz.job.group` | store spans about one job |
 | `quartz.jobstore.batch.size` | `Quartz.JobStore.AcquireNextTriggers`: triggers requested |
 | `quartz.jobstore.trigger.count` | `Quartz.JobStore.AcquireNextTriggers` (returned) and `.TriggersFired` (fired) |
-| `error.type` | any span that ended in a failure |
+| `error.type` | any span that ended in a failure; store spans from 4.4 |
 
 `quartz.fire.instance.id` identifies one firing; it is the id `IScheduler.InterruptFireInstance` takes.
+`quartz.job.result` is the value the duration histogram and the execution history record; see
+[Reading the numbers](#reading-the-numbers).
+
+### Failed spans
+
+A span ends in `Error` only when something threw:
+
+| | Status | Description | `error.type` | `exception` event |
+|---|---|---|---|---|
+| The job or a middleware threw | `Error` | the exception's message | the exception type | [by default](#exceptions-as-span-events) |
+| The job's `JobRunReport` says `Failed` | `Unset` | — | absent | never |
+| The run was cancelled | `Unset` | — | absent | never |
+| A store operation threw | `Error` | the exception's message | the exception type | [by default](#exceptions-as-span-events) |
+
+`quartz.job.result` is `failed` for both kinds of failed run.
+
+### Exceptions as span events
+
+OpenTelemetry [deprecated span events](https://opentelemetry.io/blog/2026/deprecating-span-events/), exception
+events included, in favour of exceptions as logs. Quartz records them by default. To stop:
+
+<!-- snippet: sample_opentelemetry_exception_span_events -->
+```csharp
+services.AddQuartz(q => q.ConfigureScheduler(options => options.RecordExceptionSpanEvents = false));
+```
+<!-- endSnippet -->
+
+| `RecordExceptionSpanEvents` | `OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN` | `exception` event |
+|---|---|---|
+| `null` (default) | unset, `logs/dup` or another value | recorded |
+| `null` (default) | `logs` | not recorded |
+| `true` | anything | recorded |
+| `false` | anything | not recorded |
+
+- The span keeps its status, description and `error.type` either way.
+- The option wins over the variable. The variable is read when the scheduler is built; its value is
+  case-insensitive. The variable is OpenTelemetry's
+  [semantic-convention opt-in](https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/).
+- A job's exception is logged through `ILogger` while its span is current, so an OpenTelemetry log exporter
+  ties it to the trace. A store operation's exception goes to its caller.
 
 ### Linking a firing to what scheduled it
 

@@ -58,20 +58,27 @@ internal sealed class TracingJobStore : DelegatingJobStore
     private readonly Meters meters;
     private readonly TimeProvider timeProvider;
 
+    /// <summary>
+    /// Whether a failed operation's span records the exception as a span event, as well as ending in
+    /// error. See <see cref="ExceptionSignal" />.
+    /// </summary>
+    private readonly bool recordExceptionEvents;
+
     private string schedulerName = "";
     private string schedulerId = "";
 
-    internal TracingJobStore(IJobStore jobStore, Meters meters, TimeProvider timeProvider)
-        : this(jobStore, meters, timeProvider, QuartzActivitySource.Instance)
+    internal TracingJobStore(IJobStore jobStore, Meters meters, TimeProvider timeProvider, bool recordExceptionEvents = true)
+        : this(jobStore, meters, timeProvider, QuartzActivitySource.Instance, recordExceptionEvents)
     {
     }
 
-    internal TracingJobStore(IJobStore jobStore, Meters meters, TimeProvider timeProvider, ActivitySource activitySource)
+    internal TracingJobStore(IJobStore jobStore, Meters meters, TimeProvider timeProvider, ActivitySource activitySource, bool recordExceptionEvents = true)
         : base(jobStore)
     {
         this.meters = meters;
         this.timeProvider = timeProvider;
         this.activitySource = activitySource;
+        this.recordExceptionEvents = recordExceptionEvents;
     }
 
     /// <summary>
@@ -866,7 +873,14 @@ internal sealed class TracingJobStore : DelegatingJobStore
                 if (exception is not null)
                 {
                     activity.SetStatus(ActivityStatusCode.Error, exception.Message);
-                    activity.AddException(exception);
+                    // The value the operation's measurement is tagged with, and what is left of the
+                    // exception's type on the span when the event below is turned off.
+                    activity.SetTag(ErrorType.TagName, ErrorType.Of(exception));
+
+                    if (store!.recordExceptionEvents)
+                    {
+                        activity.AddException(exception);
+                    }
                 }
 
                 activity.Stop();

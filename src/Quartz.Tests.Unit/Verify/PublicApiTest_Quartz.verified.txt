@@ -1657,6 +1657,7 @@ namespace Quartz
         public string InstanceName { get; set; }
         public int MaxBatchSize { get; set; }
         public bool PropagateTraceContext { get; set; }
+        public bool? RecordExceptionSpanEvents { get; set; }
         public Quartz.ShutdownJobInterruption ShutdownJobInterruption { get; set; }
     }
     public static class QuartzServiceCollectionExtensions

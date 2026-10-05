@@ -315,7 +315,8 @@ internal sealed class JobRunShell
                     // last word is the instruction's to say, and SchedulerInstruction.RetryTrigger is
                     // what says it is not — which is why every store skips settling continuations on
                     // that instruction rather than on the outcome. Worked out here rather than beside
-                    // the settling, so the duration histogram classifies the run as its history row will.
+                    // the settling, so the span and the duration histogram classify the run as its history
+                    // row will.
                     ExecutionOutcome outcome = (cancelled, jobExEx) switch
                     {
                         (true, _) => ExecutionOutcome.Cancelled,
@@ -323,7 +324,7 @@ internal sealed class JobRunShell
                         _ => ExecutionOutcome.Succeeded
                     };
 
-                    activity.Stop(timeProvider, jobExEx);
+                    activity.Stop(timeProvider, outcome, context.Result, jobExEx, qs.resources.RecordExceptionSpanEvents);
                     instrumentation.EndJobExecute(context.JobRunTime, outcome, context.Result, jobExEx);
 
                     instructionCode = SchedulerInstruction.NoInstruction;

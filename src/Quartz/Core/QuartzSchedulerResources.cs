@@ -326,6 +326,13 @@ internal sealed class QuartzSchedulerResources
     /// </summary>
     public bool PropagateTraceContext { get; set; } = true;
 
+    /// <summary>
+    /// Whether a failed execution span records its exception as a span event: the resolved
+    /// <see cref="QuartzSchedulerOptions.RecordExceptionSpanEvents" />. A scheduler assembled without the
+    /// container follows the environment, as one assembled with it does when the option is unset.
+    /// </summary>
+    public bool RecordExceptionSpanEvents { get; set; } = ExceptionSignal.RecordsSpanEvents(configured: null);
+
     public TimeProvider TimeProvider { get; set; }
 
     /// <summary>
