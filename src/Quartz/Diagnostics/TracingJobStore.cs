@@ -652,6 +652,25 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.AcquireNextTriggers(s.request, s.cancellationToken));
     }
 
+    // Forwarded to the inner store rather than answered through AcquireNextTriggers as the base class
+    // answers it: this decorator adds a span and nothing else, so the store it wraps fires what is due as
+    // it acquires it, or does not, exactly as it would unwrapped. Traced under the acquisition's own name,
+    // as FiringComplete is under TriggeredJobComplete's: it is the acquisition the scheduler makes, and the
+    // name an operator already filters on is the one that was there first. What it fired on the way is an
+    // attribute of that span rather than a TriggersFired span of its own.
+    public override ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.AcquireNextTriggers);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.AcquireNextTriggersAndFireDue(request, cancellationToken);
+        }
+
+        operation.Tag(ActivityTags.BatchSize, request.MaxCount);
+        return CompleteAcquisitionAndFire(operation, (InnerJobStore, request, cancellationToken),
+            static s => s.InnerJobStore.AcquireNextTriggersAndFireDue(s.request, s.cancellationToken));
+    }
+
     public override ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.TriggersFired);
@@ -784,6 +803,37 @@ internal sealed class TracingJobStore : DelegatingJobStore
             // How many of the batch size the store could actually fill, which is the number that says
             // whether a scheduler is idle or starved.
             operation.Tag(ActivityTags.TriggerCount, acquired.Count);
+            return acquired;
+        }
+        catch (Exception e)
+        {
+            failure = e;
+            throw;
+        }
+        finally
+        {
+            operation.Stop(failure);
+        }
+    }
+
+    /// <inheritdoc cref="CompleteAcquisition{TState}" />
+    private static async ValueTask<TriggerAcquisitionResult> CompleteAcquisitionAndFire<TState>(
+        StoreOperation operation,
+        TState state,
+        Func<TState, ValueTask<TriggerAcquisitionResult>> call)
+    {
+        operation.Start();
+
+        Exception? failure = null;
+        try
+        {
+            TriggerAcquisitionResult acquired = await call(state).ConfigureAwait(false);
+
+            // Everything acquired, fired or pending: the same fill of the batch size the acquisition
+            // span has always reported. And how much of it was fired here, which no TriggersFired span
+            // will report.
+            operation.Tag(ActivityTags.TriggerCount, acquired.Due.Count + acquired.Pending.Count);
+            operation.Tag(ActivityTags.TriggersFiredOnAcquire, acquired.Due.Count);
             return acquired;
         }
         catch (Exception e)

@@ -58,7 +58,7 @@ internal abstract partial class AdoJobStoreBase
 
         return ExecuteInLocalTransactionLock(
             lockKind,
-            conn => AcquireNextTrigger(conn, request, cancellationToken),
+            conn => AcquireNextTrigger(conn, request, round: null, cancellationToken),
             (conn, result) => Guarded(
                 async () =>
                 {
@@ -151,10 +151,15 @@ internal abstract partial class AdoJobStoreBase
     // them, because IOperableTrigger.FireInstanceId is the contract the scheduling loop, the fired-
     // trigger row and TriggerFiredBundle all read it through; a second shape here would be a fourth
     // spelling of the same field rather than a way of removing one.
-    protected ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
+    //
+    // A round that fires what is due as it acquires it passes its FireOnAcquireRound: a trigger the round
+    // fires gets no reservation row here, because its fire writes the row as EXECUTING in the same
+    // transaction.
+    private ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionRequest request,
-        CancellationToken cancellationToken = default)
+        FireOnAcquireRound? round,
+        CancellationToken cancellationToken)
     {
         return Guarded(
             async () =>
@@ -361,7 +366,13 @@ internal abstract partial class AdoJobStoreBase
                             continue; // next trigger
                         }
                         nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
-                        firedTriggerRows.Add(nextTrigger);
+
+                        // A trigger this transaction fires has its row written by the fire; every other
+                        // one is reserved as acquisition has always reserved it.
+                        if (round is null || !round.FiresOnAcquire(nextTrigger.Key, nextFireTimeUtc.Value, timeProvider))
+                        {
+                            firedTriggerRows.Add(nextTrigger);
+                        }
 
                         if (acquiredTriggers.Count == 0)
                         {
@@ -590,11 +601,11 @@ internal abstract partial class AdoJobStoreBase
     /// overlap policy, or stored <c>ERROR</c> because its job would not load.
     /// </summary>
     /// <remarks>
-    /// A trigger the attempt did not fire at all — paused, deleted, held back — keeps its count, since
-    /// nothing about it was written. Nothing to do while no trigger has a failure counted, which is the
-    /// ordinary batch.
+    /// A trigger the attempt did not fire at all — paused, deleted, held back, or failed in an earlier
+    /// attempt and so not fired in this one — keeps its count, since nothing about it was written.
+    /// Nothing to do while no trigger has a failure counted, which is the ordinary batch.
     /// </remarks>
-    private void ForgetFireFailures(IReadOnlyList<IOperableTrigger> attempt, List<TriggerFiredResult> fired)
+    private void ForgetFireFailures(IReadOnlyList<IOperableTrigger> attempt, IReadOnlyList<TriggerFiredResult?> fired)
     {
         if (fireFailures.IsEmpty)
         {
@@ -603,7 +614,12 @@ internal abstract partial class AdoJobStoreBase
 
         for (int i = 0; i < fired.Count; i++)
         {
-            TriggerFiredResult result = fired[i];
+            TriggerFiredResult? result = fired[i];
+            if (result is null)
+            {
+                continue;
+            }
+
             if (result.TriggerFiredBundle is not null || result.IsDeclined || result.Exception is not null)
             {
                 fireFailures.Clear(attempt[i].Key);
@@ -695,7 +711,7 @@ internal abstract partial class AdoJobStoreBase
             {
                 // Clone so that trigger.Triggered() mutation doesn't affect retries
                 var triggerCopy = (IOperableTrigger) trigger.Clone();
-                result = await FireTrigger(conn, triggerCopy, cancellationToken).ConfigureAwait(false);
+                result = await FireTrigger(conn, triggerCopy, prefetch: null, cancellationToken).ConfigureAwait(false);
             }
             catch (JobPersistenceException jpe)
             {
@@ -768,7 +784,7 @@ internal abstract partial class AdoJobStoreBase
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        TriggerFiredResult result = await FireTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
+        TriggerFiredResult result = await FireTrigger(conn, trigger, prefetch: null, cancellationToken).ConfigureAwait(false);
         return result.TriggerFiredBundle;
     }
 
@@ -777,9 +793,18 @@ internal abstract partial class AdoJobStoreBase
     /// with what to run, <see cref="TriggerFiredResult.NotFired" /> when it may not fire after all, or
     /// <see cref="TriggerFiredResult.Declined" /> when its overlap policy settled it instead.
     /// </summary>
+    /// <param name="conn">The batch's transaction.</param>
+    /// <param name="trigger">A copy of the acquired trigger, which the fire advances.</param>
+    /// <param name="prefetch">
+    /// The headers and jobs a fire-on-acquire round read for all of its triggers at once, whose fires
+    /// write their rows rather than update a reservation; <see langword="null" /> for the fire of a
+    /// trigger acquired earlier, which reads its own.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     private async ValueTask<TriggerFiredResult> FireTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
+        FireOnAcquirePrefetch? prefetch,
         CancellationToken cancellationToken)
     {
         IJobDetail? job;
@@ -789,9 +814,11 @@ internal abstract partial class AdoJobStoreBase
         // deleted, which is not a state it may fire from either. The header also carries the type
         // discriminator, which is what the write below would otherwise have gone back for, and its very
         // existence is the answer to "does this row exist" that the write used to ask separately.
-        StoredTriggerHeader? header = await Guarded(
-            () => Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken),
-            "select trigger state").ConfigureAwait(false);
+        StoredTriggerHeader? header = prefetch is not null
+            ? prefetch.Header(trigger.Key)
+            : await Guarded(
+                () => Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken),
+                "select trigger state").ConfigureAwait(false);
 
         if (header is null || header.State != StoredTriggerState.Acquired)
         {
@@ -800,7 +827,9 @@ internal abstract partial class AdoJobStoreBase
 
         try
         {
-            job = await GetJob(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
+            job = prefetch?.Jobs is not null
+                ? prefetch.TakeJob(trigger.JobKey)
+                : await GetJob(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
             if (job is null)
             {
                 return TriggerFiredResult.NotFired;
@@ -836,7 +865,8 @@ internal abstract partial class AdoJobStoreBase
         // [DisallowConcurrentExecution] jobs by checking the FIRED_TRIGGERS table.
         // This runs under the TRIGGER_ACCESS lock, providing serialized access.
         // The current trigger's own fired record has JOB_NAME=null (set during
-        // AcquireNextTrigger) so it won't appear in the query results.
+        // AcquireNextTrigger), or does not exist yet when it fires as it is acquired,
+        // so it won't appear in the query results.
         if (job.ConcurrentExecutionDisallowed)
         {
             bool alreadyExecuting = await Guarded(
@@ -983,6 +1013,7 @@ internal abstract partial class AdoJobStoreBase
                 ScheduledFireTimeUtc = scheduledFireTimeUtc,
                 ClearMisfireOriginalFireTime = scheduledFireTime.HasValue,
                 BlockJobTriggers = job.ConcurrentExecutionDisallowed,
+                FiredOnAcquire = prefetch is not null,
             }, cancellationToken),
             $"record the fire of trigger '{trigger.Key}' for '{trigger.JobKey}' job").ConfigureAwait(false);
 

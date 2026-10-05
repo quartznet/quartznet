@@ -3105,171 +3105,272 @@ public sealed class RAMJobStore : IJobStore
                 return result;
             }
 
-            // Both sets stay null until something needs them. Only a job that disallows concurrent
-            // execution fills the first, and only a trigger that is turned away fills the second, so on
-            // the attempts that dominate a running scheduler neither is ever created.
-            HashSet<JobKey>? acquiredJobKeysForNoConcurrentExec = null;
-            HashSet<TriggerWrapper>? excludedTriggers = null;
-            DateTimeOffset batchEnd = request.NoLaterThan;
-
-            // execution limits will be modified during processing
-            ExecutionSlots? executionSlots = request.ExecutionLimits?.CreateSlots(
-                request.ExecutionLimits.HasClusterScopedLimits ? CollectInFlightExecutionGroupsNoLock() : null);
-
-            // The names are compared against JobType.FullName, which is the same string the ADO store
-            // writes into JOB_CLASS_NAME and compares its NOT IN clause against, so one exclusion set
-            // means the same thing to both stores. Ordinal, because a type name is not prose.
-            HashSet<string>? excludedJobTypeNames = request.ExcludedJobTypeNames is { Count: > 0 } names
-                ? new HashSet<string>(names, StringComparer.Ordinal)
-                : null;
-
-            // One reading for the batch, stamped on every trigger it reserves. This is bookkeeping -
-            // what the execution listing reports for a reservation until the firing overwrites it with
-            // the execution's start - and the reservations really are one act of the store's, taken
-            // under one lock without yielding. A reading per trigger cost a clock read per firing to
-            // record instants a few hundred nanoseconds apart (#3802).
-            DateTimeOffset acquiredAtUtc = timeProvider.GetUtcNow();
-
-            while (true)
-            {
-                var tw = timeTriggers.Min;
-                if (tw is null)
-                {
-                    break;
-                }
-
-                // It would've been more efficient to only remove the trigger if we're really acquiring it, but
-                // we need to remove it before we apply the misfire. It not, after having updated the trigger,
-                // we'd attempt to remove the trigger with the new next fire time which would no longer match
-                // the trigger in the 'timeTriggers' set.
-                timeTriggers.Remove(tw);
-
-                // Use a local for the next fire time to reduce number of interface calls.
-                var tnft = tw.Trigger.NextFireTimeUtc;
-
-                // When the trigger is not scheduled to fire, continue with the next trigger.
-                if (!tnft.HasValue)
-                {
-                    continue;
-                }
-
-                if (ApplyMisfireNoLock(tw, ref pending))
-                {
-                    // If - after applying the misfire policy - the trigger is still scheduled to fire, we'll
-                    // add it back to the set of triggers. We cannot use the "cached" next fire time here as
-                    // it has been updated in ApplyMisfire(TriggerWrapper tw).
-                    if (tw.Trigger.NextFireTimeUtc is not null)
-                    {
-                        timeTriggers.Add(tw);
-                    }
-
-                    continue;
-                }
-
-                // The first trigger that is scheduled to fire after the window for the current batch completes
-                // the current batch.
-                if (tnft.GetValueOrDefault() > batchEnd)
-                {
-                    // Since we removed the trigger from 'timeTriggers' earlier, we now need to add it back.
-                    timeTriggers.Add(tw);
-                    break;
-                }
-
-                JobKey jobKey = tw.JobKey;
-
-                // A trigger whose job is gone cannot be fired. Skipping it leaves it out of timeTriggers,
-                // where it stays until something stores or resumes it again; throwing here would instead
-                // take down the acquisition loop and stop every other trigger from firing.
-                if (!jobsByKey.TryGetValue(jobKey, out var jobWrapper))
-                {
-                    logger.TriggerSkippedJobMissing(tw.TriggerKey, jobKey);
-                    continue;
-                }
-
-                IJobDetail job = jobWrapper.JobDetail;
-
-                // An excluded job type is declined for this attempt only, so the trigger goes back into
-                // timeTriggers with the rest of the turned-away ones rather than being dropped: the next
-                // request may carry a different exclusion set, and a trigger left out of timeTriggers
-                // stays out until something stores or resumes it again.
-                if (excludedJobTypeNames is not null && excludedJobTypeNames.Contains(job.JobType.FullName))
-                {
-                    excludedTriggers ??= [];
-                    excludedTriggers.Add(tw);
-                    continue;
-                }
-
-                // If trigger's job disallows concurrent execution and the job was already added to the result,
-                // then we'll add the trigger to the list of excluded triggers (which we'll add back to the set
-                // of time triggers after we've completed the current batch) and skip the trigger.
-                if (job.ConcurrentExecutionDisallowed)
-                {
-                    acquiredJobKeysForNoConcurrentExec ??= [];
-                    if (!acquiredJobKeysForNoConcurrentExec.Add(jobKey))
-                    {
-                        excludedTriggers ??= [];
-                        excludedTriggers.Add(tw);
-                        continue; // go to next trigger in store.
-                    }
-                }
-
-                // Check execution group limits
-                if (executionSlots is not null)
-                {
-                    // The trigger group goes along because the limits may be configured to stand in for
-                    // an execution group the trigger does not carry.
-                    if (!executionSlots.TryTake(tw.Trigger.ExecutionGroup, tw.TriggerKey.Group))
-                    {
-                        excludedTriggers ??= [];
-                        excludedTriggers.Add(tw);
-                        continue;
-                    }
-                }
-
-                tw.state = StoredTriggerState.Acquired;
-                tw.Trigger.FireInstanceId = GetFiredTriggerRecordId();
-
-                // The reservation's own timestamp, which is what the ADO store writes into FIRED_TIME
-                // when it inserts the ACQUIRED row; the execution listing reports it until the firing
-                // starts and overwrites it with the execution's start. Taken once for the batch, above.
-                tw.acquiredAtUtc = acquiredAtUtc;
-
-                IOperableTrigger trig = (IOperableTrigger) tw.Trigger.Clone();
-
-                result.Add(trig);
-
-                if (result.Count == request.MaxCount)
-                {
-                    break;
-                }
-
-                // Use the next fire time of the first acquired trigger to update the maximum next fire
-                // time that we accept for this batch. We only perform this update if we want to acquire
-                // more than one trigger.
-                if (result.Count == 1)
-                {
-                    var now = timeProvider.GetUtcNow();
-                    var nextFireTime = tnft.GetValueOrDefault();
-                    var max = now > nextFireTime ? now : nextFireTime;
-
-                    batchEnd = max + request.TimeWindow;
-                }
-            }
-
-            // If we did excluded triggers to prevent ACQUIRE state due to DisallowConcurrentExecution, we need to add them back to store.
-            if (excludedTriggers is not null)
-            {
-                foreach (var excludedTrigger in excludedTriggers)
-                {
-                    timeTriggers.Add(excludedTrigger);
-                }
-            }
+            AcquireNextTriggersNoLock(request, result, ref pending);
         }
 
         // Before the batch is handed back, so that every misfire this pass applied has been announced
         // by the time the caller can fire anything it acquired.
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
         return result;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// One hold of the store's lock for the round: the triggers are acquired as
+    /// <see cref="AcquireNextTriggers" /> acquires them, and those already due are fired as
+    /// <see cref="TriggersFired" /> fires them, with nothing able to take the lock between the two.
+    /// </para>
+    /// <para>
+    /// The misfires the acquisition applied, and anything a fire recorded, are announced after the lock
+    /// and before the round is handed back, as each of the two operations announces its own.
+    /// </para>
+    /// </remarks>
+    public ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        PendingSignals pending = default;
+        TriggerAcquisitionResult acquired = AcquireAndFireDue(request, ref pending);
+
+        // The ordinary round records nothing to announce, so it returns without awaiting.
+        ValueTask raised = pending.Raise(signaler, cancellationToken);
+        if (raised.IsCompletedSuccessfully)
+        {
+            raised.GetAwaiter().GetResult();
+            return new ValueTask<TriggerAcquisitionResult>(acquired);
+        }
+
+        return AfterRaised(raised, acquired);
+
+        static async ValueTask<TriggerAcquisitionResult> AfterRaised(ValueTask raised, TriggerAcquisitionResult acquired)
+        {
+            await raised.ConfigureAwait(false);
+            return acquired;
+        }
+    }
+
+    private TriggerAcquisitionResult AcquireAndFireDue(TriggerAcquisitionRequest request, ref PendingSignals pending)
+    {
+        lock (lockObject)
+        {
+            List<IOperableTrigger> acquired = [];
+            if (timeTriggers.Count > 0)
+            {
+                AcquireNextTriggersNoLock(request, acquired, ref pending);
+            }
+
+            // Due by the store's clock now, with the round acquired: what has come due while it was being
+            // acquired is fired with the rest rather than waited for.
+            DateTimeOffset now = timeProvider.GetUtcNow();
+            int dueCount = 0;
+            foreach (IOperableTrigger trigger in acquired)
+            {
+                if (trigger.NextFireTimeUtc <= now)
+                {
+                    dueCount++;
+                }
+            }
+
+            if (dueCount == 0)
+            {
+                return new TriggerAcquisitionResult { Pending = acquired };
+            }
+
+            List<IOperableTrigger> due;
+            List<IOperableTrigger>? notDue = null;
+            if (dueCount == acquired.Count)
+            {
+                due = acquired;
+            }
+            else
+            {
+                due = new List<IOperableTrigger>(dueCount);
+                notDue = new List<IOperableTrigger>(acquired.Count - dueCount);
+                foreach (IOperableTrigger trigger in acquired)
+                {
+                    (trigger.NextFireTimeUtc <= now ? due : notDue).Add(trigger);
+                }
+            }
+
+            List<TriggerFiredResult> fired = new(due.Count);
+            foreach (IOperableTrigger trigger in due)
+            {
+                fired.Add(FireAcquiredTriggerNoLock(trigger, ref pending));
+            }
+
+            return notDue is null
+                ? new TriggerAcquisitionResult { Due = due, Fired = fired }
+                : new TriggerAcquisitionResult { Due = due, Fired = fired, Pending = notDue };
+        }
+    }
+
+    /// <summary>
+    /// Acquires the next triggers to fire into <paramref name="result" />, with the store's lock held.
+    /// </summary>
+    private void AcquireNextTriggersNoLock(TriggerAcquisitionRequest request, List<IOperableTrigger> result, ref PendingSignals pending)
+    {
+        // Both sets stay null until something needs them. Only a job that disallows concurrent
+        // execution fills the first, and only a trigger that is turned away fills the second, so on
+        // the attempts that dominate a running scheduler neither is ever created.
+        HashSet<JobKey>? acquiredJobKeysForNoConcurrentExec = null;
+        HashSet<TriggerWrapper>? excludedTriggers = null;
+        DateTimeOffset batchEnd = request.NoLaterThan;
+
+        // execution limits will be modified during processing
+        ExecutionSlots? executionSlots = request.ExecutionLimits?.CreateSlots(
+            request.ExecutionLimits.HasClusterScopedLimits ? CollectInFlightExecutionGroupsNoLock() : null);
+
+        // The names are compared against JobType.FullName, which is the same string the ADO store
+        // writes into JOB_CLASS_NAME and compares its NOT IN clause against, so one exclusion set
+        // means the same thing to both stores. Ordinal, because a type name is not prose.
+        HashSet<string>? excludedJobTypeNames = request.ExcludedJobTypeNames is { Count: > 0 } names
+            ? new HashSet<string>(names, StringComparer.Ordinal)
+            : null;
+
+        // One reading for the batch, stamped on every trigger it reserves. This is bookkeeping -
+        // what the execution listing reports for a reservation until the firing overwrites it with
+        // the execution's start - and the reservations really are one act of the store's, taken
+        // under one lock without yielding. A reading per trigger cost a clock read per firing to
+        // record instants a few hundred nanoseconds apart (#3802).
+        DateTimeOffset acquiredAtUtc = timeProvider.GetUtcNow();
+
+        while (true)
+        {
+            var tw = timeTriggers.Min;
+            if (tw is null)
+            {
+                break;
+            }
+
+            // It would've been more efficient to only remove the trigger if we're really acquiring it, but
+            // we need to remove it before we apply the misfire. It not, after having updated the trigger,
+            // we'd attempt to remove the trigger with the new next fire time which would no longer match
+            // the trigger in the 'timeTriggers' set.
+            timeTriggers.Remove(tw);
+
+            // Use a local for the next fire time to reduce number of interface calls.
+            var tnft = tw.Trigger.NextFireTimeUtc;
+
+            // When the trigger is not scheduled to fire, continue with the next trigger.
+            if (!tnft.HasValue)
+            {
+                continue;
+            }
+
+            if (ApplyMisfireNoLock(tw, ref pending))
+            {
+                // If - after applying the misfire policy - the trigger is still scheduled to fire, we'll
+                // add it back to the set of triggers. We cannot use the "cached" next fire time here as
+                // it has been updated in ApplyMisfire(TriggerWrapper tw).
+                if (tw.Trigger.NextFireTimeUtc is not null)
+                {
+                    timeTriggers.Add(tw);
+                }
+
+                continue;
+            }
+
+            // The first trigger that is scheduled to fire after the window for the current batch completes
+            // the current batch.
+            if (tnft.GetValueOrDefault() > batchEnd)
+            {
+                // Since we removed the trigger from 'timeTriggers' earlier, we now need to add it back.
+                timeTriggers.Add(tw);
+                break;
+            }
+
+            JobKey jobKey = tw.JobKey;
+
+            // A trigger whose job is gone cannot be fired. Skipping it leaves it out of timeTriggers,
+            // where it stays until something stores or resumes it again; throwing here would instead
+            // take down the acquisition loop and stop every other trigger from firing.
+            if (!jobsByKey.TryGetValue(jobKey, out var jobWrapper))
+            {
+                logger.TriggerSkippedJobMissing(tw.TriggerKey, jobKey);
+                continue;
+            }
+
+            IJobDetail job = jobWrapper.JobDetail;
+
+            // An excluded job type is declined for this attempt only, so the trigger goes back into
+            // timeTriggers with the rest of the turned-away ones rather than being dropped: the next
+            // request may carry a different exclusion set, and a trigger left out of timeTriggers
+            // stays out until something stores or resumes it again.
+            if (excludedJobTypeNames is not null && excludedJobTypeNames.Contains(job.JobType.FullName))
+            {
+                excludedTriggers ??= [];
+                excludedTriggers.Add(tw);
+                continue;
+            }
+
+            // If trigger's job disallows concurrent execution and the job was already added to the result,
+            // then we'll add the trigger to the list of excluded triggers (which we'll add back to the set
+            // of time triggers after we've completed the current batch) and skip the trigger.
+            if (job.ConcurrentExecutionDisallowed)
+            {
+                acquiredJobKeysForNoConcurrentExec ??= [];
+                if (!acquiredJobKeysForNoConcurrentExec.Add(jobKey))
+                {
+                    excludedTriggers ??= [];
+                    excludedTriggers.Add(tw);
+                    continue; // go to next trigger in store.
+                }
+            }
+
+            // Check execution group limits
+            if (executionSlots is not null)
+            {
+                // The trigger group goes along because the limits may be configured to stand in for
+                // an execution group the trigger does not carry.
+                if (!executionSlots.TryTake(tw.Trigger.ExecutionGroup, tw.TriggerKey.Group))
+                {
+                    excludedTriggers ??= [];
+                    excludedTriggers.Add(tw);
+                    continue;
+                }
+            }
+
+            tw.state = StoredTriggerState.Acquired;
+            tw.Trigger.FireInstanceId = GetFiredTriggerRecordId();
+
+            // The reservation's own timestamp, which is what the ADO store writes into FIRED_TIME
+            // when it inserts the ACQUIRED row; the execution listing reports it until the firing
+            // starts and overwrites it with the execution's start. Taken once for the batch, above.
+            tw.acquiredAtUtc = acquiredAtUtc;
+
+            IOperableTrigger trig = (IOperableTrigger) tw.Trigger.Clone();
+
+            result.Add(trig);
+
+            if (result.Count == request.MaxCount)
+            {
+                break;
+            }
+
+            // Use the next fire time of the first acquired trigger to update the maximum next fire
+            // time that we accept for this batch. We only perform this update if we want to acquire
+            // more than one trigger.
+            if (result.Count == 1)
+            {
+                var now = timeProvider.GetUtcNow();
+                var nextFireTime = tnft.GetValueOrDefault();
+                var max = now > nextFireTime ? now : nextFireTime;
+
+                batchEnd = max + request.TimeWindow;
+            }
+        }
+
+        // If we did excluded triggers to prevent ACQUIRE state due to DisallowConcurrentExecution, we need to add them back to store.
+        if (excludedTriggers is not null)
+        {
+            foreach (var excludedTrigger in excludedTriggers)
+            {
+                timeTriggers.Add(excludedTrigger);
+            }
+        }
     }
 
     /// <summary>
@@ -3335,211 +3436,215 @@ public sealed class RAMJobStore : IJobStore
 
             foreach (IOperableTrigger trigger in triggers)
             {
-                // was the trigger deleted since being acquired?
-                if (!triggersByKey.TryGetValue(trigger.Key, out var tw))
-                {
-                    results.Add(TriggerFiredResult.NotFired);
-                    continue;
-                }
-
-                // was the trigger completed, paused, blocked, etc. since being acquired?
-                if (tw.state != StoredTriggerState.Acquired)
-                {
-                    results.Add(TriggerFiredResult.NotFired);
-                    continue;
-                }
-
-                ICalendar? calendar = null;
-                if (tw.Trigger.CalendarName is not null)
-                {
-                    calendarsByName.TryGetValue(tw.Trigger.CalendarName, out calendar);
-                    if (calendar is null)
-                    {
-                        logger.TriggerReferencesMissingCalendar(tw.Trigger.Key, tw.Trigger.CalendarName);
-                        results.Add(TriggerFiredResult.NotFired);
-                        continue;
-                    }
-                }
-
-                // Was the job deleted since the trigger was acquired? Checked here, with the other
-                // bail-outs, because everything below mutates the trigger: once it has left timeTriggers
-                // and been moved off Acquired, ReleaseAcquiredTrigger can no longer re-arm it and the
-                // trigger would stop firing altogether.
-                if (!jobsByKey.TryGetValue(trigger.JobKey, out var jobWrapper))
-                {
-                    results.Add(TriggerFiredResult.NotFired);
-                    continue;
-                }
-
-                // The trigger's overlap policy, asked only when an earlier firing of this trigger is
-                // still running and nothing else holds it back: a job that disallows concurrent
-                // execution never gets here while one of its firings runs, and a retry continues an
-                // occurrence rather than starting one. Default and AllowAll never look.
-                OverlapPolicy overlapPolicy = tw.Trigger.OverlapPolicy;
-                List<string>? superseded = null;
-                bool skip = false;
-                if (overlapPolicy is OverlapPolicy.Skip or OverlapPolicy.CancelPrevious
-                    && trigger.RetryAttempt == 0
-                    && !jobWrapper.JobDetail.ConcurrentExecutionDisallowed
-                    && executingFireInstances.TryGetValue(tw.TriggerKey, out var running))
-                {
-                    if (overlapPolicy == OverlapPolicy.Skip)
-                    {
-                        skip = true;
-                    }
-                    else
-                    {
-                        // CancelPrevious. Every firing this store knows of runs in this process, so every
-                        // one of them can be interrupted and none is ever waited for.
-                        superseded = [.. running.Keys];
-                    }
-                }
-
-                // The stored trigger as it was acquired, kept only while application code is about to
-                // advance it: a calendar, or a trigger type Quartz did not write. Either can throw
-                // part-way, and a fire that failed must leave the trigger as it found it (#3974).
-                IOperableTrigger? unfired = calendar is not null || !IsQuartzTrigger(tw.Trigger)
-                    ? (IOperableTrigger) tw.Trigger.Clone()
-                    : null;
-
-                DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
-                DateTimeOffset? scheduledFireTime = null;
-                DateTimeOffset? firingScheduledTime;
-                try
-                {
-                    if (skip)
-                    {
-                        SkipOverlappingFiringNoLock(tw, calendar, ref pending);
-                        fireFailures.Clear(tw.TriggerKey);
-                        results.Add(TriggerFiredResult.Declined);
-                        continue;
-                    }
-
-                    // Read saved original fire time (set during ApplyMisfireNoLock if a misfire occurred)
-                    if (trigger is TriggerBase at)
-                    {
-                        scheduledFireTime = at.MisfiredFromFireTimeUtc;
-                        at.MisfiredFromFireTimeUtc = null;
-                    }
-                    if (tw.Trigger is TriggerBase twAt)
-                    {
-                        twAt.MisfiredFromFireTimeUtc = null;
-                    }
-
-                    // in case trigger was replaced between acquiring and firing
-                    timeTriggers.Remove(tw);
-
-                    // The fire time this firing is for, read while it is still the trigger's next one —
-                    // the execution listing reports it, and Triggered() is about to move it on.
-                    firingScheduledTime = trigger.NextFireTimeUtc;
-
-                    // call triggered on our copy, and the scheduler's copy. A trigger carrying a retry
-                    // attempt is being fired for a retry rather than for a scheduled occurrence, so it
-                    // advances past the retry instant without burning a count or moving its previous fire
-                    // time - the same dispatch on TriggerBase the misfire original fire time uses above.
-                    bool firingRetry = trigger.RetryAttempt > 0 && tw.Trigger is TriggerBase && trigger is TriggerBase;
-                    if (firingRetry)
-                    {
-                        ((TriggerBase) tw.Trigger).RetryFired(calendar);
-                        ((TriggerBase) trigger).RetryFired(calendar);
-                    }
-                    else
-                    {
-                        // The next fire time is computed once where the copy would provably compute the
-                        // same one, and on each instance otherwise; TriggerCopyFiring says which is which.
-                        TriggerCopyFiring.Triggered(tw.Trigger, trigger, calendar);
-                    }
-                }
-                catch (Exception e)
-                {
-                    // Nothing above has been recorded yet, so the fire fails alone and the rest of the
-                    // batch goes on, as the persistent store rolls back only the fire that failed.
-                    results.Add(FailFireNoLock(tw, unfired, e, ref pending));
-                    continue;
-                }
-
-                // Deliberately not an "executing" state: this field decides whether the trigger can be
-                // acquired and fired again, and TriggersFired/ReleaseAcquiredTrigger/the blocking fan-out
-                // below all depend on it being Waiting or Blocked here. Executions are tracked separately,
-                // in executingFireInstances.
-                tw.state = StoredTriggerState.Waiting;
-
-                var jobDetail = jobWrapper.JobDetail.Clone();
-                TriggerFiredBundle bndle = new TriggerFiredBundle
-                {
-                    JobDetail = jobDetail,
-                    Trigger = trigger,
-                    Calendar = calendar,
-                    Recovering = false,
-                    FireTimeUtc = timeProvider.GetUtcNow(),
-                    ScheduledFireTimeUtc = scheduledFireTime ?? trigger.PreviousFireTimeUtc,
-                    PreviousFireTimeUtc = prevFireTime,
-                    NextFireTimeUtc = trigger.NextFireTimeUtc,
-                    SupersededFireInstanceIds = superseded,
-                };
-
-                IJobDetail job = bndle.JobDetail;
-
-                if (job.ConcurrentExecutionDisallowed)
-                {
-                    var triggerWrappersForJob = GetTriggerWrappersForJobNoLock(job.Key);
-
-                    foreach (TriggerWrapper ttw in triggerWrappersForJob.Values)
-                    {
-                        if (ttw.state == StoredTriggerState.Waiting)
-                        {
-                            ttw.state = StoredTriggerState.Blocked;
-                        }
-
-                        if (ttw.state == StoredTriggerState.Paused)
-                        {
-                            ttw.state = StoredTriggerState.PausedBlocked;
-                        }
-
-                        timeTriggers.Remove(ttw);
-                    }
-
-                    blockedJobs.Add(job.Key);
-                }
-                else if (tw.Trigger.NextFireTimeUtc is not null)
-                {
-                    if (overlapPolicy == OverlapPolicy.BufferOne)
-                    {
-                        // Held back while this firing runs, as a [DisallowConcurrentExecution] job's
-                        // triggers are, but for this trigger alone. The completion lets go of it.
-                        tw.state = StoredTriggerState.Blocked;
-                    }
-                    else
-                    {
-                        timeTriggers.Add(tw);
-                    }
-                }
-
-                // Recorded only once the bundle is guaranteed, so nothing above can leave an execution
-                // behind that no completion will ever clear. Released in TriggeredJobComplete.
-                if (!executingFireInstances.TryGetValue(tw.TriggerKey, out var fireInstances))
-                {
-                    fireInstances = spareFireInstanceMaps.TryPop(out var spare) ? spare : [];
-                    executingFireInstances[tw.TriggerKey] = fireInstances;
-                }
-
-                // The scheduled time recorded here is the fire time the schedule called for, read before
-                // Triggered() advanced the trigger — which is what the ADO store writes into SCHED_TIME
-                // at the same point, misfires included, and so is deliberately not the misfire's original
-                // fire time that the bundle carries.
-                fireInstances[trigger.FireInstanceId!] = new FireInstanceEntry(
-                    job.Key,
-                    bndle.FireTimeUtc,
-                    firingScheduledTime,
-                    trigger.ExecutionGroup);
-
-                // A fire ends the trigger's run of failures. One volatile read while nothing has failed.
-                fireFailures.Clear(tw.TriggerKey);
-                results.Add(TriggerFiredResult.Fired(bndle));
+                results.Add(FireAcquiredTriggerNoLock(trigger, ref pending));
             }
 
             return results;
         }
+    }
+
+    /// <summary>
+    /// Fires one trigger this store acquired, with the store's lock held, and says what became of it.
+    /// </summary>
+    /// <param name="trigger">The scheduler's copy of the acquired trigger, which the fire advances.</param>
+    /// <param name="pending">What the fire has to announce once the lock is released.</param>
+    private TriggerFiredResult FireAcquiredTriggerNoLock(IOperableTrigger trigger, ref PendingSignals pending)
+    {
+        // was the trigger deleted since being acquired?
+        if (!triggersByKey.TryGetValue(trigger.Key, out var tw))
+        {
+            return TriggerFiredResult.NotFired;
+        }
+
+        // was the trigger completed, paused, blocked, etc. since being acquired?
+        if (tw.state != StoredTriggerState.Acquired)
+        {
+            return TriggerFiredResult.NotFired;
+        }
+
+        ICalendar? calendar = null;
+        if (tw.Trigger.CalendarName is not null)
+        {
+            calendarsByName.TryGetValue(tw.Trigger.CalendarName, out calendar);
+            if (calendar is null)
+            {
+                logger.TriggerReferencesMissingCalendar(tw.Trigger.Key, tw.Trigger.CalendarName);
+                return TriggerFiredResult.NotFired;
+            }
+        }
+
+        // Was the job deleted since the trigger was acquired? Checked here, with the other
+        // bail-outs, because everything below mutates the trigger: once it has left timeTriggers
+        // and been moved off Acquired, ReleaseAcquiredTrigger can no longer re-arm it and the
+        // trigger would stop firing altogether.
+        if (!jobsByKey.TryGetValue(trigger.JobKey, out var jobWrapper))
+        {
+            return TriggerFiredResult.NotFired;
+        }
+
+        // The trigger's overlap policy, asked only when an earlier firing of this trigger is
+        // still running and nothing else holds it back: a job that disallows concurrent
+        // execution never gets here while one of its firings runs, and a retry continues an
+        // occurrence rather than starting one. Default and AllowAll never look.
+        OverlapPolicy overlapPolicy = tw.Trigger.OverlapPolicy;
+        List<string>? superseded = null;
+        bool skip = false;
+        if (overlapPolicy is OverlapPolicy.Skip or OverlapPolicy.CancelPrevious
+            && trigger.RetryAttempt == 0
+            && !jobWrapper.JobDetail.ConcurrentExecutionDisallowed
+            && executingFireInstances.TryGetValue(tw.TriggerKey, out var running))
+        {
+            if (overlapPolicy == OverlapPolicy.Skip)
+            {
+                skip = true;
+            }
+            else
+            {
+                // CancelPrevious. Every firing this store knows of runs in this process, so every
+                // one of them can be interrupted and none is ever waited for.
+                superseded = [.. running.Keys];
+            }
+        }
+
+        // The stored trigger as it was acquired, kept only while application code is about to
+        // advance it: a calendar, or a trigger type Quartz did not write. Either can throw
+        // part-way, and a fire that failed must leave the trigger as it found it (#3974).
+        IOperableTrigger? unfired = calendar is not null || !IsQuartzTrigger(tw.Trigger)
+            ? (IOperableTrigger) tw.Trigger.Clone()
+            : null;
+
+        DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
+        DateTimeOffset? scheduledFireTime = null;
+        DateTimeOffset? firingScheduledTime;
+        try
+        {
+            if (skip)
+            {
+                SkipOverlappingFiringNoLock(tw, calendar, ref pending);
+                fireFailures.Clear(tw.TriggerKey);
+                return TriggerFiredResult.Declined;
+            }
+
+            // Read saved original fire time (set during ApplyMisfireNoLock if a misfire occurred)
+            if (trigger is TriggerBase at)
+            {
+                scheduledFireTime = at.MisfiredFromFireTimeUtc;
+                at.MisfiredFromFireTimeUtc = null;
+            }
+            if (tw.Trigger is TriggerBase twAt)
+            {
+                twAt.MisfiredFromFireTimeUtc = null;
+            }
+
+            // in case trigger was replaced between acquiring and firing
+            timeTriggers.Remove(tw);
+
+            // The fire time this firing is for, read while it is still the trigger's next one —
+            // the execution listing reports it, and Triggered() is about to move it on.
+            firingScheduledTime = trigger.NextFireTimeUtc;
+
+            // call triggered on our copy, and the scheduler's copy. A trigger carrying a retry
+            // attempt is being fired for a retry rather than for a scheduled occurrence, so it
+            // advances past the retry instant without burning a count or moving its previous fire
+            // time - the same dispatch on TriggerBase the misfire original fire time uses above.
+            bool firingRetry = trigger.RetryAttempt > 0 && tw.Trigger is TriggerBase && trigger is TriggerBase;
+            if (firingRetry)
+            {
+                ((TriggerBase) tw.Trigger).RetryFired(calendar);
+                ((TriggerBase) trigger).RetryFired(calendar);
+            }
+            else
+            {
+                // The next fire time is computed once where the copy would provably compute the
+                // same one, and on each instance otherwise; TriggerCopyFiring says which is which.
+                TriggerCopyFiring.Triggered(tw.Trigger, trigger, calendar);
+            }
+        }
+        catch (Exception e)
+        {
+            // Nothing above has been recorded yet, so the fire fails alone and the rest of the
+            // batch goes on, as the persistent store rolls back only the fire that failed.
+            return FailFireNoLock(tw, unfired, e, ref pending);
+        }
+
+        // Deliberately not an "executing" state: this field decides whether the trigger can be
+        // acquired and fired again, and TriggersFired/ReleaseAcquiredTrigger/the blocking fan-out
+        // below all depend on it being Waiting or Blocked here. Executions are tracked separately,
+        // in executingFireInstances.
+        tw.state = StoredTriggerState.Waiting;
+
+        var jobDetail = jobWrapper.JobDetail.Clone();
+        TriggerFiredBundle bndle = new TriggerFiredBundle
+        {
+            JobDetail = jobDetail,
+            Trigger = trigger,
+            Calendar = calendar,
+            Recovering = false,
+            FireTimeUtc = timeProvider.GetUtcNow(),
+            ScheduledFireTimeUtc = scheduledFireTime ?? trigger.PreviousFireTimeUtc,
+            PreviousFireTimeUtc = prevFireTime,
+            NextFireTimeUtc = trigger.NextFireTimeUtc,
+            SupersededFireInstanceIds = superseded,
+        };
+
+        IJobDetail job = bndle.JobDetail;
+
+        if (job.ConcurrentExecutionDisallowed)
+        {
+            var triggerWrappersForJob = GetTriggerWrappersForJobNoLock(job.Key);
+
+            foreach (TriggerWrapper ttw in triggerWrappersForJob.Values)
+            {
+                if (ttw.state == StoredTriggerState.Waiting)
+                {
+                    ttw.state = StoredTriggerState.Blocked;
+                }
+
+                if (ttw.state == StoredTriggerState.Paused)
+                {
+                    ttw.state = StoredTriggerState.PausedBlocked;
+                }
+
+                timeTriggers.Remove(ttw);
+            }
+
+            blockedJobs.Add(job.Key);
+        }
+        else if (tw.Trigger.NextFireTimeUtc is not null)
+        {
+            if (overlapPolicy == OverlapPolicy.BufferOne)
+            {
+                // Held back while this firing runs, as a [DisallowConcurrentExecution] job's
+                // triggers are, but for this trigger alone. The completion lets go of it.
+                tw.state = StoredTriggerState.Blocked;
+            }
+            else
+            {
+                timeTriggers.Add(tw);
+            }
+        }
+
+        // Recorded only once the bundle is guaranteed, so nothing above can leave an execution
+        // behind that no completion will ever clear. Released in TriggeredJobComplete.
+        if (!executingFireInstances.TryGetValue(tw.TriggerKey, out var fireInstances))
+        {
+            fireInstances = spareFireInstanceMaps.TryPop(out var spare) ? spare : [];
+            executingFireInstances[tw.TriggerKey] = fireInstances;
+        }
+
+        // The scheduled time recorded here is the fire time the schedule called for, read before
+        // Triggered() advanced the trigger — which is what the ADO store writes into SCHED_TIME
+        // at the same point, misfires included, and so is deliberately not the misfire's original
+        // fire time that the bundle carries.
+        fireInstances[trigger.FireInstanceId!] = new FireInstanceEntry(
+            job.Key,
+            bndle.FireTimeUtc,
+            firingScheduledTime,
+            trigger.ExecutionGroup);
+
+        // A fire ends the trigger's run of failures. One volatile read while nothing has failed.
+        fireFailures.Clear(tw.TriggerKey);
+        return TriggerFiredResult.Fired(bndle);
     }
 
     /// <summary>

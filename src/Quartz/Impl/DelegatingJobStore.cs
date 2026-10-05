@@ -463,6 +463,34 @@ public class DelegatingJobStore : IJobStore
         return jobStore.AcquireNextTriggers(request, cancellationToken);
     }
 
+    /// <summary>
+    /// Acquires the next triggers through this store's own <see cref="AcquireNextTriggers" />, and fires
+    /// none of them: every one comes back pending, for the scheduler to fire with
+    /// <see cref="TriggersFired" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Deliberately not handed to the inner store. A decorator that overrides
+    /// <see cref="AcquireNextTriggers" /> — to narrow a request, count acquisitions or inject a fault — or
+    /// <see cref="TriggersFired" /> goes on seeing every acquisition and every fire, as it did before the
+    /// scheduler called this member. Forwarded, the inner store would acquire and fire behind the
+    /// decorator's back.
+    /// </para>
+    /// <para>
+    /// A decorator that overrides neither, and wants the inner store to fire what is due as it acquires
+    /// it, overrides this and forwards it to <see cref="InnerJobStore" />.
+    /// </para>
+    /// </remarks>
+    /// <param name="request">What to acquire.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public virtual async ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
+    {
+        return new TriggerAcquisitionResult
+        {
+            Pending = await AcquireNextTriggers(request, cancellationToken).ConfigureAwait(false),
+        };
+    }
+
     /// <inheritdoc />
     public virtual ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {

@@ -80,6 +80,10 @@ public class OperationNameTest
         // operator already filters on is the one that was there first.
         "FiringComplete",
 
+        // The same for the acquisition the scheduler makes: it acquires as AcquireNextTriggers does and
+        // begins that span, and what it fires on the way is an attribute of it (#3864).
+        "AcquireNextTriggersAndFireDue",
+
         // The same, for the pauses that carry a reason: each is the pause it names with what it
         // records attached, and begins that pause's span.
         "PauseAllWith",

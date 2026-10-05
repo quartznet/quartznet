@@ -959,20 +959,29 @@ public partial class StdAdoDelegate
         IOperableTrigger trigger = update.Trigger;
         List<SqlStatement> statements = [];
 
-        statements.Add(new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlUpdateFiredTrigger),
-        [
-            new SqlStatementParameter(SqlParameters.SchedulerName, schedulerName),
-            new SqlStatementParameter(SqlParameters.InstanceName, instanceId),
-            new SqlStatementParameter(SqlParameters.FiredTime, GetDbDateTimeValue(timeProvider.GetUtcNow())),
-            new SqlStatementParameter(SqlParameters.ScheduledTime, GetDbDateTimeValue(update.ScheduledFireTimeUtc)),
-            new SqlStatementParameter(SqlParameters.EntryState, StoredTriggerStates.ToStoredValue(StoredTriggerState.Executing)),
-            new SqlStatementParameter(SqlParameters.JobName, trigger.JobKey.Name),
-            new SqlStatementParameter(SqlParameters.JobGroup, trigger.JobKey.Group),
-            new SqlStatementParameter(SqlParameters.IsNonConcurrent, GetDbBooleanValue(update.JobDetail.ConcurrentExecutionDisallowed)),
-            new SqlStatementParameter(SqlParameters.RequestsRecover, GetDbBooleanValue(update.JobDetail.RequestsRecovery)),
-            new SqlStatementParameter(SqlParameters.ExecutionGroup, (object?) trigger.ExecutionGroup ?? DBNull.Value),
-            new SqlStatementParameter(SqlParameters.EntryId, trigger.FireInstanceId)
-        ]));
+        if (update.FiredOnAcquire)
+        {
+            // Acquired in this very transaction, with no reservation row written for it: the row goes in
+            // as the update below would have left it, rather than being inserted and then updated.
+            statements.Add(BuildInsertFiredTriggerStatement(trigger, StoredTriggerState.Executing, update.JobDetail, update.ScheduledFireTimeUtc));
+        }
+        else
+        {
+            statements.Add(new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlUpdateFiredTrigger),
+            [
+                new SqlStatementParameter(SqlParameters.SchedulerName, schedulerName),
+                new SqlStatementParameter(SqlParameters.InstanceName, instanceId),
+                new SqlStatementParameter(SqlParameters.FiredTime, GetDbDateTimeValue(timeProvider.GetUtcNow())),
+                new SqlStatementParameter(SqlParameters.ScheduledTime, GetDbDateTimeValue(update.ScheduledFireTimeUtc)),
+                new SqlStatementParameter(SqlParameters.EntryState, StoredTriggerStates.ToStoredValue(StoredTriggerState.Executing)),
+                new SqlStatementParameter(SqlParameters.JobName, trigger.JobKey.Name),
+                new SqlStatementParameter(SqlParameters.JobGroup, trigger.JobKey.Group),
+                new SqlStatementParameter(SqlParameters.IsNonConcurrent, GetDbBooleanValue(update.JobDetail.ConcurrentExecutionDisallowed)),
+                new SqlStatementParameter(SqlParameters.RequestsRecover, GetDbBooleanValue(update.JobDetail.RequestsRecovery)),
+                new SqlStatementParameter(SqlParameters.ExecutionGroup, (object?) trigger.ExecutionGroup ?? DBNull.Value),
+                new SqlStatementParameter(SqlParameters.EntryId, trigger.FireInstanceId)
+            ]));
+        }
 
         if (update.ClearMisfireOriginalFireTime)
         {
@@ -2100,6 +2109,20 @@ public partial class StdAdoDelegate
         StoredTriggerState state,
         IJobDetail? job)
     {
+        return BuildInsertFiredTriggerStatement(trigger, state, job, trigger.NextFireTimeUtc);
+    }
+
+    /// <summary>
+    /// The fired-trigger insert for a fire time the trigger no longer carries: a trigger fired in the
+    /// transaction that acquired it has been moved on to its next fire time by the time its row is
+    /// written, and the row records the one it fired for.
+    /// </summary>
+    private SqlStatement BuildInsertFiredTriggerStatement(
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail? job,
+        DateTimeOffset? scheduledFireTimeUtc)
+    {
         // In the order the statement mentions them, for providers that bind positionally.
         return new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlInsertFiredTrigger),
         [
@@ -2109,7 +2132,7 @@ public partial class StdAdoDelegate
             new SqlStatementParameter(SqlParameters.TriggerGroup, trigger.Key.Group),
             new SqlStatementParameter(SqlParameters.TriggerInstanceName, instanceId),
             new SqlStatementParameter(SqlParameters.TriggerFireTime, GetDbDateTimeValue(timeProvider.GetUtcNow())),
-            new SqlStatementParameter(SqlParameters.TriggerScheduledTime, GetDbDateTimeValue(trigger.NextFireTimeUtc)),
+            new SqlStatementParameter(SqlParameters.TriggerScheduledTime, GetDbDateTimeValue(scheduledFireTimeUtc)),
             new SqlStatementParameter(SqlParameters.TriggerState, StoredTriggerStates.ToStoredValue(state)),
             // No job named yet is what an acquired row looks like, and it is what keeps the row out of
             // IsJobCurrentlyExecuting until the trigger actually fires.
