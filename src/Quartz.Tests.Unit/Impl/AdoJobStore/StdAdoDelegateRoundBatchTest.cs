@@ -213,6 +213,32 @@ public class StdAdoDelegateRoundBatchTest
     }
 
     /// <summary>
+    /// A type-table write that follows the batch is issued on its own, so when it fails, whose fire it was
+    /// is known and said: the store rolls back that fire alone rather than rerunning the round a trigger at
+    /// a time to find it.
+    /// </summary>
+    [Test]
+    public async Task AFailedTypeTableWriteAfterTheBatchSaysWhoseFireItWas()
+    {
+        PostgreSQLDelegate driverDelegate = Shipped(
+            new PostgreSQLDelegate(),
+            commandFailure: sql => sql.Contains("CRON_TRIGGERS", StringComparison.Ordinal) ? new InvalidOperationException("the old type's row cannot be deleted") : null);
+        StubBatchingConnection connection = new();
+        List<TriggerFiredUpdate> updates = Updates(3);
+
+        // Stored as a cron trigger and firing as a simple one: its type-table write cannot be described as a
+        // statement, so it is issued on its own after the batch.
+        updates[1] = updates[1] with { StoredTriggerType = AdoConstants.TriggerTypeCron };
+
+        Func<Task> apply = async () => await driverDelegate.ApplyTriggersFired(Holder(connection), updates);
+
+        TriggerWriteFailedException failure = (await apply.Should().ThrowAsync<TriggerWriteFailedException>()).Which;
+        failure.Index.Should().Be(1, "the write that failed is the second fire's own");
+        failure.InnerException.Should().BeOfType<InvalidOperationException>();
+        connection.Batches.Should().ContainSingle("the batch itself went out and succeeded");
+    }
+
+    /// <summary>
     /// A transient failure comes out as itself, for the store's transaction wrapper to retry the round.
     /// </summary>
     [Test]
@@ -270,11 +296,11 @@ public class StdAdoDelegateRoundBatchTest
         moved.Select(x => x.Name).Should().Equal(["t0", "t2"]);
     }
 
-    private static T Shipped<T>(T driverDelegate) where T : StdAdoDelegate
+    private static T Shipped<T>(T driverDelegate, Func<string, Exception> commandFailure = null) where T : StdAdoDelegate
     {
         IDbProvider dbProvider = A.Fake<IDbProvider>();
         A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata { ParameterNamePrefix = "@", BindByName = true });
-        A.CallTo(() => dbProvider.CreateCommand()).ReturnsLazily(() => new StubDbCommand());
+        A.CallTo(() => dbProvider.CreateCommand()).ReturnsLazily(() => new StubDbCommand { Failure = commandFailure });
 
         driverDelegate.Initialize(new DriverDelegateContext
         {
