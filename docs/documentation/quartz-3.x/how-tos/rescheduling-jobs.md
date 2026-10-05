@@ -4,7 +4,9 @@ Ways to reschedule a job.
 
 ## Manually Retry
 
-When an unhandled exception escapes a running `IJob`, Quartz marks the job in an error state. You can then reschedule it by whatever method suits your system.
+An unhandled exception escaping a running `IJob` ends that firing, and the trigger stays on its schedule. Reschedule the job by whatever method suits your system.
+
+Quartz sets a trigger to the `Error` state only when its job cannot be built, or, since 3.22.4, when its fire fails [`quartz.jobStore.maxConsecutiveFireFailures`](../configuration/reference.md#quartz-jobstore-maxconsecutivefirefailures) times in a row. `IScheduler.ResetTriggerFromErrorState` brings it back.
 
 ## Using JobExecutionException
 

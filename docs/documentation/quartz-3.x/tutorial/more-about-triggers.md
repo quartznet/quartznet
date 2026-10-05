@@ -38,6 +38,19 @@ A misfire happens when a persistent trigger misses its firing time because the s
 
 When the scheduler starts, it finds persistent triggers that have misfired and updates each according to its misfire instruction. Learn the misfire instructions of the trigger types you use; their API documentation explains them, and the lesson for each trigger type covers them.
 
+Applying a misfire instruction consults the trigger's calendar. Since 3.22.4, a calendar that throws there
+fails that trigger alone:
+
+* The trigger keeps its fire time, the exception is logged, and its misfire is handled again on a later pass.
+  The rest of the pass, or of the completion that unblocked it, carries on.
+* The failure counts toward
+  [`quartz.jobStore.maxConsecutiveFireFailures`](../configuration/reference.md#quartz-jobstore-maxconsecutivefirefailures)
+  at most once per `quartz.jobStore.misfireThreshold`, so a calendar that keeps throwing parks its trigger
+  `ERROR` after five failures that far apart. A misfire handled starts the count again.
+* Resuming a trigger handles the misfires it accrued while paused. `ResumeTrigger`, `ResumeTriggers`,
+  `ResumeJob`, `ResumeJobs` and `ResumeAll` log a calendar's exception rather than throw it, and resume the
+  trigger as it was. Read `GetTriggerState` rather than catching.
+
 ## Execution Groups
 
 A trigger can have an **execution group**: a tag describing the resource needs of its job (e.g. `"batch-jobs"`, `"high-cpu"`). Each scheduler node can limit how many threads a group may use concurrently, so resource-intensive jobs cannot starve other work.
@@ -119,5 +132,15 @@ __Calendar Example__
 ```
 
 The triggers above fire daily, and skip any firing that falls in a period the calendar excludes. The next lessons cover building triggers in detail.
+
+A calendar is your code, and it can throw. Since 3.22.4 a calendar that throws fails only its own trigger's
+fire: the rest of the batch fires, the trigger is left as it was, and the failure counts toward
+[`quartz.jobStore.maxConsecutiveFireFailures`](../configuration/reference.md#quartz-jobstore-maxconsecutivefirefailures)
+(default 5), after which the trigger is set `ERROR`. Up to 3.22.3 it stranded what was around it:
+
+| Store | 3.22.3 and earlier |
+|---|---|
+| RAMJobStore | The whole fire batch or acquisition pass; a serial job's other triggers stayed `Blocked` |
+| JobStoreTX, JobStoreCMT | The completion was retried until shutdown, and the job stayed `BLOCKED` |
 
 The Quartz.Impl.Calendar namespace has more `ICalendar` implementations.

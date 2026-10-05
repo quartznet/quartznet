@@ -31,7 +31,7 @@ Stores the `ITrigger` data shared by all trigger types.
 | Normal | trigger has fire times, and will do so on schedule |
 | Paused | paused and will not execute |
 | Complete | trigger will not fire again, it has no more "fire times" |
-| Error | the trigger had an error, it will not be fired again |
+| Error | the trigger could not fire: its job type could not be built, or (since 3.22.4) its fire failed [`quartz.jobStore.maxConsecutiveFireFailures`](../configuration/reference.md#quartz-jobstore-maxconsecutivefirefailures) times in a row. It is not fired again until `IScheduler.ResetTriggerFromErrorState` brings it back |
 | Blocked | this trigger is associated with a job that is `DisallowConcurrentExecutionAttribute` and so must wait, but the trigger would like to fire |
 | None | the trigger doesn't exist |
 | Waiting | db only, and means the job is ready to be picked up |
