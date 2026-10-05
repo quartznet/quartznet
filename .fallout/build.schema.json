@@ -147,6 +147,10 @@
           "type": "string",
           "default": "Secrets must be entered via 'fallout :secrets [profile]'"
         },
+        "FirebirdImage": {
+          "type": "string",
+          "description": "Firebird image for the firebird leg instead of the default (firebirdsql/firebird:3, :4 or :5); the leg then runs only the tests that touch Firebird's catalog"
+        },
         "GitHubRepository": {
           "type": "string",
           "description": "Repository to draft the release in, as owner/name. Set by hand only, to rehearse DraftRelease against a scratch repository"
