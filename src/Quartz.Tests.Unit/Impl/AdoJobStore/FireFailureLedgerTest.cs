@@ -94,22 +94,50 @@ public class FireFailureLedgerTest
     }
 
     /// <summary>
-    /// A failure inside a transaction is weighed against the limit before it is counted, and counted
-    /// only once the transaction has committed (#4006): the answer is the count recording it would give.
+    /// A misfire failure inside a transaction is weighed against the limit before it is counted, and
+    /// counted only once the transaction has committed (#4006): the answer is the count recording it would
+    /// give, and asking counts nothing.
     /// </summary>
     [Test]
-    public void TheCountWithOneMoreFailureIsAnsweredWithoutCountingIt()
+    public void TheCountWithOneMoreMisfireFailureIsAnsweredWithoutCountingIt()
     {
         FireFailureLedger ledger = new FireFailureLedger();
-        ledger.FailuresWithOneMore(poison, previous).Should().Be(1, "an empty ledger has nothing to add to");
+        TimeSpan interval = TimeSpan.FromMinutes(1);
+        ledger.MisfireFailuresWithOneMore(poison, previous, previous, interval).Should().Be(1, "an empty ledger has nothing to add to");
 
         ledger.RecordFailure(poison, previous);
         ledger.RecordFailure(other, null);
 
-        ledger.FailuresWithOneMore(poison, previous).Should().Be(2);
-        ledger.FailuresWithOneMore(poison, previous).Should().Be(2, "asking counts nothing");
-        ledger.FailuresWithOneMore(poison, previous.AddHours(1)).Should().Be(1, "a fire committed since the last failure");
-        ledger.FailuresWithOneMore(new TriggerKey("unseen", "ledger"), null).Should().Be(1);
+        ledger.MisfireFailuresWithOneMore(poison, previous, previous, interval).Should().Be(2);
+        ledger.MisfireFailuresWithOneMore(poison, previous, previous, interval).Should().Be(2, "asking counts nothing");
+        ledger.MisfireFailuresWithOneMore(poison, previous.AddHours(1), previous, interval).Should().Be(1, "a fire committed since the last failure");
+        ledger.MisfireFailuresWithOneMore(new TriggerKey("unseen", "ledger"), null, previous, interval).Should().Be(1);
         ledger.RecordFailure(poison, previous).Should().Be(2);
+    }
+
+    /// <summary>
+    /// A misfire failure counts at most once per interval, however often the trigger's misfire is met; a
+    /// failed fire counts every time (#4006).
+    /// </summary>
+    [Test]
+    public void AMisfireFailureCountsAtMostOncePerInterval()
+    {
+        FireFailureLedger ledger = new FireFailureLedger();
+        TimeSpan interval = TimeSpan.FromMinutes(1);
+        DateTimeOffset now = previous.AddHours(2);
+
+        ledger.RecordMisfireFailure(poison, previous, now).Should().Be(1);
+
+        ledger.MisfireFailuresWithOneMore(poison, previous, now, interval).Should().BeNull("one was counted just now");
+        ledger.MisfireFailuresWithOneMore(poison, previous, now.AddSeconds(59), interval).Should().BeNull("one was counted less than an interval ago");
+        ledger.MisfireFailuresWithOneMore(poison, previous, now.Add(interval), interval).Should().Be(2, "an interval has passed");
+        ledger.MisfireFailuresWithOneMore(poison, previous.AddHours(1), now, interval).Should().Be(1, "a new run is not held back by the last one");
+
+        ledger.RecordFailure(poison, previous).Should().Be(2, "a failed fire counts whenever it happens");
+        ledger.MisfireFailuresWithOneMore(poison, previous, now.AddSeconds(30), interval).Should().BeNull(
+            "a failed fire does not reset the misfire interval of the run it continues");
+
+        ledger.RecordMisfireFailure(poison, previous, now.Add(interval)).Should().Be(3);
+        ledger.MisfireFailuresWithOneMore(poison, previous, now.Add(interval).AddSeconds(1), interval).Should().BeNull();
     }
 }

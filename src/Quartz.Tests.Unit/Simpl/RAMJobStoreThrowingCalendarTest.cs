@@ -72,6 +72,12 @@ public class RAMJobStoreThrowingCalendarTest
     private const int DefaultMaxConsecutiveFireFailures = 5;
 
     private static readonly DateTimeOffset epoch = new DateTimeOffset(2031, 6, 17, 10, 0, 0, TimeSpan.Zero);
+
+    /// <summary>
+    /// <c>RAMJobStore.MisfireThreshold</c> as it ships, which is also how long after one counted misfire
+    /// failure the next one counts.
+    /// </summary>
+    private static readonly TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan waitLimit = TimeSpan.FromSeconds(20);
 
     private static readonly JobKey serialJobKey = new JobKey("serial", Group);
@@ -384,6 +390,9 @@ public class RAMJobStoreThrowingCalendarTest
             (await Acquire()).Should().BeEmpty();
             (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Normal,
                 $"{failure} failure(s) in a row is short of the limit, and the trigger stays in the schedule");
+
+            // A misfire failure counts once per misfire threshold.
+            clock.Advance(misfireThreshold);
         }
 
         (await Acquire()).Should().BeEmpty();
@@ -394,6 +403,71 @@ public class RAMJobStoreThrowingCalendarTest
 
         await Acquire();
         fault.Thrown.Should().Be(DefaultMaxConsecutiveFireFailures, "an ERROR trigger is out of the schedule, so no pass handles its misfire");
+    }
+
+    /// <summary>
+    /// A busy scheduler passes every few milliseconds, and a misfired trigger whose calendar throws is first
+    /// in every pass. Its failures count once per misfire threshold, so a calendar that is briefly
+    /// unreachable does not park its trigger in a fraction of a second; one that stays unreachable still
+    /// parks it, on the failure that reaches the limit (#4006).
+    /// </summary>
+    [Test]
+    public async Task AMisfiredTriggerWhoseCalendarThrowsCountsOncePerMisfireThreshold()
+    {
+        FreezeClock();
+        await StoreJob(ordinaryJobKey, serial: false);
+        await Schedule(calendaredKey, ordinaryJobKey, onCalendar: true);
+        clock.Advance(TimeSpan.FromMinutes(30));
+        fault.ThrowAlways();
+
+        int quickPasses = 4 * DefaultMaxConsecutiveFireFailures;
+        for (int pass = 0; pass < quickPasses; pass++)
+        {
+            (await Acquire()).Should().BeEmpty();
+        }
+
+        fault.Thrown.Should().Be(quickPasses, "every pass meets the misfire");
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Normal,
+            "the passes came within one misfire threshold, so they count as one failure");
+
+        for (int failure = 2; failure <= DefaultMaxConsecutiveFireFailures; failure++)
+        {
+            clock.Advance(misfireThreshold);
+            (await Acquire()).Should().BeEmpty();
+        }
+
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Error,
+            "a misfire threshold apart, each failure counts, and the one that reaches the limit parks the trigger");
+    }
+
+    /// <summary>
+    /// A misfire handled ends the trigger's run of failures: one failure before it and one after it are
+    /// one each, not two in a row (#4006).
+    /// </summary>
+    [Test]
+    public async Task AMisfireHandledBetweenTwoFailuresStartsTheCountAgain()
+    {
+        FreezeClock();
+        store.MaxConsecutiveFireFailures = 2;
+        await StoreJob(ordinaryJobKey, serial: false);
+        await Schedule(calendaredKey, ordinaryJobKey, onCalendar: true);
+        clock.Advance(TimeSpan.FromMinutes(30));
+
+        fault.ThrowOnce();
+        (await Acquire()).Should().BeEmpty();
+
+        // The calendar answers: the misfire is handled, and the trigger moves on to its next hourly fire.
+        (await Acquire()).Should().BeEmpty();
+        (await store.RetrieveTrigger(calendaredKey))!.GetNextFireTimeUtc().Should().Be(epoch.AddHours(1));
+
+        // Late for that fire too, and the calendar throws again.
+        clock.Advance(TimeSpan.FromHours(1));
+        fault.ThrowOnce();
+        (await Acquire()).Should().BeEmpty();
+
+        fault.Thrown.Should().Be(2);
+        (await store.GetTriggerState(calendaredKey)).Should().Be(TriggerState.Normal,
+            "the handled misfire between the two failures started the count again, so this is one failure, short of the limit");
     }
 
     /// <summary>
