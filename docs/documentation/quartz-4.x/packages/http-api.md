@@ -609,7 +609,7 @@ missed) is in the container's `IExecutionHistoryStore`, served by seven routes:
 | Path | Query | Answers |
 |---|---|---|
 | `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains`, `failedFinally`, and the [4.4 filters](#filtering-by-job-time-and-result) | A page of executions, newest first |
-| `GET {ApiPath}/schedulers/{name}/history/executions/{entryId}` | none | One execution, `log` included |
+| `GET {ApiPath}/schedulers/{name}/history/executions/{entryId}` | none | One execution, `log` and `input` included |
 | `GET {ApiPath}/schedulers/{name}/history/misfires` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `triggerContains`, `jobGroup` + `jobName`, [`reasons`](#vetoes-are-listed-when-asked-for) | A page of misfires, newest first |
 | `GET {ApiPath}/schedulers/{name}/history/misfires/count` | `since`: a `DateTimeOffset`, required | `{ "count": 3 }`, `Missed` rows only |
 | `GET {ApiPath}/schedulers/{name}/history/job-status` | `skip`, `take`, `includeTotalCount`, `failing` | A page of [run statuses](#job-run-status) |
@@ -637,7 +637,9 @@ missed) is in the container's `IExecutionHistoryStore`, served by seven routes:
       "summary": "no stale reservations",
       "metrics": { "scanned": 1200, "released": 0 },
       "manual": false,
-      "fireInstanceId": "web-01-17"
+      "fireInstanceId": "web-01-17",
+      "input": null,
+      "inputTooLarge": false
     }
   ],
   "hasMore": false,
@@ -647,8 +649,9 @@ missed) is in the container's `IExecutionHistoryStore`, served by seven routes:
 
 - Rows carry the **node's** id, not the scheduler name (the route has it). `schedulerInstanceId` narrows to one
   node.
-- `entryId` names the row for `…/history/executions/{entryId}`. `log` is `null` on every listing row; that
-  route carries it, when the scheduler [captures its jobs' logs](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines).
+- `entryId` names the row for `…/history/executions/{entryId}`. `log` and `input` are `null` on every listing
+  row; that route carries them, when the scheduler [captures its jobs' logs](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines)
+  and its history [records inputs](../how-tos/job-outcomes.md#record-a-run-s-input).
 - `jobContains` and `triggerContains` match a key's group, name, or `group.name`, case-insensitively.
 - `failedFinally=true` lists the failures that were not retried; `false`, everything else.
 - Paging uses the usual envelope, bounded by [`MaxPageSize`](#listing-endpoints-are-paged).
@@ -662,8 +665,13 @@ missed) is in the container's `IExecutionHistoryStore`, served by seven routes:
 | `metrics` | A JSON object, or `null`. `HttpExecutionHistoryStore` hands it back as the text the recorder wrote |
 | `manual` | `true` for a run `TriggerJob` asked for |
 | `fireInstanceId` | The firing's id, as on its span and log scope |
+| `input` | The run's input, on `…/history/executions/{entryId}` only; `null` when none was recorded |
+| `inputTooLarge` | `true` when the input was over the history's cap and not kept |
 
-A 4.3 client ignores the five members.
+A 4.3 client ignores the seven members, and a 4.3 host sends none: its rows have no input.
+
+To run a failure again with its input, `POST …/jobs/{jobGroup}/{jobName}/trigger` with `input` under the
+`QRTZ_JOB_INPUT` key of the body's `JobDataMap`. The dashboard does this through `AddQuartzHttpClient`.
 
 ### Filtering by job, time and result
 

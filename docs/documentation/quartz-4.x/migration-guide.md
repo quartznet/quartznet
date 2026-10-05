@@ -48,9 +48,11 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `JobRunStatusQuery` | `PagedQuery` by job group, then name: `required SchedulerName`, `Jobs`, `Failing` |
 | `IExecutionHistoryStore.QueryJobRunStatuses`, `GetJobRunStatus` | Default interface members. The first throws `NotSupportedException`; the second asks the first for one job |
 | `ExecutionHistoryOptions.RetentionByResult`, `MisfireRetention`, `MaxEntriesPerJob` | Age per result (get-only), age of the misfire feed, rows per job with failures exempt. See [Keep history by result](how-tos/job-outcomes.md#keep-history-by-result) |
+| `ExecutionHistoryOptions.RecordInput`, `MaxInputBytes` | Opt-in: keep each run's input, up to `16 * 1024` UTF-8 bytes. See [Record a run's input](how-tos/job-outcomes.md#record-a-run-s-input) |
+| `ExecutionHistoryEntry.Input`, `InputTooLarge` | `init`: the run's input, and whether it was over the cap and not kept |
 | Log events `1059`, `1060` | Warnings: a job's metrics were not recorded, because they came to more than 4,000 characters of JSON, or because writing one of them threw. The run is recorded either way |
 | `AdoConstants.TableJobStatus` | `JOB_STATUS`: one row per job, rolled up from the execution history |
-| `AdoConstants.ColumnResult`, `ColumnSummary`, `ColumnMetrics`, `ColumnManual`, `ColumnFireInstanceId` | `RESULT`, `SUMMARY`, `METRICS`, `MANUAL`, `FIRE_INSTANCE_ID` on `QRTZ_EXECUTION_HISTORY` |
+| `AdoConstants.ColumnResult`, `ColumnSummary`, `ColumnMetrics`, `ColumnManual`, `ColumnFireInstanceId`, `ColumnJobInput`, `ColumnJobInputTooLarge` | `RESULT`, `SUMMARY`, `METRICS`, `MANUAL`, `FIRE_INSTANCE_ID`, `JOB_INPUT`, `JOB_INPUT_TOO_LARGE` on `QRTZ_EXECUTION_HISTORY` |
 | `AdoConstants.ColumnFirstFiredTime`, `ColumnLastFiredTime`, `ColumnLastResult`, `ColumnLastRunTime`, `ColumnLastInstanceName`, `ColumnLastEntryId`, `ColumnLastSummary`, `ColumnLastSuccessTime`, `ColumnLastFailureTime`, `ColumnLastFailureMessage`, `ColumnConsecutiveFailures`, `ColumnRunCount`, `ColumnFailureCount` | The columns of `QRTZ_JOB_STATUS` |
 | `AdoJobStoreOptions.MaxConsecutiveFireFailures` | `int`, default `5`; `0` never parks. Flat key `quartz.jobStore.maxConsecutiveFireFailures`. See [A trigger that fails to fire](operations.md#a-trigger-that-fails-to-fire) |
 | Log event `3050` | Error: a trigger stored `ERROR` after that many failed fires in a row |
@@ -61,12 +63,13 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | Log event `1061` | Warning: a job listener threw from `JobProgressChanged`. The job carries on |
 | Log events `2008`, `2009` | Errors from the in-memory store: a fire failed; a trigger set `ERROR` after that many in a row |
 | `IQuartzApiClient.GetJobRunStatus`, `GetJobRunStatuses` | Default interface members; the defaults throw `NotSupportedException`, and the pages leave the status out. See [Job run status](packages/dashboard.md#job-run-status) |
-| `DashboardHistoryEntry.Result`, `EffectiveResult`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId` | `init`, as on `ExecutionHistoryEntry`. `EffectiveResult` is get-only |
+| `DashboardHistoryEntry.Result`, `EffectiveResult`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId`, `Input`, `InputTooLarge` | `init`, as on `ExecutionHistoryEntry`. `EffectiveResult` is get-only |
 | `DashboardHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results` | `init`, as on `ExecutionHistoryQuery`. `Job` is a `JobKeyDto` |
 | `DashboardMisfireQuery.Job`, `Reasons` | `init`, as on `MisfireHistoryQuery` |
 | HTTP: `jobGroup`, `jobName`, `firedFrom`, `firedBefore`, `results` on `…/history/executions`; `jobGroup`, `jobName`, `reasons` on `…/history/misfires` | See [Filtering by job, time and result](packages/http-api.md#filtering-by-job-time-and-result) |
 | HTTP: `GET …/history/job-status`, `GET …/history/job-status/{jobGroup}/{jobName}`, `POST …/history/job-status/fetch` | See [Job run status](packages/http-api.md#job-run-status). `501` when the store keeps no status |
-| HTTP: `result`, `summary`, `metrics`, `manual`, `fireInstanceId` on an execution row | `metrics` is a JSON object |
+| HTTP: `result`, `summary`, `metrics`, `manual`, `fireInstanceId`, `inputTooLarge` on an execution row | `metrics` is a JSON object |
+| HTTP: `input` on `GET …/history/executions/{entryId}` | `null` on every listing row |
 | Log event `9008` | Debug: a status route answered `501` |
 | `IScheduler.PauseTriggersWith`, `PauseJobsWith`; the same on `IJobStore` | A set of keys paused with a `PauseDetails`, in one call. Default interface members. See [Pausing with a Reason](how-tos/pausing-with-a-reason.md) |
 | `IQuartzApiClient.PauseTriggersWith`, `PauseJobsWith` | `Quartz.Dashboard`. Default interface members |
@@ -151,6 +154,17 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * **The scheduler releases what it acquired when a store throws something other than a
   `SchedulerException`** while firing. It used to log event `1035` and leave the batch reserved.
 
+* **The dashboard's *Run again* passes the failed run's input back** when the history recorded it, under
+  `SchedulerConstants.JobInput` ([#4012](https://github.com/quartznet/quartznet/issues/4012)). 4.3 fired the
+  job with no data. With `RecordInput` off, the default, nothing changes. A run that carries the input is
+  logged as `TriggerJobWithData`, and the toast says *with the original input* or *without input*. To record
+  inputs:
+
+  ```diff
+  - services.AddQuartzExecutionHistory();
+  + services.AddQuartzExecutionHistory(options => options.RecordInput = true);
+  ```
+
 * **The dashboard's History page labels a success *Succeeded*, not *Complete***, in a column named *Result*.
   The Job Detail page's *View execution history* opens that job's rows only, where it used to filter by a
   fragment of the key.
@@ -219,6 +233,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * A 4.4 dashboard or HTTP client pausing a set with a reason on a 4.3 host: the host pauses the set without
   the reason.
 * A 4.3 client's key-set pause on a 4.4 host is the reasonless pause, even from an authenticated caller.
+* A 4.3 node leaves `JOB_INPUT` `NULL`, and a 4.3 host sends no `input`: *Run again* fires those rows without input.
 
 ### The 4.4 schema migration
 

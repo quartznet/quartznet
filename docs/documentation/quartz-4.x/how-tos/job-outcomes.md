@@ -106,6 +106,7 @@ Metrics are written by value type, without reflection:
 | `ExceptionMessage` | The message of what the job threw, not the scheduler's wrapper. `null` if it did not throw |
 | `Manual` | `true` for a run `IScheduler.TriggerJob` asked for |
 | `FireInstanceId` | The firing's id, as on its span and log scope. Not unique across restarts |
+| `Input`, `InputTooLarge` | The run's input, when the history [records inputs](#record-a-run-s-input) |
 | The misfire feed | A vetoed firing, with `MisfireReason.Vetoed`. `CountMisfires` does not count it |
 
 `TriggerJob` marks its trigger with `SchedulerConstants.ManualTrigger` (`QRTZ_MANUAL_TRIGGER = "true"`) in
@@ -141,6 +142,49 @@ builder.Services.AddQuartzExecutionHistory(options =>
 * `TimeSpan.MaxValue` keeps a result for good, within `MaxEntriesPerScheduler`.
 * Both histories apply all five. The [database history](../tutorial/job-stores.md#execution-history-in-the-database)
   applies them by a sweep; its reads apply only the longest age.
+
+## Record a run's input
+
+From 4.4, the history can keep each run's input, so a failure can be run again with it:
+
+<!-- snippet: sample_job_outcome_record_input -->
+```csharp
+builder.Services.AddQuartzExecutionHistory(options =>
+{
+    // Off by default: an input can hold secrets, and the history keeps it as plain text.
+    options.RecordInput = true;
+    options.MaxInputBytes = 64 * 1024;
+});
+```
+<!-- endSnippet -->
+
+| `ExecutionHistoryOptions` | Default | What |
+|---|---|---|
+| `RecordInput` | `false` | Keep the run's input: the string under `SchedulerConstants.JobInput` |
+| `MaxInputBytes` | 16 KB | The most UTF-8 bytes kept. Over it, nothing is kept and `InputTooLarge` is `true` |
+
+* The input is what `ScheduleJob<TJob, TInput>` and `UsingInput` store. The rest of the job data map is not kept.
+* The trigger's input wins over the job's, as it did for the run.
+* The history keeps it as plain text. It is never logged.
+* `GetExecution` carries `Input`. A listing may leave it out; the database history and the HTTP API do.
+* The database history needs the 4.4 migration's `JOB_INPUT` and `JOB_INPUT_TOO_LARGE`. See
+  [The input columns](../../database/schema-changes.md#the-input-columns).
+
+Run a failure again with its input, as the dashboard's *Run again* does:
+
+<!-- snippet: sample_job_outcome_run_again -->
+```csharp
+ExecutionHistoryEntry? failed = await history.GetExecution(scheduler.SchedulerName, entryId);
+if (failed is null)
+{
+    return;
+}
+
+// The input is the string the scheduler stored, so it goes back as it is. No input: the job's own data.
+JobDataMap? data = failed.Input is { } input ? new JobDataMap { [SchedulerConstants.JobInput] = input } : null;
+await scheduler.TriggerJob(new JobKey(failed.JobName, failed.JobGroup), data);
+```
+<!-- endSnippet -->
 
 ## Read a job's status
 
@@ -226,8 +270,8 @@ foreach (ExecutionHistoryEntry row in page.Items)
 | History page | The result, the summary, a chip per metric and a *Manual* badge on each row. Filters for results and for one job. See [Execution history and misfires](../packages/dashboard.md#execution-history-and-misfires) |
 | Jobs page | *Last run*, *Last success* and *failing ×N* per job. See [Job run status](../packages/dashboard.md#job-run-status) |
 | Job Detail page | A *Runs* panel. *View execution history* opens that job's rows only |
-| Execution page | The result, the summary, a table of metrics, *Manual* and the fire instance id |
-| HTTP API | The five members on each row, the four filters, and the `…/history/job-status` routes. See [Execution history](../packages/http-api.md#execution-history) |
+| Execution page | The result, the summary, a table of metrics, *Manual*, the fire instance id and the input. *Run again* on a final failure |
+| HTTP API | The members on each row, `input` on one execution, the four filters, and the `…/history/job-status` routes. See [Execution history](../packages/http-api.md#execution-history) |
 
 ```http
 GET /quartz-api/schedulers/QuartzScheduler/history/executions?jobGroup=billing&jobName=release-stale&results=Failed,Cancelled
@@ -303,8 +347,8 @@ or under the scheduler's name for a named scheduler.
 
 ## A history store of your own
 
-* Keep `Result`, `Summary`, `MetricsJson`, `Manual` and `FireInstanceId` on the rows you store. The
-  recorder sets them.
+* Keep `Result`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId`, `Input` and `InputTooLarge` on the rows
+  you store. The recorder sets them. Return `Input` from `GetExecution`; a listing may leave it out.
 * Apply the four filters above, `MisfireHistoryQuery.Job` and `MisfireHistoryQuery.Reasons`.
 * Count only `MisfireReason.Missed` rows in `CountMisfires`.
 * `QueryJobRunStatuses` and `GetJobRunStatus` are default interface members. The first throws
