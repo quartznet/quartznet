@@ -23,6 +23,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Extensibility;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -189,7 +190,10 @@ internal sealed class JobRunShell
             {
                 try
                 {
-                    context = new JobExecutionContextImpl(scheduler, firedTriggerBundle, jobScope.Job, qs.resources.JobInputSerializer);
+                    context = new JobExecutionContextImpl(scheduler, firedTriggerBundle, jobScope.Job, qs.resources.JobInputSerializer)
+                    {
+                        SchedulerDefaultRetryPolicy = qs.resources.DefaultRetryPolicy
+                    };
                 }
                 catch (Exception e)
                 {
@@ -349,7 +353,7 @@ internal sealed class JobRunShell
                             logger.TriggerRetryScheduled(
                                 trigger.Key,
                                 trigger.RetryAttempt,
-                                context.RetryPolicy?.MaxAttempts ?? 0,
+                                AppliedRetryPolicy(trigger)?.MaxAttempts ?? 0,
                                 trigger.NextFireTimeUtc.GetValueOrDefault());
 
                             qs.resources.Meters.TriggerRetryScheduled(qs.resources.Name, qs.resources.InstanceId, trigger);
@@ -403,13 +407,13 @@ internal sealed class JobRunShell
                         break;
                     }
 
-                    // The occurrence failed for the last time: a policy applies — the trigger's, its
-                    // job type's or the scheduler's — it threw, and the trigger is not trying again.
-                    // Between the two completion notifications, so a listener hearing it has already
-                    // had JobWasExecuted for the same firing and has not yet had TriggerComplete.
+                    // The occurrence failed for the last time: the trigger applied a policy — its own,
+                    // its job type's or the scheduler's — the job threw, and the trigger is not trying
+                    // again. Between the two completion notifications, so a listener hearing it has
+                    // already had JobWasExecuted for the same firing and has not yet had TriggerComplete.
                     if (outcome == ExecutionOutcome.Failed
                         && instructionCode != SchedulerInstruction.RetryTrigger
-                        && context.RetryPolicy is { } spentPolicy)
+                        && ExhaustedRetryPolicy(trigger, context) is { } spentPolicy)
                     {
                         await NotifyRetriesExhausted(qs, context, jobExEx!, spentPolicy, cancellationToken).ConfigureAwait(false);
                     }
@@ -585,6 +589,53 @@ internal sealed class JobRunShell
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// The policy the trigger applied to the failure it has just been told about, or
+    /// <see langword="null" /> when none applied.
+    /// </summary>
+    /// <remarks>
+    /// Read from the trigger rather than from <see cref="IJobExecutionContext.RetryPolicy" />, which says
+    /// what <em>would</em> apply: only <see cref="TriggerBase.ExecutionComplete" /> applies a job type's or
+    /// the scheduler's policy, so a trigger that decides its completions some other way — one of somebody
+    /// else's, or a subclass that overrides it without calling the base — applied its own policy at most.
+    /// </remarks>
+    internal static RetryPolicy? AppliedRetryPolicy(IOperableTrigger trigger)
+    {
+        if (trigger is TriggerBase { RetryPolicyDecided: true } decided)
+        {
+            return decided.AppliedRetryPolicy;
+        }
+
+        return trigger.RetryPolicy is { IsNone: false } own ? own : null;
+    }
+
+    /// <summary>
+    /// The policy an occurrence that failed for the last time gave up under, or <see langword="null" />
+    /// when there is nothing to announce.
+    /// </summary>
+    /// <remarks>
+    /// An inherited policy whose retry found no room before the next occurrence or the end time has not
+    /// run out of anything: the job type or the scheduler supplied a policy without knowing the trigger's
+    /// schedule, so the occurrence settles quietly — logged at Debug, with no notification, no counter and
+    /// nothing for <c>PauseTriggerWhenRetriesExhausted</c> to pause. A trigger's own policy was chosen for
+    /// its schedule, and keeps announcing it.
+    /// </remarks>
+    private RetryPolicy? ExhaustedRetryPolicy(IOperableTrigger trigger, JobExecutionContextImpl ctx)
+    {
+        RetryPolicy? applied = AppliedRetryPolicy(trigger);
+        if (applied is not null && trigger is TriggerBase { AppliedRetryPolicyInherited: true, RetryDeclinedForRoom: true })
+        {
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.InheritedRetryHadNoRoom(trigger.Key, ctx.RetryAttempt, applied.MaxAttempts);
+            }
+
+            return null;
+        }
+
+        return applied;
     }
 
     /// <summary>
