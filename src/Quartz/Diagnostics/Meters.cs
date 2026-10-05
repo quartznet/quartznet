@@ -89,8 +89,9 @@ internal sealed class Meters : IDisposable
         // is buying anything.
         triggerRetriesExhausted = meter.CreateCounter<long>(QuartzInstrumentation.Instruments.TriggerRetriesExhausted, "{trigger}", "Number of failed occurrences whose retry policy ran out of attempts");
 
-        // How long the scheduling loop waits on its store for the next batch. This is the round trip the
-        // loop cannot overlap with anything, so it is what a slow or contended store shows up as.
+        // How long the scheduling loop waits on its store for the next batch, the fire of the part of it
+        // already due included (#3864). This is the round trip the loop cannot overlap with anything, so it
+        // is what a slow or contended store shows up as.
         triggerAcquisitionDuration = meter.CreateHistogram<double>(QuartzInstrumentation.Instruments.TriggerAcquisitionDuration, "s", "Elapsed time spent acquiring the next batch of triggers");
 
         // And how many the round actually returned, which is what tells an idle scheduler apart from a

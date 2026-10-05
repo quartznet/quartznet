@@ -21,6 +21,8 @@
 
 using AwesomeAssertions.Execution;
 
+using FakeItEasy;
+
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
@@ -2592,6 +2594,74 @@ public abstract class JobStoreContractTest
     /// <see cref="FireInstance.SchedulerInstanceId" /> it reports has to say.
     /// </summary>
     protected abstract string StoreInstanceId { get; }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Firing what is due as it is acquired (#3864)
+    //
+    // The scheduler acquires with AcquireNextTriggersAndFireDue. A store with its own answer fires the
+    // triggers already due in the same operation; one without answers through the interface's default,
+    // which fires nothing and leaves everything to the scheduler. A trigger fired either way looks the
+    // same afterwards, and so does one left pending.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AcquiringAndFiringFiresWhatIsDueAndReservesWhatIsNot()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        foreach (string name in (string[]) ["due-one", "due-two"])
+        {
+            IJobDetail job = CreateJob(name, JobGroupA);
+            await Store.ScheduleJob(job, CreateTrigger(name, TriggerGroupA, job.Key, startAt: now));
+        }
+
+        IJobDetail laterJob = CreateJob("later", JobGroupA);
+        await Store.ScheduleJob(laterJob, CreateTrigger("later", TriggerGroupA, laterJob.Key, startAt: now.AddSeconds(30)));
+
+        TriggerAcquisitionResult round = await Store.AcquireNextTriggersAndFireDue(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = now.AddMinutes(1),
+            MaxCount = 5,
+            // Wide enough that the trigger due in thirty seconds is in the batch.
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+
+        round.Due.Select(x => x.Key.Name).Should().BeEquivalentTo(["due-one", "due-two"], "both are due, and every store Quartz ships fires what is due as it acquires it");
+        round.Fired.Should().HaveCount(2).And.OnlyContain(x => x.TriggerFiredBundle != null);
+        round.Fired.Select(x => x.TriggerFiredBundle!.Trigger.Key).Should().Equal(round.Due.Select(x => x.Key), "each result belongs to the due trigger at its index");
+        round.Pending.Select(x => x.Key.Name).Should().Equal(["later"], "due in thirty seconds, it is in the batch but not due");
+
+        PagedResult<FireInstance> executing = await Store.QueryFireInstances(new FireInstanceQuery { State = FireInstanceState.Executing, Take = PagedQuery.All });
+        executing.Items.Select(x => x.TriggerKey.Name).Should().BeEquivalentTo(["due-one", "due-two"],
+            "a trigger fired as it was acquired is executing, as one fired by TriggersFired is");
+        PagedResult<FireInstance> reserved = await Store.QueryFireInstances(new FireInstanceQuery { State = FireInstanceState.Acquired, Take = PagedQuery.All });
+        reserved.Items.Select(x => x.TriggerKey.Name).Should().Equal(["later"], "and a pending one is reserved as an acquired one always was");
+
+        List<TriggerFiredResult> later = await Store.TriggersFired(round.Pending);
+        later.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull("the scheduler fires a pending trigger with TriggersFired");
+    }
+
+    [Test]
+    public async Task AStoreWithoutItsOwnAnswerLeavesEveryTriggerToTheScheduler()
+    {
+        IJobDetail job = CreateJob("due", JobGroupA);
+        await Store.ScheduleJob(job, CreateTrigger("due", TriggerGroupA, job.Key, startAt: DateTimeOffset.UtcNow));
+
+        // This store, answering through the interface's default body as a store written against 4.3 does.
+        IJobStore withoutItsOwn = A.Fake<IJobStore>(options => options.Wrapping(Store));
+        A.CallTo(() => withoutItsOwn.AcquireNextTriggersAndFireDue(A<TriggerAcquisitionRequest>._, A<CancellationToken>._)).CallsBaseMethod();
+
+        TriggerAcquisitionResult round = await withoutItsOwn.AcquireNextTriggersAndFireDue(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 5
+        });
+
+        round.Due.Should().BeEmpty("the default fires nothing");
+        round.Pending.Select(x => x.Key.Name).Should().Equal(["due"], "everything it acquired is the scheduler's to fire");
+
+        List<TriggerFiredResult> fired = await Store.TriggersFired(round.Pending);
+        fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull();
+    }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Persisting a job's data map across firings

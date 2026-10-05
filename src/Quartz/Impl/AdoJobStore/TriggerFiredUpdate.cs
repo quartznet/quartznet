@@ -86,4 +86,23 @@ public sealed record TriggerFiredUpdate
     /// job that disallows concurrent execution.
     /// </summary>
     public required bool BlockJobTriggers { get; init; }
+
+    /// <summary>
+    /// Whether the trigger was acquired and fired in one transaction, so that no fired-trigger row exists
+    /// for it yet.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="false" /> is the fire of a trigger acquired earlier: acquisition wrote its
+    /// fired-trigger row as <c>ACQUIRED</c>, and the fire updates that row to <c>EXECUTING</c>.
+    /// <see langword="true" /> is <see cref="Extensibility.IJobStore.AcquireNextTriggersAndFireDue" />
+    /// firing a trigger that was already due: the row is inserted as <c>EXECUTING</c>, naming the job, in
+    /// the same batch — one statement where there were two.
+    /// </para>
+    /// <para>
+    /// <c>StdAdoDelegate</c> handles both. An override of <see cref="IDriverDelegate.ApplyTriggerFired" />
+    /// that does not call the base implementation inserts the row itself when this is set.
+    /// </para>
+    /// </remarks>
+    public bool FiredOnAcquire { get; init; }
 }

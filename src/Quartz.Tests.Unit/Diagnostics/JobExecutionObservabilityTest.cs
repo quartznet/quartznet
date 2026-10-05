@@ -490,7 +490,9 @@ public sealed class JobExecutionObservabilityTest
 
         List<Activity> others = StoppedActivities().Where(a => a.OperationName != "Quartz.Job.Execute").ToList();
 
-        others.Should().Contain(a => a.OperationName == "Quartz.JobStore.TriggersFired",
+        // The in-memory store fires a due trigger as it acquires it (#3864), so the fire is on the acquisition's
+        // span rather than a TriggersFired span of its own.
+        others.Should().Contain(a => a.OperationName == "Quartz.JobStore.AcquireNextTriggers" && Equals(a.GetTagItem(ActivityTags.TriggersFiredOnAcquire), 1),
             "both schedulers fired a trigger through their store, so the sweep below is over real store spans");
         others.Should().AllSatisfy(a => a.GetTagItem(JobResultTag).Should().BeNull(
             $"{a.OperationName} is not a job run, and a result on it would be counted as one"));
