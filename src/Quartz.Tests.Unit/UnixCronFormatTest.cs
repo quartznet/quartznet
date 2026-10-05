@@ -358,7 +358,9 @@ public class UnixCronFormatTest
             .WithMessage("*'@reboot' is not supported*")
             .WithMessage("*a scheduler has no reboot*",
                 "the generic unknown-macro message would send the reader looking for a spelling mistake "
-                + "instead of telling them the concept does not apply");
+                + "instead of telling them the concept does not apply")
+            .WithMessage("*RunAtStartup(jobKey)*",
+                "what @reboot means has a registration of its own, and the refusal is where a reader learns it");
     }
 
     [Test]

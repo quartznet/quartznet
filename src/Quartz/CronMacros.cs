@@ -58,9 +58,9 @@ internal static class CronMacros
             "@DAILY" or "@MIDNIGHT" => "0 0 0 * * ?",
             "@HOURLY" => "0 0 * * * ?",
             "@REBOOT" => throw new FormatException(
-                "'@reboot' is not supported: a scheduler has no reboot to fire on. Run the work as the "
-                + "application starts instead - schedule the job with a trigger that starts now - or give "
-                + "the trigger a start time and let it fire on its own schedule from there."),
+                "'@reboot' is not supported: a scheduler has no reboot to fire on, and a cron expression "
+                + "has no instant for it. To run a job each time the scheduler starts, register it with "
+                + "RunAtStartup(jobKey) on the scheduler's builder, beside its cron trigger."),
             _ => throw new FormatException(
                 $"Unknown cron macro '{upperExpression}'. The supported macros are @yearly (@annually), "
                 + "@monthly, @weekly, @daily (@midnight) and @hourly."),
