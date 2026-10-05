@@ -380,6 +380,65 @@ public class FireOnAcquireRoundTripTest
             .MustHaveHappenedTwiceExactly();
     }
 
+    /// <summary>
+    /// A commit that reports a failure after it landed — the connection dropped as the reply came back — is
+    /// not run again: the round's rows are there, so it is answered as committed and nothing fires twice.
+    /// </summary>
+    [Test]
+    public async Task ACommitThatFailsAfterItLandedIsAnsweredAsCommittedAndNothingFiresTwice()
+    {
+        GivenCandidates("t1", "t2");
+        List<string> written = GivenTheFiresAreRecorded();
+        GivenTheDatabaseHasTheRowsOf(written);
+        store.FailFirstCommit = true;
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 2);
+
+        round.Fired.Should().HaveCount(2).And.OnlyContain(x => x.TriggerFiredBundle != null, "the commit landed, so the fires stand");
+        written.Should().HaveCount(2, "each trigger is fired once: a round that landed is not run again");
+        store.Transactions.Should().Be(2, "the round, and the read that asked whether it landed");
+    }
+
+    /// <summary>
+    /// A commit that failed and did not land is the round's failure: the store says so, and fires nothing of
+    /// its own accord. The scheduler acquires again on its next round.
+    /// </summary>
+    [Test]
+    public async Task ACommitThatFailedAndDidNotLandFailsTheRound()
+    {
+        GivenCandidates("t1", "t2");
+        List<string> written = GivenTheFiresAreRecorded();
+        GivenTheDatabaseHasTheRowsOf([]);
+        store.FailFirstCommit = true;
+
+        Func<Task> round = async () => await AcquireAndFire(maxCount: 2);
+
+        await round.Should().ThrowAsync<JobPersistenceException>("none of the round's rows is there, so it did not land");
+        written.Should().HaveCount(2, "the one attempt's fires, rolled back with it, and not run again");
+    }
+
+    private List<string> GivenTheFiresAreRecorded()
+    {
+        List<string> written = [];
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(A<ConnectionAndTransactionHolder>._, A<TriggerFiredUpdate>._, A<CancellationToken>._))
+            .Invokes((ConnectionAndTransactionHolder _, TriggerFiredUpdate update, CancellationToken _) => written.Add(update.Trigger.FireInstanceId!));
+        return written;
+    }
+
+    private void GivenTheDatabaseHasTheRowsOf(List<string> fireInstanceIds)
+    {
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(A<ConnectionAndTransactionHolder>._, A<FiredTriggerQuery>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new ValueTask<List<FiredTriggerRecord>>(fireInstanceIds
+                .Select(id => new FiredTriggerRecord
+                {
+                    FireInstanceId = id,
+                    FireInstanceState = StoredTriggerState.Executing,
+                    TriggerKey = new TriggerKey("t", "g1"),
+                    SchedulerInstanceId = "node",
+                })
+                .ToList()));
+    }
+
     private ValueTask<TriggerAcquisitionResult> AcquireAndFire(int maxCount, TimeSpan window = default)
     {
         return store.AcquireNextTriggersAndFireDue(Request(maxCount, window));
@@ -452,10 +511,25 @@ public class FireOnAcquireRoundTripTest
 
         public int Transactions => Volatile.Read(ref transactions);
 
+        /// <summary>
+        /// Whether the first transaction's commit reports a failure.
+        /// </summary>
+        public bool FailFirstCommit { get; set; }
+
         protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
         {
-            Interlocked.Increment(ref transactions);
-            return new ValueTask<ConnectionAndTransactionHolder>(new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
+            int transaction = Interlocked.Increment(ref transactions);
+            DbConnection connection = A.Fake<DbConnection>();
+            DbTransaction failingCommit = null;
+            if (FailFirstCommit && transaction == 1)
+            {
+                failingCommit = A.Fake<DbTransaction>();
+                A.CallTo(failingCommit).Where(call => call.Method.Name == "get_DbConnection").WithReturnType<DbConnection>().Returns(connection);
+                A.CallTo(() => failingCommit.CommitAsync(A<CancellationToken>._))
+                    .ThrowsAsync(new InvalidOperationException("the connection dropped as the commit's reply came back"));
+            }
+
+            return new ValueTask<ConnectionAndTransactionHolder>(new ConnectionAndTransactionHolder(connection, failingCommit));
         }
     }
 }
