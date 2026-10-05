@@ -147,6 +147,41 @@ public static class WeaselSamples
         #endregion
     }
 
+    public static void Firebird(IServiceCollection services, string connectionString)
+    {
+        #region sample_weasel_firebird
+
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseFirebird(connectionString);
+            store.UseWeaselForFirebird();
+        }));
+
+        #endregion
+    }
+
+    public static void FirebirdOptions(IServiceCollection services, string connectionString)
+    {
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseFirebird(connectionString);
+
+            #region sample_weasel_firebird_options
+
+            // IDX_QRTZ_REPORTING_FT_INST_JOB_REQ_RCVRY is 40 characters, past Firebird 3's 31 bytes
+            store.ConfigureStore(options => options.TablePrefix = "QRTZ_REPORTING_");
+            store.UseWeaselForFirebird(weasel =>
+            {
+                // unset: the active JasperFx profile's ResourceAutoCreate, else CreateOrUpdate
+                weasel.AutoCreate = AutoCreate.CreateOrUpdate;
+                // only for a database Firebird 3 never opens
+                weasel.MaxIdentifierLength = 63;
+            });
+
+            #endregion
+        }));
+    }
+
     public static void Profile(IServiceCollection services)
     {
         #region sample_weasel_jasperfx_profile

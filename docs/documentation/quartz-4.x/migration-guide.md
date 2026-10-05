@@ -72,6 +72,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | HTTP: `reason`, `requestedBy` on the `…/triggers/keys/pause` and `…/jobs/keys/pause` bodies | Optional. See [A pause can say why](packages/http-api.md#a-pause-can-say-why) |
 | Package `Quartz.Weasel.MySQL`: `MySqlWeaselStoreBuilderExtensions.UseWeaselForMySql`, `MySqlWeaselOptions` (`AutoCreate`, `LockName`, `LockTimeout`, `DefaultLockName`) | A MySQL store's schema under Weasel. See [MySQL](packages/weasel.md#mysql) |
 | Package `Quartz.Weasel.Oracle`: `OracleWeaselStoreBuilderExtensions.UseWeaselForOracle`, `OracleWeaselOptions` (`AutoCreate`) | An Oracle store's schema under Weasel. See [Oracle](packages/weasel.md#oracle) |
+| Package `Quartz.Weasel.Firebird`: `FirebirdWeaselStoreBuilderExtensions.UseWeaselForFirebird`, `FirebirdWeaselOptions` (`AutoCreate`, `MaxIdentifierLength`) | A Firebird store's schema under Weasel. See [Firebird](packages/weasel.md#firebird) |
 
 **Behaviour changes:**
 
