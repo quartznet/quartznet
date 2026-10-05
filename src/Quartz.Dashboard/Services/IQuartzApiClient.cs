@@ -705,6 +705,28 @@ public interface IQuartzApiClient
         return ValueTask.FromException<List<JobRunStatus>>(new NotSupportedException(
             "This dashboard's data source cannot read jobs' run statuses: its IQuartzApiClient does not implement GetJobRunStatuses."));
     }
+
+    /// <summary>
+    /// The scheduler's runs, counted by result and timed in buckets of fire time, as
+    /// <see cref="Extensibility.IExecutionHistoryStore.QueryExecutionStatistics" /> answers it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the History and Job Detail pages chart. A source that cannot count raises
+    /// <see cref="NotSupportedException" />, and the pages leave the chart out.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.4. The default reports the datum as unavailable with
+    /// <see cref="NotSupportedException" />.
+    /// </para>
+    /// </remarks>
+    /// <param name="query">Which runs to count, and the bucket size.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<ExecutionStatistics> QueryExecutionStatistics(ExecutionStatisticsQuery query, CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<ExecutionStatistics>(new NotSupportedException(
+            "This dashboard's data source cannot count runs over time: its IQuartzApiClient does not implement QueryExecutionStatistics."));
+    }
 }
 
 /// <summary>

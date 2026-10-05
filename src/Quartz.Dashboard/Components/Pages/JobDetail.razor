@@ -1,4 +1,5 @@
 @page "/quartz/jobs/{Group}/{Name}"
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -10,6 +11,7 @@
 @inject NavigationManager Navigation
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
+@inject IServiceProvider Services
 
 <div class="qz-page">
     <h1>Job Detail</h1>
@@ -122,6 +124,29 @@
             }
         }
 
+        @* The job's runs over time, read with the window chosen here; left out where the source cannot count. *@
+        <RunStatisticsChart Statistics="@_statistics?.Statistics"
+                            From="@_statistics?.From"
+                            Before="@(_statistics?.Before ?? default)"
+                            Scope="@_window.Scope"
+                            HeadingId="job-run-statistics">
+            <Controls>
+                <span class="qz-run-window">
+                    <label class="qz-form-label" for="job-run-window">Window</label>
+                    <select id="job-run-window"
+                            class="qz-select"
+                            data-testid="job-run-window"
+                            value="@_window.Key"
+                            @onchange="OnWindowChangedAsync">
+                        @foreach (RunStatisticsWindow window in RunStatisticsWindow.Offered)
+                        {
+                            <option value="@window.Key">@window.Label</option>
+                        }
+                    </select>
+                </span>
+            </Controls>
+        </RunStatisticsChart>
+
         <h2>JobDataMap</h2>
         <JobDataMapEditor DataMap="@JobDataMap" ReadOnly="true" />
         @if (!IsReadOnly)
@@ -212,6 +237,17 @@
     /// </summary>
     private bool _statusKept;
 
+    /// <summary>The window the chart covers: the whole history until one is chosen.</summary>
+    private RunStatisticsWindow _window = RunStatisticsWindow.All;
+
+    /// <summary>
+    /// The job's runs over the window, or <see langword="null" /> when the data source cannot count them and
+    /// the chart is left out.
+    /// </summary>
+    private RunStatisticsView? _statistics;
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
     [Parameter]
     public string Group { get; set; } = string.Empty;
 
@@ -252,6 +288,7 @@
             _groupPause = null;
             _status = null;
             _statusKept = false;
+            _statistics = null;
             _triggers.Clear();
 
             string? schedulerName = Scheduler.ActiveSchedulerName;
@@ -269,6 +306,7 @@
             _groupPause = await Api.GetJobGroupPause(schedulerName, Group);
 
             await LoadStatusAsync(schedulerName);
+            await LoadStatisticsAsync(schedulerName);
         }
         catch (Exception ex)
         {
@@ -302,6 +340,39 @@
         catch (NotSupportedException)
         {
             _status = null;
+        }
+    }
+
+    /// <summary>
+    /// Reads the job's runs over the chosen window for the chart.
+    /// </summary>
+    /// <remarks>
+    /// A data source that cannot count raises <see cref="NotSupportedException" />, and the chart is left out,
+    /// as the status panel is; so is it after any other failure, because the rest of the page does not depend
+    /// on it.
+    /// </remarks>
+    private async Task LoadStatisticsAsync(string schedulerName)
+    {
+        try
+        {
+            _statistics = await _window.Read(
+                Api,
+                new ExecutionStatisticsQuery { SchedulerName = schedulerName, Job = new Quartz.JobKey(Name, Group) },
+                Clock.GetUtcNow());
+        }
+        catch (Exception)
+        {
+            _statistics = null;
+        }
+    }
+
+    private async Task OnWindowChangedAsync(ChangeEventArgs args)
+    {
+        _window = RunStatisticsWindow.Parse(args.Value?.ToString());
+
+        if (Scheduler.ActiveSchedulerName is { Length: > 0 } schedulerName)
+        {
+            await LoadStatisticsAsync(schedulerName);
         }
     }
 

@@ -1,5 +1,6 @@
 @page "/quartz/history"
 @using System.Globalization
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
@@ -11,12 +12,27 @@
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
 @inject Microsoft.JSInterop.IJSRuntime JsRuntime
+@inject IServiceProvider Services
 
 <div class="qz-page">
     <h1>Execution History</h1>
 
     <div class="qz-live-filters">
         <div class="qz-live-filter-grid">
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="history-window-filter">Window</label>
+                @* Applies on its own, as the node dropdown does, to the chart, the stat cards and the listing. *@
+                <select id="history-window-filter"
+                        class="qz-select"
+                        data-testid="history-window-filter"
+                        value="@_appliedWindow.Key"
+                        @onchange="OnWindowChangedAsync">
+                    @foreach (RunStatisticsWindow window in RunStatisticsWindow.Offered)
+                    {
+                        <option value="@window.Key">@window.Label</option>
+                    }
+                </select>
+            </div>
             <div class="qz-form-group">
                 <label class="qz-form-label" for="history-job-filter">Job filter</label>
                 <input id="history-job-filter"
@@ -127,12 +143,29 @@
     }
     else
     {
-        <div class="qz-grid qz-grid-4">
-            <StatCard Title="@ScopedStatTitle("Success rate")" Value="@GetSuccessRateText()" Icon="✔" Color="success" />
-            <StatCard Title="@ScopedStatTitle("Failures")" Value="@_pageFailureCount.ToString()" Icon="⚠" Color="error" />
-            <StatCard Title="@ScopedStatTitle("Avg duration")" Value="@FormatDurationValue(_pageAverageDuration)" Icon="⏱️" Color="info" />
-            <StatCard Title="@ScopedStatTitle("P95 duration")" Value="@FormatDurationValue(_pageP95Duration)" Icon="📈" Color="info" />
-        </div>
+        @if (_statistics is { } windowed)
+        {
+            @* Over every run the filters and the window match, read with the chart: the page's own rows are a
+               page, not the history. *@
+            <div class="qz-grid qz-grid-4" data-testid="history-window-stats">
+                <StatCard Title="@WindowStatTitle("Runs")" Value="@WindowRunCount(windowed).ToString("N0", CultureInfo.InvariantCulture)" Icon="▦" Color="info" />
+                <StatCard Title="@WindowStatTitle("Success rate")" Value="@WindowSuccessRate(windowed)" Icon="✔" Color="success" />
+                <StatCard Title="@WindowStatTitle("Failed")" Value="@WindowFailed(windowed)" Icon="⚠" Color="error" />
+                <StatCard Title="@WindowStatTitle("Longest run")" Value="@WindowLongestRun(windowed)" Icon="⏱️" Color="info" />
+            </div>
+
+            <RunStatisticsChart Statistics="@windowed.Statistics" From="@windowed.From" Before="@windowed.Before" Scope="@windowed.Window.Scope" />
+        }
+        else
+        {
+            @* A source that cannot count runs over time: the figures are over the rows on this page, and say so. *@
+            <div class="qz-grid qz-grid-4">
+                <StatCard Title="@ScopedStatTitle("Success rate")" Value="@GetSuccessRateText()" Icon="✔" Color="success" />
+                <StatCard Title="@ScopedStatTitle("Failures")" Value="@_pageFailureCount.ToString()" Icon="⚠" Color="error" />
+                <StatCard Title="@ScopedStatTitle("Avg duration")" Value="@FormatDurationValue(_pageAverageDuration)" Icon="⏱️" Color="info" />
+                <StatCard Title="@ScopedStatTitle("P95 duration")" Value="@FormatDurationValue(_pageP95Duration)" Icon="📈" Color="info" />
+            </div>
+        }
 
         @* qz-history-table fixes the column widths, so a long key, summary or error is cut inside its cell
            rather than pushing Run again off the page; the node column gives way on narrower screens. *@
@@ -305,6 +338,34 @@
     private bool _misfiresUnavailable;
 
     /// <summary>
+    /// The window the chart, the stat cards and the listing are narrowed to; <see cref="RunStatisticsWindow.All" />
+    /// for the whole history.
+    /// </summary>
+    private RunStatisticsWindow _appliedWindow = RunStatisticsWindow.All;
+
+    /// <summary>Where the window starts on this read, on a bucket boundary; <see langword="null" /> for all of it.</summary>
+    private DateTimeOffset? _windowFrom;
+
+    /// <summary>
+    /// The run statistics the chart and the stat cards show, or <see langword="null" /> when the data source
+    /// cannot count runs and the cards fall back to the page.
+    /// </summary>
+    private RunStatisticsView? _statistics;
+
+    /// <summary>What <see cref="_statistics" /> was read for: the scheduler, the filters and the window.</summary>
+    private string? _statisticsKey;
+
+    private DateTimeOffset _statisticsReadAt;
+
+    /// <summary>
+    /// How long the statistics are kept before the refresh reads them again. The listing refreshes every
+    /// second; counting a whole window that often would be a query over every row it holds, every second.
+    /// </summary>
+    private static readonly TimeSpan StatisticsRefreshInterval = TimeSpan.FromSeconds(30);
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    /// <summary>
     /// The one job the listing is narrowed to, matched exactly, or <see langword="null" />.
     /// </summary>
     /// <remarks>
@@ -398,6 +459,13 @@
     [SupplyParameterFromQuery(Name = "result")]
     public string? ResultQuery { get; set; }
 
+    /// <summary>
+    /// The window: <c>window=24h</c>. One nobody knows reads as the whole history.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "window")]
+    public string? WindowQuery { get; set; }
+
     private bool HasFilters =>
         !string.IsNullOrWhiteSpace(_appliedJobFilter) ||
         !string.IsNullOrWhiteSpace(_appliedTriggerFilter) ||
@@ -408,7 +476,9 @@
     /// <summary>
     /// Whether a filter only a 4.4 host answers is applied.
     /// </summary>
-    private bool HasFilterFrom44 => _appliedExactJob is not null || _appliedResults.Count > 0;
+    private bool HasFilterFrom44 => _appliedExactJob is not null || _appliedResults.Count > 0 || HasWindow;
+
+    private bool HasWindow => !ReferenceEquals(_appliedWindow, RunStatisticsWindow.All);
 
     private bool HasNodeFilter => !string.IsNullOrWhiteSpace(_appliedNodeFilter);
 
@@ -441,6 +511,7 @@
         _appliedOutcomeFilter = requestedOutcomeFilter;
         _appliedExactJob = NormalizeExactJob(JobGroupQuery, JobNameQuery);
         SetResults(NormalizeResults(ResultQuery));
+        _appliedWindow = RunStatisticsWindow.Parse(WindowQuery);
         _page = requestedPage;
 
         await LoadDataAsync();
@@ -528,6 +599,9 @@
 
             await LoadClusterNodesAsync(schedulerName);
 
+            DateTimeOffset now = Clock.GetUtcNow();
+            _windowFrom = _appliedWindow.From(now);
+
             PagedResult<DashboardHistoryEntry> page = await Api.QueryExecutions(HistoryQuery(schedulerName, _page));
 
             _currentPageSize = _pageSize;
@@ -549,6 +623,7 @@
             _misfires.AddRange(misfires.Items);
 
             ComputeAnalytics();
+            await LoadStatisticsAsync(schedulerName, now);
         }
         catch (NotSupportedException ex) when (HasFilterFrom44)
         {
@@ -572,6 +647,61 @@
             _loadingInProgress = false;
         }
     }
+
+    /// <summary>
+    /// Reads the chart's statistics when the scheduler, a filter or the window changed, or when the last
+    /// read is <see cref="StatisticsRefreshInterval" /> old, and keeps the last ones otherwise.
+    /// </summary>
+    /// <remarks>
+    /// A source that cannot count — an <see cref="IQuartzApiClient" /> of an application's own, a scheduler in
+    /// another process whose host is older than 4.4 — leaves the chart out, and the stat cards go back to the
+    /// rows on the page. So does a read that fails: the listing is the page, and it has answered.
+    /// </remarks>
+    private async Task LoadStatisticsAsync(string schedulerName, DateTimeOffset now)
+    {
+        string key = string.Join(
+            "\u001f",
+            schedulerName,
+            NormalizedNodeFilter(),
+            _appliedJobFilter,
+            _appliedTriggerFilter,
+            _appliedOutcomeFilter,
+            _appliedExactJob?.Group,
+            _appliedExactJob?.Name,
+            string.Join(",", _appliedResults),
+            _appliedWindow.Key);
+
+        if (string.Equals(key, _statisticsKey, StringComparison.Ordinal) && now - _statisticsReadAt < StatisticsRefreshInterval)
+        {
+            return;
+        }
+
+        _statisticsKey = key;
+        _statisticsReadAt = now;
+
+        try
+        {
+            _statistics = await _appliedWindow.Read(Api, StatisticsQuery(schedulerName), now);
+        }
+        catch (Exception)
+        {
+            _statistics = null;
+        }
+    }
+
+    /// <summary>
+    /// The listing's filters, as the run statistics read them; the window is <see cref="RunStatisticsWindow" />'s.
+    /// </summary>
+    private ExecutionStatisticsQuery StatisticsQuery(string schedulerName) => new()
+    {
+        SchedulerName = schedulerName,
+        SchedulerInstanceId = NormalizedNodeFilter(),
+        JobContains = string.IsNullOrWhiteSpace(_appliedJobFilter) ? null : _appliedJobFilter,
+        TriggerContains = string.IsNullOrWhiteSpace(_appliedTriggerFilter) ? null : _appliedTriggerFilter,
+        FailedFinally = HasOutcomeFilter ? true : null,
+        Job = _appliedExactJob is { } exactJob ? new JobKey(exactJob.Name, exactJob.Group) : null,
+        Results = _appliedResults.Count == 0 ? null : [.. _appliedResults]
+    };
 
     /// <summary>
     /// Reads the scheduler's nodes so the filter can offer them. A data source that cannot answer leaves
@@ -614,6 +744,7 @@
         FailedFinally = HasOutcomeFilter ? true : null,
         Job = _appliedExactJob,
         Results = _appliedResults.Count == 0 ? null : [.. _appliedResults],
+        FiredFrom = _windowFrom,
         Skip = Math.Max(0, page - 1) * _pageSize,
         Take = _pageSize,
         IncludeTotalCount = true
@@ -649,6 +780,11 @@
         return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, args.Value?.ToString() ?? string.Empty, _appliedOutcomeFilter);
     }
 
+    private Task OnWindowChangedAsync(ChangeEventArgs args)
+    {
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, _appliedResults, RunStatisticsWindow.Parse(args.Value?.ToString()));
+    }
+
     private Task OnOutcomeFilterChangedAsync(ChangeEventArgs args)
     {
         return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, args.Value?.ToString() ?? string.Empty);
@@ -663,24 +799,24 @@
             results.Add(result);
         }
 
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, results);
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, results, _appliedWindow);
     }
 
     private Task ClearExactJobAsync()
     {
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, exactJob: null, _appliedResults);
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, exactJob: null, _appliedResults, _appliedWindow);
     }
 
     private Task ClearFiltersAsync()
     {
         _jobFilter = string.Empty;
         _triggerFilter = string.Empty;
-        return UpdateQueryStateAsync(1, string.Empty, string.Empty, string.Empty, string.Empty, exactJob: null, results: []);
+        return UpdateQueryStateAsync(1, string.Empty, string.Empty, string.Empty, string.Empty, exactJob: null, results: [], RunStatisticsWindow.All);
     }
 
     private Task UpdateQueryStateAsync(int page, string jobFilter, string triggerFilter, string nodeFilter, string outcomeFilter)
     {
-        return UpdateQueryStateAsync(page, jobFilter, triggerFilter, nodeFilter, outcomeFilter, _appliedExactJob, _appliedResults);
+        return UpdateQueryStateAsync(page, jobFilter, triggerFilter, nodeFilter, outcomeFilter, _appliedExactJob, _appliedResults, _appliedWindow);
     }
 
     private Task UpdateQueryStateAsync(
@@ -690,7 +826,8 @@
         string nodeFilter,
         string outcomeFilter,
         JobKeyDto? exactJob,
-        IReadOnlyCollection<JobRunResult> results)
+        IReadOnlyCollection<JobRunResult> results,
+        RunStatisticsWindow window)
     {
         int normalizedPage = Math.Max(1, page);
         string normalizedJobFilter = jobFilter.Trim();
@@ -706,7 +843,8 @@
             normalizedNodeFilter,
             normalizedOutcomeFilter,
             exactJob,
-            normalizedResults);
+            normalizedResults,
+            window);
 
         // Not Navigation.ToBaseRelativePath: it compares ordinally and throws when the browser URL
         // casing differs from the base URI casing (server-side route matching is case-insensitive,
@@ -721,6 +859,7 @@
             _appliedOutcomeFilter = normalizedOutcomeFilter;
             _appliedExactJob = exactJob;
             SetResults(normalizedResults);
+            _appliedWindow = window;
             return LoadDataAsync();
         }
 
@@ -805,7 +944,8 @@
         string nodeFilter,
         string outcomeFilter,
         JobKeyDto? exactJob,
-        IReadOnlyCollection<JobRunResult> results)
+        IReadOnlyCollection<JobRunResult> results,
+        RunStatisticsWindow window)
     {
         List<string> queryParts = [];
         if (page > 1)
@@ -844,6 +984,11 @@
             queryParts.Add("result=" + string.Join(",", results.Select(result => (Enum.GetName(result) ?? string.Empty).ToLowerInvariant())));
         }
 
+        if (window.Key.Length > 0)
+        {
+            queryParts.Add("window=" + Uri.EscapeDataString(window.Key));
+        }
+
         if (queryParts.Count == 0)
         {
             return DashboardLink.To(Options.Value, "history");
@@ -868,7 +1013,8 @@
         string resultPart = _appliedResults.Count == 0
             ? "Any result"
             : "Results: " + string.Join(", ", _appliedResults.Select(RunResultDisplay.Label));
-        return jobPart + " · " + triggerPart + " · Node: " + NodeScopeLabel() + " · " + outcomePart + " · " + resultPart;
+        return jobPart + " · " + triggerPart + " · Node: " + NodeScopeLabel() + " · " + outcomePart + " · " + resultPart
+               + " · Window: " + _appliedWindow.Scope;
     }
 
     /// <summary>
@@ -938,6 +1084,43 @@
     }
 
     /// <summary>
+    /// A stat card's title over the window, carrying the window and the node when the filter names one.
+    /// </summary>
+    private string WindowStatTitle(string measure)
+    {
+        return HasNodeFilter
+            ? measure + " (" + _appliedWindow.Scope + ", " + _appliedNodeFilter + ")"
+            : measure + " (" + _appliedWindow.Scope + ")";
+    }
+
+    private static long WindowRunCount(RunStatisticsView view) => view.Statistics.Buckets.Sum(static bucket => bucket.RunCount);
+
+    private static string WindowFailed(RunStatisticsView view)
+    {
+        return view.Statistics.Buckets.Sum(static bucket => bucket.FailedCount).ToString("N0", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>The share of runs that succeeded or found nothing to do, as the page's own rate counts them.</summary>
+    private static string WindowSuccessRate(RunStatisticsView view)
+    {
+        long runs = WindowRunCount(view);
+        if (runs == 0)
+        {
+            return "n/a";
+        }
+
+        long succeeded = view.Statistics.Buckets.Sum(static bucket => bucket.SucceededCount + bucket.SkippedCount);
+        return ((double) succeeded / runs).ToString("P1", CultureInfo.InvariantCulture);
+    }
+
+    private static string WindowLongestRun(RunStatisticsView view)
+    {
+        return view.Statistics.Buckets.Count == 0
+            ? "n/a"
+            : DisplayValueHelper.FormatDuration(view.Statistics.Buckets.Max(static bucket => bucket.MaxDuration));
+    }
+
+    /// <summary>
     /// The nodes the filter offers: the cluster's, plus any the loaded rows name that it did not list —
     /// a node that has stopped checking in still has history worth reading.
     /// </summary>
@@ -983,25 +1166,7 @@
     /// Shows a duration in the largest unit that keeps it readable: sub-second runs in milliseconds,
     /// anything longer with its unit spelled out.
     /// </summary>
-    private static string FormatDurationValue(TimeSpan duration)
-    {
-        if (duration <= TimeSpan.Zero)
-        {
-            return "n/a";
-        }
-
-        if (duration < TimeSpan.FromSeconds(1))
-        {
-            return duration.TotalMilliseconds.ToString("0.###", CultureInfo.InvariantCulture) + " ms";
-        }
-
-        if (duration < TimeSpan.FromMinutes(1))
-        {
-            return duration.TotalSeconds.ToString("0.##", CultureInfo.InvariantCulture) + " s";
-        }
-
-        return duration.ToString("g", CultureInfo.InvariantCulture);
-    }
+    private static string FormatDurationValue(TimeSpan duration) => DisplayValueHelper.FormatDuration(duration);
 
     private string ExecutionPath(string entryId)
     {

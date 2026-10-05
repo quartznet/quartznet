@@ -1,0 +1,323 @@
+@using System.Globalization
+@using Quartz
+@using Quartz.Dashboard.Services
+@inject SchedulerState Scheduler
+
+@* Runs per bucket stacked by result, and beneath them the median and 95th percentile durations on an axis
+   of their own: two measures, two scales, one time axis. Plain SVG coloured by the theme's tokens, with the
+   same figures in a table for a reader who does not hover. RunStatisticsLayout works out every coordinate.
+   An SVG <text> is written through SvgText, because Razor reads a literal <text> tag as its own. *@
+@if (Statistics is not null)
+{
+    <section class="qz-run-chart" data-testid="run-statistics" aria-labelledby="@HeadingId">
+        <div class="qz-run-chart-header">
+            <h2 class="qz-run-chart-title" id="@HeadingId">@Title</h2>
+            @if (_layout.Columns.Count > 0)
+            {
+                <span class="qz-run-chart-summary" data-testid="run-statistics-summary">@Summary()</span>
+            }
+            @Controls
+        </div>
+
+        @if (_layout.Columns.Count == 0)
+        {
+            <p class="qz-muted" data-testid="run-statistics-empty">No runs recorded (@Scope).</p>
+        }
+        else
+        {
+            <ul class="qz-run-chart-legend" data-testid="run-statistics-legend">
+                @foreach (JobRunResult result in LegendOrder)
+                {
+                    <li><span class="qz-run-chart-swatch @ResultClass(result)" aria-hidden="true"></span>@RunResultDisplay.Label(result)</li>
+                }
+                <li><span class="qz-run-chart-line-key qz-run-chart-key-p50" aria-hidden="true"></span>Median duration</li>
+                <li><span class="qz-run-chart-line-key qz-run-chart-key-p95" aria-hidden="true"></span>95th percentile duration</li>
+            </ul>
+
+            <svg class="qz-run-chart-svg"
+                 viewBox="0 0 @N(RunStatisticsLayout.Width) @N(RunStatisticsLayout.RunsHeight)"
+                 role="img"
+                 aria-labelledby="@(HeadingId + "-runs-title " + HeadingId + "-runs-desc")"
+                 data-testid="run-statistics-runs">
+                <title id="@(HeadingId + "-runs-title")">Runs per @BucketWord(), by result</title>
+                <desc id="@(HeadingId + "-runs-desc")">@RunsDescription()</desc>
+                @SvgText("qz-run-chart-panel-label", 0, 10, "start", "Runs")
+                @foreach (RunStatisticsLayout.Tick tick in _layout.RunTicks)
+                {
+                    <line class="qz-run-chart-grid" x1="@N(RunStatisticsLayout.PlotLeft)" x2="@N(RunStatisticsLayout.PlotRight)" y1="@N(tick.Y)" y2="@N(tick.Y)" />
+                    @SvgText("qz-run-chart-tick", RunStatisticsLayout.PlotLeft - 8, tick.Y + 4, "end", tick.Label)
+                }
+                @foreach (RunStatisticsLayout.Column column in _layout.Columns)
+                {
+                    ExecutionStatisticsBucket bucket = column.Bucket;
+                    <g class="qz-run-chart-bucket"
+                       data-testid="run-statistics-bucket"
+                       data-start="@bucket.StartUtc.ToString("O", CultureInfo.InvariantCulture)"
+                       data-runs="@bucket.RunCount"
+                       data-succeeded="@bucket.SucceededCount"
+                       data-skipped="@bucket.SkippedCount"
+                       data-cancelled="@bucket.CancelledCount"
+                       data-failed="@bucket.FailedCount">
+                        <title>@Tooltip(bucket)</title>
+                        <rect class="qz-run-chart-hit" x="@N(column.SlotLeft)" y="@N(RunStatisticsLayout.PlotTop)" width="@N(_layout.SlotWidth)" height="@N(RunStatisticsLayout.RunsPlotHeight)" />
+                        @foreach (RunStatisticsLayout.Segment segment in column.Segments)
+                        {
+                            <path class="qz-run-chart-segment @ResultClass(segment.Result)"
+                                  data-testid="run-statistics-segment"
+                                  data-result="@segment.Result"
+                                  data-count="@segment.Count"
+                                  d="@segment.Path" />
+                        }
+                    </g>
+                }
+            </svg>
+
+            <svg class="qz-run-chart-svg"
+                 viewBox="0 0 @N(RunStatisticsLayout.Width) @N(RunStatisticsLayout.DurationsHeight)"
+                 role="img"
+                 aria-labelledby="@(HeadingId + "-durations-title " + HeadingId + "-durations-desc")"
+                 data-testid="run-statistics-durations">
+                <title id="@(HeadingId + "-durations-title")">Median and 95th percentile duration per @BucketWord()</title>
+                <desc id="@(HeadingId + "-durations-desc")">@DurationsDescription()</desc>
+                @SvgText("qz-run-chart-panel-label", 0, 10, "start", "Duration")
+                @foreach (RunStatisticsLayout.Tick tick in _layout.DurationTicks)
+                {
+                    <line class="qz-run-chart-grid" x1="@N(RunStatisticsLayout.PlotLeft)" x2="@N(RunStatisticsLayout.PlotRight)" y1="@N(tick.Y)" y2="@N(tick.Y)" />
+                    @SvgText("qz-run-chart-tick", RunStatisticsLayout.PlotLeft - 8, tick.Y + 4, "end", tick.Label)
+                }
+                @foreach (RunStatisticsLayout.Column column in _layout.Columns)
+                {
+                    <g class="qz-run-chart-bucket" data-testid="run-statistics-duration-bucket">
+                        <title>@Tooltip(column.Bucket)</title>
+                        <rect class="qz-run-chart-hit" x="@N(column.SlotLeft)" y="@N(RunStatisticsLayout.PlotTop)" width="@N(_layout.SlotWidth)" height="@N(RunStatisticsLayout.DurationsPlotHeight)" />
+                    </g>
+                }
+                @if (_layout.P95Path.Length > 0)
+                {
+                    <path class="qz-run-chart-line qz-run-chart-p95" data-testid="run-statistics-p95" d="@_layout.P95Path" />
+                }
+                @foreach (RunStatisticsLayout.Point dot in _layout.P95Dots)
+                {
+                    <circle class="qz-run-chart-dot qz-run-chart-p95-dot" data-testid="run-statistics-p95" cx="@N(dot.X)" cy="@N(dot.Y)" r="4" />
+                }
+                @if (_layout.P50Path.Length > 0)
+                {
+                    <path class="qz-run-chart-line qz-run-chart-p50" data-testid="run-statistics-p50" d="@_layout.P50Path" />
+                }
+                @foreach (RunStatisticsLayout.Point dot in _layout.P50Dots)
+                {
+                    <circle class="qz-run-chart-dot qz-run-chart-p50-dot" data-testid="run-statistics-p50" cx="@N(dot.X)" cy="@N(dot.Y)" r="4" />
+                }
+                @foreach (RunStatisticsLayout.TimeTick tick in _layout.TimeTicks)
+                {
+                    @SvgText("qz-run-chart-tick", tick.X, RunStatisticsLayout.PlotTop + RunStatisticsLayout.DurationsPlotHeight + 18, "middle", AxisLabel(tick.At))
+                }
+            </svg>
+
+            <details class="qz-run-chart-details">
+                <summary>Show as a table</summary>
+                <table class="qz-table" data-testid="run-statistics-table">
+                    <thead>
+                        <tr>
+                            <th>From</th>
+                            <th>Runs</th>
+                            @foreach (JobRunResult result in LegendOrder)
+                            {
+                                <th>@RunResultDisplay.Label(result)</th>
+                            }
+                            <th>Median</th>
+                            <th>95th percentile</th>
+                            <th>Longest</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (RunStatisticsLayout.Column column in _layout.Columns)
+                        {
+                            ExecutionStatisticsBucket bucket = column.Bucket;
+                            <tr>
+                                <td>@BucketLabel(bucket.StartUtc)</td>
+                                <td>@Count(bucket.RunCount)</td>
+                                @foreach (JobRunResult result in LegendOrder)
+                                {
+                                    <td>@Count(bucket.CountOf(result))</td>
+                                }
+                                <td>@DisplayValueHelper.FormatDuration(bucket.P50Duration)</td>
+                                <td>@DisplayValueHelper.FormatDuration(bucket.P95Duration)</td>
+                                <td>@DisplayValueHelper.FormatDuration(bucket.MaxDuration)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </details>
+
+            @if (Statistics.Truncated)
+            {
+                <p class="qz-muted" data-testid="run-statistics-truncated">
+                    The history's store counted its newest @Count(ExecutionStatistics.DefaultRowLimit) runs only, so the oldest
+                    buckets may be short.
+                </p>
+            }
+        }
+    </section>
+}
+
+@code {
+    /// <summary>The results as the legend and the table list them: the stack's order, top first.</summary>
+    private static readonly JobRunResult[] LegendOrder = [JobRunResult.Succeeded, JobRunResult.Skipped, JobRunResult.Cancelled, JobRunResult.Failed];
+
+    private RunStatisticsLayout _layout = RunStatisticsLayout.Create(new ExecutionStatistics(), null, DateTimeOffset.UnixEpoch);
+
+    /// <summary>
+    /// What to chart; nothing is rendered without it.
+    /// </summary>
+    [Parameter]
+    public ExecutionStatistics? Statistics { get; set; }
+
+    /// <summary>
+    /// Where the time axis starts, or <see langword="null" /> to start at the oldest bucket.
+    /// </summary>
+    [Parameter]
+    public DateTimeOffset? From { get; set; }
+
+    /// <summary>Where the time axis ends, exclusive: the moment the statistics were read.</summary>
+    [Parameter]
+    public DateTimeOffset Before { get; set; }
+
+    /// <summary>What the figures cover, in the words a stat card's title uses: <c>last 24 hours</c>.</summary>
+    [Parameter]
+    public string Scope { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Title { get; set; } = "Runs over time";
+
+    /// <summary>The heading's id, which every title and description of the chart is named from.</summary>
+    [Parameter]
+    public string HeadingId { get; set; } = "run-statistics";
+
+    /// <summary>What the page puts in the chart's header beside its title: Job Detail's window choice.</summary>
+    [Parameter]
+    public RenderFragment? Controls { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        _layout = RunStatisticsLayout.Create(Statistics ?? new ExecutionStatistics(), From, Before);
+    }
+
+    private static string N(double value) => RunStatisticsLayout.Number(value);
+
+    private static string Count(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
+
+    private static string ResultClass(JobRunResult result) => "qz-run-" + (Enum.GetName(result) ?? "unknown").ToLowerInvariant();
+
+    /// <summary>An SVG <c>text</c> element, which Razor would otherwise read as its own <c>&lt;text&gt;</c> tag.</summary>
+    private static RenderFragment SvgText(string cssClass, double x, double y, string anchor, string content) => builder =>
+    {
+        builder.OpenElement(0, "text");
+        builder.AddAttribute(1, "class", cssClass);
+        builder.AddAttribute(2, "x", N(x));
+        builder.AddAttribute(3, "y", N(y));
+        builder.AddAttribute(4, "text-anchor", anchor);
+        builder.AddContent(5, content);
+        builder.CloseElement();
+    };
+
+    private long Total(Func<ExecutionStatisticsBucket, long> count) => Statistics!.Buckets.Sum(count);
+
+    private string Summary()
+    {
+        long runs = Total(static bucket => bucket.RunCount);
+        long succeeded = Total(static bucket => bucket.SucceededCount + bucket.SkippedCount);
+        long failed = Total(static bucket => bucket.FailedCount);
+        string rate = ((double) succeeded / runs).ToString("P1", CultureInfo.InvariantCulture);
+
+        return Count(runs) + " runs · " + rate + " succeeded · " + Count(failed) + " failed · " + Scope;
+    }
+
+    private string RunsDescription()
+    {
+        ExecutionStatisticsBucket busiest = Statistics!.Buckets.MaxBy(static bucket => bucket.RunCount)!;
+
+        return Count(Total(static bucket => bucket.RunCount)) + " runs from " + BucketLabel(Statistics.Buckets[0].StartUtc)
+               + ": " + Count(Total(static bucket => bucket.SucceededCount)) + " succeeded, "
+               + Count(Total(static bucket => bucket.SkippedCount)) + " skipped, "
+               + Count(Total(static bucket => bucket.CancelledCount)) + " cancelled, "
+               + Count(Total(static bucket => bucket.FailedCount)) + " failed. The busiest " + BucketWord() + ", from "
+               + BucketLabel(busiest.StartUtc) + ", had " + Count(busiest.RunCount) + ".";
+    }
+
+    private string DurationsDescription()
+    {
+        ExecutionStatisticsBucket slowest = Statistics!.Buckets.MaxBy(static bucket => bucket.P95Duration)!;
+        TimeSpan longest = Statistics.Buckets.Max(static bucket => bucket.MaxDuration);
+
+        return "The 95th percentile was highest, " + DisplayValueHelper.FormatDuration(slowest.P95Duration) + ", in the "
+               + BucketWord() + " from " + BucketLabel(slowest.StartUtc) + ". The longest run took "
+               + DisplayValueHelper.FormatDuration(longest) + ".";
+    }
+
+    /// <summary>One bucket in a sentence, values first: what a hover shows.</summary>
+    private string Tooltip(ExecutionStatisticsBucket bucket)
+    {
+        List<string> results = [];
+        foreach (JobRunResult result in LegendOrder)
+        {
+            long count = bucket.CountOf(result);
+            if (count > 0)
+            {
+                results.Add(Count(count) + " " + RunResultDisplay.Label(result).ToLowerInvariant());
+            }
+        }
+
+        return BucketLabel(bucket.StartUtc) + " · " + Count(bucket.RunCount) + " runs: " + string.Join(", ", results)
+               + " · median " + DisplayValueHelper.FormatDuration(bucket.P50Duration)
+               + ", 95th percentile " + DisplayValueHelper.FormatDuration(bucket.P95Duration)
+               + ", longest " + DisplayValueHelper.FormatDuration(bucket.MaxDuration);
+    }
+
+    /// <summary>The bucket size in words: <c>hour</c>, <c>day</c>, <c>6 hours</c>.</summary>
+    private string BucketWord()
+    {
+        TimeSpan size = Statistics!.BucketSize;
+        if (size == TimeSpan.FromHours(1))
+        {
+            return "hour";
+        }
+
+        if (size == TimeSpan.FromDays(1))
+        {
+            return "day";
+        }
+
+        if (size.Ticks % TimeSpan.TicksPerDay == 0)
+        {
+            return ((long) size.TotalDays).ToString(CultureInfo.InvariantCulture) + " days";
+        }
+
+        if (size.Ticks % TimeSpan.TicksPerHour == 0)
+        {
+            return ((long) size.TotalHours).ToString(CultureInfo.InvariantCulture) + " hours";
+        }
+
+        return ((long) size.TotalMinutes).ToString(CultureInfo.InvariantCulture) + " minutes";
+    }
+
+    /// <summary>A bucket's start in the selected time zone: the date alone for a bucket of whole days.</summary>
+    private string BucketLabel(DateTimeOffset start)
+    {
+        return Scheduler.FormatInSelectedTimeZone(start, DayBuckets ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm");
+    }
+
+    /// <summary>A time-axis label: the date for day buckets, the time for shorter ones, both across days.</summary>
+    private string AxisLabel(DateTimeOffset at)
+    {
+        if (DayBuckets)
+        {
+            return Scheduler.FormatInSelectedTimeZone(at, "MM-dd");
+        }
+
+        bool acrossDays = Before - (From ?? Statistics!.Buckets[0].StartUtc) > TimeSpan.FromDays(1);
+        return Scheduler.FormatInSelectedTimeZone(at, acrossDays ? "MM-dd HH:mm" : "HH:mm");
+    }
+
+    private bool DayBuckets => Statistics!.BucketSize.Ticks % TimeSpan.TicksPerDay == 0;
+}
