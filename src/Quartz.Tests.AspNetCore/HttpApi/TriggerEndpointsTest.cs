@@ -1,10 +1,13 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 
 using AwesomeAssertions.Execution;
 
 using FakeItEasy;
 
+using Quartz.HttpApiContract;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -486,6 +489,25 @@ public class TriggerEndpointsTest : WebApiTest
         // The host answers a conflict mode with the member that decides under the store's lock.
         A.CallTo(() => FakeScheduler.ScheduleJob(A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._))
             .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// The client reads a name it does not know tolerantly; the server does not. A request naming a value
+    /// this host has no member for is the caller's mistake, and acting on a guess at it would schedule
+    /// something nobody asked for.
+    /// </summary>
+    [TestCase("Keep", HttpStatusCode.OK)]
+    [TestCase("Merge", HttpStatusCode.BadRequest)]
+    public async Task ScheduleTriggerShouldRefuseAConflictModeTheHostDoesNotKnow(string onConflict, HttpStatusCode expected)
+    {
+        JsonSerializerOptions wire = new JsonSerializerOptions(JsonSerializerDefaults.Web).ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
+        string trigger = JsonSerializer.Serialize(TestData.CronTrigger, wire);
+
+        using HttpResponseMessage response = await WebApplicationFactory.CreateClient().PostAsync(
+            $"schedulers/{TestData.SchedulerName}/triggers/schedule",
+            new StringContent($$"""{"trigger":{{trigger}},"onConflict":"{{onConflict}}"}""", Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(expected, "the body is the same but for the conflict mode, which is what this host reads strictly");
     }
 
     [Test]
