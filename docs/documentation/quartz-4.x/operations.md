@@ -64,8 +64,8 @@ Once the schema is ahead of every node, replace them one at a time. As each goes
   closes is abandoned, for a peer to recover.
 - **A job the shutdown stops can be handed back** (4.4, off by default). With `ShutdownJobInterruption` and
   the store's `RecoverFiringsCancelledByShutdown`, a `RequestRecovery()` job that stops on its token is
-  stored as a recovery trigger, and a peer runs it at once rather than a check-in timeout later. See
-  [A job a shutdown stops](how-tos/retrying-failed-jobs.md#a-job-a-shutdown-stops).
+  stored as a recovery trigger, and a peer runs it on its next acquisition rather than a check-in timeout
+  later. See [A job a shutdown stops](how-tos/retrying-failed-jobs.md#a-job-a-shutdown-stops).
 - **A clean shutdown leaves the node's check-in row.** The `QRTZ_SCHEDULER_STATE` row keeps its last
   timestamp until a peer recovers it, so a stopped node is declared *failed* about fifteen seconds later on
   the default settings, exactly like a crash. Its jobs that request recovery run again on another node.
