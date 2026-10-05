@@ -22,8 +22,11 @@
 #nullable enable
 
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
+using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Unit.Configuration;
@@ -201,8 +204,98 @@ public sealed class RunAtStartupTest
             "a startup run that silently never happens is the failure this registration exists to prevent");
     }
 
+    [TestCase(Store.InMemory)]
+    [TestCase(Store.Sqlite)]
+    public async Task ALeftoverFromAnEarlierStartIsReplacedRatherThanAddedTo(Store store)
+    {
+        IScheduler scheduler = await Build(store, q => q
+            .AddJob<CountingJob>(j => j.WithIdentity(warmKey).StoreDurably())
+            .RunAtStartup(warmKey));
+
+        // What a crash before the run fired leaves: this node's startup trigger, still stored, still due.
+        ITrigger leftover = StartupRunPlugin.CreateTrigger(warmKey, scheduler.SchedulerInstanceId, clustered: false, TimeProvider.System);
+        await scheduler.ScheduleJob(leftover);
+
+        await scheduler.Start();
+        await CountingJob.FirstRun.Task.WaitAsync(waitLimit);
+        await Task.Delay(settle);
+
+        CountingJob.Runs.Should().Be(1, "the start's run replaces the run the earlier start never made, rather than adding to it");
+        (await scheduler.Exists(leftover.Key)).Should().BeFalse("the leftover was unscheduled before it could fire");
+        (await StartupTriggers(scheduler)).Should().BeEmpty();
+    }
+
     [Test]
-    public void EachCallIsOneRunAndNullIsRefused()
+    public async Task ALeftoverAlreadyReservedIsLeftToRun()
+    {
+        RAMJobStore? ram = null;
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .UseJobStore(provider => ram = ActivatorUtilities.CreateInstance<RAMJobStore>(provider))
+                .AddJob<CountingJob>(j => j.WithIdentity(warmKey).StoreDurably())
+                .RunAtStartup(warmKey))
+            .BuildScheduler();
+        schedulers.Add(scheduler);
+
+        ITrigger leftover = StartupRunPlugin.CreateTrigger(warmKey, scheduler.SchedulerInstanceId, clustered: false, TimeProvider.System);
+        await scheduler.ScheduleJob(leftover);
+
+        // Reserved, as a node about to fire it would have it.
+        List<IOperableTrigger> reserved = await ram!.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 10,
+            TimeWindow = TimeSpan.Zero
+        });
+        reserved.Select(x => x.Key).Should().Equal([leftover.Key], "the precondition: the leftover is reserved");
+
+        await scheduler.Start();
+        await CountingJob.FirstRun.Task.WaitAsync(waitLimit);
+
+        (await scheduler.Exists(leftover.Key)).Should().BeTrue("a run already reserved or running is happening, so it is left alone");
+        CountingJob.Runs.Should().Be(1, "this start's own run fired; the reserved one is left to whoever reserved it");
+    }
+
+    [Test]
+    public async Task NamingTheJobTwiceIsOneRunAtEachStart()
+    {
+        IScheduler scheduler = await Build(Store.InMemory, q => q
+            .AddJob<CountingJob>(j => j.WithIdentity(warmKey).StoreDurably())
+            .RunAtStartup(warmKey)
+            .RunAtStartup(new JobKey(warmKey.Name, warmKey.Group)));
+
+        await scheduler.Start();
+        await CountingJob.FirstRun.Task.WaitAsync(waitLimit);
+        await Task.Delay(settle);
+
+        CountingJob.Runs.Should().Be(1,
+            "two modules that both want the job warm register one run, not one each");
+    }
+
+    [Test]
+    public void ANodeRecognisesItsOwnLeftoversAndNoOtherNodes()
+    {
+        TriggerKey nodeA = StartupRunPlugin.CreateTrigger(warmKey, "node", clustered: true, TimeProvider.System).Key;
+        TriggerKey nodeDotA = StartupRunPlugin.CreateTrigger(warmKey, "node.a", clustered: true, TimeProvider.System).Key;
+
+        StartupRunPlugin.IsLeftover(nodeA, "node", clustered: true).Should().BeTrue();
+        StartupRunPlugin.IsLeftover(nodeDotA, "node", clustered: true).Should().BeFalse(
+            "a node whose id extends this one's is another node, and its leftover is its own to replace");
+        StartupRunPlugin.IsLeftover(nodeA, "node.a", clustered: true).Should().BeFalse();
+        StartupRunPlugin.IsLeftover(nodeDotA, "node", clustered: false).Should().BeTrue(
+            "a store shared with nobody has only this node, so every leftover is its own");
+        StartupRunPlugin.IsLeftover(new TriggerKey(nodeA.Name, "elsewhere"), "node", clustered: true).Should().BeFalse(
+            "only the startup group holds startup runs");
+
+        string longId = new('n', 200);
+        TriggerKey longKey = StartupRunPlugin.CreateTrigger(warmKey, longId, clustered: true, TimeProvider.System).Key;
+        longKey.Name.Length.Should().BeLessThanOrEqualTo(150, "the narrowest shipped TRIGGER_NAME is 150");
+        StartupRunPlugin.IsLeftover(longKey, longId, clustered: true).Should().BeTrue("a long id is carried as its hash, and still recognised");
+        StartupRunPlugin.IsLeftover(longKey, longId + "x", clustered: true).Should().BeFalse();
+    }
+
+    [Test]
+    public void NullIsRefused()
     {
         Action noBuilder = () => QuartzBuilderExtensions.RunAtStartup(null!, warmKey);
         Action noKey = () => QuartzSchedulerBuilder.Create(q => q.RunAtStartup(null!));
