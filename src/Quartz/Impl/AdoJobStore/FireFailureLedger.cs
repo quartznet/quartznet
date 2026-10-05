@@ -41,6 +41,12 @@ namespace Quartz.Impl.AdoJobStore;
 /// fire another node committed breaks the run as a fire on this node does, and an entry left behind by a
 /// trigger this node stopped seeing cannot add up to a limit long afterwards.
 /// </para>
+/// <para>
+/// A misfire failure counts at most once per interval, the misfire threshold. A misfire is handled again
+/// as soon as the next pass reaches it, and with a backlog of misfires that is every few milliseconds, so
+/// a calendar that is briefly unreachable would otherwise park its trigger before it could recover. A
+/// failed fire counts every time: the trigger is released and acquired again at its own pace.
+/// </para>
 /// </remarks>
 internal sealed class FireFailureLedger
 {
@@ -63,23 +69,25 @@ internal sealed class FireFailureLedger
     {
         lock (gate)
         {
-            int failures = entries.TryGetValue(triggerKey, out Entry entry) && entry.PreviousFireTimeUtc == previousFireTimeUtc
-                ? entry.Failures + 1
-                : 1;
+            bool continuing = entries.TryGetValue(triggerKey, out Entry entry) && entry.PreviousFireTimeUtc == previousFireTimeUtc;
+            int failures = continuing ? entry.Failures + 1 : 1;
 
-            entries[triggerKey] = new Entry(failures, previousFireTimeUtc);
+            entries[triggerKey] = new Entry(failures, previousFireTimeUtc, continuing ? entry.MisfireCountedAtUtc : null);
             Volatile.Write(ref count, entries.Count);
             return failures;
         }
     }
 
     /// <summary>
-    /// Answers how many failures in a row the trigger would have with one more counted, without counting
-    /// it: for a failure inside a transaction, which is counted only once that transaction has committed.
+    /// Answers how many failures in a row the trigger would have with one more misfire failure counted,
+    /// without counting it; or <see langword="null" /> when a misfire failure of the same run was counted
+    /// less than <paramref name="interval" /> before <paramref name="nowUtc" />, so this one does not count.
     /// </summary>
-    /// <param name="triggerKey">The trigger that failed.</param>
+    /// <param name="triggerKey">The trigger whose misfire policy failed.</param>
     /// <param name="previousFireTimeUtc">The trigger's previous fire time as the failure found it.</param>
-    public int FailuresWithOneMore(TriggerKey triggerKey, DateTimeOffset? previousFireTimeUtc)
+    /// <param name="nowUtc">When the failure happened, by the store's clock.</param>
+    /// <param name="interval">How long after one counted misfire failure the next one counts.</param>
+    public int? MisfireFailuresWithOneMore(TriggerKey triggerKey, DateTimeOffset? previousFireTimeUtc, DateTimeOffset nowUtc, TimeSpan interval)
     {
         if (IsEmpty)
         {
@@ -88,14 +96,44 @@ internal sealed class FireFailureLedger
 
         lock (gate)
         {
-            return entries.TryGetValue(triggerKey, out Entry entry) && entry.PreviousFireTimeUtc == previousFireTimeUtc
-                ? entry.Failures + 1
-                : 1;
+            if (!entries.TryGetValue(triggerKey, out Entry entry) || entry.PreviousFireTimeUtc != previousFireTimeUtc)
+            {
+                return 1;
+            }
+
+            if (entry.MisfireCountedAtUtc is { } countedAt && nowUtc - countedAt < interval)
+            {
+                return null;
+            }
+
+            return entry.Failures + 1;
         }
     }
 
     /// <summary>
-    /// Forgets the trigger's count: it fired, or it has been stored <c>ERROR</c>.
+    /// Counts one more failed misfire of the trigger, stamped with when it was counted, and answers how
+    /// many failures there have been in a row. The caller asks
+    /// <see cref="MisfireFailuresWithOneMore" /> first, whether this one counts at all.
+    /// </summary>
+    /// <param name="triggerKey">The trigger whose misfire policy failed.</param>
+    /// <param name="previousFireTimeUtc">The trigger's previous fire time as the failure found it.</param>
+    /// <param name="countedAtUtc">When the failure happened, by the store's clock.</param>
+    public int RecordMisfireFailure(TriggerKey triggerKey, DateTimeOffset? previousFireTimeUtc, DateTimeOffset countedAtUtc)
+    {
+        lock (gate)
+        {
+            int failures = entries.TryGetValue(triggerKey, out Entry entry) && entry.PreviousFireTimeUtc == previousFireTimeUtc
+                ? entry.Failures + 1
+                : 1;
+
+            entries[triggerKey] = new Entry(failures, previousFireTimeUtc, countedAtUtc);
+            Volatile.Write(ref count, entries.Count);
+            return failures;
+        }
+    }
+
+    /// <summary>
+    /// Forgets the trigger's count: it fired, its misfire was handled, or it has been stored <c>ERROR</c>.
     /// </summary>
     public void Clear(TriggerKey triggerKey)
     {
@@ -114,5 +152,5 @@ internal sealed class FireFailureLedger
     }
 
     [StructLayout(LayoutKind.Auto)]
-    private readonly record struct Entry(int Failures, DateTimeOffset? PreviousFireTimeUtc);
+    private readonly record struct Entry(int Failures, DateTimeOffset? PreviousFireTimeUtc, DateTimeOffset? MisfireCountedAtUtc);
 }

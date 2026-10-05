@@ -640,8 +640,14 @@ first in the next round again. What fails a fire depends on the store:
 
 A misfire whose calendar throws fails that trigger alone. Nothing of the misfire is written: the trigger
 keeps its fire time, and the next pass handles the misfire again. The acquisition, completion, resume or
-misfire scan it was part of goes on. A database failure in the same step is still rolled back and
-retried, and is not counted.
+misfire scan it was part of goes on.
+
+| A misfire failure | Counted |
+|---|---|
+| Within the misfire threshold of the last one counted | No. A backlog of misfires meets it every few milliseconds |
+| Inside a transaction the application owns | No. It is logged only |
+| From a database failure in the same step | No. The step is rolled back and retried |
+| After a misfire of the same trigger was handled | Yes, as the first of a new run |
 
 After `JobStore:MaxConsecutiveFireFailures` failures in a row (default 5), new in 4.4:
 

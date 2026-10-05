@@ -896,9 +896,16 @@ internal abstract partial class AdoJobStoreBase
     /// <see cref="ConnectionAndTransactionHolder.NotifyAfterCommit" />, in the order it recorded them.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Called by each wrapper that runs store work once that work is committed and its lock released —
     /// or, where the transaction is the application's, once the store's own part is done, which is as
     /// late as the store can see.
+    /// </para>
+    /// <para>
+    /// One that throws is logged and the rest are raised: the work has committed, and nothing here may
+    /// fail it. A wrapper that retries on a failure would otherwise run committed work again, and keep
+    /// doing so while the callback keeps throwing. A cancellation is the caller's, and still ends the call.
+    /// </para>
     /// </remarks>
     private protected async ValueTask RaiseNotificationsAfterCommit(
         List<Func<ISchedulerSignaler, CancellationToken, ValueTask>>? notifications,
@@ -911,7 +918,30 @@ internal abstract partial class AdoJobStoreBase
 
         foreach (Func<ISchedulerSignaler, CancellationToken, ValueTask> notify in notifications)
         {
-            await notify(signaler, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await notify(signaler, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e) when (!IsCallerCancellation(e, cancellationToken))
+            {
+                LogWorkAfterCommitFailed(e);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Logs a failure of the work after a commit, unless the log is what keeps failing: there is nowhere
+    /// left to say so then, and the committed operation must not fail for it either.
+    /// </summary>
+    private void LogWorkAfterCommitFailed(Exception failure)
+    {
+        try
+        {
+            Logger.WorkAfterCommitFailed(failure);
+        }
+        catch (Exception)
+        {
+            // Nowhere left to report it.
         }
     }
 }
