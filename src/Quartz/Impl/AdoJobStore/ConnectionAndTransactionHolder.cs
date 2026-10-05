@@ -276,6 +276,11 @@ public class ConnectionAndTransactionHolder : IDisposable
     /// transaction wrappers once the work has committed, or, where the transaction is the application's,
     /// once the store's own part is done, which is as late as the store can see.
     /// </summary>
+    /// <remarks>
+    /// One that throws is logged and the rest are done: the work has committed, and bookkeeping must not
+    /// fail it. A wrapper that retries on a failure would otherwise run committed work again, and keep
+    /// doing so while the bookkeeping kept throwing.
+    /// </remarks>
     internal void RunAfterCommit()
     {
         List<Action>? actions = actionsAfterCommit;
@@ -287,7 +292,21 @@ public class ConnectionAndTransactionHolder : IDisposable
 
         foreach (Action action in actions)
         {
-            action();
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+                try
+                {
+                    LogProvider.GetLogger(typeof(ConnectionAndTransactionHolder)).ErrorException("Work the store does after a committed operation failed; the operation stands, and the rest of that work is done", e);
+                }
+                catch
+                {
+                    // The log is what failed; there is nowhere left to say so.
+                }
+            }
         }
     }
 

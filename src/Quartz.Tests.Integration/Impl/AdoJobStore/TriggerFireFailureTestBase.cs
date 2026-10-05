@@ -248,7 +248,7 @@ public abstract class TriggerFireFailureTestBase
     /// A serial job's completion handles the misfires of the triggers it unblocks, and the calendar of one
     /// of them throws. The completion commits and lets go of the job's other triggers, and the one that
     /// threw is <c>WAITING</c> with its fire time as it was. The failure counts: with a limit of two, the
-    /// misfire handler's failure after it stores the trigger <c>ERROR</c> (#4006).
+    /// misfire handler's failure a misfire threshold later stores the trigger <c>ERROR</c> (#4006).
     /// </summary>
     /// <remarks>
     /// Before, the throw rolled the completion back, and the completion is retried until it commits: the
@@ -273,6 +273,8 @@ public abstract class TriggerFireFailureTestBase
             (await TriggerState("calendared")).Should().Be("WAITING", "released, with nothing of its misfire written");
             (await store.RetrieveTrigger(new TriggerKey("calendared", Group))).GetNextFireTimeUtc().Should().Be(MisfireEpoch);
 
+            // A misfire threshold later: a misfire failure counts once per threshold.
+            misfireNow = misfireNow.AddMinutes(2);
             await store.RecoverMisfires();
 
             (await TriggerState("calendared")).Should().Be("ERROR", "the misfire handler's failure, the second in a row, stores it ERROR");
@@ -320,6 +322,9 @@ public abstract class TriggerFireFailureTestBase
         }
     }
 
+    /// <summary>The clock <see cref="SystemTime.UtcNow" /> reads while a misfire test runs.</summary>
+    private DateTimeOffset misfireNow;
+
     /// <summary>On the hour, UTC, far from any machine's own clock.</summary>
     private static readonly DateTimeOffset MisfireEpoch = new DateTimeOffset(2031, 6, 17, 10, 0, 0, TimeSpan.Zero);
 
@@ -329,10 +334,10 @@ public abstract class TriggerFireFailureTestBase
     /// blocks the other two, and the job runs half an hour, past their fire time and the misfire threshold.
     /// Answers <c>first</c>'s firing.
     /// </summary>
-    private static async Task<TriggerFiredBundle> GivenASerialJobRunningPastItsTriggersFireTime(JobStoreTX store)
+    private async Task<TriggerFiredBundle> GivenASerialJobRunningPastItsTriggersFireTime(JobStoreTX store)
     {
-        DateTimeOffset now = MisfireEpoch;
-        SystemTime.UtcNow = () => now;
+        misfireNow = MisfireEpoch;
+        SystemTime.UtcNow = () => misfireNow;
 
         await store.StoreJob(JobBuilder.Create<SerialNamingJob>().WithIdentity(SerialJobKey).StoreDurably().Build(), replaceExisting: true);
         foreach ((string name, int priority, string calendar) in new[] { ("first", 10, (string) null), ("calendared", 5, FireFault.FaultyCalendarName), ("mate", 1, null) })
@@ -351,13 +356,13 @@ public abstract class TriggerFireFailureTestBase
             await store.StoreTrigger(trigger, replaceExisting: false);
         }
 
-        List<IOperableTrigger> acquired = (await store.AcquireNextTriggers(now.AddSeconds(1), 4, TimeSpan.Zero)).ToList();
+        List<IOperableTrigger> acquired = (await store.AcquireNextTriggers(misfireNow.AddSeconds(1), 4, TimeSpan.Zero)).ToList();
         acquired.Select(x => x.Key.Name).Should().Equal(new[] { "first" }, "a batch takes one trigger of a serial job");
 
         TriggerFiredResult fired = (await store.TriggersFired(acquired)).Single();
         fired.TriggerFiredBundle.Should().NotBeNull();
 
-        now = now.AddMinutes(30);
+        misfireNow = misfireNow.AddMinutes(30);
         return fired.TriggerFiredBundle;
     }
 

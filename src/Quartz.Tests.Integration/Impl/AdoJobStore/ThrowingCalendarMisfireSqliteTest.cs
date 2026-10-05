@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -78,6 +79,12 @@ public sealed class ThrowingCalendarMisfireSqliteTest
 
     private static readonly TimeSpan WaitLimit = TimeSpan.FromSeconds(15);
 
+    /// <summary>
+    /// <c>JobStoreSupport.MisfireThreshold</c> as it ships, which is also how long after one counted misfire
+    /// failure the next one counts.
+    /// </summary>
+    private static readonly TimeSpan MisfireThreshold = TimeSpan.FromMinutes(1);
+
     private static readonly JobKey SerialJobKey = new JobKey("serial", Group);
     private static readonly JobKey OrdinaryJobKey = new JobKey("ordinary", Group);
 
@@ -104,6 +111,7 @@ public sealed class ThrowingCalendarMisfireSqliteTest
         InstallSchemaFromFreshInstallScript();
 
         FireFault.Reset();
+        CalendarSqliteDelegate.Reset();
         store = await BuildStore(configure: null);
     }
 
@@ -166,10 +174,13 @@ public sealed class ThrowingCalendarMisfireSqliteTest
 
         for (int failure = 2; failure < DefaultMaxConsecutiveFireFailures; failure++)
         {
+            // A misfire failure counts once per misfire threshold.
+            now = now.Add(MisfireThreshold);
             await store.RecoverMisfires();
             (await TriggerState(CalendaredKey)).Should().Be("WAITING", $"{failure} failure(s) in a row is short of the limit");
         }
 
+        now = now.Add(MisfireThreshold);
         await store.RecoverMisfires();
 
         (await TriggerState(CalendaredKey)).Should().Be("ERROR",
@@ -240,6 +251,7 @@ public sealed class ThrowingCalendarMisfireSqliteTest
             await store.RecoverMisfires();
             (await TriggerState(CalendaredKey)).Should().Be("WAITING", $"{failure} failure(s) in a row is short of the limit");
             (await store.RetrieveTrigger(CalendaredKey)).GetNextFireTimeUtc().Should().Be(Epoch, "nothing of the misfire is written");
+            now = now.Add(MisfireThreshold);
         }
 
         await store.RecoverMisfires();
@@ -268,6 +280,7 @@ public sealed class ThrowingCalendarMisfireSqliteTest
         for (int scan = 0; scan < DefaultMaxConsecutiveFireFailures; scan++)
         {
             await store.RecoverMisfires();
+            now = now.Add(MisfireThreshold);
         }
 
         (await TriggerState(CalendaredKey)).Should().Be("ERROR");
@@ -299,6 +312,143 @@ public sealed class ThrowingCalendarMisfireSqliteTest
 
         (await TriggerState(CalendaredKey)).Should().Be("WAITING");
         FireFault.CalendarFault.Thrown.Should().Be(2 * DefaultMaxConsecutiveFireFailures);
+    }
+
+    /// <summary>
+    /// A backlog of misfires has the misfire handler pass again at once, and a trigger whose calendar
+    /// throws is first in every pass. Its failures count once per misfire threshold, so a calendar that is
+    /// briefly unreachable does not park its trigger in a fraction of a second; one that stays unreachable
+    /// still parks it, on the failure that reaches the limit.
+    /// </summary>
+    [Test]
+    public async Task AMisfireBacklogDoesNotParkATriggerWhoseCalendarThrowsAtOnce()
+    {
+        await StoreJob(OrdinaryJobKey, serial: false);
+        await Schedule(CalendaredKey, OrdinaryJobKey, onCalendar: true);
+        for (int i = 1; i <= 25; i++)
+        {
+            await Schedule(new TriggerKey("backlog-" + i, Group), OrdinaryJobKey, startAt: Epoch.AddSeconds(i));
+        }
+
+        now = now.AddMinutes(30);
+        FireFault.CalendarFault.ThrowAlways();
+
+        int quickPasses = 4 * DefaultMaxConsecutiveFireFailures;
+        for (int pass = 0; pass < quickPasses; pass++)
+        {
+            await store.RecoverMisfires();
+        }
+
+        FireFault.CalendarFault.Thrown.Should().Be(quickPasses, "the throwing trigger is first in every pass");
+        (await TriggerState(CalendaredKey)).Should().Be("WAITING",
+            "the passes came within one misfire threshold, so they count as one failure");
+        (await store.RetrieveTrigger(new TriggerKey("backlog-25", Group))).GetNextFireTimeUtc().Should().Be(Epoch.AddHours(1).AddSeconds(25),
+            "the backlog behind it was handled");
+
+        for (int failure = 2; failure <= DefaultMaxConsecutiveFireFailures; failure++)
+        {
+            now = now.Add(MisfireThreshold);
+            await store.RecoverMisfires();
+        }
+
+        (await TriggerState(CalendaredKey)).Should().Be("ERROR",
+            "a misfire threshold apart, each failure counts, and the one that reaches the limit parks the trigger");
+    }
+
+    /// <summary>
+    /// A misfire handled ends the trigger's run of failures: one failure before it and one after it are
+    /// one each, not two in a row.
+    /// </summary>
+    [Test]
+    public async Task AMisfireHandledBetweenTwoFailuresStartsTheCountAgain()
+    {
+        await RebuildStore(x => x.MaxConsecutiveFireFailures = 2);
+        await StoreJob(OrdinaryJobKey, serial: false);
+        await Schedule(CalendaredKey, OrdinaryJobKey, onCalendar: true);
+        now = now.AddMinutes(30);
+
+        FireFault.CalendarFault.ThrowOnce();
+        await store.RecoverMisfires();
+
+        // The calendar answers: the misfire is handled, and the trigger moves on to its next hourly fire.
+        await store.RecoverMisfires();
+        (await store.RetrieveTrigger(CalendaredKey)).GetNextFireTimeUtc().Should().Be(Epoch.AddHours(1));
+
+        // Late for that fire too, and the calendar throws again.
+        now = now.AddHours(1);
+        FireFault.CalendarFault.ThrowOnce();
+        await store.RecoverMisfires();
+
+        FireFault.CalendarFault.Thrown.Should().Be(2);
+        (await TriggerState(CalendaredKey)).Should().Be("WAITING",
+            "the handled misfire between the two failures started the count again, so this is one failure, short of the limit");
+    }
+
+    /// <summary>
+    /// On a connection the application enlisted, what the store records after its part is done comes before
+    /// the application commits or rolls back. A misfire failure there is logged and not counted, so one the
+    /// application rolled back does not bring the trigger nearer to <c>ERROR</c>.
+    /// </summary>
+    [Test]
+    public async Task AMisfireFailureOnAnEnlistedConnectionIsNotCounted()
+    {
+        await RebuildStore(x =>
+        {
+            x.MaxConsecutiveFireFailures = 2;
+            x.AcceptEnlistedTransactions = true;
+        });
+        await store.SchedulerResumed();
+        await StoreJob(OrdinaryJobKey, serial: false);
+        await Schedule(CalendaredKey, OrdinaryJobKey, onCalendar: true);
+        await store.PauseTrigger(CalendaredKey);
+        now = now.AddMinutes(30);
+        FireFault.CalendarFault.ThrowAlways();
+
+        using (SqliteConnection connection = new SqliteConnection(connectionString))
+        {
+            await connection.OpenAsync();
+            using DbTransaction transaction = connection.BeginTransaction();
+            using (AmbientConnection.Enlist(SchedulerName, connection, transaction))
+            {
+                await store.ResumeTrigger(CalendaredKey);
+            }
+
+            transaction.Rollback();
+        }
+
+        FireFault.CalendarFault.Thrown.Should().Be(1);
+        (await TriggerState(CalendaredKey)).Should().Be("PAUSED", "the application rolled the resume back");
+
+        now = now.Add(MisfireThreshold);
+        await store.ResumeTrigger(CalendaredKey);
+
+        FireFault.CalendarFault.Thrown.Should().Be(2);
+        (await TriggerState(CalendaredKey)).Should().Be("WAITING",
+            "the failure the application rolled back was not counted, so this is the first, short of the limit; the trigger is resumed as it was");
+    }
+
+    /// <summary>
+    /// A failure is counted only once the transaction it happened in has committed. The calendar throws,
+    /// then a later statement of the same completion fails transiently, and the completion is rolled back
+    /// and run again, meeting the calendar again: one failure, not two.
+    /// </summary>
+    [Test]
+    public async Task AMisfireFailureInATransactionThatRolledBackIsNotCounted()
+    {
+        await RebuildStore(x => x.MaxConsecutiveFireFailures = 2);
+        TriggerFiredBundle firing = await GivenASerialJobRunningPastItsTriggersFireTime();
+        FireFault.CalendarFault.ThrowAlways();
+
+        // The retry comes two misfire thresholds later, so it is not the interval that keeps it from counting.
+        CalendarSqliteDelegate.FailDeleteFiredTriggerOnce(() => now = now.Add(MisfireThreshold).Add(MisfireThreshold));
+
+        await CompleteWithin(firing, SchedulerInstruction.NoInstruction);
+
+        FireFault.CalendarFault.Thrown.Should().Be(2, "the rolled-back attempt met the calendar, and so did the retry");
+        CalendarSqliteDelegate.DeleteFiredTriggerFailures.Should().Be(1);
+        (await FiredRowCount(FirstKey)).Should().Be(0, "the retry committed");
+        (await TriggerState(CalendaredKey)).Should().Be("WAITING",
+            "the rolled-back attempt's failure was never counted, so the retry's is the first, short of the limit");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -502,6 +652,37 @@ public sealed class ThrowingCalendarMisfireSqliteTest
     /// </summary>
     public sealed class CalendarSqliteDelegate : SQLiteDelegate
     {
+        private static Action onDeleteFiredTriggerFailure;
+        private static int deleteFiredTriggerFailures;
+
+        /// <summary>How many times deleting a fired-trigger row failed.</summary>
+        public static int DeleteFiredTriggerFailures => Volatile.Read(ref deleteFiredTriggerFailures);
+
+        public static void Reset()
+        {
+            Volatile.Write(ref onDeleteFiredTriggerFailure, null);
+            Volatile.Write(ref deleteFiredTriggerFailures, 0);
+        }
+
+        /// <summary>
+        /// Fails the next deletion of a fired-trigger row as a busy database fails it, which the store
+        /// retries, after calling <paramref name="onFailure" />.
+        /// </summary>
+        public static void FailDeleteFiredTriggerOnce(Action onFailure) => Volatile.Write(ref onDeleteFiredTriggerFailure, onFailure);
+
+        public override Task<int> DeleteFiredTrigger(ConnectionAndTransactionHolder conn, string entryId, CancellationToken cancellationToken = default)
+        {
+            Action onFailure = Interlocked.Exchange(ref onDeleteFiredTriggerFailure, null);
+            if (onFailure != null)
+            {
+                Interlocked.Increment(ref deleteFiredTriggerFailures);
+                onFailure();
+                throw new SqliteException("database is locked", 5 /* SQLITE_BUSY, which the store retries */);
+            }
+
+            return base.DeleteFiredTrigger(conn, entryId, cancellationToken);
+        }
+
         public override Task<ICalendar> SelectCalendar(
             ConnectionAndTransactionHolder conn,
             string calendarName,

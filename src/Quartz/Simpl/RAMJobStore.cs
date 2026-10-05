@@ -1730,6 +1730,9 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
             throw;
         }
 
+        // A misfire handled ends the trigger's run of failures. One volatile read while nothing has failed.
+        fireFailures.Clear(tw.TriggerKey);
+
         // Only save for "fire now" misfire policies (FireOnceNow, FireNow, RescheduleNowWith*).
         // These set nextFireTimeUtc to ~SystemTime.UtcNow(). "Reschedule next" policies
         // (DoNothing, RescheduleNextWith*) set it to a future schedule time, where the
@@ -1783,7 +1786,7 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
         {
             misfired = false;
             Log.ErrorException($"Misfire handling of trigger {tw.TriggerKey} failed; the trigger is left as it was, to be handled again, and the rest goes on without it", e);
-            CountFailure(tw);
+            CountFailure(tw, misfire: true);
             return false;
         }
     }
@@ -2100,7 +2103,7 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
 
         Log.ErrorException($"Fire of trigger {tw.TriggerKey} failed; the rest of the batch fires without it", exception);
 
-        CountFailure(tw);
+        CountFailure(tw, misfire: false);
 
         return new TriggerFiredResult(exception);
     }
@@ -2110,7 +2113,14 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
     /// its misfire is handled - and sets the trigger ERROR on the one that reaches
     /// <see cref="MaxConsecutiveFireFailures" /> (#3974, #3985).
     /// </summary>
-    private void CountFailure(TriggerWrapper tw)
+    /// <param name="tw">The trigger whose fire or misfire failed.</param>
+    /// <param name="misfire">
+    /// Whether the misfire policy failed rather than the fire. Such a failure counts at most once per
+    /// <see cref="MisfireThreshold" />: the trigger is first in every acquisition pass, and a busy scheduler
+    /// passes every few milliseconds, so a calendar that is briefly unreachable would otherwise park its
+    /// trigger before it could recover.
+    /// </param>
+    private void CountFailure(TriggerWrapper tw, bool misfire)
     {
         if (MaxConsecutiveFireFailures <= 0)
         {
@@ -2118,7 +2128,23 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
         }
 
         // Counted with the trigger's previous fire time as it was before the failure, which only a fire moves.
-        int failures = fireFailures.RecordFailure(tw.TriggerKey, tw.Trigger.GetPreviousFireTimeUtc());
+        DateTimeOffset? previousFireTime = tw.Trigger.GetPreviousFireTimeUtc();
+        int failures;
+        if (misfire)
+        {
+            DateTimeOffset now = SystemTime.UtcNow();
+            if (fireFailures.MisfireFailuresWithOneMore(tw.TriggerKey, previousFireTime, now, MisfireThreshold) == null)
+            {
+                return;
+            }
+
+            failures = fireFailures.RecordMisfireFailure(tw.TriggerKey, previousFireTime, now);
+        }
+        else
+        {
+            failures = fireFailures.RecordFailure(tw.TriggerKey, previousFireTime);
+        }
+
         if (failures >= MaxConsecutiveFireFailures)
         {
             fireFailures.Clear(tw.TriggerKey);

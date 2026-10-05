@@ -1926,9 +1926,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// Nothing of a failed misfire is written: the row keeps its state and fire time, for the misfire
     /// handler to try again. The failure counts toward <see cref="MaxConsecutiveFireFailures" /> in the
     /// ledger a failed fire counts in, and the one that reaches it stores the trigger <c>ERROR</c> in the
-    /// caller's transaction, which holds <c>TRIGGER_ACCESS</c>. The ledger moves only once that
-    /// transaction has committed, because one that rolls back is retried and would meet the same throw
-    /// again. As for a failed fire, nothing is raised to the listeners.
+    /// caller's transaction, which holds <c>TRIGGER_ACCESS</c>. As for a failed fire, nothing is raised to
+    /// the listeners.
+    /// </para>
+    /// <para>
+    /// The ledger moves only once that transaction has committed, because one that rolls back is retried
+    /// and would meet the same throw again. It counts a misfire failure at most once per
+    /// <see cref="MisfireThreshold" />: a backlog of misfires has the misfire handler pass every few
+    /// milliseconds with this trigger first, and counted each time, a calendar that is briefly unreachable
+    /// would park its trigger in a fraction of a second. A misfire applied ends the run.
+    /// </para>
+    /// <para>
+    /// Nothing is counted when the transaction is the application's - an enlisted connection, or
+    /// <see cref="JobStoreCMT" /> inside an ambient transaction - because what runs "after the commit"
+    /// there runs when the store's part is done, before the application commits or rolls back. The
+    /// failure is logged all the same.
     /// </para>
     /// </remarks>
     /// <returns><see langword="null" /> when the policy was applied; otherwise what the failure came to.</returns>
@@ -1943,6 +1955,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         try
         {
             trig.UpdateAfterMisfire(cal);
+
+            if (!fireFailures.IsEmpty && DecidesOwnOutcome(conn))
+            {
+                conn.AfterCommit(() => fireFailures.Clear(triggerKey));
+            }
+
             return null;
         }
         catch (Exception e)
@@ -1950,26 +1968,40 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             Log.ErrorException($"Misfire handling of trigger {triggerKey} failed; the trigger is left as it was, to be handled again, and the rest goes on without it", e);
         }
 
-        if (MaxConsecutiveFireFailures <= 0)
+        if (MaxConsecutiveFireFailures <= 0 || !DecidesOwnOutcome(conn))
         {
             return MisfireOutcome.Failed;
         }
 
-        int failures = fireFailures.FailuresWithOneMore(triggerKey, previousFireTime);
-        if (failures < MaxConsecutiveFireFailures)
+        DateTimeOffset now = SystemTime.UtcNow();
+        int? failures = fireFailures.MisfireFailuresWithOneMore(triggerKey, previousFireTime, now, MisfireThreshold);
+        if (failures == null)
         {
-            conn.AfterCommit(() => fireFailures.RecordFailure(triggerKey, previousFireTime));
+            // Counted less than a misfire threshold ago.
             return MisfireOutcome.Failed;
         }
 
+        if (failures.Value < MaxConsecutiveFireFailures)
+        {
+            conn.AfterCommit(() => fireFailures.RecordMisfireFailure(triggerKey, previousFireTime, now));
+            return MisfireOutcome.Failed;
+        }
+
+        int parkedAfter = failures.Value;
         await Delegate.UpdateTriggerState(conn, triggerKey, StateError, cancellationToken).ConfigureAwait(false);
-        conn.AfterCommit(() =>
-        {
-            fireFailures.Clear(triggerKey);
-            Log.Error($"Trigger {triggerKey} failed to fire {failures} times in a row and is stored ERROR; ResetTriggerFromErrorState returns it once the cause is fixed");
-        });
+        conn.AfterCommit(() => fireFailures.Clear(triggerKey));
+        conn.AfterCommit(() => Log.Error($"Trigger {triggerKey} failed to fire {parkedAfter} times in a row and is stored ERROR; ResetTriggerFromErrorState returns it once the cause is fixed"));
 
         return MisfireOutcome.StoredError;
+    }
+
+    /// <summary>
+    /// Whether this unit of work's outcome is the store's to decide: it began the transaction itself, or
+    /// has none and runs outside an ambient one, so each statement stands on its own.
+    /// </summary>
+    private static bool DecidesOwnOutcome(ConnectionAndTransactionHolder conn)
+    {
+        return conn.OwnsResources && (conn.Transaction != null || Transaction.Current == null);
     }
 
     /// <summary>
