@@ -473,10 +473,9 @@ internal abstract partial class AdoJobStoreBase
         Logger.FailedInstancesDetected(failedInstances.Count);
         try
         {
-            RecoveryTriggerNaming naming = new(timeProvider.GetTimestamp());
             foreach (SchedulerStateRecord record in failedInstances)
             {
-                await RecoverFailedInstance(conn, record, naming, cancellationToken).ConfigureAwait(false);
+                await RecoverFailedInstance(conn, record, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception e)
@@ -507,7 +506,6 @@ internal abstract partial class AdoJobStoreBase
     private async ValueTask RecoverFailedInstance(
         ConnectionAndTransactionHolder conn,
         SchedulerStateRecord record,
-        RecoveryTriggerNaming naming,
         CancellationToken cancellationToken)
     {
         Logger.ScanningFailedInstance(record.SchedulerInstanceId);
@@ -521,7 +519,7 @@ internal abstract partial class AdoJobStoreBase
 
         await ReleaseAcquiredTriggers(conn, residue, cancellationToken).ConfigureAwait(false);
         await UnblockInterruptedJobs(conn, residue, cancellationToken).ConfigureAwait(false);
-        RecoveryScheduling scheduling = await ScheduleRecoveryTriggers(conn, record, residue, naming, cancellationToken).ConfigureAwait(false);
+        RecoveryScheduling scheduling = await ScheduleRecoveryTriggers(conn, record, residue, cancellationToken).ConfigureAwait(false);
         await DeleteFiredTriggerRows(conn, record, residue, cancellationToken).ConfigureAwait(false);
         int completeCount = await DeleteTriggersLeftComplete(conn, residue, cancellationToken).ConfigureAwait(false);
 
@@ -730,7 +728,6 @@ internal abstract partial class AdoJobStoreBase
         ConnectionAndTransactionHolder conn,
         SchedulerStateRecord record,
         FailedInstanceResidue residue,
-        RecoveryTriggerNaming naming,
         CancellationToken cancellationToken)
     {
         int scheduled = 0;
@@ -738,7 +735,7 @@ internal abstract partial class AdoJobStoreBase
 
         foreach (FiredTriggerRecord firedTrigger in residue.Recoverable)
         {
-            if (await StoreRecoveryTrigger(conn, firedTrigger, naming.Next(record.SchedulerInstanceId), cancellationToken).ConfigureAwait(false))
+            if (await StoreRecoveryTrigger(conn, firedTrigger, record.SchedulerInstanceId, cancellationToken).ConfigureAwait(false) is not null)
             {
                 scheduled++;
             }
@@ -757,24 +754,44 @@ internal abstract partial class AdoJobStoreBase
     /// trigger's data map and the markers that say which firing it stands in for.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Shared by cluster recovery and by a firing a shutdown hands back (#4014), so a job reads a
     /// recovery the same way whichever produced it. Any version of Quartz fires the trigger: it is an
     /// ordinary simple trigger, and only its group makes the firing <see cref="IJobExecutionContext.Recovering" />.
+    /// </para>
+    /// <para>
+    /// A firing that was itself a recovery already stands in for an earlier one, and its data map says
+    /// which: those markers are kept, so a replay of a replay still names the original firing.
+    /// </para>
     /// </remarks>
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="firedTrigger">The fired-trigger row of the execution to run again.</param>
+    /// <param name="failedInstanceId">The node the execution was on, which the trigger's name carries.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
-    /// <see langword="false" /> when the job has been deleted since, which leaves nothing to run.
+    /// The recovery trigger's key, or <see langword="null" /> when the job has been deleted since, which
+    /// leaves nothing to run.
     /// </returns>
-    private async ValueTask<bool> StoreRecoveryTrigger(
+    private async ValueTask<TriggerKey?> StoreRecoveryTrigger(
         ConnectionAndTransactionHolder conn,
         FiredTriggerRecord firedTrigger,
-        TriggerKey recoveryKey,
+        string failedInstanceId,
         CancellationToken cancellationToken)
     {
         JobKey jobKey = firedTrigger.JobKey!;
         if (!await JobExists(conn, jobKey, cancellationToken).ConfigureAwait(false))
         {
             Logger.FailedJobNoLongerExists(jobKey);
-            return false;
+            return null;
+        }
+
+        // A name no trigger has: the counter is the store's own, and a name taken anyway — by a trigger a
+        // run with the same clock reading left behind — is passed over rather than refused, which inside
+        // a completion's retry loop would be refused for good.
+        TriggerKey recoveryKey = NextRecoveryTriggerKey(failedInstanceId);
+        while (await TriggerExists(conn, recoveryKey, cancellationToken).ConfigureAwait(false))
+        {
+            recoveryKey = NextRecoveryTriggerKey(failedInstanceId);
         }
 
         TriggerKey triggerKey = firedTrigger.TriggerKey;
@@ -788,18 +805,58 @@ internal abstract partial class AdoJobStoreBase
         };
 
         JobDataMap jobDataMap = await Delegate.SelectTriggerJobDataMap(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-        jobDataMap[SchedulerConstants.FailedJobOriginalTriggerName] = triggerKey.Name;
-        jobDataMap[SchedulerConstants.FailedJobOriginalTriggerGroup] = triggerKey.Group;
-        jobDataMap[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(firedTrigger.FireTimestamp, CultureInfo.InvariantCulture);
+        bool replaysARecovery = triggerKey.Group == SchedulerConstants.DefaultRecoveryGroup
+                                && jobDataMap.ContainsKey(SchedulerConstants.FailedJobOriginalTriggerName);
+        if (!replaysARecovery)
+        {
+            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerName] = triggerKey.Name;
+            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerGroup] = triggerKey.Group;
+            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(firedTrigger.FireTimestamp, CultureInfo.InvariantCulture);
 
-        // As the recovery a node runs over its own rows at startup writes it, which cluster recovery used
-        // to leave out.
-        jobDataMap[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(firedTrigger.ScheduleTimestamp, CultureInfo.InvariantCulture);
+            // As the recovery a node runs over its own rows at startup writes it, which cluster recovery
+            // used to leave out.
+            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(firedTrigger.ScheduleTimestamp, CultureInfo.InvariantCulture);
+        }
+
         recoveryTrigger.JobDataMap = jobDataMap;
 
         recoveryTrigger.ComputeFirstFireTimeUtc(null);
-        await AddTrigger(conn, recoveryTrigger, null, false, StoredTriggerState.Waiting, false, true, cancellationToken).ConfigureAwait(false);
-        return true;
+        await AddTrigger(
+            conn,
+            recoveryTrigger,
+            job: null,
+            replace: false,
+            StoredTriggerState.Waiting,
+            forceState: false,
+            recovering: true,
+            continuationParentChecked: false,
+            cancellationToken,
+            knownToExist: false).ConfigureAwait(false);
+        return recoveryKey;
+    }
+
+    /// <summary>
+    /// The number the next recovery trigger's name ends in, seeded from the clock the first time one is
+    /// named, so a restarted node's names stay clear of its last run's.
+    /// </summary>
+    /// <remarks>
+    /// The store's own rather than one recovery pass's: a pass seeded from the clock alone named two
+    /// triggers alike whenever the clock had not moved between them (#4014).
+    /// </remarks>
+    private long nextRecoveryTriggerId;
+
+    /// <summary>
+    /// The key of a new recovery trigger for an execution that was on <paramref name="failedInstanceId" />.
+    /// </summary>
+    private TriggerKey NextRecoveryTriggerKey(string failedInstanceId)
+    {
+        if (Volatile.Read(ref nextRecoveryTriggerId) == 0)
+        {
+            Interlocked.CompareExchange(ref nextRecoveryTriggerId, timeProvider.GetTimestamp(), 0);
+        }
+
+        long id = Interlocked.Increment(ref nextRecoveryTriggerId) - 1;
+        return new TriggerKey($"recover_{failedInstanceId}_{id.ToString(CultureInfo.InvariantCulture)}", SchedulerConstants.DefaultRecoveryGroup);
     }
 
     /// <summary>
@@ -808,8 +865,9 @@ internal abstract partial class AdoJobStoreBase
     /// </summary>
     /// <remarks>
     /// Built from this firing's fired-trigger row, which is what cluster recovery reads. A row that is
-    /// gone was recovered already, by a peer that judged this node failed while the job ran; a second
-    /// recovery trigger would run the job twice, so none is stored.
+    /// gone was recovered already, by a peer that judged this node failed while the job ran, or went
+    /// with its trigger, unscheduled while the job ran. A recovery trigger would run the job a second
+    /// time in the first case and one time too many in the second, so none is stored.
     /// </remarks>
     private async ValueTask HandBackForRecovery(
         ConnectionAndTransactionHolder conn,
@@ -833,15 +891,26 @@ internal abstract partial class AdoJobStoreBase
 
         if (row is null)
         {
-            Logger.FiringRecoveredBeforeHandBack(trigger.FireInstanceId, trigger.JobKey);
+            Logger.FiringRowGoneBeforeHandBack(trigger.FireInstanceId, trigger.JobKey);
             return;
         }
 
-        TriggerKey recoveryKey = new RecoveryTriggerNaming(timeProvider.GetTimestamp()).Next(InstanceId);
-        if (await StoreRecoveryTrigger(conn, row, recoveryKey, cancellationToken).ConfigureAwait(false))
+        if (await StoreRecoveryTrigger(conn, row, InstanceId, cancellationToken).ConfigureAwait(false) is not { } recoveryKey)
         {
-            Logger.FiringHandedBack(trigger.FireInstanceId, trigger.JobKey, recoveryKey);
+            return;
         }
+
+        // What awaits the trigger awaits this occurrence's outcome, and the replay is what will have one.
+        // A continuation names its parent and nothing more, so a repeating trigger's next occurrence
+        // would otherwise settle it, and deleting a spent one-shot below would park it, or release it on
+        // an outcome nobody has had yet. Only a StdAdoDelegate carries the statement; under a delegate of
+        // another lineage the continuations stay with the trigger, as before 4.4.
+        if (Delegate is StdAdoDelegate stdDelegate)
+        {
+            await stdDelegate.ReparentAwaitingContinuations(conn, trigger.Key, recoveryKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        Logger.FiringHandedBack(trigger.FireInstanceId, trigger.JobKey, recoveryKey);
     }
 
     /// <summary>
@@ -1065,22 +1134,4 @@ internal abstract partial class AdoJobStoreBase
     /// </summary>
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
     private readonly record struct RecoveryScheduling(int Scheduled, int JobsGone);
-
-    /// <summary>
-    /// Names the recovery triggers of one recovery pass.
-    /// </summary>
-    /// <remarks>
-    /// The counter runs across the whole pass rather than per failed node, so two nodes recovered
-    /// together cannot be given one name twice. It is seeded from the clock, which is what keeps the
-    /// names of this pass clear of the pass before it.
-    /// </remarks>
-    private sealed class RecoveryTriggerNaming(long firstId)
-    {
-        private long nextId = firstId;
-
-        public TriggerKey Next(string failedInstanceId)
-        {
-            return new TriggerKey($"recover_{failedInstanceId}_{nextId++}", SchedulerConstants.DefaultRecoveryGroup);
-        }
-    }
 }

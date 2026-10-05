@@ -131,6 +131,8 @@ internal static class SqlParameters
     public const string TriggerContinuesName = "triggerContinuesName";
     public const string TriggerContinuesGroup = "triggerContinuesGroup";
     public const string TriggerContinuationCondition = "triggerContinuationCondition";
+    public const string NewContinuesName = "newContinuesName";
+    public const string NewContinuesGroup = "newContinuesGroup";
     public const string TriggerOverlapPolicy = "triggerOverlapPolicy";
 
     // What a pause recorded, on a trigger's row and on a paused group's.

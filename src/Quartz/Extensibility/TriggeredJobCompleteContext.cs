@@ -84,8 +84,8 @@ public sealed class TriggeredJobCompleteContext
 
     /// <summary>
     /// Whether the firing was cancelled by the scheduler's shutdown and is to be handed back for
-    /// recovery rather than completed: a recovery trigger is stored for it, and nothing awaiting the
-    /// trigger is settled.
+    /// recovery rather than completed: a recovery trigger is stored for it, what awaits the trigger is
+    /// moved onto the recovery trigger, and the job's data is not written.
     /// </summary>
     /// <remarks>
     /// Internal, because only the persistent store has a recovery trigger to store. The run shell sets
