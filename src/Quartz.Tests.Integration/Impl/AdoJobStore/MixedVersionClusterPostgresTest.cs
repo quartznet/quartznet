@@ -146,12 +146,12 @@ public sealed class MixedVersionClusterPostgresTest
 
     /// <summary>How long the serial job's triggers fire before the nodes stop.</summary>
     /// <remarks>
-    /// Each node also has a trigger pinned to itself firing every second for this long, so that neither
-    /// sits a window out. A node acquires a pinned serial trigger ahead of its window; the other node's
-    /// firings of the job block and release it, so its fire is declined when its time comes; and the
-    /// re-acquisition, finding the job still running on the other node and nothing else due, waits out
-    /// the whole idle wait — past the end of the run. From 4.3 on, the released node's firings do that to
-    /// the working tree's first pinned window every time.
+    /// A node acquires a pinned serial trigger ahead of its window, and the other node's firings of the job
+    /// block it, so its fire is refused when its time comes. A 4.3 node then waits out its whole idle wait —
+    /// past the end of the run — and the released node's firings did that to the working tree's first pinned
+    /// window every time, until a trigger pinned to each node and due every second kept both awake. A 4.4
+    /// node looks again soon instead (#3988), so nothing keeps either awake now; the released node's own
+    /// window comes first, with nothing of the working tree's running to block it.
     /// </remarks>
     private static readonly TimeSpan SerialFor = 3 * SerialWindow;
 
@@ -301,7 +301,7 @@ public sealed class MixedVersionClusterPostgresTest
 
     /// <summary>
     /// What each node schedules, half of every workload: a thousand one-offs, twenty parent/continuation
-    /// pairs, ten pinned each way across the two nodes, its serial job triggers, and a heartbeat of its own.
+    /// pairs, ten pinned each way across the two nodes, and its serial job triggers.
     /// </summary>
     private static async Task ScheduleHalf(MixedVersionNodeProcess node, int first, DateTimeOffset due)
     {
@@ -321,11 +321,6 @@ public sealed class MixedVersionClusterPostgresTest
 
         await node.Send("schedule-serial",
             ("from", first * SerialTriggersEach), ("count", SerialTriggersEach), ("start", due + SerialAfter + 2 * SerialWindow), ("intervalMs", 1000));
-
-        // A trigger of this node's own, every second through the serial windows. SerialFor says why.
-        await node.Send("schedule",
-            ("name", $"heartbeat-{node.InstanceId}"), ("group", "heartbeat"), ("job", "heartbeat"), ("type", "state"),
-            ("start", due + SerialAfter), ("end", due + SerialAfter + SerialFor), ("intervalMs", 1000), ("pin", node.InstanceId));
 
         await node.Send("schedule-one-offs", ("from", first * oneOffHalf), ("count", oneOffHalf), ("due", due));
 
@@ -559,6 +554,14 @@ public sealed class MixedVersionClusterPostgresTest
         {
             serial.Count(x => x.Node == node).Should().BeGreaterThan(0,
                 "the serial job ran on both versions, or the no-overlap check did not cross them ({0} ran none)", node);
+
+            // Half of what a window of triggers due every second holds. The working tree's window opens as the
+            // released node's last firings of the job end, which is #3988: a node that waited out its idle wait
+            // behind them, as 4.3 does, fired none of it.
+            int pinnedHere = serial.Count(x => x.Node == node && x.TriggerName.StartsWith($"serial-{node}-", StringComparison.Ordinal));
+            pinnedHere.Should().BeGreaterThanOrEqualTo(SerialTriggersEach * (int) SerialWindow.TotalSeconds / 2,
+                "{0}'s pinned triggers fire through its own window, even when the other node's firings of the job "
+                + "held them back as it opened", node);
         }
     }
 
@@ -1113,6 +1116,8 @@ public sealed class MixedVersionClusterPostgresTest
                  [
                      ("one-offs", x => x.TriggerGroup == "one-off"),
                      ("serial job", x => x.JobName == "serial"),
+                     ($"serial job, pinned to {Released}", x => x.TriggerName.StartsWith($"serial-{Released}-", StringComparison.Ordinal)),
+                     ($"serial job, pinned to {WorkingTree}", x => x.TriggerName.StartsWith($"serial-{WorkingTree}-", StringComparison.Ordinal)),
                      ("parents", x => x.JobName == "parent"),
                      ("continuations", x => x.JobName == "continuation"),
                      ("progress", x => x.TriggerGroup == "progress"),
