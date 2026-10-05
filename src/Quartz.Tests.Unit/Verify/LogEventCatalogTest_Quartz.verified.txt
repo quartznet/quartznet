@@ -234,8 +234,8 @@
     "Work the store does after a committed operation failed; the operation stands, and the rest of that work is done"
 3054  Information  AdoJobStoreLog.FiringHandedBack
     "Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is handed back for recovery as trigger {RecoveryTriggerKey}"
-3055  Information  AdoJobStoreLog.FiringRecoveredBeforeHandBack
-    "Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is not handed back: another node has already recovered it"
+3055  Information  AdoJobStoreLog.FiringRowGoneBeforeHandBack
+    "Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is not handed back: its fired-trigger row is gone, because a peer recovered it or its trigger was unscheduled while it ran"
 3100  Debug  AdoJobStoreLog.SqlPrepared
     "Prepared SQL: {Sql}"
 3110  Error  AdoJobStoreLog.ConnectionCloseFailed

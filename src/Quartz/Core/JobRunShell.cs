@@ -330,9 +330,10 @@ internal sealed class JobRunShell
 
                     // A firing the shutdown cancelled, of a job that asked to be recovered, on a store set to
                     // recover such firings: the store stores a recovery trigger for it rather than completing
-                    // it, and settles nothing awaiting it (#4014). Decided here, before any listener hears of
-                    // the firing, so that the execution history can say so. Still a cancellation in every
-                    // other respect: the outcome, the span and the instruction are the ones it always had.
+                    // it, and moves what awaits it onto that trigger (#4014). Decided here, before any
+                    // listener hears of the firing, so that the execution history can say so. Still a
+                    // cancellation in every other respect: the outcome, the span and the instruction are the
+                    // ones it always had.
                     bool handBack = cancelled
                                     && context.CancelledByShutdown
                                     && jobDetail.RequestsRecovery

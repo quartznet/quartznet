@@ -364,9 +364,10 @@ internal abstract partial class AdoJobStoreBase
                 // has no deletion to settle them for — so the count of statements is the locked path's.
                 //
                 // A firing handed back settles nothing either: it has not ended, it has been put back for
-                // recovery to run again. What awaits the trigger is left as a crash would leave it. The
-                // recovery trigger is stored first, before an instruction below can delete the trigger, so
-                // that a job which is not durable still has a trigger when the deletion counts them.
+                // recovery to run again, and what awaits the trigger is moved onto the recovery trigger,
+                // whose firing's outcome it then waits for. Both happen before an instruction below can
+                // delete the trigger, so a job which is not durable still has a trigger when the deletion
+                // counts them, and the deletion finds nothing awaiting to park.
                 bool continuationsSettled = false;
                 if (handBack)
                 {
@@ -503,7 +504,10 @@ internal abstract partial class AdoJobStoreBase
                         triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
                     }
                 }
-                if (jobDetail.PersistJobDataAfterExecution && jobDetail.JobDataMap.Dirty)
+                // Not for a firing handed back: its replay starts from the data this run started with, as
+                // a replay after a crash does, rather than from whatever the run wrote before it was
+                // cancelled part-way.
+                if (!handBack && jobDetail.PersistJobDataAfterExecution && jobDetail.JobDataMap.Dirty)
                 {
                     // Its own catch rather than a Guarded call: the two failures name different
                     // operations - one of them the serialization inside the write - where Guarded

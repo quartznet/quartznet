@@ -83,4 +83,45 @@ public partial class StdAdoDelegate
 
         return stranded;
     }
+
+    /// <summary>
+    /// Moves every <c>AWAITING</c> row waiting on one parent onto another, keeping its condition.
+    /// </summary>
+    internal static readonly string SqlReparentAwaitingContinuations =
+        $"UPDATE {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnContinuesTriggerName} = @{SqlParameters.NewContinuesName}, {AdoConstants.ColumnContinuesTriggerGroup} = @{SqlParameters.NewContinuesGroup}"
+        + $" WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {AdoConstants.ColumnContinuesTriggerName} = @{SqlParameters.TriggerContinuesName} AND {AdoConstants.ColumnContinuesTriggerGroup} = @{SqlParameters.TriggerContinuesGroup}";
+
+    /// <summary>
+    /// Moves every trigger still awaiting <paramref name="from" /> onto <paramref name="to" />, keeping
+    /// the condition it waits on.
+    /// </summary>
+    /// <remarks>
+    /// What a firing handed back for recovery does with the triggers waiting on it (#4014): the recovery
+    /// trigger's firing is the one whose outcome they wait for. Internal, as the sweep above is, so
+    /// <see cref="IDriverDelegate" /> gains no member; a delegate that does not derive from this one
+    /// leaves them on the trigger.
+    /// </remarks>
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="from">The trigger they wait on now.</param>
+    /// <param name="to">The trigger they are to wait on.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>How many triggers were moved.</returns>
+    internal async ValueTask<int> ReparentAwaitingContinuations(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey from,
+        TriggerKey to,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlReparentAwaitingContinuations));
+
+        // Statement order.
+        AddCommandParameter(cmd, SqlParameters.NewContinuesName, to.Name);
+        AddCommandParameter(cmd, SqlParameters.NewContinuesGroup, to.Group);
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(StoredTriggerState.Awaiting));
+        AddCommandParameter(cmd, SqlParameters.TriggerContinuesName, from.Name);
+        AddCommandParameter(cmd, SqlParameters.TriggerContinuesGroup, from.Group);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
