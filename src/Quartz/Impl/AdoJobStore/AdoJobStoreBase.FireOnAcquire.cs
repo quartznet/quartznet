@@ -74,9 +74,12 @@ internal abstract partial class AdoJobStoreBase
         {
             // Acquired without the lock, as it always was; the fire takes the lock in a transaction of its
             // own, which is the scheduler's TriggersFired.
+            AcquiredTriggers acquired = await AcquireNextTriggersWithoutFiring(request, cancellationToken).ConfigureAwait(false);
             return new TriggerAcquisitionResult
             {
-                Pending = await AcquireNextTriggers(request, cancellationToken).ConfigureAwait(false),
+                Pending = acquired.Triggers,
+                Blocked = acquired.Blocked,
+                LatestBlockingFiredUtc = acquired.LatestBlockingFiredUtc,
             };
         }
 
@@ -169,6 +172,8 @@ internal abstract partial class AdoJobStoreBase
                 Due = attempt.Due,
                 Fired = fired,
                 Pending = attempt.Pending,
+                Blocked = attempt.Acquired.Blocked,
+                LatestBlockingFiredUtc = attempt.Acquired.LatestBlockingFiredUtc,
             };
         }
     }
@@ -190,11 +195,11 @@ internal abstract partial class AdoJobStoreBase
     {
         // Every attempt decides for itself, from the clock when it claims its first trigger.
         round.Reset();
-        List<IOperableTrigger> acquired = await AcquireNextTrigger(conn, request, round, cancellationToken).ConfigureAwait(false);
+        AcquiredTriggers acquired = await AcquireNextTrigger(conn, request, round, cancellationToken).ConfigureAwait(false);
 
         List<IOperableTrigger> due = [];
         List<IOperableTrigger> pending = [];
-        foreach (IOperableTrigger trigger in acquired)
+        foreach (IOperableTrigger trigger in acquired.Triggers)
         {
             // Acquisition read the clock when it claimed the first of them, so every one was claimed with
             // the same answer to "is it due".
@@ -212,7 +217,7 @@ internal abstract partial class AdoJobStoreBase
             ? await FireDue(conn, due, round, cancellationToken).ConfigureAwait(false)
             : [];
 
-        return new FireOnAcquireAttempt(due, fired, pending);
+        return new FireOnAcquireAttempt(due, fired, pending, acquired);
     }
 
     /// <summary>
@@ -670,10 +675,12 @@ internal abstract partial class AdoJobStoreBase
 
     /// <summary>
     /// What one attempt at a fire-on-acquire round did: the due triggers with a result for each —
-    /// <see langword="null" /> for one reserved but not fired — and the triggers left pending.
+    /// <see langword="null" /> for one reserved but not fired — the triggers left pending, and what its
+    /// acquisition took, with the due triggers a running firing holds back from it.
     /// </summary>
     private sealed record FireOnAcquireAttempt(
         List<IOperableTrigger> Due,
         TriggerFiredResult?[] Fired,
-        List<IOperableTrigger> Pending);
+        List<IOperableTrigger> Pending,
+        AcquiredTriggers Acquired);
 }

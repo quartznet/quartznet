@@ -40,9 +40,21 @@ internal abstract partial class AdoJobStoreBase
     /// </summary>
     /// <seealso cref="ReleaseAcquiredTrigger(IOperableTrigger, CancellationToken)" />
     /// <inheritdoc />
-    public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
+    public virtual async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
         TriggerAcquisitionRequest request,
         CancellationToken cancellationToken = default)
+    {
+        AcquiredTriggers acquired = await AcquireNextTriggersWithoutFiring(request, cancellationToken).ConfigureAwait(false);
+        return acquired.Triggers;
+    }
+
+    /// <summary>
+    /// <see cref="AcquireNextTriggers" />, saying as well how many due triggers it passed over behind an
+    /// executing job, which <see cref="AcquireNextTriggersAndFireDue" /> hands the scheduler.
+    /// </summary>
+    private ValueTask<AcquiredTriggers> AcquireNextTriggersWithoutFiring(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -68,7 +80,7 @@ internal abstract partial class AdoJobStoreBase
                     {
                         fireInstanceIds.Add(ft.FireInstanceId!);
                     }
-                    foreach (IOperableTrigger tr in result)
+                    foreach (IOperableTrigger tr in result.Triggers)
                     {
                         if (fireInstanceIds.Contains(tr.FireInstanceId!))
                         {
@@ -155,7 +167,7 @@ internal abstract partial class AdoJobStoreBase
     // A round that fires what is due as it acquires it passes its FireOnAcquireRound: a trigger the round
     // fires gets no reservation row here, because its fire writes the row as EXECUTING in the same
     // transaction.
-    private ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
+    private ValueTask<AcquiredTriggers> AcquireNextTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionRequest request,
         FireOnAcquireRound? round,
@@ -174,6 +186,14 @@ internal abstract partial class AdoJobStoreBase
                 // Zero on the first round and on every acquisition that skips nothing, so the ordinary
                 // acquisition reads exactly the count it was asked for.
                 int readAhead = 0;
+
+                // The rows the last read skipped because their job was executing, and the jobs found
+                // executing. Each read past skipped rows returns those rows again, so the last read's
+                // count is the acquisition's; the jobs are remembered from read to read, since a job
+                // found executing is also one whose key the set above already holds, and its rows read
+                // again are skipped by that check before they reach this one.
+                int blocked = 0;
+                HashSet<JobKey>? executingJobs = null;
 
                 do
                 {
@@ -215,7 +235,8 @@ internal abstract partial class AdoJobStoreBase
                     // No trigger is ready to fire yet.
                     if (results.Count == 0)
                     {
-                        return acquiredTriggers;
+                        blocked = 0;
+                        break;
                     }
 
                     // Whether the read stopped at its own limit rather than at the end of what is due,
@@ -229,6 +250,7 @@ internal abstract partial class AdoJobStoreBase
                     int skipped = 0;
                     int raced = 0;
                     bool reachedBatchEnd = false;
+                    blocked = 0;
 
                     // The delegate was told which job types this node will not run, and did not say it
                     // enforces that itself. Dropping them here — on the name the acquisition read already
@@ -323,15 +345,24 @@ internal abstract partial class AdoJobStoreBase
                             if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
                             {
                                 skipped++;
+                                if (executingJobs is not null && executingJobs.Contains(nextTrigger.JobKey))
+                                {
+                                    blocked++;
+                                }
+
                                 continue; // next trigger
                             }
 
                             // Cluster-safe check: skip if job is already executing on another node. The
                             // row stays WAITING, first in the order, and a read of the same length would
-                            // return it again ahead of everything due behind it (#3926).
+                            // return it again ahead of everything due behind it (#3926). Counted apart as
+                            // well: the execution's end is what frees it, and that end may be another
+                            // node's, which nothing tells this one of (#3988).
                             if (await Delegate.IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false))
                             {
+                                (executingJobs ??= []).Add(nextTrigger.JobKey);
                                 skipped++;
+                                blocked++;
                                 continue;
                             }
                         }
@@ -452,11 +483,48 @@ internal abstract partial class AdoJobStoreBase
                     break;
                 } while (true);
 
-                // Return the acquired trigger list
-                return acquiredTriggers;
+                // A round that took nothing says as well how many of this node's pinned triggers a firing on
+                // another node holds BLOCKED. Its read never sees them, and that firing's end wakes only its own
+                // node, so without this the round's node would find them an idle wait later (#3988). Asked only
+                // of a cluster, and only by a round that is about to leave its node idle.
+                PinnedTriggersBlocked pinned = acquiredTriggers.Count == 0 && Clustered
+                    ? await SelectPinnedTriggersBlockedElsewhere(conn, request.NoLaterThan + request.TimeWindow, cancellationToken).ConfigureAwait(false)
+                    : PinnedTriggersBlocked.None;
+
+                return new AcquiredTriggers(acquiredTriggers, blocked + pinned.Count, pinned.LatestBlockingFiredUtc);
             },
             "acquire next trigger");
     }
+
+    /// <summary>
+    /// The triggers pinned to this node and due by <paramref name="noLaterThan" /> that a firing on another
+    /// node holds <c>BLOCKED</c>, and when the latest such firing was fired (#3988).
+    /// </summary>
+    /// <remarks>
+    /// Asked of the delegates Quartz ships, through a member of their own rather than of
+    /// <see cref="IDriverDelegate" />: the answer only says how soon to look again, and a delegate of
+    /// somebody's own that cannot give it leaves its node looking after its idle wait, as before.
+    /// </remarks>
+    /// <param name="conn">The acquisition's connection.</param>
+    /// <param name="noLaterThan">The end of the acquisition's window.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual ValueTask<PinnedTriggersBlocked> SelectPinnedTriggersBlockedElsewhere(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset noLaterThan,
+        CancellationToken cancellationToken)
+    {
+        return Delegate is StdAdoDelegate shipped
+            ? shipped.SelectPinnedTriggersBlockedElsewhere(conn, noLaterThan, cancellationToken)
+            : new ValueTask<PinnedTriggersBlocked>(PinnedTriggersBlocked.None);
+    }
+
+    /// <summary>
+    /// What one acquisition took, and how many due triggers a running firing holds back from it: ones it
+    /// passed over because their job, which disallows concurrent execution, was executing, and — when it
+    /// took nothing — this node's pinned triggers a firing on another node holds <c>BLOCKED</c>, with when
+    /// the latest of those firings was fired.
+    /// </summary>
+    private readonly record struct AcquiredTriggers(List<IOperableTrigger> Triggers, int Blocked, DateTimeOffset? LatestBlockingFiredUtc = null);
 
     /// <summary>
     /// Reads back the triggers an acquisition round has just named, in one statement, keyed by their
@@ -820,7 +888,8 @@ internal abstract partial class AdoJobStoreBase
 
     /// <summary>
     /// Fires one acquired trigger inside the batch's transaction: <see cref="TriggerFiredResult.Fired" />
-    /// with what to run, <see cref="TriggerFiredResult.NotFired" /> when it may not fire after all, or
+    /// with what to run, <see cref="TriggerFiredResult.NotFired" /> when it may not fire after all —
+    /// <see cref="TriggerFiredResult.Blocked" /> when a running firing of its job holds it back — or
     /// <see cref="TriggerFiredResult.Declined" /> when its overlap policy settled it instead.
     /// </summary>
     /// <param name="conn">The batch's transaction.</param>
@@ -857,7 +926,9 @@ internal abstract partial class AdoJobStoreBase
 
         if (header is null || header.State != StoredTriggerState.Acquired)
         {
-            return TriggerFiredResult.NotFired;
+            // BLOCKED is another fire of a job that disallows concurrent execution, which moved this
+            // reservation out of reach when it started (#3926): that firing's end is what lets go of it.
+            return header?.State == StoredTriggerState.Blocked ? TriggerFiredResult.Blocked : TriggerFiredResult.NotFired;
         }
 
         try
@@ -913,7 +984,7 @@ internal abstract partial class AdoJobStoreBase
             if (alreadyExecuting)
             {
                 Logger.ConcurrentExecutionDeclined(trigger.Key, trigger.JobKey);
-                return TriggerFiredResult.NotFired;
+                return TriggerFiredResult.Blocked;
             }
         }
 

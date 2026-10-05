@@ -305,6 +305,33 @@ internal static class StdAdoConstants
         Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State}");
 
     /// <summary>
+    /// Counts the triggers pinned to this node and due by <c>@noLaterThan</c> that are <c>BLOCKED</c>
+    /// behind a firing on another node — no fired-trigger row of their job is this node's — and says when
+    /// the latest of the firings holding them was fired (#3988).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A pinned trigger is the one such row only its own node may fire, so the end of the firing holding
+    /// it, which wakes the node it ran on, wakes nobody who can. An acquisition that found nothing asks
+    /// this, so its node looks again soon rather than after its idle wait, and sooner again once the job
+    /// has changed hands: a later fire time is a firing that started after the last look. A row held by a
+    /// firing on this node is left out, since that firing's end wakes this node itself.
+    /// </para>
+    /// <para>
+    /// The count is of rows the join returns: a trigger whose job somehow has two firings is counted
+    /// twice, which says no more than that something holds it. <c>@instanceId</c> and
+    /// <c>@instanceName</c> are bound to the same value, because each named parameter is referenced once
+    /// for providers that bind positionally.
+    /// </para>
+    /// </remarks>
+    public static readonly string SqlSelectPinnedTriggersBlockedElsewhere =
+        Invariant($@"SELECT COUNT(t.{AdoConstants.ColumnTriggerName}), MAX(f.{AdoConstants.ColumnFiredTime})
+              FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t
+              LEFT JOIN {TablePrefixSubst}{AdoConstants.TableFiredTriggers} f ON (f.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND f.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName} AND f.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup})
+              WHERE t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND t.{AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NoLaterThan} AND t.{AdoConstants.ColumnPreferredNode} = @{SqlParameters.InstanceId}
+                AND NOT EXISTS (SELECT o.{AdoConstants.ColumnEntryId} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} o WHERE o.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND o.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName} AND o.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND o.{AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName})");
+
+    /// <summary>
     /// Sentinel stored in PREFERRED_NODE to request auto-pin that has not yet been claimed by
     /// any node. Distinct from a node name, and never itself flagged as auto-claimed.
     /// </summary>

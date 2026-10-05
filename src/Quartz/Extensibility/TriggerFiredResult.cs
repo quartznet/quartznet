@@ -45,6 +45,18 @@ public sealed class TriggerFiredResult
     public static TriggerFiredResult NotFired { get; } = new(triggerFiredBundle: null, exception: null);
 
     /// <summary>
+    /// <see cref="NotFired" />, because a firing of the trigger's job, which disallows concurrent
+    /// execution, is running. The scheduler releases the trigger, and looks for it again soon rather
+    /// than after its idle wait: the firing may be on another node, whose end it is not told of (#3988).
+    /// </summary>
+    /// <remarks>
+    /// Internal: the ADO.NET store is the one that answers it. A store whose blocking firings all end on
+    /// the scheduler it answers — the in-memory one — has that firing's completion wake the scheduler,
+    /// and answers <see cref="NotFired" />.
+    /// </remarks>
+    internal static TriggerFiredResult Blocked { get; } = new(triggerFiredBundle: null, exception: null) { IsBlocked = true };
+
+    /// <summary>
     /// The trigger did not fire, and the store has already put it where it belongs: it skipped the
     /// firing, or held the trigger back until an earlier firing of it ends. The scheduler neither runs
     /// nor releases anything.
@@ -83,4 +95,10 @@ public sealed class TriggerFiredResult
     /// Whether this is <see cref="Declined" />: not fired, and already settled by the store.
     /// </summary>
     public bool IsDeclined { get; private init; }
+
+    /// <summary>
+    /// Whether this is <see cref="Blocked" />: not fired, because a firing of the job that holds it back
+    /// is running.
+    /// </summary>
+    internal bool IsBlocked { get; private init; }
 }

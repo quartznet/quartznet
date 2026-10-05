@@ -110,6 +110,26 @@ internal sealed class QuartzSchedulerThread
     private static readonly TimeSpan pausedWaitCheckInterval = TimeSpan.FromSeconds(1);
 
     /// <summary>
+    /// How long a round that acquired nothing waits before the loop looks again, the first time, once due
+    /// work is blocked behind a running firing of a job that disallows concurrent execution. Each such
+    /// round after it waits twice as long, up to the idle wait (#3988).
+    /// </summary>
+    internal static readonly TimeSpan BlockedRetryStart = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// How long the next round that acquires nothing waits before the loop looks again, while due work is
+    /// blocked behind a firing whose end this loop may not be told of; <see cref="TimeSpan.Zero" /> when
+    /// none is, which leaves such a round its idle wait. Only the loop reads and writes it.
+    /// </summary>
+    private TimeSpan blockedRetry;
+
+    /// <summary>
+    /// When the latest firing holding this node's pinned triggers was fired, as the last round that found
+    /// any held said. Only the loop reads and writes it.
+    /// </summary>
+    private DateTimeOffset? lastBlockingFiredUtc;
+
+    /// <summary>
     /// Gets the randomized idle wait time.
     /// </summary>
     /// <value>The randomized idle wait time.</value>
@@ -470,6 +490,12 @@ internal sealed class QuartzSchedulerThread
                 // time as of this reading, so a clock that has moved since must end that wait at once
                 // rather than start it again from the new time.
                 DateTimeOffset now;
+
+                // Whether the store says due triggers are held back behind a running firing this round,
+                // which shortens the wait at the bottom of the loop when the round acquired nothing, and
+                // when the latest firing holding them was fired.
+                bool heldBack = false;
+                DateTimeOffset? blockingFiredUtc = null;
                 if (availThreadCount > 0)
                 {
                     List<IOperableTrigger> triggers;
@@ -550,6 +576,8 @@ internal sealed class QuartzSchedulerThread
                     // releasing the other — not even an instrument or a logger that throws, which is why
                     // they are not in the call's try above, whose catches just go round again (#3864).
                     acquiresFailed = 0;
+                    heldBack = acquisition.Blocked > 0;
+                    blockingFiredUtc = acquisition.LatestBlockingFiredUtc;
 
                     // Copied on purpose, and IJobStore.AcquireNextTriggers says so: this loop removes entries
                     // below while it waits out the first trigger's fire time, and the store is allowed to
@@ -703,7 +731,7 @@ internal sealed class QuartzSchedulerThread
                     // while (!halted)
                 }
 
-                TimeSpan timeUntilContinue = GetRandomizedIdleWaitTime();
+                TimeSpan timeUntilContinue = GetWaitAfterEmptyRound(heldBack, blockingFiredUtc);
                 if (!halted && !IsScheduleChanged())
                 {
                     // The next look is when this wait ends.
@@ -815,6 +843,69 @@ internal sealed class QuartzSchedulerThread
     }
 
     /// <summary>
+    /// How long a round that acquired nothing waits before the loop looks again: its idle wait, or less
+    /// while due work is blocked behind a running firing whose end this loop may not be told of.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A firing of a job that disallows concurrent execution holds the job's other triggers back until it
+    /// ends, and its end wakes the scheduler it ran on. On a cluster that may be another node, so this one
+    /// would find a trigger held back behind it — one it could not fire, one the store passed over, or one
+    /// pinned to it — only after its idle wait, and a pinned trigger, which no other node may fire, waited
+    /// that long every time (#3988). So the loop looks again after <see cref="BlockedRetryStart" />, and
+    /// after twice as long each time it still finds nothing, until the wait is the idle wait: a job that
+    /// runs for hours elsewhere costs a handful of looks, not a poll.
+    /// </para>
+    /// <para>
+    /// A trigger the loop could not fire starts the count again, as it is fresh news. So does a round
+    /// whose held triggers are held by a later firing than the last round's: the job ended and was taken
+    /// again in between, and a job changing hands that often frees up often too. Otherwise a round the
+    /// store says triggers are held back in starts the count only when it is not running already, since
+    /// the store says so of the same triggers every round until the firing ends, and while it does the
+    /// wait stays at the idle wait rather than starting over. A round with no such news lets the count run
+    /// out. Nothing changes for a loop with nothing held back: every wait is the idle wait, as it was.
+    /// </para>
+    /// </remarks>
+    /// <param name="heldBack">Whether the store said due triggers are held back behind a running firing this round.</param>
+    /// <param name="blockingFiredUtc">When the latest firing holding this node's pinned triggers was fired, if the store said.</param>
+    private TimeSpan GetWaitAfterEmptyRound(bool heldBack, DateTimeOffset? blockingFiredUtc)
+    {
+        TimeSpan idleWait = GetRandomizedIdleWaitTime();
+
+        if (heldBack)
+        {
+            bool changedHands = blockingFiredUtc is not null && blockingFiredUtc != lastBlockingFiredUtc;
+            lastBlockingFiredUtc = blockingFiredUtc;
+
+            if (blockedRetry == TimeSpan.Zero || changedHands)
+            {
+                blockedRetry = BlockedRetryStart;
+            }
+        }
+
+        if (blockedRetry == TimeSpan.Zero)
+        {
+            return idleWait;
+        }
+
+        TimeSpan wait = blockedRetry < idleWait ? blockedRetry : idleWait;
+
+        // Doubled while that is still short of the idle wait; written as a comparison with the remainder
+        // so that a configured idle wait near the limit of a TimeSpan cannot overflow it.
+        TimeSpan limit = qsRsrcs.IdleWaitTime;
+        if (blockedRetry < limit - blockedRetry)
+        {
+            blockedRetry += blockedRetry;
+        }
+        else
+        {
+            blockedRetry = heldBack ? limit : TimeSpan.Zero;
+        }
+
+        return wait;
+    }
+
+    /// <summary>
     /// Measures and logs an acquisition the store has answered.
     /// </summary>
     /// <param name="measured">Whether anything is collecting the acquisition instruments.</param>
@@ -868,6 +959,14 @@ internal sealed class QuartzSchedulerThread
             // fired at this time...  or if the scheduler was shutdown (halted)
             if (bndle is null)
             {
+                // Held back by a running firing of its job, which may be on another node: nothing will
+                // tell this loop when that firing ends, so it looks again soon, and then less and less
+                // often (#3988). Every such trigger starts the count again, as it is fresh news.
+                if (result.IsBlocked)
+                {
+                    blockedRetry = BlockedRetryStart;
+                }
+
                 // A firing its overlap policy declined is one the store has settled
                 // already - skipped past, or held behind the running firing - and a
                 // release would undo that.

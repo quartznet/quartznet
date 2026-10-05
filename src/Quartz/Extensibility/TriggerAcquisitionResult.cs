@@ -70,4 +70,25 @@ public sealed class TriggerAcquisitionResult
         get => field ??= [];
         init;
     }
+
+    /// <summary>
+    /// How many due triggers a running firing holds back from this scheduler: ones the store passed over
+    /// because a job of theirs that disallows concurrent execution was executing, and, in a round that
+    /// acquired nothing, triggers pinned to this node that a firing on another node holds blocked. A round
+    /// that acquired nothing and says some are held has the scheduler look again soon rather than after its
+    /// idle wait: it is not told when a firing on another node ends (#3988).
+    /// </summary>
+    /// <remarks>
+    /// Internal, as <see cref="TriggerFiredResult.Blocked" /> is: the clustered ADO.NET store is the one
+    /// that can be held back by a firing it does not run. The in-memory store's firings all end on the
+    /// scheduler it answers, and their end wakes it.
+    /// </remarks>
+    internal int Blocked { get; init; }
+
+    /// <summary>
+    /// When the latest of the firings on another node that hold this node's pinned triggers was fired, if
+    /// any does. A later one than the last round saw is the job having ended and been taken again in
+    /// between, so the scheduler starts looking soon again rather than less and less often.
+    /// </summary>
+    internal DateTimeOffset? LatestBlockingFiredUtc { get; init; }
 }
