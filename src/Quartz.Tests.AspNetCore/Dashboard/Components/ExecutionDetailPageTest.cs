@@ -175,6 +175,24 @@ public class ExecutionDetailPageTest
     }
 
     [Test]
+    public void ARunAgainTheSchedulerRefusesIsLoggedAsFailed()
+    {
+        GivenExecution(Entry() with { Succeeded = false, Input = "{}" });
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<JobKeyDto>._, A<JobDataMap?>._, A<CancellationToken>._))
+            .Throws(new SchedulerException("the job no longer exists"));
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+        page.WaitForAssertion(() => page.Find("[data-testid=execution-run-again]"));
+        page.Find("[data-testid=execution-run-again]").Click();
+
+        page.WaitForAssertion(() => context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("the job no longer exists"));
+        context.ActionLog.GetLatest().Should().ContainSingle()
+            .Which.Should().Match<DashboardActionLogEntry>(entry => entry.Action == "TriggerJobWithData" && !entry.Succeeded,
+                "a refused mutation is recorded as one, under the name of what was asked for");
+    }
+
+    [Test]
     public void AnInputTooLargeToRecordIsSaidToBe()
     {
         GivenExecution(Entry() with { Succeeded = false, InputTooLarge = true });
