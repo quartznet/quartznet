@@ -27,6 +27,7 @@ never disagree about what an id means:
 | 8000–8999 | `Quartz.Extensions.Redis` | Redis |
 | 9000–9099 | `Quartz.AspNetCore` | the HTTP API |
 | 9100–9199 | `Quartz.Dashboard` | the dashboard |
+| 9200–9299 | `Quartz.HttpClient` | the HTTP client |
 | 10000–10099 | `Quartz.Weasel` | Weasel schema management, for every dialect package |
 
 Quartz logs through `Microsoft.Extensions.Logging` and writes nothing above `Error`, so a
@@ -371,6 +372,10 @@ matching on its text is not.
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |
 | 9103 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} closed for user {User}"` |
 | 9104 | Warning | `Quartz.Dashboard` | `"Forwarding scheduler {SchedulerName} events to the dashboard hub stopped"` |
+| 9200 | Warning | `Quartz.HttpClient` | `"Skipped live events of kind {Kind} from scheduler {SchedulerName}: this version of Quartz.HttpClient does not know the kind. Upgrade the client to receive them."` |
+| 9201 | Warning | `Quartz.HttpClient` | `"Skipped a live event of kind {Kind} from scheduler {SchedulerName} that could not be read."` |
+| 9202 | Warning | `Quartz.HttpClient` | `"Left a {Item} out of a listing from scheduler {SchedulerName}: its {EnumType} is {Name}, which this version of Quartz.HttpClient does not know. Upgrade the client to list it."` |
+| 9203 | Information | `Quartz.HttpClient` | `"Read the {EnumType} {Name} from scheduler {SchedulerName} as {ReadAs}: this version of Quartz.HttpClient does not know the name."` |
 | 10000 | Information | `Quartz.Weasel` | `"Applied the schema changes scheduler '{SchedulerName}' needs to {Database} ({Difference})"` |
 | 10001 | Debug | `Quartz.Weasel` | `"The schema of scheduler '{SchedulerName}' in {Database} already matches the model"` |
 | 10002 | Information | `Quartz.Weasel` | `"Not applying the schema of scheduler '{SchedulerName}' at startup, because AutoCreate is {AutoCreate}; the store still validates it"` |

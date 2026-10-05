@@ -68,6 +68,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | HTTP: `GET …/history/job-status`, `GET …/history/job-status/{jobGroup}/{jobName}`, `POST …/history/job-status/fetch` | See [Job run status](packages/http-api.md#job-run-status). `501` when the store keeps no status |
 | HTTP: `result`, `summary`, `metrics`, `manual`, `fireInstanceId` on an execution row | `metrics` is a JSON object |
 | Log event `9008` | Debug: a status route answered `501` |
+| Log events `9200`–`9203` | `Quartz.HttpClient`, a new range: a live event skipped, a listing item left out, a name read as another. See [A host newer than the client](packages/http-client.md#a-host-newer-than-the-client) |
 | `IScheduler.PauseTriggersWith`, `PauseJobsWith`; the same on `IJobStore` | A set of keys paused with a `PauseDetails`, in one call. Default interface members. See [Pausing with a Reason](how-tos/pausing-with-a-reason.md) |
 | `IQuartzApiClient.PauseTriggersWith`, `PauseJobsWith` | `Quartz.Dashboard`. Default interface members |
 | HTTP: `reason`, `requestedBy` on the `…/triggers/keys/pause` and `…/jobs/keys/pause` bodies | Optional. See [A pause can say why](packages/http-api.md#a-pause-can-say-why) |
@@ -161,6 +162,22 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   GET /quartz-api/schedulers/QuartzScheduler/history/misfires?reasons=Missed,Overlap,Vetoed
   ```
 
+* **`Quartz.HttpClient` reads a name it does not know**
+  ([#4017](https://github.com/quartznet/quartznet/issues/4017)). 4.3 failed the whole call on one, and one
+  unknown event kind ended the event subscription. Now an unknown kind's frame is skipped, an unknown status
+  reads `Unknown`, and a listed item in an unknown state is left out and logged (`9202`). A single read of one
+  still throws `JsonException`, now naming the value. The table is in
+  [A host newer than the client](packages/http-client.md#a-host-newer-than-the-client). A page can hold fewer
+  items than its `TotalCount` says; the log names what was left out. A body member the client does not know is
+  skipped even when your `JsonSerializerOptions` set `UnmappedMemberHandling.Disallow`. Drop a guard that
+  caught a newer host's listing:
+
+  ```diff
+  - try { page = await scheduler.QueryTriggers(query); }
+  - catch (JsonException) { page = new PagedResult<TriggerHeader>([], HasMore: false); } // a newer host
+  + page = await scheduler.QueryTriggers(query); // a trigger the client cannot read is left out and logged
+  ```
+
 * **`Quartz.Weasel.SQLite` rebuilds a table that carries your own columns, indexes or foreign keys.** 4.3
   refused the apply with a `SchedulerException` ("Weasel would rebuild table …") and changed nothing. The
   rebuild now keeps those objects and their rows. Drop any workaround that removed them before an apply.
@@ -211,6 +228,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 * A 4.3 node still records "Job threw an unhandled exception" for a job that throws; a 4.4 node records the
   job's own message.
 * A 4.3 dashboard or HTTP client reads a 4.4 host's misfire listing: the host leaves `Vetoed` out for it.
+* A 4.3 dashboard or HTTP client still fails on any name it does not know. A 4.4 one reads a later host's new
+  names; see [A host newer than the client](packages/http-client.md#a-host-newer-than-the-client).
 * A 4.4 dashboard or HTTP client reading a 4.3 host: the new history filters throw `NotSupportedException`
   rather than return unfiltered rows, and there is no run status. The dashboard says so and leaves the status
   out. Upgrade the hosts to use them.

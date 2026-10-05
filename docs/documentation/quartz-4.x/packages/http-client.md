@@ -188,10 +188,35 @@ The wire carries data, not objects.
   the side that resolves the type decide. A job whose type the answering process cannot resolve reports `null`,
   not `false`, instead of failing.
 - **Enums are names.** `status`, `state`, `repeatIntervalUnit`, `daysOfWeek` and the rest travel as the C#
-  member name; the names are the contract. Numeric forms are still accepted on input, for older clients.
+  member name; the names are the contract. Numeric forms are still accepted on input, for older clients. A
+  name the client does not know is read as in [A host newer than the client](#a-host-newer-than-the-client).
 - **Names travel escaped.** Any character reaches the server as written, except in a path: a name containing `/`,
   or one that is `.` or `..`, is refused with `ArgumentException`. See
   [Names in a path](http-api.md#names-in-a-path).
+
+## A host newer than the client
+
+From 4.4 the client reads a name it does not know instead of failing the call. A host can add an enum member,
+an event kind or a body member, and a 4.4 client keeps working.
+
+| The host sends a name the client does not know in | The client |
+|---|---|
+| an event's `kind` | skips the frame; the subscription carries on |
+| `status` (`SchedulerStatus`) | reads `Unknown` |
+| a trigger's `overlapPolicy` | reads `Default`, as a trigger body does |
+| an execution's `result` | reads `null`, as on a row before 4.4; `EffectiveResult` follows `Succeeded` |
+| a trigger's `continuationCondition` | reads `null` |
+| `ScheduleTrigger`'s `outcome` | reads `null`, returned as `ScheduleOutcome.Created` |
+| a listed trigger's, firing's or node's `state`; a misfire's `reason`; a job status's `lastResult` | leaves that item out of the listing; `totalCount` still counts it |
+| `GetTriggerState`, `GetTriggerPause` (`state`), `GetJobRunStatus` (`lastResult`) | throws `JsonException` naming the value |
+| `GetExecutionLimits` (`scope`) | throws `JsonException`, so a limit is never dropped or written back changed |
+| any body, as a member | skips the member, whatever `UnmappedMemberHandling` your options set |
+
+- Each name is logged once per client, under the category `Quartz.HttpClient`: events `9200`–`9203` in
+  [Log Events](../log-events.md). Without a container, the client logs through `LogProvider.SetLogProvider`.
+- A malformed frame is skipped and logged too (`9201`). A malformed listing still fails.
+- A 4.3 client fails on any name it does not know, so a host keeps new names from it: see
+  [Enums travel as names](http-api.md#enums-travel-as-names).
 
 ## What is not supported remotely
 
@@ -322,6 +347,8 @@ seam over the reader may be added later.
 - Nothing is replayed across a reconnection. For what fell into the gap, use the
   [history routes](http-api.md#execution-history).
 - Heartbeats are consumed by the reader (to tell a quiet scheduler from a dead connection), not passed on.
+- From 4.4, a frame of a kind the reader does not know, or one it cannot read, is skipped and logged once per
+  kind. The frames after it are delivered.
 
 Retried: a refused connection, a dropped socket, a gateway error, the client's own timeout. Reported, ending the
 enumeration:
