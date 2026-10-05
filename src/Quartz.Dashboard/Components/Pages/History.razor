@@ -10,6 +10,7 @@
 @inject NavigationManager Navigation
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
+@inject Microsoft.JSInterop.IJSRuntime JsRuntime
 
 <div class="qz-page">
     <h1>Execution History</h1>
@@ -156,8 +157,8 @@
                 @foreach (DashboardHistoryEntry entry in _entries)
                 {
                     <tr>
-                        <td class="qz-col-key"><KeyBadge GroupName="@entry.JobGroup" ItemName="@entry.JobName" /></td>
-                        <td class="qz-col-key"><KeyBadge GroupName="@entry.TriggerGroup" ItemName="@entry.TriggerName" /></td>
+                        <td class="qz-col-key" data-testid="history-job">@KeyCell(entry.JobGroup, entry.JobName)</td>
+                        <td class="qz-col-key" data-testid="history-trigger">@KeyCell(entry.TriggerGroup, entry.TriggerName)</td>
                         <td class="qz-col-node qz-table-cell-mono qz-history-node" title="@NodeLabel(entry.SchedulerInstanceId)">@NodeLabel(entry.SchedulerInstanceId)</td>
                         <td class="qz-col-fired">
                             @* The fire time is the link to the row's own page, which carries its log. A
@@ -282,6 +283,7 @@
 
 @code {
     private readonly List<DashboardHistoryEntry> _entries = [];
+    private string? _copiedKey;
     private bool _isLoading = true;
     private string? _error;
     private int _page = 1;
@@ -1009,6 +1011,69 @@
     private string FormatFiredAt(DateTimeOffset? firedAtUtc)
     {
         return Scheduler.FormatInSelectedTimeZone(firedAtUtc, "u");
+    }
+
+    /// <summary>
+    /// A key as the listing shows it: the name, which is what tells one row from the next, over its group,
+    /// each cut with an ellipsis, the whole key in the title, and a copy button the size of an icon.
+    /// </summary>
+    /// <remarks>
+    /// Not <see cref="KeyBadge" />, which reads <c>group.name</c> from the left: in a column this narrow that
+    /// left every row showing the same group and none of its name.
+    /// </remarks>
+    private RenderFragment KeyCell(string group, string name)
+    {
+        string key = DisplayValueHelper.FormatKey(group, name);
+        bool copied = string.Equals(_copiedKey, key, StringComparison.Ordinal);
+
+        return @<span class="qz-history-key" title="@key">
+            <span class="qz-history-key-text">
+                <span class="qz-history-key-name">@name</span>
+                <span class="qz-history-key-group">@group</span>
+            </span>
+            <button type="button"
+                    class="qz-history-key-copy"
+                    aria-label="@(copied ? "Copied " + key : "Copy " + key)"
+                    title="@(copied ? "Copied" : "Copy " + key)"
+                    @onclick="() => CopyKeyAsync(key)"
+                    @onclick:stopPropagation="true"
+                    @onclick:preventDefault="true">
+                @if (copied)
+                {
+                    <span aria-hidden="true">&#10003;</span>
+                }
+                else
+                {
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                        <path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h1" />
+                    </svg>
+                }
+            </button>
+        </span>;
+    }
+
+    /// <summary>
+    /// Copies a key to the clipboard through the same script the key badges use, and marks it copied.
+    /// </summary>
+    private async Task CopyKeyAsync(string key)
+    {
+        try
+        {
+            _copiedKey = await JsRuntime.InvokeAsync<bool>("quartzDashboardClipboard.copyText", new object?[] { key }) ? key : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            _copiedKey = null;
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            _copiedKey = null;
+        }
+        catch (InvalidOperationException)
+        {
+            _copiedKey = null;
+        }
     }
 
     /// <summary>The date half of <see cref="FormatFiredAt" />, which the listing puts on a line of its own.</summary>

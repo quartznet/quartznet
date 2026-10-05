@@ -391,6 +391,36 @@ public class HistoryPageTest
     }
 
     /// <summary>
+    /// A key reads name first, group second: in a narrow column a key read from the left showed every row's
+    /// group and none of its name, so the rows looked the same.
+    /// </summary>
+    [Test]
+    public void AKeyShowsItsNameOverItsGroupAndCopiesWhole()
+    {
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false));
+        context.JSInterop.Setup<bool>("quartzDashboardClipboard.copyText", "DummyGroup.DummyJob").SetResult(true);
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        IElement job = page.Find("[data-testid=history-job] .qz-history-key");
+        job.QuerySelector(".qz-history-key-text")!.Children.Select(part => (part.ClassName, part.TextContent)).Should().Equal(
+            [("qz-history-key-name", "DummyJob"), ("qz-history-key-group", "DummyGroup")],
+            "the name is what tells one row from the next, so it comes first");
+        job.GetAttribute("title").Should().Be("DummyGroup.DummyJob", "the whole key is readable on hover");
+
+        IElement trigger = page.Find("[data-testid=history-trigger] .qz-history-key");
+        trigger.QuerySelector(".qz-history-key-name")!.TextContent.Should().Be("CronTriggerKey");
+        trigger.QuerySelector(".qz-history-key-group")!.TextContent.Should().Be("CronTriggerGroup");
+
+        job.QuerySelector("button.qz-history-key-copy")!.Click();
+
+        context.JSInterop.VerifyInvoke("quartzDashboardClipboard.copyText")
+            .Arguments.Should().Equal(["DummyGroup.DummyJob"], "the copy is of the key as Quartz writes it, group first");
+        page.WaitForAssertion(() => page.Find("[data-testid=history-job] button.qz-history-key-copy")
+            .GetAttribute("aria-label").Should().Be("Copied DummyGroup.DummyJob"));
+    }
+
+    /// <summary>
     /// The stylesheet hides the node column, rather than the actions, when the screen is too narrow for both.
     /// </summary>
     [Test]
