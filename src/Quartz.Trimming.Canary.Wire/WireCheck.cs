@@ -64,7 +64,10 @@ internal static class WireCheck
     /// <summary>
     /// Runs every step, writing a line for each, and says whether all of them passed.
     /// </summary>
-    public static async Task<bool> Run(IServiceProvider client, CancellationToken cancellationToken)
+    /// <param name="client">The client of the scheduler the host serves.</param>
+    /// <param name="newerHost">A client of the canned answers <see cref="NewerHost" /> serves.</param>
+    /// <param name="cancellationToken">Bounds the whole run.</param>
+    public static async Task<bool> Run(IServiceProvider client, IServiceProvider newerHost, CancellationToken cancellationToken)
     {
         IScheduler scheduler = client.GetRequiredService<IScheduler>();
         IExecutionHistoryStore history = client.GetRequiredKeyedService<IExecutionHistoryStore>(Program.SchedulerName);
@@ -80,6 +83,7 @@ internal static class WireCheck
             ("trigger", () => Trigger(scheduler, cancellationToken)),
             ("history", () => History(history, cancellationToken)),
             ("delete", () => Delete(scheduler, cancellationToken)),
+            ("newer-host", () => NewerHostListing(newerHost.GetRequiredService<IScheduler>(), cancellationToken)),
         ];
 
         foreach ((string name, Func<Task<string>> step) in steps)
@@ -250,6 +254,22 @@ internal static class WireCheck
         Expect(await scheduler.GetTrigger(TriggerKey, cancellationToken).ConfigureAwait(false) is null, "the trigger outlived its job.");
 
         return $"{JobKey} and its trigger are gone";
+    }
+
+    /// <summary>
+    /// A listing from a host newer than this client, carrying names this client has no member for.
+    /// </summary>
+    private static async Task<string> NewerHostListing(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery { Take = 10 }, cancellationToken).ConfigureAwait(false);
+
+        Expect(page.Items.Count == 1 && page.Items[0].Key.Name == "known",
+            $"the listing came back with {page.Items.Count} trigger(s): {string.Join(", ", page.Items.Select(x => x.Key))}; only the trigger in a state this client knows belongs.");
+        Expect(page.Items[0].OverlapPolicy == OverlapPolicy.Default,
+            $"an overlap policy this client does not know came back as {page.Items[0].OverlapPolicy}, not Default.");
+        Expect(page.TotalCount == 2, $"the host counted 2 triggers, and the listing says {page.TotalCount}.");
+
+        return "a trigger in the state 'Hibernating' is left out, and the overlap policy 'Staggered' reads as Default";
     }
 
     private static void Expect([DoesNotReturnIf(false)] bool condition, string failure)
