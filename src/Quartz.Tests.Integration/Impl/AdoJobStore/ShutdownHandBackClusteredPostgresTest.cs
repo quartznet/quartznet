@@ -6,7 +6,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
 /// A node shutting down hands a cancelled firing of a job that requests recovery back to the cluster:
-/// a peer runs it again at once, rather than a check-in timeout later or never (#4014).
+/// a peer runs it again on its next acquisition, rather than a check-in timeout later or never (#4014).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -41,7 +41,7 @@ public sealed class ShutdownHandBackClusteredPostgresTest : ClusteredPostgresTes
     /// again as a recovery, well inside the time cluster recovery would take.
     /// </summary>
     [Test]
-    public async Task APeerRunsAHandedBackFiringAtOnce()
+    public async Task APeerRunsAHandedBackFiringOnItsNextAcquisition()
     {
         IScheduler nodeA = await CreateNode("handBackNodeA", recover: true);
         IScheduler nodeB = await CreateNode("handBackNodeB", recover: true);
