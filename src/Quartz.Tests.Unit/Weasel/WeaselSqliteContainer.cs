@@ -49,9 +49,11 @@ internal sealed class WeaselSqliteContainer : IAsyncDisposable
         string connectionString,
         string schedulerName,
         string tablePrefix = "QRTZ_",
-        Action<SqliteWeaselOptions>? configure = null)
+        Action<SqliteWeaselOptions>? configure = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         ServiceCollection services = new();
+        configureServices?.Invoke(services);
         services.AddQuartz(q =>
         {
             q.ConfigureScheduler(options => options.InstanceName = schedulerName);

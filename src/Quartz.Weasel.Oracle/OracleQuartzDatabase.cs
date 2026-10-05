@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Data.Common;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -53,8 +54,9 @@ namespace Quartz.Weasel.Oracle;
 /// There is no global lock. Oracle's only lock a session can name, <c>DBMS_LOCK</c>, needs an
 /// <c>EXECUTE</c> grant from a DBA that the store itself never needs, and without it the package is not
 /// even visible. Appliers therefore race, the way <c>ProvisionSchema()</c> does on Oracle: every
-/// <c>CREATE TABLE</c> Weasel issues is guarded, the loser of any other statement fails, and a failure is
-/// answered by reading the schema again — done when another process finished it, retried when it has not.
+/// <c>CREATE TABLE</c> Weasel issues is guarded, the loser of any other statement fails, and a failure a
+/// lost race raises (<see cref="LostRaceErrors" />) is answered by reading the schema again — done when
+/// another process finished it, retried when it has not. Any other failure is not retried.
 /// <see cref="IDatabase.ApplyAllConfiguredChangesToDatabaseAsync" /> is re-implemented here for that.
 /// </para>
 /// </remarks>
@@ -71,11 +73,27 @@ internal sealed class OracleQuartzDatabase : DatabaseBase<OracleConnection>, IQu
     };
 
     /// <summary>
-    /// How many times an apply that failed is read again and retried before the failure stands: as many
-    /// as <c>ProvisionSchema()</c> gives a create that lost a race, for the same reason — two appliers fill
-    /// in each other's gaps rather than wait for each other, and converge in a round or two.
+    /// How many applies are made, each losing a race, before the failure stands: as many as
+    /// <c>ProvisionSchema()</c> gives a create that lost a race, for the same reason — two appliers fill in
+    /// each other's gaps rather than wait for each other, and converge in a round or two.
     /// </summary>
     internal const int ApplyAttempts = 10;
+
+    /// <summary>
+    /// The errors a statement raises when another applier made the same change first, or when another
+    /// session is busy with the table: each one raised by a real server in <c>OracleWeaselSchemaTest</c>.
+    /// </summary>
+    /// <remarks>
+    /// <list type="table">
+    /// <item><term>ORA-00054</term><description>an index on a table another session is writing to</description></item>
+    /// <item><term>ORA-00955</term><description>the table or index name is taken, guarded <c>CREATE TABLE</c> included</description></item>
+    /// <item><term>ORA-01418</term><description>the index to drop is gone</description></item>
+    /// <item><term>ORA-01430</term><description>the column to add is there</description></item>
+    /// <item><term>ORA-02260</term><description>the table has its primary key</description></item>
+    /// <item><term>ORA-02275</term><description>the foreign key is there</description></item>
+    /// </list>
+    /// </remarks>
+    internal static readonly int[] LostRaceErrors = [54, 955, 1418, 1430, 2260, 2275];
 
     private const string CurrentSchemaSql = "SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL";
 
@@ -174,10 +192,15 @@ internal sealed class OracleQuartzDatabase : DatabaseBase<OracleConnection>, IQu
         LockFreeApply.ApplyAsync(
             this,
             cancellationToken => ApplyAllConfiguredChangesToDatabaseAsync(@override, reconnectionOptions, cancellationToken),
+            IsLostRace,
             ApplyAttempts,
             RetryDelay,
             timeProvider,
             ct);
+
+    /// <summary>Whether Oracle's error is one of <see cref="LostRaceErrors" />.</summary>
+    internal static bool IsLostRace(DbException exception) =>
+        exception is OracleException oracle && LostRaceErrors.Contains(oracle.Number);
 
     /// <summary>
     /// The session's current schema, which is where the store's unqualified SQL resolves a table: the

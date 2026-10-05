@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Data.Common;
+
 using FirebirdSql.Data.FirebirdClient;
 
 using JasperFx;
@@ -39,10 +41,10 @@ namespace Quartz.Weasel.Firebird;
 /// There is no global lock, as on SQLite: Weasel.Firebird ships none, because a lock held in a
 /// transaction on the migration's own connection would break the one-transaction-per-statement way it
 /// applies DDL. Every statement it runs is guarded instead, and a guarded statement that loses a
-/// catalog race is run again by Weasel itself. What is left — a failure that outlasts those retries —
-/// is answered the way <c>ProvisionSchema()</c> answers a lost race: by reading the schema again, and
-/// finding that nothing is left to do. <see cref="IDatabase.ApplyAllConfiguredChangesToDatabaseAsync" />
-/// is re-implemented here for that.
+/// catalog race is run again by Weasel itself. What is left — a race failure that outlasts those retries
+/// (<see cref="LostRaceErrors" />) — is answered the way <c>ProvisionSchema()</c> answers a lost race: by
+/// reading the schema again, and finding that nothing is left to do. Any other failure is not retried.
+/// <see cref="IDatabase.ApplyAllConfiguredChangesToDatabaseAsync" /> is re-implemented here for that.
 /// </para>
 /// <para>
 /// Every name the model would create is checked against the identifier limit when the database is
@@ -67,8 +69,37 @@ internal sealed class FirebirdQuartzDatabase : DatabaseBase<FbConnection>, IQuar
     /// </summary>
     internal const int LongestNameBeyondThePrefix = 25;
 
-    /// <summary>How many times an apply that failed is read again and retried before the failure stands.</summary>
+    /// <summary>How many applies are made, each losing a race, before the failure stands.</summary>
     private const int ApplyAttempts = 3;
+
+    /// <summary><c>unsuccessful metadata update</c>, which heads every failed DDL statement.</summary>
+    private const int UnsuccessfulMetadataUpdate = 335544351;
+
+    /// <summary><c>too many keys defined for index</c>.</summary>
+    private const int TooManyKeys = 335544631;
+
+    /// <summary>
+    /// The errors a statement raises when another applier made the same change first, or holds the catalog
+    /// rows the statement needs: each one raised by a real Firebird 3, 4 and 5 in
+    /// <c>FirebirdWeaselSchemaTest</c>.
+    /// </summary>
+    /// <remarks>
+    /// <list type="table">
+    /// <item><term>336068740, 336068743, 336068859, 336068876</term><description>the table, procedure, index or function already exists</description></item>
+    /// <item><term>335544665</term><description>a unique key in the catalog: a column or constraint another applier added first</description></item>
+    /// <item><term>335544345</term><description>a lock conflict on a <c>NO WAIT</c> transaction (SQLSTATE 40001)</description></item>
+    /// <item><term>335544510</term><description>a lock time-out on a <c>WAIT</c> transaction</description></item>
+    /// <item><term>335544336, 335544451</term><description>a deadlock, and an update that conflicts with a concurrent one</description></item>
+    /// </list>
+    /// <para>
+    /// <see cref="TooManyKeys" /> counts only under <see cref="UnsuccessfulMetadataUpdate" />: it is what the
+    /// second loser of a <c>CREATE INDEX</c> race gets at commit. An index over more than 16 columns reads
+    /// the same, and Weasel refuses one before anything runs. <see cref="UnsuccessfulMetadataUpdate" /> alone
+    /// is no race: it heads every failed DDL statement.
+    /// </para>
+    /// </remarks>
+    internal static readonly int[] LostRaceErrors =
+        [336068740, 336068743, 336068859, 336068876, 335544665, 335544345, 335544510, 335544336, 335544451];
 
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(200);
 
@@ -145,10 +176,26 @@ internal sealed class FirebirdQuartzDatabase : DatabaseBase<FbConnection>, IQuar
         LockFreeApply.ApplyAsync(
             this,
             cancellationToken => ApplyAllConfiguredChangesToDatabaseAsync(@override, reconnectionOptions, cancellationToken),
+            IsLostRace,
             ApplyAttempts,
             RetryDelay,
             timeProvider,
             ct);
+
+    /// <summary>Whether Firebird's error is one of <see cref="LostRaceErrors" />, at any depth of its status vector.</summary>
+    internal static bool IsLostRace(DbException exception)
+    {
+        if (exception is not FbException firebird)
+        {
+            return false;
+        }
+
+        HashSet<int> numbers = [firebird.ErrorCode, .. firebird.Errors.Select(x => x.Number)];
+
+        return firebird.SQLSTATE == "40001"
+               || numbers.Overlaps(LostRaceErrors)
+               || (numbers.Contains(UnsuccessfulMetadataUpdate) && numbers.Contains(TooManyKeys));
+    }
 
     /// <summary>
     /// Refuses a model with a name longer than the identifier limit, naming the name and the setting

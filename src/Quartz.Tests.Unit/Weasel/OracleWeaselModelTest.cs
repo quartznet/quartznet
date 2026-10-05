@@ -246,17 +246,18 @@ public sealed class OracleWeaselModelTest
     }
 
     /// <summary>
-    /// There is no lock, so a failed apply is read again in case another process was applying the same
-    /// schema — and a server that cannot be reached is not one to wait for.
+    /// There is no lock, so a failure a lost race raises is read again in case another process was applying
+    /// the same schema — but a server that cannot be reached raised no such failure, and is not waited for.
     /// </summary>
     [Test]
-    public async Task AnApplyThatCannotReachTheServerFailsAfterReadingAgain()
+    public async Task AnApplyThatCannotReachTheServerFailsAtOnce()
     {
         (ServiceProvider services, IDatabase database) = await BuildAsync("weasel-ora-unreachable", "jobs.QRTZ_", Unreachable);
         await using (services)
         {
             Func<Task> apply = () => database.ApplyAllConfiguredChangesToDatabaseAsync();
-            await apply.Should().ThrowAsync<OracleException>("nothing listens on port 1, for the apply or for the reading again");
+            (await apply.Should().ThrowAsync<SchedulerException>().WithMessage("*'weasel-ora-unreachable'*not retried*"))
+                .WithInnerException<OracleException>("nothing listens on port 1");
         }
     }
 
@@ -265,6 +266,8 @@ public sealed class OracleWeaselModelTest
     {
         new OracleWeaselOptions().AutoCreate.Should().BeNull("unset follows the JasperFx profile");
         OracleQuartzDatabase.ApplyAttempts.Should().Be(10, "as many attempts as ProvisionSchema() gives a create that lost a race");
+        OracleQuartzDatabase.LostRaceErrors.Should().BeEquivalentTo([54, 955, 1418, 1430, 2260, 2275],
+            "the errors the Oracle leg's OracleWeaselSchemaTest raises from a real server");
     }
 
     private static async Task<(ServiceProvider Services, IDatabase Database)> BuildAsync(

@@ -342,7 +342,8 @@ public sealed class SqliteWeaselSchemaTest
         await using WeaselSqliteContainer weasel = await WeaselSqliteContainer.CreateAsync(database.ConnectionString, "weasel-rebuild-failed");
 
         Func<Task> apply = () => weasel.Database.ApplyAllConfiguredChangesToDatabaseAsync();
-        await apply.Should().ThrowAsync<InvalidOperationException>().WithMessage("*QRTZ_TRIGGERS*rolled back*");
+        (await apply.Should().ThrowAsync<SchedulerException>().WithMessage("*'weasel-rebuild-failed'*not retried*"))
+            .WithInnerException<InvalidOperationException>().WithMessage("*QRTZ_TRIGGERS*rolled back*");
 
         (await ForeignKeysAsync(database.ConnectionString)).Should().BeEmpty("the rebuild rolled back, so the table is the one it replaced");
         (await NamesAsync(database.ConnectionString, "SELECT TRIGGER_NAME || '=' || USER_NOTE FROM QRTZ_TRIGGERS"))
