@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Data.Common;
+
 using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -443,10 +445,19 @@ internal abstract partial class AdoJobStoreBase
     /// each fire to read its own when the batch did not read.
     /// </summary>
     /// <remarks>
-    /// A job whose stored data will not read fails the read of every job beside it. Read on its own, as the
-    /// fire of an acquired trigger reads it, it fails that trigger alone, which is stored <c>ERROR</c> as it
-    /// always has been — so a failure here falls back to that rather than failing the round. A transient
-    /// failure is the transaction wrapper's to retry, and a cancellation is the caller's.
+    /// <para>
+    /// A job whose stored data will not read — a type that will not load, data that will not deserialize —
+    /// fails the read of every job beside it. Read on its own, as the fire of an acquired trigger reads it,
+    /// it fails that trigger alone, which is stored <c>ERROR</c> as it always has been, so such a failure
+    /// falls back to that rather than failing the round.
+    /// </para>
+    /// <para>
+    /// A failure the database itself raised does not. On PostgreSQL it has aborted the transaction, so every
+    /// read after it would fail as well, and each trigger of the round would be blamed — and counted towards
+    /// parking — for a failure that is not its own. It fails the round instead, which the scheduler retries
+    /// as it retries any failed acquisition. A transient failure is the transaction wrapper's to retry, and a
+    /// cancellation is the caller's.
+    /// </para>
     /// </remarks>
     private async ValueTask<Dictionary<JobKey, IJobDetail>?> ReadJobsToFire(
         ConnectionAndTransactionHolder conn,
@@ -458,7 +469,7 @@ internal abstract partial class AdoJobStoreBase
         {
             jobs = await Delegate.SelectJobDetails(conn, jobKeys, TypeLoader, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception e) when (e is not OperationCanceledException && !IsTransient(e))
+        catch (Exception e) when (e is not OperationCanceledException && !IsTransient(e) && !RaisedByTheDatabase(e))
         {
             return null;
         }
@@ -470,6 +481,23 @@ internal abstract partial class AdoJobStoreBase
         }
 
         return byKey;
+    }
+
+    /// <summary>
+    /// Whether the database raised the failure, or one it wraps: a <see cref="DbException" />, rather than
+    /// something that went wrong in this process with what the database returned.
+    /// </summary>
+    private static bool RaisedByTheDatabase(Exception failure)
+    {
+        for (Exception? cause = failure; cause is not null; cause = cause.InnerException)
+        {
+            if (cause is DbException)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
