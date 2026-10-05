@@ -278,6 +278,12 @@ internal static class SqlParameters
     /// <summary>The firing a history row records, as its span and log scope name it.</summary>
     public const string HistoryFireInstanceId = "historyFireInstanceId";
 
+    /// <summary>The input a history row's run was given, as the scheduler stored it.</summary>
+    public const string HistoryJobInput = "historyJobInput";
+
+    /// <summary>Whether a history row's run had an input over the cap, which is then not kept.</summary>
+    public const string HistoryJobInputTooLarge = "historyJobInputTooLarge";
+
     /// <summary>The instant a history page starts at, inclusive.</summary>
     public const string HistoryFiredFrom = "historyFiredFrom";
 

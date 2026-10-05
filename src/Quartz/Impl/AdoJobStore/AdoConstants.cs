@@ -165,7 +165,9 @@ public static class AdoConstants
         (TableExecutionHistory, ColumnSummary, Migration44ExecutionOutcome, ExecutionHistoryFeature),
         (TableExecutionHistory, ColumnMetrics, Migration44ExecutionOutcome, ExecutionHistoryFeature),
         (TableExecutionHistory, ColumnManual, Migration44ExecutionOutcome, ExecutionHistoryFeature),
-        (TableExecutionHistory, ColumnFireInstanceId, Migration44ExecutionOutcome, ExecutionHistoryFeature)
+        (TableExecutionHistory, ColumnFireInstanceId, Migration44ExecutionOutcome, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnJobInput, Migration44ExecutionOutcome, ExecutionHistoryFeature),
+        (TableExecutionHistory, ColumnJobInputTooLarge, Migration44ExecutionOutcome, ExecutionHistoryFeature)
     ];
 
     /// <summary>
@@ -713,6 +715,26 @@ public static class AdoConstants
     /// durable across a restart.
     /// </remarks>
     public const string ColumnFireInstanceId = "FIRE_INSTANCE_ID";
+
+    /// <summary>
+    /// The <c>JOB_INPUT</c> column of <see cref="TableExecutionHistory" />: the run's input, the string the
+    /// scheduler stored under <see cref="SchedulerConstants.JobInput" />.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.4 migration, and written only with
+    /// <see cref="ExecutionHistoryOptions.RecordInput" />. Never read by the history listing: only
+    /// <c>IExecutionHistoryStore.GetExecution</c> selects it.
+    /// </remarks>
+    public const string ColumnJobInput = "JOB_INPUT";
+
+    /// <summary>
+    /// The <c>JOB_INPUT_TOO_LARGE</c> column of <see cref="TableExecutionHistory" />: whether the run's input
+    /// was over <see cref="ExecutionHistoryOptions.MaxInputBytes" />, and so not kept.
+    /// </summary>
+    /// <remarks>
+    /// Added by the optional 4.4 migration, nullable as every 4.x migration's column is.
+    /// </remarks>
+    public const string ColumnJobInputTooLarge = "JOB_INPUT_TOO_LARGE";
 
     // TableJobStatus columns names
     /// <summary>

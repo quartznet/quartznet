@@ -372,6 +372,19 @@ partial class Build
                 // indexed: a fire instance id is not durable across a restart, and nothing looks a
                 // row up by it.
                 Text("FIRE_INSTANCE_ID", 140, 140, required: false) with { AddedBy = "4.4" },
+                // The run's input, the string the scheduler stored under QRTZ_JOB_INPUT, kept only with
+                // ExecutionHistoryOptions.RecordInput. A large object like METRICS, because the cap is the
+                // application's to set. Never read by the listing, only by the single-entry read.
+                Column("JOB_INPUT",
+                    sqlServer: "nvarchar(max) NULL",
+                    postgres: "TEXT NULL",
+                    mysql: "LONGTEXT NULL",
+                    oracle: "CLOB NULL",
+                    sqlite: "TEXT NULL",
+                    firebird: "BLOB SUB_TYPE TEXT DEFAULT NULL") with { AddedBy = "4.4" },
+                // Whether the run had an input over the cap, which is then not kept, so that Run again
+                // says it has none rather than passing a cut one.
+                Flag("JOB_INPUT_TOO_LARGE", required: false) with { AddedBy = "4.4" },
             ],
             OracleStem: "EXEC_HISTORY"),
 

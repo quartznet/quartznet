@@ -230,6 +230,8 @@ CREATE TABLE qrtz_execution_history
     metrics TEXT NULL,
     manual BOOL NULL,
     fire_instance_id TEXT NULL,
+    job_input TEXT NULL,
+    job_input_too_large BOOL NULL,
     PRIMARY KEY (sched_name, entry_id)
 );
 

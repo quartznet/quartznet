@@ -209,6 +209,8 @@ internal static partial class QuartzTables
         executionHistory.AddColumn("METRICS", "BLOB SUB_TYPE TEXT").DefaultValueByExpression("NULL");
         executionHistory.AddColumn("MANUAL", "SMALLINT").DefaultValueByExpression("NULL");
         executionHistory.AddColumn("FIRE_INSTANCE_ID", "VARCHAR(140)").DefaultValueByExpression("NULL");
+        executionHistory.AddColumn("JOB_INPUT", "BLOB SUB_TYPE TEXT").DefaultValueByExpression("NULL");
+        executionHistory.AddColumn("JOB_INPUT_TOO_LARGE", "SMALLINT").DefaultValueByExpression("NULL");
         naming.PrimaryKey(executionHistory);
         naming.Index(executionHistory, "EH_FIRED_TIME", ["SCHED_NAME", "FIRED_TIME"]);
         naming.Index(executionHistory, "EH_INST", ["SCHED_NAME", "INSTANCE_NAME"]);

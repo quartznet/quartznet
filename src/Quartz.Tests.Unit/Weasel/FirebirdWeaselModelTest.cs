@@ -93,7 +93,7 @@ public sealed class FirebirdWeaselModelTest
             tables.Single(x => x.Identifier.Name == "QRTZ_EXECUTION_HISTORY").Columns
                 .Where(x => x.Type.StartsWith("BLOB", StringComparison.Ordinal))
                 .Select(x => (x.Name, x.Type))
-                .Should().BeEquivalentTo([("EXECUTION_LOG", "BLOB SUB_TYPE TEXT"), ("METRICS", "BLOB SUB_TYPE TEXT")]);
+                .Should().BeEquivalentTo([("EXECUTION_LOG", "BLOB SUB_TYPE TEXT"), ("METRICS", "BLOB SUB_TYPE TEXT"), ("JOB_INPUT", "BLOB SUB_TYPE TEXT")]);
 
             List<string> retired = objects.OfType<RetiredFirebirdIndex>().Select(x => x.Identifier.Name).ToList();
             retired.Should().HaveCount(23, "every index name 4.x retired, each dropped if still there")

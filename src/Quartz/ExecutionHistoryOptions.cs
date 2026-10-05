@@ -88,6 +88,34 @@ public sealed class ExecutionHistoryOptions
     /// </para>
     /// </remarks>
     public int MaxEntriesPerScheduler { get; set; } = 2000;
+
+    /// <summary>
+    /// Whether each execution records the input it was given, so that it can be run again with it:
+    /// <see langword="false" /> by default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The input is the string stored under <see cref="SchedulerConstants.JobInput" />, which
+    /// <c>ScheduleJob&lt;TJob, TInput&gt;</c> and <c>UsingInput</c> write; it lands in
+    /// <see cref="ExecutionHistoryEntry.Input" />. Nothing else of the job data map is recorded.
+    /// </para>
+    /// <para>
+    /// Off by default because an input can hold secrets, and the history keeps it as plain text for as
+    /// long as it keeps the row. It is never written to a log.
+    /// </para>
+    /// </remarks>
+    public bool RecordInput { get; set; }
+
+    /// <summary>
+    /// The most UTF-8 bytes of input <see cref="RecordInput" /> keeps per execution: 16 KB by default.
+    /// </summary>
+    /// <remarks>
+    /// An input over it is not recorded, and the row says so with
+    /// <see cref="ExecutionHistoryEntry.InputTooLarge" />: a cut input would be a different one. The
+    /// in-memory history's memory for inputs is bounded by this times
+    /// <see cref="MaxEntriesPerScheduler" />.
+    /// </remarks>
+    public int MaxInputBytes { get; set; } = 16 * 1024;
 }
 
 /// <summary>
@@ -138,6 +166,13 @@ internal sealed class ExecutionHistoryOptionsValidator : IValidateOptions<Execut
             return ValidateOptionsResult.Fail(
                 $"{nameof(ExecutionHistoryOptions.MaxEntriesPerJob)} must not be negative, was "
                 + $"{options.MaxEntriesPerJob}. Use 0 for no per-job cap.");
+        }
+
+        if (options.MaxInputBytes < 1)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(ExecutionHistoryOptions.MaxInputBytes)} must be positive, was {options.MaxInputBytes}. "
+                + $"To record no input, leave {nameof(ExecutionHistoryOptions.RecordInput)} off.");
         }
 
         return ValidateOptionsResult.Success;

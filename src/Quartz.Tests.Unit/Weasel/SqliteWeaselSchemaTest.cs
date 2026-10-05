@@ -153,7 +153,7 @@ public sealed class SqliteWeaselSchemaTest
 
             TableDelta history = changed.OfType<TableDelta>().Single(x => x.Difference == SchemaPatchDifference.Update);
             history.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(
-                ["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID"]);
+                ["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
             history.Indexes.Missing.Select(x => x.Name.ToUpperInvariant()).Should().Equal(["IDX_QRTZ_EH_JOB_TIME"]);
             history.Columns.Extras.Should().BeEmpty();
             history.Columns.Different.Should().BeEmpty("no column 4.3 created changes shape");
@@ -465,7 +465,7 @@ public sealed class SqliteWeaselSchemaTest
     {
         (await SqliteSchema.ScalarAsync(connectionString,
                 "SELECT count(*) FROM QRTZ_EXECUTION_HISTORY WHERE ENTRY_ID = 'entry-43' AND ERROR_MESSAGE = 'failed on 4.3'"
-                + " AND RESULT IS NULL AND SUMMARY IS NULL AND METRICS IS NULL AND MANUAL IS NULL AND FIRE_INSTANCE_ID IS NULL"))
+                + " AND RESULT IS NULL AND SUMMARY IS NULL AND METRICS IS NULL AND MANUAL IS NULL AND FIRE_INSTANCE_ID IS NULL AND JOB_INPUT IS NULL AND JOB_INPUT_TOO_LARGE IS NULL"))
             .Should().Be(1L, "a row a 4.3 node wrote keeps its values and reads NULL in every column 4.4 added");
     }
 

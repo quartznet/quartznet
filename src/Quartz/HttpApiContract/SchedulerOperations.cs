@@ -200,8 +200,8 @@ internal static class SchedulerOperations
     }
 
     /// <summary>
-    /// One execution with its captured log, or <see langword="null" /> when it was never recorded or has
-    /// since been trimmed.
+    /// One execution with its captured log and recorded input, or <see langword="null" /> when it was
+    /// never recorded or has since been trimmed.
     /// </summary>
     public static async ValueTask<ExecutionHistoryEntryDto?> GetExecution(
         IScheduler scheduler,
@@ -210,7 +210,7 @@ internal static class SchedulerOperations
         CancellationToken cancellationToken)
     {
         ExecutionHistoryEntry? entry = await history.GetExecution(scheduler.SchedulerName, entryId, cancellationToken).ConfigureAwait(false);
-        return entry is null ? null : ExecutionHistoryEntryDto.Create(entry, includeLog: true);
+        return entry is null ? null : ExecutionHistoryEntryDto.Create(entry, includeDetails: true);
     }
 
     /// <summary>

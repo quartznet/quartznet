@@ -26,6 +26,7 @@ using System.Text.Json;
 
 using FakeItEasy;
 
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
@@ -397,8 +398,202 @@ public sealed class ExecutionHistoryPluginTest
     }
 
     // ---------------------------------------------------------------------------------------------
+    // The run's input
+    // ---------------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task TheInputIsNotRecordedUnlessAskedFor()
+    {
+        ExecutionHistoryEntry row = await Record(ContextWithInput(onTrigger: "{\"invoiceId\":42}"), new ExecutionHistoryOptions());
+
+        row.Input.Should().BeNull("an input can hold secrets, so the history keeps none until it is told to");
+        row.InputTooLarge.Should().BeFalse("nothing was refused, because nothing was asked for");
+    }
+
+    [Test]
+    public async Task TheInputIsRecordedWhenAskedFor()
+    {
+        ExecutionHistoryEntry row = await Record(
+            ContextWithInput(onTrigger: "{\"invoiceId\":42}"),
+            new ExecutionHistoryOptions { RecordInput = true });
+
+        row.Input.Should().Be("{\"invoiceId\":42}", "the input is the string the scheduler stored, recorded as it is");
+        row.InputTooLarge.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task TheTriggersInputIsRecordedOverTheJobs()
+    {
+        ExecutionHistoryEntry row = await Record(
+            ContextWithInput(onTrigger: "\"from the trigger\"", onJob: "\"from the job\""),
+            new ExecutionHistoryOptions { RecordInput = true });
+
+        row.Input.Should().Be("\"from the trigger\"", "the run had the merged map's input, where the trigger's wins");
+    }
+
+    [Test]
+    public async Task AnInputOverTheCapIsNotRecordedAndTheRowSaysSo()
+    {
+        ExecutionHistoryOptions bounds = new() { RecordInput = true, MaxInputBytes = 4 };
+
+        ExecutionHistoryEntry fits = await Record(ContextWithInput(onTrigger: "éé"), bounds);
+        fits.Input.Should().Be("éé", "two characters of two bytes each are exactly the cap");
+        fits.InputTooLarge.Should().BeFalse();
+
+        ExecutionHistoryEntry over = await Record(ContextWithInput(onTrigger: "ééé"), bounds);
+        over.Input.Should().BeNull("a cut input is a different input, so none is kept: the cap counts bytes, not characters");
+        over.InputTooLarge.Should().BeTrue("Run again has to be able to say why it has no input");
+    }
+
+    [Test]
+    public async Task ARunWithNoInputOrOneThatIsNotAStringRecordsNone()
+    {
+        ExecutionHistoryOptions bounds = new() { RecordInput = true };
+
+        ExecutionHistoryEntry none = await Record(ContextWithInput(onTrigger: null), bounds);
+        none.Input.Should().BeNull();
+        none.InputTooLarge.Should().BeFalse();
+
+        ExecutionHistoryEntry raw = await Record(ContextWithInput(onTrigger: 42), bounds);
+        raw.Input.Should().BeNull("the scheduler stores every input as a string, and only a context built by hand holds anything else");
+        raw.InputTooLarge.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// A typed one-off's input is recorded, and handing it back to <c>TriggerJob</c> gives the job the same
+    /// input again: the round trip the dashboard's Run again makes.
+    /// </summary>
+    [Test]
+    public async Task ARecordedInputPassedBackToTriggerJobRunsTheJobWithTheSameInput()
+    {
+        InputJob.Received.Clear();
+        await using ServiceProvider container = BuildContainer(options => options.RecordInput = true);
+        IScheduler scheduler = await Start(container);
+
+        await scheduler.ScheduleJob<InputJob, Invoice>(new Invoice(42, "café"), TimeSpan.Zero);
+
+        ExecutionHistoryEntry first = (await Rows(container, scheduler.SchedulerName, 1)).Single();
+        first.Input.Should().NotBeNull("the history records inputs, and the one-off carried one on its trigger");
+
+        await scheduler.TriggerJob(
+            new JobKey(first.JobName, first.JobGroup),
+            new JobDataMap { [SchedulerConstants.JobInput] = first.Input! });
+
+        List<ExecutionHistoryEntry> rows = await Rows(container, scheduler.SchedulerName, 2);
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        InputJob.Received.Should().Equal([new Invoice(42, "café"), new Invoice(42, "café")],
+            "the recorded string is what the scheduler stored, so it reads back as the same input");
+        rows.Should().OnlyContain(row => row.Input == first.Input, "the second run had the same input, and recorded it");
+    }
+
+    /// <summary>
+    /// The database history writes <c>JOB_INPUT</c> only when told to record inputs, and <c>NULL</c> otherwise.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task ThePersistentHistoryWritesTheInputOnlyWhenAskedFor(bool recordInput)
+    {
+        InputJob.Received.Clear();
+        using SqliteTestDatabase database = new("history-input");
+        string connectionString = database.ConnectionString;
+
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartzExecutionHistory(options => options.RecordInput = recordInput);
+        services.AddQuartz(q =>
+        {
+            q.ConfigureScheduler(options =>
+            {
+                options.InstanceName = "input-" + Guid.NewGuid().ToString("N");
+                options.InstanceId = "one";
+            });
+
+            q.UsePersistentStore(store =>
+            {
+                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                store.ProvisionSchema();
+                store.UseExecutionHistory();
+            });
+        });
+
+        await using ServiceProvider container = services.BuildServiceProvider();
+        IScheduler scheduler = await Start(container);
+
+        await scheduler.ScheduleJob<InputJob, Invoice>(new Invoice(7, "kept in the database"), TimeSpan.Zero);
+
+        ExecutionHistoryEntry listed = (await Rows(container, scheduler.SchedulerName, 1)).Single();
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        ExecutionHistoryEntry read = (await container.GetRequiredService<IExecutionHistoryStore>()
+            .GetExecution(scheduler.SchedulerName, listed.EntryId!))!;
+
+        await using SqliteConnection connection = new(connectionString);
+        await connection.OpenAsync();
+        await using SqliteCommand select = connection.CreateCommand();
+        select.CommandText = "SELECT JOB_INPUT FROM QRTZ_EXECUTION_HISTORY WHERE ENTRY_ID = @entryId";
+        select.Parameters.AddWithValue("@entryId", listed.EntryId);
+        object? stored = await select.ExecuteScalarAsync();
+
+        if (recordInput)
+        {
+            read.Input.Should().Contain("kept in the database", "the single read carries the input the run had");
+            stored.Should().Be(read.Input, "and it is kept as the scheduler stored it, in the row's own column");
+        }
+        else
+        {
+            read.Input.Should().BeNull();
+            stored.Should().Be(DBNull.Value, "the history keeps no input until it is told to, so the column is NULL");
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
 
     private static InMemoryExecutionHistoryStore Store() => new(Options.Create(new ExecutionHistoryOptions()), new FakeTimeProvider(now));
+
+    /// <summary>
+    /// A firing whose trigger, and optionally whose job, carry <paramref name="onTrigger" /> and
+    /// <paramref name="onJob" /> under <see cref="SchedulerConstants.JobInput" />.
+    /// </summary>
+    private static JobExecutionContextImpl ContextWithInput(object? onTrigger, object? onJob = null)
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns(SchedulerName);
+        A.CallTo(() => scheduler.SchedulerInstanceId).Returns("node-a");
+
+        IJobDetail job = JobBuilder.Create<RecordingJob>().WithIdentity("reconcile", "billing").Build();
+        if (onJob is not null)
+        {
+            job.JobDataMap[SchedulerConstants.JobInput] = onJob;
+        }
+
+        ITrigger trigger = TriggerBuilder.Create().ForJob(job).StartAt(now).Build();
+        if (onTrigger is not null)
+        {
+            trigger.JobDataMap[SchedulerConstants.JobInput] = onTrigger;
+        }
+
+        return JobExecutionContextBuilder.For(new RecordingJob())
+            .WithJob(job)
+            .WithTrigger(trigger)
+            .WithScheduler(scheduler)
+            .FiredAt(now)
+            .Build();
+    }
+
+    private static async Task<ExecutionHistoryEntry> Record(IJobExecutionContext context, ExecutionHistoryOptions bounds)
+    {
+        InMemoryExecutionHistoryStore store = Store();
+        ServiceCollection services = new();
+        services.AddSingleton<IExecutionHistoryStore>(store);
+        services.AddSingleton(Options.Create(bounds));
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        await new ExecutionHistoryPlugin(provider, new FakeTimeProvider(now)).JobWasExecuted(context, null);
+
+        return (await store.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = SchedulerName }))
+            .Items.Should().ContainSingle().Subject;
+    }
 
     private static ServiceProvider Provider(IExecutionHistoryStore store)
     {
@@ -431,11 +626,11 @@ public sealed class ExecutionHistoryPluginTest
             .Items.Should().ContainSingle().Subject;
     }
 
-    private static ServiceProvider BuildContainer()
+    private static ServiceProvider BuildContainer(Action<ExecutionHistoryOptions>? configure = null)
     {
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddQuartzExecutionHistory();
+        services.AddQuartzExecutionHistory(configure);
         services.AddQuartz(q => q.ConfigureScheduler(options =>
         {
             options.InstanceName = "plugin-" + Guid.NewGuid().ToString("N");
@@ -493,6 +688,21 @@ public sealed class ExecutionHistoryPluginTest
         public string? Summary => "own";
 
         public IReadOnlyDictionary<string, object?>? Metrics { get; } = new Dictionary<string, object?> { ["n"] = 1 };
+    }
+
+    /// <summary>The input a typed one-off of <see cref="InputJob" /> carries.</summary>
+    public sealed record Invoice(int InvoiceId, string Note);
+
+    /// <summary>Records every input it was run with.</summary>
+    public sealed class InputJob : IJob<Invoice>
+    {
+        public static ConcurrentQueue<Invoice> Received { get; } = new();
+
+        public ValueTask Execute(IJobExecutionContext context, Invoice input, CancellationToken cancellationToken = default)
+        {
+            Received.Enqueue(input);
+            return default;
+        }
     }
 
     public sealed class RecordingJob : IJob

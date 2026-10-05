@@ -31,7 +31,10 @@
 --   METRICS           the reported values, as JSON
 --   MANUAL            whether IScheduler.TriggerJob fired it
 --   FIRE_INSTANCE_ID  the firing's id, linking the row to its span and log scope
--- All five are nullable with no default. A row a 4.3 node wrote leaves them NULL, and its
+-- and what the run was given, kept only with ExecutionHistoryOptions.RecordInput:
+--   JOB_INPUT            the run's input, the string stored under QRTZ_JOB_INPUT
+--   JOB_INPUT_TOO_LARGE  whether the input was over MaxInputBytes, and so not kept
+-- All seven are nullable with no default. A row a 4.3 node wrote leaves them NULL, and its
 -- outcome is read from SUCCEEDED as before.
 --
 -- FIRE_INSTANCE_ID is neither unique nor indexed. A fire instance id is not durable across
@@ -105,6 +108,28 @@ BEGIN
                  WHERE TRIM(RDB$RELATION_NAME) = 'QRTZ_EXECUTION_HISTORY'
                    AND TRIM(RDB$FIELD_NAME) = 'FIRE_INSTANCE_ID')) THEN
     EXECUTE STATEMENT 'ALTER TABLE QRTZ_EXECUTION_HISTORY ADD FIRE_INSTANCE_ID VARCHAR(140) DEFAULT NULL';
+END^
+SET TERM ; ^
+COMMIT;
+
+SET TERM ^ ;
+EXECUTE BLOCK AS
+BEGIN
+  IF (NOT EXISTS(SELECT 1 FROM RDB$RELATION_FIELDS
+                 WHERE TRIM(RDB$RELATION_NAME) = 'QRTZ_EXECUTION_HISTORY'
+                   AND TRIM(RDB$FIELD_NAME) = 'JOB_INPUT')) THEN
+    EXECUTE STATEMENT 'ALTER TABLE QRTZ_EXECUTION_HISTORY ADD JOB_INPUT BLOB SUB_TYPE TEXT DEFAULT NULL';
+END^
+SET TERM ; ^
+COMMIT;
+
+SET TERM ^ ;
+EXECUTE BLOCK AS
+BEGIN
+  IF (NOT EXISTS(SELECT 1 FROM RDB$RELATION_FIELDS
+                 WHERE TRIM(RDB$RELATION_NAME) = 'QRTZ_EXECUTION_HISTORY'
+                   AND TRIM(RDB$FIELD_NAME) = 'JOB_INPUT_TOO_LARGE')) THEN
+    EXECUTE STATEMENT 'ALTER TABLE QRTZ_EXECUTION_HISTORY ADD JOB_INPUT_TOO_LARGE SMALLINT DEFAULT NULL';
 END^
 SET TERM ; ^
 COMMIT;

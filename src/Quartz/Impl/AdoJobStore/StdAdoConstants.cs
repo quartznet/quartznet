@@ -1327,35 +1327,37 @@ internal static class StdAdoConstants
     // -----------------------------------------------------------------------------------------
 
     public static readonly string SqlInsertExecutionHistory =
-        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableExecutionHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnExecutionLog}, {AdoConstants.ColumnResult}, {AdoConstants.ColumnSummary}, {AdoConstants.ColumnMetrics}, {AdoConstants.ColumnManual}, {AdoConstants.ColumnFireInstanceId}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.FiredTime}, @{SqlParameters.RunTime}, @{SqlParameters.Succeeded}, @{SqlParameters.ErrorMessage}, @{SqlParameters.HistoryRetryAttempt}, @{SqlParameters.HistoryRetryScheduled}, @{SqlParameters.ExecutionLog}, @{SqlParameters.HistoryResult}, @{SqlParameters.HistorySummary}, @{SqlParameters.HistoryMetrics}, @{SqlParameters.HistoryManual}, @{SqlParameters.HistoryFireInstanceId})");
+        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableExecutionHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnExecutionLog}, {AdoConstants.ColumnResult}, {AdoConstants.ColumnSummary}, {AdoConstants.ColumnMetrics}, {AdoConstants.ColumnManual}, {AdoConstants.ColumnFireInstanceId}, {AdoConstants.ColumnJobInput}, {AdoConstants.ColumnJobInputTooLarge}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.FiredTime}, @{SqlParameters.RunTime}, @{SqlParameters.Succeeded}, @{SqlParameters.ErrorMessage}, @{SqlParameters.HistoryRetryAttempt}, @{SqlParameters.HistoryRetryScheduled}, @{SqlParameters.ExecutionLog}, @{SqlParameters.HistoryResult}, @{SqlParameters.HistorySummary}, @{SqlParameters.HistoryMetrics}, @{SqlParameters.HistoryManual}, @{SqlParameters.HistoryFireInstanceId}, @{SqlParameters.HistoryJobInput}, @{SqlParameters.HistoryJobInputTooLarge})");
 
     public static readonly string SqlInsertMisfireHistory =
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableMisfireHistory} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnMisfireTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnMisfireReason}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.EntryId}, @{SqlParameters.InstanceName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.JobName}, @{SqlParameters.JobGroup}, @{SqlParameters.MisfireTime}, @{SqlParameters.ScheduledTime}, @{SqlParameters.MisfireReason})");
 
     /// <summary>
-    /// The history listing: every column but <c>EXECUTION_LOG</c>, which only
-    /// <see cref="SqlSelectExecutionHistoryEntry" /> reads, so a page does not carry every row's log.
+    /// The history listing: every column but <c>EXECUTION_LOG</c> and <c>JOB_INPUT</c>, which only
+    /// <see cref="SqlSelectExecutionHistoryEntry" /> reads, so a page does not carry every row's log and input.
     /// </summary>
     public static readonly string SqlSelectExecutionHistory =
         Invariant($"SELECT {ExecutionHistoryColumns} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
 
     /// <summary>
-    /// One history row by its key, the captured log included: the read a detail page makes. It keeps
+    /// One history row by its key, the captured log and the recorded input included: the read a detail
+    /// page and Run again make. It keeps
     /// the age bound the listing applies, so a row the listing no longer shows is not found here either.
     /// </summary>
     public static readonly string SqlSelectExecutionHistoryEntry =
-        Invariant($"SELECT {ExecutionHistoryColumns}, {AdoConstants.ColumnExecutionLog} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnEntryId} = @{SqlParameters.EntryId} AND {AdoConstants.ColumnFiredTime} >= @{SqlParameters.HistoryCutoff}");
+        Invariant($"SELECT {ExecutionHistoryColumns}, {AdoConstants.ColumnExecutionLog}, {AdoConstants.ColumnJobInput} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnEntryId} = @{SqlParameters.EntryId} AND {AdoConstants.ColumnFiredTime} >= @{SqlParameters.HistoryCutoff}");
 
     /// <summary>
     /// The columns both history reads select. The first twelve are read by position, in this order; the
-    /// 4.4 outcome columns after them are found by name, so a statement that leaves them out still reads.
+    /// 4.4 outcome and input columns after them are found by name, so a statement that leaves them out
+    /// still reads.
     /// </summary>
     /// <remarks>
     /// A constant rather than a static field, because the two statements above are initialized before
     /// a field declared here would be.
     /// </remarks>
     private const string ExecutionHistoryColumns =
-        $"{AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnResult}, {AdoConstants.ColumnSummary}, {AdoConstants.ColumnMetrics}, {AdoConstants.ColumnManual}, {AdoConstants.ColumnFireInstanceId}";
+        $"{AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnRunTime}, {AdoConstants.ColumnSucceeded}, {AdoConstants.ColumnErrorMessage}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnRetryScheduled}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnResult}, {AdoConstants.ColumnSummary}, {AdoConstants.ColumnMetrics}, {AdoConstants.ColumnManual}, {AdoConstants.ColumnFireInstanceId}, {AdoConstants.ColumnJobInputTooLarge}";
 
     public static readonly string SqlCountExecutionHistory =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");

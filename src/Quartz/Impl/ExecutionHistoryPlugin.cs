@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Text;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -128,19 +130,22 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// <see cref="JobRunClassifier.Classify" />, and its summary and metrics come from the job's
     /// <see cref="IJobRunReport" />, if it set one. Its exception message is what the job threw, read
     /// by <see cref="JobFailure.MessageOf" />: the run shell's wrapper says the same of every failure, and
-    /// the job's status repeats the row's message.
+    /// the job's status repeats the row's message. Its input is recorded only with
+    /// <see cref="ExecutionHistoryOptions.RecordInput" />; see <see cref="RecordedInput" />.
     /// </remarks>
     public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
     {
         try
         {
-            IExecutionHistoryStore? store = Store();
+            ExecutionHistoryOptions? bounds = Bounds();
+            IExecutionHistoryStore? store = Store(bounds);
             if (store is null)
             {
                 return default;
             }
 
             JobRunClassification run = JobRunClassifier.Classify(context, jobException);
+            (string? input, bool inputTooLarge) = RecordedInput(context, bounds);
 
             ExecutionHistoryEntry entry = new(
                 SchedulerName: context.Scheduler.SchedulerName,
@@ -172,7 +177,10 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
 
                 // What the job logged, when this scheduler captures: taken now, once the job has
                 // returned, so a line logged after this notification is not the row's.
-                Log = ExecutionLogCapture.Find(context)?.ToText()
+                Log = ExecutionLogCapture.Find(context)?.ToText(),
+
+                Input = input,
+                InputTooLarge = inputTooLarge
             };
 
             return store.AddExecution(entry, cancellationToken);
@@ -298,6 +306,46 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     }
 
     /// <summary>
+    /// What a row keeps of the run's input: the string stored under <see cref="SchedulerConstants.JobInput" />
+    /// when <paramref name="bounds" /> ask for it and it fits, or nothing, flagged, when it does not fit.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Read from the merged map, so a trigger's input wins over the job's, as it did for the run. The
+    /// scheduler stores every input as a string; a value that is anything else — which only a context
+    /// built by hand carries — is not recorded.
+    /// </para>
+    /// <para>
+    /// The payload is never logged: it is what <see cref="ExecutionHistoryOptions.RecordInput" /> is off by
+    /// default to keep out of sight.
+    /// </para>
+    /// </remarks>
+    internal static (string? Input, bool TooLarge) RecordedInput(IJobExecutionContext context, ExecutionHistoryOptions? bounds)
+    {
+        if (bounds is not { RecordInput: true }
+            || !context.MergedJobDataMap.TryGetValue(SchedulerConstants.JobInput, out object? stored)
+            || stored is not string input)
+        {
+            return (null, false);
+        }
+
+        return Fits(input, bounds.MaxInputBytes) ? (input, false) : (null, true);
+    }
+
+    /// <summary>
+    /// <paramref name="entry" />, or when its input is over <paramref name="maxInputBytes" /> the entry
+    /// without it, flagged as <see cref="RecordedInput" /> would have left it.
+    /// </summary>
+    internal static ExecutionHistoryEntry WithinInputCap(ExecutionHistoryEntry entry, int maxInputBytes)
+    {
+        return entry.Input is { } input && !Fits(input, maxInputBytes)
+            ? entry with { Input = null, InputTooLarge = true }
+            : entry;
+    }
+
+    private static bool Fits(string input, int maxInputBytes) => Encoding.UTF8.GetByteCount(input) <= maxInputBytes;
+
+    /// <summary>
     /// Where a dropped metrics object is reported: the container's logging, or the static fallback when
     /// the container has none.
     /// </summary>
@@ -320,14 +368,22 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// off and on again while the process runs.
     /// </para>
     /// </remarks>
-    private IExecutionHistoryStore? Store()
+    private IExecutionHistoryStore? Store() => Store(Bounds());
+
+    /// <inheritdoc cref="Store()" />
+    /// <param name="bounds">The bounds read for this event, or <see langword="null" /> when the container has none.</param>
+    private IExecutionHistoryStore? Store(ExecutionHistoryOptions? bounds)
     {
-        IOptions<ExecutionHistoryOptions>? options = serviceProvider.GetService<IOptions<ExecutionHistoryOptions>>();
-        if (options is not null && options.Value.MaxEntriesPerScheduler <= 0)
+        if (bounds is not null && bounds.MaxEntriesPerScheduler <= 0)
         {
             return null;
         }
 
         return serviceProvider.GetService<IExecutionHistoryStore>();
     }
+
+    /// <summary>
+    /// The bounds as they stand for this event, or <see langword="null" /> when the container has none.
+    /// </summary>
+    private ExecutionHistoryOptions? Bounds() => serviceProvider.GetService<IOptions<ExecutionHistoryOptions>>()?.Value;
 }

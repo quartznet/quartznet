@@ -128,7 +128,9 @@ CREATE TABLE [dbo].[QRTZ_EXECUTION_HISTORY] (
   [SUMMARY] nvarchar(1000) NULL,
   [METRICS] nvarchar(max) NULL,
   [MANUAL] bit NULL,
-  [FIRE_INSTANCE_ID] nvarchar(140) NULL
+  [FIRE_INSTANCE_ID] nvarchar(140) NULL,
+  [JOB_INPUT] nvarchar(max) NULL,
+  [JOB_INPUT_TOO_LARGE] bit NULL
 );
 
 CREATE TABLE [dbo].[QRTZ_MISFIRE_HISTORY] (

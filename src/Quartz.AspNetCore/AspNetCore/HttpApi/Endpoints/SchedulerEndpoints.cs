@@ -437,11 +437,12 @@ internal static class SchedulerEndpoints
 
     /// <summary>
     /// One execution this scheduler ran, named by the <c>entryId</c> its listing row carries, with the
-    /// lines its job logged when the scheduler captures them.
+    /// lines its job logged when the scheduler captures them and the input it was given when the history
+    /// records inputs.
     /// </summary>
     /// <remarks>
-    /// The one history read that carries <c>log</c>: the listing leaves it out of every row. A row that
-    /// was never recorded, or has since been trimmed, answers <c>404</c>.
+    /// The one history read that carries <c>log</c> and <c>input</c>: the listing leaves both out of every
+    /// row. A row that was never recorded, or has since been trimmed, answers <c>404</c>.
     /// </remarks>
     [ProducesResponseType(typeof(ExecutionHistoryEntryDto), StatusCodes.Status200OK)]
     private static Task<IResult> GetExecution(

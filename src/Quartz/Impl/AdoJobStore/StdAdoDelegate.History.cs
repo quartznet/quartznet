@@ -153,6 +153,11 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.HistoryManual, GetDbBooleanValue(entry.Manual));
         AddCommandParameter(cmd, SqlParameters.HistoryFireInstanceId, entry.FireInstanceId);
 
+        // The run's input, a large object like the log: the recorder already held it to
+        // ExecutionHistoryOptions.MaxInputBytes, and a cut one would be a different input.
+        AddCommandParameter(cmd, SqlParameters.HistoryJobInput, entry.Input, DbProvider.Metadata.LargeTextParameterType);
+        AddCommandParameter(cmd, SqlParameters.HistoryJobInputTooLarge, GetDbBooleanValue(entry.InputTooLarge));
+
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -380,7 +385,7 @@ public partial class StdAdoDelegate
         return new PagedResult<JobRunStatus>(page, skip + page.Count < found.Count, query.IncludeTotalCount ? found.Count : null);
     }
 
-    /// <summary>Reads one recorded execution by its key, its captured log included.</summary>
+    /// <summary>Reads one recorded execution by its key, its captured log and recorded input included.</summary>
     /// <param name="conn">The unit of work, which is the history store's own connection.</param>
     /// <param name="schedulerName">The scheduler the execution belongs to.</param>
     /// <param name="entryId">The row's key.</param>
@@ -406,10 +411,12 @@ public partial class StdAdoDelegate
             return null;
         }
 
-        // Found by name, as the outcome columns are: its position moved when they were added.
+        // Found by name, as the outcome columns are: its position moved when they were added, and a
+        // statement written before 4.4 does not select the input.
         return ReadExecutionHistoryEntry(rs, schedulerName, ExecutionHistoryOrdinals.Of(rs)) with
         {
-            Log = ReadOptionalString(rs, OptionalOrdinal(rs, AdoConstants.ColumnExecutionLog))
+            Log = ReadOptionalString(rs, OptionalOrdinal(rs, AdoConstants.ColumnExecutionLog)),
+            Input = ReadOptionalString(rs, OptionalOrdinal(rs, AdoConstants.ColumnJobInput))
         };
     }
 
@@ -1096,9 +1103,18 @@ public partial class StdAdoDelegate
             Result = ReadResult(rs, outcome.Result),
             Summary = ReadOptionalString(rs, outcome.Summary),
             MetricsJson = ReadOptionalString(rs, outcome.Metrics),
-            Manual = outcome.Manual >= 0 && !rs.IsDBNull(outcome.Manual) && GetBooleanFromDbValue(rs.GetValue(outcome.Manual)),
-            FireInstanceId = ReadOptionalString(rs, outcome.FireInstanceId)
+            Manual = ReadOptionalFlag(rs, outcome.Manual),
+            FireInstanceId = ReadOptionalString(rs, outcome.FireInstanceId),
+            InputTooLarge = ReadOptionalFlag(rs, outcome.InputTooLarge)
         };
+    }
+
+    /// <summary>
+    /// A flag column's value, or <see langword="false" /> when it is null or not in the result set.
+    /// </summary>
+    private bool ReadOptionalFlag(DbDataReader rs, int ordinal)
+    {
+        return ordinal >= 0 && !rs.IsDBNull(ordinal) && GetBooleanFromDbValue(rs.GetValue(ordinal));
     }
 
     private JobRunStatus ReadJobRunStatus(DbDataReader rs, string schedulerName)
@@ -1154,14 +1170,15 @@ public partial class StdAdoDelegate
     /// before 4.4 does not project them, and its rows still read, with no outcome.
     /// </remarks>
     [StructLayout(LayoutKind.Auto)]
-    private readonly record struct ExecutionHistoryOrdinals(int Result, int Summary, int Metrics, int Manual, int FireInstanceId)
+    private readonly record struct ExecutionHistoryOrdinals(int Result, int Summary, int Metrics, int Manual, int FireInstanceId, int InputTooLarge)
     {
         public static ExecutionHistoryOrdinals Of(DbDataReader rs) => new(
             OptionalOrdinal(rs, AdoConstants.ColumnResult),
             OptionalOrdinal(rs, AdoConstants.ColumnSummary),
             OptionalOrdinal(rs, AdoConstants.ColumnMetrics),
             OptionalOrdinal(rs, AdoConstants.ColumnManual),
-            OptionalOrdinal(rs, AdoConstants.ColumnFireInstanceId));
+            OptionalOrdinal(rs, AdoConstants.ColumnFireInstanceId),
+            OptionalOrdinal(rs, AdoConstants.ColumnJobInputTooLarge));
     }
 
     private MisfireHistoryEntry ReadMisfireHistoryEntry(DbDataReader rs, string schedulerName)

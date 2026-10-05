@@ -274,6 +274,65 @@ public class HttpExecutionHistoryStoreTest
         entry.SchedulerName.Should().Be("Remote");
         entry.EntryId.Should().Be("a?b#c");
         entry.Log.Should().Be("first\nsecond", "the single-entry route is the one read that carries the log");
+        entry.Input.Should().BeNull("a 4.3 host sends no input, so the run reads as having none");
+        entry.InputTooLarge.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task OneExecutionCarriesTheInputItWasGiven()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            {
+              "schedulerInstanceId": "node-a",
+              "jobGroup": "billing",
+              "jobName": "send-invoice",
+              "triggerGroup": "DEFAULT",
+              "triggerName": "one-off",
+              "firedAtUtc": "2026-08-26T12:00:00+00:00",
+              "duration": "00:00:01.5000000",
+              "succeeded": false,
+              "exceptionMessage": "the mail server refused",
+              "entryId": "entry-1",
+              "input": "{\"invoiceId\":42,\"note\":\"café\"}",
+              "inputTooLarge": false
+            }
+            """);
+
+        ExecutionHistoryEntry entry = (await Store().GetExecution("Remote", "entry-1"))!;
+
+        entry.Input.Should().Be("{\"invoiceId\":42,\"note\":\"café\"}",
+            "the input travels as the string the remote scheduler stored, so Run again can hand it back as it was");
+        entry.InputTooLarge.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ARowWhoseInputWasTooLargeSaysSoOverTheWire()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            {
+              "items": [
+                {
+                  "schedulerInstanceId": "node-a",
+                  "jobGroup": "billing",
+                  "jobName": "send-invoice",
+                  "triggerGroup": "DEFAULT",
+                  "triggerName": "one-off",
+                  "firedAtUtc": "2026-08-26T12:00:00+00:00",
+                  "duration": "00:00:01.5000000",
+                  "succeeded": false,
+                  "exceptionMessage": "boom",
+                  "inputTooLarge": true
+                }
+              ],
+              "hasMore": false
+            }
+            """);
+
+        ExecutionHistoryEntry entry = (await Store().QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote" }))
+            .Items.Should().ContainSingle().Subject;
+
+        entry.InputTooLarge.Should().BeTrue("the listing carries the flag, which is small, and leaves the input out");
+        entry.Input.Should().BeNull();
     }
 
     /// <summary>

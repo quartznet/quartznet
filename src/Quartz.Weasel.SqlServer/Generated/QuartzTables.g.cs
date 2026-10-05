@@ -209,6 +209,8 @@ internal static partial class QuartzTables
         executionHistory.AddColumn("METRICS", "nvarchar(max)");
         executionHistory.AddColumn("MANUAL", "bit");
         executionHistory.AddColumn("FIRE_INSTANCE_ID", "nvarchar(140)");
+        executionHistory.AddColumn("JOB_INPUT", "nvarchar(max)");
+        executionHistory.AddColumn("JOB_INPUT_TOO_LARGE", "bit");
         naming.PrimaryKey(executionHistory);
         naming.Index(executionHistory, "EH_FIRED_TIME", ["SCHED_NAME", "FIRED_TIME"]);
         naming.Index(executionHistory, "EH_INST", ["SCHED_NAME", "INSTANCE_NAME"]);

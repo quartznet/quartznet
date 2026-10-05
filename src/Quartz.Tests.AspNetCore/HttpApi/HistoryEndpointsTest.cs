@@ -231,6 +231,83 @@ public sealed class HistoryEndpointsTest
     }
 
     /// <summary>
+    /// One row by its key carries the run's input, and the listing leaves it out but says which rows had
+    /// one too large to keep.
+    /// </summary>
+    [Test]
+    public async Task OneExecutionIsReadWithItsInputAndTheListingLeavesTheInputOut()
+    {
+        DateTimeOffset firedAt = DateTimeOffset.UtcNow;
+        await history.AddExecution(Entry(firedAt, "send-invoice") with { EntryId = "with-input", Input = "{\"invoiceId\":42}" });
+        await history.AddExecution(Entry(firedAt.AddSeconds(-1), "send-invoice") with { EntryId = "too-large", InputTooLarge = true });
+
+        PagedResultDto<ExecutionHistoryEntryDto> page = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions");
+
+        page.Items.Should().OnlyContain(row => row.Input == null,
+            "a page of history must not carry every row's input, however the store behind it keeps them");
+        page.Items.Single(row => row.EntryId == "too-large").InputTooLarge.Should().BeTrue("the flag is small, so the listing carries it");
+
+        ExecutionHistoryEntryDto single = await Read<ExecutionHistoryEntryDto>($"{SchedulerUrl}/history/executions/with-input");
+        single.Input.Should().Be("{\"invoiceId\":42}", "the single-entry route is the read Run again makes for the input");
+        single.InputTooLarge.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// A 4.3 dashboard or HTTP client reads a 4.4 host's rows, input and all: the two members are new, and
+    /// a reader that does not know them skips them.
+    /// </summary>
+    [Test]
+    public async Task AClientFrom43ReadsAnExecutionThatCarriesAnInput()
+    {
+        await history.AddExecution(Entry(DateTimeOffset.UtcNow, "send-invoice") with
+        {
+            EntryId = "entry-1",
+            Log = "line",
+            Input = "{\"invoiceId\":42}",
+            InputTooLarge = true
+        });
+
+        JsonSerializerOptions readerFrom43 = new(JsonSerializerDefaults.Web);
+
+        string single = await client.GetStringAsync($"{SchedulerUrl}/history/executions/entry-1");
+        single.Should().Contain("\"input\"", "the control: the body does carry the member a 4.3 reader has never heard of");
+
+        Func<ExecutionAsOf43?> readSingle = () => JsonSerializer.Deserialize<ExecutionAsOf43>(single, readerFrom43);
+        readSingle.Should().NotThrow().Which!.Should().Be(new ExecutionAsOf43("send-invoice", "entry-1", "line"));
+
+        string listing = await client.GetStringAsync($"{SchedulerUrl}/history/executions");
+        Func<ExecutionPageAsOf43?> readListing = () => JsonSerializer.Deserialize<ExecutionPageAsOf43>(listing, readerFrom43);
+        readListing.Should().NotThrow().Which!.Items.Should().ContainSingle().Which.EntryId.Should().Be("entry-1");
+    }
+
+    /// <summary>
+    /// Run again against a scheduler in another process: the input read off the single-entry route goes
+    /// back through the trigger route unchanged, so the job gets the input the failed run had.
+    /// </summary>
+    [Test]
+    public async Task ARecordedInputGoesBackThroughTheTriggerRouteUnchanged()
+    {
+        const string input = "{\"invoiceId\":42,\"note\":\"café 日本\"}";
+        await history.AddExecution(Entry(DateTimeOffset.UtcNow, "send-invoice") with { EntryId = "entry-1", Input = input });
+
+        IScheduler target = factories[0].Services.GetRequiredService<ISchedulerRepository>().Lookup(TestData.SchedulerName)!;
+        JobDataMap? received = null;
+        A.CallTo(() => target.TriggerJob(A<JobKey>._, A<JobDataMap?>._, A<CancellationToken>._))
+            .Invokes((JobKey _, JobDataMap? data, CancellationToken _) => received = data);
+
+        HttpExecutionHistoryStore remoteHistory = new(TestData.SchedulerName, client);
+        ExecutionHistoryEntry row = (await remoteHistory.GetExecution(TestData.SchedulerName, "entry-1"))!;
+
+        HttpScheduler remote = new(TestData.SchedulerName, client);
+        await remote.TriggerJob(new JobKey(row.JobName, row.JobGroup), new JobDataMap { [SchedulerConstants.JobInput] = row.Input! });
+
+        received.Should().NotBeNull("the trigger route hands the scheduler the map it was sent");
+        received!.GetString(SchedulerConstants.JobInput).Should().Be(input,
+            "a string survives every path a job's input takes, the wire included, which is why the history keeps it as one");
+    }
+
+    /// <summary>
     /// A row the store does not have is a <c>404</c>, which the HTTP-backed store reads as no row rather
     /// than as a target that serves no history.
     /// </summary>
@@ -652,4 +729,10 @@ public sealed class HistoryEndpointsTest
 
     /// <summary>A page of misfires as a 4.3 client reads it.</summary>
     private sealed record MisfirePageAsOf43(MisfireRowAsOf43[] Items, bool HasMore, int? TotalCount);
+
+    /// <summary>An execution as a 4.3 client reads it: no input, no flag.</summary>
+    private sealed record ExecutionAsOf43(string JobName, string? EntryId, string? Log);
+
+    /// <summary>A page of executions as a 4.3 client reads it.</summary>
+    private sealed record ExecutionPageAsOf43(ExecutionAsOf43[] Items, bool HasMore, int? TotalCount);
 }

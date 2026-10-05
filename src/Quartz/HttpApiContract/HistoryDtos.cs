@@ -103,11 +103,27 @@ internal sealed record ExecutionHistoryEntryDto(
     /// </summary>
     public string? FireInstanceId { get; init; }
 
+    /// <summary>
+    /// The input the run was given, on the single-entry route only, as <see cref="Log" /> is: what
+    /// <em>Run again</em> fetches when it is asked for, so a page of history does not carry every row's.
+    /// </summary>
+    /// <remarks>
+    /// This and the flag below are non-positional, as the members above are: a 4.3 host sends neither, so
+    /// a run read from it has no input to pass back, and a 4.3 reader skips them.
+    /// </remarks>
+    public string? Input { get; init; }
+
+    /// <summary>
+    /// Whether the run had an input over the history's cap, which was then not recorded.
+    /// </summary>
+    public bool InputTooLarge { get; init; }
+
     /// <param name="entry">The row.</param>
-    /// <param name="includeLog">
-    /// Whether the captured log goes on the wire — the single-entry route's answer, and no listing's.
+    /// <param name="includeDetails">
+    /// Whether the captured log and the recorded input go on the wire — the single-entry route's answer,
+    /// and no listing's.
     /// </param>
-    public static ExecutionHistoryEntryDto Create(ExecutionHistoryEntry entry, bool includeLog = false)
+    public static ExecutionHistoryEntryDto Create(ExecutionHistoryEntry entry, bool includeDetails = false)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
@@ -126,12 +142,14 @@ internal sealed record ExecutionHistoryEntryDto(
             RetryAttempt = entry.RetryAttempt,
             RetryScheduled = entry.RetryScheduled,
             EntryId = entry.EntryId,
-            Log = includeLog ? entry.Log : null,
+            Log = includeDetails ? entry.Log : null,
             Result = entry.Result,
             Summary = entry.Summary,
             Metrics = MetricsObject(entry.MetricsJson),
             Manual = entry.Manual,
-            FireInstanceId = entry.FireInstanceId
+            FireInstanceId = entry.FireInstanceId,
+            Input = includeDetails ? entry.Input : null,
+            InputTooLarge = entry.InputTooLarge
         };
     }
 
@@ -186,7 +204,9 @@ internal sealed record ExecutionHistoryEntryDto(
             // the object back with the encoder the recorder used, so nothing is re-spelled.
             MetricsJson = Metrics is { ValueKind: JsonValueKind.Object } metrics ? metrics.GetRawText() : null,
             Manual = Manual,
-            FireInstanceId = FireInstanceId
+            FireInstanceId = FireInstanceId,
+            Input = Input,
+            InputTooLarge = InputTooLarge
         };
     }
 }

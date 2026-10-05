@@ -212,6 +212,8 @@ CREATE TABLE IF NOT EXISTS {0}execution_history (
   metrics text null,
   manual bool null,
   fire_instance_id text null,
+  job_input text null,
+  job_input_too_large bool null,
   primary key (sched_name,entry_id)
 );
 --;;

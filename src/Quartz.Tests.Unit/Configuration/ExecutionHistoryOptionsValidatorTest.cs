@@ -40,8 +40,20 @@ public sealed class ExecutionHistoryOptionsValidatorTest
         options.RetentionByResult.Should().BeEmpty();
         options.MisfireRetention.Should().BeNull("misfires are kept for Retention unless told otherwise");
         options.MaxEntriesPerJob.Should().Be(0, "a per-job cap is opt-in");
+        options.RecordInput.Should().BeFalse("an input can hold secrets, so recording it is opt-in");
+        options.MaxInputBytes.Should().Be(16 * 1024);
 
         Validate(options).Succeeded.Should().BeTrue();
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void TheInputCapMustBePositive(int maxInputBytes)
+    {
+        ValidateOptionsResult result = Validate(new ExecutionHistoryOptions { RecordInput = true, MaxInputBytes = maxInputBytes });
+
+        result.Failed.Should().BeTrue("a cap that keeps nothing would flag every input as too large");
+        result.FailureMessage.Should().Contain("MaxInputBytes").And.Contain("RecordInput off");
     }
 
     [Test]
