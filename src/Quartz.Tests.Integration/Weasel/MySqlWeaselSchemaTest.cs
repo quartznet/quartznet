@@ -355,8 +355,9 @@ public sealed class MySqlWeaselSchemaTest
     }
 
     /// <summary>
-    /// Weasel releases the lock only after an apply that succeeded; this one fails, and the lock has to be
-    /// free straight after all the same, or the next node waits out its whole timeout.
+    /// An apply that fails leaves the lock free straight after, or the next node waits out its whole
+    /// timeout: Weasel releases it after a failed apply too (from 9.37.0, JasperFx/weasel#659), and the
+    /// lock's own dispose releases it when that release fails.
     /// </summary>
     [Test]
     public async Task AFailedApplyReleasesTheLock()

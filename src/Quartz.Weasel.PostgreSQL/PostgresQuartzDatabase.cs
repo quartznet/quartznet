@@ -128,8 +128,9 @@ internal sealed class PostgresQuartzDatabase : DatabaseBase<NpgsqlConnection>, I
         ReconnectionOptions? reconnectionOptions,
         CancellationToken ct)
     {
-        // Disposed whichever way the apply ends: Weasel releases the lock only when the apply succeeds,
-        // and a session-level advisory lock left on a pooled connection would outlive the failure.
+        // Disposed whichever way the apply ends: Weasel releases the lock after a failed apply too (from
+        // 9.37.0, JasperFx/weasel#659), but gives up quietly if that release fails, and a session-level advisory lock
+        // left on a pooled connection would outlive the failure.
         PostgresAdvisoryLock globalLock = new(CreateConnection, lockId, lockTimeout, timeProvider);
         await using (globalLock.ConfigureAwait(false))
         {

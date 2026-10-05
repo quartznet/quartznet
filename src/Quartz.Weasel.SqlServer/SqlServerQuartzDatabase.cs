@@ -135,8 +135,9 @@ internal sealed class SqlServerQuartzDatabase : DatabaseBase<SqlConnection>, IQu
         ReconnectionOptions? reconnectionOptions,
         CancellationToken ct)
     {
-        // Disposed whichever way the apply ends: Weasel releases the lock only when the apply succeeds,
-        // and a session-owned application lock left on a pooled connection would outlive the failure.
+        // Disposed whichever way the apply ends: Weasel releases the lock after a failed apply too (from
+        // 9.37.0, JasperFx/weasel#659), but gives up quietly if that release fails, and a session-owned application lock
+        // left on a pooled connection would outlive the failure.
         SqlServerApplicationLock globalLock = new(CreateConnection, lockResource, lockTimeout, timeProvider);
         await using (globalLock.ConfigureAwait(false))
         {

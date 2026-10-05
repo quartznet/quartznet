@@ -37,11 +37,12 @@ namespace Quartz.Weasel.PostgreSQL;
 /// again and finds nothing left to do. <see cref="PostgresWeaselOptions.LockTimeout" /> bounds the wait.
 /// </para>
 /// <para>
-/// A connection of its own rather than the one Weasel passes in, because Weasel only releases the lock
-/// when the apply succeeds and disposes its connection either way. A session lock on a pooled connection
-/// is not released by disposing it — the pool keeps the session — so a failed apply would leave every
-/// later applier waiting out its timeout. This connection is released in <see cref="DisposeAsync" />,
-/// whichever way the apply ended.
+/// A connection of its own rather than the one Weasel passes in, which Weasel disposes when the apply
+/// ends. A session lock on a pooled connection is not released by disposing it — the pool keeps the
+/// session — so a lock left on it would leave every later applier waiting out its timeout. Weasel releases
+/// the lock after a failed apply too (from 9.37.0, JasperFx/weasel#659), but gives up quietly if that
+/// release fails, so this connection is also released in <see cref="DisposeAsync" />, whichever way the
+/// apply ended.
 /// </para>
 /// </remarks>
 internal sealed class PostgresAdvisoryLock : IGlobalLock<NpgsqlConnection>, IAsyncDisposable
