@@ -1539,6 +1539,14 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="options">Whether an existing calendar of the same name may be over-written,
     /// and whether the triggers referencing it have their next fire time re-computed.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ObjectAlreadyExistsException">
+    /// A calendar of that name exists and <see cref="AddCalendarOptions.Replace" /> is not set.
+    /// </exception>
+    /// <exception cref="JobPersistenceException">
+    /// The calendar threw while a trigger's next fire time was re-computed. Nothing was changed: the
+    /// calendar it was to replace and every trigger are as they were, as the database store's
+    /// transaction leaves them.
+    /// </exception>
     public ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
@@ -1556,20 +1564,21 @@ public sealed class RAMJobStore : IJobStore
                 Throw.ObjectAlreadyExistsException($"Calendar with name '{calendarName}' already exists.");
             }
 
-            if (obj is not null)
-            {
-                calendarsByName.TryRemove(calendarName, out _);
-            }
+            // Worked out in full before anything is changed, because a calendar may throw (#4026).
+            List<(TriggerWrapper Wrapper, IOperableTrigger Updated)>? updates = obj is not null && options.UpdateTriggers
+                ? RecomputeForCalendarNoLock(calendarName, calendar)
+                : null;
 
             calendarsByName[calendarName] = calendar;
 
-            if (obj is not null && options.UpdateTriggers)
+            if (updates is not null)
             {
-                foreach (TriggerWrapper tw in GetTriggerWrappersForCalendarNoLock(calendarName))
+                foreach ((TriggerWrapper tw, IOperableTrigger updated) in updates)
                 {
+                    // Out of the schedule while its fire time changes, since that is what orders it.
                     bool removed = timeTriggers.Remove(tw);
 
-                    tw.Trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
+                    tw.Trigger = updated;
 
                     if (removed)
                     {
@@ -1580,6 +1589,37 @@ public sealed class RAMJobStore : IJobStore
         }
 
         return default;
+    }
+
+    /// <summary>
+    /// Re-computes, on a copy of each, the next fire time of every trigger that names
+    /// <paramref name="calendarName" /> against its replacement, and changes nothing.
+    /// </summary>
+    /// <remarks>
+    /// A throw out of the calendar fails the whole replacement, as a database store's transaction would
+    /// roll it back, and nothing has been changed for it to leave half-done. It is the caller's failure,
+    /// not a fire's, so it does not count toward <see cref="MaxConsecutiveFireFailures" />.
+    /// </remarks>
+    private List<(TriggerWrapper Wrapper, IOperableTrigger Updated)> RecomputeForCalendarNoLock(string calendarName, ICalendar calendar)
+    {
+        List<(TriggerWrapper Wrapper, IOperableTrigger Updated)> updates = [];
+        foreach (TriggerWrapper tw in GetTriggerWrappersForCalendarNoLock(calendarName))
+        {
+            IOperableTrigger updated = (IOperableTrigger) tw.Trigger.Clone();
+            try
+            {
+                updated.UpdateWithNewCalendar(calendar, MisfireThreshold);
+            }
+            catch (Exception e) when (e is not JobPersistenceException and not OperationCanceledException)
+            {
+                // Worded and wrapped as the database store's guard words and wraps it.
+                Throw.JobPersistenceException($"Couldn't store calendar: {e.Message}", e);
+            }
+
+            updates.Add((tw, updated));
+        }
+
+        return updates;
     }
 
     /// <summary>
