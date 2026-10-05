@@ -42,6 +42,43 @@ internal static class FireFault
         }
 
         FailFireOf = null;
+        CalendarFault = new MisfireCalendarFault();
+    }
+
+    /// <summary>The calendar name a read of which the delegate answers with <see cref="CalendarFault" />'s calendar.</summary>
+    public const string FaultyCalendarName = "faulty";
+
+    /// <summary>
+    /// The calendar the delegate hands out for <see cref="FaultyCalendarName" />, and the database read of it
+    /// failing once when told to (#4006).
+    /// </summary>
+    public static MisfireCalendarFault CalendarFault { get; private set; } = new();
+
+    /// <summary>
+    /// Reads the calendar as the dialect's delegate does, except the faulty one, which is answered from
+    /// <see cref="CalendarFault" /> after a read that fails on the database when told to.
+    /// </summary>
+    public static async ValueTask<ICalendar> SelectCalendar(
+        Func<ValueTask<ICalendar>> selectCalendar,
+        ConnectionAndTransactionHolder conn,
+        string calendarName,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(calendarName, FaultyCalendarName, StringComparison.Ordinal))
+        {
+            return await selectCalendar().ConfigureAwait(false);
+        }
+
+        MisfireCalendarFault fault = CalendarFault;
+        if (fault.TakeReadFailure())
+        {
+            using DbCommand command = conn.Connection.CreateCommand();
+            conn.Attach(command);
+            command.CommandText = "SELECT 1 FROM QRTZ_NO_SUCH_TABLE";
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return fault.Calendar;
     }
 
     /// <summary>
@@ -81,6 +118,11 @@ public sealed class FaultingPostgreSQLDelegate : PostgreSQLDelegate
     {
         return FireFault.ApplyTriggerFired(() => base.ApplyTriggerFired(conn, update, cancellationToken), conn, update, cancellationToken);
     }
+
+    public override ValueTask<ICalendar> SelectCalendar(ConnectionAndTransactionHolder conn, string calendarName, CancellationToken cancellationToken = default)
+    {
+        return FireFault.SelectCalendar(() => base.SelectCalendar(conn, calendarName, cancellationToken), conn, calendarName, cancellationToken);
+    }
 }
 
 public sealed class FaultingSqlServerDelegate : SqlServerDelegate
@@ -88,6 +130,11 @@ public sealed class FaultingSqlServerDelegate : SqlServerDelegate
     public override ValueTask ApplyTriggerFired(ConnectionAndTransactionHolder conn, TriggerFiredUpdate update, CancellationToken cancellationToken = default)
     {
         return FireFault.ApplyTriggerFired(() => base.ApplyTriggerFired(conn, update, cancellationToken), conn, update, cancellationToken);
+    }
+
+    public override ValueTask<ICalendar> SelectCalendar(ConnectionAndTransactionHolder conn, string calendarName, CancellationToken cancellationToken = default)
+    {
+        return FireFault.SelectCalendar(() => base.SelectCalendar(conn, calendarName, cancellationToken), conn, calendarName, cancellationToken);
     }
 }
 
@@ -97,6 +144,11 @@ public sealed class FaultingMySQLDelegate : MySQLDelegate
     {
         return FireFault.ApplyTriggerFired(() => base.ApplyTriggerFired(conn, update, cancellationToken), conn, update, cancellationToken);
     }
+
+    public override ValueTask<ICalendar> SelectCalendar(ConnectionAndTransactionHolder conn, string calendarName, CancellationToken cancellationToken = default)
+    {
+        return FireFault.SelectCalendar(() => base.SelectCalendar(conn, calendarName, cancellationToken), conn, calendarName, cancellationToken);
+    }
 }
 
 public sealed class FaultingOracleDelegate : OracleDelegate
@@ -105,6 +157,11 @@ public sealed class FaultingOracleDelegate : OracleDelegate
     {
         return FireFault.ApplyTriggerFired(() => base.ApplyTriggerFired(conn, update, cancellationToken), conn, update, cancellationToken);
     }
+
+    public override ValueTask<ICalendar> SelectCalendar(ConnectionAndTransactionHolder conn, string calendarName, CancellationToken cancellationToken = default)
+    {
+        return FireFault.SelectCalendar(() => base.SelectCalendar(conn, calendarName, cancellationToken), conn, calendarName, cancellationToken);
+    }
 }
 
 public sealed class FaultingFirebirdDelegate : FirebirdDelegate
@@ -112,5 +169,119 @@ public sealed class FaultingFirebirdDelegate : FirebirdDelegate
     public override ValueTask ApplyTriggerFired(ConnectionAndTransactionHolder conn, TriggerFiredUpdate update, CancellationToken cancellationToken = default)
     {
         return FireFault.ApplyTriggerFired(() => base.ApplyTriggerFired(conn, update, cancellationToken), conn, update, cancellationToken);
+    }
+
+    public override ValueTask<ICalendar> SelectCalendar(ConnectionAndTransactionHolder conn, string calendarName, CancellationToken cancellationToken = default)
+    {
+        return FireFault.SelectCalendar(() => base.SelectCalendar(conn, calendarName, cancellationToken), conn, calendarName, cancellationToken);
+    }
+}
+
+/// <summary>
+/// A calendar that throws while it is told to, and the one database read of it that fails when told to.
+/// </summary>
+/// <remarks>
+/// Every clone shares the fault, because a store may keep a copy of the calendar it is given.
+/// </remarks>
+internal sealed class MisfireCalendarFault
+{
+    private readonly Lock gate = new();
+    private bool throwing;
+    private bool failNextRead;
+    private int thrown;
+    private int reads;
+
+    public MisfireCalendarFault()
+    {
+        Calendar = new FaultyCalendar(this);
+    }
+
+    public ICalendar Calendar { get; }
+
+    /// <summary>How many times the calendar has thrown.</summary>
+    public int Thrown
+    {
+        get
+        {
+            lock (gate)
+            {
+                return thrown;
+            }
+        }
+    }
+
+    /// <summary>How many times the calendar has been read from the database, a failed read included.</summary>
+    public int Reads
+    {
+        get
+        {
+            lock (gate)
+            {
+                return reads;
+            }
+        }
+    }
+
+    public void ThrowAlways()
+    {
+        lock (gate)
+        {
+            throwing = true;
+        }
+    }
+
+    public void FailNextRead()
+    {
+        lock (gate)
+        {
+            failNextRead = true;
+        }
+    }
+
+    public bool TakeReadFailure()
+    {
+        lock (gate)
+        {
+            reads++;
+            bool fail = failNextRead;
+            failNextRead = false;
+            return fail;
+        }
+    }
+
+    private void Consult()
+    {
+        lock (gate)
+        {
+            if (!throwing)
+            {
+                return;
+            }
+
+            thrown++;
+        }
+
+        throw new InvalidOperationException("The holiday feed is unreachable.");
+    }
+
+    private sealed class FaultyCalendar(MisfireCalendarFault fault) : ICalendar
+    {
+        public string Description { get; set; }
+
+        public ICalendar CalendarBase { get; set; }
+
+        public bool IsTimeIncluded(DateTimeOffset timeUtc)
+        {
+            fault.Consult();
+            return true;
+        }
+
+        public DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
+        {
+            fault.Consult();
+            return timeUtc;
+        }
+
+        public ICalendar Clone() => new FaultyCalendar(fault) { Description = Description, CalendarBase = CalendarBase };
     }
 }

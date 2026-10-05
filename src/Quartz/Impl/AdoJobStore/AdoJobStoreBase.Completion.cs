@@ -864,6 +864,7 @@ internal abstract partial class AdoJobStoreBase
     /// <summary>
     /// Applies the misfire policy of every trigger in <paramref name="waiting" /> whose fire time went
     /// past the misfire threshold while it was held back, and deletes the ones left with nothing to fire.
+    /// A policy that throws fails its own trigger and none of the rest.
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="waiting">Triggers just put back to <c>WAITING</c>.</param>
@@ -891,7 +892,15 @@ internal abstract partial class AdoJobStoreBase
                 continue;
             }
 
-            MisfiredTriggerUpdate update = await PrepareMisfiredTriggerUpdate(conn, trigger, StoredTriggerState.Waiting, calendarCache: null, cancellationToken).ConfigureAwait(false);
+            // A policy that throws fails this trigger alone: it stays WAITING with its fire time, for the
+            // misfire handler, or is stored ERROR at the limit, and the completion commits (#4006). Before,
+            // the throw rolled the completion back, and the retry met it again for good.
+            PreparedMisfire prepared = await PrepareMisfiredTriggerUpdate(conn, trigger, StoredTriggerState.Waiting, calendarCache: null, cancellationToken).ConfigureAwait(false);
+            if (prepared.Update is not { } update)
+            {
+                continue;
+            }
+
             (updates ??= []).Add(update);
 
             if (update.NewState == StoredTriggerState.Complete)

@@ -62,6 +62,7 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | `IJobListener.JobProgressChanged(context, progress)` | Default interface member; does nothing. Hears `ReportProgress` in this process. See [Hear progress in a listener](how-tos/progress-and-execution-logs.md#hear-progress-in-a-listener) |
 | Log event `1061` | Warning: a job listener threw from `JobProgressChanged`. The job carries on |
 | Log events `2008`, `2009` | Errors from the in-memory store: a fire failed; a trigger set `ERROR` after that many in a row |
+| Log event `2010` | Error from the in-memory store: a trigger's misfire handling failed, and the trigger was left as it was |
 | `IQuartzApiClient.GetJobRunStatus`, `GetJobRunStatuses` | Default interface members; the defaults throw `NotSupportedException`, and the pages leave the status out. See [Job run status](packages/dashboard.md#job-run-status) |
 | `ExecutionStatisticsQuery`, `ExecutionStatistics`, `ExecutionStatisticsBucket` | A scheduler's runs per bucket of fire time: counts by result, and median, 95th percentile and longest duration. See [Count runs over time](how-tos/job-outcomes.md#count-runs-over-time) |
 | `IExecutionHistoryStore.QueryExecutionStatistics` | Default interface member. Counts through `QueryExecutions`, at most `ExecutionStatistics.DefaultRowLimit` (`10_000`) rows, newest first |
@@ -172,6 +173,31 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
   ```diff
   - services.AddQuartz(q => q.UseInMemoryStore());
   + services.AddQuartz(q => q.UseInMemoryStore(options => options.MaxConsecutiveFireFailures = 0));
+  ```
+
+* **A calendar that throws while a misfire is handled fails only its own trigger**
+  ([#3985](https://github.com/quartznet/quartznet/issues/3985),
+  [#4006](https://github.com/quartznet/quartznet/issues/4006)). The trigger keeps its fire time, error
+  `2010` (in-memory) or `3603` (persistent) is logged, and the failure counts toward
+  `MaxConsecutiveFireFailures` as a failed fire does. A database failure in the same step is still retried.
+  What 4.3 did:
+
+  | Where | 4.3 |
+  |---|---|
+  | In-memory acquisition | Ended the pass; what it had acquired stayed reserved and never fired |
+  | In-memory completion of a `[DisallowConcurrentExecution]` job | Left the later triggers `Blocked` and skipped the instruction |
+  | Persistent completion of such a job | Rolled back and retried forever; the job stayed `BLOCKED` |
+  | Persistent misfire handler | Logged the trigger on every scan and never stored it `ERROR` |
+
+* **Resuming a trigger no longer throws its calendar's exception.** Every resume call logs it, as above,
+  and resumes the trigger as it was; its misfire is handled again later. Read the state instead of
+  catching:
+
+  ```diff
+  - try { await scheduler.ResumeTrigger(key); }
+  - catch (Exception e) { logger.LogError(e, "Calendar failed"); }
+  + await scheduler.ResumeTrigger(key);
+  + TriggerState state = await scheduler.GetTriggerState(key); // Error once the limit is reached
   ```
 
 * **The scheduler releases what it acquired when a store throws something other than a

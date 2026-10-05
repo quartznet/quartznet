@@ -22,7 +22,8 @@ public sealed class InMemoryJobStoreOptions
     /// <para>
     /// A fire fails when the trigger's <see cref="ICalendar" />, or a trigger type of your own, throws
     /// while the store moves the trigger on. That trigger is left as it was and released, and the rest of
-    /// its batch fires. One that fails every time is acquired again at once, ahead of its
+    /// its batch fires. The same throw while the trigger's misfire is handled counts too, and logs event
+    /// 2010. One that fails every time is acquired again at once, ahead of its
     /// <see cref="DisallowConcurrentExecutionAttribute" /> job's other triggers. After this many failures
     /// in a row it is set to <c>ERROR</c>, the scheduler listeners hear
     /// <see cref="ISchedulerListener.TriggerInError" />, and event 2009 is logged.

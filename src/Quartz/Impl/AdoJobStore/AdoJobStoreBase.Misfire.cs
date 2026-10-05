@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Runtime.InteropServices;
+
 using Quartz.Extensibility;
 using Quartz.Impl.Triggers;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -105,7 +107,16 @@ internal abstract partial class AdoJobStoreBase
         {
             try
             {
-                updates.Add(await PrepareMisfiredTriggerUpdate(conn, trigger, StoredTriggerState.Waiting, batchCalendarCache, cancellationToken).ConfigureAwait(false));
+                PreparedMisfire prepared = await PrepareMisfiredTriggerUpdate(conn, trigger, StoredTriggerState.Waiting, batchCalendarCache, cancellationToken).ConfigureAwait(false);
+
+                // A policy that throws has been settled as that trigger's failure: it stays WAITING for the
+                // next scan, or is stored ERROR at the limit, rather than lead every batch for good (#4006).
+                if (prepared.Update is not { } update)
+                {
+                    continue;
+                }
+
+                updates.Add(update);
             }
             catch (Exception e)
             {
@@ -154,10 +165,22 @@ internal abstract partial class AdoJobStoreBase
     /// returns the resulting update for the caller to apply as part of a batch.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Shares its logic with <see cref="ApplyMisfiredTriggerUpdate" />, which is the same thing
     /// for a single trigger that is written immediately.
+    /// </para>
+    /// <para>
+    /// A policy that throws — the trigger's calendar, or a trigger type Quartz did not write — fails this
+    /// trigger alone, and <see cref="SettleFailedMisfire" /> settles it in the caller's transaction (#4006).
+    /// Only that step is guarded: a database failure, reading the calendar included, propagates, so the
+    /// caller's transaction rolls back and is retried as before.
+    /// </para>
     /// </remarks>
-    private async ValueTask<MisfiredTriggerUpdate> PrepareMisfiredTriggerUpdate(
+    /// <returns>
+    /// The update to write, or none when the policy threw, with whether that failure stored the trigger
+    /// <c>ERROR</c>.
+    /// </returns>
+    private async ValueTask<PreparedMisfire> PrepareMisfiredTriggerUpdate(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         StoredTriggerState newStateIfNotComplete,
@@ -181,9 +204,18 @@ internal abstract partial class AdoJobStoreBase
         await signaler.NotifyTriggerListenersMisfired(trigger, cancellationToken).ConfigureAwait(false);
 
         DateTimeOffset? originalFireTime = trigger.NextFireTimeUtc;
+        DateTimeOffset? previousFireTime = trigger.PreviousFireTimeUtc;
         DateTimeOffset now = timeProvider.GetUtcNow();
 
-        trigger.UpdateAfterMisfire(calendar);
+        try
+        {
+            trigger.UpdateAfterMisfire(calendar);
+        }
+        catch (Exception e)
+        {
+            bool storedError = await SettleFailedMisfire(conn, trigger.Key, previousFireTime, e, cancellationToken).ConfigureAwait(false);
+            return new PreparedMisfire(Update: null, storedError);
+        }
 
         // The occurrence that was waiting to be retried has been missed, and misfire handling has just
         // recomputed the trigger from its schedule. Whatever it fires next is a fresh occurrence, so it
@@ -204,8 +236,65 @@ internal abstract partial class AdoJobStoreBase
             misfireOrigFireTime = originalFireTime;
         }
 
-        return new MisfiredTriggerUpdate(trigger, newState, misfireOrigFireTime);
+        return new PreparedMisfire(new MisfiredTriggerUpdate(trigger, newState, misfireOrigFireTime), StoredError: false);
     }
+
+    /// <summary>
+    /// Settles a misfire whose policy threw as a failure of that trigger alone (#4006). Nothing of the
+    /// misfire is written: the row keeps its state and fire time, for the misfire handler to try again. The
+    /// failure counts toward <see cref="MaxConsecutiveFireFailures" /> in the ledger a failed fire counts in,
+    /// and the one that reaches it stores the trigger <c>ERROR</c> in the caller's transaction.
+    /// </summary>
+    /// <remarks>
+    /// The ledger moves only once that transaction has committed: one that rolls back for a database
+    /// failure is retried, and the retry runs the policy again, which would count one failure twice. The
+    /// caller holds <see cref="SchedulerLock.TriggerAccess" />, so the <c>ERROR</c> is written by key.
+    /// </remarks>
+    /// <returns>Whether the failure stored the trigger <c>ERROR</c>.</returns>
+    private async ValueTask<bool> SettleFailedMisfire(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        DateTimeOffset? previousFireTimeUtc,
+        Exception failure,
+        CancellationToken cancellationToken)
+    {
+        Logger.MisfireUpdatePreparationFailed(triggerKey, failure);
+
+        if (MaxConsecutiveFireFailures <= 0)
+        {
+            return false;
+        }
+
+        int failures = fireFailures.FailuresWithOneMore(triggerKey, previousFireTimeUtc);
+        if (failures < MaxConsecutiveFireFailures)
+        {
+            // Not a listener notification, but the one hook that runs only once the work has committed.
+            conn.NotifyAfterCommit((_, _) =>
+            {
+                fireFailures.RecordFailure(triggerKey, previousFireTimeUtc);
+                return default;
+            });
+
+            return false;
+        }
+
+        await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
+        conn.NotifyAfterCommit((notifier, token) =>
+        {
+            fireFailures.Clear(triggerKey);
+            Logger.FailingTriggerParkedInError(triggerKey, failures);
+            return notifier.NotifySchedulerListenersTriggerInError(triggerKey, token);
+        });
+
+        return true;
+    }
+
+    /// <summary>
+    /// What handling one trigger's misfire came to: the update to write, or none when the trigger's
+    /// misfire policy threw, with whether that failure stored the trigger <c>ERROR</c> (#4006).
+    /// </summary>
+    [StructLayout(LayoutKind.Auto)]
+    private readonly record struct PreparedMisfire(MisfiredTriggerUpdate? Update, bool StoredError);
 
     /// <summary>
     /// Recover triggers that have been stuck in the ACQUIRED state for longer than
@@ -319,9 +408,7 @@ internal abstract partial class AdoJobStoreBase
                     return false;
                 }
 
-                await ApplyMisfiredTriggerUpdate(conn, trigger, newStateIfNotComplete, cancellationToken).ConfigureAwait(false);
-
-                return true;
+                return await ApplyMisfiredTriggerUpdate(conn, trigger, newStateIfNotComplete, cancellationToken).ConfigureAwait(false);
             },
             $"update misfired trigger '{triggerKey}'");
     }
@@ -335,13 +422,22 @@ internal abstract partial class AdoJobStoreBase
     /// This covers triggers found in WAITING state during batch recovery as well as
     /// single-trigger misfire handling in the acquisition and resume paths.
     /// </summary>
-    private async ValueTask ApplyMisfiredTriggerUpdate(
+    /// <returns>
+    /// Whether the row was written: the misfire applied, or the trigger stored <c>ERROR</c> because its
+    /// policy threw for the last time allowed. A policy that threw short of that writes nothing, and the
+    /// caller goes on as if nothing had misfired (#4006).
+    /// </returns>
+    private async ValueTask<bool> ApplyMisfiredTriggerUpdate(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         StoredTriggerState newStateIfNotComplete,
         CancellationToken cancellationToken)
     {
-        MisfiredTriggerUpdate update = await PrepareMisfiredTriggerUpdate(conn, trigger, newStateIfNotComplete, calendarCache: null, cancellationToken).ConfigureAwait(false);
+        PreparedMisfire prepared = await PrepareMisfiredTriggerUpdate(conn, trigger, newStateIfNotComplete, calendarCache: null, cancellationToken).ConfigureAwait(false);
+        if (prepared.Update is not { } update)
+        {
+            return prepared.StoredError;
+        }
 
         // Single targeted UPDATE (1-2 DB round-trips) instead of AddTrigger's 7-12.
         await Delegate.UpdateMisfiredTrigger(conn, trigger, update.NewState, update.MisfireOriginalFireTime, cancellationToken).ConfigureAwait(false);
@@ -350,6 +446,8 @@ internal abstract partial class AdoJobStoreBase
         {
             await signaler.NotifySchedulerListenersFinalized(trigger, cancellationToken).ConfigureAwait(false);
         }
+
+        return true;
     }
 
     internal async ValueTask<RecoverMisfiredJobsResult> RecoverMisfires(
