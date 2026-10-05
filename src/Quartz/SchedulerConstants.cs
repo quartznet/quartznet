@@ -205,6 +205,17 @@ public static class SchedulerConstants
     }
 
     /// <summary>
+    /// The <see cref="ITrigger" /> group the one-shot triggers of
+    /// <see cref="QuartzBuilderExtensions.RunAtStartup" /> are scheduled in, one per job per start.
+    /// </summary>
+    /// <remarks>
+    /// Named here so that a listing, a listener or a job can tell a startup run from a scheduled one
+    /// without spelling the string: <c>context.Trigger.Key.Group == SchedulerConstants.StartupGroup</c>.
+    /// Each trigger's name is generated, and it is deleted once it has fired.
+    /// </remarks>
+    public const string StartupGroup = "QRTZ_STARTUP";
+
+    /// <summary>
     /// The <see cref="JobDataMap" /> key carrying the W3C <c>traceparent</c> of the activity that
     /// scheduled a trigger, so that the firing can be linked back to it however much later it happens.
     /// </summary>

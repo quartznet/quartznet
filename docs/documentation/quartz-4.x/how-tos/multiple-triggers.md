@@ -106,6 +106,43 @@ public async ValueTask ScheduleFor(
 `ScheduleJob(trigger)`, the overload without a job detail, schedules a trigger against a job that is already
 stored. That is why the job is added durably first.
 
+## Once each time the scheduler starts
+
+From 4.4. `RunAtStartup(jobKey)` runs a job once whenever the scheduler starts, beside its own triggers. It is
+what a crontab's `@reboot` means.
+
+<!-- snippet: sample_multiple_triggers_run_at_startup -->
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.ScheduleJob<CustomerProcessJob>(
+        trigger => trigger.WithIdentity("customer-process-hourly").WithCronSchedule("0 0 * ? * *"),
+        job => job.WithIdentity(CustomerProcessJob.Key));
+
+    // And once each time the scheduler starts, so the first run does not wait for the hour.
+    q.RunAtStartup(CustomerProcessJob.Key);
+});
+```
+<!-- endSnippet -->
+
+| When | Runs |
+|---|---|
+| The scheduler starts | once, as soon as it can |
+| It is built in standby, and started later | once, at that start |
+| It leaves standby | no |
+| The application restarts | once again |
+| Each node of a cluster starts | once on that node |
+
+- The run is a one-shot trigger in `SchedulerConstants.StartupGroup` (`QRTZ_STARTUP`), named anew on each
+  start and deleted once it has fired. `context.Trigger.Key.Group` tells a startup run from a scheduled one.
+- It is an ordinary trigger: `[DisallowConcurrentExecution]`, listeners and history apply.
+- On a persistent store it is stored until it has fired. A run that a crash interrupts is recovered like any
+  other firing, and one that a crash prevented still fires, alongside the next start's.
+- In a cluster it is pinned to its node with [`PreferredNode.For`](../tutorial/node-affinity.md). It fails over
+  to another node only while that node is down.
+- The job has to be stored by then, durably or with a trigger of its own. If it is not, the start fails with
+  `SchedulerException`.
+
 ## Firing once, with data of its own
 
 `TriggerJob` fires a stored job immediately, with a data map merged the same way a trigger's is. It creates no

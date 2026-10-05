@@ -64,6 +64,23 @@ public static class MultipleTriggersSamples
         #endregion
     }
 
+    public static void RunningAtStartup(IHostApplicationBuilder builder)
+    {
+        #region sample_multiple_triggers_run_at_startup
+
+        builder.Services.AddQuartz(q =>
+        {
+            q.ScheduleJob<CustomerProcessJob>(
+                trigger => trigger.WithIdentity("customer-process-hourly").WithCronSchedule("0 0 * ? * *"),
+                job => job.WithIdentity(CustomerProcessJob.Key));
+
+            // And once each time the scheduler starts, so the first run does not wait for the hour.
+            q.RunAtStartup(CustomerProcessJob.Key);
+        });
+
+        #endregion
+    }
+
     public static async ValueTask AdHocFiring(IScheduler scheduler, CancellationToken cancellationToken)
     {
         #region sample_multiple_triggers_ad_hoc

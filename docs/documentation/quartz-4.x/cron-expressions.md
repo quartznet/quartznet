@@ -134,7 +134,9 @@ ITrigger trigger = TriggerBuilder.Create()
 
 The expansion is what is stored: a trigger written with `@daily` reports `0 0 0 * * ?`.
 
-- `@reboot` is rejected by name: a scheduler has no reboot to fire on, so schedule the work at startup.
+- `@reboot` is rejected by name: a cron expression has no instant for it. Register the job with
+  [`RunAtStartup(jobKey)`](how-tos/multiple-triggers.md#once-each-time-the-scheduler-starts) beside its cron
+  trigger instead.
 - Any other `@name` is rejected with the list above.
 - There is no `@every_minute` or `@every_second`: `0 * * * * ?` is already short, and
   [`H`](#h-hash-for-load-distribution) spreads load deterministically.

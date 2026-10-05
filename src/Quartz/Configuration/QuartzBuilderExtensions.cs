@@ -352,6 +352,43 @@ public static class QuartzBuilderExtensions
     }
 
     /// <summary>
+    /// Runs a job once each time this scheduler starts, beside whatever triggers it has.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// On its first start — not when it is built, and not when it leaves standby — the scheduler
+    /// schedules a one-shot trigger for the job, due at once, in <see cref="SchedulerConstants.StartupGroup" />
+    /// under a name new to that start. A scheduler built in standby runs it when it is started; a restart
+    /// runs it again. It is deleted once it has fired.
+    /// </para>
+    /// <para>
+    /// It is an ordinary trigger, so <see cref="DisallowConcurrentExecutionAttribute" />, the job's
+    /// listeners and the execution history apply to it as to any other. A persistent store keeps it until
+    /// it has fired: a firing a crash interrupts is recovered as any firing is, and a run a crash prevented
+    /// still fires, beside the next start's.
+    /// </para>
+    /// <para>
+    /// In a cluster it runs once per node that starts: each node's trigger is pinned to that node with
+    /// <see cref="PreferredNode.For" />, and fails over to another node only while that one is down.
+    /// </para>
+    /// <para>
+    /// The job has to be stored by then — durable, or with a trigger of its own — or the start fails with
+    /// <see cref="SchedulerException" />. Each call is one run at each start. This is what a cron
+    /// <c>@reboot</c> would have meant, which a cron expression cannot express: it has no instant to fire
+    /// at.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="jobKey">The job to run.</param>
+    public static IQuartzBuilder RunAtStartup(this IQuartzBuilder builder, JobKey jobKey)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(jobKey);
+
+        return builder.AddPlugin(_ => new StartupRunPlugin(jobKey));
+    }
+
+    /// <summary>
     /// Adds a job whose code is a delegate, and whose parameters are what that code needs.
     /// </summary>
     /// <remarks>

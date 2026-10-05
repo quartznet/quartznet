@@ -118,6 +118,9 @@ as properties of that job; see
 at 02:00. See the [Cron Expression Reference](../cron-expressions.md). Cron is one of five schedule
 kinds; the others are in [Lesson 2](jobs-and-triggers.md).
 
+To also run a job each time the scheduler starts, add `q.RunAtStartup(jobKey)`: see
+[Multiple Triggers](../how-tos/multiple-triggers.md#once-each-time-the-scheduler-starts).
+
 Everything registered this way is stored when the scheduler starts. With a persistent job store,
 registrations replace stored definitions of the same name by default, so this list describes the
 schedule on every start rather than seeding it once.
