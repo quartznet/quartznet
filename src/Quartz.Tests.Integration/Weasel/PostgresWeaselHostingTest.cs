@@ -176,10 +176,10 @@ public sealed class PostgresWeaselHostingTest
             await host.StopAsync();
         }
 
-        typeof(global::Weasel.Core.Migrator).Assembly.GetName().Version.Should().BeGreaterThanOrEqualTo(new Version(9, 36, 0),
-            "Marten 9.40 asks for Weasel 9.35.2 and Wolverine 6.41 for 9.35.1, and Quartz.Weasel's floor raises the graph to one newer Weasel");
-        typeof(JasperFxOptions).Assembly.GetName().Version.Should().BeGreaterThanOrEqualTo(new Version(2, 76, 0),
-            "Weasel 9.36.0 floors JasperFx above what Marten and Wolverine ask for, and they run on it");
+        typeof(global::Weasel.Core.Migrator).Assembly.GetName().Version.Should().BeGreaterThanOrEqualTo(new Version(9, 39, 0),
+            "Marten 9.45 asks for Weasel 9.37.0 and Wolverine 6.45 for 9.38.0, and Quartz.Weasel's floor raises the graph to one newer Weasel");
+        typeof(JasperFxOptions).Assembly.GetName().Version.Should().BeGreaterThanOrEqualTo(new Version(2, 79, 1),
+            "Marten and Wolverine floor JasperFx above the 2.76.0 Weasel 9.39.0 asks for, and Quartz.Weasel runs on it");
         typeof(WolverineOptions).Assembly.GetName().Version!.Major.Should().Be(6);
     }
 

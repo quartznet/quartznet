@@ -121,8 +121,7 @@ internal sealed class OracleQuartzDatabase : DatabaseBase<OracleConnection>, IQu
 
     /// <summary>
     /// Refuses a change it could only make by dropping and recreating a table, under every
-    /// <see cref="AutoCreate" /> — including <see cref="AutoCreate.All" />, which would otherwise allow it —
-    /// and reads a descending index key back whole: see <see cref="QuartzOracleMigrator" />.
+    /// <see cref="AutoCreate" /> — including <see cref="AutoCreate.All" />, which would otherwise allow it.
     /// </summary>
     internal static OracleMigrator CreateMigrator() => new QuartzOracleMigrator();
 

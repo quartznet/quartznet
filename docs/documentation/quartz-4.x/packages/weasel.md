@@ -24,9 +24,8 @@ the scripts under `database/migrations/`.
 
 | Dependency | Version |
 |---|---|
-| Weasel | `[9.36.0, 10.0.0)` from Quartz 4.4; `[9.35.1, 10.0.0)` in 4.3 |
-| Weasel.Firebird | `[9.39.0, 10.0.0)`, the first release with it |
-| JasperFx | 2.76.0 or later, through Weasel 9.36.0 |
+| Weasel | `[9.39.0, 10.0.0)` from Quartz 4.4; `[9.35.1, 10.0.0)` in 4.3 |
+| JasperFx | 2.76.0 or later, through Weasel 9.39.0 |
 
 An application beside Marten or Wolverine resolves both at least that high.
 

@@ -61,11 +61,12 @@
     <!--
       Test-only: Quartz.Tests.Integration joins Quartz's tables to a Marten store as a feature schema and
       checks that Marten's own cleanup leaves them alone. Nothing ships it: Quartz.Weasel.PostgreSQL takes
-      no Marten dependency. Marten, Wolverine and Weasel each floor JasperFx, and the Weasel range below
-      has the highest floor (2.76.0), so the graph under test is the one an application beside Quartz.Weasel
-      resolves.
+      no Marten dependency. Marten 9.45.0 and Wolverine 6.45.0 floor JasperFx at 2.79.1, above the 2.76.0
+      Weasel asks for, and Weasel itself at 9.37.0 and 9.38.0, below the Weasel range's floor. So the tests
+      run Quartz.Weasel on the floor it ships with. A Marten or Wolverine that asks for a Weasel above the
+      floor moves the tests off it; raise the floor with it, or hold that update.
     -->
-    <PackageVersion Include="Marten" Version="9.40.0" />
+    <PackageVersion Include="Marten" Version="9.45.0" />
     <PackageVersion Include="MELT" Version="1.1.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
@@ -122,10 +123,10 @@
       32.0.1 is the last Verify without a licence check; .github/dependabot.yml says why it stays there.
     -->
     <PackageVersion Include="Verify.NUnit" Version="32.0.1" />
-    <PackageVersion Include="WolverineFx" Version="6.41.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="6.41.0" />
-    <PackageVersion Include="WolverineFx.SqlServer" Version="6.41.0" />
-    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.41.0" />
+    <PackageVersion Include="WolverineFx" Version="6.45.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.45.0" />
+    <PackageVersion Include="WolverineFx.SqlServer" Version="6.45.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.45.0" />
   </ItemGroup>
 
   <!--
@@ -205,26 +206,26 @@
 
       The lower end breaks this group's rule on purpose: it is not the oldest advisory-free release but the
       oldest one that is correct for Quartz. 9.35.1 brought AddOnlyMigrations, without which an update
-      drops the columns, indexes and foreign keys an application added to Quartz's tables. 9.36.0 is the
-      floor because its SQLite rebuild keeps them too, with their rows (JasperFx/weasel#639), and rolling
-      a rebuild back keeps them as well (#648); Quartz.Weasel.SQLite refused such a rebuild before (#3956).
-      The others follow Weasel.Sqlite so that all of them stay one range; Weasel.MySql and Weasel.Oracle
-      need 9.36.0 in their own right, for the type, index-direction and CREATE fixes that make Quartz's
-      MySQL and Oracle scripts read back unchanged. 9.36.0 floors JasperFx at 2.76.0, so an application
-      beside Marten or Wolverine resolves at least that. Weasel.Firebird starts at 9.39.0, the first
-      release that has it.
+      drops the columns, indexes and foreign keys an application added to Quartz's tables. 9.36.0's SQLite
+      rebuild keeps them too, with their rows (JasperFx/weasel#639), and rolling a rebuild back keeps them
+      as well (#648); it also has the type, index-direction and CREATE fixes that make Quartz's MySQL and
+      Oracle scripts read back unchanged. In 9.37.0 the commands an Oracle comparison splits off keep the
+      LONG fetch size (#660), without which a descending index key reads back as Oracle's hidden column and
+      every apply drops and recreates IDX_QRTZ_T_NFT_ST. 9.39.0 is the floor because it is the first
+      release with Weasel.Firebird, and every Weasel row stays one range. It still floors JasperFx at
+      2.76.0, so an application beside Marten or Wolverine resolves at least that.
 
       The Quartz.Weasel packages turn transitive pinning off, so their nuspecs carry exactly this range and
       nothing of Weasel's own graph. They move together, by hand, when Quartz needs a Weasel fix;
       .github/dependabot.yml offers no Weasel minor or patch, because each would raise every consumer's floor.
     -->
-    <PackageVersion Include="Weasel.Core" Version="[9.36.0, 10.0.0)" />
+    <PackageVersion Include="Weasel.Core" Version="[9.39.0, 10.0.0)" />
     <PackageVersion Include="Weasel.Firebird" Version="[9.39.0, 10.0.0)" />
-    <PackageVersion Include="Weasel.MySql" Version="[9.36.0, 10.0.0)" />
-    <PackageVersion Include="Weasel.Oracle" Version="[9.36.0, 10.0.0)" />
-    <PackageVersion Include="Weasel.Postgresql" Version="[9.36.0, 10.0.0)" />
-    <PackageVersion Include="Weasel.Sqlite" Version="[9.36.0, 10.0.0)" />
-    <PackageVersion Include="Weasel.SqlServer" Version="[9.36.0, 10.0.0)" />
+    <PackageVersion Include="Weasel.MySql" Version="[9.39.0, 10.0.0)" />
+    <PackageVersion Include="Weasel.Oracle" Version="[9.39.0, 10.0.0)" />
+    <PackageVersion Include="Weasel.Postgresql" Version="[9.39.0, 10.0.0)" />
+    <PackageVersion Include="Weasel.Sqlite" Version="[9.39.0, 10.0.0)" />
+    <PackageVersion Include="Weasel.SqlServer" Version="[9.39.0, 10.0.0)" />
   </ItemGroup>
 
   <!--

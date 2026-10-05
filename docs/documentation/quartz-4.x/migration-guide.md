@@ -164,13 +164,13 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 
 **Dependencies:**
 
-* **The `Quartz.Weasel` packages need Weasel 9.36.0 or later**, `[9.36.0, 10.0.0)`; 4.3 took 9.35.1.
-  Weasel 9.36.0 needs JasperFx 2.76.0 or later, so a Marten or Wolverine application beside Quartz resolves
+* **The `Quartz.Weasel` packages need Weasel 9.39.0 or later**, `[9.39.0, 10.0.0)`; 4.3 took 9.35.1.
+  Weasel 9.39.0 needs JasperFx 2.76.0 or later, so a Marten or Wolverine application beside Quartz resolves
   both at least that high. A pin below either fails restore with a downgrade error; raise it:
 
   ```diff
   - <PackageVersion Include="Weasel.Postgresql" Version="9.35.1" />
-  + <PackageVersion Include="Weasel.Postgresql" Version="9.36.0" />
+  + <PackageVersion Include="Weasel.Postgresql" Version="9.39.0" />
   ```
 
 **Mixed 4.3 and 4.4 versions:**

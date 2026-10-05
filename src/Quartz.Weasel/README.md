@@ -16,8 +16,7 @@ This package is the shared glue. Install the one for your database, which brings
 | [Quartz.Weasel.Firebird](https://www.nuget.org/packages/Quartz.Weasel.Firebird) | Firebird 3, 4 and 5 |
 | [Quartz.Weasel.SQLite](https://www.nuget.org/packages/Quartz.Weasel.SQLite) | SQLite |
 
-The packages depend on Weasel `[9.36.0, 10.0.0)`, Quartz.Weasel.Firebird on `[9.39.0, 10.0.0)`, and through
-it on JasperFx 2.76.0 or later.
+The packages depend on Weasel `[9.39.0, 10.0.0)`, and through it on JasperFx 2.76.0 or later.
 
 An application not using Weasel keeps `ProvisionSchema()` and the scripts under `database/migrations/`.
 

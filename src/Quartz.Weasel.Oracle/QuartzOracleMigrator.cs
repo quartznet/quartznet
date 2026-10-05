@@ -19,57 +19,23 @@
 
 #endregion
 
-using System.Data.Common;
-
-using Oracle.ManagedDataAccess.Client;
-
 using Weasel.Oracle;
-
-using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Quartz.Weasel.Oracle;
 
 /// <summary>
-/// Weasel's Oracle migrator, refusing destructive changes, with every introspection command reading a
-/// <c>LONG</c> whole.
+/// Weasel's Oracle migrator, refusing destructive changes.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Weasel reads the column behind a descending index key out of <c>ALL_IND_EXPRESSIONS.COLUMN_EXPRESSION</c>,
-/// a <c>LONG</c>, and ODP.NET hands a <c>LONG</c> back empty unless the command says how much of it to
-/// fetch. Weasel's table query says so on the command it builds, but a comparison splits its queries into
-/// one command per statement, and in Weasel 9.36.0 the split commands do not carry the setting. The
-/// descending <c>PRIORITY</c> of <c>IDX_QRTZ_T_NFT_ST</c> then reads back as Oracle's hidden
-/// <c>SYS_NC…$</c> column, and every apply drops and recreates the index.
-/// </para>
-/// <para>
-/// Reading a table on its own (<c>Table.FetchExistingAsync</c>) is not affected, which is why the index
-/// reads back correctly there.
-/// </para>
+/// It used to read every introspection command's <c>LONG</c> whole as well: the commands a comparison splits
+/// off dropped the fetch size, so the descending <c>PRIORITY</c> of <c>IDX_QRTZ_T_NFT_ST</c> read back as
+/// Oracle's hidden <c>SYS_NC…$</c> column and every apply recreated the index. Weasel 9.37.0 keeps the fetch
+/// size on a split command (JasperFx/weasel#660).
 /// </remarks>
 internal sealed class QuartzOracleMigrator : OracleMigrator
 {
     public QuartzOracleMigrator()
     {
         RefuseDestructiveChanges = true;
-    }
-
-    public override DbCommandBuilder CreateCommandBuilder(DbConnection conn) => new LongFetchingCommandBuilder();
-
-    /// <summary>Weasel's splitting builder, with <c>InitialLONGFetchSize</c> set on each command it splits off.</summary>
-    internal sealed class LongFetchingCommandBuilder : OracleDbCommandBuilder
-    {
-        public override IReadOnlyList<DbCommand> CompileCommands()
-        {
-            IReadOnlyList<DbCommand> commands = base.CompileCommands();
-
-            foreach (OracleCommand command in commands.OfType<OracleCommand>())
-            {
-                // -1 is "all of it".
-                command.InitialLONGFetchSize = -1;
-            }
-
-            return commands;
-        }
     }
 }
