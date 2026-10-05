@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 using AngleSharp.Dom;
 
 using Bunit;
@@ -356,6 +359,68 @@ public class HistoryPageTest
         page.TextOfAll(".qz-state-label").Should().Equal(["Failed (retrying)", "Failed", "Succeeded"],
             "a page that called both failures the same thing made a job under a retry policy look "
             + "several times as broken as it was");
+    }
+
+    /// <summary>
+    /// The listing holds its columns to the page, so Run again is never pushed off it: the table is laid out
+    /// with fixed widths, the fire time is a date and a time that each stay whole, and an error is cut with
+    /// its whole text in the title.
+    /// </summary>
+    [Test]
+    public void TheListingKeepsRunAgainOnThePage()
+    {
+        string error = string.Join(" ", Enumerable.Repeat("the upstream system refused the connection", 10));
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false) with { EntryId = "entry-1", ExceptionMessage = error });
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.Find("table.qz-table").ClassList.Should().Contain("qz-history-table",
+            "the modifier is what gives the columns fixed widths, without which the keys and the error widen the table");
+        page.FindAll("thead th").Select(th => th.ClassName).Should().Equal(
+            ["qz-col-key", "qz-col-key", "qz-col-node", "qz-col-fired", "qz-col-duration", "qz-col-result", "qz-col-summary", "qz-col-error", "qz-col-actions"]);
+        page.Find("td.qz-col-node").Should().NotBeNull("the node cell is the one the narrower layouts hide, so it carries the class too");
+        page.Find("td.qz-col-actions [data-testid=history-run-again]").Should().NotBeNull();
+
+        IElement fired = page.Find("[data-testid=history-execution-link]");
+        fired.Children.Select(part => part.TagName).Should().Equal(["SPAN", "SPAN"], "a date and a time, each kept on one line");
+        fired.Children[0].TextContent.Should().MatchRegex(@"^\d{4}-\d{2}-\d{2}$");
+        fired.TextContent.Should().Be(fired.Children[0].TextContent + " " + fired.Children[1].TextContent);
+
+        IElement shown = page.Find("[data-testid=history-error] .qz-history-clamp");
+        shown.GetAttribute("title").Should().Be(error, "the cell is cut to two lines, and the title carries the whole message");
+    }
+
+    /// <summary>
+    /// The stylesheet hides the node column, rather than the actions, when the screen is too narrow for both.
+    /// </summary>
+    [Test]
+    public void TheNodeColumnGivesWayBeforeTheActions()
+    {
+        string css = File.ReadAllText(DashboardStylesheet());
+
+        Match narrow = Regex.Match(css, @"@media \(max-width: (\d+)px\) \{\s*\.qz-history-table \.qz-col-node \{\s*display: none;");
+        narrow.Success.Should().BeTrue("below a breakpoint the node column is the one that goes");
+        int.Parse(narrow.Groups[1].Value, CultureInfo.InvariantCulture).Should().BeGreaterThan(1500,
+            "at 1280px and at 1500px the node gives its width to the keys, so Run again stays on the page");
+        css.Should().NotMatchRegex(@"\.qz-history-table [^{]*\.qz-col-actions[^{]*\{\s*display: none",
+            "the actions are what the layout exists to keep");
+    }
+
+    private static string DashboardStylesheet()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            string path = Path.Combine(directory.FullName, "src", "Quartz.Dashboard", "wwwroot", "css", "quartz-dashboard.css");
+            if (File.Exists(path))
+            {
+                return path;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new FileNotFoundException("quartz-dashboard.css was not found above " + AppContext.BaseDirectory);
     }
 
     [Test]

@@ -133,20 +133,22 @@
             <StatCard Title="@ScopedStatTitle("P95 duration")" Value="@FormatDurationValue(_pageP95Duration)" Icon="📈" Color="info" />
         </div>
 
-        <table class="qz-table">
+        @* qz-history-table fixes the column widths, so a long key, summary or error is cut inside its cell
+           rather than pushing Run again off the page; the node column gives way on narrower screens. *@
+        <table class="qz-table qz-history-table">
             <thead>
                 <tr>
-                    <th>Job</th>
-                    <th>Trigger</th>
-                    <th>Node</th>
-                    <th>Fired</th>
-                    <th>Duration</th>
-                    <th>Result</th>
-                    <th>Summary</th>
-                    <th>Error</th>
+                    <th class="qz-col-key">Job</th>
+                    <th class="qz-col-key">Trigger</th>
+                    <th class="qz-col-node">Node</th>
+                    <th class="qz-col-fired">Fired</th>
+                    <th class="qz-col-duration">Duration</th>
+                    <th class="qz-col-result">Result</th>
+                    <th class="qz-col-summary">Summary</th>
+                    <th class="qz-col-error">Error</th>
                     @if (!IsReadOnly)
                     {
-                        <th>Actions</th>
+                        <th class="qz-col-actions">Actions</th>
                     }
                 </tr>
             </thead>
@@ -154,43 +156,50 @@
                 @foreach (DashboardHistoryEntry entry in _entries)
                 {
                     <tr>
-                        <td><KeyBadge GroupName="@entry.JobGroup" ItemName="@entry.JobName" /></td>
-                        <td><KeyBadge GroupName="@entry.TriggerGroup" ItemName="@entry.TriggerName" /></td>
-                        <td class="qz-table-cell-mono qz-history-node">@NodeLabel(entry.SchedulerInstanceId)</td>
-                        <td>
+                        <td class="qz-col-key"><KeyBadge GroupName="@entry.JobGroup" ItemName="@entry.JobName" /></td>
+                        <td class="qz-col-key"><KeyBadge GroupName="@entry.TriggerGroup" ItemName="@entry.TriggerName" /></td>
+                        <td class="qz-col-node qz-table-cell-mono qz-history-node" title="@NodeLabel(entry.SchedulerInstanceId)">@NodeLabel(entry.SchedulerInstanceId)</td>
+                        <td class="qz-col-fired">
                             @* The fire time is the link to the row's own page, which carries its log. A
-                               row a store left unnamed has no page to open. *@
+                               row a store left unnamed has no page to open. Its date and its time each
+                               stay on one line, so the cell is two lines at most. *@
                             @if (entry.EntryId is { Length: > 0 } entryId)
                             {
-                                <a class="qz-details-link" data-testid="history-execution-link" href="@ExecutionPath(entryId)">@FormatFiredAt(entry.FiredAtUtc)</a>
+                                <a class="qz-details-link qz-history-fired" data-testid="history-execution-link" href="@ExecutionPath(entryId)"><span>@FiredDate(entry.FiredAtUtc)</span> <span>@FiredTime(entry.FiredAtUtc)</span></a>
                             }
                             else
                             {
-                                @FormatFiredAt(entry.FiredAtUtc)
+                                <span class="qz-history-fired"><span>@FiredDate(entry.FiredAtUtc)</span> <span>@FiredTime(entry.FiredAtUtc)</span></span>
                             }
                         </td>
-                        <td>@FormatDurationValue(entry.Duration)</td>
-                        <td>
+                        <td class="qz-col-duration">@FormatDurationValue(entry.Duration)</td>
+                        <td class="qz-col-result">
                             <StateIndicator State="@RunResultDisplay.Label(entry)" />
                             @if (entry.Manual)
                             {
                                 <span class="qz-run-badge" data-testid="history-manual" title="Asked for with Trigger now or TriggerJob, not fired by a schedule">Manual</span>
                             }
                         </td>
-                        <td class="qz-history-summary">
+                        <td class="qz-col-summary qz-history-summary">
                             @if (entry.Summary is { Length: > 0 } summary)
                             {
-                                <span class="qz-history-summary-text">@summary</span>
+                                <span class="qz-history-summary-text qz-history-clamp" title="@summary">@summary</span>
                             }
                             @foreach (KeyValuePair<string, string> metric in RunResultDisplay.Metrics(entry.MetricsJson))
                             {
                                 <span class="qz-metric-chip" title="@(metric.Key + ": " + metric.Value)">@metric.Key: @metric.Value</span>
                             }
                         </td>
-                        <td>@entry.ExceptionMessage</td>
+                        <td class="qz-col-error" data-testid="history-error">
+                            @* Cut to two lines; the title, and the row's own page, carry the whole message. *@
+                            @if (entry.ExceptionMessage is { Length: > 0 } error)
+                            {
+                                <span class="qz-history-clamp" title="@error">@error</span>
+                            }
+                        </td>
                         @if (!IsReadOnly)
                         {
-                            <td>
+                            <td class="qz-col-actions">
                                 @* Only on a final failure. A row the trigger is going to retry already
                                    has another attempt coming, and a button here would add a second one. *@
                                 @if (FailedFinally(entry))
@@ -1000,6 +1009,22 @@
     private string FormatFiredAt(DateTimeOffset? firedAtUtc)
     {
         return Scheduler.FormatInSelectedTimeZone(firedAtUtc, "u");
+    }
+
+    /// <summary>The date half of <see cref="FormatFiredAt" />, which the listing puts on a line of its own.</summary>
+    private string FiredDate(DateTimeOffset firedAtUtc)
+    {
+        string formatted = FormatFiredAt(firedAtUtc);
+        int space = formatted.IndexOf(' ', StringComparison.Ordinal);
+        return space < 0 ? formatted : formatted[..space];
+    }
+
+    /// <summary>The time and offset half of <see cref="FormatFiredAt" />.</summary>
+    private string FiredTime(DateTimeOffset firedAtUtc)
+    {
+        string formatted = FormatFiredAt(firedAtUtc);
+        int space = formatted.IndexOf(' ', StringComparison.Ordinal);
+        return space < 0 ? string.Empty : formatted[(space + 1)..];
     }
 
     private string GetSuccessRateText()
