@@ -735,9 +735,15 @@ and the error if any.
 - **The results filter** lists the ticked results; none ticked lists every result. A scheduler in another
   process whose host is older than 4.4 cannot filter by result or by one job, and the page says so.
 - **Run again**, on those failed rows, fires the job through `IScheduler.TriggerJob`. It is logged in the
-  [action log](#action-log) and hidden in [read-only](#read-only-mode) mode. It uses the job's and trigger's
-  stored data maps, not the merged map of the failed run, which history does not record. A row that will be
-  retried has no button.
+  [action log](#action-log) and hidden in [read-only](#read-only-mode) mode. A row that will be retried has no
+  button. The toast says which input it used:
+
+  | The row | Run again passes |
+  |---|---|
+  | Has an input, from 4.4 with [`RecordInput`](../how-tos/job-outcomes.md#record-a-run-s-input) | The input, under `SchedulerConstants.JobInput`: *with the original input*, logged as `TriggerJobWithData` |
+  | Has none, or one too large to keep | No map: the job's own data, *without input* |
+
+  The execution page shows the input and has the same button, labelled with the input it will pass.
 
 Every filter is a query parameter, so a narrowed view is a link:
 

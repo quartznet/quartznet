@@ -52,6 +52,37 @@ public sealed class JobOutcomesSamples
         #endregion
     }
 
+    public static void RecordingInputs(IHostApplicationBuilder builder)
+    {
+        #region sample_job_outcome_record_input
+
+        builder.Services.AddQuartzExecutionHistory(options =>
+        {
+            // Off by default: an input can hold secrets, and the history keeps it as plain text.
+            options.RecordInput = true;
+            options.MaxInputBytes = 64 * 1024;
+        });
+
+        #endregion
+    }
+
+    public static async Task RunningAFailureAgain(IScheduler scheduler, IExecutionHistoryStore history, string entryId)
+    {
+        #region sample_job_outcome_run_again
+
+        ExecutionHistoryEntry? failed = await history.GetExecution(scheduler.SchedulerName, entryId);
+        if (failed is null)
+        {
+            return;
+        }
+
+        // The input is the string the scheduler stored, so it goes back as it is. No input: the job's own data.
+        JobDataMap? data = failed.Input is { } input ? new JobDataMap { [SchedulerConstants.JobInput] = input } : null;
+        await scheduler.TriggerJob(new JobKey(failed.JobName, failed.JobGroup), data);
+
+        #endregion
+    }
+
     public static async Task ReadingAStatus(IExecutionHistoryStore history, string schedulerName)
     {
         #region sample_job_outcome_status

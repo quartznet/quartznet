@@ -107,7 +107,7 @@ file whose suffix matches your database: `_sqlServer`, `_postgres`, `_mysql_inno
 | [`4.3`](migrations/4.3) | `add_overlap_policy_<db>.sql`: `OVERLAP_POLICY` on `QRTZ_TRIGGERS`, what a trigger does when a firing comes due while its last one runs (#3875) | **Required on 4.3+**, safe during a mixed 4.2/4.3 window; give a trigger a policy only once every node is 4.3 | all | `main` only |
 | [`4.3`](migrations/4.3) | `add_misfire_reason_<db>.sql`: `REASON` on `QRTZ_MISFIRE_HISTORY`, a misfire told apart from a firing the overlap policy skipped (#3875) | **Optional**: needed only with `UseExecutionHistory()`, and only after `4.2/add_execution_history_<db>.sql`; safe under a mixed cluster | all | `main` only |
 | [`4.3`](migrations/4.3) | `add_pause_reason_<db>.sql`: `PAUSE_REASON`, `PAUSED_BY` and `PAUSED_AT` on `QRTZ_TRIGGERS`, `QRTZ_PAUSED_TRIGGER_GRPS` and `QRTZ_PAUSED_JOB_GRPS`, why a trigger or group is paused (#3879) | **Required on 4.3+**, safe during a mixed 4.2/4.3 window; roll every node before relying on a reason | all | `main` only |
-| [`4.4`](migrations/4.4) | `add_execution_outcome_<db>.sql`: `RESULT`, `SUMMARY`, `METRICS`, `MANUAL` and `FIRE_INSTANCE_ID` on `QRTZ_EXECUTION_HISTORY`, the index `IDX_QRTZ_EH_JOB_TIME`, and the `QRTZ_JOB_STATUS` table: what a run reported, and each job's rollup (#3958) | **Optional**: needed only with `UseExecutionHistory()`, and only after `4.2/add_execution_history_<db>.sql`; safe under a mixed cluster | all | `main` only |
+| [`4.4`](migrations/4.4) | `add_execution_outcome_<db>.sql`: `RESULT`, `SUMMARY`, `METRICS`, `MANUAL`, `FIRE_INSTANCE_ID`, `JOB_INPUT` and `JOB_INPUT_TOO_LARGE` on `QRTZ_EXECUTION_HISTORY`, the index `IDX_QRTZ_EH_JOB_TIME`, and the `QRTZ_JOB_STATUS` table: what a run reported and was given, and each job's rollup (#3958, #4012) | **Optional**: needed only with `UseExecutionHistory()`, and only after `4.2/add_execution_history_<db>.sql`; safe under a mixed cluster | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -212,7 +212,7 @@ them. Run it when you want a cluster-wide execution history, at any time, or nev
 
 | File | Status | What |
 |---|---|---|
-| `add_execution_outcome_<db>.sql` | Optional | `RESULT`, `SUMMARY`, `METRICS`, `MANUAL` and `FIRE_INSTANCE_ID` on `QRTZ_EXECUTION_HISTORY`, the index `IDX_QRTZ_EH_JOB_TIME`, and the `QRTZ_JOB_STATUS` table. Needed only with `UseExecutionHistory()`, which refuses to start without them. |
+| `add_execution_outcome_<db>.sql` | Optional | `RESULT`, `SUMMARY`, `METRICS`, `MANUAL`, `FIRE_INSTANCE_ID`, `JOB_INPUT` and `JOB_INPUT_TOO_LARGE` on `QRTZ_EXECUTION_HISTORY`, the index `IDX_QRTZ_EH_JOB_TIME`, and the `QRTZ_JOB_STATUS` table. Needed only with `UseExecutionHistory()`, which refuses to start without them. |
 
 - **Run it only on a database that has `QRTZ_EXECUTION_HISTORY`.** Its first statement alters that
   table. A history 4.2 created needs 4.3's `add_execution_log_<db>.sql` and `add_misfire_reason_<db>.sql`

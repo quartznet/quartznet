@@ -592,7 +592,7 @@ One script, optional: only a store configured with `UseExecutionHistory()` needs
 
 | Script | Status | Adds |
 |---|---|---|
-| [`migrations/4.4/add_execution_outcome_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.4) | Optional: only with `UseExecutionHistory()` | `RESULT`, `SUMMARY`, `METRICS`, `MANUAL`, `FIRE_INSTANCE_ID` on `QRTZ_EXECUTION_HISTORY`; `IDX_QRTZ_EH_JOB_TIME`; the `QRTZ_JOB_STATUS` table |
+| [`migrations/4.4/add_execution_outcome_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.4) | Optional: only with `UseExecutionHistory()` | `RESULT`, `SUMMARY`, `METRICS`, `MANUAL`, `FIRE_INSTANCE_ID`, `JOB_INPUT`, `JOB_INPUT_TOO_LARGE` on `QRTZ_EXECUTION_HISTORY`; `IDX_QRTZ_EH_JOB_TIME`; the `QRTZ_JOB_STATUS` table |
 
 - A store configured with `UseExecutionHistory()` refuses to start without them; the startup check names
   the table or column and the script. No other store probes for them.
@@ -615,6 +615,19 @@ What a run reported through `context.Result`, on `QRTZ_EXECUTION_HISTORY`.
   read from `SUCCEEDED`.
 - `FIRE_INSTANCE_ID` is neither unique nor indexed. A fire instance id is not durable across a restart,
   and the history write is never retried.
+
+### The input columns
+
+What the run was given, on `QRTZ_EXECUTION_HISTORY`, written only with `ExecutionHistoryOptions.RecordInput`
+([#4012](https://github.com/quartznet/quartznet/issues/4012)).
+
+| Column | What it holds | Declared as |
+|---|---|---|
+| `JOB_INPUT` | The run's input, the string stored under `QRTZ_JOB_INPUT` | `EXECUTION_LOG` |
+| `JOB_INPUT_TOO_LARGE` | Whether the input was over `MaxInputBytes`, and so not kept | `SUCCEEDED`, nullable |
+
+- Both are nullable with no default. `JOB_INPUT` is `NULL` when nothing was recorded.
+- The listing never reads `JOB_INPUT`; the single-row read does.
 
 ### The job index
 
