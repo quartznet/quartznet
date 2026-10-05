@@ -68,6 +68,14 @@ public class DelegatingJobStore : IJobStore
     public virtual bool SupportsPersistence => jobStore.SupportsPersistence;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// What the inner store says, since <see cref="AddTrigger" /> and <see cref="ScheduleJobs" /> hand it
+    /// the options unchanged. A subclass that stores triggers itself, rather than through the inner
+    /// store, overrides this to say what it does.
+    /// </remarks>
+    public virtual bool SupportsStoringPaused => jobStore.SupportsStoringPaused;
+
+    /// <inheritdoc />
     public virtual TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => jobStore.EstimatedTimeToReleaseAndAcquireTrigger;
 
     /// <inheritdoc />

@@ -58,6 +58,27 @@ public sealed class PauseReasonSamples
         #endregion
     }
 
+    public static async Task SchedulingATriggerPaused(IScheduler scheduler)
+    {
+        #region sample_schedule_paused
+
+        IJobDetail job = JobBuilder.Create<ExportJob>().WithIdentity("export").Build();
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("nightly-export")
+            .ForJob(job)
+            .WithCronSchedule("0 0 2 * * ?")
+            .Build();
+
+        // Stored paused by the call that stores it, so it cannot fire before somebody resumes it.
+        await scheduler.ScheduleJob(job, trigger, new ScheduleJobOptions
+        {
+            PauseReason = "awaiting sign-off from finance",
+            PauseRequestedBy = "alice"
+        });
+
+        #endregion
+    }
+
     public static void PausingWhenRetriesRunOut(IHostApplicationBuilder builder)
     {
         #region sample_pause_when_retries_exhausted

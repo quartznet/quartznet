@@ -740,20 +740,29 @@ internal static class SchedulerOperations
     /// detail by the carrier's <paramref name="toJobDetail" /> — and under its conflict mode when it names
     /// one.
     /// </summary>
+    /// <param name="scheduler">The scheduler to schedule on.</param>
+    /// <param name="request">The body.</param>
+    /// <param name="toJobDetail">The carrier's conversion of the body's job.</param>
+    /// <param name="authenticatedUser">
+    /// The caller's name, the requester of a paused schedule whose body gives a reason and names none.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     public static async ValueTask<ScheduleJobResponse> ScheduleJob(
         IScheduler scheduler,
         ScheduleJobRequest request,
         Func<JobDetailDto, IJobDetail> toJobDetail,
+        string? authenticatedUser,
         CancellationToken cancellationToken)
     {
-        // Validation has refused onConflict beside a job, so this is a trigger scheduled on its own.
+        // Validation has refused onConflict beside a job, and beside paused, so this is a trigger
+        // scheduled on its own.
         if (request.OnConflict is { } onConflict)
         {
             ScheduleTriggerResult result = await scheduler.ScheduleTrigger(request.Trigger, onConflict, cancellationToken).ConfigureAwait(false);
             return new ScheduleJobResponse(result.NextFireTimeUtc) { Outcome = result.Outcome };
         }
 
-        ScheduleJobOptions options = new() { Replace = request.Replace };
+        ScheduleJobOptions options = request.AsOptions(authenticatedUser);
 
         if (request.Job is null)
         {
@@ -774,6 +783,7 @@ internal static class SchedulerOperations
         IScheduler scheduler,
         ScheduleJobsRequest request,
         Func<JobDetailDto, IJobDetail> toJobDetail,
+        string? authenticatedUser,
         CancellationToken cancellationToken)
     {
         Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> jobsAndTriggers = new();
@@ -783,7 +793,7 @@ internal static class SchedulerOperations
             jobsAndTriggers.Add(jobDetail, triggers);
         }
 
-        return scheduler.ScheduleJobs(jobsAndTriggers, new ScheduleJobOptions { Replace = request.Replace }, cancellationToken);
+        return scheduler.ScheduleJobs(jobsAndTriggers, request.AsOptions(authenticatedUser), cancellationToken);
     }
 
     public static async ValueTask<OperationAppliedResponse> UnscheduleJob(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken)

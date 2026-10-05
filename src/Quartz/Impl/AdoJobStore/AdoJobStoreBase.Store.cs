@@ -114,9 +114,19 @@ internal abstract partial class AdoJobStoreBase
     /// </exception>
     public async ValueTask AddTrigger(IOperableTrigger trigger, AddTriggerOptions options = default, CancellationToken cancellationToken = default)
     {
+        if (!options.Paused)
+        {
+            await ExecuteInLock(
+                LockOnInsert || options.Replace ? SchedulerLock.TriggerAccess : null,
+                conn => AddTrigger(conn, trigger, null, options.Replace, StoredTriggerState.Waiting, false, false, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        PauseInfo? pause = PauseDetails.Record(options.Pause, timeProvider.GetUtcNow());
         await ExecuteInLock(
             LockOnInsert || options.Replace ? SchedulerLock.TriggerAccess : null,
-            conn => AddTrigger(conn, trigger, null, options.Replace, StoredTriggerState.Waiting, false, false, cancellationToken),
+            conn => AddTrigger(conn, trigger, null, options.Replace, StoredTriggerState.Waiting, false, false, continuationParentChecked: false, cancellationToken, storePaused: true, pause: pause),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -210,6 +220,11 @@ internal abstract partial class AdoJobStoreBase
     /// Whether the caller has just read the key in this transaction, so the row need not be looked for
     /// again; <see langword="null" /> when it has not.
     /// </param>
+    /// <param name="storePaused">
+    /// Whether the trigger is stored paused rather than waiting — <see cref="AddTriggerOptions.Paused" />
+    /// — so that it is never acquirable between being stored and being paused.
+    /// </param>
+    /// <param name="pause">The record of that pause, or <see langword="null" /> for the reasonless one.</param>
     private async ValueTask AddTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger newTrigger,
@@ -220,7 +235,9 @@ internal abstract partial class AdoJobStoreBase
         bool recovering,
         bool continuationParentChecked,
         CancellationToken cancellationToken,
-        bool? knownToExist = null)
+        bool? knownToExist = null,
+        bool storePaused = false,
+        PauseInfo? pause = null)
     {
         bool existingTrigger = knownToExist ?? await TriggerExists(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
 
@@ -244,6 +261,14 @@ internal abstract partial class AdoJobStoreBase
             {
                 await EnsureContinuationParentExists(conn, newTrigger, alsoStored: null, cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        // Inserted paused rather than paused afterwards, so no acquisition ever sees it waiting. The
+        // blocked check below still makes it paused-blocked while its job runs.
+        bool paused = storePaused && !forceState && !awaiting;
+        if (paused)
+        {
+            state = StoredTriggerState.Paused;
         }
 
         await Guarded(
@@ -314,6 +339,43 @@ internal abstract partial class AdoJobStoreBase
                 await Delegate.InsertTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
             },
             $"store trigger '{newTrigger.Key}' for '{newTrigger.JobKey}' job").ConfigureAwait(false);
+
+        if (paused)
+        {
+            await RecordStoredPause(conn, newTrigger.Key, state, pause, existingTrigger, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Writes the record of a trigger just stored paused, in the transaction that stored it.
+    /// </summary>
+    /// <remarks>
+    /// The insert and update statements name no pause column, so the record is the statement a pause
+    /// with a reason makes, moving the row from the state it was stored in to that same state. A reasonless
+    /// pause records nothing, so it writes nothing — except over a row it replaced, whose columns may
+    /// still hold an earlier pause's record, which would otherwise be read as this one's.
+    /// </remarks>
+    private ValueTask RecordStoredPause(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey key,
+        StoredTriggerState state,
+        PauseInfo? pause,
+        bool replaced,
+        CancellationToken cancellationToken)
+    {
+        return Guarded(
+            async () =>
+            {
+                if (pause is not null)
+                {
+                    await Delegate.PauseTriggerStates(conn, [key], state, [state], pause, cancellationToken).ConfigureAwait(false);
+                }
+                else if (replaced)
+                {
+                    await Delegate.ClearTriggerPauses(conn, [key], cancellationToken).ConfigureAwait(false);
+                }
+            },
+            $"record the pause of trigger '{key}'");
     }
 
     /// <summary>
@@ -507,6 +569,9 @@ internal abstract partial class AdoJobStoreBase
 
     public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
+        // One instant for the batch, as the set pauses stamp one.
+        PauseInfo? pause = options.Paused ? PauseDetails.Record(options.Pause, timeProvider.GetUtcNow()) : null;
+
         await ExecuteInLock(
             LockOnInsert || options.Replace ? SchedulerLock.TriggerAccess : null, async conn =>
             {
@@ -543,7 +608,18 @@ internal abstract partial class AdoJobStoreBase
                     await AddJob(conn, job, options.Replace, cancellationToken).ConfigureAwait(false);
                     foreach (var trigger in triggers)
                     {
-                        await AddTrigger(conn, trigger, job, options.Replace, StoredTriggerState.Waiting, false, false, continuationParentChecked: true, cancellationToken).ConfigureAwait(false);
+                        await AddTrigger(
+                            conn,
+                            trigger,
+                            job,
+                            options.Replace,
+                            StoredTriggerState.Waiting,
+                            forceState: false,
+                            recovering: false,
+                            continuationParentChecked: true,
+                            cancellationToken,
+                            storePaused: options.Paused,
+                            pause: pause).ConfigureAwait(false);
                     }
                 }
             }, cancellationToken).ConfigureAwait(false);

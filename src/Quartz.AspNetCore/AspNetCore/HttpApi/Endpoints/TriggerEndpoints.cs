@@ -401,13 +401,15 @@ internal static class TriggerEndpoints
     private static Task<IResult> ScheduleJob(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
         ScheduleJobRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
+        string? user = EndpointHelper.AuthenticatedUser(httpContext);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
-            scheduler => SchedulerOperations.ScheduleJob(scheduler, request, dto => RequestedJobDetail.From(dto, endpointHelper.IsJobTypeAllowed), cancellationToken));
+            scheduler => SchedulerOperations.ScheduleJob(scheduler, request, dto => RequestedJobDetail.From(dto, endpointHelper.IsJobTypeAllowed), user, cancellationToken));
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -415,13 +417,15 @@ internal static class TriggerEndpoints
     private static Task<IResult> ScheduleJobs(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
         ScheduleJobsRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
+        string? user = EndpointHelper.AuthenticatedUser(httpContext);
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
-            scheduler => SchedulerOperations.ScheduleJobs(scheduler, request, dto => RequestedJobDetail.From(dto, endpointHelper.IsJobTypeAllowed), cancellationToken));
+            scheduler => SchedulerOperations.ScheduleJobs(scheduler, request, dto => RequestedJobDetail.From(dto, endpointHelper.IsJobTypeAllowed), user, cancellationToken));
     }
 
     [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]

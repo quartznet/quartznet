@@ -717,14 +717,18 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         ArgumentNullException.ThrowIfNull(request);
         EnsureWritable();
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        ScheduleJobOptions options = request.Paused is { } paused
+            ? new ScheduleJobOptions { Paused = true, PauseReason = paused.Reason, PauseRequestedBy = paused.RequestedBy }
+            : default;
+
         if (request.Job is null)
         {
-            await ScheduleTriggerOnly(scheduler, request.Trigger, cancellationToken).ConfigureAwait(false);
+            await ScheduleTriggerOnly(scheduler, request.Trigger, options, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         IJobDetail jobDetail = BuildJobDetail(request.Job);
-        await ScheduleJobWithTrigger(scheduler, jobDetail, request.Trigger, cancellationToken).ConfigureAwait(false);
+        await ScheduleJobWithTrigger(scheduler, jobDetail, request.Trigger, options, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<bool> UnscheduleJob(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
@@ -1048,14 +1052,14 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return builder.Build();
     }
 
-    private static async ValueTask ScheduleTriggerOnly(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
+    private static async ValueTask ScheduleTriggerOnly(IScheduler scheduler, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
     {
-        _ = await scheduler.ScheduleJob(trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
+        _ = await scheduler.ScheduleJob(trigger, options, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async ValueTask ScheduleJobWithTrigger(IScheduler scheduler, IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
+    private static async ValueTask ScheduleJobWithTrigger(IScheduler scheduler, IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
     {
-        _ = await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
+        _ = await scheduler.ScheduleJob(jobDetail, trigger, options, cancellationToken).ConfigureAwait(false);
     }
 
     private static async ValueTask RescheduleTrigger(IScheduler scheduler, TriggerKey key, ITrigger trigger, CancellationToken cancellationToken = default)

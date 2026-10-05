@@ -254,6 +254,35 @@ public sealed class QuartzApiClientContractTest
     }
 
     /// <summary>
+    /// A trigger scheduled paused through the client is stored paused with its reason, whichever process
+    /// the scheduler is in: for the HTTP carrier that is the schedule route's <c>paused</c> members, sent
+    /// once the host has said it is 4.4 or later (#4018).
+    /// </summary>
+    [Test]
+    public async Task ATriggerScheduledPausedThroughTheClientIsStoredPausedWithItsReason()
+    {
+        JobKey jobKey = new("nightly", "scheduled-paused");
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(), new AddJobOptions { Replace = true });
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("now", "scheduled-paused")
+            .ForJob(jobKey)
+            .StartNow()
+            .Build();
+
+        await client.ScheduleJob(scheduler.SchedulerName, new ScheduleJobRequest(trigger, Job: null)
+        {
+            Paused = new PauseDetails { Reason = "awaiting approval", RequestedBy = "alice" }
+        });
+
+        (await scheduler.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused, "the trigger was stored paused");
+        (await client.GetTriggerPause(scheduler.SchedulerName, new TriggerKeyDto("scheduled-paused", "now"))).Should().Match<PauseInfo>(
+            pause => pause.Reason == "awaiting approval" && pause.RequestedBy == "alice");
+
+        await scheduler.DeleteJob(jobKey);
+    }
+
+    /// <summary>
     /// The control panel's three operations mean the same thing whichever process the scheduler is in: an
     /// edit in place, a narrowed listing and a key set.
     /// </summary>

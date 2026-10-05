@@ -94,6 +94,26 @@ public sealed class DelegatingJobStoreForwardingTest
     }
 
     /// <summary>
+    /// A paused store carries its pause through, and the wrapper says it can store paused exactly when the
+    /// store behind it can, since that store is what does it (#4018).
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task APausedStoreAndTheCapabilityAreHandedOn(bool innerStoresPaused)
+    {
+        IJobStore inner = A.Fake<IJobStore>();
+        A.CallTo(() => inner.SupportsStoringPaused).Returns(innerStoresPaused);
+        DelegatingJobStore store = new DelegatingJobStore(inner);
+        IOperableTrigger trigger = Trigger();
+        AddTriggerOptions paused = new() { PauseReason = "awaiting approval", PauseRequestedBy = "alice" };
+
+        await store.AddTrigger(trigger, paused);
+
+        store.SupportsStoringPaused.Should().Be(innerStoresPaused);
+        A.CallTo(() => inner.AddTrigger(trigger, paused, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
     /// The token travels too, which a wrapper that wrote <c>default</c> would quietly stop doing.
     /// </summary>
     [Test]

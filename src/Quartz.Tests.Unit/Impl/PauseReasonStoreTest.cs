@@ -468,6 +468,128 @@ public sealed class PauseReasonStoreTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Stored paused (#4018)
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task ATriggerAddedPausedIsStoredPausedWithItsRecordAndIsNeverAcquired()
+    {
+        store.SupportsStoringPaused.Should().BeTrue("both shipped stores honour the option, so the scheduler hands it on");
+
+        IJobDetail job = await StoreJob("reports");
+        IOperableTrigger trigger = NewTrigger("nightly", job);
+
+        await store.AddTrigger(trigger, new AddTriggerOptions { PauseReason = "awaiting approval", PauseRequestedBy = "alice" });
+
+        (await Acquire()).Should().BeEmpty("the trigger is due, and was stored paused, so there was never anything to acquire");
+        (await store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused);
+        (await store.GetTriggerPause(trigger.Key)).Should().Be(new PauseInfo("awaiting approval", "alice", epoch),
+            "the pause is recorded by the call that stored the trigger, stamped with the store's clock");
+        (await Header(trigger.Key)).Pause.Should().Be(new PauseInfo("awaiting approval", "alice", epoch),
+            "the record is the trigger's own, so the listing carries it");
+
+        (await store.ResumeTrigger(trigger.Key)).Should().BeTrue();
+
+        (await store.GetTriggerPause(trigger.Key)).Should().BeNull("resuming forgets the record, as it forgets any other");
+        (await Acquire()).Should().Equal([trigger.Key], "resumed, it is the trigger it would have been had it been stored waiting");
+    }
+
+    [Test]
+    public async Task AReasonlessStoredPauseRecordsNothing()
+    {
+        IJobDetail job = await StoreJob("reports");
+        IOperableTrigger trigger = NewTrigger("nightly", job);
+
+        await store.AddTrigger(trigger, new AddTriggerOptions { Paused = true });
+
+        (await Acquire()).Should().BeEmpty();
+        (await store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused);
+        (await store.GetTriggerPause(trigger.Key)).Should().BeNull("a pause that says nothing records nothing");
+
+        if (kind == PauseStoreKind.Sqlite)
+        {
+            (await ReadColumn(AdoConstants.ColumnPausedAt, trigger.Key)).Should().BeNull(
+                "the reasonless stored pause writes the state and nothing else, as the reasonless pause does");
+        }
+    }
+
+    [Test]
+    public async Task ScheduleJobsStoresEveryTriggerPausedWithOneRecord()
+    {
+        IJobDetail job = JobBuilder.Create<PauseJob>().WithIdentity("batch", Group).Build();
+        IOperableTrigger first = NewTrigger("first", job);
+        IOperableTrigger second = NewTrigger("second", job);
+
+        await store.ScheduleJobs(
+            new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> { [job] = [first, second] },
+            new ScheduleJobOptions { PauseReason = "quarter close", PauseRequestedBy = "finance-ops" });
+
+        (await Acquire()).Should().BeEmpty("neither trigger was ever stored waiting");
+        (await store.GetTriggerPause(first.Key)).Should().Be(new PauseInfo("quarter close", "finance-ops", epoch));
+        (await store.GetTriggerPause(second.Key)).Should().Be(new PauseInfo("quarter close", "finance-ops", epoch),
+            "one call is one pause, stamped with one instant");
+    }
+
+    [Test]
+    public async Task ATriggerStoredPausedWhileItsJobRunsIsPausedBlocked()
+    {
+        IJobDetail job = await StoreJob("serial", nonConcurrent: true);
+        TriggerKey running = await Schedule("running", job);
+        await Fire(running);
+
+        IOperableTrigger trigger = NewTrigger("held", job);
+        await store.AddTrigger(trigger, new AddTriggerOptions { PauseReason = "hold" });
+
+        (await store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused, "paused-blocked is paused");
+        (await store.GetTriggerPause(trigger.Key))!.Reason.Should().Be("hold");
+        if (kind == PauseStoreKind.Sqlite)
+        {
+            (await ReadColumn(AdoConstants.ColumnTriggerState, trigger.Key)).Should().Be(AdoConstants.StatePausedBlocked,
+                "its job disallows concurrent execution and is running, which a pause does not change");
+        }
+
+        (await store.ResumeTrigger(trigger.Key)).Should().BeTrue();
+        (await store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Blocked,
+            "resumed while its job still runs, a paused-blocked trigger is blocked rather than waiting");
+    }
+
+    [Test]
+    public async Task ATriggerStoredPausedIntoAPausedGroupAnswersItsOwnReason()
+    {
+        await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals(Group), maintenance);
+        clock.Advance(TimeSpan.FromMinutes(10));
+
+        IJobDetail job = await StoreJob("reports");
+        IOperableTrigger trigger = NewTrigger("nightly", job);
+        await store.AddTrigger(trigger, new AddTriggerOptions { PauseReason = "awaiting approval", PauseRequestedBy = "bob" });
+
+        (await store.GetTriggerPause(trigger.Key)).Should().Be(new PauseInfo("awaiting approval", "bob", epoch.AddMinutes(10)),
+            "the explicit reason is the trigger's own, and a trigger's own record is answered before its group's");
+        (await store.GetTriggerGroupPause(Group)).Should().Be(new PauseInfo("database maintenance", "alice", epoch),
+            "the group keeps the pause it had");
+    }
+
+    [Test]
+    public async Task ReplacingATriggerWithAStoredPauseReplacesThePauseItHad()
+    {
+        TriggerKey key = await Schedule("nightly");
+        await store.PauseTriggerWith(key, maintenance);
+        IJobDetail job = (await store.GetJob(new JobKey("job-nightly-" + Group, Group)))!;
+
+        clock.Advance(TimeSpan.FromHours(1));
+        await store.AddTrigger(NewTrigger("nightly", job), new AddTriggerOptions { Replace = true, Paused = true });
+
+        (await store.GetTriggerState(key)).Should().Be(TriggerState.Paused);
+        (await store.GetTriggerPause(key)).Should().BeNull(
+            "the replacement was paused without a reason, so the record of the pause it replaced is not read as its own");
+
+        clock.Advance(TimeSpan.FromHours(1));
+        await store.AddTrigger(NewTrigger("nightly", job), new AddTriggerOptions { Replace = true, PauseReason = "re-planned" });
+
+        (await store.GetTriggerPause(key)).Should().Be(new PauseInfo("re-planned", null, epoch.AddHours(2)));
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Beside a 4.2 node
     //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -585,6 +707,14 @@ public sealed class PauseReasonStoreTest
 
     private async Task<TriggerKey> Schedule(string name, IJobDetail job, string group = Group)
     {
+        IOperableTrigger trigger = NewTrigger(name, job, group);
+        await store.AddTrigger(trigger);
+        return trigger.Key;
+    }
+
+    /// <summary>A trigger due now and every hour after, its first fire time computed, not yet stored.</summary>
+    private IOperableTrigger NewTrigger(string name, IJobDetail job, string group = Group)
+    {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(clock)
             .WithIdentity(name, group)
             .ForJob(job)
@@ -593,8 +723,25 @@ public sealed class PauseReasonStoreTest
             .Build();
 
         trigger.ComputeFirstFireTimeUtc(null);
-        await store.AddTrigger(trigger);
-        return trigger.Key;
+        return trigger;
+    }
+
+    /// <summary>What the scheduler thread would acquire now, released again so the test can go on.</summary>
+    private async Task<List<TriggerKey>> Acquire()
+    {
+        List<IOperableTrigger> acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = clock.GetUtcNow().AddSeconds(1),
+            MaxCount = 10,
+            TimeWindow = TimeSpan.Zero
+        });
+
+        foreach (IOperableTrigger trigger in acquired)
+        {
+            await store.ReleaseAcquiredTrigger(trigger);
+        }
+
+        return [.. acquired.Select(x => x.Key)];
     }
 
     /// <summary>Acquires and fires the trigger, which then runs until the test completes it.</summary>

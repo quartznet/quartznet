@@ -311,6 +311,13 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public bool SupportsPersistence => false;
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <see langword="true" />: <see cref="AddTrigger" /> and <see cref="ScheduleJobs" /> place a trigger
+    /// asked to be stored paused straight into the paused state, under the lock that stores it.
+    /// </remarks>
+    public bool SupportsStoringPaused => true;
+
     /// <summary>
     /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar"/>s.
@@ -626,13 +633,16 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
 
+            // One instant for the batch, as the set pauses stamp one.
+            PauseInfo? pause = options.Paused ? PauseDetails.Record(options.Pause, timeProvider.GetUtcNow()) : null;
+
             // do bulk add...
             foreach (var triggersByJob in triggersAndJobs)
             {
                 AddJobNoLock(triggersByJob.Key, replace: true);
                 foreach (IOperableTrigger trigger in triggersByJob.Value)
                 {
-                    AddTriggerNoLock(trigger, replace: true, checkContinuationParent: false, ref pending);
+                    AddTriggerNoLock(trigger, replace: true, checkContinuationParent: false, ref pending, options.Paused, pause);
                 }
             }
         }
@@ -665,7 +675,8 @@ public sealed class RAMJobStore : IJobStore
 
         lock (lockObject)
         {
-            AddTriggerNoLock(trigger, options.Replace, checkContinuationParent: true, ref pending);
+            PauseInfo? pause = options.Paused ? PauseDetails.Record(options.Pause, timeProvider.GetUtcNow()) : null;
+            AddTriggerNoLock(trigger, options.Replace, checkContinuationParent: true, ref pending, options.Paused, pause);
         }
 
         await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
@@ -713,7 +724,15 @@ public sealed class RAMJobStore : IJobStore
     // checkContinuationParent: whether a continuation's parent is looked for here. Every caller says
     // which: the batch add has looked already, across the batch as well as the store, and putting a
     // replaced trigger back after a refused replacement is a restore rather than a new wait.
-    private void AddTriggerNoLock(IOperableTrigger trigger, bool replace, bool checkContinuationParent, ref PendingSignals pending)
+    // storePaused: whether the trigger is placed paused, carrying pause, rather than waiting — the
+    // Paused member of the options, honoured under the lock that stores it.
+    private void AddTriggerNoLock(
+        IOperableTrigger trigger,
+        bool replace,
+        bool checkContinuationParent,
+        ref PendingSignals pending,
+        bool storePaused = false,
+        PauseInfo? pause = null)
     {
         // Before anything is removed or added, so a refused continuation leaves the store as it was —
         // the trigger it would have replaced included.
@@ -778,7 +797,12 @@ public sealed class RAMJobStore : IJobStore
             return;
         }
 
-        PlaceScheduledTriggerNoLock(tw);
+        PlaceScheduledTriggerNoLock(tw, storePaused);
+        if (storePaused)
+        {
+            // The trigger's own record, which GetTriggerPause answers before any group's.
+            tw.pause = pause;
+        }
     }
 
     /// <summary>
@@ -813,11 +837,13 @@ public sealed class RAMJobStore : IJobStore
     /// Shared by a trigger being stored and a continuation being released, because a release is the
     /// moment a continuation joins the schedule and nothing about that moment is different for it.
     /// </remarks>
-    private void PlaceScheduledTriggerNoLock(TriggerWrapper tw)
+    /// <param name="tw">The trigger joining the schedule.</param>
+    /// <param name="paused">Whether it is stored paused whatever its groups say.</param>
+    private void PlaceScheduledTriggerNoLock(TriggerWrapper tw, bool paused = false)
     {
         bool jobBlocked = blockedJobs.Contains(tw.JobKey);
 
-        if (IsTriggerGroupPausedNoLock(tw))
+        if (paused || IsTriggerGroupPausedNoLock(tw))
         {
             tw.state = jobBlocked ? StoredTriggerState.PausedBlocked : StoredTriggerState.Paused;
         }

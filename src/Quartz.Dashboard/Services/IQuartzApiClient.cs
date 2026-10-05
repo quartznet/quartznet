@@ -1143,7 +1143,20 @@ public sealed record ClusterNodeDto(
 /// <summary>
 /// A trigger to schedule, and the job it fires when that job is not already stored.
 /// </summary>
-public sealed record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job);
+public sealed record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job)
+{
+    /// <summary>
+    /// The pause to store the trigger in, or <see langword="null" /> to store it as usual. Details that
+    /// say nothing store it paused without a record. From 4.4.
+    /// </summary>
+    /// <remarks>
+    /// Handed to <see cref="IScheduler.ScheduleJob(ITrigger, ScheduleJobOptions, CancellationToken)" /> as
+    /// <see cref="ScheduleJobOptions.Paused" />, so the trigger is never acquirable before it is paused. A
+    /// scheduler reached over HTTP whose host is older than 4.4 refuses it with
+    /// <see cref="NotSupportedException" />.
+    /// </remarks>
+    public PauseDetails? Paused { get; init; }
+}
 
 /// <summary>
 /// The trigger that replaces the one being rescheduled.

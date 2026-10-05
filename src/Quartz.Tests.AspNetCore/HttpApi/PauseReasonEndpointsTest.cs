@@ -416,6 +416,69 @@ public sealed class PauseRequesterEndpointTest
             .MustHaveHappenedOnceExactly(); // a requester the body names wins
     }
 
+    /// <summary>
+    /// A paused schedule names its requester as a key-set pause body does: the caller, beside a reason the
+    /// body gives without one, and nobody for a pause that says nothing (#4018).
+    /// </summary>
+    [Test]
+    public async Task APausedScheduleWithAReasonNamesTheAuthenticatedCaller()
+    {
+        using HttpResponseMessage withReason = await SendAuthenticated(
+            $"{SchedulerUrl}/triggers/schedule",
+            $$"""{ "trigger": {{ScheduledTrigger("held")}}, "pauseReason": "awaiting approval" }""",
+            "ops@example.com");
+        using HttpResponseMessage withoutReason = await SendAuthenticated(
+            $"{SchedulerUrl}/triggers/schedule",
+            $$"""{ "trigger": {{ScheduledTrigger("quiet")}}, "paused": true }""",
+            "ops@example.com");
+
+        withReason.StatusCode.Should().Be(HttpStatusCode.OK, await withReason.Content.ReadAsStringAsync());
+        withoutReason.StatusCode.Should().Be(HttpStatusCode.OK, await withoutReason.Content.ReadAsStringAsync());
+        A.CallTo(() => fake.ScheduleJob(
+                A<ITrigger>.That.Matches(t => t.Key.Name == "held"),
+                A<ScheduleJobOptions>.That.Matches(o => o.Paused && o.PauseReason == "awaiting approval" && o.PauseRequestedBy == "ops@example.com"),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly(); // the name the audit line records the request under
+        A.CallTo(() => fake.ScheduleJob(
+                A<ITrigger>.That.Matches(t => t.Key.Name == "quiet"),
+                A<ScheduleJobOptions>.That.Matches(o => o.Paused && o.PauseReason == null && o.PauseRequestedBy == null),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly(); // a pause that says nothing is not put in the caller's name
+    }
+
+    [Test]
+    public async Task APausedScheduleBesideAConflictModeIsRefused()
+    {
+        using HttpResponseMessage response = await SendAuthenticated(
+            $"{SchedulerUrl}/triggers/schedule",
+            $$"""{ "trigger": {{ScheduledTrigger("kept")}}, "onConflict": "Keep", "paused": true }""",
+            "ops@example.com");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "ScheduleTrigger takes no options, so the pause would be dropped without a word");
+        A.CallTo(() => fake.ScheduleTrigger(A<ITrigger>._, A<TriggerConflict>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    private static string ScheduledTrigger(string name) => $$"""
+        {
+          "triggerType": "SimpleTrigger",
+          "key": { "name": "{{name}}", "group": "reports" },
+          "jobKey": { "name": "export", "group": "reports" },
+          "description": null,
+          "calendarName": null,
+          "jobDataMap": {},
+          "misfireInstruction": 0,
+          "startTimeUtc": "2031-06-17T10:00:00+00:00",
+          "endTimeUtc": null,
+          "priority": 5,
+          "nextFireTimeUtc": null,
+          "previousFireTimeUtc": null,
+          "repeatCount": 0,
+          "repeatIntervalTimeSpan": "00:00:00",
+          "timesTriggered": 0
+        }
+        """;
+
     private async Task<HttpResponseMessage> SendAuthenticated(string url, string json, string caller)
     {
         using HttpRequestMessage request = new(HttpMethod.Post, url)
