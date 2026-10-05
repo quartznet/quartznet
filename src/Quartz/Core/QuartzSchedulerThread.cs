@@ -488,6 +488,10 @@ internal sealed class QuartzSchedulerThread
                         continue;
                     }
 
+                    // Zero when nothing is collecting the acquisition instruments, which is the signal to
+                    // skip the measurement rather than a timestamp of zero.
+                    bool measureAcquisition = false;
+                    long acquisitionStarted = 0;
                     try
                     {
                         ExecutionLimits? availableLimits = ComputeAvailableExecutionGroupLimits();
@@ -498,46 +502,14 @@ internal sealed class QuartzSchedulerThread
                             TimeWindow = qsRsrcs.BatchTimeWindow,
                             ExecutionLimits = availableLimits,
                         };
-                        // Zero when nothing is collecting the acquisition instruments, which is the signal
-                        // to skip the measurement rather than a timestamp of zero.
-                        bool measureAcquisition = qsRsrcs.Meters.TriggerAcquisitionEnabled;
-                        long acquisitionStarted = measureAcquisition ? qsRsrcs.TimeProvider.GetTimestamp() : 0;
+                        measureAcquisition = qsRsrcs.Meters.TriggerAcquisitionEnabled;
+                        acquisitionStarted = measureAcquisition ? qsRsrcs.TimeProvider.GetTimestamp() : 0;
 
                         // What is due already comes back fired, in the store's one round trip, and only
                         // what is due later comes back pending, to be waited for and fired below (#3864).
                         // A store that does not fire on acquisition answers everything pending, which is
                         // what the loop has always done with an acquisition.
                         acquisition = await qsRsrcs.JobStore.AcquireNextTriggersAndFireDue(request, CancellationToken.None).ConfigureAwait(false);
-
-                        // Copied on purpose, and IJobStore.AcquireNextTriggers says so: this loop removes
-                        // entries below while it waits out the first trigger's fire time, and the store is
-                        // allowed to hand back a list it still holds. The copy is around ten nanoseconds
-                        // and sixty-four bytes per attempt, measured in AcquiredTriggerHandoffBenchmark,
-                        // which is nothing beside the round trip a persistent store just made — and far
-                        // less than a caller-owns rule would cost the stores nobody here can see (#3344).
-                        // An empty list is never edited, so there is nothing to copy.
-                        List<IOperableTrigger> pending = acquisition.Pending;
-                        triggers = pending.Count > 0 ? new List<IOperableTrigger>(pending) : pending;
-                        int acquired = acquisition.Due.Count + triggers.Count;
-
-                        if (measureAcquisition)
-                        {
-                            // Only a round that came back. A failed acquisition leaves through one of the
-                            // catches below, where it is a store failure rather than an acquisition
-                            // latency, and folding the two together would make an unreachable database
-                            // look like a fast one.
-                            qsRsrcs.Meters.TriggersAcquired(
-                                qsRsrcs.Name,
-                                qsRsrcs.InstanceId,
-                                acquired,
-                                qsRsrcs.TimeProvider.GetElapsedTime(acquisitionStarted));
-                        }
-
-                        acquiresFailed = 0;
-                        if (logger.IsEnabled(LogLevel.Debug))
-                        {
-                            logger.TriggerBatchAcquired(acquired);
-                        }
                     }
                     catch (JobPersistenceException jpe)
                     {
@@ -573,14 +545,37 @@ internal sealed class QuartzSchedulerThread
                         continue;
                     }
 
-                    if (acquisition.Due.Count > 0)
+                    // The store has answered. What it fired is committed and what it left pending is this
+                    // round's, so from here nothing may end the round without dispatching the one and
+                    // releasing the other — not even an instrument or a logger that throws, which is why
+                    // they are not in the call's try above, whose catches just go round again (#3864).
+                    acquiresFailed = 0;
+
+                    // Copied on purpose, and IJobStore.AcquireNextTriggers says so: this loop removes entries
+                    // below while it waits out the first trigger's fire time, and the store is allowed to
+                    // hand back a list it still holds. The copy is around ten nanoseconds and sixty-four bytes
+                    // per attempt, measured in AcquiredTriggerHandoffBenchmark, which is nothing beside the
+                    // round trip a persistent store just made — and far less than a caller-owns rule would
+                    // cost the stores nobody here can see (#3344). An empty list is never edited, so there is
+                    // nothing to copy.
+                    List<IOperableTrigger> pending = acquisition.Pending;
+                    triggers = pending.Count > 0 ? new List<IOperableTrigger>(pending) : pending;
+
+                    // Released by the catch at the bottom if anything below throws before they are fired.
+                    unfired = triggers.Count > 0 ? triggers : null;
+                    try
                     {
-                        // Fired by the store as it acquired them, so they run now, ahead of any wait for
-                        // what is pending: the store has committed them, and a firing it committed is
-                        // never one nobody runs (#3746). The pending ones are still this round's to fire,
-                        // so an unexpected failure while dispatching releases them.
-                        unfired = triggers.Count > 0 ? triggers : null;
-                        await DispatchFiredTriggers(acquisition.Due, acquisition.Fired).ConfigureAwait(false);
+                        RecordAcquisition(measureAcquisition, acquisitionStarted, acquisition.Due.Count + triggers.Count);
+                    }
+                    finally
+                    {
+                        if (acquisition.Due.Count > 0)
+                        {
+                            // Fired by the store as it acquired them, so they run now, ahead of any wait for
+                            // what is pending: the store has committed them, and a firing it committed is never
+                            // one nobody runs (#3746).
+                            await DispatchFiredTriggers(acquisition.Due, acquisition.Fired).ConfigureAwait(false);
+                        }
                     }
 
                     if (triggers.Count > 0)
@@ -817,6 +812,32 @@ internal sealed class QuartzSchedulerThread
         }
 
         return signal.WaitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Measures and logs an acquisition the store has answered.
+    /// </summary>
+    /// <param name="measured">Whether anything is collecting the acquisition instruments.</param>
+    /// <param name="started">When the acquisition started, if it was measured.</param>
+    /// <param name="acquired">How many triggers the store answered with, fired or pending.</param>
+    private void RecordAcquisition(bool measured, long started, int acquired)
+    {
+        if (measured)
+        {
+            // Only a round that came back. A failed acquisition leaves through one of the catches around the
+            // call, where it is a store failure rather than an acquisition latency, and folding the two
+            // together would make an unreachable database look like a fast one.
+            qsRsrcs.Meters.TriggersAcquired(
+                qsRsrcs.Name,
+                qsRsrcs.InstanceId,
+                acquired,
+                qsRsrcs.TimeProvider.GetElapsedTime(started));
+        }
+
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.TriggerBatchAcquired(acquired);
+        }
     }
 
     /// <summary>

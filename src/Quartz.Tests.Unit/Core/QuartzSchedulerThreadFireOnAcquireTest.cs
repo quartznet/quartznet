@@ -1,6 +1,30 @@
+#region License
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+#endregion
+
+using System.Diagnostics.Metrics;
+
 using FakeItEasy;
 
 using Quartz.Core;
+using Quartz.Diagnostics;
 using Quartz.Extensibility;
 using Quartz.Impl;
 
@@ -170,6 +194,50 @@ public sealed class QuartzSchedulerThreadFireOnAcquireTest
 
         await ShouldObserve(store.Releases.Reaches(1), "a pending trigger the round never fired is released when the round ends abnormally");
 
+        store.Releases.Entries[0].Should().Be(later[0]);
+    }
+
+    /// <summary>
+    /// An instrument that throws once the store has answered must not cost the round. The store has
+    /// committed what it fired, so that is dispatched, and what it left pending is released rather than left
+    /// reserved.
+    /// </summary>
+    [Test]
+    public async Task AnInstrumentThatThrowsAfterTheStoreAnsweredStillDispatchesAndReleasesTheRound()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        IReadOnlyList<TriggerKey> due = await GivenScheduledJobs(1, now, namePrefix: "due-");
+        IReadOnlyList<TriggerKey> later = await GivenScheduledJobs(1, now.AddSeconds(2), namePrefix: "later-");
+
+        int thrown = 0;
+        using MeterListener listener = new();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (instrument.Meter.Name == QuartzInstrumentation.MeterName && instrument.Name == QuartzInstrumentation.Instruments.TriggerAcquired)
+            {
+                meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
+        {
+            // This scheduler's first round that acquired anything, and no other scheduler's.
+            foreach (KeyValuePair<string, object> tag in tags)
+            {
+                if (tag.Key == ActivityTags.SchedulerName && Equals(tag.Value, resources.Name) && Interlocked.Exchange(ref thrown, 1) == 0)
+                {
+                    throw new InvalidOperationException("the metrics exporter is broken");
+                }
+            }
+        });
+        listener.Start();
+
+        StartLoop();
+
+        await ShouldObserve(shellFactory.Created.Reaches(1), "the fire the store committed is run, whatever the instruments do");
+        await ShouldObserve(store.Releases.Reaches(1), "and the trigger it left pending is released rather than left reserved");
+
+        Volatile.Read(ref thrown).Should().Be(1, "the listener did throw");
+        shellFactory.Created.Entries.Should().Equal(due);
         store.Releases.Entries[0].Should().Be(later[0]);
     }
 
