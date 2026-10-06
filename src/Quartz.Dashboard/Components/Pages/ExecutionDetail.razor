@@ -15,13 +15,15 @@
 
     <div class="qz-row">
         <a class="qz-details-link" href="@DashboardLink.To(Options.Value, "history")">Back to execution history</a>
-        @* Only on a final failure, as on the history page; the label says whether the run's input goes with it. *@
-        @if (_entry is not null && !Options.Value.ReadOnly && !_entry.Succeeded && !_entry.RetryScheduled)
+        @* Only on a final failure, as on the history page; the label says whether the run's input goes with it.
+           A job no longer stored cannot be fired, so the button is disabled and its title says why. *@
+        @if (OffersRunAgain(_entry))
         {
             <button type="button"
                     class="qz-button qz-button-primary"
                     data-testid="execution-run-again"
-                    disabled="@_running"
+                    disabled="@(_running || _jobGone)"
+                    title="@(_jobGone ? RunAgainInput.JobGone(Target(_entry)) : null)"
                     @onclick="RunAgainAsync">Run again @RunAgainInput.Label(_entry)</button>
         }
     </div>
@@ -117,6 +119,7 @@
     private DashboardHistoryEntry? _entry;
     private List<KeyValuePair<string, string>> _metrics = [];
     private bool _running;
+    private bool _jobGone;
 
     [Parameter]
     public string EntryId { get; set; } = string.Empty;
@@ -144,6 +147,7 @@
         _historyUnavailable = false;
         _entry = null;
         _metrics = [];
+        _jobGone = false;
 
         try
         {
@@ -155,6 +159,13 @@
 
             _entry = await Api.GetExecution(schedulerName, EntryId);
             _metrics = RunResultDisplay.Metrics(_entry?.MetricsJson);
+
+            // One question, and only when the button is offered: a page shows one run, so asking whether
+            // its job is still stored costs a single read.
+            if (OffersRunAgain(_entry))
+            {
+                _jobGone = await RunAgainInput.IsJobGone(Api, schedulerName, new JobKeyDto(_entry.JobGroup, _entry.JobName));
+            }
         }
         catch (NotSupportedException)
         {
@@ -184,27 +195,40 @@
             return;
         }
 
-        string target = DisplayValueHelper.FormatKey(run.JobGroup, run.JobName);
+        string target = Target(run);
+        JobKeyDto job = new(run.JobGroup, run.JobName);
         JobDataMap? input = RunAgainInput.DataFor(run);
         string action = input is null ? "TriggerJob" : "TriggerJobWithData";
 
         _running = true;
         try
         {
-            await Api.TriggerJob(schedulerName, new JobKeyDto(run.JobGroup, run.JobName), input);
+            await Api.TriggerJob(schedulerName, job, input);
             ActionLog.Record(schedulerName, action, target, succeeded: true);
             Toasts.Success("Triggered job " + target + " " + RunAgainInput.Describe(run) + ".");
         }
         catch (Exception ex)
         {
+            // The job may have gone since the page was loaded; then the button is disabled from here on.
+            _jobGone = await RunAgainInput.FailedForAJobGone(Api, schedulerName, job, ex);
             ActionLog.Record(schedulerName, action, target, succeeded: false, ex.Message);
-            Toasts.Error(ex.Message);
+            Toasts.Error(_jobGone ? RunAgainInput.JobGone(target) : ex.Message);
         }
         finally
         {
             _running = false;
         }
     }
+
+    /// <summary>
+    /// Whether the page offers <em>Run again</em>: a final failure, on a dashboard that may change things.
+    /// </summary>
+    private bool OffersRunAgain([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] DashboardHistoryEntry? entry)
+    {
+        return entry is not null && !Options.Value.ReadOnly && !entry.Succeeded && !entry.RetryScheduled;
+    }
+
+    private static string Target(DashboardHistoryEntry entry) => DisplayValueHelper.FormatKey(entry.JobGroup, entry.JobName);
 
     private static string AttemptLabel(DashboardHistoryEntry entry)
     {

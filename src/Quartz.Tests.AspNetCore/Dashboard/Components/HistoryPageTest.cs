@@ -629,6 +629,72 @@ public class HistoryPageTest
         context.Toasts.Messages.Should().ContainSingle().Which.Message.Should().EndWith("without input.");
     }
 
+    /// <summary>
+    /// A job that was not durable is deleted with its last trigger, so Run again on a spent one-off has
+    /// nothing to fire. The page says so about the job, where the store's refusal speaks of a trigger the
+    /// operator never made.
+    /// </summary>
+    [Test]
+    public void RunAgainOfAJobNoLongerStoredSaysWhyAndHowToKeepIt()
+    {
+        const string refusal = "The job (DummyGroup.DummyJob) referenced by the trigger does not exist.";
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false));
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<JobKeyDto>._, A<JobDataMap?>._, A<CancellationToken>._))
+            .Throws(new JobPersistenceException(refusal));
+        A.CallTo(() => context.Api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Throws(new KeyNotFoundException("Job 'DummyGroup.DummyJob' was not found in scheduler 'TestScheduler'."));
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("[data-testid=history-run-again]").Click();
+
+        page.WaitForAssertion(() => context.Toasts.Messages.Should().ContainSingle().Which.Message.Should().Be(
+            "The job DummyGroup.DummyJob is no longer stored: it was not durable, and it was deleted with its last "
+            + "trigger. Store it durably (StoreDurably()) to run it again."));
+        page.Markup.Should().Contain("is no longer stored", "the page's error says what the toast says");
+        context.ActionLog.GetLatest().Should().ContainSingle()
+            .Which.Should().Match<DashboardActionLogEntry>(
+                entry => entry.Action == "TriggerJob" && !entry.Succeeded && entry.Message == refusal,
+                "the action log keeps what the scheduler answered");
+    }
+
+    /// <summary>
+    /// Only a job the scheduler says it does not hold is called gone. A job still stored, a question that
+    /// cannot be answered, and a scheduler that is itself gone all keep the failure's own message.
+    /// </summary>
+    [TestCase("stored")]
+    [TestCase("unanswered")]
+    [TestCase("scheduler gone")]
+    public void RunAgainThatFailsForAnotherReasonKeepsTheFailuresMessage(string why)
+    {
+        GivenHistory(Failed(retryAttempt: 1, retryScheduled: false));
+        Exception failure = why == "scheduler gone"
+            ? new KeyNotFoundException("No scheduler goes by TestScheduler.")
+            : new SchedulerException("the scheduler is shutting down");
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<JobKeyDto>._, A<JobDataMap?>._, A<CancellationToken>._))
+            .Throws(failure);
+        if (why == "unanswered")
+        {
+            A.CallTo(() => context.Api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+                .Throws(new InvalidOperationException("the database went away"));
+        }
+        else if (why == "scheduler gone")
+        {
+            A.CallTo(() => context.Api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+                .Throws(new KeyNotFoundException("No scheduler goes by TestScheduler."));
+        }
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("[data-testid=history-run-again]").Click();
+
+        page.WaitForAssertion(() => context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be(failure.Message, "only a job the scheduler says it does not hold is called gone"));
+        if (why == "scheduler gone")
+        {
+            A.CallTo(() => context.Api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+                .MustNotHaveHappened();
+        }
+    }
+
     [Test]
     public void ReadOnlyModeOffersNoWayToRunAnythingAgain()
     {

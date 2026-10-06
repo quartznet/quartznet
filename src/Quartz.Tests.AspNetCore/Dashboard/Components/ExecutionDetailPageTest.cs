@@ -1,3 +1,5 @@
+using AngleSharp.Dom;
+
 using Bunit;
 
 using FakeItEasy;
@@ -14,6 +16,10 @@ namespace Quartz.Tests.AspNetCore.Dashboard.Components;
 /// </summary>
 public class ExecutionDetailPageTest
 {
+    private const string JobGone =
+        "The job DummyGroup.DummyJob is no longer stored: it was not durable, and it was deleted with its last "
+        + "trigger. Store it durably (StoreDurably()) to run it again.";
+
     private DashboardComponentContext context = null!;
 
     [SetUp]
@@ -192,6 +198,65 @@ public class ExecutionDetailPageTest
                 "a refused mutation is recorded as one, under the name of what was asked for");
     }
 
+    /// <summary>
+    /// The page shows one run, so it asks once whether the run's job is still stored. A job that was not
+    /// durable is gone with its last trigger: the button is disabled, and its title says why and what to do.
+    /// </summary>
+    [Test]
+    public void AJobNoLongerStoredDisablesRunAgainAndSaysWhy()
+    {
+        GivenExecution(Entry() with { Succeeded = false, ExceptionMessage = "the mail server refused" });
+        A.CallTo(() => context.Api.GetJobDetail(TestData.SchedulerName, A<JobKeyDto>._, A<CancellationToken>._))
+            .Throws(new KeyNotFoundException("Job 'DummyGroup.DummyJob' was not found in scheduler 'TestScheduler'."));
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            IElement button = page.Find("[data-testid=execution-run-again]");
+            button.HasAttribute("disabled").Should().BeTrue("there is no job left to fire");
+            button.GetAttribute("title").Should().Be(JobGone);
+        });
+
+        A.CallTo(() => context.Api.GetJobDetail(
+                TestData.SchedulerName,
+                A<JobKeyDto>.That.Matches(key => key.Group == "DummyGroup" && key.Name == "DummyJob"),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// A job deleted after the page was loaded is found out when Run again fails: the toast says the job is
+    /// gone, the button is disabled from then on, and the action log keeps the scheduler's own answer.
+    /// </summary>
+    [Test]
+    public void ARunAgainWhoseJobWentSinceThePageLoadedSaysSo()
+    {
+        const string refusal = "The job (DummyGroup.DummyJob) referenced by the trigger does not exist.";
+        GivenExecution(Entry() with { Succeeded = false });
+        A.CallTo(() => context.Api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Returns(new ValueTask<JobDetailDto>(StoredJob())).Once()
+            .Then.Throws(new KeyNotFoundException("Job 'DummyGroup.DummyJob' was not found in scheduler 'TestScheduler'."));
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<JobKeyDto>._, A<JobDataMap?>._, A<CancellationToken>._))
+            .Throws(new JobPersistenceException(refusal));
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+        page.WaitForAssertion(() => page.Find("[data-testid=execution-run-again]").HasAttribute("disabled").Should().BeFalse(
+            "the job was there when the page was loaded"));
+        page.Find("[data-testid=execution-run-again]").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            context.Toasts.Messages.Should().ContainSingle().Which.Message.Should().Be(JobGone);
+            page.Find("[data-testid=execution-run-again]").HasAttribute("disabled").Should().BeTrue(
+                "pressing it again would fail the same way");
+        });
+        context.ActionLog.GetLatest().Should().ContainSingle()
+            .Which.Should().Match<DashboardActionLogEntry>(
+                entry => entry.Action == "TriggerJob" && !entry.Succeeded && entry.Message == refusal,
+                "the action log keeps what the scheduler answered");
+    }
+
     [Test]
     public void AnInputTooLargeToRecordIsSaidToBe()
     {
@@ -330,5 +395,19 @@ public class ExecutionDetailPageTest
     private static DashboardHistoryEntry Entry()
     {
         return TestData.Dashboard.HistoryEntry(TimeSpan.FromMilliseconds(1500)) with { EntryId = "entry-1" };
+    }
+
+    private static JobDetailDto StoredJob()
+    {
+        return new JobDetailDto(
+            "DummyJob",
+            "DummyGroup",
+            "Quartz.Tests.AspNetCore.Support.DummyJob",
+            Description: null,
+            Durable: false,
+            RequestsRecovery: false,
+            ConcurrentExecutionDisallowed: false,
+            PersistJobDataAfterExecution: false,
+            JobDataMap: new JobDataMap());
     }
 }

@@ -1043,6 +1043,7 @@
         }
 
         string target = DisplayValueHelper.FormatKey(entry.JobGroup, entry.JobName);
+        JobKeyDto job = new(entry.JobGroup, entry.JobName);
         string action = "TriggerJob";
 
         try
@@ -1051,16 +1052,20 @@
             JobDataMap? input = RunAgainInput.DataFor(recorded);
             action = input is null ? "TriggerJob" : "TriggerJobWithData";
 
-            await Api.TriggerJob(schedulerName, new JobKeyDto(entry.JobGroup, entry.JobName), input);
+            await Api.TriggerJob(schedulerName, job, input);
             ActionLog.Record(schedulerName, action, target, succeeded: true);
             Toasts.Success("Triggered job " + target + " " + RunAgainInput.Describe(recorded) + ".");
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            // The listing does not ask whether each row's job is still stored, so the reason is found
+            // here, once the trigger has failed: a job that was not durable is gone with its last trigger.
+            bool jobGone = await RunAgainInput.FailedForAJobGone(Api, schedulerName, job, ex);
+            string message = jobGone ? RunAgainInput.JobGone(target) : ex.Message;
+            _error = message;
             ActionLog.Record(schedulerName, action, target, succeeded: false, ex.Message);
-            Toasts.Error(ex.Message);
+            Toasts.Error(message);
         }
     }
 
