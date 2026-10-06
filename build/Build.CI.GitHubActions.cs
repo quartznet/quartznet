@@ -199,7 +199,9 @@ namespace Quartz.Build
             PublishArtifacts = false;
             InvokedTargets = [nameof(ICompile.Compile), "IntegrationTest"];
             CacheKeyFiles = [];
-            TimeoutMinutes = 10;
+            // Fifteen since the clustered fixtures of 4.4 pushed the PostgreSQL and SQL Server legs past ten: the
+            // PostgreSQL one was already about eight minutes, and a leg cancelled at the limit reports nothing.
+            TimeoutMinutes = 15;
             ConcurrencyCancelInProgress = true;
             ReadPermissions = [GitHubActionsPermissions.Contents];
         }
