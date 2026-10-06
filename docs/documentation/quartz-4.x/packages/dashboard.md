@@ -750,6 +750,10 @@ and the error if any.
 
   The execution page shows the input and has the same button, labelled with the input it will pass.
 
+  The job must still be stored. A job without `StoreDurably()` is deleted with its last trigger, so Run again
+  on a spent one-off fails with *The job (…) referenced by the trigger does not exist.* Store a job you expect
+  to run again with `StoreDurably()`; `ScheduleJob<TJob, TInput>` already stores its job durably.
+
 Every filter is a query parameter, so a narrowed view is a link:
 
 | Filter | Parameter |

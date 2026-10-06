@@ -186,6 +186,11 @@ await scheduler.TriggerJob(new JobKey(failed.JobName, failed.JobGroup), data);
 ```
 <!-- endSnippet -->
 
+The job must still be stored. A job without `StoreDurably()` is deleted with its last trigger, so running a
+spent one-off again throws `JobPersistenceException`: *The job (…) referenced by the trigger does not exist.*
+Store a job you expect to run again with `StoreDurably()`; `ScheduleJob<TJob, TInput>` already stores its job
+durably.
+
 ## Read a job's status
 
 <!-- snippet: sample_job_outcome_status -->
@@ -326,7 +331,7 @@ Measured on 1,000,000 rows over 30 days:
 | History page | The result, the summary, a chip per metric and a *Manual* badge on each row. Filters for results, for one job and for a window. A chart of runs over time. See [Execution history and misfires](../packages/dashboard.md#execution-history-and-misfires) |
 | Jobs page | *Last run*, *Last success* and *failing ×N* per job. See [Job run status](../packages/dashboard.md#job-run-status) |
 | Job Detail page | A *Runs* panel and the job's chart. *View execution history* opens that job's rows only |
-| Execution page | The result, the summary, a table of metrics, *Manual*, the fire instance id and the input. *Run again* on a final failure |
+| Execution page | The result, the summary, a table of metrics, *Manual*, the fire instance id and the input. *Run again* on a final failure, for a job [still stored](#record-a-run-s-input) |
 | HTTP API | The members on each row, `input` on one execution, the four filters, the `…/history/job-status` routes and `…/history/statistics`. See [Execution history](../packages/http-api.md#execution-history) |
 
 ```http
