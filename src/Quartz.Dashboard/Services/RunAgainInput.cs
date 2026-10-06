@@ -126,8 +126,9 @@ internal static class RunAgainInput
     /// <param name="target">The job's key, as the pages write it.</param>
     public static string JobGone(string target)
     {
-        return "The job " + target + " is no longer stored: it was not durable, and it was deleted with its last trigger. "
-               + "Store it durably (StoreDurably()) to run it again.";
+        // Not "it was not durable": a durable job someone deleted is gone too, and the page cannot tell which.
+        return "The job " + target + " is no longer stored. A job that isn't durable is deleted with its last trigger; "
+               + "store it with StoreDurably() to run it again.";
     }
 
     /// <summary>

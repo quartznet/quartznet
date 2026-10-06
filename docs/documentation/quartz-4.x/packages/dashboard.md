@@ -751,15 +751,16 @@ and the error if any.
   The execution page shows the input and has the same button, labelled with the input it will pass.
 
   The job must still be stored. A job without `StoreDurably()` is deleted with its last trigger, so a spent
-  one-off cannot run again:
+  one-off cannot run again. The dashboard says *The job {group.name} is no longer stored. A job that isn't
+  durable is deleted with its last trigger; store it with `StoreDurably()` to run it again.*
 
-  | Page | A job no longer stored |
+  | Page | Where |
   |---|---|
-  | History | Run again fails, and the toast says the job *is no longer stored* and how to keep it |
-  | Execution | Run again is disabled; its tooltip says the same |
+  | History | The toast and the page's error, once Run again fails |
+  | Execution | The tooltip of Run again, which is disabled |
 
-  The action log records the scheduler's own refusal. Store a job you expect to run again with
-  `StoreDurably()`; `ScheduleJob<TJob, TInput>` already stores its job durably.
+  The action log records the scheduler's own refusal. `ScheduleJob<TJob, TInput>` already stores its job
+  durably.
 
 Every filter is a query parameter, so a narrowed view is a link:
 
