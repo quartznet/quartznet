@@ -121,6 +121,66 @@ internal static class RunAgainInput
     }
 
     /// <summary>
+    /// What Run again says of a run whose job the scheduler no longer stores.
+    /// </summary>
+    /// <param name="target">The job's key, as the pages write it.</param>
+    public static string JobGone(string target)
+    {
+        return "The job " + target + " is no longer stored: it was not durable, and it was deleted with its last trigger. "
+               + "Store it durably (StoreDurably()) to run it again.";
+    }
+
+    /// <summary>
+    /// Whether the scheduler no longer stores <paramref name="job" />.
+    /// </summary>
+    /// <remarks>
+    /// Asked through <see cref="IQuartzApiClient.GetJobDetail" />, which raises
+    /// <see cref="KeyNotFoundException" /> for a job the scheduler does not hold, rather than read from the
+    /// text of a failed trigger. A question that cannot be answered is not an answer, so any other failure
+    /// says the job is there and leaves the page as it was.
+    /// </remarks>
+    public static async ValueTask<bool> IsJobGone(IQuartzApiClient api, string schedulerName, JobKeyDto job, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(api);
+
+        try
+        {
+            await api.GetJobDetail(schedulerName, job, cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+        catch (KeyNotFoundException)
+        {
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Whether a failed Run again failed because the scheduler no longer stores the job, so the pages say
+    /// <see cref="JobGone" /> rather than the failure's own message.
+    /// </summary>
+    /// <remarks>
+    /// The store refuses a trigger for a missing job in words about the trigger, which an operator who
+    /// pressed a button on a run cannot act on. A failure that is itself a <see cref="KeyNotFoundException" />
+    /// is the scheduler gone, not the job, so the job is not asked about.
+    /// </remarks>
+    public static async ValueTask<bool> FailedForAJobGone(
+        IQuartzApiClient api,
+        string schedulerName,
+        JobKeyDto job,
+        Exception failure,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(failure);
+
+        return failure is not KeyNotFoundException
+               && await IsJobGone(api, schedulerName, job, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// What the History page's button says it will do, before the row's input has been read.
     /// </summary>
     public static string Hint(DashboardHistoryEntry listed)
