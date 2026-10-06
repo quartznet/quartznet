@@ -79,6 +79,7 @@ await scheduler.Start();
 | [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) | history logging, XML and JSON schedule files |
 | [Quartz.Plugins.TimeZoneConverter](https://www.nuget.org/packages/Quartz.Plugins.TimeZoneConverter) | Windows and IANA time zone ids resolving on either operating system |
 | [Quartz.Serialization.Newtonsoft](https://www.nuget.org/packages/Quartz.Serialization.Newtonsoft) | persisting with Newtonsoft.Json instead of System.Text.Json |
+| [Quartz.Weasel.*](https://www.nuget.org/packages?q=Quartz.Weasel) | the store's tables under Weasel, as Marten and Wolverine manage theirs; one package per database |
 | [Quartz.Extensions.Redis](https://www.nuget.org/packages/Quartz.Extensions.Redis) | Redis distributed locks for a cluster |
 
 ## Documentation
@@ -86,6 +87,8 @@ await scheduler.Start();
 - [Quick start](https://www.quartz-scheduler.net/documentation/quartz-4.x/quick-start.html)
 - [Tutorial](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/)
 - [Job continuations](https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/job-continuations.html)
+- [Job outcomes: results, run status and statistics](https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/job-outcomes.html)
+- [Retrying failed jobs](https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/retrying-failed-jobs.html)
 - [Configuration reference](https://www.quartz-scheduler.net/documentation/quartz-4.x/configuration/reference.html)
 - [Publishing trimmed and native AOT](https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/trimming-and-native-aot.html)
 - [Migrating from Quartz 3](https://www.quartz-scheduler.net/documentation/quartz-4.x/migration-guide.html)

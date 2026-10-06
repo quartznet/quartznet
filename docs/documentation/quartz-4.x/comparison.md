@@ -165,11 +165,13 @@ discarded. See [Job Continuations](how-tos/job-continuations.md).
 | Read-only mode | yes, plus a [job-type allow-list](packages/dashboard.md#narrowing-which-job-types-may-be-named) for scheduling through it | [`IsReadOnlyFunc`, off by default](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html) | no | — | — |
 | Best at | the cluster: node check-ins, execution groups, misfires, an action log; [pointed at a database](packages/dashboard.md#store-attached-targets), every scheduler in it without running them; [a trigger edited in place](packages/dashboard.md#editing-a-trigger) or [backfilled](packages/dashboard.md#backfilling-a-trigger), [filtered listings](packages/dashboard.md#filtering-the-listings) and [bulk pause, resume and unschedule](packages/dashboard.md#acting-on-a-selection) | [the state machine: a page per state, one-click requeue or delete of failed jobs, singly or in bulk](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html) | [live SignalR monitoring, editing both ticker kinds, starting and stopping the host](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/dashboard/index.mdx) | — | — |
 
-Hangfire's per-state lists are better for browsing failures by kind. Quartz's History page has a
-**Failed after retries** filter and a **Run again** button on each occurrence that gave up — see
-[When the policy gives up](how-tos/retrying-failed-jobs.md#when-the-policy-gives-up). From 4.4 it also filters by
-result (*Succeeded*, *Skipped*, *Failed*, *Cancelled*) and by one job, and the Jobs page shows each job's last
-run, last success and a *failing ×N* count from its [run status](how-tos/job-outcomes.md#read-a-job-s-status).
+Hangfire's per-state lists are better for browsing failures by kind, and it requeues any failed job. Quartz's
+History page has a **Failed after retries** filter and a **Run again** button on each occurrence that gave up
+([When the policy gives up](how-tos/retrying-failed-jobs.md#when-the-policy-gives-up)). Run again needs the job
+[still stored](packages/dashboard.md#execution-history-and-misfires): a non-durable job is deleted with its last
+trigger. From 4.4 the page also filters by result (*Succeeded*, *Skipped*, *Failed*, *Cancelled*) and by one
+job, and charts runs over time. The Jobs page shows each job's last run, last success and a *failing ×N* count
+from its [run status](how-tos/job-outcomes.md#read-a-job-s-status).
 
 ## Observability
 
@@ -177,7 +179,7 @@ run, last success and a *failing ×N* count from its [run status](how-tos/job-ou
 |---|---|---|---|---|---|
 | Traces | [two job spans, thirty-four store spans, `Quartz` activity source](packages/opentelemetry-integration.md) | [none in the box](https://github.com/HangfireIO/Hangfire/tree/v1.8.25/src/Hangfire.Core); the [OpenTelemetry community package](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Hangfire) is pre-release | [`TickerQ.Instrumentation.OpenTelemetry`: `tickerq.job.execute.*` spans](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/opentelemetry/index.mdx) | the bus's message spans, under [a `wolverine.recurring.occurrence` span per occurrence tagged `wolverine.schedule.name`](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/Runtime/WolverineTracing.cs) | none |
 | Metrics | [eleven instruments on the `Quartz` meter](packages/opentelemetry-integration.md#metrics) | none | [none; traces and `ILogger` events only](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/opentelemetry/index.mdx) | [yes, Wolverine's meter](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/Runtime/WolverineRuntime.cs) | none |
-| Health check | [in the core package](packages/hosted-services-integration.md#health-checks) | none | none | [`WolverineFx.HealthChecks`, separate package](https://www.nuget.org/packages/WolverineFx.HealthChecks) | none |
+| Health check | [in the core package](packages/hosted-services-integration.md#health-checks); from 4.4 it can [report a job that stopped succeeding](how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding) | none | none | [`WolverineFx.HealthChecks`, separate package](https://www.nuget.org/packages/WolverineFx.HealthChecks) | none |
 | .NET Aspire | [`Quartz.Aspire`](packages/aspire.md): a connection name becomes a store with telemetry and health check | none | none | — | none |
 
 ## Trimming and native AOT
