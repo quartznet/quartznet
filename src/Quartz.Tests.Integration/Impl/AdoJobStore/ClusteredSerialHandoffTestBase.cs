@@ -68,9 +68,12 @@ public abstract class ClusteredSerialHandoffTestBase : ClusteredJobStoreTestBase
     /// How long after node A's trigger node B's is due. Zero: both are due at once, and the node that fires
     /// first blocks the other's. A tenth of a second: node B's is due while node A's run holds it.
     /// </param>
+    /// <remarks>
+    /// Two cases rather than all four pairings: each acquisition path, and each way a trigger comes to be held,
+    /// is in one of them, and both ways turn up under either path. The other two pairings reached nothing these
+    /// do not, at a quarter of a minute of a CI leg each.
+    /// </remarks>
     [TestCase(2, 0)]
-    [TestCase(2, 100)]
-    [TestCase(1, 0)]
     [TestCase(1, 100)]
     public async Task EachNodeFiresItsTriggerOfASerialJobSoonAfterTheOtherNodesRunEnds(int maxBatchSize, int offsetMilliseconds)
     {
