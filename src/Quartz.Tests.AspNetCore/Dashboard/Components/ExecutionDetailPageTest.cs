@@ -17,8 +17,8 @@ namespace Quartz.Tests.AspNetCore.Dashboard.Components;
 public class ExecutionDetailPageTest
 {
     private const string JobGone =
-        "The job DummyGroup.DummyJob is no longer stored: it was not durable, and it was deleted with its last "
-        + "trigger. Store it durably (StoreDurably()) to run it again.";
+        "The job DummyGroup.DummyJob is no longer stored. A job that isn't durable is deleted with its last "
+        + "trigger; store it with StoreDurably() to run it again.";
 
     private DashboardComponentContext context = null!;
 

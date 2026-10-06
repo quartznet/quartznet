@@ -648,9 +648,12 @@ public class HistoryPageTest
         page.Find("[data-testid=history-run-again]").Click();
 
         page.WaitForAssertion(() => context.Toasts.Messages.Should().ContainSingle().Which.Message.Should().Be(
-            "The job DummyGroup.DummyJob is no longer stored: it was not durable, and it was deleted with its last "
-            + "trigger. Store it durably (StoreDurably()) to run it again."));
-        page.Markup.Should().Contain("is no longer stored", "the page's error says what the toast says");
+            "The job DummyGroup.DummyJob is no longer stored. A job that isn't durable is deleted with its last "
+            + "trigger; store it with StoreDurably() to run it again."));
+        page.Find(".qz-error-alert").TextContent.Should().Contain(
+            "The job DummyGroup.DummyJob is no longer stored. A job that isn't durable is deleted with its last "
+            + "trigger; store it with StoreDurably() to run it again.",
+            "the page's error says what the toast says");
         context.ActionLog.GetLatest().Should().ContainSingle()
             .Which.Should().Match<DashboardActionLogEntry>(
                 entry => entry.Action == "TriggerJob" && !entry.Succeeded && entry.Message == refusal,
