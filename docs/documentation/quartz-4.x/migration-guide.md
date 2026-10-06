@@ -68,6 +68,8 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | Log event `3053` | Error from the persistent store: its bookkeeping after a committed operation failed. The operation stands |
 | `IQuartzApiClient.GetJobRunStatus`, `GetJobRunStatuses` | Default interface members; the defaults throw `NotSupportedException`, and the pages leave the status out. See [Job run status](packages/dashboard.md#job-run-status) |
 | `ExecutionStatisticsQuery`, `ExecutionStatistics`, `ExecutionStatisticsBucket` | A scheduler's runs per bucket of fire time: counts by result, and median, 95th percentile and longest duration. See [Count runs over time](how-tos/job-outcomes.md#count-runs-over-time) |
+| `ExecutionStatisticsQuery.MinimumBucketSize` | One minute. A shorter `BucketSize` throws `ArgumentOutOfRangeException`; the default is one hour |
+| `ExecutionStatisticsBucket.CountOf(JobRunResult)`, `RunCount` | One result's count, `0` for a result this version does not know; every result's count |
 | `IExecutionHistoryStore.QueryExecutionStatistics` | Default interface member. Counts through `QueryExecutions`, at most `ExecutionStatistics.DefaultRowLimit` (`10_000`) rows, newest first |
 | `IQuartzApiClient.QueryExecutionStatistics` | Default interface member; throws `NotSupportedException`, and the pages leave the chart out. See [Run statistics](packages/dashboard.md#run-statistics) |
 | `DashboardHistoryEntry.Result`, `EffectiveResult`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId`, `Input`, `InputTooLarge` | `init`, as on `ExecutionHistoryEntry`. `EffectiveResult` is get-only |
@@ -81,6 +83,9 @@ its execution history in the database: run [the 4.4 schema migration](#the-4-4-s
 | Log event `9008` | Debug: a status route answered `501` |
 | Log events `9200`–`9203` | `Quartz.HttpClient`, a new range: a live event skipped, a listing item left out, a name read as another. See [A host newer than the client](packages/http-client.md#a-host-newer-than-the-client) |
 | `IScheduler.PauseTriggersWith`, `PauseJobsWith`; the same on `IJobStore` | A set of keys paused with a `PauseDetails`, in one call. Default interface members. See [Pausing with a Reason](how-tos/pausing-with-a-reason.md) |
+| `RAMJobStore.PauseTriggersWith`, `PauseJobsWith` | The set in one lock pass, every trigger stamped with the same instant |
+| `DelegatingScheduler.PauseTriggersWith`, `PauseJobsWith`; the same on `DelegatingJobStore` | `virtual`. Forward to the inner scheduler or store |
+| `HttpScheduler.PauseTriggersWith`, `PauseJobsWith` | `Quartz.HttpClient`. One request to the key-set pause route, with the reason beside the keys |
 | `IQuartzApiClient.PauseTriggersWith`, `PauseJobsWith` | `Quartz.Dashboard`. Default interface members |
 | HTTP: `reason`, `requestedBy` on the `…/triggers/keys/pause` and `…/jobs/keys/pause` bodies | Optional. See [A pause can say why](packages/http-api.md#a-pause-can-say-why) |
 | `QuartzBuilderExtensions.RunAtStartup(JobKey)` | Runs a stored job once each time the scheduler starts, once per node in a cluster. See [Once each time the scheduler starts](how-tos/multiple-triggers.md#once-each-time-the-scheduler-starts) |
