@@ -19,3 +19,26 @@ QZ1001  | Quartz   | Error    | DeclaredJobsGenerator, [Documentation](https://w
 QZ1002  | Quartz   | Error    | DeclaredJobsGenerator, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html#qz1002-duplicatedeclaredidentity)
 QZ1003  | Quartz   | Error    | DeclaredJobsGenerator, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html#qz1003-crontriggerwithoutquartzjob)
 QZ1004  | Quartz   | Warning  | DeclaredJobsGenerator, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html#qz1004-declaredjobsregistrationrenamed)
+
+## Release 4.3.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-------------------------------------------------------------------
+QZ0005  | Quartz   | Error    | SimpleTriggerLiteralAnalyzer, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/compile-time-checks.html#qz0005-invalidsimpletriggerschedule)
+QZ1005  | Quartz   | Error    | DeclaredJobsGenerator, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html#qz1005-configurationkeywithoutconfiguration)
+
+### Changed Rules
+
+Rule ID | New Category | New Severity | Old Category | Old Severity | Notes
+--------|--------------|--------------|--------------|--------------|-------------------------------------------------------------------
+QZ1004  | Quartz       | Info         | Quartz       | Warning      | DeclaredJobsGenerator, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/declaring-jobs-with-attributes.html#qz1004-declaredjobsregistrationrenamed)
+
+## Release 4.4.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-------------------------------------------------------------------
+QZ0006  | Quartz   | Error    | RetryPolicyLiteralAnalyzer, [Documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/compile-time-checks.html#qz0006-invalidretrypolicydelay)

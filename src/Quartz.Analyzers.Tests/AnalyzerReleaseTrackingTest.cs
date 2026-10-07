@@ -35,17 +35,7 @@ public class AnalyzerReleaseTrackingTest
     [Test]
     public void RulesThatShippedIn420AreRecordedAsShippedIn420()
     {
-        string[] shipped = File.ReadAllLines(Path.Combine(AnalyzerProject().FullName, "AnalyzerReleases.Shipped.md"));
-
-        int start = Array.IndexOf(shipped, "## Release 4.2.0");
-        start.Should().BeGreaterThanOrEqualTo(0, "4.2.0 is the first release that carries the analyzer, so it is the first block Shipped.md has");
-
-        List<string> rules = shipped
-            .Skip(start + 1)
-            .TakeWhile(x => !x.StartsWith("## ", StringComparison.Ordinal))
-            .Where(x => x.StartsWith("QZ", StringComparison.Ordinal))
-            .Select(x => string.Join(" | ", x.Split('|').Take(3).Select(cell => cell.Trim())))
-            .ToList();
+        List<string> rules = RulesRecordedUnder("4.2.0", "4.2.0 is the first release that carries the analyzer, so it is the first block Shipped.md has");
 
         rules.Should().Equal(
             [
@@ -59,6 +49,49 @@ public class AnalyzerReleaseTrackingTest
                 "QZ1004 | Quartz | Warning",
             ],
             "these are the rules 4.2.0 shipped, with the severities it shipped them at");
+    }
+
+    [Test]
+    public void RulesThatShippedIn430AreRecordedAsShippedIn430()
+    {
+        List<string> rules = RulesRecordedUnder("4.3.0", "4.3.0 shipped two new rules and a changed severity");
+
+        rules.Should().Equal(
+            [
+                "QZ0005 | Quartz | Error",
+                "QZ1005 | Quartz | Error",
+                "QZ1004 | Quartz | Info",
+            ],
+            "4.3.0 added QZ0005 and QZ1005 and shipped QZ1004 at Info, the severity a later change is measured from");
+    }
+
+    [Test]
+    public void RulesThatShippedIn440AreRecordedAsShippedIn440()
+    {
+        List<string> rules = RulesRecordedUnder("4.4.0", "4.4.0 shipped QZ0006");
+
+        rules.Should().Equal(
+            ["QZ0006 | Quartz | Error"],
+            "4.4.0 added QZ0006 and changed no rule that shipped before it");
+    }
+
+    /// <summary>
+    /// The first three cells of every rule row in one release's block of <c>AnalyzerReleases.Shipped.md</c>:
+    /// the id, the category and the severity, new and changed rules alike.
+    /// </summary>
+    private static List<string> RulesRecordedUnder(string release, string because)
+    {
+        string[] shipped = File.ReadAllLines(Path.Combine(AnalyzerProject().FullName, "AnalyzerReleases.Shipped.md"));
+
+        int start = Array.IndexOf(shipped, $"## Release {release}");
+        start.Should().BeGreaterThanOrEqualTo(0, because);
+
+        return shipped
+            .Skip(start + 1)
+            .TakeWhile(x => !x.StartsWith("## ", StringComparison.Ordinal))
+            .Where(x => x.StartsWith("QZ", StringComparison.Ordinal))
+            .Select(x => string.Join(" | ", x.Split('|').Take(3).Select(cell => cell.Trim())))
+            .ToList();
     }
 
     /// <summary>
