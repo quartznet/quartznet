@@ -1609,6 +1609,7 @@ firing in every sitting, and in all but one arm a throughput 1-17 % below it, on
 within 5 ms of it. That one, sitting 1's four-node arm, ran at half speed with every lock wait slower
 (p50 48.9 ms against 29.7-32.0) and the same round structure, which is what slower commits look like
 rather than a stalled node; it did not recur in three more sittings.
+
 ## What #3864 changed (2026-10-05, AMD Ryzen 9 5950X)
 
 A round of triggers already due is acquired and fired in one transaction. The claims go as one batch, the
@@ -1690,3 +1691,97 @@ The forty milliseconds is a delayed acknowledgement, and the edge is near the 8 
 The same statements sent alone once a second, from 2.4 to 39 KB, never stalled; it takes the round around
 them. Between two containers on Linux nothing stalled: 7.4 ms as one batch, 8.0 ms split, and 100 and
 99.7 % within ±50 ms. The split costs Linux 0.6 ms a round and saves a Windows development box forty.
+
+## 4.4.0 against 4.3.0 (2026-10-07, AMD Ryzen 9 5950X)
+
+The release gate. **`v4.3.0` against `fd58fa4249`**, which differs from `v4.4.0` only in the dashboard
+and the docs, in three alternating sittings unless a table says otherwise, with the box at 0-8 % CPU.
+PostgreSQL 15.1 in Docker at its shipped durability (`fsync = on`, `synchronous_commit = on`) with
+`pg_stat_statements`, pool 10, no tracing listener. S1, `--recurring` and `--recurring-postgres` run in
+`Quartz.Benchmark.Competitors`.
+
+### PostgreSQL throughput
+
+`OneOffThroughputPostgresBenchmark`, per firing:
+
+| Profile | 4.3.0 | 4.4.0 |
+|---|---:|---:|
+| `Defaults` | 3.883 / 3.684 / 3.674 ms | **2.378 / 2.371 / 2.332 ms** |
+| `Defaults`, firings/s | 258-272 | **420-429** |
+| `BatchOnly` | 3.65-3.85 ms | 2.34-2.35 ms |
+| `Tuned` | 3.65-3.69 ms | 2.39-2.47 ms |
+| Allocated | 72.1 KB | 60.8 KB |
+
+`--one-off-census`, `Defaults`, two sittings. "History on" is `QUARTZ_CENSUS_EXECUTION_HISTORY=true`:
+
+| | 4.3.0 | 4.4.0 | 4.4.0, history on |
+|---|---:|---:|---:|
+| Statements/firing | 16.55, 16.54 | **13.79, 13.79** | 20.73, 20.66 |
+| Firings/s | 260.1, 266.1 | 367.4, 388.7 | 235.5, 239.0 |
+| Commits/firing | 1.87, 1.95 | 2.12, 2.23 | 4.87, 4.93 |
+
+The commit column carries the publication lag described under #3863; the clustered gate reads commits
+the corrected way. Every census firing runs the same job, so with the history on every completion
+queues on that job's `QRTZ_JOB_STATUS` row (#3979).
+
+### Punctuality
+
+`--recurring-postgres`:
+
+| Load | `MaxBatchSize` | | within ±50 ms | within ±250 ms | Max deviation |
+|---:|---|---|---:|---:|---:|
+| 20 | automatic | 4.3.0 | 53.8-54.3 % | 100 % | 78-83 ms |
+| 20 | automatic | 4.4.0 | **95.5-99.2 %** | 100 % | **51.5-54.2 ms** |
+| 100 | automatic | 4.3.0 | 10.7 % | 68.2-70.3 % | |
+| 100 | automatic | 4.4.0 | 18.4-19.6 % | **99.5-100 %** | |
+| 20 | 1 | both | 22.2-22.8 % | | |
+| 100 | 1 | both | 4.5-4.6 % | | |
+
+`--recurring`, in memory, within ±50 ms:
+
+| Arm | 4.3.0 | 4.4.0 |
+|---|---:|---:|
+| simple trigger, defaults | 100 % | 100 % |
+| cron `* * * * * ?`, defaults | 100 % | 100 % |
+| simple trigger, fire-ahead 1 s | 97.9-98.0 %, max 999.8 ms | **100 %, max 14.2-14.5 ms** |
+
+### In memory
+
+S1, median, two sittings:
+
+| Arm | 4.3.0 | 4.4.0 | Allocated, 4.3.0 | 4.4.0 |
+|---|---:|---:|---:|---:|
+| Defaults | 2.72-2.82 µs | 2.66-2.67 µs | 2.00-2.04 KB | 2.03-2.06 KB |
+| Tuned | 3.40-3.45 µs | 3.42-3.47 µs | 1.80-1.81 KB | 1.97 KB |
+| Batched | 3.46-3.50 µs | 3.34-3.36 µs | 1.80-1.83 KB | 1.96 KB |
+
+The two batched arms allocate about 150 B more a firing: the round's result object #3864 added.
+
+### The clustered gate
+
+`ClusteredOneOffDrainPostgresTest`, `MaxBatchSize` automatic:
+
+| | 4.3.0 | 4.4.0 |
+|---|---:|---:|
+| 2 nodes, firings/s | 292.7 / 293.1 / 297.6 | **456.4 / 464.2 / 490.8** |
+| 4 nodes, firings/s | 287.5 / 300.9 / 286.6 | **379.2 / 462.7 / 504.2** |
+| `TRIGGER_ACCESS` waits | 689-729 | 411-418 |
+| Lock wait p99 | 46.6-47.6 ms | 46.9-48.7 ms |
+| Commits/firing | 2.79-2.82 | 2.46-2.56 |
+
+At `MaxBatchSize` 1 neither version moved: 151-154 firings/s on two nodes, 147-185 on four. One 4.4.0
+sitting's four-node smallest share was 19 %, under the gate's 20 %, behind a single 1,025 ms lock wait;
+the other two read 25 %.
+
+### The clustered soak
+
+`ClusteredSoakPostgresTest` on 4.4.0, two nodes, the same durable server:
+
+| Check | Result |
+|---|---:|
+| Duration | 30.1 min |
+| Executions | 6,505 |
+| Duplicates | 0 |
+| Serial job overlapped | never |
+| One-offs, each fired exactly once | 1,778 |
+| Execution-history sweepers elected | 1 |
