@@ -156,6 +156,10 @@ sooner when a run elsewhere holds back a trigger of its own:
   that is shorter. A held trigger fires within about 5 seconds of the run ending, and a run that lasts hours
   costs the node a look every 5 seconds.
 * Once nothing is held, the wait doubles on to `IdleWaitTime` and stays there.
+* While something is held, a round acquires only triggers due before the node's next look, so a trigger
+  the node holds never keeps it from looking: one due later is taken by a later round, and fires at its
+  time. Before 4.5 a node holding a trigger due later slept until it fired
+  ([#4033](https://github.com/quartznet/quartznet/issues/4033)).
 * When a pinned trigger's serial job has changed hands since the last look, the wait starts again at 100 ms,
   once it has grown to 400 ms.
 * Off a cluster nothing changes: a run's end wakes its own node. Through a subclassed driver delegate a held

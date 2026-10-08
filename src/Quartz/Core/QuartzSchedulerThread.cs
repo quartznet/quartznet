@@ -134,7 +134,8 @@ internal sealed class QuartzSchedulerThread
     /// <summary>
     /// How long the next round that acquires nothing waits before the loop looks again, while due work is
     /// blocked behind a firing whose end this loop may not be told of; <see cref="TimeSpan.Zero" /> when
-    /// none is, which leaves such a round its idle wait. Only the loop reads and writes it.
+    /// none is, which leaves such a round its idle wait. While it runs it also bounds how far ahead a
+    /// round acquires (<see cref="GetLookAhead" />). Only the loop reads and writes it.
     /// </summary>
     private TimeSpan blockedRetry;
 
@@ -546,7 +547,7 @@ internal sealed class QuartzSchedulerThread
                         ExecutionLimits? availableLimits = ComputeAvailableExecutionGroupLimits();
                         TriggerAcquisitionRequest request = new()
                         {
-                            NoLaterThan = now + qsRsrcs.IdleWaitTime,
+                            NoLaterThan = now + GetLookAhead(),
                             MaxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize),
                             TimeWindow = qsRsrcs.BatchTimeWindow,
                             ExecutionLimits = availableLimits,
@@ -942,6 +943,32 @@ internal sealed class QuartzSchedulerThread
         }
 
         return wait;
+    }
+
+    /// <summary>
+    /// How far ahead a round acquires: the idle wait, or, while the loop is looking again early for a
+    /// held trigger, no further than its next early look.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A trigger acquired is waited for, and a wait for one due after the next early look would be that
+    /// look missed: a held trigger freed meanwhile — one pinned to this node, which no other node may
+    /// fire — waited until the acquired one had fired, up to a whole idle wait (#4033). So while the
+    /// count runs, a round takes only what is due before the loop comes round again, and a trigger due
+    /// later is taken by a later round. That round still comes before the trigger is due, because no
+    /// round waits longer than it looked ahead: an empty round's wait is at most the count the look-ahead
+    /// was taken from, and a round that acquired something waits only for what it acquired. Nothing is
+    /// released and nothing fires out of order.
+    /// </para>
+    /// <para>
+    /// The count is only ever running on a cluster — off one a store answers nothing held — so a loop
+    /// with nothing held, and every loop off a cluster, looks the idle wait ahead, as it always did.
+    /// </para>
+    /// </remarks>
+    private TimeSpan GetLookAhead()
+    {
+        TimeSpan idleWait = qsRsrcs.IdleWaitTime;
+        return blockedRetry != TimeSpan.Zero && blockedRetry < idleWait ? blockedRetry : idleWait;
     }
 
     /// <summary>

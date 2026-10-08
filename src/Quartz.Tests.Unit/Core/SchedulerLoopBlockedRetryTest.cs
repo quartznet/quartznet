@@ -85,8 +85,11 @@ public sealed class SchedulerLoopBlockedRetryTest
         TimeSpan.FromSeconds(5),
     ];
 
+    private static readonly DateTimeOffset start = new(2026, 10, 5, 8, 0, 0, TimeSpan.Zero);
+
     private ArmingRecordingTimeProvider clock;
     private ScriptedAcquisitionJobStore store;
+    private ScriptedJobRunShellFactory shellFactory;
     private QuartzSchedulerThread thread;
 
     /// <summary>How many waits of the loop the test has read so far.</summary>
@@ -96,8 +99,8 @@ public sealed class SchedulerLoopBlockedRetryTest
     public async Task SetUp()
     {
         parked = 0;
-        clock = new ArmingRecordingTimeProvider(new FakeTimeProvider(new DateTimeOffset(2026, 10, 5, 8, 0, 0, TimeSpan.Zero)));
-        store = new ScriptedAcquisitionJobStore();
+        clock = new ArmingRecordingTimeProvider(new FakeTimeProvider(start));
+        store = new ScriptedAcquisitionJobStore(clock);
         await store.Initialize(TestJobStores.Identity());
     }
 
@@ -289,6 +292,86 @@ public sealed class SchedulerLoopBlockedRetryTest
         waits.Should().OnlyContain(x => x <= shortIdleWait, "the early look is a shortcut, never a delay");
     }
 
+    /// <summary>
+    /// The other half of #4033: a node that had acquired a trigger due later slept until that trigger,
+    /// so a pinned trigger freed meanwhile — which no other node may fire — waited for it, up to a whole
+    /// idle wait. While something is held a round acquires only what is due before the loop's next early
+    /// look, so the loop never parks past its cadence: the freed trigger fires within it, and the later
+    /// trigger is taken by a later round and fires at its time, with nothing released and nothing fired
+    /// out of order.
+    /// </summary>
+    /// <remarks>
+    /// The later trigger is due 20 seconds out and the idle wait is 10, so without the fix the round at
+    /// 11.3 seconds — the first whose idle-wait window reaches it — takes it and parks 8.7 seconds on it,
+    /// longer than the five-second cadence. The holder ends at 14 seconds.
+    /// </remarks>
+    [Test]
+    public async Task ANodeLookingAgainEarlyAcquiresNothingDueAfterItsNextLook()
+    {
+        DateTimeOffset laterDue = start.AddSeconds(20);
+        DateTimeOffset holderEnds = start.AddSeconds(14);
+        store.PassOverEveryRound = 1;
+        store.Hold("later", laterDue);
+        StartLoop();
+
+        bool freed = false;
+        while (true)
+        {
+            TimeSpan wait = await NextWait();
+            if (shellFactory.Created.Count == 2)
+            {
+                break;
+            }
+
+            wait.Should().BeLessThanOrEqualTo(QuartzSchedulerThread.HeldRetryLimit,
+                "while a trigger is held the loop looks again within its cadence, whatever it has acquired");
+
+            // The holder ends while the loop is parked: the pinned trigger is free and due, and the store
+            // reports nothing held any more.
+            if (!freed && clock.GetUtcNow() + wait >= holderEnds)
+            {
+                freed = true;
+                store.PassOverEveryRound = 0;
+                store.Hold("pinned", start);
+            }
+
+            Pass(wait);
+        }
+
+        shellFactory.Created.Entries.Should().Equal([new TriggerKey("pinned", "g"), new TriggerKey("later", "g")],
+            "the freed trigger is found by the next early look and fired first, and the later one is taken by a later round");
+        store.Fired.Entries.Should().Contain(x => x.Key.Name == "later" && x.FiredAt == laterDue,
+            "a trigger a later round takes still fires at its time: the round that takes it comes before it is due");
+        store.Fired.Entries.Should().Contain(x => x.Key.Name == "pinned" && x.FiredAt <= holderEnds + QuartzSchedulerThread.HeldRetryLimit,
+            "the freed trigger fires within the cadence of its holder ending, rather than after the later trigger");
+        store.Releases.Entries.Should().BeEmpty("nothing acquired is let go of to look again");
+        store.LookAheads.Entries[0].Should().Be(idleWaitTime, "nothing is known to be held before the first round");
+        store.LookAheads.Entries.Skip(1).Should().OnlyContain(x => x <= QuartzSchedulerThread.HeldRetryLimit,
+            "while the count runs a round acquires nothing due after the loop's next early look");
+    }
+
+    /// <summary>
+    /// The control: with nothing held a round looks the whole idle wait ahead, as it always did, takes a
+    /// trigger due inside it and waits for it.
+    /// </summary>
+    [Test]
+    public async Task WithNothingHeldARoundLooksTheIdleWaitAhead()
+    {
+        DateTimeOffset laterDue = start.AddSeconds(8);
+        store.Hold("later", laterDue);
+        StartLoop();
+
+        TimeSpan wait = await NextWait();
+
+        wait.Should().Be(TimeSpan.FromSeconds(8), "the trigger is inside the idle wait, so the first round takes it and parks on it");
+        store.LookAheads.Entries.Should().Equal([idleWaitTime], "a loop with nothing held looks the idle wait ahead");
+
+        Pass(wait);
+
+        await shellFactory.Created.Reaches(1).WaitAsync(observationDeadline);
+        store.Fired.Entries.Should().ContainSingle().Which.FiredAt.Should().Be(laterDue);
+    }
+
     private static TriggerAcquisitionResult FiredBlocked(string triggerName)
     {
         return new TriggerAcquisitionResult
@@ -342,6 +425,14 @@ public sealed class SchedulerLoopBlockedRetryTest
         A.CallTo(() => threadPool.PoolSize).Returns(4);
         A.CallTo(() => threadPool.WaitForAvailableThreads(A<CancellationToken>.Ignored)).Returns(new ValueTask<int>(4));
 
+        // Accepted but never run: a firing the store answers with a bundle is dispatched and stays in
+        // flight for the rest of the test.
+        A.CallTo(() => threadPool.TryRunWithState(A<Func<object, ValueTask>>.Ignored, A<object>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(true));
+
+        shellFactory = new ScriptedJobRunShellFactory();
+        shellFactory.Initialize(A.Fake<IScheduler>());
+
         QuartzSchedulerResources resources = new()
         {
             Name = "blockedRetryTest",
@@ -350,7 +441,7 @@ public sealed class SchedulerLoopBlockedRetryTest
             MaxBatchSize = 1,
             JobStore = store,
             ThreadPool = threadPool,
-            JobRunShellFactory = new ScriptedJobRunShellFactory(),
+            JobRunShellFactory = shellFactory,
             TimeProvider = clock,
         };
 
@@ -360,18 +451,49 @@ public sealed class SchedulerLoopBlockedRetryTest
     }
 
     /// <summary>
-    /// Answers each acquisition with the next scripted round, or with nothing — passing over
+    /// Answers each acquisition with the next scripted round, or — once the script has run out — with
+    /// whatever <see cref="Hold" /> left for a round whose window reaches it, passing over
     /// <see cref="PassOverEveryRound" /> blocked triggers, held by a firing fired at
-    /// <see cref="BlockingFiredUtc" /> — once the script has run out.
+    /// <see cref="BlockingFiredUtc" />. Fires what the loop asks it to, and keeps the firing in flight.
     /// </summary>
     private sealed class ScriptedAcquisitionJobStore : DelegatingJobStore
     {
+        private static readonly JobDetailImpl job = new("job", "g", typeof(NoOpJob));
+
+        private readonly TimeProvider clock;
         private readonly Queue<TriggerAcquisitionResult> script = new();
+        private readonly List<IOperableTrigger> held = [];
         private readonly Lock gate = new();
         private volatile int passOverEveryRound;
 
-        public ScriptedAcquisitionJobStore() : base(TestJobStores.Ram())
+        public ScriptedAcquisitionJobStore(TimeProvider clock) : base(TestJobStores.Ram())
         {
+            this.clock = clock;
+        }
+
+        /// <summary>How far ahead of the clock each round asked for triggers, in the order the rounds came.</summary>
+        public CallLog<TimeSpan> LookAheads { get; } = new();
+
+        /// <summary>Each trigger the loop fired, with the clock reading it was fired at.</summary>
+        public CallLog<(TriggerKey Key, DateTimeOffset FiredAt)> Fired { get; } = new();
+
+        /// <summary>
+        /// Keeps a trigger for a round whose window reaches its fire time to acquire, as a store keeps a
+        /// waiting trigger: in fire-time order, and no more of them in one round than fit the round's
+        /// count and the batch window after the first. One whose fire time has passed goes on the first
+        /// round to ask.
+        /// </summary>
+        public void Hold(string name, DateTimeOffset fireTimeUtc)
+        {
+            lock (gate)
+            {
+                held.Add(new SimpleTriggerImpl
+                {
+                    Key = new TriggerKey(name, "g"),
+                    JobKey = job.Key,
+                    NextFireTimeUtc = fireTimeUtc,
+                });
+            }
         }
 
         /// <summary>How many blocked triggers each unscripted round passes over.</summary>
@@ -415,12 +537,18 @@ public sealed class SchedulerLoopBlockedRetryTest
 
         public override ValueTask<TriggerAcquisitionResult> AcquireNextTriggersAndFireDue(TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
         {
+            DateTimeOffset now = clock.GetUtcNow();
+            LookAheads.Record(request.NoLaterThan - now);
+
+            List<IOperableTrigger> pending;
             lock (gate)
             {
                 if (script.TryDequeue(out TriggerAcquisitionResult round))
                 {
                     return new ValueTask<TriggerAcquisitionResult>(round);
                 }
+
+                pending = TakeHeldNoLock(request, now);
             }
 
             DateTimeOffset? blockingFiredUtc = BlockingFiredUtc;
@@ -431,9 +559,32 @@ public sealed class SchedulerLoopBlockedRetryTest
 
             return new ValueTask<TriggerAcquisitionResult>(new TriggerAcquisitionResult
             {
+                Pending = pending,
                 Blocked = PassOverEveryRound,
                 LatestBlockingFiredUtc = blockingFiredUtc,
             });
+        }
+
+        public override ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
+        {
+            DateTimeOffset now = clock.GetUtcNow();
+            List<TriggerFiredResult> results = new(triggers.Count);
+            foreach (IOperableTrigger trigger in triggers)
+            {
+                Fired.Record((trigger.Key, now));
+                results.Add(TriggerFiredResult.Fired(new TriggerFiredBundle
+                {
+                    JobDetail = job,
+                    Trigger = trigger,
+                    Recovering = false,
+                    FireTimeUtc = now,
+                    ScheduledFireTimeUtc = trigger.NextFireTimeUtc,
+                    PreviousFireTimeUtc = null,
+                    NextFireTimeUtc = null,
+                }));
+            }
+
+            return new ValueTask<List<TriggerFiredResult>>(results);
         }
 
         public override ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
@@ -441,5 +592,40 @@ public sealed class SchedulerLoopBlockedRetryTest
             Releases.Record(trigger.Key);
             return default;
         }
+
+        /// <summary>
+        /// The held triggers a round takes: in fire-time order, due by the round's window, no more than
+        /// its count, and after the first none due later than the batch window past it — which is how
+        /// the shipped stores close a batch.
+        /// </summary>
+        private List<IOperableTrigger> TakeHeldNoLock(TriggerAcquisitionRequest request, DateTimeOffset now)
+        {
+            List<IOperableTrigger> taken = [];
+            held.Sort(static (x, y) => x.NextFireTimeUtc!.Value.CompareTo(y.NextFireTimeUtc!.Value));
+
+            DateTimeOffset batchEnd = request.NoLaterThan;
+            foreach (IOperableTrigger trigger in held)
+            {
+                DateTimeOffset due = trigger.NextFireTimeUtc!.Value;
+                if (due > batchEnd || taken.Count == request.MaxCount)
+                {
+                    break;
+                }
+
+                taken.Add(trigger);
+                if (taken.Count == 1)
+                {
+                    batchEnd = (now > due ? now : due) + request.TimeWindow;
+                }
+            }
+
+            held.RemoveAll(taken.Contains);
+            return taken;
+        }
+    }
+
+    public sealed class NoOpJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 }
