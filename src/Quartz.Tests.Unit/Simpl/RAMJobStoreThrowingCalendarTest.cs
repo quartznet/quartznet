@@ -29,6 +29,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using AwesomeAssertions.Execution;
+
 using FakeItEasy;
 
 using Microsoft.Extensions.Time.Testing;
@@ -61,6 +63,10 @@ namespace Quartz.Tests.Unit.Simpl;
 /// serial job's completion lets go of its other triggers, and as a trigger is resumed. A throw there
 /// fails that trigger alone in the same way, and counts toward the same limit (#3985).
 /// </para>
+/// <para>
+/// A replacement calendar that throws while the store re-computes its triggers fails the replacement
+/// with nothing changed, as the database job store's transaction does, and counts toward nothing (#4026).
+/// </para>
 /// </remarks>
 [NonParallelizable]
 public class RAMJobStoreThrowingCalendarTest
@@ -87,6 +93,9 @@ public class RAMJobStoreThrowingCalendarTest
     private static readonly TriggerKey calendaredKey = new TriggerKey("calendared", Group);
     private static readonly TriggerKey mateKey = new TriggerKey("mate", Group);
     private static readonly TriggerKey laterKey = new TriggerKey("later", Group);
+
+    /// <summary>The triggers <see cref="GivenThreeTriggersOnTheCalendar" /> schedules, and their minute past the epoch.</summary>
+    private static readonly (TriggerKey Key, int Minutes)[] threeOnTheCalendar = { (firstKey, 5), (calendaredKey, 10), (laterKey, 15) };
 
     private Func<DateTimeOffset> originalUtcNow = null!;
     private FakeTimeProvider clock = null!;
@@ -578,6 +587,90 @@ public class RAMJobStoreThrowingCalendarTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Replacing the calendar with one that throws (#4026), on a clock the test moves
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// Three triggers on the calendar, five, ten and fifteen minutes from now. Its replacement leaves out
+    /// the hour ahead, and throws for <c>calendared</c>'s ten-past. The replacement fails with nothing
+    /// changed: the calendar is the one it was to replace, and every trigger keeps its fire time and its
+    /// place in the schedule. It is the caller's failure, not a fire's, so nothing is counted.
+    /// </summary>
+    /// <remarks>
+    /// The store used to take each trigger out of the schedule, re-compute it, and put it back. The throw
+    /// left <c>calendared</c> out of the schedule for good, the triggers before it moved on, and the new
+    /// calendar stored.
+    /// </remarks>
+    [Test]
+    public async Task ACalendarReplacementThatThrowsChangesNothing()
+    {
+        FreezeClock();
+        store.MaxConsecutiveFireFailures = 1;
+        await GivenThreeTriggersOnTheCalendar();
+
+        Func<Task> replace = async () => await store.StoreCalendar(
+            CalendarName,
+            new ReplacementCalendar(includedFrom: epoch.AddHours(1), throwsAtMinute: 10),
+            replaceExisting: true,
+            updateTriggers: true);
+
+        Exception thrown = (await replace.Should().ThrowAsync<Exception>()).Which;
+
+        // As one group, so that a partial replacement reports everything it left behind.
+        using (new AssertionScope())
+        {
+            (await store.RetrieveCalendar(CalendarName)).Should().BeOfType<FaultyCalendar>(
+                "the calendar it was to replace is still the stored one");
+
+            foreach ((TriggerKey key, int minutes) in threeOnTheCalendar)
+            {
+                (await store.RetrieveTrigger(key))!.GetNextFireTimeUtc().Should().Be(epoch.AddMinutes(minutes),
+                    $"{key} keeps the fire time it had; none is moved on by a replacement that failed");
+                (await store.GetTriggerState(key)).Should().Be(TriggerState.Normal,
+                    "the failure was the caller's, so it does not count toward the fire-failure limit of one");
+            }
+
+            (await AcquireUpTo(epoch.AddMinutes(20))).Select(x => x.Key).Should().Equal(
+                new[] { firstKey, calendaredKey, laterKey },
+                "every trigger is still in the schedule, in fire-time order, calendared included");
+        }
+
+        thrown.Should().BeOfType<JobPersistenceException>("the in-memory store fails as the database job store's guard does")
+            .Which.InnerException.Should().BeOfType<InvalidOperationException>()
+            .Which.Message.Should().Be(ReplacementCalendar.Failure);
+    }
+
+    /// <summary>
+    /// A replacement that answers moves every trigger on to its first included fire time, as it always
+    /// did, and each is acquired at that time.
+    /// </summary>
+    [Test]
+    public async Task ACalendarReplacementThatAnswersMovesEveryTriggerOn()
+    {
+        FreezeClock();
+        await GivenThreeTriggersOnTheCalendar();
+
+        await store.StoreCalendar(
+            CalendarName,
+            new ReplacementCalendar(includedFrom: epoch.AddHours(1)),
+            replaceExisting: true,
+            updateTriggers: true);
+
+        (await store.RetrieveCalendar(CalendarName)).Should().BeOfType<ReplacementCalendar>();
+
+        foreach ((TriggerKey key, int minutes) in threeOnTheCalendar)
+        {
+            (await store.RetrieveTrigger(key))!.GetNextFireTimeUtc().Should().Be(epoch.AddHours(1).AddMinutes(minutes),
+                $"{key}'s fire time in the hour the replacement leaves out moves on to the next hour's");
+        }
+
+        (await AcquireUpTo(epoch.AddMinutes(20))).Should().BeEmpty("nothing is left in the hour the replacement leaves out");
+        (await AcquireUpTo(epoch.AddHours(1).AddMinutes(20))).Select(x => x.Key).Should().Equal(
+            new[] { firstKey, calendaredKey, laterKey },
+            "each trigger went back in the schedule at its new fire time");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // A running scheduler, on the machine's clock
     //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -772,6 +865,19 @@ public class RAMJobStoreThrowingCalendarTest
         await Schedule(mateKey, serialJobKey, priority: 1);
     }
 
+    /// <summary>
+    /// <c>first</c>, <c>calendared</c> and <c>later</c> on the ordinary job and the calendar, hourly from
+    /// five, ten and fifteen minutes past the epoch.
+    /// </summary>
+    private async Task GivenThreeTriggersOnTheCalendar()
+    {
+        await StoreJob(ordinaryJobKey, serial: false);
+        foreach ((TriggerKey key, int minutes) in threeOnTheCalendar)
+        {
+            await Schedule(key, ordinaryJobKey, onCalendar: true, startsAfter: TimeSpan.FromMinutes(minutes));
+        }
+    }
+
     private async Task StoreJob(JobKey key, bool serial)
     {
         await store.StoreJob(Job(key, serial), replaceExisting: false);
@@ -785,20 +891,22 @@ public class RAMJobStoreThrowingCalendarTest
     }
 
     /// <remarks>
-    /// Hourly from now. A trigger that misfires has its misfire handled by the simple trigger's smart
-    /// policy, which consults the calendar for the next fire time, unless it ignores misfires.
+    /// Hourly from now, or from <paramref name="startsAfter" /> past it. A trigger that misfires has its
+    /// misfire handled by the simple trigger's smart policy, which consults the calendar for the next fire
+    /// time, unless it ignores misfires.
     /// </remarks>
     private async Task Schedule(
         TriggerKey key,
         JobKey jobKey,
         int priority = TriggerConstants.DefaultPriority,
         bool onCalendar = false,
-        bool ignoreMisfires = false)
+        bool ignoreMisfires = false,
+        TimeSpan startsAfter = default)
     {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
             .WithIdentity(key)
             .ForJob(jobKey)
-            .StartAt(clock.GetUtcNow())
+            .StartAt(clock.GetUtcNow() + startsAfter)
             .WithSimpleSchedule(x =>
             {
                 x.WithInterval(TimeSpan.FromHours(1)).RepeatForever();
@@ -844,6 +952,15 @@ public class RAMJobStoreThrowingCalendarTest
     private async Task<List<IOperableTrigger>> Acquire()
     {
         return (await store.AcquireNextTriggers(clock.GetUtcNow().AddSeconds(1), 10, TimeSpan.Zero)).ToList();
+    }
+
+    /// <summary>
+    /// Acquires, without moving the clock, everything due up to <paramref name="noLaterThan" />, as one
+    /// batch.
+    /// </summary>
+    private async Task<List<IOperableTrigger>> AcquireUpTo(DateTimeOffset noLaterThan)
+    {
+        return (await store.AcquireNextTriggers(noLaterThan, 10, noLaterThan - clock.GetUtcNow())).ToList();
     }
 
     /// <summary>
@@ -1046,6 +1163,48 @@ public class RAMJobStoreThrowingCalendarTest
         }
 
         public ICalendar Clone() => new FaultyCalendar(Fault) { Description = Description, CalendarBase = CalendarBase };
+    }
+
+    /// <summary>
+    /// Leaves out every time before <c>includedFrom</c>, and throws for any time at
+    /// <c>throwsAtMinute</c> past the hour.
+    /// </summary>
+    private sealed class ReplacementCalendar : ICalendar
+    {
+        public const string Failure = "The replacement holiday feed is unreachable.";
+
+        private readonly DateTimeOffset includedFrom;
+        private readonly int throwsAtMinute;
+
+        public ReplacementCalendar(DateTimeOffset includedFrom, int throwsAtMinute = -1)
+        {
+            this.includedFrom = includedFrom;
+            this.throwsAtMinute = throwsAtMinute;
+        }
+
+        public string? Description { get; set; }
+
+        public ICalendar? CalendarBase { get; set; }
+
+        public bool IsTimeIncluded(DateTimeOffset timeUtc)
+        {
+            if (timeUtc.Minute == throwsAtMinute)
+            {
+                throw new InvalidOperationException(Failure);
+            }
+
+            return timeUtc >= includedFrom;
+        }
+
+        public DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
+        {
+            return IsTimeIncluded(timeUtc) ? timeUtc : includedFrom;
+        }
+
+        public ICalendar Clone()
+        {
+            return new ReplacementCalendar(includedFrom, throwsAtMinute) { Description = Description, CalendarBase = CalendarBase };
+        }
     }
 
     /// <summary>
