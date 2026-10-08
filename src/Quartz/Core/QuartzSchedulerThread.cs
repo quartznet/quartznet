@@ -145,6 +145,14 @@ internal sealed class QuartzSchedulerThread
     private DateTimeOffset? lastBlockingFiredUtc;
 
     /// <summary>
+    /// The execution groups whose limit held a due trigger back from the last round, by the key this
+    /// loop counts a firing against, or <see langword="null" /> when none did. The loop writes it after
+    /// every acquisition and a firing that ends reads it, which is why it is never changed once
+    /// published: a round publishes a set of its own, or nothing (#4033).
+    /// </summary>
+    private HashSet<string>? groupsAtLimit;
+
+    /// <summary>
     /// Gets the randomized idle wait time.
     /// </summary>
     /// <value>The randomized idle wait time.</value>
@@ -593,6 +601,11 @@ internal sealed class QuartzSchedulerThread
                     acquiresFailed = 0;
                     heldBack = acquisition.Blocked > 0;
                     blockingFiredUtc = acquisition.LatestBlockingFiredUtc;
+
+                    // For the firings that end from here until the next round answers: one of a group
+                    // named here frees a slot a due trigger is waiting for, and wakes this loop. A
+                    // reference per round; null, as the store answers it, for a scheduler with no limit.
+                    Volatile.Write(ref groupsAtLimit, acquisition.GroupsAtLimit);
 
                     // Copied on purpose, and IJobStore.AcquireNextTriggers says so: this loop removes entries
                     // below while it waits out the first trigger's fire time, and the store is allowed to
@@ -1137,12 +1150,27 @@ internal sealed class QuartzSchedulerThread
 
     /// <summary>
     /// What a dispatched firing calls when it ends: the execution-group count and the scheduler's
-    /// in-flight tally this loop took before handing it over are both given back.
+    /// in-flight tally this loop took before handing it over are both given back, and the loop is woken
+    /// if the slot given back is one the last round found a due trigger waiting for.
     /// </summary>
+    /// <remarks>
+    /// An ordinary completion is not a scheduling change: nothing else tells the loop that a group's
+    /// limit, full when it last looked, has a slot free again, so a trigger that limit held back waited
+    /// for the idle wait to end or for something else to wake the loop (#4033). The wake is for that
+    /// case alone. A completion of any other group — which is every completion on a scheduler with no
+    /// limit — reads one field and signals nothing, so a scheduler that limits nothing pays nothing.
+    /// </remarks>
     internal void ExecutionFinished(string normalizedGroup)
     {
         DecrementExecutionGroupCount(normalizedGroup);
         qs.ExecutionSettled();
+
+        // After the count is given back, so that the round the signal starts sees the slot free. The
+        // candidate is null rather than a time: the trigger held back was due when the store said so.
+        if (Volatile.Read(ref groupsAtLimit) is { } held && held.Contains(normalizedGroup))
+        {
+            SignalSchedulingChange(candidateNewNextFireTimeUtc: null);
+        }
     }
 
     private void DecrementExecutionGroupCount(string normalizedGroup)
