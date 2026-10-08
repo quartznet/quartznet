@@ -169,11 +169,13 @@
     private void OnSpacingChanged(ChangeEventArgs args)
     {
         _spacingInput = args.Value?.ToString() ?? string.Empty;
+        UpdatePreview();
     }
 
     private void OnMaxSlotsChanged(ChangeEventArgs args)
     {
         _maxSlotsInput = args.Value?.ToString() ?? string.Empty;
+        UpdatePreview();
     }
 
     /// <summary>
