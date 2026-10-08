@@ -25,6 +25,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
+using Quartz.Impl.AdoJobStore;
 
 using CountingSqliteDelegate = Quartz.Tests.Unit.Impl.AdoJobStore.AcquisitionBehindExecutingJobSqliteTest.CountingSqliteDelegate;
 
@@ -194,6 +195,49 @@ public sealed class AcquisitionBehindExecutionLimitSqliteTest
         CountingSqliteDelegate.AcquisitionReadCounts.Should().Equal([2, 6],
             "two refused rows filled the first read; the next reaches twice as far past the count");
         (await StateOf("ordinary-3")).Should().Be("WAITING", "the cap: two triggers were asked for");
+    }
+
+    /// <summary>
+    /// A round names the group whose limit refused a row, by the key the scheduler counts a firing
+    /// against, so that the scheduler looks again the moment a firing of that group ends on its node
+    /// rather than after its idle wait (#4033). Through the lock-free path a round of one takes, and the
+    /// path under the lock that fires what is due as it acquires it.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task ARoundNamesTheGroupWhoseLimitRefusedARow(bool withinLock)
+    {
+        await AddJobs();
+        await Schedule("tenant-1", tenantJobKey, due, Tenant);
+        await Schedule("tenant-2", tenantJobKey, due.AddMilliseconds(1), Tenant);
+        await FillTheTenantsSlot();
+
+        // SQLite forces the lock on; turned off again here, by hand, to reach the lock-free path every
+        // other dialect takes for one trigger at a time.
+        ((AdoJobStoreBase) store).AcquireTriggersWithinLock = withinLock;
+
+        TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(RequestFor(maxCount: 1));
+
+        round.Due.Should().BeEmpty();
+        round.Pending.Should().BeEmpty("the only row due belongs to the full group");
+        round.GroupsAtLimit.Should().BeEquivalentTo([Tenant],
+            "the tenant's other trigger waits for a slot of this group, and a firing of the group ending on this node is what frees one");
+    }
+
+    /// <summary>
+    /// The control: a round that refuses nothing names no group, so no completion has the scheduler
+    /// looking for nothing.
+    /// </summary>
+    [Test]
+    public async Task ARoundThatRefusesNothingNamesNoGroup()
+    {
+        await AddJobs();
+        await Schedule("tenant-1", tenantJobKey, due, Tenant);
+
+        TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(RequestFor(maxCount: 1));
+
+        round.Pending.Should().ContainSingle().Which.Key.Name.Should().Be("tenant-1", "the tenant has its slot");
+        round.GroupsAtLimit.Should().BeNull("nothing is waiting for a slot");
     }
 
     /// <summary>

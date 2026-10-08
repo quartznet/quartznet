@@ -452,7 +452,10 @@ On each trigger acquisition cycle, the scheduler thread:
 2. Passes these limits to the job store during trigger acquisition.
 3. The job store lowers each **cluster-scoped** limit by what the cluster has in flight, then skips
    triggers whose group has no free slot.
-4. Increments a group's running count when a job starts, and decrements it when the job completes.
+4. Increments a group's running count when a job starts, and decrements it when the job completes. A
+   completion that frees a slot of a group whose limit held a due trigger back in the last acquisition
+   wakes the scheduler thread at once; any other completion does not. Before 4.5 the trigger waited for
+   the next idle wait or scheduling change ([#4033](https://github.com/quartznet/quartznet/issues/4033)).
 
 So:
 

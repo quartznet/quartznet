@@ -91,4 +91,17 @@ public sealed class TriggerAcquisitionResult
     /// between, so the scheduler starts looking soon again rather than less and less often.
     /// </summary>
     internal DateTimeOffset? LatestBlockingFiredUtc { get; init; }
+
+    /// <summary>
+    /// The execution groups whose limit held a due trigger back from this round, by the key the limit
+    /// is evaluated under; <see langword="null" /> when none did. A firing of such a group ending on the
+    /// scheduler's node frees the slot the trigger waited for, so the scheduler looks again at once
+    /// rather than after its idle wait (#4033).
+    /// </summary>
+    /// <remarks>
+    /// Internal, as <see cref="Blocked" /> is. The key is <see cref="ExecutionLimits.ResolveGroupKey" />'s,
+    /// which is what the scheduler counts a firing against, so that the group a completion frees and the
+    /// group the store named are the same string.
+    /// </remarks>
+    internal HashSet<string>? GroupsAtLimit { get; init; }
 }
