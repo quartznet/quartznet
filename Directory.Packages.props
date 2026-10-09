@@ -173,6 +173,12 @@
     gets past both still has to argue with a unit test that names this comment.
   -->
   <ItemGroup Label="Dependency floors">
+    <!--
+      The SignalR client Quartz.Dashboard.Agent dials a dashboard with, and nothing of the server: the
+      package brings Microsoft.AspNetCore.Http.Connections.Client and the JSON hub protocol, none of which
+      needs the Microsoft.AspNetCore.App framework. It is a floor like the framework extensions beside it.
+    -->
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.0" />

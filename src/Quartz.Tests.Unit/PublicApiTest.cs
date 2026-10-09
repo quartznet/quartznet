@@ -33,6 +33,7 @@ public class PublicApiTest
     [
         typeof(global::Quartz.IScheduler).Assembly,
         typeof(global::Quartz.QuartzAspireSettings).Assembly,
+        typeof(global::Quartz.DashboardAgentOptions).Assembly,
         typeof(global::Quartz.Jobs.DirectoryScanJob).Assembly,
         typeof(global::Quartz.Plugins.History.LoggingJobHistoryPlugin).Assembly,
         typeof(global::Quartz.TimeZonePluginConfigurationExtensions).Assembly,

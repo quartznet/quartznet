@@ -225,6 +225,56 @@ public static class DashboardSamples
         #endregion
     }
 
+    public static void AcceptAgents(WebApplicationBuilder builder)
+    {
+        #region sample_dashboard_accept_agents
+
+        builder.Services.AddQuartzDashboard(options => options.AcceptAgents(agents =>
+        {
+            // The token every agent presents, as an Authorization: Bearer header. Keep it in a
+            // secret store: whoever holds it can register a scheduler on this dashboard.
+            agents.Tokens.Primary = builder.Configuration["Dashboard:AgentToken"];
+        }));
+
+        #endregion
+    }
+
+    public static void AgentTokenRotation(WebApplicationBuilder builder)
+    {
+        #region sample_dashboard_agent_token_rotation
+
+        builder.Services.AddQuartzDashboard(options => options.AcceptAgents(agents =>
+        {
+            // Both are accepted while the rotation runs: set Secondary to the new token, roll the
+            // agents over to it, move it to Primary, and clear Secondary.
+            agents.Tokens.Primary = builder.Configuration["Dashboard:AgentToken"];
+            agents.Tokens.Secondary = builder.Configuration["Dashboard:NextAgentToken"];
+        }));
+
+        #endregion
+    }
+
+    public static void AgentHubPolicy(WebApplicationBuilder builder)
+    {
+        #region sample_dashboard_agent_hub_policy
+
+        builder.Services.AddAuthorizationBuilder()
+            .AddPolicy("agents", policy => policy.RequireAuthenticatedUser().RequireRole("quartz-agent"));
+
+        builder.Services.AddQuartzDashboard(options => options.AcceptAgents(agents =>
+        {
+            // No shared secret: the hub is held to the host's own authentication, and an agent
+            // presents what its AccessTokenProvider hands it. With Tokens set as well, both apply.
+            agents.AuthorizationPolicy = "agents";
+
+            // A liveness judgement of 20 s × 3, instead of 15 s × 3; the agents adopt the interval.
+            agents.HeartbeatInterval = TimeSpan.FromSeconds(20);
+            agents.OfflineAfterMissedHeartbeats = 3;
+        }));
+
+        #endregion
+    }
+
     public static void AuthorizationPolicy(WebApplicationBuilder builder)
     {
         #region sample_dashboard_authorization_policy

@@ -41,6 +41,17 @@ report of one will be closed with a link back to this section — so please save
   Authorize these surfaces the way you would authorize a shell —
   [HTTP API](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/http-api.html#production-hardening),
   [dashboard](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard.html#production-hardening).
+- **An agent is a scheduler's outbound connection to a dashboard, and the dashboard is trusted by
+  every agent that dials it.** The agent's token or host credential authenticates the *dashboard* to
+  the agent as much as the reverse: whoever runs the dashboard can perform on the worker every
+  operation the agent accepts — every operation of the HTTP API, except that an agent refuses to
+  store a job by type name until `DashboardAgentOptions.IsJobTypeAllowed` says which types it takes,
+  precisely because `NativeJob` can be on the probing path. The narrowings are the agent's own and
+  are the only ones that hold against a compromised dashboard: `DashboardAgentOptions.ReadOnly`,
+  `IsJobTypeAllowed`, `IsOperationAllowed`. The dashboard's `ReadOnly` hides buttons; it does not
+  bind an agent. Tokens are shared secrets with two slots for rotation; keep them in a secret store,
+  and treat the dashboard host as the trust anchor of the fleet —
+  [dashboard agent](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard-agent.html#trust-model).
 - **There is no rate limiting on any Quartz surface**, by design. ASP.NET Core's own rate limiter
   middleware applies to Quartz's endpoints like any others, and configuring one is the application's
   call rather than a scheduling library's.

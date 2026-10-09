@@ -24,4 +24,23 @@ internal static class Eventually
             await Task.Delay(10, timeout.Token);
         }
     }
+
+    /// <summary>
+    /// Reads <paramref name="read" /> again until <paramref name="accept" /> holds of its answer, and
+    /// returns that answer; fails by timing out when it never does.
+    /// </summary>
+    public static async Task<T> Value<T>(Func<Task<T>> read, Func<T, bool> accept)
+    {
+        using CancellationTokenSource timeout = new(waitFor);
+        while (true)
+        {
+            T value = await read();
+            if (accept(value))
+            {
+                return value;
+            }
+
+            await Task.Delay(10, timeout.Token);
+        }
+    }
 }

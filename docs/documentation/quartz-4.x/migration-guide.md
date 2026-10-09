@@ -46,11 +46,21 @@ An application on 4.4 compiles on 4.5 unchanged, and the database schema did not
 | HTTP: `members`, `lastSeenUtc` on `GET …/schedulers` rows | See [The scheduler listing carries registrations](packages/http-api.md#the-scheduler-listing-carries-registrations) |
 | Log events `9105`–`9110` | `Quartz.Dashboard`: a cluster formed, changed or dissolved; a detection round failed; a member or a target did not answer |
 | Cookie `qz_scheduler` | The dashboard remembers the selected scheduler beside `qz_theme` and `qz_tz` |
+| `Quartz.Dashboard.Agent` | New package: a scheduler dials out to a dashboard elsewhere and is shown and driven over that connection. See [Dashboard Agent](packages/dashboard-agent.md) |
+| `UseDashboardAgent(this IQuartzBuilder, Action<DashboardAgentOptions>)` | `Quartz.Dashboard.Agent`: installs the agent plugin on the scheduler being configured |
+| `DashboardAgentOptions` | `Endpoint`, `Token`, `AccessTokenProvider`, `Target`, `ReadOnly`, `IsJobTypeAllowed` (unset refuses every job type), `IsOperationAllowed`, `HeartbeatInterval`, `MaxConcurrentOperations`, `MaxPageSize`, `ConfigureConnection`. See [Options](packages/dashboard-agent.md#options) |
+| `QuartzDashboardOptions.AcceptAgents(Action<DashboardAgentHubOptions>? configure = null)` | `Quartz.Dashboard`: accepts agents and maps the hub at `{DashboardPath}/agents`. See [Fronting a scheduler on another machine](packages/dashboard.md#fronting-a-scheduler-on-another-machine) |
+| `DashboardAgentHubOptions` | `Tokens`, `AuthorizationPolicy`, `HeartbeatInterval`, `OfflineAfterMissedHeartbeats`, `OperationTimeout`, `MaxMessageBytes`, `ForgetAfter`, `IsJobTypeAllowed` |
+| `AgentTokens` | `Primary`, `Secondary`: the hub's bearer tokens, two slots for a rotation |
+| Log events `9111`–`9117` | `Quartz.Dashboard`: an agent connection refused, registered, registration refused, disconnected, forgotten, missed heartbeats; the liveness sweep failed |
+| Log events `9300`–`9305` | `Quartz.Dashboard.Agent`: registered, dashboard unreachable, registration refused, connection closed, operation refused, operation failed |
 
 Behaviour that changed:
 
 | Before | After | What to do |
 |---|---|---|
+| A worker recorded execution history only when asked | A scheduler with `UseDashboardAgent` records it in memory, as one serving the HTTP API does | Nothing; bound by the history options |
+| `AddQuartzDashboard()` registered no scheduler repository of its own | It registers Quartz's shared services, so a dashboard with no `AddQuartz` accepts agents | Nothing |
 | `AddQuartzHttpClient` was keyed by the scheduler name only | Keyed by `Target` when set | Nothing, unless you set `Target`: then resolve `GetRequiredKeyedService<IScheduler>(target)` |
 | A second `AddQuartzHttpClient` naming a registered scheduler threw `InvalidOperationException` | Unchanged for a bare name; a second `Target` of one name throws `SchedulerConfigException` | Give each process a `Target` of its own |
 | `IQuartzApiClient` members took a bare scheduler name | They take a key; a bare name is the key of a scheduler reached through no target | Nothing for a 4.4 deployment. A replacement client parses keys with `SchedulerRef.Parse` |

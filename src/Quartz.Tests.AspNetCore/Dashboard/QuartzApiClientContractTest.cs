@@ -29,7 +29,10 @@ public enum Carrier
     Local,
 
     /// <summary>A scheduler in another process, reached over the Quartz HTTP API.</summary>
-    Http
+    Http,
+
+    /// <summary>A scheduler in another process that dialled out to the dashboard, reached over its agent's connection.</summary>
+    Agent
 }
 
 /// <summary>
@@ -56,19 +59,37 @@ public enum Carrier
 /// <c>AddQuartzHttpClient</c> against a host running the API, so every answer below travels as JSON and
 /// comes back through <c>HttpScheduler</c>. A page cannot tell the two apart, and that is the claim.
 /// </para>
+/// <para>
+/// The <see cref="Carrier.Agent" /> fixture is the same claim for the third carrier: a dashboard that
+/// accepts agents, and a worker whose scheduler dialled it. Every answer travels down the agent's
+/// connection as the contract's bytes and comes back through the same <c>HttpScheduler</c>, over a
+/// transport that is not HTTP. The worker allows the test's job types, because an agent refuses every
+/// job type until told which it accepts.
+/// </para>
 /// </remarks>
 [TestFixture(Carrier.Local)]
 [TestFixture(Carrier.Http)]
+[TestFixture(Carrier.Agent)]
 public sealed class QuartzApiClientContractTest
 {
     private readonly Carrier carrier;
 
     private WebApplicationFactory<Program>? host;
-    private ServiceProvider provider = null!;
+    private Agents.AgentDashboard? dashboard;
+    private IServiceProvider provider = null!;
+
+    /// <summary>The container this fixture built itself, when it did; the agent fixture borrows the dashboard's.</summary>
+    private ServiceProvider? owned;
     private IServiceScope scope = null!;
     private IScheduler scheduler = null!;
     private IQuartzApiClient client = null!;
     private IExecutionHistoryStore history = null!;
+
+    /// <summary>
+    /// What the client is asked about: the bare name for a scheduler reached through no target, and
+    /// <c>target/name</c> for the agent's.
+    /// </summary>
+    private string key = null!;
 
     /// <summary>
     /// The broker of the process the scheduler runs in, which is where its events are published. For the
@@ -84,18 +105,43 @@ public sealed class QuartzApiClientContractTest
     [SetUp]
     public async Task SetUp()
     {
-        if (carrier == Carrier.Local)
+        switch (carrier)
         {
-            await SetUpLocal();
-        }
-        else
-        {
-            await SetUpHttp();
+            case Carrier.Local:
+                await SetUpLocal();
+                break;
+            case Carrier.Http:
+                await SetUpHttp();
+                break;
+            default:
+                await SetUpAgent();
+                break;
         }
 
         // Scoped, because that is the lifetime the pages resolve it with.
         scope = provider.CreateScope();
         client = scope.ServiceProvider.GetRequiredService<IQuartzApiClient>();
+    }
+
+    private async Task SetUpAgent()
+    {
+        // The worker runs on the system clock, as the other two carriers' schedulers do: the cases below
+        // schedule against now and backfill up to it.
+        dashboard = await Agents.AgentDashboard.Start();
+        Agents.AgentWorker worker = await dashboard.StartAgent(
+            "w1",
+            options => options.IsJobTypeAllowed = name => name.StartsWith("Quartz.Tests.AspNetCore.", StringComparison.Ordinal),
+            clock: TimeProvider.System);
+
+        // Standing by, as the other two carriers' schedulers are never started: what the cases below put
+        // in the store has to still be there when they look.
+        scheduler = worker.Scheduler;
+        await scheduler.Standby();
+
+        history = worker.Services.GetRequiredService<IExecutionHistoryStore>();
+        broker = worker.Broker;
+        provider = dashboard.App.Services;
+        key = worker.Key;
     }
 
     private async Task SetUpLocal()
@@ -106,12 +152,14 @@ public sealed class QuartzApiClientContractTest
         services.AddQuartzDashboard();
         services.AddQuartz(quartz => quartz.ConfigureScheduler(options => options.InstanceName = schedulerName));
 
-        provider = services.BuildServiceProvider();
+        owned = services.BuildServiceProvider();
+        provider = owned;
 
         // Resolving the scheduler is what binds it into the repository the client looks names up in.
         scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
         history = provider.GetRequiredService<IExecutionHistoryStore>();
         broker = provider.GetRequiredService<SchedulerEventBroker>();
+        key = scheduler.SchedulerName;
     }
 
     private async Task SetUpHttp()
@@ -129,11 +177,13 @@ public sealed class QuartzApiClientContractTest
         services.AddQuartzDashboard();
         services.AddQuartzHttpClient(scheduler.SchedulerName, _ => host.CreateClient());
 
-        provider = services.BuildServiceProvider();
+        owned = services.BuildServiceProvider();
+        provider = owned;
 
         // Resolving it is what binds it into this container's repository, which the hosted service would
         // do in an application that had one.
         provider.GetRequiredKeyedService<IScheduler>(scheduler.SchedulerName).Should().BeOfType<HttpScheduler>();
+        key = scheduler.SchedulerName;
     }
 
     [TearDown]
@@ -148,9 +198,10 @@ public sealed class QuartzApiClientContractTest
             await scheduler.Clear();
         }
 
-        if (provider is not null)
+        if (owned is not null)
         {
-            await provider.DisposeAsync();
+            await owned.DisposeAsync();
+            owned = null;
         }
 
         if (scheduler is not null && carrier == Carrier.Local)
@@ -162,6 +213,12 @@ public sealed class QuartzApiClientContractTest
         {
             await host.DisposeAsync();
             host = null;
+        }
+
+        if (dashboard is not null)
+        {
+            await dashboard.DisposeAsync();
+            dashboard = null;
         }
     }
 
@@ -178,7 +235,7 @@ public sealed class QuartzApiClientContractTest
     [Test]
     public async Task AMissingJobIsReportedAsAMissingKey()
     {
-        Func<Task> act = () => client.GetJobDetail(scheduler.SchedulerName, new JobKeyDto("ghosts", "no-such-job")).AsTask();
+        Func<Task> act = () => client.GetJobDetail(key, new JobKeyDto("ghosts", "no-such-job")).AsTask();
 
         (await act.Should().ThrowAsync<KeyNotFoundException>(
             "the scheduler exists and holds no such job, which is the case the non-nullable JobDetailDto cannot express"))
@@ -188,7 +245,7 @@ public sealed class QuartzApiClientContractTest
     [Test]
     public async Task AMissingTriggerIsReportedAsAMissingKey()
     {
-        Func<Task> act = () => client.GetTrigger(scheduler.SchedulerName, new TriggerKeyDto("ghosts", "no-such-trigger")).AsTask();
+        Func<Task> act = () => client.GetTrigger(key, new TriggerKeyDto("ghosts", "no-such-trigger")).AsTask();
 
         (await act.Should().ThrowAsync<KeyNotFoundException>())
             .Which.Message.Should().Contain("no-such-trigger");
@@ -197,7 +254,7 @@ public sealed class QuartzApiClientContractTest
     [Test]
     public async Task AMissingCalendarIsReportedAsAMissingKey()
     {
-        Func<Task> act = () => client.GetCalendar(scheduler.SchedulerName, "no-such-calendar").AsTask();
+        Func<Task> act = () => client.GetCalendar(key, "no-such-calendar").AsTask();
 
         (await act.Should().ThrowAsync<KeyNotFoundException>())
             .Which.Message.Should().Contain("no-such-calendar");
@@ -210,7 +267,7 @@ public sealed class QuartzApiClientContractTest
     [Test]
     public async Task ASchedulerThatLimitsNothingReportsNoLimitsRatherThanRefusing()
     {
-        ExecutionLimitsDto limits = await client.GetExecutionLimits(scheduler.SchedulerName);
+        ExecutionLimitsDto limits = await client.GetExecutionLimits(key);
 
         limits.Should().NotBeNull("the member never answers null");
         limits.CanReport.Should().BeTrue("a scheduler Quartz ships can always say what its limits are");
@@ -243,13 +300,13 @@ public sealed class QuartzApiClientContractTest
             .WithCronSchedule("0 0 0 * * ?")
             .Build();
 
-        await client.ScheduleJob(scheduler.SchedulerName, new ScheduleJobRequest(trigger, job));
+        await client.ScheduleJob(key, new ScheduleJobRequest(trigger, job));
 
         ITrigger? stored = await scheduler.GetTrigger(triggerKey);
         stored.Should().NotBeNull("the scheduler that holds it is the one the client was pointed at");
         stored!.JobKey.Should().Be(jobKey);
 
-        JobDetailDto readBack = await client.GetJobDetail(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
+        JobDetailDto readBack = await client.GetJobDetail(key, new JobKeyDto(jobKey.Group, jobKey.Name));
         readBack.Name.Should().Be(jobKey.Name);
     }
 
@@ -270,13 +327,13 @@ public sealed class QuartzApiClientContractTest
             .StartNow()
             .Build();
 
-        await client.ScheduleJob(scheduler.SchedulerName, new ScheduleJobRequest(trigger, Job: null)
+        await client.ScheduleJob(key, new ScheduleJobRequest(trigger, Job: null)
         {
             Paused = new PauseDetails { Reason = "awaiting approval", RequestedBy = "alice" }
         });
 
         (await scheduler.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused, "the trigger was stored paused");
-        (await client.GetTriggerPause(scheduler.SchedulerName, new TriggerKeyDto("scheduled-paused", "now"))).Should().Match<PauseInfo>(
+        (await client.GetTriggerPause(key, new TriggerKeyDto("scheduled-paused", "now"))).Should().Match<PauseInfo>(
             pause => pause.Reason == "awaiting approval" && pause.RequestedBy == "alice");
 
         await scheduler.DeleteJob(jobKey);
@@ -304,7 +361,7 @@ public sealed class QuartzApiClientContractTest
         TriggerKeyDto soonKey = new("panel", "soon");
         TriggerKeyDto laterKey = new("panel", "later");
 
-        (await client.UpdateTriggerDetails(scheduler.SchedulerName, soonKey, new TriggerDetailsUpdate()
+        (await client.UpdateTriggerDetails(key, soonKey, new TriggerDetailsUpdate()
             .WithDescription("edited from the dashboard")
             .WithCalendarName("holidays")
             .WithPriority(8))).Should().BeTrue();
@@ -314,7 +371,7 @@ public sealed class QuartzApiClientContractTest
         edited.Priority.Should().Be(8);
 
         async Task<List<string>> Names(DashboardTriggerQuery query) =>
-            (await client.QueryTriggers(scheduler.SchedulerName, query with { GroupContains = "panel" })).Items.Select(x => x.Name).ToList();
+            (await client.QueryTriggers(key, query with { GroupContains = "panel" })).Items.Select(x => x.Name).ToList();
 
         (await Names(new DashboardTriggerQuery { CalendarName = "holidays" })).Should().Equal(["soon"]);
         (await Names(new DashboardTriggerQuery { NameContains = "lat" })).Should().Equal(["later"]);
@@ -323,9 +380,9 @@ public sealed class QuartzApiClientContractTest
             "the bound travels as an instant with its offset, and the server reads the same moment");
 
         List<TriggerKeyDto> selection = [soonKey, laterKey, new("panel", "gone")];
-        (await client.PauseTriggers(scheduler.SchedulerName, selection)).Should().BeEquivalentTo([soonKey, laterKey]);
-        (await client.ResumeTriggers(scheduler.SchedulerName, selection)).Should().BeEquivalentTo([soonKey, laterKey]);
-        (await client.UnscheduleJobs(scheduler.SchedulerName, selection)).Should().BeEquivalentTo([soonKey, laterKey],
+        (await client.PauseTriggers(key, selection)).Should().BeEquivalentTo([soonKey, laterKey]);
+        (await client.ResumeTriggers(key, selection)).Should().BeEquivalentTo([soonKey, laterKey]);
+        (await client.UnscheduleJobs(key, selection)).Should().BeEquivalentTo([soonKey, laterKey],
             "a key that names nothing is left out of the answer, over both carriers");
         (await scheduler.GetTriggersOfJob(jobKey)).Should().BeEmpty();
     }
@@ -347,16 +404,16 @@ public sealed class QuartzApiClientContractTest
         TriggerKeyDto laterKey = new("set-pause", "later");
         PauseDetails details = new() { Reason = "vendor outage", RequestedBy = "alice" };
 
-        (await client.PauseTriggersWith(scheduler.SchedulerName, [laterKey, new("set-pause", "gone"), soonKey], details))
+        (await client.PauseTriggersWith(key, [laterKey, new("set-pause", "gone"), soonKey], details))
             .Should().Equal([laterKey, soonKey], "a key that names nothing is left out, over both carriers");
-        (await client.GetTriggerPause(scheduler.SchedulerName, soonKey)).Should().Match<PauseInfo>(
+        (await client.GetTriggerPause(key, soonKey)).Should().Match<PauseInfo>(
             pause => pause.Reason == "vendor outage" && pause.RequestedBy == "alice");
         (await scheduler.GetTriggerPause(new TriggerKey("later", "set-pause")))!.Reason.Should().Be("vendor outage");
 
-        (await client.ResumeTriggers(scheduler.SchedulerName, [soonKey, laterKey])).Should().HaveCount(2);
+        (await client.ResumeTriggers(key, [soonKey, laterKey])).Should().HaveCount(2);
         (await scheduler.GetTriggerPause(new TriggerKey("soon", "set-pause"))).Should().BeNull("resuming forgets the record");
 
-        (await client.PauseJobsWith(scheduler.SchedulerName, [new JobKeyDto("set-pause", "nightly")], new PauseDetails { Reason = "quarter close" }))
+        (await client.PauseJobsWith(key, [new JobKeyDto("set-pause", "nightly")], new PauseDetails { Reason = "quarter close" }))
             .Should().Equal([new JobKeyDto("set-pause", "nightly")]);
         (await scheduler.GetTriggerPause(new TriggerKey("soon", "set-pause")))!.Reason.Should().Be("quarter close");
 
@@ -385,7 +442,7 @@ public sealed class QuartzApiClientContractTest
                 .Build());
 
         BackfillResult result = await client.Backfill(
-            scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), hour.AddHours(-4), hour);
+            key, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), hour.AddHours(-4), hour);
 
         result.Scheduled.Should().Be(4, "an hourly trigger has four fire times in four hours");
         (await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("backfill:backfill-contract")))
@@ -410,7 +467,7 @@ public sealed class QuartzApiClientContractTest
 
         PagedResult<DashboardHistoryEntry> all = await client.QueryExecutions(new DashboardHistoryQuery
         {
-            SchedulerName = scheduler.SchedulerName,
+            SchedulerName = key,
             IncludeTotalCount = true
         });
         all.Items.Select(entry => entry.JobName).Should().Equal(["hourly", "nightly"], "a history page reads newest first");
@@ -418,7 +475,7 @@ public sealed class QuartzApiClientContractTest
 
         PagedResult<DashboardHistoryEntry> onNodeA = await client.QueryExecutions(new DashboardHistoryQuery
         {
-            SchedulerName = scheduler.SchedulerName,
+            SchedulerName = key,
             SchedulerInstanceId = "node-a"
         });
         onNodeA.Items.Should().ContainSingle().Which.JobName.Should().Be("nightly",
@@ -426,21 +483,21 @@ public sealed class QuartzApiClientContractTest
 
         PagedResult<DashboardHistoryEntry> byJob = await client.QueryExecutions(new DashboardHistoryQuery
         {
-            SchedulerName = scheduler.SchedulerName,
+            SchedulerName = key,
             JobFilter = "night"
         });
         byJob.Items.Should().ContainSingle().Which.JobName.Should().Be("nightly");
 
         PagedResult<DashboardHistoryEntry> byTrigger = await client.QueryExecutions(new DashboardHistoryQuery
         {
-            SchedulerName = scheduler.SchedulerName,
+            SchedulerName = key,
             TriggerFilter = "on-the-hour"
         });
         byTrigger.Items.Should().ContainSingle().Which.JobName.Should().Be("hourly");
 
         PagedResult<DashboardHistoryEntry> firstPage = await client.QueryExecutions(new DashboardHistoryQuery
         {
-            SchedulerName = scheduler.SchedulerName,
+            SchedulerName = key,
             Take = 1,
             IncludeTotalCount = true
         });
@@ -457,12 +514,12 @@ public sealed class QuartzApiClientContractTest
 
         PagedResult<DashboardMisfireEntry> listed = await client.QueryMisfires(new DashboardMisfireQuery
         {
-            SchedulerName = scheduler.SchedulerName
+            SchedulerName = key
         });
         listed.Items.Select(entry => entry.TriggerName).Should().Equal(["just-now", "long-ago"]);
         listed.Items[0].JobKey!.Name.Should().Be("DummyJob", "a misfire says which job did not run");
 
-        int recent = await client.CountMisfires(scheduler.SchedulerName, now.AddMinutes(-10));
+        int recent = await client.CountMisfires(key, now.AddMinutes(-10));
         recent.Should().Be(1, "the overview's tile asks for a count over a window, not for a page");
     }
 
@@ -497,7 +554,7 @@ public sealed class QuartzApiClientContractTest
 
         DashboardHistoryEntry row = (await client.QueryExecutions(new DashboardHistoryQuery
         {
-            SchedulerName = scheduler.SchedulerName,
+            SchedulerName = key,
             Job = new JobKeyDto("contract", "healthy"),
             Results = [JobRunResult.Skipped]
         })).Items.Should().ContainSingle().Subject;
@@ -510,20 +567,20 @@ public sealed class QuartzApiClientContractTest
 
         (await client.QueryExecutions(new DashboardHistoryQuery
         {
-            SchedulerName = scheduler.SchedulerName,
+            SchedulerName = key,
             FiredFrom = start.AddSeconds(30)
         })).Items.Select(entry => entry.JobName).Should().BeEquivalentTo(["healthy", "sick"], "the window starts after the first two runs");
 
-        (await client.QueryMisfires(new DashboardMisfireQuery { SchedulerName = scheduler.SchedulerName }))
+        (await client.QueryMisfires(new DashboardMisfireQuery { SchedulerName = key }))
             .Items.Should().ContainSingle().Which.Reason.Should().Be(MisfireReason.Vetoed,
                 "the dashboard can read a veto, so it asks for it, over both carriers");
 
-        (await client.GetJobRunStatus(scheduler.SchedulerName, new JobKeyDto("contract", "sick")))!
+        (await client.GetJobRunStatus(key, new JobKeyDto("contract", "sick")))!
             .ConsecutiveFailures.Should().Be(2);
-        (await client.GetJobRunStatus(scheduler.SchedulerName, new JobKeyDto("contract", "never-ran"))).Should().BeNull();
+        (await client.GetJobRunStatus(key, new JobKeyDto("contract", "never-ran"))).Should().BeNull();
 
         List<JobRunStatus> statuses = await client.GetJobRunStatuses(
-            scheduler.SchedulerName,
+            key,
             [new JobKeyDto("contract", "sick"), new JobKeyDto("contract", "healthy"), new JobKeyDto("contract", "never-ran")]);
         statuses.Select(status => status.Job.Name).Should().Equal(["healthy", "sick"],
             "by job group and then name, and a job with no recorded run is absent");
@@ -544,7 +601,7 @@ public sealed class QuartzApiClientContractTest
 
         ExecutionStatistics statistics = await client.QueryExecutionStatistics(new ExecutionStatisticsQuery
         {
-            SchedulerName = scheduler.SchedulerName,
+            SchedulerName = key,
             JobGroup = "contract",
             BucketSize = TimeSpan.FromDays(1)
         });
@@ -567,7 +624,7 @@ public sealed class QuartzApiClientContractTest
     [Test]
     public async Task TheEventsAreWatchedFromTheProcessTheSchedulerRunsIn()
     {
-        ISchedulerEventSource? source = SchedulerEventSources.For(provider, scheduler.SchedulerName);
+        ISchedulerEventSource? source = SchedulerEventSources.For(provider, key);
         source.Should().NotBeNull("a dashboard reads the events of whatever scheduler it renders");
 
         using CancellationTokenSource subscription = new();
@@ -612,14 +669,20 @@ public sealed class QuartzApiClientContractTest
 
         SchedulerHeaderDto header = schedulers.Should().ContainSingle(x => x.SchedulerName == scheduler.SchedulerName).Subject;
 
-        if (carrier == Carrier.Http)
+        switch (carrier)
         {
-            header.Origin.Should().Be(SchedulerOrigin.Remote,
-                "nothing in this process runs it, and every page about it is about somebody else's process");
-        }
-        else
-        {
-            header.Origin.Should().Be(SchedulerOrigin.Container);
+            case Carrier.Http:
+                header.Origin.Should().Be(SchedulerOrigin.Remote,
+                    "nothing in this process runs it, and every page about it is about somebody else's process");
+                break;
+            case Carrier.Agent:
+                header.Origin.Should().Be(SchedulerOrigin.Agent, "the process dialled in rather than being dialled");
+                header.Key.Should().Be(key);
+                header.LastSeenUtc.Should().NotBeNull("an agent is heard, so the listing says when");
+                break;
+            default:
+                header.Origin.Should().Be(SchedulerOrigin.Container);
+                break;
         }
 
         header.SchedulerInstanceId.Should().Be(scheduler.SchedulerInstanceId,
@@ -648,9 +711,9 @@ public sealed class QuartzApiClientContractTest
     [Test]
     public async Task MoreRowsThanOnePageHoldsAreReadAPageAtATime()
     {
-        if (carrier != Carrier.Http)
+        if (carrier == Carrier.Local)
         {
-            Assert.Ignore("the cap is the HTTP API's, and a local client has no wire to be capped on");
+            Assert.Ignore("the cap is the carrier's, and a local client has no wire to be capped on");
         }
 
         const int Jobs = 1001;
@@ -668,7 +731,7 @@ public sealed class QuartzApiClientContractTest
         DashboardJobQuery query = new() { GroupContains = "bulk", Take = PagedQuery.DefaultTake };
         while (true)
         {
-            PagedResult<JobKeyDto> page = await client.QueryJobs(scheduler.SchedulerName, query);
+            PagedResult<JobKeyDto> page = await client.QueryJobs(key, query);
             collected.AddRange(page.Items);
 
             if (!page.HasMore || page.Items.Count == 0)
@@ -682,11 +745,11 @@ public sealed class QuartzApiClientContractTest
         collected.Should().HaveCount(Jobs, "a page at a time is how a listing bigger than one page is read");
 
         Func<Task> askForEverything = () => client.QueryJobs(
-            scheduler.SchedulerName,
+            key,
             new DashboardJobQuery { GroupContains = "bulk", Take = PagedQuery.All }).AsTask();
 
         await askForEverything.Should().ThrowAsync<HttpClientException>(
-            "the server caps what 'everything' means, and a truncated page handed back as the whole store is worse than an error");
+            "the carrier caps what 'everything' means, and a truncated page handed back as the whole store is worse than an error");
     }
 
     private ExecutionHistoryEntry Execution(

@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyTitle>Quartz.NET Dashboard Agent</AssemblyTitle>
+    <TargetFramework>net10.0</TargetFramework>
+    <Title>Quartz.NET Dashboard Agent</Title>
+    <Description>Quartz.NET dashboard agent - a plugin that dials a scheduler out to a Quartz dashboard over one outbound connection, so the dashboard can show and drive it without an inbound port; $(Description)</Description>
+    <PackageTags>$(PackageTags);dashboard;agent;signalr;remote;fleet</PackageTags>
+    <RootNamespace>Quartz</RootNamespace>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!--
+      Trimmable, and the analyzers that make that a checked statement rather than a claim, as
+      Quartz.HttpClient has them. The agent carries the HTTP API's contract without HTTP: every body it
+      reads and writes goes through the wire contract's generated metadata, which is the overload that
+      carries neither RequiresUnreferencedCode nor RequiresDynamicCode. What remains is the one call site
+      the HTTP API has too - a job type named as a string in a request body - recorded in
+      TrimAnalysisBaseline.cs beside this file. No trim canary publishes this package in 4.5; the hub half
+      lives in Quartz.Dashboard, which Blazor keeps untrimmable, so there is no end-to-end to publish yet.
+    -->
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The SignalR client and nothing of the server: no Microsoft.AspNetCore.App, so a worker that is a plain
+      generic host takes no web framework to be shown on a dashboard.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+
+</Project>

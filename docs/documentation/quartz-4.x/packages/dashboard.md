@@ -591,6 +591,107 @@ the fields. One older than 4.2 ignores the *next fire before* filter, which is t
 so the Jobs columns and the Job Detail panel are left out, and the History page's results and one-job filters
 say the host cannot answer them.
 
+## Fronting a scheduler on another machine
+
+A worker the dashboard cannot dial — behind NAT or a firewall, on the far side of a trust boundary, with no port
+to open — dials the dashboard instead, with [Quartz.Dashboard.Agent](dashboard-agent.md). The dashboard accepts
+agents with `AcceptAgents`, which maps the agent hub at `{DashboardPath}/agents`:
+
+<!-- snippet: sample_dashboard_accept_agents -->
+```csharp
+builder.Services.AddQuartzDashboard(options => options.AcceptAgents(agents =>
+{
+    // The token every agent presents, as an Authorization: Bearer header. Keep it in a
+    // secret store: whoever holds it can register a scheduler on this dashboard.
+    agents.Tokens.Primary = builder.Configuration["Dashboard:AgentToken"];
+}));
+```
+<!-- endSnippet -->
+
+The worker's side is one call, [`UseDashboardAgent`](dashboard-agent.md#setup). Each agent registers a target and
+its scheduler, and the dashboard lists it as `worker-1/QuartzScheduler`, reached through an `agent`.
+
+| Option | Default | What it is |
+|---|---|---|
+| `Tokens.Primary`, `Tokens.Secondary` | — | The bearer tokens the hub accepts; two slots so a rotation never locks an agent out |
+| `AuthorizationPolicy` | — | A policy the hub is held to, for agents presenting the host's own credential. With tokens set as well, both apply |
+| `HeartbeatInterval` | 15 s | How often each agent reports; the agents adopt it at registration |
+| `OfflineAfterMissedHeartbeats` | 3 | Missed heartbeats before the scheduler is listed as `Unknown` |
+| `OperationTimeout` | 30 s | How long one request to an agent may take before it is cancelled on both sides |
+| `MaxMessageBytes` | 4 MiB | The most one answer may carry; the agent refuses a larger page with `413`, telling the page to lower `take` |
+| `ForgetAfter` | 1 h | How long a disconnected agent stays listed before the row is dropped |
+| `IsJobTypeAllowed` | — | A job-type predicate applied here before a request is sent on, so an operator can stop a type at the dashboard without touching every worker. It binds nothing on the worker |
+
+A hub with neither tokens nor a policy refuses to start, as the pages do. `MapQuartzDashboard().RequireAuthorization()`
+does not cover the hub: humans and machines authenticate differently, so what authorizes the hub is stated in
+`AcceptAgents` and nowhere else. The token travels as an `Authorization: Bearer` header; a token in the URL is not
+read.
+
+To rotate the token, accept both for the time it takes to roll the agents over:
+
+<!-- snippet: sample_dashboard_agent_token_rotation -->
+```csharp
+builder.Services.AddQuartzDashboard(options => options.AcceptAgents(agents =>
+{
+    // Both are accepted while the rotation runs: set Secondary to the new token, roll the
+    // agents over to it, move it to Primary, and clear Secondary.
+    agents.Tokens.Primary = builder.Configuration["Dashboard:AgentToken"];
+    agents.Tokens.Secondary = builder.Configuration["Dashboard:NextAgentToken"];
+}));
+```
+<!-- endSnippet -->
+
+To hold the hub to the host's authentication instead:
+
+<!-- snippet: sample_dashboard_agent_hub_policy -->
+```csharp
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("agents", policy => policy.RequireAuthenticatedUser().RequireRole("quartz-agent"));
+
+builder.Services.AddQuartzDashboard(options => options.AcceptAgents(agents =>
+{
+    // No shared secret: the hub is held to the host's own authentication, and an agent
+    // presents what its AccessTokenProvider hands it. With Tokens set as well, both apply.
+    agents.AuthorizationPolicy = "agents";
+
+    // A liveness judgement of 20 s × 3, instead of 15 s × 3; the agents adopt the interval.
+    agents.HeartbeatInterval = TimeSpan.FromSeconds(20);
+    agents.OfflineAfterMissedHeartbeats = 3;
+}));
+```
+<!-- endSnippet -->
+
+| Page | Over an agent |
+|---|---|
+| Overview, Jobs, Triggers, Calendars, Currently Executing, Cluster | Read through the connection, as the API's routes |
+| Every action (pause, resume, trigger now, reschedule, edit, bulk, delete) | Performed by the worker's scheduler, in its process, unless [the agent refuses it](dashboard-agent.md#what-the-agent-accepts) |
+| Execution History | The **worker's own** history, recorded in memory by `UseDashboardAgent` |
+| Live Logs | The **worker's own** events, streamed while the page watches |
+| Schedulers, and the header's picker | Listed as `Agent`, with `last seen` beside the status |
+
+How the row behaves over time:
+
+| The agent | The row |
+|---|---|
+| Registers | `Running` (or whatever it reports); `last seen` is now |
+| Misses three heartbeats (45 s) | `Unknown` with `last seen`, without waiting on the connection; logged once (`9116`) |
+| Heartbeats again | Asked again, and back to its status |
+| Disconnects | `Unknown` until it reconnects (`9114`) |
+| Shuts down | `Shutdown`, after its goodbye |
+| Stays away for `ForgetAfter` | Dropped from the listing (`9115`) |
+| Reconnects under the same target and instance id | Takes its own row over |
+| A second process registers a target a live agent holds | Refused (`9113`) and retried every 30 s; give each process a target of its own |
+
+- **The agent decides what it accepts.** `ReadOnly` here hides the buttons; the worker's
+  [`DashboardAgentOptions`](dashboard-agent.md#options) refuse. An agent refuses to store a job by type name until
+  its `IsJobTypeAllowed` is set, so a Jobs page that adds one shows that refusal naming the option.
+- **The cluster rule applies.** Agents whose schedulers share one clustered store are merged into
+  [one cluster row](#a-cluster-behind-several-targets), and the Cluster page reaches each node through its agent.
+- **One dashboard instance.** The hub keeps its registrations in the process that accepted them. A dashboard scaled
+  out behind a load balancer shows each agent on the instance it dialled.
+- **`AddQuartzDashboard()` needs no scheduler of its own** to accept agents: it registers the shared services a
+  scheduler repository needs.
+
 ## Store-attached targets
 
 Point the dashboard at **the database**, and every scheduler in it gets pages. Nothing is asked of the processes
@@ -707,8 +808,8 @@ The window writes no check-in row and is never listed as a node; the Cluster pag
 - The [HTTP API](http-api.md) of a process holding a window refuses `start`, `standby` and `shutdown` for it with
   a `400`. The window's store refuses a start from anywhere: starting would run the cluster's start-up here, whose
   recovery deletes the fired-trigger rows of firings the nodes are running.
-- To reach one node for those, use an [HTTP target](#fronting-a-scheduler-in-another-process-over-http) or the
-  agent target of [#3773](https://github.com/quartznet/quartznet/issues/3773).
+- To reach one node for those, use an [HTTP target](#fronting-a-scheduler-in-another-process-over-http) or
+  [an agent](#fronting-a-scheduler-on-another-machine).
 
 ### Three things to get right
 
@@ -723,7 +824,7 @@ The window writes no check-in row and is never listed as a node; the Cluster pag
 - **The dashboard holds the database credentials**, as powerful as any node's. Whoever can open the dashboard can
   read and write the cluster's schedule. Use [`ReadOnly`](#read-only-mode) and
   [the authorization policies](#production-hardening), and do not attach a store across a trust boundary; that
-  is what the agent target is for.
+  is what [an agent](#fronting-a-scheduler-on-another-machine) is for.
 
 A window is not reported to the [health check](hosted-services-integration.md#health-checks):
 `AddHealthChecks().AddQuartz("reporting")` in a dashboard process reports it unhealthy, with a message to check
@@ -1042,6 +1143,21 @@ With a custom `DashboardPath` this does not apply to the dashboard: its framewor
 then served under the dashboard path by dashboard-owned endpoints carrying the dashboard's authorization metadata.
 :::
 
+### Authorizing the agent hub
+
+The agent hub (`{DashboardPath}/agents`) is a third surface, for machines, and the dashboard's own authorization
+does not reach it. It has two modes, stated in `AcceptAgents`, and a hub with neither refuses to start:
+
+| Mode | Set | The agent presents |
+|---|---|---|
+| Shared secret | `Tokens.Primary` (and `Secondary` while rotating) | `DashboardAgentOptions.Token`, as an `Authorization: Bearer` header |
+| Host authentication | `AuthorizationPolicy` | What its `AccessTokenProvider` hands it; the policy decides |
+
+Both set applies both. A connection with no `Authorization` header, or a token the hub does not hold, is aborted and
+logged (`9111`); a token in the URL is not read. A hub authenticated by token alone states `AllowAnonymous` to the
+host, so a fail-closed `FallbackPolicy` does not answer every agent `401`; the token check runs before any hub method.
+See [Fronting a scheduler on another machine](#fronting-a-scheduler-on-another-machine).
+
 ### One scheduler at a time
 
 `AuthorizationPolicy` decides who reaches the dashboard; by default they then see every scheduler. Set
@@ -1269,8 +1385,9 @@ shell without `ASPNETCORE_ENVIRONMENT`.
   fleet is fronted as one by giving each process a `Target`, and nodes on one clustered store are shown as
   [one cluster](#a-cluster-behind-several-targets); per-target credentials are the targets' own `HttpClient`s.
   For a cluster behind a load balancer, use [a store-attached target](#store-attached-targets). A process that
-  dials out to the dashboard instead of being dialed is the agent of
-  [#3773](https://github.com/quartznet/quartznet/issues/3773).
+  dials out to the dashboard instead of being dialed is [an agent](#fronting-a-scheduler-on-another-machine).
+- **A dashboard that accepts agents runs as one instance**: the hub keeps its registrations in the process that
+  accepted them, so a dashboard scaled out behind a load balancer shows each agent on the instance it dialled.
 - **Cluster failover is per detection round**: the member the store-backed calls go to is re-elected every
   `ClusterDetectionInterval`, and a member that dies between rounds answers with its error until then.
 - **A store-attached target cannot do anything node-local**, and its liveness is inferred; see

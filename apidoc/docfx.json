@@ -22,6 +22,7 @@
             "Quartz.AspNetCore/Quartz.AspNetCore.csproj",
             "Quartz.Aspire/Quartz.Aspire.csproj",
             "Quartz.Dashboard/Quartz.Dashboard.csproj",
+            "Quartz.Dashboard.Agent/Quartz.Dashboard.Agent.csproj",
             "Quartz.Extensions.Redis/Quartz.Extensions.Redis.csproj",
             "Quartz.HttpClient/Quartz.HttpClient.csproj",
             "Quartz.Jobs/Quartz.Jobs.csproj",

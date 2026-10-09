@@ -39,6 +39,12 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
+    <!--
+      An agent's scheduler is driven through HttpScheduler over the agent's own connection, and its
+      history read through HttpExecutionHistoryStore the same way: the client package is the one
+      mapping of IScheduler onto the wire, and the tunnel is a second transport under it.
+    -->
+    <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
   </ItemGroup>
 
   <ItemGroup>

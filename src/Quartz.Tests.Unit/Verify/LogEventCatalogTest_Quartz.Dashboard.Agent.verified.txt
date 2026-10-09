@@ -1,0 +1,12 @@
+﻿9300  Information  DashboardAgentLog.Registered
+    "Registered with dashboard {Endpoint} as {Target}/{SchedulerName}"
+9301  Warning  DashboardAgentLog.Unreachable
+    "Dashboard {Endpoint} unreachable since {Since}; retrying"
+9302  Warning  DashboardAgentLog.RegistrationRefused
+    "Dashboard {Endpoint} refused registration: {Reason}"
+9303  Information  DashboardAgentLog.ConnectionClosed
+    "Connection to {Endpoint} closed: {Reason}; reconnecting"
+9304  Warning  DashboardAgentLog.OperationRefused
+    "Operation {Operation} refused: {Reason}"
+9305  Error  DashboardAgentLog.OperationFailed
+    "Operation {Operation} failed"

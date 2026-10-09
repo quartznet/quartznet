@@ -114,6 +114,162 @@ public sealed class FleetClusterIntegrationTest : ClusteredPostgresTestBase
     }
 
     /// <summary>
+    /// The same rule with the nodes dialling in: three agents, one per node of one cluster, give one row
+    /// with three nodes; an interruption through the cluster's key reaches the node running the job; and
+    /// a stand-by through a member's key stops that node and no other. The dashboard listens on Kestrel
+    /// and the agents reach it over WebSockets, the transport a deployment uses.
+    /// </summary>
+    [Test]
+    public async Task ThreeAgentsOnOneClusterAreOneRowAndNodeLocalVerbsReachOneNode()
+    {
+        await using AgentDashboardHost dashboard = await AgentDashboardHost.Start();
+        await using AgentNode node1 = await AgentNode.Start(NodeProperties("fleet-a1", 1000, 2000, null), dashboard, "agent1");
+        await using AgentNode node2 = await AgentNode.Start(NodeProperties("fleet-a2", 1000, 2000, null), dashboard, "agent2");
+        await using AgentNode node3 = await AgentNode.Start(NodeProperties("fleet-a3", 1000, 2000, null), dashboard, "agent3");
+
+        using IServiceScope scope = dashboard.Application.Services.CreateScope();
+        IQuartzApiClient client = scope.ServiceProvider.GetRequiredService<IQuartzApiClient>();
+
+        // Three registrations, three check-in rows, and a detection round that sees all three: the
+        // monitor runs a round on every registration and every two seconds, and a node that had not
+        // checked in when the round ran joins at the next.
+        SchedulerHeaderDto? cluster = null;
+        await WaitForCondition(
+            async () =>
+            {
+                cluster = (await client.GetSchedulers()).SingleOrDefault(x => x.Origin == SchedulerOrigin.Cluster && x.Members.Length == 3);
+                return cluster is not null;
+            },
+            timeoutMs: 60_000,
+            "the three agents to be one cluster row");
+
+        cluster!.Key.Should().Be("agent1+agent2+agent3/" + SchedulerName);
+        cluster.Status.Should().Be(SchedulerStatus.Running);
+        (await client.GetSchedulers()).Should().ContainSingle(x => x.SchedulerName == SchedulerName,
+            "the members are hidden behind the cluster row");
+
+        (await client.QueryClusterNodes(cluster.Key)).Select(x => x.InstanceId).Should().BeEquivalentTo(["fleet-a1", "fleet-a2", "fleet-a3"],
+            "the cluster's nodes are read through the preferred member's connection");
+
+        // A verb that belongs to one node goes through the member's key, down that member's connection.
+        await client.Standby("agent3/" + SchedulerName);
+        (await node3.Scheduler.GetStatus()).Should().Be(SchedulerStatus.Standby);
+        (await node1.Scheduler.GetStatus()).Should().Be(SchedulerStatus.Running, "the other nodes were not asked");
+        (await node2.Scheduler.GetStatus()).Should().Be(SchedulerStatus.Running);
+
+        Func<Task> standbyCluster = () => client.Standby(cluster.Key).AsTask();
+        await standbyCluster.Should().ThrowAsync<NotSupportedException>("a cluster is every node at once");
+
+        // A job that blocks until it is cancelled, picked up by one of the two nodes still firing, and
+        // interrupted through the cluster's key, which routes to the agent of the node that owns it.
+        await node1.Scheduler.ScheduleJob(
+            JobBuilder.Create<BlockingJob>().WithIdentity("blocking", "fleet-agents").Build(),
+            TriggerBuilder.Create().WithIdentity("now", "fleet-agents").StartNow().Build());
+
+        (string node, string fireInstanceId) = await BlockingJob.Started.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        node.Should().BeOneOf("fleet-a1", "fleet-a2");
+
+        (await client.InterruptFireInstance(cluster.Key, fireInstanceId)).Should().BeTrue(
+            "the store names the node that owns the firing, and the cluster sends the interruption down that node's connection");
+        await BlockingJob.Cancelled.Task.WaitAsync(TimeSpan.FromSeconds(20));
+    }
+
+    /// <summary>
+    /// A dashboard that accepts agents, on a loopback port Kestrel picks.
+    /// </summary>
+    private sealed class AgentDashboardHost : IAsyncDisposable
+    {
+        public const string Token = "fleet-agent-token";
+
+        private AgentDashboardHost(WebApplication application, Uri hubUri)
+        {
+            Application = application;
+            HubUri = hubUri;
+        }
+
+        public WebApplication Application { get; }
+
+        public Uri HubUri { get; }
+
+        public static async Task<AgentDashboardHost> Start()
+        {
+            WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
+            {
+                ContentRootPath = AppContext.BaseDirectory
+            });
+
+            builder.WebHost.UseUrls("http://127.0.0.1:0");
+            builder.Logging.ClearProviders();
+            builder.Services.AddAuthorization();
+            builder.Services.AddQuartzDashboard(options =>
+            {
+                options.ClusterDetectionInterval = TimeSpan.FromSeconds(2);
+                options.AcceptAgents(agents => agents.Tokens.Primary = Token);
+            });
+
+            WebApplication application = builder.Build();
+
+            // The only visitor is this process, over loopback; the hub checks its own token.
+            application.MapQuartzDashboard().AllowAnonymous();
+            await application.StartAsync();
+
+            IServerAddressesFeature addresses = application.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()
+                ?? throw new InvalidOperationException("Kestrel reported no addresses.");
+
+            return new AgentDashboardHost(application, new Uri(addresses.Addresses.Single() + "/quartz/agents"));
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await Application.StopAsync();
+            await Application.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// One node: a plain host over the fixture's database whose scheduler dials the dashboard. No HTTP
+    /// API, no port.
+    /// </summary>
+    private sealed class AgentNode : IAsyncDisposable
+    {
+        private readonly IHost host;
+
+        private AgentNode(IHost host, IScheduler scheduler)
+        {
+            this.host = host;
+            Scheduler = scheduler;
+        }
+
+        public IScheduler Scheduler { get; }
+
+        public static async Task<AgentNode> Start(System.Collections.Specialized.NameValueCollection properties, AgentDashboardHost dashboard, string target)
+        {
+            HostApplicationBuilder builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder();
+            builder.Logging.ClearProviders();
+
+            builder.Services.AddQuartz(properties, quartz => quartz.UseDashboardAgent(agent =>
+            {
+                agent.Endpoint = dashboard.HubUri;
+                agent.Token = AgentDashboardHost.Token;
+                agent.Target = target;
+            }));
+            builder.Services.AddQuartzHostedService(options => options.AwaitApplicationStarted = false);
+
+            IHost host = builder.Build();
+            await host.StartAsync();
+
+            IScheduler scheduler = await host.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
+            return new AgentNode(host, scheduler);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await host.StopAsync();
+            host.Dispose();
+        }
+    }
+
+    /// <summary>
     /// One node: a web host serving the HTTP API over the fixture's database.
     /// </summary>
     private sealed class Node : IAsyncDisposable

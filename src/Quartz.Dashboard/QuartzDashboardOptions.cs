@@ -116,6 +116,43 @@ public sealed class QuartzDashboardOptions
     }
 
     /// <summary>
+    /// How agents are accepted, or <see langword="null" /> when <see cref="AcceptAgents" /> was never
+    /// called and no agent hub is mapped.
+    /// </summary>
+    internal DashboardAgentHubOptions? Agents { get; private set; }
+
+    /// <summary>
+    /// Accepts schedulers that dial out to this dashboard from other processes, through the agent hub
+    /// <c>MapQuartzDashboard</c> then maps at <c>{DashboardPath}/agents</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An agent is a worker with <c>UseDashboardAgent</c> from <c>Quartz.Dashboard.Agent</c>: it opens one
+    /// outbound connection to this dashboard and keeps it open, and the dashboard lists its scheduler as
+    /// <see cref="SchedulerOrigin.Agent" /> under <c>{target}/{name}</c>, with every page, every action,
+    /// the history and the live events carried over that connection. Nothing is dialled towards the
+    /// worker, which is what makes it the way to front a scheduler across a trust boundary or behind a
+    /// network with no inbound port.
+    /// </para>
+    /// <para>
+    /// The hub authenticates agents on its own: a bearer token from <see cref="DashboardAgentHubOptions.Tokens" />,
+    /// the host's authentication through <see cref="DashboardAgentHubOptions.AuthorizationPolicy" />, or
+    /// both. The <c>RequireAuthorization</c> an application puts on what <c>MapQuartzDashboard</c> returns
+    /// does not reach it — humans and machines authenticate differently — and a hub with neither refuses
+    /// to start. The dashboard is single-instance while it accepts agents: the connections and the
+    /// answers in flight are in this process's memory, and a SignalR backplane does not carry them.
+    /// </para>
+    /// </remarks>
+    /// <param name="configure">The tokens, the policy, the heartbeat and the limits.</param>
+    /// <returns>The same options, so calls can be chained.</returns>
+    public QuartzDashboardOptions AcceptAgents(Action<DashboardAgentHubOptions>? configure = null)
+    {
+        Agents ??= new DashboardAgentHubOptions();
+        configure?.Invoke(Agents);
+        return this;
+    }
+
+    /// <summary>
     /// The base path the dashboard UI is served from. Defaults to "/quartz".
     /// A custom value is honored when the dashboard hosts its own Blazor root
     /// (the parameterless <c>MapQuartzDashboard()</c> overload). When integrating into an

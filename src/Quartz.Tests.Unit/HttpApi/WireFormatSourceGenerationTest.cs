@@ -43,9 +43,9 @@ public class WireFormatSourceGenerationTest
 
     /// <summary>
     /// The types in the namespace that carry a body rather than being one: a route, a call of it and its
-    /// answer, a listing's query string read, and the refusal of a malformed request. None of them is
-    /// ever serialized, so a type added here has to be one of those — and a body left out of
-    /// <c>HttpApiJsonContext</c> still fails below.
+    /// answer, a listing's query string read, the refusals a carrier throws, and the classification that
+    /// turns one into a problem body. None of them is ever serialized, so a type added here has to be one
+    /// of those — and a body left out of <c>HttpApiJsonContract</c> still fails below.
     /// </summary>
     private static readonly HashSet<Type> CarrierTypes =
     [
@@ -54,7 +54,12 @@ public class WireFormatSourceGenerationTest
         typeof(WireResponse),
         typeof(ListingParameters),
         typeof(HistoryParameters),
-        typeof(InvalidRequestException)
+        typeof(InvalidRequestException),
+        typeof(NotFoundException),
+        typeof(NotServedException),
+        typeof(ForbiddenException),
+        typeof(ProblemClassification),
+        typeof(ProblemKind)
     ];
 
     /// <summary>

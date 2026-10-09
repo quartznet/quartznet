@@ -46,6 +46,7 @@
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
     <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
+    <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
     <!-- The application WebApplicationFactory<Program> runs; that project says why it is separate. -->
     <ProjectReference Include="..\Quartz.Tests.AspNetCore.Host\Quartz.Tests.AspNetCore.Host.csproj" />

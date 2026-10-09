@@ -38,6 +38,7 @@ using Quartz.AspNetCore;
 using Quartz.Dashboard;
 using Quartz.Dashboard.Components;
 using Quartz.Dashboard.Hubs;
+using Quartz.HttpApiContract;
 
 namespace Quartz;
 
@@ -236,6 +237,8 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         HubEndpointConventionBuilder hub = builder.MapHub<QuartzDashboardHub>(dashboardPath + "/hub")
             .DisableAntiforgery();
 
+        MapAgentHub(builder, options, dashboardPath);
+
         // Serve dashboard static web assets via endpoint routing as a fallback
         // for hosts that don't configure UseStaticFiles() (e.g., API-only projects)
         List<IEndpointConventionBuilder> assetEndpoints =
@@ -350,6 +353,55 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
           - services.AddQuartzDashboard(options => options.AuthorizationPolicy = "...") authorizes those and the static assets and the Blazor circuit with them;
           - app.MapQuartzDashboard().AllowAnonymous() serves it to anyone, deliberately.
         """;
+
+    private const string AgentHubSurface = "The Quartz dashboard's agent hub";
+
+    private const string AgentHubRemedies = """
+          - services.AddQuartzDashboard(options => options.AcceptAgents(agents => agents.Tokens.Primary = "...")) authenticates agents with a bearer token Quartz checks itself;
+          - services.AddQuartzDashboard(options => options.AcceptAgents(agents => agents.AuthorizationPolicy = "...")) holds the hub to the host's own authentication;
+          - both at once apply both. The RequireAuthorization() on what MapQuartzDashboard returns does not reach the agent hub: humans and machines authenticate differently.
+        """;
+
+    /// <summary>
+    /// Maps the agent hub when the dashboard accepts agents, outside what <c>MapQuartzDashboard</c>
+    /// returns: the authorization an application puts on the dashboard is for its visitors, and the
+    /// hub's is stated in <see cref="QuartzDashboardOptions.AcceptAgents" /> and nowhere else.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The guard reads the marker: a token says the hub authenticates by options, a policy puts
+    /// <c>IAuthorizeData</c> on the endpoint, and a hub with neither fails startup naming both remedies.
+    /// </para>
+    /// <para>
+    /// A hub authenticated by token alone says <c>AllowAnonymous</c> to the host: the hardening this
+    /// package recommends is a fail-closed <c>FallbackPolicy</c>, under which an endpoint that states
+    /// nothing answers <c>401</c> to every agent, and nothing but this mapping can reach the hub's
+    /// builder to say otherwise. It weakens nothing — <see cref="DashboardAgentHub.OnConnectedAsync" />
+    /// checks the token before any hub method can run. With a policy set, that policy stands instead.
+    /// </para>
+    /// </remarks>
+    private static void MapAgentHub(IEndpointRouteBuilder builder, QuartzDashboardOptions options, string dashboardPath)
+    {
+        if (options.Agents is not { } agents)
+        {
+            return;
+        }
+
+        HubEndpointConventionBuilder agentHub = builder.MapHub<DashboardAgentHub>(dashboardPath + AgentProtocol.HubPath)
+            .DisableAntiforgery();
+
+        if (!string.IsNullOrWhiteSpace(agents.AuthorizationPolicy))
+        {
+            agentHub.RequireAuthorization(agents.AuthorizationPolicy);
+        }
+        else if (agents.Tokens.HasAny)
+        {
+            agentHub.AllowAnonymous();
+        }
+
+        QuartzEndpointMarker marker = new(AgentHubSurface, AgentHubRemedies, authorizedByOptions: agents.Tokens.HasAny);
+        agentHub.Add(endpointBuilder => endpointBuilder.Metadata.Add(marker));
+    }
 
     private static bool IsDashboardPage(EndpointBuilder endpointBuilder)
     {

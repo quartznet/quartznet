@@ -71,17 +71,13 @@ namespace Quartz.Impl;
 internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
 {
     /// <summary>
-    /// How long to wait before reopening a stream that dropped, and the most that wait grows to.
+    /// How long to wait before reopening a stream that dropped, and the most that wait grows to: the
+    /// process-wide rule in <see cref="Reconnection" />, which the dashboard agent dials on too.
     /// </summary>
-    /// <remarks>
-    /// A second, doubling to thirty. Short enough that a restarted worker is picked up while an operator
-    /// is still looking at the page, and bounded so that an unreachable target is asked twice a minute
-    /// rather than continuously.
-    /// </remarks>
-    internal static readonly TimeSpan FirstRetryDelay = TimeSpan.FromSeconds(1);
+    internal static readonly TimeSpan FirstRetryDelay = Reconnection.FirstRetryDelay;
 
     /// <inheritdoc cref="FirstRetryDelay" />
-    internal static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(30);
+    internal static readonly TimeSpan MaxRetryDelay = Reconnection.MaxRetryDelay;
 
     private readonly string schedulerName;
     private readonly HttpClient httpClient;
@@ -161,7 +157,7 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
                 break;
             }
 
-            retryIn = retryIn >= MaxRetryDelay ? MaxRetryDelay : Shorter(retryIn + retryIn, MaxRetryDelay);
+            retryIn = Reconnection.Next(retryIn);
         }
     }
 
@@ -230,8 +226,6 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
             return false;
         }
     }
-
-    private static TimeSpan Shorter(TimeSpan left, TimeSpan right) => left < right ? left : right;
 
     /// <summary>
     /// One open stream, read frame by frame.

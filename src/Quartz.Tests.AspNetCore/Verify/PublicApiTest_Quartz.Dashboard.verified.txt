@@ -1,10 +1,28 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
 namespace Quartz
 {
+    public sealed class AgentTokens
+    {
+        public AgentTokens() { }
+        public string? Primary { get; set; }
+        public string? Secondary { get; set; }
+    }
     public sealed class AttachStoreOptions
     {
         public AttachStoreOptions() { }
         public System.TimeSpan? RediscoveryInterval { get; set; }
+    }
+    public sealed class DashboardAgentHubOptions
+    {
+        public DashboardAgentHubOptions() { }
+        public string? AuthorizationPolicy { get; set; }
+        public System.TimeSpan ForgetAfter { get; set; }
+        public System.TimeSpan HeartbeatInterval { get; set; }
+        public System.Func<string, bool>? IsJobTypeAllowed { get; set; }
+        public int MaxMessageBytes { get; set; }
+        public int OfflineAfterMissedHeartbeats { get; set; }
+        public System.TimeSpan OperationTimeout { get; set; }
+        public Quartz.AgentTokens Tokens { get; }
     }
     public static class QuartzDashboardEndpointRouteBuilderExtensions
     {
@@ -23,6 +41,7 @@ namespace Quartz
         public System.Func<string, bool>? IsJobTypeAllowed { get; set; }
         public bool ReadOnly { get; set; }
         public string? SchedulerAuthorizationPolicy { get; set; }
+        public Quartz.QuartzDashboardOptions AcceptAgents(System.Action<Quartz.DashboardAgentHubOptions>? configure = null) { }
         public Quartz.QuartzDashboardOptions AttachStore(string target, System.Action<Quartz.IPersistentStoreBuilder> store, System.Action<Quartz.AttachStoreOptions>? configure = null) { }
     }
     public static class QuartzDashboardServiceCollectionExtensions

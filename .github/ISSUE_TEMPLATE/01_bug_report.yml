@@ -182,6 +182,7 @@ body:
         - label: Quartz (AddQuartz / AddQuartzHostedService / the health check)
         - label: Quartz.AspNetCore (the HTTP API)
         - label: Quartz.Dashboard
+        - label: Quartz.Dashboard.Agent
         - label: Quartz.Aspire
         - label: Quartz.HttpClient
         - label: Plain console / manually managed scheduler

@@ -70,6 +70,8 @@ updates:
       # Microsoft.Extensions.Logging.Abstractions came through as a direct proposal (#3851). The range
       # holds every 10.x above the floor. 11.0.0 is still proposed; accepting it means moving the range
       # up a major.
+      - dependency-name: "Microsoft.AspNetCore.SignalR.Client"
+        versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Configuration.Binder"
         versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.DependencyInjection"
