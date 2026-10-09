@@ -3240,7 +3240,7 @@ public sealed class RAMJobStore : IJobStore
                 return result;
             }
 
-            AcquireNextTriggersNoLock(request, result, ref pending);
+            AcquireNextTriggersNoLock(request, result, ref pending, out _);
         }
 
         // Before the batch is handed back, so that every misfire this pass applied has been announced
@@ -3292,9 +3292,10 @@ public sealed class RAMJobStore : IJobStore
         lock (lockObject)
         {
             List<IOperableTrigger> acquired = [];
+            HashSet<string>? groupsAtLimit = null;
             if (timeTriggers.Count > 0)
             {
-                AcquireNextTriggersNoLock(request, acquired, ref pending);
+                AcquireNextTriggersNoLock(request, acquired, ref pending, out groupsAtLimit);
             }
 
             // Due by the store's clock now, with the round acquired: what has come due while it was being
@@ -3311,7 +3312,7 @@ public sealed class RAMJobStore : IJobStore
 
             if (dueCount == 0)
             {
-                return new TriggerAcquisitionResult { Pending = acquired };
+                return new TriggerAcquisitionResult { Pending = acquired, GroupsAtLimit = groupsAtLimit };
             }
 
             List<IOperableTrigger> due;
@@ -3348,21 +3349,32 @@ public sealed class RAMJobStore : IJobStore
             }
 
             return notDue is null
-                ? new TriggerAcquisitionResult { Due = due, Fired = fired }
-                : new TriggerAcquisitionResult { Due = due, Fired = fired, Pending = notDue };
+                ? new TriggerAcquisitionResult { Due = due, Fired = fired, GroupsAtLimit = groupsAtLimit }
+                : new TriggerAcquisitionResult { Due = due, Fired = fired, Pending = notDue, GroupsAtLimit = groupsAtLimit };
         }
     }
 
     /// <summary>
     /// Acquires the next triggers to fire into <paramref name="result" />, with the store's lock held.
     /// </summary>
-    private void AcquireNextTriggersNoLock(TriggerAcquisitionRequest request, List<IOperableTrigger> result, ref PendingSignals pending)
+    /// <param name="request">What the scheduler asked for.</param>
+    /// <param name="result">Where the acquired triggers go.</param>
+    /// <param name="pending">The signals this pass records, to be raised after the lock.</param>
+    /// <param name="groupsAtLimit">The execution groups whose limit turned a due trigger away, by the
+    /// key the limit was evaluated under; <see langword="null" /> when none did (#4033).</param>
+    private void AcquireNextTriggersNoLock(
+        TriggerAcquisitionRequest request,
+        List<IOperableTrigger> result,
+        ref PendingSignals pending,
+        out HashSet<string>? groupsAtLimit)
     {
-        // Both sets stay null until something needs them. Only a job that disallows concurrent
-        // execution fills the first, and only a trigger that is turned away fills the second, so on
-        // the attempts that dominate a running scheduler neither is ever created.
+        // Every set stays null until something needs it. Only a job that disallows concurrent
+        // execution fills the first, only a trigger that is turned away fills the second, and only a
+        // limit turning one away fills the third, so on the attempts that dominate a running scheduler
+        // none is ever created.
         HashSet<JobKey>? acquiredJobKeysForNoConcurrentExec = null;
         HashSet<TriggerWrapper>? excludedTriggers = null;
+        groupsAtLimit = null;
         DateTimeOffset batchEnd = request.NoLaterThan;
 
         // execution limits will be modified during processing
@@ -3489,6 +3501,15 @@ public sealed class RAMJobStore : IJobStore
                 {
                     excludedTriggers ??= [];
                     excludedTriggers.Add(tw);
+
+                    // Named by the key the ledger refused it under, which is the key the scheduler
+                    // counts the group's firings against: a firing of the group ending is what frees
+                    // the slot this trigger waited for (#4033).
+                    groupsAtLimit ??= new HashSet<string>(StringComparer.Ordinal);
+                    groupsAtLimit.Add(ExecutionLimits.ResolveGroupKey(
+                        tw.Trigger.ExecutionGroup,
+                        tw.TriggerKey.Group,
+                        request.ExecutionLimits!.UsesTriggerGroupWhenUnset));
                     continue;
                 }
             }

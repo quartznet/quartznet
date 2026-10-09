@@ -166,6 +166,60 @@ public class RAMJobStoreClusterLimitTest
             "a trigger refused by a limit is set aside for the batch and returned to the store afterwards, not consumed by the attempt that refused it");
     }
 
+    /// <summary>
+    /// A round names the group whose limit turned a due trigger away, so that the scheduler can look
+    /// again the moment a firing of that group ends on its node rather than after its idle wait (#4033).
+    /// </summary>
+    [Test]
+    public async Task ARoundNamesTheGroupWhoseLimitTurnedADueTriggerAway()
+    {
+        await GivenDueTrigger("held", Tenant);
+        await AcquireWith(limits: null, maxCount: 1);
+
+        await GivenDueTrigger("candidate", Tenant);
+
+        TriggerAcquisitionResult round = await AcquireRoundWith(ClusterLimit(1));
+
+        round.Due.Should().BeEmpty("the group's one slot is spoken for");
+        round.Pending.Should().BeEmpty();
+        round.GroupsAtLimit.Should().BeEquivalentTo([Tenant],
+            "the candidate waits for a slot of this group, and a firing of the group ending is what frees one");
+    }
+
+    [Test]
+    public async Task ARoundThatTurnsNothingAwayNamesNoGroup()
+    {
+        await GivenDueTrigger("candidate", Tenant);
+
+        TriggerAcquisitionResult round = await AcquireRoundWith(ClusterLimit(1));
+
+        round.Due.Should().ContainSingle("the group's slot is free, and the trigger is due");
+        round.GroupsAtLimit.Should().BeNull("nothing is waiting for a slot, so no completion is worth a look");
+    }
+
+    /// <summary>
+    /// The scheduler counts a firing against the key the limits resolve — the trigger group, when it
+    /// stands in for an execution group the trigger does not carry — so the group is named by that key,
+    /// or a completion would be looked up under one name and the trigger held under another.
+    /// </summary>
+    [Test]
+    public async Task TheGroupTurnedAwayIsNamedByTheKeyTheLimitsResolve()
+    {
+        await GivenDueTrigger("held", executionGroup: null);
+        await AcquireWith(limits: null, maxCount: 1);
+
+        await GivenDueTrigger("candidate", executionGroup: null);
+
+        ExecutionLimits derived = ExecutionLimitsBuilder.Create()
+            .ForGroup(TriggerGroup, 1, ExecutionLimitScope.Cluster)
+            .UseTriggerGroupWhenUnset()
+            .Build();
+
+        TriggerAcquisitionResult round = await AcquireRoundWith(derived);
+
+        round.GroupsAtLimit.Should().BeEquivalentTo([TriggerGroup], "the trigger carries no execution group, so the limits stood its trigger group in");
+    }
+
     private static ExecutionLimits ClusterLimit(int maxConcurrent)
     {
         return ExecutionLimitsBuilder.Create()
@@ -192,14 +246,25 @@ public class RAMJobStoreClusterLimitTest
 
     private ValueTask<List<IOperableTrigger>> AcquireWith(ExecutionLimits limits, int maxCount = 5)
     {
-        return store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        return store.AcquireNextTriggers(RequestWith(limits, maxCount));
+    }
+
+    /// <summary>The round the scheduler makes: what is due comes back fired, with what the round says about it.</summary>
+    private ValueTask<TriggerAcquisitionResult> AcquireRoundWith(ExecutionLimits limits, int maxCount = 5)
+    {
+        return store.AcquireNextTriggersAndFireDue(RequestWith(limits, maxCount));
+    }
+
+    private static TriggerAcquisitionRequest RequestWith(ExecutionLimits limits, int maxCount)
+    {
+        return new TriggerAcquisitionRequest
         {
             NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
             MaxCount = maxCount,
             // Wide enough that the batch does not close on the first trigger's fire time.
             TimeWindow = TimeSpan.FromMinutes(1),
             ExecutionLimits = limits,
-        });
+        };
     }
 
     private sealed class ClusterLimitTestJob : IJob

@@ -195,6 +195,11 @@ internal abstract partial class AdoJobStoreBase
                 int blocked = 0;
                 HashSet<JobKey>? executingJobs = null;
 
+                // The execution groups whose limit refused a row the last read returned, by the key the
+                // limit was evaluated under. The last read's, as the count above is: each read past
+                // refused rows returns them again.
+                HashSet<string>? groupsAtLimit = null;
+
                 do
                 {
                     // Built inside the loop, so each retry asks again and sees the time it retried at.
@@ -236,6 +241,7 @@ internal abstract partial class AdoJobStoreBase
                     if (results.Count == 0)
                     {
                         blocked = 0;
+                        groupsAtLimit = null;
                         break;
                     }
 
@@ -267,9 +273,28 @@ internal abstract partial class AdoJobStoreBase
                     // flagged rather than dropped so that this round knows it read them. They stay
                     // WAITING, first in the order, and hide what is due behind them from a read of the same
                     // length exactly as a row of an executing job does (#3928) - so they are skipped rows,
-                    // and never read back.
-                    int atLimit = results.RemoveAll(static candidate => candidate.ExecutionGroupAtLimit);
-                    skipped += atLimit;
+                    // and never read back. Their groups are named, by the key the scheduler counts a
+                    // firing against, so that a firing of one ending can wake it (#4033).
+                    groupsAtLimit = null;
+                    int atLimit = 0;
+                    foreach (TriggerAcquireResult candidate in results)
+                    {
+                        if (candidate.ExecutionGroupAtLimit)
+                        {
+                            atLimit++;
+                            groupsAtLimit ??= new HashSet<string>(StringComparer.Ordinal);
+                            groupsAtLimit.Add(ExecutionLimits.ResolveGroupKey(
+                                candidate.ExecutionGroup,
+                                candidate.TriggerKey.Group,
+                                criteria.ExecutionLimits?.UsesTriggerGroupWhenUnset == true));
+                        }
+                    }
+
+                    if (atLimit > 0)
+                    {
+                        results.RemoveAll(static candidate => candidate.ExecutionGroupAtLimit);
+                        skipped += atLimit;
+                    }
 
                     // One read for the whole round's candidates. The acquisition statement just named
                     // them; going back per candidate cost a round trip each before a single one was
@@ -493,8 +518,9 @@ internal abstract partial class AdoJobStoreBase
                     : PinnedTriggersBlocked.None;
 
                 // Off a cluster every firing that holds a trigger back runs on this node, whose end wakes
-                // it, so nothing held is news worth looking again early for.
-                return new AcquiredTriggers(acquiredTriggers, Clustered ? blocked + pinned.Count : 0, pinned.LatestBlockingFiredUtc);
+                // it, so nothing held is news worth looking again early for. A group at its limit is
+                // named on and off a cluster alike: the slot a firing of it frees is this node's own.
+                return new AcquiredTriggers(acquiredTriggers, Clustered ? blocked + pinned.Count : 0, pinned.LatestBlockingFiredUtc, groupsAtLimit);
             },
             "acquire next trigger");
     }
@@ -537,9 +563,14 @@ internal abstract partial class AdoJobStoreBase
     /// What one acquisition took, and how many due triggers a running firing holds back from it: ones it
     /// passed over because their job, which disallows concurrent execution, was executing, and — when it
     /// took nothing — this node's pinned triggers a firing on another node holds <c>BLOCKED</c>, with when
-    /// the latest of those firings was fired.
+    /// the latest of those firings was fired. And the execution groups whose limit turned a due trigger
+    /// away, by the key the limit was evaluated under, or <see langword="null" /> (#4033).
     /// </summary>
-    private readonly record struct AcquiredTriggers(List<IOperableTrigger> Triggers, int Blocked, DateTimeOffset? LatestBlockingFiredUtc = null);
+    private readonly record struct AcquiredTriggers(
+        List<IOperableTrigger> Triggers,
+        int Blocked,
+        DateTimeOffset? LatestBlockingFiredUtc = null,
+        HashSet<string>? GroupsAtLimit = null);
 
     /// <summary>
     /// Reads back the triggers an acquisition round has just named, in one statement, keyed by their

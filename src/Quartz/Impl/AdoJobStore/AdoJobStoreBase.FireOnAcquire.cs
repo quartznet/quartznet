@@ -80,6 +80,7 @@ internal abstract partial class AdoJobStoreBase
                 Pending = acquired.Triggers,
                 Blocked = acquired.Blocked,
                 LatestBlockingFiredUtc = acquired.LatestBlockingFiredUtc,
+                GroupsAtLimit = acquired.GroupsAtLimit,
             };
         }
 
@@ -174,6 +175,7 @@ internal abstract partial class AdoJobStoreBase
                 Pending = attempt.Pending,
                 Blocked = attempt.Acquired.Blocked,
                 LatestBlockingFiredUtc = attempt.Acquired.LatestBlockingFiredUtc,
+                GroupsAtLimit = attempt.Acquired.GroupsAtLimit,
             };
         }
     }
