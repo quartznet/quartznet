@@ -87,7 +87,10 @@ public static class QuartzDashboardServiceCollectionExtensions
                 "HistoryRetention must be positive: a zero or negative window would forget every execution the moment it was recorded")
             .Validate(
                 options => options.HistoryMaxEntriesPerScheduler > 0,
-                "HistoryMaxEntriesPerScheduler must be at least 1");
+                "HistoryMaxEntriesPerScheduler must be at least 1")
+            .Validate(
+                options => options.ClusterDetectionInterval is null || options.ClusterDetectionInterval > TimeSpan.Zero,
+                "ClusterDetectionInterval must be positive, or null to never merge targets into a cluster");
 
         if (configure is not null)
         {
@@ -127,6 +130,12 @@ public static class QuartzDashboardServiceCollectionExtensions
             provider.GetRequiredService<AttachedStores>()));
 
         AddAttachedStores(services);
+
+        // The fleet monitor, which turns several targets fronting the nodes of one cluster into one row.
+        // It runs its first pass once the host has started - after the HTTP targets are bound and the
+        // attached stores discovered - and then on the interval the options say, and whenever a target
+        // is added or removed.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, FleetMonitor>());
         services.TryAddScoped<ToastService>();
 
         // The live events are Quartz's: this registers the broker every scheduler in the container
@@ -177,6 +186,7 @@ public static class QuartzDashboardServiceCollectionExtensions
     private static void AddAttachedStores(IServiceCollection services)
     {
         services.TryAddSingleton<SchedulerWindowRegistry>();
+        services.TryAddSingleton<SchedulerTargets>();
         services.TryAddSingleton<AttachedStores>();
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AttachedStoreDiscovery>(static provider =>

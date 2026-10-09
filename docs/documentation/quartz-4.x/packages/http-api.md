@@ -237,13 +237,19 @@ not paged.
     "name": "acme",
     "schedulerInstanceId": null,
     "status": null,
-    "origin": "Container"
+    "origin": "Container",
+    "target": null,
+    "members": [],
+    "lastSeenUtc": null
   },
   {
     "name": "core",
     "schedulerInstanceId": "web-01",
     "status": "Running",
-    "origin": "Container"
+    "origin": "Container",
+    "target": null,
+    "members": [],
+    "lastSeenUtc": null
   }
 ]
 ```
@@ -257,8 +263,16 @@ not paged.
   |---|---|
   | `Container` | registered by `AddQuartz()` or `AddQuartz(name, …)` |
   | `Runtime` | bound into the repository by hand, such as one built by `QuartzSchedulerBuilder` |
-  | `Remote` | an `HttpScheduler` from `AddQuartzHttpClient`; it runs in another process |
+  | `Remote` | an `HttpScheduler` from `AddQuartzHttpClient`; it runs in another process. `target` is its `HttpClientOptions.Target`, or `null` |
   | `Window` | a never-started scheduler over a [store the dashboard attached](dashboard.md#store-attached-targets); `target` names the store |
+  | `Agent` | reached through an agent that dialed in; `target` is the agent's name and `lastSeenUtc` when it last spoke (4.5) |
+  | `Cluster` | several targets fronting [one cluster](dashboard.md#a-cluster-behind-several-targets); `target` is `a+b+c` and `members` lists the targets (4.5) |
+
+- `target`, `members` and `lastSeenUtc` were added in 4.2 and 4.5; a client built against the four original
+  fields keeps reading the listing.
+- `{name}` in every other route is a bare scheduler name, which resolves to the scheduler reached through no
+  target. A name held only by targets answers `404` naming them; the API does not address a targeted scheduler
+  in 4.5.
 
 ## Enums travel as names
 

@@ -19,6 +19,12 @@ namespace Quartz.Configuration;
 /// into one answer.
 /// </para>
 /// <para>
+/// One registration per <see cref="SchedulerRegistration.Key" /> — a name and the target it is reached
+/// through — rather than one per name: two targets fronting schedulers of one name are two rows, each
+/// with its own status, and the bare name is the row of the scheduler reached through no target. The
+/// members of a detected cluster are left out, because the cluster's row carries them.
+/// </para>
+/// <para>
 /// Nothing here creates a scheduler. That is the point: enumerating tenants must not start them.
 /// </para>
 /// </remarks>
@@ -28,17 +34,20 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
     private readonly ISchedulerRepository repository;
     private readonly IOptionsMonitor<QuartzSchedulerOptions> schedulerOptions;
     private readonly SchedulerWindowRegistry windows;
+    private readonly SchedulerTargets targets;
 
     public ContainerSchedulerRegistry(
         SchedulerNameRegistry names,
         ISchedulerRepository repository,
         IOptionsMonitor<QuartzSchedulerOptions> schedulerOptions,
-        SchedulerWindowRegistry windows)
+        SchedulerWindowRegistry windows,
+        SchedulerTargets targets)
     {
         this.names = names;
         this.repository = repository;
         this.schedulerOptions = schedulerOptions;
         this.windows = windows;
+        this.targets = targets;
     }
 
     /// <summary>
@@ -55,14 +64,33 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
 
     public async ValueTask<List<SchedulerRegistration>> QuerySchedulers(CancellationToken cancellationToken = default)
     {
-        // Names are matched the way the repository indexes them, so a registration and the scheduler
+        // The targets a cluster has absorbed: their proxies stay bound and resolvable by key, and the
+        // cluster's row lists them, so a row of their own would show every node twice.
+        HashSet<string> absorbed = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, SchedulerTarget> clusters = new(StringComparer.OrdinalIgnoreCase);
+        foreach (SchedulerTarget target in targets.Snapshot())
+        {
+            if (target.Origin == SchedulerOrigin.Cluster)
+            {
+                clusters[target.Name] = target;
+                absorbed.UnionWith(target.Members);
+            }
+        }
+
+        // Keys are matched the way the repository indexes names, so a registration and the scheduler
         // built from it are never reported as two schedulers because their spelling differs in case.
-        Dictionary<string, IScheduler> live = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, LiveScheduler> live = new(StringComparer.OrdinalIgnoreCase);
         foreach (IScheduler scheduler in repository.LookupAll())
         {
-            // A name can hold several entries - proxies to different nodes of one cluster - and they
-            // are one scheduler as far as a registration is concerned. The first one answers for it.
-            live.TryAdd(scheduler.SchedulerName, scheduler);
+            LiveScheduler entry = Classify(scheduler);
+            if (entry.Target is not null && absorbed.Contains(entry.Target) && entry.Origin is SchedulerOrigin.Remote or SchedulerOrigin.Agent)
+            {
+                continue;
+            }
+
+            // Several local entries under one name - nodes of one cluster in one process - are one
+            // scheduler as far as a registration is concerned. The first one answers for it.
+            live.TryAdd(entry.Key, entry);
         }
 
         using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -74,11 +102,11 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
         // being asked with a token that was already cancelled, and reported as unreachable although it
         // answered at once. A local scheduler completes before this loop reaches the next entry.
         Dictionary<string, Task<LiveState>> asked = new(StringComparer.OrdinalIgnoreCase);
-        foreach (KeyValuePair<string, IScheduler> entry in live)
+        foreach (KeyValuePair<string, LiveScheduler> entry in live)
         {
-            asked[entry.Key] = windows.TargetOf(entry.Key) is not null
-                ? AskWindow(entry.Value, deadline.Token, cancellationToken)
-                : Ask(entry.Value, deadline.Token, cancellationToken);
+            asked[entry.Key] = entry.Value.Origin is SchedulerOrigin.Window
+                ? AskWindow(entry.Value.Scheduler, deadline.Token, cancellationToken)
+                : Ask(entry.Value.Scheduler, deadline.Token, cancellationToken);
         }
 
         List<SchedulerRegistration> registrations = [];
@@ -101,36 +129,60 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
             });
         }
 
-        foreach (IScheduler scheduler in live.Values)
+        foreach (LiveScheduler entry in live.Values)
         {
-            if (!reported.Add(scheduler.SchedulerName))
+            if (!reported.Add(entry.Key))
             {
                 continue;
             }
 
-            LiveState state = await asked[scheduler.SchedulerName].ConfigureAwait(false);
+            LiveState state = await asked[entry.Key].ConfigureAwait(false);
 
-            // A window is a scheduler this container built and bound, so nothing about the object tells
-            // it from a runtime one. What it is, is a registration fact, and the window registry is
-            // where that fact is kept.
-            string? target = windows.TargetOf(scheduler.SchedulerName);
+            // A window and a cluster are not nodes: the id a window's store carries is one this process
+            // invented, and a cluster is every node at once. Showing either would put a node in the
+            // listing that does not exist. The nodes are on the Cluster page.
+            bool isNode = entry.Origin is not (SchedulerOrigin.Window or SchedulerOrigin.Cluster);
 
-            registrations.Add(new SchedulerRegistration(
-                scheduler.SchedulerName,
-                target is not null
-                    ? SchedulerOrigin.Window
-                    : scheduler is IProxyScheduler ? SchedulerOrigin.Remote : SchedulerOrigin.Runtime,
-                state.Status)
+            registrations.Add(new SchedulerRegistration(entry.Scheduler.SchedulerName, entry.Origin, state.Status)
             {
-                SchedulerInstanceId = state.SchedulerInstanceId,
-                Target = target
+                SchedulerInstanceId = isNode ? state.SchedulerInstanceId : null,
+                Target = entry.Target,
+                Members = entry.Target is not null && clusters.TryGetValue(entry.Target, out SchedulerTarget? cluster)
+                    ? cluster.Members
+                    : [],
             });
         }
 
-        // Deterministic order, ordinal, as the paged queries over a job store are.
-        registrations.Sort(static (left, right) => string.CompareOrdinal(left.Name, right.Name));
+        // Deterministic order, ordinal, as the paged queries over a job store are: by name, and the
+        // schedulers of one name by target, the bare one first.
+        registrations.Sort(static (left, right) =>
+        {
+            int byName = string.CompareOrdinal(left.Name, right.Name);
+            return byName != 0 ? byName : string.CompareOrdinal(left.Target, right.Target);
+        });
 
         return registrations;
+    }
+
+    /// <summary>
+    /// What one bound scheduler is: its key, the target it is reached through, and where it came from.
+    /// </summary>
+    /// <remarks>
+    /// A window is a scheduler this container built and bound, so nothing about the object tells it from
+    /// a runtime one. What it is, is a registration fact, and the window registry is where that fact is
+    /// kept. A proxy says for itself which target it stands behind and what kind of target that is.
+    /// </remarks>
+    private LiveScheduler Classify(IScheduler scheduler)
+    {
+        if (scheduler is IProxyScheduler proxy)
+        {
+            return new LiveScheduler(scheduler, proxy.Target, proxy.Origin);
+        }
+
+        string? windowTarget = windows.TargetOf(scheduler.SchedulerName);
+        return windowTarget is not null
+            ? new LiveScheduler(scheduler, windowTarget, SchedulerOrigin.Window)
+            : new LiveScheduler(scheduler, Target: null, SchedulerOrigin.Runtime);
     }
 
     /// <summary>
@@ -234,6 +286,14 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
         {
             return new LiveState(SchedulerStatus.Unknown, SchedulerInstanceId: null);
         }
+    }
+
+    /// <summary>
+    /// One bound scheduler, the target it is reached through, and where it came from.
+    /// </summary>
+    private readonly record struct LiveScheduler(IScheduler Scheduler, string? Target, SchedulerOrigin Origin)
+    {
+        public string Key => new SchedulerRef(Scheduler.SchedulerName, Target).Key;
     }
 
     /// <summary>

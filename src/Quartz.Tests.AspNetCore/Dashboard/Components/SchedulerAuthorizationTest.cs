@@ -72,6 +72,52 @@ public class SchedulerAuthorizationTest
     }
 
     /// <summary>
+    /// A scheduler reached through a target is asked about as its bare name with the target beside it,
+    /// so a handler written against the name keeps matching and one that cares reads the target.
+    /// </summary>
+    [Test]
+    public void ATargetedSchedulerIsAskedAboutByNameWithItsTarget()
+    {
+        A.CallTo(() => context.Api.GetSchedulers(A<CancellationToken>._)).Returns(new List<SchedulerHeaderDto>
+        {
+            TestData.Dashboard.SchedulerHeader("QuartzScheduler", origin: SchedulerOrigin.Remote, target: "A"),
+            TestData.Dashboard.SchedulerHeader("globex")
+        });
+        A.CallTo(() => context.Api.GetScheduler("A/QuartzScheduler", A<CancellationToken>._))
+            .Returns(TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "QuartzScheduler"));
+        context.WithSchedulerPolicy("QuartzScheduler");
+
+        IRenderedComponent<SchedulerSelector> selector = context.Render<SchedulerSelector>();
+
+        selector.FindAll("option").Select(option => option.GetAttribute("value")).Should().Equal(["A/QuartzScheduler"],
+            "the policy passed for the name, which is how a handler written before targets existed still answers");
+        context.AuthorizationService.Asked.Should().Contain(
+            (DashboardComponentContext.SchedulerPolicyName, new SchedulerResource("QuartzScheduler") { Target = "A" }),
+            "the resource carries the target beside the name, for a handler that cares which process the name was found in");
+    }
+
+    /// <summary>
+    /// A scheduler of this process whose name contains <c>/</c> is asked about by that name and no
+    /// target, as it was before keys existed: the resource is built from the listing's halves, not read
+    /// back out of the key.
+    /// </summary>
+    [Test]
+    public void ALocalSchedulerWhoseNameContainsTheSeparatorIsAskedAboutByItsName()
+    {
+        GivenSchedulers("tenant/billing", "globex");
+        context.WithSchedulerPolicy("tenant/billing");
+
+        IRenderedComponent<SchedulerSelector> selector = context.Render<SchedulerSelector>();
+
+        selector.FindAll("option").Select(option => option.GetAttribute("value")).Should().Equal(["tenant/billing"]);
+        context.AuthorizationService.Asked.Should().Contain(
+            (DashboardComponentContext.SchedulerPolicyName, new SchedulerResource("tenant/billing")),
+            "a handler written against the name before 4.5 must keep matching it, so no target is read out of it");
+        context.AuthorizationService.Asked.Should().NotContain(
+            (DashboardComponentContext.SchedulerPolicyName, new SchedulerResource("billing") { Target = "tenant" }));
+    }
+
+    /// <summary>
     /// With the option unset nothing is asked and nothing is filtered, which is what keeps every dashboard
     /// that never configured a per-scheduler policy exactly as it was.
     /// </summary>

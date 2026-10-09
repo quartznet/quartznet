@@ -28,6 +28,11 @@ internal sealed class SchedulerState
     private const string themeCookieName = "qz_theme";
     private const string timeZoneCookieName = "qz_tz";
 
+    /// <summary>
+    /// The cookie the picker writes the selected scheduler's key into, so the next visit opens on it.
+    /// </summary>
+    internal const string SchedulerCookieName = "qz_scheduler";
+
     private string? activeSchedulerName;
     private IReadOnlyList<SchedulerHeaderDto> availableSchedulers = [];
     private bool schedulersListed;
@@ -53,18 +58,32 @@ internal sealed class SchedulerState
         {
             selectedTimeZoneId = NormalizeTimeZoneId(timeZoneCookie);
         }
+
+        string? schedulerCookie = httpContext.Request.Cookies[SchedulerCookieName];
+        if (!string.IsNullOrWhiteSpace(schedulerCookie))
+        {
+            RememberedSchedulerKey = schedulerCookie.Trim();
+        }
     }
 
     public event EventHandler? OnSchedulerChanged;
 
     /// <summary>
-    /// The scheduler the dashboard is currently about. Assigning one that the last listing did not carry
+    /// The key the browser remembered from the last visit, or <see langword="null" /> when it remembered
+    /// none. Applied once the first listing says whether it is still there: a cookie is the browser's
+    /// word, and the listing is what decides which keys this visitor may be pointed at.
+    /// </summary>
+    public string? RememberedSchedulerKey { get; }
+
+    /// <summary>
+    /// The scheduler the dashboard is currently about, as its key: <c>target/name</c>, or the bare name
+    /// of a scheduler reached through no target. Assigning one that the last listing did not carry
     /// leaves the previous value in place.
     /// </summary>
     /// <remarks>
     /// <para>
     /// The listing in <see cref="AvailableSchedulers" /> is always the authorization-filtered one, so it
-    /// is the set of names this visitor may be pointed at. The picker's value, on the other hand, arrives
+    /// is the set of keys this visitor may be pointed at. The picker's value, on the other hand, arrives
     /// on a browser <c>change</c> event, and Blazor does not check that such a value was one of the
     /// options the server rendered — so without this the browser could name any scheduler in the process
     /// and every subscribed page would re-read for it, which is what it did before rc.1.
@@ -72,6 +91,11 @@ internal sealed class SchedulerState
     /// <para>
     /// Before the first listing there is nothing to check against and the value is taken as given; that is
     /// the dashboard's own start-up assignment, which happens before anything is rendered.
+    /// </para>
+    /// <para>
+    /// Named for the vocabulary <see cref="IQuartzApiClient" /> speaks, whose scheduler-scoped members
+    /// take this value: it has been a key since 4.5, and a bare name is the key of a scheduler reached
+    /// through no target.
     /// </para>
     /// </remarks>
     public string? ActiveSchedulerName
@@ -115,50 +139,58 @@ internal sealed class SchedulerState
     }
 
     /// <summary>
-    /// The scheduler the dashboard should be about when nothing has chosen one: the first that exists,
-    /// falling back to the first registration, and <see langword="null" /> when there are none.
+    /// The scheduler the dashboard should be about when nothing has chosen one: the one the browser
+    /// remembered if the listing still carries it, else the first that exists, falling back to the first
+    /// registration, and <see langword="null" /> when there are none.
     /// </summary>
     /// <remarks>
     /// A registration nothing has built has no pages to render, so opening on one would show its
     /// not-created state everywhere while a running scheduler sat further down the list. It is still the
     /// fallback, because a process whose only scheduler has not started is better described by that
-    /// scheduler than by nothing at all.
+    /// scheduler than by nothing at all. A remembered key the listing does not carry — a target that
+    /// went away, a cluster whose membership changed — falls through to the same rule.
     /// </remarks>
     public string? DefaultSchedulerName
     {
         get
         {
+            if (Find(RememberedSchedulerKey) is { IsCreated: true } remembered)
+            {
+                return remembered.Key;
+            }
+
             foreach (SchedulerHeaderDto scheduler in AvailableSchedulers)
             {
                 if (scheduler.IsCreated)
                 {
-                    return scheduler.SchedulerName;
+                    return scheduler.Key;
                 }
             }
 
-            return AvailableSchedulers.Count > 0 ? AvailableSchedulers[0].SchedulerName : null;
+            return AvailableSchedulers.Count > 0 ? AvailableSchedulers[0].Key : null;
         }
     }
 
     /// <summary>
-    /// What the last listing said about <paramref name="schedulerName" />, or <see langword="null" />
+    /// What the last listing said about <paramref name="schedulerKey" />, or <see langword="null" />
     /// when it said nothing about it.
     /// </summary>
     /// <remarks>
     /// Null and <c>IsCreated: false</c> are different answers, which is why this returns the header
     /// rather than a flag: a page pointed at a scheduler the listing does not carry must not be told the
-    /// scheduler does not exist, while one pointed at a registration nothing has built must.
+    /// scheduler does not exist, while one pointed at a registration nothing has built must. Compared by
+    /// key, so that two targets fronting schedulers of one name are two answers.
     /// </remarks>
-    public SchedulerHeaderDto? Find(string? schedulerName)
+    public SchedulerHeaderDto? Find(string? schedulerKey)
     {
-        if (string.IsNullOrWhiteSpace(schedulerName))
+        if (string.IsNullOrWhiteSpace(schedulerKey))
         {
             return null;
         }
 
         foreach (SchedulerHeaderDto scheduler in AvailableSchedulers)
         {
-            if (string.Equals(scheduler.SchedulerName, schedulerName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(scheduler.Key, schedulerKey, StringComparison.OrdinalIgnoreCase))
             {
                 return scheduler;
             }

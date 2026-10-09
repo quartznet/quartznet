@@ -4,13 +4,17 @@
     "schedulerInstanceId": null,
     "status": null,
     "origin": "Container",
-    "target": null
+    "target": null,
+    "members": [],
+    "lastSeenUtc": null
   },
   {
     "name": "TestScheduler",
     "schedulerInstanceId": "TEST_NON_CLUSTERED",
     "status": "Running",
     "origin": "Runtime",
-    "target": null
+    "target": null,
+    "members": [],
+    "lastSeenUtc": null
   }
 ]

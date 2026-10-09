@@ -75,6 +75,7 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
         typeof(TimeProvider),
         typeof(ITypeLoader),
         typeof(ISchedulerRepository),
+        typeof(SchedulerTargets),
         typeof(SharedDatabaseValidator),
         typeof(IJobExecutionContextAccessor),
         typeof(SystemTextJsonSerializerRegistry),
@@ -340,6 +341,7 @@ internal sealed class SchedulerGeneration : IAsyncDisposable
         Add(services, application.GetService<TimeProvider>());
         Add(services, application.GetService<ITypeLoader>());
         Add(services, application.GetService<ISchedulerRepository>());
+        Add(services, application.GetService<SchedulerTargets>());
         Add(services, application.GetService<SharedDatabaseValidator>());
         Add(services, application.GetService<IJobExecutionContextAccessor>());
         Add(services, application.GetService<SystemTextJsonSerializerRegistry>());

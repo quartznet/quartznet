@@ -35,11 +35,14 @@ internal sealed class AttachedStores : IAsyncDisposable
 {
     private readonly List<AttachedStore> stores = [];
     private readonly SchedulerWindowRegistry registry;
+    private readonly SchedulerTargets targets;
 
-    public AttachedStores(SchedulerWindowRegistry registry)
+    public AttachedStores(SchedulerWindowRegistry registry, SchedulerTargets targets)
     {
         ArgumentNullException.ThrowIfNull(registry);
+        ArgumentNullException.ThrowIfNull(targets);
         this.registry = registry;
+        this.targets = targets;
     }
 
     /// <summary>
@@ -48,23 +51,33 @@ internal sealed class AttachedStores : IAsyncDisposable
     public IReadOnlyList<AttachedStore> Stores => stores;
 
     /// <summary>
+    /// Which schedulers are windows and onto which store, for a reader resolving a key.
+    /// </summary>
+    public SchedulerWindowRegistry Windows => registry;
+
+    /// <summary>
     /// Takes ownership of an attached store, which is disposed with this.
     /// </summary>
-    /// <exception cref="SchedulerConfigException">A store is already attached under that name.</exception>
+    /// <remarks>
+    /// The store's name is claimed in the container's target registry, so that a store and an HTTP
+    /// target cannot share one: a name is half of every key, and the registry is where every kind of
+    /// target is held to that.
+    /// </remarks>
+    /// <exception cref="SchedulerConfigException">A target of any kind already has that name.</exception>
     public void Add(AttachedStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
 
-        foreach (AttachedStore existing in stores)
+        targets.Add(new SchedulerTarget
         {
-            if (string.Equals(existing.Target, store.Target, StringComparison.OrdinalIgnoreCase))
-            {
-                Throw.SchedulerConfigException(
-                    $"A store is already attached as '{store.Target}'. A target's name is half of every window's "
-                    + "identity, so two databases under one name would give two schedulers one spelling; attach the "
-                    + "second one under a name of its own.");
-            }
-        }
+            Name = store.Target,
+            Origin = SchedulerOrigin.Window,
+
+            // A database carries a schedule, not a feed of what happened to it, so no events; and the
+            // history it carries when the cluster writes one there. Null when the recipe did not ask
+            // for it, which the lookup reports rather than answering with this process's own history.
+            History = (_, _) => store.History,
+        });
 
         stores.Add(store);
     }
@@ -112,6 +125,7 @@ internal sealed class AttachedStores : IAsyncDisposable
     {
         foreach (AttachedStore store in stores)
         {
+            targets.Remove(store.Target);
             await store.DisposeAsync().ConfigureAwait(false);
         }
 

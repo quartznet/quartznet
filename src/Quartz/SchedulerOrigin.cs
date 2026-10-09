@@ -72,5 +72,31 @@ public enum SchedulerOrigin
     /// <see cref="SchedulerRegistration.Target" /> says which attached store the window is onto.
     /// </para>
     /// </remarks>
-    Window = 3
+    Window = 3,
+
+    /// <summary>
+    /// Reached through an agent that dialed out to this process from the one running the scheduler.
+    /// Nothing in this process runs it, and <see cref="SchedulerRegistration.Target" /> is the name the
+    /// agent registered under.
+    /// </summary>
+    /// <remarks>
+    /// Declared in 4.5 beside <see cref="Cluster" /> so that the wire shape of the listing is settled
+    /// once; the agent that reports it ships separately. Like <see cref="Remote" />, every member is a
+    /// request to another process; unlike it, the connection was opened from the other side, so
+    /// <see cref="SchedulerRegistration.LastSeenUtc" /> says when that process last spoke.
+    /// </remarks>
+    Agent = 4,
+
+    /// <summary>
+    /// Several targets fronting the nodes of one cluster, reported as one scheduler. The target is the
+    /// member targets joined with <c>+</c> — <c>a+b+c</c> — and
+    /// <see cref="SchedulerRegistration.Members" /> lists them.
+    /// </summary>
+    /// <remarks>
+    /// Detected rather than configured: two or more targets whose schedulers share a name, a clustered
+    /// persistent store, and at least one node between them are one cluster. Scheduling data goes to one
+    /// member, whose store every node shares; what belongs to one node — start, stand-by, shutdown — is
+    /// not offered on the cluster and is reached through the member's own key instead.
+    /// </remarks>
+    Cluster = 5,
 }

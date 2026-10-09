@@ -25,18 +25,21 @@ using Microsoft.Extensions.Hosting;
 namespace Quartz.Impl;
 
 /// <summary>
-/// The names <c>AddQuartzHttpClient</c> has been called with, so the binder knows which remote schedulers
-/// the container holds.
+/// The service keys <c>AddQuartzHttpClient</c> has registered under — a scheduler name, or the target
+/// when one was given — so the binder knows which remote schedulers the container holds.
 /// </summary>
 /// <remarks>
-/// Held as a registered instance rather than resolved from the built container, because the names are
+/// Held as a registered instance rather than resolved from the built container, because the keys are
 /// collected while registration is still going on.
 /// </remarks>
 internal sealed class HttpSchedulerRegistry
 {
-    private readonly List<string> names = [];
+    private readonly List<string> keys = [];
 
-    public IReadOnlyList<string> Names => names;
+    /// <summary>
+    /// The service keys, in registration order.
+    /// </summary>
+    public IReadOnlyList<string> Names => keys;
 
     public static HttpSchedulerRegistry For(IServiceCollection services)
     {
@@ -55,33 +58,52 @@ internal sealed class HttpSchedulerRegistry
     }
 
     /// <summary>
-    /// Records a remote scheduler's name, refusing one already recorded.
+    /// Records a remote scheduler's service key, refusing one already recorded.
     /// </summary>
     /// <remarks>
-    /// A scheduler's name is its key: the keyed <see cref="IScheduler" /> registration is appended, so a
-    /// second <c>AddQuartzHttpClient("X", …)</c> was last-wins and the first target simply disappeared —
-    /// silently, and with the repository holding one entry under the name either way. Two processes
-    /// fronted under one name is a fleet, which is what
-    /// <see href="https://github.com/quartznet/quartznet/issues/3387" /> is for; until it ships, saying
-    /// so is better than dropping one of them.
+    /// <para>
+    /// The key is the registration's identity: the keyed <see cref="IScheduler" /> registration is
+    /// appended, so a second <c>AddQuartzHttpClient</c> under the same key would be last-wins and the
+    /// first target would simply disappear — silently, and with the repository holding one entry under
+    /// the key either way.
+    /// </para>
+    /// <para>
+    /// An untargeted registration's key is its scheduler name, and a second one under the same name is
+    /// refused as it always was: two processes fronted under one bare name is what a target is for. A
+    /// targeted registration's key is its target, and a second target of that name is a configuration
+    /// error of the kind every other duplicate target is.
+    /// </para>
     /// </remarks>
-    /// <exception cref="InvalidOperationException">The name is already registered.</exception>
-    public void Add(string name)
+    /// <param name="key">The service key: the target, or the scheduler name when there is no target.</param>
+    /// <param name="targeted">Whether the registration gave a target.</param>
+    /// <exception cref="InvalidOperationException">An untargeted registration already holds the scheduler name.</exception>
+    /// <exception cref="SchedulerConfigException">A registration already holds the target.</exception>
+    public void Add(string key, bool targeted)
     {
-        foreach (string registered in names)
+        foreach (string registered in keys)
         {
-            if (string.Equals(registered, name, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(registered, key, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException(
-                    $"A remote scheduler named '{name}' is already registered. AddQuartzHttpClient registers one "
-                    + "target per scheduler name, and a second registration under the same name would replace the "
-                    + "first rather than add to it. Give the targets different scheduler names; fronting several "
-                    + "schedulers that share a name is the fleet model of "
-                    + "https://github.com/quartznet/quartznet/issues/3387.");
+                continue;
             }
+
+            if (targeted)
+            {
+                Throw.SchedulerConfigException(
+                    $"An HTTP target named '{key}' is already registered. A target's name is half of every key its "
+                    + "scheduler is shown under, so two registrations under one target would give two schedulers one "
+                    + "spelling; give the second one a Target of its own.");
+            }
+
+            throw new InvalidOperationException(
+                $"A remote scheduler named '{key}' is already registered. AddQuartzHttpClient registers one "
+                + "target per scheduler name, and a second registration under the same name would replace the "
+                + "first rather than add to it. Give the registrations different scheduler names, or set "
+                + "HttpClientOptions.Target on each to front several schedulers that share a name — the fleet "
+                + "model of https://github.com/quartznet/quartznet/issues/3387.");
         }
 
-        names.Add(name);
+        keys.Add(key);
     }
 }
 
@@ -92,7 +114,7 @@ internal sealed class HttpSchedulerRegistry
 /// <remarks>
 /// A remote scheduler is otherwise built the first time something injects it, so a dashboard or an HTTP
 /// API listing the container's schedulers would not show one until an unrelated piece of code happened to
-/// use it. Resolving it is all this does: binding is part of building one.
+/// use it. Resolving it is all this does: binding is part of building one, and so is claiming its target.
 /// </remarks>
 internal sealed class HttpSchedulerBinder : IHostedService
 {
@@ -107,9 +129,9 @@ internal sealed class HttpSchedulerBinder : IHostedService
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        foreach (string name in registry.Names)
+        foreach (string key in registry.Names)
         {
-            serviceProvider.GetRequiredKeyedService<IScheduler>(name);
+            serviceProvider.GetRequiredKeyedService<IScheduler>(key);
         }
 
         return Task.CompletedTask;

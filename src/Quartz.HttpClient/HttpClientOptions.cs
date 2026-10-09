@@ -23,6 +23,8 @@ using System.Text.Json;
 
 using Microsoft.Extensions.Options;
 
+using Quartz.Configuration;
+
 namespace Quartz;
 
 /// <summary>
@@ -75,6 +77,25 @@ public sealed class HttpClientOptions
     /// </summary>
     public JsonSerializerOptions? JsonSerializerOptions { get; set; }
 
+    /// <summary>
+    /// The name this target is known by, which becomes the first half of the scheduler's key —
+    /// <c>w1/QuartzScheduler</c> — and the service key the registration is reached by. Null, the
+    /// default, registers the scheduler under its bare name, as every release before 4.5 did.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set it to front several processes whose schedulers share a name: each registration takes a target
+    /// of its own, the dashboard lists one row per target, and a persistent clustered store behind them
+    /// is detected and shown as one cluster. A target name cannot contain <c>/</c>, which separates it
+    /// from the scheduler's name in a key, or <c>+</c>, which joins the members of a cluster's.
+    /// </para>
+    /// <para>
+    /// With a target, <c>GetRequiredKeyedService&lt;IScheduler&gt;(Target)</c> is the registration, and
+    /// so are the keyed history store and event source. The bare scheduler name resolves to nothing: a
+    /// bare key is reserved for a scheduler reached through no target.
+    /// </para>
+    /// </remarks>
+    public string? Target { get; set; }
 }
 
 /// <summary>
@@ -108,6 +129,11 @@ internal sealed class HttpClientOptionsValidator : IValidateOptions<HttpClientOp
         {
             (failures ??= []).Add(
                 $"{nameof(HttpClientOptions.HttpClientName)} and {nameof(HttpClientOptions.CreateHttpClient)} are both set, and only one can be.");
+        }
+
+        if (options.Target is not null && SchedulerTargets.Problem(options.Target) is { } problem)
+        {
+            (failures ??= []).Add($"{nameof(HttpClientOptions.Target)}: {problem}");
         }
 
         return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

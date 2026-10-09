@@ -13,6 +13,23 @@ internal sealed class NotFoundException : Exception
     // Keep in sync with Quartz.HttpClientExtensions.EnsureSuccess
     public static NotFoundException ForScheduler(string schedulerName) => new($"Unknown scheduler {schedulerName}");
 
+    /// <summary>
+    /// The refusal for a bare name that only targets hold, which names them: the scheduler exists in
+    /// this process's listing, under keys the API cannot address.
+    /// </summary>
+    public static NotFoundException ForScheduler(string schedulerName, IReadOnlyList<string> targetsHolding)
+    {
+        if (targetsHolding.Count == 0)
+        {
+            return ForScheduler(schedulerName);
+        }
+
+        return new NotFoundException(
+            $"Unknown scheduler {schedulerName}: the name is held only by "
+            + $"{(targetsHolding.Count == 1 ? "target" : "targets")} {string.Join(", ", targetsHolding)}, "
+            + "which this API does not address by name.");
+    }
+
     public static NotFoundException ForCalendar(string calendarName) => new($"Unknown calendar {calendarName}");
 
     public static NotFoundException ForJob(JobKey key) => new($"Unknown job {key}");

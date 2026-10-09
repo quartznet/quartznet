@@ -4,6 +4,7 @@ using Bunit;
 
 using FakeItEasy;
 
+using Quartz.Configuration;
 using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Services;
 using Quartz.Tests.AspNetCore.Support;
@@ -183,6 +184,134 @@ public class ClusterPageTest
     }
 
     /// <summary>
+    /// For a cluster fronted by several targets, each node a member fronts offers the verbs that belong
+    /// to one process, sent through that member's own key.
+    /// </summary>
+    [Test]
+    public void ANodeOfAClusterIsActedOnThroughTheMemberThatFrontsIt()
+    {
+        GivenCluster();
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        page.WaitForAssertion(() => RowCells(page, rowIndex: 0).Should().Contain("a",
+            "the member that fronts the node is named, which is what the actions go through"));
+        RowCells(page, rowIndex: 2).Should().Contain("—", "no target fronts node-c, so it has no actions");
+
+        page.FindAll("tbody tr")[1].QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Standby").Click();
+
+        // Stand-by acts on one node, so it goes through the member's key rather than the cluster's.
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.Standby("b/QuartzScheduler", A<CancellationToken>._)).MustHaveHappened());
+        A.CallTo(() => context.Api.Standby("a+b/QuartzScheduler", A<CancellationToken>._)).MustNotHaveHappened();
+        page.FindAll("tbody tr")[2].QuerySelectorAll("button").Should().BeEmpty();
+    }
+
+    [Test]
+    public void InterruptingANodeInterruptsWhatItIsRunningThroughItsMember()
+    {
+        GivenCluster();
+        GivenFirings(
+            Firing("node-a", FireInstanceState.Executing),
+            Firing("node-b", FireInstanceState.Executing));
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        page.WaitForAssertion(() => page.FindAll("tbody tr")[0].QuerySelectorAll("button").Should().NotBeEmpty());
+        page.FindAll("tbody tr")[0].QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Interrupt").Click();
+
+        // The node's own firings are interrupted through the member that fronts it.
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.InterruptFireInstance("a/QuartzScheduler", "fire-node-a-Executing", A<CancellationToken>._)).MustHaveHappened());
+        A.CallTo(() => context.Api.InterruptFireInstance(A<string>._, "fire-node-b-Executing", A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A node that restarts under a new instance id is the same member fronting a different row, so the
+    /// member is asked again which node it fronts.
+    /// </summary>
+    [Test]
+    public void AMemberWhoseNodeRestartedUnderANewIdIsMappedAgain()
+    {
+        GivenCluster();
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+        page.WaitForAssertion(() => RowCells(page, rowIndex: 0).Should().Contain("a"));
+
+        // Node a comes back as node-a2: its member answers with the new id, and the store lists the new row.
+        A.CallTo(() => context.Api.GetScheduler("a/QuartzScheduler", A<CancellationToken>._))
+            .Returns(TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "QuartzScheduler", clustered: true, persistent: true) with { SchedulerInstanceId = "node-a2" });
+        GivenNodes(Node("node-a2", ClusterNodeState.Alive), Node("node-b", ClusterNodeState.Alive));
+
+        context.SchedulerState.NotifyChanged();
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll("tbody tr")[0].TextContent.Should().Contain("node-a2");
+            RowCells(page, rowIndex: 0).Should().Contain("a",
+                "the member's node is no longer listed, so the member was asked again and its new node is mapped to it");
+        });
+    }
+
+    /// <summary>
+    /// A member that never answers which node it fronts costs the page the listing's deadline and no
+    /// more: the other member's node is still mapped, and the page still renders.
+    /// </summary>
+    [Test]
+    public void AMemberThatNeverAnswersCostsThePageTheDeadlineAndNoMore()
+    {
+        GivenCluster();
+        A.CallTo(() => context.Api.GetScheduler("b/QuartzScheduler", A<CancellationToken>._))
+            .ReturnsLazily(call => new ValueTask<SchedulerDetailDto>(Stall(call.GetArgument<CancellationToken>(1))));
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        // The member is asked under the listing's deadline, not under the client's timeout: the rows are
+        // there within it and a margin, which the fake's never-completing answer would otherwise hold.
+        page.WaitForAssertion(
+            () =>
+            {
+                RowCells(page, rowIndex: 0).Should().Contain("a", "the member that answered is mapped to its node");
+                RowCells(page, rowIndex: 1).Should().Contain("—", "the member that did not answer is asked again next refresh");
+            },
+            ContainerSchedulerRegistry.StatusTimeout + TimeSpan.FromSeconds(5));
+    }
+
+    [Test]
+    public void ReadOnlyHidesTheNodeActions()
+    {
+        context.Dispose();
+        context = new DashboardComponentContext(options => options.ReadOnly = true);
+        GivenCluster();
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        page.WaitForAssertion(() => RowCells(page, rowIndex: 0).Should().Contain("a"));
+        page.FindAll("tbody button").Should().BeEmpty("a read-only dashboard offers no way to drive a node");
+    }
+
+    private void GivenCluster()
+    {
+        context.WithScheduler(
+            "QuartzScheduler",
+            clustered: true,
+            persistent: true,
+            origin: SchedulerOrigin.Cluster,
+            target: "a+b",
+            members: ["a", "b"]);
+
+        // What the picker last listed, which is where the page learns that the key is a cluster's.
+        context.SchedulerState.AvailableSchedulers =
+            [TestData.Dashboard.SchedulerHeader("QuartzScheduler", origin: SchedulerOrigin.Cluster, target: "a+b", members: ["a", "b"])];
+
+        A.CallTo(() => context.Api.GetScheduler("a/QuartzScheduler", A<CancellationToken>._))
+            .Returns(TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "QuartzScheduler", clustered: true, persistent: true) with { SchedulerInstanceId = "node-a" });
+        A.CallTo(() => context.Api.GetScheduler("b/QuartzScheduler", A<CancellationToken>._))
+            .Returns(TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "QuartzScheduler", clustered: true, persistent: true) with { SchedulerInstanceId = "node-b" });
+
+        GivenNodes(Node("node-a", ClusterNodeState.Alive), Node("node-b", ClusterNodeState.Alive), Node("node-c", ClusterNodeState.Alive));
+        GivenFirings();
+    }
+
+    /// <summary>
     /// The severity modifier each row's state badge carries, in row order. <c>StateIndicator</c> puts it
     /// on the indicator and the stylesheet colours the dot through it.
     /// </summary>
@@ -212,6 +341,15 @@ public class ClusterPageTest
         }
 
         return cells;
+    }
+
+    /// <summary>
+    /// An answer that never comes: completes only by the caller's own cancellation.
+    /// </summary>
+    private static async Task<SchedulerDetailDto> Stall(CancellationToken cancellationToken)
+    {
+        await Task.Delay(Timeout.Infinite, cancellationToken);
+        throw new InvalidOperationException("never reached");
     }
 
     private static ClusterNodeDto CurrentNode(ClusterNodeState state = ClusterNodeState.Alive)

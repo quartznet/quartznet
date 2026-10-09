@@ -352,6 +352,10 @@ public sealed class SchedulerRegistryTest
         public TestProxyScheduler(IScheduler scheduler) : base(scheduler)
         {
         }
+
+        public string Target => null;
+
+        public SchedulerOrigin Origin => SchedulerOrigin.Remote;
     }
 
     /// <summary>
@@ -365,6 +369,10 @@ public sealed class SchedulerRegistryTest
         }
 
         public override string SchedulerName { get; }
+
+        public string Target => null;
+
+        public SchedulerOrigin Origin => SchedulerOrigin.Remote;
 
         public override async ValueTask<SchedulerStatus> GetStatus(CancellationToken cancellationToken = default)
         {

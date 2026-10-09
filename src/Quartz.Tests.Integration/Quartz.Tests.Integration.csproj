@@ -65,9 +65,9 @@
     <PackageReference Include="Microsoft.Data.SQLite" />
     <!--
       Quartz itself only needs Microsoft.Extensions.Hosting.Abstractions. A scenario that stands a real
-      host up around a scheduler needs the host, which is this package.
+      host up around a scheduler needs the host, which the Microsoft.AspNetCore.App framework reference
+      above carries; an explicit package reference beside it is refused as redundant (NU1510).
     -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="MySqlConnector" />
     <PackageReference Include="Npgsql" />
@@ -85,7 +85,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      FleetClusterIntegrationTest stands two API hosts up on Kestrel over one database and fronts them from a
+      dashboard container, which is the one fixture here that needs ASP.NET Core and the three packages
+      that sit on it.
+    -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
+    <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
+    <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
     <ProjectReference Include="..\Quartz.Extensions.Redis\Quartz.Extensions.Redis.csproj" />

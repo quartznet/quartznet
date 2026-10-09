@@ -127,6 +127,50 @@ public static class DashboardSamples
         #endregion
     }
 
+    public static void NamedHttpTargets(string[] args)
+    {
+        #region sample_dashboard_http_targets_named
+
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+        builder.Services.AddHttpClient("worker-1", client => client.BaseAddress = new Uri("https://worker-1.internal/quartz-api/"));
+        builder.Services.AddHttpClient("worker-2", client => client.BaseAddress = new Uri("https://worker-2.internal/quartz-api/"));
+
+        // Both workers run the default scheduler, QuartzScheduler. The target tells them apart: the
+        // dashboard lists w1/QuartzScheduler and w2/QuartzScheduler, and resolves each by that key.
+        builder.Services.AddQuartzHttpClient(options =>
+        {
+            options.SchedulerName = "QuartzScheduler";
+            options.HttpClientName = "worker-1";
+            options.Target = "w1";
+        });
+
+        builder.Services.AddQuartzHttpClient(options =>
+        {
+            options.SchedulerName = "QuartzScheduler";
+            options.HttpClientName = "worker-2";
+            options.Target = "w2";
+        });
+
+        builder.Services.AddQuartzDashboard();
+
+        #endregion
+    }
+
+    public static void ClusterDetection(IServiceCollection services)
+    {
+        #region sample_dashboard_cluster_detection
+
+        services.AddQuartzDashboard(options =>
+        {
+            // Targets on one clustered persistent store are merged into one row, w1+w2/QuartzScheduler,
+            // at host start and then this often; null never merges them.
+            options.ClusterDetectionInterval = TimeSpan.FromSeconds(30);
+        });
+
+        #endregion
+    }
+
     public static void AttachedStoreTarget(string[] args, string connectionString)
     {
         #region sample_dashboard_attach_store

@@ -46,10 +46,15 @@ internal sealed class DashboardComponentContext : BunitContext
     /// <c>AddQuartzHttpClient</c> registers its target's reader. Named here rather than added later because
     /// bUnit freezes its services the first time one is resolved.
     /// </param>
+    /// <param name="rememberedScheduler">
+    /// The key the browser's <c>qz_scheduler</c> cookie carries, or <see langword="null" /> for a visit with
+    /// no cookie — which is what the fake request every other case renders under says.
+    /// </param>
     public DashboardComponentContext(
         Action<QuartzDashboardOptions>? configure = null,
         bool registerEventSource = true,
-        string? remoteEventSourceFor = null)
+        string? remoteEventSourceFor = null,
+        string? rememberedScheduler = null)
     {
         Options = new QuartzDashboardOptions();
         configure?.Invoke(Options);
@@ -89,7 +94,21 @@ internal sealed class DashboardComponentContext : BunitContext
         }
 
         Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(Options));
-        Services.AddSingleton(A.Fake<IHttpContextAccessor>());
+
+        // The request the circuit was opened by, which is where the cookies come from. A case about the
+        // remembered scheduler supplies one carrying the cookie; every other case renders under a fake
+        // whose cookies are blank.
+        if (rememberedScheduler is null)
+        {
+            Services.AddSingleton(A.Fake<IHttpContextAccessor>());
+        }
+        else
+        {
+            DefaultHttpContext request = new();
+            request.Request.Headers.Cookie = SchedulerState.SchedulerCookieName + "=" + Uri.EscapeDataString(rememberedScheduler);
+            Services.AddSingleton<IHttpContextAccessor>(new FixedHttpContextAccessor(request));
+        }
+
         Services.AddSingleton<IAuthorizationService>(AuthorizationService);
         Services.AddSingleton<AuthenticationStateProvider>(AuthenticationState);
         Services.AddSingleton<SchedulerState>();
@@ -233,19 +252,36 @@ internal sealed class DashboardComponentContext : BunitContext
     /// several pages say something about: its live events are not streamed here, and its history is kept
     /// where it runs.
     /// </param>
+    /// <param name="target">
+    /// The target the scheduler is reached through, which with <paramref name="schedulerName" /> makes
+    /// the key the pages address it by; <see langword="null" /> for a scheduler of this process.
+    /// </param>
+    /// <param name="members">A cluster's member targets.</param>
     public DashboardComponentContext WithScheduler(
         string schedulerName = TestData.SchedulerName,
         SchedulerStatus status = SchedulerStatus.Running,
         bool clustered = false,
         bool persistent = false,
-        SchedulerOrigin origin = SchedulerOrigin.Container)
+        SchedulerOrigin origin = SchedulerOrigin.Container,
+        string? target = null,
+        string[]? members = null)
     {
+        SchedulerHeaderDto header = TestData.Dashboard.SchedulerHeader(schedulerName, status, origin, target, members);
+
         A.CallTo(() => Api.GetSchedulers(A<CancellationToken>._))
-            .Returns(new List<SchedulerHeaderDto> { TestData.Dashboard.SchedulerHeader(schedulerName, status, origin) });
-        A.CallTo(() => Api.GetScheduler(schedulerName, A<CancellationToken>._))
+            .Returns(new List<SchedulerHeaderDto> { header });
+        A.CallTo(() => Api.GetScheduler(header.Key, A<CancellationToken>._))
             .Returns(TestData.Dashboard.SchedulerDetail(status, schedulerName, clustered, persistent));
 
-        SchedulerState.ActiveSchedulerName = schedulerName;
+        SchedulerState.ActiveSchedulerName = header.Key;
         return this;
+    }
+
+    /// <summary>
+    /// An accessor that answers one request, for a case about what the request's cookies said.
+    /// </summary>
+    private sealed class FixedHttpContextAccessor(HttpContext context) : IHttpContextAccessor
+    {
+        public HttpContext? HttpContext { get; set; } = context;
     }
 }

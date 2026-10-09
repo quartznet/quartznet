@@ -320,9 +320,17 @@ public static class TestData
         public static SchedulerHeaderDto SchedulerHeader(
             string schedulerName = SchedulerName,
             SchedulerStatus status = SchedulerStatus.Running,
-            SchedulerOrigin origin = SchedulerOrigin.Container)
+            SchedulerOrigin origin = SchedulerOrigin.Container,
+            string? target = null,
+            string[]? members = null)
         {
-            return new SchedulerHeaderDto(schedulerName, SchedulerInstanceId, status, origin);
+            // A window and a cluster are not nodes, so neither carries an instance id in the listing.
+            string? instanceId = origin is SchedulerOrigin.Window or SchedulerOrigin.Cluster ? null : SchedulerInstanceId;
+            return new SchedulerHeaderDto(schedulerName, instanceId, status, origin)
+            {
+                Target = target,
+                Members = members ?? []
+            };
         }
 
         /// <summary>

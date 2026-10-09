@@ -99,7 +99,9 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 registration.Status,
                 registration.Origin)
             {
-                Target = registration.Target
+                Target = registration.Target,
+                Members = registration.Members,
+                LastSeenUtc = registration.LastSeenUtc,
             });
         }
 
@@ -116,11 +118,12 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// </remarks>
     public async ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = resolved.Scheduler;
         SchedulerMetadata metadata = await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false);
 
         SchedulerStatus status = metadata.Status;
-        if (attachedStores.IsWindow(schedulerName))
+        if (resolved.IsWindow)
         {
             status = (await WindowLiveness.Read(scheduler, cancellationToken).ConfigureAwait(false)).Status;
         }
@@ -142,24 +145,21 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask Start(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
-        EnsureNotAWindow(schedulerName, "start a scheduler");
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveNodeLocal(schedulerName, "start a scheduler", cancellationToken).ConfigureAwait(false);
         await scheduler.Start(cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask Standby(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
-        EnsureNotAWindow(schedulerName, "stand a scheduler down");
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveNodeLocal(schedulerName, "stand a scheduler down", cancellationToken).ConfigureAwait(false);
         await scheduler.Standby(cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask Shutdown(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
-        EnsureNotAWindow(schedulerName, "shut a scheduler down");
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveNodeLocal(schedulerName, "shut a scheduler down", cancellationToken).ConfigureAwait(false);
         await scheduler.Shutdown(cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
@@ -441,20 +441,27 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         await scheduler.TriggerJob(AsJobKey(key), jobDataMap, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <remarks>
+    /// Allowed on a cluster, unlike the lifecycle verbs: the cluster asks every node, and the job may be
+    /// running on any of them.
+    /// </remarks>
     public async ValueTask<bool> Interrupt(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
-        EnsureNotAWindow(schedulerName, "interrupt a running job");
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
-        return await scheduler.Interrupt(AsJobKey(key), cancellationToken).ConfigureAwait(false);
+        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        EnsureNotAWindow(resolved, "interrupt a running job");
+        return await resolved.Scheduler.Interrupt(AsJobKey(key), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <remarks>
+    /// Allowed on a cluster, which routes the interruption to the node the firing belongs to.
+    /// </remarks>
     public async ValueTask<bool> InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
-        EnsureNotAWindow(schedulerName, "interrupt a running job");
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
-        return await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
+        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        EnsureNotAWindow(resolved, "interrupt a running job");
+        return await resolved.Scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<bool> DeleteJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
@@ -812,10 +819,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        await Authorize(query.SchedulerName, cancellationToken).ConfigureAwait(false);
+        await AuthorizeKey(query.SchedulerName, cancellationToken).ConfigureAwait(false);
 
-        PagedResult<ExecutionHistoryEntry> page = await HistoryFor(query.SchedulerName)
-            .QueryExecutions(query.AsExecutionHistoryQuery(), cancellationToken)
+        (IExecutionHistoryStore store, string schedulerName) = HistoryFor(query.SchedulerName);
+        PagedResult<ExecutionHistoryEntry> page = await store
+            .QueryExecutions(query.AsExecutionHistoryQuery() with { SchedulerName = schedulerName }, cancellationToken)
             .ConfigureAwait(false);
 
         return DashboardHistoryMapping.Map(page, static entry => entry.AsDashboardHistoryEntry());
@@ -828,10 +836,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// </remarks>
     public async ValueTask<DashboardHistoryEntry?> GetExecution(string schedulerName, string entryId, CancellationToken cancellationToken = default)
     {
-        await Authorize(schedulerName, cancellationToken).ConfigureAwait(false);
+        await AuthorizeKey(schedulerName, cancellationToken).ConfigureAwait(false);
 
-        ExecutionHistoryEntry? entry = await HistoryFor(schedulerName)
-            .GetExecution(schedulerName, entryId, cancellationToken)
+        (IExecutionHistoryStore store, string name) = HistoryFor(schedulerName);
+        ExecutionHistoryEntry? entry = await store
+            .GetExecution(name, entryId, cancellationToken)
             .ConfigureAwait(false);
 
         return entry?.AsDashboardHistoryEntry();
@@ -842,10 +851,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        await Authorize(query.SchedulerName, cancellationToken).ConfigureAwait(false);
+        await AuthorizeKey(query.SchedulerName, cancellationToken).ConfigureAwait(false);
 
-        PagedResult<MisfireHistoryEntry> page = await HistoryFor(query.SchedulerName)
-            .QueryMisfires(query.AsMisfireHistoryQuery(), cancellationToken)
+        (IExecutionHistoryStore store, string schedulerName) = HistoryFor(query.SchedulerName);
+        PagedResult<MisfireHistoryEntry> page = await store
+            .QueryMisfires(query.AsMisfireHistoryQuery() with { SchedulerName = schedulerName }, cancellationToken)
             .ConfigureAwait(false);
 
         return DashboardHistoryMapping.Map(page, static entry => entry.AsDashboardMisfireEntry());
@@ -854,8 +864,10 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// <inheritdoc cref="QueryExecutions" />
     public async ValueTask<int> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default)
     {
-        await Authorize(schedulerName, cancellationToken).ConfigureAwait(false);
-        return await HistoryFor(schedulerName).CountMisfires(schedulerName, since, cancellationToken).ConfigureAwait(false);
+        await AuthorizeKey(schedulerName, cancellationToken).ConfigureAwait(false);
+
+        (IExecutionHistoryStore store, string name) = HistoryFor(schedulerName);
+        return await store.CountMisfires(name, since, cancellationToken).ConfigureAwait(false);
     }
 
     /// <remarks>
@@ -867,9 +879,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         ArgumentNullException.ThrowIfNull(jobKey);
 
-        await Authorize(schedulerName, cancellationToken).ConfigureAwait(false);
-        return await HistoryFor(schedulerName)
-            .GetJobRunStatus(schedulerName, AsJobKey(jobKey), cancellationToken)
+        await AuthorizeKey(schedulerName, cancellationToken).ConfigureAwait(false);
+
+        (IExecutionHistoryStore store, string name) = HistoryFor(schedulerName);
+        return await store
+            .GetJobRunStatus(name, AsJobKey(jobKey), cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -878,7 +892,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         ArgumentNullException.ThrowIfNull(jobKeys);
 
-        await Authorize(schedulerName, cancellationToken).ConfigureAwait(false);
+        await AuthorizeKey(schedulerName, cancellationToken).ConfigureAwait(false);
         if (jobKeys.Count == 0)
         {
             return [];
@@ -891,8 +905,9 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             keys[index++] = AsJobKey(jobKey);
         }
 
-        PagedResult<JobRunStatus> page = await HistoryFor(schedulerName)
-            .QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = schedulerName, Jobs = keys, Take = PagedQuery.All }, cancellationToken)
+        (IExecutionHistoryStore store, string name) = HistoryFor(schedulerName);
+        PagedResult<JobRunStatus> page = await store
+            .QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = name, Jobs = keys, Take = PagedQuery.All }, cancellationToken)
             .ConfigureAwait(false);
 
         return [.. page.Items];
@@ -906,14 +921,17 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        await Authorize(query.SchedulerName, cancellationToken).ConfigureAwait(false);
-        return await HistoryFor(query.SchedulerName)
-            .QueryExecutionStatistics(query, cancellationToken)
+        await AuthorizeKey(query.SchedulerName, cancellationToken).ConfigureAwait(false);
+
+        (IExecutionHistoryStore store, string schedulerName) = HistoryFor(query.SchedulerName);
+        return await store
+            .QueryExecutionStatistics(query with { SchedulerName = schedulerName }, cancellationToken)
             .ConfigureAwait(false);
     }
 
     /// <summary>
-    /// The store that holds one scheduler's history: its own process's.
+    /// The store that holds one scheduler's history — its own process's — and the name that store knows
+    /// the scheduler by.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -921,6 +939,12 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// by its name, and that registration is what says the scheduler is somewhere else — the same thing
     /// <see cref="SchedulerOrigin.Remote" /> says in a listing, asked without a listing's cost. Every
     /// other scheduler's history is this process's, which is where its recorder writes.
+    /// </para>
+    /// <para>
+    /// The name comes back beside the store because a page addresses a scheduler by its key,
+    /// <c>test/reporting</c>, and a store's rows are keyed by the scheduler's own name, <c>reporting</c>:
+    /// a query carrying the key would match nothing. A scheduler of this process whose name contains
+    /// <c>/</c> keeps the whole of it.
     /// </para>
     /// <para>
     /// A remote target whose API does not serve history raises <see cref="NotSupportedException" />, and
@@ -932,10 +956,12 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// too, so a scheduler has one history whichever of them is asked.
     /// </para>
     /// </remarks>
-    private IExecutionHistoryStore HistoryFor(string schedulerName)
+    private (IExecutionHistoryStore Store, string SchedulerName) HistoryFor(string schedulerKey)
     {
-        return ExecutionHistoryLookup.Find(serviceProvider, attachedStores, historyStore, schedulerName, out string? refusal)
+        IExecutionHistoryStore store = ExecutionHistoryLookup.Find(serviceProvider, attachedStores, historyStore, schedulerKey, out string schedulerName, out string? refusal)
             ?? throw new NotSupportedException(refusal);
+
+        return (store, schedulerName);
     }
 
     private static GroupMatcher<TKey>? BuildGroupMatcher<TKey>(string? groupFilter) where TKey : Key<TKey>
@@ -1091,32 +1117,74 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// </remarks>
     private async ValueTask<IScheduler> ResolveScheduler(string schedulerName, CancellationToken cancellationToken)
     {
-        await Authorize(schedulerName, cancellationToken).ConfigureAwait(false);
+        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        return resolved.Scheduler;
+    }
 
-        IScheduler? scheduler = schedulerRepository.Lookup(schedulerName);
-        if (scheduler is null)
-        {
-            throw new KeyNotFoundException($"Scheduler '{schedulerName}' was not found.");
-        }
+    /// <summary>
+    /// What <paramref name="schedulerName" /> — a key: <c>target/name</c>, or a bare name — resolves to,
+    /// once the visitor has been found to be allowed it.
+    /// </summary>
+    /// <remarks>
+    /// The rule is <see cref="SchedulerLookup" />'s, which the HTTP API follows too: a bare key is the
+    /// scheduler reached through no target, and a targeted key is the proxy or window behind that target.
+    /// A bare name that only targets hold is refused naming them, so the page can spell the key that
+    /// would have resolved.
+    /// </remarks>
+    private async ValueTask<SchedulerResolution> Resolve(string schedulerName, CancellationToken cancellationToken)
+    {
+        SchedulerRef key = SchedulerRef.Parse(schedulerName);
+        SchedulerResolution? resolved = SchedulerLookup.Resolve(schedulerRepository, attachedStores.Windows, key);
 
-        return scheduler;
+        // Authorized on what the key resolved to, so a scheduler of this process whose name contains '/'
+        // is asked about by that name, as it was before keys existed. The parsed halves stand in only
+        // when nothing resolved, and the refusal comes before the not-found, so a visitor who may not see
+        // a scheduler cannot learn whether it exists.
+        await Authorize(resolved?.Ref ?? key, cancellationToken).ConfigureAwait(false);
+
+        return resolved ?? throw new KeyNotFoundException(SchedulerLookup.NotFoundMessage(schedulerRepository, key));
+    }
+
+    /// <summary>
+    /// Authorizes a key for a member that reads no scheduler — the history members — by the halves the
+    /// key resolves to, as <see cref="Resolve" /> does, without requiring that it resolves: a history
+    /// may outlive the scheduler that wrote it.
+    /// </summary>
+    private ValueTask AuthorizeKey(string schedulerName, CancellationToken cancellationToken)
+    {
+        SchedulerRef key = SchedulerRef.Parse(schedulerName);
+        SchedulerRef identity = SchedulerLookup.Resolve(schedulerRepository, attachedStores.Windows, key)?.Ref ?? key;
+        return Authorize(identity, cancellationToken);
+    }
+
+    /// <summary>
+    /// Resolves a key for a verb that belongs to one process — start, stand-by, shutdown — refusing a
+    /// window and a cluster, neither of which is one.
+    /// </summary>
+    private async ValueTask<IScheduler> ResolveNodeLocal(string schedulerName, string what, CancellationToken cancellationToken)
+    {
+        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        EnsureNotAWindow(resolved, what);
+        EnsureNotACluster(resolved, what);
+        return resolved.Scheduler;
     }
 
     /// <summary>
     /// Refuses the call when the visitor does not pass
-    /// <see cref="QuartzDashboardOptions.SchedulerAuthorizationPolicy" /> for
-    /// <paramref name="schedulerName" />. With no policy configured this asks nothing and refuses nothing.
+    /// <see cref="QuartzDashboardOptions.SchedulerAuthorizationPolicy" /> for the scheduler
+    /// <paramref name="identity" /> names. With no policy configured this asks nothing and refuses nothing.
     /// </summary>
-    private async ValueTask Authorize(string schedulerName, CancellationToken cancellationToken)
+    private async ValueTask Authorize(SchedulerRef identity, CancellationToken cancellationToken)
     {
         if (!authorization.IsEnabled)
         {
             return;
         }
 
-        if (!await authorization.IsAuthorized(schedulerName, cancellationToken).ConfigureAwait(false))
+        SchedulerResource resource = new(identity.SchedulerName) { Target = identity.Target };
+        if (!await authorization.IsAuthorized(resource, cancellationToken).ConfigureAwait(false))
         {
-            throw new UnauthorizedAccessException($"Not authorized for scheduler '{schedulerName}'.");
+            throw new UnauthorizedAccessException($"Not authorized for scheduler '{identity.Key}'.");
         }
     }
 
@@ -1147,15 +1215,33 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// honours them.
     /// </para>
     /// </remarks>
-    private void EnsureNotAWindow(string schedulerName, string what)
+    private static void EnsureNotAWindow(SchedulerResolution resolved, string what)
     {
-        if (attachedStores.IsWindow(schedulerName))
+        if (resolved.IsWindow)
         {
             throw new NotSupportedException(
-                $"Cannot {what} through a window: '{schedulerName}' is read through the store attached to this "
+                $"Cannot {what} through a window: '{resolved.Ref.Key}' is read through the store attached to this "
                 + "dashboard, not run by this process, and nothing in a shared database carries an instruction to a "
                 + "node. Reach the node itself — an HTTP API target, or an agent — for anything that belongs to one "
                 + "process.");
+        }
+    }
+
+    /// <summary>
+    /// Refuses the lifecycle verbs for a cluster, which is every node at once and has no way to say which.
+    /// </summary>
+    /// <remarks>
+    /// The Cluster page is where a node is reached: each node fronted by a member target offers the verb
+    /// through the member's own key. Interrupting is not refused — the cluster routes it to the node that
+    /// owns the firing — and neither is anything the store is.
+    /// </remarks>
+    private static void EnsureNotACluster(SchedulerResolution resolved, string what)
+    {
+        if (resolved.Scheduler is IProxyScheduler { Origin: SchedulerOrigin.Cluster })
+        {
+            throw new NotSupportedException(
+                $"Cannot {what} on a cluster: '{resolved.Ref.Key}' is every node of the cluster at once, and this acts "
+                + "on one node. Open the Cluster page and pick the node.");
         }
     }
 

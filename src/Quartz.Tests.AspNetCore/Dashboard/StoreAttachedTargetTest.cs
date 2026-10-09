@@ -121,6 +121,36 @@ public sealed class StoreAttachedTargetTest
                 + "whole reason the ADO history store exists");
     }
 
+    /// <summary>
+    /// The pages address a window by its key, <c>test/reporting</c>, and the history tables are keyed by
+    /// the scheduler's own name, <c>reporting</c>: every history read has to ask the store for the name.
+    /// </summary>
+    [Test]
+    public async Task AWindowsHistoryIsReadByItsKey()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        await RecordExecution(node, "import");
+        await RecordMisfire(node);
+
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+        IQuartzApiClient client = dashboard.Client;
+
+        SchedulerHeaderDto window = (await client.GetSchedulers()).Should().ContainSingle(x => x.SchedulerName == ClusterScheduler).Subject;
+        window.Key.Should().Be("test/reporting", "the key is what the picker holds and every page addresses the window by");
+
+        PagedResult<DashboardHistoryEntry> executions = await client.QueryExecutions(new DashboardHistoryQuery { SchedulerName = window.Key });
+        executions.Items.Should().ContainSingle(
+            "the rows are keyed by the scheduler's own name, which is what the store has to be asked for")
+            .Which.JobName.Should().Be("import");
+
+        (await client.CountMisfires(window.Key, DateTimeOffset.UtcNow.AddHours(-1))).Should().Be(1);
+
+        List<JobRunStatus> statuses = await client.GetJobRunStatuses(window.Key, [new JobKeyDto("batch", "import")]);
+        statuses.Should().ContainSingle().Which.RunCount.Should().Be(1);
+    }
+
     [Test]
     public async Task AWindowWithNoLiveNodeIsNotRunning()
     {
@@ -370,6 +400,21 @@ public sealed class StoreAttachedTargetTest
             Duration: TimeSpan.FromSeconds(2),
             Succeeded: true,
             ExceptionMessage: null));
+    }
+
+    /// <summary>
+    /// A missed firing, written the way <see cref="RecordExecution" /> writes a run.
+    /// </summary>
+    private static ValueTask RecordMisfire(IServiceProvider node)
+    {
+        return node.GetRequiredService<IExecutionHistoryStore>().AddMisfire(new MisfireHistoryEntry(
+            SchedulerName: ClusterScheduler,
+            SchedulerInstanceId: NodeA,
+            TriggerGroup: "nightly",
+            TriggerName: "at-midnight",
+            JobKey: new JobKey("import", "batch"),
+            MisfiredAtUtc: DateTimeOffset.UtcNow.AddMinutes(-2),
+            ScheduledFireTimeUtc: null));
     }
 
     /// <summary>

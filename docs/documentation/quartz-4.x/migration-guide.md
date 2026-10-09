@@ -18,13 +18,44 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.3 | [Upgrading from 4.3 to 4.4](#upgrading-from-4-3-to-4-4). Its database migration is optional |
+| From 4.4 | [Upgrading from 4.4 to 4.5](#upgrading-from-4-4-to-4-5). No database migration |
+| From 4.3 | [Upgrading from 4.3 to 4.4](#upgrading-from-4-3-to-4-4). Its database migration is optional. Then 4.4 to 4.5 |
 | From 4.2 | [Upgrading from 4.2 to 4.3](#upgrading-from-4-2-to-4-3). It has a database migration. Then 4.3 to 4.4 |
 | From 4.1 | [Upgrading from 4.1 to 4.2](#upgrading-from-4-1-to-4-2). It has the first database migration since 4.0. Then 4.2 to 4.3 and 4.3 to 4.4 |
 | From 4.0 | [Upgrading from 4.0 to 4.1](#upgrading-from-4-0-to-4-1), then 4.1 to 4.2, 4.2 to 4.3 and 4.3 to 4.4 |
 | Nothing: you are starting a new project | The [quick start](quick-start.md), then [the tutorial](tutorial/) |
 
 The compiler finds most of the 3.x → 4.0 work.
+
+## Upgrading from 4.4 to 4.5
+
+An application on 4.4 compiles on 4.5 unchanged, and the database schema did not change.
+
+| Added | What it is |
+|---|---|
+| `SchedulerRef` | `record SchedulerRef(string SchedulerName, string? Target = null)`: the key a dashboard addresses a scheduler by. `Key` is `target/name` or the bare name; `Parse(key)` splits at the first `/`; `Separator` is `/`. See [Identity is `target/name`](packages/dashboard.md#identity-is-target-name) |
+| `SchedulerOrigin.Agent`, `Cluster` | `4` and `5`, appended. `Agent` is declared for the dashboard agent; `Cluster` is several targets fronting one cluster. See [A cluster behind several targets](packages/dashboard.md#a-cluster-behind-several-targets) |
+| `SchedulerRegistration.Key` | `target/name`, or the bare name |
+| `SchedulerRegistration.Members` | `string[]`, `init`: a cluster's targets, sorted; empty otherwise |
+| `SchedulerRegistration.LastSeenUtc` | `DateTimeOffset?`, `init`: when an agent last spoke; `null` otherwise |
+| `SchedulerRegistration.Target` | Now set for every scheduler reached through a target, not only a window |
+| `HttpClientOptions.Target` | `string?`, default `null`: names the process, becomes the service key and the first half of the key. No `/` or `+`. See [Registering the client](packages/http-client.md#registering-the-client) |
+| `SchedulerResource.Target` | `string?`, `init`: the target half of the key a policy is asked about; `SchedulerName` stays the bare name. See [One scheduler at a time](packages/dashboard.md#one-scheduler-at-a-time) |
+| `QuartzDashboardOptions.ClusterDetectionInterval` | `TimeSpan?`, default one minute; `null` never merges |
+| `SchedulerHeaderDto.Key`, `Members`, `LastSeenUtc`, `IsCluster` | `Quartz.Dashboard`. `Key` is what every `IQuartzApiClient` member takes; `DisplayName` stays the label |
+| HTTP: `members`, `lastSeenUtc` on `GET …/schedulers` rows | See [The scheduler listing carries registrations](packages/http-api.md#the-scheduler-listing-carries-registrations) |
+| Log events `9105`–`9110` | `Quartz.Dashboard`: a cluster formed, changed or dissolved; a detection round failed; a member or a target did not answer |
+| Cookie `qz_scheduler` | The dashboard remembers the selected scheduler beside `qz_theme` and `qz_tz` |
+
+Behaviour that changed:
+
+| Before | After | What to do |
+|---|---|---|
+| `AddQuartzHttpClient` was keyed by the scheduler name only | Keyed by `Target` when set | Nothing, unless you set `Target`: then resolve `GetRequiredKeyedService<IScheduler>(target)` |
+| A second `AddQuartzHttpClient` naming a registered scheduler threw `InvalidOperationException` | Unchanged for a bare name; a second `Target` of one name throws `SchedulerConfigException` | Give each process a `Target` of its own |
+| `IQuartzApiClient` members took a bare scheduler name | They take a key; a bare name is the key of a scheduler reached through no target | Nothing for a 4.4 deployment. A replacement client parses keys with `SchedulerRef.Parse` |
+| The HTTP API's `{name}` resolved to the first entry under the name | Resolves to the untargeted entry only; a name held only by targets is `404` naming them | Nothing for a 4.4 deployment |
+| The Schedulers page listed one row per name | One row per key, with Target and Reached columns, and one row per detected cluster | Nothing |
 
 ## Upgrading from 4.3 to 4.4
 

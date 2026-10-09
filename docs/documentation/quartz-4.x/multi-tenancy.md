@@ -137,9 +137,13 @@ foreach (SchedulerRegistration tenant in await registry.QuerySchedulers())
 |---|---|
 | `Container` | One `AddQuartz` registered. The default scheduler appears under its configured `InstanceName` |
 | `Runtime` | In the repository with no registration: a `QuartzSchedulerBuilder` scheduler bound by hand, or one [added while the process was running](#adding-a-tenant-while-the-process-is-running) |
-| `Remote` | An `HttpScheduler` from `AddQuartzHttpClient`. Runs in another process, keeps its history there, and has no live event stream here |
+| `Remote` | An `HttpScheduler` from `AddQuartzHttpClient`. Runs in another process, keeps its history there, and has no live event stream here. `Target` is its `HttpClientOptions.Target`, or null |
+| `Window` | A never-started scheduler over a [store the dashboard attached](packages/dashboard.md#store-attached-targets); `Target` names the store |
+| `Agent` | Reached through an agent that dialed in; `Target` is the agent's name, `LastSeenUtc` when it last spoke (4.5) |
+| `Cluster` | Several targets fronting [one cluster](packages/dashboard.md#a-cluster-behind-several-targets); `Target` is `a+b+c`, `Members` the targets (4.5) |
 
-Before 4.1, `Remote` schedulers were reported as `Runtime`.
+`Key` is `target/name`, or the bare name when there is no target; `SchedulerRef` parses it. Before 4.1, `Remote`
+schedulers were reported as `Runtime`.
 
 Under `AddQuartzHostedService()` every registration is built during host start, so registered-but-not-built
 matters while the host is starting, when you resolve schedulers yourself, after a failed start, and for

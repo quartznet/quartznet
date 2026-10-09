@@ -27,10 +27,34 @@ namespace Quartz;
 /// every dashboard page that names a scheduler.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Write an <c>AuthorizationHandler&lt;TRequirement, SchedulerResource&gt;</c> and the same decision
 /// covers both surfaces. <see cref="SchedulerName" /> is the name the caller asked for, spelled as they
 /// spelled it — scheduler lookups compare names ignoring case, so a handler that matches a claim against
 /// it should do the same.
+/// </para>
+/// <para>
+/// A scheduler reached through a target — <c>w1/QuartzScheduler</c> — arrives as the bare
+/// <see cref="SchedulerName" /> with the target in <see cref="Target" />, so a handler written against
+/// the name keeps matching it, and one that cares which process the name was found in reads the target.
+/// </para>
 /// </remarks>
 /// <param name="SchedulerName">The scheduler the request is about.</param>
-public sealed record SchedulerResource(string SchedulerName);
+public sealed record SchedulerResource(string SchedulerName)
+{
+    /// <summary>
+    /// The target the scheduler is reached through — the first half of its key, as
+    /// <see cref="SchedulerRef" /> reads it — or <see langword="null" /> for one of this process, or
+    /// one registered without a target. Added in 4.5.
+    /// </summary>
+    public string? Target { get; init; }
+
+    /// <summary>
+    /// The resource for a key: the scheduler's name and the target it is reached through, when it is.
+    /// </summary>
+    internal static SchedulerResource For(string schedulerKey)
+    {
+        SchedulerRef key = SchedulerRef.Parse(schedulerKey);
+        return new SchedulerResource(key.SchedulerName) { Target = key.Target };
+    }
+}

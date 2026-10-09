@@ -75,12 +75,13 @@ public sealed class QuartzDashboardOptions
     /// </remarks>
     /// <param name="target">
     /// The name this database is known by, which is the first half of every window's identity. It may
-    /// not contain <c>/</c>, which is what separates it from the scheduler's name.
+    /// not contain <c>/</c>, which separates it from the scheduler's name, or <c>+</c>, which joins the
+    /// members of a cluster's target.
     /// </param>
     /// <param name="store">How to reach the database — the cluster's own store configuration.</param>
     /// <param name="configure">How often the database is asked again which schedulers are in it.</param>
     /// <returns>The same options, so calls can be chained.</returns>
-    /// <exception cref="ArgumentException"><paramref name="target" /> is empty or contains <c>/</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="target" /> is empty or contains <c>/</c> or <c>+</c>.</exception>
     /// <exception cref="ArgumentNullException"><paramref name="store" /> is null.</exception>
     /// <exception cref="InvalidOperationException">A store is already attached under that name.</exception>
     public QuartzDashboardOptions AttachStore(
@@ -91,12 +92,9 @@ public sealed class QuartzDashboardOptions
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
         ArgumentNullException.ThrowIfNull(store);
 
-        if (target.Contains('/', StringComparison.Ordinal))
+        if (SchedulerTargets.Problem(target) is { } problem)
         {
-            throw new ArgumentException(
-                $"'{target}' cannot be a target name: '/' is what separates a target from the scheduler name in "
-                + "a window's identity, so a target containing one would be unreadable wherever a window is shown.",
-                nameof(target));
+            throw new ArgumentException(problem, nameof(target));
         }
 
         foreach (AttachedStoreDescriptor existing in attachedStores)
@@ -195,6 +193,30 @@ public sealed class QuartzDashboardOptions
     /// </para>
     /// </remarks>
     public Func<string, bool>? IsJobTypeAllowed { get; set; }
+
+    /// <summary>
+    /// How often the dashboard asks the targets that front schedulers of one name whether they are nodes
+    /// of one cluster, and merges the ones that are into one row. Defaults to one minute;
+    /// <see langword="null" /> never merges.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two or more targets — HTTP targets with <c>HttpClientOptions.Target</c>, or agents — whose
+    /// schedulers share a name, run on a clustered persistent store, and see at least one node in common
+    /// are one cluster, listed as <c>a+b+c/QuartzScheduler</c> with <see cref="SchedulerOrigin.Cluster" />.
+    /// A target that has never answered is never merged. Membership is sticky: a member that stops
+    /// answering stays in its cluster as an unreachable node, and leaves only when it answers with nodes
+    /// the cluster does not have, or when its target is removed. So the key changes on a topology change
+    /// only, and a remembered selection survives a node going down.
+    /// </para>
+    /// <para>
+    /// The first pass runs when the host has started, and one runs whenever a target is added or
+    /// removed; this is the interval between the rest. It is also how long a dead preferred member can
+    /// stay preferred: the cluster forwards what the store is to the member that answered first in the
+    /// last pass, and re-elects it each pass.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? ClusterDetectionInterval { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
     /// How far back the dashboard's own history store keeps executions and misfires. Defaults to 24 hours.

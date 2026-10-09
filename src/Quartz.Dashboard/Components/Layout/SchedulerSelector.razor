@@ -2,6 +2,7 @@
 @inject Quartz.Dashboard.Services.SchedulerState SchedulerState
 @inject Quartz.Dashboard.Services.IQuartzApiClient ApiClient
 @inject Quartz.Dashboard.Services.SchedulerAuthorization Authorization
+@inject Microsoft.JSInterop.IJSRuntime JsRuntime
 @implements IDisposable
 
 <div class="qz-scheduler-selector">
@@ -15,18 +16,28 @@
         }
         else
         {
-            @foreach (Quartz.Dashboard.Services.SchedulerHeaderDto scheduler in SchedulerState.AvailableSchedulers)
-            {
-                @* A registration nothing has built is offered and greyed out rather than omitted: it is a
-                   tenant the container knows about, and leaving it out of the picker is what made it look
-                   as though it had never been registered. There is nothing behind it to select.
+            @* One group per target, in listing order, with the schedulers reached through no target
+               first: a target is where a scheduler was found, and a picker that spelled it on every
+               option would repeat it as many times as the target has schedulers. The option's value is
+               the key, which is what every page addresses the scheduler by.
 
-                   A scheduler in another process is selectable and says so, because every page about it
-                   is about somebody else's process: what an action there does, where its history is kept,
-                   and what its live feed cannot show all follow from it. *@
-                <option value="@scheduler.SchedulerName" disabled="@(!scheduler.IsCreated)">
-                    @SchedulerLabel(scheduler)
-                </option>
+               A registration nothing has built is offered and greyed out rather than omitted: it is a
+               tenant the container knows about, and leaving it out of the picker is what made it look
+               as though it had never been registered. There is nothing behind it to select.
+
+               A scheduler in another process is selectable and says so, because every page about it
+               is about somebody else's process: what an action there does, where its history is kept,
+               and what its live feed cannot show all follow from it. *@
+            @foreach (SchedulerGroup group in Groups())
+            {
+                <optgroup label="@group.Label">
+                    @foreach (Quartz.Dashboard.Services.SchedulerHeaderDto scheduler in group.Schedulers)
+                    {
+                        <option value="@scheduler.Key" disabled="@(!scheduler.IsCreated)">
+                            @SchedulerLabel(scheduler)
+                        </option>
+                    }
+                </optgroup>
             }
         }
     </select>
@@ -37,8 +48,9 @@
             <Quartz.Dashboard.Components.Shared.SchedulerStatusIndicator Status="status" Large="true" />
             @if (_nodeCount is { } nodes)
             {
-                @* A window's status is the cluster's, so the count of nodes it was read from belongs
-                   beside it: "Running" alone does not say how much of the cluster is. *@
+                @* A window's status is the cluster's, and a cluster's is its members', so the count of
+                   nodes it was read from belongs beside it: "Running" alone does not say how much of
+                   the cluster is. *@
                 <span class="qz-muted">&nbsp;(@nodes @(nodes == 1 ? "node" : "nodes"))</span>
             }
         }
@@ -53,6 +65,11 @@
 @code
 {
     /// <summary>
+    /// What the group of the schedulers reached through no target is called.
+    /// </summary>
+    internal const string ThisProcessGroup = "This process";
+
+    /// <summary>
     /// What to say while there is no status to show: the scheduler has not been asked yet, or could not
     /// be reached. Neither is a <see cref="SchedulerStatus" />, which is why they are a label of their own.
     /// </summary>
@@ -61,30 +78,69 @@
     private SchedulerStatus? _schedulerStatus;
 
     /// <summary>
-    /// How many nodes a window's status was read from, or null for a scheduler of this process, whose
-    /// status is its own and whose node count is on the Cluster page.
+    /// How many nodes a window's or a cluster's status was read from, or null for a scheduler of this
+    /// process, whose status is its own and whose node count is on the Cluster page.
     /// </summary>
     private int? _nodeCount;
 
     /// <summary>
-    /// What one entry of the picker reads: the scheduler's name, and what is true of it beyond that.
+    /// What one entry of the picker reads: the scheduler's name, and what is true of it beyond that. The
+    /// target is the group's label, so it is not repeated here.
     /// </summary>
     private static string SchedulerLabel(Quartz.Dashboard.Services.SchedulerHeaderDto scheduler)
     {
         if (!scheduler.IsCreated)
         {
-            return scheduler.DisplayName + " (not created)";
+            return scheduler.SchedulerName + " (not created)";
         }
 
         return scheduler.Origin switch
         {
-            SchedulerOrigin.Remote => scheduler.DisplayName + " (remote)",
+            SchedulerOrigin.Remote => scheduler.SchedulerName + " (remote)",
 
-            // Already spelled target/name, so the word says what the spelling cannot: nothing here
+            // Under a group named for the target, so the word says what the group cannot: nothing here
             // runs it, and what it can be asked to do follows from that.
-            SchedulerOrigin.Window => scheduler.DisplayName + " (window)",
-            _ => scheduler.DisplayName
+            SchedulerOrigin.Window => scheduler.SchedulerName + " (window)",
+            SchedulerOrigin.Agent => scheduler.SchedulerName + " (agent)",
+            SchedulerOrigin.Cluster => scheduler.SchedulerName + " (cluster, " + scheduler.Members.Length + " nodes)",
+            _ => scheduler.SchedulerName
         };
+    }
+
+    /// <summary>
+    /// The listing cut by target, in listing order, the untargeted schedulers first.
+    /// </summary>
+    private List<SchedulerGroup> Groups()
+    {
+        List<SchedulerGroup> groups = [];
+        SchedulerGroup? thisProcess = null;
+
+        foreach (Quartz.Dashboard.Services.SchedulerHeaderDto scheduler in SchedulerState.AvailableSchedulers)
+        {
+            if (scheduler.Target is not { Length: > 0 } target)
+            {
+                thisProcess ??= new SchedulerGroup(ThisProcessGroup);
+                thisProcess.Schedulers.Add(scheduler);
+                continue;
+            }
+
+            string label = scheduler.IsCluster ? "cluster " + target : target;
+            SchedulerGroup? group = groups.Find(candidate => string.Equals(candidate.Label, label, StringComparison.OrdinalIgnoreCase));
+            if (group is null)
+            {
+                group = new SchedulerGroup(label);
+                groups.Add(group);
+            }
+
+            group.Schedulers.Add(scheduler);
+        }
+
+        if (thisProcess is not null)
+        {
+            groups.Insert(0, thisProcess);
+        }
+
+        return groups;
     }
 
     protected override async Task OnInitializedAsync()
@@ -104,6 +160,8 @@
             // and the one thing a per-scheduler policy has to prevent is reaching another tenant's.
             SchedulerState.AvailableSchedulers = (await Authorization.Filter(schedulers)).AsReadOnly();
 
+            // The default is the key the browser remembered when the listing still carries it, and the
+            // first scheduler that exists otherwise.
             if (SchedulerState.ActiveSchedulerName is null)
             {
                 SchedulerState.ActiveSchedulerName = SchedulerState.DefaultSchedulerName;
@@ -120,11 +178,38 @@
 
     private async Task OnSchedulerChanged(ChangeEventArgs e)
     {
-        string? selectedName = e.Value?.ToString();
-        if (!string.IsNullOrEmpty(selectedName))
+        string? selectedKey = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(selectedKey))
         {
-            SchedulerState.ActiveSchedulerName = selectedName;
+            SchedulerState.ActiveSchedulerName = selectedKey;
             await UpdateStatusAsync();
+
+            // Remembered the way the theme is, so the next visit opens on the same scheduler. Only a key
+            // the listing carried is remembered: the assignment above discarded any other.
+            if (string.Equals(SchedulerState.ActiveSchedulerName, selectedKey, StringComparison.OrdinalIgnoreCase))
+            {
+                await RememberAsync(selectedKey);
+            }
+        }
+    }
+
+    private async Task RememberAsync(string key)
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("quartzDashboardPrefs.set", new object?[] { SchedulerState.SchedulerCookieName, key });
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // A preference the browser could not take is a preference not remembered; the selection stands.
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            // The script did not run - no storage, a blocked cookie - and the selection still stands.
+        }
+        catch (InvalidOperationException)
+        {
+            // Rendered where there is no browser to remember anything, as a prerender is.
         }
     }
 
@@ -139,7 +224,8 @@
 
         // A registration nothing has built has no scheduler to ask, and asking would answer "no such
         // scheduler" — which reads as a fault rather than as the thing the listing already told us.
-        if (SchedulerState.Find(SchedulerState.ActiveSchedulerName) is { IsCreated: false })
+        Quartz.Dashboard.Services.SchedulerHeaderDto? header = SchedulerState.Find(SchedulerState.ActiveSchedulerName);
+        if (header is { IsCreated: false })
         {
             _statusLabel = "Not created";
             _schedulerStatus = null;
@@ -163,8 +249,13 @@
             _schedulerStatus = detail.Status;
 
             // A window's status was derived from the cluster's check-ins, so the header says how many
-            // nodes are behind it. One extra read, and only for a window.
-            if (SchedulerState.Find(SchedulerState.ActiveSchedulerName) is { IsWindow: true })
+            // nodes are behind it: one extra read, and only for a window. A cluster's members are on the
+            // row already, so nothing is read.
+            if (header is { IsCluster: true })
+            {
+                _nodeCount = header.Members.Length;
+            }
+            else if (header is { IsWindow: true })
             {
                 _nodeCount = (await ApiClient.QueryClusterNodes(SchedulerState.ActiveSchedulerName)).Count;
             }
@@ -186,5 +277,15 @@
     {
         await UpdateStatusAsync();
         await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// One <c>optgroup</c>: the target, and the schedulers reached through it.
+    /// </summary>
+    private sealed class SchedulerGroup(string label)
+    {
+        public string Label { get; } = label;
+
+        public List<Quartz.Dashboard.Services.SchedulerHeaderDto> Schedulers { get; } = [];
     }
 }

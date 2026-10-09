@@ -64,4 +64,33 @@ internal static partial class DashboardLog
     /// </remarks>
     [LoggerMessage(EventId = 9104, Level = LogLevel.Warning, Message = "Forwarding scheduler {SchedulerName} events to the dashboard hub stopped")]
     public static partial void HubForwardingStopped(this ILogger logger, string schedulerName, Exception exception);
+
+    /// <remarks>
+    /// <para>
+    /// 9105–9109 are the fleet monitor's. A cluster appearing, changing membership or dissolving is
+    /// Information, because each renames a row an operator may be looking at; a member that did not
+    /// answer a round is Debug, because it stays in its cluster and the row says it is unreachable.
+    /// </para>
+    /// </remarks>
+    [LoggerMessage(EventId = 9105, Level = LogLevel.Information, Message = "Cluster {Target} formed for scheduler {SchedulerName} from targets {Members}")]
+    public static partial void ClusterFormed(this ILogger logger, string target, string schedulerName, string members);
+
+    [LoggerMessage(EventId = 9106, Level = LogLevel.Information, Message = "Cluster {PreviousTarget} for scheduler {SchedulerName} is now {Target}: members {Members}")]
+    public static partial void ClusterChanged(this ILogger logger, string previousTarget, string schedulerName, string target, string members);
+
+    [LoggerMessage(EventId = 9107, Level = LogLevel.Information, Message = "Cluster {Target} for scheduler {SchedulerName} dissolved; its targets are listed on their own again")]
+    public static partial void ClusterDissolved(this ILogger logger, string target, string schedulerName);
+
+    [LoggerMessage(EventId = 9108, Level = LogLevel.Warning, Message = "Fleet detection round failed; the clusters stay as the last round left them")]
+    public static partial void FleetRoundFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 9109, Level = LogLevel.Debug, Message = "Member {Member} of cluster {Target} did not answer this round and stays in the cluster as an unreachable node")]
+    public static partial void ClusterMemberUnreachable(this ILogger logger, string member, string target);
+
+    /// <remarks>
+    /// Debug, like 9109: a target that cannot be asked this round is a target left as it was, and the
+    /// listing says it is unreachable. The exception says why, for whoever turns the level up.
+    /// </remarks>
+    [LoggerMessage(EventId = 9110, Level = LogLevel.Debug, Message = "Target {Target} did not answer the fleet detection round")]
+    public static partial void FleetTargetUnanswered(this ILogger logger, string target, Exception exception);
 }

@@ -60,6 +60,11 @@ public sealed class DelegatingForwardingTest
         yield return new TestCaseData(typeof(DelegatingScheduler), typeof(IScheduler))
             .SetArgDisplayNames(nameof(DelegatingScheduler), nameof(IScheduler));
 
+        // A subclass of the decorator inherits its forwarders and overrides the few it routes itself; a
+        // default it left to the interface would run on the cluster rather than on a node.
+        yield return new TestCaseData(typeof(ClusterAwareScheduler), typeof(IScheduler))
+            .SetArgDisplayNames(nameof(ClusterAwareScheduler), nameof(IScheduler));
+
         // Not a decorator, but the same hazard: it is the IScheduler a container hands out, so a member
         // it leaves to the interface default is one every injected scheduler answers by decomposition.
         yield return new TestCaseData(typeof(DeferredScheduler), typeof(IScheduler))
@@ -78,10 +83,13 @@ public sealed class DelegatingForwardingTest
     {
         InterfaceMapping mapping = forwarder.GetInterfaceMap(contract);
 
+        // Declared by the forwarder or a class it derives from: either way a class answers, and the
+        // interface's default body does not. A member whose target is declared by the interface is the
+        // one the sweep exists to find.
         List<string> notForwarded = [];
         for (int i = 0; i < mapping.InterfaceMethods.Length; i++)
         {
-            if (mapping.TargetMethods[i].DeclaringType != forwarder)
+            if (mapping.TargetMethods[i].DeclaringType!.IsInterface)
             {
                 notForwarded.Add(Describe(mapping.InterfaceMethods[i]));
             }

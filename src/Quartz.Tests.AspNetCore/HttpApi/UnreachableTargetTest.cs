@@ -6,10 +6,12 @@ using FakeItEasy;
 
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using Quartz.Configuration;
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
+using Quartz.Impl;
 using Quartz.Serialization.SystemTextJson;
 using Quartz.Tests.AspNetCore.Support;
 
@@ -119,6 +121,55 @@ public sealed class UnreachableTargetTest
         schedulers.Should().ContainSingle(x => x.Name == TestData.SchedulerName)
             .Which.Status.Should().NotBe(SchedulerStatus.Unknown,
                 "the scheduler in this process answered at once, whatever the one beside it did");
+    }
+
+    /// <summary>
+    /// A cluster one of whose members never answers is reported from the members that do, within the
+    /// listing's deadline.
+    /// </summary>
+    [Test]
+    public async Task AClusterWithAnUnreachableMemberAnswersFromTheOthersWithinTheDeadline()
+    {
+        ISchedulerRepository repository = host.Services.GetRequiredService<ISchedulerRepository>();
+
+        IScheduler near = A.Fake<IScheduler>();
+        A.CallTo(() => near.SchedulerName).Returns("fleet");
+        A.CallTo(() => near.GetStatus(A<CancellationToken>._)).Returns(SchedulerStatus.Standby);
+        A.CallTo(() => near.GetSchedulerInstanceId(A<CancellationToken>._)).Returns("near-1");
+
+        ClusterMember stalled = new("stalled", new HttpScheduler("fleet", stalling, null, null, NullLogger.Instance, target: "stalled"), InstanceId: null);
+        ClusterMember reachable = new("near", new FakeProxyScheduler(near, "near"), "near-1");
+        repository.Bind(stalled.Scheduler);
+        repository.Bind(reachable.Scheduler);
+
+        host.Services.GetRequiredService<SchedulerTargets>().Add(new SchedulerTarget
+        {
+            Name = "near+stalled",
+            Origin = SchedulerOrigin.Cluster,
+            Members = ["near", "stalled"]
+        });
+        repository.Bind(new ClusterAwareScheduler("near+stalled", [stalled, reachable], preferred: 0));
+
+        using HttpClient client = host.CreateClient();
+
+        long started = Stopwatch.GetTimestamp();
+        using HttpResponseMessage listingResponse = await client.GetAsync("schedulers");
+        TimeSpan listingElapsed = Stopwatch.GetElapsedTime(started);
+
+        listingResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        listingElapsed.Should().BeLessThan(ContainerSchedulerRegistry.StatusTimeout + TimeSpan.FromSeconds(10),
+            "the cluster asks its members under the listing's deadline, not under the client's timeout");
+
+        JsonSerializerOptions serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            .ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
+        SchedulerHeaderDto[] schedulers = JsonSerializer.Deserialize<SchedulerHeaderDto[]>(
+            await listingResponse.Content.ReadAsStringAsync(), serializerOptions)!;
+
+        SchedulerHeaderDto cluster = schedulers.Should().ContainSingle(x => x.Name == "fleet",
+            "the members are hidden behind the cluster's row").Subject;
+        cluster.Origin.Should().Be(SchedulerOrigin.Cluster);
+        cluster.Target.Should().Be("near+stalled");
+        cluster.Status.Should().Be(SchedulerStatus.Standby, "the member that answered says so, and the one that did not says nothing");
     }
 
     /// <summary>

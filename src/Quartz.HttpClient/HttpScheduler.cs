@@ -109,13 +109,15 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     /// <param name="jsonSerializerOptions">Optional serializer options, copied as the public constructor copies them.</param>
     /// <param name="serializerRegistry">The trigger and calendar serializers to understand.</param>
     /// <param name="logger">Where what a newer host sent that this client cannot read is reported.</param>
+    /// <param name="target">The target this scheduler is reached through, or <see langword="null" /> for the bare name.</param>
     internal HttpScheduler(
         string schedulerName,
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions,
         SystemTextJsonSerializerRegistry? serializerRegistry,
-        ILogger logger)
-        : this(RequireName(schedulerName), OverHttp(httpClient), jsonSerializerOptions, serializerRegistry, logger)
+        ILogger logger,
+        string? target = null)
+        : this(RequireName(schedulerName), OverHttp(httpClient), jsonSerializerOptions, serializerRegistry, logger, target)
     {
     }
 
@@ -127,15 +129,28 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     /// Where what a newer host sent that this client cannot read is reported; <see langword="null" /> for
     /// whatever <c>LogProvider</c> was given.
     /// </param>
+    /// <param name="target">
+    /// The target this scheduler is reached through — the first half of its key, and what the repository
+    /// binds it under — or <see langword="null" /> for a scheduler reached by its bare name.
+    /// </param>
+    /// <param name="origin">
+    /// What a listing reports the scheduler as: <see cref="SchedulerOrigin.Remote" /> for one reached
+    /// over HTTP, <see cref="SchedulerOrigin.Agent" /> for one whose process dialed in.
+    /// </param>
     internal HttpScheduler(
         string schedulerName,
         IWireTransport transport,
         JsonSerializerOptions? jsonSerializerOptions,
         SystemTextJsonSerializerRegistry? serializerRegistry,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        string? target = null,
+        SchedulerOrigin origin = SchedulerOrigin.Remote)
     {
         SchedulerName = RequireName(schedulerName);
         ArgumentNullException.ThrowIfNull(transport);
+
+        Target = target;
+        Origin = origin;
 
         // The caller's options are borrowed, not owned: adding our converters to their instance would
         // throw once those options had been used for anything (they are read-only from then on), and
@@ -179,6 +194,22 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     /// than here.
     /// </remarks>
     public string SchedulerName { get; }
+
+    /// <summary>
+    /// The target this scheduler is reached through — <c>HttpClientOptions.Target</c> — or
+    /// <see langword="null" /> for one registered under its bare name. Never sent to the host: every
+    /// route carries <see cref="SchedulerName" />, which is what the host knows the scheduler as.
+    /// </summary>
+    internal string? Target { get; }
+
+    /// <summary>
+    /// What a listing reports this scheduler as.
+    /// </summary>
+    internal SchedulerOrigin Origin { get; }
+
+    string? IProxyScheduler.Target => Target;
+
+    SchedulerOrigin IProxyScheduler.Origin => Origin;
 
     /// <inheritdoc />
     /// <remarks>

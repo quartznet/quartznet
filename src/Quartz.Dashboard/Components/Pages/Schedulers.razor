@@ -13,8 +13,9 @@
     <div class="qz-page-header">
         <h1>Schedulers</h1>
         <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">
-            Every scheduler this process has registered, whether or not one has been built, and every
-            scheduler found in a store attached to this dashboard
+            The fleet: every scheduler this process registered, whether or not one has been built, and
+            every scheduler reached through a target — an HTTP target, an agent, a store attached to this
+            dashboard, or the cluster several targets turned out to be
         </span>
     </div>
 
@@ -31,14 +32,15 @@
     <table class="qz-table">
         <thead>
             <tr>
+                <th>Target</th>
+                <th>Reached</th>
                 <th>Scheduler</th>
-                <th>Origin</th>
                 <th>Status</th>
+                <th>Nodes</th>
                 <th>Job store</th>
                 <th>Threads</th>
                 <th>Running since</th>
                 <th>Jobs executed</th>
-                <th>Nodes</th>
                 <th>Version</th>
             </tr>
         </thead>
@@ -46,7 +48,7 @@
             @if (_rows.Count == 0)
             {
                 <tr>
-                    <td colspan="9" class="qz-muted">No schedulers registered.</td>
+                    <td colspan="10" class="qz-muted">No schedulers registered.</td>
                 </tr>
             }
             else
@@ -55,13 +57,24 @@
                 {
                     <tr>
                         <td>
-                            @if (row.Header.IsCreated)
+                            @if (row.Header.Target is { Length: > 0 } target)
                             {
-                                <a href="@DashboardHref" @onclick="() => SelectAsync(row.Header.SchedulerName)" @onclick:preventDefault>@row.Header.DisplayName</a>
+                                @target
                             }
                             else
                             {
-                                @row.Header.DisplayName
+                                @Dash
+                            }
+                        </td>
+                        <td>@Reached(row.Header)</td>
+                        <td>
+                            @if (row.Header.IsCreated)
+                            {
+                                <a href="@DashboardHref" @onclick="() => SelectAsync(row.Header.Key)" @onclick:preventDefault>@row.Header.SchedulerName</a>
+                            }
+                            else
+                            {
+                                @row.Header.SchedulerName
                             }
 
                             @if (row.Header.SchedulerInstanceId is { Length: > 0 } instanceId)
@@ -69,7 +82,6 @@
                                 <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">@instanceId</div>
                             }
                         </td>
-                        <td>@row.Header.Origin.ToString()</td>
                         <td>
                             @if (row.Header.Status is { } status)
                             {
@@ -80,9 +92,24 @@
                                 <StateIndicator State="Not created" />
                             }
 
+                            @if (row.Header.LastSeenUtc is { } lastSeen)
+                            {
+                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">last seen @Scheduler.FormatInSelectedTimeZone(lastSeen)</div>
+                            }
+
                             @if (!string.IsNullOrWhiteSpace(row.Error))
                             {
                                 <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">@row.Error</div>
+                            }
+                        </td>
+                        <td>
+                            @if (row.NodeCount is { } nodeCount)
+                            {
+                                @nodeCount
+                            }
+                            else
+                            {
+                                @Dash
                             }
                         </td>
                         <td>
@@ -124,16 +151,6 @@
                             @if (row.Detail is { } statistics)
                             {
                                 @statistics.JobsExecuted
-                            }
-                            else
-                            {
-                                @Dash
-                            }
-                        </td>
-                        <td>
-                            @if (row.NodeCount is { } nodeCount)
-                            {
-                                @nodeCount
                             }
                             else
                             {
@@ -190,7 +207,16 @@
             List<SchedulerHeaderDto> schedulers = await Authorization.Filter(registered);
             Scheduler.AvailableSchedulers = schedulers.AsReadOnly();
 
-            foreach (SchedulerHeaderDto header in schedulers)
+            // By target, the schedulers of this process first, and by name within a target: the fleet
+            // reads as a list of places, each with what it holds.
+            List<SchedulerHeaderDto> ordered = [.. schedulers];
+            ordered.Sort(static (left, right) =>
+            {
+                int byTarget = string.Compare(left.Target ?? string.Empty, right.Target ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+                return byTarget != 0 ? byTarget : string.CompareOrdinal(left.SchedulerName, right.SchedulerName);
+            });
+
+            foreach (SchedulerHeaderDto header in ordered)
             {
                 _rows.Add(await LoadRowAsync(header));
             }
@@ -223,17 +249,22 @@
 
         try
         {
-            SchedulerDetailDto detail = await Api.GetScheduler(header.SchedulerName);
+            SchedulerDetailDto detail = await Api.GetScheduler(header.Key);
 
             // Only a persistent, clustered store has a node table to read. A RAM store answers with the
             // one node it is, which is a query per scheduler for an answer that is always "1". A window
             // is asked whatever its own store says it is: it reads the cluster's check-ins because it
             // is an observer of them, which is not the same thing as being clustered itself — and that
-            // count is the whole of what its status was derived from.
+            // count is the whole of what its status was derived from. A cluster's nodes are its members,
+            // which the row already carries.
             int? nodeCount = null;
-            if (header.IsWindow || (detail.Persistent && detail.Clustered))
+            if (header.IsCluster)
             {
-                List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(header.SchedulerName);
+                nodeCount = header.Members.Length;
+            }
+            else if (header.IsWindow || (detail.Persistent && detail.Clustered))
+            {
+                List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(header.Key);
                 nodeCount = nodes.Count;
             }
 
@@ -246,12 +277,27 @@
     }
 
     /// <summary>
-    /// Makes <paramref name="schedulerName" /> the scheduler the rest of the dashboard is about, and
+    /// How the scheduler is reached, in a word.
+    /// </summary>
+    private static string Reached(SchedulerHeaderDto header)
+    {
+        return header.Origin switch
+        {
+            SchedulerOrigin.Remote => "HTTP",
+            SchedulerOrigin.Window => "store",
+            SchedulerOrigin.Agent => "agent",
+            SchedulerOrigin.Cluster => "cluster",
+            _ => "this process"
+        };
+    }
+
+    /// <summary>
+    /// Makes <paramref name="schedulerKey" /> the scheduler the rest of the dashboard is about, and
     /// opens its Dashboard page.
     /// </summary>
-    private Task SelectAsync(string schedulerName)
+    private Task SelectAsync(string schedulerKey)
     {
-        Scheduler.ActiveSchedulerName = schedulerName;
+        Scheduler.ActiveSchedulerName = schedulerKey;
         Navigation.NavigateTo(DashboardHref);
         return Task.CompletedTask;
     }

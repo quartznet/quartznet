@@ -49,6 +49,19 @@ internal record SchedulerHeaderDto(
     /// </remarks>
     public string? Target { get; init; }
 
+    /// <summary>
+    /// The targets a <see cref="SchedulerOrigin.Cluster" /> is made of; empty for every other origin.
+    /// Added in 4.5, by the argument <see cref="Target" /> makes.
+    /// </summary>
+    public string[] Members { get; init; } = [];
+
+    /// <summary>
+    /// When the process behind an <see cref="SchedulerOrigin.Agent" /> last spoke to the one that
+    /// answered, or <see langword="null" /> for a scheduler whose liveness is asked rather than heard.
+    /// Added in 4.5.
+    /// </summary>
+    public DateTimeOffset? LastSeenUtc { get; init; }
+
     /// <remarks>
     /// Everything comes off the registration, which asked the scheduler once and asynchronously.
     /// Reading <see cref="IScheduler.SchedulerInstanceId" /> off the scheduler here is what used to make
@@ -64,7 +77,9 @@ internal record SchedulerHeaderDto(
             registration.Status,
             registration.Origin)
         {
-            Target = registration.Target
+            Target = registration.Target,
+            Members = registration.Members,
+            LastSeenUtc = registration.LastSeenUtc,
         };
     }
 }

@@ -22,5 +22,6 @@ namespace Quartz
     {
         public SchedulerResource(string SchedulerName) { }
         public string SchedulerName { get; init; }
+        public string? Target { get; init; }
     }
 }

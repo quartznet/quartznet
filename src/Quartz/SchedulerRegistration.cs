@@ -59,24 +59,46 @@ public sealed record SchedulerRegistration(string Name, SchedulerOrigin Origin, 
     public string? SchedulerInstanceId { get; init; }
 
     /// <summary>
-    /// The attached store this scheduler is a window onto, or <see langword="null" /> for a scheduler
-    /// of this process.
+    /// The target this scheduler is reached through, or <see langword="null" /> for a scheduler reached
+    /// through none.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Set for, and only for, <see cref="SchedulerOrigin.Window" />. It is the name the application gave
-    /// the store when it attached it — <c>AttachStore("prod", …)</c> — and together with
-    /// <see cref="Name" /> it is the window's identity, spelled <c>prod/reporting</c> wherever one is
-    /// shown. A scheduler of this process has no target and keeps its bare name, so nothing that
-    /// existed before reads differently.
+    /// Set for every scheduler reached through a target: the store a <see cref="SchedulerOrigin.Window" />
+    /// is onto — <c>AttachStore("prod", …)</c> — the <c>HttpClientOptions.Target</c> of a
+    /// <see cref="SchedulerOrigin.Remote" /> registration that gave one, the name an
+    /// <see cref="SchedulerOrigin.Agent" /> registered under, and the <c>a+b+c</c> of a
+    /// <see cref="SchedulerOrigin.Cluster" />. Together with <see cref="Name" /> it is the scheduler's
+    /// identity, spelled <c>prod/reporting</c> wherever one is shown and parsed by
+    /// <see cref="SchedulerRef" />. A scheduler of this process, and one <c>AddQuartzHttpClient</c>
+    /// registered without a target, has no target and keeps its bare name, so nothing that existed
+    /// before reads differently.
     /// </para>
     /// <para>
-    /// The name is the scheduler's own, as the database spells it in <c>SCHED_NAME</c>, and it is what
-    /// every member taking a scheduler name still wants: the target is how a reader says which database
-    /// the name was found in, not a second half of the key.
+    /// The name is the scheduler's own, as its process spells it: the target says where the name was
+    /// found, and two targets may hold a scheduler of the same name.
     /// </para>
     /// </remarks>
     public string? Target { get; init; }
+
+    /// <summary>
+    /// <c>target/name</c>, or the bare name when there is no target: what a dashboard's picker holds and
+    /// what every scheduler-scoped member of its client takes. Added in 4.5.
+    /// </summary>
+    public string Key => Target is { Length: > 0 } target ? new SchedulerRef(Name, target).Key : Name;
+
+    /// <summary>
+    /// The targets a <see cref="SchedulerOrigin.Cluster" /> is made of, sorted; empty for every other
+    /// origin. Added in 4.5.
+    /// </summary>
+    public string[] Members { get; init; } = [];
+
+    /// <summary>
+    /// When the process behind an <see cref="SchedulerOrigin.Agent" /> last spoke to this one, or
+    /// <see langword="null" /> for every scheduler whose liveness is asked rather than heard. Added in
+    /// 4.5.
+    /// </summary>
+    public DateTimeOffset? LastSeenUtc { get; init; }
 
     /// <summary>
     /// Whether a scheduler exists under this name. A registration nothing has resolved yet reports
