@@ -288,7 +288,9 @@ public sealed class AttachedStoreTest
     public async Task ASecondStoreUnderOneNameIsRefused()
     {
         await using ServiceProvider application = Application();
-        await using AttachedStores stores = new(application.GetRequiredService<SchedulerWindowRegistry>());
+        await using AttachedStores stores = new(
+            application.GetRequiredService<SchedulerWindowRegistry>(),
+            application.GetRequiredService<SchedulerTargets>());
 
         stores.Add(new AttachedStore("prod", Recipe, application));
 

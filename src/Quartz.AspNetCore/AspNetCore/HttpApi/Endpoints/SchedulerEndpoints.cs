@@ -725,7 +725,8 @@ internal static class SchedulerEndpoints
     {
         IServiceProvider services = httpContext.RequestServices;
 
-        return ExecutionHistoryLookup.Find(services, services.GetService<AttachedStores>(), shared, schedulerName, out string? refusal)
+        // The route value is a bare name, so the name the store is asked for is the one given.
+        return ExecutionHistoryLookup.Find(services, services.GetService<AttachedStores>(), shared, schedulerName, out _, out string? refusal)
             ?? throw new SchedulerException(refusal!);
     }
 

@@ -46,9 +46,13 @@
                         <td>
                             @entry.Target
 
-                            @if (entry.Origin == SchedulerOrigin.Remote)
+                            @if (entry.Origin is SchedulerOrigin.Remote or SchedulerOrigin.Agent)
                             {
                                 <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">in another process</div>
+                            }
+                            else if (entry.Origin is SchedulerOrigin.Cluster)
+                            {
+                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on a cluster, in whichever node's process</div>
                             }
 
                             @* Only for an action that landed on one node: pausing a trigger writes the

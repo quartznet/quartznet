@@ -46,15 +46,25 @@ internal sealed class SchedulerAuthorization
     private readonly IOptions<QuartzDashboardOptions> options;
     private readonly IAuthorizationService authorizationService;
     private readonly AuthenticationStateProvider authenticationStateProvider;
+    private readonly SchedulerState? schedulerState;
 
+    /// <param name="options">The dashboard's options, for the policy name.</param>
+    /// <param name="authorizationService">What evaluates the policy.</param>
+    /// <param name="authenticationStateProvider">Whose circuit this is.</param>
+    /// <param name="schedulerState">
+    /// The circuit's listing, when there is one: a key the listing carries is asked about by the halves
+    /// the listing has for it. The hub, whose caller is a connection, has none and reads the key.
+    /// </param>
     public SchedulerAuthorization(
         IOptions<QuartzDashboardOptions> options,
         IAuthorizationService authorizationService,
-        AuthenticationStateProvider authenticationStateProvider)
+        AuthenticationStateProvider authenticationStateProvider,
+        SchedulerState? schedulerState = null)
     {
         this.options = options;
         this.authorizationService = authorizationService;
         this.authenticationStateProvider = authenticationStateProvider;
+        this.schedulerState = schedulerState;
     }
 
     /// <summary>
@@ -67,6 +77,13 @@ internal sealed class SchedulerAuthorization
     /// Whether the visitor this circuit belongs to may see <paramref name="schedulerName" />. A blank name
     /// is no scheduler at all — the dashboard before its first listing has answered — and passes.
     /// </summary>
+    /// <remarks>
+    /// A key the circuit's listing carries is asked about by the halves the listing has for it, so a
+    /// scheduler of this process whose name contains <c>/</c> is asked about by its name; a key the
+    /// listing does not carry is read as <c>target/name</c>. A caller that can resolve the key — the
+    /// client, which holds the repository — asks through <see cref="IsAuthorized(SchedulerResource, CancellationToken)" />
+    /// with the halves the scheduler actually has.
+    /// </remarks>
     public ValueTask<bool> IsAuthorized(string? schedulerName, CancellationToken cancellationToken = default)
     {
         if (!IsEnabled || string.IsNullOrWhiteSpace(schedulerName))
@@ -74,13 +91,29 @@ internal sealed class SchedulerAuthorization
             return new ValueTask<bool>(true);
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
-        return Evaluate(schedulerName, cancellationToken);
+        return IsAuthorized(ResourceFor(schedulerName), cancellationToken);
+    }
 
-        async ValueTask<bool> Evaluate(string schedulerName, CancellationToken cancellationToken)
+    /// <summary>
+    /// Whether the visitor this circuit belongs to may see the scheduler <paramref name="resource" />
+    /// names.
+    /// </summary>
+    public ValueTask<bool> IsAuthorized(SchedulerResource resource, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        if (!IsEnabled)
+        {
+            return new ValueTask<bool>(true);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return Evaluate(resource, cancellationToken);
+
+        async ValueTask<bool> Evaluate(SchedulerResource resource, CancellationToken cancellationToken)
         {
             AuthenticationState state = await authenticationStateProvider.GetAuthenticationStateAsync().ConfigureAwait(false);
-            return await IsAuthorized(state.User, schedulerName, cancellationToken).ConfigureAwait(false);
+            return await IsAuthorized(state.User, resource, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -90,19 +123,45 @@ internal sealed class SchedulerAuthorization
     /// </summary>
     public ValueTask<bool> IsAuthorized(ClaimsPrincipal user, string? schedulerName, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return new ValueTask<bool>(true);
+        }
+
+        return IsAuthorized(user, ResourceFor(schedulerName), cancellationToken);
+    }
+
+    /// <summary>
+    /// The resource a key names: the halves the listing has for it when the listing carries it, and the
+    /// key read as <c>target/name</c> otherwise.
+    /// </summary>
+    private SchedulerResource ResourceFor(string schedulerKey)
+    {
+        return schedulerState?.Find(schedulerKey) is { } header
+            ? new SchedulerResource(header.SchedulerName) { Target = header.Target }
+            : SchedulerResource.For(schedulerKey);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="user" /> may see the scheduler <paramref name="resource" /> names.
+    /// </summary>
+    public ValueTask<bool> IsAuthorized(ClaimsPrincipal user, SchedulerResource resource, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
         string? policyName = options.Value.SchedulerAuthorizationPolicy;
-        if (string.IsNullOrWhiteSpace(policyName) || string.IsNullOrWhiteSpace(schedulerName))
+        if (string.IsNullOrWhiteSpace(policyName))
         {
             return new ValueTask<bool>(true);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return Evaluate(user, policyName, schedulerName);
+        return Evaluate(user, policyName, resource);
 
-        async ValueTask<bool> Evaluate(ClaimsPrincipal user, string policyName, string schedulerName)
+        async ValueTask<bool> Evaluate(ClaimsPrincipal user, string policyName, SchedulerResource resource)
         {
             AuthorizationResult result = await authorizationService
-                .AuthorizeAsync(user, new SchedulerResource(schedulerName), policyName)
+                .AuthorizeAsync(user, resource, policyName)
                 .ConfigureAwait(false);
 
             return result.Succeeded;
@@ -133,7 +192,12 @@ internal sealed class SchedulerAuthorization
         foreach (SchedulerHeaderDto scheduler in schedulers)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (await IsAuthorized(state.User, scheduler.SchedulerName, cancellationToken).ConfigureAwait(false))
+
+            // The resource is built from the header's own halves rather than read back out of its key:
+            // a scheduler of this process whose name contains '/' is asked about by that name, as it
+            // always was, and only a scheduler reached through a target carries one.
+            SchedulerResource resource = new(scheduler.SchedulerName) { Target = scheduler.Target };
+            if (await IsAuthorized(state.User, resource, cancellationToken).ConfigureAwait(false))
             {
                 allowed.Add(scheduler);
             }

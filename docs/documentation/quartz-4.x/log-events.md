@@ -379,6 +379,12 @@ matching on its text is not.
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |
 | 9103 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} closed for user {User}"` |
 | 9104 | Warning | `Quartz.Dashboard` | `"Forwarding scheduler {SchedulerName} events to the dashboard hub stopped"` |
+| 9105 | Information | `Quartz.Dashboard` | `"Cluster {Target} formed for scheduler {SchedulerName} from targets {Members}"` |
+| 9106 | Information | `Quartz.Dashboard` | `"Cluster {PreviousTarget} for scheduler {SchedulerName} is now {Target}: members {Members}"` |
+| 9107 | Information | `Quartz.Dashboard` | `"Cluster {Target} for scheduler {SchedulerName} dissolved; its targets are listed on their own again"` |
+| 9108 | Warning | `Quartz.Dashboard` | `"Fleet detection round failed; the clusters stay as the last round left them"` |
+| 9109 | Debug | `Quartz.Dashboard` | `"Member {Member} of cluster {Target} did not answer this round and stays in the cluster as an unreachable node"` |
+| 9110 | Debug | `Quartz.Dashboard` | `"Target {Target} did not answer the fleet detection round"` |
 | 9200 | Warning | `Quartz.HttpClient` | `"Skipped live events of kind {Kind} from scheduler {SchedulerName}: this version of Quartz.HttpClient does not know the kind. Upgrade the client to receive them."` |
 | 9201 | Warning | `Quartz.HttpClient` | `"Skipped a live event of kind {Kind} from scheduler {SchedulerName} that could not be read."` |
 | 9202 | Warning | `Quartz.HttpClient` | `"Left a {Item} out of a listing from scheduler {SchedulerName}: its {EnumType} is {Name}, which this version of Quartz.HttpClient does not know. Upgrade the client to list it."` |

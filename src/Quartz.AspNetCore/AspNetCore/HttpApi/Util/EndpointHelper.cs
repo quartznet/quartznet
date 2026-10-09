@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
+using Quartz.Impl;
 
 namespace Quartz.AspNetCore.HttpApi.Util;
 
@@ -184,18 +185,29 @@ internal sealed class EndpointHelper
         throw new BadHttpRequestException(message);
     }
 
+    /// <summary>
+    /// Runs <paramref name="action" /> against the scheduler the route names, or answers <c>404</c>.
+    /// </summary>
+    /// <remarks>
+    /// A route value is a bare name, and a bare name resolves to the scheduler reached through no target:
+    /// one of this process, a window, or an <c>AddQuartzHttpClient</c> registration without a target.
+    /// A name held only by targets is not found, and the refusal names the targets — the API has no way
+    /// to address a targeted scheduler in 4.5, and answering with an arbitrary one of them would act on
+    /// a process the caller did not name.
+    /// </remarks>
     public static async Task<IResult> ExecuteWithScheduler(
         string schedulerName,
         ISchedulerRepository schedulerRepository,
         Func<IScheduler, ValueTask<IResult>> action)
     {
-        var scheduler = schedulerRepository.Lookup(schedulerName);
-        if (scheduler is null)
+        SchedulerRef key = new(schedulerName);
+        SchedulerResolution? resolved = SchedulerLookup.Resolve(schedulerRepository, windows: null, key);
+        if (resolved is null)
         {
-            throw NotFoundException.ForScheduler(schedulerName);
+            throw NotFoundException.ForScheduler(schedulerName, SchedulerLookup.TargetsHolding(schedulerRepository, schedulerName));
         }
 
-        return await action(scheduler).ConfigureAwait(false);
+        return await action(resolved.Scheduler).ConfigureAwait(false);
     }
 
     public Task<IResult> ExecuteWithJsonResponse<T>(

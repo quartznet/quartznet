@@ -54,19 +54,20 @@ public sealed class SchedulerRepository : ISchedulerRepository
     /// <inheritdoc />
     /// <remarks>
     /// Without an explicit instance ID this reads <see cref="IScheduler.SchedulerInstanceId"/>, which is
-    /// always available for a local scheduler. A scheduler in another process is bound under the id its
-    /// registration gave it — <c>AddQuartzHttpClient</c> passes the scheduler's name — and is never asked
-    /// for one here: the property is a request, and a bind that had to wait for the target to answer it
-    /// would make an unreachable target an unstartable application. One registration is one remote
-    /// scheduler, so the name tells the entries apart on its own.
+    /// always available for a local scheduler. A scheduler in another process is bound under the target
+    /// it is reached through, or under its name when it has no target, and is never asked
+    /// for an instance id here: the property is a request, and a bind that had to wait for the target to
+    /// answer it would make an unreachable target an unstartable application. One target is one remote
+    /// scheduler, so the target tells the entries under a name apart on its own — which is what lets
+    /// two targets front schedulers that share a name.
     /// </remarks>
     public void Bind(IScheduler scheduler, string? instanceId = null)
     {
         if (instanceId is null)
         {
-            if (scheduler is IProxyScheduler)
+            if (scheduler is IProxyScheduler proxy)
             {
-                instanceId = scheduler.SchedulerName;
+                instanceId = proxy.Target ?? scheduler.SchedulerName;
             }
             else
             {

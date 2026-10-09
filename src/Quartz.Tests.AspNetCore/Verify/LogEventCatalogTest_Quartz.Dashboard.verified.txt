@@ -8,3 +8,15 @@
     "Dashboard connection {ConnectionId} closed for user {User}"
 9104  Warning  DashboardLog.HubForwardingStopped
     "Forwarding scheduler {SchedulerName} events to the dashboard hub stopped"
+9105  Information  DashboardLog.ClusterFormed
+    "Cluster {Target} formed for scheduler {SchedulerName} from targets {Members}"
+9106  Information  DashboardLog.ClusterChanged
+    "Cluster {PreviousTarget} for scheduler {SchedulerName} is now {Target}: members {Members}"
+9107  Information  DashboardLog.ClusterDissolved
+    "Cluster {Target} for scheduler {SchedulerName} dissolved; its targets are listed on their own again"
+9108  Warning  DashboardLog.FleetRoundFailed
+    "Fleet detection round failed; the clusters stay as the last round left them"
+9109  Debug  DashboardLog.ClusterMemberUnreachable
+    "Member {Member} of cluster {Target} did not answer this round and stays in the cluster as an unreachable node"
+9110  Debug  DashboardLog.FleetTargetUnanswered
+    "Target {Target} did not answer the fleet detection round"

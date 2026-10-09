@@ -43,11 +43,11 @@ public class SchedulersPageTest
         IRenderedComponent<Schedulers> page = context.Render<Schedulers>();
 
         List<string> cells = RowCells(page, rowIndex: 0);
-        cells[0].Should().Be("acme",
+        cells[Scheduler].Should().Be("acme",
             "a tenant the container knows about is a tenant an operator came here to see, whether or not "
             + "anything has built it");
-        cells[2].Should().Contain("Not created");
-        cells.Skip(3).Should().AllBe("—",
+        cells[Status].Should().Contain("Not created");
+        cells.Skip(Nodes).Should().AllBe("—",
             "there is no scheduler to read metadata from, and a blank cell reads as a rendering fault");
 
         A.CallTo(() => context.Api.GetScheduler("acme", A<CancellationToken>._)).MustNotHaveHappened();
@@ -62,14 +62,15 @@ public class SchedulersPageTest
         IRenderedComponent<Schedulers> page = context.Render<Schedulers>();
 
         List<string> cells = RowCells(page, rowIndex: 0);
-        cells[0].Should().Contain("core").And.Contain(TestData.SchedulerInstanceId);
-        cells[1].Should().Be("Container");
-        cells[2].Should().Contain("Running");
-        cells[3].Should().Contain("RAMJobStore").And.Contain("in-memory");
-        cells[4].Should().Be("10", "the pool size is the number an operator sizes a scheduler by");
-        cells[5].Should().Be("2024-05-06 07:08:09 +00:00", "times are rendered in the zone the user picked");
-        cells[6].Should().Be("42");
-        cells[8].Should().Be("4.0.0.0");
+        cells[Target].Should().Be("—", "a scheduler of this process is reached through no target");
+        cells[Reached].Should().Be("this process");
+        cells[Scheduler].Should().Contain("core").And.Contain(TestData.SchedulerInstanceId);
+        cells[Status].Should().Contain("Running");
+        cells[JobStore].Should().Contain("RAMJobStore").And.Contain("in-memory");
+        cells[Threads].Should().Be("10", "the pool size is the number an operator sizes a scheduler by");
+        cells[RunningSince].Should().Be("2024-05-06 07:08:09 +00:00", "times are rendered in the zone the user picked");
+        cells[JobsExecuted].Should().Be("42");
+        cells[Version].Should().Be("4.0.0.0");
     }
 
     [Test]
@@ -85,13 +86,81 @@ public class SchedulersPageTest
 
         IRenderedComponent<Schedulers> page = context.Render<Schedulers>();
 
-        RowCells(page, rowIndex: 0)[7].Should().Be("2");
-        RowCells(page, rowIndex: 1)[7].Should().Be("—",
+        RowCells(page, rowIndex: 0)[Nodes].Should().Be("2");
+        RowCells(page, rowIndex: 1)[Nodes].Should().Be("—",
             "a store with no node table answers with the one node it is, so asking is a round trip per "
             + "scheduler for a number that is always one");
 
         A.CallTo(() => context.Api.QueryClusterNodes("reporting", A<CancellationToken>._)).MustNotHaveHappened();
     }
+
+    /// <summary>
+    /// A cluster's nodes are its members, which the row already carries, so the store is not asked.
+    /// </summary>
+    [Test]
+    public void AClusterRowShowsItsTargetAndItsMembersAsNodesWithoutAskingTheStore()
+    {
+        GivenSchedulers(
+            TestData.Dashboard.SchedulerHeader("QuartzScheduler", origin: SchedulerOrigin.Cluster, target: "a+b", members: ["a", "b"]),
+            TestData.Dashboard.SchedulerHeader("QuartzScheduler", origin: SchedulerOrigin.Remote, target: "c"));
+        GivenDetail("a+b/QuartzScheduler", TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "QuartzScheduler", clustered: true, persistent: true));
+        GivenDetail("c/QuartzScheduler", TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "QuartzScheduler"));
+
+        IRenderedComponent<Schedulers> page = context.Render<Schedulers>();
+
+        List<string> cluster = RowCells(page, rowIndex: 0);
+        cluster[Target].Should().Be("a+b");
+        cluster[Reached].Should().Be("cluster");
+        cluster[Scheduler].Should().Be("QuartzScheduler", "a cluster is every node at once, so no instance id is shown under it");
+        cluster[Nodes].Should().Be("2", "the members are the nodes");
+
+        List<string> http = RowCells(page, rowIndex: 1);
+        http[Target].Should().Be("c");
+        http[Reached].Should().Be("HTTP");
+
+        A.CallTo(() => context.Api.QueryClusterNodes(A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
+        // The row is read through the cluster's key, which is what resolves it.
+        A.CallTo(() => context.Api.GetScheduler("a+b/QuartzScheduler", A<CancellationToken>._)).MustHaveHappened();
+    }
+
+    [Test]
+    public void RowsAreSortedByTargetWithThisProcessFirstThenByName()
+    {
+        GivenSchedulers(
+            TestData.Dashboard.RegisteredSchedulerHeader("QuartzScheduler", SchedulerOrigin.Remote) with { Target = "w2" },
+            TestData.Dashboard.RegisteredSchedulerHeader("zeta"),
+            TestData.Dashboard.RegisteredSchedulerHeader("billing", SchedulerOrigin.Remote) with { Target = "w1" },
+            TestData.Dashboard.RegisteredSchedulerHeader("alpha"));
+
+        IRenderedComponent<Schedulers> page = context.Render<Schedulers>();
+
+        page.FindAll("tbody tr").Select(row => RowCells(row)[Scheduler]).Should().Equal(["alpha", "zeta", "billing", "QuartzScheduler"],
+            "the fleet reads as a list of places, each with what it holds");
+    }
+
+    [Test]
+    public void FollowingATargetedSchedulersLinkMakesItsKeyTheActiveOne()
+    {
+        GivenSchedulers(TestData.Dashboard.SchedulerHeader("QuartzScheduler", origin: SchedulerOrigin.Remote, target: "w1"));
+        GivenDetail("w1/QuartzScheduler", TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "QuartzScheduler"));
+
+        IRenderedComponent<Schedulers> page = context.Render<Schedulers>();
+        page.FindAll("tbody tr")[0].QuerySelector("a")!.Click();
+
+        context.SchedulerState.ActiveSchedulerName.Should().Be("w1/QuartzScheduler",
+            "the key, not the name, is what the rest of the dashboard addresses the scheduler by");
+    }
+
+    private const int Target = 0;
+    private const int Reached = 1;
+    private const int Scheduler = 2;
+    private const int Status = 3;
+    private const int Nodes = 4;
+    private const int JobStore = 5;
+    private const int Threads = 6;
+    private const int RunningSince = 7;
+    private const int JobsExecuted = 8;
+    private const int Version = 9;
 
     [Test]
     public void FollowingASchedulersLinkMakesItTheActiveOne()
@@ -137,8 +206,8 @@ public class SchedulersPageTest
 
         IRenderedComponent<Schedulers> page = context.Render<Schedulers>();
 
-        RowCells(page, rowIndex: 1)[2].Should().Contain("the other process is not answering");
-        RowCells(page, rowIndex: 0)[6].Should().Be("42",
+        RowCells(page, rowIndex: 1)[Status].Should().Contain("the other process is not answering");
+        RowCells(page, rowIndex: 0)[JobsExecuted].Should().Be("42",
             "the scheduler that did answer is still shown, which is the whole point of a fleet view");
     }
 
@@ -164,8 +233,13 @@ public class SchedulersPageTest
 
     private static List<string> RowCells(IRenderedComponent<Schedulers> page, int rowIndex)
     {
+        return RowCells(page.FindAll("tbody tr")[rowIndex]);
+    }
+
+    private static List<string> RowCells(IElement row)
+    {
         List<string> cells = [];
-        foreach (IElement cell in page.FindAll("tbody tr")[rowIndex].QuerySelectorAll("td"))
+        foreach (IElement cell in row.QuerySelectorAll("td"))
         {
             cells.Add(cell.TextContent.Trim());
         }

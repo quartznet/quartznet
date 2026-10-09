@@ -1055,7 +1055,7 @@ public class InProcessQuartzApiClientTest
                 new ExecutionHistoryStoreOverDashboardStore(TestData.Dashboard.HistoryStore()),
                 NoKeyedServices.Instance,
                 new SchedulerAuthorization(options, new TestSchedulerAuthorizationService(), new TestAuthenticationStateProvider()),
-                new AttachedStores(new SchedulerWindowRegistry()));
+                new AttachedStores(new SchedulerWindowRegistry(), new SchedulerTargets()));
 
             List<SchedulerHeaderDto> schedulers = await client.GetSchedulers();
 
@@ -1214,6 +1214,39 @@ public class InProcessQuartzApiClientTest
             authorizationService.Allowed.Add(name);
             (await client.QueryJobs(name, new DashboardJobQuery { Take = 25 })).Items.Should().BeEmpty(
                 "the same call for a scheduler the visitor does pass for goes through");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// A scheduler of this process whose name contains <c>/</c> is asked about by that name and no
+    /// target, on the members that resolve it and on the history members alike: the key is resolved
+    /// first, and the resource is built from what it resolved to.
+    /// </summary>
+    [Test]
+    public async Task ALocalSchedulerWhoseNameContainsTheSeparatorIsAuthorizedByItsName()
+    {
+        IScheduler scheduler = await CreateScheduler("tenant/billing");
+        try
+        {
+            string name = scheduler.SchedulerName;
+            name.Should().Contain("/");
+
+            QuartzDashboardOptions options = new() { SchedulerAuthorizationPolicy = "SchedulerOwner" };
+            TestSchedulerAuthorizationService authorizationService = new();
+            authorizationService.Allowed.Add(name);
+            InProcessQuartzApiClient client = CreateClient(scheduler, TestData.Dashboard.HistoryStore(), options, authorizationService);
+
+            (await client.GetScheduler(name)).SchedulerName.Should().Be(name,
+                "the policy passed for the whole name, which is the scheduler's own");
+            (await client.CountMisfires(name, DateTimeOffset.UnixEpoch)).Should().Be(0);
+
+            SchedulerResource byName = new(name);
+            authorizationService.Asked.Should().OnlyContain(x => Equals(x.Resource, byName),
+                "a handler written against the name before 4.5 must keep matching it, so the key is not read as target/name");
         }
         finally
         {
@@ -1749,7 +1782,7 @@ public class InProcessQuartzApiClientTest
             new SchedulerAuthorization(options, authorizationService, new TestAuthenticationStateProvider()),
 
             // No store attached, which is what every scheduler in these cases is: one of this process's.
-            new AttachedStores(new SchedulerWindowRegistry()));
+            new AttachedStores(new SchedulerWindowRegistry(), new SchedulerTargets()));
     }
 
     /// <summary>

@@ -131,6 +131,103 @@ public class SchedulerSelectorTest
             "an empty picker reads as a process with no schedulers in it");
     }
 
+    /// <summary>
+    /// One group per target, this process first, and the option's value is the key while its label is the
+    /// bare name: the group already says where the scheduler was found.
+    /// </summary>
+    [Test]
+    public void SchedulersAreGroupedByTargetWithThisProcessFirst()
+    {
+        GivenSchedulers(
+            TestData.Dashboard.SchedulerHeader("QuartzScheduler", origin: SchedulerOrigin.Remote, target: "w1"),
+            TestData.Dashboard.SchedulerHeader("core"),
+            TestData.Dashboard.SchedulerHeader("QuartzScheduler", origin: SchedulerOrigin.Remote, target: "w2"));
+
+        IRenderedComponent<SchedulerSelector> selector = context.Render<SchedulerSelector>();
+
+        selector.FindAll("optgroup").Select(group => group.GetAttribute("label")).Should().Equal(["This process", "w1", "w2"]);
+        selector.FindAll("option").Select(option => option.GetAttribute("value")).Should().Equal(
+            ["core", "w1/QuartzScheduler", "w2/QuartzScheduler"],
+            "the value is the key, which is what every page addresses the scheduler by");
+        selector.TextOfAll("option").Should().Equal(["core", "QuartzScheduler (remote)", "QuartzScheduler (remote)"],
+            "the target is the group's label, so the option does not repeat it");
+    }
+
+    [Test]
+    public void AClusterIsOfferedOnceWithItsNodeCountAndNothingIsAskedForIt()
+    {
+        GivenSchedulers(TestData.Dashboard.SchedulerHeader("QuartzScheduler", origin: SchedulerOrigin.Cluster, target: "a+b+c", members: ["a", "b", "c"]));
+
+        IRenderedComponent<SchedulerSelector> selector = context.Render<SchedulerSelector>();
+
+        selector.FindAll("optgroup").Select(group => group.GetAttribute("label")).Should().Equal(["cluster a+b+c"]);
+        selector.TextOfAll("option").Should().Equal(["QuartzScheduler (cluster, 3 nodes)"]);
+        context.SchedulerState.ActiveSchedulerName.Should().Be("a+b+c/QuartzScheduler");
+        selector.WaitForAssertion(() => selector.Markup.Should().Contain("(3 nodes)",
+            "the members are the nodes, which the row already carries"));
+        A.CallTo(() => context.Api.QueryClusterNodes(A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public void TheRememberedSchedulerIsSelectedWhenTheListingStillCarriesIt()
+    {
+        context.Dispose();
+        context = new DashboardComponentContext(rememberedScheduler: "w1/QuartzScheduler");
+        GivenSchedulers(
+            TestData.Dashboard.SchedulerHeader("core"),
+            TestData.Dashboard.SchedulerHeader("QuartzScheduler", origin: SchedulerOrigin.Remote, target: "w1"));
+
+        context.Render<SchedulerSelector>();
+
+        context.SchedulerState.ActiveSchedulerName.Should().Be("w1/QuartzScheduler",
+            "the browser remembered it, and the listing still carries it");
+    }
+
+    [Test]
+    public void AStaleRememberedSchedulerFallsBackToTheFirstThatExists()
+    {
+        context.Dispose();
+        context = new DashboardComponentContext(rememberedScheduler: "gone/QuartzScheduler");
+        GivenSchedulers(
+            TestData.Dashboard.RegisteredSchedulerHeader("acme"),
+            TestData.Dashboard.SchedulerHeader("core"));
+
+        context.Render<SchedulerSelector>();
+
+        context.SchedulerState.ActiveSchedulerName.Should().Be("core",
+            "a key the listing does not carry - a target that went away, a cluster whose membership changed - "
+            + "is not a scheduler to open on");
+    }
+
+    [Test]
+    public void SelectingASchedulerRemembersItsKeyInTheBrowser()
+    {
+        GivenSchedulers(
+            TestData.Dashboard.SchedulerHeader("core"),
+            TestData.Dashboard.SchedulerHeader("QuartzScheduler", origin: SchedulerOrigin.Remote, target: "w1"));
+        IRenderedComponent<SchedulerSelector> selector = context.Render<SchedulerSelector>();
+
+        selector.Find("select").Change("w1/QuartzScheduler");
+
+        selector.WaitForAssertion(() => context.JSInterop.Invocations.Should().Contain(
+            invocation => invocation.Identifier == "quartzDashboardPrefs.set"
+                && invocation.Arguments.SequenceEqual(new object?[] { "qz_scheduler", "w1/QuartzScheduler" }),
+            "the selection is remembered the way the theme is, so the next visit opens on it"));
+    }
+
+    /// <summary>
+    /// A header whose target is empty rather than null is one reached through no target, as its display
+    /// name already says: the key is the bare name.
+    /// </summary>
+    [Test]
+    public void AnEmptyTargetOnAHeaderIsNoTarget()
+    {
+        SchedulerHeaderDto header = TestData.Dashboard.SchedulerHeader("core") with { Target = "" };
+
+        header.Key.Should().Be("core");
+        header.DisplayName.Should().Be("core");
+    }
+
     private void GivenSchedulers(params (string Name, SchedulerStatus Status)[] schedulers)
     {
         List<SchedulerHeaderDto> headers = [];
@@ -148,7 +245,7 @@ public class SchedulerSelectorTest
         {
             if (scheduler.Status is { } status)
             {
-                A.CallTo(() => context.Api.GetScheduler(scheduler.SchedulerName, A<CancellationToken>._))
+                A.CallTo(() => context.Api.GetScheduler(scheduler.Key, A<CancellationToken>._))
                     .Returns(TestData.Dashboard.SchedulerDetail(status, scheduler.SchedulerName));
             }
         }

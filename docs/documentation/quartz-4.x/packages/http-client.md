@@ -56,18 +56,30 @@ builder.Services.AddQuartzHttpClient(schedulerName: "MyScheduler", httpClientNam
 | `AddQuartzHttpClient(string schedulerName, Func<IServiceProvider, HttpClient> createHttpClient, JsonSerializerOptions?)` | the client is built from other services, or from something the factory does not know |
 | `AddQuartzHttpClient(Action<HttpClientOptions> configure)` | setting several options at once |
 
-`HttpClientOptions` has `SchedulerName`, `HttpClientName`, `CreateHttpClient` and `JsonSerializerOptions`.
+`HttpClientOptions` has `SchedulerName`, `HttpClientName`, `CreateHttpClient`, `JsonSerializerOptions` and, from
+4.5, `Target`.
 
 - Set **exactly one** of `HttpClientName` and `CreateHttpClient`. Neither or both fails validation at
   registration with `OptionsValidationException`.
 - `CreateHttpClient` runs once, when the scheduler is first resolved, and receives the container.
 - The scheduler never disposes the client `CreateHttpClient` returns; its creator owns it. (The option is a
   factory because an options object is bound, cached and shared, and a live client in it would have no owner.)
+- `Target` names the process, for a fleet whose schedulers share a name. It cannot contain `/` or `+`.
 
 ### Injecting it
 
-A remote scheduler is registered like a local one: **keyed by its name**, and also unkeyed while it is the only
-scheduler in the container. See [Multiple Schedulers](multiple-schedulers.md) for naming and keying.
+A remote scheduler is registered like a local one: **keyed by the target name, which is the scheduler name
+unless `Target` is set**, and also unkeyed while it is the only scheduler in the container. See
+[Multiple Schedulers](multiple-schedulers.md) for naming and keying.
+
+| Registration | Service key | Dashboard key |
+|---|---|---|
+| `AddQuartzHttpClient("QuartzScheduler", "quartz")` | `QuartzScheduler` | `QuartzScheduler` |
+| `AddQuartzHttpClient(o => { o.SchedulerName = "QuartzScheduler"; o.Target = "w1"; … })` | `w1` | `w1/QuartzScheduler` |
+
+The keyed `IExecutionHistoryStore` and event source use the same key. A second registration under one key is
+refused at registration: `InvalidOperationException` for a bare scheduler name, `SchedulerConfigException` for a
+target. A target that an attached store already uses fails host start.
 
 <!-- snippet: sample_httpclient_controller -->
 ```csharp

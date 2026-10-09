@@ -1,10 +1,15 @@
 @page "/quartz/cluster"
+@using Microsoft.Extensions.Options
 @using Quartz
+@using Quartz.Configuration
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject ToastService Toasts
+@inject DashboardActionLog ActionLog
 
 <div class="qz-page">
     <div class="qz-page-header">
@@ -35,6 +40,17 @@
             row, so it shows no nodes here however well it is running.
         </p>
     }
+    else if (_isCluster)
+    {
+        @* A cluster fronted by several targets: the nodes are the store's, and the ones a member target
+           fronts are reachable through that target for what belongs to one process. *@
+        <p class="qz-muted">
+            These are the nodes of the cluster fronted by <strong>@_clusterTarget</strong>, from the
+            check-ins they write to the store every node shares. A node reached through one of the
+            targets offers the actions that belong to one process — start, stand-by, shutdown, and
+            interrupting what it is running — through that target. A node no target fronts shows a dash.
+        </p>
+    }
     else if (_isClustered == false)
     {
         <p class="qz-muted">
@@ -51,23 +67,32 @@
                 <th>Check-in interval</th>
                 <th>Acquired</th>
                 <th>Executing</th>
+                @if (_isCluster)
+                {
+                    <th>Target</th>
+                    @if (!IsReadOnly)
+                    {
+                        <th>Actions</th>
+                    }
+                }
             </tr>
         </thead>
         <tbody>
             @if (_nodes.Count == 0)
             {
                 <tr>
-                    <td colspan="6" class="qz-muted">No nodes to show.</td>
+                    <td colspan="@ColumnCount" class="qz-muted">No nodes to show.</td>
                 </tr>
             }
             else
             {
                 @foreach (ClusterNodeDto node in _nodes)
                 {
+                    string? memberKey = MemberKeyOf(node.InstanceId);
                     <tr>
                         <td>
                             @node.InstanceId
-                            @if (node.IsCurrentNode)
+                            @if (node.IsCurrentNode && !_isCluster)
                             {
                                 <span class="qz-muted">&nbsp;(this node)</span>
                             }
@@ -87,6 +112,37 @@
                         <td>@FormatInterval(node.CheckInInterval)</td>
                         <td>@AcquiredOn(node.InstanceId)</td>
                         <td>@ExecutingOn(node.InstanceId)</td>
+                        @if (_isCluster)
+                        {
+                            <td>
+                                @if (memberKey is not null)
+                                {
+                                    @SchedulerRef.Parse(memberKey).Target
+                                }
+                                else
+                                {
+                                    <span class="qz-muted">&#8212;</span>
+                                }
+                            </td>
+                            @if (!IsReadOnly)
+                            {
+                                <td>
+                                    @if (memberKey is not null)
+                                    {
+                                        <div class="qz-actions">
+                                            <button type="button" class="qz-button" @onclick="() => StartNodeAsync(memberKey)">Start</button>
+                                            <button type="button" class="qz-button" @onclick="() => StandbyNodeAsync(memberKey)">Standby</button>
+                                            <button type="button" class="qz-button qz-button-danger" @onclick="() => ShutdownNodeAsync(memberKey)">Shutdown</button>
+                                            <button type="button" class="qz-button" disabled="@(ExecutingOn(node.InstanceId) == 0)" @onclick="() => InterruptNodeAsync(memberKey, node.InstanceId)">Interrupt</button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="qz-muted">&#8212;</span>
+                                    }
+                                </td>
+                            }
+                        }
                     </tr>
                 }
             }
@@ -104,6 +160,7 @@
 @code {
     private readonly List<ClusterNodeDto> _nodes = [];
     private readonly Dictionary<string, NodeFirings> _firingsByNode = new(StringComparer.Ordinal);
+    private readonly List<FireInstanceDto> _executing = [];
     private bool _isLoading = true;
     private bool _loadingInProgress;
     private bool _firingCountsArePartial;
@@ -130,6 +187,32 @@
     /// and what an empty list means.
     /// </summary>
     private bool _isWindow;
+
+    /// <summary>
+    /// Whether the scheduler is a cluster fronted by several targets, whose nodes are each reachable
+    /// through the target that fronts them.
+    /// </summary>
+    private bool _isCluster;
+
+    /// <summary>The cluster's target, <c>a+b+c</c>, for the sentence that explains the page.</summary>
+    private string? _clusterTarget;
+
+    /// <summary>
+    /// The key of the member that fronts each node, by the node's instance id: what the per-node
+    /// actions are sent through. Filled from each member's own details, and refilled for a member whose
+    /// node is no longer listed.
+    /// </summary>
+    private readonly Dictionary<string, string> _memberByNode = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The node each member last answered as, so a refresh asks nothing twice.</summary>
+    private readonly Dictionary<string, string> _nodeByMember = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The scheduler the member map was built for, so a switch rebuilds it.</summary>
+    private string? _membersFor;
+
+    private bool IsReadOnly => Options.Value.ReadOnly;
+
+    private int ColumnCount => 6 + (_isCluster ? 1 : 0) + (_isCluster && !IsReadOnly ? 1 : 0);
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,40 +289,28 @@
         try
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
-            _nodes.Clear();
-            _firingsByNode.Clear();
-            _firingCountsArePartial = false;
-            _firingsCounted = 0;
-            _isClustered = null;
-            _isWindow = Scheduler.Find(schedulerName)?.IsWindow == true;
+            Reset();
+
+            SchedulerHeaderDto? header = Scheduler.Find(schedulerName);
+            _isWindow = header?.IsWindow == true;
+            _isCluster = header?.IsCluster == true;
+            _clusterTarget = header is { IsCluster: true } ? header.Target : null;
+
+            if (!string.Equals(_membersFor, schedulerName, StringComparison.OrdinalIgnoreCase))
+            {
+                _memberByNode.Clear();
+                _nodeByMember.Clear();
+                _membersFor = schedulerName;
+            }
 
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {
-                SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName);
-                _isClustered = scheduler.Clustered;
+                await ReadAsync(schedulerName);
 
-                _nodes.AddRange(await Api.QueryClusterNodes(schedulerName));
-
-                // Both states, because the two columns are what a node is holding and what it is
-                // running: a reservation left behind by a node that died is exactly the thing an
-                // operator comes to this page to see.
-                PagedResult<FireInstanceDto> firings = await Api.QueryFireInstances(
-                    schedulerName,
-                    new DashboardFireInstanceQuery { State = null });
-
-                foreach (FireInstanceDto firing in firings.Items)
+                if (header is { IsCluster: true })
                 {
-                    NodeFirings counts = _firingsByNode.TryGetValue(firing.SchedulerInstanceId, out NodeFirings existing)
-                        ? existing
-                        : default;
-
-                    _firingsByNode[firing.SchedulerInstanceId] = firing.State == FireInstanceState.Acquired
-                        ? counts with { Acquired = counts.Acquired + 1 }
-                        : counts with { Executing = counts.Executing + 1 };
+                    await ResolveMembersAsync(header);
                 }
-
-                _firingsCounted = firings.Items.Count;
-                _firingCountsArePartial = firings.HasMore;
             }
         }
         catch (Exception ex)
@@ -252,6 +323,172 @@
             _isLoading = false;
             _loadingInProgress = false;
         }
+    }
+
+    private void Reset()
+    {
+        _nodes.Clear();
+        _firingsByNode.Clear();
+        _executing.Clear();
+        _firingCountsArePartial = false;
+        _firingsCounted = 0;
+        _isClustered = null;
+    }
+
+    /// <summary>
+    /// The scheduler's nodes and the firings they hold and run.
+    /// </summary>
+    private async Task ReadAsync(string schedulerName)
+    {
+        SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName);
+        _isClustered = scheduler.Clustered;
+
+        _nodes.AddRange(await Api.QueryClusterNodes(schedulerName));
+
+        // Both states, because the two columns are what a node is holding and what it is
+        // running: a reservation left behind by a node that died is exactly the thing an
+        // operator comes to this page to see.
+        PagedResult<FireInstanceDto> firings = await Api.QueryFireInstances(
+            schedulerName,
+            new DashboardFireInstanceQuery { State = null });
+
+        foreach (FireInstanceDto firing in firings.Items)
+        {
+            Count(firing);
+        }
+
+        _firingsCounted = firings.Items.Count;
+        _firingCountsArePartial = firings.HasMore;
+    }
+
+    private void Count(FireInstanceDto firing)
+    {
+        NodeFirings counts = _firingsByNode.TryGetValue(firing.SchedulerInstanceId, out NodeFirings existing)
+            ? existing
+            : default;
+
+        _firingsByNode[firing.SchedulerInstanceId] = firing.State == FireInstanceState.Acquired
+            ? counts with { Acquired = counts.Acquired + 1 }
+            : counts with { Executing = counts.Executing + 1 };
+
+        if (firing.State == FireInstanceState.Executing)
+        {
+            _executing.Add(firing);
+        }
+    }
+
+    /// <summary>
+    /// Asks each member of the cluster which node it fronts: the member's own details name its instance
+    /// id, and that id is what the store's node rows are keyed by.
+    /// </summary>
+    /// <remarks>
+    /// Asked under the listing's deadline, so a member that does not answer cannot hold the page. One
+    /// that cannot answer is asked again on the next refresh, and its node shows a dash until it does;
+    /// so is one whose node is no longer listed, because a node that restarted under a new instance id is
+    /// the same member fronting a different row.
+    /// </remarks>
+    private async Task ResolveMembersAsync(SchedulerHeaderDto cluster)
+    {
+        foreach (string member in cluster.Members)
+        {
+            if (_nodeByMember.TryGetValue(member, out string? node) && _nodes.Exists(x => string.Equals(x.InstanceId, node, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            string memberKey = new SchedulerRef(cluster.SchedulerName, member).Key;
+            using CancellationTokenSource deadline = new(ContainerSchedulerRegistry.StatusTimeout);
+            try
+            {
+                SchedulerDetailDto detail = await Api.GetScheduler(memberKey, deadline.Token);
+                Map(member, memberKey, detail.SchedulerInstanceId);
+            }
+            catch (Exception)
+            {
+                // Unreachable this time; the node it fronts shows a dash until it answers.
+            }
+        }
+    }
+
+    private void Map(string member, string memberKey, string instanceId)
+    {
+        if (_nodeByMember.TryGetValue(member, out string? previous))
+        {
+            _memberByNode.Remove(previous);
+        }
+
+        _nodeByMember[member] = instanceId;
+        _memberByNode[instanceId] = memberKey;
+    }
+
+    private string? MemberKeyOf(string instanceId)
+    {
+        return _memberByNode.TryGetValue(instanceId, out string? memberKey) ? memberKey : null;
+    }
+
+    private Task StartNodeAsync(string memberKey)
+    {
+        return ExecuteNodeActionAsync(memberKey, key => Api.Start(key), "StartScheduler", "Started node.");
+    }
+
+    private Task StandbyNodeAsync(string memberKey)
+    {
+        return ExecuteNodeActionAsync(memberKey, key => Api.Standby(key), "StandbyScheduler", "Node is in standby.");
+    }
+
+    private Task ShutdownNodeAsync(string memberKey)
+    {
+        return ExecuteNodeActionAsync(memberKey, key => Api.Shutdown(key), "ShutdownScheduler", "Shutdown node.");
+    }
+
+    /// <summary>
+    /// Interrupts every firing the node is running, through the member that fronts it.
+    /// </summary>
+    private Task InterruptNodeAsync(string memberKey, string instanceId)
+    {
+        List<string> firings = _executing
+            .Where(firing => string.Equals(firing.SchedulerInstanceId, instanceId, StringComparison.Ordinal))
+            .Select(firing => firing.FireInstanceId)
+            .ToList();
+
+        return ExecuteNodeActionAsync(
+            memberKey,
+            async key =>
+            {
+                foreach (string fireInstanceId in firings)
+                {
+                    await Api.InterruptFireInstance(key, fireInstanceId);
+                }
+            },
+            "InterruptFireInstance",
+            "Interrupted " + firings.Count + (firings.Count == 1 ? " firing." : " firings."));
+    }
+
+    /// <summary>
+    /// Runs one node-local action through a member's own key, and records it against that member: the
+    /// record of an action that reached one node is only honest if it names which.
+    /// </summary>
+    private async Task ExecuteNodeActionAsync(string memberKey, Func<string, ValueTask> operation, string actionName, string successMessage)
+    {
+        if (IsReadOnly)
+        {
+            return;
+        }
+
+        try
+        {
+            await operation(memberKey);
+            ActionLog.Record(memberKey, actionName, memberKey, succeeded: true, nodeLocal: true);
+            Toasts.Success(successMessage);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(memberKey, actionName, memberKey, succeeded: false, ex.Message, nodeLocal: true);
+            Toasts.Error(ex.Message);
+        }
+
+        await LoadDataAsync();
     }
 
     private int AcquiredOn(string instanceId)

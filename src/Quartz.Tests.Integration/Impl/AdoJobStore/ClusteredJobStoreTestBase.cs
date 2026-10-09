@@ -144,7 +144,7 @@ public abstract class ClusteredJobStoreTestBase
     /// The flat properties one node of this fixture's cluster is configured from, whichever of the two
     /// doors above builds it.
     /// </summary>
-    private NameValueCollection NodeProperties(
+    protected NameValueCollection NodeProperties(
         string instanceId,
         int checkinIntervalMs,
         int checkinMisfireThresholdMs,

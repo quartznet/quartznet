@@ -99,6 +99,9 @@ internal static class SchedulerAuthorization
             // Resolved per request rather than injected: IAuthorizationService is transient, and an API
             // with no policy configured must keep working in a container that has none registered.
             IAuthorizationService authorizationService = context.RequestServices.GetRequiredService<IAuthorizationService>();
+            // A route value is a bare name and resolves to a scheduler reached through no target, so the
+            // resource carries the name as given and no target: a scheduler of this process whose name
+            // contains '/' is the scheduler the handler always knew.
             AuthorizationResult result = await authorizationService
                 .AuthorizeAsync(context.User, new SchedulerResource(schedulerName), policyName)
                 .ConfigureAwait(false);

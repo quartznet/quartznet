@@ -376,5 +376,9 @@ public sealed class SchedulerRepositoryTest
         public BlockingProxyScheduler(IScheduler scheduler) : base(scheduler)
         {
         }
+
+        public string Target => null;
+
+        public SchedulerOrigin Origin => SchedulerOrigin.Remote;
     }
 }

@@ -126,7 +126,7 @@ and in the integrated overload would also reach the host application's own pages
 
 ## Options
 
-`AddQuartzDashboard(options => …)` takes seven settings. None points the dashboard at a scheduler: **it renders
+`AddQuartzDashboard(options => …)` takes eight settings. None points the dashboard at a scheduler: **it renders
 the schedulers registered in its own application**, through the container's `IQuartzApiClient`.
 
 | Option | Default | What it does |
@@ -138,9 +138,10 @@ the schedulers registered in its own application**, through the container's `IQu
 | `IsJobTypeAllowed` | none | Predicate over a job type *name*; refused raises `UnauthorizedAccessException`; see [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) |
 | `HistoryRetention` | 24 hours | How long the history store keeps executions and misfires; see [Execution history and misfires](#execution-history-and-misfires) |
 | `HistoryMaxEntriesPerScheduler` | `2000` | Executions and misfires kept per scheduler each, oldest dropped first |
+| `ClusterDetectionInterval` | 1 minute | How often targets fronting one cluster are merged into one row; `null` never merges. See [A cluster behind several targets](#a-cluster-behind-several-targets) |
 
-Both history bounds must be positive or startup fails; a zero window would forget every execution immediately
-and look like a missing history plugin.
+Both history bounds and the detection interval must be positive or startup fails; a zero window would forget
+every execution immediately and look like a missing history plugin.
 
 ::: tip Pointing a dashboard at another process
 Register that scheduler with `AddQuartzHttpClient`; the dashboard renders it beside the local ones. See
@@ -346,19 +347,29 @@ progress. It is the fire-instance listing, so **with a persistent job store it c
 
 ### Schedulers
 
-`/quartz/schedulers` has one row per scheduler the container knows, built or not. It reads
-`ISchedulerRegistry`, so a scheduler registered with `AddQuartz("acme", …)` and not yet resolved is listed with
-its origin and **not created** status. Listing does not build it.
+`/quartz/schedulers` is the fleet: one row per scheduler the container knows, built or not, and one per scheduler
+reached through a target. It reads `ISchedulerRegistry`, so a scheduler registered with `AddQuartz("acme", …)`
+and not yet resolved is listed with **not created** status. Listing does not build it.
 
-A built scheduler's row shows, from its `SchedulerMetadata`: instance id, whether the job store is persistent and
-clustered, store and thread pool types, pool size, start time (in the header's time zone), jobs executed, and the
-Quartz version. The node count comes from the cluster-node query, asked only of a persistent, clustered store.
+| Column | What it shows |
+|---|---|
+| Target | Where the scheduler was found: an HTTP target, an agent, an attached store, or a cluster's `a+b+c`. A dash for this process |
+| Reached | `this process`, `HTTP`, `agent`, `store` or `cluster` |
+| Scheduler | The name, linked when built, with the instance id under it |
+| Status | The status; `last seen` for an agent |
+| Nodes | A cluster's member count; else the cluster-node query, asked only of a persistent clustered store |
+| Job store, Threads, Running since, Jobs executed, Version | From `SchedulerMetadata`; a cluster sums jobs executed over its members |
+
+Rows are sorted by target, this process first, then by name.
 
 - Following a row selects that scheduler and opens its Overview, like the header's picker.
 - A registration nothing has built is not a link. The picker shows it greyed out, so a tenant that failed to
   start is visible.
 - If such a registration becomes the active scheduler (it is the only one, or the running one was shut down),
   the Overview says it has not been created.
+- The header's picker groups the same rows by target: *This process* first, then one group per target. The
+  selection is remembered in the `qz_scheduler` cookie; a remembered key the listing no longer carries falls
+  back to the first scheduler that exists.
 
 ### Cluster
 
@@ -374,6 +385,10 @@ the last refresh time in the header so a stalled page is visible.
 - **A non-clustered store says so** instead of showing an empty table: the only node is this one.
 - Check-in intervals are each node's own configuration. Verdicts use the answering node's clock, so with skewed
   clocks two nodes can disagree about a third.
+- For a [cluster behind several targets](#a-cluster-behind-several-targets), two more columns: the target that
+  fronts each node, and **Start**, **Standby**, **Shutdown** and **Interrupt** buttons sent through that target's
+  own key. Interrupt stops what the node is running. A node no target fronts shows a dash. `ReadOnly` hides the
+  buttons.
 
 ### Execution History
 
@@ -502,6 +517,50 @@ name, which is in every route.
 | Live Logs | The **target's own** events; a target too old for the route says so |
 | Schedulers, and the header's picker | Listed as `Remote` |
 
+### Several processes whose schedulers share a name
+
+Give each registration a `Target`. Every worker's default scheduler is `QuartzScheduler`, so two workers are two
+targets, not two names:
+
+<!-- snippet: sample_dashboard_http_targets_named -->
+```csharp
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpClient("worker-1", client => client.BaseAddress = new Uri("https://worker-1.internal/quartz-api/"));
+builder.Services.AddHttpClient("worker-2", client => client.BaseAddress = new Uri("https://worker-2.internal/quartz-api/"));
+
+// Both workers run the default scheduler, QuartzScheduler. The target tells them apart: the
+// dashboard lists w1/QuartzScheduler and w2/QuartzScheduler, and resolves each by that key.
+builder.Services.AddQuartzHttpClient(options =>
+{
+    options.SchedulerName = "QuartzScheduler";
+    options.HttpClientName = "worker-1";
+    options.Target = "w1";
+});
+
+builder.Services.AddQuartzHttpClient(options =>
+{
+    options.SchedulerName = "QuartzScheduler";
+    options.HttpClientName = "worker-2";
+    options.Target = "w2";
+});
+
+builder.Services.AddQuartzDashboard();
+```
+<!-- endSnippet -->
+
+| With `Target` | Effect |
+|---|---|
+| Key | `w1/QuartzScheduler`: the picker's value, every `IQuartzApiClient` call, the hub group |
+| Listing | One row per target; the picker groups them under the target |
+| Service key | The target: `GetRequiredKeyedService<IScheduler>("w1")`, and the keyed history store and event source |
+| Bare name | Resolves to nothing. A bare key is a scheduler reached through no target |
+| Duplicate target | `SchedulerConfigException` at the second `AddQuartzHttpClient`, or at host start against an attached store of that name |
+| Cluster | Targets on one clustered persistent store merge into one row; see [A cluster behind several targets](#a-cluster-behind-several-targets) |
+
+A target name cannot contain `/` or `+`. Registrations without a `Target` keep their bare name and their
+per-name refusal of a duplicate.
+
 Before pointing one at production:
 
 - **One target is one process.** Behind a load balancer, node-local operations land on whichever node the
@@ -512,8 +571,8 @@ Before pointing one at production:
     its node).
   - Not node-local: with a persistent store, jobs, triggers and [firings in flight](#currently-executing) are the
     whole cluster's whichever node answers.
-  - Point the client at a node's own address when it matters. Fronting several processes as one fleet is
-    [#3387](https://github.com/quartznet/quartznet/issues/3387).
+  - Point one target at each node's own address, and the dashboard shows the nodes as
+    [one cluster](#a-cluster-behind-several-targets).
 - **The credential is the `HttpClient`'s.** `QuartzDashboardOptions.AuthorizationPolicy` decides who opens the
   dashboard; the target sees only what the named client was configured with (a header, a handler, a
   certificate). Nothing is forwarded from the signed-in user.
@@ -590,15 +649,28 @@ than a page vanishing under an operator.
 
 ### Identity is `target/name`
 
-A window is shown as `prod/reporting`: the attach name, then the scheduler's `SCHED_NAME`. Schedulers of *this*
-process keep their bare names.
+Every scheduler the dashboard shows has a key, which `SchedulerRef` parses: `target/name` for a scheduler
+reached through a target, the bare name for one reached through none.
 
-- The target is a label, not part of the key: everything that takes a scheduler name takes the bare one.
-- A name colliding with a scheduler this process already has is **refused, naming both**, logged as `4027`; the
-  rest of the database is shown. That refusal is permanent.
+| Scheduler | Key | Target |
+|---|---|---|
+| Of this process | `reporting` | none |
+| `AddQuartzHttpClient` without `Target` | `QuartzScheduler` | none |
+| `AddQuartzHttpClient` with `Target = "w1"` | `w1/QuartzScheduler` | `w1` |
+| Window onto the store attached as `prod` | `prod/reporting` | `prod` |
+| Cluster of targets `a`, `b`, `c` | `a+b+c/QuartzScheduler` | `a+b+c` |
+
+- The key is what the picker holds, what every `IQuartzApiClient` member takes, and the hub's group name.
+- A bare key resolves only to a scheduler reached through no target. A bare name that only targets hold is
+  `KeyNotFoundException`, naming the keys that would resolve. A window answers to its bare name too, so
+  everything written against 4.4 keeps working.
+- A target name cannot contain `/` or `+`, and one name holds one target of any kind: a store and an HTTP target
+  named `prod` fail host start naming both.
+- A scheduler of this process may contain `/` in its name; its exact name wins over a key that reads like it.
+- A window's name colliding with a scheduler this process already has is **refused, naming both**, logged as
+  `4027`; the rest of the database is shown. That refusal is permanent.
 - A window that fails to build for any other reason is logged as `4029` and retried next round, without
   stopping the others.
-- Two stores attached under one target name are refused.
 
 ### Status comes from the cluster, never from the window
 
@@ -656,6 +728,54 @@ The window writes no check-in row and is never listed as a node; the Cluster pag
 A window is not reported to the [health check](hosted-services-integration.md#health-checks):
 `AddHealthChecks().AddQuartz("reporting")` in a dashboard process reports it unhealthy, with a message to check
 the nodes instead.
+
+## A cluster behind several targets
+
+Targets that front the nodes of one cluster are shown as one scheduler: `a+b+c/QuartzScheduler`, origin
+`Cluster`, members `a`, `b`, `c`. Nothing is configured; the dashboard detects it.
+
+<!-- snippet: sample_dashboard_cluster_detection -->
+```csharp
+services.AddQuartzDashboard(options =>
+{
+    // Targets on one clustered persistent store are merged into one row, w1+w2/QuartzScheduler,
+    // at host start and then this often; null never merges them.
+    options.ClusterDetectionInterval = TimeSpan.FromSeconds(30);
+});
+```
+<!-- endSnippet -->
+
+| Rule | Detail |
+|---|---|
+| Who is asked | Every HTTP target or agent whose scheduler name another target also fronts |
+| Gate | `JobStoreClustered` and `JobStorePersistent`. A non-clustered scheduler reports `NON_CLUSTERED` and is never merged |
+| Merge | Targets whose `QueryClusterNodes` answers share a node, transitively. Two or more form a cluster |
+| Key | Member targets sorted, joined with `+`. A membership change renames the row |
+| Membership | Sticky. A member that stops answering stays as an unreachable node; it leaves when it answers with nodes the cluster does not have, or its target is removed |
+| Never answered | Never merged |
+| When | At host start, every `ClusterDetectionInterval`, and whenever a target is added or removed |
+| Log | `9105` formed, `9106` membership changed, `9107` dissolved (Information); `9108` round failed (Warning); `9109` member unreachable, `9110` target did not answer (Debug) |
+
+What goes where:
+
+| Operation | Routed to |
+|---|---|
+| Jobs, triggers, calendars, pause, resume, trigger now, reschedule, bulk, delete, cluster nodes | The preferred member: the first, by target, that answered the last round |
+| `Interrupt` (job) | Every member; `true` if any interrupted |
+| Interrupt a firing | The member whose node owns the firing, per the store; every member when none does |
+| Execution limits, set | Every member, in target order; the first failure names the members already set |
+| Execution limits, read | The preferred member's |
+| Status | `Running` if any member is, else `Standby` if any, else what the rest say; `Unknown` when none answered |
+| Scheduler details | The preferred member's, with jobs executed and executing summed over the members and the earliest start |
+| Execution History | The preferred member's. With `UseExecutionHistory()` on the nodes that is the shared table |
+| Live Logs | Every member's events, interleaved; each names its node |
+| Start, Standby, Shutdown | Refused with `NotSupportedException`. Use the [Cluster page](#cluster)'s per-node buttons, which go through the member's key |
+
+- Member rows are hidden from the Schedulers page and the picker; they stay resolvable by key,
+  `a/QuartzScheduler`.
+- Failover is per round: a dead preferred member answers with its error until the next round re-elects.
+- `SchedulerAuthorizationPolicy` sees the cluster as `SchedulerResource("QuartzScheduler") { Target = "a+b+c" }`,
+  and a member as `Target = "a"`.
 
 ## Hosting under a custom path
 
@@ -941,6 +1061,10 @@ schedulers they see, `ReadOnly` what anyone may change. `QuartzHttpApiOptions.Sc
 the same resource, so one `AuthorizationHandler<TRequirement, SchedulerResource>` serves the dashboard and the
 HTTP API. Worked example: [Multi-tenancy](../multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler).
 
+A scheduler reached through a target arrives as `SchedulerResource(name) { Target = target }`: the key
+`w1/QuartzScheduler` is `SchedulerName = "QuartzScheduler"`, `Target = "w1"`. A handler matching on the name
+keeps matching; one that cares which process the name was found in reads `Target`.
+
 ::: warning Standalone hosting is where this applies today
 The *not authorized* frame is drawn by the dashboard's layout, which is rendered only when the dashboard owns its
 Blazor root (the `MapQuartzDashboard()` overloads without a components builder). In both hosting modes, every
@@ -1141,9 +1265,14 @@ shell without `ASPNETCORE_ENVIRONMENT`.
 ## Current limitations
 
 - **One HTTP target is one process**: one registration is one address; see
-  [Fronting a scheduler in another process over HTTP](#fronting-a-scheduler-in-another-process-over-http). For
-  a cluster behind a load balancer, use [a store-attached target](#store-attached-targets). Fronting a fleet as
-  one, with per-target credentials, is [#3387](https://github.com/quartznet/quartznet/issues/3387).
+  [Fronting a scheduler in another process over HTTP](#fronting-a-scheduler-in-another-process-over-http). A
+  fleet is fronted as one by giving each process a `Target`, and nodes on one clustered store are shown as
+  [one cluster](#a-cluster-behind-several-targets); per-target credentials are the targets' own `HttpClient`s.
+  For a cluster behind a load balancer, use [a store-attached target](#store-attached-targets). A process that
+  dials out to the dashboard instead of being dialed is the agent of
+  [#3773](https://github.com/quartznet/quartznet/issues/3773).
+- **Cluster failover is per detection round**: the member the store-backed calls go to is re-elected every
+  `ClusterDetectionInterval`, and a member that dies between rounds answers with its error until then.
 - **A store-attached target cannot do anything node-local**, and its liveness is inferred; see
   [What a window can and cannot do](#what-a-window-can-and-cannot-do).
 - **Neither Live Logs nor the Action Log is the record.** Live Logs keeps a hundred events from page open; the

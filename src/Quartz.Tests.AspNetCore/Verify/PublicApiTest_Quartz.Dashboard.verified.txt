@@ -16,6 +16,7 @@ namespace Quartz
     {
         public QuartzDashboardOptions() { }
         public string? AuthorizationPolicy { get; set; }
+        public System.TimeSpan? ClusterDetectionInterval { get; set; }
         public string DashboardPath { get; set; }
         public int HistoryMaxEntriesPerScheduler { get; set; }
         public System.TimeSpan HistoryRetention { get; set; }
@@ -420,8 +421,12 @@ namespace Quartz.Dashboard.Services
     {
         public SchedulerHeaderDto(string SchedulerName, string? SchedulerInstanceId, Quartz.SchedulerStatus? Status, Quartz.SchedulerOrigin Origin) { }
         public string DisplayName { get; }
+        public bool IsCluster { get; }
         public bool IsCreated { get; }
         public bool IsWindow { get; }
+        public string Key { get; }
+        public System.DateTimeOffset? LastSeenUtc { get; init; }
+        public string[] Members { get; init; }
         public Quartz.SchedulerOrigin Origin { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }

@@ -47,7 +47,7 @@ internal static class RequiredJobsHistory
         IExecutionHistoryStore? shared = services.GetService<IExecutionHistoryStore>();
         if (shared is not null)
         {
-            return ExecutionHistoryLookup.Find(services, attachedStores: null, shared, schedulerName, out refusal);
+            return ExecutionHistoryLookup.Find(services, attachedStores: null, shared, schedulerName, out _, out refusal);
         }
 
         // A scheduler AddQuartzHttpClient registered has a history of its own, keyed by its name, in a

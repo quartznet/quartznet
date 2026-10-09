@@ -35,8 +35,27 @@ namespace Quartz.Impl;
 /// asks the asynchronous twin under a deadline of its own or does not ask at all.
 /// </para>
 /// <para>
-/// Internal on purpose: it says nothing a caller could act on, and the two questions it guards are
-/// asked in exactly two places in this repository. <c>HttpScheduler</c> is the one implementation.
+/// A proxy also says which target it stands behind. The repository binds it under that target rather
+/// than under its name, so two targets fronting schedulers of one name are two entries, each reached by
+/// its own <see cref="SchedulerRef" />; a proxy with no target keeps the bare name, exactly as before.
+/// </para>
+/// <para>
+/// Internal on purpose: it says nothing a caller could act on. <c>HttpScheduler</c> and
+/// <see cref="ClusterAwareScheduler" /> are the implementations.
 /// </para>
 /// </remarks>
-internal interface IProxyScheduler;
+internal interface IProxyScheduler
+{
+    /// <summary>
+    /// The target this proxy reaches its scheduler through, or <see langword="null" /> for a proxy that
+    /// is reached by the bare scheduler name — the way every <c>AddQuartzHttpClient</c> registration
+    /// before 4.5 was.
+    /// </summary>
+    string? Target { get; }
+
+    /// <summary>
+    /// What a listing reports the scheduler behind this proxy as: <see cref="SchedulerOrigin.Remote" />,
+    /// <see cref="SchedulerOrigin.Agent" /> or <see cref="SchedulerOrigin.Cluster" />.
+    /// </summary>
+    SchedulerOrigin Origin { get; }
+}

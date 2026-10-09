@@ -53,9 +53,12 @@ namespace Quartz;
 /// </para>
 /// <para>
 /// One registration is one target. A second call naming a scheduler name already registered is refused:
-/// the keyed registration is appended, so it would have replaced the first target without saying so, and
-/// two processes fronted under one name is a fleet — the model
-/// <see href="https://github.com/quartznet/quartznet/issues/3387" /> is for.
+/// the keyed registration is appended, so it would have replaced the first target without saying so. To
+/// front several processes whose schedulers share a name, give each registration an
+/// <see cref="HttpClientOptions.Target" />: the service key, the repository entry and the dashboard's key
+/// are then the target's — <c>w1/QuartzScheduler</c> — and a persistent clustered store behind them is
+/// detected and shown as one cluster. This is the fleet model of
+/// <see href="https://github.com/quartznet/quartznet/issues/3387" />.
 /// </para>
 /// </remarks>
 public static class QuartzHttpClientServiceCollectionExtensions
@@ -125,9 +128,13 @@ public static class QuartzHttpClientServiceCollectionExtensions
 
         HttpClientOptionsValidator.ThrowIfInvalid(options);
 
+        // The service key is the target when one was given, and the scheduler's name otherwise - which
+        // is what keeps every registration written before 4.5 reachable exactly as it was.
+        string serviceKey = options.Target ?? options.SchedulerName;
+
         // Before anything is registered, so that a refused duplicate leaves the collection as it found
-        // it rather than half-registered under a name it will not answer for.
-        HttpSchedulerRegistry.For(services).Add(options.SchedulerName);
+        // it rather than half-registered under a key it will not answer for.
+        HttpSchedulerRegistry.For(services).Add(serviceKey, targeted: options.Target is not null);
 
         // The repository the remote scheduler binds itself into is the container's, registered in exactly
         // one place. Creating one here would give a container that also calls AddQuartz two repositories,
@@ -140,12 +147,12 @@ public static class QuartzHttpClientServiceCollectionExtensions
         // One client per registration, resolved by everything that talks to this target: the scheduler
         // and the reader of its execution history. Built here rather than in each of them, so that the
         // caller's factory still runs once, as its documentation says.
-        services.AddKeyedSingleton(options.SchedulerName, (IServiceProvider serviceProvider, object? _) =>
+        services.AddKeyedSingleton(serviceKey, (IServiceProvider serviceProvider, object? _) =>
             new HttpSchedulerTarget(options.CreateHttpClient is not null
                 ? options.CreateHttpClient(serviceProvider)
                 : serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(options.HttpClientName!)));
 
-        services.AddKeyedSingleton<IScheduler>(options.SchedulerName, (serviceProvider, key) =>
+        services.AddKeyedSingleton<IScheduler>(serviceKey, (serviceProvider, key) =>
         {
             HttpClient httpClient = serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client;
             IScheduler scheduler = new HttpScheduler(
@@ -153,30 +160,47 @@ public static class QuartzHttpClientServiceCollectionExtensions
                 httpClient,
                 options.JsonSerializerOptions,
                 serviceProvider.GetRequiredService<SystemTextJsonSerializerRegistry>(),
-                ClientLogger(serviceProvider));
+                ClientLogger(serviceProvider),
+                options.Target);
 
-            // Bound under its own name rather than under an instance id read from the remote scheduler:
-            // that property costs a request, and one registration is one remote scheduler, so the name
-            // tells the repository's entries apart on its own.
-            serviceProvider.GetRequiredService<ISchedulerRepository>().Bind(scheduler, options.SchedulerName);
+            // A targeted registration claims its target in the container's registry first, which is
+            // where every kind of target - a store the dashboard attached, an agent - is held to one
+            // name each. Claimed when the scheduler is built rather than when it is registered, because
+            // the registry is the container's and so is the clash it reports; the binder builds every
+            // remote scheduler at host start, so the clash is a start-up failure naming both.
+            if (options.Target is { } target)
+            {
+                serviceProvider.GetRequiredService<SchedulerTargets>().Add(new SchedulerTarget
+                {
+                    Name = target,
+                    Origin = SchedulerOrigin.Remote,
+                    Events = (provider, _) => provider.GetRequiredKeyedService<ISchedulerEventSource>(target),
+                    History = (provider, _) => provider.GetRequiredKeyedService<IExecutionHistoryStore>(target),
+                });
+            }
+
+            // Bound under its key rather than under an instance id read from the remote scheduler: that
+            // property costs a request, and one registration is one remote scheduler, so the target - or
+            // the bare name - tells the repository's entries apart on its own.
+            serviceProvider.GetRequiredService<ISchedulerRepository>().Bind(scheduler, serviceKey);
             return scheduler;
         });
 
-        // The target's own history, keyed by the scheduler's name so that a dashboard rendering several
+        // The target's own history, keyed like the scheduler so that a dashboard rendering several
         // schedulers asks the process each one runs in. Keyed only: a history store is not "the"
         // history store of a container that also holds local schedulers, whose history is recorded here.
-        services.AddKeyedSingleton<IExecutionHistoryStore>(options.SchedulerName, (serviceProvider, key) =>
+        services.AddKeyedSingleton<IExecutionHistoryStore>(serviceKey, (serviceProvider, key) =>
             new HttpExecutionHistoryStore(
                 options.SchedulerName,
                 serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client,
                 options.JsonSerializerOptions,
                 ClientLogger(serviceProvider)));
 
-        // The target's own events, keyed by the scheduler's name for the reason its history is: a reader
+        // The target's own events, keyed like the scheduler for the reason its history is: a reader
         // asking for "this scheduler's events" is asking the process the scheduler runs in. Keyed only —
         // this container's own schedulers publish into its broker, and a reader of somebody else's stream
         // is not that.
-        services.AddKeyedSingleton<ISchedulerEventSource>(options.SchedulerName, (serviceProvider, key) =>
+        services.AddKeyedSingleton<ISchedulerEventSource>(serviceKey, (serviceProvider, key) =>
             new HttpSchedulerEventReader(
                 options.SchedulerName,
                 serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client,
@@ -184,15 +208,15 @@ public static class QuartzHttpClientServiceCollectionExtensions
                 serviceProvider.GetService<TimeProvider>(),
                 ClientLogger(serviceProvider)));
 
-        // Keyed by name like any other scheduler, and unkeyed as well so that a container holding one
-        // remote scheduler and nothing else answers GetRequiredService<IScheduler>() with it. TryAdd,
-        // because a second remote scheduler must not quietly take over what "the scheduler" means — nor
-        // must this one take it over from a local scheduler AddQuartz() has already registered. Doing
-        // this the other way round, before AddQuartz(), is refused there: whichever ran first would win
-        // the slot, and a program that thought it held its own scheduler would be scheduling jobs in
-        // another process.
+        // Keyed like any other scheduler, and unkeyed as well so that a container holding one remote
+        // scheduler and nothing else answers GetRequiredService<IScheduler>() with it. TryAdd, because a
+        // second remote scheduler must not quietly take over what "the scheduler" means — nor must this
+        // one take it over from a local scheduler AddQuartz() has already registered. Doing this the
+        // other way round, before AddQuartz(), is refused there: whichever ran first would win the slot,
+        // and a program that thought it held its own scheduler would be scheduling jobs in another
+        // process.
         services.TryAddSingleton<IScheduler>(
-            serviceProvider => serviceProvider.GetRequiredKeyedService<IScheduler>(options.SchedulerName));
+            serviceProvider => serviceProvider.GetRequiredKeyedService<IScheduler>(serviceKey));
 
         // Remote schedulers are otherwise built on first injection, which leaves them missing from the
         // repository - and so from LookupAll, the dashboard and the HTTP API - until something happens to

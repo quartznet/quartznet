@@ -51,18 +51,31 @@
                 offered here; reach the node itself through an API or agent target for those.
             </p>
         }
+        else if (_isCluster)
+        {
+            @* The same sentence for a cluster, whose nodes are each reachable: the lifecycle verbs act
+               on one node, and the Cluster page is where one is picked. *@
+            <p class="qz-muted">
+                <strong>@_windowDisplayName</strong> is a cluster fronted by the targets
+                <strong>@_windowTarget</strong>, shown as one scheduler. Scheduling changes — pause,
+                resume, reschedule, trigger now, add and delete — go to the store every node shares, and
+                interrupting a running job reaches the node that runs it. Starting, standing down and
+                shutting down act on one node and are not offered here: open
+                <a href="@DashboardLink.To(Options.Value, "cluster")">the Cluster page</a> and pick the node.
+            </p>
+        }
 
         @if (!IsReadOnly)
         {
             <div class="qz-actions qz-scheduler-controls">
-                @if (!_isWindow)
+                @if (!_isWindow && !_isCluster)
                 {
                     <button type="button" class="qz-button qz-button-primary" @onclick="StartSchedulerAsync">Start</button>
                     <button type="button" class="qz-button" @onclick="StandbySchedulerAsync">Standby</button>
                 }
                 <button type="button" class="qz-button" @onclick="PromptPauseAll">Pause all</button>
                 <button type="button" class="qz-button" @onclick="ResumeAllAsync">Resume all</button>
-                @if (!_isWindow)
+                @if (!_isWindow && !_isCluster)
                 {
                     <button type="button" class="qz-button qz-button-danger" @onclick="PromptShutdown">Shutdown</button>
                 }
@@ -213,10 +226,16 @@
     /// </summary>
     private bool _isWindow;
 
-    /// <summary>The attached store a window is onto, for the sentence that explains it.</summary>
+    /// <summary>
+    /// Whether the active scheduler is a cluster fronted by several targets, which hides the same
+    /// controls for the same reason: each acts on one node, and the Cluster page is where one is picked.
+    /// </summary>
+    private bool _isCluster;
+
+    /// <summary>The attached store a window is onto, or a cluster's targets, for the sentence that explains it.</summary>
     private string? _windowTarget;
 
-    /// <summary>The window's identity as it is spelled everywhere else: <c>prod/reporting</c>.</summary>
+    /// <summary>The window's or cluster's identity as it is spelled everywhere else: <c>prod/reporting</c>.</summary>
     private string? _windowDisplayName;
 
     private readonly List<DashboardActionLogEntry> _recentActions = [];
@@ -307,6 +326,7 @@
 
             SchedulerHeaderDto? header = Scheduler.Find(schedulerName);
             _isWindow = header?.IsWindow == true;
+            _isCluster = header?.IsCluster == true;
             _windowTarget = header?.Target;
             _windowDisplayName = header?.DisplayName;
 

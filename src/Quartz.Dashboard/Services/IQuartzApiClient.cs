@@ -946,14 +946,27 @@ public sealed record SchedulerHeaderDto(
     SchedulerOrigin Origin)
 {
     /// <summary>
-    /// The attached store this scheduler is a window onto, or <see langword="null" /> for a scheduler
-    /// of this process.
+    /// The target this scheduler is reached through — the store a window is onto, an HTTP target's
+    /// <c>HttpClientOptions.Target</c>, an agent's name, a cluster's <c>a+b+c</c> — or
+    /// <see langword="null" /> for a scheduler reached through none.
     /// </summary>
     /// <remarks>
-    /// Set for, and only for, <see cref="SchedulerOrigin.Window" />. With
-    /// <see cref="SchedulerName" /> it is what <see cref="DisplayName" /> spells.
+    /// With <see cref="SchedulerName" /> it is what <see cref="Key" /> spells, and what
+    /// <see cref="SchedulerRef" /> reads back out of it.
     /// </remarks>
     public string? Target { get; init; }
+
+    /// <summary>
+    /// The targets a <see cref="SchedulerOrigin.Cluster" /> is made of, sorted; empty for every other
+    /// origin. Added in 4.5.
+    /// </summary>
+    public string[] Members { get; init; } = [];
+
+    /// <summary>
+    /// When the process behind an <see cref="SchedulerOrigin.Agent" /> last spoke to this one, or
+    /// <see langword="null" /> for a scheduler whose liveness is asked rather than heard. Added in 4.5.
+    /// </summary>
+    public DateTimeOffset? LastSeenUtc { get; init; }
 
     /// <summary>
     /// Whether this scheduler is a window onto an attached store rather than one of this process.
@@ -961,15 +974,29 @@ public sealed record SchedulerHeaderDto(
     public bool IsWindow => Origin == SchedulerOrigin.Window;
 
     /// <summary>
-    /// What a page calls this scheduler: <c>prod/reporting</c> for a window, and the bare name for a
-    /// scheduler of this process.
+    /// Whether this row is several targets fronting one cluster, shown as one scheduler. Added in 4.5.
+    /// </summary>
+    public bool IsCluster => Origin == SchedulerOrigin.Cluster;
+
+    /// <summary>
+    /// What every scheduler-scoped member of <see cref="IQuartzApiClient" /> takes for this scheduler,
+    /// and what the picker holds: <c>target/name</c>, or the bare name for a scheduler reached through no
+    /// target. Added in 4.5.
     /// </summary>
     /// <remarks>
-    /// A label, not a key. Everything that takes a scheduler name — the picker's value, every client
-    /// member, the authorization resource — still takes <see cref="SchedulerName" />, which is the name
-    /// the database spells in <c>SCHED_NAME</c>; the target says which database the name was found in.
-    /// Two targets holding a scheduler of the same name are refused when the second one is attached,
-    /// so a bare name is unambiguous in this process whatever is shown beside it.
+    /// A bare key resolves only to a scheduler reached through no target, so a deployment that fronts
+    /// one process per name sees every key it ever used keep working, and two targets fronting schedulers
+    /// of one name are told apart by the target. <see cref="SchedulerRef.Parse" /> reads a key back.
+    /// </remarks>
+    public string Key => Target is { Length: > 0 } target ? new SchedulerRef(SchedulerName, target).Key : SchedulerName;
+
+    /// <summary>
+    /// What a page calls this scheduler: <c>prod/reporting</c> for a scheduler reached through a target,
+    /// and the bare name for one of this process.
+    /// </summary>
+    /// <remarks>
+    /// The label, spelled as <see cref="Key" /> is. The two are kept apart so that a page may show one
+    /// thing and address another — the picker shows the bare name under a group named for the target.
     /// </remarks>
     public string DisplayName => Target is { Length: > 0 } target
         ? target + "/" + SchedulerName
