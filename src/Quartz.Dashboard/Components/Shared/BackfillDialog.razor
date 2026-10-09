@@ -180,7 +180,8 @@
 
     /// <summary>
     /// How many slots the range holds, counted here the way the backfill counts them: the trigger's fire
-    /// times in the range, less what its calendar excludes. Nothing is asked of the scheduler to count.
+    /// times in the range, less what its calendar excludes, with the Max slots refusal and spacing spread.
+    /// Nothing is asked of the scheduler to count.
     /// </summary>
     private void UpdatePreview()
     {
@@ -197,9 +198,31 @@
         }
 
         SlotCount found = Backfilling.Walk(Trigger, _calendar, from, to, keep: 0, countUpTo: Backfilling.CountCeiling + 1);
-        _preview = found.Capped
-            ? string.Create(CultureInfo.InvariantCulture, $"The range holds more than {Backfilling.CountCeiling} slots.")
-            : string.Create(CultureInfo.InvariantCulture, $"The range holds {found.Count} {(found.Count == 1 ? "slot" : "slots")}.");
+        string preview = found.Capped
+            ? string.Create(CultureInfo.InvariantCulture, $"The range holds more than {Backfilling.CountCeiling} slots")
+            : string.Create(CultureInfo.InvariantCulture, $"The range holds {found.Count} {(found.Count == 1 ? "slot" : "slots")}");
+
+        string maxSlotsText = _maxSlotsInput.Trim();
+        if (maxSlotsText.Length == 0)
+        {
+            maxSlotsText = BackfillOptions.DefaultMaxSlots.ToString(CultureInfo.InvariantCulture);
+        }
+
+        if (int.TryParse(maxSlotsText, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int maxSlots)
+            && maxSlots >= 1 && found.Count > maxSlots)
+        {
+            preview += string.Create(CultureInfo.InvariantCulture, $", more than Max slots ({maxSlots}); the backfill would be refused");
+        }
+
+        if (!found.Capped && found.Count > 1
+            && TimeSpan.TryParse(_spacingInput.Trim(), CultureInfo.InvariantCulture, out TimeSpan spacing)
+            && spacing > TimeSpan.Zero && spacing.Ticks <= TimeSpan.MaxValue.Ticks / (found.Count - 1))
+        {
+            TimeSpan spread = TimeSpan.FromTicks(spacing.Ticks * (found.Count - 1));
+            preview += string.Create(CultureInfo.InvariantCulture, $"; with {spacing:c} spacing the last starts {spread:c} after the first");
+        }
+
+        _preview = preview + ".";
     }
 
     /// <summary>
