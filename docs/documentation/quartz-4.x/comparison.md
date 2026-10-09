@@ -20,7 +20,7 @@ please [open an issue](https://github.com/quartznet/quartznet/issues).
 
 | Library | Version read | Pinned at |
 |---|---|---|
-| Quartz.NET | 4.4 | this repository |
+| Quartz.NET | 4.5 | this repository |
 | Hangfire | 1.8.25 | [tag `v1.8.25`](https://github.com/HangfireIO/Hangfire/tree/v1.8.25) |
 | TickerQ | 10.4.0 | [commit `c6ed1e7d`](https://github.com/Arcenox-co/TickerQ/tree/c6ed1e7daa90ab3f4c65b40319a153126a910093), named by the 10.4.0 packages' SourceLink; there is no `v10.4.0` tag |
 | Wolverine | 6.41.0 | [tag `V6.41.0`](https://github.com/JasperFx/wolverine/tree/V6.41.0) |
@@ -44,7 +44,7 @@ please [open an issue](https://github.com/quartznet/quartznet/issues).
 
 ## Declaring a job
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | The unit of work | a class implementing `IJob` or `IJob<TInput>`, or [a lambda](tutorial/delegate-jobs.md) | [an expression tree naming a method](https://docs.hangfire.io/en/latest/background-methods/calling-methods-in-background.html) | [a method with `[TickerFunction("name")]`](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ.Utilities/Base/TickerFunctionAttribute.cs) | [a message type and its handler](https://wolverinefx.net/guide/messaging/recurring.html) | [a class implementing `IInvocable`](https://docs.coravel.net/Invocables/) |
 | Scheduling it | `AddJob<T>` + `AddTrigger<T>`, `ScheduleJob<TJob, TInput>(input, delay)`, or `ScheduleJob(name, lambda, trigger)` | [`BackgroundJob.Enqueue`, `.Schedule`, `RecurringJob.AddOrUpdate(id, …, cron)`](https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html) | [by function name, `new TimeTickerEntity { Function = "send-welcome" }`](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/getting-started/quick-start.mdx), or by type after `MapTicker<T>()` | [`opts.Schedules.ScheduleRecurring<T>("0 2 * * *")`](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/Runtime/Recurring/RecurringMessageCollection.cs) | [`scheduler.Schedule<T>().EveryTenMinutes()`](https://docs.coravel.net/Scheduler/) |
@@ -68,7 +68,7 @@ schedule inline: `t.WithCronSchedule(cron => cron.Every(TimeSpan.FromMinutes(10)
 
 ## Trigger kinds and cron grammar
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Schedule kinds | five: [cron](tutorial/crontriggers.md), [simple](tutorial/simpletriggers.md), calendar-interval, daily-time-interval, [RFC 5545 recurrence](tutorial/recurrencetrigger.md) | [fire-and-forget, delayed, recurring, continuation](https://docs.hangfire.io/en/latest/background-methods/index.html); batches on the paid tier | [`TimeTicker` (one-shot) and `CronTicker` (recurring)](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/what-is-tickerq.mdx) | [scheduled, and recurring on cron](https://wolverinefx.net/guide/messaging/recurring.html) | [fluent intervals, or cron](https://docs.coravel.net/Scheduler/) |
 | Cron parser | Quartz's own | [Cronos 0.11.1, internalized into `Hangfire.Core`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/Hangfire.Core.csproj) | [NCrontab 3.3.0](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ.Utilities/TickerQ.Utilities.csproj) | [Cronos](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/CronSchedule.cs) | [hand-written](https://github.com/jamesmh/coravel/blob/88ea3e892cfa3ce3d50054c7b430f16457b4d919/Src/Coravel/Scheduling/Schedule/Cron/CronExpression.cs) |
@@ -79,14 +79,14 @@ schedule inline: `t.WithCronSchedule(cron => cron.Every(TimeSpan.FromMinutes(10)
 
 ## A firing the process was down for
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | The policy | [a misfire instruction per trigger](tutorial/more-about-triggers.md#misfire-instructions): skip, fire one catch-up, or fire every missed one; and [a backfill of a past range you choose](how-tos/backfill.md) | [`MisfireHandlingMode`: `Relaxed` (default, one job), `Strict` (one per missed occurrence), `Ignorable` (none)](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/MisfireHandlingMode.cs) | none: the fallback sweep runs an overdue row late; [`SkipStaleCronOccurrencesOnStartup()` drops stale occurrences, off by default](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ.Utilities/TickerOptionsBuilder.cs) | [no back-fill; the one pre-scheduled occurrence fires, the rest is lost](https://wolverinefx.net/guide/messaging/recurring.html) | nothing; [the tick catch-up is seeded at process start](https://github.com/jamesmh/coravel/blob/88ea3e892cfa3ce3d50054c7b430f16457b4d919/Src/Coravel/Scheduling/HostedService/SchedulerHost.cs), so it covers a stalled timer, not a restart |
 | Chosen per | trigger | recurring job | — | — | — |
 
 ## Calendars and time zones
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Dates it must not fire on | six calendars: `HolidayCalendar`, `CronCalendar`, `DailyCalendar`, `WeeklyCalendar`, `AnnualCalendar`, `MonthlyCalendar` | none | none | none | none |
 | Time zone | per trigger, `InTimeZone` | [`RecurringJobOptions.TimeZone`, UTC by default](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/RecurringJobOptions.cs) | [one `SchedulerTimeZone`, machine-local by default](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/configuration.mdx) | [per schedule, UTC by default](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/CronSchedule.cs) | [`.Zoned(TimeZoneInfo)` per schedule, UTC by default](https://docs.coravel.net/Scheduler/) |
@@ -95,7 +95,7 @@ Elsewhere, "not on public holidays" is a check in the job body.
 
 ## Running once when several nodes are up
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | How one node wins | [a row lock at trigger acquisition](tutorial/advanced-enterprise-features.md), before the job runs | [a distributed lock around the recurring enqueue](https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html); the first server to dequeue runs it | [a conditional `UPDATE`'s affected-row count](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ.EntityFrameworkCore/Infrastructure/BasePersistenceProvider.cs), with no row lock, `SKIP LOCKED` or lock table; Lua scripts on Redis | [one `SingularAgent` per cluster, plus a deterministic deduplication id](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/Runtime/Recurring/RecurringMessageAgent.cs) | nothing: a process-local `Timer`, so every instance runs every schedule |
 | A node dies mid-execution | check-in detects it; a job that [requests recovery](tutorial/advanced-enterprise-features.md#asking-for-recovery) re-runs | [removed after `ServerTimeout` (5 minutes); its jobs are requeued](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/Server/ServerWatchdog.cs) | the fallback sweep takes rows with a stale lease; Redis has a dead-node script | the agent moves to another node | — |
@@ -111,7 +111,7 @@ does not prevent simultaneous execution of one job. Write jobs so a second run i
 
 ## Concurrency control
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Overall parallelism | `MaxConcurrency`, ten by default | [`WorkerCount`, `min(ProcessorCount × 5, 20)`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/BackgroundJobServerOptions.cs) | [`MaxConcurrency`, `Environment.ProcessorCount`](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/configuration.mdx) | [the receiving endpoint's](https://wolverinefx.net/guide/messaging/listeners.html) | [none documented](https://docs.coravel.net/Scheduler/) |
 | One job not overlapping itself | `[DisallowConcurrentExecution]`: cluster-wide with a persistent store, enforced by the store, no waiting; or [a per-trigger overlap policy](how-tos/overlap-policy.md): skip, buffer one, or cancel the previous firing | [`DisableConcurrentExecution(timeoutSeconds)`: a distributed lock that **waits**, then throws `DistributedLockTimeoutException`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/DisableConcurrentExecutionAttribute.cs) | [`maxConcurrency` on `[TickerFunction]`, a per-process `SemaphoreSlim`](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ/Src/TickerFunctionConcurrencyGate.cs) | [as for any message](https://wolverinefx.net/guide/messaging/listeners.html) | [`PreventOverlapping`, an in-memory mutex](https://github.com/jamesmh/coravel/blob/88ea3e892cfa3ce3d50054c7b430f16457b4d919/Src/Coravel/Scheduling/Schedule/Mutex/InMemoryMutex.cs) |
@@ -122,7 +122,7 @@ up" is counted by the store, not per process.
 
 ## Retries and failure
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Retry on failure | [`RetryPolicy` on the trigger](how-tos/retrying-failed-jobs.md): `Fixed`, `Exponential`, `Explicit`; opt-in; also [on the job type or as a scheduler default](how-tos/retrying-failed-jobs.md#declare-it-on-the-job-or-set-a-default) | [`AutomaticRetryAttribute` on every job by default: ten attempts, `(attempt − 1)⁴ + 15 + rand(30) × attempt` seconds apart](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/AutomaticRetryAttribute.cs) | [`Retries` and `RetryIntervals` (seconds) per ticker](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/error-handling.mdx) | the message's retry policies and dead-letter queue | [none: `OnError` and a `ScheduledEventFailed` broadcast](https://docs.coravel.net/Scheduler/) |
 | What holds the wait | the job store: a new fire time on the trigger, which survives a restart and runs on any node | the storage: the job waits in `Scheduled` | [a `Task.Delay` in the execution, holding the worker slot and the lease; lost with the process](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ/Src/TickerExecutionTaskHandler.cs) | the message store | — |
@@ -135,7 +135,7 @@ and jitters only when the policy says so. Quartz holds the wait in the store, so
 
 ## Continuations and chaining
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Run B after A | [`StartAfter(parentTriggerKey, condition)`](how-tos/job-continuations.md), or `ScheduleJob<TJob, TInput>(input, Continuation.After(…))` for a one-off | [`BackgroundJob.ContinueJobWith(parentId, …)`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/BackgroundJob.cs) | [parent/child `TimeTicker`s](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/job-chaining.mdx) | a handler publishes the next message | none |
 | Conditional on the outcome | [`ContinuationCondition`](how-tos/job-continuations.md) flags: `OnSuccess` (default), `OnFailure`, `OnCancellation`, `OnVeto`, `OnAnyOutcome` | [`JobContinuationOptions`: `OnAnyFinishedState`, `OnlyOnSucceededState` (default), `OnlyOnDeletedState`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/JobContinuationOptions.cs) | [`RunCondition`: `OnSuccess`, `OnFailure`, `OnCancelled`, `OnFailureOrCancelled`, `OnAnyCompletedStatus`, `InProgress`](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ.Utilities/Enums/RunCondition.cs) | the handler decides | — |
@@ -149,7 +149,7 @@ discarded. See [Job Continuations](how-tos/job-continuations.md).
 
 ## Persistence
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Default | in-memory `RAMJobStore` | [none; a storage is required](https://docs.hangfire.io/en/latest/configuration/index.html) | [in-memory](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/getting-started/installation.mdx) | none for the schedule | [in-memory only](https://github.com/jamesmh/coravel/blob/88ea3e892cfa3ce3d50054c7b430f16457b4d919/Src/Coravel/Scheduling/Schedule/Scheduler.cs) |
 | Databases shipped by the project | [SQL Server, PostgreSQL, MySQL, Oracle, SQLite, Firebird](db/), through ADO.NET | [SQL Server and `Hangfire.InMemory`; Redis (`Hangfire.Pro.Redis`) is paid](https://www.hangfire.io/pricing/) | EF Core — [SQL Server, PostgreSQL, SQLite in the docs](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/what-is-tickerq.mdx), [MySQL in the readme](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/README.md) — plus Redis | [PostgreSQL, SQL Server, MySQL, Oracle, SQLite](https://github.com/JasperFx/wolverine/tree/V6.41.0/src/Persistence), for the message store | — |
@@ -158,12 +158,12 @@ discarded. See [Job Continuations](how-tos/job-continuations.md).
 
 ## The dashboard, and what it allows before you configure anything
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
-| In the box | [`Quartz.Dashboard`, free, fourteen pages](packages/dashboard.md) | [in `Hangfire.Core`, free](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html) | [`TickerQ.Dashboard`, free](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/dashboard/index.mdx) | none; [CritterWatch is paid](https://jasperfx.net/our-products/) | none; [Coravel Pro is separate](https://www.pro.coravel.net/) |
-| Who may reach it by default | **nobody**: a mapping with neither `RequireAuthorization` nor `AllowAnonymous`, under a host with no fallback policy, [fails at start-up](packages/dashboard.md#production-hardening) | [local requests only](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html); otherwise implement `IDashboardAuthorizationFilter` | [everyone: `AuthMode.None` is the default](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/dashboard/authentication.mdx) | — | — |
-| Read-only mode | yes, plus a [job-type allow-list](packages/dashboard.md#narrowing-which-job-types-may-be-named) for scheduling through it | [`IsReadOnlyFunc`, off by default](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html) | no | — | — |
-| Best at | the cluster: node check-ins, execution groups, misfires, an action log; [pointed at a database](packages/dashboard.md#store-attached-targets), every scheduler in it without running them; [a trigger edited in place](packages/dashboard.md#editing-a-trigger) or [backfilled](packages/dashboard.md#backfilling-a-trigger), [filtered listings](packages/dashboard.md#filtering-the-listings) and [bulk pause, resume and unschedule](packages/dashboard.md#acting-on-a-selection) | [the state machine: a page per state, one-click requeue or delete of failed jobs, singly or in bulk](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html) | [live SignalR monitoring, editing both ticker kinds, starting and stopping the host](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/dashboard/index.mdx) | — | — |
+| In the box | [`Quartz.Dashboard`, free, fourteen pages](packages/dashboard.md); from 4.5 [`Quartz.Dashboard.Agent`](packages/dashboard-agent.md): a worker dials out to it over SignalR, opening no inbound port | [in `Hangfire.Core`, free](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html) | [`TickerQ.Dashboard`, free](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/dashboard/index.mdx) | none; [CritterWatch is paid](https://jasperfx.net/our-products/) | none; [Coravel Pro is separate](https://www.pro.coravel.net/) |
+| Who may reach it by default | **nobody**: a mapping with neither `RequireAuthorization` nor `AllowAnonymous`, under a host with no fallback policy, [fails at start-up](packages/dashboard.md#production-hardening); from 4.5 so does an [agent hub](packages/dashboard.md#fronting-a-scheduler-on-another-machine) with neither tokens nor a policy | [local requests only](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html); otherwise implement `IDashboardAuthorizationFilter` | [everyone: `AuthMode.None` is the default](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/dashboard/authentication.mdx) | — | — |
+| Read-only mode | yes, plus a [job-type allow-list](packages/dashboard.md#narrowing-which-job-types-may-be-named) for scheduling through it; from 4.5 an agent [narrows on the worker](packages/dashboard-agent.md#what-the-agent-accepts) and refuses every job type until `IsJobTypeAllowed` is set | [`IsReadOnlyFunc`, off by default](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html) | no | — | — |
+| Best at | the cluster: node check-ins, execution groups, misfires, an action log; [pointed at a database](packages/dashboard.md#store-attached-targets), every scheduler in it without running them; from 4.5 a fleet keyed [`target/name`](packages/dashboard.md#identity-is-target-name), [HTTP targets](packages/dashboard.md#several-processes-whose-schedulers-share-a-name) and store windows beside the local schedulers, and [targets on one clustered store as one row](packages/dashboard.md#a-cluster-behind-several-targets) whose [Cluster page](packages/dashboard.md#cluster) reaches each node; [a trigger edited in place](packages/dashboard.md#editing-a-trigger) or [backfilled](packages/dashboard.md#backfilling-a-trigger), [filtered listings](packages/dashboard.md#filtering-the-listings) and [bulk pause, resume and unschedule](packages/dashboard.md#acting-on-a-selection) | [the state machine: a page per state, one-click requeue or delete of failed jobs, singly or in bulk](https://docs.hangfire.io/en/latest/configuration/using-dashboard.html) | [live SignalR monitoring, editing both ticker kinds, starting and stopping the host](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/dashboard/index.mdx) | — | — |
 
 Hangfire's per-state lists are better for browsing failures by kind, and it requeues any failed job. Quartz's
 History page has a **Failed after retries** filter and a **Run again** button on each occurrence that gave up
@@ -173,9 +173,14 @@ trigger. From 4.4 the page also filters by result (*Succeeded*, *Skipped*, *Fail
 job, and charts runs over time. The Jobs page shows each job's last run, last success and a *failing ×N* count
 from its [run status](how-tos/job-outcomes.md#read-a-job-s-status).
 
+From 4.5 one dashboard fronts a fleet. Workers that all run `QuartzScheduler` list apart when each
+`AddQuartzHttpClient` registration sets `HttpClientOptions.Target`: `w1/QuartzScheduler`, `w2/QuartzScheduler`.
+A worker the dashboard cannot dial calls [`UseDashboardAgent`](packages/dashboard-agent.md#setup) instead, and
+the dashboard accepts it with `AcceptAgents`.
+
 ## Observability
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Traces | [two job spans, thirty-four store spans, `Quartz` activity source](packages/opentelemetry-integration.md) | [none in the box](https://github.com/HangfireIO/Hangfire/tree/v1.8.25/src/Hangfire.Core); the [OpenTelemetry community package](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Hangfire) is pre-release | [`TickerQ.Instrumentation.OpenTelemetry`: `tickerq.job.execute.*` spans](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/opentelemetry/index.mdx) | the bus's message spans, under [a `wolverine.recurring.occurrence` span per occurrence tagged `wolverine.schedule.name`](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/Runtime/WolverineTracing.cs) | none |
 | Metrics | [eleven instruments on the `Quartz` meter](packages/opentelemetry-integration.md#metrics) | none | [none; traces and `ILogger` events only](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/opentelemetry/index.mdx) | [yes, Wolverine's meter](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/Runtime/WolverineRuntime.cs) | none |
@@ -184,7 +189,7 @@ from its [run status](how-tos/job-outcomes.md#read-a-job-s-status).
 
 ## Trimming and native AOT
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Declared | [`IsAotCompatible`, no `IL3050` anywhere](how-tos/trimming-and-native-aot.md) | [no](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/Hangfire.Core.csproj) | [`IsAotCompatible` on four of six libraries; not the EF Core provider or OpenTelemetry package](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ/TickerQ.csproj) | [`IsAotCompatible`](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/Wolverine.csproj) | [no](https://github.com/jamesmh/coravel/blob/88ea3e892cfa3ce3d50054c7b430f16457b4d919/Src/Coravel/Coravel.csproj) |
 | Checked | a native canary is published and **run** on Windows, Linux and macOS on every pull request | [not supported yet](https://github.com/HangfireIO/Hangfire/issues/2478) | [an AOT sample publishes natively](https://github.com/Arcenox-co/TickerQ/tree/c6ed1e7daa90ab3f4c65b40319a153126a910093/samples) | [trim and AOT analyzers, both target frameworks](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/Wolverine.csproj) | — |
@@ -192,14 +197,14 @@ from its [run status](how-tos/job-outcomes.md#read-a-job-s-status).
 
 ## Target frameworks
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Targets | `net10.0`; the maintained [3.x line](/documentation/quartz-3.x/quick-start) covers .NET Standard 2.0 and .NET Framework | [`net451`, `net46`, `netstandard1.3`, `netstandard2.0`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/Hangfire.Core.csproj) | [`net10.0`; 8.x and 9.x lines target `net8.0` and `net9.0`](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/Directory.Build.props) | [`net9.0` and `net10.0`](https://www.nuget.org/packages/WolverineFx/6.41.0) | [`net6.0`](https://github.com/jamesmh/coravel/blob/88ea3e892cfa3ce3d50054c7b430f16457b4d919/Src/Coravel/Coravel.csproj) |
 | Serializing what is stored | System.Text.Json; Newtonsoft.Json as a [second serializer](packages/json-serialization.md) | [Newtonsoft.Json only](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/Common/SerializationHelper.cs) | [System.Text.Json; a `JsonSerializerContext` when trimmed](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/configuration.mdx) | — | — |
 
 ## Licence and price
 
-| | Quartz.NET 4.4 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
+| | Quartz.NET 4.5 | Hangfire 1.8.25 | TickerQ 10.4.0 | Wolverine 6.41 | Coravel 6.0.2 |
 |---|---|---|---|---|---|
 | Licence | Apache-2.0 | [LGPL v3, or commercial](https://www.hangfire.io/pricing/) | [`MIT OR Apache-2.0`](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/LICENSE), with [a contributor CLA](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/CLA.md) | [MIT](https://github.com/JasperFx/wolverine/blob/V6.41.0/LICENSE) | [MIT](https://github.com/jamesmh/coravel/blob/88ea3e892cfa3ce3d50054c7b430f16457b4d919/LICENSE) |
 | Free tier | everything | [Open: SQL Server and in-memory storage, community support](https://www.hangfire.io/pricing/) | everything | [everything in Wolverine](https://github.com/JasperFx/wolverine/blob/V6.41.0/LICENSE) | [the library](https://github.com/jamesmh/coravel/blob/88ea3e892cfa3ce3d50054c7b430f16457b4d919/LICENSE) |
