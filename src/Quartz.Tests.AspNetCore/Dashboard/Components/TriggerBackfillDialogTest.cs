@@ -106,6 +106,88 @@ public sealed class TriggerBackfillDialogTest
             .MustNotHaveHappened();
     }
 
+    [Test]
+    public void LoweringMaxSlotsBelowTheCountPreviewsTheRefusal()
+    {
+        GivenTrigger(Hourly());
+        IRenderedComponent<TriggerDetail> page = OpenDialog();
+
+        page.Find("#backfill-from").Change("2026-09-01T00:00");
+        page.Find("#backfill-to").Change("2026-09-02T00:00");
+        page.Find("#backfill-max-slots").Change("10");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=backfill-preview]").TextContent.Should()
+            .Be("The range holds 24 slots, more than Max slots (10); the backfill would be refused."));
+
+        page.Find("#backfill-spacing").Change("00:01:00");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=backfill-preview]").TextContent.Should()
+            .Be("The range holds 24 slots, more than Max slots (10); the backfill would be refused; with 00:01:00 spacing the last starts 00:23:00 after the first."));
+
+        page.Find("#backfill-max-slots").Change("24");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=backfill-preview]").TextContent.Should()
+            .Be("The range holds 24 slots; with 00:01:00 spacing the last starts 00:23:00 after the first.",
+                "Max slots allows a range holding exactly that many slots"));
+    }
+
+    [Test]
+    public void ChangingSpacingPreviewsWhenTheLastSlotStarts()
+    {
+        GivenTrigger(Hourly());
+        IRenderedComponent<TriggerDetail> page = OpenDialog();
+
+        page.Find("#backfill-from").Change("2026-09-01T00:00");
+        page.Find("#backfill-to").Change("2026-09-02T00:00");
+        page.Find("#backfill-spacing").Change("00:01:00");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=backfill-preview]").TextContent.Should()
+            .Be("The range holds 24 slots; with 00:01:00 spacing the last starts 00:23:00 after the first."));
+
+        page.Find("#backfill-spacing").Change("00:00:00");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=backfill-preview]").TextContent.Should()
+            .Be("The range holds 24 slots."));
+    }
+
+    [TestCase("lots", "soon")]
+    [TestCase("0", "-00:01:00")]
+    [TestCase("-1", "10675199.02:48:05.4775807")]
+    public void InvalidOptionsOrAnOverflowingSpreadLeaveTheSlotCountVisible(string maxSlots, string spacing)
+    {
+        GivenTrigger(Hourly());
+        IRenderedComponent<TriggerDetail> page = OpenDialog();
+
+        page.Find("#backfill-from").Change("2026-09-01T00:00");
+        page.Find("#backfill-to").Change("2026-09-02T00:00");
+        page.Find("#backfill-max-slots").Change(maxSlots);
+        page.Find("#backfill-spacing").Change(spacing);
+
+        page.WaitForAssertion(() => page.Find("[data-testid=backfill-preview]").TextContent.Should()
+            .Be("The range holds 24 slots."));
+    }
+
+    [TestCase("100000", "The range holds more than 100000 slots, more than Max slots (100000); the backfill would be refused.")]
+    [TestCase("100001", "The range holds more than 100000 slots.")]
+    public void ACappedCountPreviewsRefusalOnlyWhenItIsKnownToExceedMaxSlots(string maxSlots, string preview)
+    {
+        GivenTrigger(TriggerBuilder.Create()
+            .WithIdentity(TriggerName, TriggerGroup)
+            .ForJob("export", "reports")
+            .StartAt(from)
+            .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromSeconds(1)).RepeatForever())
+            .Build());
+        IRenderedComponent<TriggerDetail> page = OpenDialog();
+
+        page.Find("#backfill-from").Change("2026-09-01T00:00");
+        page.Find("#backfill-to").Change("2026-09-03T00:00");
+        page.Find("#backfill-max-slots").Change(maxSlots);
+        page.Find("#backfill-spacing").Change("00:01:00");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=backfill-preview]").TextContent.Should().Be(preview,
+            "a capped count proves only a lower bound and cannot give the last slot's start"));
+    }
+
     /// <summary>
     /// A calendar the dialog cannot read leaves the count unsaid rather than wrong: the backfill reads the
     /// calendar again where it is, and counts there.
