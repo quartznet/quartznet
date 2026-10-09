@@ -54,6 +54,7 @@
     <ProjectReference Include="..\Quartz.Aspire\Quartz.Aspire.csproj" />
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
     <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
+    <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
     <ProjectReference Include="..\Quartz.Extensions.Redis\Quartz.Extensions.Redis.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />

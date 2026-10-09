@@ -20,3 +20,17 @@
     "Member {Member} of cluster {Target} did not answer this round and stays in the cluster as an unreachable node"
 9110  Debug  DashboardLog.FleetTargetUnanswered
     "Target {Target} did not answer the fleet detection round"
+9111  Warning  DashboardLog.AgentConnectionRefused
+    "Agent connection {ConnectionId} refused: {Reason}"
+9112  Information  DashboardLog.AgentRegistered
+    "Agent {Target} registered scheduler {SchedulerName} ({InstanceId}, Quartz {Version})"
+9113  Warning  DashboardLog.AgentRegistrationRefused
+    "Agent {Target} registration for {SchedulerName} refused: {Reason}"
+9114  Information  DashboardLog.AgentDisconnected
+    "Agent {Target} disconnected; scheduler {SchedulerName} is reported Unknown until it reconnects"
+9115  Information  DashboardLog.AgentForgotten
+    "Agent {Target} forgotten after {ForgetAfter} without reconnecting"
+9116  Warning  DashboardLog.AgentMissedHeartbeats
+    "Agent {Target} missed {Missed} heartbeats; scheduler {SchedulerName} is reported Unknown"
+9117  Error  DashboardLog.AgentSweepFailed
+    "The agent liveness sweep failed; the next one runs in {Interval}"

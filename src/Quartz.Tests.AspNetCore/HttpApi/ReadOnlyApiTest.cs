@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.Extensibility;
+using Quartz.HttpApiContract;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -173,6 +174,27 @@ public sealed class ReadOnlyApiTest
             ],
             "the three fetches are the only routes that take a body without changing anything - every other "
             + "non-GET route has to carry the marker, or QuartzHttpApiOptions.ReadOnly leaves it writable");
+    }
+
+    /// <summary>
+    /// The catalogue's own marking agrees with the endpoints': a route is a mutation in one place or the
+    /// other, never only one — which is what lets a carrier that is not ASP.NET Core refuse the same set.
+    /// </summary>
+    [Test]
+    public async Task TheCatalogueMarksTheSameRoutesAsTheEndpoints()
+    {
+        await using WebApplication app = ReadOnlyApp();
+        app.MapQuartzHttpApi("/quartz-api");
+
+        List<string> marked = Endpoints(app)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<QuartzMutationMetadata>() is not null)
+            .Select(endpoint => endpoint.Metadata.GetMetadata<IEndpointNameMetadata>()!.EndpointName)
+            .ToList();
+
+        List<string> catalogued = SchedulerRoutes.All.Where(route => route.Mutates).Select(route => route.Name).ToList();
+
+        marked.Should().BeEquivalentTo(catalogued,
+            "WireRoute.Mutates is what the dashboard agent refuses when it is read-only, and QuartzMutationMetadata is what the API refuses; the two must name one set");
     }
 
     /// <summary>

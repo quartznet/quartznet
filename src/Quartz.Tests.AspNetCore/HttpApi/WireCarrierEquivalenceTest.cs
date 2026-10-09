@@ -14,11 +14,13 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using Quartz.AspNetCore;
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
 using Quartz.Impl;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -195,6 +197,65 @@ public sealed class WireCarrierEquivalenceTest
 
         SchedulerRoutes.All.Except(sent).Select(route => route.Name).Should().BeEquivalentTo(ServedToOtherClients.Keys,
             "a route HttpScheduler never sends is one that another client reads, and says which");
+    }
+
+    /// <summary>
+    /// The third reader of the table: the dashboard agent's carrier answers every route the catalogue
+    /// holds but the event stream, which goes up its connection as a stream rather than as a request.
+    /// </summary>
+    [Test]
+    public void EveryRouteOfTheCatalogueHasAnAgentHandler()
+    {
+        List<string> served = AgentCarrier.ServedRoutes.Select(route => route.Name).ToList();
+        List<string> catalogued = SchedulerRoutes.All.Select(route => route.Name).ToList();
+
+        served.Should().BeEquivalentTo(catalogued.Except([SchedulerRoutes.StreamEvents.Name]),
+            "a route added to the catalogue without a carrier entry would be answered 404 by every agent, silently");
+        AgentCarrier.RouteNames.Should().BeEquivalentTo(served, "the registration states exactly what the carrier serves");
+    }
+
+    /// <summary>
+    /// The same sweep as the HTTP one, through an in-memory <see cref="AgentCarrier" /> rather than a
+    /// host: every member <see cref="HttpScheduler" /> implements is answered with a success by the
+    /// carrier's entry for the route it sends.
+    /// </summary>
+    /// <remarks>
+    /// What this holds the carrier to is the binding: a route whose entry read the wrong query parameter
+    /// or the wrong body shape would answer <c>400</c> here. The transport is the carrier itself, so
+    /// nothing about SignalR is in the way.
+    /// </remarks>
+    [Test]
+    public async Task EveryMemberHttpSchedulerImplementsIsAnsweredWithASuccessByTheAgentCarrier()
+    {
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartzExecutionHistory();
+        services.AddSingleton<SystemTextJsonSerializerRegistry>();
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        AgentCarrier carrier = new(
+            AnsweringScheduler(),
+            provider,
+            new DashboardAgentOptions { IsJobTypeAllowed = _ => true },
+            NullLogger.Instance);
+        CarrierTransport inMemory = new(carrier);
+        await using HttpScheduler overTheCarrier = new(TestData.SchedulerName, inMemory, jsonSerializerOptions: null, serializerRegistry: null);
+
+        using (new AssertionScope())
+        {
+            foreach ((string signature, Row row) in OverTheWire(Plain))
+            {
+                inMemory.Answered.Clear();
+
+                Func<Task> call = () => row.Invoke(overTheCarrier);
+                await call.Should().NotThrowAsync($"{signature} is answered with a success by the agent carrier's entry for its route");
+
+                inMemory.Answered.Select(answer => answer.Route).Should().Equal(row.Routes,
+                    $"{signature} is answered by the catalogue's {string.Join(" then ", row.Routes.Select(route => route.Name))}");
+                inMemory.Answered.Should().OnlyContain(answer => answer.Status >= 200 && answer.Status <= 299,
+                    $"the carrier accepts what {signature} sends: " + string.Join(", ", inMemory.Answered.Select(answer => $"{answer.Route.Name} -> {answer.Status} {answer.Detail}")));
+            }
+        }
     }
 
     /// <summary>
@@ -594,6 +655,44 @@ public sealed class WireCarrierEquivalenceTest
         A.CallTo(() => fake.TimeProvider).Returns(TimeProvider.System);
         A.CallTo(() => fake.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(new List<ITrigger>());
         return fake;
+    }
+
+    /// <summary>
+    /// A transport that is the agent carrier itself: the request goes in as the bytes the hub would have
+    /// carried, and the answer comes back the same way, with the status and the problem detail noted.
+    /// </summary>
+    private sealed class CarrierTransport : IWireTransport
+    {
+        private readonly AgentCarrier carrier;
+
+        public CarrierTransport(AgentCarrier carrier)
+        {
+            this.carrier = carrier;
+        }
+
+        public List<(WireRoute Route, int Status, string? Detail)> Answered { get; } = [];
+
+        public async ValueTask<WireResponse> Send(WireRequest request, CancellationToken cancellationToken = default)
+        {
+            AgentRequest down = new()
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                Method = request.Route.Method,
+                Path = request.Path,
+                Body = request.Body,
+            };
+
+            AgentAnswer answer = await carrier.Handle(down, cancellationToken);
+
+            string? detail = null;
+            if (answer.Status is < 200 or > 299 && answer.Body.Length > 0)
+            {
+                detail = JsonSerializer.Deserialize(answer.Body, HttpApiJsonContext.Default.ProblemDetailsDto)?.Detail;
+            }
+
+            Answered.Add((request.Route, answer.Status, detail));
+            return new WireResponse((HttpStatusCode) answer.Status, answer.Body);
+        }
     }
 
     /// <summary>

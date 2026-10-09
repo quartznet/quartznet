@@ -19,6 +19,7 @@
 
 using System.Text.Json.Serialization;
 
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -29,7 +30,9 @@ using Quartz.Configuration;
 using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
+using Quartz.HttpApiContract;
 using Quartz.Impl;
+using Quartz.Util;
 
 namespace Quartz;
 
@@ -90,7 +93,28 @@ public static class QuartzDashboardServiceCollectionExtensions
                 "HistoryMaxEntriesPerScheduler must be at least 1")
             .Validate(
                 options => options.ClusterDetectionInterval is null || options.ClusterDetectionInterval > TimeSpan.Zero,
-                "ClusterDetectionInterval must be positive, or null to never merge targets into a cluster");
+                "ClusterDetectionInterval must be positive, or null to never merge targets into a cluster")
+            .Validate(
+                options => options.Agents is not { } agents || agents.HeartbeatInterval > TimeSpan.Zero,
+                "AcceptAgents: HeartbeatInterval must be positive")
+            .Validate(
+                options => options.Agents is not { } agents || agents.OfflineAfterMissedHeartbeats >= 1,
+                "AcceptAgents: OfflineAfterMissedHeartbeats must be at least 1")
+            .Validate(
+                options => options.Agents is not { } agents || agents.OperationTimeout > TimeSpan.Zero,
+                "AcceptAgents: OperationTimeout must be positive")
+            .Validate(
+                options => options.Agents is not { } agents || agents.OperationTimeout <= TimerLimits.MaxDelay,
+                $"AcceptAgents: OperationTimeout must be at most {TimerLimits.MaxDelay}, the longest a timer can wait")
+            .Validate(
+                options => options.Agents is not { } agents || agents.MaxMessageBytes > 0,
+                "AcceptAgents: MaxMessageBytes must be positive")
+            .Validate(
+                options => options.Agents is not { } agents || agents.ForgetAfter > TimeSpan.Zero,
+                "AcceptAgents: ForgetAfter must be positive")
+            .Validate(
+                options => options.Agents is not { } agents || IsAbsentOrNotBlank(agents.Tokens.Primary) && IsAbsentOrNotBlank(agents.Tokens.Secondary),
+                "AcceptAgents: a token is null or has characters in it; a blank one would be a token every agent presents by leaving the header empty");
 
         if (configure is not null)
         {
@@ -110,10 +134,16 @@ public static class QuartzDashboardServiceCollectionExtensions
         // a browser rendering a live event should read "Standby" rather than a number whose meaning
         // depends on the build. Named per enum rather than a blanket converter, because these options
         // belong to the whole application's SignalR and a host's own hubs must keep their own format.
+        // The agent hub's payloads are read the same way on both ends, which is what AgentProtocol says.
         services.AddSignalR()
             .AddJsonProtocol(options =>
-                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter<SchedulerStatus>()));
+            {
+                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter<SchedulerStatus>());
+                AgentProtocol.ConfigureHubPayloads(options.PayloadSerializerOptions);
+            });
         services.AddHttpContextAccessor();
+
+        AddAgents(services);
 
         // The dashboard reads the schedulers in its own process: every page goes through the in-process
         // client, which hands the pages triggers, calendars and job data maps as themselves. TryAdd, so an
@@ -164,6 +194,55 @@ public static class QuartzDashboardServiceCollectionExtensions
         // event twice and record every execution twice.
 
         return services;
+    }
+
+    private static bool IsAbsentOrNotBlank(string? token)
+    {
+        return token is null || !string.IsNullOrWhiteSpace(token);
+    }
+
+    /// <summary>
+    /// Registers what accepting agents needs: the registry the hub writes, the sweep that judges their
+    /// liveness, the hub's own message cap, and the shared services a dashboard fronting nothing but
+    /// agents would otherwise lack.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Registered whether or not <see cref="QuartzDashboardOptions.AcceptAgents" /> is called, because
+    /// the options are read when they are resolved rather than when this runs; a dashboard that accepts
+    /// none maps no hub, starts no timer and holds an empty registry.
+    /// </para>
+    /// <para>
+    /// The shared services are the repository the agents' schedulers are bound into and the registry the
+    /// listing reads. A dashboard beside <c>AddQuartz</c> or <c>AddQuartzHttpClient</c> has them already;
+    /// one that fronts only agents — a fleet console with no scheduler of its own — gets them here. Every
+    /// one of them is a <c>TryAdd</c>.
+    /// </para>
+    /// <para>
+    /// The agent hub's receive cap is the answer cap plus what base64 adds to a body of that size, so an
+    /// answer the agent judged small enough is not dropped by the channel; the browser hub keeps
+    /// SignalR's own 32 KB.
+    /// </para>
+    /// </remarks>
+    private static void AddAgents(IServiceCollection services)
+    {
+        services.AddQuartzSharedServices();
+        services.TryAddSingleton<AgentRegistry>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AgentRegistryJanitor>());
+
+        // SignalR reads a hub's own options only once HubOptionsSetup<THub> has copied the global ones onto
+        // them and said so; AddHubOptions<THub> is what registers it, and this is the same registration with
+        // a configure that can read the dashboard's options. Without the setup the handler keeps the global
+        // cap whatever the hub's options say.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IConfigureOptions<HubOptions<DashboardAgentHub>>, HubOptionsSetup<DashboardAgentHub>>());
+        services.AddOptions<HubOptions<DashboardAgentHub>>()
+            .Configure<IOptions<QuartzDashboardOptions>>(static (hub, dashboard) =>
+            {
+                if (dashboard.Value.Agents is { } agents)
+                {
+                    hub.MaximumReceiveMessageSize = (agents.MaxMessageBytes / 3L) * 4L + 64 * 1024;
+                }
+            });
     }
 
     /// <summary>

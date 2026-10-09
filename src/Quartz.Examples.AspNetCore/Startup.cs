@@ -306,8 +306,13 @@ public class Startup
         // Add health checks
         services.AddHealthChecks().AddQuartz();
 
-        // Add Quartz.NET Dashboard
-        services.AddQuartzDashboard();
+        // Add Quartz.NET Dashboard, accepting agents: a Quartz.Examples.Worker started with
+        // --Dashboard:AgentEndpoint=http://localhost:5000/quartz/agents dials in and is listed and driven here.
+        // The token is a shared secret both appsettings.json files carry; a deployment keeps it in a secret store.
+        services.AddQuartzDashboard(options => options.AcceptAgents(agents =>
+        {
+            agents.Tokens.Primary = Configuration["Dashboard:AgentToken"];
+        }));
 
         // run the scheduler as an IHostedService
         services.AddQuartzHostedService(options =>

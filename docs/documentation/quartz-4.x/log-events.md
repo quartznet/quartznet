@@ -385,10 +385,23 @@ matching on its text is not.
 | 9108 | Warning | `Quartz.Dashboard` | `"Fleet detection round failed; the clusters stay as the last round left them"` |
 | 9109 | Debug | `Quartz.Dashboard` | `"Member {Member} of cluster {Target} did not answer this round and stays in the cluster as an unreachable node"` |
 | 9110 | Debug | `Quartz.Dashboard` | `"Target {Target} did not answer the fleet detection round"` |
+| 9111 | Warning | `Quartz.Dashboard` | `"Agent connection {ConnectionId} refused: {Reason}"` |
+| 9112 | Information | `Quartz.Dashboard` | `"Agent {Target} registered scheduler {SchedulerName} ({InstanceId}, Quartz {Version})"` |
+| 9113 | Warning | `Quartz.Dashboard` | `"Agent {Target} registration for {SchedulerName} refused: {Reason}"` |
+| 9114 | Information | `Quartz.Dashboard` | `"Agent {Target} disconnected; scheduler {SchedulerName} is reported Unknown until it reconnects"` |
+| 9115 | Information | `Quartz.Dashboard` | `"Agent {Target} forgotten after {ForgetAfter} without reconnecting"` |
+| 9116 | Warning | `Quartz.Dashboard` | `"Agent {Target} missed {Missed} heartbeats; scheduler {SchedulerName} is reported Unknown"` |
+| 9117 | Error | `Quartz.Dashboard` | `"The agent liveness sweep failed; the next one runs in {Interval}"` |
 | 9200 | Warning | `Quartz.HttpClient` | `"Skipped live events of kind {Kind} from scheduler {SchedulerName}: this version of Quartz.HttpClient does not know the kind. Upgrade the client to receive them."` |
 | 9201 | Warning | `Quartz.HttpClient` | `"Skipped a live event of kind {Kind} from scheduler {SchedulerName} that could not be read."` |
 | 9202 | Warning | `Quartz.HttpClient` | `"Left a {Item} out of a listing from scheduler {SchedulerName}: its {EnumType} is {Name}, which this version of Quartz.HttpClient does not know. Upgrade the client to list it."` |
 | 9203 | Information | `Quartz.HttpClient` | `"Read the {EnumType} {Name} from scheduler {SchedulerName} as {ReadAs}: this version of Quartz.HttpClient does not know the name."` |
+| 9300 | Information | `Quartz.Dashboard.Agent` | `"Registered with dashboard {Endpoint} as {Target}/{SchedulerName}"` |
+| 9301 | Warning | `Quartz.Dashboard.Agent` | `"Dashboard {Endpoint} unreachable since {Since}; retrying"` |
+| 9302 | Warning | `Quartz.Dashboard.Agent` | `"Dashboard {Endpoint} refused registration: {Reason}"` |
+| 9303 | Information | `Quartz.Dashboard.Agent` | `"Connection to {Endpoint} closed: {Reason}; reconnecting"` |
+| 9304 | Warning | `Quartz.Dashboard.Agent` | `"Operation {Operation} refused: {Reason}"` |
+| 9305 | Error | `Quartz.Dashboard.Agent` | `"Operation {Operation} failed"` |
 | 10000 | Information | `Quartz.Weasel` | `"Applied the schema changes scheduler '{SchedulerName}' needs to {Database} ({Difference})"` |
 | 10001 | Debug | `Quartz.Weasel` | `"The schema of scheduler '{SchedulerName}' in {Database} already matches the model"` |
 | 10002 | Information | `Quartz.Weasel` | `"Not applying the schema of scheduler '{SchedulerName}' at startup, because AutoCreate is {AutoCreate}; the store still validates it"` |

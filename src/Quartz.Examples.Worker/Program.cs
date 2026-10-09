@@ -55,6 +55,26 @@ builder.AddQuartz(q =>
     q.AddTriggerListener<TestTriggerListener>();
     q.AddJobListener<TestJobListener>();
     q.AddSchedulerListener<TestSchedulerListener>();
+
+    // Put this scheduler on a dashboard running elsewhere, over one outbound connection the worker
+    // opens itself. Off until Dashboard:AgentEndpoint is set — Quartz.Examples.AspNetCore accepts
+    // agents, so against it:
+    //   dotnet run --project src/Quartz.Examples.Worker -- --Dashboard:AgentEndpoint=http://localhost:5000/quartz/agents
+    if (builder.Configuration["Dashboard:AgentEndpoint"] is { Length: > 0 } agentEndpoint)
+    {
+        q.UseDashboardAgent(agent =>
+        {
+            agent.Endpoint = new Uri(agentEndpoint);
+            agent.Token = builder.Configuration["Dashboard:AgentToken"];
+
+            // The first half of this scheduler's key on the dashboard; the machine name when unset.
+            agent.Target = builder.Configuration["Dashboard:AgentTarget"];
+
+            // An agent refuses every job type until told which it accepts: the dashboard is on the
+            // other side of a trust boundary, and a job type is a string it sends.
+            agent.IsJobTypeAllowed = name => name.StartsWith("Quartz.Examples.Worker.", StringComparison.Ordinal);
+        });
+    }
 });
 
 // run the scheduler as an IHostedService

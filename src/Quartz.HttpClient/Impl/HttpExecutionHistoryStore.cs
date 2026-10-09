@@ -114,9 +114,25 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null,
         ILogger? logger = null)
+        : this(schedulerName, new HttpWireTransport(httpClient ?? throw new ArgumentNullException(nameof(httpClient))), jsonSerializerOptions, logger)
+    {
+    }
+
+    /// <param name="schedulerName">The remote scheduler's name, which every request is addressed to.</param>
+    /// <param name="transport">
+    /// What carries the requests to the remote scheduler and its answers back: HTTP, or the connection an
+    /// agent dialled out on.
+    /// </param>
+    /// <param name="jsonSerializerOptions">Optional serializer options, copied as the public constructor copies them.</param>
+    /// <param name="logger">Where a row left out of a listing is reported; <see langword="null" /> for <c>LogProvider</c>'s.</param>
+    internal HttpExecutionHistoryStore(
+        string schedulerName,
+        IWireTransport transport,
+        JsonSerializerOptions? jsonSerializerOptions = null,
+        ILogger? logger = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
-        ArgumentNullException.ThrowIfNull(httpClient);
+        ArgumentNullException.ThrowIfNull(transport);
 
         this.schedulerName = schedulerName;
 
@@ -128,7 +144,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             new SystemTextJsonSerializerRegistry(),
             new UnknownWireNames(logger ?? HttpClientLog.Fallback(), schedulerName));
 
-        wire = new WireClient(new HttpWireTransport(httpClient), serializerOptions);
+        wire = new WireClient(transport, serializerOptions);
     }
 
     /// <summary>

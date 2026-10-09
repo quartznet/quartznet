@@ -108,6 +108,13 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(SchedulerHeaderDto[]))]
 [JsonSerializable(typeof(TriggerStateDto))]
 
+// The dashboard agent's hub payloads, which carry the bodies above as bytes.
+[JsonSerializable(typeof(AgentRegistration))]
+[JsonSerializable(typeof(AgentRegistered))]
+[JsonSerializable(typeof(AgentHeartbeat))]
+[JsonSerializable(typeof(AgentRequest))]
+[JsonSerializable(typeof(AgentAnswer))]
+
 // The open types, which are bodies of their own as well as members of the ones above.
 [JsonSerializable(typeof(ICalendar))]
 [JsonSerializable(typeof(ITrigger))]

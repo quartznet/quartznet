@@ -40,22 +40,32 @@ namespace Quartz.HttpApiContract;
 /// after construction: that is how <see cref="JsonExtensionDataAttribute" /> works, and it is where
 /// <see cref="HttpApiConstants.ProblemDetailsExceptionType" /> arrives.
 /// </para>
+/// <para>
+/// A member that is null is left out when the body is written, as ASP.NET Core leaves it out of its
+/// own: a carrier that writes this type — the dashboard agent, through <see cref="ProblemDetailsFactory" />
+/// — then writes the body the API writes.
+/// </para>
 /// </remarks>
 internal sealed class ProblemDetailsDto
 {
     [JsonPropertyName("type")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Type { get; set; }
 
     [JsonPropertyName("title")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Title { get; set; }
 
     [JsonPropertyName("status")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Status { get; set; }
 
     [JsonPropertyName("detail")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Detail { get; set; }
 
     [JsonPropertyName("instance")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Instance { get; set; }
 
     [JsonExtensionData]

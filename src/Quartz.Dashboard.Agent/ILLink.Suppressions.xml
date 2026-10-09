@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  The ILLink half of the baseline recorded in TrimAnalysisBaseline.cs beside this file. Same type, same
+  reason — read that file; the reasoning lives there and is not repeated here.
+
+  Two files are needed because the two tools cannot be told the same way, which src/Quartz/ILLink.Suppressions.xml
+  explains in full: SuppressMessageAttribute is [Conditional("CODE_ANALYSIS")] and never reaches metadata,
+  so ILLink cannot see the C# baseline and is told through its link-attributes option instead. The
+  unconditional attribute would cover both and would be baked into the shipped assembly, silencing these
+  warnings for every consumer publishing a trimmed application — which is the lie neither file tells.
+
+  fullname carries a trailing '*' throughout, so that the compiler-generated closure and state-machine
+  types ILLink reports against are matched by the same entry as the type they belong to.
+
+  No running canary covers this package in 4.5: the hub half lives in Quartz.Dashboard, which Blazor keeps
+  untrimmable, so there is no end-to-end to publish and start. What does read this file is
+  Quartz.Examples.Worker's fully trimmed publish, which references the agent and names this file beside
+  src/Quartz/ILLink.Suppressions.xml, so a type outside the entry below warning fails that publish.
+-->
+<linker>
+  <assembly fullname="Quartz.Dashboard.Agent">
+
+    <!-- A job type named in a request down the tunnel -->
+    <type fullname="Quartz.Impl.AgentCarrier*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2026</argument>
+        <property name="Justification">A job sent to the agent names its type as a string; the worker running it holds the type, and registers it the way the trimming how-to says.</property>
+      </attribute>
+    </type>
+
+  </assembly>
+</linker>

@@ -102,8 +102,23 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
         // being asked with a token that was already cancelled, and reported as unreachable although it
         // answered at once. A local scheduler completes before this loop reaches the next entry.
         Dictionary<string, Task<LiveState>> asked = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, TargetLiveness> heard = new(StringComparer.OrdinalIgnoreCase);
         foreach (KeyValuePair<string, LiveScheduler> entry in live)
         {
+            // A target whose process speaks to this one has said how it is, and a status it stated stands
+            // in for asking: an agent that stopped heartbeating is not asked over a tunnel nobody answers.
+            TargetLiveness? liveness = entry.Value.Target is { } target ? targets.Find(target)?.Liveness?.Invoke() : null;
+            if (liveness is not null)
+            {
+                heard[entry.Key] = liveness;
+            }
+
+            if (liveness?.Status is { } stated)
+            {
+                asked[entry.Key] = Task.FromResult(new LiveState(stated, liveness.SchedulerInstanceId));
+                continue;
+            }
+
             asked[entry.Key] = entry.Value.Origin is SchedulerOrigin.Window
                 ? AskWindow(entry.Value.Scheduler, deadline.Token, cancellationToken)
                 : Ask(entry.Value.Scheduler, deadline.Token, cancellationToken);
@@ -150,6 +165,7 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
                 Members = entry.Target is not null && clusters.TryGetValue(entry.Target, out SchedulerTarget? cluster)
                     ? cluster.Members
                     : [],
+                LastSeenUtc = heard.TryGetValue(entry.Key, out TargetLiveness? liveness) ? liveness.LastSeenUtc : null,
             });
         }
 

@@ -1,0 +1,23 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public static class DashboardAgentConfigurationExtensions
+    {
+        public static Quartz.IQuartzBuilder UseDashboardAgent(this Quartz.IQuartzBuilder builder, System.Action<Quartz.DashboardAgentOptions> configure) { }
+    }
+    public sealed class DashboardAgentOptions
+    {
+        public DashboardAgentOptions() { }
+        public System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<string?>>? AccessTokenProvider { get; set; }
+        public System.Action<Microsoft.AspNetCore.Http.Connections.Client.HttpConnectionOptions>? ConfigureConnection { get; set; }
+        public System.Uri? Endpoint { get; set; }
+        public System.TimeSpan HeartbeatInterval { get; set; }
+        public System.Func<string, bool>? IsJobTypeAllowed { get; set; }
+        public System.Func<string, bool>? IsOperationAllowed { get; set; }
+        public int MaxConcurrentOperations { get; set; }
+        public int MaxPageSize { get; set; }
+        public bool ReadOnly { get; set; }
+        public string? Target { get; set; }
+        public string? Token { get; set; }
+    }
+}

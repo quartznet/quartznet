@@ -38,10 +38,18 @@
   -->
   <ItemGroup>
     <_ILLinkSuppressions Include="..\Quartz\ILLink.Suppressions.xml" />
+    <_ILLinkSuppressions Include="..\Quartz.Dashboard.Agent\ILLink.Suppressions.xml" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <!--
+      The dashboard agent, so that this worker can be put on Quartz.Examples.AspNetCore's dashboard
+      (Program.cs, Dashboard:AgentEndpoint). It widens what the trimmed publish measures by the agent
+      package and the SignalR client under it: the agent's one recorded warning is in its own
+      ILLink.Suppressions.xml above, and the SignalR client is trim-annotated by ASP.NET Core.
+    -->
+    <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
     <!--
       What a consumer gets from analyzers/dotnet/cs inside Quartz.nupkg. A ProjectReference does not
       carry analyzers the way a PackageReference does, so this example - which declares its job with

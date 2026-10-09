@@ -93,4 +93,35 @@ internal static partial class DashboardLog
     /// </remarks>
     [LoggerMessage(EventId = 9110, Level = LogLevel.Debug, Message = "Target {Target} did not answer the fleet detection round")]
     public static partial void FleetTargetUnanswered(this ILogger logger, string target, Exception exception);
+
+    /// <remarks>
+    /// <para>
+    /// 9111–9117 are the agent hub's. A connection refused and a registration refused are Warning,
+    /// because each is a worker that wanted to be on the dashboard and is not; an agent arriving,
+    /// leaving and being forgotten is Information, because each changes a row an operator may be
+    /// looking at; missed heartbeats are Warning, because a live socket whose process has gone quiet is
+    /// the one failure the connection itself cannot report; a sweep that threw is Error, because it is
+    /// the judge of every agent's liveness and a timer callback that throws has nowhere else to say so.
+    /// </para>
+    /// </remarks>
+    [LoggerMessage(EventId = 9111, Level = LogLevel.Warning, Message = "Agent connection {ConnectionId} refused: {Reason}")]
+    public static partial void AgentConnectionRefused(this ILogger logger, string connectionId, string reason);
+
+    [LoggerMessage(EventId = 9112, Level = LogLevel.Information, Message = "Agent {Target} registered scheduler {SchedulerName} ({InstanceId}, Quartz {Version})")]
+    public static partial void AgentRegistered(this ILogger logger, string target, string schedulerName, string instanceId, string version);
+
+    [LoggerMessage(EventId = 9113, Level = LogLevel.Warning, Message = "Agent {Target} registration for {SchedulerName} refused: {Reason}")]
+    public static partial void AgentRegistrationRefused(this ILogger logger, string target, string schedulerName, string reason);
+
+    [LoggerMessage(EventId = 9114, Level = LogLevel.Information, Message = "Agent {Target} disconnected; scheduler {SchedulerName} is reported Unknown until it reconnects")]
+    public static partial void AgentDisconnected(this ILogger logger, string target, string schedulerName);
+
+    [LoggerMessage(EventId = 9115, Level = LogLevel.Information, Message = "Agent {Target} forgotten after {ForgetAfter} without reconnecting")]
+    public static partial void AgentForgotten(this ILogger logger, string target, TimeSpan forgetAfter);
+
+    [LoggerMessage(EventId = 9116, Level = LogLevel.Warning, Message = "Agent {Target} missed {Missed} heartbeats; scheduler {SchedulerName} is reported Unknown")]
+    public static partial void AgentMissedHeartbeats(this ILogger logger, string target, int missed, string schedulerName);
+
+    [LoggerMessage(EventId = 9117, Level = LogLevel.Error, Message = "The agent liveness sweep failed; the next one runs in {Interval}")]
+    public static partial void AgentSweepFailed(this ILogger logger, TimeSpan interval, Exception exception);
 }

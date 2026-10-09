@@ -64,7 +64,31 @@ internal sealed class SchedulerTarget
     /// for every other origin.
     /// </summary>
     public string[] Members { get; init; } = [];
+
+    /// <summary>
+    /// What is known of the target's liveness without asking it, for a target whose process speaks to this
+    /// one rather than being asked — an agent, which heartbeats. <see langword="null" /> for a target whose
+    /// liveness is asked.
+    /// </summary>
+    /// <remarks>
+    /// Read by the listing at the time of listing. A status it answers stands in for the one the scheduler
+    /// would have been asked for, so an agent that stopped heartbeating is reported
+    /// <see cref="SchedulerStatus.Unknown" /> without a round trip to a process that is not answering, and
+    /// one that said goodbye is reported <see cref="SchedulerStatus.Shutdown" /> rather than unreachable. A
+    /// null status leaves the asking to the listing, which is what a live agent answers through.
+    /// </remarks>
+    public Func<TargetLiveness>? Liveness { get; init; }
 }
+
+/// <summary>
+/// What a target that speaks to this process says about itself between two listings.
+/// </summary>
+/// <param name="Status">
+/// The state to report without asking, or <see langword="null" /> to ask the scheduler as usual.
+/// </param>
+/// <param name="SchedulerInstanceId">The node, when <paramref name="Status" /> stands in for asking.</param>
+/// <param name="LastSeenUtc">When the process last spoke to this one.</param>
+internal sealed record TargetLiveness(SchedulerStatus? Status, string? SchedulerInstanceId, DateTimeOffset? LastSeenUtc);
 
 /// <summary>
 /// Every target this container reaches a scheduler through, by name, with the uniqueness rule that keeps

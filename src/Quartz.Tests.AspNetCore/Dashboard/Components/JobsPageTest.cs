@@ -8,6 +8,7 @@ using FakeItEasy;
 
 using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Services;
+using Quartz.Impl;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.Dashboard.Components;
@@ -265,6 +266,30 @@ public class JobsPageTest
         context.Toasts.Messages.Should().ContainSingle()
             .Which.Message.Should().Contain("read-only",
                 "the server said why it refused, and a dashboard that swallowed it would leave the reader clicking");
+        context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Succeeded.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// The same trip for the agent's refusal: a worker whose <c>DashboardAgentOptions.ReadOnly</c> is set
+    /// answers <c>403</c> with the agent's own words, and the dashboard — which has no idea the agent is
+    /// read-only, since its own <c>ReadOnly</c> is off and the buttons are there — shows them.
+    /// </summary>
+    [Test]
+    public void ARefusalFromAReadOnlyAgentIsShownToTheReader()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 1));
+        A.CallTo(() => context.Api.PauseJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Throws(new HttpClientException("Received response with status code Forbidden, error details: " + AgentCarrier.ReadOnlyDetail));
+
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Pause").Click();
+        page.ConfirmPause();
+
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Contain("dashboard agent is configured as read-only",
+                "the worker decided, and what it said has to reach the reader who clicked");
         context.ActionLog.GetLatest(1).Should().ContainSingle()
             .Which.Succeeded.Should().BeFalse();
     }

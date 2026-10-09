@@ -125,6 +125,65 @@ public sealed class QuartzDashboardAuthorizationGuardTest
     }
 
     /// <summary>
+    /// The agent hub is a third surface, and the dashboard's own authorization does not reach it: humans
+    /// and machines authenticate differently, so what authorizes the hub is stated in
+    /// <see cref="QuartzDashboardOptions.AcceptAgents" /> and nowhere else.
+    /// </summary>
+    [Test]
+    public async Task AnAgentHubWithNeitherTokensNorAPolicyRefusesToStartNamingTheRemedies()
+    {
+        await using WebApplication app = CreateDashboard(configureDashboard: options => options.AcceptAgents());
+        app.MapQuartzDashboard().AllowAnonymous();
+
+        Func<Task> act = async () => await app.StartAsync();
+
+        (await act.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*agent hub*")
+            .WithMessage("*AcceptAgents(agents => agents.Tokens.Primary*")
+            .WithMessage("*AcceptAgents(agents => agents.AuthorizationPolicy*")
+            .WithMessage("*/quartz/agents*");
+    }
+
+    [Test]
+    public async Task AnAgentHubWithATokenStarts()
+    {
+        await using WebApplication app = CreateDashboard(configureDashboard: options => options.AcceptAgents(agents => agents.Tokens.Primary = "t"));
+        app.MapQuartzDashboard().AllowAnonymous();
+
+        await app.StartAsync();
+        await app.StopAsync();
+    }
+
+    [Test]
+    public async Task AnAgentHubWithAPolicyStarts()
+    {
+        await using WebApplication app = CreateDashboard(configureDashboard: options => options.AcceptAgents(agents => agents.AuthorizationPolicy = "agents"));
+        app.MapQuartzDashboard().AllowAnonymous();
+
+        await app.StartAsync();
+        await app.StopAsync();
+
+        RouteEndpoints(app).First(e => e.RoutePattern.RawText == "/quartz/agents")
+            .Metadata.GetMetadata<IAuthorizeData>()!.Policy.Should().Be("agents");
+    }
+
+    [Test]
+    public async Task AuthorizingTheDashboardDoesNotAuthorizeTheAgentHub()
+    {
+        await using WebApplication app = CreateDashboard(configureDashboard: options => options.AcceptAgents());
+        app.MapQuartzDashboard().RequireAuthorization();
+
+        Func<Task> act = async () => await app.StartAsync();
+
+        (await act.Should().ThrowAsync<InvalidOperationException>(
+                "the RequireAuthorization on what MapQuartzDashboard returns is for the dashboard's visitors, and must not quietly bind machines"))
+            .WithMessage("*agent hub*");
+
+        RouteEndpoints(app).First(e => e.RoutePattern.RawText == "/quartz/agents")
+            .Metadata.GetMetadata<IAuthorizeData>().Should().BeNull();
+    }
+
+    /// <summary>
     /// One process, both surfaces, nothing said about either: the refusal names them both rather than
     /// stopping at whichever the guard reached first.
     /// </summary>

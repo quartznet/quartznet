@@ -44,7 +44,7 @@ internal sealed class WireRoute
     private readonly string[] segments;
     private readonly bool[] isParameter;
 
-    public WireRoute(string name, string method, string template)
+    public WireRoute(string name, string method, string template, bool mutates = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(method);
@@ -53,6 +53,7 @@ internal sealed class WireRoute
         Name = name;
         Method = method;
         Template = template;
+        Mutates = mutates;
 
         segments = template.Split('/');
         isParameter = new bool[segments.Length];
@@ -92,6 +93,17 @@ internal sealed class WireRoute
     /// The template's parameters, in the order <see cref="For" /> takes their values.
     /// </summary>
     public IReadOnlyList<string> Parameters { get; }
+
+    /// <summary>
+    /// Whether a call of this route changes something, which is what a read-only carrier refuses.
+    /// </summary>
+    /// <remarks>
+    /// A property of the route rather than of its verb: the three bulk fetches are <c>POST</c>s that take
+    /// a body of keys and change nothing, so they are served read-only, and everything else that is not a
+    /// <c>GET</c> is refused. The HTTP API marks its endpoints the same way, and <c>ReadOnlyApiTest</c>
+    /// holds the two markings to each other. Added in 4.5.
+    /// </remarks>
+    public bool Mutates { get; }
 
     /// <summary>
     /// A request to this route with the template's parameters filled in, in order.
