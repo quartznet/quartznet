@@ -19,23 +19,23 @@
 
 #endregion
 
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Concurrent;
 using System.Globalization;
 
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
+using Quartz.HttpApiContract;
+
+using static Quartz.Trimming.Canary.Wire.CanarySteps;
 
 namespace Quartz.Trimming.Canary.Wire;
 
 /// <summary>
-/// The steps, each one a round trip over the HTTP API through the <see cref="IScheduler" /> and the
-/// <see cref="IExecutionHistoryStore" /> that <c>Quartz.HttpClient</c> registers.
+/// The steps, each one a round trip over the HTTP API through the <see cref="IScheduler" />, the
+/// <see cref="IExecutionHistoryStore" /> and the <see cref="ISchedulerEventSource" /> that
+/// <c>Quartz.HttpClient</c> registers.
 /// </summary>
-/// <remarks>
-/// The steps run in order and stop at the first failure, because each one leans on the one before it:
-/// there is no trigger to pause once scheduling has failed.
-/// </remarks>
 internal static class WireCheck
 {
     private static readonly JobKey JobKey = new("wire", "canary");
@@ -52,13 +52,6 @@ internal static class WireCheck
 
     private const string FiredBy = "Quartz.HttpClient";
 
-    /// <summary>
-    /// How long the job may take to run, and its history row to be listed, once asked for.
-    /// </summary>
-    private const int PatienceSeconds = 60;
-
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(PatienceSeconds);
-
     private static readonly TimeProvider Clock = TimeProvider.System;
 
     /// <summary>
@@ -71,6 +64,9 @@ internal static class WireCheck
     {
         IScheduler scheduler = client.GetRequiredService<IScheduler>();
         IExecutionHistoryStore history = client.GetRequiredKeyedService<IExecutionHistoryStore>(Program.SchedulerName);
+        ISchedulerEventSource events = client.GetRequiredKeyedService<ISchedulerEventSource>(Program.SchedulerName);
+
+        using EventSubscription subscription = new(events, cancellationToken);
 
         (string Name, Func<Task<string>> Step)[] steps =
         [
@@ -78,35 +74,18 @@ internal static class WireCheck
             ("schedule", () => Schedule(scheduler, cancellationToken)),
             ("read-back", () => ReadBack(scheduler, cancellationToken)),
             ("not-found", () => NotFound(scheduler, cancellationToken)),
+            ("events-open", () => OpenEvents(scheduler, subscription, cancellationToken)),
             ("pause", () => Pause(scheduler, cancellationToken)),
             ("resume", () => Resume(scheduler, cancellationToken)),
             ("trigger", () => Trigger(scheduler, cancellationToken)),
+            ("events", () => Events(subscription, cancellationToken)),
             ("history", () => History(history, cancellationToken)),
             ("statistics", () => Statistics(history, cancellationToken)),
             ("delete", () => Delete(scheduler, cancellationToken)),
             ("newer-host", () => NewerHostListing(newerHost.GetRequiredService<IScheduler>(), cancellationToken)),
         ];
 
-        foreach ((string name, Func<Task<string>> step) in steps)
-        {
-            try
-            {
-                string passed = await step().ConfigureAwait(false);
-                Console.WriteLine($"PASS {name}: {passed}");
-            }
-            catch (CanaryFailedException failure)
-            {
-                Console.WriteLine($"FAIL {name}: {failure.Message}");
-                return false;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"FAIL {name}: {e.GetType().FullName}: {e.Message}{Environment.NewLine}{e}");
-                return false;
-            }
-        }
-
-        return true;
+        return await CanarySteps.Run("wire", steps).ConfigureAwait(false);
     }
 
     private static async Task<string> Metadata(IScheduler scheduler, CancellationToken cancellationToken)
@@ -175,6 +154,35 @@ internal static class WireCheck
         return $"{absent} reads back as null, out of a 404 with problem details";
     }
 
+    /// <summary>
+    /// Opens the client's subscription to the scheduler's event stream and waits until it is live: a
+    /// pause and a resume until the resume's event arrives. The route subscribes before it writes its
+    /// first frame, so an event raised once the stream has answered is never missed — but the reader
+    /// opens the stream on its own time, and nothing outside it can see when that was.
+    /// </summary>
+    private static async Task<string> OpenEvents(IScheduler scheduler, EventSubscription subscription, CancellationToken cancellationToken)
+    {
+        subscription.Start();
+
+        long started = Clock.GetTimestamp();
+        int probes = 0;
+        while (!subscription.Received.Any(static e => e.Kind == SchedulerEventKind.TriggerResumed))
+        {
+            Expect(Clock.GetElapsedTime(started) < Patience, $"no event arrived over the stream within {PatienceSeconds} seconds, after {probes} pause-and-resume probes.");
+
+            probes++;
+            await scheduler.PauseTrigger(TriggerKey, cancellationToken).ConfigureAwait(false);
+            await scheduler.ResumeTrigger(TriggerKey, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(100), Clock, cancellationToken).ConfigureAwait(false);
+        }
+
+        SchedulerEvent first = subscription.Received.First(static e => e.Kind == SchedulerEventKind.TriggerResumed);
+        Expect(first.SchedulerName == Program.SchedulerName, $"the event names the scheduler '{first.SchedulerName}'.");
+        Expect(first.TriggerKey is { } key && key.Name == TriggerKey.Name && key.Group == TriggerKey.Group, $"the event is about the trigger '{first.TriggerKey?.Group}.{first.TriggerKey?.Name}'.");
+
+        return $"the server-sent event stream is live: a {first.Kind} for {TriggerKey} arrived after {probes} probe(s)";
+    }
+
     private static async Task<string> Pause(IScheduler scheduler, CancellationToken cancellationToken)
     {
         bool applied = await scheduler.PauseTrigger(TriggerKey, cancellationToken).ConfigureAwait(false);
@@ -201,20 +209,40 @@ internal static class WireCheck
     {
         await scheduler.TriggerJob(JobKey, new JobDataMap { { WireCanaryRun.FiredByKey, FiredBy } }, cancellationToken).ConfigureAwait(false);
 
-        WireCanaryRun run;
-        try
-        {
-            run = await WireCanaryJob.Ran.Task.WaitAsync(Patience, Clock, cancellationToken).ConfigureAwait(false);
-        }
-        catch (TimeoutException)
-        {
-            throw new CanaryFailedException($"the job never ran within {PatienceSeconds} seconds, so the server could not resolve or build the type the request named.");
-        }
+        WireCanaryRun run = await Await(WireCanaryJob.Ran.Task,
+            $"the job never ran within {PatienceSeconds} seconds, so the server could not resolve or build the type the request named.",
+            cancellationToken).ConfigureAwait(false);
 
         Expect(run.Payload == Payload, $"the job ran with the payload '{run.Payload}'.");
         Expect(run.FiredBy == FiredBy, $"the job ran with fired-by '{run.FiredBy}'.");
 
         return $"{JobKey} ran on the server, with the data it was scheduled with and the data it was triggered with";
+    }
+
+    /// <summary>
+    /// What the stream carried while the steps above ran: the pause, the resume and the execution, each
+    /// read out of a server-sent event frame through the contract's generated metadata.
+    /// </summary>
+    private static async Task<string> Events(EventSubscription subscription, CancellationToken cancellationToken)
+    {
+        SchedulerEvent executed = await Await(subscription.JobExecuted,
+            $"the job ran, and no JobExecuted event for it arrived over the stream within {PatienceSeconds} seconds.",
+            cancellationToken).ConfigureAwait(false);
+
+        Expect(executed.SchedulerName == Program.SchedulerName, $"the event names the scheduler '{executed.SchedulerName}'.");
+        Expect(executed.Vetoed != true, "the event says the job was vetoed.");
+        Expect(executed.ExceptionMessage is null, $"the event says the job threw: {executed.ExceptionMessage}");
+        Expect(!string.IsNullOrEmpty(executed.FireInstanceId), "the event names no firing.");
+        Expect(!string.IsNullOrEmpty(executed.SchedulerInstanceId), "the event names no node.");
+
+        foreach (SchedulerEventKind kind in new[] { SchedulerEventKind.TriggerPaused, SchedulerEventKind.TriggerResumed, SchedulerEventKind.TriggerFired, SchedulerEventKind.JobExecuting })
+        {
+            Expect(subscription.Received.Any(e => e.Kind == kind), $"no {kind} arrived over the stream, though the steps before this one caused one.");
+        }
+
+        subscription.Stop();
+
+        return $"the stream carried the pause, the resume, the firing and the {executed.Kind} of {JobKey}, {subscription.Received.Count} events in all";
     }
 
     private static async Task<string> History(IExecutionHistoryStore history, CancellationToken cancellationToken)
@@ -289,21 +317,50 @@ internal static class WireCheck
         return "a trigger in the state 'Hibernating' is left out, and the overlap policy 'Staggered' reads as Default";
     }
 
-    private static void Expect([DoesNotReturnIf(false)] bool condition, string failure)
+    /// <summary>
+    /// One subscription to the scheduler's events through <c>Quartz.HttpClient</c>'s reader, pulled on a
+    /// task of its own so the steps can go on while it reads, and remembering everything it was handed.
+    /// </summary>
+    private sealed class EventSubscription(ISchedulerEventSource source, CancellationToken cancellationToken) : IDisposable
     {
-        if (!condition)
+        private readonly CancellationTokenSource stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        private readonly ConcurrentQueue<SchedulerEvent> received = new();
+        private readonly TaskCompletionSource<SchedulerEvent> jobExecuted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private Task? reading;
+
+        /// <summary>Every event the stream delivered, in order.</summary>
+        public ConcurrentQueue<SchedulerEvent> Received => received;
+
+        /// <summary>The first <see cref="SchedulerEventKind.JobExecuted" /> for the canary's job.</summary>
+        public Task<SchedulerEvent> JobExecuted => jobExecuted.Task;
+
+        public void Start()
         {
-            throw new CanaryFailedException(failure);
+            reading ??= Task.Run(Read, stop.Token);
+        }
+
+        private async Task Read()
+        {
+            await foreach (SchedulerEvent schedulerEvent in source.Subscribe(Program.SchedulerName, stop.Token).ConfigureAwait(false))
+            {
+                received.Enqueue(schedulerEvent);
+
+                if (schedulerEvent is { Kind: SchedulerEventKind.JobExecuted, JobKey: { } key } && key.Name == JobKey.Name && key.Group == JobKey.Group)
+                {
+                    jobExecuted.TrySetResult(schedulerEvent);
+                }
+            }
+        }
+
+        public void Stop()
+        {
+            stop.Cancel();
+        }
+
+        public void Dispose()
+        {
+            stop.Cancel();
+            stop.Dispose();
         }
     }
-
-    /// <summary>
-    /// A step's own check failing, as opposed to something it called throwing: the message is the whole
-    /// story, and a stack trace would only say which line of this file noticed.
-    /// </summary>
-    /// <remarks>
-    /// Private on purpose. It never leaves <see cref="Run" />, which catches it to write the step's line, and
-    /// an executable has no caller that could catch it by type.
-    /// </remarks>
-    private sealed class CanaryFailedException(string message) : Exception(message);
 }

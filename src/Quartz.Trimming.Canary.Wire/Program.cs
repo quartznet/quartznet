@@ -29,20 +29,26 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using Quartz.HttpApiContract;
+
 namespace Quartz.Trimming.Canary.Wire;
 
 /// <summary>
-/// The HTTP API's wire path out of a trimmed or natively compiled publish: <c>Quartz.AspNetCore</c>
-/// serving a scheduler over Kestrel, and <c>Quartz.HttpClient</c> driving it over a loopback socket, in
-/// one process.
+/// Every wire Quartz puts a scheduler on, out of a trimmed or natively compiled publish, in one process
+/// over one Kestrel: <c>Quartz.AspNetCore</c> serving a scheduler over the HTTP API, <c>Quartz.HttpClient</c>
+/// driving it over a loopback socket, and <c>Quartz.Dashboard.Agent</c> dialling a second scheduler out
+/// to a hub speaking the dashboard's half of the agent protocol.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The two halves share the socket and nothing else. The host has a container with the scheduler in it;
-/// the client has one of its own, holding nothing but <c>AddQuartzHttpClient</c>. So every step in
-/// <see cref="WireCheck" /> goes through a request delegate the source generator wrote, through the wire
-/// contract's generated metadata on both sides, and through HTTP. The last step is the exception: its
-/// answer is the canned one <see cref="NewerHost" /> serves, read by a second client.
+/// The halves share the socket and nothing else. The host has a container with the served scheduler and
+/// the hub in it; the client has one of its own, holding nothing but <c>AddQuartzHttpClient</c>; the agent
+/// has a third, holding a scheduler and <c>UseDashboardAgent</c>. So every step in <see cref="WireCheck" />
+/// goes through a request delegate the source generator wrote, through the wire contract's generated
+/// metadata on both sides, and through HTTP; and every step in <see cref="AgentCheck" /> goes through the
+/// SignalR client and server binding the protocol's records with reflection switched off. The one exception
+/// is the newer-host step, whose answer is the canned one <see cref="NewerHost" /> serves, read by a second
+/// client.
 /// </para>
 /// <para>
 /// One line per step, and a non-zero exit code when anything failed.
@@ -51,7 +57,7 @@ namespace Quartz.Trimming.Canary.Wire;
 internal static class Program
 {
     /// <summary>
-    /// The scheduler's name. The client is registered under it too, because a request names the
+    /// The served scheduler's name. The client is registered under it too, because a request names the
     /// scheduler it is for.
     /// </summary>
     internal const string SchedulerName = "WireCanary";
@@ -82,7 +88,7 @@ internal static class Program
         }
 
         Console.WriteLine(passed
-            ? "Quartz.Trimming.Canary.Wire: a scheduler served by Quartz.AspNetCore is scheduled, read, paused, resumed, triggered and asked for its history through Quartz.HttpClient, which also reads a newer host's names."
+            ? "Quartz.Trimming.Canary.Wire: a scheduler served by Quartz.AspNetCore is scheduled, read, paused, resumed, triggered, watched and asked for its history through Quartz.HttpClient, which also reads a newer host's names; and a second scheduler dials out through Quartz.Dashboard.Agent, registers, heartbeats, is read, scheduled, triggered and watched down the tunnel, refuses what it was told to, and says goodbye."
             : "Quartz.Trimming.Canary.Wire: a step failed.");
 
         return passed ? 0 : 1;
@@ -95,7 +101,8 @@ internal static class Program
 
         await host.StartAsync(cancellationToken).ConfigureAwait(false);
 
-        Uri apiAddress = ApiAddress(host);
+        Uri siteRoot = SiteRoot(host);
+        Uri apiAddress = new(siteRoot, "quartz-api/");
         Console.WriteLine($"PASS host: Quartz.AspNetCore serves '{SchedulerName}' at {apiAddress}");
 
         using HttpClient httpClient = new() { BaseAddress = apiAddress };
@@ -103,20 +110,27 @@ internal static class Program
         ServiceProvider client = BuildClient(httpClient);
         await using ConfiguredAsyncDisposable clientDisposal = client.ConfigureAwait(false);
 
-        using HttpClient newerHostClient = new() { BaseAddress = new Uri(apiAddress, $"../{NewerHost.Path}") };
+        using HttpClient newerHostClient = new() { BaseAddress = new Uri(siteRoot, NewerHost.Path) };
 
         ServiceProvider newerHost = BuildClient(newerHostClient);
         await using ConfiguredAsyncDisposable newerHostDisposal = newerHost.ConfigureAwait(false);
 
         bool passed = await WireCheck.Run(client, newerHost, cancellationToken).ConfigureAwait(false);
 
+        // The agent half runs whether or not the HTTP half passed: its failure, if it has one, is a
+        // different package's, and a run that stopped at the first would say nothing about the second.
+        Uri hubUri = new(siteRoot, AgentCanaryHub.Path.TrimStart('/'));
+        Console.WriteLine($"PASS hub: the agent hub listens at {hubUri}");
+
+        passed &= await AgentCheck.Run(host.Services, hubUri, cancellationToken).ConfigureAwait(false);
+
         await host.StopAsync(cancellationToken).ConfigureAwait(false);
         return passed;
     }
 
     /// <summary>
-    /// The server half: a minimal-API host with a scheduler over the in-memory store and the HTTP API
-    /// mapped.
+    /// The server half: a minimal-API host with a scheduler over the in-memory store, the HTTP API mapped,
+    /// and the agent hub mapped beside it.
     /// </summary>
     private static WebApplication BuildHost()
     {
@@ -152,6 +166,13 @@ internal static class Program
 
         builder.Services.AddQuartzHttpApi(options => options.IncludeStackTraceInProblemDetails = true);
 
+        // The dashboard's half of the agent protocol, as far as the canary speaks it. The hub's payloads are
+        // the contract's records, written and read through its generated metadata, which is the one way a
+        // SignalR server serializes anything with reflection off - and the same call the dashboard makes.
+        builder.Services.AddSingleton<AgentCanaryHubState>();
+        builder.Services.AddSignalR()
+            .AddJsonProtocol(json => AgentProtocol.ConfigureHubPayloads(json.PayloadSerializerOptions));
+
         WebApplication app = builder.Build();
 
         // The API refuses to start without an authorization decision, and this is one: the only caller is
@@ -160,19 +181,22 @@ internal static class Program
 
         NewerHost.Map(app);
 
+        // Where the agent dials in. The hub authorizes its own callers, by bearer token, as the dashboard's does.
+        app.MapHub<AgentCanaryHub>(AgentCanaryHub.Path);
+
         return app;
     }
 
     /// <summary>
-    /// Where the API is being served, read back from Kestrel once it has bound its port.
+    /// Where Kestrel is serving, read back once it has bound its port, ending in <c>/</c> so that the
+    /// paths under it resolve against it.
     /// </summary>
-    private static Uri ApiAddress(WebApplication host)
+    private static Uri SiteRoot(WebApplication host)
     {
         IServerAddressesFeature addresses = host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()
             ?? throw new InvalidOperationException("Kestrel reported no addresses.");
 
-        // The site root plus the API path, ending in '/': the client resolves every route against it.
-        return new Uri($"{addresses.Addresses.Single()}/quartz-api/");
+        return new Uri(addresses.Addresses.Single() + "/");
     }
 
     /// <summary>

@@ -4,24 +4,36 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
-    <SignAssembly>false</SignAssembly>
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>full</TrimMode>
   </PropertyGroup>
 
   <!--
-    The second trim canary that runs (#3965). Quartz.Trimming.Canary references Quartz alone; this one
-    references the two packages of the HTTP API, and runs both halves of it in one process: Quartz.AspNetCore
-    serving a scheduler over Kestrel, and Quartz.HttpClient driving that scheduler over a socket.
+    The second trim canary that runs (#3965). Quartz.Trimming.Canary references Quartz and the three
+    packages a scheduler loads in its own process; this one references the three that put a scheduler on a
+    wire, and runs every end of every wire in one process over one Kestrel:
+
+      - Quartz.AspNetCore serves a scheduler over the HTTP API, and Quartz.HttpClient drives it over a
+        loopback socket, then reads its events off the same API's server-sent event stream;
+      - Quartz.Dashboard.Agent dials a second scheduler out to a SignalR hub on that Kestrel, which speaks
+        the dashboard's half of the agent protocol with the contract's own records (AgentCanaryHub), and
+        answers what the hub asks of it down the tunnel.
 
     What it proves that a compile cannot: the request delegates the generator wrote are the ones that run,
-    the wire contract reads and writes with reflection-based System.Text.Json switched off on both sides, and
-    a job named as a string in a request body comes back out as a type that runs.
+    the wire contract reads and writes with reflection-based System.Text.Json switched off on both sides, a
+    job named as a string in a request body comes back out as a type that runs, and the SignalR client's
+    On<T>, InvokeAsync<T> and client-to-server streaming bind the hub payloads through the contract's
+    generated metadata.
+
+    Signed, unlike Quartz.Trimming.Canary, because Quartz grants this project InternalsVisibleTo: the hub
+    half of the agent protocol lives in Quartz.Dashboard, which Blazor keeps untrimmable, so the canary
+    writes a hub of its own and has to spell the protocol's records exactly as the agent does. A strong-named
+    assembly can only name a friend by public key.
 
     Everything else is Quartz.Trimming.Canary's, for the reasons its csproj gives. No TrimmerRootAssembly,
     no suppressions file applied, and warnings that do not stop the link: build/Build.cs reads what the
-    publish reported and checks it against the ILLink.Suppressions.xml of Quartz, Quartz.AspNetCore and
-    Quartz.HttpClient.
+    publish reported and checks it against the ILLink.Suppressions.xml of Quartz, Quartz.AspNetCore,
+    Quartz.HttpClient and Quartz.Dashboard.Agent.
   -->
 
   <PropertyGroup>
@@ -34,7 +46,23 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      SignalR's one feature switch for a native AOT server, which no SDK sets on its own: a Web SDK project
+      spells it as the SignalRCustomAwaitableSupport property, and this console-SDK host names the runtime
+      option directly. With it on - the default - the server builds each hub method's executor by
+      reflecting over the return type's awaiter, and natively that reflection misses a plain Task: the hub
+      method is taken for synchronous, its Task is returned unawaited, and the dispatcher completes the
+      method's client-to-server streams before the first item arrives. That is how the agent's event stream
+      came up the tunnel to nobody on this canary's first native run, while the same publish, trimmed and
+      JIT-compiled, read every event. Off, the server recognises Task, Task<T>, ValueTask and ValueTask<T>
+      by type, which is the path SignalR's own native AOT support takes.
+    -->
+    <RuntimeHostConfigurationOption Include="Microsoft.AspNetCore.SignalR.Hub.IsCustomAwaitableSupported" Value="false" Trim="true" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
+    <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
   </ItemGroup>
 

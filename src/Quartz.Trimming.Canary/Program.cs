@@ -61,6 +61,12 @@ namespace Quartz.Trimming.Canary;
 /// the reflection binder this repository used to have, it passes trimmed and fails natively, with
 /// three of its values silently arriving as defaults.
 /// </para>
+/// <para>
+/// And <see cref="SidePackagesCheck" /> runs the three packages a scheduler loads into its own process —
+/// <c>Quartz.Jobs</c>, <c>Quartz.Plugins</c> and <c>Quartz.Plugins.TimeZoneConverter</c> — each on the
+/// path its baseline is about: a listener found by name, a job type read out of a schedule file, a time
+/// zone only the converter resolves. They are what the three packages' <c>IsAotCompatible</c> rests on.
+/// </para>
 /// </remarks>
 internal static class Program
 {
@@ -101,13 +107,18 @@ internal static class Program
             failures.Add(bindingFailure);
         }
 
+        if (await SidePackagesCheck.Run().ConfigureAwait(false) is { } sidePackagesFailure)
+        {
+            failures.Add(sidePackagesFailure);
+        }
+
         foreach (string failure in failures)
         {
             Console.WriteLine(failure);
         }
 
         Console.WriteLine(failures.Count == 0
-            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, and configuration binds."
+            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, and a time zone resolves through the converter."
             : $"Quartz.Trimming.Canary: {failures.Count} check(s) failed.");
 
         return failures.Count == 0 ? 0 : 1;

@@ -170,14 +170,25 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// with the Quartz projects whose <c>ILLink.Suppressions.xml</c> its publish is checked against.
     /// </summary>
     /// <remarks>
-    /// <c>Quartz.Trimming.Canary</c> references Quartz alone. <c>Quartz.Trimming.Canary.Wire</c> (#3965)
-    /// serves the HTTP API with <c>Quartz.AspNetCore</c> and drives it with <c>Quartz.HttpClient</c> in the
-    /// same process, so the baselines of both packages apply to it as well as Quartz's.
+    /// <para>
+    /// <c>Quartz.Trimming.Canary</c> is a scheduler in its own process: Quartz over a SQLite store, and the
+    /// three packages such a scheduler loads — <c>Quartz.Jobs</c>, <c>Quartz.Plugins</c> and
+    /// <c>Quartz.Plugins.TimeZoneConverter</c>. <c>Quartz.Trimming.Canary.Wire</c> (#3965) is a scheduler
+    /// on a wire: it serves the HTTP API with <c>Quartz.AspNetCore</c>, drives it with
+    /// <c>Quartz.HttpClient</c>, and dials a second scheduler out through <c>Quartz.Dashboard.Agent</c> to
+    /// a hub of its own, all in one process. Every package either canary runs natively says
+    /// <c>IsAotCompatible</c>, and this table is what that claim rests on.
+    /// </para>
+    /// <para>
+    /// <c>Quartz.Jobs</c> and <c>Quartz.Plugins.TimeZoneConverter</c> record no warning and so have no
+    /// baseline file to name here; a warning against either fails the leg as unrecorded, which is the
+    /// right answer for a package whose csproj says a warning is a new one to fix.
+    /// </para>
     /// </remarks>
     static readonly (string Project, string[] Baselines)[] TrimCanaries =
     [
-        ("Quartz.Trimming.Canary", ["Quartz"]),
-        ("Quartz.Trimming.Canary.Wire", ["Quartz", "Quartz.AspNetCore", "Quartz.HttpClient"]),
+        ("Quartz.Trimming.Canary", ["Quartz", "Quartz.Plugins"]),
+        ("Quartz.Trimming.Canary.Wire", ["Quartz", "Quartz.AspNetCore", "Quartz.HttpClient", "Quartz.Dashboard.Agent"]),
     ];
 
     /// <summary>
@@ -208,6 +219,10 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// <c>Quartz.Trimming.Canary.Wire</c> is published and started the same way. It serves the HTTP API
     /// and calls it over a loopback socket, and its first run found every error the API answered going
     /// out as an empty <c>500</c>, because nothing could write a <c>ProblemDetails</c> with reflection off.
+    /// Since the side packages joined (#3341), the first canary also runs <c>Quartz.Jobs</c>,
+    /// <c>Quartz.Plugins</c> and <c>Quartz.Plugins.TimeZoneConverter</c>, and the second dials a scheduler
+    /// out through <c>Quartz.Dashboard.Agent</c> to a hub it carries; <see cref="TrimCanaries" /> says
+    /// which baselines each is held to.
     /// </para>
     /// <para>
     /// The canary's own publish does not stop at the first recorded warning, and this leg checks the
@@ -249,7 +264,8 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// build that has no runtime code generation to fall back on and no assemblies left to reflect over,
     /// so a Quartz that runs a persistent job store out of one has been proven rather than argued: the
     /// canary creates a SQLite database, schedules a job, waits to be told it fired, and reads the job
-    /// and the trigger back.
+    /// and the trigger back. The same leg is what every side package's <c>IsAotCompatible</c> rests on:
+    /// a package says it only once one of the two canaries runs it natively here.
     /// </para>
     /// <para>
     /// ILCompiler has no link-attributes option — a fact recorded on step 5 of the issue and rechecked
@@ -281,6 +297,14 @@ partial class Build : FalloutBuild, ICompile, IPack
 
         AbsolutePath canaryDirectory = ArtifactsDirectory / directory / project;
         canaryDirectory.CreateOrCleanDirectory();
+
+        // ILLink and ILCompiler are incremental: each is skipped when its intermediate output under obj is
+        // newer than its inputs, and a skipped tool reports no warnings. The check below would then pass on
+        // an empty report, with a binary built from the previous inputs. CI never publishes twice, but a
+        // local run does, so the intermediates go before every publish and the tools run every time.
+        AbsolutePath intermediate = ArtifactsDirectory / "obj" / project / $"{configuration.ToString().ToLowerInvariant()}_{RuntimeInformation.RuntimeIdentifier}";
+        (intermediate / "linked").DeleteDirectory();
+        (intermediate / "native").DeleteDirectory();
 
         var output = DotNetPublish(s => configure(s
             .SetProject(solution.AllProjects.First(x => x.Name == project))
@@ -319,6 +343,7 @@ partial class Build : FalloutBuild, ICompile, IPack
         var recorded = baselines.SelectMany(ReadTrimBaseline).ToList();
         var unrecorded = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        var recordedSeen = 0;
 
         foreach (var line in output.Select(x => x.Text))
         {
@@ -349,6 +374,7 @@ partial class Build : FalloutBuild, ICompile, IPack
             if (recorded.Any(entry => entry.Code == code && IsWithin(member, entry.Type)))
             {
                 Log.Debug("{What} reported the recorded {Code} against {Member}", what, code, member);
+                recordedSeen++;
                 continue;
             }
 
@@ -364,7 +390,14 @@ partial class Build : FalloutBuild, ICompile, IPack
                 + "Fix the reflection, or make the case for a new entry - see the header of src/Quartz/TrimAnalysisBaseline.cs.");
         }
 
-        Log.Information("{What} reported nothing outside the recorded baseline", what);
+        // Every canary reaches the recorded reflection - a job's type comes back out of a string - so a
+        // report with none of it is not a clean publish but a publish whose trimmer or compiler did not
+        // run, and nothing above was checked.
+        Assert.True(recordedSeen > 0,
+            $"{what} reported no warning the baseline records, so ILLink or ILCompiler did not run and this check saw nothing: "
+            + "an up-to-date incremental publish, or a publish whose output was not captured.");
+
+        Log.Information("{What} reported {Recorded} recorded warning(s) and nothing outside the baseline", what, recordedSeen);
     }
 
     /// <summary>

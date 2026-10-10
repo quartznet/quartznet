@@ -9,16 +9,27 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!--
-      Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431).
-      Under TrimMode=full every assembly is member-trimmed whether it is marked or not; what the mark
-      changes is what a publish reports. With TrimmerSingleWarn on, which is the default, an assembly's
-      trim-analysis warnings collapse into one IL2104, and IsTrimmable exempts exactly its IL2026s from
-      that collapse - which is what lets this package report its own reflective call site.
+      The claim, and what it is worth - the same statement Quartz.csproj makes, and read the same way.
+      IsAotCompatible turns on IsTrimmable and the trim, AOT and single-file analyzers, all of which were
+      already on here (issue #3431); what it adds is the statement, so the four are spelled out beside it.
 
-      One is left, and it is the directory scan job's listener lookup - recorded in TrimAnalysisBaseline.cs
-      beside this file, which says why. Nothing else here reflects: the jobs are ordinary types the
-      container constructs.
+      What is proven: Quartz.Trimming.Canary references this package, is published by ILCompiler as a native
+      executable on Windows, Linux and macOS on every pull request, and is run. It schedules a
+      DirectoryScanJob configured through DirectoryScanOptions, which scans a directory, finds the listener
+      its job data names through the container by the name of its type, and tells it about the file it found.
+
+      What a native publish reports against this package: nothing. One IL2026 was recorded when the analyzers
+      were first turned on here (issue #3431) - DirectoryScanJob found its listener by sweeping every loaded
+      assembly for a type of that name - and the sweep went away when the job was made to look only where
+      the application put something: a keyed registration, a registered listener, the scheduler context.
+      The baseline files outlived the warning they recorded until the canary's publish showed nothing for
+      them to record, so there is no TrimAnalysisBaseline.cs beside this file any more, and a warning
+      appearing here is a new one - fix it rather than starting a baseline for it; build/Build.cs fails the
+      canary leg on one. Nothing here reflects: the jobs are ordinary types the container constructs.
+      NativeJob and SendMailJob are not run by the canary, since one starts a process and the other needs a
+      mail server; neither reflects either.
     -->
+    <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
