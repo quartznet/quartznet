@@ -66,7 +66,7 @@
       run Quartz.Weasel on the floor it ships with. A Marten or Wolverine that asks for a Weasel above the
       floor moves the tests off it; raise the floor with it, or hold that update.
     -->
-    <PackageVersion Include="Marten" Version="9.45.0" />
+    <PackageVersion Include="Marten" Version="9.47.0" />
     <PackageVersion Include="MELT" Version="1.1.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
