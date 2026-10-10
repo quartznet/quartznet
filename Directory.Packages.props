@@ -91,7 +91,7 @@
     <PackageVersion Include="NSwag.AspNetCore" Version="14.7.1" />
     <PackageVersion Include="NUnit" Version="5.0.0" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.15.0" />
-    <PackageVersion Include="NUnit3TestAdapter" Version="6.3.0" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="6.3.1" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <PackageVersion Include="Npgsql.DependencyInjection" Version="10.0.3" />
     <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.19.1" />
