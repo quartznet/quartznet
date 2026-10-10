@@ -8,8 +8,9 @@ A trimmed publish removes code the application does not reach; native AOT compil
 an executable that needs no installed runtime. Both need everything used at run time to be visible in IL.
 Quartz's position:
 
-* `Quartz` declares `IsAotCompatible`.
-* Eight other packages declare whether they are trimmable.
+* `Quartz` and six side packages declare `IsAotCompatible`. Each is published by ILCompiler and run on
+  every pull request.
+* Every other shipped package declares whether it is trimmable.
 * Paths that cannot be analysed, such as a job type arriving as a string, are reported, not suppressed.
 
 Deciding whether to try: [what Quartz claims](#what-quartz-claims). Ready to publish:
@@ -37,7 +38,10 @@ A quiet build is not necessarily safe. To see everything:
 `IL3050`. It turns on `IsTrimmable` and the trim, AOT and single-file analyzers. It does **not** claim that
 no `IL2xxx` remains.
 
-No other package declares it yet. To list dependencies that have not:
+Seven packages declare it, and only those: each is referenced by a canary that is published natively and
+*run* on every pull request, and whose native publish reports nothing outside the package's recorded
+baseline. The [table below](#which-packages-say-whether-they-can-be-trimmed) names the canary for each. To
+list dependencies that have not declared it:
 
 ```xml
 <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
@@ -48,24 +52,29 @@ arrived in .NET 10, and many compatible libraries do not declare it. Treat the l
 
 ### Which packages say whether they can be trimmed
 
-| Package | Trimmable | What a trimmed publish reports against it |
-|---|---|---|
-| `Quartz` | yes, and `IsAotCompatible` | the string-named paths in the next section |
-| `Quartz.Jobs` | yes | one: `DirectoryScanJob` finds its listener by a type name in job data |
-| `Quartz.Plugins` | yes | two: the XML and JSON schedule-file plugins name each job's type as text |
-| `Quartz.HttpClient` | yes | one: a job read back over HTTP carries its type as a name |
-| `Quartz.AspNetCore` | yes | one: a job posted to the HTTP API names its type as a string |
-| `Quartz.Extensions.Redis` | yes | nothing |
-| `Quartz.Plugins.TimeZoneConverter` | yes | nothing |
-| `Quartz.Serialization.Newtonsoft` | **no** | see [below](#the-two-packages-that-are-not-trimmable) |
-| `Quartz.Dashboard` | **no** | see [below](#the-two-packages-that-are-not-trimmable) |
+| Package | Trimmable | `IsAotCompatible` | What proves it natively | What a trimmed publish reports against it |
+|---|---|---|---|---|
+| `Quartz` | yes | yes | `Quartz.Trimming.Canary`: a SQLite store, configuration binding | the string-named paths in the next section |
+| `Quartz.Jobs` | yes | yes | `Quartz.Trimming.Canary`: `DirectoryScanJob` finds its listener by name | nothing |
+| `Quartz.Plugins` | yes | yes | `Quartz.Trimming.Canary`: JSON and XML schedule files, structured job logging | two: the XML and JSON schedule-file plugins name each job's type as text |
+| `Quartz.Plugins.TimeZoneConverter` | yes | yes | `Quartz.Trimming.Canary`, published without ICU: a zone only the converter resolves | nothing |
+| `Quartz.HttpClient` | yes | yes | `Quartz.Trimming.Canary.Wire`: drives the HTTP API over loopback, reads its event stream | one: a job read back over HTTP carries its type as a name |
+| `Quartz.AspNetCore` | yes | yes | `Quartz.Trimming.Canary.Wire`: serves the HTTP API on Kestrel | one: a job posted to the HTTP API names its type as a string |
+| `Quartz.Dashboard.Agent` | yes | yes | `Quartz.Trimming.Canary.Wire`: dials a hub, is driven down the tunnel | one: a job sent down the tunnel names its type as a string |
+| `Quartz.Extensions.Redis` | yes | no: a canary needs a Redis server | — | nothing |
+| `Quartz.Aspire` | yes | no: its one path names a driver, which is `[RequiresUnreferencedCode]` | — | that call site, at your `AddQuartzPersistentStore` |
+| `Quartz.Weasel` and the six dialect packages | yes | no: each dialect needs its database | — | nothing |
+| `Quartz.Serialization.Newtonsoft` | **no** | no | — | see [below](#the-two-packages-that-are-not-trimmable) |
+| `Quartz.Dashboard` | **no** | no | — | see [below](#the-two-packages-that-are-not-trimmable) |
 
 * The side packages' remaining warnings are all `IL2026`, which is not collapsed, so you see those five.
-* The seven trimmable packages build with the trim, AOT and single-file analyzers on and warnings as
-  errors. What remains is recorded in a `TrimAnalysisBaseline.cs` beside each csproj (Redis and
-  TimeZoneConverter need none).
+* Every trimmable package builds with the trim, AOT and single-file analyzers on and warnings as errors.
+  What remains is recorded in a `TrimAnalysisBaseline.cs` beside each csproj (Jobs, Redis,
+  TimeZoneConverter, Aspire and the Weasel packages need none).
 * Those files do not ship, and nothing is suppressed in shipped assemblies: an
   `UnconditionalSuppressMessage` in a library would hide the risk from your application.
+* `IsAotCompatible` is set only where a canary runs the package natively; the claim's reach is the canary's.
+  The packages without it are not known to be incompatible: nothing runs them natively on every pull request.
 
 ### What still warns, and what to do about each
 
@@ -78,8 +87,7 @@ which you avoid at compile time, or a path only one configuration style reaches.
 | The persisted `JOB_CLASS_NAME` column | any ADO.NET job store, when it reads a job back | register the job type with `AddJob<TJob>()` or `AddJobType<TJob>()` — that call is what the trimmer follows |
 | A schedule file | `job_scheduling_data` XML and its JSON twin, from `Quartz.Plugins` | the same: register the types the file names, or root them |
 | Jobs declared in configuration | the `Quartz:Schedule` section, and the type loader named by `quartz.scheduler.typeLoaderType` | the same again |
-| A job type in a request body | the HTTP API, and `Quartz.HttpClient` reading a job back | register the types a caller may name |
-| `DirectoryScanJob`'s listener | `Quartz.Jobs`, named in the job data map | register the listener in the container, or name it in a trimmer root descriptor |
+| A job type in a request body | the HTTP API, `Quartz.HttpClient` reading a job back, and `Quartz.Dashboard.Agent` receiving one down the tunnel | register the types a caller may name |
 | A driver, chosen by name | `UseSqlServer(connectionString)` and its siblings | [hand over the driver's factory](#register-the-store-with-the-driver-s-factory) instead |
 | The flat `quartz.*` keys | `AddQuartz(NameValueCollection)`, `quartz.plugin.*`, `quartz.*.listener.*`, `quartz.dbprovider.*` | configure in code or from `appsettings.json`; neither reaches these |
 
@@ -238,10 +246,17 @@ The flat `quartz.*` keys still work, with warnings: they name components and set
    `JOB_CLASS_NAME` as a string), and reads the job and trigger back through `IScheduler`.
 3. **The binding.** Builds a scheduler from an in-memory `IConfiguration` and reads ten values back from
    the components: the scheduler name, thread pool size, scheduler context, and the rest from options.
+4. **The side packages.** `DirectoryScanJob` scans a directory and finds its listener in the container by
+   the name in its job data (`Quartz.Jobs`); a `quartz_jobs.json` and a `quartz_jobs.xml` each name a job's
+   type as text, and the job fires, with the structured job history plugin listening (`Quartz.Plugins`);
+   `TimeZones.FindById` answers an id .NET alone refuses, through `UseTimeZoneConverter`
+   (`Quartz.Plugins.TimeZoneConverter`). The canary publishes with `InvariantGlobalization` for the last:
+   with ICU present .NET converts every IANA and Windows id itself, and no id ever reaches a resolver.
 
-`src/Quartz.Trimming.Canary.Wire` does the same for the [HTTP API](../packages/http-api.md). One process
-serves a scheduler with `Quartz.AspNetCore` on Kestrel and drives it with `Quartz.HttpClient` over
-loopback. Each step is a round trip:
+`src/Quartz.Trimming.Canary.Wire` does the same for the three packages that put a scheduler on a wire. One
+process serves a scheduler with `Quartz.AspNetCore` on Kestrel, drives it with `Quartz.HttpClient` over
+loopback, and dials a second scheduler out through `Quartz.Dashboard.Agent` to a hub on the same Kestrel.
+Each step is a round trip:
 
 | Step | What it does over HTTP |
 |---|---|
@@ -249,13 +264,34 @@ loopback. Each step is a round trip:
 | schedule | schedules a job with a cron trigger |
 | read-back | reads the job, its data, the trigger and the group listing |
 | not-found | reads a missing job as `null`, from a `404` with problem details |
+| events-open | opens the server-sent event stream and waits until it is live |
 | pause, resume | changes the trigger's state and reads it back |
 | trigger | triggers the job with extra data and waits for it to run on the server |
+| events | reads the pause, the resume, the firing and the execution off the stream |
 | history | lists the execution, then reads it back alone with its captured log |
+| statistics | counts the run in buckets of a day |
 | delete | deletes the job, and its trigger with it |
+| newer-host | reads a listing carrying names this client has no member for |
 
 Its host calls `AddJobType<TJob>()` for the job the client names, which is what a trimmed host serving the
 API has to do for every job type a caller may send.
+
+The agent half speaks the [dashboard agent](../packages/dashboard-agent.md) protocol against a hub the canary
+carries, because the real hub lives in `Quartz.Dashboard`, which is not trimmable. The hub uses the
+protocol's own records, so the payloads cannot drift from what a dashboard sends:
+
+| Step | What goes down the tunnel |
+|---|---|
+| register | the agent connects with its bearer token and registers; the hub reads its routes |
+| heartbeat | a heartbeat arrives on the interval the hub set |
+| details | a `GET` of the scheduler, answered as a `SchedulerDto` |
+| schedule | a `POST` with a job and a cron trigger; the job's type travels as a string |
+| read-back | the job, read back as a `JobDetailDto` |
+| watch | the hub asks for events; the agent opens its client-to-server stream |
+| trigger | the job is triggered, runs in the agent's scheduler, and its `JobExecuted` comes up the stream |
+| refused | a `Shutdown` the agent was configured to refuse, answered `403` with problem details |
+| not-found | a missing job, answered `404` with problem details |
+| unregister | the agent's scheduler shuts down and the agent says goodbye |
 
 Both csprojs:
 

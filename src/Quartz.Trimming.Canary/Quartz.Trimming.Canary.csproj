@@ -7,6 +7,15 @@
     <SignAssembly>false</SignAssembly>
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>full</TrimMode>
+    <!--
+      No ICU, which is the shape a size-conscious native application often publishes in, and the one
+      shape in which Quartz.Plugins.TimeZoneConverter can be seen to do anything: with ICU present .NET
+      itself turns every IANA id into a Windows one and back, so no id ever reaches a resolver. Without it
+      an IANA id on Windows and a Windows id elsewhere resolve only through the package, and
+      SidePackagesCheck asserts first that .NET alone refuses the id and then that Quartz answers it.
+      Quartz.Trimming.Canary.Wire keeps ICU, so both shapes are run.
+    -->
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <!--
@@ -15,6 +24,12 @@
     when the trimmer has been through it. That distinction is not academic — issue #3341's step 6 fixed a
     serializer failure that produced no warning at all beyond the two already recorded, and step 7 found
     the provider dying in a constructor for the same reason, and a compile could have found neither.
+
+    It references Quartz and the three packages a scheduler loads into its own process — Quartz.Jobs,
+    Quartz.Plugins and Quartz.Plugins.TimeZoneConverter — and runs a path through each (SidePackagesCheck):
+    a shipped job finding its listener by name, the two schedule-file plugins naming a job's type as text,
+    a history plugin, and a time zone only the converter resolves. The three packages that put a scheduler
+    on a wire are Quartz.Trimming.Canary.Wire's.
 
     No TrimmerRootAssembly here, deliberately. The worker roots Quartz so that the trim analyzer walks
     every path in it and any IL2xxx is reported; this project wants the opposite, an application trimmed
@@ -26,7 +41,8 @@
     JOB_CLASS_NAME as a string — so those warnings are reported, read, and checked against that same file
     by the PublishTrimmed and PublishAot targets, which fail on any warning it does not record. Applying
     the file here instead would work for the trimmed publish and could not work for the native one at all,
-    because ILCompiler has no link-attributes option. One baseline, checked the one way that works for both.
+    because ILCompiler has no link-attributes option. One baseline per package, checked the one way that
+    works for both.
   -->
 
   <PropertyGroup>
@@ -51,6 +67,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
+    <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
+    <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <!--
       What a consumer gets from analyzers/dotnet/cs inside Quartz.nupkg; a ProjectReference does not
       carry analyzers the way a PackageReference does, so the project is named. The canary declares

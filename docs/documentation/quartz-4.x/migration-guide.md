@@ -54,6 +54,7 @@ An application on 4.4 compiles on 4.5 unchanged, and the database schema did not
 | `AgentTokens` | `Primary`, `Secondary`: the hub's bearer tokens, two slots for a rotation |
 | Log events `9111`–`9117` | `Quartz.Dashboard`: an agent connection refused, registered, registration refused, disconnected, forgotten, missed heartbeats; the liveness sweep failed |
 | Log events `9300`–`9305` | `Quartz.Dashboard.Agent`: registered, dashboard unreachable, registration refused, connection closed, operation refused, operation failed |
+| `IsAotCompatible` on `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.Plugins.TimeZoneConverter`, `Quartz.HttpClient`, `Quartz.AspNetCore`, `Quartz.Dashboard.Agent` | Each is published natively and run on every pull request. No code changed; `VerifyReferenceAotCompatibility` stops listing them. See [Which packages say whether they can be trimmed](how-tos/trimming-and-native-aot.md#which-packages-say-whether-they-can-be-trimmed) |
 
 Behaviour that changed:
 
@@ -6593,15 +6594,17 @@ against it. Binding the `Quartz` configuration section is source-generated, so c
 `appsettings.json` is AOT-safe with nothing asked of your application. The `IL2xxx` warnings above are still
 reported. `Quartz.Trimming.Canary` is published by ILCompiler and **run** on Windows, Linux and macOS on
 every pull request, scheduling and firing over a real SQLite store and binding a whole scheduler from an
-`IConfiguration`. The remaining work is [#3341](https://github.com/quartznet/quartznet/issues/3341).
+`IConfiguration`. From 4.5, `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.Plugins.TimeZoneConverter`,
+`Quartz.HttpClient`, `Quartz.AspNetCore` and `Quartz.Dashboard.Agent` declare it too, each run natively by
+one of the two canaries. The remaining work is [#3341](https://github.com/quartznet/quartznet/issues/3341).
 
 **Every other shipped package declares whether it can be trimmed**; on 3.x each unmarked one produced a
 single `IL2104`.
 
-* `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.HttpClient`, `Quartz.AspNetCore`, `Quartz.Extensions.Redis` and
-  `Quartz.Plugins.TimeZoneConverter` are marked trimmable and report their call sites individually: none
-  to two each, all an `IL2026` for a job type spelled as a string. No public member of them gained
-  `[RequiresUnreferencedCode]` or `[DynamicallyAccessedMembers]`.
+* `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.HttpClient`, `Quartz.AspNetCore`, `Quartz.Dashboard.Agent`,
+  `Quartz.Extensions.Redis` and `Quartz.Plugins.TimeZoneConverter` are marked trimmable and report their
+  call sites individually: none to two each, all an `IL2026` for a job type spelled as a string. No public
+  member of them gained `[RequiresUnreferencedCode]` or `[DynamicallyAccessedMembers]`.
 * `Quartz.Serialization.Newtonsoft` and `Quartz.Dashboard` declare that they cannot be trimmed, in their
   csproj and nuget.org readme: Json.NET's contract is reflection, and Blazor Server binds components and
   parameters by name.

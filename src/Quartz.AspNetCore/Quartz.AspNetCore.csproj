@@ -26,19 +26,27 @@
     -->
     <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
     <!--
-      Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431).
-      Under TrimMode=full every assembly is member-trimmed whether it is marked or not; what the mark
-      changes is what a publish reports. With TrimmerSingleWarn on, which is the default, an assembly's
-      trim-analysis warnings collapse into one IL2104, and IsTrimmable exempts exactly its IL2026s from
-      that collapse - which is what lets this package report its own reflective call site.
+      The claim, and what it is worth - the same statement Quartz.csproj makes, and read the same way.
+      IsAotCompatible turns on IsTrimmable and the trim, AOT and single-file analyzers, all of which were
+      already on here (issue #3431); what it adds is the statement, so the four are spelled out beside it.
 
-      116 warnings when the analyzers were first turned on here, one now. The generator above took 114;
-      the last two were the API writing a response through JsonSerializerOptions alone, and the wire
-      contract has been source-generated since #3400, so EndpointHelper asks the options for the
-      JsonTypeInfo and passes it. This package therefore produces no IL3050 at all, and the single-file
-      analyzer found nothing. The one that is left is a job type named as a string in a request body,
-      recorded in TrimAnalysisBaseline.cs beside this file.
+      What is proven: Quartz.Trimming.Canary.Wire references this package, is published by ILCompiler as a
+      native executable on Windows, Linux and macOS on every pull request, and is run. It serves a scheduler
+      over the HTTP API on Kestrel - through the request delegates the generator above wrote - and has
+      Quartz.HttpClient schedule, read, pause, resume, trigger, delete and ask for history over it, read a 404
+      as problem details, and read its server-sent event stream, every body written through the wire
+      contract's generated metadata with reflection-based System.Text.Json switched off.
+
+      What the baseline still records, and a native publish still reports: one IL2026, a job type named as
+      a string in a request body, in TrimAnalysisBaseline.cs beside this file. 116 warnings when the
+      analyzers were first turned on here; the generator took 114, and passing the wire contract's
+      JsonTypeInfo to Results.Json took the last two. It is trimming, not dynamic code: the package produces
+      no IL3050 at all, and a host keeps the job types a caller may name with AddJobType<T>().
+
+      Where it stops: the claim is this assembly's, over the minimal-API half of Microsoft.AspNetCore.App,
+      which says IsAotCompatible for itself. Quartz.Dashboard beside it does not and cannot, and says so.
     -->
+    <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>

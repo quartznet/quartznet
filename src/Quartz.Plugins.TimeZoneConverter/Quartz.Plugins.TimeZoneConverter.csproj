@@ -10,18 +10,27 @@
     <Authors>Sean Farrow, Marko Lahma, Quartz.NET</Authors>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!--
-      Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431).
-      Under TrimMode=full every assembly is member-trimmed whether it is marked or not; what the mark
-      changes is what a publish reports. With TrimmerSingleWarn on, which is the default, an assembly's
-      trim-analysis warnings collapse into one IL2104, and IsTrimmable exempts exactly its IL2026s from
-      that collapse - which is what lets this package report its own reflective call site.
+      The claim, and what it is worth - the same statement Quartz.csproj makes, and read the same way.
+      IsAotCompatible turns on IsTrimmable and the trim, AOT and single-file analyzers, all of which were
+      already on here (issue #3431); what it adds is the statement, so the four are spelled out beside it.
 
-      There are none, and there were none the first time the analyzers were pointed at this package:
+      What is proven: Quartz.Trimming.Canary references this package, is published by ILCompiler as a native
+      executable on Windows, Linux and macOS on every pull request, and is run - without ICU, which is the
+      one shape in which this package can be seen to do anything. It asserts that .NET alone refuses an
+      IANA id on Windows and a Windows id elsewhere, then that TimeZones.FindById answers it through the
+      resolver UseTimeZoneConverter registered, and schedules a trigger in the zone and reads it back.
+
+      What a native publish reports against this package: nothing, and nothing was ever reported.
       UseTimeZoneConverter registers one resolver with TimeZones and that resolver asks TZConvert for a
       TimeZoneInfo by its IANA or Windows id, which is data rather than a type name. So there is no
-      TrimAnalysisBaseline.cs beside this file, and a warning appearing here is a new one — fix it rather
-      than starting a baseline for it.
+      TrimAnalysisBaseline.cs beside this file, and a warning appearing here is a new one - fix it rather
+      than starting a baseline for it; build/Build.cs fails the canary leg on one, since there is no file
+      for it to be recorded in.
+
+      Where it stops: the claim is this assembly's. TimeZoneConverter underneath it carries its mapping as
+      data and says nothing about trimming of its own.
     -->
+    <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>

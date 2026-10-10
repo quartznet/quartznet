@@ -10,14 +10,29 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!--
-      Trimmable, and the analyzers that make that a checked statement rather than a claim, as
-      Quartz.HttpClient has them. The agent carries the HTTP API's contract without HTTP: every body it
-      reads and writes goes through the wire contract's generated metadata, which is the overload that
-      carries neither RequiresUnreferencedCode nor RequiresDynamicCode. What remains is the one call site
-      the HTTP API has too - a job type named as a string in a request body - recorded in
-      TrimAnalysisBaseline.cs beside this file. No trim canary publishes this package in 4.5; the hub half
-      lives in Quartz.Dashboard, which Blazor keeps untrimmable, so there is no end-to-end to publish yet.
+      The claim, and what it is worth - the same statement Quartz.csproj makes, and read the same way.
+      IsAotCompatible turns on IsTrimmable and the trim, AOT and single-file analyzers, all of which were
+      already on here; what it adds is the statement, so the four are spelled out beside it.
+
+      What is proven: Quartz.Trimming.Canary.Wire references this package, is published by ILCompiler as a
+      native executable on Windows, Linux and macOS on every pull request, and is run. The hub half of the
+      protocol lives in Quartz.Dashboard, which Blazor keeps untrimmable, so the canary carries a hub of its
+      own speaking the dashboard's half with the contract's own records, and a scheduler dials out to it
+      through UseDashboardAgent: it registers, heartbeats, answers a read, a schedule naming a job type as a
+      string, a trigger with the event stream open, a refusal of its own and a 404, and says goodbye - the
+      SignalR client's On<T>, InvokeAsync<T> and client-to-server streaming binding every payload through
+      the wire contract's generated metadata, with reflection-based System.Text.Json switched off.
+      Quartz.Examples.Worker publishes it fully trimmed as well, and never starts it.
+
+      What the baseline still records, and a native publish still reports: one IL2026, the one call site the
+      HTTP API has too - a job type named as a string in a request body - in TrimAnalysisBaseline.cs beside
+      this file. It is trimming, not dynamic code: the package produces no IL3050 at all.
+
+      Where it stops: the claim is this assembly's. Microsoft.AspNetCore.SignalR.Client underneath it says
+      IsAotCompatible for itself, and a strongly typed hub - the one SignalR shape native AOT does not
+      support - is nowhere in this package.
     -->
+    <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
