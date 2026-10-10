@@ -10,19 +10,27 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!--
-      Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431).
-      Under TrimMode=full every assembly is member-trimmed whether it is marked or not; what the mark
-      changes is what a publish reports. With TrimmerSingleWarn on, which is the default, an assembly's
-      trim-analysis warnings collapse into one IL2104, and IsTrimmable exempts exactly its IL2026s from
-      that collapse - which is what lets this package report its own reflective call site.
+      The claim, and what it is worth - the same statement Quartz.csproj makes, and read the same way.
+      IsAotCompatible turns on IsTrimmable and the trim, AOT and single-file analyzers, all of which were
+      already on here (issue #3431); what it adds is the statement, so the four are spelled out beside it.
 
-      Ten warnings when the analyzers were first turned on here, two now. Eight of them were the client
-      serializing and deserializing the wire contract through JsonSerializerOptions alone; the contract
-      has been source-generated since #3400, so the client asks the options for the JsonTypeInfo and
-      passes it, which is the overload that carries neither attribute. That is the whole of the package's
-      IL3050: there is none left, and the single-file analyzer found nothing. The two that remain are a
-      job type named as a string in an HTTP response, recorded in TrimAnalysisBaseline.cs beside this file.
+      What is proven: Quartz.Trimming.Canary.Wire references this package, is published by ILCompiler as a
+      native executable on Windows, Linux and macOS on every pull request, and is run. It drives a scheduler
+      served by Quartz.AspNetCore over a loopback socket - metadata, scheduling, reading back, a 404 with
+      problem details, pause and resume, triggering, the execution history and its statistics, the
+      server-sent event stream, a listing from a host newer than the client - every body read and written
+      through the wire contract's generated metadata with reflection-based System.Text.Json switched off.
+
+      What the baseline still records, and a native publish still reports: one IL2026, a job read back over
+      HTTP carrying its type as a string, in TrimAnalysisBaseline.cs beside this file. It is trimming, not
+      dynamic code - the package produces no IL3050 at all - and an application keeps its job types the
+      ordinary way, by referencing them from AddJob<T>() or JobBuilder.Create<T>().
+
+      Where it stops: the claim is this assembly's. Microsoft.Extensions.Http underneath it says
+      IsAotCompatible for itself. On SDK 10.0.400 the property writes [AssemblyMetadata("IsAotCompatible",
+      "True")] into the assembly and nothing into the nuspec, checked by packing.
     -->
+    <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>

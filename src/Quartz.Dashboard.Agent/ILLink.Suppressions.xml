@@ -12,10 +12,14 @@
   fullname carries a trailing '*' throughout, so that the compiler-generated closure and state-machine
   types ILLink reports against are matched by the same entry as the type they belong to.
 
-  No running canary covers this package in 4.5: the hub half lives in Quartz.Dashboard, which Blazor keeps
-  untrimmable, so there is no end-to-end to publish and start. What does read this file is
-  Quartz.Examples.Worker's fully trimmed publish, which references the agent and names this file beside
-  src/Quartz/ILLink.Suppressions.xml, so a type outside the entry below warning fails that publish.
+  Two publishes read this file. Quartz.Trimming.Canary.Wire references this package and build/Build.cs
+  reads this file beside Quartz's, Quartz.AspNetCore's and Quartz.HttpClient's when it checks that canary's
+  trimmed and native AOT publishes — read rather than applied, for the reason Quartz's own is: ILCompiler
+  has no option to be handed it. A warning against this assembly that no entry here records fails
+  PublishTrimmed and PublishAot. Quartz.Examples.Worker's fully trimmed publish references the agent too and
+  names this file as an _ILLinkSuppressions item beside src/Quartz/ILLink.Suppressions.xml, so a type
+  outside the entry below warning fails that publish as well. Keep it in step with TrimAnalysisBaseline.cs,
+  which covers the analyzer; ILLink sees through calls the analyzer does not.
 -->
 <linker>
   <assembly fullname="Quartz.Dashboard.Agent">

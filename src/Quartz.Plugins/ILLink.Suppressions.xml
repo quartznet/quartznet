@@ -12,14 +12,11 @@
   fullname carries a trailing '*' throughout, so that the compiler-generated closure and state-machine
   types ILLink reports against are matched by the same entry as the type they belong to.
 
-  **Nothing in this repository applies this file today**, and that is worth knowing before trusting it.
-  Quartz.Examples.Worker and Quartz.Trimming.Canary are the only trimmed publishes here and both reference
-  Quartz alone, so ILLink never links this assembly and build/Build.cs reads src/Quartz/ILLink.Suppressions.xml
-  only. It exists because the C# baseline covers the analyzer and nothing else: an application that publishes
-  trimmed over this package hits ILLink, which sees through calls the analyzer does not, and this is the
-  form that answer has to take. Should a canary ever reference this package, add it there as an
-  _ILLinkSuppressions item and teach build/Build.cs to read this file as well as Quartz's own — until then
-  an entry here is checked by review rather than by CI, so keep it in step with the file beside it by hand.
+  Quartz.Trimming.Canary references this package, and build/Build.cs reads this file beside Quartz's and
+  Quartz.Jobs' when it checks that canary's trimmed and native AOT publishes — read rather than applied,
+  for the reason Quartz's own is: ILCompiler has no option to be handed it. A warning against this assembly
+  that no entry here records fails PublishTrimmed and PublishAot. Keep it in step with
+  TrimAnalysisBaseline.cs, which covers the analyzer; ILLink sees through calls the analyzer does not.
 -->
 <linker>
   <assembly fullname="Quartz.Plugins">
