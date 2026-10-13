@@ -61,6 +61,7 @@ Behaviour that changed:
 | Before | After | What to do |
 |---|---|---|
 | A worker recorded execution history only when asked | A scheduler with `UseDashboardAgent` records it in memory, as one serving the HTTP API does | Nothing; bound by the history options |
+| `Quartz.Dashboard` did not depend on `Quartz.HttpClient` | It does, at the same version: agents are driven through `HttpScheduler` over the agent's connection | Nothing; a dashboard host restores one more Quartz package |
 | `AddQuartzDashboard()` registered no scheduler repository of its own | It registers Quartz's shared services, so a dashboard with no `AddQuartz` accepts agents | Nothing |
 | `AddQuartzHttpClient` was keyed by the scheduler name only | Keyed by `Target` when set | Nothing, unless you set `Target`: then resolve `GetRequiredKeyedService<IScheduler>(target)` |
 | A second `AddQuartzHttpClient` naming a registered scheduler threw `InvalidOperationException` | Unchanged for a bare name; a second `Target` of one name throws `SchedulerConfigException` | Give each process a `Target` of its own |
