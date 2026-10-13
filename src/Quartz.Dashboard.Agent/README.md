@@ -35,7 +35,7 @@ builder.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-`Target` is the first half of the scheduler's key on the dashboard, `w1/QuartzScheduler`; it defaults to
+`Target` is the first half of the scheduler's key on the dashboard, `worker-1/QuartzScheduler`; it defaults to
 the machine name. The token goes as an `Authorization: Bearer` header, never in the URL. The agent
 reconnects for as long as the scheduler runs, and a dashboard that is down when the worker starts is
 dialled again until it answers.

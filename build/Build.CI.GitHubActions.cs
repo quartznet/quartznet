@@ -37,8 +37,10 @@ using Quartz.Build;
     CacheKeyFiles = [],
     // Generating native code is minutes rather than seconds, and it happens after everything else here.
     // Twenty-five since the HTTP API canary joined the trimmed one (#3965): windows-latest ran the whole
-    // list in 19 minutes 10 seconds on its first run, too close to twenty to leave to chance.
-    TimeoutMinutes = 25,
+    // list in 19 minutes 10 seconds on its first run, too close to twenty to leave to chance. Thirty-five
+    // since the side packages joined the canaries (#4051): macos-latest reached PublishTrimmed's last
+    // publish at 24 minutes on #4057, every test and both native canaries green, and was cancelled there.
+    TimeoutMinutes = 35,
     ConcurrencyCancelInProgress = true,
     ReadPermissions = [GitHubActionsPermissions.Contents]
 )]
@@ -56,7 +58,7 @@ using Quartz.Build;
 [DatabaseIntegrationGitHubActions("pr-integration-sqlite", "sqlite")]
 [DatabaseIntegrationGitHubActions("pr-integration-redis", "redis")]
 // The push leg runs 'basic' — the container-free negation of every db-* category. Left unset the build
-// defaults to "all", which starts six database containers inside a fifteen-minute job; per-database coverage
+// defaults to "all", which starts six database containers inside a twenty-minute job; per-database coverage
 // is what the pr-integration-* workflows above are for.
 [DatabaseGitHubActions(
     "build",
@@ -76,7 +78,9 @@ using Quartz.Build;
     // windows-latest the unit tests begin about five and a half minutes in, the suite takes two, and
     // HangDump needs UnitTestHangTimeout of silence before it dumps and kills the host.
     // Ten minutes held a green run and nothing else — see UnitTestHangTimeout in Build.cs.
-    TimeoutMinutes = 15,
+    // Twenty since 4.5: green windows legs ran 12:47 to 13:55, and one on 5561c80226 was cancelled at
+    // fifteen while Publish was still pushing packages, after every test had passed.
+    TimeoutMinutes = 20,
     ReadPermissions = [GitHubActionsPermissions.Contents]
 )]
 // Releases live in their own workflow file because a nuget.org trusted publishing policy is scoped by
