@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -39,6 +40,12 @@ namespace Quartz.Configuration;
 /// it, and a plugin type registered as a service is looked for under that scheduler's key. Two
 /// schedulers each configuring an XML plugin therefore get two instances reading their own files,
 /// which is what the properties format has always promised.
+/// </para>
+/// <para>
+/// A <c>quartz.plugin.&lt;name&gt;.*</c> key names a type and sets properties by string, so the whole
+/// of that half is behind <see cref="FeatureSwitches.IsLegacyComponentKeysSupported" />. It is checked
+/// here as well as in the property bridge because the bag read here is the one deferred configuration
+/// contributed to, which the bridge never saw.
 /// </para>
 /// </remarks>
 internal static class SchedulerPluginFactory
@@ -84,9 +91,40 @@ internal static class SchedulerPluginFactory
         // is applied last: an entry the property bag named is configured by that bag and nothing else.
         int addedInCode = plugins.Count;
 
+        HashSet<string> named = PluginNames(properties);
+        if (named.Count > 0)
+        {
+            if (FeatureSwitches.IsLegacyComponentKeysSupported)
+            {
+                AddNamedPlugins(provider, plugins, named, properties, schedulerKey);
+            }
+            else
+            {
+                Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(
+                    $"{LegacyPropertyKeys.PluginPrefix}.{named.Min(StringComparer.Ordinal)}"));
+            }
+        }
+
+        ApplyConfiguration(provider, plugins, addedInCode, schedulerName);
+
+        return plugins;
+    }
+
+    /// <summary>
+    /// The half the property bag drives: a plugin built from the type its entry names, and the entry's
+    /// other keys written onto it by name.
+    /// </summary>
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void AddNamedPlugins(
+        IServiceProvider provider,
+        List<(string Name, ISchedulerPlugin Plugin)> plugins,
+        HashSet<string> named,
+        NameValueCollection properties,
+        SchedulerKey schedulerKey)
+    {
         var loader = provider.GetService<ITypeLoader>() ?? typeLoader;
 
-        foreach (var name in PluginNames(properties))
+        foreach (var name in named)
         {
             var prefix = $"{LegacyPropertyKeys.PluginPrefix}.{name}";
 
@@ -107,10 +145,6 @@ internal static class SchedulerPluginFactory
             ApplyProperties(plugin, type, prefix, properties);
             plugins.Add((name, plugin));
         }
-
-        ApplyConfiguration(provider, plugins, addedInCode, schedulerName);
-
-        return plugins;
     }
 
     /// <summary>
@@ -195,6 +229,7 @@ internal static class SchedulerPluginFactory
     /// what is shared rather than leaving it to whichever scheduler was registered first.
     /// </para>
     /// </remarks>
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
     private static ISchedulerPlugin Build(IServiceProvider provider, object? schedulerKey, Type type)
     {
         try
@@ -213,6 +248,7 @@ internal static class SchedulerPluginFactory
         }
     }
 
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
     private static void ApplyProperties(ISchedulerPlugin plugin, Type type, string prefix, NameValueCollection properties)
     {
         var pluginProperties = new NameValueCollection();

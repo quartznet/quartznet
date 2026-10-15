@@ -31,4 +31,40 @@
       <Analyzer Remove="@(Analyzer)" Condition="'%(Filename)' == 'Quartz.Analyzers'" />
     </ItemGroup>
   </Target>
+
+  <!--
+    Quartz's two feature switches, off under a trimmed or native publish the way the SDK turns
+    JsonSerializerIsReflectionEnabledByDefault off, and on everywhere else. Set either property to true
+    to opt back in; a trimmed publish then reports the IL2026 at each guarded call site, which is the
+    reflection it has chosen to keep.
+
+      QuartzTypeNameResolutionSupport   Quartz.TypeNameResolution.IsSupported   a type name nothing
+                                        registered is resolved with Type.GetType; off, only a registered
+                                        type resolves and an unknown name says which registration to add.
+      QuartzLegacyComponentKeysSupport  Quartz.LegacyComponentKeys.IsSupported  a flat quartz.* key names
+                                        a component by type or sets its properties by string; off, such a
+                                        key fails AddQuartz naming the code form. Quartz's own spellings of
+                                        quartz.jobStore.type, quartz.threadPool.type and
+                                        quartz.serializer.type, and SYS_PROP, still work.
+
+    The setting is what makes the trimmer remove the guarded code: ILLink and ILCompiler substitute a
+    FeatureSwitchDefinition getter only from an explicit RuntimeHostConfigurationOption, and with none
+    they report every guarded call. Both conditions are tested because PublishTrimmed is derived from
+    PublishAot in the SDK's publish targets, which import after a package's buildTransitive file.
+  -->
+  <PropertyGroup Condition="'$(PublishTrimmed)' == 'true' Or '$(PublishAot)' == 'true'">
+    <QuartzTypeNameResolutionSupport Condition="'$(QuartzTypeNameResolutionSupport)' == ''">false</QuartzTypeNameResolutionSupport>
+    <QuartzLegacyComponentKeysSupport Condition="'$(QuartzLegacyComponentKeysSupport)' == ''">false</QuartzLegacyComponentKeysSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="Quartz.TypeNameResolution.IsSupported"
+                                    Condition="'$(QuartzTypeNameResolutionSupport)' != ''"
+                                    Value="$(QuartzTypeNameResolutionSupport)"
+                                    Trim="true" />
+    <RuntimeHostConfigurationOption Include="Quartz.LegacyComponentKeys.IsSupported"
+                                    Condition="'$(QuartzLegacyComponentKeysSupport)' != ''"
+                                    Value="$(QuartzLegacyComponentKeysSupport)"
+                                    Trim="true" />
+  </ItemGroup>
 </Project>

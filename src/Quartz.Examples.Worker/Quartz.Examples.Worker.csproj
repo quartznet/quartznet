@@ -38,7 +38,6 @@
   -->
   <ItemGroup>
     <_ILLinkSuppressions Include="..\Quartz\ILLink.Suppressions.xml" />
-    <_ILLinkSuppressions Include="..\Quartz.Dashboard.Agent\ILLink.Suppressions.xml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -57,5 +56,13 @@
     -->
     <ProjectReference Include="..\Quartz.Analyzers\Quartz.Analyzers.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
   </ItemGroup>
+
+  <!--
+    What buildTransitive/net10.0 inside Quartz.nupkg gives a package consumer, which a ProjectReference
+    does not. Load-bearing for this publish: it sets the two feature switches false under PublishTrimmed,
+    and ILLink substitutes a guarded call site away only on an explicit setting. Without the import the
+    guarded IL2026s are reported against Quartz, and with ILLinkTreatWarningsAsErrors on, this publish fails.
+  -->
+  <Import Project="..\Quartz\buildTransitive\net10.0\Quartz.targets" />
 
 </Project>

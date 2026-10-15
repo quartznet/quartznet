@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 
 using Quartz.Configuration;
 using Quartz.Util;
@@ -8,6 +9,12 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// <summary>
 /// The DbMetadata factory based on application configuration
 /// </summary>
+/// <remarks>
+/// The <c>quartz.dbprovider.&lt;name&gt;.*</c> keys are written onto a <see cref="DbMetadata" /> by
+/// property name, which is what <see cref="FeatureSwitches.IsLegacyComponentKeysSupported" /> is about.
+/// The property bridge refuses the keys before it registers this factory when the switch is off; the
+/// guard here is for a factory constructed by other means.
+/// </remarks>
 internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
 {
     private readonly string propertyGroupName;
@@ -62,21 +69,30 @@ internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
     /// <returns>The metadata instance for the specified name</returns>
     public override DbMetadata GetDbMetadata(string providerName)
     {
-        try
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
         {
-            PropertiesParser pp = GetPropertiesParser();
-            NameValueCollection props = pp.GetPropertyGroup(propertyGroupName + "." + providerName, true);
-            DbMetadata metadata = new DbMetadata();
+            try
+            {
+                PropertiesParser pp = GetPropertiesParser();
+                NameValueCollection props = pp.GetPropertyGroup(propertyGroupName + "." + providerName, true);
+                DbMetadata metadata = new DbMetadata();
 
-            PropertyBinder.SetObjectProperties(metadata, props);
-            metadata.Validate();
+                Bind(metadata, props);
+                metadata.Validate();
 
-            return metadata;
+                return metadata;
+            }
+            catch (Exception ex)
+            {
+                Throw.ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+                return default!;
+            }
         }
-        catch (Exception ex)
-        {
-            Throw.ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
-            return default!;
-        }
+
+        Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused($"{propertyGroupName}.{providerName}"));
+        return default!;
     }
+
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void Bind(DbMetadata metadata, NameValueCollection props) => PropertyBinder.SetObjectProperties(metadata, props);
 }

@@ -21,24 +21,29 @@
       QuartzSchedulerOptions and its five siblings instead of reflecting over them at startup.
 
       What an application publishing native AOT still sees reported against Quartz is trimming, not
-      dynamic code, and all of it is one habit: a type or a member named by a string. Each is either an
-      API that says [RequiresUnreferencedCode] out loud, so avoiding it is a compile-time decision, or a
-      path only a configuration style reaches:
+      dynamic code, and since 4.6 it is one type: ValueConverter, which coerces a JobDataMap value onto a
+      job property whose type the framework does not annotate. It is recorded in TrimAnalysisBaseline.cs
+      and mirrored in ILLink.Suppressions.xml, neither of which ships — so a consumer is told about it,
+      and a native AOT publish of Quartz reports exactly that and nothing else, which build/Build.cs
+      checks on every pull request by publishing Quartz.Trimming.Canary natively and running a whole
+      SQLite store out of it.
 
-        - ITypeLoader / SimpleTypeLoader, and JobType(string) — a job type spelled as text. The typed
-          forms (JobBuilder.Create<T>(), OfType<T>(), AddJob<T>()) carry [DynamicallyAccessedMembers]
-          the whole way instead and warn about nothing.
-        - The persisted JOB_CLASS_NAME column, which StdAdoDelegate resolves through the scheduler's
-          ITypeLoader when it reads a job back. Unavoidable for a persistent store, and the reason the trim
-          canary runs one: the type has to survive trimming, which for an application's own job types it does.
-        - The quartz.plugin.* property paths, and the leftover quartz.* keys the property bridge applies by
-          name. An application that configures in code reaches none of them — which is what makes
-          AddQuartz itself trimmable, and is held by a test.
+      Everything else that used to be reported — a job type spelled as text, the persisted JOB_CLASS_NAME
+      column, the quartz.* keys that name a component or set its properties by string — sits behind two
+      feature switches, declared in FeatureSwitches.cs:
 
-      Every one of those is recorded in TrimAnalysisBaseline.cs and mirrored in ILLink.Suppressions.xml,
-      neither of which ships — so a consumer is told about them, and a native AOT publish of Quartz
-      reports exactly that set and nothing else, which build/Build.cs checks on every pull request by
-      publishing Quartz.Trimming.Canary natively and running a whole SQLite store out of it.
+        - Quartz.TypeNameResolution.IsSupported: a type name is answered from the types the application
+          registered (AddJob<T>(), AddJobType<T>(), JobBuilder.Create<T>(), TypeLoaderOptions.Map), and
+          by Type.GetType only while this is on.
+        - Quartz.LegacyComponentKeys.IsSupported: a flat .type key, and a component's leftover keys, are
+          read only while this is on; Quartz's own spellings of a store, a thread pool, a serializer and
+          SYS_PROP map to a typeof instead.
+
+      buildTransitive/net10.0/Quartz.targets, packed below, sets both false under PublishTrimmed and
+      PublishAot, which is what lets ILLink and ILCompiler remove the guarded code rather than report
+      it: the tools substitute a FeatureSwitchDefinition getter only from an explicit setting. A
+      consumer opts back in with QuartzTypeNameResolutionSupport or QuartzLegacyComponentKeysSupport,
+      and then sees the IL2026 at each guarded call site, which is the reflection it chose to keep.
 
       TransientErrorDetector, which decides whether a database error is worth retrying, also reads driver
       properties by name, and is on neither list: it names each one with [DynamicDependency], so a

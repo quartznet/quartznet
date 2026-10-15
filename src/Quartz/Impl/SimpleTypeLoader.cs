@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -27,13 +29,29 @@ using Quartz.Util;
 namespace Quartz.Impl;
 
 /// <summary>
-/// A <see cref="ITypeLoader" /> that simply calls <see cref="Type.GetType(string)" />.
+/// The default <see cref="ITypeLoader" />: a name is answered from <see cref="RegisteredTypeNames" />
+/// first, and by <see cref="Type.GetType(string)" /> after that while
+/// <see cref="FeatureSwitches.IsTypeNameResolutionSupported" /> is on.
 /// </summary>
+/// <remarks>
+/// A declared alias is consulted before either, because an alias states what a stored name means
+/// <em>now</em>. Under a trimmed or native publish the switch is off, so only a name something
+/// registered resolves, and the <see cref="TypeLoadException" /> for any other names the registration
+/// to add rather than saying the type could not be found.
+/// </remarks>
 /// <seealso cref="ITypeLoader" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 internal sealed class SimpleTypeLoader : ITypeLoader
 {
+    /// <summary>
+    /// What the reflective half says for itself. Every call to it is guarded by the switch, so an
+    /// application that reads the warning is one that turned the switch back on.
+    /// </summary>
+    private const string ResolvesByReflection =
+        "A type name nothing registered is resolved with Type.GetType, which a trimmed application cannot rely on; "
+        + FeatureSwitches.TypeNameResolutionSwitch + " guards every call.";
+
     private const string QuartzAssemblyTypePostfix = ", Quartz";
     private const string QuartzJobsAssemblyTypePostfix = ", Quartz.Jobs";
 
@@ -127,10 +145,12 @@ internal sealed class SimpleTypeLoader : ITypeLoader
         {
             return null;
         }
-        Type? type = LoadDeclaredAlias(name) ?? Type.GetType(name, false) ?? LoadLegacyName(name);
+        Type? type = LoadDeclaredAlias(name) ?? Resolve(name);
         if (type is null)
         {
-            Throw.TypeLoadException($"Could not load type '{name}'");
+            Throw.TypeLoadException(FeatureSwitches.IsTypeNameResolutionSupported
+                ? $"Could not load type '{name}'"
+                : RegisteredTypeNames.NotRegistered(name));
         }
         return type;
     }
@@ -141,11 +161,21 @@ internal sealed class SimpleTypeLoader : ITypeLoader
     /// </summary>
     /// <remarks>
     /// What <c>TypeLoaderOptionsValidator</c> asks of an alias's target at startup. It lives here so
-    /// that resolving a type from a string stays in the one type whose contract that is — the trim
-    /// analyzer's <c>IL2057</c> is recorded against this type and nothing else — and so that a target
-    /// may itself be spelled with a pre-4.0 name.
+    /// that resolving a type from a string stays in the one type whose contract that is, and so that a
+    /// target may itself be spelled with a pre-4.0 name.
     /// </remarks>
     internal static bool CanResolve(string name)
+    {
+        if (RegisteredTypeNames.Find(name) is not null)
+        {
+            return true;
+        }
+
+        return FeatureSwitches.IsTypeNameResolutionSupported && CanResolveByReflection(name);
+    }
+
+    [RequiresUnreferencedCode(ResolvesByReflection)]
+    private static bool CanResolveByReflection(string name)
     {
         if (Type.GetType(name, false) is not null)
         {
@@ -162,6 +192,28 @@ internal sealed class SimpleTypeLoader : ITypeLoader
 
         return false;
     }
+
+    /// <summary>
+    /// One name, exactly as given or as a 3.x spelling of a 4.0 name: the registered types first, and
+    /// the runtime after them while the switch allows it.
+    /// </summary>
+    private Type? Resolve(string name)
+    {
+        if (RegisteredTypeNames.Find(name, out string foundAs) is { } registered)
+        {
+            if (!ReferenceEquals(foundAs, name))
+            {
+                logger.TypeFoundUnderNewName(name, foundAs);
+            }
+
+            return registered;
+        }
+
+        return FeatureSwitches.IsTypeNameResolutionSupported ? ResolveByReflection(name) : null;
+    }
+
+    [RequiresUnreferencedCode(ResolvesByReflection)]
+    private Type? ResolveByReflection(string name) => Type.GetType(name, false) ?? LoadLegacyName(name);
 
     /// <summary>
     /// The renames the application declared, dropping the entries that say nothing.
@@ -214,7 +266,7 @@ internal sealed class SimpleTypeLoader : ITypeLoader
         {
             // The target is a type name like any other, so Quartz's own renames apply to it too: an
             // alias may point at a type this application still spells the 3.x way.
-            Type? type = Type.GetType(candidate, false) ?? LoadLegacyName(candidate);
+            Type? type = Resolve(candidate);
             if (type is not null)
             {
                 logger.TypeFoundUnderDeclaredAlias(name, candidate);
@@ -228,6 +280,7 @@ internal sealed class SimpleTypeLoader : ITypeLoader
     /// <summary>
     /// Resolves a type whose namespace or assembly changed, warning so the configuration can be fixed.
     /// </summary>
+    [RequiresUnreferencedCode(ResolvesByReflection)]
     private Type? LoadLegacyName(string name)
     {
         foreach (string candidate in LegacyNameCandidates(name))
@@ -248,7 +301,11 @@ internal sealed class SimpleTypeLoader : ITypeLoader
     /// core assembly; satellite assemblies merged into it) composed with the namespace and type
     /// renames.
     /// </summary>
-    private static List<string> LegacyNameCandidates(string name)
+    /// <remarks>
+    /// Pure string work, which is what lets <see cref="RegisteredTypeNames" /> and the property bridge's
+    /// built-in component table apply the same renames to a lookup that never touches the runtime.
+    /// </remarks>
+    internal static List<string> LegacyNameCandidates(string name)
     {
         List<string> candidates = [name];
 

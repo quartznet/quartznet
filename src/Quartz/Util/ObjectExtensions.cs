@@ -18,6 +18,15 @@ internal static partial class ObjectExtensions
     public static string AssemblyQualifiedNameWithoutVersion(this Type type)
         => assemblyQualifiedNameCache.GetOrAdd(type, x => $"{GetTypeString(x)}, {x.Assembly.GetName().Name}");
 
+    /// <summary>
+    /// A type name as a configuration file may spell it — <c>Version=</c>, <c>Culture=</c> and
+    /// <c>PublicKeyToken=</c> and all, on the type and on its generic arguments — reduced to the spelling
+    /// <see cref="AssemblyQualifiedNameWithoutVersion" /> produces, so the two compare equal. Returns the
+    /// same instance when there was nothing to strip.
+    /// </summary>
+    public static string WithoutAssemblyVersion(string assemblyQualifiedName)
+        => assemblyQualifiedName.Contains('=') ? Cleanup().Replace(assemblyQualifiedName, "") : assemblyQualifiedName;
+
     private static string? GetTypeString(Type type)
         => type.IsGenericType
             ? GenericTypeString(type.FullName)

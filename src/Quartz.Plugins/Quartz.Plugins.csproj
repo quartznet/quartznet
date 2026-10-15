@@ -21,11 +21,16 @@
       embeds, and the job types kept by AddJobType<T>() in the application, which is what the how-to says
       to do.
 
-      What the baseline still records, and a native publish still reports: two IL2026, one per schedule-file
-      plugin, for the job type the file spells as text - in TrimAnalysisBaseline.cs beside this file, which
-      says why the attribute stops there. It is trimming, not dynamic code: the package produces no IL3050
-      at all. The classic logging pair is not run by the canary; it logs through the same listeners as the
-      structured pair and reflects over nothing.
+      What a native publish reports against this package: nothing. Two IL2026 were recorded until 4.6, one
+      per schedule-file plugin, for the job type the file spells as text; the processors said
+      RequiresUnreferencedCode for it, and the plugins, implementing interfaces Quartz does not own both
+      sides of, could not carry the attribute on. They say it no longer: a name is resolved from the types
+      the application registered, and by reflection only while Quartz.TypeNameResolution.IsSupported is on,
+      which a trimmed publish turns off (src/Quartz/FeatureSwitches.cs). There is no TrimAnalysisBaseline.cs
+      beside this file any more, and a warning appearing here is a new one - fix it rather than starting a
+      baseline for it; build/Build.cs fails the canary leg on one. It is trimming, not dynamic code: the
+      package produces no IL3050 at all. The classic logging pair is not run by the canary; it logs through
+      the same listeners as the structured pair and reflects over nothing.
     -->
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>

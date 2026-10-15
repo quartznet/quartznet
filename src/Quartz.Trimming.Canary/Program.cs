@@ -68,9 +68,14 @@ namespace Quartz.Trimming.Canary;
 /// zone only the converter resolves. They are what the three packages' <c>IsAotCompatible</c> rests on.
 /// </para>
 /// <para>
-/// Finally <see cref="TransientErrorCheck" /> asks the store's retry classification about a busy SQLite
+/// <see cref="TransientErrorCheck" /> asks the store's retry classification about a busy SQLite
 /// database. The answer comes from a driver property Quartz reads by name, so a publish that trimmed it
 /// would turn every busy database into a failure without a word.
+/// </para>
+/// <para>
+/// Finally <see cref="TypeNameCheck" /> shows the two feature switches are off, and what that means: a
+/// registered job's name resolves, a type nothing registered is refused by name, and a <c>quartz.*</c>
+/// key naming a component Quartz does not ship is refused at <c>AddQuartz</c>.
 /// </para>
 /// </remarks>
 internal static class Program
@@ -122,13 +127,18 @@ internal static class Program
             failures.Add(transientErrorFailure);
         }
 
+        if (await TypeNameCheck.Run().ConfigureAwait(false) is { } typeNameFailure)
+        {
+            failures.Add(typeNameFailure);
+        }
+
         foreach (string failure in failures)
         {
             Console.WriteLine(failure);
         }
 
         Console.WriteLine(failures.Count == 0
-            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, a time zone resolves through the converter, and a busy database is one to retry."
+            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, a time zone resolves through the converter, a busy database is one to retry, and a type name resolves only once registered."
             : $"Quartz.Trimming.Canary: {failures.Count} check(s) failed.");
 
         return failures.Count == 0 ? 0 : 1;

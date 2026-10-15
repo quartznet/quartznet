@@ -356,6 +356,37 @@ public class LegacyPropertyKeyExhaustivenessTest
         }
     }
 
+    /// <summary>
+    /// The mirror of <see cref="EveryRemovedKeyIsRejectedByNameAndWithItsAdvice" /> for the keys a
+    /// trimmed publish refuses: each prefix is one the validator accepts, so the refusal and not the
+    /// unknown-key guard is what a reader meets, and each piece of advice names a member of the builder.
+    /// </summary>
+    [Test]
+    public void EveryComponentKeyAdviceIsUnderASupportedPrefixAndNamesTheCodeForm()
+    {
+        LegacyPropertyKeys.componentKeyAdvice.Should().NotBeEmpty();
+
+        foreach ((string prefix, string advice) in LegacyPropertyKeys.componentKeyAdvice)
+        {
+            LegacyPropertyKeys.supportedKeys.Should().Contain(supported => prefix.StartsWith(supported, StringComparison.Ordinal),
+                $"'{prefix}' is refused by the switch, which only a key the validator accepts ever reaches");
+            advice.Should().MatchRegex(@"\b(Use\w+|Add\w+)\b",
+                $"the advice for '{prefix}' has to name the Use* or Add* member that replaces the key");
+        }
+    }
+
+    [Test]
+    public void ARefusedComponentKeyIsToldTheKeyTheSwitchAndTheCodeForm()
+    {
+        string message = LegacyPropertyKeys.ComponentKeyRefused("quartz.jobStore.type");
+
+        message.Should().Contain("'quartz.jobStore.type'");
+        message.Should().Contain(FeatureSwitches.LegacyComponentKeysSwitch + " is false");
+        message.Should().Contain("UseJobStore<T>()");
+        message.Should().Contain($"<{FeatureSwitches.LegacyComponentKeysProperty}>true</{FeatureSwitches.LegacyComponentKeysProperty}>",
+            "the MSBuild property is how a publish opts back into reading such keys");
+    }
+
     [Test]
     public void TheSupportedListIsInternallyConsistent()
     {

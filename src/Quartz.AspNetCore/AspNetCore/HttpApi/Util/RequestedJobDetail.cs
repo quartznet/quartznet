@@ -41,12 +41,11 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// covers all three endpoints and cannot be forgotten by a fourth.
 /// </para>
 /// <para>
-/// Gathering the three in one place also gathers what they have in common for trimming:
-/// <see cref="JobDetailDto.AsIJobDetail" /> is <c>[RequiresUnreferencedCode]</c>, because the job type on
-/// the wire is a string, and this type is where that statement stops travelling — the endpoints reach it
-/// from delegates the routing table holds, so carrying the attribute any further would put it on
-/// <c>MapQuartzHttpApi</c>, which every application serving this API calls. It is recorded in
-/// <c>TrimAnalysisBaseline.cs</c> instead, which says the rest.
+/// Gathering the three in one place also gathers what they have in common for trimming: the job type on
+/// the wire is a string, and <see cref="JobDetailDto.AsIJobDetail" /> keeps it one. Nothing here resolves
+/// it; the scheduler that runs the job does, from the types its host registered with
+/// <c>AddJobType&lt;T&gt;()</c>, which is what the trimming how-to tells a host serving this API to do for
+/// every job type a caller may send.
 /// </para>
 /// </remarks>
 internal static class RequestedJobDetail

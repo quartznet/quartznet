@@ -215,6 +215,110 @@ internal static class LegacyPropertyKeys
     ];
 
     /// <summary>
+    /// What the reflective half of the property bridge says for itself. Every call into it is guarded by
+    /// <see cref="FeatureSwitches.IsLegacyComponentKeysSupported" />, so an application that reads the
+    /// warning is one that turned the switch back on.
+    /// </summary>
+    internal const string ComponentKeysNameTypes =
+        "A quartz.* key that names a component by type, or sets a component's properties by string, is read by "
+        + "reflection, which a trimmed application cannot rely on; " + FeatureSwitches.LegacyComponentKeysSwitch
+        + " guards every call.";
+
+    /// <summary>
+    /// What to write in code instead of a key the switch refuses, by the prefix the key is under.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Advice only: which keys are refused is each reader's decision, made where the key is read, so
+    /// that Quartz's own spellings of <c>quartz.jobStore.type</c>, <c>quartz.threadPool.type</c> and
+    /// <c>quartz.serializer.type</c>, and <c>SYS_PROP</c>, can keep working through a <c>typeof</c>.
+    /// The <c>quartz.dataSource</c> entry is here for the one key under it that names a type,
+    /// <c>quartz.dataSource.&lt;name&gt;.connectionProvider.type</c>; the rest are values.
+    /// </para>
+    /// <para>
+    /// Internal rather than private so that the completeness test can hold each entry to a prefix the
+    /// validator accepts and to advice that names a member of the builder.
+    /// </para>
+    /// </remarks>
+    internal static readonly (string Prefix, string Advice)[] componentKeyAdvice =
+    [
+        (SchedulerTypeLoaderType, "In code, UseTypeLoader<T>()."),
+        (SchedulerInstanceIdGeneratorPrefix,
+            "In code, UseInstanceIdGenerator<T>(); 'quartz.scheduler.instanceId = SYS_PROP' on its own still "
+            + "selects the system property generator."),
+        (SchedulerJobFactoryType, "In code, UseJobFactory<T>()."),
+        (TimeProviderType, "In code, UseTimeProvider(timeProvider)."),
+        (ThreadPoolType, "In code, UseThreadPool<T>(); Quartz's own DefaultThreadPool and SimpleThreadPool spellings are still read."),
+        (JobStorePrefix + ".driverDelegateType",
+            "In code, UsePersistentStore(s => s.UseSqlServer(factory, connectionString)) or its siblings, which "
+            + "choose the delegate, or UsePersistentStore(s => s.UseDriverDelegate<T>())."),
+        (JobStorePrefix + ".driverDelegateInitString", "In code, UsePersistentStore(s => s.UseTriggerPersistenceDelegate<T>())."),
+        (JobStoreLockHandlerPrefix, "In code, UsePersistentStore(s => s.UseLockHandler<T>())."),
+        (JobStoreType,
+            "In code, UseInMemoryStore(), UsePersistentStore(s => s.UseSqlServer(factory, connectionString)) or "
+            + "its siblings, or UseJobStore<T>(). Quartz's own RAMJobStore spelling is still read, and a key naming "
+            + "JobStoreTX or JobStoreCMT beside a UsePersistentStore call is left to the code, as it always was; a "
+            + "persistent store named by keys alone cannot run in this publish, since its driver is named by type."),
+        (DataSourcePrefix, "In code, UsePersistentStore(s => s.UseConnectionProvider<T>())."),
+        (ObjectSerializer,
+            "In code, UseSystemTextJsonSerializer() or UseNewtonsoftJsonSerializer(); 'stj' and 'json' on their own "
+            + "are still read."),
+        (DbProvider, "In code, UsePersistentStore(s => s.UseGenericDatabase(provider, metadata: () => new DbMetadata { ... }))."),
+        (PluginPrefix, "In code, AddPlugin<T>() or the plugin's own Use* method."),
+    ];
+
+    /// <summary>
+    /// What a key the switch refuses is told: the key, why, the code form, and the property that turns
+    /// the key back on.
+    /// </summary>
+    /// <param name="key">The key as the configuration spelled it.</param>
+    internal static string ComponentKeyRefused(string key)
+    {
+        string advice = "";
+        foreach ((string prefix, string candidate) in componentKeyAdvice)
+        {
+            if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                advice = candidate + " ";
+                break;
+            }
+        }
+
+        return $"Configuration property '{key}' names a component or sets its properties by string, which this "
+            + $"publish does not do ({FeatureSwitches.LegacyComponentKeysSwitch} is false). {advice}Set "
+            + $"<{FeatureSwitches.LegacyComponentKeysProperty}>true</{FeatureSwitches.LegacyComponentKeysProperty}> "
+            + "to read such keys again.";
+    }
+
+    /// <summary>
+    /// Refuses the first key under a prefix that the switch is about, leaving out the ones it names.
+    /// </summary>
+    /// <remarks>
+    /// For a component Quartz builds from a <c>typeof</c> when the switch is off: the component is fine,
+    /// and any further key under its prefix would have been written onto it by name, which is not.
+    /// </remarks>
+    /// <param name="properties">The bag to look in.</param>
+    /// <param name="prefix">The component's prefix, without the trailing separator.</param>
+    /// <param name="allowed">The keys directly under the prefix that are values rather than properties.</param>
+    internal static void RefuseComponentKeysUnder(NameValueCollection properties, string prefix, params string[] allowed)
+    {
+        string start = prefix + ".";
+        foreach (string? key in properties.AllKeys)
+        {
+            if (key is null || !key.StartsWith(start, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string rest = key[start.Length..];
+            if (!allowed.Contains(rest, StringComparer.OrdinalIgnoreCase))
+            {
+                Throw.SchedulerConfigException(ComponentKeyRefused(key));
+            }
+        }
+    }
+
+    /// <summary>
     /// Rejects a <c>quartz.*</c> key no reader understands.
     /// </summary>
     /// <remarks>

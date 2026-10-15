@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
+using Quartz.Impl;
 using Quartz.Util;
 
 namespace Quartz;
@@ -18,15 +19,20 @@ namespace Quartz;
 public sealed class JobType : IEquatable<JobType>
 {
     /// <summary>
-    /// What every API that turns a type <i>name</i> into a job says, in the same words. Named as a
-    /// constant so the sentence cannot drift between the constructor, the cast and the builder.
+    /// What the reflective half of <see cref="ResolveWithoutLoader" /> says for itself. Every call to it
+    /// is guarded by <see cref="FeatureSwitches.IsTypeNameResolutionSupported" />.
     /// </summary>
-    internal const string NamedTypeIsNotGuaranteedToSurviveTrimming =
-        "Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in configuration or in the database is not guaranteed to survive trimming.";
+    private const string ResolvesByReflection =
+        "A job type name nothing registered is resolved with Type.GetType, which a trimmed application cannot rely on; "
+        + FeatureSwitches.TypeNameResolutionSwitch + " guards every call.";
 
     /// <summary>
     /// How a name becomes a type when the caller had nothing better to offer.
     /// </summary>
+    /// <remarks>
+    /// A delegate to a method that <em>contains</em> the guard, never to the guarded method: taking the
+    /// address of a <see cref="RequiresUnreferencedCodeAttribute" /> method is itself <c>IL2026</c>.
+    /// </remarks>
     private static readonly Func<string, Type?> defaultResolver = ResolveWithoutLoader;
 
     private readonly Lazy<Type> type;
@@ -46,9 +52,16 @@ public sealed class JobType : IEquatable<JobType>
     /// Construct a Job Type specifying the Assembly Qualified NameWithout Version.
     /// There is no check on construction this type is valid.
     /// </summary>
+    /// <remarks>
+    /// The name resolves on first use of <see cref="Type" />: from the types this process registered —
+    /// <c>AddJob&lt;T&gt;()</c>, <c>AddJobType&lt;T&gt;()</c>, <c>JobBuilder.Create&lt;T&gt;()</c>,
+    /// <c>UseTypeLoader(o =&gt; o.Map(name, typeof(T)))</c> — and, while the
+    /// <c>Quartz.TypeNameResolution.IsSupported</c> switch is on, from the runtime after them. A trimmed
+    /// or native publish turns the switch off, so there a name nothing registered fails to resolve, with
+    /// a message naming the registration to add.
+    /// </remarks>
     /// <param name="fullName">Type full name</param>
     /// <exception cref="ArgumentNullException"><paramref name="fullName"/> is <see langword="null" /></exception>
-    [RequiresUnreferencedCode(NamedTypeIsNotGuaranteedToSurviveTrimming)]
     public JobType(string fullName) : this(fullName, defaultResolver)
     {
     }
@@ -80,7 +93,9 @@ public sealed class JobType : IEquatable<JobType>
             Type? loadedType = resolver(fullName);
             if (loadedType is null)
             {
-                Throw.InvalidOperationException($"Job type {fullName} cannot be resolved.");
+                Throw.InvalidOperationException(FeatureSwitches.IsTypeNameResolutionSupported
+                    ? $"Job type {fullName} cannot be resolved."
+                    : $"Job type {fullName} cannot be resolved. {RegisteredTypeNames.NotRegistered(fullName)}");
             }
             return loadedType!;
         });
@@ -108,6 +123,10 @@ public sealed class JobType : IEquatable<JobType>
         resolver = defaultResolver;
         declaredType = type;
         FullName = GetFullName(type);
+
+        // Every typed way of naming a job comes through here, so this is where the name learns what it
+        // means for the readers that only ever see the name: a store, a schedule file, a request body.
+        RegisteredTypeNames.Register(type);
     }
 
     /// <summary>
@@ -150,16 +169,17 @@ public sealed class JobType : IEquatable<JobType>
     /// an annotated type and needs no suppression of its own.
     /// </para>
     /// <para>
-    /// The suppression costs an application that never names a job by string nothing, because every way
-    /// of producing a name-constructed <see cref="JobType" /> that Quartz offers a caller is itself
-    /// <see cref="RequiresUnreferencedCodeAttribute" />: <see cref="JobType(string)" />, the explicit
-    /// cast from <see cref="string" />, and <c>JobBuilder&lt;TJob&gt;.OfType(string)</c>. The rest are
-    /// Quartz's own persistence and configuration readers, whose string contracts are recorded in
-    /// <c>TrimAnalysisBaseline.cs</c>: an application that keeps jobs in a database or names them in
-    /// <c>quartz.*</c> keys is naming types by string and has to root them itself.
+    /// The suppression is earned rather than waived. A type found by name comes out of
+    /// <see cref="RegisteredTypeNames" />, which every entry went into through a parameter or type
+    /// argument carrying this same annotation — <see cref="JobType(Type)" />, <c>AddJobType&lt;T&gt;()</c>,
+    /// <c>TypeLoaderOptions.Map</c> — so its members were kept; or, while
+    /// <see cref="FeatureSwitches.IsTypeNameResolutionSupported" /> is on, out of the runtime, which
+    /// only a publish that chose to keep reflection reaches, and which is the <c>IL2026</c> such a
+    /// publish is told about at every guarded call. A trimmed publish with the switch off never sees a
+    /// type here that the table did not hold.
     /// </para>
     /// </remarks>
-    [UnconditionalSuppressMessage("Trimming", "IL2068", Justification = "A name-constructed JobType has no annotation to carry; every API that produces one is itself RequiresUnreferencedCode. See the remarks.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2068", Justification = "A type found by name comes from RegisteredTypeNames, whose entries arrived annotated, or from reflection a trimmed publish has switched off. See the remarks.")]
     [return: DynamicallyAccessedMembers(JobTypeMembers.Required)]
     private static Type? FoundByName(Type? resolved) => resolved;
 
@@ -186,20 +206,25 @@ public sealed class JobType : IEquatable<JobType>
     internal static Type? Resolve(string fullName, Extensibility.ITypeLoader typeLoader) => FoundByName(typeLoader.LoadType(fullName));
 
     /// <summary>
-    /// Resolves a name with the runtime's own lookup, which is what a name-constructed
-    /// <see cref="JobType" /> falls back to when nothing better was offered.
+    /// Resolves a name with no <see cref="Extensibility.ITypeLoader" /> in front of it: the registered
+    /// types first, and the runtime's own lookup after them while the switch allows it.
     /// </summary>
     /// <remarks>
-    /// The one place a job type's name reaches <see cref="Type.GetType(string)" /> with no
-    /// <see cref="Extensibility.ITypeLoader" /> in front of it. <c>StdAdoDelegate</c> falls back to it
-    /// when the scheduler's loader refuses a stored name — a loader may answer only for the names it
-    /// knows and throw for the rest, as its contract asks — so that the runtime still gets its say,
-    /// as it always did. Keeping that fallback here rather than beside the store keeps its
-    /// <c>IL2057</c> on one type, which is the one a type-name feature switch has to guard.
+    /// What a name-constructed <see cref="JobType" /> falls back to when nothing better was offered, and
+    /// what <c>StdAdoDelegate</c> falls back to when the scheduler's loader refuses a stored name — a
+    /// loader may answer only for the names it knows and throw for the rest, as its contract asks. With
+    /// <see cref="FeatureSwitches.IsTypeNameResolutionSupported" /> off, the table is the whole of the
+    /// fallback: a name it does not hold is <see langword="null" /> here and the registration hint at
+    /// <see cref="Type" />, and nothing reflects.
     /// </remarks>
     /// <param name="fullName">The assembly-qualified name to resolve.</param>
-    /// <returns>The type, or <see langword="null" /> when the runtime does not know the name.</returns>
-    internal static Type? ResolveWithoutLoader(string fullName) => Type.GetType(fullName);
+    /// <returns>The type, or <see langword="null" /> when nothing registered the name and the runtime does not know it.</returns>
+    internal static Type? ResolveWithoutLoader(string fullName) =>
+        RegisteredTypeNames.Find(fullName)
+        ?? (FeatureSwitches.IsTypeNameResolutionSupported ? ResolveByReflection(fullName) : null);
+
+    [RequiresUnreferencedCode(ResolvesByReflection)]
+    private static Type? ResolveByReflection(string fullName) => Type.GetType(fullName);
 
     /// <summary>
     /// Refuses a type that is not an <see cref="IJob" />, before anything constructs it.
@@ -311,8 +336,8 @@ public sealed class JobType : IEquatable<JobType>
     /// first use of <see cref="Type" /> — which is where a bad name fails. The cast makes the leap
     /// of faith visible at the call site.
     /// </summary>
+    /// <inheritdoc cref="JobType(string)" path="/remarks" />
     /// <exception cref="ArgumentNullException"><paramref name="fullName"/> is <see langword="null" />.</exception>
-    [RequiresUnreferencedCode(NamedTypeIsNotGuaranteedToSurviveTrimming)]
     public static explicit operator JobType(string fullName) => new(fullName);
 
     /// <summary>

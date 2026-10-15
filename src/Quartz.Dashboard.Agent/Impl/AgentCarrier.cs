@@ -206,9 +206,9 @@ internal sealed class AgentCarrier
     /// it is unset.
     /// </summary>
     /// <remarks>
-    /// <see cref="JobDetailDto.AsIJobDetail" /> is <c>[RequiresUnreferencedCode]</c>, because the job type
-    /// on the wire is a string, and this is where that statement stops travelling: it is recorded in
-    /// <c>TrimAnalysisBaseline.cs</c>, which says the rest.
+    /// The job type on the wire is a string, and <see cref="JobDetailDto.AsIJobDetail" /> keeps it one:
+    /// the scheduler behind this agent resolves it when the job fires, from the types the worker
+    /// registered with <c>AddJobType&lt;T&gt;()</c>, as the trimming how-to says.
     /// </remarks>
     private IJobDetail ToJobDetail(JobDetailDto dto)
     {

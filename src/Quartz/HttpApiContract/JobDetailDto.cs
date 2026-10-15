@@ -19,8 +19,6 @@
 
 #endregion
 
-using System.Diagnostics.CodeAnalysis;
-
 using Quartz.Impl;
 
 // ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract - Can be null when received from Web API
@@ -75,7 +73,6 @@ internal record JobDetailDto(
         }
     }
 
-    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in an HTTP API request is not guaranteed to survive trimming.")]
     public (IJobDetail? JobDetail, string? ErrorReason) AsIJobDetail()
     {
         if (JobType is null || !IsWellFormedTypeName(JobType))
@@ -85,7 +82,9 @@ internal record JobDetailDto(
 
         // The name is carried as a name. The cast stores it unresolved, so building the detail neither
         // loads nor probes for an assembly - the side the job actually runs on resolves it through the
-        // type load path, when it needs the type. Explicit because that deferral is the leap being made.
+        // type load path, when it needs the type: from the types that side registered, and from the
+        // runtime only where the Quartz.TypeNameResolution.IsSupported switch allows. Explicit because
+        // that deferral is the leap being made.
         JobBuilder<IJob> builder = JobBuilder.Create()
             .OfType((JobType) JobType)
             .WithIdentity(Name, Group)
