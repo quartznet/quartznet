@@ -35,12 +35,22 @@ An application on 4.5 compiles on 4.6 unchanged, and the database schema did not
 | Added | What it is |
 |---|---|
 | `FiredTriggerRecord.ExecutionGroup` | `string?`, `init`: the execution group the firing's trigger carried, as written to `QRTZ_FIRED_TRIGGERS`; `null` for none |
+| `Quartz.TypeNameResolution.IsSupported` | Feature switch, MSBuild property `QuartzTypeNameResolutionSupport`. On by default; the `Quartz` package sets it off under `PublishTrimmed` and `PublishAot`. Off, a type name resolves only to a registered type. See [Feature switches](how-tos/trimming-and-native-aot.md#feature-switches) |
+| `Quartz.LegacyComponentKeys.IsSupported` | Feature switch, MSBuild property `QuartzLegacyComponentKeysSupport`. Same defaults. Off, a flat `quartz.*` key naming a component by type, or setting its properties by string, fails `AddQuartz` |
+| `[DynamicallyAccessedMembers]` on `TypeLoaderOptions.Map(string, Type type)` | The same annotation `OfType(Type)` carries. `typeof(T)` satisfies it; a `Type` variable passed with trim analysis on now reports `IL2067` unless it carries the annotation too |
 
 Behaviour that changed:
 
 | Before | After | What to do |
 |---|---|---|
 | A recovery trigger had no execution group, so a recovered firing ignored its group's limit | It keeps the firing's group, after cluster recovery, a shutdown hand-back and startup recovery | Nothing |
+| A type name was resolved with `Type.GetType` | Resolved from the types registered in code first: `AddJob<T>()`, `AddJobType<T>()`, `JobBuilder.Create<T>()`, `Map(name, typeof(T))`; then `Type.GetType` while the switch is on | Nothing untrimmed. Trimmed, register every job type the application runs, including `Quartz.Jobs` types: `AddJobType<NoOpJob>()` |
+| Trimmed, an unregistered name was found by reflection or failed at the first fire with `Could not load type` | Refused by name: `TypeLoadException` from a loader, `InvalidOperationException` from `JobType.Type`, each naming `AddJob<T>()` and the switch | Add the registration the message names, or set `QuartzTypeNameResolutionSupport` to `true` |
+| Trimmed, `UseSqlite(connectionString)` and its siblings, and `quartz.dataSource.<name>.provider`, resolved the driver's types by name and failed on the first connection | Fail at startup with `SchedulerConfigException` naming the factory overload | `UseSqlite(SqliteFactory.Instance, connectionString)`, or a registered `DbDataSource` |
+| Trimmed, every flat `quartz.*` key was read | A key naming a component by type, or setting one's properties by string, fails `AddQuartz` (`GetScheduler()` for `quartz.plugin.*`) with `SchedulerConfigException` naming the code form. Still read: `quartz.jobStore.type` = `RAMJobStore`; `quartz.threadPool.type` = `SimpleThreadPool`/`DefaultThreadPool`; `quartz.serializer.type` = `stj`/`json`; `quartz.scheduler.instanceId` = `SYS_PROP`; and every value key. `quartz.jobStore.type` = `JobStoreTX`/`JobStoreCMT` is accepted beside a `UsePersistentStore` call and refused on its own | Configure the component in code, or set `QuartzLegacyComponentKeysSupport` to `true` |
+| `JobType(string)` and the explicit `string` → `JobType` cast were `[RequiresUnreferencedCode]` | They are not: a name resolves from the registered types | Nothing; a `#pragma warning disable IL2026` around either can go |
+| `XmlSchedulingDataProcessor`'s members were `[RequiresUnreferencedCode]` | They are not | Nothing |
+| The `Quartz:Schedule` reader built its own type loader from `quartz.scheduler.typeLoadHelper.type` when the key arrived through deferred `QuartzOptions.Properties` | It uses the container's `ITypeLoader`, which the same key registers through `AddQuartz(properties)` | Nothing for a key passed to `AddQuartz`; a key set only in a deferred callback never registered a loader, so name it through `AddQuartz(properties)` or `UseTypeLoader<T>()` |
 
 ## Upgrading from 4.4 to 4.5
 
@@ -2872,11 +2882,13 @@ If you pass a `Type` variable rather than `typeof` or a generic argument, annota
 +     => JobBuilder.Create().OfType(jobType).Build();
 ```
 
-**The string APIs are `[RequiresUnreferencedCode]`.** The `JobType(string)` constructor, the explicit
-`string` → `JobType` cast and the `job_scheduling_data` XML loader report `IL2026` in a trimmed build.
-Prefer the typed APIs, or root the type with a
-[trimmer root descriptor](https://learn.microsoft.com/dotnet/core/deploying/trimming/trimming-options#root-descriptors).
-See [Publishing Trimmed and Native AOT](how-tos/trimming-and-native-aot.md).
+**The string APIs resolve from the registered types.** The `JobType(string)` constructor, the explicit
+`string` → `JobType` cast and the `job_scheduling_data` XML loader were `[RequiresUnreferencedCode]` from
+4.0 to 4.5 and reported `IL2026` in a trimmed build. From 4.6 they are not: a name resolves from the
+types the typed APIs registered, and from reflection only while the `Quartz.TypeNameResolution.IsSupported`
+switch is on, which a trimmed publish turns off. Register every job type the application runs; a name
+nothing registered is refused naming the registration. See
+[Publishing Trimmed and Native AOT](how-tos/trimming-and-native-aot.md#feature-switches).
 
 `DbMetadata.ConnectionType`, `.CommandType` and `.ParameterType` are annotated as well. A
 `UseGenericDatabase` callback that sets them with `typeof(...)` already satisfies them.
@@ -6590,14 +6602,15 @@ forwards to them, built with the trim analyzer on, needs the same annotation:
 changes the reporting. With `TrimmerSingleWarn` on (the default), an assembly's warnings collapse into one
 `IL2104: Assembly 'Quartz' produced trim warnings`, and `IsTrimmable` exempts its `IL2026`s from that. So
 each `[RequiresUnreferencedCode]` call site is reported, and `<TrimmerSingleWarn>false</TrimmerSingleWarn>`
-shows the rest: about fifty, at the call sites listed in `src/Quartz/TrimAnalysisBaseline.cs`.
+shows the rest: from 4.6, two, both on `ValueConverter`, listed in `src/Quartz/TrimAnalysisBaseline.cs`.
 
 * This is not a regression: the reflection was always there. No warning is suppressed in the shipped
   assembly.
-* Reflection is needed for configuration by flat `quartz.*` keys, jobs named as strings
-  (`job_scheduling_data` XML, a persisted `JOB_CLASS_NAME`), and `JobDataMap` values bound onto job
-  properties. Configuring in code, referencing job types statically and keeping job data to primitives
-  uses much less of it.
+* Reflection is needed for `JobDataMap` values bound onto job properties of another type. Jobs named as
+  strings (`job_scheduling_data` XML, a persisted `JOB_CLASS_NAME`) resolve from the types registered in
+  code, and the flat `quartz.*` keys that name a component are refused under trimming; both are
+  [feature switches](how-tos/trimming-and-native-aot.md#feature-switches) a publish can turn back on, and
+  then sees the `IL2026` for.
 * A **persistent job store** publishes trimmed and native AOT when it reaches its driver without naming
   one: `UseSqlServer(SqlClientFactory.Instance, connectionString)`, or a registered `DbDataSource`. The
   default System.Text.Json serializer has a source-generated contract for every blob a store writes, and
@@ -6612,15 +6625,17 @@ reported. `Quartz.Trimming.Canary` is published by ILCompiler and **run** on Win
 every pull request, scheduling and firing over a real SQLite store and binding a whole scheduler from an
 `IConfiguration`. From 4.5, `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.Plugins.TimeZoneConverter`,
 `Quartz.HttpClient`, `Quartz.AspNetCore` and `Quartz.Dashboard.Agent` declare it too, each run natively by
-one of the two canaries. The remaining work is [#3341](https://github.com/quartznet/quartznet/issues/3341).
+one of the two canaries, and from 4.6 none of them records a warning. What remains is
+[#3341](https://github.com/quartznet/quartznet/issues/3341): `ValueConverter`.
 
 **Every other shipped package declares whether it can be trimmed**; on 3.x each unmarked one produced a
 single `IL2104`.
 
 * `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.HttpClient`, `Quartz.AspNetCore`, `Quartz.Dashboard.Agent`,
   `Quartz.Extensions.Redis` and `Quartz.Plugins.TimeZoneConverter` are marked trimmable and report their
-  call sites individually: none to two each, all an `IL2026` for a job type spelled as a string. No public
-  member of them gained `[RequiresUnreferencedCode]` or `[DynamicallyAccessedMembers]`.
+  call sites individually: none to two each until 4.6, all an `IL2026` for a job type spelled as a string,
+  and none from 4.6. No public member of them gained `[RequiresUnreferencedCode]` or
+  `[DynamicallyAccessedMembers]`.
 * `Quartz.Serialization.Newtonsoft` and `Quartz.Dashboard` declare that they cannot be trimmed, in their
   csproj and nuget.org readme: Json.NET's contract is reflection, and Blazor Server binds components and
   parameters by name.

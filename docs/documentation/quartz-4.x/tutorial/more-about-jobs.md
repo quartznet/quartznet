@@ -394,11 +394,12 @@ with `PublishTrimmed` or `PublishAot` and get an executable that starts without 
 The repository publishes a scheduler both ways and runs it over a real SQLite store on Windows, Linux and
 macOS on every pull request.
 
-A job type that arrives as a string is not covered, because a trimmer cannot follow a string. That is the
-`JOB_CLASS_NAME` column an ADO.NET store reads back, a schedule file, an HTTP request body, and the flat
-`quartz.*` keys. Each is either an API marked `[RequiresUnreferencedCode]` or a path only one
-configuration style reaches, and none is suppressed in the shipped assembly. Registering job types with
-`AddJob<TJob>()` covers the common case. See
+A job type that arrives as a string — the `JOB_CLASS_NAME` column an ADO.NET store reads back, a schedule
+file, an HTTP request body — resolves from the types registered in code, because a trimmer cannot follow a
+string. Registering job types with `AddJob<TJob>()` or `AddJobType<TJob>()` is what a trimmed application
+does for every job it runs; a name nothing registered is refused naming the registration. The flat
+`quartz.*` keys that name a component are refused under trimming, and nothing is suppressed in the
+shipped assembly. See
 __[Publishing Trimmed and Native AOT](../how-tos/trimming-and-native-aot.md)__ for what each package
 claims, how to read what a publish reports, and the full recipe.
 

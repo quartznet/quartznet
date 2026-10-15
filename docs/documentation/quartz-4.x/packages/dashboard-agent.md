@@ -224,11 +224,11 @@ Each is in [Log Events](../log-events.md).
 
 ## Trimming
 
-The package compiles with the trim, AOT and single-file analyzers on. The one warning it owns — the job type on
-the wire is a string the scheduler resolves — is recorded in its `TrimAnalysisBaseline.cs`, as `Quartz.HttpClient`
-records the same site. From 4.5 it says `IsAotCompatible`: `Quartz.Trimming.Canary.Wire` publishes it trimmed and as a
-native executable on every pull request and runs it against a hub of its own; see
-[Trimming and native AOT](../how-tos/trimming-and-native-aot.md).
+The package compiles with the trim, AOT and single-file analyzers on and records no warning. The job type on
+the wire is a string the scheduler resolves from the types the worker registered with `AddJobType<T>()`; see
+[Feature switches](../how-tos/trimming-and-native-aot.md#feature-switches). From 4.5 it says `IsAotCompatible`:
+`Quartz.Trimming.Canary.Wire` publishes it trimmed and as a native executable on every pull request and runs it
+against a hub of its own; see [Trimming and native AOT](../how-tos/trimming-and-native-aot.md).
 
 ## Limitations
 

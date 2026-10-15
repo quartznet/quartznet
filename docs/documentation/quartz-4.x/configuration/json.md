@@ -45,6 +45,13 @@ Instead of flat keys like `"quartz.threadPool.maxConcurrency": "10"`, nest the s
 }
 ```
 
+Under `PublishTrimmed` or `PublishAot`, `Serializer:Type` = `stj` keeps working, and so does `JobStore:Type`
+naming Quartz's in-memory store. `JobStore:Type` as above names a persistent store, which a trimmed publish
+configures in code — `UsePersistentStore(s => s.UseSqlServer(SqlClientFactory.Instance, connectionString))`,
+because the data source's `Provider` is a driver name — and then accepts the key beside it. `Plugin:<name>:Type`
+is refused, and the plugin is added in code with `UseJobHistoryLogging()` or `AddPlugin<T>()`. See
+[Feature switches](../how-tos/trimming-and-native-aot.md#feature-switches).
+
 ### Mapping Rules
 
 Each JSON path segment becomes a dot-separated segment of the flat key, with PascalCase converted to
