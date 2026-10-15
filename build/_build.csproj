@@ -28,6 +28,14 @@
       (Fallout-build/Fallout#638).
     -->
     <PackageReference Include="NuGet.Frameworks" Version="7.9.0" />
+
+    <!--
+      Fallout resolves both at 10.0.10, which the October 2026 advisories cover:
+      GHSA-2fmv-rv2c-59x7 and GHSA-846f-f764-76mx for Pkcs, GHSA-7hqp-7c5m-4vq6, GHSA-c399-9853-6jmj and
+      GHSA-r955-8q5j-3h83 for Xml. Raised to the fixed 10.0.13; remove once Fallout brings a fixed version.
+    -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.13" />
   </ItemGroup>
 
 </Project>
