@@ -72,8 +72,19 @@ public sealed class DashboardAgentTest
         w2History.Items.Should().BeEmpty("the other worker ran nothing");
         otherReading.IsCompleted.Should().BeFalse("the other worker streamed nothing");
 
-        // Leaving is disposing the enumeration, which is what a page navigating away does.
+        // Leaving is disposing the enumeration, which is what a page navigating away does. A page's
+        // await foreach disposes only once a read has returned; an async iterator disposed mid-read throws
+        // NotSupportedException. So the other worker's read, still pending, is let end first.
         await subscription.CancelAsync();
+        try
+        {
+            await otherReading.WaitAsync(TimeSpan.FromSeconds(30));
+        }
+        catch (OperationCanceledException)
+        {
+            // Ending by cancellation is as good as returning false: either way the read is over.
+        }
+
         await events.DisposeAsync();
         await otherEvents.DisposeAsync();
 
