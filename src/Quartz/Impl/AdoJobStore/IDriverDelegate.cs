@@ -1215,6 +1215,20 @@ internal interface INextVersionDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Selects the execution group stored on a trigger's row: <see langword="null" /> when it has none,
+    /// when the trigger is gone, or when <see cref="HasExecutionGroupColumn" /> is <see langword="false" />.
+    /// </summary>
+    /// <remarks>
+    /// What cluster recovery gives a recovery trigger, so the replay is limited as the firing was (#4081).
+    /// 3.x writes no group to FIRED_TRIGGERS, so it is read from the original trigger, as its job data
+    /// map is.
+    /// </remarks>
+    Task<string?> SelectTriggerExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Selects the next triggers to acquire, filtering by execution group constraints.
     /// </summary>
     /// <param name="conn">The DB connection.</param>

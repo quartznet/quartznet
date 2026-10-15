@@ -5879,6 +5879,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture));
                                 rcvryTrig.JobDataMap = jd;
 
+                                // The replay is limited as the firing it stands in for was (#4081). 3.x
+                                // writes no group to FIRED_TRIGGERS, so it is read from the original
+                                // trigger, as the job data map is.
+                                if (nextVersionDelegate is { HasExecutionGroupColumn: true })
+                                {
+                                    rcvryTrig.ExecutionGroup = await nextVersionDelegate.SelectTriggerExecutionGroup(conn, tKey, cancellationToken).ConfigureAwait(false);
+                                }
+
                                 rcvryTrig.ComputeFirstFireTimeUtc(null);
                                 await StoreTrigger(conn, rcvryTrig, null, false, StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
                                 recoveredCount++;
