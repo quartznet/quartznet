@@ -107,7 +107,7 @@ services.AddQuartz(q =>
 |---|---|---|
 | `[AutomaticRetry(Attempts = n)]` | [`[RetryPolicy(…)]`](retrying-failed-jobs.md#declare-it-on-the-job-or-set-a-default) on the job type, or `RetryPolicy` on a trigger | **opt-in**: nothing is retried without a policy; see [Retry](#retry-is-opt-in) |
 | `[DisableConcurrentExecution(seconds)]` | `[DisallowConcurrentExecution]` | no timeout, because nothing waits; see [below](#disableconcurrentexecution-waits-disallowconcurrentexecution-does-not) |
-| `[Queue("critical")]` | [an execution group](../tutorial/execution-groups.md) and a limit | **bounds concurrency; does not route.** See [Queues](#queues-become-limits-not-routes) |
+| `[Queue("critical")]` | `.WithExecutionGroup("critical")` on the trigger, and `ServeExecutionGroups("critical")` on the nodes that run it | on the trigger, not the job type; a limit bounds it. See [Queues](#queues-become-execution-groups) |
 | `[JobDisplayName("…")]` | `.WithDescription("…")` on the job or trigger | |
 | `[LatencyTimeout(seconds)]` — delete a job that waited too long to start | the `DoNothing` [misfire instruction](../tutorial/more-about-triggers.md#misfire-instructions) | skips that occurrence rather than deleting anything |
 | `GlobalJobFilters.Filters.Add(…)` | [job execution middleware](../tutorial/job-execution-middleware.md), or a [job listener](../tutorial/trigger-and-job-listeners.md) | middleware wraps the execution; a listener observes it |
@@ -123,7 +123,7 @@ services.AddQuartz(q =>
 | `services.AddHangfire(x => x.UseSqlServerStorage(cs))` | `builder.AddQuartz(q => q.UsePersistentStore(s => s.UseSqlServer(cs)))` |
 | `services.AddHangfireServer()` | `builder.AddQuartzHostedService()` |
 | `BackgroundJobServerOptions.WorkerCount` | `q.UseDefaultThreadPool(maxConcurrency: n)` |
-| `BackgroundJobServerOptions.Queues` | — there are no queues; see [below](#queues-become-limits-not-routes) |
+| `BackgroundJobServerOptions.Queues` | `q.ServeExecutionGroups("critical", "default")`, or `Scheduler:ServedExecutionGroups`; see [below](#queues-become-execution-groups) |
 | `BackgroundJobServerOptions.ServerTimeout` | `CheckinInterval` and `CheckinMisfireThreshold` on the clustering options — [Tuning the check-in](../tutorial/advanced-enterprise-features.md#tuning-the-check-in) |
 | `SchedulePollingInterval` | `IdleWaitTime` — a *ceiling*, not a tick: see [Sub-minute schedules](#sub-minute-schedules-behave-differently) |
 | `JobStorage.Current.JobExpirationTimeout` | `ExecutionHistoryOptions.Retention` — a different thing; see [Retention](#job-expiration-is-not-history-retention) |
@@ -187,10 +187,12 @@ store the exclusion is cluster-wide.
 From 4.3 a trigger can decide instead of its job, with an [overlap policy](overlap-policy.md): `BufferOne`
 holds one firing until the running one ends, `Skip` drops it, `CancelPrevious` interrupts the running one.
 
-### Queues become limits, not routes
+### Queues become execution groups
 
-Hangfire's `[Queue]` bounds how much work runs *and* chooses which servers run it (a server subscribes to
-queue names). Quartz's [execution groups](../tutorial/execution-groups.md) only bound:
+Hangfire's `[Queue]` names the work and a server subscribes to queue names. Quartz's
+[execution group](../tutorial/execution-groups.md) is the name, on the trigger; a node
+[serves or refuses groups](../tutorial/execution-groups.md#routing-which-node-serves-a-group), which is the
+subscription; a limit on the group bounds how much of it runs:
 
 <!-- snippet: sample_coming_from_hangfire_queues -->
 ```csharp
@@ -203,6 +205,10 @@ services.AddQuartz(q =>
         .WithCronSchedule("0 0 3 1 * ?")
         .WithExecutionGroup("reports"));
 
+    // The server side of BackgroundJobServerOptions.Queues: this node runs "reports" triggers
+    // and nothing else. Leave it out on a node that runs everything.
+    q.ServeExecutionGroups("reports");
+
     q.UseExecutionLimits(limits =>
     {
         // Two at a time across every node sharing the store, rather than two per process.
@@ -214,8 +220,12 @@ services.AddQuartz(q =>
 
 * `ExecutionLimitScope.Cluster` counts the limit across the cluster (Hangfire's equivalent is
   `Hangfire.Throttling`, on the Business tier).
-* There is no routing. To run on particular machines, pin a trigger to an instance with
-  [`PreferredNode`](../tutorial/node-affinity.md), or use a second scheduler with its own store.
+* The group is on the trigger, not on the job type: one job can run under several groups.
+* A group with no live node serving it waits; the health check and the dashboard say so. Hangfire's
+  equivalent is a queue no server listens to, which grows silently.
+* Ungrouped triggers are the `_` group: a node that serves `critical` alone does not run them.
+* To run on one particular machine, pin a trigger to an instance with
+  [`PreferredNode`](../tutorial/node-affinity.md).
 
 ### Retry is opt-in
 

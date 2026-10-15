@@ -15,7 +15,9 @@ ones.
    [Clustering](tutorial/advanced-enterprise-features.md#enabling-it).
 2. **`InstanceId` is unique per node**, and stable across restarts if you use
    [node affinity](tutorial/node-affinity.md). For containers, see
-   [Naming a node in a container](operations.md#naming-a-node-in-a-container).
+   [Naming a node in a container](operations.md#naming-a-node-in-a-container). If nodes
+   [serve different execution groups](tutorial/execution-groups.md#routing-which-node-serves-a-group),
+   every group in use has a live node that serves it, and the health check is on.
 3. **`StoreJobDataAsStrings` is on**, unless your job data holds something that is not a string. It keeps
    a stored map readable and free of class-versioning problems —
    [Storing job data as strings](tutorial/job-stores.md#storing-job-data-as-strings).
