@@ -394,6 +394,60 @@ public class JsonSchedulingTests
         jobs[0].JobType.FullName.Should().Contain("Quartz.Jobs.NativeJob");
     }
 
+    /// <summary>
+    /// A job type named in configuration is resolved while the schedule is read, so a name nothing
+    /// loads stops the scheduler from being built rather than the job from running at its first fire.
+    /// </summary>
+    [Test]
+    public void AddQuartz_JobTypeNothingLoads_FailsWhenTheScheduleIsRead()
+    {
+        IConfiguration config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "missingJob" },
+            { "Schedule:Jobs:0:JobType", "Acme.Jobs.MissingJob, Acme.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+        });
+
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        Action act = () => provider.ScheduledJobs();
+
+        act.Should().Throw<TypeLoadException>().WithMessage("*Acme.Jobs.MissingJob*",
+            "the scheduler's type loader is asked while the schedule is read, and its failure is the one the application sees");
+    }
+
+    /// <summary>
+    /// The resolved type is checked for being a job in the same place, before anything is scheduled.
+    /// </summary>
+    [Test]
+    public void AddQuartz_JobTypeThatIsNotAJob_FailsWhenTheScheduleIsRead()
+    {
+        IConfiguration config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "notAJob" },
+            { "Schedule:Jobs:0:JobType", typeof(NotAJob).AssemblyQualifiedName! },
+            { "Schedule:Jobs:0:Durable", "true" },
+        });
+
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        Action act = () => provider.ScheduledJobs();
+
+        act.Should().Throw<ArgumentException>().WithMessage("*IJob*",
+            "a configured type that loads but is not a job is refused while the schedule is read, not deferred to its first fire");
+    }
+
+    /// <summary>A type that loads by name and implements nothing a scheduler can run.</summary>
+    private sealed class NotAJob;
+
     [Test]
     public void AddQuartz_WithExecutionGroupInJson_PopulatesOptions()
     {

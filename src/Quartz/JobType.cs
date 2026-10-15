@@ -25,9 +25,9 @@ public sealed class JobType : IEquatable<JobType>
         "Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in configuration or in the database is not guaranteed to survive trimming.";
 
     /// <summary>
-    /// How a name becomes a type when the caller had nothing better to offer: the runtime's own lookup.
+    /// How a name becomes a type when the caller had nothing better to offer.
     /// </summary>
-    private static readonly Func<string, Type?> defaultResolver = static name => Type.GetType(name);
+    private static readonly Func<string, Type?> defaultResolver = ResolveWithoutLoader;
 
     private readonly Lazy<Type> type;
 
@@ -168,13 +168,38 @@ public sealed class JobType : IEquatable<JobType>
     /// type and not a <see cref="JobType" />.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The ADO store's acquisition loop asks this per trigger, purely to find out whether the job
     /// carries <see cref="DisallowConcurrentExecutionAttribute" />, and would otherwise build a
     /// <see cref="JobType" /> it immediately throws away. It goes through <see cref="FoundByName" />,
     /// so it is the same fork and not a second one.
+    /// </para>
+    /// <para>
+    /// The two readers that hand the type straight on to <c>JobBuilder.OfType(Type)</c> ask it too:
+    /// <c>StdAdoDelegate.SelectJobForTrigger</c> when told to load the job's class, and the
+    /// <c>Quartz:Schedule:Jobs</c> configuration reader. Each resolves eagerly on purpose — the loader's
+    /// <see cref="TypeLoadException" /> is the failure their callers see — so a lazily resolved
+    /// <see cref="JobType" /> would not be the same answer, only the same fork.
+    /// </para>
     /// </remarks>
     [return: DynamicallyAccessedMembers(JobTypeMembers.Required)]
     internal static Type? Resolve(string fullName, Extensibility.ITypeLoader typeLoader) => FoundByName(typeLoader.LoadType(fullName));
+
+    /// <summary>
+    /// Resolves a name with the runtime's own lookup, which is what a name-constructed
+    /// <see cref="JobType" /> falls back to when nothing better was offered.
+    /// </summary>
+    /// <remarks>
+    /// The one place a job type's name reaches <see cref="Type.GetType(string)" /> with no
+    /// <see cref="Extensibility.ITypeLoader" /> in front of it. <c>StdAdoDelegate</c> falls back to it
+    /// when the scheduler's loader refuses a stored name — a loader may answer only for the names it
+    /// knows and throw for the rest, as its contract asks — so that the runtime still gets its say,
+    /// as it always did. Keeping that fallback here rather than beside the store keeps its
+    /// <c>IL2057</c> on one type, which is the one a type-name feature switch has to guard.
+    /// </remarks>
+    /// <param name="fullName">The assembly-qualified name to resolve.</param>
+    /// <returns>The type, or <see langword="null" /> when the runtime does not know the name.</returns>
+    internal static Type? ResolveWithoutLoader(string fullName) => Type.GetType(fullName);
 
     /// <summary>
     /// Refuses a type that is not an <see cref="IJob" />, before anything constructs it.

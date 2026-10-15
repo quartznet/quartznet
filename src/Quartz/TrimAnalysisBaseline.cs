@@ -79,6 +79,14 @@ using System.Diagnostics.CodeAnalysis;
 // IConfiguration, and built against the reflection binder it passes trimmed and fails natively, with
 // MaxBatchSize, ShutdownJobInterruption and the whole scheduler context arriving as defaults.
 //
+// After the eight steps, three entries went with no feature switch and nothing any application sees.
+// StdAdoDelegate's IL2072 and JsonSchedulingHelper's were a type the scheduler's ITypeLoader had already
+// resolved, handed to JobBuilder.OfType without the annotation; both now ask JobType.Resolve, which is
+// the FoundByName fork the acquisition loop already used. StdAdoDelegate's IL2057 moved rather than
+// went: it is the runtime's lookup behind a loader that refuses a stored name, which a loader answering
+// only for the names it knows does by contract, so the fallback stays and lives in
+// JobType.ResolveWithoutLoader, under the JobType entry below.
+//
 // Adding an entry is the wrong first move. Reach for it only after establishing that the reflection is
 // genuinely unavoidable, and then say in the group comment why. The preferred fixes, in order:
 //
@@ -124,9 +132,7 @@ using System.Diagnostics.CodeAnalysis;
 // now a named API that declares the requirement rather than an anonymous helper that had it waived here.
 
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.SimpleTypeLoader", Justification = "The default ITypeLoader exists to resolve a configured type name; that is its contract.")]
-[assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.JobType", Justification = "A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver.")]
-[assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.StdAdoDelegate", Justification = "A persisted job's type is the JOB_CLASS_NAME column, which is a string by the time it is read back.")]
-[assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.StdAdoDelegate", Justification = "A persisted job's type reaches JobBuilder.OfType as a Type resolved from JOB_CLASS_NAME.")]
+[assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.JobType", Justification = "A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver, and so does a stored JOB_CLASS_NAME the scheduler's ITypeLoader refuses.")]
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.BuiltInDbMetadataFactory", Justification = "Only the name-resolved half of a driver description asks for a type; a provider built over a DbProviderFactory or a DbDataSource never does.")]
 [assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory", Justification = "A driver described by quartz.dbprovider.* keys has those keys applied to its DbMetadata by name.")]
 [assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "Translating legacy quartz.* keys means constructing the component each key names.")]
@@ -134,7 +140,6 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "A component with no typed options of its own takes the leftover quartz.* keys as properties set by name.")]
 [assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Configuration.SchedulerPluginFactory", Justification = "A plugin registered by type is constructed through the container from that Type.")]
 [assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.SchedulerPluginFactory", Justification = "A plugin's quartz.plugin.<name>.* keys are applied to it as properties set by name.")]
-[assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Configuration.JsonSchedulingHelper", Justification = "Jobs declared in configuration name their type as a string.")]
 
 // --- Values converted onto a property the compiler cannot see -----------------------------------------
 // Not a string contract, and the one wall step 3 could not move. ConvertValueIfNecessary answers the two
