@@ -56,15 +56,19 @@ internal sealed class BenchmarkDatabase : IAsyncDisposable
 {
     private const string DatabaseName = "quartznet";
 
-    private BenchmarkDatabase(BenchmarkDialect dialect, DbProvider provider, DbConnection connection)
+    private BenchmarkDatabase(BenchmarkDialect dialect, string providerName, DbProvider provider, DbConnection connection)
     {
         Dialect = dialect;
+        ProviderName = providerName;
         Provider = provider;
         Connection = connection;
         Holder = new ConnectionAndTransactionHolder(connection, null);
     }
 
     public BenchmarkDialect Dialect { get; }
+
+    /// <summary>The name <see cref="DbProvider" /> knows this dialect's driver by, for a provider of your own over it.</summary>
+    public string ProviderName { get; }
 
     public DbProvider Provider { get; }
 
@@ -115,7 +119,7 @@ internal sealed class BenchmarkDatabase : IAsyncDisposable
         DbConnection connection = provider.CreateConnection();
         await connection.OpenAsync().ConfigureAwait(false);
 
-        BenchmarkDatabase database = new(dialect, provider, connection);
+        BenchmarkDatabase database = new(dialect, providerName, provider, connection);
         await database.EnsureSchema().ConfigureAwait(false);
         return database;
     }

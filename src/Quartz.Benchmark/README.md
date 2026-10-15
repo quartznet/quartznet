@@ -27,6 +27,24 @@ list, which is the property that makes the target worth having; see `Program.cs`
 Release is not optional. BenchmarkDotNet refuses a non-optimized assembly, and a smoke run of one
 would prove nothing.
 
+### Round-trip latency
+
+Every database benchmark runs against a container over loopback, where a round trip is tens of
+microseconds and a statement saved is invisible. `QUARTZ_BENCHMARK_ROUND_TRIP_MS` charges every
+statement, batch, commit and rollback that many milliseconds, through a connection provider wrapped
+around the driver, so that the real-database benchmarks rank round trips the way a database across a
+network would:
+
+```shell
+QUARTZ_BENCHMARK_ROUND_TRIP_MS=2 dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
+```
+
+It is a model: `Task.Delay` on the client, with a floor of about a millisecond on Windows, and no
+charge for opening a pooled connection, for `BEGIN`, which Npgsql sends with the first statement, or
+for the pool's reset on return. A `DbBatch` is one charge however many statements it carries. The
+benchmarks that take it say so in their remarks, and print what is being charged when they start;
+`RoundTripLatency.cs` is the whole of it.
+
 ## Profiling
 
 A benchmark says what something costs; a profile says where the cost is. BenchmarkDotNet is the wrong
