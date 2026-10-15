@@ -52,6 +52,13 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     private readonly ISchedulerSignaler signaler;
     internal readonly TimeProvider timeProvider;
 
+    /// <summary>
+    /// Which execution groups this node serves, as the scheduler's options configured it, or
+    /// <see langword="null" /> for every group. Handed to the delegate for the misfire sweep; acquisition
+    /// reads the same thing off each request.
+    /// </summary>
+    private readonly ExecutionGroupRouting? routing;
+
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
     private readonly ITriggerPersistenceDelegate[] triggerPersistenceDelegates;
@@ -86,6 +93,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         timeProvider = dependencies.TimeProvider;
         InstanceName = dependencies.SchedulerOptions.Value.InstanceName;
         InstanceId = dependencies.SchedulerOptions.Value.InstanceId;
+        routing = ExecutionGroupRouting.From(dependencies.SchedulerOptions.Value);
 
         // The container has a logger factory and fills this in, which is what makes the store, its
         // cluster manager, its misfire handler, its delegate and its lock handler log in an application
@@ -510,6 +518,8 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             TimeProvider = timeProvider,
             CommandTimeout = CommandTimeout,
             LoggerFactory = LoggerFactory,
+            ServedExecutionGroups = routing?.Served,
+            RefusedExecutionGroups = routing?.Refused,
         });
     }
 

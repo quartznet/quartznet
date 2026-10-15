@@ -2627,6 +2627,98 @@ public abstract class JobStoreContractTest
         });
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Execution group routing (#4069)
+    //
+    // The ADO.NET store keeps the rows out of the acquisition result with a clause on EXECUTION_GROUP
+    // and the in-memory store compares the group it holds, so the two arrive at the same answer by
+    // different routes - and a store that grew the two properties and ignored them would run a group the
+    // deployment gave to other nodes.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AcquisitionWithAServeListTakesOnlyTheGroupsItNames()
+    {
+        await GivenDueTriggers("reports", "routed-reports");
+        await GivenDueTriggers("gpu", "routed-gpu");
+        await GivenDueTriggers(null, "routed-plain");
+
+        List<IOperableTrigger> acquired = await AcquireRouted(served: [ExecutionGroupScope.Named("reports")]);
+
+        acquired.Select(x => x.Key.Name).Should().Equal(["routed-reports"],
+            "a serve-list that names neither gpu nor the ungrouped bucket serves neither");
+    }
+
+    [Test]
+    public async Task AcquisitionWithAServeListNamingTheBucketTakesUngroupedTriggersToo()
+    {
+        await GivenDueTriggers("gpu", "routed-gpu");
+        await GivenDueTriggers(null, "routed-plain");
+
+        List<IOperableTrigger> acquired = await AcquireRouted(served: [ExecutionGroupScope.Default]);
+
+        acquired.Select(x => x.Key.Name).Should().Equal(["routed-plain"],
+            "ExecutionGroupScope.Default is the bucket for triggers that carry no group, which on the database is EXECUTION_GROUP IS NULL");
+    }
+
+    [Test]
+    public async Task AcquisitionWithARefuseListServesUngroupedTriggersUnlessItNamesTheBucket()
+    {
+        await GivenDueTriggers("gpu", "routed-gpu");
+        await GivenDueTriggers("reports", "routed-reports");
+        await GivenDueTriggers(null, "routed-plain");
+
+        List<IOperableTrigger> withoutBucket = await AcquireRouted(refused: [ExecutionGroupScope.Named("gpu")]);
+
+        withoutBucket.Select(x => x.Key.Name).Should().BeEquivalentTo(["routed-reports", "routed-plain"],
+            "NULL NOT IN (...) is unknown, so the refuse clause has to say IS NULL OR ... or every ungrouped row would be dropped");
+
+        foreach (IOperableTrigger trigger in withoutBucket)
+        {
+            await Store.ReleaseAcquiredTrigger(trigger);
+        }
+
+        List<IOperableTrigger> withBucket = await AcquireRouted(refused: [ExecutionGroupScope.Named("gpu"), ExecutionGroupScope.Default]);
+
+        withBucket.Select(x => x.Key.Name).Should().Equal(["routed-reports"],
+            "a refuse-list that names the bucket refuses the ungrouped triggers as well");
+    }
+
+    [Test]
+    public async Task ADeclinedTriggerIsAcquiredByALaterRequestThatServesIt()
+    {
+        await GivenDueTriggers("gpu", "routed-gpu");
+
+        (await AcquireRouted(served: [ExecutionGroupScope.Named("reports")])).Should().BeEmpty("declined for this request");
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 5,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+
+        acquired.Should().ContainSingle(x => x.Key.Name == "routed-gpu",
+            "routing declines a trigger for one attempt, it does not retire it - a node that serves the group takes it");
+    }
+
+    /// <summary>
+    /// Acquires with a routing filter, naming the groups the way the scheduler thread would.
+    /// </summary>
+    private ValueTask<List<IOperableTrigger>> AcquireRouted(
+        IReadOnlyCollection<ExecutionGroupScope> served = null,
+        IReadOnlyCollection<ExecutionGroupScope> refused = null)
+    {
+        return Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 5,
+            TimeWindow = TimeSpan.FromMinutes(1),
+            ServedExecutionGroups = served,
+            RefusedExecutionGroups = refused
+        });
+    }
+
     /// <summary>
     /// Schedules one due trigger per name, all in the same execution group.
     /// </summary>

@@ -165,7 +165,43 @@ public class WireFormatSourceGenerationTest
         string json = JsonSerializer.Serialize(dto, WireOptions());
 
         json.Should().Be(
-            """{"schedulerInstanceId":"NON_CLUSTERED","name":"TestScheduler","status":"Running","threadPool":{"type":"Quartz.Impl.DefaultThreadPool, Quartz","size":10},"jobStore":{"type":"Quartz.Impl.RAMJobStore, Quartz","clustered":false,"persistent":false},"statistics":{"version":"1.2.3","runningSince":null,"jobsExecuted":7,"localExecutingJobs":1}}""",
+            """{"schedulerInstanceId":"NON_CLUSTERED","name":"TestScheduler","status":"Running","threadPool":{"type":"Quartz.Impl.DefaultThreadPool, Quartz","size":10},"jobStore":{"type":"Quartz.Impl.RAMJobStore, Quartz","clustered":false,"persistent":false},"statistics":{"version":"1.2.3","runningSince":null,"jobsExecuted":7,"localExecutingJobs":1},"servedExecutionGroups":[],"refusedExecutionGroups":[]}""",
             "the generated metadata carries no naming policy and no enum spelling of its own - both come from the options in use, which is what keeps the wire snapshots where they were");
+    }
+
+    /// <summary>
+    /// A host older than 4.6 writes no routing arrays, and a 4.6 client has to read its body as a node
+    /// that routes nothing rather than as one whose lists are null.
+    /// </summary>
+    [Test]
+    public void ABodyWithoutTheRoutingArraysReadsAsANodeThatRoutesNothing()
+    {
+        const string fromAnOlderHost =
+            """{"schedulerInstanceId":"NON_CLUSTERED","name":"TestScheduler","status":"Running","threadPool":{"type":"Quartz.Impl.DefaultThreadPool, Quartz","size":10},"jobStore":{"type":"Quartz.Impl.RAMJobStore, Quartz","clustered":false,"persistent":false},"statistics":{"version":"4.5.0","runningSince":null,"jobsExecuted":7,"localExecutingJobs":1}}""";
+
+        SchedulerDto dto = JsonSerializer.Deserialize<SchedulerDto>(fromAnOlderHost, WireOptions())!;
+
+        dto.ServedExecutionGroups.Should().BeEmpty("absent on the wire is the empty list a node that routes nothing reports");
+        dto.RefusedExecutionGroups.Should().BeEmpty();
+    }
+
+    [Test]
+    public void TheRoutingArraysRoundTrip()
+    {
+        SchedulerDto dto = new(
+            SchedulerInstanceId: "node-a",
+            Name: "TestScheduler",
+            Status: SchedulerStatus.Running,
+            ThreadPool: new SchedulerThreadPoolDto("Quartz.Impl.DefaultThreadPool, Quartz", 10),
+            JobStore: new SchedulerJobStoreDto("Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz", Clustered: true, Persistent: true),
+            Statistics: new SchedulerStatisticsDto("4.6.0", RunningSince: null, JobsExecuted: 7, LocalExecutingJobs: 1))
+        {
+            ServedExecutionGroups = ["_", "reports"],
+        };
+
+        SchedulerDto read = JsonSerializer.Deserialize<SchedulerDto>(JsonSerializer.Serialize(dto, WireOptions()), WireOptions())!;
+
+        read.ServedExecutionGroups.Should().Equal(["_", "reports"]);
+        read.RefusedExecutionGroups.Should().BeEmpty();
     }
 }

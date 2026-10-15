@@ -1,0 +1,630 @@
+﻿=== StdAdoDelegate (serve named) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001)
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== StdAdoDelegate (serve named and ungrouped) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== StdAdoDelegate (serve ungrouped only) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== StdAdoDelegate (refuse named) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== StdAdoDelegate (refuse named and ungrouped) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NOT NULL AND t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== StdAdoDelegate (refuse ungrouped only) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NOT NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== SqlServerDelegate (serve named) ===
+SELECT TOP 5 
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001)
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== SqlServerDelegate (serve named and ungrouped) ===
+SELECT TOP 5 
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== SqlServerDelegate (serve ungrouped only) ===
+SELECT TOP 5 
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== SqlServerDelegate (refuse named) ===
+SELECT TOP 5 
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== SqlServerDelegate (refuse named and ungrouped) ===
+SELECT TOP 5 
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NOT NULL AND t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== SqlServerDelegate (refuse ungrouped only) ===
+SELECT TOP 5 
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NOT NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC
+
+=== PostgreSQLDelegate (serve named) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001)
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== PostgreSQLDelegate (serve named and ungrouped) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== PostgreSQLDelegate (serve ungrouped only) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== PostgreSQLDelegate (refuse named) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== PostgreSQLDelegate (refuse named and ungrouped) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NOT NULL AND t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== PostgreSQLDelegate (refuse ungrouped only) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NOT NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== MySQLDelegate (serve named) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001)
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== MySQLDelegate (serve named and ungrouped) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== MySQLDelegate (serve ungrouped only) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== MySQLDelegate (refuse named) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== MySQLDelegate (refuse named and ungrouped) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NOT NULL AND t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== MySQLDelegate (refuse ungrouped only) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NOT NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== SQLiteDelegate (serve named) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001)
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== SQLiteDelegate (serve named and ungrouped) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== SQLiteDelegate (serve ungrouped only) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== SQLiteDelegate (refuse named) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== SQLiteDelegate (refuse named and ungrouped) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NOT NULL AND t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== SQLiteDelegate (refuse ungrouped only) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NOT NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC LIMIT 5
+
+=== OracleDelegate (serve named) ===
+SELECT * FROM (SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001)
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC) WHERE rownum <= 5
+
+=== OracleDelegate (serve named and ungrouped) ===
+SELECT * FROM (SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC) WHERE rownum <= 5
+
+=== OracleDelegate (serve ungrouped only) ===
+SELECT * FROM (SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC) WHERE rownum <= 5
+
+=== OracleDelegate (refuse named) ===
+SELECT * FROM (SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC) WHERE rownum <= 5
+
+=== OracleDelegate (refuse named and ungrouped) ===
+SELECT * FROM (SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NOT NULL AND t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC) WHERE rownum <= 5
+
+=== OracleDelegate (refuse ungrouped only) ===
+SELECT * FROM (SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NOT NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC) WHERE rownum <= 5
+
+=== FirebirdDelegate (serve named) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001)
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC ROWS 5
+
+=== FirebirdDelegate (serve named and ungrouped) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP IN (@servedGroup0000, @servedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC ROWS 5
+
+=== FirebirdDelegate (serve ungrouped only) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC ROWS 5
+
+=== FirebirdDelegate (refuse named) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NULL OR t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC ROWS 5
+
+=== FirebirdDelegate (refuse named and ungrouped) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND (t.EXECUTION_GROUP IS NOT NULL AND t.EXECUTION_GROUP NOT IN (@refusedGroup0000, @refusedGroup0001))
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC ROWS 5
+
+=== FirebirdDelegate (refuse ungrouped only) ===
+SELECT
+                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP
+              FROM
+                {0}TRIGGERS t
+              JOIN
+                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
+              WHERE
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
+                AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
+                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
+                AND t.EXECUTION_GROUP IS NOT NULL
+              ORDER BY
+                NEXT_FIRE_TIME ASC, PRIORITY DESC ROWS 5
+

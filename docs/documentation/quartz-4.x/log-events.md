@@ -109,6 +109,7 @@ matching on its text is not.
 | 1090 | Warning | `Quartz` | `"Job {JobKey} exceeded the {Budget} it was allowed; interrupting fire instance {FireInstanceId}"` |
 | 1091 | Debug | `Quartz` | `"Job {JobKey} finished before the interrupt its timeout asked for reached fire instance {FireInstanceId}"` |
 | 1092 | Error | `Quartz` | `"Interrupting timed out job {JobKey}, fire instance {FireInstanceId}, failed"` |
+| 1093 | Information | `Quartz` | `"Scheduler {SchedulerIdentifier} {Verb} execution groups {Groups}{ClusterNote}"` |
 | 2000 | Information | `Quartz` | `"RAMJobStore initialized."` |
 | 2001 | Warning | `Quartz` | `"Skipping trigger {TriggerKey}: its job {JobKey} no longer exists"` |
 | 2002 | Warning | `Quartz` | `"Trigger {TriggerKey} references calendar '{CalendarName}', which does not exist - the fire was skipped and the trigger will not run until the calendar is added or the reference is cleared."` |
@@ -221,6 +222,8 @@ matching on its text is not.
 | 3605 | Debug | `Quartz` | `"Found {MisfireCount} triggers that missed their scheduled fire-time."` |
 | 3606 | Debug | `Quartz` | `"Scanning for misfires..."` |
 | 3607 | Error | `Quartz` | `"Error handling misfires: {ExceptionMessage}"` |
+| 3609 | Warning | `Quartz` | `"{Count} misfired trigger(s) belong to execution groups this node does not serve; no live node may be serving them. Oldest due at {OldestDueUtc}"` |
+| 3610 | Information | `Quartz` | `"Misfired triggers in execution groups this node does not serve have been handled by another node"` |
 | 3700 | Debug | `Quartz` | `"Lock '{LockName}' is desired by: {RequestorId}"` |
 | 3701 | Debug | `Quartz` | `"Lock '{LockName}' given to: {RequestorId}"` |
 | 3702 | Debug | `Quartz` | `"Lock '{LockName}' Is already owned by: {RequestorId}"` |

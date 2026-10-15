@@ -61,6 +61,8 @@ still accepts them. See [Legacy property keys](#legacy-property-keys).
 | `PropagateTraceContext` | bool | `true` | Stores the ambient trace context on a trigger scheduled inside an `Activity`, so the firing's span links back. See below. |
 | `RecordExceptionSpanEvents` | bool? | `null`: follows `OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN`, which records them unless it is `logs` | Records a thrown exception as an `exception` event on the failed span. See [Exceptions as span events](../packages/opentelemetry-integration.md#exceptions-as-span-events). |
 | `Context` | dictionary | empty | Values seeded into `SchedulerContext`. Get-only: add to it (`options.Context["environment"] = "staging"`). |
+| `ServedExecutionGroups` | List&lt;string&gt; | empty | The execution groups this node acquires and misfire-handles, and nothing else; `_` is the triggers with no group. Empty: every group not refused. Exclusive with `RefusedExecutionGroups`. See [Routing](../tutorial/execution-groups.md#routing-which-node-serves-a-group). |
+| `RefusedExecutionGroups` | List&lt;string&gt; | empty | The execution groups this node never acquires or misfire-handles. Empty: none. Same spellings. |
 
 - `MaxBatchSize` at `0` resolves when the scheduler is built: `ThreadPool:MaxConcurrency` on a persistent
   store, clustered or not, and `1` in memory. An explicit value wins; `1` is 4.2's behaviour.
@@ -741,7 +743,8 @@ misfire calculations see the time you set, and advancing it wakes the scheduler'
 | `FailureStatus` | HealthStatus? | `Unhealthy` | What a failed check reports. |
 | `StandbyStatus` | HealthStatus? | `Degraded` | What a scheduler in standby reports. Standby only: a scheduler waiting for the application to start it stays degraded. |
 | `ClusterCheckinTolerance` | double? | `3` | How many of its own check-in intervals a **clustered** node may miss before the check reports degraded. `null` or `0`: no query. Unclustered schedulers read nothing. |
-| `StaleFiringTolerance` | double? | `null` | How many of the store's misfire thresholds a schedulable trigger may be overdue before degraded; twice that is unhealthy. `null` or `0`: no query. `3` is a starting value. |
+| `StaleFiringTolerance` | double? | `null` | How many of the store's misfire thresholds a schedulable trigger may be overdue before degraded; twice that is unhealthy. `null` or `0`: no query. `3` is a starting value. On a node that routes, only the groups it serves count. |
+| `UnservedExecutionGroupTolerance` | double? | `3` | How many of the store's misfire thresholds a schedulable trigger in a group **this node does not serve** may be overdue before degraded, naming the groups and the oldest fire time. Read only when the node routes (`Scheduler:ServedExecutionGroups` or `RefusedExecutionGroups` set). `null` or `0`: no query. See [Routing](../tutorial/execution-groups.md#routing-which-node-serves-a-group). |
 | `RequiredJobs` | List&lt;RequiredJobOptions&gt; | empty | Jobs that must have succeeded within a window. Add with `RequireSuccessWithin(job, window, status)`. See [Alert when a job stops succeeding](../how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding). |
 
 `StaleFiringTolerance` is off by default because what counts as overdue is the application's call.
@@ -890,6 +893,8 @@ above and produces the same result.
 | `quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow` | `Scheduler:BatchTriggerAcquisitionFireAheadTimeWindow` |
 | `quartz.scheduler.interruptJobsOnShutdown` | `Scheduler:ShutdownJobInterruption` — `true` alone means `WhenNotWaitingForJobs` |
 | `quartz.scheduler.interruptJobsOnShutdownWithWait` | `Scheduler:ShutdownJobInterruption` — `true` alone means `WhenWaitingForJobs`; both keys `true` means `Always` |
+| `quartz.scheduler.servedExecutionGroups` | `Scheduler:ServedExecutionGroups`, or `ServeExecutionGroups(…)` — comma-separated, entries trimmed; `_` is the ungrouped bucket. Added in 4.6 |
+| `quartz.scheduler.refusedExecutionGroups` | `Scheduler:RefusedExecutionGroups`, or `RefuseExecutionGroups(…)` — the same spellings. Added in 4.6 |
 | `quartz.context.key.NAME` | `Scheduler:Context:NAME` |
 | `quartz.threadPool.maxConcurrency` (or `threadCount`) | `ThreadPool:MaxConcurrency` |
 | `quartz.threadPool.type` | `UseThreadPool<T>()` |

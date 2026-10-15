@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
+using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Util;
 
@@ -82,6 +83,8 @@ internal sealed class QuartzSchedulerOptionsValidator : IValidateOptions<QuartzS
             (failures ??= []).Add(
                 $"{nameof(QuartzSchedulerOptions.BatchTriggerAcquisitionFireAheadTimeWindow)} must not be negative.");
         }
+
+        ExecutionGroupRouting.Validate(options.ServedExecutionGroups, options.RefusedExecutionGroups, ref failures);
 
         return Result(failures);
     }
@@ -906,6 +909,13 @@ internal sealed class QuartzHealthCheckOptionsValidator : IValidateOptions<Quart
                     $"The health check tag '{tag}' is given more than once. Tags are a set, so the repeat "
                     + "does nothing; remove it.");
             }
+        }
+
+        if (options.UnservedExecutionGroupTolerance is < 0)
+        {
+            (failures ??= []).Add(
+                $"{nameof(QuartzHealthCheckOptions.UnservedExecutionGroupTolerance)} must not be negative, was "
+                + $"{options.UnservedExecutionGroupTolerance}. Null or zero turns the reading off.");
         }
 
         RequiredJobOptionsValidator requiredJobs = new();

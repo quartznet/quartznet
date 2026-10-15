@@ -3355,6 +3355,33 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
+    /// The filter the last acquisition carried, and what it was built from, so that the rounds that
+    /// carry the same instances — all of them, from one scheduler thread — build nothing.
+    /// </summary>
+    private IReadOnlyCollection<ExecutionGroupScope>? routingServedSource;
+
+    private IReadOnlyCollection<ExecutionGroupScope>? routingRefusedSource;
+
+    private ExecutionGroupRouting? routingCache;
+
+    /// <summary>
+    /// The routing <paramref name="request" /> asks for, or <see langword="null" /> when it asks for
+    /// none. Called under the store's lock.
+    /// </summary>
+    private ExecutionGroupRouting? RoutingOf(TriggerAcquisitionRequest request)
+    {
+        if (!ReferenceEquals(request.ServedExecutionGroups, routingServedSource)
+            || !ReferenceEquals(request.RefusedExecutionGroups, routingRefusedSource))
+        {
+            routingServedSource = request.ServedExecutionGroups;
+            routingRefusedSource = request.RefusedExecutionGroups;
+            routingCache = ExecutionGroupRouting.FromScopes(request.ServedExecutionGroups, request.RefusedExecutionGroups);
+        }
+
+        return routingCache;
+    }
+
+    /// <summary>
     /// Acquires the next triggers to fire into <paramref name="result" />, with the store's lock held.
     /// </summary>
     /// <param name="request">What the scheduler asked for.</param>
@@ -3388,6 +3415,10 @@ public sealed class RAMJobStore : IJobStore
             ? new HashSet<string>(names, StringComparer.Ordinal)
             : null;
 
+        // Which execution groups this node serves, rebuilt only when the request carries a filter it
+        // has not seen: the scheduler thread hands the same two instances over every round.
+        ExecutionGroupRouting? routing = RoutingOf(request);
+
         // One reading for the batch, stamped on every trigger it reserves. This is bookkeeping -
         // what the execution listing reports for a reservation until the firing overwrites it with
         // the execution's start - and the reservations really are one act of the store's, taken
@@ -3415,6 +3446,19 @@ public sealed class RAMJobStore : IJobStore
             // When the trigger is not scheduled to fire, continue with the next trigger.
             if (!tnft.HasValue)
             {
+                continue;
+            }
+
+            // A trigger in a group this node does not serve is declined for the pass, before the
+            // misfire check: it gets no misfire policy applied and no notification raised, and goes
+            // back with the triggers the pass turned away. It waits, as it is, for a request that serves
+            // it (#4069). Every round walks the due unserved triggers again, which only a store nothing
+            // else shares pays for — and there a refused group is a group nothing runs, which the
+            // startup log says.
+            if (routing is not null && !routing.Serves(tw.Trigger.ExecutionGroup))
+            {
+                excludedTriggers ??= [];
+                excludedTriggers.Add(tw);
                 continue;
             }
 

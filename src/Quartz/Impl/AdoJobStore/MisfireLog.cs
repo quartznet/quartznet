@@ -55,4 +55,17 @@ internal static partial class MisfireLog
 
     [LoggerMessage(EventId = 3607, Level = LogLevel.Error, Message = "Error handling misfires: {ExceptionMessage}")]
     public static partial void MisfireHandlingFailed(this ILogger logger, string exceptionMessage, Exception exception);
+
+    /// <summary>
+    /// Logged by a node that routes when its sweep finds misfires it leaves alone, on the transition
+    /// from none to some and again at most once an hour while they stay (#4069).
+    /// </summary>
+    [LoggerMessage(EventId = 3609, Level = LogLevel.Warning, Message = "{Count} misfired trigger(s) belong to execution groups this node does not serve; no live node may be serving them. Oldest due at {OldestDueUtc}")]
+    public static partial void UnservedTriggersMisfired(this ILogger logger, int count, DateTimeOffset? oldestDueUtc);
+
+    /// <summary>
+    /// The transition back: a sweep found no unserved misfire after one that had.
+    /// </summary>
+    [LoggerMessage(EventId = 3610, Level = LogLevel.Information, Message = "Misfired triggers in execution groups this node does not serve have been handled by another node")]
+    public static partial void UnservedMisfiresHandled(this ILogger logger);
 }

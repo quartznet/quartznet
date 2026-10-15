@@ -538,6 +538,11 @@ internal sealed class QuartzScheduler
     public bool Clustered => resources.JobStore.Clustered;
 
     /// <summary>
+    /// Which execution groups this node serves, or <see langword="null" /> for every group.
+    /// </summary>
+    internal ExecutionGroupRouting? ExecutionGroupRouting => resources.ExecutionGroupRouting;
+
+    /// <summary>
     /// Whether the work this scheduler was running had finished by the time <see cref="Shutdown" />
     /// stopped waiting for it, or <see langword="null" /> while no shutdown has run.
     /// </summary>

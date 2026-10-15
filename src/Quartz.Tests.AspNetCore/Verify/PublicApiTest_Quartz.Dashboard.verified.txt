@@ -428,9 +428,12 @@ namespace Quartz.Dashboard.Services
         public string JobStoreTypeName { get; init; }
         public int JobsExecuted { get; init; }
         public bool Persistent { get; init; }
+        public string[] RefusedExecutionGroups { get; init; }
+        public bool RoutesExecutionGroups { get; }
         public System.DateTimeOffset? RunningSince { get; init; }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
+        public string[] ServedExecutionGroups { get; init; }
         public Quartz.SchedulerStatus Status { get; init; }
         public int ThreadPoolSize { get; init; }
         public string ThreadPoolTypeName { get; init; }

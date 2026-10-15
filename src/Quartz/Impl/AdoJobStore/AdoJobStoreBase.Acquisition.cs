@@ -155,6 +155,8 @@ internal abstract partial class AdoJobStoreBase
             MaxCount = request.MaxCount,
             ExecutionLimits = request.ExecutionLimits,
             ExcludedJobTypeNames = request.ExcludedJobTypeNames,
+            ServedExecutionGroups = request.ServedExecutionGroups,
+            RefusedExecutionGroups = request.RefusedExecutionGroups,
             LiveNodeCutoff = liveNodeCutoff,
         };
     }
@@ -223,6 +225,12 @@ internal abstract partial class AdoJobStoreBase
                         ? new HashSet<string>(names, StringComparer.Ordinal)
                         : null;
 
+                    // The same backstop for the groups this node serves, and skipped for the same reason
+                    // on every dialect Quartz ships.
+                    ExecutionGroupRouting? unservedBackstop = Delegate.FiltersAcquisitionExecutionGroups
+                        ? null
+                        : ExecutionGroupRouting.FromScopes(criteria.ServedExecutionGroups, criteria.RefusedExecutionGroups);
+
                     // A cluster-scoped limit is counted against the fired-triggers table, so the count is
                     // read here rather than derived from anything this node remembers. One aggregate per
                     // attempt, and none at all unless a cluster-scoped limit is configured - which is also
@@ -266,6 +274,16 @@ internal abstract partial class AdoJobStoreBase
                     {
                         int before = results.Count;
                         results = results.FindAll(candidate => !excludedJobTypeNames.Contains(candidate.JobTypeName));
+                        skipped += before - results.Count;
+                    }
+
+                    // A candidate in a group this node does not serve is dropped the same way, on the
+                    // group the read already returned: it stays WAITING for a node that serves it, and it
+                    // is a skipped row, so the rows due behind it are read past (#4069).
+                    if (unservedBackstop is not null)
+                    {
+                        int before = results.Count;
+                        results = results.FindAll(candidate => unservedBackstop.Serves(candidate.ExecutionGroup));
                         skipped += before - results.Count;
                     }
 

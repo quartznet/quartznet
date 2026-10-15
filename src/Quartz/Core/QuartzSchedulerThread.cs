@@ -545,12 +545,17 @@ internal sealed class QuartzSchedulerThread
                     try
                     {
                         ExecutionLimits? availableLimits = ComputeAvailableExecutionGroupLimits();
+                        ExecutionGroupRouting? routing = qsRsrcs.ExecutionGroupRouting;
                         TriggerAcquisitionRequest request = new()
                         {
                             NoLaterThan = now + GetLookAhead(),
                             MaxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize),
                             TimeWindow = qsRsrcs.BatchTimeWindow,
                             ExecutionLimits = availableLimits,
+                            // The same two instances every round, so a store can tell a changed filter
+                            // from the one it saw last by reference.
+                            ServedExecutionGroups = routing?.Served,
+                            RefusedExecutionGroups = routing?.Refused,
                         };
                         measureAcquisition = qsRsrcs.Meters.TriggerAcquisitionEnabled;
                         acquisitionStarted = measureAcquisition ? qsRsrcs.TimeProvider.GetTimestamp() : 0;

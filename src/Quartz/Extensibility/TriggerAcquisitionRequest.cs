@@ -121,4 +121,65 @@ public sealed record TriggerAcquisitionRequest
         get;
         init => field = JobTypeExclusions.Validated(value, nameof(value));
     }
+
+    /// <summary>
+    /// The execution groups this node serves, and nothing else: named groups, and
+    /// <see cref="ExecutionGroupScope.Default" /> for the triggers that carry none. <see langword="null" />
+    /// means no filtering.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What <see cref="QuartzSchedulerOptions.ServedExecutionGroups" /> configures, as the scheduler
+    /// thread hands it to the store. Every shipped store honours it: the in-memory store compares
+    /// <see cref="ITrigger.ExecutionGroup" /> ordinally and the ADO.NET store keeps the rows out in SQL,
+    /// where comparison follows the <c>EXECUTION_GROUP</c> column's collation. A trigger the filter
+    /// declines is not acquired and is not misfire-handled by this node; it waits, unmodified, for a
+    /// node that serves it.
+    /// </para>
+    /// <para>
+    /// Entries are named groups or the default bucket; the catch-all and a prefix are refused, as is a
+    /// duplicate, and there may be at most 1,000 entries. Exclusive with
+    /// <see cref="RefusedExecutionGroups" />.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// An entry is the catch-all or a prefix, an entry repeats, there are too many of them, or
+    /// <see cref="RefusedExecutionGroups" /> is set as well.
+    /// </exception>
+    public IReadOnlyCollection<ExecutionGroupScope>? ServedExecutionGroups
+    {
+        get;
+        init
+        {
+            if (value is not null && RefusedExecutionGroups is not null)
+            {
+                Throw.ArgumentException("ServedExecutionGroups and RefusedExecutionGroups cannot both be set; a request lists what it serves or what it refuses.", nameof(value));
+            }
+
+            field = ExecutionGroupRouting.Validated(value, nameof(value));
+        }
+    }
+
+    /// <summary>
+    /// The execution groups this node never acquires, with every other one served. The same entries
+    /// and rules as <see cref="ServedExecutionGroups" />, and exclusive with it. <see langword="null" />
+    /// means no filtering.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// An entry is the catch-all or a prefix, an entry repeats, there are too many of them, or
+    /// <see cref="ServedExecutionGroups" /> is set as well.
+    /// </exception>
+    public IReadOnlyCollection<ExecutionGroupScope>? RefusedExecutionGroups
+    {
+        get;
+        init
+        {
+            if (value is not null && ServedExecutionGroups is not null)
+            {
+                Throw.ArgumentException("ServedExecutionGroups and RefusedExecutionGroups cannot both be set; a request lists what it serves or what it refuses.", nameof(value));
+            }
+
+            field = ExecutionGroupRouting.Validated(value, nameof(value));
+        }
+    }
 }

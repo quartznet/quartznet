@@ -568,6 +568,8 @@ internal static class QuartzPropertyBridge
         parser.Int(LegacyPropertyKeys.SchedulerMaxBatchSize, value => options.MaxBatchSize = value);
         parser.Milliseconds(LegacyPropertyKeys.SchedulerBatchTimeWindow, value => options.BatchTriggerAcquisitionFireAheadTimeWindow = value);
         MapShutdownJobInterruption(options, parser);
+        parser.Names(LegacyPropertyKeys.SchedulerServedExecutionGroups, name => AddIfAbsent(options.ServedExecutionGroups, name));
+        parser.Names(LegacyPropertyKeys.SchedulerRefusedExecutionGroups, name => AddIfAbsent(options.RefusedExecutionGroups, name));
 
         var context = parser.Group(LegacyPropertyKeys.SchedulerContextPrefix);
         foreach (var key in context.AllKeys)
@@ -576,6 +578,22 @@ internal static class QuartzPropertyBridge
             {
                 options.Context[key] = value;
             }
+        }
+    }
+
+    /// <summary>
+    /// Adds <paramref name="name" /> to <paramref name="list" /> unless it is already there.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="MapScheduler" /> runs once when the properties are applied and again when the options
+    /// are resolved, so an unconditional add would list every group twice and trip the validator's
+    /// duplicate rule. Ordinal, as the validator compares.
+    /// </remarks>
+    private static void AddIfAbsent(List<string> list, string name)
+    {
+        if (!list.Contains(name, StringComparer.Ordinal))
+        {
+            list.Add(name);
         }
     }
 
@@ -1402,6 +1420,24 @@ internal static class QuartzPropertyBridge
             if (String(key) is { } value)
             {
                 apply(bool.Parse(value));
+            }
+        }
+
+        /// <summary>
+        /// Reads a comma-separated list of names, each trimmed, in the order written. An empty entry
+        /// between two commas is handed on as it is, so the validator can refuse it by name rather than
+        /// have it vanish.
+        /// </summary>
+        public void Names(string key, Action<string> apply)
+        {
+            if (String(key) is not { } value)
+            {
+                return;
+            }
+
+            foreach (string name in value.Split(','))
+            {
+                apply(name.Trim());
             }
         }
 

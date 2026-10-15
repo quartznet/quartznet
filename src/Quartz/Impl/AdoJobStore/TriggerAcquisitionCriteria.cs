@@ -97,6 +97,65 @@ public sealed record TriggerAcquisitionCriteria
     }
 
     /// <summary>
+    /// The execution groups this node serves and nothing else, copied from
+    /// <see cref="Quartz.Extensibility.TriggerAcquisitionRequest.ServedExecutionGroups" /> — or set by a
+    /// derived store's <c>CreateAcquisitionCriteria</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="StdAdoDelegate" /> keeps the other rows out in the acquisition SQL, with a clause on
+    /// <c>EXECUTION_GROUP</c> whose comparison follows that column's collation. As with the job types, a
+    /// delegate that ignores it degrades to a wider read rather than to running refused work: the store
+    /// drops the candidates it does not serve, ordinally, before it reads any of them, unless the
+    /// delegate answers <see cref="IDriverDelegate.FiltersAcquisitionExecutionGroups" /> with
+    /// <see langword="true" />.
+    /// </para>
+    /// <para>
+    /// Named groups and <see cref="ExecutionGroupScope.Default" /> only, no duplicates, at most 1,000
+    /// entries, and exclusive with <see cref="RefusedExecutionGroups" />.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// An entry is the catch-all or a prefix, an entry repeats, there are too many of them, or
+    /// <see cref="RefusedExecutionGroups" /> is set as well.
+    /// </exception>
+    public IReadOnlyCollection<ExecutionGroupScope>? ServedExecutionGroups
+    {
+        get;
+        init
+        {
+            if (value is not null && RefusedExecutionGroups is not null)
+            {
+                Throw.ArgumentException("ServedExecutionGroups and RefusedExecutionGroups cannot both be set; the criteria list what this node serves or what it refuses.", nameof(value));
+            }
+
+            field = ExecutionGroupRouting.Validated(value, nameof(value));
+        }
+    }
+
+    /// <summary>
+    /// The execution groups this node never acquires, with every other one served; the same entries and
+    /// rules as <see cref="ServedExecutionGroups" />, and exclusive with it.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// An entry is the catch-all or a prefix, an entry repeats, there are too many of them, or
+    /// <see cref="ServedExecutionGroups" /> is set as well.
+    /// </exception>
+    public IReadOnlyCollection<ExecutionGroupScope>? RefusedExecutionGroups
+    {
+        get;
+        init
+        {
+            if (value is not null && ServedExecutionGroups is not null)
+            {
+                Throw.ArgumentException("ServedExecutionGroups and RefusedExecutionGroups cannot both be set; the criteria list what this node serves or what it refuses.", nameof(value));
+            }
+
+            field = ExecutionGroupRouting.Validated(value, nameof(value));
+        }
+    }
+
+    /// <summary>
     /// What the whole cluster already holds in flight per (execution group, trigger group) pair, which
     /// is what a <see cref="ExecutionLimitScope.Cluster" /> limit is counted against.
     /// </summary>

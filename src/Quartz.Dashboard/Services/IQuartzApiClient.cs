@@ -1045,7 +1045,28 @@ public sealed record SchedulerDetailDto(
     int ThreadPoolSize,
     DateTimeOffset? RunningSince,
     int JobsExecuted,
-    string Version);
+    string Version)
+{
+    /// <summary>
+    /// The execution groups this node serves and nothing else, as <see cref="SchedulerMetadata.ServedExecutionGroups" />
+    /// spells them; empty when the node serves every group not in <see cref="RefusedExecutionGroups" />.
+    /// </summary>
+    /// <remarks>
+    /// An <c>init</c> property rather than a positional parameter: the constructor is a public signature
+    /// a 4.5 client constructs, and a 4.6 member goes beside it.
+    /// </remarks>
+    public string[] ServedExecutionGroups { get; init; } = [];
+
+    /// <summary>
+    /// The execution groups this node refuses; empty when it refuses none.
+    /// </summary>
+    public string[] RefusedExecutionGroups { get; init; } = [];
+
+    /// <summary>
+    /// Whether the node routes at all: either list is non-empty.
+    /// </summary>
+    public bool RoutesExecutionGroups => ServedExecutionGroups.Length > 0 || RefusedExecutionGroups.Length > 0;
+}
 
 /// <summary>
 /// A job's identity, as the pages carry it.

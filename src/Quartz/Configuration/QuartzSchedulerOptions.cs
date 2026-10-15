@@ -150,4 +150,34 @@ public sealed class QuartzSchedulerOptions
     /// </summary>
     /// <remarks>Replaces the <c>quartz.context.key.*</c> property keys.</remarks>
     public Dictionary<string, string> Context { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The execution groups this node acquires and misfire-handles; empty means every group.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An entry is a group name, or <c>_</c> (or <c>null</c>) for the triggers that carry no execution
+    /// group — the spelling an execution limit's key uses for the same bucket. A list that omits <c>_</c>
+    /// does not serve ungrouped triggers. Names are compared ordinally in memory and by the column's
+    /// collation in SQL; there is no wildcard or prefix form, and <c>*</c> is refused.
+    /// </para>
+    /// <para>
+    /// Exclusive with <see cref="RefusedExecutionGroups" />: a node lists the groups it serves or the
+    /// groups it refuses, never both. A trigger in a group no live node serves waits, unmodified, until
+    /// a serving node arrives; the health check and the dashboard report such a group. Get-only, like
+    /// every collection on a Quartz options type: add to it. Replaces the
+    /// <c>quartz.scheduler.servedExecutionGroups</c> property key, whose value is comma-separated.
+    /// </para>
+    /// </remarks>
+    public List<string> ServedExecutionGroups { get; } = [];
+
+    /// <summary>
+    /// The execution groups this node never acquires or misfire-handles; empty means none.
+    /// </summary>
+    /// <remarks>
+    /// The same spellings as <see cref="ServedExecutionGroups" />, and exclusive with it. A list that
+    /// omits <c>_</c> still serves ungrouped triggers. Replaces the
+    /// <c>quartz.scheduler.refusedExecutionGroups</c> property key, whose value is comma-separated.
+    /// </remarks>
+    public List<string> RefusedExecutionGroups { get; } = [];
 }

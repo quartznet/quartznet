@@ -1621,6 +1621,28 @@ public interface IDriverDelegate
     bool FiltersAcquisitionJobTypeExclusions => false;
 
     /// <summary>
+    /// Whether <see cref="SelectTriggersToAcquire" /> already keeps the rows outside
+    /// <see cref="TriggerAcquisitionCriteria.ServedExecutionGroups" /> — or inside
+    /// <see cref="TriggerAcquisitionCriteria.RefusedExecutionGroups" /> — out of what it returns.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same contract as <see cref="FiltersAcquisitionJobTypeExclusions" />, for the same reason:
+    /// a delegate that ignores the routing would have the node <em>run</em> a group the deployment
+    /// gave to other nodes. So the ADO store keeps a backstop — it drops a candidate the node does not
+    /// serve, ordinally on <see cref="TriggerAcquireResult.ExecutionGroup" />, before reading it back —
+    /// and this says the backstop has nothing left to do.
+    /// </para>
+    /// <para>
+    /// <see langword="false" /> by default, because a delegate written before routing existed cannot
+    /// have honoured it. <see cref="StdAdoDelegate" /> answers <see langword="true" />, and so does every
+    /// dialect Quartz ships. A delegate of somebody's own that replaces the acquisition statement
+    /// without the clause must answer <see langword="false" />.
+    /// </para>
+    /// </remarks>
+    bool FiltersAcquisitionExecutionGroups => false;
+
+    /// <summary>
     /// Counts what the cluster currently holds in flight for each (execution group, trigger group)
     /// pair, which is what a <see cref="ExecutionLimitScope.Cluster" /> execution limit is counted
     /// against.

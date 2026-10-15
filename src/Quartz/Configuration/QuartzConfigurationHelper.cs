@@ -52,6 +52,9 @@ internal static class QuartzConfigurationHelper
     /// <see cref="LegacyPropertyKeys.Validate" /> rejects both synthesized spellings by name, so a bag
     /// taken from <see cref="QuartzOptions.ToProperties" /> and handed to
     /// <c>AddQuartz(NameValueCollection)</c> was refused for keys Quartz had put there itself.
+    /// <c>Scheduler:ServedExecutionGroups</c> and <c>Scheduler:RefusedExecutionGroups</c> are lists,
+    /// which flatten to one indexed key per entry that the bridge — reading a comma-separated value
+    /// under the bare key — would never consult.
     /// </para>
     /// <para>
     /// Either way the typed binder is the reader to keep: it is the binding the section has first class,
@@ -85,6 +88,8 @@ internal static class QuartzConfigurationHelper
         "quartz.scheduler.instanceName",
         "quartz.scheduler.maxBatchSize",
         "quartz.scheduler.context",
+        "quartz.scheduler.servedExecutionGroups",
+        "quartz.scheduler.refusedExecutionGroups",
     ];
 
     /// <summary>
