@@ -125,7 +125,9 @@
 
         <ExecutionGroups SchedulerName="@Scheduler.ActiveSchedulerName"
                          Persistent="@_storeIsPersistent"
-                         Clustered="@_storeIsClustered" />
+                         Clustered="@_storeIsClustered"
+                         ServedExecutionGroups="@_servedExecutionGroups"
+                         RefusedExecutionGroups="@_refusedExecutionGroups" />
 
         <section class="qz-section">
             <h2>Recent admin actions</h2>
@@ -190,6 +192,13 @@
     private int? _misfires;
     private bool _storeIsPersistent;
     private bool _storeIsClustered;
+
+    /// <summary>
+    /// What the answering node routes, as its details report it, for the execution-groups panel.
+    /// </summary>
+    private string[] _servedExecutionGroups = [];
+
+    private string[] _refusedExecutionGroups = [];
 
     /// <summary>
     /// How many triggers are in each of the states the histogram breaks them down by.
@@ -344,6 +353,8 @@
                 _misfires = null;
                 _storeIsPersistent = false;
                 _storeIsClustered = false;
+                _servedExecutionGroups = [];
+                _refusedExecutionGroups = [];
                 _triggersByState.Clear();
                 _recentActions.Clear();
                 return;
@@ -353,6 +364,8 @@
             _schedulerStatus = scheduler.Status;
             _storeIsPersistent = scheduler.Persistent;
             _storeIsClustered = scheduler.Clustered;
+            _servedExecutionGroups = scheduler.ServedExecutionGroups;
+            _refusedExecutionGroups = scheduler.RefusedExecutionGroups;
 
             // Counting queries: Take = 0 fetches no items, only the exact totals the tiles show.
             PagedResult<JobKeyDto> jobs = await Api.QueryJobs(schedulerName, new DashboardJobQuery { Take = 0 });

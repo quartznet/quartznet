@@ -332,12 +332,93 @@ public class ExecutionGroupsPanelTest
         panel.Markup.Should().Contain("the scheduler is shutting down");
     }
 
-    private IRenderedComponent<ExecutionGroups> Render(bool persistent = false, bool clustered = false)
+    /// <summary>
+    /// A node that routes gets two more columns: which groups it serves here, and how many triggers of
+    /// each are overdue — the row an operator acts on being a group with overdue triggers this node does
+    /// not serve, which is routing's one trap (#4069).
+    /// </summary>
+    [Test]
+    public void ANodeThatRoutesSaysWhichGroupsAreServedHereAndWhichAreOverdueAndUnserved()
+    {
+        GivenLimits(Limits(("reports", 4, ExecutionLimitScope.Node)));
+        GivenFirings(Firing("reports", FireInstanceState.Executing));
+        GivenOverdue(Overdue("gpu"), Overdue("gpu"));
+
+        IRenderedComponent<ExecutionGroups> panel = Render(served: ["reports"]);
+
+        HeaderCells(panel).Should().Equal(["Group", "Scope", "Limit", "In flight", "Headroom", "Served here", "Overdue"]);
+        RowCells(panel, 0).Should().Equal(["gpu", "—", "Unlimited", "0", "Unlimited", "—", "2 (not served here)"],
+            "the group nobody here serves has two triggers five minutes overdue, which is what the operator has to act on");
+        RowCells(panel, 1).Should().Equal(["reports", "Node", "4", "1", "3", "✓", "0"],
+            "the served group is listed with its limit as before, and marked as this node's");
+        panel.Markup.Should().Contain("This node serves only reports", "the panel says which list the node has");
+        panel.Markup.Should().Contain("Overdue and not served by this node: check that a node serving this group is running.");
+    }
+
+    [Test]
+    public void ARefuseListMarksTheRefusedGroupAndListsItWhetherOrNotAnythingIsInFlight()
+    {
+        GivenLimits(Limits(("reports", 4, ExecutionLimitScope.Node)));
+        GivenOverdue();
+
+        IRenderedComponent<ExecutionGroups> panel = Render(refused: ["gpu", "_"]);
+
+        RowCells(panel, 0).Should().Equal(["gpu", "—", "Unlimited", "0", "Unlimited", "—", "0"],
+            "a routed group has a row even with nothing in flight, so the listing says what the node refuses");
+        RowCells(panel, 1).Should().Equal(["reports", "Node", "4", "0", "4", "✓", "0"]);
+        RowCells(panel, 2).Should().Equal(["(no execution group)", "—", "Unlimited", "0", "Unlimited", "—", "0"],
+            "'_' is the ungrouped bucket, refused here");
+        panel.Markup.Should().Contain("This node refuses (no execution group), gpu",
+            "the lists are reported bucket first, then the names as configured");
+        panel.Markup.Should().NotContain("Overdue and not served by this node", "nothing is overdue, so there is nothing to act on");
+    }
+
+    /// <summary>
+    /// The control: a node that routes nothing — every scheduler before 4.6 among them — shows the panel
+    /// it always showed, and pays no trigger query for columns it does not have.
+    /// </summary>
+    [Test]
+    public void ANodeThatRoutesNothingHasNoRoutingColumnsAndMakesNoTriggerQuery()
+    {
+        GivenLimits(Limits(("batch", 4, ExecutionLimitScope.Node)));
+        GivenFirings(Firing("batch", FireInstanceState.Executing));
+
+        IRenderedComponent<ExecutionGroups> panel = Render();
+
+        HeaderCells(panel).Should().Equal(["Group", "Scope", "Limit", "In flight", "Headroom"]);
+        A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    private IRenderedComponent<ExecutionGroups> Render(bool persistent = false, bool clustered = false, string[]? served = null, string[]? refused = null)
     {
         return context.Render<ExecutionGroups>(parameters => parameters
             .Add(x => x.SchedulerName, TestData.SchedulerName)
             .Add(x => x.Persistent, persistent)
-            .Add(x => x.Clustered, clustered));
+            .Add(x => x.Clustered, clustered)
+            .Add(x => x.ServedExecutionGroups, served ?? [])
+            .Add(x => x.RefusedExecutionGroups, refused ?? []));
+    }
+
+    private void GivenOverdue(params TriggerHeaderDto[] headers)
+    {
+        A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
+            .Returns(TestData.Dashboard.Page<TriggerHeaderDto>(headers.ToList()));
+    }
+
+    private static TriggerHeaderDto Overdue(string? executionGroup)
+    {
+        return new TriggerHeaderDto("routing", "trigger-" + Guid.NewGuid().ToString("N"), "Simple", "once", TriggerState.Normal, executionGroup);
+    }
+
+    private static List<string> HeaderCells(IRenderedComponent<ExecutionGroups> panel)
+    {
+        List<string> cells = [];
+        foreach (IElement cell in panel.FindAll("thead th"))
+        {
+            cells.Add(cell.TextContent.Trim());
+        }
+
+        return cells;
     }
 
     private void GivenLimits(ExecutionLimitsDto limits)

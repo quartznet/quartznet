@@ -83,4 +83,23 @@ public sealed record DriverDelegateContext
     /// should do.
     /// </remarks>
     public ILoggerFactory LoggerFactory { get; init; } = NullLoggerFactory.Instance;
+
+    /// <summary>
+    /// The execution groups this node serves and nothing else, as
+    /// <see cref="QuartzSchedulerOptions.ServedExecutionGroups" /> configured them; <see langword="null" />
+    /// when the node serves every group not refused.
+    /// </summary>
+    /// <remarks>
+    /// Acquisition takes its filter from the <see cref="TriggerAcquisitionCriteria" /> of each request.
+    /// This is for the statements that have no request to carry one — the misfire sweep's count and read —
+    /// which <see cref="StdAdoDelegate" /> builds once from here, so that a node's sweep handles only the
+    /// triggers its acquisition would take. At most one of the two is set.
+    /// </remarks>
+    public IReadOnlyCollection<ExecutionGroupScope>? ServedExecutionGroups { get; init; }
+
+    /// <summary>
+    /// The execution groups this node refuses, as <see cref="QuartzSchedulerOptions.RefusedExecutionGroups" />
+    /// configured them; <see langword="null" /> when it refuses none.
+    /// </summary>
+    public IReadOnlyCollection<ExecutionGroupScope>? RefusedExecutionGroups { get; init; }
 }

@@ -111,6 +111,16 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     private readonly ConcurrentDictionary<int, string> misfireRecoverySqlByCount = new();
 
     /// <summary>
+    /// The execution groups this node serves or refuses, as the store handed them over at
+    /// <see cref="Initialize" />, and the shape of the clause they make. What the misfire sweep's
+    /// statements and the pinned-trigger probe are built from; acquisition reads its own filter off
+    /// each request's criteria.
+    /// </summary>
+    private IReadOnlyCollection<ExecutionGroupScope>? routedGroups;
+
+    private ExecutionGroupClauseShape routedShape;
+
+    /// <summary>
     /// The database this delegate reads and writes through.
     /// </summary>
     protected IDbProvider DbProvider { get; private set; } = null!;
@@ -149,6 +159,8 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         adoUtil = new AdoUtil(context.DbProvider, context.CommandTimeout, context.LoggerFactory.CreateLogger<AdoUtil>());
         objectSerializer = context.ObjectSerializer!;
         timeProvider = context.TimeProvider;
+        routedGroups = context.ServedExecutionGroups ?? context.RefusedExecutionGroups;
+        routedShape = ExecutionGroupClauseShape.Of(context.ServedExecutionGroups, context.RefusedExecutionGroups);
 
         AddDefaultTriggerPersistenceDelegates();
 

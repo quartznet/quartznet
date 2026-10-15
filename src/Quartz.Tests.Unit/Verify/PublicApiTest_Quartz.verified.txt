@@ -1599,6 +1599,7 @@ namespace Quartz
             where TJob : Quartz.IJob { }
         public static Quartz.IQuartzBuilder ConfigureJobScope(this Quartz.IQuartzBuilder builder, System.Action<Microsoft.Extensions.DependencyInjection.IServiceScope, Quartz.Extensibility.TriggerFiredBundle, Quartz.IScheduler> configure) { }
         public static Quartz.IQuartzBuilder PauseTriggerWhenRetriesExhausted(this Quartz.IQuartzBuilder builder) { }
+        public static Quartz.IQuartzBuilder RefuseExecutionGroups(this Quartz.IQuartzBuilder builder, params string[] groups) { }
         public static Quartz.IQuartzBuilder RunAtStartup(this Quartz.IQuartzBuilder builder, Quartz.JobKey jobKey) { }
         public static Quartz.IQuartzBuilder ScheduleJob(this Quartz.IQuartzBuilder builder, string name, System.Delegate handler, System.Action<Quartz.ITriggerConfigurator<Quartz.IJob>> trigger) { }
         public static Quartz.IQuartzBuilder ScheduleJob(this Quartz.IQuartzBuilder builder, string name, System.Delegate handler, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<Quartz.IJob>> trigger) { }
@@ -1606,6 +1607,7 @@ namespace Quartz
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<T>> trigger, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>>? job = null)
             where T : Quartz.IJob { }
+        public static Quartz.IQuartzBuilder ServeExecutionGroups(this Quartz.IQuartzBuilder builder, params string[] groups) { }
         public static Quartz.IQuartzBuilder UseDefaultRetryPolicy(this Quartz.IQuartzBuilder builder, Quartz.RetryPolicy policy) { }
         public static Quartz.IQuartzBuilder UseExecutionLimits(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ExecutionLimitsBuilder> configure) { }
         public static Quartz.IQuartzBuilder UseExecutionLogCapture(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ExecutionLogCaptureOptions>? configure = null) { }
@@ -1629,6 +1631,7 @@ namespace Quartz
         public double? StaleFiringTolerance { get; set; }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? StandbyStatus { get; set; }
         public System.Collections.Generic.List<string> Tags { get; }
+        public double? UnservedExecutionGroupTolerance { get; set; }
         public void RequireSuccessWithin(Quartz.JobKey job, System.TimeSpan within, Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus status = 1) { }
     }
     public static class QuartzHostApplicationBuilderExtensions
@@ -1701,6 +1704,8 @@ namespace Quartz
         public int MaxBatchSize { get; set; }
         public bool PropagateTraceContext { get; set; }
         public bool? RecordExceptionSpanEvents { get; set; }
+        public System.Collections.Generic.List<string> RefusedExecutionGroups { get; }
+        public System.Collections.Generic.List<string> ServedExecutionGroups { get; }
         public Quartz.ShutdownJobInterruption ShutdownJobInterruption { get; set; }
     }
     public static class QuartzServiceCollectionExtensions
@@ -1922,10 +1927,12 @@ namespace Quartz
         public required string JobStoreTypeName { get; init; }
         public int JobsExecuted { get; init; }
         public int LocalExecutingJobs { get; init; }
+        public string[] RefusedExecutionGroups { get; init; }
         public System.DateTimeOffset? RunningSince { get; init; }
         public required string SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
         public required string SchedulerTypeName { get; init; }
+        public string[] ServedExecutionGroups { get; init; }
         public required Quartz.SchedulerStatus Status { get; init; }
         public int ThreadPoolSize { get; init; }
         public required string ThreadPoolTypeName { get; init; }
@@ -2650,6 +2657,8 @@ namespace Quartz.Extensibility
         public Quartz.ExecutionLimits? ExecutionLimits { get; init; }
         public int MaxCount { get; init; }
         public required System.DateTimeOffset NoLaterThan { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupScope>? RefusedExecutionGroups { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupScope>? ServedExecutionGroups { get; init; }
         public System.TimeSpan TimeWindow { get; init; }
     }
     public sealed class TriggerAcquisitionResult
@@ -2897,12 +2906,24 @@ namespace Quartz.Impl.AdoJobStore
         public required string InstanceId { get; init; }
         public Microsoft.Extensions.Logging.ILoggerFactory LoggerFactory { get; init; }
         public Quartz.Extensibility.IObjectSerializer? ObjectSerializer { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupScope>? RefusedExecutionGroups { get; init; }
         public required string SchedulerName { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupScope>? ServedExecutionGroups { get; init; }
         public required string TablePrefix { get; init; }
         public System.TimeProvider TimeProvider { get; init; }
         public System.Collections.Generic.IReadOnlyCollection<Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate> TriggerPersistenceDelegates { get; init; }
         public required Quartz.Extensibility.ITypeLoader TypeLoader { get; init; }
         public bool UseProperties { get; init; }
+    }
+    public readonly record struct ExecutionGroupClauseShape : System.IEquatable<Quartz.Impl.AdoJobStore.ExecutionGroupClauseShape>
+    {
+        public ExecutionGroupClauseShape(bool IsServeList, bool IncludesUngrouped, int NamedCount) { }
+        public Quartz.Impl.AdoJobStore.ExecutionGroupClauseShape Complement { get; }
+        public bool HasClause { get; }
+        public bool IncludesUngrouped { get; init; }
+        public bool IsServeList { get; init; }
+        public int NamedCount { get; init; }
+        public static Quartz.Impl.AdoJobStore.ExecutionGroupClauseShape Of(System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupScope>? served, System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupScope>? refused) { }
     }
     public class FirebirdDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
@@ -2945,6 +2966,7 @@ namespace Quartz.Impl.AdoJobStore
     }
     public interface IDriverDelegate
     {
+        bool FiltersAcquisitionExecutionGroups { get; } // default implementation
         bool FiltersAcquisitionJobTypeExclusions { get; } // default implementation
         bool SupportsFireOnAcquire { get; } // default implementation
         System.Threading.Tasks.ValueTask ApplyTriggerFired(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.TriggerFiredUpdate update, System.Threading.CancellationToken cancellationToken = default);
@@ -3295,12 +3317,14 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual string AdditionalLikeWildcards { get; }
         protected virtual bool CanUseProperties { get; }
         protected Quartz.Impl.AdoJobStore.Common.IDbProvider DbProvider { get; }
+        public virtual bool FiltersAcquisitionExecutionGroups { get; }
         public virtual bool FiltersAcquisitionJobTypeExclusions { get; }
         protected string SchedulerName { get; }
         protected virtual string? SchemaResourceName { get; }
         public virtual bool SupportsFireOnAcquire { get; }
         public virtual void AddCommandParameter(System.Data.Common.DbCommand cmd, string paramName, object? paramValue, System.Enum? dataType = null, int? size = default) { }
         protected virtual void AddDefaultTriggerPersistenceDelegates() { }
+        protected void AddExecutionGroupParameters(System.Data.Common.DbCommand cmd, Quartz.Impl.AdoJobStore.ExecutionGroupClauseShape shape, System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupScope>? groups) { }
         protected virtual void AddPagingParameters(System.Data.Common.DbCommand cmd, int skip, int take, bool takeLimited) { }
         protected void AddPreferredNodeParameters(System.Data.Common.DbCommand cmd, System.DateTimeOffset liveNodeCutoff) { }
         public virtual void AddTriggerPersistenceDelegate(Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate persistenceDelegate) { }
@@ -3488,11 +3512,14 @@ namespace Quartz.Impl.AdoJobStore
         public required int MaxCount { get; init; }
         public required System.DateTimeOffset NoEarlierThan { get; init; }
         public required System.DateTimeOffset NoLaterThan { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupScope>? RefusedExecutionGroups { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupScope>? ServedExecutionGroups { get; init; }
     }
     public readonly record struct TriggerAcquisitionSqlShape : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerAcquisitionSqlShape>
     {
         public TriggerAcquisitionSqlShape(int MaxCount, int ExcludedJobTypeBucket) { }
         public int ExcludedJobTypeBucket { get; init; }
+        public Quartz.Impl.AdoJobStore.ExecutionGroupClauseShape ExecutionGroups { get; init; }
         public int MaxCount { get; init; }
     }
     public readonly record struct TriggerClaim : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerClaim>

@@ -171,7 +171,7 @@ public partial class StdAdoDelegate
     /// <param name="count">The most rows to read, or no limit.</param>
     protected virtual string GetSelectMisfiredTriggersToRecoverSql(int count)
     {
-        return StdAdoConstants.BuildSqlSelectMisfiredTriggersToRecover(RowLimitFor(count));
+        return StdAdoConstants.BuildSqlSelectMisfiredTriggersToRecover(RowLimitFor(count), routedShape);
     }
 
     /// <inheritdoc />
@@ -185,8 +185,79 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.NextFireTime, GetDbDateTimeValue(misfireTime));
         AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(state));
+        AddExecutionGroupParameters(cmd, routedShape, routedGroups);
 
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// How many <c>WAITING</c> triggers have misfired in the execution groups this node does <em>not</em>
+    /// serve, and the earliest fire time among them (#4069).
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than a member of <see cref="IDriverDelegate" />, as
+    /// <see cref="SelectPinnedTriggersBlockedElsewhere" /> is: a node that routes asks it after each
+    /// misfire pass so it can say, once, that nobody is serving those groups, and a delegate without it
+    /// costs a node nothing but that line. The statement is the sweep's count with the complementary
+    /// clause, so it is only asked of a node that routes, where the clause exists.
+    /// </remarks>
+    /// <param name="conn">The sweep's connection.</param>
+    /// <param name="misfireTime">The instant before which a fire time counts as missed.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal async ValueTask<UnservedMisfires> CountUnservedMisfiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset misfireTime,
+        CancellationToken cancellationToken = default)
+    {
+        if (!routedShape.HasClause)
+        {
+            return UnservedMisfires.None;
+        }
+
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.BuildSqlCountUnservedMisfiredTriggers(routedShape)));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.NextFireTime, GetDbDateTimeValue(misfireTime));
+        AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(StoredTriggerState.Waiting));
+
+        // The complement binds the same names under the other prefix: a serve-list's complement is a
+        // refuse-list over the same groups, and the other way round.
+        AddExecutionGroupParameters(cmd, routedShape.Complement, routedGroups);
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return UnservedMisfires.None;
+        }
+
+        // Read through the boxed values: the count is a NUMBER on Oracle and a BIGINT elsewhere, and
+        // MIN over no rows is NULL.
+        int count = Convert.ToInt32(rs.GetValue(0), CultureInfo.InvariantCulture);
+        return new UnservedMisfires(count, count > 0 ? GetDateTimeFromDbValue(rs.GetValue(1)) : null);
+    }
+
+    /// <summary>
+    /// Binds the routed groups' parameters — <c>@servedGroup0000…</c> or <c>@refusedGroup0000…</c>, in
+    /// the order the clause numbers them — after the statement's own parameters, for providers that bind
+    /// positionally. Nothing is bound for a shape with no clause.
+    /// </summary>
+    /// <param name="cmd">The command carrying a clause of <paramref name="shape" />.</param>
+    /// <param name="shape">The clause's shape, whose list decides the parameter prefix.</param>
+    /// <param name="groups">The scopes the clause names; the default bucket among them binds nothing.</param>
+    protected void AddExecutionGroupParameters(DbCommand cmd, ExecutionGroupClauseShape shape, IReadOnlyCollection<ExecutionGroupScope>? groups)
+    {
+        if (shape.NamedCount == 0 || groups is null)
+        {
+            return;
+        }
+
+        int index = 0;
+        foreach (ExecutionGroupScope scope in groups)
+        {
+            if (scope.Name is { } name)
+            {
+                AddCommandParameter(cmd, StdAdoConstants.ExecutionGroupParameter(shape.IsServeList, index++), name);
+            }
+        }
     }
 
     /// <summary>
@@ -210,13 +281,14 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         // In the statement's token order, for providers that bind positionally.
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectPinnedTriggersBlockedElsewhere));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.BuildSqlSelectPinnedTriggersBlockedElsewhere(routedShape)));
         AddCommandParameter(cmd, SqlParameters.IsNonConcurrent, GetDbBooleanValue(true));
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(StoredTriggerState.Blocked));
         AddCommandParameter(cmd, SqlParameters.NoLaterThan, GetDbDateTimeValue(noLaterThan));
         AddCommandParameter(cmd, SqlParameters.InstanceId, instanceId);
         AddCommandParameter(cmd, SqlParameters.InstanceName, instanceId);
+        AddExecutionGroupParameters(cmd, routedShape, routedGroups);
 
         using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -1918,11 +1990,13 @@ public partial class StdAdoDelegate
     /// Builds the acquisition statement for one shape. A dialect that overrides this and stops
     /// splicing in <see cref="TriggerAcquisitionSqlShape.ExcludedJobTypeBucket" /> terms must also
     /// override <see cref="FiltersAcquisitionJobTypeExclusions" /> to <see langword="false" />, so
-    /// that the store's backstop takes over.
+    /// that the store's backstop takes over; one that drops the
+    /// <see cref="TriggerAcquisitionSqlShape.ExecutionGroups" /> clause must do the same with
+    /// <see cref="FiltersAcquisitionExecutionGroups" />.
     /// </summary>
     protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
     {
-        return StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(shape.ExcludedJobTypeBucket, RowLimitFor(shape.MaxCount));
+        return StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(shape.ExcludedJobTypeBucket, shape.ExecutionGroups, RowLimitFor(shape.MaxCount));
     }
 
     /// <inheritdoc />
@@ -1934,6 +2008,13 @@ public partial class StdAdoDelegate
     /// <see langword="false" />.
     /// </remarks>
     public virtual bool FiltersAcquisitionJobTypeExclusions => true;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// True, for the reason <see cref="FiltersAcquisitionJobTypeExclusions" /> is: the routing clause
+    /// is in the one statement every shipped dialect builds from, on <c>EXECUTION_GROUP</c>.
+    /// </remarks>
+    public virtual bool FiltersAcquisitionExecutionGroups => true;
 
     /// <summary>
     /// Binds the preferred node (node affinity) parameters of the acquisition SQL. Parameters are
@@ -1998,7 +2079,7 @@ public partial class StdAdoDelegate
     /// </summary>
     protected virtual string GetCountMisfiredTriggersInStateSql()
     {
-        return StdAdoConstants.SqlCountMisfiredTriggersInStates;
+        return StdAdoConstants.BuildSqlCountMisfiredTriggersInStates(routedShape);
     }
 
     /// <inheritdoc />
@@ -2014,8 +2095,12 @@ public partial class StdAdoDelegate
             : null;
         int excludedJobTypeBucket = StdAdoConstants.RoundUpExcludedJobTypeCount(excludedJobTypeNames?.Count ?? 0);
 
+        // The routing clause is exact rather than bucketed: it is fixed for the node's lifetime, so
+        // there is one shape per node however many groups it names.
+        ExecutionGroupClauseShape executionGroups = ExecutionGroupClauseShape.Of(criteria.ServedExecutionGroups, criteria.RefusedExecutionGroups);
+
         string sql = acquisitionSqlByShape.GetOrAdd(
-            new TriggerAcquisitionSqlShape(maxCount, excludedJobTypeBucket),
+            new TriggerAcquisitionSqlShape(maxCount, excludedJobTypeBucket) { ExecutionGroups = executionGroups },
             static (shape, self) => self.ReplaceTablePrefix(self.GetSelectNextTriggerToAcquireSql(shape)),
             this);
 
@@ -2038,6 +2123,9 @@ public partial class StdAdoDelegate
                 AddCommandParameter(cmd, StdAdoConstants.ExcludedJobTypeParameter(i), jobTypeName);
             }
         }
+
+        // After the exclusions, which is where the template splices the clause.
+        AddExecutionGroupParameters(cmd, executionGroups, criteria.ServedExecutionGroups ?? criteria.RefusedExecutionGroups);
 
         // Work on a copy: the slots are decremented as rows are taken, and the caller may reuse the
         // criteria across retries. Cluster-scoped limits arrive already lowered by what the cluster
@@ -2728,6 +2816,7 @@ public partial class StdAdoDelegate
             AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             AddCommandParameter(cmd, SqlParameters.NextFireTime, GetDbDateTimeValue(misfireTime));
             AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(state));
+            AddExecutionGroupParameters(cmd, routedShape, routedGroups);
 
             using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             TriggerRowOrdinals? ordinals = null;

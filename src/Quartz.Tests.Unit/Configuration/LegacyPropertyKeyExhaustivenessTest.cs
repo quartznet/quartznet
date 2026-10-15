@@ -129,6 +129,8 @@ public class LegacyPropertyKeyExhaustivenessTest
         "quartz.scheduler.interruptJobsOnShutdown",
         "quartz.scheduler.interruptJobsOnShutdownWithWait",
         "quartz.scheduler.jobFactory.type",
+        "quartz.scheduler.refusedExecutionGroups",
+        "quartz.scheduler.servedExecutionGroups",
         "quartz.scheduler.typeLoadHelper.type",
         "quartz.serializer",
         "quartz.serializer.type",

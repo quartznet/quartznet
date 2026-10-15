@@ -96,6 +96,8 @@ internal sealed class StdScheduler : IScheduler
             ThreadPoolTypeName = scheduler.ThreadPoolType.AssemblyQualifiedNameWithoutVersion(),
             ThreadPoolSize = scheduler.ThreadPoolSize,
             Version = scheduler.Version,
+            ServedExecutionGroups = scheduler.ExecutionGroupRouting is { IsServeList: true } served ? served.Spellings : [],
+            RefusedExecutionGroups = scheduler.ExecutionGroupRouting is { IsServeList: false } refused ? refused.Spellings : [],
         });
     }
 

@@ -139,7 +139,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             metadata.ThreadPoolSize,
             metadata.RunningSince,
             metadata.JobsExecuted,
-            metadata.Version);
+            metadata.Version)
+        {
+            ServedExecutionGroups = metadata.ServedExecutionGroups,
+            RefusedExecutionGroups = metadata.RefusedExecutionGroups,
+        };
     }
 
     public async ValueTask Start(string schedulerName, CancellationToken cancellationToken = default)

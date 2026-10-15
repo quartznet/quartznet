@@ -232,6 +232,24 @@ public class SchedulerEndpointsTest : WebApiTest
     }
 
     /// <summary>
+    /// The execution groups a node routes travel on the details body as two arrays, and the HTTP client
+    /// reads them back onto its metadata (#4069).
+    /// </summary>
+    [Test]
+    public async Task GetSchedulerDetailsCarriesTheExecutionGroupsTheNodeRoutes()
+    {
+        A.CallTo(() => FakeScheduler.GetMetadata(A<CancellationToken>._))
+            .Returns(TestData.Metadata with { ServedExecutionGroups = ["_", "reports"] });
+        A.CallTo(() => FakeScheduler.Status).Returns(TestData.Metadata.Status);
+
+        SchedulerMetadata metadata = await HttpScheduler.GetMetadata();
+
+        metadata.ServedExecutionGroups.Should().Equal(["_", "reports"],
+            "the configuration spellings cross the wire as they are, so a remote health check or dashboard rebuilds the same predicate");
+        metadata.RefusedExecutionGroups.Should().BeEmpty();
+    }
+
+    /// <summary>
     /// The context endpoint reads a context holding what a context holds: whatever the application put
     /// in it.
     /// </summary>

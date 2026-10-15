@@ -268,6 +268,7 @@ internal static class QuartzServiceRegistration
                 PropagateTraceContext = options.PropagateTraceContext,
                 RecordExceptionSpanEvents = recordExceptionSpanEvents,
                 DefaultRetryPolicy = provider.GetSchedulerOptions<SchedulerRetryOptions>(key).DefaultPolicy,
+                ExecutionGroupRouting = ExecutionGroupRouting.From(options),
                 TimeProvider = timeProvider,
                 LoggerFactory = provider.GetSchedulerLoggerFactory(),
                 Meters = meters,

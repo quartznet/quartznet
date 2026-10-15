@@ -69,6 +69,23 @@ internal static class LegacyPropertyKeys
     internal const string SchedulerJobFactoryType = SchedulerJobFactoryPrefix + ".type";
     internal const string SchedulerInterruptJobsOnShutdown = "quartz.scheduler.interruptJobsOnShutdown";
     internal const string SchedulerInterruptJobsOnShutdownWithWait = "quartz.scheduler.interruptJobsOnShutdownWithWait";
+
+    /// <summary>
+    /// The execution groups a node serves, comma-separated; the flat spelling of
+    /// <see cref="QuartzSchedulerOptions.ServedExecutionGroups" />.
+    /// </summary>
+    /// <remarks>
+    /// A value key rather than a component key: it names groups, not a type, so it keeps binding when the
+    /// component keys are switched off for a trimmed application. A group whose name holds a comma needs
+    /// the typed option.
+    /// </remarks>
+    internal const string SchedulerServedExecutionGroups = "quartz.scheduler.servedExecutionGroups";
+
+    /// <summary>
+    /// The execution groups a node refuses, comma-separated; the flat spelling of
+    /// <see cref="QuartzSchedulerOptions.RefusedExecutionGroups" />.
+    /// </summary>
+    internal const string SchedulerRefusedExecutionGroups = "quartz.scheduler.refusedExecutionGroups";
     internal const string SchedulerContextPrefix = "quartz.context.key";
     internal const string ThreadPoolPrefix = "quartz.threadPool";
     internal const string ThreadPoolType = "quartz.threadPool.type";
@@ -156,6 +173,8 @@ internal static class LegacyPropertyKeys
         SchedulerJobFactoryPrefix,
         SchedulerInterruptJobsOnShutdown,
         SchedulerInterruptJobsOnShutdownWithWait,
+        SchedulerServedExecutionGroups,
+        SchedulerRefusedExecutionGroups,
         SchedulerContextPrefix,
         ThreadPoolPrefix,
         TimeProviderType,

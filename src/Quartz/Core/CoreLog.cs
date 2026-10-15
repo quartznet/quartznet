@@ -204,4 +204,12 @@ internal static partial class CoreLog
 
     [LoggerMessage(EventId = 1092, Level = LogLevel.Error, Message = "Interrupting timed out job {JobKey}, fire instance {FireInstanceId}, failed")]
     public static partial void JobTimeoutInterruptFailed(this ILogger logger, JobKey jobKey, string fireInstanceId, Exception exception);
+
+    /// <summary>
+    /// What this node routes, said once at start beside the store it was built with. <c>Verb</c> is
+    /// <c>serves</c> or <c>refuses</c>; <c>ClusterNote</c> is empty for a clustered store and says, for
+    /// one that is not, that no other node runs what this one refuses.
+    /// </summary>
+    [LoggerMessage(EventId = 1093, Level = LogLevel.Information, Message = "Scheduler {SchedulerIdentifier} {Verb} execution groups {Groups}{ClusterNote}")]
+    public static partial void ExecutionGroupRoutingConfigured(this ILogger logger, string schedulerIdentifier, string verb, string groups, string clusterNote);
 }

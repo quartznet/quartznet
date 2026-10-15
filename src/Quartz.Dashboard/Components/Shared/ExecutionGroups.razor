@@ -1,8 +1,11 @@
 @using System.Globalization
 @using Quartz
 @using Quartz.Dashboard.Services
+@using Quartz.Extensibility
+@using Microsoft.Extensions.DependencyInjection
 @implements IDisposable
 @inject IQuartzApiClient Api
+@inject IServiceProvider Services
 
 <section class="qz-section">
     <h2>Execution groups</h2>
@@ -27,6 +30,11 @@
     {
         <p class="qz-muted">@ScopeSentence</p>
 
+        @if (_routing is not null)
+        {
+            <p class="qz-muted">@RoutingSentence</p>
+        }
+
         <table class="qz-table">
             <thead>
                 <tr>
@@ -35,6 +43,11 @@
                     <th>Limit</th>
                     <th>In flight</th>
                     <th>Headroom</th>
+                    @if (_routing is not null)
+                    {
+                        <th>Served here</th>
+                        <th>Overdue</th>
+                    }
                 </tr>
             </thead>
             <tbody>
@@ -62,10 +75,29 @@
                         </td>
                         <td>@InFlightOf(row)</td>
                         <td>@HeadroomOf(row)</td>
+                        @if (_routing is not null)
+                        {
+                            <td>@ServedHereOf(row)</td>
+                            <td>
+                                @OverdueOf(row)
+                                @if (row.IsOverdueAndUnserved)
+                                {
+                                    <span class="qz-muted">&nbsp;(not served here)</span>
+                                }
+                            </td>
+                        }
                     </tr>
                 }
             </tbody>
         </table>
+
+        @if (_hasOverdueUnservedRow)
+        {
+            <p class="qz-muted">
+                A group marked <em>not served here</em> has triggers more than @OverdueCutoffMinutes minutes overdue that this node does not serve.
+                Overdue and not served by this node: check that a node serving this group is running.
+            </p>
+        }
 
         @if (_hasCatchAllRow)
         {
@@ -114,12 +146,20 @@
     /// </remarks>
     private readonly List<GroupRow> _rows = [];
 
+    /// <summary>
+    /// How far past its fire time a schedulable trigger has to be before the panel counts it overdue:
+    /// five minutes, a fixed figure because the dashboard does not know the store's misfire threshold.
+    /// The health check, which does, measures in thresholds.
+    /// </summary>
+    private const int OverdueCutoffMinutes = 5;
+
     private ExecutionLimitsDto _limits = new([]);
     private string? _error;
     private bool _loadingInProgress;
     private bool _countsArePartial;
     private bool _hasCatchAllRow;
     private bool _hasPrefixRow;
+    private bool _hasOverdueUnservedRow;
     private bool _nodeScopedLimitsAreCountedClusterWide;
     private int _firingsCounted;
     private bool _hasLoaded;
@@ -127,8 +167,29 @@
     private PeriodicTimer? _refreshTimer;
     private CancellationTokenSource? _refreshLoopCancellation;
 
+    /// <summary>
+    /// Which execution groups the node serves, rebuilt from the two lists the scheduler reports, or
+    /// null for a node that serves every group — which is also every scheduler older than 4.6.
+    /// </summary>
+    private ExecutionGroupRouting? _routing;
+
     [Parameter]
     public string? SchedulerName { get; set; }
+
+    /// <summary>
+    /// The execution groups the node serves and nothing else, as its details report them; empty when it
+    /// serves every group not refused.
+    /// </summary>
+    [Parameter]
+    public string[] ServedExecutionGroups { get; set; } = [];
+
+    /// <summary>
+    /// The execution groups the node refuses; empty when it refuses none.
+    /// </summary>
+    [Parameter]
+    public string[] RefusedExecutionGroups { get; set; } = [];
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
 
     /// <summary>
     /// Whether the scheduler's job store survives a restart, which is also what decides whose firings the
@@ -149,6 +210,25 @@
         ? "Counted across the cluster: the job store is persistent, so a firing owned by any node is counted here."
         : "Counted on this node: the job store keeps its firings in memory, so another node's work is not counted here.";
 
+    /// <summary>
+    /// Which groups this node routes, in the words the configuration used.
+    /// </summary>
+    private string RoutingSentence
+    {
+        get
+        {
+            if (_routing is null)
+            {
+                return "";
+            }
+
+            string groups = string.Join(", ", _routing.Spellings.Select(LabelFor));
+            return _routing.IsServeList
+                ? "This node serves only " + groups + "; a trigger of any other group waits for a node that serves it."
+                : "This node refuses " + groups + "; a trigger of those groups waits for a node that serves it.";
+        }
+    }
+
     protected override void OnInitialized()
     {
         _refreshLoopCancellation = new CancellationTokenSource();
@@ -165,15 +245,28 @@
     /// </remarks>
     protected override async Task OnParametersSetAsync()
     {
-        if (_hasLoaded && string.Equals(_loadedSchedulerName, SchedulerName, StringComparison.Ordinal))
+        if (_hasLoaded
+            && string.Equals(_loadedSchedulerName, SchedulerName, StringComparison.Ordinal)
+            && ReferenceEquals(_loadedServed, ServedExecutionGroups)
+            && ReferenceEquals(_loadedRefused, RefusedExecutionGroups))
         {
             return;
         }
 
         _hasLoaded = true;
         _loadedSchedulerName = SchedulerName;
+        _loadedServed = ServedExecutionGroups;
+        _loadedRefused = RefusedExecutionGroups;
         await LoadDataAsync();
     }
+
+    /// <summary>
+    /// The routing lists the last load was made with: the overview re-reads the scheduler's details
+    /// and hands new arrays over, and a changed list is a reason to load again where the same one is not.
+    /// </summary>
+    private string[]? _loadedServed;
+
+    private string[]? _loadedRefused;
 
     private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
     {
@@ -236,8 +329,10 @@
             _countsArePartial = false;
             _hasCatchAllRow = false;
             _hasPrefixRow = false;
+            _hasOverdueUnservedRow = false;
             _nodeScopedLimitsAreCountedClusterWide = false;
             _firingsCounted = 0;
+            _routing = ExecutionGroupRouting.FromSpellings(ServedExecutionGroups, RefusedExecutionGroups);
 
             string? schedulerName = SchedulerName;
             if (string.IsNullOrWhiteSpace(schedulerName))
@@ -256,9 +351,31 @@
                 schedulerName,
                 new DashboardFireInstanceQuery { State = null });
 
+            // One more read for a node that routes, and none for one that does not: the schedulable
+            // triggers more than five minutes overdue, which under routing are the ones no live node is
+            // serving. Counted by group beside the firings, so the row says both.
+            Dictionary<string, int>? overdue = null;
+            if (_routing is not null)
+            {
+                PagedResult<TriggerHeaderDto> late = await Api.QueryTriggers(
+                    schedulerName,
+                    new DashboardTriggerQuery
+                    {
+                        State = TriggerState.Normal,
+                        NextFireTimeBefore = Clock.GetUtcNow() - TimeSpan.FromMinutes(OverdueCutoffMinutes),
+                    });
+
+                overdue = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (TriggerHeaderDto header in late.Items)
+                {
+                    string key = header.ExecutionGroup ?? ExecutionLimits.DefaultGroupAlias;
+                    overdue[key] = overdue.TryGetValue(key, out int count) ? count + 1 : 1;
+                }
+            }
+
             _firingsCounted = firings.Items.Count;
             _countsArePartial = firings.HasMore;
-            BuildRows(_limits, firings.Items);
+            BuildRows(_limits, firings.Items, overdue);
         }
         catch (Exception ex)
         {
@@ -270,7 +387,7 @@
         }
     }
 
-    private void BuildRows(ExecutionLimitsDto limits, IReadOnlyList<FireInstanceDto> firings)
+    private void BuildRows(ExecutionLimitsDto limits, IReadOnlyList<FireInstanceDto> firings, Dictionary<string, int>? overdue)
     {
         Dictionary<string, int> inFlight = new(StringComparer.Ordinal);
         HashSet<string> derived = new(StringComparer.Ordinal);
@@ -295,6 +412,18 @@
         HashSet<string> keys = new(limits.Limits.Keys, StringComparer.Ordinal);
         keys.UnionWith(inFlight.Keys);
 
+        // A node that routes lists what it routes and what is overdue as well, so a group it serves
+        // with nothing running still has a row saying so, and a group nobody serves has one too.
+        if (_routing is not null)
+        {
+            keys.UnionWith(_routing.Spellings);
+        }
+
+        if (overdue is not null)
+        {
+            keys.UnionWith(overdue.Keys);
+        }
+
         List<GroupRow> rows = [];
         foreach (string key in keys)
         {
@@ -305,6 +434,12 @@
             string? prefix = null;
             bool isPrefix = limits.Limits.ContainsKey(key) && ExecutionLimits.TryReadPrefixKey(key, out prefix);
             DashboardExecutionLimit? limit = ResolveLimit(limits, key, out string? inheritedFrom);
+            bool isRule = isCatchAll || isPrefix;
+
+            // The catch-all and a prefix are rules about other groups, which routing has no opinion on.
+            bool? servedHere = _routing is null || isRule
+                ? null
+                : _routing.Serves(key == ExecutionLimits.DefaultGroupAlias ? null : key);
 
             rows.Add(new GroupRow(
                 Key: key,
@@ -314,7 +449,9 @@
                 IsDerived: derived.Contains(key),
                 Limit: limit,
                 InheritedFrom: inheritedFrom,
-                InFlight: inFlight.TryGetValue(key, out int count) ? count : 0));
+                InFlight: inFlight.TryGetValue(key, out int count) ? count : 0,
+                ServedHere: servedHere,
+                Overdue: overdue is not null && overdue.TryGetValue(key, out int lateCount) ? lateCount : 0));
         }
 
         // Named groups first, alphabetically; then the ungrouped bucket, which is a group only in the
@@ -329,6 +466,7 @@
         _rows.AddRange(rows);
         _hasCatchAllRow = limits.Limits.ContainsKey(ExecutionLimits.OtherGroups);
         _hasPrefixRow = rows.Exists(static row => row.IsPrefix);
+        _hasOverdueUnservedRow = rows.Exists(static row => row.IsOverdueAndUnserved);
         _nodeScopedLimitsAreCountedClusterWide = Clustered
             && rows.Exists(static row => row.Limit is { Scope: ExecutionLimitScope.Node });
     }
@@ -449,6 +587,21 @@
         return Math.Max(0, maxConcurrent - row.InFlight).ToString(CultureInfo.InvariantCulture);
     }
 
+    private static string ServedHereOf(GroupRow row)
+    {
+        return row.ServedHere switch
+        {
+            true => "✓",
+            false => "—",
+            null => "—"
+        };
+    }
+
+    private static string OverdueOf(GroupRow row)
+    {
+        return row.IsRule ? "—" : row.Overdue.ToString(CultureInfo.InvariantCulture);
+    }
+
     public void Dispose()
     {
         _refreshLoopCancellation?.Cancel();
@@ -467,12 +620,20 @@
         bool IsDerived,
         DashboardExecutionLimit? Limit,
         string? InheritedFrom,
-        int InFlight)
+        int InFlight,
+        bool? ServedHere,
+        int Overdue)
     {
         /// <summary>
         /// A row that is a rule about other groups — the catch-all or a prefix — rather than a group, so
         /// it has nothing in flight of its own.
         /// </summary>
         public bool IsRule => IsCatchAll || IsPrefix;
+
+        /// <summary>
+        /// A group with triggers past the overdue cutoff that this node does not serve: the one row an
+        /// operator has to act on, by starting a node that serves it.
+        /// </summary>
+        public bool IsOverdueAndUnserved => ServedHere == false && Overdue > 0;
     }
 }

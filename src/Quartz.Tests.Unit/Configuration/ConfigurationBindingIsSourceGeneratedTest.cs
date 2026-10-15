@@ -76,6 +76,18 @@ public class ConfigurationBindingIsSourceGeneratedTest
             + "inner exceptions, and the member says so"
     };
 
+    /// <summary>
+    /// Members the validator refuses beside another member of the same type, so the probe cannot fill
+    /// them in the one pass that fills everything else. Each is bound in a pass of its own, with nothing
+    /// else set; the value says which member it may not be set beside, and why.
+    /// </summary>
+    private static readonly Dictionary<string, string> boundInAPassOfTheirOwn = new(StringComparer.Ordinal)
+    {
+        ["Quartz.QuartzSchedulerOptions.RefusedExecutionGroups"] =
+            "a node lists the groups it serves or the groups it refuses, never both, so an instance with "
+            + "ServedExecutionGroups set as well fails validation",
+    };
+
     [Test]
     public void TheBinderCallsInQuartzTypedOptionsAreIntercepted()
     {
@@ -194,26 +206,20 @@ public class ConfigurationBindingIsSourceGeneratedTest
         Dictionary<string, string?> values = new(StringComparer.Ordinal);
         Dictionary<PropertyInfo, object?> expected = new();
         List<string> unbindable = [];
+        List<PropertyInfo> separately = [];
 
         foreach (PropertyInfo property in Settable(typeof(TOptions)))
         {
-            if (IsStringDictionary(property.PropertyType))
+            if (boundInAPassOfTheirOwn.ContainsKey(Describe(property)))
             {
-                // Bound into rather than assigned, which is the code path the reflection binder needed
-                // RequiresDynamicCode for.
-                values[$"Quartz:{sectionPath}:{property.Name}:canary"] = "bound";
-                expected[property] = "bound";
+                separately.Add(property);
                 continue;
             }
 
-            if (SampleFor(property, probe) is not { } sample)
+            if (!Fill(property, probe, sectionPath, values, expected))
             {
                 unbindable.Add($"{Describe(property)} is a {property.PropertyType.Name}");
-                continue;
             }
-
-            values[$"Quartz:{sectionPath}:{property.Name}"] = sample;
-            expected[property] = Parse(property.PropertyType, sample);
         }
 
         unbindable.Should().BeEquivalentTo(
@@ -224,6 +230,67 @@ public class ConfigurationBindingIsSourceGeneratedTest
             + "it, so a new one is a setting that binds from nowhere — move it off the options type, or "
             + "split the binding, or say here why no configuration source could ever produce it");
 
+        AssertBound<TOptions>(values, expected, optionsName);
+
+        // A member the validator refuses beside another is bound on its own, with nothing else set.
+        foreach (PropertyInfo property in separately)
+        {
+            Dictionary<string, string?> own = new(StringComparer.Ordinal);
+            Dictionary<PropertyInfo, object?> wanted = new();
+
+            Fill(property, probe, sectionPath, own, wanted).Should().BeTrue(
+                $"{Describe(property)} is listed as bound in a pass of its own, which only means something for a member configuration can express");
+
+            AssertBound<TOptions>(own, wanted, optionsName);
+        }
+    }
+
+    /// <summary>
+    /// Writes a canary for <paramref name="property" /> into <paramref name="values" /> and what reading
+    /// it back should give into <paramref name="expected" />; <see langword="false" /> when configuration
+    /// cannot express the member's type at all.
+    /// </summary>
+    private static bool Fill(
+        PropertyInfo property,
+        object probe,
+        string sectionPath,
+        Dictionary<string, string?> values,
+        Dictionary<PropertyInfo, object?> expected)
+    {
+        if (IsStringDictionary(property.PropertyType))
+        {
+            // Bound into rather than assigned, which is the code path the reflection binder needed
+            // RequiresDynamicCode for.
+            values[$"Quartz:{sectionPath}:{property.Name}:canary"] = "bound";
+            expected[property] = "bound";
+            return true;
+        }
+
+        if (IsStringList(property.PropertyType))
+        {
+            // A get-only list is bound into as well, one indexed child per entry.
+            values[$"Quartz:{sectionPath}:{property.Name}:0"] = "bound";
+            expected[property] = "bound";
+            return true;
+        }
+
+        if (SampleFor(property, probe) is not { } sample)
+        {
+            return false;
+        }
+
+        values[$"Quartz:{sectionPath}:{property.Name}"] = sample;
+        expected[property] = Parse(property.PropertyType, sample);
+        return true;
+    }
+
+    /// <summary>
+    /// Binds <paramref name="values" /> and reads every member in <paramref name="expected" /> back off
+    /// the instance the container hands its own components.
+    /// </summary>
+    private static void AssertBound<TOptions>(Dictionary<string, string?> values, Dictionary<PropertyInfo, object?> expected, string optionsName)
+        where TOptions : class, new()
+    {
         ServiceCollection services = new();
         services.BindQuartzOptions(Section(values));
 
@@ -235,7 +302,9 @@ public class ConfigurationBindingIsSourceGeneratedTest
         {
             object? got = IsStringDictionary(property.PropertyType)
                 ? ((IReadOnlyDictionary<string, string>) property.GetValue(bound)!).GetValueOrDefault("canary")
-                : property.GetValue(bound);
+                : IsStringList(property.PropertyType)
+                    ? ((List<string>) property.GetValue(bound)!).FirstOrDefault()
+                    : property.GetValue(bound);
 
             if (!Equals(got, want))
             {
@@ -338,6 +407,8 @@ public class ConfigurationBindingIsSourceGeneratedTest
         && type.GetGenericTypeDefinition() == typeof(Dictionary<,>)
         && type.GetGenericArguments()[0] == typeof(string)
         && type.GetGenericArguments()[1] == typeof(string);
+
+    private static bool IsStringList(Type type) => type == typeof(List<string>);
 
     /// <summary>
     /// The generated binder, which the compiler emits into Quartz itself as a file-local type — so its

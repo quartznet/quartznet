@@ -102,6 +102,8 @@
     "Job {JobKey} finished before the interrupt its timeout asked for reached fire instance {FireInstanceId}"
 1092  Error  CoreLog.JobTimeoutInterruptFailed
     "Interrupting timed out job {JobKey}, fire instance {FireInstanceId}, failed"
+1093  Information  CoreLog.ExecutionGroupRoutingConfigured
+    "Scheduler {SchedulerIdentifier} {Verb} execution groups {Groups}{ClusterNote}"
 2000  Information  RAMJobStoreLog.StoreInitialized
     "RAMJobStore initialized."
 2001  Warning  RAMJobStoreLog.TriggerSkippedJobMissing
@@ -326,6 +328,10 @@
     "Scanning for misfires..."
 3607  Error  MisfireLog.MisfireHandlingFailed
     "Error handling misfires: {ExceptionMessage}"
+3609  Warning  MisfireLog.UnservedTriggersMisfired
+    "{Count} misfired trigger(s) belong to execution groups this node does not serve; no live node may be serving them. Oldest due at {OldestDueUtc}"
+3610  Information  MisfireLog.UnservedMisfiresHandled
+    "Misfired triggers in execution groups this node does not serve have been handled by another node"
 3700  Debug  LockHandlerLog.LockDesired
     "Lock '{LockName}' is desired by: {RequestorId}"
 3701  Debug  LockHandlerLog.LockGiven

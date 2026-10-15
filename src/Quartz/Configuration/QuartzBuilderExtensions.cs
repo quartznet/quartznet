@@ -1230,6 +1230,68 @@ public static class QuartzBuilderExtensions
     }
 
     /// <summary>
+    /// Makes this node acquire and misfire-handle only the execution groups named, and nothing else.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Sugar over <see cref="QuartzSchedulerOptions.ServedExecutionGroups" />: a group name, or
+    /// <c>_</c> for the triggers that carry none. A trigger in a group no live node serves waits until a
+    /// serving node arrives; the health check and the dashboard report such a group. Calling this
+    /// again adds to the list; naming a group twice is refused at startup, as is naming any group here
+    /// and in <see cref="RefuseExecutionGroups" /> both.
+    /// </para>
+    /// <para>
+    /// A route, not a limit: how many of a served group run at once is still
+    /// <see cref="IQuartzBuilder.UseExecutionLimits" />' business.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="groups">The execution groups this node serves.</param>
+    public static IQuartzBuilder ServeExecutionGroups(this IQuartzBuilder builder, params string[] groups)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(groups);
+
+        builder.Services.Configure<QuartzSchedulerOptions>(builder.SchedulerName, options => AddGroups(options.ServedExecutionGroups, groups));
+        return builder;
+    }
+
+    /// <summary>
+    /// Makes this node never acquire or misfire-handle the execution groups named, and serve every
+    /// other.
+    /// </summary>
+    /// <remarks>
+    /// Sugar over <see cref="QuartzSchedulerOptions.RefusedExecutionGroups" />, with the spellings and
+    /// the rules of <see cref="ServeExecutionGroups" />. A node that refuses every group in use is an
+    /// administration node: it runs nothing and serves the dashboard.
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="groups">The execution groups this node refuses.</param>
+    public static IQuartzBuilder RefuseExecutionGroups(this IQuartzBuilder builder, params string[] groups)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(groups);
+
+        builder.Services.Configure<QuartzSchedulerOptions>(builder.SchedulerName, options => AddGroups(options.RefusedExecutionGroups, groups));
+        return builder;
+    }
+
+    /// <summary>
+    /// Appends what is not already listed, so a group named by configuration and by code is listed once
+    /// rather than refused as a duplicate.
+    /// </summary>
+    private static void AddGroups(List<string> list, string[] groups)
+    {
+        foreach (string group in groups)
+        {
+            if (!list.Contains(group, StringComparer.Ordinal))
+            {
+                list.Add(group);
+            }
+        }
+    }
+
+    /// <summary>
     /// Pauses a trigger whose retry policy has given up, recording why, so it stops failing on schedule
     /// until an operator resumes it.
     /// </summary>

@@ -32,6 +32,32 @@ internal record SchedulerDto(
     SchedulerStatisticsDto Statistics
 )
 {
+    /// <summary>
+    /// The execution groups the node serves, as its configuration spells them; empty when it serves
+    /// every group not refused. Absent on a host older than 4.6, which reads as empty.
+    /// </summary>
+    /// <remarks>
+    /// An <c>init</c> property rather than a positional parameter, so a 4.5 client reading a 4.6 host's
+    /// body — and a 4.6 client reading a 4.5 host's — each ignore what the other does not know. The
+    /// getter answers the empty list for a member the body did not carry: the generated reader builds
+    /// the record without its initializers and leaves such a member <see langword="null" />, where
+    /// reflection would have kept the initializer's value.
+    /// </remarks>
+    public string[] ServedExecutionGroups
+    {
+        get => field ?? [];
+        init;
+    } = [];
+
+    /// <summary>
+    /// The execution groups the node refuses; empty when it refuses none.
+    /// </summary>
+    public string[] RefusedExecutionGroups
+    {
+        get => field ?? [];
+        init;
+    } = [];
+
     /// <remarks>
     /// The metadata answers all three of the scheduler's own fields, and answers them in the one call
     /// that was already made: reading the properties instead cost a scheduler in another process two
@@ -48,7 +74,11 @@ internal record SchedulerDto(
             ThreadPool: SchedulerThreadPoolDto.Create(metadata),
             JobStore: SchedulerJobStoreDto.Create(metadata),
             Statistics: SchedulerStatisticsDto.Create(metadata)
-        );
+        )
+        {
+            ServedExecutionGroups = metadata.ServedExecutionGroups,
+            RefusedExecutionGroups = metadata.RefusedExecutionGroups,
+        };
     }
 }
 

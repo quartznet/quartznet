@@ -264,6 +264,17 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             logger.UsingJobStore(
                 quartzScheduler.JobStoreType.FullName, quartzScheduler.SupportsPersistence, quartzScheduler.Clustered);
 
+            if (quartzScheduler.ExecutionGroupRouting is { } routing)
+            {
+                // A refused group on a store nobody else shares is a group nothing runs, which is the
+                // one thing an operator reading this line needs to be told.
+                logger.ExecutionGroupRoutingConfigured(
+                    resources.GetUniqueIdentifier(),
+                    routing.IsServeList ? "serves" : "refuses",
+                    string.Join(", ", routing.Spellings),
+                    quartzScheduler.Clustered ? "" : "; this store is not clustered, so nothing else runs them");
+            }
+
             return scheduler;
         }
         catch

@@ -275,6 +275,61 @@ public class ClusterPageTest
             ContainerSchedulerRegistry.StatusTimeout + TimeSpan.FromSeconds(5));
     }
 
+    /// <summary>
+    /// The Serves column (#4069): what each node routes, from the details of the node that answered.
+    /// Nodes publish nothing to the store, so for a single target only the answering node can say.
+    /// </summary>
+    [Test]
+    public void TheAnsweringNodeSaysWhatItServesAndTheOtherNodesShowADash()
+    {
+        context.WithScheduler(clustered: true, persistent: true, served: ["reports", "_"]);
+        GivenNodes(CurrentNode(), Node("node-b", ClusterNodeState.Alive));
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        RowCells(page, rowIndex: 0)[4].Should().Be("only reports, (no execution group)",
+            "the answering node's own details say which groups it serves, with the ungrouped bucket spelled out");
+        RowCells(page, rowIndex: 1)[4].Should().Be("—",
+            "a node publishes nothing about its routing to the store, so a single target can only speak for itself");
+    }
+
+    [Test]
+    public void ANodeThatRoutesNothingServesAll()
+    {
+        GivenNodes(CurrentNode());
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        RowCells(page, rowIndex: 0)[4].Should().Be("all");
+    }
+
+    [Test]
+    public void EachMemberOfAClusterSaysWhatItServes()
+    {
+        GivenCluster();
+        A.CallTo(() => context.Api.GetScheduler("a/QuartzScheduler", A<CancellationToken>._))
+            .Returns(TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "QuartzScheduler", clustered: true, persistent: true) with
+            {
+                SchedulerInstanceId = "node-a",
+                ServedExecutionGroups = ["reports"],
+            });
+        A.CallTo(() => context.Api.GetScheduler("b/QuartzScheduler", A<CancellationToken>._))
+            .Returns(TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "QuartzScheduler", clustered: true, persistent: true) with
+            {
+                SchedulerInstanceId = "node-b",
+                RefusedExecutionGroups = ["gpu"],
+            });
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        page.WaitForAssertion(() =>
+        {
+            RowCells(page, rowIndex: 0)[4].Should().Be("only reports", "member a fronts node-a and says what it serves");
+            RowCells(page, rowIndex: 1)[4].Should().Be("all but gpu", "member b fronts node-b");
+            RowCells(page, rowIndex: 2)[4].Should().Be("—", "no member fronts node-c, so nothing can say what it serves");
+        });
+    }
+
     [Test]
     public void ReadOnlyHidesTheNodeActions()
     {

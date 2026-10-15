@@ -264,14 +264,20 @@ internal sealed class DashboardComponentContext : BunitContext
         bool persistent = false,
         SchedulerOrigin origin = SchedulerOrigin.Container,
         string? target = null,
-        string[]? members = null)
+        string[]? members = null,
+        string[]? served = null,
+        string[]? refused = null)
     {
         SchedulerHeaderDto header = TestData.Dashboard.SchedulerHeader(schedulerName, status, origin, target, members);
 
         A.CallTo(() => Api.GetSchedulers(A<CancellationToken>._))
             .Returns(new List<SchedulerHeaderDto> { header });
         A.CallTo(() => Api.GetScheduler(header.Key, A<CancellationToken>._))
-            .Returns(TestData.Dashboard.SchedulerDetail(status, schedulerName, clustered, persistent));
+            .Returns(TestData.Dashboard.SchedulerDetail(status, schedulerName, clustered, persistent) with
+            {
+                ServedExecutionGroups = served ?? [],
+                RefusedExecutionGroups = refused ?? [],
+            });
 
         SchedulerState.ActiveSchedulerName = header.Key;
         return this;

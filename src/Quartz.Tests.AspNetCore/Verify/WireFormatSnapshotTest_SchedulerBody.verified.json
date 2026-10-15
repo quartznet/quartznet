@@ -16,5 +16,7 @@
     "runningSince": "2024-07-01T12:00:00+00:00",
     "jobsExecuted": 1000000,
     "localExecutingJobs": 3
-  }
+  },
+  "servedExecutionGroups": [],
+  "refusedExecutionGroups": []
 }

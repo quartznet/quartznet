@@ -118,4 +118,21 @@ public sealed record SchedulerMetadata
     /// The version of Quartz that is running.
     /// </summary>
     public required string Version { get; init; }
+
+    /// <summary>
+    /// The execution groups this node serves, as <see cref="QuartzSchedulerOptions.ServedExecutionGroups" />
+    /// spells them with <c>_</c> for the ungrouped bucket; empty when the node serves every group not in
+    /// <see cref="RefusedExecutionGroups" />.
+    /// </summary>
+    /// <remarks>
+    /// At most one of the two lists is non-empty. Both empty is a node that serves every group — and what
+    /// a scheduler older than 4.6 reports over HTTP, since it has no routing to report.
+    /// </remarks>
+    public string[] ServedExecutionGroups { get; init; } = [];
+
+    /// <summary>
+    /// The execution groups this node refuses, as <see cref="QuartzSchedulerOptions.RefusedExecutionGroups" />
+    /// spells them; empty when it refuses none.
+    /// </summary>
+    public string[] RefusedExecutionGroups { get; init; } = [];
 }

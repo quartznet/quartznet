@@ -505,6 +505,54 @@ internal abstract partial class AdoJobStoreBase
         return true;
     }
 
+    /// <summary>
+    /// How often 3609 repeats while the unserved misfires stay: on the transition, then at most hourly.
+    /// </summary>
+    private static readonly TimeSpan UnservedMisfireRepeatInterval = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Whether the last sweep found misfires outside what this node serves, and when that was last
+    /// logged. Only the misfire handler's thread writes these.
+    /// </summary>
+    private bool unservedMisfiresReported;
+
+    private DateTimeOffset unservedMisfiresLastLoggedUtc;
+
+    /// <summary>
+    /// Counts the misfired triggers in the groups this node does not serve, and logs the transitions:
+    /// 3609 when they appear and again at most once an hour while they stay, 3610 when they are gone.
+    /// </summary>
+    /// <remarks>
+    /// Asked only through a delegate Quartz ships, whose statement carries the complementary clause; a
+    /// delegate of somebody's own costs the node nothing but these two lines. One index seek per pass,
+    /// and only on a node that routes.
+    /// </remarks>
+    private async ValueTask ReportUnservedMisfires(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
+    {
+        if (Delegate is not StdAdoDelegate shipped)
+        {
+            return;
+        }
+
+        UnservedMisfires unserved = await shipped.CountUnservedMisfiredTriggers(conn, MisfireTime, cancellationToken).ConfigureAwait(false);
+        DateTimeOffset now = timeProvider.GetUtcNow();
+
+        if (unserved.Count > 0)
+        {
+            if (!unservedMisfiresReported || now - unservedMisfiresLastLoggedUtc >= UnservedMisfireRepeatInterval)
+            {
+                Logger.UnservedTriggersMisfired(unserved.Count, unserved.OldestDueUtc);
+                unservedMisfiresReported = true;
+                unservedMisfiresLastLoggedUtc = now;
+            }
+        }
+        else if (unservedMisfiresReported)
+        {
+            Logger.UnservedMisfiresHandled();
+            unservedMisfiresReported = false;
+        }
+    }
+
     internal async ValueTask<RecoverMisfiredJobsResult> RecoverMisfires(
         Guid requestorId,
         CancellationToken cancellationToken = default)
@@ -583,6 +631,14 @@ internal abstract partial class AdoJobStoreBase
                 }
 
                 strandedCount = await SweepStrandedContinuations(conn, cancellationToken).ConfigureAwait(false);
+            }
+
+            // A node that routes also looks at what its sweep leaves alone: the misfires in the groups it
+            // does not serve. Under routing no node re-arms those, so ones that stay are ones no live node
+            // is serving, and the handler says so once rather than every pass.
+            if (routing is not null)
+            {
+                await ReportUnservedMisfires(conn, cancellationToken).ConfigureAwait(false);
             }
 
             // Include what the stale recovery and the sweep released, so the caller signals the

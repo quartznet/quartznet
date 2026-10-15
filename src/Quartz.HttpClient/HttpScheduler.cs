@@ -344,6 +344,10 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
             ThreadPoolTypeName = schedulerDto.ThreadPool.Type,
             ThreadPoolSize = schedulerDto.ThreadPool.Size,
             Version = schedulerDto.Statistics.Version,
+            // absent on a host older than 4.6, which the reader turns into the empty lists a node that
+            // routes nothing reports
+            ServedExecutionGroups = schedulerDto.ServedExecutionGroups,
+            RefusedExecutionGroups = schedulerDto.RefusedExecutionGroups,
         };
     }
 

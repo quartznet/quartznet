@@ -139,6 +139,33 @@ public sealed class QuartzHealthCheckOptions
     public double? StaleFiringTolerance { get; set; }
 
     /// <summary>
+    /// How many of the store's own misfire thresholds a schedulable trigger in an execution group this
+    /// node does <em>not</em> serve may be overdue before the check reports
+    /// <see cref="HealthStatus.Degraded" />. <c>3</c> by default; <see langword="null" /> or <c>0</c>
+    /// turns the reading off.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The trap in routing a group to some nodes: when none of them is live, nothing acquires the
+    /// group's triggers and — because a node's misfire sweep handles only the groups it serves —
+    /// nothing re-arms them either. They wait, unmodified, and from a node that does not serve them that
+    /// is invisible unless something looks. So a node whose
+    /// <see cref="QuartzSchedulerOptions.ServedExecutionGroups" /> or
+    /// <see cref="QuartzSchedulerOptions.RefusedExecutionGroups" /> is set asks the store for the
+    /// schedulable triggers overdue by more than this many misfire thresholds, and reports the groups
+    /// among them it does not serve, with a count each and the oldest fire time.
+    /// </para>
+    /// <para>
+    /// Three, for the reason <see cref="StaleFiringTolerance" /> suggests it: a serving node's sweep
+    /// re-arms a misfired trigger within about a threshold of it crossing the line, so one overdue by
+    /// three has had no serving node's sweep reach it. Degraded rather than unhealthy, because the
+    /// reporting node is fine and taking it out of rotation helps nobody. A node that routes nothing
+    /// makes no query.
+    /// </para>
+    /// </remarks>
+    public double? UnservedExecutionGroupTolerance { get; set; } = 3;
+
+    /// <summary>
     /// Jobs that must have succeeded recently. Empty by default, which reads nothing.
     /// </summary>
     /// <remarks>

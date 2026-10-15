@@ -351,6 +351,17 @@ internal sealed class QuartzSchedulerResources
     /// </summary>
     public RetryPolicy? DefaultRetryPolicy { get; set; }
 
+    /// <summary>
+    /// Which execution groups this node serves, as <see cref="QuartzSchedulerOptions.ServedExecutionGroups" />
+    /// or <see cref="QuartzSchedulerOptions.RefusedExecutionGroups" /> configured it;
+    /// <see langword="null" /> for a node that serves every group.
+    /// </summary>
+    /// <remarks>
+    /// Read once, here, and put on every acquisition request the scheduler thread makes: the same
+    /// instance every round, which is what lets a store tell a changed filter from the one it saw last.
+    /// </remarks>
+    public ExecutionGroupRouting? ExecutionGroupRouting { get; set; }
+
     public TimeProvider TimeProvider { get; set; }
 
     /// <summary>

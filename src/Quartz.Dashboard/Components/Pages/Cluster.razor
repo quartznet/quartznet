@@ -65,6 +65,7 @@
                 <th>State</th>
                 <th>Last check-in</th>
                 <th>Check-in interval</th>
+                <th>Serves</th>
                 <th>Acquired</th>
                 <th>Executing</th>
                 @if (_isCluster)
@@ -110,6 +111,16 @@
                             }
                         </td>
                         <td>@FormatInterval(node.CheckInInterval)</td>
+                        <td>
+                            @if (ServesOf(node) is { } serves)
+                            {
+                                @serves
+                            }
+                            else
+                            {
+                                <span class="qz-muted">&#8212;</span>
+                            }
+                        </td>
                         <td>@AcquiredOn(node.InstanceId)</td>
                         <td>@ExecutingOn(node.InstanceId)</td>
                         @if (_isCluster)
@@ -210,9 +221,42 @@
     /// <summary>The scheduler the member map was built for, so a switch rebuilds it.</summary>
     private string? _membersFor;
 
+    /// <summary>
+    /// What each node routes, by instance id, from the details of the node that answered: the answering
+    /// node's own for a single target, and each member's for a cluster behind several. A node nobody
+    /// answered for publishes nothing, so it has no entry and shows a dash.
+    /// </summary>
+    private readonly Dictionary<string, SchedulerDetailDto> _detailsByNode = new(StringComparer.OrdinalIgnoreCase);
+
     private bool IsReadOnly => Options.Value.ReadOnly;
 
-    private int ColumnCount => 6 + (_isCluster ? 1 : 0) + (_isCluster && !IsReadOnly ? 1 : 0);
+    private int ColumnCount => 7 + (_isCluster ? 1 : 0) + (_isCluster && !IsReadOnly ? 1 : 0);
+
+    /// <summary>
+    /// What a node serves, in a phrase: nothing for a node nobody answered for, <c>all</c> for one that
+    /// routes nothing, <c>only …</c> for a serve-list and <c>all but …</c> for a refuse-list.
+    /// </summary>
+    private string? ServesOf(ClusterNodeDto node)
+    {
+        if (!_detailsByNode.TryGetValue(node.InstanceId, out SchedulerDetailDto? detail))
+        {
+            return null;
+        }
+
+        if (detail.ServedExecutionGroups.Length > 0)
+        {
+            return "only " + string.Join(", ", detail.ServedExecutionGroups.Select(GroupLabel));
+        }
+
+        return detail.RefusedExecutionGroups.Length > 0
+            ? "all but " + string.Join(", ", detail.RefusedExecutionGroups.Select(GroupLabel))
+            : "all";
+    }
+
+    private static string GroupLabel(string group)
+    {
+        return group == ExecutionLimits.DefaultGroupAlias ? "(no execution group)" : group;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -300,6 +344,7 @@
             {
                 _memberByNode.Clear();
                 _nodeByMember.Clear();
+                _detailsByNode.Clear();
                 _membersFor = schedulerName;
             }
 
@@ -342,6 +387,13 @@
     {
         SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName);
         _isClustered = scheduler.Clustered;
+
+        // The answering node's own routing, unless the answer is a cluster's, whose members each say
+        // their own below, or a window's, which runs nothing and routes nothing worth a column.
+        if (!_isCluster && !_isWindow)
+        {
+            _detailsByNode[scheduler.SchedulerInstanceId] = scheduler;
+        }
 
         _nodes.AddRange(await Api.QueryClusterNodes(schedulerName));
 
@@ -401,7 +453,7 @@
             try
             {
                 SchedulerDetailDto detail = await Api.GetScheduler(memberKey, deadline.Token);
-                Map(member, memberKey, detail.SchedulerInstanceId);
+                Map(member, memberKey, detail);
             }
             catch (Exception)
             {
@@ -410,15 +462,18 @@
         }
     }
 
-    private void Map(string member, string memberKey, string instanceId)
+    private void Map(string member, string memberKey, SchedulerDetailDto detail)
     {
+        string instanceId = detail.SchedulerInstanceId;
         if (_nodeByMember.TryGetValue(member, out string? previous))
         {
             _memberByNode.Remove(previous);
+            _detailsByNode.Remove(previous);
         }
 
         _nodeByMember[member] = instanceId;
         _memberByNode[instanceId] = memberKey;
+        _detailsByNode[instanceId] = detail;
     }
 
     private string? MemberKeyOf(string instanceId)

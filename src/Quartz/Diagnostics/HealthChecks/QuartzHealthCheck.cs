@@ -189,6 +189,10 @@ internal sealed class QuartzHealthCheck : IHealthCheck
             problem = await CheckClusterCheckin(scheduler, name, tolerance, cancellationToken).ConfigureAwait(false);
         }
 
+        // Which execution groups this node serves, as its metadata reports them: the stall reading looks
+        // only at the groups that are this node's, and the unserved reading only at the rest.
+        ExecutionGroupRouting? routing = ExecutionGroupRouting.FromSpellings(metadata.ServedExecutionGroups, metadata.RefusedExecutionGroups);
+
         if (Tolerance(static options => options.StaleFiringTolerance) is { } staleTolerance)
         {
             // Both readings are taken, and the worse verdict wins - HealthStatus counts down from
@@ -196,17 +200,34 @@ internal sealed class QuartzHealthCheck : IHealthCheck
             // degraded and one that has stopped firing altogether can be unhealthy, so returning the
             // first finding would let the milder one hide the graver one, and a node kept in rotation by
             // a downgraded verdict is the failure this check exists to prevent.
-            HealthCheckResult? stale = await CheckStaleFiring(scheduler, name, staleTolerance, cancellationToken).ConfigureAwait(false);
-            if (stale is { } found && (problem is not { } reported || found.Status < reported.Status))
-            {
-                problem = found;
-            }
+            HealthCheckResult? stale = await CheckStaleFiring(scheduler, name, staleTolerance, routing, cancellationToken).ConfigureAwait(false);
+            problem = Worse(problem, stale);
+        }
+
+        if (routing is not null && Tolerance(static options => options.UnservedExecutionGroupTolerance) is { } unservedTolerance)
+        {
+            HealthCheckResult? unserved = await CheckUnservedExecutionGroups(scheduler, name, unservedTolerance, routing, cancellationToken).ConfigureAwait(false);
+            problem = Worse(problem, unserved);
         }
 
         return await WithRequiredJobs(
             scheduler,
             problem ?? HealthCheckResult.Healthy($"Quartz scheduler '{name}' is ready"),
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The graver of two findings: the one already reported unless the new one is worse, since
+    /// <see cref="HealthStatus" /> counts down from unhealthy.
+    /// </summary>
+    private static HealthCheckResult? Worse(HealthCheckResult? reported, HealthCheckResult? found)
+    {
+        if (found is not { } finding)
+        {
+            return reported;
+        }
+
+        return reported is not { } existing || finding.Status < existing.Status ? finding : existing;
     }
 
     /// <summary>
@@ -468,6 +489,7 @@ internal sealed class QuartzHealthCheck : IHealthCheck
         IScheduler scheduler,
         string name,
         double tolerance,
+        ExecutionGroupRouting? routing,
         CancellationToken cancellationToken)
     {
         TimeSpan threshold = MisfireThreshold();
@@ -481,7 +503,7 @@ internal sealed class QuartzHealthCheck : IHealthCheck
 
         try
         {
-            overdue = await Overdue(scheduler, now - allowed, cancellationToken).ConfigureAwait(false);
+            overdue = await Overdue(scheduler, now - allowed, routing, cancellationToken).ConfigureAwait(false);
             if (overdue is null)
             {
                 // Nothing schedulable is late. A paused scheduler lands here too, and deliberately: a
@@ -494,7 +516,7 @@ internal sealed class QuartzHealthCheck : IHealthCheck
                 status = HealthStatus.Unhealthy;
                 crossed = tolerance + tolerance;
             }
-            else if (await Overdue(scheduler, unhealthyCutoff, cancellationToken).ConfigureAwait(false) is { } worse)
+            else if (await Overdue(scheduler, unhealthyCutoff, routing, cancellationToken).ConfigureAwait(false) is { } worse)
             {
                 // The first answer is whichever overdue trigger the store listed first, so this is what
                 // establishes that none of the others is past the worse bar either.
@@ -527,25 +549,126 @@ internal sealed class QuartzHealthCheck : IHealthCheck
     }
 
     /// <summary>
-    /// The first schedulable trigger whose fire time passed before <paramref name="cutoff" />, or
-    /// <see langword="null" /> when none has.
+    /// How many overdue triggers a routing node reads at a time, for either reading. A node that
+    /// routes nothing reads one, because the first is its answer.
+    /// </summary>
+    private const int OverduePageSize = 100;
+
+    /// <summary>
+    /// The first schedulable trigger whose fire time passed before <paramref name="cutoff" /> and that
+    /// this node serves, or <see langword="null" /> when none has.
     /// </summary>
     /// <remarks>
     /// The answer is re-read rather than trusted: a job store from outside this repository is free to
     /// ignore a filter it has never heard of, and a stall reported from a trigger that is not overdue
-    /// would be worse than one not reported at all.
+    /// would be worse than one not reported at all. A node that routes reads a page and takes the first
+    /// trigger of a group it serves, or a node refusing a busy group would report a stall for work that
+    /// is not its own; the groups it does not serve are the other reading's business.
     /// </remarks>
     private static async ValueTask<TriggerHeader?> Overdue(
         IScheduler scheduler,
         DateTimeOffset cutoff,
+        ExecutionGroupRouting? routing,
         CancellationToken cancellationToken)
     {
         PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(
-            new TriggerQuery { State = TriggerState.Normal, NextFireTimeBefore = cutoff, Take = 1 },
+            new TriggerQuery { State = TriggerState.Normal, NextFireTimeBefore = cutoff, Take = routing is null ? 1 : OverduePageSize },
             cancellationToken).ConfigureAwait(false);
 
-        TriggerHeader? first = page.Items.Count > 0 ? page.Items[0] : null;
-        return first?.NextFireTimeUtc < cutoff ? first : null;
+        foreach (TriggerHeader header in page.Items)
+        {
+            if (header.NextFireTimeUtc < cutoff && (routing is null || routing.Serves(header.ExecutionGroup)))
+            {
+                return header;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Whether triggers of execution groups this node does not serve are waiting for a node that does,
+    /// or <see langword="null" /> when none is.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The trap in routing. A trigger of a group no live node serves is acquired by nobody and —
+    /// because a node's misfire sweep handles only its own groups — re-armed by nobody: it waits,
+    /// unmodified, which from any node is silence. The inference here is the one the stall reading
+    /// makes, turned round: a serving node's sweep re-arms a misfired trigger within about a threshold
+    /// of it crossing the line, so a schedulable trigger overdue by <paramref name="tolerance" />
+    /// thresholds in a group this node does not serve has had no serving node reach it.
+    /// </para>
+    /// <para>
+    /// Degraded, never unhealthy: the reporting node is fine, and taking it out of rotation helps
+    /// nobody. The report names each group with a count, and the oldest fire time, so an operator
+    /// knows which node to start.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<HealthCheckResult?> CheckUnservedExecutionGroups(
+        IScheduler scheduler,
+        string name,
+        double tolerance,
+        ExecutionGroupRouting routing,
+        CancellationToken cancellationToken)
+    {
+        TimeSpan threshold = MisfireThreshold();
+        TimeSpan allowed = threshold * tolerance;
+        DateTimeOffset now = scheduler.TimeProvider.GetUtcNow();
+        DateTimeOffset cutoff = now - allowed;
+
+        PagedResult<TriggerHeader> page;
+        try
+        {
+            page = await scheduler.QueryTriggers(
+                new TriggerQuery { State = TriggerState.Normal, NextFireTimeBefore = cutoff, Take = OverduePageSize },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (SchedulerException)
+        {
+            return HealthCheckResult.Unhealthy($"Quartz scheduler '{name}' cannot read the triggers it is due to fire");
+        }
+
+        // Counted by group, the ungrouped bucket under the spelling configuration gives it, in the order
+        // the store listed them.
+        Dictionary<string, int> unserved = new(StringComparer.Ordinal);
+        DateTimeOffset? oldest = null;
+        int total = 0;
+        foreach (TriggerHeader header in page.Items)
+        {
+            if (header.NextFireTimeUtc is not { } due || due >= cutoff || routing.Serves(header.ExecutionGroup))
+            {
+                continue;
+            }
+
+            string group = header.ExecutionGroup ?? ExecutionLimits.DefaultGroupAlias;
+            unserved[group] = unserved.TryGetValue(group, out int count) ? count + 1 : 1;
+            total++;
+            if (oldest is null || due < oldest)
+            {
+                oldest = due;
+            }
+        }
+
+        if (total == 0)
+        {
+            return null;
+        }
+
+        string groups = string.Join(", ", unserved.Select(static pair => $"'{pair.Key}' ({pair.Value})"));
+        TimeSpan late = now - oldest.GetValueOrDefault();
+
+        return HealthCheckResult.Degraded(
+            $"Quartz scheduler '{name}' sees {total} trigger(s) in execution groups it does not serve — {groups} — "
+            + $"the oldest due {late.TotalSeconds:F0}s ago, more than {tolerance:0.##} × its {threshold.TotalSeconds:F0}s "
+            + "misfire threshold. No live node is acquiring or misfire-handling them.",
+            exception: null,
+            new Dictionary<string, object>
+            {
+                ["unservedExecutionGroups"] = unserved,
+                ["oldestUnservedDueUtc"] = oldest.GetValueOrDefault(),
+                ["misfireThreshold"] = threshold
+            });
     }
 
     /// <summary>

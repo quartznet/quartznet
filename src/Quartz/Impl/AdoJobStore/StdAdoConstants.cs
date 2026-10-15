@@ -331,8 +331,38 @@ internal static class StdAdoConstants
     /// <c>AdoJobStoreBase.RecoverUnblockedMisfires</c> all decline a trigger whose fire time is
     /// strictly greater, and <see cref="SqlSelectNextTriggerToAcquire" /> takes the complement of it.
     /// </remarks>
-    public static readonly string SqlCountMisfiredTriggersInStates =
-        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State}");
+    public static readonly string SqlCountMisfiredTriggersInStates = CountMisfiredTriggersInStates(executionGroupClause: "");
+
+    private static string CountMisfiredTriggersInStates(string executionGroupClause) =>
+        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State}{executionGroupClause}");
+
+    /// <summary>
+    /// <see cref="SqlCountMisfiredTriggersInStates" /> narrowed to the groups a node serves, which is
+    /// the statement itself when the node serves every group.
+    /// </summary>
+    /// <remarks>
+    /// The sweep's count and its read carry one clause, built by <see cref="ExecutionGroupPredicate" />
+    /// for both, so a node's misfire handling cannot disagree with its acquisition about which rows are
+    /// its own: a trigger in a group no live node serves is left exactly as it is, and the serving node
+    /// that arrives applies its misfire policy once.
+    /// </remarks>
+    internal static string BuildSqlCountMisfiredTriggersInStates(ExecutionGroupClauseShape executionGroups) =>
+        executionGroups.HasClause
+            ? CountMisfiredTriggersInStates(" AND " + ExecutionGroupPredicate(executionGroups, alias: ""))
+            : SqlCountMisfiredTriggersInStates;
+
+    /// <summary>
+    /// How many misfired triggers sit in the groups this node does <em>not</em> serve, and the earliest of
+    /// their fire times: the complement of <see cref="BuildSqlCountMisfiredTriggersInStates" />, asked
+    /// only by a node that routes.
+    /// </summary>
+    /// <remarks>
+    /// The one place the question "is anybody serving these" is asked of the store. Under routing no
+    /// node touches an unserved misfire, so one that stays misfired past a few thresholds has no live
+    /// node serving its group — which the misfire handler logs on the transition.
+    /// </remarks>
+    internal static string BuildSqlCountUnservedMisfiredTriggers(ExecutionGroupClauseShape executionGroups) =>
+        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}), MIN({AdoConstants.ColumnNextFireTime}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {ExecutionGroupPredicate(executionGroups.Complement, alias: "")}");
 
     /// <summary>
     /// Counts the triggers pinned to this node and due by <c>@noLaterThan</c> that are <c>BLOCKED</c>
@@ -357,12 +387,24 @@ internal static class StdAdoConstants
     /// for providers that bind positionally.
     /// </para>
     /// </remarks>
-    public static readonly string SqlSelectPinnedTriggersBlockedElsewhere =
+    public static readonly string SqlSelectPinnedTriggersBlockedElsewhere = SelectPinnedTriggersBlockedElsewhere(executionGroupClause: "");
+
+    private static string SelectPinnedTriggersBlockedElsewhere(string executionGroupClause) =>
         Invariant($@"SELECT COUNT(t.{AdoConstants.ColumnTriggerName}), MAX(f.{AdoConstants.ColumnFiredTime})
               FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t
               LEFT JOIN {TablePrefixSubst}{AdoConstants.TableFiredTriggers} f ON (f.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND f.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName} AND f.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND f.{AdoConstants.ColumnIsNonConcurrent} = @{SqlParameters.IsNonConcurrent})
               WHERE t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND t.{AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NoLaterThan} AND t.{AdoConstants.ColumnPreferredNode} = @{SqlParameters.InstanceId}
-                AND NOT EXISTS (SELECT o.{AdoConstants.ColumnEntryId} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} o WHERE o.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND o.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName} AND o.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND o.{AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName})");
+                AND NOT EXISTS (SELECT o.{AdoConstants.ColumnEntryId} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} o WHERE o.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND o.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName} AND o.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND o.{AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName}){executionGroupClause}");
+
+    /// <summary>
+    /// <see cref="SqlSelectPinnedTriggersBlockedElsewhere" /> narrowed to the groups this node serves,
+    /// or a trigger pinned here in a group this node refuses would have it looking again soon for a
+    /// row its acquisition will never take.
+    /// </summary>
+    internal static string BuildSqlSelectPinnedTriggersBlockedElsewhere(ExecutionGroupClauseShape executionGroups) =>
+        executionGroups.HasClause
+            ? SelectPinnedTriggersBlockedElsewhere(ClauseSeparator + "AND " + ExecutionGroupPredicate(executionGroups, alias: "t."))
+            : SqlSelectPinnedTriggersBlockedElsewhere;
 
     /// <summary>
     /// Sentinel stored in PREFERRED_NODE to request auto-pin that has not yet been claimed by
@@ -437,12 +479,13 @@ internal static class StdAdoConstants
     }
 
     // The one acquisition statement. Everything a caller can vary about it is the job-type exclusion
-    // clause, which is empty when nothing is excluded - so SqlSelectNextTriggerToAcquire below is
-    // literally the no-exclusion case of this template rather than a second copy kept in step by eye,
-    // and a change to the projection, the join, the predicates or the ORDER BY is a change in one
-    // place. The clause carries its own leading newline and indent, so passing an empty one yields
-    // the statement byte for byte as it was before there was a clause to pass. The dialect's row
-    // limit is the same idea: two named slots and an enclosing SELECT, all three empty by default.
+    // clause and the execution-group routing clause, each empty when the node excludes or routes
+    // nothing - so SqlSelectNextTriggerToAcquire below is literally the plain case of this template
+    // rather than a second copy kept in step by eye, and a change to the projection, the join, the
+    // predicates or the ORDER BY is a change in one place. A clause carries its own leading newline
+    // and indent, so passing an empty one yields the statement byte for byte as it was before there
+    // was a clause to pass. The dialect's row limit is the same idea: two named slots and an enclosing
+    // SELECT, all three empty by default.
     //
     // PREFERRED_NODE is filtered entirely in PreferredNodeWhereClause and is not projected —
     // acquisition never reads it from the result (the trigger is reloaded via GetTrigger).
@@ -456,7 +499,7 @@ internal static class StdAdoConstants
     // now - MisfireThreshold the sweep asks about, so a waiting trigger belongs either to acquisition
     // or to the misfire handler and never to both. Acquiring one the store already counts as misfired
     // would fire it late without ever applying the policy it asked for.
-    private static string SelectNextTriggerToAcquire(string exclusionClause, SqlRowLimit rowLimit) =>
+    private static string SelectNextTriggerToAcquire(string exclusionClause, string executionGroupClause, SqlRowLimit rowLimit) =>
         rowLimit.Enclose(Invariant($@"SELECT{rowLimit.AfterSelect}
                 t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, jd.{AdoConstants.ColumnIsNonConcurrent}, t.{AdoConstants.ColumnExecutionGroup}
               FROM
@@ -465,11 +508,11 @@ internal static class StdAdoConstants
                 {TablePrefixSubst}{AdoConstants.TableJobDetails} jd ON (jd.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND  jd.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND jd.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName})
               WHERE
                 t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NoLaterThan} AND ({AdoConstants.ColumnMisfireInstruction} = -1 OR ({AdoConstants.ColumnMisfireInstruction} <> -1 AND {AdoConstants.ColumnNextFireTime} > @{SqlParameters.NoEarlierThan}))
-                {PreferredNodeWhereClause}{exclusionClause}
+                {PreferredNodeWhereClause}{exclusionClause}{executionGroupClause}
               ORDER BY
                 {TriggerSweepOrderBy(alias: "")}{rowLimit.AtEnd}"));
 
-    public static readonly string SqlSelectNextTriggerToAcquire = SelectNextTriggerToAcquire(exclusionClause: "", SqlRowLimit.Unlimited);
+    public static readonly string SqlSelectNextTriggerToAcquire = SelectNextTriggerToAcquire(exclusionClause: "", executionGroupClause: "", SqlRowLimit.Unlimited);
 
     /// <summary>
     /// Exclusion counts are rounded up and padded to one of these sizes, limiting the acquisition
@@ -514,11 +557,28 @@ internal static class StdAdoConstants
     /// </remarks>
     internal static string BuildSqlSelectNextTriggerToAcquire(int excludedJobTypeBucket, SqlRowLimit rowLimit)
     {
+        return BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket, executionGroups: default, rowLimit);
+    }
+
+    /// <summary>
+    /// Builds the trigger-acquisition query for an already-rounded job-type exclusion bucket, the
+    /// execution-group routing clause the node carries, and the dialect's row limit.
+    /// </summary>
+    /// <remarks>
+    /// A routed statement is never cached here: the routing is fixed for a node's lifetime, so the
+    /// delegate's own cache against the shape holds the one statement the node ever builds.
+    /// </remarks>
+    internal static string BuildSqlSelectNextTriggerToAcquire(int excludedJobTypeBucket, ExecutionGroupClauseShape executionGroups, SqlRowLimit rowLimit)
+    {
+        string executionGroupClause = executionGroups.HasClause
+            ? ClauseSeparator + "AND " + ExecutionGroupPredicate(executionGroups, alias: "t.")
+            : "";
+
         if (excludedJobTypeBucket == 0)
         {
-            return rowLimit == SqlRowLimit.Unlimited
+            return rowLimit == SqlRowLimit.Unlimited && !executionGroups.HasClause
                 ? SqlSelectNextTriggerToAcquire
-                : SelectNextTriggerToAcquire(exclusionClause: "", rowLimit);
+                : SelectNextTriggerToAcquire(exclusionClause: "", executionGroupClause, rowLimit);
         }
 
         int bucketIndex = Array.IndexOf(excludedJobTypeBuckets, excludedJobTypeBucket);
@@ -527,9 +587,9 @@ internal static class StdAdoConstants
             Throw.ArgumentOutOfRangeException(nameof(excludedJobTypeBucket), "Excluded job type count must be rounded to a query bucket first");
         }
 
-        if (rowLimit != SqlRowLimit.Unlimited)
+        if (rowLimit != SqlRowLimit.Unlimited || executionGroups.HasClause)
         {
-            return SelectNextTriggerToAcquire(ExcludedJobTypeWhereClause(excludedJobTypeBucket), rowLimit);
+            return SelectNextTriggerToAcquire(ExcludedJobTypeWhereClause(excludedJobTypeBucket), executionGroupClause, rowLimit);
         }
 
         string? cached = sqlSelectNextTriggerToAcquireByExcludedJobTypeBucket[bucketIndex];
@@ -538,11 +598,81 @@ internal static class StdAdoConstants
             return cached;
         }
 
-        string predicateSql = SelectNextTriggerToAcquire(ExcludedJobTypeWhereClause(excludedJobTypeBucket), rowLimit);
+        string predicateSql = SelectNextTriggerToAcquire(ExcludedJobTypeWhereClause(excludedJobTypeBucket), executionGroupClause: "", rowLimit);
 
         sqlSelectNextTriggerToAcquireByExcludedJobTypeBucket[bucketIndex] = predicateSql;
         return predicateSql;
     }
+
+    /// <summary>
+    /// The execution-group routing predicate, in the one of its six shapes
+    /// <paramref name="executionGroups" /> names, with <c>EXECUTION_GROUP</c> qualified by
+    /// <paramref name="alias" /> — the empty string where the statement names no alias.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One builder for the acquisition statement, the sweep's count, the sweep's read and the
+    /// pinned-trigger probe, so that the four cannot disagree about which rows are this node's. The
+    /// parameter names are fixed-width so that no name is a prefix of another — see the remarks above
+    /// <see cref="PreferredNodeWhereClause" /> — and bound in the order the names are numbered.
+    /// </para>
+    /// <list type="table">
+    /// <listheader><term>Shape</term><description>Predicate</description></listheader>
+    /// <item><term>serve named</term><description><c>EXECUTION_GROUP IN (…)</c></description></item>
+    /// <item><term>serve named and ungrouped</term><description><c>(EXECUTION_GROUP IS NULL OR EXECUTION_GROUP IN (…))</c></description></item>
+    /// <item><term>serve ungrouped only</term><description><c>EXECUTION_GROUP IS NULL</c></description></item>
+    /// <item><term>refuse named</term><description><c>(EXECUTION_GROUP IS NULL OR EXECUTION_GROUP NOT IN (…))</c> — the <c>IS NULL</c> is load-bearing, since <c>NULL NOT IN (…)</c> is unknown and would drop every ungrouped row</description></item>
+    /// <item><term>refuse named and ungrouped</term><description><c>(EXECUTION_GROUP IS NOT NULL AND EXECUTION_GROUP NOT IN (…))</c></description></item>
+    /// <item><term>refuse ungrouped only</term><description><c>EXECUTION_GROUP IS NOT NULL</c></description></item>
+    /// </list>
+    /// </remarks>
+    internal static string ExecutionGroupPredicate(ExecutionGroupClauseShape executionGroups, string alias)
+    {
+        if (!executionGroups.HasClause)
+        {
+            Throw.ArgumentException("A routing clause needs a named group or the ungrouped bucket.", nameof(executionGroups));
+        }
+
+        string column = alias + AdoConstants.ColumnExecutionGroup;
+
+        if (executionGroups.NamedCount == 0)
+        {
+            return executionGroups.IsServeList ? column + " IS NULL" : column + " IS NOT NULL";
+        }
+
+        StringBuilder list = new StringBuilder(column)
+            .Append(executionGroups.IsServeList ? " IN (" : " NOT IN (");
+
+        for (int i = 0; i < executionGroups.NamedCount; i++)
+        {
+            if (i > 0)
+            {
+                list.Append(", ");
+            }
+
+            list.Append('@').Append(ExecutionGroupParameter(executionGroups.IsServeList, i));
+        }
+
+        list.Append(')');
+
+        if (executionGroups.IsServeList)
+        {
+            return executionGroups.IncludesUngrouped
+                ? "(" + column + " IS NULL OR " + list + ")"
+                : list.ToString();
+        }
+
+        return executionGroups.IncludesUngrouped
+            ? "(" + column + " IS NOT NULL AND " + list + ")"
+            : "(" + column + " IS NULL OR " + list + ")";
+    }
+
+    /// <summary>
+    /// The name of the <paramref name="index" />th routed group's parameter: <c>servedGroup0000</c> on
+    /// a serve-list, <c>refusedGroup0000</c> on a refuse-list.
+    /// </summary>
+    internal static string ExecutionGroupParameter(bool isServeList, int index) =>
+        (isServeList ? "servedGroup" : "refusedGroup") + index.ToString("D4", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// The exclusion clause the acquisition template splices in, on a line of its own and indented to
@@ -700,16 +830,16 @@ internal static class StdAdoConstants
     /// The dialect's row limit goes in one of the two slots, or around the whole statement; a dialect
     /// that has no way to limit rows leaves all three empty and gets the statement unchanged.
     /// </remarks>
-    private static string SelectMisfiredTriggersToRecover(SqlRowLimit rowLimit) =>
+    private static string SelectMisfiredTriggersToRecover(SqlRowLimit rowLimit, string executionGroupClause) =>
         rowLimit.Enclose(Invariant($@"SELECT{rowLimit.AfterSelect} {TriggerSelectColumns},
                 t.{AdoConstants.ColumnTriggerName},
                 t.{AdoConstants.ColumnTriggerGroup}{TriggerSelectFastPathFrom}
             WHERE
-                t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime} AND t.{AdoConstants.ColumnTriggerState} = @{SqlParameters.State}
+                t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime} AND t.{AdoConstants.ColumnTriggerState} = @{SqlParameters.State}{executionGroupClause}
             ORDER BY {TriggerSweepOrderBy(alias: "t.")}{rowLimit.AtEnd}"));
 
     /// <inheritdoc cref="SelectMisfiredTriggersToRecover" />
-    public static readonly string SqlSelectMisfiredTriggersToRecover = SelectMisfiredTriggersToRecover(SqlRowLimit.Unlimited);
+    public static readonly string SqlSelectMisfiredTriggersToRecover = SelectMisfiredTriggersToRecover(SqlRowLimit.Unlimited, executionGroupClause: "");
 
     /// <summary>
     /// Builds the misfire recovery statement for the dialect's row limit, which is the only thing
@@ -717,9 +847,24 @@ internal static class StdAdoConstants
     /// built for.
     /// </summary>
     internal static string BuildSqlSelectMisfiredTriggersToRecover(SqlRowLimit rowLimit) =>
-        rowLimit == SqlRowLimit.Unlimited
-            ? SqlSelectMisfiredTriggersToRecover
-            : SelectMisfiredTriggersToRecover(rowLimit);
+        BuildSqlSelectMisfiredTriggersToRecover(rowLimit, executionGroups: default);
+
+    /// <summary>
+    /// Builds the misfire recovery statement for the dialect's row limit and the groups the node
+    /// serves: the same clause <see cref="BuildSqlCountMisfiredTriggersInStates" /> carries, so the
+    /// count and the read agree.
+    /// </summary>
+    internal static string BuildSqlSelectMisfiredTriggersToRecover(SqlRowLimit rowLimit, ExecutionGroupClauseShape executionGroups)
+    {
+        if (!executionGroups.HasClause)
+        {
+            return rowLimit == SqlRowLimit.Unlimited
+                ? SqlSelectMisfiredTriggersToRecover
+                : SelectMisfiredTriggersToRecover(rowLimit, executionGroupClause: "");
+        }
+
+        return SelectMisfiredTriggersToRecover(rowLimit, " AND " + ExecutionGroupPredicate(executionGroups, alias: "t."));
+    }
 
     /// <summary>
     /// Prefix of the batch trigger lookup; the caller appends a key-set predicate built by
