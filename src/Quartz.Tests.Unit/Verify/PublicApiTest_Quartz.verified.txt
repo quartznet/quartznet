@@ -1269,9 +1269,6 @@ namespace Quartz
     public sealed class JobType : System.IEquatable<Quartz.JobType>
     {
         public JobType([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)] System.Type type) { }
-        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T" +
-            ">(); a type named only by a string in configuration or in the database is not gu" +
-            "aranteed to survive trimming.")]
         public JobType(string fullName) { }
         public string FullName { get; }
         public System.Type Type { get; }
@@ -1280,9 +1277,6 @@ namespace Quartz
         public override int GetHashCode() { }
         public override string ToString() { }
         public bool TryResolve([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)] [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out System.Type? resolved) { }
-        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T" +
-            ">(); a type named only by a string in configuration or in the database is not gu" +
-            "aranteed to survive trimming.")]
         public static Quartz.JobType op_Explicit(string fullName) { }
         public static Quartz.JobType op_Implicit([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)] System.Type type) { }
         public static bool operator !=(Quartz.JobType? left, Quartz.JobType? right) { }
@@ -2330,7 +2324,7 @@ namespace Quartz
     {
         public TypeLoaderOptions() { }
         public System.Collections.Generic.Dictionary<string, string?> Aliases { get; }
-        public Quartz.TypeLoaderOptions Map(string name, System.Type type) { }
+        public Quartz.TypeLoaderOptions Map(string name, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)] System.Type type) { }
     }
 }
 namespace Quartz.Diagnostics

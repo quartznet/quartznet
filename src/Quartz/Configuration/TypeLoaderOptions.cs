@@ -1,3 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
+
+using Quartz.Impl;
 using Quartz.Util;
 
 namespace Quartz;
@@ -51,19 +54,29 @@ public sealed class TypeLoaderOptions
     /// configuration file — now means <paramref name="type" />.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The typed half of <see cref="Aliases" />, for a rename whose target the application can name in
     /// code. The type is recorded by the same assembly-qualified, version-free spelling Quartz stores a
     /// job type under, so a mapping written here and one written in configuration are the same entry.
+    /// </para>
+    /// <para>
+    /// The target is also registered as a type this process knows by name, which is what lets the
+    /// mapping hold in a trimmed or native publish: there, a name resolves only to a registered type,
+    /// and the annotation on <paramref name="type" /> is what keeps the target's constructors and
+    /// properties for the job factory. A <c>typeof</c> satisfies it; a <see cref="System.Type" /> variable
+    /// has to carry the same annotation.
+    /// </para>
     /// </remarks>
     /// <param name="name">The name as it was stored or configured.</param>
     /// <param name="type">The type that name resolves to now.</param>
     /// <returns>This instance, so several renames can be declared in one chain.</returns>
-    public TypeLoaderOptions Map(string name, Type type)
+    public TypeLoaderOptions Map(string name, [DynamicallyAccessedMembers(JobTypeMembers.Required)] Type type)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(type);
 
         Aliases[name] = type.AssemblyQualifiedNameWithoutVersion();
+        RegisteredTypeNames.Register(type);
         return this;
     }
 }

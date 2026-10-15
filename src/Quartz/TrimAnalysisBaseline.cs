@@ -85,7 +85,22 @@ using System.Diagnostics.CodeAnalysis;
 // the FoundByName fork the acquisition loop already used. StdAdoDelegate's IL2057 moved rather than
 // went: it is the runtime's lookup behind a loader that refuses a stored name, which a loader answering
 // only for the names it knows does by contract, so the fallback stays and lives in
-// JobType.ResolveWithoutLoader, under the JobType entry below.
+// JobType.ResolveWithoutLoader.
+//
+// Step 9 (#4068) took the whole string-named group - the first group this file ever had - out from
+// behind two feature switches, declared in FeatureSwitches.cs and set false under PublishTrimmed and
+// PublishAot by buildTransitive/net10.0/Quartz.targets. A type name is answered first from
+// RegisteredTypeNames, the table every typed API feeds - JobType(Type), AddJobType<T>(),
+// TypeLoaderOptions.Map - and by Type.GetType only while Quartz.TypeNameResolution.IsSupported is on; a
+// flat quartz.* key that names a component by type, or sets one's properties by string, is read only
+// while Quartz.LegacyComponentKeys.IsSupported is on, with Quartz's own spellings of a store, a thread
+// pool, a serializer and SYS_PROP mapped to a typeof instead. The reflective half of each site is a
+// private [RequiresUnreferencedCode] method, and the guard is the call to it; the Roslyn analyzer honours
+// the guard on its own, which is why nothing below records it, and ILLink and ILCompiler honour it only
+// from the setting, which is why the targets file is load-bearing and the ILLink.Suppressions.xml beside
+// this one says so. That took eleven entries, and with them the four side packages' baseline files -
+// each recorded one IL2026 at a call into JobDetailDto.AsIJobDetail or a schedule-file processor, which
+// said RequiresUnreferencedCode only because of the cast from a string, and says it no longer.
 //
 // Adding an entry is the wrong first move. Reach for it only after establishing that the reflection is
 // genuinely unavoidable, and then say in the group comment why. The preferred fixes, in order:
@@ -116,30 +131,15 @@ using System.Diagnostics.CodeAnalysis;
 // TransientErrorDetector.FindDriverProperty, and each carries the argument.
 
 // --- Types and properties named by string -----------------------------------------------------------
-// Configuration and persistence both store types as text: the flat quartz.* keys, the JOB_CLASS_NAME
-// column, and JobType's name-constructed form. A type resolved from a string cannot be proven
-// reachable, so the trimmer cannot keep it — nor the properties a key then sets on it.
-//
-// The APIs an application calls to name a job type by string say [RequiresUnreferencedCode] instead,
-// so a trimmed application is told; the job_scheduling_data XML loader left this file that way. What
-// remains is Quartz reading its own configuration and its own tables, on paths that reach AddQuartz or
-// an interface Quartz does not own both sides of, and so cannot carry the attribute themselves.
-//
-// The three IL2026 entries in this group are the same warning at three call sites, and since #3432 it
-// names what it is: Quartz.Configuration.PropertyBinder.SetObjectProperties, which is the one place in
-// Quartz that writes a property whose name is a string. None of the three can go - each of these types is
-// reached from AddQuartz, so none may carry [RequiresUnreferencedCode] itself - but the seam they cross is
-// now a named API that declares the requirement rather than an anonymous helper that had it waived here.
-
-[assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.SimpleTypeLoader", Justification = "The default ITypeLoader exists to resolve a configured type name; that is its contract.")]
-[assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.JobType", Justification = "A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver, and so does a stored JOB_CLASS_NAME the scheduler's ITypeLoader refuses.")]
-[assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.BuiltInDbMetadataFactory", Justification = "Only the name-resolved half of a driver description asks for a type; a provider built over a DbProviderFactory or a DbDataSource never does.")]
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory", Justification = "A driver described by quartz.dbprovider.* keys has those keys applied to its DbMetadata by name.")]
-[assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "Translating legacy quartz.* keys means constructing the component each key names.")]
-[assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "Translating legacy quartz.* keys means constructing the component each key names.")]
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "A component with no typed options of its own takes the leftover quartz.* keys as properties set by name.")]
-[assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Configuration.SchedulerPluginFactory", Justification = "A plugin registered by type is constructed through the container from that Type.")]
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.SchedulerPluginFactory", Justification = "A plugin's quartz.plugin.<name>.* keys are applied to it as properties set by name.")]
+// Gone, behind the two switches step 9 above describes. The group used to read: configuration and
+// persistence both store types as text - the flat quartz.* keys, the JOB_CLASS_NAME column, JobType's
+// name-constructed form - and a type resolved from a string cannot be proven reachable, so the trimmer
+// cannot keep it, nor the properties a key then sets on it. That is still true of the reflective half,
+// which is why it is [RequiresUnreferencedCode] and behind a guard rather than annotated; what changed is
+// that a name is answered from the registered types before the runtime is asked, and that a trimmed
+// publish never asks the runtime at all. Do not bring the group back by calling Type.GetType, or
+// ActivatorUtilities.CreateInstance over a Type a string produced, outside one of those guarded
+// methods: the compile fails on it, which is the point.
 
 // --- Values converted onto a property the compiler cannot see -----------------------------------------
 // Not a string contract, and the one wall step 3 could not move. ConvertValueIfNecessary answers the two

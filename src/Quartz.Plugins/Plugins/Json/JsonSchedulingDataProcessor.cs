@@ -19,7 +19,6 @@
 
 #endregion
 
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 
@@ -40,14 +39,6 @@ namespace Quartz.Plugins.Json;
 internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
 {
     public const string QuartzJsonFileName = "quartz_jobs.json";
-
-    /// <summary>
-    /// What a schedule file spells as text and the trimmer therefore cannot follow. The wording matches
-    /// <see cref="XmlSchedulingDataProcessor" />'s, because it is the same contract in a different file
-    /// format: the shape of the file is metadata the compiler wrote, and the job type inside it is not.
-    /// </summary>
-    private const string JobTypeNamedByString =
-        "Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in quartz_jobs.json is not guaranteed to survive trimming.";
 
     private readonly ILogger<JsonSchedulingDataProcessor> logger;
     private readonly TimeProvider timeProvider;
@@ -76,7 +67,6 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
     internal void ProtectJobGroup(string groupName) => protectedJobGroups.Add(groupName);
     internal void ProtectTriggerGroup(string groupName) => protectedTriggerGroups.Add(groupName);
 
-    [RequiresUnreferencedCode(JobTypeNamedByString)]
     public async Task ProcessJsonFileAndScheduleJobs(
         string fileName,
         IScheduler scheduler,
@@ -103,7 +93,6 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
         await ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
-    [RequiresUnreferencedCode(JobTypeNamedByString)]
     internal void ProcessJsonContent(string json)
     {
         PrepareForProcessing();
@@ -247,7 +236,6 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
         }
     }
 
-    [RequiresUnreferencedCode(JobTypeNamedByString)]
     private void ProcessJobs(List<JsonFileJobDefinition> jobDefs)
     {
         foreach (var jobDef in jobDefs)
@@ -257,7 +245,10 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
             var jobTypeName = jobDef.JobType?.TrimEmptyToNull()
                 ?? throw new SchedulerConfigException($"JSON job definition '{jobName}' is missing required 'JobType' property.");
 
-            var jobType = TypeLoader.LoadType(jobTypeName)
+            // Through the scheduler's loader, which answers from the registered types and from the
+            // runtime only where the type-name switch allows; JobType.Resolve hands the type on with the
+            // annotation OfType asks for.
+            var jobType = JobType.Resolve(jobTypeName, TypeLoader)
                 ?? throw new SchedulerConfigException($"JSON job definition '{jobName}': could not load type '{jobTypeName}'.");
 
             var jobGroup = NormalizeEmpty(jobDef.Group);

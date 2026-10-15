@@ -180,15 +180,20 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// <c>IsAotCompatible</c>, and this table is what that claim rests on.
     /// </para>
     /// <para>
-    /// <c>Quartz.Jobs</c> and <c>Quartz.Plugins.TimeZoneConverter</c> record no warning and so have no
-    /// baseline file to name here; a warning against either fails the leg as unrecorded, which is the
-    /// right answer for a package whose csproj says a warning is a new one to fix.
+    /// Only <c>Quartz</c> records a warning, and so only it has a baseline file to name here: two
+    /// <c>ValueConverter</c> entries. The side packages' one warning each — a job type named as a string
+    /// in a schedule file or a request body — went when type-name resolution moved behind the
+    /// <c>Quartz.TypeNameResolution.IsSupported</c> switch (#4068), so a warning against any side
+    /// package fails the leg as unrecorded, which is the right answer for a package whose csproj says a
+    /// warning is a new one to fix. The two switches reach each canary through the
+    /// <c>buildTransitive/net10.0/Quartz.targets</c> import in its csproj; without it the guarded call
+    /// sites in <c>Quartz</c> are reported and fail the leg the same way.
     /// </para>
     /// </remarks>
     static readonly (string Project, string[] Baselines)[] TrimCanaries =
     [
-        ("Quartz.Trimming.Canary", ["Quartz", "Quartz.Plugins"]),
-        ("Quartz.Trimming.Canary.Wire", ["Quartz", "Quartz.AspNetCore", "Quartz.HttpClient", "Quartz.Dashboard.Agent"]),
+        ("Quartz.Trimming.Canary", ["Quartz"]),
+        ("Quartz.Trimming.Canary.Wire", ["Quartz"]),
     ];
 
     /// <summary>
@@ -359,9 +364,11 @@ partial class Build : FalloutBuild, ICompile, IPack
             // "Assembly 'Quartz' produced trim warnings" - the one warning that names no member,
             // reported when a whole assembly's warnings are collapsed into a single line. Nothing below
             // could check what it stands for, so it fails here rather than passing as somebody else's.
-            if (code == "IL2104" && baselines.FirstOrDefault(assembly => line.Contains($"'{assembly}'", StringComparison.Ordinal)) is { } collapsed)
+            // Any Quartz assembly, not only the ones with a baseline: a side package records nothing, and
+            // a collapsed line for one would otherwise read as a warning that is not Quartz's to record.
+            if (code == "IL2104" && Regex.Match(line, @"Assembly '(Quartz[^']*)'", RegexOptions.None, TimeSpan.FromSeconds(5)) is { Success: true } collapsed)
             {
-                unrecorded.Add($"{code}: {collapsed}'s warnings were collapsed into one line, so none of them was checked");
+                unrecorded.Add($"{code}: {collapsed.Groups[1].Value}'s warnings were collapsed into one line, so none of them was checked");
                 continue;
             }
 
@@ -390,9 +397,11 @@ partial class Build : FalloutBuild, ICompile, IPack
                 + "Fix the reflection, or make the case for a new entry - see the header of src/Quartz/TrimAnalysisBaseline.cs.");
         }
 
-        // Every canary reaches the recorded reflection - a job's type comes back out of a string - so a
-        // report with none of it is not a clean publish but a publish whose trimmer or compiler did not
-        // run, and nothing above was checked.
+        // Every canary reaches the recorded reflection - ValueConverter coerces job data onto a job's
+        // properties in the default job factory, and both canaries fire a job - so a report with none of
+        // it is not a clean publish but a publish whose trimmer or compiler did not run, and nothing above
+        // was checked. ValueConverter is the last recorded type (#4082 tracks it); when it goes, this
+        // assertion needs another witness - a non-Quartz warning the canary keeps on purpose, say.
         Assert.True(recordedSeen > 0,
             $"{what} reported no warning the baseline records, so ILLink or ILCompiler did not run and this check saw nothing: "
             + "an up-to-date incremental publish, or a publish whose output was not captured.");

@@ -32,8 +32,10 @@
 
     Everything else is Quartz.Trimming.Canary's, for the reasons its csproj gives. No TrimmerRootAssembly,
     no suppressions file applied, and warnings that do not stop the link: build/Build.cs reads what the
-    publish reported and checks it against the ILLink.Suppressions.xml of Quartz, Quartz.AspNetCore,
-    Quartz.HttpClient and Quartz.Dashboard.Agent.
+    publish reported and checks it against Quartz's ILLink.Suppressions.xml. The three packages record
+    nothing of their own: the one warning each carried, a job type named as a string in a request body,
+    went with the Quartz.TypeNameResolution.IsSupported switch, which the import at the end of this file
+    turns off.
   -->
 
   <PropertyGroup>
@@ -65,5 +67,14 @@
     <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
   </ItemGroup>
+
+  <!--
+    Quartz's own two feature switches, set the same way as SignalR's above but by the targets file
+    Quartz.nupkg carries, which a PackageReference consumer imports without knowing. A ProjectReference
+    does not, so the file is named. It is load-bearing: ILLink and ILCompiler substitute a guarded call
+    site away only on an explicit setting, so without this import the publish reports IL2026 against the
+    guarded sites in Quartz, and build/Build.cs fails the leg on them as unrecorded.
+  -->
+  <Import Project="..\Quartz\buildTransitive\net10.0\Quartz.targets" />
 
 </Project>

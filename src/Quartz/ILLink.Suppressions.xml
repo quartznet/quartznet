@@ -4,11 +4,16 @@
   TrimAnalysisBaseline.cs beside it, for the same reasons — read that file first; the reasoning lives
   there and is not repeated here.
 
-  It is not entry-for-entry identical, and one difference is deliberate: ILLink sees through calls the
-  Roslyn analyzer does not, so JsonSchedulingHelper needs an IL2057 here that the C# baseline has no
-  warning to silence, and that type appears in this file alone. Removing an entry that looks unused
-  because the analyzer is quiet about it fails the publish; verify against a clean
-  `dotnet fallout PublishTrimmed`, not against the compile.
+  Two entries, both ValueConverter, and nothing a feature switch could take. Everything else that was ever
+  here went in 4.6 behind the two switches in FeatureSwitches.cs: Quartz.TypeNameResolution.IsSupported
+  for a type resolved from a name, and Quartz.LegacyComponentKeys.IsSupported for a component the flat
+  quartz.* keys build and configure by string. The ILLink half of that needs the setting, not only the
+  guard: ILLink and ILCompiler substitute a FeatureSwitchDefinition getter away only from an explicit
+  RuntimeHostConfigurationOption, which buildTransitive/net10.0/Quartz.targets emits for every package
+  consumer under PublishTrimmed and PublishAot, and which the three in-repo trimmed applications import by
+  path. A publish without the setting reports IL2026 at every guarded call site. That is the right
+  report - the publish kept the reflection - but it is not one this file records, so such a publish fails
+  the canary legs as unrecorded. Keep the import when adding a trimmed project.
 
   Neither file carries an IL3050 any more — Quartz produces none, which is what let it claim
   IsAotCompatible — but this one could not have carried one anyway. ILLink does not report IL3050 at
@@ -42,7 +47,8 @@
   handed to it at all; build/Build.cs reads the entries below and applies them itself to what a native AOT
   publish of the trim canary reports, failing on a Quartz type this file does not list. That is also how
   the canary's own trimmed publish is checked, since it applies no suppressions and has to link before it
-  can run.
+  can run. The two entries below are also what build/Build.cs expects to see at least one of: a canary
+  publish that reports neither is one whose trimmer or compiler did not run.
 
   One local-only wrinkle: the link step is incremental on the assemblies it consumes and does not track
   this file, so editing it alone may not re-link. Delete the example's linked output, or touch a source
@@ -50,72 +56,6 @@
 -->
 <linker>
   <assembly fullname="Quartz">
-
-    <!-- Types and properties named by string -->
-    <type fullname="Quartz.Impl.SimpleTypeLoader*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2057</argument>
-        <property name="Justification">The default ITypeLoader exists to resolve a configured type name; that is its contract.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.JobType*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2057</argument>
-        <property name="Justification">A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver, and so does a stored JOB_CLASS_NAME the scheduler's ITypeLoader refuses.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Impl.AdoJobStore.Common.BuiltInDbMetadataFactory*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2057</argument>
-        <property name="Justification">Only the name-resolved half of a driver description asks for a type; a provider built over a DbProviderFactory or a DbDataSource never does.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2026</argument>
-        <property name="Justification">A driver described by quartz.dbprovider.* keys has those keys applied to its DbMetadata by name.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Configuration.QuartzPropertyBridge*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2067</argument>
-        <property name="Justification">Translating legacy quartz.* keys means constructing the component each key names.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2072</argument>
-        <property name="Justification">Translating legacy quartz.* keys means constructing the component each key names.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2026</argument>
-        <property name="Justification">A component with no typed options of its own takes the leftover quartz.* keys as properties set by name.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Configuration.SchedulerPluginFactory*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2067</argument>
-        <property name="Justification">A plugin registered by type is constructed through the container from that Type.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2026</argument>
-        <property name="Justification">A plugin's quartz.plugin.&lt;name&gt;.* keys are applied to it as properties set by name.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Configuration.JsonSchedulingHelper*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2057</argument>
-        <property name="Justification">The type loader named by quartz.scheduler.typeLoaderType is resolved from that name.</property>
-      </attribute>
-    </type>
 
     <!-- Values converted onto a property the compiler cannot see -->
     <type fullname="Quartz.Util.ValueConverter*">
@@ -130,6 +70,13 @@
         <property name="Justification">The default for a missing value is Activator.CreateInstance of the target type, which is only ever reached for a value type.</property>
       </attribute>
     </type>
+
+    <!--
+      Types and properties named by string were the first group here, and are gone rather than
+      re-justified: SimpleTypeLoader, JobType, BuiltInDbMetadataFactory, ConfigurationBasedDbMetadataFactory,
+      QuartzPropertyBridge, SchedulerPluginFactory and JsonSchedulingHelper. The header says where, and
+      TrimAnalysisBaseline.cs beside this file says why.
+    -->
 
     <!--
       Duck-typed exception inspection is gone too. TransientErrorDetector names the driver members it reads

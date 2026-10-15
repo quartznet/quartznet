@@ -48,7 +48,12 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// The row is written by an ordinary scheduler and read back through the dialect delegate, against a
 /// real SQLite file, so what is asserted is what the store actually stores.
 /// </para>
+/// <para>
+/// Non-parallelizable because two of the tests turn the <c>Quartz.TypeNameResolution.IsSupported</c>
+/// switch off, which is process-wide, to show what the store's fallback does in a trimmed publish.
+/// </para>
 /// </remarks>
+[NonParallelizable]
 public sealed class SelectJobForTriggerFlagsSqliteTest
 {
     private const string SchedulerName = "select-job-for-trigger";
@@ -166,6 +171,49 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
     }
 
     /// <summary>
+    /// The same fallback in a trimmed publish: the runtime is never asked, and the registered types are
+    /// the whole of the answer.
+    /// </summary>
+    [Test]
+    public async Task WithoutTypeNameResolutionAStoredNameTheLoaderRefusesIsAnsweredFromTheRegisteredTypes()
+    {
+        using FeatureSwitchScope reflectionOff = new(FeatureSwitches.TypeNameResolutionSwitch, enabled: false);
+
+        // What the worker does with the class it holds: names it in code.
+        _ = JobBuilder.Create<MessageCleanupJob>();
+        await GivenAStoredNonConcurrentJob(ResolvableJobClassName);
+
+        IJobDetail? detail = await SelectJobForTrigger(new RefusingTypeLoader(), loadJobType: false);
+
+        detail.Should().NotBeNull();
+        detail!.JobType.Type.Should().Be<MessageCleanupJob>(
+            "the loader refused the name and the publish resolves nothing by reflection, so the registered types are what is left - and the class was registered");
+    }
+
+    [Test]
+    public async Task WithoutTypeNameResolutionAStoredNameNobodyRegisteredFailsNamingTheRegistration()
+    {
+        using FeatureSwitchScope reflectionOff = new(FeatureSwitches.TypeNameResolutionSwitch, enabled: false);
+
+        string storedName = typeof(NeverRegisteredJob).AssemblyQualifiedNameWithoutVersion();
+        await GivenAStoredNonConcurrentJob(storedName, typeof(NeverRegisteredJob));
+
+        IJobDetail? detail = await SelectJobForTrigger(new NullTypeLoader(), loadJobType: false);
+
+        detail.Should().NotBeNull();
+        detail!.JobType.TryResolve(out _).Should().BeFalse(
+            "the class is in this process and the runtime would find it, so a probe that answers has reflected");
+
+        var act = () => detail.JobType.Type;
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage($"*{storedName}*")
+            .WithMessage("*AddJob<T>()*")
+            .WithMessage($"*{FeatureSwitches.TypeNameResolutionSwitch}*",
+                "the fallback must not reflect, and the failure the first fire would meet has to say which registration is missing");
+    }
+
+    /// <summary>
     /// A stored <c>JOB_CLASS_NAME</c> this process does resolve: the worker's job, spelled the way
     /// Quartz writes it.
     /// </summary>
@@ -180,8 +228,9 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
     /// from the attributes, and the row afterwards names whatever <paramref name="storedJobClassName" />
     /// says — by default a class nothing here can load.
     /// </remarks>
-    private async Task GivenAStoredNonConcurrentJob(string storedJobClassName = StoredJobClassName)
+    private async Task GivenAStoredNonConcurrentJob(string storedJobClassName = StoredJobClassName, Type? jobClass = null)
     {
+        jobClass ??= typeof(MessageCleanupJob);
         ServiceCollection services = new();
         services.AddQuartz(q =>
         {
@@ -206,7 +255,7 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
         await scheduler.ScheduleJob(
             JobBuilder.Create()
                 .WithIdentity(JobKey)
-                .OfType(new Quartz.JobType(storedJobClassName, _ => typeof(MessageCleanupJob)))
+                .OfType(new Quartz.JobType(storedJobClassName, _ => jobClass))
                 .Build(),
             TriggerBuilder.Create()
                 .WithIdentity(TriggerKey)
@@ -266,6 +315,17 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
     [DisallowConcurrentExecution]
     [PersistJobDataAfterExecution]
     public sealed class MessageCleanupJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// A job that exists in this process and that nothing names in code: never passed to a typed builder,
+    /// so never registered, which is what the store's fallback has to refuse without reflecting.
+    /// </summary>
+    [DisallowConcurrentExecution]
+    [PersistJobDataAfterExecution]
+    public sealed class NeverRegisteredJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }

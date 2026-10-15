@@ -37,11 +37,15 @@
       as problem details, and read its server-sent event stream, every body written through the wire
       contract's generated metadata with reflection-based System.Text.Json switched off.
 
-      What the baseline still records, and a native publish still reports: one IL2026, a job type named as
-      a string in a request body, in TrimAnalysisBaseline.cs beside this file. 116 warnings when the
-      analyzers were first turned on here; the generator took 114, and passing the wire contract's
-      JsonTypeInfo to Results.Json took the last two. It is trimming, not dynamic code: the package produces
-      no IL3050 at all, and a host keeps the job types a caller may name with AddJobType<T>().
+      What a native publish reports against this package: nothing. 116 warnings when the analyzers were
+      first turned on here; the generator took 114, passing the wire contract's JsonTypeInfo to Results.Json
+      took two, and the last - a job type named as a string in a request body, recorded in a
+      TrimAnalysisBaseline.cs beside this file until 4.6 - went when the name stopped being resolved by
+      reflection: a host keeps the job types a caller may name with AddJobType<T>(), and that table is what
+      the name is answered from, with Type.GetType behind the Quartz.TypeNameResolution.IsSupported switch
+      a trimmed publish turns off. A warning appearing here is a new one to fix, not to baseline;
+      build/Build.cs fails the canary leg on one. It is trimming, not dynamic code: the package produces no
+      IL3050 at all.
 
       Where it stops: the claim is this assembly's, over the minimal-API half of Microsoft.AspNetCore.App,
       which says IsAotCompatible for itself. Quartz.Dashboard beside it does not and cannot, and says so.

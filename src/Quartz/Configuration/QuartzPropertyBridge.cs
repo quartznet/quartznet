@@ -37,10 +37,77 @@ namespace Quartz.Configuration;
 /// (<c>idleWaitTime = 30000</c>), whereas typed options are <see cref="TimeSpan"/> and bind from the
 /// usual <c>00:00:30</c> form. Conversion happens here so both spellings land on the same option.
 /// </para>
+/// <para>
+/// The registrations are the reflective half — a type resolved from a name and constructed, and
+/// leftover keys written onto it by name — and every one of them is behind
+/// <see cref="FeatureSwitches.IsLegacyComponentKeysSupported" />: a trimmed or native publish turns the
+/// switch off, and a component key then fails <c>AddQuartz</c> with a message naming the code form.
+/// Quartz's own spellings of a store, a thread pool, a serializer and <c>SYS_PROP</c> are the exception:
+/// each maps to a <c>typeof</c> and is built the way the code-first registration builds it, so a file
+/// that names nothing but Quartz's own components keeps working trimmed. The value keys never reflect
+/// and are not touched by the switch.
+/// </para>
 /// </remarks>
 internal static class QuartzPropertyBridge
 {
     private static readonly SimpleTypeLoader typeLoader = new();
+
+    /// <summary>
+    /// The job store a <c>quartz.jobStore.type</c> may name without the switch: Quartz's in-memory store,
+    /// built as <c>UseInMemoryStore</c> builds it. The 3.x spelling (<c>Quartz.Simpl.RAMJobStore</c>)
+    /// arrives through the same renames the type loader applies.
+    /// </summary>
+    /// <remarks>
+    /// Only the store every scheduler is rooted with anyway. The two persistent stores are deliberately not
+    /// here: a <c>typeof</c> of either roots the whole ADO.NET store - <c>AdoJobStoreBase</c> and all its
+    /// SQL - in every trimmed application that calls <c>AddQuartz</c>, which cost the wire canary, an
+    /// in-memory application, 2.3 MB of native image. And a persistent store named only by keys cannot run
+    /// trimmed anyway, since its driver is named by type and the type-name switch refuses that; the one
+    /// way it runs is <c>UsePersistentStore(s =&gt; s.UseSqlite(factory, …))</c> in code, which is where
+    /// <see cref="shippedPersistentStores" /> comes in.
+    /// </remarks>
+    private static readonly (string Name, Func<IServiceProvider, object?, IJobStore> Value)[] builtInJobStores =
+    [
+        ("Quartz.Impl.RAMJobStore, Quartz", static (provider, key) =>
+        {
+            RAMJobStore store = ActivatorUtilities.CreateInstance<RAMJobStore>(SchedulerScopedServiceProvider.For(provider, key));
+            store.Apply(provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key));
+            return store;
+        }),
+    ];
+
+    /// <summary>
+    /// The two persistent stores Quartz ships, by the names a configuration file spells them (the 3.x
+    /// <c>JobStoreTX</c> and <c>JobStoreCMT</c> arrive through the type loader's renames). With the
+    /// switch off, such a key is accepted when code has already registered the scheduler's store - the key
+    /// then loses to the code, which is the documented outcome of naming a store twice - and refused
+    /// otherwise, naming the code form.
+    /// </summary>
+    private static readonly (string Name, string Value)[] shippedPersistentStores =
+    [
+        ("Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz", "LocalTransactionJobStore"),
+        ("Quartz.Impl.AdoJobStore.ExternalTransactionJobStore, Quartz", "ExternalTransactionJobStore"),
+    ];
+
+    /// <summary>
+    /// The thread pools a <c>quartz.threadPool.type</c> may name without the switch. SimpleThreadPool was
+    /// renamed to DefaultThreadPool, and the old name is still in plenty of config files; both spellings
+    /// are accepted, in the <c>Quartz.Simpl</c> namespace existing files say and the <c>Quartz.Impl</c>
+    /// one the migration guide tells readers to rewrite it to, which turns the setting into a name no
+    /// release ever had. Following the documentation must not break startup.
+    /// </summary>
+    private static readonly (string Name, Func<IServiceProvider, object?, IThreadPool> Value)[] builtInThreadPools =
+    [
+        ("Quartz.Impl.DefaultThreadPool, Quartz", BuildDefaultThreadPool),
+        ("Quartz.Impl.SimpleThreadPool, Quartz", BuildDefaultThreadPool),
+    ];
+
+    private static DefaultThreadPool BuildDefaultThreadPool(IServiceProvider provider, object? key)
+    {
+        DefaultThreadPool threadPool = ActivatorUtilities.CreateInstance<DefaultThreadPool>(SchedulerScopedServiceProvider.For(provider, key));
+        threadPool.MaxConcurrency = provider.GetSchedulerOptions<ThreadPoolOptions>(key).MaxConcurrency;
+        return threadPool;
+    }
 
     /// <summary>
     /// Applies a flat property collection as both typed options and service registrations.
@@ -182,10 +249,18 @@ internal static class QuartzPropertyBridge
     private static void RegisterDbProviderMetadata(IServiceCollection services, NameValueCollection properties)
     {
         var prefix = LegacyPropertyKeys.DbProvider + ".";
-        var declared = properties.AllKeys.Any(key => key is not null && key.StartsWith(prefix, StringComparison.Ordinal));
-        if (!declared)
+        var declared = properties.AllKeys.FirstOrDefault(key => key is not null && key.StartsWith(prefix, StringComparison.Ordinal));
+        if (declared is null)
         {
             // Registering an empty factory would cost a wasted lookup on every provider name resolved.
+            return;
+        }
+
+        // The keys are written onto a DbMetadata by name, which is the factory's to do and the switch's
+        // to refuse; refused here, at AddQuartz, rather than on the first connection that asks for them.
+        if (!FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(declared));
             return;
         }
 
@@ -275,12 +350,24 @@ internal static class QuartzPropertyBridge
     /// </remarks>
     private static ITypeLoader? ConfiguredTypeLoader(IServiceCollection services, NameValueCollection properties)
     {
-        var configured = new PropertyReader(properties).Type(LegacyPropertyKeys.SchedulerTypeLoaderType);
-        if (configured is null)
+        if (new PropertyReader(properties).String(LegacyPropertyKeys.SchedulerTypeLoaderType) is null)
         {
             return null;
         }
 
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            return ConfiguredTypeLoaderByName(services, properties);
+        }
+
+        Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(LegacyPropertyKeys.SchedulerTypeLoaderType));
+        return null;
+    }
+
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static ITypeLoader ConfiguredTypeLoaderByName(IServiceCollection services, NameValueCollection properties)
+    {
+        var configured = new PropertyReader(properties).Type(LegacyPropertyKeys.SchedulerTypeLoaderType)!;
         var helper = (ITypeLoader) Activator.CreateInstance(configured)!;
 
         // Container-wide rather than per-scheduler, and replaced rather than tried, because the built-in
@@ -295,33 +382,99 @@ internal static class QuartzPropertyBridge
         PropertyReader parser,
         string? schedulerName)
     {
-        var instanceIdGeneratorType = parser.Type(LegacyPropertyKeys.SchedulerInstanceIdGeneratorType)
-            ?? SystemPropertyGeneratorIfRequested(parser);
+        RegisterInstanceIdGenerator(services, parser, schedulerName);
+        RegisterJobFactory(services, parser, schedulerName);
+        RegisterTimeProvider(services, parser, schedulerName);
+    }
 
-        if (instanceIdGeneratorType is not null)
+    /// <summary>
+    /// Registers the generator a <c>quartz.scheduler.instanceIdGenerator.type</c> key names, or the one
+    /// <c>quartz.scheduler.instanceId = SYS_PROP</c> selects.
+    /// </summary>
+    /// <remarks>
+    /// <c>SYS_PROP</c> is a value that selects Quartz's own generator, so it keeps working with the
+    /// switch off, built from its <c>typeof</c>. A generator named by type, and the
+    /// <c>quartz.scheduler.instanceIdGenerator.*</c> settings — the system property to read, the prefix
+    /// and suffix — are written onto it by name, which is what the switch refuses.
+    /// </remarks>
+    private static void RegisterInstanceIdGenerator(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
+        bool named = parser.String(LegacyPropertyKeys.SchedulerInstanceIdGeneratorType) is not null;
+        bool systemProperty = parser.String(LegacyPropertyKeys.SchedulerInstanceId) == LegacyPropertyKeys.SystemPropertyAsInstanceId;
+
+        if (!named && !systemProperty)
         {
-            // A generator has no typed options, so its settings — the system property to read, the
-            // prefix and suffix that keep one datacentre's ids from colliding with another's — arrive as
-            // strings and have to be applied after construction.
-            RegisterConfigured<IInstanceIdGenerator>(services, schedulerName, (provider, key) =>
-            {
-                var generator = (IInstanceIdGenerator) ActivatorUtilities.CreateInstance(
-                    SchedulerScopedServiceProvider.For(provider, key), instanceIdGeneratorType);
-
-                ApplyStringProperties(generator, provider, key, LegacyPropertyKeys.SchedulerInstanceIdGeneratorPrefix);
-                return generator;
-            });
+            return;
         }
 
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            RegisterInstanceIdGeneratorByName(services, parser, schedulerName);
+            return;
+        }
+
+        if (named)
+        {
+            Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(LegacyPropertyKeys.SchedulerInstanceIdGeneratorType));
+        }
+
+        LegacyPropertyKeys.RefuseComponentKeysUnder(parser.Properties, LegacyPropertyKeys.SchedulerInstanceIdGeneratorPrefix);
+
+        RegisterConfigured<IInstanceIdGenerator>(services, schedulerName, static (provider, key) =>
+        {
+            // Checked again against the bag the container holds, which deferred configuration may have
+            // added a setting to since the one above was read.
+            LegacyPropertyKeys.RefuseComponentKeysUnder(
+                provider.GetSchedulerProperties(key as string ?? Options.DefaultName),
+                LegacyPropertyKeys.SchedulerInstanceIdGeneratorPrefix);
+
+            return ActivatorUtilities.CreateInstance<SystemPropertyInstanceIdGenerator>(SchedulerScopedServiceProvider.For(provider, key));
+        });
+    }
+
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void RegisterInstanceIdGeneratorByName(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
+        var instanceIdGeneratorType = parser.Type(LegacyPropertyKeys.SchedulerInstanceIdGeneratorType)
+            ?? typeof(SystemPropertyInstanceIdGenerator);
+
+        // A generator has no typed options, so its settings — the system property to read, the
+        // prefix and suffix that keep one datacentre's ids from colliding with another's — arrive as
+        // strings and have to be applied after construction.
+        RegisterConfigured<IInstanceIdGenerator>(services, schedulerName, (provider, key) =>
+        {
+            var generator = (IInstanceIdGenerator) ActivatorUtilities.CreateInstance(
+                SchedulerScopedServiceProvider.For(provider, key), instanceIdGeneratorType);
+
+            ApplyStringProperties(generator, provider, key, LegacyPropertyKeys.SchedulerInstanceIdGeneratorPrefix);
+            return generator;
+        });
+    }
+
+    private static void RegisterJobFactory(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
+        if (parser.String(LegacyPropertyKeys.SchedulerJobFactoryType) is null)
+        {
+            return;
+        }
+
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            RegisterJobFactoryByName(services, parser, schedulerName);
+            return;
+        }
+
+        Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(LegacyPropertyKeys.SchedulerJobFactoryType));
+    }
+
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void RegisterJobFactoryByName(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
         // Registered carrying its type, as UseJobFactory<T>() registers it, because the type decides whether
         // this scheduler's job types are registered with the container.
-        if (parser.Type(LegacyPropertyKeys.SchedulerJobFactoryType) is { } jobFactoryType)
-        {
-            JobFactoryDescriptor.TryAdd(services, schedulerName, jobFactoryType, (provider, key) =>
-                (IJobFactory) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), jobFactoryType));
-        }
-
-        RegisterTimeProvider(services, schedulerName, parser.Type(LegacyPropertyKeys.TimeProviderType));
+        var jobFactoryType = parser.Type(LegacyPropertyKeys.SchedulerJobFactoryType)!;
+        JobFactoryDescriptor.TryAdd(services, schedulerName, jobFactoryType, (provider, key) =>
+            (IJobFactory) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), jobFactoryType));
     }
 
     /// <summary>
@@ -341,12 +494,26 @@ internal static class QuartzPropertyBridge
     /// key is allowed to have.
     /// </para>
     /// </remarks>
-    private static void RegisterTimeProvider(IServiceCollection services, string? schedulerName, Type? timeProviderType)
+    private static void RegisterTimeProvider(IServiceCollection services, PropertyReader parser, string? schedulerName)
     {
-        if (timeProviderType is null)
+        if (parser.String(LegacyPropertyKeys.TimeProviderType) is null)
         {
             return;
         }
+
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            RegisterTimeProviderByName(services, parser, schedulerName);
+            return;
+        }
+
+        Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(LegacyPropertyKeys.TimeProviderType));
+    }
+
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void RegisterTimeProviderByName(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
+        var timeProviderType = parser.Type(LegacyPropertyKeys.TimeProviderType)!;
 
         for (var i = services.Count - 1; i >= 0; i--)
         {
@@ -438,37 +605,13 @@ internal static class QuartzPropertyBridge
         };
     }
 
-    /// <summary>
-    /// <c>SYS_PROP</c> selects a generator rather than naming one, so it has to be mapped explicitly.
-    /// </summary>
-    private static Type? SystemPropertyGeneratorIfRequested(PropertyReader parser)
-    {
-        var instanceId = parser.String(LegacyPropertyKeys.SchedulerInstanceId);
-        return instanceId == LegacyPropertyKeys.SystemPropertyAsInstanceId
-            ? typeof(SystemPropertyInstanceIdGenerator)
-            : null;
-    }
-
     private static void RegisterThreadPool(
         IServiceCollection services,
         PropertyReader parser,
         string? schedulerName)
     {
-        // SimpleThreadPool was renamed to DefaultThreadPool, and the old name is still in plenty of
-        // config files. Treating it as a synonym is what main did; loading it would just fail.
-        // Both spellings are accepted: existing files say Quartz.Simpl.SimpleThreadPool, and the 4.0
-        // migration guide tells readers to rewrite Quartz.Simpl.* as Quartz.Impl.*, which turns this
-        // setting into a name no release ever had. Following the documentation must not break startup.
         var configured = parser.String(LegacyPropertyKeys.ThreadPoolType);
-        var legacyThreadPool = configured is not null
-            && (configured.StartsWith("Quartz.Simpl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase)
-                || configured.StartsWith("Quartz.Impl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase));
-
-        var threadPoolType = legacyThreadPool
-                ? typeof(DefaultThreadPool)
-                : parser.Type(LegacyPropertyKeys.ThreadPoolType);
-
-        if (threadPoolType is null)
+        if (configured is null)
         {
             return;
         }
@@ -476,6 +619,26 @@ internal static class QuartzPropertyBridge
         // Registering the type alone would win the TryAdd race against the default registration and so
         // skip the configuration it applies, leaving a thread pool silently built with defaults. A
         // configured component still has to be configured.
+        if (TryMatchBuiltIn(configured, builtInThreadPools, out Func<IServiceProvider, object?, IThreadPool>? build))
+        {
+            RegisterConfigured(services, schedulerName, build);
+            return;
+        }
+
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            RegisterThreadPoolByName(services, parser, schedulerName);
+            return;
+        }
+
+        Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(LegacyPropertyKeys.ThreadPoolType));
+    }
+
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void RegisterThreadPoolByName(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
+        var threadPoolType = parser.Type(LegacyPropertyKeys.ThreadPoolType)!;
+
         RegisterConfigured<IThreadPool>(services, schedulerName, (provider, key) =>
         {
             var threadPool = (IThreadPool) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), threadPoolType);
@@ -491,6 +654,40 @@ internal static class QuartzPropertyBridge
 
             return threadPool;
         });
+    }
+
+    /// <summary>
+    /// Whether a configured name is one of Quartz's own spellings of a built-in component, in any of
+    /// the forms a file may carry: with or without the assembly, with or without its version, and in
+    /// the 3.x namespace the type loader knows the rename for.
+    /// </summary>
+    private static bool TryMatchBuiltIn<T>(string configured, (string Name, T Value)[] builtIn, [NotNullWhen(true)] out T? value)
+        where T : class
+    {
+        List<string> candidates = [configured];
+        candidates.AddRange(SimpleTypeLoader.LegacyNameCandidates(configured));
+
+        foreach (string candidate in candidates)
+        {
+            string spelling = ObjectExtensions.WithoutAssemblyVersion(candidate).Trim();
+            if (!spelling.Contains(','))
+            {
+                // Bare, as Type.GetType would have read it against the calling assembly - this one.
+                spelling += ", Quartz";
+            }
+
+            foreach ((string name, T builtInValue) in builtIn)
+            {
+                if (string.Equals(name, spelling, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = builtInValue;
+                    return true;
+                }
+            }
+        }
+
+        value = null;
+        return false;
     }
 
     private static void MapThreadPool(ThreadPoolOptions options, PropertyReader parser)
@@ -541,34 +738,163 @@ internal static class QuartzPropertyBridge
         // The delegate and lock handler stand on their own: an application that has moved store
         // selection into code can still be naming its driver delegate in a configuration file, and
         // returning early on a missing quartz.jobStore.type would drop it.
-        Register<IDriverDelegate>(services, schedulerName, DriverDelegateType(parser));
+        RegisterDriverDelegate(services, parser, schedulerName);
 
         RegisterConnectionProvider(services, parser, schedulerName);
 
         RegisterInitStringTriggerPersistenceDelegates(services, parser, schedulerName);
 
-        if (parser.Type(LegacyPropertyKeys.JobStoreLockHandlerType) is { } lockHandlerType)
-        {
-            // A lock handler has no typed options, so its settings — the Redis handler's key prefix and
-            // lock TTL, say — arrive as strings under its own prefix and are applied after construction.
-            RegisterConfigured<ILockHandler>(services, schedulerName, (provider, key) =>
-            {
-                var lockHandler = (ILockHandler) ActivatorUtilities.CreateInstance(
-                    SchedulerScopedServiceProvider.For(provider, key), lockHandlerType);
+        RegisterLockHandler(services, parser, schedulerName);
 
-                ApplyStringProperties(lockHandler, provider, key, LegacyPropertyKeys.JobStoreLockHandlerPrefix);
-                return lockHandler;
-            });
-        }
-
-        var jobStoreType = parser.Type(LegacyPropertyKeys.JobStoreType);
-        if (jobStoreType is null)
+        var configured = parser.String(LegacyPropertyKeys.JobStoreType);
+        if (configured is null)
         {
             return;
         }
 
+        if (TryMatchBuiltIn(configured, builtInJobStores, out Func<IServiceProvider, object?, IJobStore>? build))
+        {
+            RegisterJobStore(services, parser, schedulerName, persistent: false, build);
+            return;
+        }
+
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            RegisterJobStoreByName(services, parser, schedulerName);
+            return;
+        }
+
+        // A persistent store the application already chose in code: the key would have lost the TryAdd to
+        // that registration, so it names what code named and is left at that. Nothing registered in code
+        // means the key alone was to build the store, which this publish cannot do.
+        if (TryMatchBuiltIn(configured, shippedPersistentStores, out string? _)
+            && IsRegistered<IJobStore>(services, schedulerName))
+        {
+            return;
+        }
+
+        Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(LegacyPropertyKeys.JobStoreType));
+    }
+
+    /// <summary>
+    /// Whether a registration <see cref="RegisterConfigured{TService}" /> would lose to already exists:
+    /// unkeyed for the default scheduler, keyed by the scheduler's name otherwise.
+    /// </summary>
+    private static bool IsRegistered<TService>(IServiceCollection services, string? schedulerName)
+    {
+        foreach (ServiceDescriptor descriptor in services)
+        {
+            if (descriptor.ServiceType != typeof(TService))
+            {
+                continue;
+            }
+
+            if (schedulerName is null ? !descriptor.IsKeyedService : descriptor.IsKeyedService && Equals(descriptor.ServiceKey, schedulerName))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void RegisterDriverDelegate(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
+        const string Key = "quartz.jobStore.driverDelegateType";
+
+        if (parser.String(Key) is null)
+        {
+            return;
+        }
+
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            Register<IDriverDelegate>(services, schedulerName, DriverDelegateType(parser));
+            return;
+        }
+
+        Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(Key));
+    }
+
+    private static void RegisterLockHandler(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
+        if (parser.String(LegacyPropertyKeys.JobStoreLockHandlerType) is null)
+        {
+            return;
+        }
+
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            RegisterLockHandlerByName(services, parser, schedulerName);
+            return;
+        }
+
+        Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(LegacyPropertyKeys.JobStoreLockHandlerType));
+    }
+
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void RegisterLockHandlerByName(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
+        var lockHandlerType = parser.Type(LegacyPropertyKeys.JobStoreLockHandlerType)!;
+
+        // A lock handler has no typed options, so its settings — the Redis handler's key prefix and
+        // lock TTL, say — arrive as strings under its own prefix and are applied after construction.
+        RegisterConfigured<ILockHandler>(services, schedulerName, (provider, key) =>
+        {
+            var lockHandler = (ILockHandler) ActivatorUtilities.CreateInstance(
+                SchedulerScopedServiceProvider.For(provider, key), lockHandlerType);
+
+            ApplyStringProperties(lockHandler, provider, key, LegacyPropertyKeys.JobStoreLockHandlerPrefix);
+            return lockHandler;
+        });
+    }
+
+    /// <summary>
+    /// A store named by a type that is not one of Quartz's own: resolved through the loader,
+    /// constructed through the container, and - unless it is one of Quartz's underneath a decorator -
+    /// configured from the leftover keys by name.
+    /// </summary>
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void RegisterJobStoreByName(IServiceCollection services, PropertyReader parser, string? schedulerName)
+    {
+        var jobStoreType = parser.Type(LegacyPropertyKeys.JobStoreType)!;
         var persistent = typeof(AdoJobStoreBase).IsAssignableFrom(jobStoreType);
 
+        RegisterJobStore(services, parser, schedulerName, persistent, (provider, key) =>
+        {
+            var jobStore = (IJobStore) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), jobStoreType);
+
+            // Through the decorators: quartz.jobStore.type can name one, and the settings below belong to
+            // the store that keeps the data rather than to whatever is wrapped around it.
+            IJobStore inner = JobStores.Unwrap(jobStore);
+            if (inner is RAMJobStore ramJobStore)
+            {
+                ramJobStore.Apply(provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key));
+            }
+            else if (inner is not AdoJobStoreBase)
+            {
+                // A third-party store has no typed options, so its knobs still arrive as strings. The
+                // ADO store reads AdoJobStoreOptions in its constructor and needs none of this.
+                ApplyStringProperties(
+                    inner, provider, key,
+                    LegacyPropertyKeys.JobStorePrefix,
+                    LegacyPropertyKeys.JobStoreLockHandlerPrefix);
+            }
+
+            return jobStore;
+        });
+    }
+
+    /// <summary>
+    /// Registers a job store however its type was arrived at, with the companions a persistent one needs.
+    /// </summary>
+    private static void RegisterJobStore(
+        IServiceCollection services,
+        PropertyReader parser,
+        string? schedulerName,
+        bool persistent,
+        Func<IServiceProvider, object?, IJobStore> build)
+    {
         if (persistent)
         {
             // A persistent store needs the same companions the code-first path registers; configuring it
@@ -600,29 +926,7 @@ internal static class QuartzPropertyBridge
             // itself, once it knows how it is clustered and which database it is talking to.
         }
 
-        RegisterConfigured<IJobStore>(services, schedulerName, (provider, key) =>
-        {
-            var jobStore = (IJobStore) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), jobStoreType);
-
-            // Through the decorators: quartz.jobStore.type can name one, and the settings below belong to
-            // the store that keeps the data rather than to whatever is wrapped around it.
-            IJobStore inner = JobStores.Unwrap(jobStore);
-            if (inner is RAMJobStore ramJobStore)
-            {
-                ramJobStore.Apply(provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key));
-            }
-            else if (inner is not AdoJobStoreBase)
-            {
-                // A third-party store has no typed options, so its knobs still arrive as strings. The
-                // ADO store reads AdoJobStoreOptions in its constructor and needs none of this.
-                ApplyStringProperties(
-                    inner, provider, key,
-                    LegacyPropertyKeys.JobStorePrefix,
-                    LegacyPropertyKeys.JobStoreLockHandlerPrefix);
-            }
-
-            return jobStore;
-        });
+        RegisterConfigured(services, schedulerName, build);
     }
 
     /// <summary>
@@ -648,11 +952,29 @@ internal static class QuartzPropertyBridge
         string? schedulerName)
     {
         var dataSourceName = parser.String("quartz.jobStore.dataSource") ?? PersistentStoreBuilder.DefaultDataSourceName;
-        var providerType = parser.Type($"{LegacyPropertyKeys.DataSourcePrefix}.{dataSourceName}.connectionProvider.type");
-        if (providerType is null)
+        var key = $"{LegacyPropertyKeys.DataSourcePrefix}.{dataSourceName}.connectionProvider.type";
+        if (parser.String(key) is null)
         {
             return;
         }
+
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            RegisterConnectionProviderByName(services, parser, schedulerName, key);
+            return;
+        }
+
+        Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(key));
+    }
+
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void RegisterConnectionProviderByName(
+        IServiceCollection services,
+        PropertyReader parser,
+        string? schedulerName,
+        string key)
+    {
+        var providerType = parser.Type(key)!;
 
         if (!typeof(IDbProvider).IsAssignableFrom(providerType))
         {
@@ -753,12 +1075,29 @@ internal static class QuartzPropertyBridge
         PropertyReader parser,
         string? schedulerName)
     {
-        var initString = parser.String("quartz.jobStore.driverDelegateInitString");
+        const string Key = "quartz.jobStore.driverDelegateInitString";
+
+        var initString = parser.String(Key);
         if (string.IsNullOrEmpty(initString))
         {
             return;
         }
 
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            RegisterInitStringTriggerPersistenceDelegates(services, schedulerName, initString);
+            return;
+        }
+
+        Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(Key));
+    }
+
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void RegisterInitStringTriggerPersistenceDelegates(
+        IServiceCollection services,
+        string? schedulerName,
+        string initString)
+    {
         foreach (string setting in initString.Split('\\', '|'))
         {
             var index = setting.IndexOf('=');
@@ -858,7 +1197,7 @@ internal static class QuartzPropertyBridge
 
     private static void ApplySerializer(IServiceCollection services, PropertyReader parser, string? schedulerName)
     {
-        var configured = parser.String("quartz.serializer.type");
+        var configured = parser.String(SerializerTypeKey);
         if (configured is null)
         {
             return;
@@ -871,6 +1210,35 @@ internal static class QuartzPropertyBridge
                 "You can also manually configure a custom serializer.");
         }
 
+        if (FeatureSwitches.IsLegacyComponentKeysSupported)
+        {
+            ApplySerializerByName(services, parser, schedulerName, configured);
+            return;
+        }
+
+        if (configured.ToLowerInvariant() is not ("stj" or "json"))
+        {
+            Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(SerializerTypeKey));
+        }
+
+        // The built-in serializer, from its typeof. Any other quartz.serializer.* key would be written
+        // onto it by name, which is what the switch is about, so one is refused rather than dropped.
+        LegacyPropertyKeys.RefuseComponentKeysUnder(parser.Properties, SerializerPrefix, LegacyPropertyKeys.PluginType);
+
+        RegisterConfigured<IObjectSerializer>(services, schedulerName, static (provider, key) =>
+        {
+            LegacyPropertyKeys.RefuseComponentKeysUnder(
+                provider.GetSchedulerProperties(key as string ?? Options.DefaultName),
+                SerializerPrefix,
+                LegacyPropertyKeys.PluginType);
+
+            return ActivatorUtilities.CreateInstance<SystemTextJsonObjectSerializer>(SchedulerScopedServiceProvider.For(provider, key));
+        });
+    }
+
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
+    private static void ApplySerializerByName(IServiceCollection services, PropertyReader parser, string? schedulerName, string configured)
+    {
         var serializerType = configured.ToLowerInvariant() switch
         {
             "stj" or "json" => typeof(SystemTextJsonObjectSerializer),
@@ -896,6 +1264,7 @@ internal static class QuartzPropertyBridge
     }
 
     private const string SerializerPrefix = "quartz.serializer";
+    private const string SerializerTypeKey = SerializerPrefix + ".type";
 
 
     /// <summary>
@@ -908,6 +1277,7 @@ internal static class QuartzPropertyBridge
     /// the container, which would resolve the implementation's own dependencies unkeyed and hand a named
     /// scheduler's component the default scheduler's collaborators — or none at all.
     /// </remarks>
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
     private static void Register<TService>(IServiceCollection services, string? schedulerName, Type? implementationType)
         where TService : class
     {
@@ -956,6 +1326,7 @@ internal static class QuartzPropertyBridge
     /// Applies the leftover <c>&lt;prefix&gt;.*</c> string properties to a component that has no typed
     /// options of its own, which is how third-party implementations stay configurable.
     /// </summary>
+    [RequiresUnreferencedCode(LegacyPropertyKeys.ComponentKeysNameTypes)]
     private static void ApplyStringProperties(
         object target,
         IServiceProvider provider,

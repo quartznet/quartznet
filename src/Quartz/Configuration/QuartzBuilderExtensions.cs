@@ -758,6 +758,13 @@ public static class QuartzBuilderExtensions
 
         builder.Services.Add(Describe(builder, typeof(TJob), lifetime, implementationType: typeof(TImplementation)));
         RegisteredJobTypes.For(builder.Services).Add(builder.SchedulerName, typeof(TJob));
+
+        // Both halves by name too, for the readers that only ever see a name - a store, a request body,
+        // a schedule file - and that in a trimmed publish resolve nothing else. The job detail names
+        // TJob, which the container resolves; TImplementation is what it builds, and the one the fire
+        // path reflects over, which its annotation above is for.
+        RegisteredTypeNames.RegisterServiceType(typeof(TJob));
+        RegisteredTypeNames.Register(typeof(TImplementation));
         return builder;
     }
 
@@ -796,6 +803,7 @@ public static class QuartzBuilderExtensions
         // what makes an AddJob<TJob> registration of the same type stop being the one that would be used.
         builder.Services.Add(Describe(builder, typeof(TJob), lifetime, factory: provider => implementationFactory(provider)));
         RegisteredJobTypes.For(builder.Services).Add(builder.SchedulerName, typeof(TJob));
+        RegisteredTypeNames.RegisterServiceType(typeof(TJob));
         return builder;
     }
 

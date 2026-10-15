@@ -46,7 +46,7 @@ internal static class JsonSchedulingHelper
             SchedulerContent.Register(services, name, serviceProvider =>
             {
                 var options = serviceProvider.GetRequiredService<IOptionsMonitor<QuartzOptions>>().Get(name);
-                var typeLoader = ResolveTypeLoader(options, serviceProvider);
+                var typeLoader = ResolveTypeLoader(serviceProvider);
 
                 // The clock this scheduler runs on, resolved the same way every other part of it is. A
                 // trigger declared in configuration is anchored to it and carries it, so a scheduler on a
@@ -549,26 +549,20 @@ internal static class JsonSchedulingHelper
     }
 
     /// <summary>
-    /// Resolves the <see cref="ITypeLoader"/> to use for loading job types from JSON configuration.
-    /// Checks the scheduler-specific property first (set via <c>UseTypeLoader&lt;T&gt;()</c>),
-    /// then falls back to the DI-registered singleton, then to <see cref="SimpleTypeLoader"/>.
+    /// The <see cref="ITypeLoader"/> the job types in a <c>Quartz:Schedule</c> section are resolved
+    /// through: the container's, which is the one <c>UseTypeLoader&lt;T&gt;()</c> and a
+    /// <c>quartz.scheduler.typeLoadHelper.type</c> key both replace.
     /// </summary>
-    private static ITypeLoader ResolveTypeLoader(QuartzOptions options, IServiceProvider serviceProvider)
+    /// <remarks>
+    /// The key is read once, by the property bridge, while the service collection is open; it used to be
+    /// read a second time here, from the deferred property bag, and resolved by reflection of its own. A
+    /// loader named only through deferred <see cref="QuartzOptions.Properties" /> could never have been
+    /// registered - the bridge recovers configuration from that bag, never registrations - so the
+    /// container's loader was already the only answer that could be right.
+    /// </remarks>
+    private static ITypeLoader ResolveTypeLoader(IServiceProvider serviceProvider)
     {
-        ITypeLoader typeLoader;
-
-        if (options.Properties.TryGetValue(LegacyPropertyKeys.SchedulerTypeLoaderType, out var typeName)
-            && !string.IsNullOrWhiteSpace(typeName))
-        {
-            var type = Type.GetType(typeName, throwOnError: true)!;
-            typeLoader = TypeActivator.Instantiate<ITypeLoader>(type);
-        }
-        else
-        {
-            typeLoader = serviceProvider.GetService<ITypeLoader>() ?? new SimpleTypeLoader();
-        }
-
-        return typeLoader;
+        return serviceProvider.GetService<ITypeLoader>() ?? new SimpleTypeLoader();
     }
 
     /// <summary>

@@ -36,13 +36,17 @@
     down to what it actually reaches, because that is the shape in which a missing JsonTypeInfo or a
     removed constructor shows up.
 
-    ILLink.Suppressions.xml is not applied either. Since the canary grew a scheduler it does reach the
-    recorded reflection — AddQuartz translates the legacy quartz.* keys, a job's type comes back out of
-    JOB_CLASS_NAME as a string — so those warnings are reported, read, and checked against that same file
-    by the PublishTrimmed and PublishAot targets, which fail on any warning it does not record. Applying
-    the file here instead would work for the trimmed publish and could not work for the native one at all,
-    because ILCompiler has no link-attributes option. One baseline per package, checked the one way that
-    works for both.
+    ILLink.Suppressions.xml is not applied either. The canary reaches the recorded reflection - the
+    default job factory coerces job data onto a job's properties through ValueConverter - so that warning
+    is reported, read, and checked against that same file by the PublishTrimmed and PublishAot targets,
+    which fail on any warning it does not record. Applying the file here instead would work for the
+    trimmed publish and could not work for the native one at all, because ILCompiler has no
+    link-attributes option. One baseline, checked the one way that works for both.
+
+    The job type that comes back out of JOB_CLASS_NAME as a string, and the quartz.* keys BindingCheck
+    hands AddQuartz, used to be recorded reflection too. They are behind the two feature switches now,
+    which the import at the end of this file turns off, and TypeNameCheck is what shows they are off
+    rather than merely unset: a type that exists but was never registered is refused by name.
   -->
 
   <PropertyGroup>
@@ -82,7 +86,10 @@
 
   <!--
     And what buildTransitive/net10.0 inside the package gives one, which is what lets the generator
-    intercept the canary's delegate job and bind it at compile time.
+    intercept the canary's delegate job and bind it at compile time - and, since 4.6, what sets Quartz's
+    two feature switches false under PublishTrimmed. That half is load-bearing: ILLink and ILCompiler
+    substitute a guarded call site away only on an explicit setting, so without this import the publish
+    reports IL2026 against every guarded site in Quartz and build/Build.cs fails the leg on them.
   -->
   <Import Project="..\Quartz\buildTransitive\net10.0\Quartz.targets" />
 

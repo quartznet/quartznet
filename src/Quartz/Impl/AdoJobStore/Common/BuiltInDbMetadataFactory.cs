@@ -83,19 +83,32 @@ internal sealed class BuiltInDbMetadataFactory : DbMetadataFactory
     {
         DbMetadata facts = Describe(providerName);
 
-        try
+        if (FeatureSwitches.IsTypeNameResolutionSupported)
         {
-            DbMetadata metadata = AddDriverTypes(facts, providerName);
-            metadata.Validate();
-            return metadata;
+            try
+            {
+                DbMetadata metadata = AddDriverTypes(facts, providerName);
+                metadata.Validate();
+                return metadata;
+            }
+            catch (Exception ex)
+            {
+                // The failure that reaches here is a driver assembly the application did not bring along.
+                // Reported as it always was, naming the provider rather than the type that would not load.
+                Throw.ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+                return default!;
+            }
         }
-        catch (Exception ex)
-        {
-            // The failure that reaches here is a driver assembly the application did not bring along.
-            // Reported as it always was, naming the provider rather than the type that would not load.
-            Throw.ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
-            return default!;
-        }
+
+        // Said at startup, naming the way out, rather than as a type the trimmer removed failing to
+        // construct on the first connection.
+        Throw.SchedulerConfigException(
+            $"Driver '{providerName}' is described by type names, which this publish does not resolve "
+            + $"({FeatureSwitches.TypeNameResolutionSwitch} is false). Pass the driver's DbProviderFactory - "
+            + "UseSqlServer(factory, connectionString) and its siblings - or register a DbDataSource. Set "
+            + $"<{FeatureSwitches.TypeNameResolutionProperty}>true</{FeatureSwitches.TypeNameResolutionProperty}> "
+            + "to resolve by reflection again.");
+        return default!;
     }
 
     /// <summary>
@@ -215,8 +228,12 @@ internal sealed class BuiltInDbMetadataFactory : DbMetadataFactory
     /// </summary>
     /// <remarks>
     /// This is the half a trimmed application cannot rely on, and the half a provider built over a
-    /// factory or a data source never asks for.
+    /// factory or a data source never asks for. Guarded by
+    /// <see cref="FeatureSwitches.IsTypeNameResolutionSupported" /> at its one call, so a trimmed publish
+    /// with the switch off removes it whole, and one that turned the switch back on is told so by the
+    /// warning at that call.
     /// </remarks>
+    [RequiresUnreferencedCode("A driver chosen by name has its connection, command and parameter types resolved with Type.GetType, which a trimmed application cannot rely on; " + FeatureSwitches.TypeNameResolutionSwitch + " guards the call.")]
     private static DbMetadata AddDriverTypes(DbMetadata facts, string providerName) => providerName switch
     {
         "SqlServer" or "MicrosoftDataSqlClient" => facts with
@@ -332,6 +349,7 @@ internal sealed class BuiltInDbMetadataFactory : DbMetadataFactory
     /// filled is what the reflective binder did, and it is the right answer: a driver assembly the
     /// application did not bring along is a configuration mistake, not a description that half works.
     /// </summary>
+    [RequiresUnreferencedCode("A driver chosen by name has its connection, command and parameter types resolved with Type.GetType, which a trimmed application cannot rely on; " + FeatureSwitches.TypeNameResolutionSwitch + " guards the call.")]
     [return: DynamicallyAccessedMembers(DriverTypeMembers)]
     private static Type LoadType(string typeName) => Type.GetType(typeName, throwOnError: true)!;
 }

@@ -21,10 +21,13 @@
       server-sent event stream, a listing from a host newer than the client - every body read and written
       through the wire contract's generated metadata with reflection-based System.Text.Json switched off.
 
-      What the baseline still records, and a native publish still reports: one IL2026, a job read back over
-      HTTP carrying its type as a string, in TrimAnalysisBaseline.cs beside this file. It is trimming, not
-      dynamic code - the package produces no IL3050 at all - and an application keeps its job types the
-      ordinary way, by referencing them from AddJob<T>() or JobBuilder.Create<T>().
+      What a native publish reports against this package: nothing. One IL2026 was recorded until 4.6, a job
+      read back over HTTP carrying its type as a string, and it went when the name stopped being resolved by
+      reflection: an application keeps its job types the ordinary way, by referencing them from AddJob<T>()
+      or JobBuilder.Create<T>(), and that table is what the name is answered from, with Type.GetType behind
+      the Quartz.TypeNameResolution.IsSupported switch a trimmed publish turns off. A warning appearing here
+      is a new one to fix, not to baseline; build/Build.cs fails the canary leg on one. It is trimming, not
+      dynamic code: the package produces no IL3050 at all.
 
       Where it stops: the claim is this assembly's. Microsoft.Extensions.Http underneath it says
       IsAotCompatible for itself. On SDK 10.0.400 the property writes [AssemblyMetadata("IsAotCompatible",

@@ -437,7 +437,12 @@ internal sealed class TypeLoaderOptionsValidator : IValidateOptions<TypeLoaderOp
                     $"Type loader alias '{alias}' maps to '{target}', which names no type this application can "
                     + "load. The target is the type as it is called now, assembly-qualified — "
                     + "'Namespace.TypeName, AssemblyName' — and the assembly has to be one this application "
-                    + "references; the alias is the dead name, and is not checked.");
+                    + "references; the alias is the dead name, and is not checked."
+                    + (FeatureSwitches.IsTypeNameResolutionSupported
+                        ? ""
+                        : $" This publish resolves no type name by reflection ({FeatureSwitches.TypeNameResolutionSwitch} "
+                          + "is false), so the target has to be a registered type: register it with AddJob<T>() or "
+                          + "AddJobType<T>(), or declare the alias as Map(name, typeof(T))."));
             }
         }
 
