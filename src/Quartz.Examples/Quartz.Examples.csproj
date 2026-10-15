@@ -29,6 +29,8 @@
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Spectre.Console" />
+    <!-- Named because SqlClient brings a vulnerable copy, and this project does not pin transitively. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
   <ItemGroup>

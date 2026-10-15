@@ -26,8 +26,9 @@ the scripts under `database/migrations/`.
 |---|---|
 | Weasel | `[9.39.0, 10.0.0)` from Quartz 4.4; `[9.35.1, 10.0.0)` in 4.3 |
 | JasperFx | 2.76.0 or later, through Weasel 9.39.0 |
+| System.Security.Cryptography.Pkcs | 9.0.21 or later, SQL Server and Oracle only: raises the driver's vulnerable copy |
 
-An application beside Marten or Wolverine resolves both at least that high.
+An application beside Marten or Wolverine resolves Weasel and JasperFx at least that high.
 
 ```shell
 dotnet add package Quartz.Weasel.PostgreSQL

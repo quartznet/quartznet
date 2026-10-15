@@ -47,25 +47,52 @@ public class PackageDependencyTest
     }
 
     /// <summary>
-    /// A <c>Microsoft.*</c> floor is the major itself — <c>x.0.0</c> — and never a servicing patch of it.
+    /// A <c>Microsoft.*</c> floor is the major itself — <c>x.0.0</c> — and never a servicing patch of it,
+    /// unless a security advisory moved it.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// This is the rule 4.0.0 broke. Its nuspecs floored six framework extensions at 10.0.11, the
     /// central version on the day it was built, so an application pinning
     /// <c>Microsoft.Extensions.Options</c> at 10.0.10 — which is what a .NET 10 project or SDK image
     /// carries — was told "detected package downgrade" and stopped restoring (#3717). Nothing in Quartz
     /// needs a servicing patch of the framework extensions, and a floor is a demand made of every
     /// consumer, so the floor is the major.
+    /// </para>
+    /// <para>
+    /// The exception is the one the floors comment in <c>Directory.Packages.props</c> allows: a floor
+    /// raised for an advisory, to the version that fixed it. <see cref="AdvisoryFloors" /> records each,
+    /// and the floor may sit at that version and no other.
+    /// </para>
     /// </remarks>
     [TestCaseSource(nameof(MicrosoftFloors))]
     public void MicrosoftFloorIsTheMajorItself(string package, string version)
     {
-        version.Should().MatchRegex(@"^\d+\.0\.0$",
-            $"{package} is a floor a consumer inherits from a shipped nuspec, and {version} would make "
-            + "every application pinning an earlier patch of it fail to restore with NU1605. See "
-            + "\"The floors a consumer inherits\" in Directory.Packages.props: a floor moves for a "
-            + "security advisory and nothing else, and then to the version that fixed it");
+        bool raisedForAdvisory = AdvisoryFloors.TryGetValue(package, out AdvisoryFloor advisory)
+            && string.Equals(version, advisory.FixedVersion, StringComparison.Ordinal);
+
+        if (!raisedForAdvisory)
+        {
+            version.Should().MatchRegex(@"^\d+\.0\.0$",
+                $"{package} is a floor a consumer inherits from a shipped nuspec, and {version} would make "
+                + "every application pinning an earlier patch of it fail to restore with NU1605. See "
+                + "\"The floors a consumer inherits\" in Directory.Packages.props: a floor moves for a "
+                + "security advisory and nothing else, then to the version that fixed it, recorded in "
+                + $"{nameof(AdvisoryFloors)}");
+        }
     }
+
+    /// <summary>
+    /// The <c>Microsoft.*</c> floors raised above their major for a security advisory: the advisory, and
+    /// the version that fixed it.
+    /// </summary>
+    private static readonly Dictionary<string, AdvisoryFloor> AdvisoryFloors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Every earlier 10.x brings a Microsoft.AspNetCore.SignalR.Common the advisory covers.
+        ["Microsoft.AspNetCore.SignalR.Client"] = new("GHSA-334f-vvp4-7g6p", "10.0.13"),
+    };
+
+    private sealed record AdvisoryFloor(string Advisory, string FixedVersion);
 
     /// <summary>
     /// Every <c>Microsoft.*</c> a shipped project references is declared with the floors, so the list

@@ -32,6 +32,8 @@
 
   <ItemGroup>
     <PackageReference Include="Weasel.Oracle" />
+    <!-- Not called: it raises the vulnerable copy Oracle's driver brings. Directory.Packages.props says why. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
 </Project>

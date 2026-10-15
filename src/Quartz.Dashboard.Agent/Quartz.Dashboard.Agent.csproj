@@ -37,6 +37,13 @@
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <!--
+      Off for the reason Quartz.Extensions.Redis gives. The SignalR client's advisory floor, 10.0.13, asks
+      for Microsoft.Extensions.DependencyInjection, Logging and Logging.Abstractions at 10.0.13, and pinning
+      them at Quartz's 10.0.0 floors is NU1109. Off, the nuspec says Quartz and the SignalR client, and a
+      consumer inherits Quartz's floors through Quartz.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
   <ItemGroup>
