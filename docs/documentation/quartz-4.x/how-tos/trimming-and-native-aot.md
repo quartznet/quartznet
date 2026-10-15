@@ -89,17 +89,18 @@ which you avoid at compile time, or a path only one configuration style reaches.
 | Jobs declared in configuration | the `Quartz:Schedule` section, and the type loader named by `quartz.scheduler.typeLoaderType` | the same again |
 | A job type in a request body | the HTTP API, `Quartz.HttpClient` reading a job back, and `Quartz.Dashboard.Agent` receiving one down the tunnel | register the types a caller may name |
 | A driver, chosen by name | `UseSqlServer(connectionString)` and its siblings | [hand over the driver's factory](#register-the-store-with-the-driver-s-factory) instead |
-| The flat `quartz.*` keys | `AddQuartz(NameValueCollection)`, `quartz.plugin.*`, `quartz.*.listener.*`, `quartz.dbprovider.*` | configure in code or from `appsettings.json`; neither reaches these |
+| The flat `quartz.*` keys | `AddQuartz(NameValueCollection)`, `quartz.plugin.*`, `quartz.dbprovider.*` | configure in code or from `appsettings.json`; neither reaches these |
 
-Two warnings need no action:
+One warning needs no action:
 
 * **`Quartz.Util.ValueConverter`** (`IL2026`, `IL2067`): coercing a `JobDataMap` value onto a job property
   of another type goes through `TypeDescriptor`, and `PropertyInfo.PropertyType` cannot be annotated. Keep
   job data to the types the map has accessors for and it is never reached.
-* **`TransientErrorDetector`** (`IL2070`): reads `SQLSTATE` and `Errors[n].Number` from driver exception
-  types Quartz does not reference. It asks `DbException.SqlState` first (no reflection; most drivers answer
-  it), and the fallbacks tolerate null: a trimmed property makes an error non-transient, costing a retry,
-  not the scheduler.
+
+Retry classification reports nothing. It reads `SqlError.Number`, `SqliteException.SqliteErrorCode` and
+Firebird's `SQLSTATE` by name, and Quartz keeps each with `[DynamicDependency]` whenever that driver is in
+the application. (Earlier releases let the trimmer remove them, and a SQLite store then gave up on a busy
+database instead of retrying it.)
 
 The only real work is registering job types, and `AddJob<TJob>()` does that.
 
@@ -252,6 +253,8 @@ The flat `quartz.*` keys still work, with warnings: they name components and set
    `TimeZones.FindById` answers an id .NET alone refuses, through `UseTimeZoneConverter`
    (`Quartz.Plugins.TimeZoneConverter`). The canary publishes with `InvariantGlobalization` for the last:
    with ICU present .NET converts every IANA and Windows id itself, and no id ever reaches a resolver.
+5. **Retry classification.** A `SqliteException` reporting busy or locked, wrapped the way the store wraps
+   it, is transient; a constraint failure is not. The answer comes from `SqliteErrorCode`, read by name.
 
 `src/Quartz.Trimming.Canary.Wire` does the same for the three packages that put a scheduler on a wire. One
 process serves a scheduler with `Quartz.AspNetCore` on Kestrel, drives it with `Quartz.HttpClient` over
@@ -318,16 +321,16 @@ dotnet fallout PublishAot
 
 ### Reading the warnings your own publish reports
 
-A trimmed canary publish reports about thirty warnings against Quartz. Yours will be a subset, mostly the
-`IL2026` rows unless `TrimmerSingleWarn` is false.
+A trimmed canary publish reports about twenty-five warnings against Quartz. Yours will be a subset, mostly
+the `IL2026` rows unless `TrimmerSingleWarn` is false.
 
 | Group | Codes | Reached by |
 |---|---|---|
 | `QuartzPropertyBridge`, `SchedulerPluginFactory` | `IL2026`, `IL2067`, `IL2072` | configuring with flat `quartz.*` keys |
-| `SimpleTypeLoader`, `JobType` | `IL2057` | a job type named as a string, anywhere |
-| `StdAdoDelegate.CreateJobType` | `IL2057`, `IL2072` | reading a job back out of an ADO.NET store |
+| `SimpleTypeLoader`, `JobType` | `IL2057` | a job type named as a string, anywhere, including `JOB_CLASS_NAME` read back out of an ADO.NET store |
 | `BuiltInDbMetadataFactory`, `ConfigurationBasedDbMetadataFactory` | `IL2026`, `IL2057` | the ADO.NET store being in the closure at all |
-| `ValueConverter`, `TransientErrorDetector`, `JsonSchedulingHelper` | `IL2026`, `IL2067`, `IL2070`, `IL2072` | job data coerced onto job properties, retry classification, jobs declared in configuration |
+| `ValueConverter` | `IL2026`, `IL2067` | job data coerced onto job properties |
+| `JsonSchedulingHelper` | `IL2057` | the `Quartz:Schedule` reader, which takes a type loader named by `quartz.scheduler.typeLoaderType` |
 
 * **Warnings are about reachability.** The canary never names a driver, yet `BuiltInDbMetadataFactory`'s
   `IL2057` appears because that code is in the closure.

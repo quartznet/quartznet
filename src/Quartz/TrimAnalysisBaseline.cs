@@ -111,9 +111,9 @@ using System.Diagnostics.CodeAnalysis;
 // silences the analyzer during Quartz's own compile and nothing else. Consumers publishing a trimmed
 // application still see every warning below, which is honest: their app really is affected. The
 // unconditional form would hide it from them too. Where Quartz *has* reasoned an application's way out
-// of a warning, it says so in an [UnconditionalSuppressMessage] at the call site instead — there are three,
-// on JobType.FoundByName, PropertySettingJobFactory.SetObjectProperty and ListenerManagerImpl.VerifyShape,
-// and each carries the argument.
+// of a warning, it says so in an [UnconditionalSuppressMessage] at the call site instead — there are four,
+// on JobType.FoundByName, PropertySettingJobFactory.SetObjectProperty, ListenerManagerImpl.VerifyShape and
+// TransientErrorDetector.FindDriverProperty, and each carries the argument.
 
 // --- Types and properties named by string -----------------------------------------------------------
 // Configuration and persistence both store types as text: the flat quartz.* keys, the JOB_CLASS_NAME
@@ -157,12 +157,12 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Util.ValueConverter", Justification = "TypeDescriptor.GetConverter is how a value becomes a property's value, and the property's type is not annotatable: it arrives as PropertyInfo.PropertyType, which the framework does not annotate and could not.")]
 [assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Util.ValueConverter", Justification = "The default for a missing value is Activator.CreateInstance of the target type, reached only when that type is a value type - and the type is the same unannotatable PropertyInfo.PropertyType the entry above is about.")]
 
-// --- Duck-typed exception inspection ------------------------------------------------------------------
-// Whether a database error is worth retrying lives in provider-specific properties (SqlException.Number,
-// SqliteException.SqliteErrorCode). Quartz must not reference the provider assemblies to read them.
-
-[assembly: SuppressMessage("Trimming", "IL2070", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.TransientErrorDetector", Justification = "Retry classification reads provider error codes off exception types Quartz deliberately does not reference.")]
-
+// Duck-typed exception inspection was a group here too, and it is gone rather than re-justified: the
+// trimmer did remove the driver properties TransientErrorDetector reads, and a SQLite store then gave
+// up on a busy database instead of retrying it. FindDriverProperty names each of them with
+// [DynamicDependency] and says why that makes its own IL2070 safe, so it is one of the call-site
+// suppressions above rather than a line here.
+//
 // Configuration binding was the last group in this file; step 8 above says where it went. Do not bring
 // it back by writing a Configure<TOptions>(section) call the generator cannot intercept, or an options
 // member it cannot bind - ConfigurationBindingIsSourceGeneratedTest holds both.

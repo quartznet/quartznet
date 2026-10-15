@@ -28,19 +28,22 @@
         - ITypeLoader / SimpleTypeLoader, and JobType(string) — a job type spelled as text. The typed
           forms (JobBuilder.Create<T>(), OfType<T>(), AddJob<T>()) carry [DynamicallyAccessedMembers]
           the whole way instead and warn about nothing.
-        - The persisted JOB_CLASS_NAME column, which StdAdoDelegate resolves when it reads a job back.
-          Unavoidable for a persistent store, and the reason the trim canary runs one: the type has to
-          survive trimming, which for an application's own job types it does.
-        - The quartz.plugin.* and quartz.*.listener.* property paths, and the leftover quartz.* keys the
-          property bridge applies by name. An application that configures in code reaches none of them —
-          which is what makes AddQuartz itself trimmable, and is held by a test.
-        - TransientErrorDetector, which decides whether a database error is worth retrying by reading
-          provider error codes off exception types Quartz deliberately does not reference.
+        - The persisted JOB_CLASS_NAME column, which StdAdoDelegate resolves through the scheduler's
+          ITypeLoader when it reads a job back. Unavoidable for a persistent store, and the reason the trim
+          canary runs one: the type has to survive trimming, which for an application's own job types it does.
+        - The quartz.plugin.* property paths, and the leftover quartz.* keys the property bridge applies by
+          name. An application that configures in code reaches none of them — which is what makes
+          AddQuartz itself trimmable, and is held by a test.
 
       Every one of those is recorded in TrimAnalysisBaseline.cs and mirrored in ILLink.Suppressions.xml,
       neither of which ships — so a consumer is told about them, and a native AOT publish of Quartz
       reports exactly that set and nothing else, which build/Build.cs checks on every pull request by
       publishing Quartz.Trimming.Canary natively and running a whole SQLite store out of it.
+
+      TransientErrorDetector, which decides whether a database error is worth retrying, also reads driver
+      properties by name, and is on neither list: it names each one with [DynamicDependency], so a
+      trimmed application keeps them whenever the driver is in it, and the canary asks it about a busy
+      SQLite database natively.
 
       Where the claim ends up: on SDK 10.0.400 the property writes
       [AssemblyMetadata("IsAotCompatible", "True")] into the assembly and nothing at all into the

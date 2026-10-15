@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
-    <SignAssembly>false</SignAssembly>
+    <!-- Signed, as the wire canary is, so Quartz's InternalsVisibleTo can name it: TransientErrorCheck asks an internal type. -->
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>full</TrimMode>
     <!--

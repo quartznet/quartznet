@@ -67,6 +67,11 @@ namespace Quartz.Trimming.Canary;
 /// path its baseline is about: a listener found by name, a job type read out of a schedule file, a time
 /// zone only the converter resolves. They are what the three packages' <c>IsAotCompatible</c> rests on.
 /// </para>
+/// <para>
+/// Finally <see cref="TransientErrorCheck" /> asks the store's retry classification about a busy SQLite
+/// database. The answer comes from a driver property Quartz reads by name, so a publish that trimmed it
+/// would turn every busy database into a failure without a word.
+/// </para>
 /// </remarks>
 internal static class Program
 {
@@ -112,13 +117,18 @@ internal static class Program
             failures.Add(sidePackagesFailure);
         }
 
+        if (TransientErrorCheck.Run() is { } transientErrorFailure)
+        {
+            failures.Add(transientErrorFailure);
+        }
+
         foreach (string failure in failures)
         {
             Console.WriteLine(failure);
         }
 
         Console.WriteLine(failures.Count == 0
-            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, and a time zone resolves through the converter."
+            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, a time zone resolves through the converter, and a busy database is one to retry."
             : $"Quartz.Trimming.Canary: {failures.Count} check(s) failed.");
 
         return failures.Count == 0 ? 0 : 1;
