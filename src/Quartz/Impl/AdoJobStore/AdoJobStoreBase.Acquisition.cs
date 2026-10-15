@@ -390,7 +390,11 @@ internal abstract partial class AdoJobStoreBase
                             try
                             {
                                 Logger.JobRetrievalFailed(e);
-                                await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
+
+                                // FROM 'WAITING', the state the candidate read found it in: this round has
+                                // not claimed the row, so a round on another node may have, and an
+                                // unconditional ERROR would land over that node's advance of it (#4067).
+                                await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StoredTriggerState.Error, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
 
                                 // A trigger whose job type will not load stops firing here and is reported
                                 // nowhere else - not even through SchedulerError. Inline, as the misfire

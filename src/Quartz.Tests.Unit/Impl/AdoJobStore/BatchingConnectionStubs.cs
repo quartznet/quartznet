@@ -173,6 +173,12 @@ internal sealed class StubDbCommand : DbCommand
     /// </summary>
     public Func<string, Exception> Failure { get; init; }
 
+    /// <summary>
+    /// How many rows executing a command reports it changed, given its text; unset, none — the answer a
+    /// command made of nothing has always given.
+    /// </summary>
+    public Func<string, int> RowsAffected { get; init; }
+
     public override void Cancel() { }
     public override int ExecuteNonQuery() => 0;
     public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
@@ -182,7 +188,7 @@ internal sealed class StubDbCommand : DbCommand
             throw failure;
         }
 
-        return Task.FromResult(0);
+        return Task.FromResult(RowsAffected?.Invoke(CommandText) ?? 0);
     }
     public override object ExecuteScalar() => null;
     public override void Prepare() { }
@@ -272,10 +278,21 @@ internal sealed class CountingDelegate : StdAdoDelegate
 
     public List<string> PreparedCommands { get; } = [];
 
+    /// <summary>
+    /// Every command issued standalone, with its parameters, for a test that reads what was bound.
+    /// </summary>
+    public List<StubDbCommand> Prepared { get; } = [];
+
+    /// <summary>
+    /// How many rows a standalone command reports it changed, given its text; unset, none.
+    /// </summary>
+    public Func<string, int> RowsAffected { get; set; }
+
     public override DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
     {
         PreparedCommands.Add(commandText);
-        var cmd = new StubDbCommand { CommandText = commandText };
+        var cmd = new StubDbCommand { CommandText = commandText, RowsAffected = RowsAffected };
+        Prepared.Add(cmd);
         cth.Attach(cmd);
         return cmd;
     }

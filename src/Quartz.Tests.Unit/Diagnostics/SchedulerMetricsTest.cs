@@ -198,9 +198,20 @@ public sealed class SchedulerMetricsTest
                 A<CancellationToken>.Ignored))
             .Returns(new ValueTask<MisfiredTriggerBatch>(new MisfiredTriggerBatch([misfired], false)));
 
+        // The write through the interface's default, so every row counts as written and is reported.
+        A.CallTo(() => driverDelegate.UpdateMisfiredTriggersIfUnchanged(A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<MisfiredTriggerUpdate>>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+
         // Initialized rather than started: the handler's own loop would run on a clock this test does not
-        // own, and the scan is what is under test rather than the schedule it runs on.
-        await store.RecoverMisfiredJobs(conn: null, recovering: false);
+        // own, and the scan is what is under test rather than the schedule it runs on. The pass tells the
+        // listeners once its write has committed (#4067), which here is the unit of work's notifications
+        // raised by hand.
+        ConnectionAndTransactionHolder conn = new(A.Fake<DbConnection>(), null);
+        await store.RecoverMisfiredJobs(conn, recovering: false);
+        foreach (Func<ISchedulerSignaler, CancellationToken, ValueTask> notify in conn.TakeNotificationsAfterCommit() ?? [])
+        {
+            await notify(scheduler.SchedulerSignaler, CancellationToken.None);
+        }
 
         RecordedMeasurement misfire = MeasurementsFor(schedulerName)
             .Should().ContainSingle(m => m.Instrument == MisfireCounter,

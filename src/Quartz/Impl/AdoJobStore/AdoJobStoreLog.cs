@@ -224,6 +224,11 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3055, Level = LogLevel.Information, Message = "Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is not handed back: its fired-trigger row is gone, because a peer recovered it or its trigger was unscheduled while it ran")]
     public static partial void FiringRowGoneBeforeHandBack(this ILogger logger, string? fireInstanceId, JobKey jobKey);
 
+    // Debug: the ordinary outcome of an edit racing a firing round that takes no lock (#4067). The edit is
+    // applied to the row as the fire left it, which is the serialised order.
+    [LoggerMessage(EventId = 3059, Level = LogLevel.Debug, Message = "Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write")]
+    public static partial void TriggerEditReapplied(this ILogger logger, TriggerKey triggerKey);
+
     [LoggerMessage(EventId = 3100, Level = LogLevel.Debug, Message = "Prepared SQL: {Sql}")]
     public static partial void SqlPrepared(this ILogger logger, string sql);
 

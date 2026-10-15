@@ -941,8 +941,7 @@ internal abstract partial class AdoJobStoreBase
             misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
         }
 
-        List<MisfiredTriggerUpdate>? updates = null;
-        List<IOperableTrigger>? finalized = null;
+        List<PreparedMisfire>? prepared = null;
 
         foreach (IOperableTrigger trigger in triggers)
         {
@@ -954,36 +953,31 @@ internal abstract partial class AdoJobStoreBase
             // A policy that throws fails this trigger alone: it stays WAITING with its fire time, for the
             // misfire handler, or is stored ERROR at the limit, and the completion commits (#4006). Before,
             // the throw rolled the completion back, and the retry met it again for good.
-            PreparedMisfire prepared = await PrepareMisfiredTriggerUpdate(conn, trigger, StoredTriggerState.Waiting, calendarCache: null, cancellationToken).ConfigureAwait(false);
-            if (prepared.Update is not { } update)
+            PreparedMisfire misfire = await PrepareMisfiredTriggerUpdate(conn, trigger, StoredTriggerState.Waiting, StoredTriggerState.Waiting, calendarCache: null, cancellationToken).ConfigureAwait(false);
+            if (misfire.Update is not null)
             {
-                continue;
-            }
-
-            (updates ??= []).Add(update);
-
-            if (update.NewState == StoredTriggerState.Complete)
-            {
-                (finalized ??= []).Add(trigger);
+                (prepared ??= []).Add(misfire);
             }
         }
 
-        if (updates is null)
+        if (prepared is null)
         {
             return;
         }
 
-        await Delegate.UpdateMisfiredTriggers(conn, updates, cancellationToken).ConfigureAwait(false);
-
-        foreach (IOperableTrigger trigger in finalized ?? [])
+        // Each row held to the fire time it was read with (#4067). These rows were released from BLOCKED in
+        // this transaction, so nothing can have moved them, but the guard is the same statement every
+        // misfire write makes, and a row that did move is left as the round left it. The listeners hear
+        // after the completion commits, with the continuation notifications above and for the same reason:
+        // this runs inside the completion's transaction and lock.
+        foreach (MisfiredTriggerUpdate update in await WriteMisfires(conn, prepared, cancellationToken).ConfigureAwait(false))
         {
-            // After the completion commits, with the continuation notifications above and for the
-            // same reason: this runs inside the completion's transaction and lock.
-            conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersFinalized(trigger, token));
-
-            // A trigger with nothing left to fire was just stored COMPLETE, and a COMPLETE row lingers
-            // where callers expect the trigger to be gone — GetTrigger would keep handing it back.
-            await DeleteTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+            if (update.NewState == StoredTriggerState.Complete)
+            {
+                // A trigger with nothing left to fire was just stored COMPLETE, and a COMPLETE row lingers
+                // where callers expect the trigger to be gone — GetTrigger would keep handing it back.
+                await DeleteTrigger(conn, update.Trigger.Key, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

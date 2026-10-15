@@ -56,6 +56,11 @@ internal static partial class MisfireLog
     [LoggerMessage(EventId = 3607, Level = LogLevel.Error, Message = "Error handling misfires: {ExceptionMessage}")]
     public static partial void MisfireHandlingFailed(this ILogger logger, string exceptionMessage, Exception exception);
 
+    // Debug: the ordinary outcome of a misfire pass racing a firing round that takes no lock (#4067) —
+    // the occurrence was fired rather than missed, and nothing is owed to anyone.
+    [LoggerMessage(EventId = 3608, Level = LogLevel.Debug, Message = "Misfire of trigger {TriggerKey} not written: the trigger was fired meanwhile (fire time moved from {ReadFireTime})")]
+    public static partial void MisfireWriteSkipped(this ILogger logger, TriggerKey triggerKey, DateTimeOffset? readFireTime);
+
     /// <summary>
     /// Logged by a node that routes when its sweep finds misfires it leaves alone, on the transition
     /// from none to some and again at most once an hour while they stay (#4069).

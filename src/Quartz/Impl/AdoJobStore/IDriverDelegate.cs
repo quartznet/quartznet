@@ -306,6 +306,46 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// <see cref="UpdateTrigger" />, writing the row only while it still holds the fire time it was read
+    /// with: an editor's read-modify-write of a trigger that a firing round may move in between.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An editor holding <c>TRIGGER_ACCESS</c> — <c>UpdateTriggerDetails</c>, a calendar update that
+    /// recomputes its triggers — reads a trigger's row, changes what it was asked to and writes the row
+    /// back whole. A firing round of work that allows concurrent execution takes no lock (#4067), so it
+    /// can fire the row between that read and that write; written back by key, the edit would re-arm
+    /// the occurrence the round has just fired. Held to <c>NEXT_FIRE_TIME</c> as read, the write finds
+    /// zero rows instead, and the editor reads the row again and applies the edit to it.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a delegate written against an earlier 4.x keeps compiling; the
+    /// default is <see cref="UpdateTrigger" /> itself, which keeps the behaviour such a delegate had.
+    /// <c>StdAdoDelegate</c> appends the predicate to the same statement, and writes the trigger's own
+    /// table only when the row took the write.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="trigger">The trigger, as edited.</param>
+    /// <param name="state">The state to store it in.</param>
+    /// <param name="jobDetail">The job detail.</param>
+    /// <param name="expectedNextFireTimeUtc">
+    /// The next fire time the row held when it was read, or <see langword="null" /> for a row read with none.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The number of rows updated: zero when the row moved, or went, since it was read.</returns>
+    ValueTask<int> UpdateTriggerIfUnchanged(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        DateTimeOffset? expectedNextFireTimeUtc,
+        CancellationToken cancellationToken = default)
+    {
+        return UpdateTrigger(conn, trigger, state, jobDetail, cancellationToken);
+    }
+
+    /// <summary>
     /// Update the blob trigger data.
     /// </summary>
     /// <param name="conn">the DB Connection</param>
@@ -1901,6 +1941,46 @@ public interface IDriverDelegate
         ConnectionAndTransactionHolder conn,
         IReadOnlyList<MisfiredTriggerUpdate> updates,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// <see cref="UpdateMisfiredTriggers" />, writing each row only while it still holds the fire time
+    /// its misfire was decided from (<see cref="MisfiredTriggerUpdate.ExpectedNextFireTimeUtc" />), and
+    /// saying which rows were written.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The misfire handler reads under <c>TRIGGER_ACCESS</c>; a firing round of work that allows
+    /// concurrent execution takes no lock (#4067), so a row exactly a misfire threshold late can be in
+    /// both their reads, and the round's fire can commit between the handler's read and its write. A
+    /// write by key would then re-arm the occurrence the round has just fired. Held to the fire time it
+    /// read, it finds zero rows, and the store neither reports the trigger misfired nor finalized.
+    /// </para>
+    /// <para>
+    /// A default interface member, so a delegate written against an earlier 4.x keeps compiling; the
+    /// default calls <see cref="UpdateMisfiredTriggers" /> and answers every key, which is the behaviour
+    /// such a delegate had. An update whose expectation is <see langword="null" /> is written as that
+    /// member writes it, whatever the row holds.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="updates">The triggers, after <c>UpdateAfterMisfire</c> has been applied in-memory.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The keys of the triggers whose row took the write, in the order given.</returns>
+    async ValueTask<List<TriggerKey>> UpdateMisfiredTriggersIfUnchanged(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<MisfiredTriggerUpdate> updates,
+        CancellationToken cancellationToken = default)
+    {
+        await UpdateMisfiredTriggers(conn, updates, cancellationToken).ConfigureAwait(false);
+
+        List<TriggerKey> written = new(updates.Count);
+        foreach (MisfiredTriggerUpdate update in updates)
+        {
+            written.Add(update.Trigger.Key);
+        }
+
+        return written;
+    }
 
     /// <summary>
     /// Updates the preferred node columns for a trigger only when they still hold the expected

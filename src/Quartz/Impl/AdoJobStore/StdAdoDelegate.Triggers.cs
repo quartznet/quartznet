@@ -555,30 +555,90 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<int> UpdateTrigger(
+    public virtual ValueTask<int> UpdateTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {
-        var existingType = await SelectTriggerType(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+        return WriteTrigger(conn, trigger, state, jobDetail, guard: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The same statement <see cref="UpdateTrigger" /> issues, with the row held to the fire time it was
+    /// read with (<c>AND NEXT_FIRE_TIME = @expectedNextFireTime</c>, or <c>IS NULL</c> for a row read
+    /// with none). The trigger's own table is written only when the row took the update: a schedule row
+    /// written under a row that moved would put the edit's repeat count over the fire's.
+    /// </remarks>
+    public virtual ValueTask<int> UpdateTriggerIfUnchanged(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        DateTimeOffset? expectedNextFireTimeUtc,
+        CancellationToken cancellationToken = default)
+    {
+        return WriteTrigger(conn, trigger, state, jobDetail, new FireTimeGuard(expectedNextFireTimeUtc), cancellationToken);
+    }
+
+    /// <summary>
+    /// The fire time a guarded trigger write holds the row to, <see langword="null" /> for a row read with
+    /// none (#4067).
+    /// </summary>
+    private readonly record struct FireTimeGuard(DateTimeOffset? ExpectedNextFireTimeUtc);
+
+    /// <summary>
+    /// The trigger <c>UPDATE</c> and its own table's write, by key or — with <paramref name="guard" /> —
+    /// only while the row holds the fire time it was read with.
+    /// </summary>
+    private async ValueTask<int> WriteTrigger(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        FireTimeGuard? guard,
+        CancellationToken cancellationToken)
+    {
+        string? existingType = await SelectTriggerType(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
 
         // No need to continue if the trigger type is not found - there's nothing to update.
-        if (existingType is null) return 0;
+        if (existingType is null)
+        {
+            return 0;
+        }
 
-        var tDel = FindTriggerPersistenceDelegate(trigger);
+        ITriggerPersistenceDelegate? tDel = FindTriggerPersistenceDelegate(trigger);
         string type = tDel?.GetHandledTriggerTypeDiscriminator() ?? AdoConstants.TriggerTypeBlob;
 
         string sql = BuildUpdateTriggerSql(trigger, ClearsPause(state), out bool updateJobData, out bool writePreferredNode);
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
-        BindUpdateTrigger(cmd, trigger, state, type, updateJobData, writePreferredNode);
+        if (guard is { } held)
+        {
+            sql += held.ExpectedNextFireTimeUtc.HasValue
+                ? StdAdoConstants.NextFireTimeUnchangedPredicate
+                : StdAdoConstants.NextFireTimeStillNullPredicate;
+        }
 
-        var updateResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
+        BindUpdateTrigger(cmd, trigger, state, type, updateJobData, writePreferredNode);
+        if (guard?.ExpectedNextFireTimeUtc is { } expected)
+        {
+            // Last, as the predicate is the last thing the statement names.
+            AddCommandParameter(cmd, SqlParameters.ExpectedNextFireTime, GetDbDateTimeValue(expected));
+        }
+
+        int updated = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        if (updated == 0 && guard is not null)
+        {
+            // The row moved, or went, between the editor's read and this write: nothing of the edit is
+            // written, and the editor decides what to do with the row as it is now.
+            return 0;
+        }
 
         await WriteTriggerTypeTable(conn, trigger, state, jobDetail, existingType, type, tDel, cancellationToken).ConfigureAwait(false);
 
-        return updateResult;
+        return updated;
     }
 
     /// <summary>
@@ -3151,13 +3211,30 @@ public partial class StdAdoDelegate
         List<SqlStatement> into,
         List<IOperableTrigger> blobTriggers)
     {
-        var trigger = update.Trigger;
+        into.Add(MisfireRowStatement(update, guarded: false));
+        AppendMisfireTypeTableWrite(update, into, blobTriggers);
+    }
+
+    /// <summary>
+    /// The narrow <c>UPDATE</c> of a misfired trigger's own row: only the columns misfire recovery
+    /// changes, and — <paramref name="guarded" /> — only while the row still holds the fire time the
+    /// misfire was decided from.
+    /// </summary>
+    /// <param name="update">The pending update.</param>
+    /// <param name="guarded">
+    /// Whether to hold the write to <see cref="MisfiredTriggerUpdate.ExpectedNextFireTimeUtc" />. An
+    /// update with no expectation is written unguarded whatever this says.
+    /// </param>
+    private SqlStatement MisfireRowStatement(in MisfiredTriggerUpdate update, bool guarded)
+    {
+        IOperableTrigger trigger = update.Trigger;
 
         // Narrow UPDATE: only columns that change during misfire recovery.
         // Only include MISFIRE_ORIG_FIRE_TIME when we have a value to write;
         // null means "leave unchanged" (matching the store, which only records an original
         // fire time when it detects a fire-now policy).
         bool writeMisfireOrigFireTime = update.MisfireOriginalFireTime.HasValue;
+        bool holdToFireTime = guarded && update.ExpectedNextFireTimeUtc.HasValue;
 
         List<SqlStatementParameter> parameters =
         [
@@ -3179,9 +3256,33 @@ public partial class StdAdoDelegate
         parameters.Add(new SqlStatementParameter(SqlParameters.TriggerName, trigger.Key.Name));
         parameters.Add(new SqlStatementParameter(SqlParameters.TriggerGroup, trigger.Key.Group));
 
-        into.Add(new SqlStatement(
-            ReplaceTablePrefix(writeMisfireOrigFireTime ? StdAdoConstants.SqlUpdateTriggerMisfireWithOrigFireTime : StdAdoConstants.SqlUpdateTriggerMisfire),
-            parameters));
+        string sql = (writeMisfireOrigFireTime, holdToFireTime) switch
+        {
+            (true, true) => StdAdoConstants.SqlUpdateTriggerMisfireWithOrigFireTimeIfUnchanged,
+            (true, false) => StdAdoConstants.SqlUpdateTriggerMisfireWithOrigFireTime,
+            (false, true) => StdAdoConstants.SqlUpdateTriggerMisfireIfUnchanged,
+            (false, false) => StdAdoConstants.SqlUpdateTriggerMisfire,
+        };
+
+        if (holdToFireTime)
+        {
+            // Last, as the predicate is the last thing the statement names.
+            parameters.Add(new SqlStatementParameter(SqlParameters.ExpectedNextFireTime, GetDbDateTimeValue(update.ExpectedNextFireTimeUtc)));
+        }
+
+        return new SqlStatement(ReplaceTablePrefix(sql), parameters);
+    }
+
+    /// <summary>
+    /// The write a misfired trigger's own table needs beside its row's, if any: a statement for a simple
+    /// trigger, a re-serialization for one stored as a blob, nothing for the rest.
+    /// </summary>
+    private void AppendMisfireTypeTableWrite(
+        in MisfiredTriggerUpdate update,
+        List<SqlStatement> into,
+        List<IOperableTrigger> blobTriggers)
+    {
+        IOperableTrigger trigger = update.Trigger;
 
         // Update type-specific table: SimpleTrigger may have modified RepeatCount/TimesTriggered
         // via RescheduleNowWith* policies; blob triggers need re-serialization to persist all
@@ -3235,6 +3336,83 @@ public partial class StdAdoDelegate
         }
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// Two rounds where <see cref="UpdateMisfiredTriggers" /> makes one: the rows first, each held to
+    /// the fire time it was read with, and then the schedule rows and blobs of the triggers whose row
+    /// took the write. A simple trigger's <c>TIMES_TRIGGERED</c> written under a row the round had fired
+    /// would put the misfire's count over the fire's, so the second round is what the first one's counts
+    /// decide. A batch of cron triggers, which have no schedule row to write, is one round as before.
+    /// </para>
+    /// <para>
+    /// Which rows took is read from each statement's own count. A provider that batches without
+    /// reporting one — none Quartz ships — has its rows counted as written, which is the answer
+    /// <see cref="UpdateMisfiredTriggers" /> always gave.
+    /// </para>
+    /// </remarks>
+    public virtual async ValueTask<List<TriggerKey>> UpdateMisfiredTriggersIfUnchanged(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<MisfiredTriggerUpdate> updates,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(updates);
+
+        List<TriggerKey> written = new(updates.Count);
+        if (updates.Count == 0)
+        {
+            return written;
+        }
+
+        List<SqlStatement> rows = new(updates.Count);
+        foreach (MisfiredTriggerUpdate update in updates)
+        {
+            rows.Add(MisfireRowStatement(update, guarded: true));
+        }
+
+        int[] affected = await ExecuteStatementsCounting(conn, rows, cancellationToken).ConfigureAwait(false);
+
+        List<SqlStatement> typeTable = [];
+        List<IOperableTrigger> blobTriggers = [];
+        for (int i = 0; i < updates.Count; i++)
+        {
+            if (affected[i] == 0)
+            {
+                continue;
+            }
+
+            written.Add(updates[i].Trigger.Key);
+            AppendMisfireTypeTableWrite(updates[i], typeTable, blobTriggers);
+        }
+
+        if (typeTable.Count > 0)
+        {
+            await ExecuteStatements(conn, typeTable, cancellationToken).ConfigureAwait(false);
+        }
+
+        foreach (IOperableTrigger blobTrigger in blobTriggers)
+        {
+            await UpdateBlobTrigger(conn, blobTrigger, cancellationToken).ConfigureAwait(false);
+        }
+
+        return written;
+    }
+
+    /// <summary>
+    /// Issues a list of statements as <see cref="ExecuteStatements(ConnectionAndTransactionHolder, List{SqlStatement}, CancellationToken)" />
+    /// does, and says how many rows each one changed: the provider's count, or <c>-1</c> for a batched
+    /// statement whose provider reports none when the batch's total says not every statement took.
+    /// </summary>
+    private async ValueTask<int[]> ExecuteStatementsCounting(
+        ConnectionAndTransactionHolder conn,
+        List<SqlStatement> statements,
+        CancellationToken cancellationToken)
+    {
+        int[] affected = new int[statements.Count];
+        await ExecuteStatements(conn, statements, affected, cancellationToken).ConfigureAwait(false);
+        return affected;
+    }
+
     /// <summary>
     /// Issues a list of statements in as few round trips as the provider allows.
     /// </summary>
@@ -3243,14 +3421,30 @@ public partial class StdAdoDelegate
     /// as <see langword="false" /> (the <see cref="DbConnection" /> default) and get exactly the
     /// behaviour they had before batching existed: one command per statement.
     /// </remarks>
-    private async ValueTask ExecuteStatements(
+    private ValueTask ExecuteStatements(
         ConnectionAndTransactionHolder conn,
         List<SqlStatement> statements,
         CancellationToken cancellationToken)
     {
+        return ExecuteStatements(conn, statements, affected: null, cancellationToken);
+    }
+
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="statements">The statements.</param>
+    /// <param name="affected">
+    /// Where each statement's count of changed rows goes, index-aligned with
+    /// <paramref name="statements" />; <see langword="null" /> when nobody asks.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask ExecuteStatements(
+        ConnectionAndTransactionHolder conn,
+        List<SqlStatement> statements,
+        int[]? affected,
+        CancellationToken cancellationToken)
+    {
         if (!conn.CanCreateBatch)
         {
-            await ExecuteStatementsIndividually(conn, statements, 0, statements.Count, cancellationToken).ConfigureAwait(false);
+            await ExecuteStatementsIndividually(conn, statements, 0, statements.Count, affected, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -3260,7 +3454,7 @@ public partial class StdAdoDelegate
         for (var offset = 0; offset < statements.Count; offset += MaxStatementsPerBatch)
         {
             var length = Math.Min(MaxStatementsPerBatch, statements.Count - offset);
-            await ExecuteStatementBatch(conn, statements, offset, length, cancellationToken).ConfigureAwait(false);
+            await ExecuteStatementBatch(conn, statements, offset, length, affected, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -3275,6 +3469,7 @@ public partial class StdAdoDelegate
         List<SqlStatement> statements,
         int offset,
         int length,
+        int[]? affected,
         CancellationToken cancellationToken)
     {
         try
@@ -3286,7 +3481,11 @@ public partial class StdAdoDelegate
             using var parameterFactory = conn.Connection.CreateCommand();
             using var batch = CreateStatementBatch(conn, parameterFactory, statements, offset, length);
 
-            await batch.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            int total = await batch.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            if (affected is not null)
+            {
+                CopyRecordsAffected(batch, total, affected, offset);
+            }
         }
         catch (Exception e) when (e is not OperationCanceledException && !TransientErrorDetector.IsTransient(e))
         {
@@ -3300,7 +3499,27 @@ public partial class StdAdoDelegate
             // to every statement after the first error — surfaces some later, unrecognisable failure
             // instead, and a retryable operation stops being retried.
             logger.BatchedStatementExecutionFailed(length, e);
-            await ExecuteStatementsIndividually(conn, statements, offset, length, cancellationToken).ConfigureAwait(false);
+            await ExecuteStatementsIndividually(conn, statements, offset, length, affected, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Copies what a batch changed into <paramref name="affected" /> from <paramref name="offset" />: one
+    /// row each when the total says every statement changed its row, whether or not the provider says so
+    /// per command, and each command's own count otherwise.
+    /// </summary>
+    private static void CopyRecordsAffected(DbBatch batch, int total, int[] affected, int offset)
+    {
+        int length = batch.BatchCommands.Count;
+        if (total == length)
+        {
+            Array.Fill(affected, 1, offset, length);
+            return;
+        }
+
+        for (int i = 0; i < length; i++)
+        {
+            affected[offset + i] = batch.BatchCommands[i].RecordsAffected;
         }
     }
 
@@ -3355,6 +3574,7 @@ public partial class StdAdoDelegate
         List<SqlStatement> statements,
         int offset,
         int length,
+        int[]? affected,
         CancellationToken cancellationToken)
     {
         for (var i = offset; i < offset + length; i++)
@@ -3366,7 +3586,11 @@ public partial class StdAdoDelegate
                 AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
             }
 
-            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            int changed = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            if (affected is not null)
+            {
+                affected[i] = changed;
+            }
         }
     }
 }

@@ -55,6 +55,11 @@ public class UpdateTriggerDetailsFamilyTest
         jobStore.DirectDelegate = driverDelegate;
         jobStore.DirectSignaler = A.Fake<ISchedulerSignaler>();
         conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        // The edit's guarded write through the interface's default — the UpdateTrigger each test
+        // arranges — since nothing here is about a row moving under the edit (#4067).
+        A.CallTo(() => driverDelegate.UpdateTriggerIfUnchanged(A<ConnectionAndTransactionHolder>._, A<IOperableTrigger>._, A<StoredTriggerState>._, A<IJobDetail>._, A<DateTimeOffset?>._, A<CancellationToken>._))
+            .CallsBaseMethod();
     }
 
     [TearDown]

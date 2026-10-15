@@ -110,8 +110,12 @@ public sealed class TriggerRowGoneUnderAnEditorTest
         IJobDetail job = Job();
         IOperableTrigger existing = Trigger(job);
 
+        // The first read finds the row; the write misses it; the read the editor makes to see what moved
+        // finds it gone. (The rule configured last answers first, until its one call is spent.)
         A.CallTo(() => driverDelegate.SelectTrigger(A<ConnectionAndTransactionHolder>._, existing.Key, A<CancellationToken>._))
-            .Returns(new ValueTask<IOperableTrigger?>(existing));
+            .Returns(new ValueTask<IOperableTrigger?>((IOperableTrigger?) null));
+        A.CallTo(() => driverDelegate.SelectTrigger(A<ConnectionAndTransactionHolder>._, existing.Key, A<CancellationToken>._))
+            .Returns(new ValueTask<IOperableTrigger?>(existing)).Once();
         A.CallTo(() => driverDelegate.SelectJobForTrigger(A<ConnectionAndTransactionHolder>._, existing.Key, A<ITypeLoader>._, A<bool>._, A<CancellationToken>._))
             .Returns(new ValueTask<IJobDetail?>(job));
         A.CallTo(() => driverDelegate.UpdateTrigger(A<ConnectionAndTransactionHolder>._, existing, A<StoredTriggerState>._, job, A<CancellationToken>._))
@@ -128,6 +132,11 @@ public sealed class TriggerRowGoneUnderAnEditorTest
         IDriverDelegate driverDelegate = A.Fake<IDriverDelegate>();
         store.DirectDelegate = driverDelegate;
         store.DirectSignaler = A.Fake<ISchedulerSignaler>();
+
+        // The guarded write through the interface's default, which is the UpdateTrigger these tests
+        // arrange: a row that went is a count of zero either way (#4067 is TriggerEditGuardTest's).
+        A.CallTo(() => driverDelegate.UpdateTriggerIfUnchanged(A<ConnectionAndTransactionHolder>._, A<IOperableTrigger>._, A<StoredTriggerState>._, A<IJobDetail>._, A<DateTimeOffset?>._, A<CancellationToken>._))
+            .CallsBaseMethod();
 
         // The job every trigger here belongs to, read back by the store before it writes a trigger.
         IJobDetail job = Job();

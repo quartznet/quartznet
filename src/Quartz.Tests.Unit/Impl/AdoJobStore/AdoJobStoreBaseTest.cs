@@ -29,7 +29,20 @@ public class AdoJobStoreBaseTest
         driverDelegate = A.Fake<IDriverDelegate>();
         jobStoreSupport.DirectDelegate = driverDelegate;
         jobStoreSupport.DirectSignaler = A.Fake<ISchedulerSignaler>();
+
+        // The guarded writes through the interface's defaults — the unguarded members each test arranges —
+        // so that the tests here, which are not about a row moving under a write (#4067), see the calls
+        // they always saw.
+        A.CallTo(() => driverDelegate.UpdateTriggerIfUnchanged(A<ConnectionAndTransactionHolder>._, A<IOperableTrigger>._, A<StoredTriggerState>._, A<IJobDetail>._, A<DateTimeOffset?>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+        A.CallTo(() => driverDelegate.UpdateMisfiredTriggersIfUnchanged(A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<MisfiredTriggerUpdate>>._, A<CancellationToken>._))
+            .CallsBaseMethod();
     }
+
+    /// <summary>
+    /// A unit of work for a call that records what it owes the listeners on it, as misfire recovery does.
+    /// </summary>
+    private static ConnectionAndTransactionHolder Conn() => new(A.Fake<DbConnection>(), null);
 
     /// <summary>
     /// Arranges the batch read so that <paramref name="triggers" /> come back as one misfire batch.
@@ -57,7 +70,7 @@ public class AdoJobStoreBaseTest
     {
         GivenMisfiredTriggers();
 
-        await jobStoreSupport.RecoverMisfiredJobs(null, false);
+        await jobStoreSupport.RecoverMisfiredJobs(Conn(), false);
 
         A.CallTo(() => driverDelegate.SelectMisfiredTriggersToRecover(
             A<ConnectionAndTransactionHolder>.Ignored,
@@ -72,7 +85,7 @@ public class AdoJobStoreBaseTest
     {
         GivenMisfiredTriggers(false, CreateMisfiredTrigger("misfired1"), CreateMisfiredTrigger("misfired2"));
 
-        await jobStoreSupport.RecoverMisfiredJobs(null, false);
+        await jobStoreSupport.RecoverMisfiredJobs(Conn(), false);
 
         // Assert: the batch read replaces the per-trigger reads entirely
         A.CallTo(() => driverDelegate.SelectMisfiredTriggersToRecover(
@@ -100,18 +113,21 @@ public class AdoJobStoreBaseTest
         GivenMisfiredTriggers(false, CreateMisfiredTrigger("misfired1"), CreateMisfiredTrigger("misfired2"));
 
         List<MisfiredTriggerUpdate> captured = null;
-        A.CallTo(() => driverDelegate.UpdateMisfiredTriggers(
+        A.CallTo(() => driverDelegate.UpdateMisfiredTriggersIfUnchanged(
                 A<ConnectionAndTransactionHolder>.Ignored,
                 A<IReadOnlyList<MisfiredTriggerUpdate>>.Ignored,
                 A<CancellationToken>.Ignored))
             .Invokes((ConnectionAndTransactionHolder _, IReadOnlyList<MisfiredTriggerUpdate> updates, CancellationToken _) =>
             {
                 captured = updates.ToList();
-            });
+            })
+            .CallsBaseMethod();
 
-        await jobStoreSupport.RecoverMisfiredJobs(null, false);
+        await jobStoreSupport.RecoverMisfiredJobs(Conn(), false);
 
-        A.CallTo(() => driverDelegate.UpdateMisfiredTriggers(
+        // The write goes through the member that holds each row to the fire time it was read with
+        // (#4067), once for the batch.
+        A.CallTo(() => driverDelegate.UpdateMisfiredTriggersIfUnchanged(
             A<ConnectionAndTransactionHolder>.Ignored,
             A<IReadOnlyList<MisfiredTriggerUpdate>>.Ignored,
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
@@ -135,7 +151,7 @@ public class AdoJobStoreBaseTest
     {
         GivenMisfiredTriggers(true, CreateMisfiredTrigger("misfired1"));
 
-        RecoverMisfiredJobsResult result = await jobStoreSupport.RecoverMisfiredJobs(null, false);
+        RecoverMisfiredJobsResult result = await jobStoreSupport.RecoverMisfiredJobs(Conn(), false);
 
         result.HasMoreMisfiredTriggers.Should().BeTrue();
         result.ProcessedMisfiredTriggerCount.Should().Be(1);
@@ -146,7 +162,7 @@ public class AdoJobStoreBaseTest
     {
         // Disable field-level calendarCache so the test validates the batch cache,
         // not the existing GetCalendar lazy-cache (which is active when Clustered=false).
-        jobStoreSupport = new TestAdoJobStoreBase(clustered: true) { DirectDelegate = driverDelegate };
+        jobStoreSupport = new TestAdoJobStoreBase(clustered: true) { DirectDelegate = driverDelegate, DirectSignaler = A.Fake<ISchedulerSignaler>() };
 
         string calendarName = "shared-cal";
 
@@ -164,7 +180,7 @@ public class AdoJobStoreBaseTest
             A<CancellationToken>.Ignored))
             .Returns(new ValueTask<ICalendar>(new BaseCalendar()));
 
-        await jobStoreSupport.RecoverMisfiredJobs(null, false);
+        await jobStoreSupport.RecoverMisfiredJobs(Conn(), false);
 
         // Assert: calendar retrieved only once despite two triggers
         A.CallTo(() => driverDelegate.SelectCalendar(
@@ -655,6 +671,9 @@ public class AdoJobStoreBaseTest
             .Returns(new ValueTask<bool>(true));
         A.CallTo(() => driverDelegate.SelectJobDetail(conn, jobKey, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
+        // The row takes the write; a count of zero would say a firing moved it under the edit (#4067).
+        A.CallTo(() => driverDelegate.UpdateTrigger(conn, trigger, A<StoredTriggerState>.Ignored, job, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<int>(1));
 
         // Act
         await jobStoreSupport.CallAddCalendar(conn, calendarName, calendar, replace: true, updateTriggers: true);
@@ -751,6 +770,9 @@ public class AdoJobStoreBaseTest
             .Returns(new ValueTask<bool>(true));
         A.CallTo(() => driverDelegate.SelectJobDetail(conn, jobKey, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
+        // Both rows take the write; a count of zero would say a firing moved one under the edit (#4067).
+        A.CallTo(() => driverDelegate.UpdateTrigger(conn, A<IOperableTrigger>.Ignored, A<StoredTriggerState>.Ignored, job, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<int>(1));
 
         // Act
         await jobStoreSupport.CallAddCalendar(conn, calendarName, calendar, replace: true, updateTriggers: true);
@@ -1293,9 +1315,10 @@ public class AdoJobStoreBaseTest
     internal class TestAdoJobStoreBase : AdoJobStoreBase
     {
 
-    public TestAdoJobStoreBase(bool clustered = false, TimeProvider timeProvider = null, ILoggerFactory loggerFactory = null)
+    public TestAdoJobStoreBase(bool clustered = false, TimeProvider timeProvider = null, ILoggerFactory loggerFactory = null, Action<AdoJobStoreOptions> configureStore = null)
         : base(TestJobStores.Dependencies(
             timeProvider: timeProvider,
+            storeOptions: TestJobStores.StoreOptions(configure: configureStore),
             clusteringOptions: TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered),
             loggerFactory: loggerFactory))
     {

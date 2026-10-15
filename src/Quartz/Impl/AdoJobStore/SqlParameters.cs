@@ -111,6 +111,13 @@ internal static class SqlParameters
     /// </summary>
     public const string NextFireBefore = "nextFireBefore";
 
+    /// <summary>
+    /// The fire time a row held when it was read, which a write that must not land over a fire of the
+    /// row in between compares with <c>NEXT_FIRE_TIME</c> (#4067). Not <see cref="NextFireTime" /> with a
+    /// suffix, for the reason <see cref="NextFireBefore" /> is not.
+    /// </summary>
+    public const string ExpectedNextFireTime = "expectedNextFireTime";
+
     public const string NoLaterThan = "noLaterThan";
     public const string NoEarlierThan = "noEarlierThan";
     public const string MisfireOrigFireTime = "misfireOrigFireTime";
