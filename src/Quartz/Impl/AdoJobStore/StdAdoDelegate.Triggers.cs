@@ -242,6 +242,13 @@ public partial class StdAdoDelegate
             jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture)!);
             jd.Put(SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime, Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)!);
             trigger.JobDataMap = jd;
+
+            // The replay is limited as the firing it stands in for was (#4081). 3.x writes no group to
+            // FIRED_TRIGGERS, so it is read from the original trigger, as the job data map is.
+            if (HasExecutionGroupColumn && trigger is INextVersionTrigger nextVersionTrigger)
+            {
+                nextVersionTrigger.ExecutionGroup = await ReadTriggerExecutionGroup(conn, key, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return triggers;
@@ -574,6 +581,17 @@ public partial class StdAdoDelegate
         }
 
         return updateResult;
+    }
+
+    /// <inheritdoc />
+    Task<string?> INextVersionDelegate.SelectTriggerExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken)
+    {
+        return HasExecutionGroupColumn
+            ? ReadTriggerExecutionGroup(conn, triggerKey, cancellationToken)
+            : Task.FromResult<string?>(null);
     }
 
     private async Task<string?> ReadTriggerExecutionGroup(
