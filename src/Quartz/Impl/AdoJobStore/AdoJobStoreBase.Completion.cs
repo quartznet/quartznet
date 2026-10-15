@@ -369,6 +369,15 @@ internal abstract partial class AdoJobStoreBase
                 // delete the trigger, so a job which is not durable still has a trigger when the deletion
                 // counts them, and the deletion finds nothing awaiting to park.
                 bool continuationsSettled = false;
+
+                // The header the lock-free completion of a spent trigger read beside its awaiting probe,
+                // in the one statement a shipped delegate answers both with (#4066); the branches below
+                // that would read it again take it from here instead. Only for a trigger with nothing
+                // left to fire, since only those branches read a header; and only a shipped delegate,
+                // whose per-trigger members have no override to bypass.
+                bool probed = false;
+                StoredTriggerHeader? probedHeader = null;
+
                 if (handBack)
                 {
                     await HandBackForRecovery(conn, trigger, cancellationToken).ConfigureAwait(false);
@@ -378,6 +387,20 @@ internal abstract partial class AdoJobStoreBase
                     if (holdsLock)
                     {
                         continuationsSettled = await SettleContinuations(conn, trigger.Key, context.Outcome, cancellationToken).ConfigureAwait(false);
+                    }
+                    else if (!trigger.NextFireTimeUtc.HasValue && ShippedDelegate is { } shipped)
+                    {
+                        TriggerCompletionProbe probe = await shipped.SelectTriggerHeaderAndAwaiting(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                        if (probe.AnythingAwaiting)
+                        {
+                            // As RequireNothingAwaiting says: nothing has been written, so the locked run
+                            // starts from the same rows.
+                            throw new CompletionNeedsLockException();
+                        }
+
+                        continuationsSettled = true;
+                        probed = true;
+                        probedHeader = probe.Header;
                     }
                     else if (Continuation.ConditionFor(context.Outcome) is not null || MayDeleteTrigger(context))
                     {
@@ -391,10 +414,12 @@ internal abstract partial class AdoJobStoreBase
                     {
                         // double check for possible reschedule within job
                         // execution, which would cancel the need to delete...
-                        var header = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                        StoredTriggerHeader? header = probed
+                            ? probedHeader
+                            : await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                         if (header is not null && !header.NextFireTimeUtc.HasValue)
                         {
-                            triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
+                            triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, header.TriggerType, cancellationToken).ConfigureAwait(false);
                         }
                     }
                     else
@@ -456,13 +481,15 @@ internal abstract partial class AdoJobStoreBase
                     // deleted the way the misfire path deletes a trigger it has just stored COMPLETE; the
                     // scheduler listeners have already been told the trigger is finalized, by the run
                     // shell (#3506), so nothing is announced here.
-                    StoredTriggerHeader? header = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                    StoredTriggerHeader? header = probed
+                        ? probedHeader
+                        : await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                     if (header is not null && !header.NextFireTimeUtc.HasValue)
                     {
                         // Read back rather than trusted, exactly as the DeleteTrigger branch above does:
                         // the trigger may have been rescheduled while the firing was in flight, and a
                         // trigger with a fire time ahead of it is nobody's leftover.
-                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
+                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, header.TriggerType, cancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -501,7 +528,7 @@ internal abstract partial class AdoJobStoreBase
                     StoredTriggerHeader? header = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                     if (header is { State: StoredTriggerState.Complete, NextFireTimeUtc: null })
                     {
-                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
+                        triggerDeleted = await DeleteTrigger(conn, trigger.Key, jobDetail, !continuationsSettled, header.TriggerType, cancellationToken).ConfigureAwait(false);
                     }
                 }
                 // Not for a firing handed back: its replay starts from the data this run started with, as
