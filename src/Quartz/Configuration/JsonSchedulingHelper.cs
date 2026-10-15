@@ -99,7 +99,9 @@ internal static class JsonSchedulingHelper
             var durable = ParseBool(jobSection[nameof(JsonJobDefinition.Durable)]);
             var recover = ParseBool(jobSection[nameof(JsonJobDefinition.Recover)]);
 
-            var jobType = typeLoader.LoadType(jobTypeName!)
+            // Resolved now, through the scheduler's loader, so a name that loads nothing fails at startup;
+            // JobType.Resolve hands the loaded type on with the annotation OfType asks for.
+            var jobType = JobType.Resolve(jobTypeName!, typeLoader)
                 ?? throw new SchedulerConfigException($"JSON job definition '{name}': could not load type '{jobTypeName}'.");
 
             var builder = JobBuilder.Create().OfType(jobType);

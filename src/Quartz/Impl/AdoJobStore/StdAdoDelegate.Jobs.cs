@@ -356,7 +356,10 @@ public partial class StdAdoDelegate
                 resolved = null;
             }
 
-            return resolved ?? Type.GetType(name);
+            // The runtime's lookup, through JobType rather than here: a loader that answers only for the
+            // names it knows still leaves the rest to the runtime, and the IL2057 that costs stays on the
+            // one type that resolves job type names without a loader.
+            return resolved ?? JobType.ResolveWithoutLoader(name);
         });
     }
 
@@ -391,7 +394,10 @@ public partial class StdAdoDelegate
 
             if (loadJobType)
             {
-                jobBuilder.OfType(typeLoader.LoadType(jobClassName)!);
+                // Eagerly, through the loader, so a class this process cannot load fails here with the
+                // loader's own TypeLoadException; JobType.Resolve is that call handing the type on with
+                // the annotation OfType asks for.
+                jobBuilder.OfType(JobType.Resolve(jobClassName, typeLoader)!);
             }
 
             return jobBuilder.Build();

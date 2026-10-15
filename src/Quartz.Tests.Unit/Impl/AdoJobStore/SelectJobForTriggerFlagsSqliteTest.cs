@@ -28,6 +28,7 @@ using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
@@ -119,14 +120,67 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
     }
 
     /// <summary>
+    /// Asking for the class resolves it while the row is read, and the detail carries the loaded type.
+    /// </summary>
+    [Test]
+    public async Task AskingForTheClassResolvesItWhileTheRowIsRead()
+    {
+        await GivenAStoredNonConcurrentJob(ResolvableJobClassName);
+
+        IJobDetail? detail = await SelectJobForTrigger(new SimpleTypeLoader(), loadJobType: true);
+
+        detail.Should().NotBeNull();
+        detail!.JobType.GetLoadedType().Should().Be<MessageCleanupJob>(
+            "loadJobType: true settles the class before the detail is handed back, which is what lets it fail "
+            + "there when the class is missing; nothing has asked for the type yet");
+    }
+
+    /// <summary>
+    /// A loader may answer only for the names it knows. A stored name it refuses is still the runtime's
+    /// to resolve, as it was before the store consulted a loader at all.
+    /// </summary>
+    /// <remarks>
+    /// The <see cref="ITypeLoader" /> contract is to throw for a name it cannot resolve, and a
+    /// fault-tolerant loader returns <see langword="null" /> instead; the store treats both the same.
+    /// Without the fallback, a job whose class this process holds would fail at its first fire only
+    /// because the application's loader did not list it.
+    /// </remarks>
+    [TestCaseSource(nameof(LoadersThatRefuseEveryName))]
+    public async Task AStoredNameTheLoaderRefusesIsLeftToTheRuntime(ITypeLoader typeLoader)
+    {
+        await GivenAStoredNonConcurrentJob(ResolvableJobClassName);
+
+        IJobDetail? detail = await SelectJobForTrigger(typeLoader, loadJobType: false);
+
+        detail.Should().NotBeNull();
+        detail!.JobType.Type.Should().Be<MessageCleanupJob>(
+            "the runtime knows the stored name even though the loader does not, and the runtime's answer is the one a store has always fallen back to");
+        detail.JobType.FullName.Should().Be(ResolvableJobClassName,
+            "reading a job never rewrites the name it was stored under");
+    }
+
+    private static IEnumerable<TestCaseData> LoadersThatRefuseEveryName()
+    {
+        yield return new TestCaseData(new RefusingTypeLoader()).SetName("ALoaderThatThrowsLeavesTheNameToTheRuntime");
+        yield return new TestCaseData(new NullTypeLoader()).SetName("ALoaderThatReturnsNullLeavesTheNameToTheRuntime");
+    }
+
+    /// <summary>
+    /// A stored <c>JOB_CLASS_NAME</c> this process does resolve: the worker's job, spelled the way
+    /// Quartz writes it.
+    /// </summary>
+    private static string ResolvableJobClassName => typeof(MessageCleanupJob).AssemblyQualifiedNameWithoutVersion();
+
+    /// <summary>
     /// Writes the job and its trigger through an ordinary scheduler.
     /// </summary>
     /// <remarks>
     /// The detail is built over a <see cref="Quartz.JobType" /> that carries the stored name and resolves to
     /// the real class, which is what a worker holding the assembly has: the two flags reach the row
-    /// from the attributes, and the row afterwards names a class nothing here can load.
+    /// from the attributes, and the row afterwards names whatever <paramref name="storedJobClassName" />
+    /// says — by default a class nothing here can load.
     /// </remarks>
-    private async Task GivenAStoredNonConcurrentJob()
+    private async Task GivenAStoredNonConcurrentJob(string storedJobClassName = StoredJobClassName)
     {
         ServiceCollection services = new();
         services.AddQuartz(q =>
@@ -152,7 +206,7 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
         await scheduler.ScheduleJob(
             JobBuilder.Create()
                 .WithIdentity(JobKey)
-                .OfType(new Quartz.JobType(StoredJobClassName, _ => typeof(MessageCleanupJob)))
+                .OfType(new Quartz.JobType(storedJobClassName, _ => typeof(MessageCleanupJob)))
                 .Build(),
             TriggerBuilder.Create()
                 .WithIdentity(TriggerKey)
@@ -195,6 +249,15 @@ public sealed class SelectJobForTriggerFlagsSqliteTest
     private sealed class NullTypeLoader : ITypeLoader
     {
         public Type? LoadType(string name) => null;
+    }
+
+    /// <summary>
+    /// A loader that keeps the <see cref="ITypeLoader" /> contract for every name it is asked about: it
+    /// knows none of them, so it throws.
+    /// </summary>
+    private sealed class RefusingTypeLoader : ITypeLoader
+    {
+        public Type LoadType(string name) => throw new TypeLoadException($"Could not load type '{name}'");
     }
 
     /// <summary>

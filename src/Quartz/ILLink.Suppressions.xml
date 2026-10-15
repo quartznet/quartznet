@@ -6,8 +6,9 @@
 
   It is not entry-for-entry identical, and one difference is deliberate: ILLink sees through calls the
   Roslyn analyzer does not, so JsonSchedulingHelper needs an IL2057 here that the C# baseline has no
-  warning to silence. Removing an entry that looks unused because the analyzer is quiet about it fails
-  the publish; verify against a clean `dotnet fallout PublishTrimmed`, not against the compile.
+  warning to silence, and that type appears in this file alone. Removing an entry that looks unused
+  because the analyzer is quiet about it fails the publish; verify against a clean
+  `dotnet fallout PublishTrimmed`, not against the compile.
 
   Neither file carries an IL3050 any more — Quartz produces none, which is what let it claim
   IsAotCompatible — but this one could not have carried one anyway. ILLink does not report IL3050 at
@@ -62,19 +63,7 @@
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
         <argument>IL2057</argument>
-        <property name="Justification">A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Impl.AdoJobStore.StdAdoDelegate*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2057</argument>
-        <property name="Justification">A persisted job's type is the JOB_CLASS_NAME column, which is a string by the time it is read back.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2072</argument>
-        <property name="Justification">A persisted job's type reaches JobBuilder.OfType as a Type resolved from JOB_CLASS_NAME.</property>
+        <property name="Justification">A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver, and so does a stored JOB_CLASS_NAME the scheduler's ITypeLoader refuses.</property>
       </attribute>
     </type>
     <type fullname="Quartz.Impl.AdoJobStore.Common.BuiltInDbMetadataFactory*">
@@ -125,11 +114,6 @@
         <argument>Trimming</argument>
         <argument>IL2057</argument>
         <property name="Justification">The type loader named by quartz.scheduler.typeLoaderType is resolved from that name.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2072</argument>
-        <property name="Justification">Jobs declared in configuration name their type as a string.</property>
       </attribute>
     </type>
 
