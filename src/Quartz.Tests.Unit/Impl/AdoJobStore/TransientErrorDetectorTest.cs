@@ -21,6 +21,8 @@
 
 using System.Collections;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 
 using Quartz.Impl.AdoJobStore;
 
@@ -252,6 +254,59 @@ public class TransientErrorDetectorTest
         var wrapped = new JobPersistenceException("couldn't store trigger", new SqlServerException(2627));
 
         TransientErrorDetector.IsTransient(wrapped).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// The one shipped driver exception that can be constructed from outside its assembly, asked about
+    /// directly: Microsoft.Data.Sqlite reports busy and locked only through <c>SqliteErrorCode</c>.
+    /// </summary>
+    [TestCase(5, TestName = "RealSqliteBusyIsTransient")]
+    [TestCase(6, TestName = "RealSqliteLockedIsTransient")]
+    public void RealSqliteBusyOrLockedIsTransient(int code)
+    {
+        global::Microsoft.Data.Sqlite.SqliteException busy = new("database is locked", code);
+        busy.IsTransient.Should().BeFalse("the driver leaves DbException.IsTransient alone, so the error code is the only signal");
+
+        TransientErrorDetector.IsTransient(new JobPersistenceException("couldn't acquire next trigger", busy)).Should().BeTrue(
+            "SQLITE_BUSY and SQLITE_LOCKED mean another connection holds the lock, which is the case retrying exists for");
+    }
+
+    /// <summary>
+    /// Every driver member the detector reads by name is named in a <see cref="DynamicDependencyAttribute" />
+    /// on the one method that reads them, so a trimmed application keeps it whenever that driver is in it.
+    /// </summary>
+    /// <remarks>
+    /// A misspelt dependency keeps nothing, and nothing in this repository would say so: ILLink reports an
+    /// unresolved type or member only when the driver is in the publish, and the trim canaries carry
+    /// Microsoft.Data.Sqlite alone. So each dependency whose driver this project references is resolved
+    /// against the real assembly here. The two it does not reference are named, so a new one cannot go
+    /// unchecked by accident.
+    /// </remarks>
+    [Test]
+    public void EveryDriverMemberTheDetectorReadsIsKeptForATrimmedApplication()
+    {
+        MethodInfo findDriverProperty = typeof(TransientErrorDetector).GetMethod("FindDriverProperty", BindingFlags.NonPublic | BindingFlags.Static);
+        findDriverProperty.Should().NotBeNull("the detector's reflection goes through the one method that carries the dependencies");
+        List<DynamicDependencyAttribute> dependencies = findDriverProperty.GetCustomAttributes<DynamicDependencyAttribute>().ToList();
+
+        dependencies.Select(x => x.MemberSignature).Distinct().Should().BeEquivalentTo(
+            new[] { "SQLSTATE", "Errors", "Number", "SqliteErrorCode", "ResultCode" },
+            "these are the names the detector looks up, and a lookup with no dependency is one a trimmer may empty");
+
+        foreach (DynamicDependencyAttribute dependency in dependencies)
+        {
+            Type type = Type.GetType($"{dependency.TypeName}, {dependency.AssemblyName}", throwOnError: false);
+            if (type is null)
+            {
+                dependency.AssemblyName.Should().BeOneOf(new[] { "System.Data.SqlClient", "System.Data.SQLite" },
+                    "every other driver is referenced by this project, so its dependency can be resolved here");
+                continue;
+            }
+
+            type.GetProperty(dependency.MemberSignature, BindingFlags.Instance | BindingFlags.Public).Should().NotBeNull(
+                "{0} in {1} has to declare the property the detector reads, or the dependency keeps nothing",
+                dependency.TypeName, dependency.AssemblyName);
+        }
     }
 
     /// <summary>A driver exception that reports its own verdict and nothing else.</summary>

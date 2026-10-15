@@ -22,6 +22,7 @@
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -130,7 +131,7 @@ internal static class TransientErrorDetector
 
         PropertyInfo? sqlStateProperty = sqlStateProperties.GetOrAdd(
             exception.GetType(),
-            static type => type.GetProperty("SQLSTATE", BindingFlags.Instance | BindingFlags.Public));
+            static type => FindDriverProperty(type, "SQLSTATE"));
 
         return sqlStateProperty?.GetValue(exception) as string;
     }
@@ -152,7 +153,7 @@ internal static class TransientErrorDetector
     {
         PropertyInfo? errorsProperty = errorsProperties.GetOrAdd(
             exception.GetType(),
-            static type => type.GetProperty("Errors", BindingFlags.Instance | BindingFlags.Public));
+            static type => FindDriverProperty(type, "Errors"));
 
         if (errorsProperty?.GetValue(exception) is not IEnumerable errors)
         {
@@ -170,7 +171,7 @@ internal static class TransientErrorDetector
 
             PropertyInfo? numberProperty = numberProperties.GetOrAdd(
                 error.GetType(),
-                static type => type.GetProperty("Number", BindingFlags.Instance | BindingFlags.Public));
+                static type => FindDriverProperty(type, "Number"));
 
             if (numberProperty?.GetValue(error) is int errorNumber && IsTransientSqlServerErrorNumber(errorNumber))
             {
@@ -324,7 +325,7 @@ internal static class TransientErrorDetector
 
         PropertyInfo? sqliteErrorCode = sqliteErrorCodeProperties.GetOrAdd(
             type,
-            static t => t.GetProperty("SqliteErrorCode", BindingFlags.Instance | BindingFlags.Public));
+            static t => FindDriverProperty(t, "SqliteErrorCode"));
 
         if (sqliteErrorCode is not null)
         {
@@ -333,7 +334,7 @@ internal static class TransientErrorDetector
 
         PropertyInfo? resultCode = sqliteResultCodeProperties.GetOrAdd(
             type,
-            static t => t.GetProperty("ResultCode", BindingFlags.Instance | BindingFlags.Public));
+            static t => FindDriverProperty(t, "ResultCode"));
 
         return resultCode?.GetValue(exception)?.ToString() is "Busy" or "Locked";
     }
@@ -341,4 +342,43 @@ internal static class TransientErrorDetector
     private static readonly ConcurrentDictionary<Type, PropertyInfo?> sqliteErrorCodeProperties = new();
 
     private static readonly ConcurrentDictionary<Type, PropertyInfo?> sqliteResultCodeProperties = new();
+
+    /// <summary>
+    /// Finds a public instance property a driver declares on its exception or error type, by the name
+    /// the driver gave it. <see langword="null" /> when the type has no such property.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The only reflection in this type. Each member it is asked for is named below, so a trimmed or
+    /// natively compiled application keeps it whenever the driver's assembly is part of the application.
+    /// Without that, the trimmer removes a property nothing calls directly, the lookup answers
+    /// <see langword="null" />, and the error is classified as not transient with no warning at run time:
+    /// a busy SQLite database, or a SQL Server deadlock victim, fails where it would have been retried.
+    /// Microsoft.Data.SqlClient reports neither <see cref="DbException.IsTransient" /> nor
+    /// <see cref="DbException.SqlState" />, so its error numbers are its only signal.
+    /// </para>
+    /// <para>
+    /// A driver that is not in the application throws nothing to classify, so the dependency on its
+    /// assembly has nothing to keep. ILLink and ILCompiler still report each such assembly as
+    /// <c>IL2035</c>, and an application has one SQL Server driver at most, so every application with a
+    /// persistent store would see three or four of them; that warning is suppressed here for the same
+    /// reason. A type Quartz does not name here — a driver it has never heard of that reports errors
+    /// the same way — is read on the same terms as before: its property is found if something else kept
+    /// it.
+    /// </para>
+    /// </remarks>
+    [DynamicDependency("Errors", "Microsoft.Data.SqlClient.SqlException", "Microsoft.Data.SqlClient")]
+    [DynamicDependency("Number", "Microsoft.Data.SqlClient.SqlError", "Microsoft.Data.SqlClient")]
+    [DynamicDependency("Errors", "System.Data.SqlClient.SqlException", "System.Data.SqlClient")]
+    [DynamicDependency("Number", "System.Data.SqlClient.SqlError", "System.Data.SqlClient")]
+    [DynamicDependency("SqliteErrorCode", "Microsoft.Data.Sqlite.SqliteException", "Microsoft.Data.Sqlite")]
+    [DynamicDependency("ResultCode", "System.Data.SQLite.SQLiteException", "System.Data.SQLite")]
+    [DynamicDependency("SQLSTATE", "FirebirdSql.Data.FirebirdClient.FbException", "FirebirdSql.Data.FirebirdClient")]
+    [DynamicDependency("SQLSTATE", "FirebirdSql.Data.Common.IscException", "FirebirdSql.Data.FirebirdClient")]
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Every driver member this is asked for is kept by the DynamicDependency attributes beside it whenever the driver is in the application. Any other type answers null, which classifies its error as not transient - the answer an exception Quartz has never heard of always got.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2035", Justification = "The drivers are optional. One that is not in the application throws no exception to classify, so there is nothing of it to keep.")]
+    private static PropertyInfo? FindDriverProperty(Type type, string name)
+    {
+        return type.GetProperty(name, BindingFlags.Instance | BindingFlags.Public);
+    }
 }

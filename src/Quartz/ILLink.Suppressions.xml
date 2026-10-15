@@ -131,14 +131,11 @@
       </attribute>
     </type>
 
-    <!-- Duck-typed exception inspection -->
-    <type fullname="Quartz.Impl.AdoJobStore.TransientErrorDetector*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2070</argument>
-        <property name="Justification">Retry classification reads provider error codes off exception types Quartz deliberately does not reference.</property>
-      </attribute>
-    </type>
+    <!--
+      Duck-typed exception inspection is gone too. TransientErrorDetector names the driver members it reads
+      with [DynamicDependency], so they survive, and suppresses its own IL2070, and the IL2035 an absent
+      driver's assembly raises, at the call site.
+    -->
 
     <!--
       Configuration binding was the last group here and is gone rather than re-justified. Quartz.csproj
