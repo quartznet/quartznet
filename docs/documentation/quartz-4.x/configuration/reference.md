@@ -706,6 +706,8 @@ services.AddQuartz(q => q.UseTypeLoader(loader =>
 - Flat keys naming a scheduler's own components are read while the service collection is built, before
   options exist, and are not aliased.
 - An alias whose target names no loadable type fails options validation at startup.
+- In a trimmed publish the target must be a registered type: `Map(name, typeof(T))` registers it, a
+  configured alias does not. See [Feature switches](../how-tos/trimming-and-native-aot.md#feature-switches).
 - Nothing is written back, so retiring an alias still needs the SQL `UPDATE` — see
   [Job deserialization failures after refactoring](../../troubleshooting.md#job-deserialization-failures-after-refactoring).
 
@@ -873,6 +875,11 @@ above and produces the same result.
   options are `TimeSpan` (`"00:00:30"`).
 - A `.type` key names an implementation. In code, use the matching `Use*` method, which the compiler
   checks.
+- Under `PublishTrimmed` or `PublishAot`, a `.type` key, `quartz.jobStore.driverDelegateInitString`,
+  `quartz.dbprovider.NAME.*`, `quartz.plugin.NAME.*` and a component's leftover keys are refused unless
+  `QuartzLegacyComponentKeysSupport` is `true`. Quartz's own spellings of `quartz.jobStore.type`,
+  `quartz.threadPool.type` and `quartz.serializer.type`, and `SYS_PROP`, still work. See
+  [Feature switches](../how-tos/trimming-and-native-aot.md#feature-switches).
 
 | Flat key | Option |
 |---|---|

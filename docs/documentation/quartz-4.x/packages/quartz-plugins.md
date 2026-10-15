@@ -20,7 +20,9 @@ dotnet add package Quartz.Plugins
 ## Configuration
 
 Add and configure each plugin with its extension method. The 3.x flat keys,
-`quartz.plugin.{name-to-refer-with}.{property}`, still work.
+`quartz.plugin.{name-to-refer-with}.{property}`, still work, except in a trimmed or native publish, which
+refuses them unless `QuartzLegacyComponentKeysSupport` is `true`: there, use the extension method or
+`AddPlugin<T>()`. See [Feature switches](../how-tos/trimming-and-native-aot.md#feature-switches).
 
 | Plugin | Extension | Options |
 |---|---|---|

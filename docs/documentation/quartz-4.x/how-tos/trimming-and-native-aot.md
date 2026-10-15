@@ -11,7 +11,10 @@ Quartz's position:
 * `Quartz` and six side packages declare `IsAotCompatible`. Each is published by ILCompiler and run on
   every pull request.
 * Every other shipped package declares whether it is trimmable.
-* Paths that cannot be analysed, such as a job type arriving as a string, are reported, not suppressed.
+* A job type arriving as a string resolves from the types you registered. The reflective fallback is a
+  [feature switch](#feature-switches), off in a trimmed publish, and so are the flat `quartz.*` keys that
+  name a component.
+* What still reflects is reported, not suppressed: one type, `ValueConverter`.
 
 Deciding whether to try: [what Quartz claims](#what-quartz-claims). Ready to publish:
 [the recipe](#the-recipe).
@@ -54,48 +57,101 @@ arrived in .NET 10, and many compatible libraries do not declare it. Treat the l
 
 | Package | Trimmable | `IsAotCompatible` | What proves it natively | What a trimmed publish reports against it |
 |---|---|---|---|---|
-| `Quartz` | yes | yes | `Quartz.Trimming.Canary`: a SQLite store, configuration binding | the string-named paths in the next section |
+| `Quartz` | yes | yes | `Quartz.Trimming.Canary`: a SQLite store, configuration binding, a type name refused once the switches are off | `ValueConverter`, see [What still warns](#what-still-warns-and-what-to-do-about-it) |
 | `Quartz.Jobs` | yes | yes | `Quartz.Trimming.Canary`: `DirectoryScanJob` finds its listener by name | nothing |
-| `Quartz.Plugins` | yes | yes | `Quartz.Trimming.Canary`: JSON and XML schedule files, structured job logging | two: the XML and JSON schedule-file plugins name each job's type as text |
+| `Quartz.Plugins` | yes | yes | `Quartz.Trimming.Canary`: JSON and XML schedule files, structured job logging | nothing |
 | `Quartz.Plugins.TimeZoneConverter` | yes | yes | `Quartz.Trimming.Canary`, published without ICU: a zone only the converter resolves | nothing |
-| `Quartz.HttpClient` | yes | yes | `Quartz.Trimming.Canary.Wire`: drives the HTTP API over loopback, reads its event stream | one: a job read back over HTTP carries its type as a name |
-| `Quartz.AspNetCore` | yes | yes | `Quartz.Trimming.Canary.Wire`: serves the HTTP API on Kestrel | one: a job posted to the HTTP API names its type as a string |
-| `Quartz.Dashboard.Agent` | yes | yes | `Quartz.Trimming.Canary.Wire`: dials a hub, is driven down the tunnel | one: a job sent down the tunnel names its type as a string |
+| `Quartz.HttpClient` | yes | yes | `Quartz.Trimming.Canary.Wire`: drives the HTTP API over loopback, reads its event stream | nothing |
+| `Quartz.AspNetCore` | yes | yes | `Quartz.Trimming.Canary.Wire`: serves the HTTP API on Kestrel | nothing |
+| `Quartz.Dashboard.Agent` | yes | yes | `Quartz.Trimming.Canary.Wire`: dials a hub, is driven down the tunnel | nothing |
 | `Quartz.Extensions.Redis` | yes | no: a canary needs a Redis server | — | nothing |
 | `Quartz.Aspire` | yes | no: its one path names a driver, which is `[RequiresUnreferencedCode]` | — | that call site, at your `AddQuartzPersistentStore` |
 | `Quartz.Weasel` and the six dialect packages | yes | no: each dialect needs its database | — | nothing |
 | `Quartz.Serialization.Newtonsoft` | **no** | no | — | see [below](#the-two-packages-that-are-not-trimmable) |
 | `Quartz.Dashboard` | **no** | no | — | see [below](#the-two-packages-that-are-not-trimmable) |
 
-* The side packages' remaining warnings are all `IL2026`, which is not collapsed, so you see those five.
 * Every trimmable package builds with the trim, AOT and single-file analyzers on and warnings as errors.
-  What remains is recorded in a `TrimAnalysisBaseline.cs` beside each csproj (Jobs, Redis,
-  TimeZoneConverter, Aspire and the Weasel packages need none).
-* Those files do not ship, and nothing is suppressed in shipped assemblies: an
+  What remains is two entries in `src/Quartz/TrimAnalysisBaseline.cs`; no other package records anything.
+* That file does not ship, and nothing is suppressed in shipped assemblies: an
   `UnconditionalSuppressMessage` in a library would hide the risk from your application.
 * `IsAotCompatible` is set only where a canary runs the package natively; the claim's reach is the canary's.
   The packages without it are not known to be incompatible: nothing runs them natively on every pull request.
 
-### What still warns, and what to do about each
+### Feature switches
 
-Nearly all of it is a type or member named by a string: either an API marked `[RequiresUnreferencedCode]`,
-which you avoid at compile time, or a path only one configuration style reaches.
+Two switches put Quartz's reflection behind a setting. `PublishTrimmed` and `PublishAot` turn both off
+through the targets file in the `Quartz` package; nothing else changes.
 
-| What names a type as text | Where you meet it | What to do |
+| Switch | MSBuild property | Off means |
 |---|---|---|
-| A job's type, spelled as a string | `JobType(string)`, `OfType(string)`, the `string` → `JobType` cast | use the typed forms; they carry `[DynamicallyAccessedMembers]` and warn about nothing |
-| The persisted `JOB_CLASS_NAME` column | any ADO.NET job store, when it reads a job back | register the job type with `AddJob<TJob>()` or `AddJobType<TJob>()` — that call is what the trimmer follows |
-| A schedule file | `job_scheduling_data` XML and its JSON twin, from `Quartz.Plugins` | the same: register the types the file names, or root them |
-| Jobs declared in configuration | the `Quartz:Schedule` section, and the type loader named by `quartz.scheduler.typeLoaderType` | the same again |
-| A job type in a request body | the HTTP API, `Quartz.HttpClient` reading a job back, and `Quartz.Dashboard.Agent` receiving one down the tunnel | register the types a caller may name |
-| A driver, chosen by name | `UseSqlServer(connectionString)` and its siblings | [hand over the driver's factory](#register-the-store-with-the-driver-s-factory) instead |
-| The flat `quartz.*` keys | `AddQuartz(NameValueCollection)`, `quartz.plugin.*`, `quartz.dbprovider.*` | configure in code or from `appsettings.json`; neither reaches these |
+| `Quartz.TypeNameResolution.IsSupported` | `QuartzTypeNameResolutionSupport` | a type name resolves only to a type you registered; an unknown name is refused naming the registration to add |
+| `Quartz.LegacyComponentKeys.IsSupported` | `QuartzLegacyComponentKeysSupport` | a flat `quartz.*` key that names a component by type, or sets its properties by string, fails `AddQuartz` naming the code form |
 
-One warning needs no action:
+Both default to `true`; under `PublishTrimmed` or `PublishAot` the package defaults them to `false`. A
+`dotnet run` of a `PublishTrimmed` project has them off too, through `runtimeconfig.json`, so what you
+see in development is what the publish does.
+
+What registers a type, for the first switch: `AddJob<TJob>()`, `AddJobType<TJob>()`,
+`JobBuilder.Create<TJob>()`, `OfType<TJob>()`, `ScheduleJob<TJob>()`, `TriggerBuilder.Create<TJob>()`,
+`new JobType(typeof(TJob))`, `UseTypeLoader(o => o.Map(name, typeof(TJob)))`. `[QuartzJob]` registers
+through the generated `AddDeclaredJobs()`. A name is matched as stored, with or without its version, and in
+its 3.x spelling. `Quartz.Jobs` registers nothing by itself: a trimmed application that schedules
+`NoOpJob` calls `AddJobType<NoOpJob>()`.
+
+What stops working, and the message:
+
+| Off | What fails | Message |
+|---|---|---|
+| Type names | `ITypeLoader.LoadType` of an unregistered name: a schedule file, the `Quartz:Schedule` section, a `.type` key | `TypeLoadException`: *Type 'X' is not registered, and this publish does not resolve type names by reflection (Quartz.TypeNameResolution.IsSupported is false). Register the job type with AddJob<T>() or AddJobType<T>() …* |
+| Type names | a stored `JOB_CLASS_NAME`, or a job type in a request body, nothing registered | the job lists and loads; its first fire fails to instantiate with the same text, and the trigger goes to `ERROR` |
+| Type names | `UseSqlite(connectionString)` and its siblings, `quartz.dataSource.<name>.provider` | `SchedulerConfigException` at startup: *Driver 'X' is described by type names, which this publish does not resolve … Pass the driver's DbProviderFactory* |
+| Component keys | `quartz.jobStore.type`, `quartz.threadPool.type`, `quartz.serializer.type`, `quartz.scheduler.typeLoadHelper.type`, `quartz.scheduler.jobFactory.type`, `quartz.scheduler.instanceIdGenerator.type`, `quartz.timeProvider.type`, `quartz.jobStore.driverDelegateType`, `quartz.jobStore.driverDelegateInitString`, `quartz.jobStore.lockHandler.type`, `quartz.dataSource.<name>.connectionProvider.type`, `quartz.dbprovider.*`, `quartz.plugin.*`, and a component's leftover keys | `SchedulerConfigException` from `AddQuartz` (`GetScheduler()` for `quartz.plugin.*`): *Configuration property 'X' names a component or sets its properties by string, which this publish does not do … In code, UseJobStore<T>() …* |
+
+Quartz's own spellings keep working with the second switch off, mapped to the type with no reflection:
+`quartz.jobStore.type` = `RAMJobStore`; `quartz.threadPool.type` = `SimpleThreadPool`/`DefaultThreadPool`;
+`quartz.serializer.type` = `stj`/`json`; `quartz.scheduler.instanceId` = `SYS_PROP`. Every value key binds
+as before. `quartz.jobStore.type` = `JobStoreTX`/`LocalTransactionJobStore` or
+`JobStoreCMT`/`ExternalTransactionJobStore` is accepted beside a `UsePersistentStore` call in code, which it
+loses to as it always did, and refused on its own: a persistent store named by keys alone names its driver
+by type, which the first switch refuses, and mapping the key to the store's type would root the whole
+ADO.NET store in every trimmed application.
+
+To opt back in:
+
+```xml
+<PropertyGroup>
+  <QuartzTypeNameResolutionSupport>true</QuartzTypeNameResolutionSupport>
+  <QuartzLegacyComponentKeysSupport>true</QuartzLegacyComponentKeysSupport>
+</PropertyGroup>
+```
+
+The publish then keeps the reflection and reports `IL2026` at each guarded call site in `Quartz`. The
+trimmer may still have removed what the reflection looks for; the switches exist because that is not
+something a warning can rule out.
+
+::: warning A `ProjectReference` to Quartz needs the targets file
+The switches reach a `PackageReference` consumer through `buildTransitive`. A project that references
+`Quartz.csproj` directly imports `src/Quartz/buildTransitive/net10.0/Quartz.targets` by path, as the
+canaries do. Without a setting, ILLink and ILCompiler ignore the guard and report `IL2026` at every guarded
+call, and the publish keeps the reflection.
+:::
+
+### What still warns, and what to do about it
+
+One type, and it needs no action:
 
 * **`Quartz.Util.ValueConverter`** (`IL2026`, `IL2067`): coercing a `JobDataMap` value onto a job property
   of another type goes through `TypeDescriptor`, and `PropertyInfo.PropertyType` cannot be annotated. Keep
-  job data to the types the map has accessors for and it is never reached.
+  job data to the types the map has accessors for and it is never reached. A switch for it is
+  [#4082](https://github.com/quartznet/quartznet/issues/4082).
+
+Everything else is a decision you make at compile time, and the compiler tells you:
+
+| What names a type as text | Where you meet it | What to do |
+|---|---|---|
+| A driver, chosen by name | `UseSqlServer(connectionString)` and its siblings, `[RequiresUnreferencedCode]` | [hand over the driver's factory](#register-the-store-with-the-driver-s-factory); trimmed, the name fails at startup |
+| A job's type, spelled as a string | `JobType(string)`, the `string` → `JobType` cast, a schedule file, a request body, `JOB_CLASS_NAME` | register the type with `AddJob<TJob>()` or `AddJobType<TJob>()`; that is what the name resolves from |
+| The flat `quartz.*` keys | `AddQuartz(NameValueCollection)`, `quartz.plugin.*`, `quartz.dbprovider.*` | configure in code or from `appsettings.json`; the [value keys](#feature-switches) still bind |
 
 Retry classification reports nothing. It reads `SqlError.Number`, `SqliteException.SqliteErrorCode` and
 Firebird's `SQLSTATE` by name, and Quartz keeps each with `[DynamicDependency]` whenever that driver is in
@@ -109,9 +165,10 @@ The only real work is registering job types, and `AddJob<TJob>()` does that.
 ### Register the store with the driver's factory
 
 Quartz references no driver, so `UseSqlite(connectionString)` resolves the driver's connection, command and
-parameter types from strings. The trimmer removes them, and the container fails to build with
-`Cannot instantiate type which has no empty constructor`. Every `Use<Db>` also takes the driver's
-`DbProviderFactory`, which names nothing:
+parameter types from strings. With the [type-name switch](#feature-switches) off, the container fails to
+build with a `SchedulerConfigException` naming this section; with it on, the trimmer may have removed the
+types and the failure is `Cannot instantiate type which has no empty constructor`. Every `Use<Db>` also
+takes the driver's `DbProviderFactory`, which names nothing:
 
 <!-- snippet: sample_trimming_provider_factory -->
 ```csharp
@@ -159,10 +216,12 @@ services.AddQuartz(q =>
 <!-- endSnippet -->
 
 * Annotated: `JobBuilder.Create<TJob>()`, `OfType<TJob>()`, `AddJob<TJob>()`, `AddJobType<TJob>()`,
-  `ScheduleJob<TJob>`, `TriggerBuilder.Create<TJob>()`. Their string-taking counterparts carry
-  `[RequiresUnreferencedCode]`.
+  `ScheduleJob<TJob>`, `TriggerBuilder.Create<TJob>()`. Each also registers the type by name, which is
+  what a string — `JobType(string)`, a schedule file, a stored row — resolves from in a trimmed publish.
 * Wrapping one in your own generic method: annotate the forwarding type parameter too; the trim analyzer
   says where.
+* A type the trimmed application never registers is refused by name, not found by reflection. The message
+  says which call to add.
 
 ### Declare your own job-data value types
 
@@ -231,7 +290,10 @@ as AOT-safe as code. (With the reflection binder, the canary published natively 
 `MaxBatchSize`, `ShutdownJobInterruption` and the scheduler context at their defaults; this was the last
 `IL3050`.)
 
-The flat `quartz.*` keys still work, with warnings: they name components and set properties by string.
+The flat `quartz.*` keys bind their values as before. A key that names a component by type, or sets a
+component's properties by string, is refused under trimming unless `QuartzLegacyComponentKeysSupport` is
+`true`; Quartz's own spellings of a store, a thread pool, a serializer and `SYS_PROP` are the exception.
+See [Feature switches](#feature-switches).
 
 ## The worked example
 
@@ -255,6 +317,13 @@ The flat `quartz.*` keys still work, with warnings: they name components and set
    with ICU present .NET converts every IANA and Windows id itself, and no id ever reaches a resolver.
 5. **Retry classification.** A `SqliteException` reporting busy or locked, wrapped the way the store wraps
    it, is transient; a constraint failure is not. The answer comes from `SqliteErrorCode`, read by name.
+6. **Type names.** Asserts both [feature switches](#feature-switches) read `false`. A registered job's name
+   resolves through the container's `ITypeLoader`; `NoOpJob`, registered with `AddJobType<NoOpJob>()`,
+   resolves under its 4.x spelling and the 3.x one a database may hold; a type that exists in the
+   executable but was never registered is refused with the `TypeLoadException` that names `AddJob<T>()`
+   and the switch. That line is what shows reflection is off rather than unset: with it on, the runtime
+   finds the type. Then `AddQuartz` over a property bag naming `Quartz.Simpl.RAMJobStore` builds a
+   scheduler, and one naming a store Quartz does not ship is refused naming `UseJobStore<T>()`.
 
 `src/Quartz.Trimming.Canary.Wire` does the same for the three packages that put a scheduler on a wire. One
 process serves a scheduler with `Quartz.AspNetCore` on Kestrel, drives it with `Quartz.HttpClient` over
@@ -308,9 +377,12 @@ Both csprojs:
 * **No** `TrimmerRootAssembly` and no suppressions file, so a missing `JsonTypeInfo` or removed constructor
   shows up.
 * Warnings are not errors, because the canaries reach the recorded reflection. The build target instead
-  checks them against the `ILLink.Suppressions.xml` of each Quartz package the canary references, and fails
-  on any unrecorded Quartz warning. (ILCompiler has no `--link-attributes`, so a suppressions file cannot be
-  passed to a native publish.)
+  checks them against `src/Quartz/ILLink.Suppressions.xml`, and fails on any unrecorded Quartz warning,
+  from any Quartz package. (ILCompiler has no `--link-attributes`, so a suppressions file cannot be passed
+  to a native publish.)
+* Both import `src/Quartz/buildTransitive/net10.0/Quartz.targets` by path, which is what a
+  `PackageReference` consumer gets for free: it turns the two switches off, and without it the publish
+  reports `IL2026` at every guarded call and fails the check.
 * CI publishes and *starts* both for the runner's RID, on Windows, Linux and macOS, on every pull request
   that touches code.
 
@@ -321,27 +393,30 @@ dotnet fallout PublishAot
 
 ### Reading the warnings your own publish reports
 
-A trimmed canary publish reports about twenty-five warnings against Quartz. Yours will be a subset, mostly
-the `IL2026` rows unless `TrimmerSingleWarn` is false.
+A trimmed canary publish reports two warnings against Quartz, both on one type. Yours reports the same two
+when a job's data is coerced onto its properties, and nothing when the switches are off and reflection was
+never kept.
 
 | Group | Codes | Reached by |
 |---|---|---|
-| `QuartzPropertyBridge`, `SchedulerPluginFactory` | `IL2026`, `IL2067`, `IL2072` | configuring with flat `quartz.*` keys |
-| `SimpleTypeLoader`, `JobType` | `IL2057` | a job type named as a string, anywhere, including `JOB_CLASS_NAME` read back out of an ADO.NET store |
-| `BuiltInDbMetadataFactory`, `ConfigurationBasedDbMetadataFactory` | `IL2026`, `IL2057` | the ADO.NET store being in the closure at all |
 | `ValueConverter` | `IL2026`, `IL2067` | job data coerced onto job properties |
-| `JsonSchedulingHelper` | `IL2057` | the `Quartz:Schedule` reader, which takes a type loader named by `quartz.scheduler.typeLoaderType` |
 
-* **Warnings are about reachability.** The canary never names a driver, yet `BuiltInDbMetadataFactory`'s
-  `IL2057` appears because that code is in the closure.
+With `QuartzTypeNameResolutionSupport` or `QuartzLegacyComponentKeysSupport` set to `true`, the publish
+also reports `IL2026` at each call site the switch guards: `SimpleTypeLoader`, `JobType`,
+`BuiltInDbMetadataFactory` for the first; `QuartzPropertyBridge`, `SchedulerPluginFactory`,
+`ConfigurationBasedDbMetadataFactory` for the second. That is the reflection the setting chose to keep.
+
+* **Warnings are about reachability.** Everything in the closure is analysed, whether or not your
+  configuration reaches it; the switches are what take the unreachable half out of the closure.
 * **Warnings are not failures, and failures may not warn.** What breaks a trimmed app is a removed type,
   found at run time. Both real bugs found in this work passed a successful publish; one broke every
   persistent store in every trimmed application with no new warning. That is why the canary runs.
-* **Report** any `IL3050` naming a Quartz member, or a warning in a Quartz type missing from its package's
-  `TrimAnalysisBaseline.cs`. Those files are the complete record, checked on every pull request.
+* **Report** any `IL3050` naming a Quartz member, or a warning in a Quartz type that
+  `src/Quartz/TrimAnalysisBaseline.cs` does not record. That file is the complete record, checked on every
+  pull request.
 
-Closing the remaining string-named `IL2xxx` is tracked by
-[#3341](https://github.com/quartznet/quartznet/issues/3341). They are why `IsAotCompatible` is
+What remains is [#3341](https://github.com/quartznet/quartznet/issues/3341): `ValueConverter`, and the
+reflection in the drivers themselves, which is not Quartz's to record. They are why `IsAotCompatible` is
 [the narrow claim](#what-quartz-claims).
 
 ## The two packages that are not trimmable
@@ -360,7 +435,7 @@ nuget.org.
 
 | Library | Declares `IsAotCompatible` | How a stored job is resolved |
 |---|---|---|
-| Quartz | yes, narrowly (see [above](#what-quartz-claims)) | a type name in `JOB_CLASS_NAME`, turned back into a `Type` |
+| Quartz | yes, narrowly (see [above](#what-quartz-claims)) | a type name in `JOB_CLASS_NAME`, answered from a table of registered types; reflection only when `Quartz.TypeNameResolution.IsSupported` is on |
 | [TickerQ](https://github.com/Arcenox-co/TickerQ) | yes | against a `FrozenDictionary` its source generator fills at compile time |
 | [Wolverine 6](https://wolverinefx.io/guide/aot) | yes | handler code generated ahead of time and loaded with `TypeLoadMode.Static` |
 | [Hangfire](https://github.com/HangfireIO/Hangfire) | no ([#2478](https://github.com/HangfireIO/Hangfire/issues/2478) open) | an assembly-qualified string, through `Type.GetType` |
@@ -371,8 +446,10 @@ Coravel, NCronJob, FluentScheduler and Silverback do not mention it.
 
 The claim is cheap when a stored name is resolved against a compile-time table, and expensive when it is a
 *type* name. `JOB_CLASS_NAME` is a persisted contract that cannot change without breaking existing
-databases, so Quartz claims no runtime code generation, reports every reflective call site, and runs a real
-store from a native executable on every pull request; it does not claim the string-named paths are gone.
+databases, so Quartz keeps the name and changes what answers it: the types you registered, which is a
+table like TickerQ's filled at startup rather than at compile time. It claims no runtime code generation,
+reports the one reflective call site left, and runs a real store from a native executable on every pull
+request.
 
 Json.NET upstream also runs the trim and AOT analyzers without setting either flag, so no `IsTrimmable`
 metadata reaches consumers who publish with `TrimMode=partial`. Quartz 3.x makes no statement:
