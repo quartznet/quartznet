@@ -36,7 +36,14 @@ namespace Quartz.Benchmark;
 /// </code>
 /// <para>
 /// <c>--one-off-census</c> is the same workload with the statements counted at the database instead
-/// of the wall clock measured here.
+/// of the wall clock measured here. <see cref="ExecutionHistory" /> is the census's
+/// <c>QUARTZ_CENSUS_EXECUTION_HISTORY</c> as a parameter: with it on, every firing also writes its
+/// history row and its job's status row, in a transaction of their own on the worker's thread.
+/// </para>
+/// <para>
+/// <see cref="RoundTripLatency" /> applies here: with <c>QUARTZ_BENCHMARK_ROUND_TRIP_MS</c> set, every
+/// statement, batch and commit is charged that much. A one-off's completion is where the round trips
+/// a worker holds a connection for are, and loopback hides every one of them.
 /// </para>
 /// </remarks>
 [MemoryDiagnoser]
@@ -60,6 +67,13 @@ public class OneOffThroughputPostgresBenchmark
     [Params(OneOffProfile.Defaults, OneOffProfile.BatchOnly, OneOffProfile.Tuned)]
     public OneOffProfile Profile { get; set; }
 
+    /// <summary>
+    /// Whether the store keeps its execution history in the database (<c>UseExecutionHistory()</c>), so
+    /// that a firing's cost includes its history row and its job's status row.
+    /// </summary>
+    [Params(false, true)]
+    public bool ExecutionHistory { get; set; }
+
     private BenchmarkDatabase database = null!;
     private IScheduler scheduler = null!;
 
@@ -67,9 +81,12 @@ public class OneOffThroughputPostgresBenchmark
     public async Task Setup()
     {
         database = await BenchmarkDatabase.Open(BenchmarkDialect.Postgres).ConfigureAwait(false);
-        await OneOffCensus.ClearRows(database, SchedulerName).ConfigureAwait(false);
+        await ClearRows().ConfigureAwait(false);
+        Console.WriteLine(RoundTripLatency.Describe());
 
         string connectionString = database.Provider.ConnectionString;
+        string providerName = database.ProviderName;
+        bool executionHistory = ExecutionHistory;
 
         scheduler = await OneOffThroughput.StartScheduler(
             instanceName: SchedulerName,
@@ -79,6 +96,12 @@ public class OneOffThroughputPostgresBenchmark
             {
                 store.UsePostgres(connectionString);
                 store.UseSystemTextJsonSerializer();
+                RoundTripLatency.Inject(store, providerName, connectionString);
+
+                if (executionHistory)
+                {
+                    store.UseExecutionHistory();
+                }
             })).ConfigureAwait(false);
     }
 
@@ -86,8 +109,18 @@ public class OneOffThroughputPostgresBenchmark
     public async Task Cleanup()
     {
         await OneOffThroughput.StopScheduler(scheduler).ConfigureAwait(false);
-        await OneOffCensus.ClearRows(database, SchedulerName).ConfigureAwait(false);
+        await ClearRows().ConfigureAwait(false);
         await database.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Every row this benchmark's scheduler owns, the history's included: a status row left by the arm
+    /// with history on would be updated rather than inserted by the next, which is a different statement.
+    /// </summary>
+    private async Task ClearRows()
+    {
+        await OneOffCensus.ClearRows(database, SchedulerName).ConfigureAwait(false);
+        await OneOffCensus.ClearExecutionHistoryRows(database, SchedulerName).ConfigureAwait(false);
     }
 
     /// <summary>Re-seeds the firings and waits until they are due, neither of which is measured.</summary>

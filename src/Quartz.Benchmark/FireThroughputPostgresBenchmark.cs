@@ -39,6 +39,17 @@ namespace Quartz.Benchmark;
 /// <c>Quartz.Tests.Integration</c> is where two nodes are exercised.
 /// </para>
 /// <para>
+/// <see cref="NonConcurrent" /> is the arm #4066 asked for: jobs that disallow concurrent execution,
+/// whose round the store spends the most reads on — the executing-jobs check and the paused-group
+/// reads — and whose completion unblocks the job's other triggers under the lock. The two arms read
+/// side by side say what that shape costs over the plain one.
+/// </para>
+/// <para>
+/// <see cref="RoundTripLatency" /> applies here: with <c>QUARTZ_BENCHMARK_ROUND_TRIP_MS</c> set, every
+/// statement, batch and commit is charged that much, which is how a round trip saved is made visible
+/// over loopback.
+/// </para>
+/// <para>
 /// Carries <see cref="BenchmarkCategories.RequiresDatabase" />, so it is outside the smoke run; the
 /// <c>RAMJobStore</c> arm is inside it and covers the shared harness.
 /// </para>
@@ -58,6 +69,13 @@ public class FireThroughputPostgresBenchmark
     [Params(10, 50)]
     public int MaxConcurrency { get; set; }
 
+    /// <summary>
+    /// Whether the jobs carry <see cref="DisallowConcurrentExecutionAttribute" />. A round then takes one
+    /// trigger of each job, and the job's other triggers wait <c>BLOCKED</c> for the firing to end.
+    /// </summary>
+    [Params(false, true)]
+    public bool NonConcurrent { get; set; }
+
     private BenchmarkDatabase database = null!;
     private IScheduler scheduler = null!;
 
@@ -70,8 +88,10 @@ public class FireThroughputPostgresBenchmark
     {
         database = await BenchmarkDatabase.Open(BenchmarkDialect.Postgres).ConfigureAwait(false);
         await ClearOwnRows().ConfigureAwait(false);
+        Console.WriteLine(RoundTripLatency.Describe());
 
         string connectionString = database.Provider.ConnectionString;
+        string providerName = database.ProviderName;
 
         scheduler = await FireThroughput.StartScheduler(
             instanceName: SchedulerName,
@@ -80,7 +100,9 @@ public class FireThroughputPostgresBenchmark
             {
                 store.UsePostgres(connectionString);
                 store.UseSystemTextJsonSerializer();
-            })).ConfigureAwait(false);
+                RoundTripLatency.Inject(store, providerName, connectionString);
+            }),
+            nonConcurrent: NonConcurrent).ConfigureAwait(false);
     }
 
     /// <summary>

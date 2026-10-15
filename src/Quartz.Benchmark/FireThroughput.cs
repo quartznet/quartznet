@@ -67,16 +67,19 @@ internal static class FireThroughput
     /// </summary>
     public const int AdoFiresPerInvocation = 250;
 
-    /// <summary>How many triggers are in flight, spread over <see cref="DefaultJobCount" /> jobs.</summary>
+    /// <summary>
+    /// How many triggers are in flight by default, spread over <see cref="DefaultJobCount" /> jobs.
+    /// </summary>
     /// <remarks>
     /// A schedule is triggers over a handful of jobs rather than one trigger each, and the store reads
     /// the job on every firing either way. The count is what decides the ceiling: a trigger that
     /// repeats every <see cref="RepeatInterval" /> can sustain a thousand firings a second on its own,
     /// so two thousand of them put the arrangement's own limit at two million a second — several times
     /// what the fastest arm here reaches, which is what keeps the number a measurement of the scheduler
-    /// rather than of the schedule.
+    /// rather than of the schedule. <see cref="FireThroughputScaleBenchmark" /> raises it, to measure the
+    /// store's own structures at a depth the default never reaches.
     /// </remarks>
-    private const int TriggerCount = 2_000;
+    public const int DefaultTriggerCount = 2_000;
 
     /// <summary>
     /// How many jobs the triggers are spread over by default. A hundred is a schedule of ordinary
@@ -198,19 +201,36 @@ internal static class FireThroughput
     /// </param>
     /// <param name="configureStore">Selects the job store; everything else is the same on both arms.</param>
     /// <param name="jobCount">
-    /// How many jobs the <see cref="TriggerCount" /> triggers are spread over. One is the one-off API's
-    /// shape and the arrangement #3823 is about; the default is a hundred.
+    /// How many jobs the <paramref name="triggerCount" /> triggers are spread over. One is the one-off
+    /// API's shape and the arrangement #3823 is about; the default is a hundred.
     /// </param>
     /// <param name="batching">
     /// How <c>MaxBatchSize</c> is set. Left out, it tracks the pool with a one-second window, which is
     /// what the PostgreSQL arm has always run at.
+    /// </param>
+    /// <param name="triggerCount">
+    /// How many triggers are in flight; <see cref="DefaultTriggerCount" /> unless a benchmark is about
+    /// the depth of the store.
+    /// </param>
+    /// <param name="nonConcurrent">
+    /// Whether the jobs carry <see cref="DisallowConcurrentExecutionAttribute" />, so that a round takes
+    /// one trigger of each and a firing holds the job's other triggers <c>BLOCKED</c> until it ends. On
+    /// a persistent store that is the round with the most reads per trigger, which #4066 is about.
+    /// </param>
+    /// <param name="executionHistory">
+    /// Whether every firing is recorded through <c>AddQuartzExecutionHistory()</c>: on the in-memory
+    /// store into <c>InMemoryExecutionHistoryStore</c>, on a persistent one into whatever
+    /// <paramref name="configureStore" /> registered — <c>UseExecutionHistory()</c> for the database.
     /// </param>
     public static async Task<IScheduler> StartScheduler(
         string instanceName,
         int maxConcurrency,
         Action<IQuartzBuilder> configureStore,
         int jobCount = DefaultJobCount,
-        FireBatching? batching = null)
+        FireBatching? batching = null,
+        int triggerCount = DefaultTriggerCount,
+        bool nonConcurrent = false,
+        bool executionHistory = false)
     {
         QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(quartz =>
         {
@@ -228,6 +248,11 @@ internal static class FireThroughput
 
             quartz.UseDefaultThreadPool(maxConcurrency);
             configureStore(quartz);
+
+            if (executionHistory)
+            {
+                quartz.Services.AddQuartzExecutionHistory();
+            }
         });
 
         IScheduler scheduler = await builder.BuildScheduler().ConfigureAwait(false);
@@ -235,11 +260,12 @@ internal static class FireThroughput
         Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> schedule = [];
         for (int i = 0; i < jobCount; i++)
         {
-            IJobDetail job = JobBuilder.Create<NoOpJob>()
-                .WithIdentity("job-" + i.ToString(CultureInfo.InvariantCulture), Group)
-                .Build();
+            string jobName = "job-" + i.ToString(CultureInfo.InvariantCulture);
+            IJobDetail job = nonConcurrent
+                ? JobBuilder.Create<SerialNoOpJob>().WithIdentity(jobName, Group).Build()
+                : JobBuilder.Create<NoOpJob>().WithIdentity(jobName, Group).Build();
 
-            int triggersForThisJob = TriggerCount / jobCount;
+            int triggersForThisJob = triggerCount / jobCount;
             ITrigger[] triggers = new ITrigger[triggersForThisJob];
             for (int j = 0; j < triggersForThisJob; j++)
             {
@@ -262,7 +288,7 @@ internal static class FireThroughput
 
         // Steady state before the first measurement: the pool has to be full and the store warm, or
         // the first iteration measures a scheduler waking up.
-        AwaitFires(TriggerCount);
+        AwaitFires(triggerCount);
 
         return scheduler;
     }
@@ -283,6 +309,21 @@ internal static class FireThroughput
     public sealed class NoOpJob : IJob
     {
         /// <summary>Counts the firing and releases whatever wait it completes.</summary>
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            Fired();
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// The same job, declared to run one firing at a time: the shape whose round the persistent store
+    /// spends the most reads on, and whose completion unblocks the job's other triggers under the lock.
+    /// </summary>
+    [DisallowConcurrentExecution]
+    public sealed class SerialNoOpJob : IJob
+    {
+        /// <inheritdoc cref="NoOpJob.Execute" />
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             Fired();

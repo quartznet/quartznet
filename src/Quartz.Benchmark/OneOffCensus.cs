@@ -84,12 +84,10 @@ internal static class OneOffCensus
         if (executionHistory)
         {
             Console.WriteLine("Execution history is on (QUARTZ_CENSUS_EXECUTION_HISTORY): the first arm's first firing inserts the job's status row, every other firing updates it.");
-            foreach (string table in (string[]) ["QRTZ_EXECUTION_HISTORY", "QRTZ_MISFIRE_HISTORY", "QRTZ_JOB_STATUS"])
-            {
-                await database.Execute($"DELETE FROM {table} WHERE SCHED_NAME = '{SchedulerName}'").ConfigureAwait(false);
-            }
+            await ClearExecutionHistoryRows(database, SchedulerName).ConfigureAwait(false);
         }
 
+        Console.WriteLine(RoundTripLatency.Describe());
         Console.WriteLine();
 
         List<string> tables = [];
@@ -132,6 +130,7 @@ internal static class OneOffCensus
             {
                 store.UsePostgres(connectionString);
                 store.UseSystemTextJsonSerializer();
+                RoundTripLatency.Inject(store, database.ProviderName, connectionString);
 
                 if (executionHistory)
                 {
@@ -236,6 +235,20 @@ internal static class OneOffCensus
                      "QRTZ_SCHEDULER_STATE",
                      "QRTZ_LOCKS",
                  ])
+        {
+            await database.Execute($"DELETE FROM {table} WHERE SCHED_NAME = '{schedulerName}'").ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Deletes what a scheduler name wrote with execution history on. Apart from <see cref="ClearRows" />,
+    /// because the census clears these once a run rather than once an arm: the job's status row is
+    /// inserted by the first firing that finds none and updated by every other, and the census wants
+    /// that first firing in its first arm alone.
+    /// </summary>
+    public static async Task ClearExecutionHistoryRows(BenchmarkDatabase database, string schedulerName)
+    {
+        foreach (string table in (string[]) ["QRTZ_EXECUTION_HISTORY", "QRTZ_MISFIRE_HISTORY", "QRTZ_JOB_STATUS"])
         {
             await database.Execute($"DELETE FROM {table} WHERE SCHED_NAME = '{schedulerName}'").ConfigureAwait(false);
         }
