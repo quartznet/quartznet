@@ -59,6 +59,14 @@ internal static class SqlParameters
     // The scheduler and its nodes
 
     public const string SchedulerName = "schedulerName";
+
+    /// <summary>
+    /// The scheduler name a second time, for a statement that names it in two places — a <c>UNION ALL</c>
+    /// over two tables. Bound under a name of its own because a provider that adapts named parameters
+    /// positionally needs one parameter per placeholder.
+    /// </summary>
+    public const string SchedulerNameAgain = "schedulerNameAgain";
+
     public const string InstanceName = "instanceName";
     public const string InstanceId = "instanceId";
     public const string LastCheckinTime = "lastCheckinTime";

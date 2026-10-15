@@ -1447,6 +1447,20 @@ public partial class StdAdoDelegate
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+        (IOperableTrigger? trigger, string? _) = await SelectTriggerWithStoredType(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        return trigger;
+    }
+
+    /// <summary>
+    /// <see cref="SelectTrigger" />, keeping the discriminator the row was stored under beside the trigger
+    /// it built, for a round that writes the trigger's rows later and compares its type with it (#4066).
+    /// </summary>
+    /// <returns>The trigger and its stored discriminator, or two nulls when there is no such trigger.</returns>
+    private async ValueTask<(IOperableTrigger? Trigger, string? StoredType)> SelectTriggerWithStoredType(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken)
+    {
         TriggerRow row;
 
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTrigger)))
@@ -1458,7 +1472,7 @@ public partial class StdAdoDelegate
             using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                return null;
+                return (null, null);
             }
 
             row = await ReadTriggerRow(rs, new TriggerRowOrdinals(rs, includesKey: false)).ConfigureAwait(false);
@@ -1480,12 +1494,13 @@ public partial class StdAdoDelegate
                 }
             }
 
-            if (blobTrigger is not null)
+            if (blobTrigger is null)
             {
-                ApplyBlobTriggerRowState(blobTrigger, row);
+                return (null, null);
             }
 
-            return blobTrigger;
+            ApplyBlobTriggerRowState(blobTrigger, row);
+            return (blobTrigger, row.TriggerType);
         }
 
         TriggerPropertyBundle? triggerProps = row.Props;
@@ -1511,11 +1526,11 @@ public partial class StdAdoDelegate
                 }
 
                 // QTZ-386 Trigger has been deleted
-                return null;
+                return (null, null);
             }
         }
 
-        return BuildTrigger(triggerKey, row, triggerProps);
+        return (BuildTrigger(triggerKey, row, triggerProps), row.TriggerType);
     }
 
     private async ValueTask<bool> IsTriggerStillPresent(
@@ -2770,8 +2785,31 @@ public partial class StdAdoDelegate
 
         // A repeated key would come back as a repeated row, and the predicate is a disjunction that
         // cannot tell the difference, so fold duplicates away before building it.
-        List<TriggerKey> requested = Deduplicate(triggerKeys);
+        List<StoredTriggerRead> stored = await SelectStoredTriggersByKeys(conn, Deduplicate(triggerKeys), cancellationToken).ConfigureAwait(false);
 
+        List<IOperableTrigger> triggers = new(stored.Count);
+        foreach (StoredTriggerRead read in stored)
+        {
+            triggers.Add(read.Trigger);
+        }
+
+        return triggers;
+    }
+
+    /// <summary>
+    /// The set read behind <see cref="SelectTriggers" /> and <see cref="SelectStoredTriggers" />: one
+    /// statement per chunk of the provider's parameter ceiling, the type-specific rows resolved in as few
+    /// reads as each type's storage allows, and the discriminator each row was stored under kept beside
+    /// the trigger built from it.
+    /// </summary>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="requested">The keys, already deduplicated, and at least two of them.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask<List<StoredTriggerRead>> SelectStoredTriggersByKeys(
+        ConnectionAndTransactionHolder conn,
+        List<TriggerKey> requested,
+        CancellationToken cancellationToken)
+    {
         List<TriggerKey> keys = new(requested.Count);
         List<TriggerRow> rows = new(requested.Count);
 
@@ -2792,18 +2830,18 @@ public partial class StdAdoDelegate
 
         IOperableTrigger?[] built = await MaterializeTriggers(conn, keys, rows, cancellationToken).ConfigureAwait(false);
 
-        List<IOperableTrigger> triggers = new(built.Length);
-        foreach (IOperableTrigger? trigger in built)
+        List<StoredTriggerRead> triggers = new(built.Length);
+        for (int i = 0; i < built.Length; i++)
         {
             // A null slot means the type-specific row was missing, so that trigger no longer exists as
             // far as this read is concerned — the same as a key that matched no TRIGGERS row at all.
-            if (trigger is not null)
+            if (built[i] is { } trigger)
             {
-                triggers.Add(trigger);
+                triggers.Add(new StoredTriggerRead(trigger, rows[i].TriggerType));
             }
         }
 
-        SortByRequestedOrder(triggers, requested, static trigger => trigger.Key);
+        SortByRequestedOrder(triggers, requested, static read => read.Trigger.Key);
         return triggers;
     }
 

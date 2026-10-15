@@ -132,7 +132,11 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
                                                                  + AdoConstants.ColumnSchedulerName + " = @" + SqlParameters.SchedulerName
                                                                  + " AND " + AdoConstants.ColumnTriggerName + " = @" + SqlParameters.TriggerName + " AND " + AdoConstants.ColumnTriggerGroup + " = @" + SqlParameters.TriggerGroup;
 
-    private const string DeleteSimplePropsTrigger = "DELETE FROM "
+    /// <summary>
+    /// The delete <see cref="DeleteExtendedTriggerProperties" /> issues, for <c>StdAdoDelegate</c> to
+    /// put in a batch beside the trigger row's own deletion (#4066).
+    /// </summary>
+    internal const string DeleteSimplePropsTrigger = "DELETE FROM "
                                                       + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
                                                       + AdoConstants.ColumnSchedulerName + " = @" + SqlParameters.SchedulerName
                                                       + " AND " + AdoConstants.ColumnTriggerName + " = @" + SqlParameters.TriggerName + " AND " + AdoConstants.ColumnTriggerGroup + " = @" + SqlParameters.TriggerGroup;

@@ -89,6 +89,61 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
+    /// <see cref="ApplyPausedGroupState(ConnectionAndTransactionHolder, string, string, StoredTriggerState, CancellationToken)" />
+    /// for a fire in a round that read the paused groups once for all of its fires (#4066).
+    /// </summary>
+    /// <remarks>
+    /// The three questions are asked of the one read in the order the three reads asked them, and the
+    /// row the all-groups case materializes is written as before — and added to the read, so that the
+    /// next fire of the round finds the group's row as the next per-trigger read would have. The one read
+    /// is every read only because the round holds <see cref="SchedulerLock.TriggerAccess" /> from it to
+    /// the round's commit, and every pause and resume takes that lock: a round that fires without the
+    /// lock has to ask per fire. A fire outside such a round, or in one through a delegate that is not
+    /// Quartz's, asks per trigger as before.
+    /// </remarks>
+    private async ValueTask<StoredTriggerState> ApplyPausedGroupState(
+        ConnectionAndTransactionHolder conn,
+        string triggerGroup,
+        string jobGroup,
+        StoredTriggerState state,
+        FireOnAcquirePrefetch? prefetch,
+        CancellationToken cancellationToken)
+    {
+        PausedGroups? paused = prefetch is null
+            ? null
+            : await prefetch.ReadPausedGroups(conn, cancellationToken).ConfigureAwait(false);
+
+        if (paused is null)
+        {
+            return await ApplyPausedGroupState(conn, triggerGroup, jobGroup, state, cancellationToken).ConfigureAwait(false);
+        }
+
+        bool shouldBePaused = paused.TriggerGroups.Contains(triggerGroup);
+
+        if (!shouldBePaused)
+        {
+            shouldBePaused = paused.TriggerGroups.Contains(AdoConstants.AllGroupsPaused);
+
+            if (shouldBePaused)
+            {
+                await Delegate.InsertPausedTriggerGroup(conn, triggerGroup, cancellationToken).ConfigureAwait(false);
+                paused.TriggerGroups.Add(triggerGroup);
+            }
+            else
+            {
+                shouldBePaused = paused.JobGroups.Contains(jobGroup);
+            }
+        }
+
+        if (shouldBePaused && state is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
+        {
+            return StoredTriggerState.Paused;
+        }
+
+        return state;
+    }
+
+    /// <summary>
     /// Get the current state of the identified <see cref="ITrigger" />.
     /// </summary>
     /// <seealso cref="TriggerState.Normal" />
@@ -523,7 +578,7 @@ internal abstract partial class AdoJobStoreBase
     /// Each matched group is recorded in PAUSED_JOB_GRPS, so the pause outlives the process, reaches
     /// the other nodes of a cluster, can be listed — and binds what is added to the group next: a
     /// trigger stored for a job in a recorded group is born PAUSED, which
-    /// <see cref="ApplyPausedGroupState" /> is what does. That is why an equality matcher records a
+    /// <see cref="ApplyPausedGroupState(ConnectionAndTransactionHolder, string, string, StoredTriggerState, CancellationToken)" /> is what does. That is why an equality matcher records a
     /// group holding no job at all; a pattern is not a group, so only the groups it matched are.
     /// </para>
     /// <para>

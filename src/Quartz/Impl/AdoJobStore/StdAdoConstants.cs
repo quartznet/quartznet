@@ -108,6 +108,24 @@ internal static class StdAdoConstants
     public static readonly string SqlDeleteTrigger =
         Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
+    /// <summary>
+    /// <see cref="SqlDeleteTrigger" /> for the row a completion read the header of, and no other: a row
+    /// replaced since the read — a reschedule under the lock the completion does not hold — carries the
+    /// replacement's discriminator and is left alone (#4066). Binds the key, then the discriminator.
+    /// </summary>
+    public static readonly string SqlDeleteTriggerOfType =
+        SqlDeleteTrigger + Invariant($" AND {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}");
+
+    /// <summary>
+    /// The fired rows of a trigger whose row is gone: what a deletion sweeps after deleting the row, as
+    /// one statement that sweeps nothing while a row — the one read, or a replacement — is still there,
+    /// so that another node's firing of the replacement keeps its row (#4066).
+    /// </summary>
+    public static readonly string SqlDeleteFiredTriggersOfDeletedTrigger =
+        SqlDeleteFiredTriggers
+        + Invariant($" AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}")
+        + Invariant($" AND NOT EXISTS (SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t WHERE t.{AdoConstants.ColumnSchedulerName} = {TablePrefixSubst}{AdoConstants.TableFiredTriggers}.{AdoConstants.ColumnSchedulerName} AND t.{AdoConstants.ColumnTriggerName} = {TablePrefixSubst}{AdoConstants.TableFiredTriggers}.{AdoConstants.ColumnTriggerName} AND t.{AdoConstants.ColumnTriggerGroup} = {TablePrefixSubst}{AdoConstants.TableFiredTriggers}.{AdoConstants.ColumnTriggerGroup})");
+
     public static readonly string SqlDeleteAllSimpleTriggers = Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableSimpleTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
     public static readonly string SqlDeleteAllSimpropTriggers = Invariant($"DELETE FROM {TablePrefixSubst}SIMPROP_TRIGGERS WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
     public static readonly string SqlDeleteAllCronTriggers = Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableCronTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
@@ -233,6 +251,17 @@ internal static class StdAdoConstants
 
     public static readonly string SqlSelectCountExecutingFiredTriggersOfJob =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup} AND {AdoConstants.ColumnEntryState} = @{SqlParameters.ExecutingState}");
+
+    /// <summary>
+    /// Prefix of the read that asks which of a set of jobs has a firing <c>EXECUTING</c> anywhere: the set
+    /// form of <see cref="SqlSelectCountExecutingFiredTriggersOfJob" />, which an acquisition round asks
+    /// once for every job that disallows concurrent execution among its candidates rather than once per
+    /// such candidate (#4066). The caller appends a job-key-set predicate built by
+    /// <c>AdoUtil.BuildJobKeyPredicate</c>, and binds the scheduler name, the executing state and then
+    /// the keys, in that order.
+    /// </summary>
+    public static readonly string SqlSelectExecutingJobsPrefix =
+        Invariant($"SELECT DISTINCT {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnEntryState} = @{SqlParameters.ExecutingState} AND ");
 
     /// <summary>
     /// Every column <c>StdAdoDelegate.SelectTriggersForRecoveringJobs</c> reads, and only those. It
@@ -957,6 +986,19 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectPausedTriggerGroups =
         Invariant($"SELECT {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}{ExceptAllGroupsPausedMarker}");
 
+    /// <summary>
+    /// Every paused trigger group, the all-groups marker included, and every paused job group, in one
+    /// statement; the second column says which table a row came from, <c>T</c> or <c>J</c>. An acquisition
+    /// round that fires a trigger whose stored state asks after its groups reads this once (#4066), where
+    /// each such fire made the one to three reads <see cref="SqlSelectPausedTriggerGroup" /> and
+    /// <see cref="SqlSelectPausedJobGroup" /> make. Both tables hold at most a row per group a deployment
+    /// has ever paused. The scheduler name is bound twice, under two names, because the statement names
+    /// it twice and a provider that binds positionally needs a parameter per placeholder.
+    /// </summary>
+    public static readonly string SqlSelectPausedGroups =
+        Invariant($"SELECT {AdoConstants.ColumnTriggerGroup}, 'T' FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}")
+        + Invariant($" UNION ALL SELECT {AdoConstants.ColumnJobGroup}, 'J' FROM {TablePrefixSubst}{AdoConstants.TablePausedJobs} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerNameAgain}");
+
     public static readonly string SqlCountPausedTriggerGroups =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}{ExceptAllGroupsPausedMarker}");
 
@@ -1340,6 +1382,21 @@ internal static class StdAdoConstants
     /// </summary>
     public static readonly string SqlSelectAwaitingContinuations =
         Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnContinuationCondition} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {AdoConstants.ColumnContinuesTriggerName} = @{SqlParameters.TriggerContinuesName} AND {AdoConstants.ColumnContinuesTriggerGroup} = @{SqlParameters.TriggerContinuesGroup}");
+
+    /// <summary>
+    /// A trigger's header beside the triggers awaiting it, in one statement (#4066): the first half is
+    /// <see cref="SqlSelectTriggerHeader" /> with the key in front, the second the rows
+    /// <see cref="SqlSelectAwaitingContinuations" /> finds, projected the same way, and the last column
+    /// says which half a row came from — 0 for the header, 1 for a trigger awaiting it. A lock-free
+    /// completion of a spent trigger reads here what its awaiting probe and its header double-check read
+    /// in two. The awaiting half stands on its own rather than hanging off the header's row because the
+    /// parent's row may be gone while triggers still await it, and the completion has to see them either
+    /// way. The scheduler name is bound twice, under two names, for the reason
+    /// <see cref="SqlSelectPausedGroups" /> binds it twice.
+    /// </summary>
+    public static readonly string SqlSelectTriggerHeaderAndAwaiting =
+        Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerType}, 0 FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}")
+        + Invariant($" UNION ALL SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerType}, 1 FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerNameAgain} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {AdoConstants.ColumnContinuesTriggerName} = @{SqlParameters.TriggerContinuesName} AND {AdoConstants.ColumnContinuesTriggerGroup} = @{SqlParameters.TriggerContinuesGroup}");
 
     /// <summary>
     /// What a row whose wait is over keeps of it: nothing. A released trigger is an ordinary one, so

@@ -299,7 +299,37 @@ internal abstract partial class AdoJobStoreBase
                     // One read for the whole round's candidates. The acquisition statement just named
                     // them; going back per candidate cost a round trip each before a single one was
                     // marked acquired (#3424).
-                    Dictionary<TriggerKey, IOperableTrigger> candidates = await ReadAcquisitionCandidates(Delegate, conn, results, cancellationToken).ConfigureAwait(false);
+                    Dictionary<TriggerKey, IOperableTrigger> candidates = await ReadAcquisitionCandidates(conn, results, round, cancellationToken).ConfigureAwait(false);
+
+                    // One read for every job that disallows concurrent execution among the candidates,
+                    // asked whether a firing of it is executing anywhere, where the loop below asked it
+                    // once per such candidate (#4066). Asked of a delegate Quartz ships, whose row said
+                    // the job is one of those; a delegate that did not read the flag, or is not shipped,
+                    // is asked in the loop as before.
+                    //
+                    // One read answers for every candidate because this round holds TRIGGER_ACCESS — a
+                    // round of more than one trigger always does, and one of one does when
+                    // AcquireTriggersWithinLock says so — and every write of an EXECUTING row takes that
+                    // lock: nothing can start a firing while the pass runs, so the answer is the one
+                    // each ask in the loop would have got. A round that acquires without the lock must
+                    // not take this read: it asks per candidate, as the loop still does for it.
+                    HashSet<JobKey>? executingNow = null;
+                    if (ShippedDelegate is { } shipped && (AcquireTriggersWithinLock || request.MaxCount > 1))
+                    {
+                        List<JobKey>? serialJobs = null;
+                        foreach (TriggerAcquireResult candidate in results)
+                        {
+                            if (candidate.ConcurrentExecutionDisallowed == true && candidates.TryGetValue(candidate.TriggerKey, out IOperableTrigger? serialTrigger))
+                            {
+                                (serialJobs ??= []).Add(serialTrigger.JobKey);
+                            }
+                        }
+
+                        if (serialJobs is not null)
+                        {
+                            executingNow = await shipped.SelectExecutingJobs(conn, serialJobs, cancellationToken).ConfigureAwait(false);
+                        }
+                    }
 
                     DateTimeOffset batchEnd = request.NoLaterThan;
 
@@ -382,14 +412,26 @@ internal abstract partial class AdoJobStoreBase
                             // row stays WAITING, first in the order, and a read of the same length would
                             // return it again ahead of everything due behind it (#3926). Counted apart as
                             // well: the execution's end is what frees it, and that end may be another
-                            // node's, which nothing tells this one of (#3988).
-                            if (await Delegate.IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false))
+                            // node's, which nothing tells this one of (#3988). Answered from the pass's
+                            // one read where that read covered the job, and asked here where it did not.
+                            bool executingElsewhere = executingNow is not null && result.ConcurrentExecutionDisallowed == true
+                                ? executingNow.Contains(nextTrigger.JobKey)
+                                : await Delegate.IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false);
+
+                            if (executingElsewhere)
                             {
                                 (executingJobs ??= []).Add(nextTrigger.JobKey);
                                 skipped++;
                                 blocked++;
                                 continue;
                             }
+
+                            // Asked and answered in this transaction, under the lock the round holds from
+                            // here to its commit, which every write of an EXECUTING row takes: the round's
+                            // own fire of the trigger need not ask again. A round that fires what it
+                            // acquires always holds it (AcquireNextTriggersAndFireDue); a round that does
+                            // not must not mark the job, since its fire runs in a later transaction.
+                            round?.MarkJobIdle(nextTrigger.JobKey);
                         }
 
                         var nextFireTimeUtc = nextTrigger.NextFireTimeUtc;
@@ -548,6 +590,13 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
+    /// The delegate, when it is one Quartz ships: the only kind whose single-trigger members this store
+    /// stands in for with one read for the round (#4066), because no override of theirs exists to be
+    /// bypassed. <see langword="null" /> for any other delegate, which is asked per trigger, as before.
+    /// </summary>
+    private StdAdoDelegate? ShippedDelegate => Delegate is StdAdoDelegate { IsShipped: true } shipped ? shipped : null;
+
+    /// <summary>
     /// Whether a round that took nothing asks after this node's pinned triggers a firing on another node
     /// holds (#3988): on a cluster, through a delegate Quartz ships.
     /// </summary>
@@ -577,15 +626,26 @@ internal abstract partial class AdoJobStoreBase
     /// trigger key.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A candidate with no entry in the result is one whose row is no longer there — deleted between
     /// the acquisition read and this one — which is exactly what the per-candidate read said by
     /// answering <see langword="null" />. The delegate chunks the key set to the provider's parameter
     /// ceiling, so "one statement" means one for a batch of any size a scheduler asks for.
+    /// </para>
+    /// <para>
+    /// Through a delegate Quartz ships the read keeps the discriminator each row was stored under, and a
+    /// round that fires what it acquires records it (#4066): its fires compare the trigger's type with
+    /// it when they write, and used to read the headers back for it although this read had just built
+    /// the triggers from those very rows. The discriminator read here is the row's when the round claims
+    /// it only because the round holds <see cref="SchedulerLock.TriggerAccess" /> from this read to its
+    /// commit and every reschedule takes that lock: nothing can replace the row in between. A round that
+    /// fires without the lock must read the header back after its claim instead.
+    /// </para>
     /// </remarks>
-    private static async ValueTask<Dictionary<TriggerKey, IOperableTrigger>> ReadAcquisitionCandidates(
-        IDriverDelegate driverDelegate,
+    private async ValueTask<Dictionary<TriggerKey, IOperableTrigger>> ReadAcquisitionCandidates(
         ConnectionAndTransactionHolder conn,
         List<TriggerAcquireResult> results,
+        FireOnAcquireRound? round,
         CancellationToken cancellationToken)
     {
         if (results.Count == 0)
@@ -599,8 +659,24 @@ internal abstract partial class AdoJobStoreBase
             keys.Add(result.TriggerKey);
         }
 
+        if (ShippedDelegate is { } shipped)
+        {
+            List<StoredTriggerRead> stored = await Guarded(
+                () => shipped.SelectStoredTriggers(conn, keys, cancellationToken),
+                "retrieve triggers").ConfigureAwait(false);
+
+            Dictionary<TriggerKey, IOperableTrigger> storedByKey = new(stored.Count);
+            foreach (StoredTriggerRead read in stored)
+            {
+                storedByKey[read.Trigger.Key] = read.Trigger;
+                round?.RecordStoredType(read.Trigger.Key, read.TriggerType);
+            }
+
+            return storedByKey;
+        }
+
         List<IOperableTrigger> triggers = await Guarded(
-            () => driverDelegate.SelectTriggers(conn, keys, cancellationToken),
+            () => Delegate.SelectTriggers(conn, keys, cancellationToken),
             "retrieve triggers").ConfigureAwait(false);
 
         Dictionary<TriggerKey, IOperableTrigger> byKey = new(triggers.Count);
@@ -963,19 +1039,28 @@ internal abstract partial class AdoJobStoreBase
         // Make sure trigger wasn't deleted, paused, or completed... No row at all means the trigger was
         // deleted, which is not a state it may fire from either. The header also carries the type
         // discriminator, which is what the write below would otherwise have gone back for, and its very
-        // existence is the answer to "does this row exist" that the write used to ask separately.
-        StoredTriggerHeader? header = prefetch is not null
-            ? prefetch.Header(trigger.Key)
-            : await Guarded(
+        // existence is the answer to "does this row exist" that the write used to ask separately. A round
+        // has both from what it read for all of its triggers.
+        StoredTriggerIdentity? stored;
+        if (prefetch is not null)
+        {
+            stored = prefetch.Stored(trigger.Key);
+        }
+        else
+        {
+            StoredTriggerHeader? header = await Guarded(
                 () => Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken),
                 "select trigger state").ConfigureAwait(false);
 
-        if (header is null || header.State != StoredTriggerState.Acquired)
+            stored = header is null ? null : new StoredTriggerIdentity(header.State, header.TriggerType);
+        }
+
+        if (stored is not { State: StoredTriggerState.Acquired } identity)
         {
             // BLOCKED is another fire of a job that disallows concurrent execution, which moved this
             // reservation out of reach when it started (#3926): that firing's end is what lets go of it.
             // Said only on a cluster, where that end may be another node's.
-            return header?.State == StoredTriggerState.Blocked && Clustered ? TriggerFiredResult.Blocked : TriggerFiredResult.NotFired;
+            return stored is { State: StoredTriggerState.Blocked } && Clustered ? TriggerFiredResult.Blocked : TriggerFiredResult.NotFired;
         }
 
         try
@@ -1021,12 +1106,26 @@ internal abstract partial class AdoJobStoreBase
         // AcquireNextTrigger), or does not exist yet when it fires as it is acquired,
         // so it won't appear in the query results. Nor does the row of a fire earlier in
         // the same round whose writes are deferred, so the round answers for those itself.
+        // A round's acquisition asked the table about the job in this same transaction and
+        // under this same lock, and nothing can have started a firing of it since, so a fire
+        // of a trigger it acquired has that answer already (#4066).
         if (job.ConcurrentExecutionDisallowed)
         {
-            bool alreadyExecuting = prefetch is not null && prefetch.FiredInRound(trigger.JobKey)
-                || await Guarded(
+            bool alreadyExecuting;
+            if (prefetch is not null && prefetch.FiredInRound(trigger.JobKey))
+            {
+                alreadyExecuting = true;
+            }
+            else if (prefetch is not null && prefetch.KnownIdle(trigger.JobKey))
+            {
+                alreadyExecuting = false;
+            }
+            else
+            {
+                alreadyExecuting = await Guarded(
                     () => Delegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, cancellationToken),
                     $"check concurrent execution for job '{trigger.JobKey}'").ConfigureAwait(false);
+            }
 
             if (alreadyExecuting)
             {
@@ -1152,10 +1251,10 @@ internal abstract partial class AdoJobStoreBase
         // already: the row exists and its type is known from the header read above, the job was read
         // above, and CheckBlockedState is a no-op for every state this path can reach — it only speaks
         // for WAITING and PAUSED, and a job that disallows concurrent execution is storing BLOCKED or
-        // COMPLETE by now.
+        // COMPLETE by now. A round reads the paused groups once, on the first fire that asks (#4066).
         if (!force)
         {
-            state2 = await ApplyPausedGroupState(conn, trigger.Key.Group, trigger.JobKey.Group, state2, cancellationToken).ConfigureAwait(false);
+            state2 = await ApplyPausedGroupState(conn, trigger.Key.Group, trigger.JobKey.Group, state2, prefetch, cancellationToken).ConfigureAwait(false);
         }
 
         TriggerFiredUpdate update = new()
@@ -1163,7 +1262,7 @@ internal abstract partial class AdoJobStoreBase
             Trigger = trigger,
             JobDetail = job,
             NewState = state2,
-            StoredTriggerType = header.TriggerType,
+            StoredTriggerType = identity.TriggerType,
             ScheduledFireTimeUtc = scheduledFireTimeUtc,
             ClearMisfireOriginalFireTime = scheduledFireTime.HasValue,
             BlockJobTriggers = job.ConcurrentExecutionDisallowed,

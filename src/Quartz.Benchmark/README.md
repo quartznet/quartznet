@@ -1803,3 +1803,61 @@ the other two read 25 %.
 | Serial job overlapped | never |
 | One-offs, each fired exactly once | 1,778 |
 | Execution-history sweepers elected | 1 |
+
+## What #4066 changed (2026-10-16)
+
+A clustered firing round reads each concern once, whatever its size, and a one-off's lock-free
+completion is one read and one write. The round no longer reads its triggers' headers back — the
+candidate read keeps each row's discriminator — asks once whether any job of the round that disallows
+concurrent execution is executing, where it asked per trigger in the acquisition and again in the fire,
+and reads the paused groups once for the round, where each such fire read them one to three times. The
+completion reads the header beside whatever awaits the trigger in one `UNION ALL`, and deletes the
+trigger, its schedule row and its fired rows as one batch, naming the discriminator it read so that a
+reschedule landing between the read and the write is left alone. Everything is internal to
+`StdAdoDelegate`, taken only through the delegates Quartz ships, and each read stands because the round
+holds `TRIGGER_ACCESS` from its candidate read to its commit; the remarks say so for #4067.
+
+### Round trips, counted
+
+`RoundCommandCountSqliteTest` records every command and batch the store sends, over a real schema, with
+the provider standing in a `DbBatch` for SQLite so that the batched column is what PostgreSQL, SQL Server
+and MySQL make. A round trip is a statement or a batch; the lock row's `SELECT … FOR UPDATE`, `BEGIN`,
+`COMMIT` and Npgsql's `DISCARD ALL` are the same on both sides and are not counted. Before is
+`c782267ff`, after is the change on top of it, both through the same provider:
+
+| Round | Before, batched | After, batched | Before, unbatched | After, unbatched |
+|---|---:|---:|---:|---:|
+| 1 trigger, `[DisallowConcurrentExecution]` | 11 | **7** | 16 | 12 |
+| 5 triggers, `[DisallowConcurrentExecution]` | 33 | **9** | 64 | 40 |
+| 10 triggers, `[DisallowConcurrentExecution]` | 60 | **11** | 124 | 75 |
+| 1 trigger, concurrent-allowed | 6 | 5 | 8 | 7 |
+| 5 triggers, concurrent-allowed | 7 | 6 | 24 | 23 |
+| 10 triggers, concurrent-allowed | 9 | 8 | 44 | 43 |
+| One-off completion, lock-free | 5 | **2** | 5 | 4 |
+
+The non-concurrent round went from `11 + 5n` to `6 + w` round trips on a batching dialect, where `w` is
+the fire writes' batches after the 7 KiB split — three for five fires. The plain round lost its header
+read. The completion's two reads are one and its three deletes are one batch. SQLite, Oracle and
+Firebird, which do not batch, keep the per-statement writes and lose the same reads.
+
+### What to measure
+
+The benchmark arms this work added are the ones that show it, and none has a timing here yet:
+
+```shell
+# the round with the most reads per trigger, against the plain one
+dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*FireThroughputPostgres*'
+
+# the completion, with and without execution history, over loopback and over a modelled wire
+dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
+QUARTZ_BENCHMARK_ROUND_TRIP_MS=2 dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
+
+# statements per firing at the database
+dotnet run -c Release --project src/Quartz.Benchmark -- --one-off-census
+
+# the in-memory store at a hundred thousand live triggers, with and without history
+dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*FireThroughputScale*'
+```
+
+Each on `c782267ff` and on the change, alternating sittings, on a `postgres:15.1` container at its shipped
+durability with `pg_stat_statements` loaded.

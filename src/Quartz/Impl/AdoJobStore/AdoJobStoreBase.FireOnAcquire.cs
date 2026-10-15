@@ -33,9 +33,11 @@ namespace Quartz.Impl.AdoJobStore;
 /// A round of already-due triggers used to be two transactions under <c>TRIGGER_ACCESS</c>: the
 /// acquisition, which reserved each trigger with an <c>ACQUIRED</c> fired-trigger row, and the fire, which
 /// read each trigger's header and job again and updated the reservation to <c>EXECUTING</c>. Here the
-/// round is one: the triggers are claimed as acquisition claims them, their headers and jobs are read once
-/// for the round, and each fire inserts its row as <c>EXECUTING</c>. On PostgreSQL that is a lock, a commit
-/// and two reads per trigger off the path every firing waits on.
+/// round is one: the triggers are claimed as acquisition claims them, their jobs are read once for the
+/// round, and each fire inserts its row as <c>EXECUTING</c>. On PostgreSQL that is a lock, a commit and
+/// two reads per trigger off the path every firing waits on. Through a delegate Quartz ships the round
+/// reads nothing per trigger at all (#4066): the candidate read keeps each row's discriminator, one read
+/// says which jobs of the round are executing, and one read holds the paused groups for every fire.
 /// </para>
 /// <para>
 /// The lock is the one acquisition takes. A round that acquires without it — one trigger at a time,
@@ -266,14 +268,41 @@ internal abstract partial class AdoJobStoreBase
         FireOnAcquirePrefetch? prefetch = null;
         if (round.ReadsTogether)
         {
-            // The state and type discriminator of each, read in one statement rather than one per trigger.
-            // The state is ACQUIRED — this transaction has just claimed them under the lock — and the
-            // discriminator is what the fire's write compares the trigger's current type with.
-            List<StoredTriggerHeader> headers = await Guarded(
-                () => Delegate.SelectStoredTriggerHeaders(conn, triggerKeys, cancellationToken),
-                "select trigger states").ConfigureAwait(false);
+            // The state and type discriminator of each. The state is ACQUIRED — this transaction has just
+            // claimed them under the lock — and the discriminator is what the fire's write compares the
+            // trigger's current type with. A shipped delegate's read of the candidates kept the
+            // discriminator beside each trigger it built, so there is nothing to go back for (#4066); any
+            // other delegate's round reads the headers in one statement, as it did. Both stand only
+            // because the round holds TRIGGER_ACCESS from the candidate read to its commit: a claim
+            // without the lock would have to read the header back after it, state and type alike.
+            Dictionary<TriggerKey, StoredTriggerIdentity> stored = new(triggerKeys.Count);
+            if (round.StoredTypes is { } storedTypes)
+            {
+                foreach (TriggerKey triggerKey in triggerKeys)
+                {
+                    if (storedTypes.TryGetValue(triggerKey, out string? storedType))
+                    {
+                        stored[triggerKey] = new StoredTriggerIdentity(StoredTriggerState.Acquired, storedType);
+                    }
+                }
+            }
+            else
+            {
+                List<StoredTriggerHeader> headers = await Guarded(
+                    () => Delegate.SelectStoredTriggerHeaders(conn, triggerKeys, cancellationToken),
+                    "select trigger states").ConfigureAwait(false);
 
-            prefetch = new FireOnAcquirePrefetch(headers, await ReadJobsToFire(conn, jobKeys, cancellationToken).ConfigureAwait(false));
+                foreach (StoredTriggerHeader header in headers)
+                {
+                    stored[header.Key] = new StoredTriggerIdentity(header.State, header.TriggerType);
+                }
+            }
+
+            prefetch = new FireOnAcquirePrefetch(
+                stored,
+                await ReadJobsToFire(conn, jobKeys, cancellationToken).ConfigureAwait(false),
+                round.IdleJobs,
+                ShippedDelegate);
         }
 
         // The due triggers that did not fire after all, left ACQUIRED with no row: reserved below, as
@@ -556,7 +585,25 @@ internal abstract partial class AdoJobStoreBase
         /// </summary>
         private DateTimeOffset? now;
 
+        /// <summary>
+        /// The discriminator each candidate's row was stored under, as the attempt's read of the candidates
+        /// returned it; <see langword="null" /> for a delegate whose read does not say.
+        /// </summary>
+        private Dictionary<TriggerKey, string>? storedTypes;
+
+        /// <summary>
+        /// The jobs this attempt's acquisition asked after and found not executing, whose fires in the
+        /// attempt need not ask again.
+        /// </summary>
+        private HashSet<JobKey>? idleJobs;
+
         public Dictionary<TriggerKey, Exception>? Failed => failed;
+
+        /// <inheritdoc cref="storedTypes" />
+        public Dictionary<TriggerKey, string>? StoredTypes => storedTypes;
+
+        /// <inheritdoc cref="idleJobs" />
+        public HashSet<JobKey>? IdleJobs => idleJobs;
 
         /// <summary>
         /// Whether the round's claims are made together, at the end of each acquisition pass.
@@ -581,9 +628,39 @@ internal abstract partial class AdoJobStoreBase
         public bool ReservesEveryTrigger => !throughRoundMembers;
 
         /// <summary>
-        /// Forgets the clock reading, for an attempt the transaction wrapper runs again.
+        /// Forgets the clock reading and what the acquisition read, for an attempt the transaction wrapper
+        /// runs again.
         /// </summary>
-        public void Reset() => now = null;
+        public void Reset()
+        {
+            now = null;
+            storedTypes = null;
+            idleJobs = null;
+        }
+
+        /// <summary>
+        /// Records the discriminator a candidate's row was stored under, as the acquisition's read of the
+        /// candidates returned it, for the fire's write to compare the trigger's type with.
+        /// </summary>
+        /// <remarks>
+        /// Valid only while nothing can replace the row between that read and the claim — which is to
+        /// say, only because the round holds <see cref="SchedulerLock.TriggerAccess" /> across both, and
+        /// every reschedule takes it. A round that claims without the lock cannot use what it recorded
+        /// here, and reads the headers back after the claim.
+        /// </remarks>
+        public void RecordStoredType(TriggerKey triggerKey, string storedType) => (storedTypes ??= [])[triggerKey] = storedType;
+
+        /// <summary>
+        /// Records that the acquisition asked whether the job is executing, in this transaction and under
+        /// the lock, and found that it is not. Nothing can start a firing of it before the round's own fire
+        /// does, so that fire has its answer.
+        /// </summary>
+        /// <remarks>
+        /// Valid only because the round holds <see cref="SchedulerLock.TriggerAccess" /> from the ask to
+        /// the fire's write, and every write of an <c>EXECUTING</c> row takes it. A round that fires
+        /// without the lock must not mark a job idle: its fire asks the fired-trigger table itself.
+        /// </remarks>
+        public void MarkJobIdle(JobKey jobKey) => (idleJobs ??= []).Add(jobKey);
 
         /// <summary>
         /// Whether the trigger just claimed gets no reservation row, because its fire in this attempt inserts
@@ -606,11 +683,15 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// The headers and jobs a fire-on-acquire round read for all of its due triggers.
+    /// What a fire-on-acquire round read once for all of its due triggers: the state and discriminator of
+    /// each, their jobs, the jobs its acquisition found idle, and — read when the first fire asks — the
+    /// paused groups.
     /// </summary>
     private sealed class FireOnAcquirePrefetch
     {
-        private readonly Dictionary<TriggerKey, StoredTriggerHeader> headers;
+        private readonly Dictionary<TriggerKey, StoredTriggerIdentity> stored;
+        private readonly HashSet<JobKey>? idleJobs;
+        private readonly StdAdoDelegate? shipped;
 
         /// <summary>
         /// The job keys already handed to a fire in this round, whose next fire gets a copy.
@@ -623,14 +704,27 @@ internal abstract partial class AdoJobStoreBase
         /// </summary>
         private HashSet<JobKey>? firedInRound;
 
-        public FireOnAcquirePrefetch(List<StoredTriggerHeader> headers, Dictionary<JobKey, IJobDetail>? jobs)
-        {
-            this.headers = new Dictionary<TriggerKey, StoredTriggerHeader>(headers.Count);
-            foreach (StoredTriggerHeader header in headers)
-            {
-                this.headers[header.Key] = header;
-            }
+        /// <summary>
+        /// The paused groups, read by the first fire of the round whose stored state asks after them.
+        /// </summary>
+        private PausedGroups? pausedGroups;
 
+        /// <param name="stored">The state and discriminator of each due trigger, by key.</param>
+        /// <param name="jobs">The round's jobs, or <see langword="null" /> when each fire reads its own.</param>
+        /// <param name="idleJobs">The jobs the round's acquisition found not executing, or <see langword="null" />.</param>
+        /// <param name="shipped">
+        /// The delegate, when it is one Quartz ships: the one kind whose paused-group reads the round may
+        /// make once for all of its fires, since no override of the per-trigger ones exists to bypass.
+        /// </param>
+        public FireOnAcquirePrefetch(
+            Dictionary<TriggerKey, StoredTriggerIdentity> stored,
+            Dictionary<JobKey, IJobDetail>? jobs,
+            HashSet<JobKey>? idleJobs,
+            StdAdoDelegate? shipped)
+        {
+            this.stored = stored;
+            this.idleJobs = idleJobs;
+            this.shipped = shipped;
             Jobs = jobs;
         }
 
@@ -639,7 +733,36 @@ internal abstract partial class AdoJobStoreBase
         /// </summary>
         public Dictionary<JobKey, IJobDetail>? Jobs { get; }
 
-        public StoredTriggerHeader? Header(TriggerKey triggerKey) => headers.GetValueOrDefault(triggerKey);
+        /// <summary>
+        /// The stored state and discriminator of a due trigger, or <see langword="null" /> for one whose
+        /// row the round did not read — which is to say, one that is not there.
+        /// </summary>
+        public StoredTriggerIdentity? Stored(TriggerKey triggerKey) => stored.TryGetValue(triggerKey, out StoredTriggerIdentity identity) ? identity : null;
+
+        /// <summary>
+        /// Whether the round's acquisition asked whether the job is executing and found that it is not,
+        /// in this transaction and under the lock, so that the fire need not ask again.
+        /// </summary>
+        /// <remarks>
+        /// An answer only because the round holds <see cref="SchedulerLock.TriggerAccess" /> from the
+        /// acquisition's ask to this fire's write, which every write of an <c>EXECUTING</c> row takes;
+        /// see <see cref="FireOnAcquireRound.MarkJobIdle" />.
+        /// </remarks>
+        public bool KnownIdle(JobKey jobKey) => idleJobs is not null && idleJobs.Contains(jobKey);
+
+        /// <summary>
+        /// The paused groups as one read finds them, read on the first ask and kept for the round; or
+        /// <see langword="null" /> for a delegate whose per-trigger reads the round has to make.
+        /// </summary>
+        public async ValueTask<PausedGroups?> ReadPausedGroups(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
+        {
+            if (shipped is null)
+            {
+                return null;
+            }
+
+            return pausedGroups ??= await shipped.SelectPausedGroups(conn, cancellationToken).ConfigureAwait(false);
+        }
 
         /// <summary>
         /// The job a fire runs, or <see langword="null" /> when there is none. Two fires of one job in a
@@ -674,6 +797,12 @@ internal abstract partial class AdoJobStoreBase
         /// </summary>
         public void MarkFiredInRound(JobKey jobKey) => (firedInRound ??= []).Add(jobKey);
     }
+
+    /// <summary>
+    /// The two things a fire reads off a trigger's row before it writes: the state it may fire from, and
+    /// the discriminator its write compares the trigger's current type with.
+    /// </summary>
+    private readonly record struct StoredTriggerIdentity(StoredTriggerState State, string TriggerType);
 
     /// <summary>
     /// What one attempt at a fire-on-acquire round did: the due triggers with a result for each —
