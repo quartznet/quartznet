@@ -97,4 +97,15 @@ public sealed record FiredTriggerRecord
     /// The priority the trigger fired with.
     /// </summary>
     public int Priority { get; init; }
+
+    /// <summary>
+    /// The execution group the firing's trigger carried, as written to FIRED_TRIGGERS, or
+    /// <see langword="null" /> for a trigger with none.
+    /// </summary>
+    /// <remarks>
+    /// The trigger's own <see cref="ITrigger.ExecutionGroup" />, not the group
+    /// <see cref="ExecutionLimitsBuilder.UseTriggerGroupWhenUnset" /> derives from its trigger group.
+    /// Unlike the job members it is filled in from acquisition on, because the trigger is known then.
+    /// </remarks>
+    public string? ExecutionGroup { get; init; }
 }

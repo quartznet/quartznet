@@ -20,6 +20,10 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// reader wants is left over in <see cref="Unread" /> at the end.
 /// </para>
 /// <para>
+/// A column counts as read when its ordinal is asked for by name or its value is read by ordinal. The
+/// second is how a reader that looks for an optional column through <see cref="GetName" /> reads it.
+/// </para>
+/// <para>
 /// The values are made up but type-plausible, because the readers do real work with them: a cron
 /// expression is parsed, a time zone id is resolved, and a stored state is mapped onto
 /// <see cref="Quartz.Extensibility.StoredTriggerState" />.
@@ -93,6 +97,7 @@ internal sealed class ProjectionDataReader : DbDataReader
 
         AdoConstants.ColumnPriority or AdoConstants.ColumnRepeatCount or AdoConstants.ColumnTimesTriggered => 5,
         AdoConstants.ColumnIsNonConcurrent or AdoConstants.ColumnRequestsRecovery => true,
+        AdoConstants.ColumnExecutionGroup => "gpu",
 
         // SIMPROP_TRIGGERS. STR_PROP_1 carries an IntervalUnit name for the calendar-interval type.
         "STR_PROP_1" => nameof(IntervalUnit.Day),
@@ -106,7 +111,11 @@ internal sealed class ProjectionDataReader : DbDataReader
             $"ProjectionDataReader has no value for '{column}'. Add one beside the columns it already knows.")
     };
 
-    public override object GetValue(int ordinal) => ValueOf(columns[ordinal]);
+    public override object GetValue(int ordinal)
+    {
+        wasRead[ordinal] = true;
+        return ValueOf(columns[ordinal]);
+    }
 
     public override string GetString(int ordinal) => (string) GetValue(ordinal);
 
@@ -118,7 +127,11 @@ internal sealed class ProjectionDataReader : DbDataReader
 
     public override decimal GetDecimal(int ordinal) => Convert.ToDecimal(GetValue(ordinal), CultureInfo.InvariantCulture);
 
-    public override bool IsDBNull(int ordinal) => false;
+    public override bool IsDBNull(int ordinal)
+    {
+        wasRead[ordinal] = true;
+        return false;
+    }
 
     public override string GetName(int ordinal) => columns[ordinal];
 

@@ -124,6 +124,31 @@ public class SelectColumnListTest
     }
 
     /// <summary>
+    /// Both fired-trigger readers carry the row's execution group onto what they build (#4081), and read a
+    /// row projected without the column, as 4.5's statements were, as ungrouped rather than failing.
+    /// </summary>
+    [TestCase(true, "gpu")]
+    [TestCase(false, null)]
+    public async Task TheFiredTriggerReadersCarryTheExecutionGroupWhenItIsProjected(bool projected, string expected)
+    {
+        List<FiredTriggerRecord> records = await Issue(
+            StdAdoConstants.SqlSelectFiredTriggers,
+            projected,
+            (del, conn) => del.SelectFiredTriggerRecords(conn, new FiredTriggerQuery()).AsTask());
+
+        List<IOperableTrigger> recoveryTriggers = await Issue(
+            StdAdoConstants.SqlSelectInstancesRecoverableFiredTriggers,
+            projected,
+            (del, conn) => del.SelectTriggersForRecoveringJobs(conn).AsTask(),
+            trailingReaders: 1);
+
+        records.Should().ContainSingle().Which.ExecutionGroup.Should().Be(expected,
+            "cluster recovery and the shutdown hand-back build their recovery trigger from this record");
+        recoveryTriggers.Should().ContainSingle().Which.ExecutionGroup.Should().Be(expected,
+            "startup recovery stores this trigger as it comes back");
+    }
+
+    /// <summary>
     /// The two key columns a batch lookup projects on top of the row's own, read the way the batch
     /// loops read them.
     /// </summary>
@@ -186,6 +211,33 @@ public class SelectColumnListTest
 
         reader.Unread.Should().BeEmpty(
             "'{0}' projects columns nothing reads, which is bytes off the wire for nobody", Projection(sql));
+    }
+
+    /// <summary>
+    /// Issues a statement against its own projection, with or without <c>EXECUTION_GROUP</c>, and answers
+    /// what the delegate built from the row.
+    /// </summary>
+    private static async Task<T> Issue<T>(
+        string sql,
+        bool withExecutionGroup,
+        Func<StdAdoDelegate, ConnectionAndTransactionHolder, Task<T>> issue,
+        int trailingReaders = 0)
+    {
+        string[] columns = ProjectionOf(sql);
+        if (!withExecutionGroup)
+        {
+            columns = [.. columns.Where(column => column != AdoConstants.ColumnExecutionGroup)];
+        }
+
+        ReaderStubDelegate del = ReaderStubDelegate.Create();
+        del.Enqueue(new ProjectionDataReader(columns));
+        for (int i = 0; i < trailingReaders; i++)
+        {
+            del.Enqueue(ProjectionDataReader.Empty);
+        }
+
+        using ConnectionAndTransactionHolder conn = new(new StubBatchingConnection(), transaction: null);
+        return await issue(del, conn);
     }
 
     /// <summary>

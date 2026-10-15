@@ -72,6 +72,7 @@ public interface IDriverDelegate
     /// Select all of the triggers for jobs that are requesting recovery. The
     /// returned trigger objects will have unique "recoverXXX" trigger names and
     /// will be in the <see cref="SchedulerConstants.DefaultRecoveryGroup" /> trigger group.
+    /// Each keeps the execution group its firing's trigger carried.
     /// </summary>
     /// <remarks>
     /// In order to preserve the ordering of the triggers, the fire time will be
