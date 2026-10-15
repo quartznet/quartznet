@@ -90,6 +90,17 @@ anything to do. Run [`4.4/add_execution_outcome_<db>.sql`](../database/schema-ch
 | The status per job | Counts only runs 4.4 nodes recorded. A 4.3 node writes no status row | Read `RunCount` and `FailureCount` as starting at the roll |
 | 4.3 rows | No `RESULT`: they read, filter and age as their `SUCCEEDED` flag says | Nothing |
 
+### Rolling 4.5 to 4.6
+
+No schema change. Only a cluster that
+[routes execution groups](tutorial/execution-groups.md#routing-which-node-serves-a-group) has anything to
+watch:
+
+| During the roll | What happens | Do |
+|---|---|---|
+| A 4.5 node is up | It serves every group: a group the 4.6 nodes refuse still runs on it | Roll the 4.5 nodes out before relying on a refusal |
+| A 4.5 node sweeps misfires | It re-arms every misfired trigger, served or not, so the 4.6 nodes' health check sees no unserved group while it is up | Nothing; the reading becomes reliable once the last 4.5 node is gone |
+
 ### A mixed 3.x and 4.0 window
 
 Upgrading from 3.x means the [mandatory 4.0 migration](../database/schema-changes.md#version-4-0), then
@@ -934,6 +945,11 @@ sum(increase(quartz_job_execution_duration_count{quartz_job_name="nightly-close"
 - `QuartzHealthCheckOptions.RequiredJobs` puts a job in the check itself: a named job that has not succeeded
   within its window is *degraded*, or *unhealthy* if you say so. It reads the execution history. See
   [Alert when a job stops succeeding](how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding).
+- On a node that [routes execution groups](tutorial/execution-groups.md#routing-which-node-serves-a-group),
+  `QuartzHealthCheckOptions.UnservedExecutionGroupTolerance` (`3` by default) reports *degraded* when a
+  schedulable trigger of a group this node does not serve is overdue by more than that many misfire
+  thresholds, naming each group with a count and the oldest fire time: no live node is serving it. A node
+  that routes nothing makes no query.
 
 **Of the cluster, it reports only a node that has stopped checking in.** A node whose cluster manager is
 wedged on the database can still fire and say `Running` while its peers recover its triggers. So a

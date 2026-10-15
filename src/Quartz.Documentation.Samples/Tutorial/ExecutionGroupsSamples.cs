@@ -140,6 +140,26 @@ public static class ExecutionGroupsSamples
         #endregion
     }
 
+    public static void ServeGroups(IQuartzBuilder q)
+    {
+        #region sample_execution_groups_serve
+
+        // This node acquires "reports" triggers and triggers with no execution group, and nothing else.
+        q.ServeExecutionGroups("reports", "_");
+
+        #endregion
+    }
+
+    public static void RefuseGroups(IQuartzBuilder q)
+    {
+        #region sample_execution_groups_refuse
+
+        // This node acquires everything except "gpu" triggers.
+        q.RefuseExecutionGroups("gpu");
+
+        #endregion
+    }
+
     public static void ClusterScopedLimit(IQuartzBuilder q)
     {
         #region sample_execution_groups_cluster_scope

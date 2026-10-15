@@ -28,6 +28,9 @@ Each limit is counted against an `ExecutionLimitScope`:
 One set of limits can mix both scopes. A limit with no scope is node-scoped, as execution limits always
 were.
 
+A group also **routes**, from 4.6: a node can serve or refuse groups, so a `gpu` trigger runs only on a
+node that has a GPU. See [Routing: which node serves a group](#routing-which-node-serves-a-group).
+
 ## Setting execution groups on triggers
 
 Use `TriggerBuilder.WithExecutionGroup()`:
@@ -590,6 +593,94 @@ is to fold the count into the candidate select, not to index the table.
 and running executions, and a cluster-scoped limit gives the same number as a node-scoped one. Both
 stores are held to the same assertions in `JobStoreContractTest`.
 
+## Routing: which node serves a group
+
+A limit says how many of a group run at once. Routing says **which nodes** run it. From 4.6 a node lists
+either the groups it serves or the groups it refuses, and acquires nothing else.
+
+| Option | Flat key | Means |
+|---|---|---|
+| `Scheduler:ServedExecutionGroups` | `quartz.scheduler.servedExecutionGroups` | This node acquires these groups and nothing else. Empty: every group not refused |
+| `Scheduler:RefusedExecutionGroups` | `quartz.scheduler.refusedExecutionGroups` | This node never acquires these groups. Empty: refuses none |
+
+- Set one list, never both. Both set fails at startup.
+- An entry is a group name, or `_` (or `null`) for triggers with no execution group — the spelling a
+  limit's key uses. A serve-list that omits `_` does not serve ungrouped triggers; a refuse-list that omits
+  it does.
+- The flat key is comma-separated. No wildcard, no prefix: `*` and `tenant:*` are refused at startup.
+- At most 1,000 groups per list. Names are compared ordinally in memory and by the `EXECUTION_GROUP`
+  column's collation in SQL.
+
+<!-- snippet: sample_execution_groups_serve -->
+```csharp
+// This node acquires "reports" triggers and triggers with no execution group, and nothing else.
+q.ServeExecutionGroups("reports", "_");
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_execution_groups_refuse -->
+```csharp
+// This node acquires everything except "gpu" triggers.
+q.RefuseExecutionGroups("gpu");
+```
+<!-- endSnippet -->
+
+```properties
+# the same two nodes, in properties
+quartz.scheduler.servedExecutionGroups = reports, _
+quartz.scheduler.refusedExecutionGroups = gpu
+```
+
+Routing and limits compose: routing decides whether a node reads a trigger, limits decide how many it
+runs. `quartz.executionLimit.gpu = 0` still means "forbidden here"; it reads the rows and refuses them
+every round, where a route never reads them.
+
+### What a routed node does
+
+| | Served group | Unserved group |
+|---|---|---|
+| Acquisition | reads and fires | the SQL `WHERE` clause leaves the row out |
+| Misfire sweep | applies the trigger's misfire instruction | leaves the row untouched |
+| `quartz.trigger.misfire` | counts | does not tick |
+| Cluster recovery | the recovery trigger keeps the firing's group, so a serving node runs it | same |
+
+A trigger in a group **no live node serves** waits, unmodified, until a serving node arrives. That node
+applies the trigger's misfire instruction once: `FireNow` runs it once, `DoNothing` skips to the next
+occurrence. Nothing re-arms it every minute meanwhile, which is what keeps the store quiet and the trap
+visible.
+
+### Seeing an unserved group
+
+| Signal | Where | What it says |
+|---|---|---|
+| Health check, `Degraded` | `UnservedExecutionGroupTolerance` (default `3`), on whenever the node routes | a `Normal` trigger in a group this node does not serve is overdue by more than 3 × the store's misfire threshold: `'gpu' (12)`, oldest due 420 s ago. [Health check](../configuration/reference.md#health-check) |
+| Dashboard | Overview → Execution groups: **Served here** and **Overdue** columns; Cluster → **Serves** | a group with overdue triggers that this node does not serve is marked. [Execution groups](../packages/dashboard.md#execution-groups) |
+| Log 1093 | at scheduler start | what this node serves or refuses; "this store is not clustered, so nothing else runs them" on an in-memory or unclustered store |
+| Log 3609 / 3610 | the misfire handler | unserved misfires appeared (warning, then at most hourly) / are gone |
+
+The health check infers it from the store alone: a serving node's sweep re-arms a misfired trigger within
+about one threshold, so a `WAITING` trigger three thresholds late has had no serving node reach it.
+
+### Limitations
+
+- **An in-memory store is one node.** A refused group there never runs; event 1093 says so. Every
+  acquisition round still walks the due triggers it refuses.
+- **`UseTriggerGroupWhenUnset` is a limits rule, not a routing rule.** Routing reads the stored execution
+  group only. Tag the triggers, or route by `_`.
+- **A trigger pinned to a node that refuses its group waits while that node is live.** Both predicates
+  apply. That node's health check reports it. See
+  [Node affinity](node-affinity.md#requirements-and-limitations).
+- **Mixed 4.5 and 4.6 nodes.** A 4.5 node serves every group and sweeps every misfire, so refusing a
+  group on the 4.6 nodes does not keep a 4.5 node off it. See
+  [Rolling 4.5 to 4.6](../operations.md#rolling-4-5-to-4-6).
+- **No index.** The clause is a residual on the rows `IDX_QRTZ_T_NFT_ST` already returns, as the
+  node-affinity clause is. Measure before adding one: an index leading with `EXECUTION_GROUP` loses the
+  ordered seek for every node that routes nothing.
+- **Custom job stores** see the lists as `TriggerAcquisitionRequest.ServedExecutionGroups` and
+  `RefusedExecutionGroups`, and honour them or not; a custom `IDriverDelegate` answers
+  `FiltersAcquisitionExecutionGroups` or the store filters the candidates for it. Changing the lists at
+  runtime is not supported: restart the node.
+
 ## Interaction with DisallowConcurrentExecution
 
 `[DisallowConcurrentExecution]` is always respected: a trigger must satisfy it and its execution group's
@@ -633,7 +724,9 @@ The Quartz Dashboard shows execution groups on:
 
 * the overview page: one row per group with its limit, its scope, what it has in flight and the headroom
   left (cluster-wide with a persistent store). Look here to see whether a ceiling is holding work back.
-  See [Dashboard](../packages/dashboard.md#execution-groups).
+  On a node that routes, two more columns: whether the group is served here, and how many of its triggers
+  are more than five minutes overdue. See [Dashboard](../packages/dashboard.md#execution-groups).
+* the cluster page, as a **Serves** column per node;
 * the trigger list page, as an "Execution Group" column;
 * the trigger detail page;
 * the currently executing page, for each running job.
@@ -655,10 +748,14 @@ q.UseExecutionLimits(limits =>
 ### Dedicating a node to specific workloads
 
 ```properties
-# Only run "reports" group on this node
+# This node runs "reports" triggers and nothing else, at most ten at a time
+quartz.scheduler.servedExecutionGroups = reports
 quartz.executionLimit.reports = 10
-quartz.executionLimit.* = 0
 ```
+
+The 4.5 recipe still works, as a limit rather than a route: `quartz.executionLimit.* = 0` reads every
+other group's due triggers each round and refuses them, and cannot say "serve only these" without a limit
+per served group. See [Routing](#routing-which-node-serves-a-group).
 
 ### Multi-tenant isolation
 

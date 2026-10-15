@@ -38,6 +38,21 @@ An application on 4.5 compiles on 4.6 unchanged, and the database schema did not
 | `Quartz.TypeNameResolution.IsSupported` | Feature switch, MSBuild property `QuartzTypeNameResolutionSupport`. On by default; the `Quartz` package sets it off under `PublishTrimmed` and `PublishAot`. Off, a type name resolves only to a registered type. See [Feature switches](how-tos/trimming-and-native-aot.md#feature-switches) |
 | `Quartz.LegacyComponentKeys.IsSupported` | Feature switch, MSBuild property `QuartzLegacyComponentKeysSupport`. Same defaults. Off, a flat `quartz.*` key naming a component by type, or setting its properties by string, fails `AddQuartz` |
 | `[DynamicallyAccessedMembers]` on `TypeLoaderOptions.Map(string, Type type)` | The same annotation `OfType(Type)` carries. `typeof(T)` satisfies it; a `Type` variable passed with trim analysis on now reports `IL2067` unless it carries the annotation too |
+| `QuartzSchedulerOptions.ServedExecutionGroups`, `RefusedExecutionGroups` | `List<string>`, get-only: the execution groups this node serves and nothing else, or the ones it refuses; `_` is the ungrouped bucket; both set fails validation. See [Routing](tutorial/execution-groups.md#routing-which-node-serves-a-group) |
+| `ServeExecutionGroups(this IQuartzBuilder, params string[])`, `RefuseExecutionGroups(…)` | Sugar over the two lists |
+| `quartz.scheduler.servedExecutionGroups`, `quartz.scheduler.refusedExecutionGroups` | The flat keys, comma-separated. See [Legacy property keys](configuration/reference.md#legacy-property-keys) |
+| `SchedulerMetadata.ServedExecutionGroups`, `RefusedExecutionGroups` | `string[]`, `init`, empty by default: what the node routes, as configuration spells it |
+| `TriggerAcquisitionRequest.ServedExecutionGroups`, `RefusedExecutionGroups` | `IReadOnlyCollection<ExecutionGroupScope>?`, `init`: the filter a store applies; `null` is no filtering. Named scopes and `Default` only, at most 1,000, exclusive |
+| `TriggerAcquisitionCriteria.ServedExecutionGroups`, `RefusedExecutionGroups` | The same two, copied from the request by `CreateAcquisitionCriteria` |
+| `IDriverDelegate.FiltersAcquisitionExecutionGroups` | Default interface member, `false`: whether the delegate keeps unserved rows out itself. `StdAdoDelegate` answers `true` |
+| `StdAdoDelegate.AddExecutionGroupParameters(DbCommand, ExecutionGroupClauseShape, IReadOnlyCollection<ExecutionGroupScope>?)` | `protected`: binds the routed groups' parameters after a statement's own |
+| `DriverDelegateContext.ServedExecutionGroups`, `RefusedExecutionGroups` | `init`, not required: what the misfire sweep's statements are built from |
+| `TriggerAcquisitionSqlShape.ExecutionGroups` | `ExecutionGroupClauseShape`, `init`, `default` for no clause |
+| `ExecutionGroupClauseShape` | `record struct (bool IsServeList, bool IncludesUngrouped, int NamedCount)`; `HasClause`, `Complement`, `Of(served, refused)` |
+| `QuartzHealthCheckOptions.UnservedExecutionGroupTolerance` | `double?`, default `3`: degraded when a trigger of a group this node does not serve is that many misfire thresholds overdue. Read only on a node that routes |
+| `SchedulerDetailDto.ServedExecutionGroups`, `RefusedExecutionGroups`, `RoutesExecutionGroups` | `Quartz.Dashboard`, `init`, empty by default |
+| HTTP: `servedExecutionGroups`, `refusedExecutionGroups` on `GET …/schedulers/{name}` | Arrays, empty when the node routes nothing; absent on a host older than 4.6, which the client reads as empty |
+| Log events `1093`, `3609`, `3610` | What a node routes, at start; unserved misfires appeared / are gone |
 
 Behaviour that changed:
 
@@ -51,6 +66,8 @@ Behaviour that changed:
 | `JobType(string)` and the explicit `string` → `JobType` cast were `[RequiresUnreferencedCode]` | They are not: a name resolves from the registered types | Nothing; a `#pragma warning disable IL2026` around either can go |
 | `XmlSchedulingDataProcessor`'s members were `[RequiresUnreferencedCode]` | They are not | Nothing |
 | The `Quartz:Schedule` reader built its own type loader from `quartz.scheduler.typeLoadHelper.type` when the key arrived through deferred `QuartzOptions.Properties` | It uses the container's `ITypeLoader`, which the same key registers through `AddQuartz(properties)` | Nothing for a key passed to `AddQuartz`; a key set only in a deferred callback never registered a loader, so name it through `AddQuartz(properties)` or `UseTypeLoader<T>()` |
+| Every node acquired and misfire-handled every group | A node with `ServedExecutionGroups` or `RefusedExecutionGroups` set acquires and sweeps only the groups it serves; a trigger of a group no live node serves waits, unmodified, and `quartz.trigger.misfire` stops ticking for it | Nothing unless you route. If you do, keep a node up for every group in use; the health check and the dashboard report one that has none |
+| The stale-firing health reading looked at every overdue trigger | On a node that routes it looks only at the groups the node serves | Nothing |
 
 ## Upgrading from 4.4 to 4.5
 

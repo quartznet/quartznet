@@ -214,6 +214,10 @@ await scheduler.UpdateTriggerDetails(
 * **A live but saturated node keeps its pin.** If the pinned node is up but its
   [execution group](execution-groups.md) is at its limit, the trigger waits for that node. Failover
   reacts to node death, not to busyness.
+* **A node that refuses the trigger's group keeps its pin too.** A trigger pinned to a node whose
+  [routing](execution-groups.md#routing-which-node-serves-a-group) refuses its execution group waits
+  while that node is live: the pin and the route are both `WHERE` clauses, and no node satisfies both.
+  That node's health check reports the group as unserved.
 * **Brief spread during failover.** Between a node dying and ownership moving, a fast-firing trigger may
   run on more than one surviving node.
 

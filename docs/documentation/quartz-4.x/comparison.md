@@ -99,7 +99,7 @@ Elsewhere, "not on public holidays" is a check in the job body.
 |---|---|---|---|---|---|
 | How one node wins | [a row lock at trigger acquisition](tutorial/advanced-enterprise-features.md), before the job runs | [a distributed lock around the recurring enqueue](https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html); the first server to dequeue runs it | [a conditional `UPDATE`'s affected-row count](https://github.com/Arcenox-co/TickerQ/blob/c6ed1e7daa90ab3f4c65b40319a153126a910093/src/TickerQ.EntityFrameworkCore/Infrastructure/BasePersistenceProvider.cs), with no row lock, `SKIP LOCKED` or lock table; Lua scripts on Redis | [one `SingularAgent` per cluster, plus a deterministic deduplication id](https://github.com/JasperFx/wolverine/blob/V6.41.0/src/Wolverine/Runtime/Recurring/RecurringMessageAgent.cs) | nothing: a process-local `Timer`, so every instance runs every schedule |
 | A node dies mid-execution | check-in detects it; a job that [requests recovery](tutorial/advanced-enterprise-features.md#asking-for-recovery) re-runs | [removed after `ServerTimeout` (5 minutes); its jobs are requeued](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/Server/ServerWatchdog.cs) | the fallback sweep takes rows with a stale lease; Redis has a dead-node script | the agent moves to another node | — |
-| Pinning work to one node | `PreferredNode` on the trigger | [queue names per server](https://docs.hangfire.io/en/latest/background-processing/configuring-queues.html) | [`NodeIdentifier`](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/configuration.mdx) names the lease holder; it does not route | the agent's assignment | — |
+| Pinning work to one node | `PreferredNode` on the trigger; from 4.6, [a node serves or refuses execution groups](tutorial/execution-groups.md#routing-which-node-serves-a-group) | [queue names per server](https://docs.hangfire.io/en/latest/background-processing/configuring-queues.html) | [`NodeIdentifier`](https://github.com/Arcenox-co/TickerQ-UI/blob/main/content/docs/guides/configuration.mdx) names the lease holder; it does not route | the agent's assignment | — |
 
 Quartz fires each trigger once, because acquisition takes the lock before the job runs. A firing is
 **at most once** unless recovery is requested, which makes it at least once. No library here promises
@@ -225,9 +225,11 @@ the dashboard accepts it with `AcceptAgents`.
   retries nothing until a trigger, a job type (`[RetryPolicy]`) or the scheduler (`UseDefaultRetryPolicy`)
   names a policy, and waits exactly the policy's waits unless it names a `jitter`. One line opts a
   whole scheduler in.
-- **There are no queues.** Hangfire's `[Queue]`, with servers subscribing to different sets, routes work.
-  [Execution groups](tutorial/execution-groups.md) bound how much of a category runs at once but do not
-  choose the node, and `PreferredNode` pins rather than balances.
+- **Routing is by execution group, not by queue.** Hangfire's `[Queue]`, with servers subscribing to
+  different sets, routes work. From 4.6 a node
+  [serves or refuses execution groups](tutorial/execution-groups.md#routing-which-node-serves-a-group),
+  which is the same shape; a limit on the group bounds how much of it runs at once. What stays different:
+  there is no per-queue ordering, and the group is on the trigger, not an attribute on the job type.
 - **A message may belong to a bus.** An application already running Wolverine with an outbox, wanting
   "publish X every weekday at 03:00", should use Wolverine's schedule rather than a second runtime and
   set of tables — [Quartz.NET with Wolverine](how-tos/wolverine.md) covers both directions.
@@ -238,8 +240,8 @@ Choose:
 
 - **Quartz.NET** for stored schedules with calendars, time zones, misfire policies and priorities; a
   cluster that fires each trigger on one node; limits counted across nodes; retries held in the store.
-- **Hangfire** for a queue with a state-machine dashboard, retry on by default, queue-based routing, or
-  .NET Framework on a current line.
+- **Hangfire** for a queue with a state-machine dashboard, retry on by default, or .NET Framework on a
+  current line.
 - **TickerQ** or **Coravel** for the shortest setup, or many short-lived in-memory firings.
 - **Wolverine's own schedule** when the occurrence is a message in an application already on Wolverine.
 

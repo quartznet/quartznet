@@ -90,6 +90,10 @@ public static class ComingFromSamples
                 .WithCronSchedule("0 0 3 1 * ?")
                 .WithExecutionGroup("reports"));
 
+            // The server side of BackgroundJobServerOptions.Queues: this node runs "reports" triggers
+            // and nothing else. Leave it out on a node that runs everything.
+            q.ServeExecutionGroups("reports");
+
             q.UseExecutionLimits(limits =>
             {
                 // Two at a time across every node sharing the store, rather than two per process.

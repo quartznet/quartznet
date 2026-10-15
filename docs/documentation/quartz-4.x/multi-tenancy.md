@@ -511,6 +511,10 @@ group and the store persists none.
 `null` clears them. The call is per node whatever the scope: set a cluster-scoped quota on every node, or
 configure it.
 
+A tenant can also be given nodes of its own: `q.ServeExecutionGroups("acme")` on those nodes and
+`q.RefuseExecutionGroups("acme")` on the rest. The quota stays cluster-scoped, counted wherever the
+tenant's triggers run. See [Routing](tutorial/execution-groups.md#routing-which-node-serves-a-group).
+
 ::: warning What a cluster-scoped quota does and does not promise
 
 - The ceiling holds **within one acquisition round**. A round that asks for one trigger takes no cluster

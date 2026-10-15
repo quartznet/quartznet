@@ -202,7 +202,8 @@ shutdown. Beside the totals (jobs, triggers, firings in flight, triggers in erro
   `HistoryRetention`). A source with no misfire feed shows a dash, not a zero. Links to `/quartz/history#misfires`;
   see [Execution history and misfires](#execution-history-and-misfires).
 - **Execution groups**: one row per [execution group](../tutorial/execution-groups.md) with its limit, the
-  limit's scope, firings in flight and remaining headroom; see [Execution groups](#execution-groups).
+  limit's scope, firings in flight and remaining headroom — and, on a node that routes, whether the group is
+  served here and how many of its triggers are overdue; see [Execution groups](#execution-groups).
 
 The **Nodes** tile shows the node count and, when any exist, the number not `Alive`, turning red then. It links
 to the Cluster page. A non-clustered scheduler shows `1`.
@@ -376,7 +377,11 @@ Rows are sorted by target, this process first, then by name.
 `/quartz/cluster` has one row per node of the selected scheduler's cluster, refreshed every five seconds, with
 the last refresh time in the header so a stalled page is visible.
 
-- Columns: instance id, state, last check-in, check-in interval, and firings held `Acquired` and `Executing`.
+- Columns: instance id, state, last check-in, check-in interval, firings held `Acquired` and `Executing`, and
+  **Serves**: `all`, `only reports, (no execution group)` or `all but gpu`, from the node's
+  [routing](../tutorial/execution-groups.md#routing-which-node-serves-a-group). Nodes publish nothing to the
+  store, so for a single target only the answering node has an entry and the rest show a dash; for a cluster
+  behind several targets, each member's.
 - The answering node is marked *(this node)*.
 - The state (`Alive`, `Overdue` or `Failed`) is `IScheduler.QueryClusterNodes()`'s verdict, from the same
   predicate the store's recovery sweep uses. Meanings, and why a `Failed` node is listed briefly and then
@@ -466,6 +471,14 @@ configured ceilings are visible in the UI.
   marks it the same way.
 - **A scheduler that cannot report limits says so**, for an `IQuartzApiClient` or `IScheduler` of your own that
   does not implement them.
+- **A node that routes gets two more columns.** When the scheduler reports `ServedExecutionGroups` or
+  `RefusedExecutionGroups`, the panel says which lists it is, lists every routed group whether or not anything is in
+  flight, and adds **Served here** (`✓` or `—`) and **Overdue**: `Normal` triggers of the group due more than
+  **five minutes** ago, from one more trigger query per refresh. Five minutes is a fixed figure, because the
+  dashboard does not know the store's misfire threshold; the
+  [health check](../configuration/reference.md#health-check) measures in thresholds. A group with overdue
+  triggers that this node does not serve is marked *not served here*: check that a node serving it is running. A
+  node that routes nothing makes no extra query and shows no extra column.
 
 ## The schedulers the dashboard covers
 
