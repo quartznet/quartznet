@@ -238,6 +238,8 @@
     "Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is handed back for recovery as trigger {RecoveryTriggerKey}"
 3055  Information  AdoJobStoreLog.FiringRowGoneBeforeHandBack
     "Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is not handed back: its fired-trigger row is gone, because a peer recovered it or its trigger was unscheduled while it ran"
+3059  Debug  AdoJobStoreLog.TriggerEditReapplied
+    "Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write"
 3100  Debug  AdoJobStoreLog.SqlPrepared
     "Prepared SQL: {Sql}"
 3110  Error  AdoJobStoreLog.ConnectionCloseFailed
@@ -330,6 +332,8 @@
     "Scanning for misfires..."
 3607  Error  MisfireLog.MisfireHandlingFailed
     "Error handling misfires: {ExceptionMessage}"
+3608  Debug  MisfireLog.MisfireWriteSkipped
+    "Misfire of trigger {TriggerKey} not written: the trigger was fired meanwhile (fire time moved from {ReadFireTime})"
 3609  Warning  MisfireLog.UnservedTriggersMisfired
     "{Count} misfired trigger(s) belong to execution groups this node does not serve; no live node may be serving them. Oldest due at {OldestDueUtc}"
 3610  Information  MisfireLog.UnservedMisfiresHandled

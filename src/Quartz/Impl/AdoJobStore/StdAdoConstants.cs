@@ -1582,6 +1582,35 @@ internal static class StdAdoConstants
     public static readonly string SqlUpdateTriggerMisfireWithOrigFireTime =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime}, {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnRetryAttempt} = @{SqlParameters.TriggerRetryAttempt}, {AdoConstants.ColumnMisfireOriginalFireTime} = @{SqlParameters.TriggerMisfireOrigFireTime} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
+    /// <summary>
+    /// Appended to a statement that writes a trigger's row by key, holds the write to the row as it was
+    /// read: <c>NEXT_FIRE_TIME</c> is the row's version stamp, because every fire, misfire, release and
+    /// replace of the row moves it (#4067). A write that read the row under <c>TRIGGER_ACCESS</c> and
+    /// lands after a firing round that took no lock finds zero rows instead of re-arming the occurrence
+    /// the round has just fired.
+    /// </summary>
+    internal static readonly string NextFireTimeUnchangedPredicate =
+        Invariant($" AND {AdoConstants.ColumnNextFireTime} = @{SqlParameters.ExpectedNextFireTime}");
+
+    /// <summary>
+    /// <see cref="NextFireTimeUnchangedPredicate" /> for a row read with no fire time at all, which a
+    /// bound <c>NULL</c> could never match.
+    /// </summary>
+    internal static readonly string NextFireTimeStillNullPredicate =
+        Invariant($" AND {AdoConstants.ColumnNextFireTime} IS NULL");
+
+    /// <summary>
+    /// <see cref="SqlUpdateTriggerMisfire" /> held to the fire time the misfire was decided from
+    /// (<see cref="NextFireTimeUnchangedPredicate" />).
+    /// </summary>
+    internal static readonly string SqlUpdateTriggerMisfireIfUnchanged = SqlUpdateTriggerMisfire + NextFireTimeUnchangedPredicate;
+
+    /// <summary>
+    /// <see cref="SqlUpdateTriggerMisfireWithOrigFireTime" /> held to the fire time the misfire was
+    /// decided from (<see cref="NextFireTimeUnchangedPredicate" />).
+    /// </summary>
+    internal static readonly string SqlUpdateTriggerMisfireWithOrigFireTimeIfUnchanged = SqlUpdateTriggerMisfireWithOrigFireTime + NextFireTimeUnchangedPredicate;
+
     // -----------------------------------------------------------------------------------------
     // EXECUTION_HISTORY and MISFIRE_HISTORY
     //

@@ -53,4 +53,19 @@ public readonly record struct MisfiredTriggerBatch(
 public readonly record struct MisfiredTriggerUpdate(
     IOperableTrigger Trigger,
     StoredTriggerState NewState,
-    DateTimeOffset? MisfireOriginalFireTime);
+    DateTimeOffset? MisfireOriginalFireTime)
+{
+    /// <summary>
+    /// The fire time the row held when the misfire was decided — the occurrence that was missed — which
+    /// <see cref="IDriverDelegate.UpdateMisfiredTriggersIfUnchanged" /> holds the write to; or
+    /// <see langword="null" /> to write the row whatever it holds now, as
+    /// <see cref="IDriverDelegate.UpdateMisfiredTriggers" /> does.
+    /// </summary>
+    /// <remarks>
+    /// The misfire handler reads under <c>TRIGGER_ACCESS</c>, but a firing round of work that allows
+    /// concurrent execution takes no lock (#4067), so the row it read may be fired, and moved on, before
+    /// its write lands. A write held to the fire time it read finds zero rows then, which is what the
+    /// store wants: the occurrence was fired, not missed.
+    /// </remarks>
+    public DateTimeOffset? ExpectedNextFireTimeUtc { get; init; }
+}

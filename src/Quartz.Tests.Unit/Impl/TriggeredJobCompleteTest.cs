@@ -516,6 +516,14 @@ public sealed class TriggeredJobCompleteTest
                 A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<TriggerKey>>(new List<TriggerKey>()));
 
+        // The guarded misfire write through the interface's default, which is the unguarded write these
+        // tests assert on, with every row counted as written (#4067 is MisfireWriteGuardTest's).
+        A.CallTo(() => driverDelegate.UpdateMisfiredTriggersIfUnchanged(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyList<MisfiredTriggerUpdate>>.Ignored,
+                A<CancellationToken>.Ignored))
+            .CallsBaseMethod();
+
         return driverDelegate;
     }
 

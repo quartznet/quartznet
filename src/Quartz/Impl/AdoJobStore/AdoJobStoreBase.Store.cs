@@ -189,7 +189,7 @@ internal abstract partial class AdoJobStoreBase
     /// <summary>
     /// Insert or update a trigger.
     /// </summary>
-    protected ValueTask AddTrigger(
+    protected async ValueTask AddTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger newTrigger,
         IJobDetail? job,
@@ -199,7 +199,7 @@ internal abstract partial class AdoJobStoreBase
         bool recovering,
         CancellationToken cancellationToken = default)
     {
-        return AddTrigger(conn, newTrigger, job, replace, state, forceState, recovering, continuationParentChecked: false, cancellationToken);
+        await AddTrigger(conn, newTrigger, job, replace, state, forceState, recovering, continuationParentChecked: false, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc cref="AddTrigger(ConnectionAndTransactionHolder, IOperableTrigger, IJobDetail, bool, StoredTriggerState, bool, bool, CancellationToken)" />
@@ -225,7 +225,16 @@ internal abstract partial class AdoJobStoreBase
     /// — so that it is never acquirable between being stored and being paused.
     /// </param>
     /// <param name="pause">The record of that pause, or <see langword="null" /> for the reasonless one.</param>
-    private async ValueTask AddTrigger(
+    /// <param name="asRead">
+    /// For a replace that writes back a row the caller read and changed: the row as it was read, which
+    /// the write is held to. A row a firing round moved in between is left alone and this answers
+    /// <see langword="false" />, for the caller to read it again (#4067). <see langword="null" /> for a
+    /// replace that is meant to overwrite whatever the row holds, which is every other caller.
+    /// </param>
+    /// <returns>
+    /// Whether the trigger was written: inserted, or updated over the row it was meant to replace.
+    /// </returns>
+    private async ValueTask<bool> AddTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger newTrigger,
         IJobDetail? job,
@@ -237,7 +246,8 @@ internal abstract partial class AdoJobStoreBase
         CancellationToken cancellationToken,
         bool? knownToExist = null,
         bool storePaused = false,
-        PauseInfo? pause = null)
+        PauseInfo? pause = null,
+        RowAsRead? asRead = null)
     {
         bool existingTrigger = knownToExist ?? await TriggerExists(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
 
@@ -271,7 +281,7 @@ internal abstract partial class AdoJobStoreBase
             state = StoredTriggerState.Paused;
         }
 
-        await Guarded(
+        bool written = await Guarded(
             async () =>
             {
                 if (!forceState && !awaiting)
@@ -319,9 +329,22 @@ internal abstract partial class AdoJobStoreBase
                             && await IsOverlapPolicyUnsettled(conn, stored, OverlapPolicy.CancelPrevious, cancellationToken).ConfigureAwait(false);
                     }
 
-                    if (await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false) > 0)
+                    int updated = asRead is { } read
+                        ? await Delegate.UpdateTriggerIfUnchanged(conn, newTrigger, state, job, read.NextFireTimeUtc, cancellationToken).ConfigureAwait(false)
+                        : await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
+
+                    if (updated > 0)
                     {
-                        return;
+                        return true;
+                    }
+
+                    if (asRead is not null)
+                    {
+                        // The row is not the one the caller read: a firing round that took no lock fired
+                        // it in between (#4067), or its last firing's completion deleted it (#3863). Either
+                        // way the edit was made to a row that is gone, and the caller decides on the one
+                        // that is there now.
+                        return false;
                     }
 
                     // The row went between the read that found it and this write: the firing it was
@@ -337,14 +360,30 @@ internal abstract partial class AdoJobStoreBase
                 }
 
                 await Delegate.InsertTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
+                return true;
             },
             $"store trigger '{newTrigger.Key}' for '{newTrigger.JobKey}' job").ConfigureAwait(false);
 
-        if (paused)
+        if (paused && written)
         {
             await RecordStoredPause(conn, newTrigger.Key, state, pause, existingTrigger, cancellationToken).ConfigureAwait(false);
         }
+
+        return written;
     }
+
+    /// <summary>
+    /// A trigger's row as an editor read it, which the editor's write back is held to: its fire time,
+    /// which every fire, misfire, release and replace of the row moves (#4067).
+    /// </summary>
+    private readonly record struct RowAsRead(DateTimeOffset? NextFireTimeUtc);
+
+    /// <summary>
+    /// How many times an editor applies its edit again to a row a firing moved under it before it gives
+    /// up. A trigger firing continuously could otherwise hold an edit off for good; one that fires this
+    /// often while being edited is a configuration to report, not to wait out.
+    /// </summary>
+    private const int MaxEditAttempts = 8;
 
     /// <summary>
     /// Writes the record of a trigger just stored paused, in the transaction that stored it.
@@ -955,72 +994,6 @@ internal abstract partial class AdoJobStoreBase
                     }
                 }
 
-                if (update.HasDescription)
-                {
-                    existing.Description = update.Description;
-                }
-
-                if (update.HasPriority)
-                {
-                    existing.Priority = update.Priority;
-                }
-
-                if (update.HasJobDataMap)
-                {
-                    JobDataMap newMap = update.JobDataMap is { Count: > 0 }
-                        ? new JobDataMap((IDictionary<string, object?>) update.JobDataMap)
-                        : new JobDataMap();
-
-                    // Force dirty flag so Delegate.UpdateTrigger writes the BLOB
-                    newMap[SchedulerConstants.ForceJobDataMapDirty] = true;
-                    newMap.Remove(SchedulerConstants.ForceJobDataMapDirty);
-
-                    existing.JobDataMap = newMap;
-                }
-
-                if (update.HasCalendarName)
-                {
-                    existing.CalendarName = update.CalendarName;
-                }
-
-                if (update.HasMisfireInstruction)
-                {
-                    existing.MisfireInstructionCode = update.MisfireInstructionCode;
-                }
-
-                if (update.HasPreferredNode)
-                {
-                    // Setting the property marks the pin dirty, so the subsequent store writes the
-                    // preferred node columns.
-                    existing.PreferredNode = update.PreferredNode;
-                }
-
-                if (update.HasExecutionGroup)
-                {
-                    // EXECUTION_GROUP is part of the generic trigger UPDATE below, so nothing more is
-                    // needed to persist it.
-                    existing.ExecutionGroup = update.ExecutionGroup;
-                }
-
-                if (update.HasRetryPolicy)
-                {
-                    // RETRY_POLICY is part of the same generic UPDATE. RETRY_ATTEMPT is written by it
-                    // too, with the value just read back from the row - so a re-policy leaves an
-                    // occurrence that is mid-retry counting from where it was.
-                    existing.RetryPolicy = update.RetryPolicy;
-                }
-
-                if (update.HasOverlapPolicy)
-                {
-                    // OVERLAP_POLICY is part of the same generic UPDATE. Whether the new policy is
-                    // unsettled is read from the row as it stands, before the write replaces it.
-                    TriggerBase overlapping = (TriggerBase) existing;
-                    bool unsettled = await IsOverlapPolicyUnsettled(conn, overlapping, update.OverlapPolicy, cancellationToken).ConfigureAwait(false);
-                    overlapping.OverlapPolicy = update.OverlapPolicy;
-                    overlapping.OverlapPolicyUnsettled = unsettled;
-                }
-
-                StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
                 // Not resolved, for the reason ReplaceTrigger does not resolve it: editing a trigger is
                 // something a process without the job's assembly is entitled to do, and the flags the
                 // write needs are columns rather than attributes.
@@ -1031,11 +1004,191 @@ internal abstract partial class AdoJobStoreBase
                     Throw.JobPersistenceException($"The job referenced by trigger '{triggerKey}' does not exist.");
                 }
 
-                // The row's count rather than true: the trigger read above may have completed its last
-                // firing without the lock since, and an edit of a trigger that is gone is not an edit.
-                return await Delegate.UpdateTrigger(conn, existing, state, job!, cancellationToken).ConfigureAwait(false) > 0;
+                // The edit is a read, a change and a write back of the whole row, under TRIGGER_ACCESS. A
+                // firing round of work that allows concurrent execution takes no lock (#4067), so it can
+                // fire the row between the read and the write, and a write by key would then put the
+                // fire time the edit read back over the one the fire wrote. The write is held to the row
+                // as read instead, and a miss reads the row again and applies the edit to the row the
+                // fire left — the serialised order, round then edit.
+                for (int attempt = 1; ; attempt++)
+                {
+                    RowAsRead asRead = new(existing.NextFireTimeUtc);
+                    await ApplyTriggerDetails(conn, existing, update, cancellationToken).ConfigureAwait(false);
+
+                    StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                    if (await Delegate.UpdateTriggerIfUnchanged(conn, existing, state, job!, asRead.NextFireTimeUtc, cancellationToken).ConfigureAwait(false) > 0)
+                    {
+                        return true;
+                    }
+
+                    // The row's count rather than true: the trigger read above may have completed its
+                    // last firing without the lock since, and an edit of a trigger that is gone is not an
+                    // edit.
+                    IOperableTrigger? moved = await ReadRowMovedUnderEdit(conn, triggerKey, attempt, "it was being edited, and the edit", cancellationToken).ConfigureAwait(false);
+                    if (moved is null)
+                    {
+                        return false;
+                    }
+
+                    existing = moved;
+                }
             },
             $"update trigger details for '{triggerKey}'");
+    }
+
+    /// <summary>
+    /// Reads again a row a firing moved between an editor's read and its write, for the edit to be
+    /// applied to the row the firing left (#4067).
+    /// </summary>
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="triggerKey">The trigger being edited.</param>
+    /// <param name="attempt">How many times the edit has been applied, this one included.</param>
+    /// <param name="edit">What the editor was doing, and what it failed to apply, as the failure says it.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The row as it is now, or <see langword="null" /> when it is gone.</returns>
+    /// <exception cref="JobPersistenceException">The edit has missed <see cref="MaxEditAttempts" /> times.</exception>
+    private async ValueTask<IOperableTrigger?> ReadRowMovedUnderEdit(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        int attempt,
+        string edit,
+        CancellationToken cancellationToken)
+    {
+        IOperableTrigger? moved = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        if (moved is null)
+        {
+            return null;
+        }
+
+        if (attempt >= MaxEditAttempts)
+        {
+            Throw.JobPersistenceException($"Trigger '{triggerKey}' fired {attempt} times while {edit} was not applied.");
+        }
+
+        Logger.TriggerEditReapplied(triggerKey);
+        return moved;
+    }
+
+    /// <summary>
+    /// Writes what a <see cref="TriggerDetailsUpdate" /> asks for onto the trigger as its row was read.
+    /// </summary>
+    private async ValueTask ApplyTriggerDetails(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger existing,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken)
+    {
+        if (update.HasDescription)
+        {
+            existing.Description = update.Description;
+        }
+
+        if (update.HasPriority)
+        {
+            existing.Priority = update.Priority;
+        }
+
+        if (update.HasJobDataMap)
+        {
+            JobDataMap newMap = update.JobDataMap is { Count: > 0 }
+                ? new JobDataMap((IDictionary<string, object?>) update.JobDataMap)
+                : new JobDataMap();
+
+            // Force dirty flag so Delegate.UpdateTrigger writes the BLOB
+            newMap[SchedulerConstants.ForceJobDataMapDirty] = true;
+            newMap.Remove(SchedulerConstants.ForceJobDataMapDirty);
+
+            existing.JobDataMap = newMap;
+        }
+
+        if (update.HasCalendarName)
+        {
+            existing.CalendarName = update.CalendarName;
+        }
+
+        if (update.HasMisfireInstruction)
+        {
+            existing.MisfireInstructionCode = update.MisfireInstructionCode;
+        }
+
+        if (update.HasPreferredNode)
+        {
+            // Setting the property marks the pin dirty, so the subsequent store writes the
+            // preferred node columns.
+            existing.PreferredNode = update.PreferredNode;
+        }
+
+        if (update.HasExecutionGroup)
+        {
+            // EXECUTION_GROUP is part of the generic trigger UPDATE below, so nothing more is
+            // needed to persist it.
+            existing.ExecutionGroup = update.ExecutionGroup;
+        }
+
+        if (update.HasRetryPolicy)
+        {
+            // RETRY_POLICY is part of the same generic UPDATE. RETRY_ATTEMPT is written by it
+            // too, with the value just read back from the row - so a re-policy leaves an
+            // occurrence that is mid-retry counting from where it was.
+            existing.RetryPolicy = update.RetryPolicy;
+        }
+
+        if (update.HasOverlapPolicy)
+        {
+            // OVERLAP_POLICY is part of the same generic UPDATE. Whether the new policy is
+            // unsettled is read from the row as it stands, before the write replaces it.
+            TriggerBase overlapping = (TriggerBase) existing;
+            bool unsettled = await IsOverlapPolicyUnsettled(conn, overlapping, update.OverlapPolicy, cancellationToken).ConfigureAwait(false);
+            overlapping.OverlapPolicy = update.OverlapPolicy;
+            overlapping.OverlapPolicyUnsettled = unsettled;
+        }
+    }
+
+    /// <summary>
+    /// Recomputes one trigger's fire times from a calendar that changed, and writes the row back held to
+    /// the row as read: a firing round that took no lock and fired the trigger in between (#4067) has the
+    /// recomputation done again from the row it left, rather than overwritten.
+    /// </summary>
+    /// <param name="conn">The unit of work, which holds <see cref="SchedulerLock.TriggerAccess" />.</param>
+    /// <param name="trigger">The trigger as <see cref="IDriverDelegate.SelectTriggersForCalendar" /> read it.</param>
+    /// <param name="calendar">The calendar as it is now.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask UpdateTriggerWithNewCalendar(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        ICalendar calendar,
+        CancellationToken cancellationToken)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            RowAsRead asRead = new(trigger.NextFireTimeUtc);
+            trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
+
+            StoredTriggerState triggerState = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+            if (triggerState == StoredTriggerState.Deleted)
+            {
+                return;
+            }
+
+            if (await AddTrigger(conn, trigger, null, true, triggerState, true, false, continuationParentChecked: false, cancellationToken, knownToExist: true, asRead: asRead).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            IOperableTrigger? moved = await ReadRowMovedUnderEdit(
+                conn,
+                trigger.Key,
+                attempt,
+                $"calendar '{trigger.CalendarName}' was being applied to it, and the calendar",
+                cancellationToken).ConfigureAwait(false);
+
+            if (moved is null)
+            {
+                return;
+            }
+
+            trigger = moved;
+        }
     }
 
     /// <summary>
@@ -1095,13 +1248,7 @@ internal abstract partial class AdoJobStoreBase
 
                         foreach (IOperableTrigger trigger in triggers)
                         {
-                            trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
-                            StoredTriggerState triggerState = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                            if (triggerState == StoredTriggerState.Deleted)
-                            {
-                                continue;
-                            }
-                            await AddTrigger(conn, trigger, null, true, triggerState, true, false, cancellationToken).ConfigureAwait(false);
+                            await UpdateTriggerWithNewCalendar(conn, trigger, calendar, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }
