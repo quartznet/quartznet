@@ -16,7 +16,8 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.8" />
+    <!-- 8.0.32 brings the SignalR.Common that fixes GHSA-334f-vvp4-7g6p; kept on 8.x, the major a net8.0 consumer runs. -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.32" />
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.SystemTextJson\Quartz.Serialization.SystemTextJson.csproj" />
   </ItemGroup>
