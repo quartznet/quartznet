@@ -34,6 +34,8 @@
     <PackageReference Include="MySqlConnector" />
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Oracle.ManagedDataAccess.Core" />
+    <!-- Named because SqlClient and Oracle's driver bring a vulnerable copy; this project does not pin transitively. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
   <ItemGroup>

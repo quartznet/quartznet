@@ -55,7 +55,8 @@ updates:
       # caused that, so it is not offered; a major still is, because a major is a decision.
       #
       # Raise one of these by hand, for a security advisory, to the version that fixed it.
-      # PackageDependencyTest fails a Microsoft.* floor that is not x.0.0 either way.
+      # PackageDependencyTest fails a Microsoft.* floor that is not x.0.0, unless it records the
+      # advisory and the floor is that advisory's fixed version.
       #
       # An ignore entry stops a direct proposal only. When an allowed update needs a newer patch of a
       # floored id, Dependabot raises that id as a required dependency whatever the entry says:
@@ -97,6 +98,8 @@ updates:
       - dependency-name: "OpenTelemetry.Extensions.Hosting"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "StackExchange.Redis"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "System.Security.Cryptography.Pkcs"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "TimeZoneConverter"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]

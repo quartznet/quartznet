@@ -32,6 +32,8 @@
 
   <ItemGroup>
     <PackageReference Include="Weasel.SqlServer" />
+    <!-- Not called: it raises the vulnerable copy SqlClient brings. Directory.Packages.props says why. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
 </Project>

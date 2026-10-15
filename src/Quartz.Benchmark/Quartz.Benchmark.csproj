@@ -34,6 +34,8 @@
   -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" />
+    <!-- Named because SqlClient brings a vulnerable copy, and this project does not pin transitively. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
     <PackageReference Include="MySqlConnector" />
     <PackageReference Include="Npgsql" />
     <!--
