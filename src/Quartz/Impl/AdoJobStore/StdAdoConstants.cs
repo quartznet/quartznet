@@ -195,11 +195,11 @@ internal static class StdAdoConstants
         Invariant($"SELECT {CronTriggerSelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableCronTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     /// <summary>
-    /// Every column <c>StdAdoDelegate.ReadFiredTriggerRecord</c> reads, and only those — EXECUTION_GROUP
-    /// is on the row but not on <see cref="FiredTriggerRecord" />, so it is not fetched.
+    /// Every column <c>StdAdoDelegate.ReadFiredTriggerRecord</c> reads, and only those. EXECUTION_GROUP
+    /// is among them because a recovery trigger built from the row keeps the firing's group (#4081).
     /// </summary>
     private const string FiredTriggerSelectColumns =
-        $"{AdoConstants.ColumnEntryId}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnEntryState}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnIsNonConcurrent}, {AdoConstants.ColumnRequestsRecovery}, {AdoConstants.ColumnPriority}";
+        $"{AdoConstants.ColumnEntryId}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnEntryState}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnIsNonConcurrent}, {AdoConstants.ColumnRequestsRecovery}, {AdoConstants.ColumnPriority}, {AdoConstants.ColumnExecutionGroup}";
 
     /// <summary>
     /// Selects every fired trigger of the scheduler; the caller appends the predicates of a
@@ -237,10 +237,11 @@ internal static class StdAdoConstants
     /// <summary>
     /// Every column <c>StdAdoDelegate.SelectTriggersForRecoveringJobs</c> reads, and only those. It
     /// builds a recovery trigger rather than a <see cref="FiredTriggerRecord" />, so it needs fewer
-    /// columns than <see cref="SqlSelectFiredTriggers" /> does.
+    /// columns than <see cref="SqlSelectFiredTriggers" /> does: the key, job, times and priority, and
+    /// the execution group the recovery trigger keeps (#4081).
     /// </summary>
     private const string RecoverableFiredTriggerSelectColumns =
-        $"{AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnPriority}";
+        $"{AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnPriority}, {AdoConstants.ColumnExecutionGroup}";
 
     public static readonly string SqlSelectInstancesRecoverableFiredTriggers =
         Invariant($"SELECT {RecoverableFiredTriggerSelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName} AND {AdoConstants.ColumnRequestsRecovery} = @{SqlParameters.RequestsRecovery}");

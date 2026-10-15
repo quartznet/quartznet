@@ -18,7 +18,8 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.4 | [Upgrading from 4.4 to 4.5](#upgrading-from-4-4-to-4-5). No database migration |
+| From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). No database migration |
+| From 4.4 | [Upgrading from 4.4 to 4.5](#upgrading-from-4-4-to-4-5). No database migration. Then 4.5 to 4.6 |
 | From 4.3 | [Upgrading from 4.3 to 4.4](#upgrading-from-4-3-to-4-4). Its database migration is optional. Then 4.4 to 4.5 |
 | From 4.2 | [Upgrading from 4.2 to 4.3](#upgrading-from-4-2-to-4-3). It has a database migration. Then 4.3 to 4.4 |
 | From 4.1 | [Upgrading from 4.1 to 4.2](#upgrading-from-4-1-to-4-2). It has the first database migration since 4.0. Then 4.2 to 4.3 and 4.3 to 4.4 |
@@ -26,6 +27,20 @@ If you are a new user starting with the latest version, you don't need to follow
 | Nothing: you are starting a new project | The [quick start](quick-start.md), then [the tutorial](tutorial/) |
 
 The compiler finds most of the 3.x → 4.0 work.
+
+## Upgrading from 4.5 to 4.6
+
+An application on 4.5 compiles on 4.6 unchanged, and the database schema did not change.
+
+| Added | What it is |
+|---|---|
+| `FiredTriggerRecord.ExecutionGroup` | `string?`, `init`: the execution group the firing's trigger carried, as written to `QRTZ_FIRED_TRIGGERS`; `null` for none |
+
+Behaviour that changed:
+
+| Before | After | What to do |
+|---|---|---|
+| A recovery trigger had no execution group, so a recovered firing ignored its group's limit | It keeps the firing's group, after cluster recovery, a shutdown hand-back and startup recovery | Nothing |
 
 ## Upgrading from 4.4 to 4.5
 

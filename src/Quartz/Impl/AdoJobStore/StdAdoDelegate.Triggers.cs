@@ -250,6 +250,10 @@ public partial class StdAdoDelegate
             {
                 long dumId = timeProvider.GetTimestamp();
 
+                // Looked for rather than demanded, as IS_NONCONCURRENT is on acquisition: -1 leaves the
+                // recovery trigger ungrouped, which is what it was before the column was projected.
+                int executionGroupOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnExecutionGroup);
+
                 while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
                     string jobName = rs.GetString(AdoConstants.ColumnJobName)!;
@@ -265,7 +269,10 @@ public partial class StdAdoDelegate
                         StartTimeUtc = scheduledTime,
                         JobKey = new JobKey(jobName, jobGroup),
                         Priority = priority,
-                        MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy
+                        MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy,
+
+                        // The replay is limited as the firing it stands in for was (#4081).
+                        ExecutionGroup = ReadOptionalString(rs, executionGroupOrdinal)
                     };
 
                     triggerData.Add((scheduledTime, firedTime));
@@ -2284,6 +2291,10 @@ public partial class StdAdoDelegate
             RequestsRecovery = rs.GetOrdinal(AdoConstants.ColumnRequestsRecovery);
             JobName = rs.GetOrdinal(AdoConstants.ColumnJobName);
             JobGroup = rs.GetOrdinal(AdoConstants.ColumnJobGroup);
+
+            // Looked for rather than demanded, as IS_NONCONCURRENT is on acquisition: -1 reads as no
+            // execution group, which is what the record said before the column was projected.
+            ExecutionGroup = OptionalOrdinal(rs, AdoConstants.ColumnExecutionGroup);
         }
 
         public int EntryState { get; }
@@ -2298,6 +2309,7 @@ public partial class StdAdoDelegate
         public int RequestsRecovery { get; }
         public int JobName { get; }
         public int JobGroup { get; }
+        public int ExecutionGroup { get; }
     }
 
     private FiredTriggerRecord ReadFiredTriggerRecord(DbDataReader rs, FiredTriggerRowOrdinals ordinals)
@@ -2318,7 +2330,10 @@ public partial class StdAdoDelegate
             TriggerKey = new TriggerKey(rs.GetString(ordinals.TriggerName), rs.GetString(ordinals.TriggerGroup)),
             JobDisallowsConcurrentExecution = hasJob && GetBooleanFromDbValue(rs.GetValue(ordinals.IsNonConcurrent)),
             JobRequestsRecovery = hasJob && GetBooleanFromDbValue(rs.GetValue(ordinals.RequestsRecovery)),
-            JobKey = hasJob ? new JobKey(rs.GetString(ordinals.JobName), rs.GetString(ordinals.JobGroup)) : null
+            JobKey = hasJob ? new JobKey(rs.GetString(ordinals.JobName), rs.GetString(ordinals.JobGroup)) : null,
+
+            // Written with the trigger at acquisition, so unlike the job columns it is there in every state.
+            ExecutionGroup = ReadOptionalString(rs, ordinals.ExecutionGroup)
         };
     }
 

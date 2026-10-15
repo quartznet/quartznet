@@ -2926,6 +2926,7 @@ namespace Quartz.Impl.AdoJobStore
     public sealed record FiredTriggerRecord : System.IEquatable<Quartz.Impl.AdoJobStore.FiredTriggerRecord>
     {
         public FiredTriggerRecord() { }
+        public string? ExecutionGroup { get; init; }
         public required string FireInstanceId { get; init; }
         public required Quartz.Extensibility.StoredTriggerState FireInstanceState { get; init; }
         public System.DateTimeOffset FireTimestamp { get; init; }

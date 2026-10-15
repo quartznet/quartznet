@@ -763,6 +763,13 @@ internal abstract partial class AdoJobStoreBase
     /// A firing that was itself a recovery already stands in for an earlier one, and its data map says
     /// which: those markers are kept, so a replay of a replay still names the original firing.
     /// </para>
+    /// <para>
+    /// The trigger keeps the execution group the firing's row carries, so the replay counts against the
+    /// same limit (#4081). Known limitation: a trigger with no execution group of its own, limited under
+    /// <see cref="ExecutionLimitsBuilder.UseTriggerGroupWhenUnset" />, is limited under
+    /// <see cref="SchedulerConstants.DefaultRecoveryGroup" /> once recovered, because that derivation reads
+    /// the recovery trigger's group.
+    /// </para>
     /// </remarks>
     /// <param name="conn">The unit of work.</param>
     /// <param name="firedTrigger">The fired-trigger row of the execution to run again.</param>
@@ -801,7 +808,8 @@ internal abstract partial class AdoJobStoreBase
             StartTimeUtc = firedTrigger.FireTimestamp,
             JobKey = jobKey,
             MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow,
-            Priority = firedTrigger.Priority
+            Priority = firedTrigger.Priority,
+            ExecutionGroup = firedTrigger.ExecutionGroup
         };
 
         JobDataMap jobDataMap = await Delegate.SelectTriggerJobDataMap(conn, triggerKey, cancellationToken).ConfigureAwait(false);
