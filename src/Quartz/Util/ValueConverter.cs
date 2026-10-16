@@ -41,14 +41,17 @@ namespace Quartz.Util;
 /// </para>
 /// <para>
 /// Only <see cref="ConvertUsingTypeConverter" /> is reflective, and it says so. The answers that need
-/// no <see cref="TypeConverter" /> — a value that already is what the target takes, and the target's
-/// own default for a missing one — are given in front of it, which is where most of what a
-/// <see cref="JobDataMap" /> carries is answered.
+/// no <see cref="TypeConverter" /> are given in front of it: a value that already is what the target
+/// takes, the target's own default for a missing one, and the conversions job data needs in practice —
+/// strings to primitives, enums, <see cref="Guid" />, <see cref="TimeSpan" />, dates and
+/// <see cref="Uri" />, numbers to numbers and enums, and the way back — each the way the converter
+/// <see cref="TypeDescriptor" /> would have picked answers it, quirks included
+/// (<c>ValueConverterDifferentialTest</c> holds them to that).
 /// </para>
 /// </remarks>
 /// <author>Aleksandar Seovic</author>
 /// <author>Marko Lahma</author>
-internal static class ValueConverter
+internal static partial class ValueConverter
 {
     /// <summary>
     /// Convert the value to the required <see cref="System.Type"/> (if necessary from a string).
@@ -69,6 +72,11 @@ internal static class ValueConverter
         if (requiredType.IsInstanceOfType(newValue))
         {
             return newValue;
+        }
+
+        if (TryConvertWithoutTypeConverter(requiredType, newValue, out object? converted))
+        {
+            return converted;
         }
 
         return ConvertUsingTypeConverter(requiredType, newValue);
