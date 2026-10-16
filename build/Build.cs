@@ -8,7 +8,6 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-using System.Xml.Linq;
 
 using Semver;
 
@@ -166,8 +165,7 @@ partial class Build : FalloutBuild, ICompile, IPack
         .SetContinuousIntegrationBuild(IsContinuousIntegrationBuild);
 
     /// <summary>
-    /// The trim canaries <see cref="PublishTrimmed" /> and <see cref="PublishAot" /> publish and run, each
-    /// with the Quartz projects whose <c>ILLink.Suppressions.xml</c> its publish is checked against.
+    /// The trim canaries <see cref="PublishTrimmed" /> and <see cref="PublishAot" /> publish and run.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -180,21 +178,33 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// <c>IsAotCompatible</c>, and this table is what that claim rests on.
     /// </para>
     /// <para>
-    /// Only <c>Quartz</c> records a warning, and so only it has a baseline file to name here: two
-    /// <c>ValueConverter</c> entries. The side packages' one warning each — a job type named as a string
-    /// in a schedule file or a request body — went when type-name resolution moved behind the
-    /// <c>Quartz.TypeNameResolution.IsSupported</c> switch (#4068), so a warning against any side
-    /// package fails the leg as unrecorded, which is the right answer for a package whose csproj says a
-    /// warning is a new one to fix. The two switches reach each canary through the
-    /// <c>buildTransitive/net10.0/Quartz.targets</c> import in its csproj; without it the guarded call
-    /// sites in <c>Quartz</c> are reported and fail the leg the same way.
+    /// No Quartz package records a warning any more (#4082 took the last two, <c>ValueConverter</c>'s),
+    /// so a canary publish may report exactly one warning against a Quartz type: <see cref="TrimWitness" />.
+    /// The three feature switches reach each canary through the <c>buildTransitive/net10.0/Quartz.targets</c>
+    /// import in its csproj; without it the guarded call sites in <c>Quartz</c> are reported, and fail the
+    /// leg like any other.
     /// </para>
     /// </remarks>
-    static readonly (string Project, string[] Baselines)[] TrimCanaries =
+    static readonly string[] TrimCanaries =
     [
-        ("Quartz.Trimming.Canary", ["Quartz"]),
-        ("Quartz.Trimming.Canary.Wire", ["Quartz"]),
+        "Quartz.Trimming.Canary",
+        "Quartz.Trimming.Canary.Wire",
     ];
+
+    /// <summary>
+    /// The one trim warning every canary publish has to report: the canaries' own deliberate
+    /// <c>Type.GetType</c> over a string the analysis cannot see, in
+    /// <c>src/Quartz.Trimming.Canary/TrimWitness.cs</c>, which both canaries compile.
+    /// </summary>
+    /// <remarks>
+    /// The proof that ILLink or ILCompiler ran and its report was read. A publish that reports nothing is
+    /// otherwise indistinguishable from one whose tool was skipped as up to date, or whose output went
+    /// somewhere this target did not capture, and both would pass any check of the form "nothing
+    /// unexpected was reported". Until #4082 the witness was a recorded <c>ValueConverter</c> warning;
+    /// with Quartz recording nothing, it lives in the canaries, where no fix to Quartz can make it go
+    /// quiet.
+    /// </remarks>
+    static readonly (string Type, string Code) TrimWitness = ("Quartz.Trimming.Canary.TrimWitness", "IL2057");
 
     /// <summary>
     /// Publishes the example applications, one of which is a trim canary, and runs the trim canaries that
@@ -226,15 +236,13 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// out as an empty <c>500</c>, because nothing could write a <c>ProblemDetails</c> with reflection off.
     /// Since the side packages joined (#3341), the first canary also runs <c>Quartz.Jobs</c>,
     /// <c>Quartz.Plugins</c> and <c>Quartz.Plugins.TimeZoneConverter</c>, and the second dials a scheduler
-    /// out through <c>Quartz.Dashboard.Agent</c> to a hub it carries; <see cref="TrimCanaries" /> says
-    /// which baselines each is held to.
+    /// out through <c>Quartz.Dashboard.Agent</c> to a hub it carries.
     /// </para>
     /// <para>
-    /// The canary's own publish does not stop at the first recorded warning, and this leg checks the
-    /// warnings it reported instead — see <see cref="AssertOnlyRecordedTrimWarnings" />. Since the canary
-    /// grew a scheduler it reaches the reflection the baseline records, and a publish that fails on the
-    /// first line of it is a canary that never runs. The worker is unchanged: it applies
-    /// <c>ILLink.Suppressions.xml</c> the SDK's own way and still fails on anything outside it.
+    /// The canary's own publish does not stop at a warning, and this leg checks the warnings it reported
+    /// instead — see <see cref="AssertOnlyTheTrimWitness" />. The canary reports one on purpose, its
+    /// <see cref="TrimWitness" />, and a publish that failed on it would be a canary that never runs. The
+    /// worker roots the whole of <c>Quartz</c> and fails its publish on any warning at all.
     /// </para>
     /// </remarks>
     Target PublishTrimmed => _ => _
@@ -254,9 +262,9 @@ partial class Build : FalloutBuild, ICompile, IPack
                 .SetConfiguration(configuration)
             );
 
-            foreach ((string project, string[] baselines) in TrimCanaries)
+            foreach (string project in TrimCanaries)
             {
-                PublishAndRunCanary(project, baselines, "trim-canary", "trimmed", s => s);
+                PublishAndRunCanary(project, "trim-canary", "trimmed", s => s);
             }
         });
 
@@ -274,28 +282,27 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// </para>
     /// <para>
     /// ILCompiler has no link-attributes option — a fact recorded on step 5 of the issue and rechecked
-    /// against <c>ilc --help</c> here — so <c>ILLink.Suppressions.xml</c> cannot be handed to it, and
-    /// the recorded reflection would otherwise fail this publish on its first line. Rather than bake the
-    /// suppressions into the shipped assembly or <c>NoWarn</c> the family and prove nothing — the two
+    /// against <c>ilc --help</c> here — so nothing can tell it a warning is expected. Rather than bake a
+    /// suppression into the shipped assembly or <c>NoWarn</c> the family and prove nothing — the two
     /// answers the issue has already refused — the canary lets ILCompiler report, and this target reads
-    /// the report and applies the baseline itself.
+    /// the report: Quartz contributes nothing to it, and the canary's own witness has to be there.
     /// </para>
     /// </remarks>
     Target PublishAot => _ => _
         .After<ICompile>()
         .Executes(() =>
         {
-            foreach ((string project, string[] baselines) in TrimCanaries)
+            foreach (string project in TrimCanaries)
             {
-                PublishAndRunCanary(project, baselines, "aot-canary", "native AOT", s => s.SetProperty("PublishAot", true));
+                PublishAndRunCanary(project, "aot-canary", "native AOT", s => s.SetProperty("PublishAot", true));
             }
         });
 
     /// <summary>
-    /// Publishes one canary for the runner's own RID into a clean directory, checks the warnings the
-    /// publish reported against the baselines it names, and starts it. A non-zero exit fails the leg.
+    /// Publishes one canary for the runner's own RID into a clean directory, checks that the publish
+    /// reported the witness and nothing else against Quartz, and starts it. A non-zero exit fails the leg.
     /// </summary>
-    void PublishAndRunCanary(string project, string[] baselines, string directory, string kind, Configure<DotNetPublishSettings> configure)
+    void PublishAndRunCanary(string project, string directory, string kind, Configure<DotNetPublishSettings> configure)
     {
         var solution = ((IHasSolution) this).Solution;
         var configuration = ((ICompile) this).Configuration;
@@ -317,7 +324,7 @@ partial class Build : FalloutBuild, ICompile, IPack
             .SetRuntime(RuntimeInformation.RuntimeIdentifier)
             .SetOutput(canaryDirectory)));
 
-        AssertOnlyRecordedTrimWarnings(output, $"the {kind} {project} publish", baselines);
+        AssertOnlyTheTrimWitness(output, $"the {kind} {project} publish");
 
         AbsolutePath canary = canaryDirectory / (IsRunningOnWindows ? $"{project}.exe" : project);
         Log.Information("Running the {Kind} {Project}: {Canary}", kind, project, canary);
@@ -326,16 +333,16 @@ partial class Build : FalloutBuild, ICompile, IPack
     }
 
     /// <summary>
-    /// Fails when a publish reported a trim or AOT warning against a Quartz type that the
-    /// <c>ILLink.Suppressions.xml</c> of the named projects does not record.
+    /// Fails when a publish reported a trim or AOT warning against any Quartz type other than the
+    /// canaries' <see cref="TrimWitness" />, or did not report the witness.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The same baseline the worker's trimmed publish is given through the SDK, applied here by reading
-    /// it — which is the only way ILCompiler can be told, and, since the two tools have to agree, the way
-    /// both canary publishes are checked. A warning naming a type the file lists with that warning code
-    /// is expected and logged; a warning naming any other Quartz type fails the leg, which is what makes
-    /// this a baseline rather than a silence.
+    /// Quartz records no warning: the last of them went behind the feature switches in
+    /// <c>src/Quartz/FeatureSwitches.cs</c>, whose header keeps the history of the baseline this replaced
+    /// and the order to try fixes in. So a warning naming a Quartz type is new reflection and fails the
+    /// leg, from any Quartz package. ILLink and ILCompiler are checked the same way, since ILCompiler can
+    /// be handed no suppressions file.
     /// </para>
     /// <para>
     /// Warnings from assemblies that are not Quartz's are logged and left alone: what a driver package
@@ -343,12 +350,11 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// on purpose.
     /// </para>
     /// </remarks>
-    void AssertOnlyRecordedTrimWarnings(IReadOnlyCollection<Output> output, string what, string[] baselines)
+    void AssertOnlyTheTrimWitness(IReadOnlyCollection<Output> output, string what)
     {
-        var recorded = baselines.SelectMany(ReadTrimBaseline).ToList();
-        var unrecorded = new List<string>();
+        var unexpected = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var recordedSeen = 0;
+        var witnessSeen = 0;
 
         foreach (var line in output.Select(x => x.Text))
         {
@@ -364,11 +370,9 @@ partial class Build : FalloutBuild, ICompile, IPack
             // "Assembly 'Quartz' produced trim warnings" - the one warning that names no member,
             // reported when a whole assembly's warnings are collapsed into a single line. Nothing below
             // could check what it stands for, so it fails here rather than passing as somebody else's.
-            // Any Quartz assembly, not only the ones with a baseline: a side package records nothing, and
-            // a collapsed line for one would otherwise read as a warning that is not Quartz's to record.
             if (code == "IL2104" && Regex.Match(line, @"Assembly '(Quartz[^']*)'", RegexOptions.None, TimeSpan.FromSeconds(5)) is { Success: true } collapsed)
             {
-                unrecorded.Add($"{code}: {collapsed.Groups[1].Value}'s warnings were collapsed into one line, so none of them was checked");
+                unexpected.Add($"{code}: {collapsed.Groups[1].Value}'s warnings were collapsed into one line, so none of them was checked");
                 continue;
             }
 
@@ -378,59 +382,38 @@ partial class Build : FalloutBuild, ICompile, IPack
                 continue;
             }
 
-            if (recorded.Any(entry => entry.Code == code && IsWithin(member, entry.Type)))
+            if (code == TrimWitness.Code && IsWithin(member, TrimWitness.Type))
             {
-                Log.Debug("{What} reported the recorded {Code} against {Member}", what, code, member);
-                recordedSeen++;
+                Log.Debug("{What} reported the witness, {Code} against {Member}", what, code, member);
+                witnessSeen++;
                 continue;
             }
 
-            unrecorded.Add($"{code}: {member}");
+            unexpected.Add($"{code}: {member}");
         }
 
-        if (unrecorded.Count > 0)
+        if (unexpected.Count > 0)
         {
             Assert.Fail(
-                $"{what} reported {unrecorded.Count} trim warning(s) that the ILLink.Suppressions.xml of {string.Join(", ", baselines)} do not record:"
-                + Environment.NewLine + string.Join(Environment.NewLine, unrecorded.Order(StringComparer.Ordinal))
+                $"{what} reported {unexpected.Count} trim warning(s) against Quartz, which records none:"
+                + Environment.NewLine + string.Join(Environment.NewLine, unexpected.Order(StringComparer.Ordinal))
                 + Environment.NewLine
-                + "Fix the reflection, or make the case for a new entry - see the header of src/Quartz/TrimAnalysisBaseline.cs.");
+                + "Fix the reflection - the header of src/Quartz/FeatureSwitches.cs gives the order to try fixes in.");
         }
 
-        // Every canary reaches the recorded reflection - ValueConverter coerces job data onto a job's
-        // properties in the default job factory, and both canaries fire a job - so a report with none of
-        // it is not a clean publish but a publish whose trimmer or compiler did not run, and nothing above
-        // was checked. ValueConverter is the last recorded type (#4082 tracks it); when it goes, this
-        // assertion needs another witness - a non-Quartz warning the canary keeps on purpose, say.
-        Assert.True(recordedSeen > 0,
-            $"{what} reported no warning the baseline records, so ILLink or ILCompiler did not run and this check saw nothing: "
-            + "an up-to-date incremental publish, or a publish whose output was not captured.");
+        // A report without the witness is not a clean publish but one whose trimmer or compiler did not
+        // run, or whose output this target did not capture, and nothing above was checked.
+        Assert.True(witnessSeen > 0,
+            $"{what} did not report the witness, {TrimWitness.Code} against {TrimWitness.Type}, so ILLink or ILCompiler did not run "
+            + "and this check saw nothing: an up-to-date incremental publish, a publish whose output was not captured, or a canary "
+            + "that no longer calls TrimWitness.");
 
-        Log.Information("{What} reported {Recorded} recorded warning(s) and nothing outside the baseline", what, recordedSeen);
+        Log.Information("{What} reported the witness and nothing else against Quartz", what);
     }
 
     /// <summary>
-    /// The (type, warning code) pairs recorded in a project's ILLink baseline, with the trailing <c>*</c>
-    /// each entry carries for compiler-generated companions stripped.
-    /// </summary>
-    IReadOnlyList<(string Type, string Code)> ReadTrimBaseline(string project)
-    {
-        AbsolutePath baseline = SourceDirectory / project / "ILLink.Suppressions.xml";
-        var recorded = XDocument.Load(baseline)
-            .Descendants("type")
-            .SelectMany(type => type.Descendants("attribute")
-                .Select(attribute => (
-                    Type: type.Attribute("fullname")!.Value.TrimEnd('*'),
-                    Code: attribute.Elements("argument").Skip(1).First().Value)))
-            .ToList();
-
-        Assert.NotEmpty(recorded, $"{baseline} records no trim warnings at all, so this check would pass anything");
-        return recorded;
-    }
-
-    /// <summary>
-    /// Whether a warning's member belongs to a recorded type — the type itself, or one of the closure
-    /// and state-machine types the compiler nests inside it.
+    /// Whether a warning's member belongs to a type — the type itself, or one of the closure and
+    /// state-machine types the compiler nests inside it.
     /// </summary>
     static bool IsWithin(string member, string type) =>
         member.Length > type.Length

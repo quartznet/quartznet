@@ -48,8 +48,8 @@ public class PropertyBinderTest
             .ToList();
 
         unannotated.Should().BeEmpty(
-            "the annotation is what makes this a named seam rather than a helper with its warnings waived in "
-            + "TrimAnalysisBaseline.cs, and the file records no entry against this type on the strength of it");
+            "the annotation is what makes this a named seam rather than a helper with its warnings waived, "
+            + "and Quartz suppresses nothing against this type on the strength of it");
     }
 
     [Test]

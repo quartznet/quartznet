@@ -29,12 +29,11 @@ binds this repository.
 - **Nullable enabled** globally; test projects may disable it.
 - **Warnings as errors** — `TreatWarningsAsErrors` is true; code style is enforced in build.
 - **`Quartz` builds with the trim, AOT and single-file analyzers on**, so an `IL2xxx` or `IL3xxx` is an error.
-  The known-reflective types are recorded in `src/Quartz/TrimAnalysisBaseline.cs` and mirrored for ILLink in
-  `src/Quartz/ILLink.Suppressions.xml`; neither ships, so consumers still see every warning. A warning in a
-  type not listed there means new reflection — fix it rather than adding a line; that file explains the order
-  to try fixes in. The package **does** say `IsAotCompatible`, narrowly: Quartz produces no `IL3050` at all,
-  and the `IL2xxx` that remain are the string-named paths #3341 tracks. `src/Quartz/Quartz.csproj` spells all
-  of this out.
+  Nothing is recorded or suppressed: the last reflection sits behind the three switches in
+  `src/Quartz/FeatureSwitches.cs`, which `PublishTrimmed` turns off, and the canary legs fail on any
+  warning against a Quartz type. A new one is new reflection — fix it; that file's header gives the order
+  to try fixes in. The package **does** say `IsAotCompatible`: Quartz produces no `IL3050` at all.
+  `src/Quartz/Quartz.csproj` spells all of this out.
 - **Allman brace style** — braces on new lines for methods, types, control blocks, properties, accessors, lambdas.
 - **No `DateTime.Now`/`DateTimeOffset.Now`** — banned via Roslyn analyzer (`BannedSymbols.txt`). Use `TimeProvider` instead.
 - **No implicit `DateTime` → `DateTimeOffset` cast** — also banned.

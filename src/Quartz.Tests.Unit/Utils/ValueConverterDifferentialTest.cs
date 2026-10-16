@@ -43,8 +43,11 @@ namespace Quartz.Tests.Unit.Utils;
 /// and message.
 /// </para>
 /// <para>
-/// The two must agree everywhere, because a pair no fast path covers still reaches
-/// <see cref="TypeConverter" />.
+/// With the switch on the two must agree everywhere, because a pair no fast path covers still reaches
+/// <see cref="TypeConverter" />. With it off they must agree wherever a fast path covers the pair, and
+/// the pairs that are not covered are listed in <see cref="IsDeclined" /> with the reason; a pair the old
+/// routine converted that is neither covered nor listed fails the test, so a fast path cannot quietly
+/// stop answering.
 /// </para>
 /// </remarks>
 [NonParallelizable]
@@ -136,7 +139,7 @@ public sealed class ValueConverterDifferentialTest
     private static IEnumerable<object> Values() => Strings.Cast<object>().Concat(NonStrings);
 
     [Test]
-    public void EveryConversionIsWhatTypeDescriptorGave()
+    public void WithTheSwitchOnEveryConversionIsWhatTypeDescriptorGave()
     {
         List<string> mismatches = [];
         int compared = 0;
@@ -162,7 +165,101 @@ public sealed class ValueConverterDifferentialTest
 
         TestContext.Out.WriteLine($"{Targets().Count()} targets x {Values().Count()} values x {Cultures.Length} cultures = {compared} conversions compared");
         compared.Should().BeGreaterThan(40_000, "the corpus is what makes this a differential test rather than a handful of examples");
-        mismatches.Should().BeEmpty("a fast path answers exactly as the TypeConverter it stands in front of, and anything it declines still reaches that TypeConverter{0}", Summary(mismatches));
+        mismatches.Should().BeEmpty("with the switch on, a fast path answers exactly as the TypeConverter it stands in front of, and anything it declines still reaches that TypeConverter{0}", Summary(mismatches));
+    }
+
+    [Test]
+    public void WithTheSwitchOffTheFastPathsAnswerAsTypeDescriptorDidOrRefuse()
+    {
+        List<string> mismatches = [];
+        Dictionary<Type, int> answered = [];
+
+        using FeatureSwitchScope off = new(FeatureSwitches.TypeConverterCoercionSwitch, enabled: false);
+        foreach (string culture in Cultures)
+        {
+            using CultureScope scope = new(culture);
+            foreach (Type target in Targets())
+            {
+                foreach (object value in Values())
+                {
+                    string expected = Outcome(() => Legacy(target, value));
+                    string actual = Outcome(() => ValueConverter.ConvertValueIfNecessary(target, value));
+
+                    if (string.Equals(expected, actual, StringComparison.Ordinal))
+                    {
+                        if (!expected.StartsWith("!", StringComparison.Ordinal))
+                        {
+                            answered[target] = answered.GetValueOrDefault(target) + 1;
+                        }
+
+                        continue;
+                    }
+
+                    bool refused = actual.StartsWith("!System.NotSupportedException:", StringComparison.Ordinal)
+                                   && actual.Contains(FeatureSwitches.TypeConverterCoercionSwitch, StringComparison.Ordinal);
+
+                    // A refusal stands in for TypeDescriptor's own refusal, or for a pair the fast paths
+                    // do not cover. Anything else is a fast path answering differently.
+                    if (refused && (expected.StartsWith("!System.NotSupportedException:", StringComparison.Ordinal) || IsDeclined(target, value)))
+                    {
+                        continue;
+                    }
+
+                    mismatches.Add($"[{culture}] {Describe(value)} -> {target}: TypeDescriptor gave {expected}, ValueConverter gave {actual}");
+                }
+            }
+        }
+
+        TestContext.Out.WriteLine($"{answered.Values.Sum()} conversions succeeded with no TypeConverter, identically to TypeDescriptor");
+        mismatches.Should().BeEmpty("with the switch off, a covered pair is answered exactly as before and an uncovered one is refused, never answered differently{0}", Summary(mismatches));
+
+        foreach (Type target in Targets())
+        {
+            Type underlying = Nullable.GetUnderlyingType(target) ?? target;
+            if (underlying == typeof(Version) || underlying == typeof(CultureInfo) || underlying == typeof(IntPtr) || underlying == typeof(ConvertedEnum))
+            {
+                continue;
+            }
+
+            answered.GetValueOrDefault(target).Should().BeGreaterThan(0, $"{target} is a fast-path target, so some value in the corpus must convert to it with no TypeConverter at all");
+        }
+    }
+
+    /// <summary>
+    /// The pairs TypeDescriptor converted and the fast paths leave to it, each for a stated reason.
+    /// </summary>
+    private static bool IsDeclined(Type target, object value)
+    {
+        Type underlying = Nullable.GetUnderlyingType(target) ?? target;
+
+        // No fast path reads these at all: Version and CultureInfo have converters of their own, and
+        // IntPtr has none, so a string never reached it anyway.
+        if (underlying == typeof(Version) || underlying == typeof(CultureInfo) || underlying == typeof(IntPtr))
+        {
+            return true;
+        }
+
+        // An enum that declares its own converter is that converter's to answer, in both directions.
+        if (underlying == typeof(ConvertedEnum) || value is ConvertedEnum)
+        {
+            return true;
+        }
+
+        // DateTimeConverter and DateTimeOffsetConverter format a date their own way, which nothing in
+        // Quartz asks for.
+        if (target == typeof(string) && value is DateTime or DateTimeOffset)
+        {
+            return true;
+        }
+
+        // Enum.ToObject accepts a bool or a char as readily as a number, and nothing stores a flag as one.
+        if (underlying.IsEnum && value is bool or char)
+        {
+            return true;
+        }
+
+        // Types with no fast path as a source.
+        return value is Version or Unconvertible;
     }
 
     /// <summary>

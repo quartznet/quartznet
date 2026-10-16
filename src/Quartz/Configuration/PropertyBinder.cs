@@ -42,9 +42,9 @@ namespace Quartz.Configuration;
 /// </para>
 /// <para>
 /// Every member says <see cref="RequiresUnreferencedCodeAttribute" /> by construction rather than
-/// being waived in <c>TrimAnalysisBaseline.cs</c>, which is what lets the type carry no baseline entry
-/// at all: an API that binds a property by name on a type Quartz is handed at run time cannot be
-/// trim-safe, so it says so, and the four callers are where the trimmed application is told.
+/// having its warnings waived, which is what lets the type need no suppression at all: an API that
+/// binds a property by name on a type Quartz is handed at run time cannot be trim-safe, so it says so,
+/// and its callers are guarded by <see cref="FeatureSwitches.IsLegacyComponentKeysSupported" />.
 /// </para>
 /// </remarks>
 /// <author>Aleksandar Seovic</author>

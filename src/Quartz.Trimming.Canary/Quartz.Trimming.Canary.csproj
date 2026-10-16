@@ -36,23 +36,24 @@
     down to what it actually reaches, because that is the shape in which a missing JsonTypeInfo or a
     removed constructor shows up.
 
-    ILLink.Suppressions.xml is not applied either. The canary reaches the recorded reflection - the
-    default job factory coerces job data onto a job's properties through ValueConverter - so that warning
-    is reported, read, and checked against that same file by the PublishTrimmed and PublishAot targets,
-    which fail on any warning it does not record. Applying the file here instead would work for the
-    trimmed publish and could not work for the native one at all, because ILCompiler has no
-    link-attributes option. One baseline, checked the one way that works for both.
+    No suppressions file is applied either, and Quartz no longer has one: since #4082 nothing in Quartz
+    is recorded, so the PublishTrimmed and PublishAot targets read what the publish reported and fail on
+    any warning against a Quartz type. They also require one: TrimWitness, the canary's own deliberate
+    IL2057, which is the proof that ILLink or ILCompiler ran. ILCompiler has no link-attributes option, so
+    reading the report is the one check that works for both publishes.
 
-    The job type that comes back out of JOB_CLASS_NAME as a string, and the quartz.* keys BindingCheck
-    hands AddQuartz, used to be recorded reflection too. They are behind the two feature switches now,
-    which the import at the end of this file turns off, and TypeNameCheck is what shows they are off
-    rather than merely unset: a type that exists but was never registered is refused by name.
+    The job type that comes back out of JOB_CLASS_NAME as a string, the quartz.* keys BindingCheck hands
+    AddQuartz, and job data coerced onto a job's properties through TypeDescriptor all used to be
+    recorded reflection. They are behind the three feature switches now, which the import at the end of
+    this file turns off. TypeNameCheck and JobDataCheck show they are off rather than merely unset: a type
+    that exists but was never registered is refused by name, and a Version that VersionConverter would
+    read is refused naming the switch.
   -->
 
   <PropertyGroup>
     <!--
-      Which is why the publish itself must not stop at the first recorded warning: a canary that does not
-      link is a canary that does not run, and running it is the whole point. TreatWarningsAsErrors stays
+      Which is why the publish itself must not stop at a warning: the witness is one, a canary that does
+      not link is a canary that does not run, and running it is the whole point. TreatWarningsAsErrors stays
       on for the compile; these two are the trimmer's and ILCompiler's own knobs for the same thing, and
       build/Build.cs does the checking they would otherwise have done blindly.
     -->
@@ -87,7 +88,7 @@
   <!--
     And what buildTransitive/net10.0 inside the package gives one, which is what lets the generator
     intercept the canary's delegate job and bind it at compile time - and, since 4.6, what sets Quartz's
-    two feature switches false under PublishTrimmed. That half is load-bearing: ILLink and ILCompiler
+    three feature switches false under PublishTrimmed. That half is load-bearing: ILLink and ILCompiler
     substitute a guarded call site away only on an explicit setting, so without this import the publish
     reports IL2026 against every guarded site in Quartz and build/Build.cs fails the leg on them.
   -->

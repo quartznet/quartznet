@@ -36,8 +36,7 @@ namespace Quartz.Impl;
 /// Built exactly as <see cref="SystemTextJsonObjectSerializer" /> is, so the two agree about what a
 /// scheduler's JSON means, and reading and writing go through the <c>GetTypeInfo</c> overloads that
 /// carry neither <c>RequiresUnreferencedCode</c> nor <c>RequiresDynamicCode</c> — which is what keeps
-/// typed input out of <c>TrimAnalysisBaseline.cs</c> and working in a trimmed or natively compiled
-/// application.
+/// typed input free of trim warnings and working in a trimmed or natively compiled application.
 /// </para>
 /// <para>
 /// An application published with reflection-based serialization switched off declares its own payload

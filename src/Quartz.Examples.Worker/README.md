@@ -46,7 +46,6 @@ both sides use is `Dashboard:AgentToken` in each `appsettings.json`.
 
 This project is what `dotnet fallout PublishTrimmed` publishes with `PublishTrimmed` and
 `TrimMode=full`, so every `IL2xxx` the publish reports is Quartz's own — or the dashboard agent's, since
-4.5. Nothing is suppressed by warning code; what is suppressed is the recorded set of types in
-`src/Quartz/ILLink.Suppressions.xml` and `src/Quartz.Dashboard.Agent/ILLink.Suppressions.xml`, and a
-type outside those sets warning is a failing publish. The csproj says the rest of it. Adding a package
+4.5. Nothing is suppressed: Quartz records no warning since 4.6, so any warning is a failing publish. The
+csproj says the rest of it. Adding a package
 reference here changes what that leg measures, so weigh it before you do.

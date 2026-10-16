@@ -20,17 +20,17 @@
       EnableConfigurationBindingGenerator below, which makes the compiler write the binding code for
       QuartzSchedulerOptions and its five siblings instead of reflecting over them at startup.
 
-      What an application publishing native AOT still sees reported against Quartz is trimming, not
-      dynamic code, and since 4.6 it is one type: ValueConverter, which coerces a JobDataMap value onto a
-      job property whose type the framework does not annotate. It is recorded in TrimAnalysisBaseline.cs
-      and mirrored in ILLink.Suppressions.xml, neither of which ships — so a consumer is told about it,
-      and a native AOT publish of Quartz reports exactly that and nothing else, which build/Build.cs
-      checks on every pull request by publishing Quartz.Trimming.Canary natively and running a whole
-      SQLite store out of it.
+      Since 4.6 an application publishing trimmed or native AOT sees nothing reported against Quartz,
+      and nothing is suppressed to get there: there is no baseline any more, and build/Build.cs fails a
+      canary publish that reports any warning against a Quartz type, on every pull request, by publishing
+      Quartz.Trimming.Canary natively and running a whole SQLite store out of it. A new warning is new
+      reflection to fix; the header of FeatureSwitches.cs gives the order to try fixes in, and keeps the
+      history of the baseline this replaced.
 
-      Everything else that used to be reported — a job type spelled as text, the persisted JOB_CLASS_NAME
-      column, the quartz.* keys that name a component or set its properties by string — sits behind two
-      feature switches, declared in FeatureSwitches.cs:
+      Everything that used to be reported — a job type spelled as text, the persisted JOB_CLASS_NAME
+      column, the quartz.* keys that name a component or set its properties by string, and job data
+      coerced onto a property through TypeDescriptor — sits behind three feature switches, declared in
+      FeatureSwitches.cs:
 
         - Quartz.TypeNameResolution.IsSupported: a type name is answered from the types the application
           registered (AddJob<T>(), AddJobType<T>(), JobBuilder.Create<T>(), TypeLoaderOptions.Map), and
@@ -38,12 +38,16 @@
         - Quartz.LegacyComponentKeys.IsSupported: a flat .type key, and a component's leftover keys, are
           read only while this is on; Quartz's own spellings of a store, a thread pool, a serializer and
           SYS_PROP map to a typeof instead.
+        - Quartz.JobData.IsTypeConverterCoercionSupported: ValueConverter answers the conversions job
+          data needs in practice itself, exactly as their TypeConverters do, and asks TypeDescriptor
+          for any other only while this is on.
 
-      buildTransitive/net10.0/Quartz.targets, packed below, sets both false under PublishTrimmed and
+      buildTransitive/net10.0/Quartz.targets, packed below, sets all three false under PublishTrimmed and
       PublishAot, which is what lets ILLink and ILCompiler remove the guarded code rather than report
-      it: the tools substitute a FeatureSwitchDefinition getter only from an explicit setting. A
-      consumer opts back in with QuartzTypeNameResolutionSupport or QuartzLegacyComponentKeysSupport,
-      and then sees the IL2026 at each guarded call site, which is the reflection it chose to keep.
+      it: the tools substitute a FeatureSwitchDefinition getter only from an explicit setting. A consumer
+      opts back in with QuartzTypeNameResolutionSupport, QuartzLegacyComponentKeysSupport or
+      QuartzJobDataTypeConverterSupport, and then sees the IL2026 at each guarded call site, which is the
+      reflection it chose to keep.
 
       TransientErrorDetector, which decides whether a database error is worth retrying, also reads driver
       properties by name, and is on neither list: it names each one with [DynamicDependency], so a

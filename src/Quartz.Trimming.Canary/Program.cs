@@ -73,9 +73,18 @@ namespace Quartz.Trimming.Canary;
 /// would turn every busy database into a failure without a word.
 /// </para>
 /// <para>
-/// Finally <see cref="TypeNameCheck" /> shows the two feature switches are off, and what that means: a
+/// <see cref="TypeNameCheck" /> shows the two type-name switches are off, and what that means: a
 /// registered job's name resolves, a type nothing registered is refused by name, and a <c>quartz.*</c>
 /// key naming a component Quartz does not ship is refused at <c>AddQuartz</c>.
+/// </para>
+/// <para>
+/// Finally <see cref="JobDataCheck" /> shows the third switch is off: job data still binds onto a job's
+/// <see cref="int" />, enum, <see cref="Guid" /> and <see cref="TimeSpan" /> properties from strings, and a
+/// conversion only a <c>TypeConverter</c> could make is refused naming the switch.
+/// </para>
+/// <para>
+/// Before any of it, <see cref="TrimWitness" /> makes the one reflective call the canary keeps on purpose,
+/// whose warning <c>build/Build.cs</c> requires the publish to have reported.
 /// </para>
 /// </remarks>
 internal static class Program
@@ -84,6 +93,8 @@ internal static class Program
 
     public static async Task<int> Main()
     {
+        TrimWitness.Run();
+
         List<string> failures = [];
 
         Console.WriteLine($"IsReflectionEnabledByDefault: {JsonSerializer.IsReflectionEnabledByDefault}");
@@ -132,13 +143,18 @@ internal static class Program
             failures.Add(typeNameFailure);
         }
 
+        if (await JobDataCheck.Run().ConfigureAwait(false) is { } jobDataFailure)
+        {
+            failures.Add(jobDataFailure);
+        }
+
         foreach (string failure in failures)
         {
             Console.WriteLine(failure);
         }
 
         Console.WriteLine(failures.Count == 0
-            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, a time zone resolves through the converter, a busy database is one to retry, and a type name resolves only once registered."
+            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, a time zone resolves through the converter, a busy database is one to retry, a type name resolves only once registered, and job data binds without a TypeConverter."
             : $"Quartz.Trimming.Canary: {failures.Count} check(s) failed.");
 
         return failures.Count == 0 ? 0 : 1;
