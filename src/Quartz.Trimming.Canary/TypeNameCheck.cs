@@ -32,7 +32,7 @@ using Quartz.Util;
 namespace Quartz.Trimming.Canary;
 
 /// <summary>
-/// The two feature switches, off, and what that does to a type name and to a flat <c>quartz.*</c> key
+/// The two type-name feature switches, off, and what that does to a type name and to a flat <c>quartz.*</c> key
 /// in a trimmed or natively compiled publish.
 /// </summary>
 /// <remarks>

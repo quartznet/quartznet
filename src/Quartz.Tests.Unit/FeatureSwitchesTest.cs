@@ -27,15 +27,15 @@ using System.Reflection;
 namespace Quartz.Tests.Unit;
 
 /// <summary>
-/// The two feature switches: what they read as, and that the names the code declares are the names
+/// The three feature switches: what they read as, and that the names the code declares are the names
 /// the packed targets file sets.
 /// </summary>
 /// <remarks>
 /// The targets file is the public contract — it is what a consumer's <c>PublishTrimmed</c> publish gets
-/// and what the <c>QuartzTypeNameResolutionSupport</c> and <c>QuartzLegacyComponentKeysSupport</c>
-/// properties are documented against — so a switch renamed in one place and not the other would ship a
-/// publish that keeps every guarded call and reports it. Non-parallelizable because two of the tests flip
-/// a process-wide switch.
+/// and what the <c>QuartzTypeNameResolutionSupport</c>, <c>QuartzLegacyComponentKeysSupport</c> and
+/// <c>QuartzJobDataTypeConverterSupport</c> properties are documented against — so a switch renamed in one
+/// place and not the other would ship a publish that keeps every guarded call and reports it.
+/// Non-parallelizable because two of the tests flip a process-wide switch.
 /// </remarks>
 [NonParallelizable]
 public sealed class FeatureSwitchesTest
@@ -44,21 +44,25 @@ public sealed class FeatureSwitchesTest
     [
         FeatureSwitches.TypeNameResolutionSwitch,
         FeatureSwitches.LegacyComponentKeysSwitch,
+        FeatureSwitches.TypeConverterCoercionSwitch,
     ];
 
     private static readonly string[] PropertyNames =
     [
         FeatureSwitches.TypeNameResolutionProperty,
         FeatureSwitches.LegacyComponentKeysProperty,
+        FeatureSwitches.TypeConverterCoercionProperty,
     ];
 
     [Test]
-    public void BothSwitchesAreOnByDefault()
+    public void EverySwitchIsOnByDefault()
     {
         FeatureSwitches.IsTypeNameResolutionSupported.Should().BeTrue(
             "an untrimmed application resolves type names by reflection as it always has");
         FeatureSwitches.IsLegacyComponentKeysSupported.Should().BeTrue(
             "an untrimmed application reads every quartz.* key as it always has");
+        FeatureSwitches.IsTypeConverterCoercionSupported.Should().BeTrue(
+            "an untrimmed application converts job data through TypeDescriptor as it always has");
     }
 
     [Test]
@@ -68,13 +72,22 @@ public sealed class FeatureSwitchesTest
         {
             FeatureSwitches.IsTypeNameResolutionSupported.Should().BeFalse(
                 "the switch is read on every call, which is what lets a test flip it");
-            FeatureSwitches.IsLegacyComponentKeysSupported.Should().BeTrue("the two switches are independent");
+            FeatureSwitches.IsLegacyComponentKeysSupported.Should().BeTrue("the switches are independent");
+            FeatureSwitches.IsTypeConverterCoercionSupported.Should().BeTrue("the switches are independent");
         }
 
         using (new FeatureSwitchScope(FeatureSwitches.LegacyComponentKeysSwitch, enabled: false))
         {
             FeatureSwitches.IsLegacyComponentKeysSupported.Should().BeFalse();
             FeatureSwitches.IsTypeNameResolutionSupported.Should().BeTrue();
+            FeatureSwitches.IsTypeConverterCoercionSupported.Should().BeTrue();
+        }
+
+        using (new FeatureSwitchScope(FeatureSwitches.TypeConverterCoercionSwitch, enabled: false))
+        {
+            FeatureSwitches.IsTypeConverterCoercionSupported.Should().BeFalse();
+            FeatureSwitches.IsTypeNameResolutionSupported.Should().BeTrue();
+            FeatureSwitches.IsLegacyComponentKeysSupported.Should().BeTrue();
         }
     }
 
@@ -85,6 +98,7 @@ public sealed class FeatureSwitchesTest
                  {
                      (nameof(FeatureSwitches.IsTypeNameResolutionSupported), FeatureSwitches.TypeNameResolutionSwitch),
                      (nameof(FeatureSwitches.IsLegacyComponentKeysSupported), FeatureSwitches.LegacyComponentKeysSwitch),
+                     (nameof(FeatureSwitches.IsTypeConverterCoercionSupported), FeatureSwitches.TypeConverterCoercionSwitch),
                  })
         {
             PropertyInfo getter = typeof(FeatureSwitches).GetProperty(property, BindingFlags.Public | BindingFlags.Static)!;
@@ -97,7 +111,7 @@ public sealed class FeatureSwitchesTest
     }
 
     [Test]
-    public void ThePackedTargetsFileSetsBothSwitchesByTheirDeclaredNames()
+    public void ThePackedTargetsFileSetsEverySwitchByItsDeclaredName()
     {
         string targets = File.ReadAllText(Path.Combine(RepositoryRoot.Find().FullName, "src", "Quartz", "buildTransitive", "net10.0", "Quartz.targets"));
 

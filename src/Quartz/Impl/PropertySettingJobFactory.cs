@@ -342,6 +342,12 @@ public class PropertySettingJobFactory : SimpleJobFactory
         {
             HandleError($"The setter on Job class {job.GetType()} for property '{name}' could not be accessed.", e);
         }
+        catch (NotSupportedException e)
+        {
+            // No conversion exists, or only a TypeConverter could make one and this publish has none. The
+            // message says which, and what to do about it.
+            HandleError($"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given a {o?.GetType()}: {e.Message}", e);
+        }
         catch (Exception e)
         {
             HandleError($"The setter on Job class {job.GetType()} for property '{name}' threw exception when processing.", e);

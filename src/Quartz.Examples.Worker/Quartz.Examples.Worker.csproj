@@ -30,23 +30,18 @@
     every IL2xxx it reports is Quartz's own. It used to NoWarn the whole IL2xxx family, which meant the
     leg proved the examples publish rather than that Quartz survives trimming (issue #3341, step 1).
 
-    Nothing is suppressed by warning code any more. What is suppressed is the recorded set of types in
-    ILLink.Suppressions.xml, which fails the publish the moment a type outside it starts warning; that
-    file explains why it exists separately from the compile-time baseline beside it. The item is the
-    SDK's own hook for an ILLink link-attributes file (Microsoft.NET.ILLink.targets); if a future SDK
-    renames it the suppressions stop applying and this publish fails loudly rather than quietly.
+    Nothing is suppressed at all any more. It applied Quartz's ILLink.Suppressions.xml until #4082 took
+    the last two entries, and since the whole of Quartz is rooted above, any warning against it now fails
+    this publish.
   -->
-  <ItemGroup>
-    <_ILLinkSuppressions Include="..\Quartz\ILLink.Suppressions.xml" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <!--
       The dashboard agent, so that this worker can be put on Quartz.Examples.AspNetCore's dashboard
       (Program.cs, Dashboard:AgentEndpoint). It widens what the trimmed publish measures by the agent
-      package and the SignalR client under it: the agent's one recorded warning is in its own
-      ILLink.Suppressions.xml above, and the SignalR client is trim-annotated by ASP.NET Core.
+      package and the SignalR client under it: the agent records no warning, and the SignalR client is
+      trim-annotated by ASP.NET Core.
     -->
     <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
     <!--
@@ -59,7 +54,7 @@
 
   <!--
     What buildTransitive/net10.0 inside Quartz.nupkg gives a package consumer, which a ProjectReference
-    does not. Load-bearing for this publish: it sets the two feature switches false under PublishTrimmed,
+    does not. Load-bearing for this publish: it sets the three feature switches false under PublishTrimmed,
     and ILLink substitutes a guarded call site away only on an explicit setting. Without the import the
     guarded IL2026s are reported against Quartz, and with ILLinkTreatWarningsAsErrors on, this publish fails.
   -->

@@ -64,6 +64,8 @@ internal static class Program
 
     public static async Task<int> Main()
     {
+        TrimWitness.Run();
+
         Console.WriteLine($"IsReflectionEnabledByDefault: {JsonSerializer.IsReflectionEnabledByDefault}");
         Console.WriteLine($"IsDynamicCodeSupported: {RuntimeFeature.IsDynamicCodeSupported}");
 
