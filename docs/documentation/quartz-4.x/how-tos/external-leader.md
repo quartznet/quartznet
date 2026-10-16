@@ -180,10 +180,10 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-Costs: a batch size above one, the default here, takes the `TRIGGER_ACCESS` lock on every round, even
-empty ones; on this store that lock is in process. A wide window fires triggers early and holds an
-acquired batch longer, and here nothing recovers a batch held by a dead process until that scheduler
-starts again.
+Costs: a round takes the `TRIGGER_ACCESS` lock only when something in it needs it — a serial job, a
+`Skip`, `BufferOne` or `CancelPrevious` trigger — and on this store that lock is in process. A wide window
+fires triggers early and holds an acquired batch longer, and here nothing recovers a batch held by a dead
+process until that scheduler starts again.
 
 ## When the leader moves
 

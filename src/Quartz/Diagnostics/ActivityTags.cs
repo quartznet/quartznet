@@ -121,6 +121,20 @@ public static class ActivityTags
     public const string JobStoreLock = "quartz.jobstore.lock";
 
     /// <summary>
+    /// Why a firing round took <c>TRIGGER_ACCESS</c>, on an acquisition measurement whose
+    /// <see cref="JobStoreLock" /> says it did: <c>serial_job</c>, <c>overlap_policy</c>,
+    /// <c>cluster_limit</c>, <c>older_peer</c>, <c>definition_changed</c>, <c>hysteresis</c>, or the
+    /// configuration — <c>option_off</c>, <c>acquire_within_lock</c>, <c>isolation_level</c>,
+    /// <c>lock_all_operations</c>, <c>delegate</c>. Absent on a round that took no lock.
+    /// </summary>
+    /// <remarks>
+    /// A round of work that allows concurrent execution takes no lock since 4.6 (#4067), so on a cluster
+    /// the share of rounds tagged <c>TRIGGER_ACCESS</c>, and why, is what says whether a schedule is
+    /// getting the saving.
+    /// </remarks>
+    public const string JobStoreLockReason = "quartz.jobstore.lock.reason";
+
+    /// <summary>
     /// The instance id of the cluster node whose work is being recovered, which is a node other than the
     /// one reporting the measurement.
     /// </summary>

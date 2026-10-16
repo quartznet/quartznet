@@ -100,11 +100,13 @@ automatic:
 
 * **A persistent store batches.** A round there is round trips and a commit, so one round for every
   trigger already due is cheaper per firing.
-* **On a cluster a batch takes the lock, and still pays.** Above 1, **every** acquisition cycle takes the
-  `TRIGGER_ACCESS` row lock, including cycles that acquire nothing. The measured gain is in
-  [Sizing a cluster](../operations.md#sizing-a-cluster).
-* **`MaxBatchSize = 1` keeps a cluster's acquisition off the lock.** With `AcquireTriggersWithinLock` off
-  (the default), a round of one takes no cluster-wide lock.
+* **On a cluster a round takes the lock only when something in it needs it.** Since 4.6 a round whose
+  triggers may all run beside themselves takes no `TRIGGER_ACCESS` lock, whatever its size; a serial job, a
+  `Skip`, `BufferOne` or `CancelPrevious` trigger or a cluster-scoped limit in it does. See
+  [Lock-free firing rounds](../operations.md#lock-free-firing-rounds). The batch's measured gain, from
+  4.3, is in [Sizing a cluster](../operations.md#sizing-a-cluster).
+* **`MaxBatchSize = 1` no longer buys lock freedom.** On 4.3–4.5 it was the one lock-free shape;
+  `LockFreeFiringRounds = false` restores it.
 * **In memory a batch is not a clear win.** It measured faster for repeating triggers and slower for a
   burst of one-offs, so the default stays at one.
 * **An explicit value wins.** `MaxBatchSize = 1` is 4.2's behaviour on every store.

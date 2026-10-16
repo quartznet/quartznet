@@ -18,7 +18,7 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). No database migration |
+| From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). It has a database migration |
 | From 4.4 | [Upgrading from 4.4 to 4.5](#upgrading-from-4-4-to-4-5). No database migration. Then 4.5 to 4.6 |
 | From 4.3 | [Upgrading from 4.3 to 4.4](#upgrading-from-4-3-to-4-4). Its database migration is optional. Then 4.4 to 4.5 |
 | From 4.2 | [Upgrading from 4.2 to 4.3](#upgrading-from-4-2-to-4-3). It has a database migration. Then 4.3 to 4.4 |
@@ -32,12 +32,32 @@ The compiler finds most of the 3.x → 4.0 work.
 
 An application on 4.5 compiles on 4.6 unchanged, unless it treats warnings as errors and has a cron literal
 that the new analyzer warning [`QZ0007`](tutorial/compile-time-checks.md#qz0007-wildcardsecondsfield)
-reports. A database that keeps its execution history can take one
+reports. The upgrade has a database migration:
+[`database/migrations/4.6/add_scheduler_version_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6)
+adds the nullable `QUARTZ_VERSION` column to `QRTZ_SCHEDULER_STATE`. A 4.6 node refuses to start
+without it; a 4.5 node never names it. A database that keeps its execution history can also take one
 optional migration, [`4.6/add_execution_history_lookup_indexes`](../database/schema-changes.md#version-4-6):
 two indexes, performance only.
 
+To roll a cluster from 4.5:
+
+1. Run the migration while the 4.5 nodes are up.
+2. Roll the nodes. While any 4.5 node is live, every 4.6 firing round takes `TRIGGER_ACCESS` (event 3517).
+3. The last 4.5 node stops. Once its row ages out, rounds of concurrent-allowed work take no lock (event 3518).
+
+Nothing else is configured, and rolling back to 4.5 needs nothing. See
+[Rolling upgrade from 4.5](operations.md#rolling-upgrade-from-4-5).
+
 | Added | What it is |
 |---|---|
+| `AdoJobStoreOptions.LockFreeFiringRounds` | `bool`, default `true`; flat key `quartz.jobStore.lockFreeFiringRounds`. A firing round whose every trigger may run beside itself takes no `TRIGGER_ACCESS` lock; `false` restores 4.5. See [Lock-free firing rounds](operations.md#lock-free-firing-rounds) |
+| `ActivityTags.JobStoreLockReason` | `quartz.jobstore.lock.reason`: why a round took the lock, on the acquisition instruments and span |
+| `TriggerAcquireResult.NextFireTimeUtc`, `.OverlapPolicy` | `init`, nullable: what the candidate read carries, which a lock-free round claims by and decides from |
+| `IDriverDelegate.UpdateTriggerIfUnchanged` | Default interface member: writes a trigger only while its `NEXT_FIRE_TIME` is the one read. The default calls `UpdateTrigger` |
+| `IDriverDelegate.UpdateMisfiredTriggersIfUnchanged` | Default interface member: writes each misfire only while the row is as read, and answers the keys that took. The default calls `UpdateMisfiredTriggers` |
+| `MisfiredTriggerUpdate.ExpectedNextFireTimeUtc` | `init`: the fire time the misfire pass read, which the guarded write holds the row to |
+| `SchedulerStateRecord.QuartzVersion` | `string?`, `init`: the node's stamp, `null` from a node older than 4.6 |
+| `AdoConstants.ColumnQuartzVersion` | `QUARTZ_VERSION` |
 | `FiredTriggerRecord.ExecutionGroup` | `string?`, `init`: the execution group the firing's trigger carried, as written to `QRTZ_FIRED_TRIGGERS`; `null` for none |
 | `Quartz.TypeNameResolution.IsSupported` | Feature switch, MSBuild property `QuartzTypeNameResolutionSupport`. On by default; the `Quartz` package sets it off under `PublishTrimmed` and `PublishAot`. Off, a type name resolves only to a registered type. See [Feature switches](how-tos/trimming-and-native-aot.md#feature-switches) |
 | `Quartz.LegacyComponentKeys.IsSupported` | Feature switch, MSBuild property `QuartzLegacyComponentKeysSupport`. Same defaults. Off, a flat `quartz.*` key naming a component by type, or setting its properties by string, fails `AddQuartz` |
@@ -68,12 +88,18 @@ two indexes, performance only.
 | Dashboard: `triggerGroup`, `triggerName` on the History page | One trigger exactly. See [Execution history and misfires](packages/dashboard.md#execution-history-and-misfires) |
 | `ExecutionHistoryOptions.WriteBehindInterval`, log event `3164` | `TimeSpan?`, default `null`: the database history queues runs and writes them every interval, one status update per job; `3164` reports rows a flush lost. See [Write behind](tutorial/job-stores.md#write-behind) |
 | `JobExecutionContextBuilder.Recovering(bool = true)`, `WithRetryAttempt(int)`, `WithRefireCount(int)`, `WithCalendar(ICalendar)`, `WithCancellation(CancellationToken)`, `WithTimeProvider(TimeProvider)` | What a job branches on, set for a level-1 test. See [Level 1](tutorial/testing.md#level-1-one-job-one-context) |
+| Log events 3056–3059, 3517, 3518, 3608 | A store's lock-free verdict at startup, a round escalated or rolled back to the lock, an edit re-applied, a cluster's older-peer verdict, a misfire write skipped. See [Log Events](log-events.md) |
 
 Behaviour that changed:
 
 | Before | After | What to do |
 |---|---|---|
 | `* */5 * ? * *` fired every second of every fifth minute, silently | Warning [`QZ0007`](tutorial/compile-time-checks.md#qz0007-wildcardsecondsfield) on a literal or constant; log event `5112` when such a trigger is scheduled | Write `0` for the seconds, or `0-59` if every second is intended |
+| Every firing round of more than one trigger took `TRIGGER_ACCESS`; a round of one acquired without it and fired under it in a second transaction | A round takes the lock only when a serial job, a `Skip`/`BufferOne`/`CancelPrevious` trigger, a cluster-scoped limit, an isolation level above `ReadCommitted`, `AcquireTriggersWithinLock`, SQLite or a live 4.5 node asks for it; a round of one fires in the round | Nothing. `LockFreeFiringRounds = false` restores 4.5 |
+| A cluster-scoped execution limit could overshoot by one per node on a round of one | Exact: every round that counts against one is locked | Nothing |
+| A misfire write, a trigger edit and a calendar update wrote the row by key | Each lands only while the row is as it was read; an edit that lost the race re-reads and re-applies | Nothing. A custom `IDriverDelegate` keeps the by-key write until it overrides the two new members |
+| `quartz.trigger.acquisition.duration` and `quartz.trigger.acquired` had no lock attributes | On the ADO.NET store they carry `quartz.jobstore.lock` and `quartz.jobstore.lock.reason` | A dashboard summing them keeps summing; one splitting on the new attributes sees one series per lock mode |
+| A node wrote `LAST_CHECKIN_TIME` at check-in | It writes `QUARTZ_VERSION` beside it | Run the migration |
 | A recovery trigger had no execution group, so a recovered firing ignored its group's limit | It keeps the firing's group, after cluster recovery, a shutdown hand-back and startup recovery | Nothing |
 | A manual firing (`TriggerJob`, **Trigger now**, the HTTP API, agents, job chains) and a `RunAtStartup` run had no execution group, so they ignored the job's group limit and routing | They count against the job type's `[ExecutionGroup]`, else the group every trigger of the job shares. See [Manual and startup firings](tutorial/execution-groups.md#manual-and-startup-firings) | Nothing. A **Trigger now** of a `gpu` job now waits for a `gpu` slot, on a node that serves `gpu` |
 | A type name was resolved with `Type.GetType` | Resolved from the types registered in code first: `AddJob<T>()`, `AddJobType<T>()`, `JobBuilder.Create<T>()`, `Map(name, typeof(T))`; then `Type.GetType` while the switch is on | Nothing untrimmed. Trimmed, register every job type the application runs, including `Quartz.Jobs` types: `AddJobType<NoOpJob>()` |
@@ -6961,7 +6987,8 @@ recovery.
 Read [Execution Groups](/documentation/quartz-4.x/tutorial/execution-groups.html#clustering-considerations)
 before relying on it:
 
-* the ceiling is **approximate, with a bounded overshoot**, unless `AcquireTriggersWithinLock` is on;
+* the ceiling is **exact since 4.6**, which locks every round that counts against it; on 4.1–4.5 it was
+  approximate, with a bounded overshoot, unless `AcquireTriggersWithinLock` was on;
 * it **fails closed**: a node that cannot reach the store fires nothing;
 * work held at a ceiling for longer than `MisfireThreshold` goes to misfire handling.
 

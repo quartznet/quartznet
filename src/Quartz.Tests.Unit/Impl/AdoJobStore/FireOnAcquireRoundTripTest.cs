@@ -34,7 +34,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// <remarks>
 /// The delegate is faked, so a statement here is a call to a delegate member and a transaction is a
 /// connection the store opened. The rows those calls leave behind are
-/// <c>FireOnAcquireSqliteTest</c>'s to prove.
+/// <c>FireOnAcquireSqliteTest</c>'s to prove. The candidates carry what the shipped delegates read, so
+/// the round here is the one that ships by default since 4.6: no <c>TRIGGER_ACCESS</c> lock, the claim
+/// before the read (#4067). Which rounds take the lock, and why, is <c>LockFreeRoundTest</c>'s.
 /// </remarks>
 public class FireOnAcquireRoundTripTest
 {
@@ -202,12 +204,14 @@ public class FireOnAcquireRoundTripTest
     }
 
     /// <summary>
-    /// One trigger a round, acquired without the lock, stays two transactions: the round cannot take the
-    /// lock the fire needs without taking it for every acquisition, the idle ones included.
+    /// With lock-free rounds off, one trigger a round, acquired without the lock, stays two transactions
+    /// as it was in 4.5: the round cannot take the lock the fire needs without taking it for every
+    /// acquisition, the idle ones included. With them on, a round of one is a round like any other.
     /// </summary>
     [Test]
-    public async Task ALockFreeBatchOfOneIsLeftForTheSchedulerToFire()
+    public async Task ABatchOfOneIsLeftForTheSchedulerToFireWhenLockFreeRoundsAreOff()
     {
+        store.LockFreeFiringRounds = false;
         store.AcquireTriggersWithinLock = false;
         GivenCandidates("t1");
 
@@ -472,7 +476,13 @@ public class FireOnAcquireRoundTripTest
                 A<TriggerAcquisitionCriteria>._,
                 A<CancellationToken>._))
             .ReturnsLazily(() => new ValueTask<List<TriggerAcquireResult>>(
-                candidates.Select(x => new TriggerAcquireResult(new TriggerKey(x.Name, "g1"), typeof(NoOpAcquisitionJob).AssemblyQualifiedName, null)).ToList()));
+                candidates.Select(x => new TriggerAcquireResult(new TriggerKey(x.Name, "g1"), typeof(NoOpAcquisitionJob).AssemblyQualifiedName, null)
+                {
+                    // What the shipped delegates read, and what the round decides from (#4067).
+                    ConcurrentExecutionDisallowed = false,
+                    NextFireTimeUtc = x.NextFireTimeUtc,
+                    OverlapPolicy = OverlapPolicy.Default,
+                }).ToList()));
 
         A.CallTo(() => driverDelegate.SelectTriggers(
                 A<ConnectionAndTransactionHolder>._,

@@ -132,6 +132,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         UseDbLocks = options.UseDbLocks;
         LockOnInsert = options.LockOnInsert;
         AcquireTriggersWithinLock = options.AcquireTriggersWithinLock;
+        LockFreeFiringRounds = options.LockFreeFiringRounds;
         TransactionIsolationLevel = options.TransactionIsolationLevel;
         AcceptEnlistedTransactions = options.AcceptEnlistedTransactions;
         DoubleCheckLockMisfireHandler = options.DoubleCheckLockMisfireHandler;
@@ -419,11 +420,60 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     internal bool AcquireTriggersWithinLock { get; set; }
 
     /// <summary>
+    /// Whether a firing round whose every trigger may run beside itself takes no
+    /// <see cref="SchedulerLock.TriggerAccess" /> (#4067). Configured through
+    /// <see cref="AdoJobStoreOptions.LockFreeFiringRounds" />; what still locks is
+    /// <see cref="StaticRoundLockReason" />'s and the round's own to say.
+    /// </summary>
+    internal bool LockFreeFiringRounds { get; set; }
+
+    /// <summary>
     /// When true, all operations (including reads) acquire a lock before
     /// accessing the database. Required for SQLite to prevent concurrent
     /// serializable transactions from causing "database is locked" errors.
     /// </summary>
     internal bool LockAllOperations { get; set; }
+
+    /// <summary>
+    /// Why every firing round of this store takes <see cref="SchedulerLock.TriggerAccess" />, or
+    /// <see langword="null" /> when a round decides for itself (#4067). A property of the store's
+    /// configuration, in the order the rule asks: SQLite, the option, <see cref="AcquireTriggersWithinLock" />,
+    /// an isolation level above read committed — where a lost claim is a serialization failure that costs
+    /// a retry interval rather than a zero-row update — and a delegate that takes no part in fire-on-acquire
+    /// rounds, whose overridden claim or fire the round's members would bypass.
+    /// </summary>
+    internal RoundLockReason? StaticRoundLockReason
+    {
+        get
+        {
+            if (LockAllOperations)
+            {
+                return RoundLockReason.LockAllOperations;
+            }
+
+            if (!LockFreeFiringRounds)
+            {
+                return RoundLockReason.OptionOff;
+            }
+
+            if (AcquireTriggersWithinLock)
+            {
+                return RoundLockReason.AcquireTriggersWithinLock;
+            }
+
+            if (TransactionIsolationLevel is { } level && level != IsolationLevel.ReadCommitted)
+            {
+                return RoundLockReason.IsolationLevel;
+            }
+
+            if (!Delegate.SupportsFireOnAcquire)
+            {
+                return RoundLockReason.Delegate;
+            }
+
+            return null;
+        }
+    }
 
     /// <summary>
     /// The SQL statement used to select and lock a row in the "locks" table.
@@ -724,6 +774,19 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             LockWaitWarningThreshold = LockWaitWarningThreshold,
             LoggerFactory = LoggerFactory,
         });
+
+        // Once, with everything the static rule reads settled: SQLite's forcing above, the delegate, the
+        // isolation level. What a round decides for itself is its own to log.
+        if (StaticRoundLockReason is { } roundsLockedBy)
+        {
+            Logger.LockFreeFiringRounds("off", roundsLockedBy.Describe());
+        }
+        else
+        {
+            Logger.LockFreeFiringRounds("on", Clustered
+                ? "a round with a serial job, an overlap policy or a cluster-scoped limit still takes TRIGGER_ACCESS, as does every round while a live node is older than 4.6"
+                : "a round with a serial job, an overlap policy or a cluster-scoped limit still takes TRIGGER_ACCESS");
+        }
 
         if (SchemaProvisioning == SchemaProvisioning.CreateIfMissing)
         {

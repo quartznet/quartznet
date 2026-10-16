@@ -1077,6 +1077,7 @@ internal static class QuartzPropertyBridge
         parser.Bool("quartz.jobStore.useDBLocks", value => options.UseDbLocks = value);
         parser.Bool("quartz.jobStore.lockOnInsert", value => options.LockOnInsert = value);
         parser.Bool("quartz.jobStore.acquireTriggersWithinLock", value => options.AcquireTriggersWithinLock = value);
+        parser.Bool("quartz.jobStore.lockFreeFiringRounds", value => options.LockFreeFiringRounds = value);
         parser.Bool("quartz.jobStore.acceptEnlistedTransactions", value => options.AcceptEnlistedTransactions = value);
         // Read by the ambient-transaction store alone, and settable on 3.x because the store was
         // constructed and had its properties written by name. A file carrying it configured nothing

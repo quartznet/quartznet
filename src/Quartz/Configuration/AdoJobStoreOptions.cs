@@ -235,6 +235,27 @@ public sealed class AdoJobStoreOptions
     public bool AcquireTriggersWithinLock { get; set; }
 
     /// <summary>
+    /// Whether a firing round whose every trigger may run beside itself takes no <c>TRIGGER_ACCESS</c>
+    /// lock. Defaults to <see langword="true" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A round decides from its first read. It takes the lock when a candidate's job disallows concurrent
+    /// execution, when a candidate's overlap policy is <c>Skip</c>, <c>BufferOne</c> or
+    /// <c>CancelPrevious</c>, when the request counts against a cluster-scoped execution limit, when the
+    /// store's transactions run above read committed, when <see cref="AcquireTriggersWithinLock" /> is on,
+    /// on SQLite, and — on a cluster — while any live node is older than 4.6 or no check-in has read the
+    /// state table yet. Otherwise the claim is a compare-and-swap on each row's fire time, and the fire
+    /// writes rows this transaction holds.
+    /// </para>
+    /// <para>
+    /// <see langword="false" /> restores 4.5: a round of one acquires without the lock and the scheduler
+    /// fires it under the lock in a second transaction, and every other round is locked throughout.
+    /// </para>
+    /// </remarks>
+    public bool LockFreeFiringRounds { get; set; } = true;
+
+    /// <summary>
     /// The isolation level the job store begins its own transactions at. Left unset, they are
     /// <see cref="IsolationLevel.ReadCommitted"/>.
     /// </summary>

@@ -104,4 +104,17 @@ public sealed class TriggerAcquisitionResult
     /// group the store named are the same string.
     /// </remarks>
     internal HashSet<string>? GroupsAtLimit { get; init; }
+
+    /// <summary>
+    /// The job store lock the round ran under, as the <c>LOCK_NAME</c> column spells it, or <c>none</c>
+    /// for a round that took none (#4067); <see langword="null" /> for a store that says nothing, which is
+    /// every store but the ADO.NET one. The scheduling loop tags its acquisition measurements with it.
+    /// </summary>
+    internal string? LockName { get; init; }
+
+    /// <summary>
+    /// Why the round took the lock, as the <c>quartz.jobstore.lock.reason</c> tag spells it, or
+    /// <see langword="null" /> for a round that took none or a store that says nothing.
+    /// </summary>
+    internal string? LockReason { get; init; }
 }

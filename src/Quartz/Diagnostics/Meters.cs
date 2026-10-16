@@ -313,13 +313,33 @@ internal sealed class Meters : IDisposable
     /// <summary>
     /// One round of the scheduling loop's acquisition, however many triggers it came back with.
     /// </summary>
-    internal void TriggersAcquired(string schedulerName, string schedulerId, int count, TimeSpan duration)
+    /// <param name="schedulerName">The scheduler's name.</param>
+    /// <param name="schedulerId">The node's instance id.</param>
+    /// <param name="count">How many triggers the round came back with, fired or pending.</param>
+    /// <param name="duration">How long the store took to answer.</param>
+    /// <param name="lockName">
+    /// The job store lock the round ran under — <c>TRIGGER_ACCESS</c> or <c>none</c> — or
+    /// <see langword="null" /> for a store that says nothing (#4067). The in-memory store says nothing,
+    /// so its series keep the shape they had.
+    /// </param>
+    /// <param name="lockReason">Why the round took the lock, or <see langword="null" />.</param>
+    internal void TriggersAcquired(string schedulerName, string schedulerId, int count, TimeSpan duration, string? lockName = null, string? lockReason = null)
     {
         TagList tags = new()
         {
             { ActivityTags.SchedulerName, schedulerName },
             { ActivityTags.SchedulerId, schedulerId },
         };
+
+        if (lockName is not null)
+        {
+            tags.Add(ActivityTags.JobStoreLock, lockName);
+        }
+
+        if (lockReason is not null)
+        {
+            tags.Add(ActivityTags.JobStoreLockReason, lockReason);
+        }
 
         // Recorded even when the round came back empty: an acquisition that returns nothing still made
         // the round trip, and leaving those out would report only the busy scheduler's latency.

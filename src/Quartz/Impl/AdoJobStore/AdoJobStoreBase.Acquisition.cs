@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Diagnostics;
+
 using Quartz.Extensibility;
 using Quartz.Impl.Triggers;
 
@@ -70,7 +72,7 @@ internal abstract partial class AdoJobStoreBase
 
         return ExecuteInLocalTransactionLock(
             lockKind,
-            conn => AcquireNextTrigger(conn, request, round: null, cancellationToken),
+            conn => AcquireNextTrigger(conn, request, round: null, holdsLock: lockKind is not null, cancellationToken),
             (conn, result) => Guarded(
                 async () =>
                 {
@@ -161,6 +163,62 @@ internal abstract partial class AdoJobStoreBase
         };
     }
 
+    /// <summary>
+    /// Resolves a candidate's job type before its claim, settling one that will not load rather than
+    /// meeting it again every round: the trigger is stored <c>ERROR</c> and reported.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>ERROR</c> FROM <c>WAITING</c>, the state the candidate read found the row in: the round has not
+    /// claimed it, so another node's round may have, and an unconditional write would land over that
+    /// node's advance of it (#4067).
+    /// </para>
+    /// <para>
+    /// It answers what the caller asks of the type rather than the type: a tuple element cannot carry the
+    /// <see cref="System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembersAttribute" /> that
+    /// <see cref="JobType.Resolve" /> returns it with, so the type is read here, where that still flows.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// Whether the type loaded, and whether its job disallows concurrent execution: the stored flag, which is
+    /// what the fire path obeys, or the type's when the delegate did not read the flag.
+    /// </returns>
+    private async ValueTask<(bool Loaded, bool ConcurrentExecutionDisallowed)> ResolveCandidateJobType(
+        ConnectionAndTransactionHolder conn,
+        TriggerAcquireResult candidate,
+        CancellationToken cancellationToken)
+    {
+        Type jobType;
+        try
+        {
+            jobType = JobType.Resolve(candidate.JobTypeName, typeLoader)!;
+        }
+        catch (Exception e)
+        {
+            try
+            {
+                Logger.JobRetrievalFailed(e);
+                await Delegate.UpdateTriggerStateFromOtherState(conn, candidate.TriggerKey, StoredTriggerState.Error, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
+
+                // A trigger whose job type will not load stops firing here and is reported nowhere else -
+                // not even through SchedulerError. Inline, as the misfire notification in this store
+                // already is.
+                await signaler.NotifySchedulerListenersTriggerInError(candidate.TriggerKey, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Logger.TriggerErrorStateUpdateFailed(ex);
+            }
+
+            return (false, false);
+        }
+
+        // A job configured with DisallowConcurrentExecution() says so without any attribute on its type, and
+        // asking the type alone let such a job into one batch twice. The type answers the way JobDetailImpl
+        // answers it: the attribute is inherited from an interface as readily as from a base class.
+        return (true, candidate.ConcurrentExecutionDisallowed ?? JobTypeInformation.GetOrCreate(jobType).ConcurrentExecutionDisallowed);
+    }
+
     // The acquired triggers carry their fire instance id on themselves rather than in a bundle beside
     // them, because IOperableTrigger.FireInstanceId is the contract the scheduling loop, the fired-
     // trigger row and TriggerFiredBundle all read it through; a second shape here would be a fourth
@@ -169,10 +227,17 @@ internal abstract partial class AdoJobStoreBase
     // A round that fires what is due as it acquires it passes its FireOnAcquireRound: a trigger the round
     // fires gets no reservation row here, because its fire writes the row as EXECUTING in the same
     // transaction.
+    //
+    // holdsLock says whether the caller took TRIGGER_ACCESS for this transaction. Two things depend on it
+    // (#4066, #4067): the one executing-jobs read that answers for every serial candidate, and the idle mark
+    // the round's own fire reads instead of asking again — both valid only because the lock keeps the
+    // fired-trigger table still. A round that holds no lock claims its candidates before it reads them in
+    // full, which is ClaimAndReadWithoutLock's half of the loop below.
     private ValueTask<AcquiredTriggers> AcquireNextTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionRequest request,
         FireOnAcquireRound? round,
+        bool holdsLock,
         CancellationToken cancellationToken)
     {
         return Guarded(
@@ -314,231 +379,238 @@ internal abstract partial class AdoJobStoreBase
                         skipped += atLimit;
                     }
 
-                    // One read for the whole round's candidates. The acquisition statement just named
-                    // them; going back per candidate cost a round trip each before a single one was
-                    // marked acquired (#3424).
-                    Dictionary<TriggerKey, IOperableTrigger> candidates = await ReadAcquisitionCandidates(conn, results, round, cancellationToken).ConfigureAwait(false);
-
-                    // One read for every job that disallows concurrent execution among the candidates,
-                    // asked whether a firing of it is executing anywhere, where the loop below asked it
-                    // once per such candidate (#4066). Asked of a delegate Quartz ships, whose row said
-                    // the job is one of those; a delegate that did not read the flag, or is not shipped,
-                    // is asked in the loop as before.
-                    //
-                    // One read answers for every candidate because this round holds TRIGGER_ACCESS — a
-                    // round of more than one trigger always does, and one of one does when
-                    // AcquireTriggersWithinLock says so — and every write of an EXECUTING row takes that
-                    // lock: nothing can start a firing while the pass runs, so the answer is the one
-                    // each ask in the loop would have got. A round that acquires without the lock must
-                    // not take this read: it asks per candidate, as the loop still does for it.
-                    HashSet<JobKey>? executingNow = null;
-                    if (ShippedDelegate is { } shipped && (AcquireTriggersWithinLock || request.MaxCount > 1))
+                    // What in this read only the lock decides (#4067): a job that disallows concurrent
+                    // execution, an overlap policy the fire decides from the trigger's running firings, or
+                    // a delegate that did not read what the rule reads. A round that holds no lock and finds
+                    // one rolls back before its first write and runs again under the lock; a round that
+                    // holds it notes that it was needed, for the round after this one. An acquisition that
+                    // fires nothing is always under the lock or always without it, and asks neither.
+                    (RoundLockReason Reason, TriggerKey TriggerKey)? needsLock = round is null ? null : FirstCandidateNeedingLock(results);
+                    if (round is { HoldsLock: false })
                     {
-                        List<JobKey>? serialJobs = null;
-                        foreach (TriggerAcquireResult candidate in results)
+                        if (needsLock is { } needed)
                         {
-                            if (candidate.ConcurrentExecutionDisallowed == true && candidates.TryGetValue(candidate.TriggerKey, out IOperableTrigger? serialTrigger))
-                            {
-                                (serialJobs ??= []).Add(serialTrigger.JobKey);
-                            }
+                            // Before any write, with no row lock held: the attempt rolls back and the round
+                            // runs again under TRIGGER_ACCESS, which is the order every locked path takes it
+                            // in.
+                            throw new RoundNeedsLockException(needed.Reason, needed.TriggerKey);
                         }
 
-                        if (serialJobs is not null)
-                        {
-                            executingNow = await shipped.SelectExecutingJobs(conn, serialJobs, cancellationToken).ConfigureAwait(false);
-                        }
+                        LockFreePass pass = await ClaimAndReadWithoutLock(conn, request, round, results, maxCount, acquiredTriggers, cancellationToken).ConfigureAwait(false);
+                        raced += pass.Raced;
+                        reachedBatchEnd = pass.ReachedBatchEnd;
                     }
-
-                    DateTimeOffset batchEnd = request.NoLaterThan;
-
-                    // The fired-trigger rows of this pass, written together at the end of it rather than
-                    // one statement at a time. They name no job until the trigger fires, so nothing this
-                    // loop asks the database can see them.
-                    List<IOperableTrigger> firedTriggerRows = [];
-
-                    // The claims of a round that fires what is due as it acquires it, made together at the
-                    // end of the pass: one batch, where the delegate sends one. Null for every other
-                    // acquisition, which claims each trigger as it comes to it.
-                    List<TriggerClaim>? planned = round is { ClaimsTogether: true } ? [] : null;
-
-                    foreach (var result in results)
+                    else
                     {
-                        // Only a round reading past skipped rows can have more rows than it may take.
-                        if (acquiredTriggers.Count >= maxCount)
+                        if (round is not null && needsLock is not null)
                         {
-                            break;
+                            round.CandidateNeededLock = true;
                         }
 
-                        TriggerKey triggerKey = result.TriggerKey;
+                        // One read for the whole round's candidates. The acquisition statement just named
+                        // them; going back per candidate cost a round trip each before a single one was
+                        // marked acquired (#3424).
+                        Dictionary<TriggerKey, IOperableTrigger> candidates = await ReadAcquisitionCandidates(conn, results, round, cancellationToken).ConfigureAwait(false);
 
-                        // If our trigger is no longer available, try a new one.
-                        if (!candidates.TryGetValue(triggerKey, out IOperableTrigger? nextTrigger))
+                        // One read for every job that disallows concurrent execution among the candidates,
+                        // asked whether a firing of it is executing anywhere, where the loop below asked it
+                        // once per such candidate (#4066). Asked of a delegate Quartz ships, whose row said
+                        // the job is one of those; a delegate that did not read the flag, or is not shipped,
+                        // is asked in the loop as before.
+                        //
+                        // One read answers for every candidate because this pass holds TRIGGER_ACCESS, and
+                        // every write of an EXECUTING row takes that lock: nothing can start a firing while
+                        // the pass runs, so the answer is the one each ask in the loop would have got. A pass
+                        // without the lock must not take this read — it asks per candidate, as the loop still
+                        // does for it — and a round that takes no lock never has a serial candidate at all
+                        // (#4067): its rule sent any such round to the locked path before this point.
+                        HashSet<JobKey>? executingNow = null;
+                        if (ShippedDelegate is { } shipped && holdsLock)
                         {
-                            raced++;
-                            continue; // next trigger
-                        }
-
-                        // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
-                        // put it back into the timeTriggers set and continue to search for next trigger.
-                        Type jobType;
-                        try
-                        {
-                            jobType = JobType.Resolve(result.JobTypeName, typeLoader)!;
-                        }
-                        catch (Exception e)
-                        {
-                            try
+                            List<JobKey>? serialJobs = null;
+                            foreach (TriggerAcquireResult candidate in results)
                             {
-                                Logger.JobRetrievalFailed(e);
-
-                                // FROM 'WAITING', the state the candidate read found it in: this round has
-                                // not claimed the row, so a round on another node may have, and an
-                                // unconditional ERROR would land over that node's advance of it (#4067).
-                                await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StoredTriggerState.Error, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
-
-                                // A trigger whose job type will not load stops firing here and is reported
-                                // nowhere else - not even through SchedulerError. Inline, as the misfire
-                                // notification in this store already is.
-                                await signaler.NotifySchedulerListenersTriggerInError(triggerKey, cancellationToken).ConfigureAwait(false);
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.TriggerErrorStateUpdateFailed(ex);
-                            }
-
-                            // The row is ERROR now, or about to be looked at again for the same reason;
-                            // either way the next read tells the difference, so it counts as a race.
-                            raced++;
-                            continue;
-                        }
-
-                        // The stored flag, which is what the fire path obeys: a job configured with
-                        // DisallowConcurrentExecution() says so without any attribute on its type, and asking
-                        // the type alone let such a job into one batch twice. A delegate that did not read the
-                        // flag is answered from the type the way JobDetailImpl answers it: the attribute is
-                        // inherited from an interface as readily as from a base class.
-                        if (result.ConcurrentExecutionDisallowed ?? JobTypeInformation.GetOrCreate(jobType).ConcurrentExecutionDisallowed)
-                        {
-                            if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
-                            {
-                                skipped++;
-                                if (executingJobs is not null && executingJobs.Contains(nextTrigger.JobKey))
+                                if (candidate.ConcurrentExecutionDisallowed == true && candidates.TryGetValue(candidate.TriggerKey, out IOperableTrigger? serialTrigger))
                                 {
-                                    blocked++;
+                                    (serialJobs ??= []).Add(serialTrigger.JobKey);
+                                }
+                            }
+
+                            if (serialJobs is not null)
+                            {
+                                executingNow = await shipped.SelectExecutingJobs(conn, serialJobs, cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+
+                        DateTimeOffset batchEnd = request.NoLaterThan;
+
+                        // The fired-trigger rows of this pass, written together at the end of it rather than
+                        // one statement at a time. They name no job until the trigger fires, so nothing this
+                        // loop asks the database can see them.
+                        List<IOperableTrigger> firedTriggerRows = [];
+
+                        // The claims of a round that fires what is due as it acquires it, made together at the
+                        // end of the pass: one batch, where the delegate sends one. Null for every other
+                        // acquisition, which claims each trigger as it comes to it.
+                        List<TriggerClaim>? planned = round is { ClaimsTogether: true } ? [] : null;
+
+                        foreach (var result in results)
+                        {
+                            // Only a round reading past skipped rows can have more rows than it may take.
+                            if (acquiredTriggers.Count >= maxCount)
+                            {
+                                break;
+                            }
+
+                            TriggerKey triggerKey = result.TriggerKey;
+
+                            // If our trigger is no longer available, try a new one.
+                            if (!candidates.TryGetValue(triggerKey, out IOperableTrigger? nextTrigger))
+                            {
+                                raced++;
+                                continue; // next trigger
+                            }
+
+                            // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
+                            // put it back into the timeTriggers set and continue to search for next trigger.
+                            (bool loaded, bool concurrentExecutionDisallowed) = await ResolveCandidateJobType(conn, result, cancellationToken).ConfigureAwait(false);
+                            if (!loaded)
+                            {
+                                // The row is ERROR now, or about to be looked at again for the same reason;
+                                // either way the next read tells the difference, so it counts as a race.
+                                raced++;
+                                continue;
+                            }
+
+                            // The stored flag, which is what the fire path obeys, or the type's when the
+                            // delegate did not read it.
+                            if (concurrentExecutionDisallowed)
+                            {
+                                if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
+                                {
+                                    skipped++;
+                                    if (executingJobs is not null && executingJobs.Contains(nextTrigger.JobKey))
+                                    {
+                                        blocked++;
+                                    }
+
+                                    continue; // next trigger
                                 }
 
-                                continue; // next trigger
+                                // Cluster-safe check: skip if job is already executing on another node. The
+                                // row stays WAITING, first in the order, and a read of the same length would
+                                // return it again ahead of everything due behind it (#3926). Counted apart as
+                                // well: the execution's end is what frees it, and that end may be another
+                                // node's, which nothing tells this one of (#3988). Answered from the pass's
+                                // one read where that read covered the job, and asked here where it did not.
+                                bool executingElsewhere = executingNow is not null && result.ConcurrentExecutionDisallowed == true
+                                    ? executingNow.Contains(nextTrigger.JobKey)
+                                    : await Delegate.IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false);
+
+                                if (executingElsewhere)
+                                {
+                                    (executingJobs ??= []).Add(nextTrigger.JobKey);
+                                    skipped++;
+                                    blocked++;
+                                    continue;
+                                }
+
+                                // Asked and answered in this transaction, under the lock the round holds from
+                                // here to its commit, which every write of an EXECUTING row takes: the round's
+                                // own fire of the trigger need not ask again. A round that fires what it
+                                // acquires holds it whenever it has a serial candidate (#4067); a round that
+                                // does not fire what it acquires must not mark the job, since its fire runs in
+                                // a later transaction.
+                                if (holdsLock)
+                                {
+                                    round?.MarkJobIdle(nextTrigger.JobKey);
+                                }
                             }
 
-                            // Cluster-safe check: skip if job is already executing on another node. The
-                            // row stays WAITING, first in the order, and a read of the same length would
-                            // return it again ahead of everything due behind it (#3926). Counted apart as
-                            // well: the execution's end is what frees it, and that end may be another
-                            // node's, which nothing tells this one of (#3988). Answered from the pass's
-                            // one read where that read covered the job, and asked here where it did not.
-                            bool executingElsewhere = executingNow is not null && result.ConcurrentExecutionDisallowed == true
-                                ? executingNow.Contains(nextTrigger.JobKey)
-                                : await Delegate.IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false);
+                            var nextFireTimeUtc = nextTrigger.NextFireTimeUtc;
 
-                            if (executingElsewhere)
+                            // A trigger should not return NULL on nextFireTime when fetched from DB.
+                            // But for whatever reason if we do have this (BAD trigger implementation or
+                            // data?), we then should log a warning and continue to next trigger.
+                            // User would need to manually fix these triggers from DB as they will not
+                            // able to be clean up by Quartz since we are not returning it to be processed.
+                            if (nextFireTimeUtc is null)
                             {
-                                (executingJobs ??= []).Add(nextTrigger.JobKey);
+                                // The candidates were read by their fire time, so a row read back without one
+                                // has changed since. A row no longer waiting is a race lost — another node fired
+                                // it, and a spent one-off waits for its completion to delete it — which a node
+                                // firing what it acquires makes common. Only a waiting row is bad data.
+                                if (await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false) != StoredTriggerState.Waiting)
+                                {
+                                    raced++;
+                                    continue;
+                                }
+
+                                Logger.TriggerHasNoNextFireTime(nextTrigger.Key);
                                 skipped++;
-                                blocked++;
                                 continue;
                             }
 
-                            // Asked and answered in this transaction, under the lock the round holds from
-                            // here to its commit, which every write of an EXECUTING row takes: the round's
-                            // own fire of the trigger need not ask again. A round that fires what it
-                            // acquires always holds it (AcquireNextTriggersAndFireDue); a round that does
-                            // not must not mark the job, since its fire runs in a later transaction.
-                            round?.MarkJobIdle(nextTrigger.JobKey);
-                        }
-
-                        var nextFireTimeUtc = nextTrigger.NextFireTimeUtc;
-
-                        // A trigger should not return NULL on nextFireTime when fetched from DB.
-                        // But for whatever reason if we do have this (BAD trigger implementation or
-                        // data?), we then should log a warning and continue to next trigger.
-                        // User would need to manually fix these triggers from DB as they will not
-                        // able to be clean up by Quartz since we are not returning it to be processed.
-                        if (nextFireTimeUtc is null)
-                        {
-                            // The candidates were read by their fire time, so a row read back without one
-                            // has changed since. A row no longer waiting is a race lost — another node fired
-                            // it, and a spent one-off waits for its completion to delete it — which a node
-                            // firing what it acquires makes common. Only a waiting row is bad data.
-                            if (await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false) != StoredTriggerState.Waiting)
+                            if (nextFireTimeUtc > batchEnd)
                             {
-                                raced++;
-                                continue;
+                                // Everything behind this row is due later still, so there is nothing to
+                                // read past to.
+                                reachedBatchEnd = true;
+                                break;
                             }
 
-                            Logger.TriggerHasNoNextFireTime(nextTrigger.Key);
-                            skipped++;
-                            continue;
-                        }
-
-                        if (nextFireTimeUtc > batchEnd)
-                        {
-                            // Everything behind this row is due later still, so there is nothing to
-                            // read past to.
-                            reachedBatchEnd = true;
-                            break;
-                        }
-
-                        // We now have a acquired trigger, let's add to return list. A round claiming its
-                        // triggers together counts this one as acquired until its claim says otherwise.
-                        if (planned is not null)
-                        {
-                            planned.Add(new TriggerClaim { TriggerKey = triggerKey, NextFireTimeUtc = nextFireTimeUtc.Value });
-                        }
-                        else
-                        {
-                            // If our trigger was no longer in the expected state, try a new one.
-                            int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Waiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
-                            if (rowsUpdated <= 0)
+                            // We now have a acquired trigger, let's add to return list. A round claiming its
+                            // triggers together counts this one as acquired until its claim says otherwise.
+                            if (planned is not null)
                             {
-                                // Not worth a warning: the row was no longer WAITING, which is what losing
-                                // the race to another node looks like, and in a cluster that is the ordinary
-                                // outcome of two nodes reaching for the same batch. Logging it would produce
-                                // noise proportional to how well the cluster is sharing its work.
-                                raced++;
-                                continue; // next trigger
+                                planned.Add(new TriggerClaim { TriggerKey = triggerKey, NextFireTimeUtc = nextFireTimeUtc.Value });
                             }
+                            else
+                            {
+                                // If our trigger was no longer in the expected state, try a new one.
+                                int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Waiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
+                                if (rowsUpdated <= 0)
+                                {
+                                    // Not worth a warning: the row was no longer WAITING, which is what losing
+                                    // the race to another node looks like, and in a cluster that is the ordinary
+                                    // outcome of two nodes reaching for the same batch. Logging it would produce
+                                    // noise proportional to how well the cluster is sharing its work.
+                                    raced++;
+                                    continue; // next trigger
+                                }
+                            }
+
+                            nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
+
+                            // A trigger this transaction fires has its row written by the fire; every other
+                            // one is reserved as acquisition has always reserved it.
+                            if (round is null || !round.FiresWithoutReservation(nextTrigger.Key, nextFireTimeUtc.Value, timeProvider))
+                            {
+                                firedTriggerRows.Add(nextTrigger);
+                            }
+
+                            if (acquiredTriggers.Count == 0)
+                            {
+                                var now = timeProvider.GetUtcNow();
+                                var nextFireTime = nextFireTimeUtc.Value;
+                                var max = now > nextFireTime ? now : nextFireTime;
+
+                                batchEnd = max + request.TimeWindow;
+                            }
+
+                            acquiredTriggers.Add(nextTrigger);
                         }
 
-                        nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
-
-                        // A trigger this transaction fires has its row written by the fire; every other
-                        // one is reserved as acquisition has always reserved it.
-                        if (round is null || !round.FiresWithoutReservation(nextTrigger.Key, nextFireTimeUtc.Value, timeProvider))
+                        if (planned is { Count: > 0 })
                         {
-                            firedTriggerRows.Add(nextTrigger);
+                            await ClaimPlanned(conn, planned, acquiredTriggers, firedTriggerRows, cancellationToken).ConfigureAwait(false);
+                            raced += planned.Count - acquiredTriggers.Count;
                         }
 
-                        if (acquiredTriggers.Count == 0)
+                        if (firedTriggerRows.Count > 0)
                         {
-                            var now = timeProvider.GetUtcNow();
-                            var nextFireTime = nextFireTimeUtc.Value;
-                            var max = now > nextFireTime ? now : nextFireTime;
-
-                            batchEnd = max + request.TimeWindow;
+                            await Delegate.InsertFiredTriggers(conn, firedTriggerRows, StoredTriggerState.Acquired, null, cancellationToken).ConfigureAwait(false);
                         }
-
-                        acquiredTriggers.Add(nextTrigger);
-                    }
-
-                    if (planned is { Count: > 0 })
-                    {
-                        await ClaimPlanned(conn, planned, acquiredTriggers, firedTriggerRows, cancellationToken).ConfigureAwait(false);
-                        raced += planned.Count - acquiredTriggers.Count;
-                    }
-
-                    if (firedTriggerRows.Count > 0)
-                    {
-                        await Delegate.InsertFiredTriggers(conn, firedTriggerRows, StoredTriggerState.Acquired, null, cancellationToken).ConfigureAwait(false);
                     }
 
                     if (acquiredTriggers.Count > 0)
@@ -658,10 +730,11 @@ internal abstract partial class AdoJobStoreBase
     /// Through a delegate Quartz ships the read keeps the discriminator each row was stored under, and a
     /// round that fires what it acquires records it (#4066): its fires compare the trigger's type with
     /// it when they write, and used to read the headers back for it although this read had just built
-    /// the triggers from those very rows. The discriminator read here is the row's when the round claims
-    /// it only because the round holds <see cref="SchedulerLock.TriggerAccess" /> from this read to its
-    /// commit and every reschedule takes that lock: nothing can replace the row in between. A round that
-    /// fires without the lock must read the header back after its claim instead.
+    /// the triggers from those very rows. The discriminator is the row's at the fire in both of the
+    /// round's forms, for a different reason each (#4067): a round that holds
+    /// <see cref="SchedulerLock.TriggerAccess" /> reads before it claims, and every reschedule takes that
+    /// lock, so nothing can replace the row in between; a round that holds no lock reads after it claims,
+    /// and the claim holds the row until the round commits.
     /// </para>
     /// </remarks>
     private async ValueTask<Dictionary<TriggerKey, IOperableTrigger>> ReadAcquisitionCandidates(
@@ -1121,10 +1194,22 @@ internal abstract partial class AdoJobStoreBase
             return TriggerFiredResult.Failed(jpe);
         }
 
+        // A round that holds no lock (#4067) decided from its candidate read that nothing in it needed
+        // one, and read the row and the job again after its claim. Either may have been replaced in
+        // between — the job made serial, the trigger given a policy the fire decides — and then the
+        // decision no longer holds. The round rolls back and runs again under the lock: taking it here
+        // would wait on TRIGGER_ACCESS while holding row locks, the inverse of every locked path's order.
+        if (prefetch is { HoldsLock: false }
+            && (job.ConcurrentExecutionDisallowed || trigger.OverlapPolicy is not (OverlapPolicy.Default or OverlapPolicy.AllowAll)))
+        {
+            throw new RoundNeedsLockException(RoundLockReason.DefinitionChanged, trigger.Key);
+        }
+
         // Cluster-safe check: prevent concurrent execution across nodes for
         // [DisallowConcurrentExecution] jobs by checking the FIRED_TRIGGERS table.
-        // This runs under the TRIGGER_ACCESS lock, providing serialized access.
-        // The current trigger's own fired record has JOB_NAME=null (set during
+        // This runs under the TRIGGER_ACCESS lock, providing serialized access: a fire of
+        // a serial job is never on the lock-free path, which the check above is the last
+        // word on. The current trigger's own fired record has JOB_NAME=null (set during
         // AcquireNextTrigger), or does not exist yet when it fires as it is acquired,
         // so it won't appear in the query results. Nor does the row of a fire earlier in
         // the same round whose writes are deferred, so the round answers for those itself.
@@ -1133,6 +1218,8 @@ internal abstract partial class AdoJobStoreBase
         // of a trigger it acquired has that answer already (#4066).
         if (job.ConcurrentExecutionDisallowed)
         {
+            Debug.Assert(prefetch is null || prefetch.HoldsLock, "a serial job's fire reads the fired-trigger table, which only the lock keeps still");
+
             bool alreadyExecuting;
             if (prefetch is not null && prefetch.FiredInRound(trigger.JobKey))
             {

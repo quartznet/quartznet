@@ -542,28 +542,23 @@ any node acquires a trigger, becomes the running execution, and is deleted when 
 cluster recovery cleans up after its node. Acquisition aggregates it by execution group, using the
 `EXECUTION_GROUP` column the 4.x schema already has, so no table, column or migration is added.
 
-**1. It is approximate by default, with a bounded overshoot.** By default a clustered ADO.NET store
-acquires a round of one trigger *without* the cluster's `TRIGGER_ACCESS` lock (`AcquireTriggersWithinLock`
-is `false`), so two nodes each down to their last free thread can both read "2 of 3 in flight" and each
-take one.
+**1. It is exact since 4.6, and costs the lock.** A round that counts against a cluster-scoped limit takes
+the cluster's `TRIGGER_ACCESS` lock, a round of one included, so two nodes each down to their last free
+thread cannot both read "2 of 3 in flight". Every round of a node with a cluster-scoped limit is locked,
+whatever group its triggers are in; the acquisition metric's `quartz.jobstore.lock.reason` says
+`cluster_limit`. See [Lock-free firing rounds](../operations.md#lock-free-firing-rounds).
 
-* The ceiling holds within one acquisition round. Overshoot is at most `limit + (nodes − 1)`, until the
-  losers notice.
-* `AcquireTriggersWithinLock = true` makes it exact, but serializes acquisition cluster-wide for *every*
-  group, not only the limited ones.
-* Overshoot is one trigger per node because the lock-free path only runs at an effective batch of one. A
-  round asks for `min(available threads, MaxBatchSize)`, and the store takes `TRIGGER_ACCESS` whenever
-  asked for more than one. The automatic `MaxBatchSize`, the pool, therefore removes the overshoot for
-  rounds with more than one free thread, by taking the lock. A node down to its last free thread still
-  acquires lock-free, so the bound is per node. `MaxBatchSize = 1` makes every round lock-free.
+* `LockFreeFiringRounds = false` restores 4.5: a round of one took no lock, so the ceiling held within one
+  acquisition round and the overshoot was at most `limit + (nodes − 1)`, one per node, until the losers
+  noticed. A round asking for more than one was locked, so the automatic `MaxBatchSize` kept the overshoot
+  to nodes down to their last free thread.
+* `AcquireTriggersWithinLock = true` made the ceiling exact on 4.1–4.5 and serializes every round
+  cluster-wide, limit or not. It has nothing left to buy here.
 
-That is far below `limit × nodes`. For a tenant quota, "8, occasionally 9 for a moment" is fine; "8
-became 24" is not. If you need exactness more than acquisition throughput, turn the lock on.
-
-::: tip SQLite is exact, and nothing else is by default
-`AcquireTriggersWithinLock` is forced to `true` for SQLite at startup, for locking reasons, so the
-ceiling is exact there and approximate on every other database unless you turn the lock on. A SQLite test
-proves nothing about SQL Server or PostgreSQL.
+::: tip SQLite
+`AcquireTriggersWithinLock` is forced to `true` for SQLite at startup, for locking reasons, so the ceiling
+was exact there on every version. A SQLite test proves nothing about the 4.5 bound on SQL Server or
+PostgreSQL.
 :::
 
 **2. It fails closed.** The count and the work queue are in the same database. If the store is
