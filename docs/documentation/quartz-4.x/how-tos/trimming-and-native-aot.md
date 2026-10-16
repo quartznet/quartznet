@@ -13,8 +13,8 @@ Quartz's position:
 * Every other shipped package declares whether it is trimmable.
 * A job type arriving as a string resolves from the types you registered. The reflective fallback is a
   [feature switch](#feature-switches), off in a trimmed publish, and so are the flat `quartz.*` keys that
-  name a component.
-* What still reflects is reported, not suppressed: one type, `ValueConverter`.
+  name a component and job data converted through `TypeConverter`.
+* A trimmed publish reports no warning against Quartz.
 
 Deciding whether to try: [what Quartz claims](#what-quartz-claims). Ready to publish:
 [the recipe](#the-recipe).
@@ -42,9 +42,9 @@ A quiet build is not necessarily safe. To see everything:
 no `IL2xxx` remains.
 
 Seven packages declare it, and only those: each is referenced by a canary that is published natively and
-*run* on every pull request, and whose native publish reports nothing outside the package's recorded
-baseline. The [table below](#which-packages-say-whether-they-can-be-trimmed) names the canary for each. To
-list dependencies that have not declared it:
+*run* on every pull request, and whose native publish reports no warning against any Quartz package. The
+[table below](#which-packages-say-whether-they-can-be-trimmed) names the canary for each. To list
+dependencies that have not declared it:
 
 ```xml
 <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
@@ -57,7 +57,7 @@ arrived in .NET 10, and many compatible libraries do not declare it. Treat the l
 
 | Package | Trimmable | `IsAotCompatible` | What proves it natively | What a trimmed publish reports against it |
 |---|---|---|---|---|
-| `Quartz` | yes | yes | `Quartz.Trimming.Canary`: a SQLite store, configuration binding, a type name refused once the switches are off | `ValueConverter`, see [What still warns](#what-still-warns-and-what-to-do-about-it) |
+| `Quartz` | yes | yes | `Quartz.Trimming.Canary`: a SQLite store, configuration binding, job data bound without `TypeConverter`, a type name refused once the switches are off | nothing |
 | `Quartz.Jobs` | yes | yes | `Quartz.Trimming.Canary`: `DirectoryScanJob` finds its listener by name | nothing |
 | `Quartz.Plugins` | yes | yes | `Quartz.Trimming.Canary`: JSON and XML schedule files, structured job logging | nothing |
 | `Quartz.Plugins.TimeZoneConverter` | yes | yes | `Quartz.Trimming.Canary`, published without ICU: a zone only the converter resolves | nothing |
@@ -71,24 +71,25 @@ arrived in .NET 10, and many compatible libraries do not declare it. Treat the l
 | `Quartz.Dashboard` | **no** | no | — | see [below](#the-two-packages-that-are-not-trimmable) |
 
 * Every trimmable package builds with the trim, AOT and single-file analyzers on and warnings as errors.
-  What remains is two entries in `src/Quartz/TrimAnalysisBaseline.cs`; no other package records anything.
-* That file does not ship, and nothing is suppressed in shipped assemblies: an
-  `UnconditionalSuppressMessage` in a library would hide the risk from your application.
+  No package records a warning, and the build fails a canary publish that reports one against Quartz.
+* Nothing is suppressed in shipped assemblies to get there: an `UnconditionalSuppressMessage` in a library
+  would hide the risk from your application.
 * `IsAotCompatible` is set only where a canary runs the package natively; the claim's reach is the canary's.
   The packages without it are not known to be incompatible: nothing runs them natively on every pull request.
 
 ### Feature switches
 
-Two switches put Quartz's reflection behind a setting. `PublishTrimmed` and `PublishAot` turn both off
-through the targets file in the `Quartz` package; nothing else changes.
+Three switches put Quartz's reflection behind a setting. `PublishTrimmed` and `PublishAot` turn all three
+off through the targets file in the `Quartz` package; nothing else changes.
 
 | Switch | MSBuild property | Off means |
 |---|---|---|
 | `Quartz.TypeNameResolution.IsSupported` | `QuartzTypeNameResolutionSupport` | a type name resolves only to a type you registered; an unknown name is refused naming the registration to add |
 | `Quartz.LegacyComponentKeys.IsSupported` | `QuartzLegacyComponentKeysSupport` | a flat `quartz.*` key that names a component by type, or sets its properties by string, fails `AddQuartz` naming the code form |
+| `Quartz.JobData.IsTypeConverterCoercionSupported` | `QuartzJobDataTypeConverterSupport` | a job data value that no [built-in conversion](#job-data-conversions) handles is refused naming both types |
 
-Both default to `true`; under `PublishTrimmed` or `PublishAot` the package defaults them to `false`. A
-`dotnet run` of a `PublishTrimmed` project has them off too, through `runtimeconfig.json`, so what you
+All three default to `true`; under `PublishTrimmed` or `PublishAot` the package defaults them to `false`.
+A `dotnet run` of a `PublishTrimmed` project has them off too, through `runtimeconfig.json`, so what you
 see in development is what the publish does.
 
 What registers a type, for the first switch: `AddJob<TJob>()`, `AddJobType<TJob>()`,
@@ -106,6 +107,11 @@ What stops working, and the message:
 | Type names | a stored `JOB_CLASS_NAME`, or a job type in a request body, nothing registered | the job lists and loads; its first fire fails to instantiate with the same text, and the trigger goes to `ERROR` |
 | Type names | `UseSqlite(connectionString)` and its siblings, `quartz.dataSource.<name>.provider` | `SchedulerConfigException` at startup: *Driver 'X' is described by type names, which this publish does not resolve … Pass the driver's DbProviderFactory* |
 | Component keys | `quartz.jobStore.type`, `quartz.threadPool.type`, `quartz.serializer.type`, `quartz.scheduler.typeLoadHelper.type`, `quartz.scheduler.jobFactory.type`, `quartz.scheduler.instanceIdGenerator.type`, `quartz.timeProvider.type`, `quartz.jobStore.driverDelegateType`, `quartz.jobStore.driverDelegateInitString`, `quartz.jobStore.lockHandler.type`, `quartz.dataSource.<name>.connectionProvider.type`, `quartz.dbprovider.*`, `quartz.plugin.*`, and a component's leftover keys | `SchedulerConfigException` from `AddQuartz` (`GetScheduler()` for `quartz.plugin.*`): *Configuration property 'X' names a component or sets its properties by string, which this publish does not do … In code, `UseJobStore<T>()` …* |
+| Job data | a value onto a job property that no built-in conversion handles: a string onto `Version`, `CultureInfo`, `DateOnly` or a type of your own; a `DateTime` onto a `string` | `NotSupportedException`, behind the property's name: *A System.String cannot be converted to System.Version without a TypeConverter, and this publish does not convert through TypeConverter (Quartz.JobData.IsTypeConverterCoercionSupported is false) …* |
+| Job data | `null` for a struct property whose type declares a parameterless constructor | not an error: the property gets the struct's zeroed default, and the constructor does not run |
+
+The job factory reports a refused value through `PropertyMismatchBehavior`. The default, `Ignore`, leaves
+the property as the job's constructor set it; set `Warn` or `Throw` to see the message.
 
 Quartz's own spellings keep working with the second switch off, mapped to the type with no reflection:
 `quartz.jobStore.type` = `RAMJobStore`; `quartz.threadPool.type` = `SimpleThreadPool`/`DefaultThreadPool`;
@@ -116,12 +122,28 @@ loses to as it always did, and refused on its own: a persistent store named by k
 by type, which the first switch refuses, and mapping the key to the store's type would root the whole
 ADO.NET store in every trimmed application.
 
+#### Job data conversions
+
+These convert with the third switch off, exactly as their `TypeConverter` does: under the invariant
+culture, hexadecimal integers after `#`, `0x` or `&h`, enum names in any case and combined with commas, a
+blank string as `DateTime.MinValue`, and an empty one as `null` for `Nullable<T>`.
+
+| From | To |
+|---|---|
+| `string` | a primitive, `decimal`, an enum, `Guid`, `TimeSpan`, `DateTime`, `DateTimeOffset`, `Uri`, or the `Nullable<T>` of one |
+| a number | a primitive; an enum, from an integral number; `string` |
+| an enum | `string`; any target above, through its number |
+| `bool`, `char`, `Guid`, `TimeSpan`, `Uri` | `string` |
+
+An enum that declares its own `[TypeConverter]` is left to that converter, which needs the switch on.
+
 To opt back in:
 
 ```xml
 <PropertyGroup>
   <QuartzTypeNameResolutionSupport>true</QuartzTypeNameResolutionSupport>
   <QuartzLegacyComponentKeysSupport>true</QuartzLegacyComponentKeysSupport>
+  <QuartzJobDataTypeConverterSupport>true</QuartzJobDataTypeConverterSupport>
 </PropertyGroup>
 ```
 
@@ -138,14 +160,11 @@ call, and the publish keeps the reflection.
 
 ### What still warns, and what to do about it
 
-One type, and it needs no action:
+Nothing in Quartz warns on its own. Job data coerced onto a job property through `TypeDescriptor` was the
+last (`ValueConverter`'s `IL2026` and `IL2067`), and is now the third switch; the
+[built-in conversions](#job-data-conversions) cover what job data carries in practice.
 
-* **`Quartz.Util.ValueConverter`** (`IL2026`, `IL2067`): coercing a `JobDataMap` value onto a job property
-  of another type goes through `TypeDescriptor`, and `PropertyInfo.PropertyType` cannot be annotated. Keep
-  job data to the types the map has accessors for and it is never reached. A switch for it is
-  [#4082](https://github.com/quartznet/quartznet/issues/4082).
-
-Everything else is a decision you make at compile time, and the compiler tells you:
+What is left is a decision you make at compile time, and the compiler tells you:
 
 | What names a type as text | Where you meet it | What to do |
 |---|---|---|
@@ -324,6 +343,10 @@ See [Feature switches](#feature-switches).
    and the switch. That line is what shows reflection is off rather than unset: with it on, the runtime
    finds the type. Then `AddQuartz` over a property bag naming `Quartz.Simpl.RAMJobStore` builds a
    scheduler, and one naming a store Quartz does not ship is refused naming `UseJobStore<T>()`.
+7. **Job data.** Asserts the third switch reads `false`. A job fires whose `int`, enum, `Guid` and
+   `TimeSpan` properties are set from string job data; a missing value for an `int?` is `null` and for a
+   struct its zeroed default; a `Version` from `"1.2.3"` is refused with the message that names the property,
+   both types and the switch. With the switch on, `VersionConverter` would have read it.
 
 `src/Quartz.Trimming.Canary.Wire` does the same for the three packages that put a scheduler on a wire. One
 process serves a scheduler with `Quartz.AspNetCore` on Kestrel, drives it with `Quartz.HttpClient` over
@@ -376,12 +399,12 @@ Both csprojs:
 
 * **No** `TrimmerRootAssembly` and no suppressions file, so a missing `JsonTypeInfo` or removed constructor
   shows up.
-* Warnings are not errors, because the canaries reach the recorded reflection. The build target instead
-  checks them against `src/Quartz/ILLink.Suppressions.xml`, and fails on any unrecorded Quartz warning,
-  from any Quartz package. (ILCompiler has no `--link-attributes`, so a suppressions file cannot be passed
-  to a native publish.)
+* Warnings are not errors, because each canary reports one on purpose: `TrimWitness`, a `Type.GetType` over
+  a string the analysis cannot see. The build target reads the report, requires that `IL2057`, and fails on
+  any warning against a Quartz type. A publish without the witness is one whose trimmer or compiler did not
+  run. (ILCompiler has no `--link-attributes`, so reading the report is the one check both publishes share.)
 * Both import `src/Quartz/buildTransitive/net10.0/Quartz.targets` by path, which is what a
-  `PackageReference` consumer gets for free: it turns the two switches off, and without it the publish
+  `PackageReference` consumer gets for free: it turns the three switches off, and without it the publish
   reports `IL2026` at every guarded call and fails the check.
 * CI publishes and *starts* both for the runner's RID, on Windows, Linux and macOS, on every pull request
   that touches code.
@@ -393,30 +416,27 @@ dotnet fallout PublishAot
 
 ### Reading the warnings your own publish reports
 
-A trimmed canary publish reports two warnings against Quartz, both on one type. Yours reports the same two
-when a job's data is coerced onto its properties, and nothing when the switches are off and reflection was
-never kept.
+A trimmed publish with the switches off reports nothing against Quartz.
 
-| Group | Codes | Reached by |
-|---|---|---|
-| `ValueConverter` | `IL2026`, `IL2067` | job data coerced onto job properties |
+With a switch set back to `true`, the publish reports `IL2026` at each call site it guards. That is the
+reflection the setting chose to keep:
 
-With `QuartzTypeNameResolutionSupport` or `QuartzLegacyComponentKeysSupport` set to `true`, the publish
-also reports `IL2026` at each call site the switch guards: `SimpleTypeLoader`, `JobType`,
-`BuiltInDbMetadataFactory` for the first; `QuartzPropertyBridge`, `SchedulerPluginFactory`,
-`ConfigurationBasedDbMetadataFactory` for the second. That is the reflection the setting chose to keep.
+| Property set to `true` | Reported against |
+|---|---|
+| `QuartzTypeNameResolutionSupport` | `SimpleTypeLoader`, `JobType`, `BuiltInDbMetadataFactory`, `ValueConverter` |
+| `QuartzLegacyComponentKeysSupport` | `QuartzPropertyBridge`, `SchedulerPluginFactory`, `ConfigurationBasedDbMetadataFactory` |
+| `QuartzJobDataTypeConverterSupport` | `ValueConverter` |
 
 * **Warnings are about reachability.** Everything in the closure is analysed, whether or not your
   configuration reaches it; the switches are what take the unreachable half out of the closure.
 * **Warnings are not failures, and failures may not warn.** What breaks a trimmed app is a removed type,
   found at run time. Both real bugs found in this work passed a successful publish; one broke every
   persistent store in every trimmed application with no new warning. That is why the canary runs.
-* **Report** any `IL3050` naming a Quartz member, or a warning in a Quartz type that
-  `src/Quartz/TrimAnalysisBaseline.cs` does not record. That file is the complete record, checked on every
-  pull request.
+* **Report** any warning naming a Quartz member with the switches off. Quartz records none, and every
+  pull request checks that.
 
-What remains is [#3341](https://github.com/quartznet/quartznet/issues/3341): `ValueConverter`, and the
-reflection in the drivers themselves, which is not Quartz's to record. They are why `IsAotCompatible` is
+What remains is [#3341](https://github.com/quartznet/quartznet/issues/3341): the reflection in the drivers
+themselves, which is not Quartz's to record. It is why `IsAotCompatible` is
 [the narrow claim](#what-quartz-claims).
 
 ## The two packages that are not trimmable
