@@ -37,6 +37,7 @@ An application on 4.5 compiles on 4.6 unchanged, and the database schema did not
 | `FiredTriggerRecord.ExecutionGroup` | `string?`, `init`: the execution group the firing's trigger carried, as written to `QRTZ_FIRED_TRIGGERS`; `null` for none |
 | `Quartz.TypeNameResolution.IsSupported` | Feature switch, MSBuild property `QuartzTypeNameResolutionSupport`. On by default; the `Quartz` package sets it off under `PublishTrimmed` and `PublishAot`. Off, a type name resolves only to a registered type. See [Feature switches](how-tos/trimming-and-native-aot.md#feature-switches) |
 | `Quartz.LegacyComponentKeys.IsSupported` | Feature switch, MSBuild property `QuartzLegacyComponentKeysSupport`. Same defaults. Off, a flat `quartz.*` key naming a component by type, or setting its properties by string, fails `AddQuartz` |
+| `Quartz.JobData.IsTypeConverterCoercionSupported` | Feature switch, MSBuild property `QuartzJobDataTypeConverterSupport`. Same defaults. Off, a job data value that no [built-in conversion](how-tos/trimming-and-native-aot.md#job-data-conversions) handles is refused |
 | `[DynamicallyAccessedMembers]` on `TypeLoaderOptions.Map(string, Type type)` | The same annotation `OfType(Type)` carries. `typeof(T)` satisfies it; a `Type` variable passed with trim analysis on now reports `IL2067` unless it carries the annotation too |
 | `QuartzSchedulerOptions.ServedExecutionGroups`, `RefusedExecutionGroups` | `List<string>`, get-only: the execution groups this node serves and nothing else, or the ones it refuses; `_` is the ungrouped bucket; both set fails validation. See [Routing](tutorial/execution-groups.md#routing-which-node-serves-a-group) |
 | `ServeExecutionGroups(this IQuartzBuilder, params string[])`, `RefuseExecutionGroups(…)` | Sugar over the two lists |
@@ -68,6 +69,10 @@ Behaviour that changed:
 | The `Quartz:Schedule` reader built its own type loader from `quartz.scheduler.typeLoadHelper.type` when the key arrived through deferred `QuartzOptions.Properties` | It uses the container's `ITypeLoader`, which the same key registers through `AddQuartz(properties)` | Nothing for a key passed to `AddQuartz`; a key set only in a deferred callback never registered a loader, so name it through `AddQuartz(properties)` or `UseTypeLoader<T>()` |
 | Every node acquired and misfire-handled every group | A node with `ServedExecutionGroups` or `RefusedExecutionGroups` set acquires and sweeps only the groups it serves; a trigger of a group no live node serves waits, unmodified, and `quartz.trigger.misfire` stops ticking for it | Nothing unless you route. If you do, keep a node up for every group in use; the health check and the dashboard report one that has none |
 | The stale-firing health reading looked at every overdue trigger | On a node that routes it looks only at the groups the node serves | Nothing |
+| Job data of another type than its property's went through `TypeDescriptor` | The common conversions are Quartz's own, with the same results; trimmed, anything else is refused with `NotSupportedException` naming both types and the switch | Nothing untrimmed. Trimmed, store the value as the property's type or as a string a [built-in conversion](how-tos/trimming-and-native-aot.md#job-data-conversions) reads, or set `QuartzJobDataTypeConverterSupport` to `true` |
+| A converter registered at run time with `TypeDescriptor.AddAttributes` for `int`, `Guid` or another built-in target converted job data | Not asked: the built-in conversion answers first. An enum's own `[TypeConverter]` attribute is still honoured | Convert the value before it goes into the job data, or override `PropertySettingJobFactory.ConvertValueIfNecessary` |
+| Trimmed, `null` for a struct property was `Activator.CreateInstance` of the struct | The struct's zeroed default; a parameterless constructor it declares does not run | Nothing, unless that constructor sets something; then set `QuartzJobDataTypeConverterSupport` to `true` |
+| A `Type` property set from job data was resolved with `Type.GetType` | Resolved from the registered types first, then by `Type.GetType` while `Quartz.TypeNameResolution.IsSupported` is on | Nothing untrimmed. Trimmed, register the type or map its name with `UseTypeLoader(o => o.Map(name, typeof(T)))` |
 
 ## Upgrading from 4.4 to 4.5
 
@@ -6619,15 +6624,15 @@ forwards to them, built with the trim analyzer on, needs the same annotation:
 changes the reporting. With `TrimmerSingleWarn` on (the default), an assembly's warnings collapse into one
 `IL2104: Assembly 'Quartz' produced trim warnings`, and `IsTrimmable` exempts its `IL2026`s from that. So
 each `[RequiresUnreferencedCode]` call site is reported, and `<TrimmerSingleWarn>false</TrimmerSingleWarn>`
-shows the rest: from 4.6, two, both on `ValueConverter`, listed in `src/Quartz/TrimAnalysisBaseline.cs`.
+shows the rest: from 4.6, none.
 
 * This is not a regression: the reflection was always there. No warning is suppressed in the shipped
   assembly.
-* Reflection is needed for `JobDataMap` values bound onto job properties of another type. Jobs named as
-  strings (`job_scheduling_data` XML, a persisted `JOB_CLASS_NAME`) resolve from the types registered in
-  code, and the flat `quartz.*` keys that name a component are refused under trimming; both are
-  [feature switches](how-tos/trimming-and-native-aot.md#feature-switches) a publish can turn back on, and
-  then sees the `IL2026` for.
+* Jobs named as strings (`job_scheduling_data` XML, a persisted `JOB_CLASS_NAME`) resolve from the types
+  registered in code, the flat `quartz.*` keys that name a component are refused under trimming, and job
+  data reaches a property of another type through Quartz's own conversions rather than `TypeConverter`.
+  All three are [feature switches](how-tos/trimming-and-native-aot.md#feature-switches) a publish can turn
+  back on, and then sees the `IL2026` for.
 * A **persistent job store** publishes trimmed and native AOT when it reaches its driver without naming
   one: `UseSqlServer(SqlClientFactory.Instance, connectionString)`, or a registered `DbDataSource`. The
   default System.Text.Json serializer has a source-generated contract for every blob a store writes, and
@@ -6642,8 +6647,8 @@ reported. `Quartz.Trimming.Canary` is published by ILCompiler and **run** on Win
 every pull request, scheduling and firing over a real SQLite store and binding a whole scheduler from an
 `IConfiguration`. From 4.5, `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.Plugins.TimeZoneConverter`,
 `Quartz.HttpClient`, `Quartz.AspNetCore` and `Quartz.Dashboard.Agent` declare it too, each run natively by
-one of the two canaries, and from 4.6 none of them records a warning. What remains is
-[#3341](https://github.com/quartznet/quartznet/issues/3341): `ValueConverter`.
+one of the two canaries, and from 4.6 no Quartz package records a warning
+([#3341](https://github.com/quartznet/quartznet/issues/3341)).
 
 **Every other shipped package declares whether it can be trimmed**; on 3.x each unmarked one produced a
 single `IL2104`.
