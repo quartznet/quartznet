@@ -187,6 +187,27 @@ internal sealed class ExecutionGroupRouting
     }
 
     /// <summary>
+    /// <see cref="Validated" />, refusing a list set beside the other one: what a node serves and what it
+    /// refuses are two ways of saying one thing, so a request or criteria carry one of them.
+    /// </summary>
+    /// <param name="scopes">The list being set.</param>
+    /// <param name="other">The opposite list, as already set.</param>
+    /// <param name="parameterName">The name to report the list under.</param>
+    /// <returns>The list, validated.</returns>
+    public static IReadOnlyCollection<ExecutionGroupScope>? ValidatedBeside(
+        IReadOnlyCollection<ExecutionGroupScope>? scopes,
+        IReadOnlyCollection<ExecutionGroupScope>? other,
+        string parameterName)
+    {
+        if (scopes is not null && other is not null)
+        {
+            Throw.ArgumentException("ServedExecutionGroups and RefusedExecutionGroups cannot both be set; a node lists what it serves or what it refuses.", parameterName);
+        }
+
+        return Validated(scopes, parameterName);
+    }
+
+    /// <summary>
     /// Returns the scopes unchanged, having established that a statement built from them means what the
     /// caller intended.
     /// </summary>
