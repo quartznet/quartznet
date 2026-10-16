@@ -86,6 +86,7 @@ public class OneOffThroughputPostgresBenchmark
         database = await BenchmarkDatabase.Open(BenchmarkDialect.Postgres).ConfigureAwait(false);
         await ClearRows().ConfigureAwait(false);
         Console.WriteLine(RoundTripLatency.Describe());
+        Console.WriteLine(LockFreeRoundsArm.Describe());
 
         string connectionString = database.Provider.ConnectionString;
         string providerName = database.ProviderName;
@@ -100,6 +101,7 @@ public class OneOffThroughputPostgresBenchmark
                 store.UsePostgres(connectionString);
                 store.UseSystemTextJsonSerializer();
                 RoundTripLatency.Inject(store, providerName, connectionString);
+                LockFreeRoundsArm.Apply(store);
 
                 if (executionHistory != HistoryMode.Off)
                 {

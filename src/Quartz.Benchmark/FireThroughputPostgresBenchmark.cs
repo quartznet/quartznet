@@ -89,6 +89,7 @@ public class FireThroughputPostgresBenchmark
         database = await BenchmarkDatabase.Open(BenchmarkDialect.Postgres).ConfigureAwait(false);
         await ClearOwnRows().ConfigureAwait(false);
         Console.WriteLine(RoundTripLatency.Describe());
+        Console.WriteLine(LockFreeRoundsArm.Describe());
 
         string connectionString = database.Provider.ConnectionString;
         string providerName = database.ProviderName;
@@ -101,6 +102,7 @@ public class FireThroughputPostgresBenchmark
                 store.UsePostgres(connectionString);
                 store.UseSystemTextJsonSerializer();
                 RoundTripLatency.Inject(store, providerName, connectionString);
+                LockFreeRoundsArm.Apply(store);
             }),
             nonConcurrent: NonConcurrent).ConfigureAwait(false);
     }

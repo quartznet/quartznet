@@ -32,17 +32,18 @@ using Quartz.Extensibility;
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
-/// A released 4.3 node and a working-tree node share one PostgreSQL cluster and one execution history
-/// through a rolling upgrade, and nothing is lost, doubled or overwritten.
+/// A released 4.5 node and a working-tree node share one PostgreSQL cluster and one execution history
+/// through a rolling upgrade, and nothing is lost, doubled or overwritten; and the working tree's firing
+/// rounds take <c>TRIGGER_ACCESS</c> for exactly as long as the older node is live (#4067).
 /// </summary>
 /// <remarks>
 /// <para>
 /// <b>The upgrade.</b> The schema is 4.3.0's fresh install with every migration since applied over it
-/// (<see cref="MigrationChains.Since" />), which is what an operator's database looks like after the
-/// 4.4 migration. The released node — Quartz 4.3.0 from nuget.org — starts first and schedules half of
-/// the work; the working-tree node joins and schedules the other half. Both run with their shipped
-/// defaults and keep their execution history in the database, so the working-tree node writes the 4.4
-/// outcome columns and <c>QRTZ_JOB_STATUS</c> beside a node that has never heard of either.
+/// (<see cref="MigrationChains.Since" />): 4.4's history columns and 4.6's <c>QUARTZ_VERSION</c>, which is
+/// what an operator's 4.5 database looks like once the 4.6 migration has run and before any node has
+/// rolled. The released node — Quartz 4.5.1 from nuget.org — starts first and schedules half of the work;
+/// the working-tree node joins and schedules the other half. Both run with their shipped defaults and
+/// keep their execution history in the database.
 /// </para>
 /// <para>
 /// <b>The nodes.</b> <c>Quartz.Tests.Integration.MixedVersionNode</c> is built twice with one assembly
@@ -53,14 +54,18 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <para>
 /// <b>What must hold.</b> Two thousand one-offs each run exactly once, some on each node; the report says
 /// how many. A <see cref="DisallowConcurrentExecutionAttribute" /> job with recurring triggers never
-/// overlaps itself, whichever version runs it.
-/// Every continuation is settled once, by a parent that completed on either node. The pause and overlap
-/// columns the working tree wrote survive the released node firing, misfiring, updating, pausing and
-/// resuming the rows around them, and a trigger the working tree gave <c>RetryPolicy.None</c> is fired by the
-/// released node, which reads <c>none</c> as no policy and writes the column back empty. And every execution is
-/// in the history once: the released node's rows
-/// carry no outcome and read back as succeeded, the working tree's carry it, and each job's
-/// <c>RUN_COUNT</c> counts the working tree's runs alone.
+/// overlaps itself, whichever version runs it. Every continuation is settled once, by a parent that
+/// completed on either node. The pause and overlap columns the working tree wrote survive the released
+/// node firing, misfiring, updating, pausing and resuming the rows around them, and a trigger the working
+/// tree gave <c>RetryPolicy.None</c> is fired by the released node and read back as it was written. Every
+/// execution is in the history once, under the node that ran it, with the outcome that node's jobs report.
+/// </para>
+/// <para>
+/// <b>The lock.</b> A 4.5 node writes a misfired or edited trigger by key and relies on the lock to keep
+/// a round off that row, so while its row is live every working-tree round is locked; the node's
+/// <c>round-locks</c> command says so. Once it has stopped and its row has aged out, the working tree's
+/// rounds take no lock — with <c>LockFreeFiringRounds</c> on, which is the default; the other arm turns it
+/// off and asserts that every round stays locked.
 /// </para>
 /// <para>
 /// It runs in the PostgreSQL leg. Against a server at its shipped durability — the Testcontainers one
@@ -80,9 +85,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 public sealed class MixedVersionClusterPostgresTest
 {
     /// <summary>The released Quartz the old node runs; the node project's csproj names the same one.</summary>
-    private const string ReleasedQuartz = "4.3.0";
+    private const string ReleasedQuartz = "4.5.1";
 
-    /// <summary>The release whose fresh install the database starts as.</summary>
+    /// <summary>
+    /// The release whose fresh install the database starts as. 4.4 and 4.5 changed no table a fresh
+    /// install creates differently from their migrations, so 4.3's install plus every migration since is
+    /// a 4.5 database.
+    /// </summary>
     private const string ReleasedSchema = "4.3";
 
     private const string SchedulerName = "MixedVersionGate";
@@ -95,8 +104,8 @@ public sealed class MixedVersionClusterPostgresTest
 
     private const string RunsTable = "mixed_version_runs";
 
-    private const string Released = "node-43";
-    private const string WorkingTree = "node-44";
+    private const string Released = "node-45";
+    private const string WorkingTree = "node-46";
 
     private const int OneOffs = 2_000;
 
@@ -161,6 +170,19 @@ public sealed class MixedVersionClusterPostgresTest
     /// </summary>
     private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(90);
 
+    /// <summary>
+    /// How long the working tree is given, once the released node has stopped, to see that node's row age
+    /// out and its own rounds go lock-free: the row is dead after its check-in interval plus the misfire
+    /// threshold, fifteen seconds at the shipped defaults, and the next check-in after that recovers it.
+    /// </summary>
+    private static readonly TimeSpan AgeOut = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// How long the arm with lock-free rounds off keeps the working tree running alone before reading its
+    /// rounds, so that a round after the age-out could have gone lock-free and did not.
+    /// </summary>
+    private static readonly TimeSpan AloneFor = TimeSpan.FromSeconds(25);
+
     private const string CreateRunsTable =
         "CREATE TABLE " + RunsTable + " ("
         + "id BIGSERIAL PRIMARY KEY, trigger_group TEXT NOT NULL, trigger_name TEXT NOT NULL, job_group TEXT NOT NULL, "
@@ -200,8 +222,13 @@ public sealed class MixedVersionClusterPostgresTest
         "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() "
         + "AND (table_name LIKE 'qrtzv\\_%' OR table_name = '" + RunsTable + "')";
 
-    [Test]
-    public async Task AReleased43NodeAndAWorkingTreeNodeShareOneClusterAndOneHistory()
+    /// <param name="lockFreeRounds">
+    /// Whether the working tree runs with the shipped <c>LockFreeFiringRounds</c>, in which case its rounds
+    /// go lock-free once the released node's row has aged out, or with it off, in which case they never do.
+    /// </param>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task AReleased45NodeAndAWorkingTreeNodeShareOneClusterAndOneHistory(bool lockFreeRounds)
     {
         string connectionString = MigrationScriptTest.RequireConnectionString("PG_CONNECTION_STRING");
         string releasedAssembly = NodeAssembly(ReleasedQuartz);
@@ -223,7 +250,7 @@ public sealed class MixedVersionClusterPostgresTest
             DateTimeOffset due = DateTimeOffset.UtcNow + Lead;
             await ScheduleHalf(released, first: 0, due);
 
-            workingTree = await MixedVersionNodeProcess.Start(workingTreeAssembly, WorkingTree, SchedulerName, connectionString, TablePrefix, RunsTable, history: true);
+            workingTree = await MixedVersionNodeProcess.Start(workingTreeAssembly, WorkingTree, SchedulerName, connectionString, TablePrefix, RunsTable, history: true, lockFreeRounds);
             workingTree.QuartzVersion.Should().NotStartWith(ReleasedQuartz, "the new node has to run the working tree");
             workingTree.Build.Should().Be("working-tree");
             await workingTree.Send("start");
@@ -255,27 +282,48 @@ public sealed class MixedVersionClusterPostgresTest
             Dictionary<string, string> groupPause = await workingTree.Send("trigger-group-pause", ("group", "held"));
             Dictionary<string, string> jobGroupPause = await workingTree.Send("job-group-pause", ("group", "held-jobs"));
 
-            await Task.WhenAll(released.Stop(waitForJobs: true), workingTree.Stop(waitForJobs: true));
+            // Every round the working tree has run so far ran beside a live 4.5 node.
+            RoundLocks whileMixed = RoundLocks.From(await workingTree.Send("round-locks"));
+
+            // The rolling upgrade completes: the released node stops, and the working tree runs on alone. The
+            // work that needs the lock whoever runs it — the serial job, and the triggers whose overlap policy
+            // the fire decides — is stood down, and concurrent-allowed work due every half second takes its
+            // place, so that the rounds the working tree runs while the old node's row ages out are the
+            // rounds the gate is about.
+            await released.Stop(waitForJobs: true);
+            long releasedLiveUntil = DateTimeOffset.UtcNow.UtcTicks;
+            foreach (string group in (string[]) ["serial", "state", "held"])
+            {
+                await workingTree.Send("pause-trigger-group", ("group", group));
+            }
+
+            await workingTree.Send("schedule",
+                ("name", "after-the-upgrade"), ("group", "upgrade"), ("job", "upgrade"), ("type", "state"),
+                ("start", DateTimeOffset.UtcNow), ("intervalMs", 500));
+            RoundLocks alone = await RoundLocksOnceAlone(workingTree, lockFreeRounds);
+
+            await workingTree.Stop(waitForJobs: true);
 
             List<Run> runs = await ReadRuns(connectionString);
             ColumnsAfter columns = await ReadColumns(connectionString);
             HistoryAfter history = await ReadHistory(connectionString);
             HistoryThroughTheApi throughTheApi = await ReadHistoryThroughTheApi(connectionString);
 
-            TestContext.Out.WriteLine(Report(runs, due, elapsed.Elapsed, released, workingTree, await Durability(connectionString)));
+            TestContext.Out.WriteLine(Report(runs, due, elapsed.Elapsed, released, workingTree, await Durability(connectionString), whileMixed, alone));
 
             using (new AssertionScope())
             {
                 AssertExactlyOnce(runs);
                 AssertNoOverlap(runs);
                 AssertContinuationsSettled(runs, columns);
-                AssertWorkingTreeColumnsSurvived(runs, columns, state, around);
-                AssertTheReleasedNodeReadsRetryPolicyNoneAsNoPolicy(runs, columns, retryPolicyAsScheduled);
+                AssertWorkingTreeColumnsSurvived(runs, columns, state, around, releasedLiveUntil);
+                AssertRetryPolicyNoneSurvivesTheReleasedNode(runs, columns, retryPolicyAsScheduled, releasedLiveUntil);
                 AssertTheWorkingTreeReadsThemBack(columns, triggerPause, groupPause, jobGroupPause);
                 AssertProgressSurvived(runs);
                 AssertEachRunIsInTheHistoryOnce(runs, history);
-                AssertTheOutcomeIsTheWorkingTreesAlone(runs, history);
+                AssertEachNodeWritesTheOutcomeItsJobsReport(runs, history);
                 AssertTheWorkingTreeReadsTheHistoryBack(runs, history, throughTheApi);
+                AssertTheLockFollowsTheOldestLiveNode(whileMixed, alone, lockFreeRounds);
             }
         }
         finally
@@ -470,6 +518,30 @@ public sealed class MixedVersionClusterPostgresTest
         TestContext.Out.WriteLine($"The workload was still incomplete {Deadline.TotalSeconds:0} s after it was due.");
     }
 
+    /// <summary>
+    /// The working tree's rounds by lock once it is the only node: polled until one has gone lock-free,
+    /// when the option is on, and read after a fixed stretch alone when it is off.
+    /// </summary>
+    private static async Task<RoundLocks> RoundLocksOnceAlone(MixedVersionNodeProcess workingTree, bool lockFreeRounds)
+    {
+        if (!lockFreeRounds)
+        {
+            await Task.Delay(AloneFor);
+            return RoundLocks.From(await workingTree.Send("round-locks"));
+        }
+
+        DateTimeOffset giveUp = DateTimeOffset.UtcNow + AgeOut;
+        RoundLocks locks = RoundLocks.From(await workingTree.Send("round-locks"));
+        while (locks.LockFree == 0 && DateTimeOffset.UtcNow < giveUp)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1));
+            locks = RoundLocks.From(await workingTree.Send("round-locks"));
+        }
+
+        // The assertion says what is wrong when the wait gave up.
+        return locks;
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Invariants
     // ---------------------------------------------------------------------------------------------
@@ -507,8 +579,8 @@ public sealed class MixedVersionClusterPostgresTest
                 .Select(x => Describe(x.ToList())));
 
         NoViolations(
-            "exactly once, recovery: no node stopped checking in, so a recovering execution is a firing replayed because "
-            + "one node declared the other dead",
+            "exactly once, recovery: no node stopped checking in while it had work in flight, so a recovering execution is a "
+            + "firing replayed because one node declared the other dead",
             runs.Where(x => x.Recovering).Select(x => x.ToString()));
 
         Dictionary<string, int> share = oneOffs.Values
@@ -621,13 +693,17 @@ public sealed class MixedVersionClusterPostgresTest
     /// The pause and overlap columns are still what the working tree wrote after the released node fired, misfired,
     /// updated, paused and resumed the rows they sit on and beside.
     /// </summary>
-    private static void AssertWorkingTreeColumnsSurvived(List<Run> runs, ColumnsAfter columns, StateArrangement state, AroundTheState around)
+    /// <param name="releasedLiveUntil">
+    /// When the released node stopped, in UTC ticks: a trigger pinned to it is its alone until then, and the
+    /// working tree's to take over after.
+    /// </param>
+    private static void AssertWorkingTreeColumnsSurvived(List<Run> runs, ColumnsAfter columns, StateArrangement state, AroundTheState around, long releasedLiveUntil)
     {
         TriggerColumns fired = columns.Triggers["state.overlap-fired"];
         runs.Count(x => x.Trigger == "state.overlap-fired" && x.Node == Released && x.FiredUtc > around.Updated.UtcTicks).Should().BeGreaterThanOrEqualTo(3,
             "state.overlap-fired is pinned to the released node, which fires it every second after updating it");
-        NoViolations("state.overlap-fired is pinned to the released node",
-            runs.Where(x => x.Trigger == "state.overlap-fired" && x.Node != Released).Select(x => x.ToString()));
+        NoViolations("state.overlap-fired is pinned to the released node while it is live",
+            runs.Where(x => x.Trigger == "state.overlap-fired" && x.Node != Released && x.FiredUtc <= releasedLiveUntil).Select(x => x.ToString()));
         fired.OverlapPolicy.Should().Be((int) OverlapPolicy.Skip,
             "state.overlap-fired's OVERLAP_POLICY survives the released node firing the trigger and updating its details");
         fired.Description.Should().Be(UpdatedDescription, "the released node's update of state.overlap-fired took effect");
@@ -636,8 +712,8 @@ public sealed class MixedVersionClusterPostgresTest
         TriggerColumns misfired = columns.Triggers["held.overlap-misfired"];
         List<Run> misfiredRuns = runs.Where(x => x.Trigger == "held.overlap-misfired").ToList();
         misfiredRuns.Count.Should().BeGreaterThan(0, "the released node resumed held.overlap-misfired, which it then fires");
-        NoViolations("held.overlap-misfired is pinned to the released node",
-            misfiredRuns.Where(x => x.Node != Released).Select(x => x.ToString()));
+        NoViolations("held.overlap-misfired is pinned to the released node while it is live",
+            misfiredRuns.Where(x => x.Node != Released && x.FiredUtc <= releasedLiveUntil).Select(x => x.ToString()));
         NoViolations(
             "held.overlap-misfired: the released node's resume applied the misfire policy, which moves the trigger past its ten "
             + "overdue minutes rather than firing them",
@@ -673,21 +749,20 @@ public sealed class MixedVersionClusterPostgresTest
     }
 
     /// <summary>
-    /// A trigger the working tree gave <c>RetryPolicy.None</c> is stored as <c>none</c>, which the released node
-    /// cannot parse: it reads no policy, fires the trigger, and writes the column back empty. That last part is
-    /// why the retry page says to give a trigger <c>None</c> once every node is on 4.4.
+    /// A trigger the working tree gave <c>RetryPolicy.None</c> is stored as <c>none</c>, which a node from 4.4
+    /// on parses: the released node fires the trigger and writes the column back as it read it.
     /// </summary>
-    private static void AssertTheReleasedNodeReadsRetryPolicyNoneAsNoPolicy(List<Run> runs, ColumnsAfter columns, string asScheduled)
+    private static void AssertRetryPolicyNoneSurvivesTheReleasedNode(List<Run> runs, ColumnsAfter columns, string asScheduled, long releasedLiveUntil)
     {
         asScheduled.Should().Be("none", "the working tree stores RetryPolicy.None as a value of its own, distinct from an empty column");
 
         runs.Count(x => x.Trigger == "state.retry-none" && x.Node == Released).Should().BeGreaterThanOrEqualTo(3,
-            "the released node reads a RETRY_POLICY it cannot parse as no policy and fires the trigger like any other");
-        NoViolations("state.retry-none is pinned to the released node",
-            runs.Where(x => x.Trigger == "state.retry-none" && x.Node != Released).Select(x => x.ToString()));
+            "the released node reads RetryPolicy.None as 4.4 taught it to, and fires the trigger like any other");
+        NoViolations("state.retry-none is pinned to the released node while it is live",
+            runs.Where(x => x.Trigger == "state.retry-none" && x.Node != Released && x.FiredUtc <= releasedLiveUntil).Select(x => x.ToString()));
 
-        columns.Triggers["state.retry-none"].RetryPolicy.Should().BeNull(
-            "the released node writes the trigger it fired back with the policy it read, which was none at all");
+        columns.Triggers["state.retry-none"].RetryPolicy.Should().Be("none",
+            "the released node writes the trigger it fired back with the policy it read");
     }
 
     /// <summary>
@@ -757,17 +832,17 @@ public sealed class MixedVersionClusterPostgresTest
     }
 
     /// <summary>
-    /// The 4.4 outcome is the working tree's alone: the released node leaves the outcome columns NULL, the
-    /// working tree fills them with what its jobs reported, and <c>QRTZ_JOB_STATUS</c> counts the working
-    /// tree's runs.
+    /// Both nodes write the 4.4 outcome columns and keep <c>QRTZ_JOB_STATUS</c>. The released node's jobs
+    /// report nothing, so its rows carry the result and the firing and no report; the working tree's carry
+    /// what its jobs reported; and each job's status counts both nodes' runs.
     /// </summary>
-    private static void AssertTheOutcomeIsTheWorkingTreesAlone(List<Run> runs, HistoryAfter history)
+    private static void AssertEachNodeWritesTheOutcomeItsJobsReport(List<Run> runs, HistoryAfter history)
     {
         NoViolations(
-            "history, released node: a node that has never heard of RESULT, SUMMARY, METRICS, MANUAL and FIRE_INSTANCE_ID leaves them NULL",
+            "history, released node: a job that reports nothing is recorded succeeded, with its firing and no summary or metrics",
             history.Rows
                 .Where(x => x.InstanceName == Released
-                            && (x.Result is not null || x.Summary is not null || x.Metrics is not null || x.Manual is not null || x.FireInstanceId is not null))
+                            && (x.Result != (int) JobRunResult.Succeeded || x.Summary is not null || x.Metrics is not null || x.Manual != false || x.FireInstanceId is null))
                 .Select(x => x.ToString()));
 
         NoViolations(
@@ -781,37 +856,40 @@ public sealed class MixedVersionClusterPostgresTest
                                 || x.FireInstanceId is null))
                 .Select(x => x.ToString()));
 
-        history.Rows.Where(x => x.InstanceName == WorkingTree).Select(x => x.FireInstanceId).Should().BeEquivalentTo(
-            runs.Where(x => x.Node == WorkingTree).Select(x => x.FireInstanceId),
-            "FIRE_INSTANCE_ID links each row the working tree wrote to the firing that ran");
+        foreach (string node in (string[]) [Released, WorkingTree])
+        {
+            history.Rows.Where(x => x.InstanceName == node).Select(x => x.FireInstanceId).Should().BeEquivalentTo(
+                runs.Where(x => x.Node == node).Select(x => x.FireInstanceId),
+                "FIRE_INSTANCE_ID links each row {0} wrote to the firing that ran", node);
+        }
 
-        Dictionary<string, int> ranOnWorkingTree = CountByJob(runs.Where(x => x.Node == WorkingTree).Select(x => x.Job));
+        Dictionary<string, int> ranAnywhere = CountByJob(runs.Select(x => x.Job));
 
-        history.Statuses.Keys.Should().BeEquivalentTo(ranOnWorkingTree.Keys,
-            "a released node never touches QRTZ_JOB_STATUS, so the jobs with a status are the ones the working tree ran");
+        history.Statuses.Keys.Should().BeEquivalentTo(ranAnywhere.Keys,
+            "both nodes keep QRTZ_JOB_STATUS, so every job either ran has a status");
 
         NoViolations(
-            "job status: RUN_COUNT counts the working tree's runs of the job alone, and LAST_INSTANCE_NAME is the working tree",
+            "job status: RUN_COUNT counts the job's runs on both nodes, and LAST_INSTANCE_NAME names one of them",
             history.Statuses
-                .Where(x => x.Value.RunCount != ranOnWorkingTree.GetValueOrDefault(x.Key) || x.Value.LastInstanceName != WorkingTree)
+                .Where(x => x.Value.RunCount != ranAnywhere.GetValueOrDefault(x.Key) || (x.Value.LastInstanceName != Released && x.Value.LastInstanceName != WorkingTree))
                 .Select(x => $"{x.Key}: RUN_COUNT {x.Value.RunCount}, LAST_INSTANCE_NAME {x.Value.LastInstanceName}; "
-                             + $"the working tree ran it {ranOnWorkingTree.GetValueOrDefault(x.Key)} time(s)"));
+                             + $"it ran {ranAnywhere.GetValueOrDefault(x.Key)} time(s)"));
     }
 
     /// <summary>
-    /// The working tree's own store reads the released node's rows with the result their older columns
-    /// imply, and the status it keeps.
+    /// The working tree's own store reads both nodes' rows back with the result each carries, and the
+    /// status both keep.
     /// </summary>
     private static void AssertTheWorkingTreeReadsTheHistoryBack(List<Run> runs, HistoryAfter history, HistoryThroughTheApi api)
     {
         api.Executions.Should().HaveCount(history.Rows.Count, "the store reads every row the two nodes wrote");
 
         NoViolations(
-            "read back, released node: no result of its own, succeeded by SUCCEEDED",
+            "read back, released node: succeeded, with its firing and no summary",
             api.Executions
                 .Where(x => x.SchedulerInstanceId == Released
-                            && (x.Result is not null || x.EffectiveResult != JobRunResult.Succeeded || x.FireInstanceId is not null))
-                .Select(x => $"{x.JobGroup}.{x.JobName} on {x.SchedulerInstanceId}: result {x.Result}, effective {x.EffectiveResult}"));
+                            && (x.Result != JobRunResult.Succeeded || x.EffectiveResult != JobRunResult.Succeeded || x.FireInstanceId is null || x.Summary is not null))
+                .Select(x => $"{x.JobGroup}.{x.JobName} on {x.SchedulerInstanceId}: result {x.Result}, effective {x.EffectiveResult}, summary '{x.Summary}'"));
 
         NoViolations(
             "read back, working tree: the result and summary its job reported",
@@ -820,13 +898,54 @@ public sealed class MixedVersionClusterPostgresTest
                             && (x.Result != JobRunResult.Succeeded || x.Summary != $"{WorkingTree} ran {x.FireInstanceId}"))
                 .Select(x => $"{x.JobGroup}.{x.JobName} on {x.SchedulerInstanceId}: result {x.Result}, summary '{x.Summary}'"));
 
-        api.SucceededCount.Should().Be(api.Executions.Count,
-            "a filter on Succeeded matches a row with no result by its SUCCEEDED, so the released node's rows are in it");
+        api.SucceededCount.Should().Be(api.Executions.Count, "every run on either node succeeded");
 
-        api.OneOffStatus.Should().NotBeNull("the working tree ran one-offs, and its store keeps their job's status");
-        api.OneOffStatus.RunCount.Should().Be(runs.Count(x => x.Node == WorkingTree && x.TriggerGroup == "one-off"),
-            "the one-off job's status counts the working tree's runs and none of the released node's");
-        api.OneOffStatus.LastSchedulerInstanceId.Should().Be(WorkingTree);
+        api.OneOffStatus.Should().NotBeNull("both nodes ran one-offs, and the store keeps their job's status");
+        api.OneOffStatus.RunCount.Should().Be(runs.Count(x => x.TriggerGroup == "one-off"),
+            "the one-off job's status counts both nodes' runs");
+        api.OneOffStatus.LastSchedulerInstanceId.Should().BeOneOf(Released, WorkingTree);
+    }
+
+    /// <summary>
+    /// The working tree's rounds take <c>TRIGGER_ACCESS</c> while the 4.5 node is live, and only then
+    /// (#4067): once its row has aged out, a round of concurrent-allowed work takes no lock — unless
+    /// <c>LockFreeFiringRounds</c> is off, in which case no round ever does.
+    /// </summary>
+    private static void AssertTheLockFollowsTheOldestLiveNode(RoundLocks whileMixed, RoundLocks alone, bool lockFreeRounds)
+    {
+        whileMixed.Locked.Should().BeGreaterThan(0, "the working tree ran rounds beside the released node");
+        whileMixed.LockFree.Should().Be(0,
+            "a 4.5 node writes a misfired or edited trigger by key and relies on the lock to keep a round off that row, so every "
+            + "4.6 round takes it while such a node is live (rounds while mixed: {0})", whileMixed);
+        whileMixed.Untagged.Should().Be(0, "a 4.6 node tags every round with the lock it ran under");
+
+        alone.Locked.Should().BeGreaterThanOrEqualTo(whileMixed.Locked);
+        if (lockFreeRounds)
+        {
+            alone.LockFree.Should().BeGreaterThan(0,
+                "once the released node's row has aged out and been recovered, the only live node is 4.6 and a round of "
+                + "concurrent-allowed work takes no lock (rounds alone: {0})", alone);
+        }
+        else
+        {
+            alone.LockFree.Should().Be(0, "with LockFreeFiringRounds off every round is locked, however old the peers (rounds alone: {0})", alone);
+            alone.Locked.Should().BeGreaterThan(whileMixed.Locked, "the working tree kept running rounds alone");
+        }
+    }
+
+    /// <summary>
+    /// What a node's <c>round-locks</c> command answered: its firing rounds by the lock each said it ran
+    /// under, and the locked ones by reason.
+    /// </summary>
+    private sealed record RoundLocks(int LockFree, int Locked, int Untagged, string Reasons)
+    {
+        public static RoundLocks From(Dictionary<string, string> answer) => new(
+            int.Parse(answer["lockfree"], CultureInfo.InvariantCulture),
+            int.Parse(answer["locked"], CultureInfo.InvariantCulture),
+            int.Parse(answer["untagged"], CultureInfo.InvariantCulture),
+            answer.GetValueOrDefault("reasons", ""));
+
+        public override string ToString() => $"none={LockFree}, TRIGGER_ACCESS={Locked} ({Reasons}), untagged={Untagged}";
     }
 
     private static Dictionary<string, int> CountByJob(IEnumerable<string> jobs) => jobs
@@ -1103,11 +1222,15 @@ public sealed class MixedVersionClusterPostgresTest
         TimeSpan elapsed,
         MixedVersionNodeProcess released,
         MixedVersionNodeProcess workingTree,
-        string durability)
+        string durability,
+        RoundLocks whileMixed,
+        RoundLocks alone)
     {
         StringBuilder report = new();
         report.AppendLine(CultureInfo.InvariantCulture,
             $"Mixed-version cluster on PostgreSQL ({durability}): {Released} = Quartz {released.QuartzVersion}, {WorkingTree} = Quartz {workingTree.QuartzVersion}.");
+        report.AppendLine(CultureInfo.InvariantCulture,
+            $"{WorkingTree}'s rounds by lock: while {Released} was live {whileMixed}; once alone {alone}.");
         report.AppendLine();
         report.AppendLine(CultureInfo.InvariantCulture, $"| Workload | {Released} | {WorkingTree} | Total |");
         report.AppendLine("|---|---:|---:|---:|");
@@ -1123,7 +1246,8 @@ public sealed class MixedVersionClusterPostgresTest
                      ("progress", x => x.TriggerGroup == "progress"),
                      ("state.overlap-fired (pinned to the released node)", x => x.Trigger == "state.overlap-fired"),
                      ("held.overlap-misfired (pinned to the released node)", x => x.Trigger == "held.overlap-misfired"),
-                     ("state.sibling", x => x.Trigger == "state.sibling")
+                     ("state.sibling", x => x.Trigger == "state.sibling"),
+                     ("upgrade.after-the-upgrade (the working tree alone)", x => x.Trigger == "upgrade.after-the-upgrade")
                  ])
         {
             List<Run> selected = runs.Where(filter).ToList();

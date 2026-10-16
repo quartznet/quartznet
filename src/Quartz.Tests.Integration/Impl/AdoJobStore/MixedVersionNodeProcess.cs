@@ -68,6 +68,10 @@ internal sealed class MixedVersionNodeProcess : IAsyncDisposable
     /// <summary><c>released</c> or <c>working-tree</c>, as the node was compiled.</summary>
     public string Build { get; private set; } = "";
 
+    /// <param name="lockFreeRounds">
+    /// Whether the node's firing rounds take the lock only when something in them needs it (#4067); the
+    /// working-tree build reads it, a released one ignores it.
+    /// </param>
     public static async Task<MixedVersionNodeProcess> Start(
         string assembly,
         string instanceId,
@@ -75,7 +79,8 @@ internal sealed class MixedVersionNodeProcess : IAsyncDisposable
         string connectionString,
         string tablePrefix,
         string runsTable,
-        bool history)
+        bool history,
+        bool lockFreeRounds = true)
     {
         ProcessStartInfo start = new("dotnet")
         {
@@ -104,11 +109,18 @@ internal sealed class MixedVersionNodeProcess : IAsyncDisposable
             start.ArgumentList.Add("--history");
         }
 
+        if (!lockFreeRounds)
+        {
+            start.ArgumentList.Add("--lock-free");
+            start.ArgumentList.Add("false");
+        }
+
         MixedVersionNodeProcess node = new(instanceId, Process.Start(start)!);
         try
         {
             (string kind, Dictionary<string, string> values) = await node.NextReply("starting");
-            kind.Should().Be("ready", $"a node says it is ready once its scheduler is built. {node.Describe()}");
+            kind.Should().Be("ready",
+                $"a node says it is ready once its scheduler is built; this one answered '{values.GetValueOrDefault("message")}'. {node.Describe()}");
 
             node.QuartzVersion = values["quartz"];
             node.Build = values["build"];
