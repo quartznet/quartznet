@@ -2789,6 +2789,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnPriority = "PRIORITY";
         public const string ColumnProgress = "PROGRESS";
         public const string ColumnProgressMessage = "PROGRESS_MESSAGE";
+        public const string ColumnQuartzVersion = "QUARTZ_VERSION";
         public const string ColumnRepeatCount = "REPEAT_COUNT";
         public const string ColumnRepeatInterval = "REPEAT_INTERVAL";
         public const string ColumnRequestsRecovery = "REQUESTS_RECOVERY";
@@ -3216,6 +3217,7 @@ namespace Quartz.Impl.AdoJobStore
         public SchedulerStateRecord(string SchedulerInstanceId, System.DateTimeOffset CheckinTimestamp, System.TimeSpan CheckinInterval) { }
         public System.TimeSpan CheckinInterval { get; init; }
         public System.DateTimeOffset CheckinTimestamp { get; init; }
+        public string? QuartzVersion { get; init; }
         public string SchedulerInstanceId { get; init; }
     }
     public class SelectForUpdateLockHandler : Quartz.Impl.AdoJobStore.DbLockHandler

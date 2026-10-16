@@ -98,6 +98,7 @@ internal sealed class ProjectionDataReader : DbDataReader
         AdoConstants.ColumnPriority or AdoConstants.ColumnRepeatCount or AdoConstants.ColumnTimesTriggered => 5,
         AdoConstants.ColumnIsNonConcurrent or AdoConstants.ColumnRequestsRecovery => true,
         AdoConstants.ColumnExecutionGroup => "gpu",
+        AdoConstants.ColumnQuartzVersion => "4.6.0",
 
         // SIMPROP_TRIGGERS. STR_PROP_1 carries an IntervalUnit name for the calendar-interval type.
         "STR_PROP_1" => nameof(IntervalUnit.Day),

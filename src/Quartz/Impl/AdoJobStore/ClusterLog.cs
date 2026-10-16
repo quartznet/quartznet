@@ -94,4 +94,12 @@ internal static partial class ClusterLog
 
     [LoggerMessage(EventId = 3516, Level = LogLevel.Warning, Message = "Scheduler instance ({InstanceId}) was failed out by another instance, which cannot be identified: {OtherInstanceCount} other instances have scheduler state rows and no row records which of them recovered this one. Its own row has been written back; the work that instance recovered is not recovered again here.")]
     public static partial void SelfFailedOutRecoveringPeerUnknown(this ILogger logger, string instanceId, int otherInstanceCount);
+
+    // Information, once per transition: a rolling upgrade reads the two of these as "the old nodes are
+    // still here" and "the last one has gone" (#4067).
+    [LoggerMessage(EventId = 3517, Level = LogLevel.Information, Message = "Firing rounds take TRIGGER_ACCESS while node {InstanceId} (Quartz {QuartzVersion}) is live: a round of work that allows concurrent execution takes no lock only once every live node is {LockFreeRoundsSince} or later")]
+    public static partial void OlderPeerKeepsRoundsLocked(this ILogger logger, string instanceId, string quartzVersion, Version lockFreeRoundsSince);
+
+    [LoggerMessage(EventId = 3518, Level = LogLevel.Information, Message = "Every live node ({PeerCount} beside this one) is Quartz {LockFreeRoundsSince} or later: a firing round of work that allows concurrent execution takes no TRIGGER_ACCESS lock")]
+    public static partial void EveryPeerAllowsLockFreeRounds(this ILogger logger, int peerCount, Version lockFreeRoundsSince);
 }

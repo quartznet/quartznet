@@ -832,6 +832,18 @@ partial class Build
                     oracle: "NUMBER(13) NOT NULL",
                     sqlite: "BIGINT NOT NULL",
                     firebird: "BIGINT NOT NULL"),
+                // The Quartz version the node runs, major.minor.patch, stamped at every check-in by a 4.6
+                // node and never written by an older one. A node fires rounds of work that allows
+                // concurrent execution without TRIGGER_ACCESS only while every live peer carries 4.6 or
+                // later (#4067). ASCII digits and dots, so Oracle's and Firebird's byte counts equal
+                // the characters.
+                Column("QUARTZ_VERSION",
+                    sqlServer: "nvarchar(20) NULL",
+                    postgres: "VARCHAR(20) NULL",
+                    mysql: "VARCHAR(20) NULL",
+                    oracle: "VARCHAR2(20) NULL",
+                    sqlite: "NVARCHAR(20) NULL",
+                    firebird: "VARCHAR(20) DEFAULT NULL") with { AddedBy = "4.6" },
             ]),
 
         new("LOCKS",

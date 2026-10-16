@@ -216,6 +216,8 @@ matching on its text is not.
 | 3514 | Error | `Quartz` | `"Error managing cluster: {ExceptionMessage}"` |
 | 3515 | Warning | `Quartz` | `"Scheduler instance ({InstanceId}) was failed out by instance {RecoveringInstanceId}, the only other instance with a scheduler state row and so the only one that could have. Its own row has been written back; the work that instance recovered is not recovered again here."` |
 | 3516 | Warning | `Quartz` | `"Scheduler instance ({InstanceId}) was failed out by another instance, which cannot be identified: {OtherInstanceCount} other instances have scheduler state rows and no row records which of them recovered this one. Its own row has been written back; the work that instance recovered is not recovered again here."` |
+| 3517 | Information | `Quartz` | `"Firing rounds take TRIGGER_ACCESS while node {InstanceId} (Quartz {QuartzVersion}) is live: a round of work that allows concurrent execution takes no lock only once every live node is {LockFreeRoundsSince} or later"` |
+| 3518 | Information | `Quartz` | `"Every live node ({PeerCount} beside this one) is Quartz {LockFreeRoundsSince} or later: a firing round of work that allows concurrent execution takes no TRIGGER_ACCESS lock"` |
 | 3600 | Information | `Quartz` | `"Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed."` |
 | 3601 | Information | `Quartz` | `"Handling {Count} trigger(s) that missed their scheduled fire-time."` |
 | 3602 | Debug | `Quartz` | `"Found 0 triggers that missed their scheduled fire-time."` |

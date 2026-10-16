@@ -145,7 +145,8 @@ public sealed class PostgresWeaselSchemaTest
     }
 
     /// <summary>
-    /// 4.3 → 4.4 only adds: five columns and an index on the history table, and the rollup table.
+    /// 4.3 → 4.6 only adds: five columns and an index on the history table, the rollup table, and the
+    /// version column on the state table.
     /// </summary>
     [Test]
     public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnly()
@@ -163,8 +164,8 @@ public sealed class PostgresWeaselSchemaTest
             List<ISchemaObjectDelta> changed = [.. planned.Deltas.Where(x => x.Difference != SchemaPatchDifference.None)];
 
             changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
-                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create)],
-                "4.4 changes nothing a 4.3 schema has but the history table, and adds the rollup: " + Describe(planned));
+                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update)],
+                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table: " + Describe(planned));
 
             (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
             (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,
@@ -181,13 +182,17 @@ public sealed class PostgresWeaselSchemaTest
             .Where(x => x.StartsWith("EXECUTION_HISTORY|", StringComparison.Ordinal))
             .Select(x => x.Split('|')[1])
             .Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
+        after.Columns.Except(before.Columns)
+            .Where(x => x.StartsWith("SCHEDULER_STATE|", StringComparison.Ordinal))
+            .Select(x => x.Split('|')[1])
+            .Should().Equal(["QUARTZ_VERSION"], "the one column 4.6 adds is the version each node stamps at check-in (#4067)");
         after.Indexes.Except(before.Indexes).Select(x => x.Split('|')[1]).Distinct().Should().BeEquivalentTo(
             ["IDX_EH_JOB_TIME", "IDX_EH_FIRE_INST", "IDX_EH_TRIG_TIME"], "4.4's job index and 4.6's two lookup indexes");
 
         await using PostgresWeaselDatabase fresh = await PostgresWeaselDatabase.CreateAsync();
         await fresh.RunRepositoryScriptAsync("database", "tables", "tables_postgres.sql");
 
-        await ShouldMatchAsync(database, fresh, "what 4.4 added is all a 4.3 schema lacks");
+        await ShouldMatchAsync(database, fresh, "what 4.4 and 4.6 added is all a 4.3 schema lacks");
         await ShouldHoldTheSeedAsync(database);
         await ShouldHoldTheHistoryRowWithNoOutcomeAsync(database);
     }

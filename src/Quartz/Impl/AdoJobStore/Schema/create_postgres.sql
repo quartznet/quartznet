@@ -181,6 +181,7 @@ CREATE TABLE IF NOT EXISTS {0}scheduler_state (
   instance_name text not null,
   last_checkin_time bigint not null,
   checkin_interval bigint not null,
+  quartz_version varchar(20) null,
   primary key (sched_name,instance_name)
 );
 --;;

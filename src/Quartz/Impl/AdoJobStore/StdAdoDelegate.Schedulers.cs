@@ -19,6 +19,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.InstanceName, instanceId);
         AddCommandParameter(cmd, SqlParameters.LastCheckinTime, GetDbDateTimeValue(checkInTime));
         AddCommandParameter(cmd, SqlParameters.CheckinInterval, GetDbTimeSpanValue(interval));
+        AddCommandParameter(cmd, SqlParameters.QuartzVersion, SchedulerNodeVersion.Current);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -44,8 +45,13 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateSchedulerState));
-        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+
+        // Statement order: the two SET values, then the key. The version is the node's own — the assembly
+        // this delegate ships in — so the member's shape, which a delegate of somebody's own may have
+        // overridden, says nothing new (#4067).
         AddCommandParameter(cmd, SqlParameters.LastCheckinTime, GetDbDateTimeValue(checkInTime));
+        AddCommandParameter(cmd, SqlParameters.QuartzVersion, SchedulerNodeVersion.Current);
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.InstanceName, instanceId);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -78,7 +84,11 @@ public partial class StdAdoDelegate
             SchedulerStateRecord rec = new(
                 rs.GetString(AdoConstants.ColumnInstanceName)!,
                 GetDateTimeFromDbValue(rs[AdoConstants.ColumnLastCheckinTime]) ?? DateTimeOffset.MinValue,
-                GetTimeSpanFromDbValue(rs[AdoConstants.ColumnCheckinInterval]) ?? TimeSpan.Zero);
+                GetTimeSpanFromDbValue(rs[AdoConstants.ColumnCheckinInterval]) ?? TimeSpan.Zero)
+            {
+                // NULL for a row a node older than 4.6 wrote, which is what a reader of it decides by.
+                QuartzVersion = rs.GetString(AdoConstants.ColumnQuartzVersion),
+            };
 
             list.Add(rec);
         }

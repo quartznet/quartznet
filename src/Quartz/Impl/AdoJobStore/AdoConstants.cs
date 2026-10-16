@@ -149,6 +149,13 @@ public static class AdoConstants
     internal const string Migration44ExecutionOutcome = "4.4/add_execution_outcome_{0}.sql";
 
     /// <summary>
+    /// The migration that adds the Quartz version a node runs to <see cref="TableSchedulerState" />,
+    /// which a database created by 4.5 or earlier needs: a 4.6 node stamps it at every check-in and
+    /// reads it to decide whether a firing round may take no lock (#4067).
+    /// </summary>
+    internal const string Migration46SchedulerVersion = "4.6/add_scheduler_version_{0}.sql";
+
+    /// <summary>
     /// The columns only a feature that is off by default reads or writes, on a table only that feature
     /// reads — probed, like <see cref="OptionalTableNames" />, only when the feature is on.
     /// </summary>
@@ -245,7 +252,8 @@ public static class AdoConstants
         (TablePausedTriggers, ColumnPausedAt, Migration43PauseReason),
         (TablePausedJobs, ColumnPauseReason, Migration43PauseReason),
         (TablePausedJobs, ColumnPausedBy, Migration43PauseReason),
-        (TablePausedJobs, ColumnPausedAt, Migration43PauseReason)
+        (TablePausedJobs, ColumnPausedAt, Migration43PauseReason),
+        (TableSchedulerState, ColumnQuartzVersion, Migration46SchedulerVersion)
     ];
 
     // Table names
@@ -609,6 +617,13 @@ public static class AdoConstants
     /// The <c>CHECKIN_INTERVAL</c> column of <see cref="TableSchedulerState" />.
     /// </summary>
     public const string ColumnCheckinInterval = "CHECKIN_INTERVAL";
+
+    /// <summary>
+    /// The <c>QUARTZ_VERSION</c> column of <see cref="TableSchedulerState" />: the Quartz version the node
+    /// runs, as major.minor.patch, stamped at every check-in since 4.6 and <c>NULL</c> on a row an older
+    /// node wrote (#4067).
+    /// </summary>
+    public const string ColumnQuartzVersion = "QUARTZ_VERSION";
 
     // TableExecutionHistory and TableMisfireHistory columns names
     /// <summary>

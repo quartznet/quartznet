@@ -196,6 +196,7 @@ CREATE TABLE qrtz_scheduler_state
     instance_name TEXT NOT NULL,
     last_checkin_time BIGINT NOT NULL,
     checkin_interval BIGINT NOT NULL,
+    quartz_version VARCHAR(20) NULL,
     PRIMARY KEY (sched_name, instance_name)
 );
 
