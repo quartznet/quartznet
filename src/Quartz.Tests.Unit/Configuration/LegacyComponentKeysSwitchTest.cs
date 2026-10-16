@@ -178,6 +178,27 @@ public sealed class LegacyComponentKeysSwitchTest
             "a value key reflects over nothing, and the switch is about reflection");
     }
 
+    /// <summary>
+    /// The execution-group routing keys (#4069) are value keys — lists of group names, read by
+    /// <c>MapScheduler</c> and never by reflection — so a trimmed publish that refuses the component keys
+    /// still binds them.
+    /// </summary>
+    [Test]
+    public void TheExecutionGroupRoutingKeysStillBind()
+    {
+        ServiceCollection serving = new();
+        serving.AddQuartz(new NameValueCollection { ["quartz.scheduler.servedExecutionGroups"] = "reports, _" });
+        using ServiceProvider servingContainer = serving.BuildServiceProvider();
+
+        ServiceCollection refusing = new();
+        refusing.AddQuartz(new NameValueCollection { ["quartz.scheduler.refusedExecutionGroups"] = "gpu" });
+        using ServiceProvider refusingContainer = refusing.BuildServiceProvider();
+
+        servingContainer.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.ServedExecutionGroups.Should().Equal(["reports", "_"],
+            "which groups a node serves is a list of names, which no switch about reflection has any reason to refuse");
+        refusingContainer.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.RefusedExecutionGroups.Should().Equal(["gpu"]);
+    }
+
     [TestCase("Quartz.Simpl.RAMJobStore, Quartz")]
     [TestCase("Quartz.Impl.RAMJobStore, Quartz")]
     [TestCase("Quartz.Impl.RAMJobStore")]
