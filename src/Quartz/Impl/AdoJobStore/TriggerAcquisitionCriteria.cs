@@ -122,15 +122,7 @@ public sealed record TriggerAcquisitionCriteria
     public IReadOnlyCollection<ExecutionGroupScope>? ServedExecutionGroups
     {
         get;
-        init
-        {
-            if (value is not null && RefusedExecutionGroups is not null)
-            {
-                Throw.ArgumentException("ServedExecutionGroups and RefusedExecutionGroups cannot both be set; the criteria list what this node serves or what it refuses.", nameof(value));
-            }
-
-            field = ExecutionGroupRouting.Validated(value, nameof(value));
-        }
+        init => field = ExecutionGroupRouting.ValidatedBeside(value, RefusedExecutionGroups, nameof(value));
     }
 
     /// <summary>
@@ -144,15 +136,7 @@ public sealed record TriggerAcquisitionCriteria
     public IReadOnlyCollection<ExecutionGroupScope>? RefusedExecutionGroups
     {
         get;
-        init
-        {
-            if (value is not null && ServedExecutionGroups is not null)
-            {
-                Throw.ArgumentException("ServedExecutionGroups and RefusedExecutionGroups cannot both be set; the criteria list what this node serves or what it refuses.", nameof(value));
-            }
-
-            field = ExecutionGroupRouting.Validated(value, nameof(value));
-        }
+        init => field = ExecutionGroupRouting.ValidatedBeside(value, ServedExecutionGroups, nameof(value));
     }
 
     /// <summary>
