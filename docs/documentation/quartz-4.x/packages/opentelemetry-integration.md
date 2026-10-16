@@ -89,6 +89,7 @@ constants on `Quartz.Diagnostics.ActivityTags`:
 | `quartz.jobstore.batch.size` | `Quartz.JobStore.AcquireNextTriggers`: triggers requested |
 | `quartz.jobstore.trigger.count` | `Quartz.JobStore.AcquireNextTriggers` (returned) and `.TriggersFired` (fired) |
 | `quartz.jobstore.trigger.fired_on_acquire` | `Quartz.JobStore.AcquireNextTriggers`: of those returned, how many the store fired as it acquired them. They get no `.TriggersFired` span |
+| `quartz.jobstore.lock`, `quartz.jobstore.lock.reason` | `Quartz.JobStore.AcquireNextTriggers` on the ADO.NET store, from 4.6: the lock the round ran under, `TRIGGER_ACCESS` or `none`, and why it took it. See [Lock-free firing rounds](../operations.md#lock-free-firing-rounds) |
 | `error.type` | any span that ended in a failure; store spans from 4.4 |
 
 `quartz.fire.instance.id` identifies one firing; it is the id `IScheduler.InterruptFireInstance` takes.
@@ -173,8 +174,8 @@ constants equal to what the meter emits and snapshot the name, kind, unit and de
 | `quartz.trigger.misfire` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Firings not made on time |
 | `quartz.trigger.retry` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Retries scheduled after a job failed |
 | `quartz.trigger.retries_exhausted` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Failed occurrences whose retry policy ran out |
-| `quartz.trigger.acquisition.duration` | `Histogram<double>` | `s` | — | Loop's wait on the store for the next batch, the fire of the triggers already due included |
-| `quartz.trigger.acquired` | `Counter<long>` | `{trigger}` | — | Triggers returned by those rounds, fired or pending |
+| `quartz.trigger.acquisition.duration` | `Histogram<double>` | `s` | `quartz.jobstore.lock`⁴, `quartz.jobstore.lock.reason`⁵ | Loop's wait on the store for the next batch, the fire of the triggers already due included |
+| `quartz.trigger.acquired` | `Counter<long>` | `{trigger}` | `quartz.jobstore.lock`⁴, `quartz.jobstore.lock.reason`⁵ | Triggers returned by those rounds, fired or pending |
 | `quartz.cluster.checkin.duration` | `Histogram<double>` | `s` | `error.type`² | Cluster check-in duration, per attempt |
 | `quartz.cluster.recovery.trigger` | `Counter<long>` | `{trigger}` | `quartz.cluster.recovered.instance.id` | Fired-trigger rows recovered from a failed node |
 | `quartz.jobstore.operation.duration` | `Histogram<double>` | `s` | `quartz.jobstore.operation`, `error.type`² | Every store round trip, by operation |
@@ -185,6 +186,10 @@ one), so the two are separate series.
 ² Only when the operation failed. The value is the exception type's fully-qualified name.
 ³ Always. `succeeded`, `failed`, `cancelled` or `skipped`: the run's [`JobRunResult`](../how-tos/job-outcomes.md),
 lower-cased, as the execution history records it. Constant: `ActivityTags.JobResult`.
+⁴ On the ADO.NET store, from 4.6: `TRIGGER_ACCESS` or `none`, the lock the round ran under. The in-memory
+store has no such attribute, so its series keep their shape.
+⁵ Only on a round that took the lock: why. The values are the table in
+[Lock-free firing rounds](../operations.md#lock-free-firing-rounds). Constant: `ActivityTags.JobStoreLockReason`.
 
 - `quartz.trigger.retry` counts retries scheduled, not attempts configured: an unused policy adds nothing.
 - `quartz.trigger.retries_exhausted` counts once per occurrence that gave up, never per attempt. It has the same
@@ -194,8 +199,9 @@ lower-cased, as the execution history records it. Constant: `ActivityTags.JobRes
 - `quartz.jobstore.operation` is one of the thirty-four `Quartz.JobStore.*` names above, so one string finds
   a slow operation in traces and metrics. The histogram count is the number of each operation; the
   `error.type`-tagged part is the failures.
-- `quartz.jobstore.lock` is the `LOCK_NAME` value: `TRIGGER_ACCESS` (taken by every scheduling operation) or
-  `STATE_ACCESS` (taken by cluster check-in).
+- `quartz.jobstore.lock` is the `LOCK_NAME` value: `TRIGGER_ACCESS` (taken by scheduling operations) or
+  `STATE_ACCESS` (taken by cluster check-in). On the two acquisition instruments it is also `none`, for a
+  firing round that took no lock.
 
 The lock-wait histogram is the one instrument that reports *during* a stall. A lock statement blocked behind
 another session returns and throws nothing, so no operation or failure is recorded. The matching warning is

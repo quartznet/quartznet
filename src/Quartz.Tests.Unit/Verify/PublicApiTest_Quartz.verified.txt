@@ -34,6 +34,7 @@ namespace Quartz
         public bool DoubleCheckLockMisfireHandler { get; set; }
         public bool ExecutionHistory { get; set; }
         public System.Func<System.Exception, bool>? IsTransient { get; set; }
+        public bool LockFreeFiringRounds { get; set; }
         public bool LockOnInsert { get; set; }
         public System.TimeSpan? LockWaitWarningThreshold { get; set; }
         public int MaxConsecutiveFireFailures { get; set; }
@@ -2351,6 +2352,7 @@ namespace Quartz.Diagnostics
         public const string JobName = "quartz.job.name";
         public const string JobResult = "quartz.job.result";
         public const string JobStoreLock = "quartz.jobstore.lock";
+        public const string JobStoreLockReason = "quartz.jobstore.lock.reason";
         public const string JobStoreOperation = "quartz.jobstore.operation";
         public const string JobType = "quartz.job.type";
         public const string RecoveredInstanceId = "quartz.cluster.recovered.instance.id";
@@ -3519,6 +3521,8 @@ namespace Quartz.Impl.AdoJobStore
         public string? ExecutionGroup { get; init; }
         public bool ExecutionGroupAtLimit { get; init; }
         public string JobTypeName { get; init; }
+        public System.DateTimeOffset? NextFireTimeUtc { get; init; }
+        public Quartz.OverlapPolicy? OverlapPolicy { get; init; }
         public Quartz.TriggerKey TriggerKey { get; init; }
     }
     public sealed record TriggerAcquisitionCriteria : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerAcquisitionCriteria>

@@ -2198,6 +2198,8 @@ public partial class StdAdoDelegate
         int triggerGroupOrdinal = -1;
         int jobClassOrdinal = -1;
         int nonConcurrentOrdinal = -1;
+        int nextFireTimeOrdinal = -1;
+        int overlapPolicyOrdinal = -1;
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             if (nextTriggers.Count >= maxCount)
@@ -2222,6 +2224,11 @@ public partial class StdAdoDelegate
                 // point, and a statement written for 4.2 does not project the column: its delegate must
                 // go on acquiring, with the flag left unread for the store to answer from the type.
                 nonConcurrentOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnIsNonConcurrent);
+
+                // Likewise the two a lock-free round decides and claims by (#4067): a statement written
+                // for 4.5 does not project them, and its delegate's rounds take the lock, as they did.
+                nextFireTimeOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnNextFireTime);
+                overlapPolicyOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnOverlapPolicy);
             }
 
             string? executionGroup = rs.IsDBNull(execGroupOrdinal)
@@ -2249,6 +2256,12 @@ public partial class StdAdoDelegate
                     ? null
                     : GetBooleanFromDbValue(rs.GetValue(nonConcurrentOrdinal)),
                 ExecutionGroupAtLimit = executionGroupAtLimit,
+                NextFireTimeUtc = nextFireTimeOrdinal < 0
+                    ? null
+                    : GetDateTimeFromDbValue(rs.GetValue(nextFireTimeOrdinal)),
+                OverlapPolicy = overlapPolicyOrdinal < 0
+                    ? null
+                    : OverlapPolicyColumn.Decode(OverlapPolicyColumn.Read(rs, overlapPolicyOrdinal)).Policy,
             });
         }
 

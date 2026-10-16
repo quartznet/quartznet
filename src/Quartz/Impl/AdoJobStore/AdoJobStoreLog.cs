@@ -224,6 +224,19 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3055, Level = LogLevel.Information, Message = "Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is not handed back: its fired-trigger row is gone, because a peer recovered it or its trigger was unscheduled while it ran")]
     public static partial void FiringRowGoneBeforeHandBack(this ILogger logger, string? fireInstanceId, JobKey jobKey);
 
+    [LoggerMessage(EventId = 3056, Level = LogLevel.Information, Message = "Lock-free firing rounds are {State}: {Detail}")]
+    public static partial void LockFreeFiringRounds(this ILogger logger, string state, string detail);
+
+    // Debug: a schedule whose serial job is first in the candidate order escalates once per episode, and
+    // the hysteresis keeps the rounds after it locked without a line each.
+    [LoggerMessage(EventId = 3057, Level = LogLevel.Debug, Message = "Firing round takes TRIGGER_ACCESS before its first write: {Reason} ({TriggerKey})")]
+    public static partial void RoundEscalatedToLock(this ILogger logger, string reason, TriggerKey? triggerKey);
+
+    // Warning: a definition replaced in the few milliseconds between a round's read and its claim is rare,
+    // and worth seeing — it is a job turned serial, or a trigger given a policy, while it was firing.
+    [LoggerMessage(EventId = 3058, Level = LogLevel.Warning, Message = "Firing round rolled back and run again under TRIGGER_ACCESS: the job or overlap policy of trigger {TriggerKey} changed between the candidate read and the claim")]
+    public static partial void RoundRolledBackForLock(this ILogger logger, TriggerKey? triggerKey);
+
     // Debug: the ordinary outcome of an edit racing a firing round that takes no lock (#4067). The edit is
     // applied to the row as the fire left it, which is the serialised order.
     [LoggerMessage(EventId = 3059, Level = LogLevel.Debug, Message = "Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write")]

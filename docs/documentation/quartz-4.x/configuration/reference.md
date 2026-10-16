@@ -192,7 +192,8 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `UseDbLocks` | bool | `false` | Uses database row locks. Required for clustering, and implied by `UseClustering()`. |
 | `LockOnInsert` | bool | `true` | Takes a lock when inserting rows. |
 | `AcquireTriggersWithinLock` | bool | `false` | Acquires triggers inside the database lock. |
-| `TransactionIsolationLevel` | IsolationLevel? | none | Isolation level of the store's own transactions. Unset: `ReadCommitted`. See below. |
+| `LockFreeFiringRounds` | bool | `true` | A firing round whose every trigger may run beside itself takes no `TRIGGER_ACCESS` lock. `false` restores 4.5. See [Lock-free firing rounds](../operations.md#lock-free-firing-rounds). |
+| `TransactionIsolationLevel` | IsolationLevel? | none | Isolation level of the store's own transactions. Unset: `ReadCommitted`. Anything else also locks every firing round. See below. |
 | `AcceptEnlistedTransactions` | bool | `false` | Lets the store use a connection the application enlisted with `SchedulerEnlistmentExtensions.EnlistTransaction`, so scheduling commits with the application's work. See [Joining an existing transaction](../tutorial/job-stores.md#joining-an-existing-transaction). |
 | `DoubleCheckLockMisfireHandler` | bool | `true` | Re-checks the lock before handling misfires. |
 | `UseBackgroundThreads` | bool | `false` | Runs the misfire handler and cluster manager on background threads, which do not keep the process alive. They are the only real threads Quartz creates. |
@@ -920,6 +921,7 @@ above and produces the same result.
 | `quartz.jobStore.useDBLocks` | `JobStore:UseDbLocks` |
 | `quartz.jobStore.lockOnInsert` | `JobStore:LockOnInsert` |
 | `quartz.jobStore.acquireTriggersWithinLock` | `JobStore:AcquireTriggersWithinLock` |
+| `quartz.jobStore.lockFreeFiringRounds` | `JobStore:LockFreeFiringRounds` — added in 4.6; `false` restores 4.5's locked rounds |
 | `quartz.jobStore.selectWithLockSQL` | `JobStore:SelectWithLockSql` |
 | `quartz.jobStore.txIsolationLevelSerializable` | `JobStore:TransactionIsolationLevel` — `true` means `Serializable`; unset says nothing, not `ReadCommitted` |
 | `quartz.jobStore.misfireHandlerFrequency` | `JobStore:MisfireHandlerFrequency` |

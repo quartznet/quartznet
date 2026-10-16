@@ -707,17 +707,16 @@ With several nodes:
 - **Every node runs its own cluster manager**: one `SELECT` of the state table and one `UPDATE` per node
   per `CheckinInterval`. At 7.5 seconds, ten nodes issue 160 statements a minute before any job runs. A
   shorter interval buys faster failure detection with more of this traffic.
-- **Batching trades round trips for the lock and for balance.** Since 4.3 a clustered store's automatic
-  `MaxBatchSize` is the pool, as on any persistent store. Above 1, every acquisition cycle takes the
-  `TRIGGER_ACCESS` lock, even cycles that acquire nothing, and load can become uneven: a node that
-  acquires ten triggers holds them until it can run them. It pays anyway; see the table below. At the
-  shipped window of zero a batch takes the triggers already due;
-  `BatchTriggerAcquisitionFireAheadTimeWindow` adds those due within it. `MaxBatchSize = 1` keeps
-  acquisition off the lock. See
+- **Batching trades round trips for balance.** Since 4.3 a clustered store's automatic `MaxBatchSize` is
+  the pool, as on any persistent store. Load can become uneven: a node that acquires ten triggers holds
+  them until it can run them. It pays anyway; see the table below. At the shipped window of zero a batch
+  takes the triggers already due; `BatchTriggerAcquisitionFireAheadTimeWindow` adds those due within it.
+  Since 4.6 a round takes `TRIGGER_ACCESS` only when something in it needs the lock, whatever its size:
+  [Lock-free firing rounds](#lock-free-firing-rounds). See
   [Batching trigger acquisition](tutorial/advanced-enterprise-features.md#batching-trigger-acquisition).
 
-What the batch buys a cluster: 2,000 one-offs due at once, durable PostgreSQL, pool 10 a node
-([#3900](https://github.com/quartznet/quartznet/issues/3900)):
+What the batch buys a cluster, measured on 4.3 with every round under the lock: 2,000 one-offs due at
+once, durable PostgreSQL, pool 10 a node ([#3900](https://github.com/quartznet/quartznet/issues/3900)):
 
 | Nodes | Batched, against one trigger a round | `TRIGGER_ACCESS` wait p99 | Smallest node share |
 |---:|---:|---:|---:|
@@ -726,6 +725,58 @@ What the batch buys a cluster: 2,000 one-offs due at once, durable PostgreSQL, p
 
 More nodes add capacity for concurrent firings and a node to fail over to. They do not make one trigger
 fire faster or one job finish sooner; a schedule dominated by one long job gains nothing.
+
+## Lock-free firing rounds
+
+Since 4.6 a firing round on a persistent store takes `TRIGGER_ACCESS` only when something in it needs the
+lock. A round of triggers whose jobs allow concurrent execution claims each row with a compare-and-swap on
+its fire time and fires in the same transaction, with no cluster-wide lock, so the nodes of a cluster fire
+side by side. `LockFreeFiringRounds = false` (`quartz.jobStore.lockFreeFiringRounds`) restores 4.5.
+
+What still takes the lock, by the `quartz.jobstore.lock.reason` value that reports it:
+
+| Reason | When | What to do |
+|---|---|---|
+| `serial_job` | A candidate's job disallows concurrent execution | Nothing |
+| `overlap_policy` | A candidate's trigger has `Skip`, `BufferOne` or `CancelPrevious` | Nothing; `Default` and `AllowAll` need no lock |
+| `cluster_limit` | The node has a cluster-scoped execution limit | Nothing; the lock is what makes the ceiling exact |
+| `older_peer` | A live node is older than 4.6, or this node has not checked in yet | Finish the rolling upgrade; see below |
+| `hysteresis` | The round before this one escalated | Nothing; a locked round that needed the lock for nothing ends it |
+| `definition_changed` | A job or trigger was replaced between the round's read and its claim | Nothing; the round ran again under the lock |
+| `isolation_level` | `TransactionIsolationLevel` is set to anything but `ReadCommitted` | Leave it unset |
+| `acquire_within_lock` | `AcquireTriggersWithinLock = true` | Turn it off |
+| `delegate` | The driver delegate takes no part in fire-on-acquire rounds | Derive from a shipped delegate |
+| `lock_all_operations` | SQLite | Nothing |
+| `option_off` | `LockFreeFiringRounds = false` | Turn it on |
+
+A round decides from its first read. A candidate only the lock decides rolls the round back before its
+first write and runs it again locked (event 3057, Debug); a job or trigger found changed after the claim
+does the same (event 3058, Warning). The next round starts locked, until a locked round finds nothing that
+needed it.
+
+| Where to see it | What it says |
+|---|---|
+| `quartz.trigger.acquisition.duration`, `quartz.trigger.acquired` | `quartz.jobstore.lock`: `none` or `TRIGGER_ACCESS`; `quartz.jobstore.lock.reason` on a locked round |
+| `Quartz.JobStore.AcquireNextTriggers` span | The same two attributes |
+| Event 3056 at startup | Whether the store's configuration allows lock-free rounds at all, and what locks every round if not |
+| Events 3517 and 3518 | A cluster's rounds locked for an older node, and freed once every live node is 4.6 |
+
+### Rolling upgrade from 4.5
+
+Each 4.6 node stamps its Quartz version on its `QRTZ_SCHEDULER_STATE` row at every check-in, in the
+`QUARTZ_VERSION` column that `database/migrations/4.6/add_scheduler_version_<db>.sql` adds. A round takes
+no lock only once every live row carries 4.6 or later: a 4.5 node writes a misfired or edited trigger by
+key and relies on the lock to keep a round off that row, which a 4.6 node cannot guard for it.
+
+| Step | What happens |
+|---|---|
+| Run the migration while 4.5 nodes are up | The column is nullable; a 4.5 node ignores it and its row reads `NULL` |
+| Roll the nodes | Every 4.6 round is locked while any 4.5 row is live (`older_peer`; event 3517 once) |
+| The last 4.5 node stops | Its row ages out after `CheckinInterval + CheckinMisfireThreshold`, or a peer recovers it; event 3518, and rounds go lock-free |
+
+A store that is not clustered has no peers to wait for. Rolling back to 4.5 needs nothing: a 4.5 node's
+first check-in recovers and deletes its own earlier row, stamp and all. The schema side is in
+[Schema changes](../database/schema-changes.md#version-4-6).
 
 ## Performance
 

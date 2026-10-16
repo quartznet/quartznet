@@ -524,11 +524,10 @@ tenant's triggers run. See [Routing](tutorial/execution-groups.md#routing-which-
 
 ::: warning What a cluster-scoped quota does and does not promise
 
-- The ceiling holds **within one acquisition round**. A round that asks for one trigger takes no cluster
-  lock by default, so several nodes acquiring at once can briefly overshoot, to at most
-  `limit + (nodes − 1)`. The ADO store takes the `TRIGGER_ACCESS` lock for a round that asks for more, so
-  each node adds at most one. `AcquireTriggersWithinLock = true` makes it exact and serializes
-  acquisition cluster-wide.
+- The ceiling is **exact, and costs the lock**. A round that counts against a cluster-scoped quota takes
+  the `TRIGGER_ACCESS` lock, a round of one included, so the nodes read the ledger one at a time.
+  `LockFreeFiringRounds = false` restores 4.5, where a round of one took no lock and several nodes
+  acquiring at once could overshoot to at most `limit + (nodes − 1)`.
 - It **fails closed**: the quota ledger and the work queue are the same database, so a node that cannot
   reach the store fires nothing. A database outage stops work; it does not remove the ceiling.
 - A group held at its ceiling longer than `MisfireThreshold` (one minute by default) sends its backlog to
@@ -988,9 +987,9 @@ Under the group-per-tenant model, onboarding is a `ScheduleJob` call and none of
 What multi-tenant deployments ask for and Quartz does not provide. [Tenancy Patterns](../tenancy-patterns.md#what-quartz-net-does-not-give-you)
 covers the same list for both 3.x and 4.x.
 
-- **A cluster-wide concurrency ceiling is exact only with `AcquireTriggersWithinLock = true`**, which
-  serializes acquisition for every group, limited or not. Otherwise it can briefly overshoot by up to
-  `nodes − 1`. No setting gives both — see
+- **A cluster-wide concurrency ceiling costs the lock.** Every round of a node with a cluster-scoped quota
+  takes `TRIGGER_ACCESS`, limited group or not, so that node's acquisitions are serialised cluster-wide. No
+  setting gives the ceiling without the lock — see
   [What a cluster-scoped quota does and does not promise](#per-tenant-concurrency-quotas).
 - **No built-in rate limiting.** Execution limits cap *concurrency*, not throughput. "100 jobs an hour"
   is a job middleware you register, counted per node: see

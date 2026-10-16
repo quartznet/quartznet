@@ -36,8 +36,13 @@ public interface ILockHandler
 
 | Member | Guards | Stored as |
 |---|---|---|
-| `TriggerAccess` | every change to jobs, triggers and calendars, trigger acquisition and firing, and the completions listed below | `TRIGGER_ACCESS` |
+| `TriggerAccess` | every change to jobs, triggers and calendars, the firing rounds and completions listed below | `TRIGGER_ACCESS` |
 | `StateAccess` | cluster check-in and failed-node recovery, in their own transaction (no deadlock with trigger work) | `STATE_ACCESS` |
+
+A firing round of triggers whose jobs allow concurrent execution claims and fires with **no lock** since
+4.6; a serial job, a `Skip`, `BufferOne` or `CancelPrevious` trigger or a cluster-scoped limit in the round
+takes `TriggerAccess` for it. The list is in
+[Lock-free firing rounds](../operations.md#lock-free-firing-rounds).
 
 A firing whose job allows concurrent execution and whose trigger asks for nothing at the end
 (`NoInstruction` or `DeleteTrigger`) completes with **no lock**: it writes only its own rows. A handler

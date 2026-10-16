@@ -199,6 +199,30 @@ public sealed class LegacyComponentKeysSwitchTest
         refusingContainer.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.RefusedExecutionGroups.Should().Equal(["gpu"]);
     }
 
+    /// <summary>
+    /// <c>quartz.jobStore.lockFreeFiringRounds</c> (#4067) is a value key — a flag <c>MapAdoJobStore</c>
+    /// reads, never by reflection — so a trimmed publish that refuses the component keys still binds it,
+    /// and the store it configures is the one a round asks.
+    /// </summary>
+    [Test]
+    public void TheLockFreeFiringRoundsKeyStillBinds()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.scheduler.instanceName"] = "lock-free-rounds",
+                ["quartz.jobStore.lockFreeFiringRounds"] = "false",
+            },
+            q => q.UsePersistentStore(store => store.UseSqlite(SqliteFactory.Instance, "Data Source=:memory:")));
+        using ServiceProvider container = services.BuildServiceProvider();
+
+        container.GetRequiredService<IOptionsMonitor<AdoJobStoreOptions>>().Get(Options.DefaultName).LockFreeFiringRounds.Should().BeFalse(
+            "turning lock-free rounds off is a flag, which no switch about reflection has any reason to refuse");
+        container.GetRequiredService<IJobStore>().As<LocalTransactionJobStore>().LockFreeFiringRounds.Should().BeFalse(
+            "the store copies the option it was built with");
+    }
+
     [TestCase("Quartz.Simpl.RAMJobStore, Quartz")]
     [TestCase("Quartz.Impl.RAMJobStore, Quartz")]
     [TestCase("Quartz.Impl.RAMJobStore")]

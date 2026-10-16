@@ -834,6 +834,19 @@ internal sealed class TracingJobStore : DelegatingJobStore
             // will report.
             operation.Tag(ActivityTags.TriggerCount, acquired.Due.Count + acquired.Pending.Count);
             operation.Tag(ActivityTags.TriggersFiredOnAcquire, acquired.Due.Count);
+
+            // And the lock the round ran under, where the store says (#4067): the same tag the lock-wait
+            // histogram carries, so one name answers "did this round wait on the lock, and why" in both.
+            if (acquired.LockName is { } lockName)
+            {
+                operation.Tag(ActivityTags.JobStoreLock, lockName);
+            }
+
+            if (acquired.LockReason is { } lockReason)
+            {
+                operation.Tag(ActivityTags.JobStoreLockReason, lockReason);
+            }
+
             return acquired;
         }
         catch (Exception e)

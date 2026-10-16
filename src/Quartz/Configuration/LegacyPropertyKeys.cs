@@ -495,6 +495,7 @@ internal static class LegacyPropertyKeys
         JobStorePrefix + ".useDBLocks",
         JobStorePrefix + ".lockOnInsert",
         JobStorePrefix + ".acquireTriggersWithinLock",
+        JobStorePrefix + ".lockFreeFiringRounds",
         JobStorePrefix + ".acceptEnlistedTransactions",
         JobStorePrefix + ".openConnection",
         JobStorePrefix + ".txIsolationLevelSerializable",

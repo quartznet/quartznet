@@ -627,7 +627,7 @@ internal sealed class QuartzSchedulerThread
                     unfired = triggers.Count > 0 ? triggers : null;
                     try
                     {
-                        RecordAcquisition(measureAcquisition, acquisitionStarted, acquisition.Due.Count + triggers.Count);
+                        RecordAcquisition(measureAcquisition, acquisitionStarted, acquisition.Due.Count + triggers.Count, acquisition);
                     }
                     finally
                     {
@@ -982,18 +982,22 @@ internal sealed class QuartzSchedulerThread
     /// <param name="measured">Whether anything is collecting the acquisition instruments.</param>
     /// <param name="started">When the acquisition started, if it was measured.</param>
     /// <param name="acquired">How many triggers the store answered with, fired or pending.</param>
-    private void RecordAcquisition(bool measured, long started, int acquired)
+    /// <param name="acquisition">The store's answer, which carries the lock the round ran under.</param>
+    private void RecordAcquisition(bool measured, long started, int acquired, TriggerAcquisitionResult acquisition)
     {
         if (measured)
         {
             // Only a round that came back. A failed acquisition leaves through one of the catches around the
             // call, where it is a store failure rather than an acquisition latency, and folding the two
-            // together would make an unreachable database look like a fast one.
+            // together would make an unreachable database look like a fast one. Tagged with the lock the
+            // round ran under, where the store says (#4067).
             qsRsrcs.Meters.TriggersAcquired(
                 qsRsrcs.Name,
                 qsRsrcs.InstanceId,
                 acquired,
-                qsRsrcs.TimeProvider.GetElapsedTime(started));
+                qsRsrcs.TimeProvider.GetElapsedTime(started),
+                acquisition.LockName,
+                acquisition.LockReason);
         }
 
         if (logger.IsEnabled(LogLevel.Debug))

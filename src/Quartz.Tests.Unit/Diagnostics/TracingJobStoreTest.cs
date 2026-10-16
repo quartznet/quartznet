@@ -302,12 +302,36 @@ public sealed class TracingJobStoreTest
         span.GetTagItem(ActivityTags.BatchSize).Should().Be(7, "the batch the scheduler asked for");
         span.GetTagItem(ActivityTags.TriggerCount).Should().Be(2, "everything the round acquired, fired or pending");
         span.GetTagItem(ActivityTags.TriggersFiredOnAcquire).Should().Be(1, "of which the store fired one as it acquired it");
+        span.GetTagItem(ActivityTags.JobStoreLock).Should().BeNull("a store that says nothing about its lock gets no attribute for it");
+        span.GetTagItem(ActivityTags.JobStoreLockReason).Should().BeNull();
 
         lock (stoppedActivities)
         {
             stoppedActivities.Should().NotContain(a => a.OperationName == OperationName.JobStore.TriggersFired,
                 "a trigger fired as it was acquired is fired inside the acquisition's span, not in a span of its own");
         }
+    }
+
+    /// <summary>
+    /// A store that says which lock its round ran under, and why, has the acquisition span carry both
+    /// (#4067): the same two names the acquisition instruments are tagged with, so one query answers "did
+    /// this round wait on the lock" in a trace and in a metric alike.
+    /// </summary>
+    [TestCase("TRIGGER_ACCESS", "serial_job")]
+    [TestCase("none", null)]
+    public async Task AcquisitionSpan_CarriesTheLockTheRoundRanUnder(string lockName, string lockReason)
+    {
+        IJobStore inner = StubStore();
+        A.CallTo(() => inner.AcquireNextTriggersAndFireDue(A<TriggerAcquisitionRequest>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<TriggerAcquisitionResult>(new TriggerAcquisitionResult { LockName = lockName, LockReason = lockReason }));
+
+        IJobStore store = await Decorated(inner);
+
+        await store.AcquireNextTriggersAndFireDue(new TriggerAcquisitionRequest { NoLaterThan = DateTimeOffset.UnixEpoch });
+
+        Activity span = SpanFor(OperationName.JobStore.AcquireNextTriggers);
+        span.GetTagItem(ActivityTags.JobStoreLock).Should().Be(lockName);
+        span.GetTagItem(ActivityTags.JobStoreLockReason).Should().Be(lockReason, "a round that took no lock has no reason to give");
     }
 
     [Test]

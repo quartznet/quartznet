@@ -494,6 +494,11 @@ internal static class StdAdoConstants
     // it is the stored answer to whether the job may run twice at once, and the type named beside it
     // cannot give that answer for a job flagged by its builder rather than by an attribute.
     //
+    // NEXT_FIRE_TIME and OVERLAP_POLICY are projected for a round that takes no lock (#4067): the fire
+    // time is what such a round claims each row by before reading it in full, and the policy is, with
+    // IS_NONCONCURRENT, what decides whether the round may take no lock at all. Both are the row's own
+    // columns and cost the statement nothing it was not already reading.
+    //
     // NEXT_FIRE_TIME > @noEarlierThan is the exact complement of the misfire predicate in
     // SqlCountMisfiredTriggersInStates, and has to stay that way: @noEarlierThan is the very
     // now - MisfireThreshold the sweep asks about, so a waiting trigger belongs either to acquisition
@@ -501,7 +506,7 @@ internal static class StdAdoConstants
     // would fire it late without ever applying the policy it asked for.
     private static string SelectNextTriggerToAcquire(string exclusionClause, string executionGroupClause, SqlRowLimit rowLimit) =>
         rowLimit.Enclose(Invariant($@"SELECT{rowLimit.AfterSelect}
-                t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, jd.{AdoConstants.ColumnIsNonConcurrent}, t.{AdoConstants.ColumnExecutionGroup}
+                t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, jd.{AdoConstants.ColumnIsNonConcurrent}, t.{AdoConstants.ColumnExecutionGroup}, t.{AdoConstants.ColumnNextFireTime}, t.{AdoConstants.ColumnOverlapPolicy}
               FROM
                 {TablePrefixSubst}{AdoConstants.TableTriggers} t
               JOIN

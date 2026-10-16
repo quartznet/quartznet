@@ -79,4 +79,29 @@ public readonly record struct TriggerAcquireResult(TriggerKey TriggerKey, string
     /// </para>
     /// </remarks>
     public bool ExecutionGroupAtLimit { get; init; }
+
+    /// <summary>
+    /// The trigger's next fire time, as its row holds it, or <see langword="null" /> when the delegate did
+    /// not read it.
+    /// </summary>
+    /// <remarks>
+    /// A round that takes no <c>TRIGGER_ACCESS</c> lock (#4067) claims each candidate by this value before
+    /// it reads the row in full, so that what it fires is the row as it stands once the claim holds it.
+    /// Every dialect Quartz ships reads it; a delegate that does not makes the round take the lock, as a
+    /// row the round cannot claim from its first read is a row it has to read before claiming.
+    /// </remarks>
+    public DateTimeOffset? NextFireTimeUtc { get; init; }
+
+    /// <summary>
+    /// The trigger's overlap policy, as its row holds it, or <see langword="null" /> when the delegate did
+    /// not read it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Quartz.OverlapPolicy.Skip" />, <see cref="Quartz.OverlapPolicy.BufferOne" /> and
+    /// <see cref="Quartz.OverlapPolicy.CancelPrevious" /> are decided at the fire from the trigger's running
+    /// firings, which only the lock keeps still, so a candidate with one of them makes the round take it
+    /// (#4067). Every dialect Quartz ships reads it; <see langword="null" /> is read as "lock", since
+    /// nothing is known.
+    /// </remarks>
+    public OverlapPolicy? OverlapPolicy { get; init; }
 }

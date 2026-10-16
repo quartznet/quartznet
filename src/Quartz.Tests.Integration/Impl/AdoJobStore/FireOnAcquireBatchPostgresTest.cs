@@ -29,8 +29,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
 /// A fire-on-acquire round on PostgreSQL, where the shipped delegate sends its claims and fire writes as
-/// batches (#3864): one lock, every due trigger fired once, and a fire that fails inside a batch found and
-/// failed alone (#3931).
+/// batches (#3864): one transaction, every due trigger fired once, and a fire that fails inside a batch found
+/// and failed alone (#3931) — with lock-free rounds on, as they ship (#4067), and off.
 /// </summary>
 /// <remarks>
 /// The failure is the database's own: a trigger on the fired-trigger table refuses the one row, so the
@@ -63,16 +63,23 @@ public sealed class FireOnAcquireBatchPostgresTest
     private LocalTransactionJobStore store;
 
     [SetUp]
-    public async Task BuildStore()
+    public void ReadConnectionString()
     {
         connectionString = Environment.GetEnvironmentVariable("PG_CONNECTION_STRING");
         connectionString.Should().NotBeNullOrWhiteSpace(
             "PG_CONNECTION_STRING is set by the container this assembly starts; run the fixture through the db-postgres leg");
+    }
 
+    /// <param name="lockFreeRounds">
+    /// <c>LockFreeFiringRounds</c>: the shipped rounds, which take no lock for work that allows concurrent
+    /// execution (#4067), or 4.5's, every one under <c>TRIGGER_ACCESS</c>. The batching is the same in both.
+    /// </param>
+    private async Task BuildStore(bool lockFreeRounds)
+    {
         locks = new CountingLockHandler();
         store = new LocalTransactionJobStore(TestJobStores.Dependencies(
             schedulerOptions: TestJobStores.SchedulerOptions(SchedulerName, "node"),
-            storeOptions: TestJobStores.StoreOptions("fire-on-acquire-batch"),
+            storeOptions: TestJobStores.StoreOptions("fire-on-acquire-batch", configure: options => options.LockFreeFiringRounds = lockFreeRounds),
             dbProvider: new DbProvider(DataSourceOptions.Providers.Npgsql, connectionString),
             driverDelegate: new PostgreSQLDelegate(),
             lockHandler: locks));
@@ -85,17 +92,23 @@ public sealed class FireOnAcquireBatchPostgresTest
     public async Task ShutDownStore()
     {
         await Execute(DropPoison);
-        await store.Clear();
-        await store.Shutdown();
+        if (store is not null)
+        {
+            await store.Clear();
+            await store.Shutdown();
+            store = null;
+        }
     }
 
     /// <summary>
-    /// Six due triggers are claimed and fired under one lock, their rows written as the shipped delegate
-    /// batches them.
+    /// Six due triggers are claimed and fired in one transaction, their rows written as the shipped delegate
+    /// batches them: under one lock with lock-free rounds off, and under none with them on.
     /// </summary>
-    [Test]
-    public async Task ARoundFiresItsDueTriggersUnderOneLock()
+    [TestCase(true, 0)]
+    [TestCase(false, 1)]
+    public async Task ARoundFiresItsDueTriggersInOneTransaction(bool lockFreeRounds, int locksTaken)
     {
+        await BuildStore(lockFreeRounds);
         await ScheduleOneOffs("due-", 6);
         locks.Reset();
 
@@ -103,7 +116,7 @@ public sealed class FireOnAcquireBatchPostgresTest
 
         round.Due.Should().HaveCount(6);
         round.Fired.Should().OnlyContain(x => x.TriggerFiredBundle != null);
-        locks.TriggerAccess.Should().Be(1, "the round is one transaction under one lock");
+        locks.TriggerAccess.Should().Be(locksTaken, "the round is one transaction, under one lock only when lock-free rounds are off");
         (await FireInstances(FireInstanceState.Executing)).Should().HaveCount(6, "each fire wrote its row as EXECUTING");
         (await FireInstances(FireInstanceState.Acquired)).Should().BeEmpty("nothing is left reserved");
     }
@@ -111,11 +124,14 @@ public sealed class FireOnAcquireBatchPostgresTest
     /// <summary>
     /// A fire the database refuses inside a batch fails the batch whole. The round is rolled back, runs
     /// again one trigger at a time to find the fire that failed, and commits without it: the rest fire once,
-    /// and the refused trigger is reserved and answered failed, for the scheduler to release (#3931).
+    /// and the refused trigger is reserved and answered failed, for the scheduler to release (#3931). A round
+    /// that takes no lock recovers the same way, through the same three attempts.
     /// </summary>
-    [Test]
-    public async Task AFireRefusedInsideABatchIsFoundAndTheRestFireOnce()
+    [TestCase(true, 0)]
+    [TestCase(false, 3)]
+    public async Task AFireRefusedInsideABatchIsFoundAndTheRestFireOnce(bool lockFreeRounds, int locksTaken)
     {
+        await BuildStore(lockFreeRounds);
         await Schedule("ordinary-1", priority: 10);
         await Schedule(Poison, priority: 9);
         await Schedule("ordinary-2", priority: 8);
@@ -131,8 +147,9 @@ public sealed class FireOnAcquireBatchPostgresTest
             .Which.InnerException.Should().BeAssignableTo<DbException>("the database's refusal, which the scheduler releases the trigger on");
         round.Fired[2].TriggerFiredBundle.Should().NotBeNull();
 
-        locks.TriggerAccess.Should().Be(3,
-            "the batch that failed, the run one trigger at a time that found the refused fire, and the run that committed without it");
+        locks.TriggerAccess.Should().Be(locksTaken,
+            "the batch that failed, the run one trigger at a time that found the refused fire, and the run that committed without it "
+            + "each take the lock only when lock-free rounds are off");
 
         List<FireInstance> executing = await FireInstances(FireInstanceState.Executing);
         executing.Select(x => x.TriggerKey.Name).Should().BeEquivalentTo(["ordinary-1", "ordinary-2"],
