@@ -162,7 +162,8 @@ public sealed class MySqlWeaselSchemaTest
     }
 
     /// <summary>
-    /// 4.3 → 4.4 only adds: five columns and an index on the history table, and the rollup table.
+    /// 4.3 → 4.6 only adds: five columns and an index on the history table, the rollup table, and the
+    /// version column on the state table.
     /// </summary>
     [Test]
     public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnly()
@@ -180,10 +181,10 @@ public sealed class MySqlWeaselSchemaTest
             List<ISchemaObjectDelta> changed = [.. planned.Deltas.Where(x => x.Difference != SchemaPatchDifference.None)];
 
             changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
-                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create)],
-                "4.4 changes nothing a 4.3 schema has but the history table, and adds the rollup: " + Describe(planned));
+                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update)],
+                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table: " + Describe(planned));
 
-            TableDelta history = changed.OfType<TableDelta>().Single(x => x.Difference == SchemaPatchDifference.Update);
+            TableDelta history = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_EXECUTION_HISTORY", StringComparison.OrdinalIgnoreCase));
             history.Columns!.Missing.Select(x => x.Name).Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
             history.Columns.Different.Should().BeEmpty("no column a 4.3 schema has is altered");
             history.Columns.Extras.Should().BeEmpty();
@@ -191,6 +192,12 @@ public sealed class MySqlWeaselSchemaTest
                 ["IDX_QRTZ_EH_JOB_TIME", "IDX_QRTZ_EH_FIRE_INST", "IDX_QRTZ_EH_TRIG_TIME"], "4.4's job index and 4.6's two lookup indexes");
             history.Indexes.Different.Should().BeEmpty();
             history.Indexes.Extras.Should().BeEmpty();
+
+            TableDelta state = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_SCHEDULER_STATE", StringComparison.OrdinalIgnoreCase));
+            state.Columns!.Missing.Select(x => x.Name.ToUpperInvariant()).Should().Equal(["QUARTZ_VERSION"],
+                "the one thing 4.6 adds is the version each node stamps at check-in (#4067)");
+            state.Columns.Different.Should().BeEmpty("no column a 4.3 schema has is altered");
+            state.Columns.Extras.Should().BeEmpty();
 
             (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
             (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,
@@ -206,7 +213,7 @@ public sealed class MySqlWeaselSchemaTest
         await using MySqlWeaselDatabase fresh = await MySqlWeaselDatabase.CreateAsync();
         await fresh.RunRepositoryScriptAsync("database", "tables", "tables_mysql_innodb.sql");
 
-        await ShouldMatchAsync(database, fresh, "what 4.4 added is all a 4.3 schema lacks");
+        await ShouldMatchAsync(database, fresh, "what 4.4 and 4.6 added is all a 4.3 schema lacks");
         await ShouldHoldTheSeedAsync(database);
         await ShouldHoldTheHistoryRowWithNoOutcomeAsync(database);
     }

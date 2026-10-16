@@ -105,6 +105,35 @@ internal abstract partial class AdoJobStoreBase
     /// </summary>
     internal DateTimeOffset LastCheckin { get; set; }
 
+    /// <summary>
+    /// Whether a check-in of this node has read the state table yet. Until one has, nothing is known
+    /// about the peers, and a firing round takes <c>TRIGGER_ACCESS</c> (#4067).
+    /// </summary>
+    private volatile bool peersScanned;
+
+    /// <summary>
+    /// Whether the last scan found a live peer older than <see cref="SchedulerNodeVersion.LockFreeRoundsSince" />,
+    /// or one whose row says nothing about its version, which is the same thing.
+    /// </summary>
+    private volatile bool olderPeerLive;
+
+    /// <summary>
+    /// Whether this node's peers let a firing round of work that allows concurrent execution take no
+    /// <c>TRIGGER_ACCESS</c> lock (#4067): every live row of the state table carries a Quartz version of
+    /// 4.6 or later, as the last check-in read it. A store that is not clustered has no peers and answers
+    /// <see langword="true" />; a clustered one answers <see langword="false" /> until its first check-in
+    /// has read the table, and while any live row is <c>NULL</c>, below 4.6 or unreadable.
+    /// </summary>
+    /// <remarks>
+    /// A node older than 4.6 writes a trigger's row it read by key — its misfire handler, its editors —
+    /// relying on the lock to keep a round off that row in between. This node cannot guard writes it does
+    /// not make, so it keeps the lock for every round while such a node is live. A row past its failure
+    /// threshold is a node about to be recovered, and is not counted; a 4.5 node's first check-in recovers
+    /// and deletes its own earlier row before it inserts a fresh one without the column, so a stamp a 4.6
+    /// run left under the same instance id does not survive a downgrade.
+    /// </remarks>
+    internal bool PeersAllowLockFreeRounds => !Clustered || (peersScanned && !olderPeerLive);
+
     internal async ValueTask<bool> CheckIn(
         Guid requestorId,
         CancellationToken cancellationToken = default)
@@ -316,6 +345,8 @@ internal abstract partial class AdoJobStoreBase
             // already being replayed. HandleSelfFailedOut is what does happen about it.
             bool selfFailedOut = !foundThisScheduler && !firstCheckIn;
 
+            RecordPeerVersions(states, failedInstances);
+
             return new ClusterStateScan(states, failedInstances, selfFailedOut);
         }
         catch (Exception e)
@@ -323,6 +354,45 @@ internal abstract partial class AdoJobStoreBase
             LastCheckin = timeProvider.GetUtcNow();
             Throw.JobPersistenceException("Failure identifying failed instances when checking-in: " + e.Message, e);
             return default;
+        }
+    }
+
+    /// <summary>
+    /// Decides from one read of the state table whether every live peer is a node whose writes a
+    /// lock-free firing round can run beside (#4067), and says so once each time the answer changes.
+    /// </summary>
+    /// <param name="states">Every row the scan read.</param>
+    /// <param name="failedInstances">The rows the scan judged failed, which are not live.</param>
+    private void RecordPeerVersions(List<SchedulerStateRecord> states, List<SchedulerStateRecord> failedInstances)
+    {
+        SchedulerStateRecord? older = null;
+        int peers = 0;
+        foreach (SchedulerStateRecord record in states)
+        {
+            if (record.SchedulerInstanceId == InstanceId || failedInstances.Contains(record))
+            {
+                continue;
+            }
+
+            peers++;
+            if (older is null && !SchedulerNodeVersion.SupportsLockFreeRounds(record.QuartzVersion))
+            {
+                older = record;
+            }
+        }
+
+        bool wasKnown = peersScanned;
+        bool wasOlderLive = olderPeerLive;
+        olderPeerLive = older is not null;
+        peersScanned = true;
+
+        if (older is not null && (!wasKnown || !wasOlderLive))
+        {
+            Logger.OlderPeerKeepsRoundsLocked(older.SchedulerInstanceId, older.QuartzVersion ?? "none", SchedulerNodeVersion.LockFreeRoundsSince);
+        }
+        else if (older is null && (!wasKnown || wasOlderLive))
+        {
+            Logger.EveryPeerAllowsLockFreeRounds(peers, SchedulerNodeVersion.LockFreeRoundsSince);
         }
     }
 

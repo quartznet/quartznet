@@ -91,6 +91,12 @@ internal sealed class FakeCommand : DbCommand
     /// </summary>
     public DbDataReader? Reader { get; set; }
 
+    /// <summary>
+    /// How many rows the next non-query execution reports it changed. Left unset, executing throws, as
+    /// for a reader.
+    /// </summary>
+    public int? RowsAffected { get; set; }
+
     [AllowNull]
     public override string CommandText { get; set; } = "";
 
@@ -112,7 +118,7 @@ internal sealed class FakeCommand : DbCommand
     {
     }
 
-    public override int ExecuteNonQuery() => throw new NotSupportedException();
+    public override int ExecuteNonQuery() => RowsAffected ?? throw new NotSupportedException();
 
     public override object? ExecuteScalar() => throw new NotSupportedException();
 

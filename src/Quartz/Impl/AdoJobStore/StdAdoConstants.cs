@@ -160,7 +160,7 @@ internal static class StdAdoConstants
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TablePausedJobs} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnJobGroup}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.JobGroup})");
 
     public static readonly string SqlInsertSchedulerState =
-        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableSchedulerState} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnLastCheckinTime}, {AdoConstants.ColumnCheckinInterval}) VALUES(@{SqlParameters.SchedulerName}, @{SqlParameters.InstanceName}, @{SqlParameters.LastCheckinTime}, @{SqlParameters.CheckinInterval})");
+        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableSchedulerState} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnLastCheckinTime}, {AdoConstants.ColumnCheckinInterval}, {AdoConstants.ColumnQuartzVersion}) VALUES(@{SqlParameters.SchedulerName}, @{SqlParameters.InstanceName}, @{SqlParameters.LastCheckinTime}, @{SqlParameters.CheckinInterval}, @{SqlParameters.QuartzVersion})");
 
     public static readonly string SqlInsertSimpleTrigger =
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableSimpleTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnRepeatCount}, {AdoConstants.ColumnRepeatInterval}, {AdoConstants.ColumnTimesTriggered})  VALUES(@{SqlParameters.SchedulerName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.TriggerRepeatCount}, @{SqlParameters.TriggerRepeatInterval}, @{SqlParameters.TriggerTimesTriggered})");
@@ -721,11 +721,11 @@ internal static class StdAdoConstants
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnCalendarName} = @{SqlParameters.CalendarName}");
 
     /// <summary>
-    /// The three columns a <see cref="SchedulerStateRecord" /> is made of. SCHED_NAME is the fourth
+    /// The four columns a <see cref="SchedulerStateRecord" /> is made of. SCHED_NAME is the fifth
     /// column of the table and is not projected: it is the parameter the statement filters on.
     /// </summary>
     private const string SchedulerStateSelectColumns =
-        $"{AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnLastCheckinTime}, {AdoConstants.ColumnCheckinInterval}";
+        $"{AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnLastCheckinTime}, {AdoConstants.ColumnCheckinInterval}, {AdoConstants.ColumnQuartzVersion}";
 
     public static readonly string SqlSelectSchedulerState =
         Invariant($"SELECT {SchedulerStateSelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName}");
@@ -1301,8 +1301,10 @@ internal static class StdAdoConstants
     public static readonly string SqlUpdateJobTriggerStatesFromOtherState =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.OldState}");
 
+    // The version is written with every check-in rather than once: a row an older node wrote and this
+    // node took over under the same instance id would otherwise keep saying NULL for as long as it lived.
     public static readonly string SqlUpdateSchedulerState =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableSchedulerState} SET {AdoConstants.ColumnLastCheckinTime} = @{SqlParameters.LastCheckinTime} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName}");
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableSchedulerState} SET {AdoConstants.ColumnLastCheckinTime} = @{SqlParameters.LastCheckinTime}, {AdoConstants.ColumnQuartzVersion} = @{SqlParameters.QuartzVersion} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName}");
 
     public static readonly string SqlUpdateSimpleTrigger =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableSimpleTriggers} SET {AdoConstants.ColumnRepeatCount} = @{SqlParameters.TriggerRepeatCount}, {AdoConstants.ColumnRepeatInterval} = @{SqlParameters.TriggerRepeatInterval}, {AdoConstants.ColumnTimesTriggered} = @{SqlParameters.TriggerTimesTriggered} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");

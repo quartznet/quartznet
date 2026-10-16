@@ -46,6 +46,7 @@ partial class Build
     const string TableExecutionHistory = "QRTZ_EXECUTION_HISTORY";
     const string TableMisfireHistory = "QRTZ_MISFIRE_HISTORY";
     const string TableJobStatus = "QRTZ_JOB_STATUS";
+    const string TableSchedulerState = "QRTZ_SCHEDULER_STATE";
 
     static readonly string[] Dialects = ["sqlServer", "postgres", "mysql_innodb", "oracle", "sqlite", "firebird"];
 

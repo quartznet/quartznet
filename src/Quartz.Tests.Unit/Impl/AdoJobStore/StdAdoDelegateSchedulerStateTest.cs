@@ -98,6 +98,59 @@ public class StdAdoDelegateSchedulerStateTest
             "SqlSelectSchedulerStates has no instance predicate, so binding one would leave the command a parameter over");
     }
 
+    [Test]
+    public async Task SelectSchedulerStateRecords_ReadsTheVersionEachNodeStamped()
+    {
+        DateTimeOffset checkedIn = new(2026, 10, 16, 12, 0, 0, TimeSpan.Zero);
+        InstallReader(
+            ("node-46", checkedIn, "4.6.0"),
+            ("node-45", checkedIn, null));
+
+        List<SchedulerStateRecord> records = await adoDelegate.SelectSchedulerStateRecords(conn, instanceId: null);
+
+        records.Should().HaveCount(2);
+        records[0].QuartzVersion.Should().Be("4.6.0", "a 4.6 node stamps its row at every check-in");
+        records[1].QuartzVersion.Should().BeNull("a row a node older than 4.6 wrote has no stamp, which is how a peer tells it is older (#4067)");
+        records[0].CheckinTimestamp.Should().Be(checkedIn);
+    }
+
+    [Test]
+    public async Task InsertSchedulerState_BindsTheNodesVersionLast()
+    {
+        command.RowsAffected = 1;
+
+        await adoDelegate.InsertSchedulerState(conn, "node-1", new DateTimeOffset(2026, 10, 16, 12, 0, 0, TimeSpan.Zero), TimeSpan.FromSeconds(7.5));
+
+        BoundValues().Should().HaveCount(5).And.StartWith(["TESTSCHED", "node-1"]);
+        BoundValues()[4].Should().Be(SchedulerNodeVersion.Current,
+            "the row says which Quartz the node runs, in statement order after the interval, for providers that bind positionally");
+    }
+
+    [Test]
+    public async Task UpdateSchedulerState_RestampsTheVersionWithEveryCheckIn()
+    {
+        command.RowsAffected = 1;
+
+        await adoDelegate.UpdateSchedulerState(conn, "node-1", new DateTimeOffset(2026, 10, 16, 12, 0, 0, TimeSpan.Zero));
+
+        BoundValues().Should().HaveCount(4);
+        BoundValues()[1].Should().Be(SchedulerNodeVersion.Current,
+            "written on every check-in, not only the first: a row an older node left under this instance id would otherwise keep saying nothing");
+        BoundValues().Skip(2).Should().Equal(["TESTSCHED", "node-1"], "the key follows the two SET values, in the order the statement names them");
+    }
+
+    private void InstallReader(params (string InstanceId, DateTimeOffset CheckedIn, string? Version)[] rows)
+    {
+        DbDataReader reader = A.Fake<DbDataReader>();
+        int index = -1;
+        A.CallTo(() => reader.ReadAsync(A<CancellationToken>._)).ReturnsLazily(() => Task.FromResult(++index < rows.Length));
+        A.CallTo(() => reader[AdoConstants.ColumnInstanceName]).ReturnsLazily(() => rows[index].InstanceId);
+        A.CallTo(() => reader[AdoConstants.ColumnLastCheckinTime]).ReturnsLazily(() => (object) rows[index].CheckedIn.UtcTicks);
+        A.CallTo(() => reader[AdoConstants.ColumnCheckinInterval]).ReturnsLazily(() => (object) 7500L);
+        A.CallTo(() => reader[AdoConstants.ColumnQuartzVersion]).ReturnsLazily(() => (object?) rows[index].Version ?? DBNull.Value);
+        command.Reader = reader;
+    }
+
     private List<object?> BoundValues()
     {
         List<object?> values = [];

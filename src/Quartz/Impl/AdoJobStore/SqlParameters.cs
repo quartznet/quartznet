@@ -71,6 +71,7 @@ internal static class SqlParameters
     public const string InstanceId = "instanceId";
     public const string LastCheckinTime = "lastCheckinTime";
     public const string CheckinInterval = "checkinInterval";
+    public const string QuartzVersion = "quartzVersion";
 
     /// <summary>Matches the sentinel that asks for an auto-pin nothing has claimed yet.</summary>
     public const string AutoPinSentinel = "autoPinSentinel";

@@ -180,6 +180,7 @@ internal static partial class QuartzTables
         schedulerState.AddColumn("INSTANCE_NAME", "VARCHAR2(200)").NotNull().AsPrimaryKey();
         schedulerState.AddColumn("LAST_CHECKIN_TIME", "NUMBER(19)").NotNull();
         schedulerState.AddColumn("CHECKIN_INTERVAL", "NUMBER(13)").NotNull();
+        schedulerState.AddColumn("QUARTZ_VERSION", "VARCHAR2(20)");
         naming.PrimaryKey(schedulerState, "SCHEDULER_STATE");
         objects.Add(schedulerState);
 

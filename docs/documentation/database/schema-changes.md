@@ -48,9 +48,9 @@ editing.
 | any 3.x | 4.3+ | [4.0](#version-4-0), [4.2](#version-4-2), then [4.3](#version-4-3) — all **mandatory** |
 | 4.0 / 4.1 | 4.2 | [4.2](#version-4-2) — **mandatory** |
 | 4.0 / 4.1 | 4.3+ | [4.2](#version-4-2), then [4.3](#version-4-3) — both **mandatory** |
-| 4.2 | 4.3+ | [4.3](#version-4-3) — **mandatory** |
-| 4.3 | 4.4 | Nothing mandatory. [4.4](#version-4-4) only with `UseExecutionHistory()` |
-| 4.4 / 4.5 | 4.6 | Nothing mandatory. [4.6](#version-4-6) is performance only, for `UseExecutionHistory()` |
+| 4.2 | 4.3+ | [4.3](#version-4-3) — **mandatory**; then [4.6](#version-4-6) for 4.6+ |
+| 4.3 | 4.4 / 4.5 | Nothing mandatory. [4.4](#version-4-4) only with `UseExecutionHistory()` |
+| 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version column **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()` |
 
 ## Upgrading to 4.x is mandatory
 
@@ -676,11 +676,48 @@ that has the key keeps it, and nothing depends on it.
 
 ## Version 4.6
 
-One script, optional and performance only ([#4072](https://github.com/quartznet/quartznet/issues/4072)).
+Two scripts: one mandatory ([#4067](https://github.com/quartznet/quartznet/issues/4067)), one optional and performance only
+([#4072](https://github.com/quartznet/quartznet/issues/4072)). 4.5 changed no schema.
 
 | Script | Status | Adds |
 |---|---|---|
+| [`migrations/4.6/add_scheduler_version_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6) | **Mandatory** for 4.6 and later | `QUARTZ_VERSION` on `QRTZ_SCHEDULER_STATE` |
 | [`migrations/4.6/add_execution_history_lookup_indexes_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6) | Optional: performance only | `IDX_QRTZ_EH_FIRE_INST` and `IDX_QRTZ_EH_TRIG_TIME` on `QRTZ_EXECUTION_HISTORY` |
+
+### The version column
+
+`QUARTZ_VERSION` is the Quartz version the node runs, as `major.minor.patch` (`4.6.0`), written with
+`LAST_CHECKIN_TIME` at every check-in.
+
+| Value | Meaning |
+|---|---|
+| `NULL` | A node older than 4.6, which never writes the column |
+| `4.6.0` or later | A node whose misfire and edit writes are held to the row they read |
+
+- Nullable, no default, `VARCHAR(20)` on every dialect (`nvarchar(20)` on SQL Server, `VARCHAR2(20)` on
+  Oracle). A prerelease tag is not stored.
+- A 4.6 node fires a round of triggers whose jobs allow concurrent execution **without** the cluster's
+  `TRIGGER_ACCESS` lock, but only while every live row of this table carries 4.6 or later. See
+  [Lock-free firing rounds](../quartz-4.x/operations.md#lock-free-firing-rounds).
+- No index. The column is read with the row the check-in already reads.
+- A 4.6 node refuses to start without it; the startup check names the column and the script.
+
+### Rolling 4.5 → 4.6
+
+Run the version script while 4.5 nodes are still up. The column is nullable with no default, and a 4.5
+node never names it: its row reads `NULL`.
+
+| While | A 4.6 node |
+|---|---|
+| Any live row is `NULL`, below 4.6 or unreadable | Takes `TRIGGER_ACCESS` for every firing round, and logs event 3517 once |
+| Every live row is 4.6 or later | Fires rounds of concurrent-allowed work without the lock, and logs event 3518 once |
+
+A row past its check-in failure threshold is a node about to be recovered and does not count. Nothing
+needs configuring for the rollout: roll every node, and each 4.6 node switches on its next check-in after
+the last 4.5 row ages out. A node downgraded under the same instance id does not keep a 4.6 stamp: its
+first check-in recovers and deletes its own earlier row before it inserts a fresh one.
+
+### The history lookup indexes
 
 | Index | Columns | Serves |
 |---|---|---|
@@ -695,7 +732,7 @@ One script, optional and performance only ([#4072](https://github.com/quartznet/
   its columns.
 - Safe under a mixed cluster: an index changes plans, not results.
 
-A fresh install from `database/tables/`, and `ProvisionSchema()`, create both.
+A fresh install from `database/tables/`, and `ProvisionSchema()`, create the column and both indexes.
 
 ## See also
 
