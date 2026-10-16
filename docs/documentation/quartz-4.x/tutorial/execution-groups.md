@@ -603,12 +603,12 @@ either the groups it serves or the groups it refuses, and acquires nothing else.
 | `Scheduler:ServedExecutionGroups` | `quartz.scheduler.servedExecutionGroups` | This node acquires these groups and nothing else. Empty: every group not refused |
 | `Scheduler:RefusedExecutionGroups` | `quartz.scheduler.refusedExecutionGroups` | This node never acquires these groups. Empty: refuses none |
 
-- Set one list, never both. Both set fails at startup.
-- An entry is a group name, or `_` (or `null`) for triggers with no execution group — the spelling a
+* Set one list, never both. Both set fails at startup.
+* An entry is a group name, or `_` (or `null`) for triggers with no execution group — the spelling a
   limit's key uses. A serve-list that omits `_` does not serve ungrouped triggers; a refuse-list that omits
   it does.
-- The flat key is comma-separated. No wildcard, no prefix: `*` and `tenant:*` are refused at startup.
-- At most 1,000 groups per list. Names are compared ordinally in memory and by the `EXECUTION_GROUP`
+* The flat key is comma-separated. No wildcard, no prefix: `*` and `tenant:*` are refused at startup.
+* At most 1,000 groups per list. Names are compared ordinally in memory and by the `EXECUTION_GROUP`
   column's collation in SQL.
 
 <!-- snippet: sample_execution_groups_serve -->
@@ -663,20 +663,20 @@ about one threshold, so a `WAITING` trigger three thresholds late has had no ser
 
 ### Limitations
 
-- **An in-memory store is one node.** A refused group there never runs; event 1093 says so. Every
+* **An in-memory store is one node.** A refused group there never runs; event 1093 says so. Every
   acquisition round still walks the due triggers it refuses.
-- **`UseTriggerGroupWhenUnset` is a limits rule, not a routing rule.** Routing reads the stored execution
+* **`UseTriggerGroupWhenUnset` is a limits rule, not a routing rule.** Routing reads the stored execution
   group only. Tag the triggers, or route by `_`.
-- **A trigger pinned to a node that refuses its group waits while that node is live.** Both predicates
+* **A trigger pinned to a node that refuses its group waits while that node is live.** Both predicates
   apply. That node's health check reports it. See
   [Node affinity](node-affinity.md#requirements-and-limitations).
-- **Mixed 4.5 and 4.6 nodes.** A 4.5 node serves every group and sweeps every misfire, so refusing a
+* **Mixed 4.5 and 4.6 nodes.** A 4.5 node serves every group and sweeps every misfire, so refusing a
   group on the 4.6 nodes does not keep a 4.5 node off it. See
   [Rolling 4.5 to 4.6](../operations.md#rolling-4-5-to-4-6).
-- **No index.** The clause is a residual on the rows `IDX_QRTZ_T_NFT_ST` already returns, as the
+* **No index.** The clause is a residual on the rows `IDX_QRTZ_T_NFT_ST` already returns, as the
   node-affinity clause is. Measure before adding one: an index leading with `EXECUTION_GROUP` loses the
   ordered seek for every node that routes nothing.
-- **Custom job stores** see the lists as `TriggerAcquisitionRequest.ServedExecutionGroups` and
+* **Custom job stores** see the lists as `TriggerAcquisitionRequest.ServedExecutionGroups` and
   `RefusedExecutionGroups`, and honour them or not; a custom `IDriverDelegate` answers
   `FiltersAcquisitionExecutionGroups` or the store filters the candidates for it. Changing the lists at
   runtime is not supported: restart the node.
