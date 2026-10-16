@@ -1,6 +1,9 @@
 using System.Collections.Concurrent;
 using System.Collections.Specialized;
+using System.Diagnostics.Metrics;
 using System.Globalization;
+
+using Quartz.Diagnostics;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
@@ -36,7 +39,9 @@ public abstract class ClusteredExactlyOnceTestBase : ClusteredJobStoreTestBase
 
     /// <summary>
     /// The property the clustered job store exists to provide: two nodes, one set of triggers, every
-    /// trigger fired exactly once.
+    /// trigger fired exactly once. With the shipped defaults, so since 4.6 the rounds that race for these
+    /// rows take no <c>TRIGGER_ACCESS</c> lock (#4067) — the claim's compare-and-swap is then all that keeps
+    /// the two nodes apart — except on SQL Server, whose rounds are 4.5's in this release (#4117).
     /// </summary>
     [Test]
     public Task TwoNodes_EveryOneShotTriggerFiresExactlyOnce()
@@ -45,13 +50,33 @@ public abstract class ClusteredExactlyOnceTestBase : ClusteredJobStoreTestBase
     }
 
     /// <summary>
+    /// The same race with 4.5's rounds, every one under the lock, which <c>LockFreeFiringRounds = false</c>
+    /// restores: the arm an operator falls back to keeps the property too.
+    /// </summary>
+    [Test]
+    public Task TwoNodes_EveryOneShotTriggerFiresExactlyOnceWithEveryRoundLocked()
+    {
+        return AssertNoDoubleFire(
+            configure: properties => properties["quartz.jobStore.lockFreeFiringRounds"] = "false",
+            lockedFor: "option_off");
+    }
+
+    /// <summary>
     /// Starts two contending nodes, schedules thirty one-shot triggers due at the same instant, and
     /// asserts each fired exactly once. Both nodes acquire in batches so they genuinely reach for
     /// overlapping sets of rows rather than politely taking turns, which is the only arrangement in
     /// which a broken lock or a lost <c>WHERE TRIGGER_STATE = 'WAITING'</c> guard shows up at all.
     /// </summary>
-    protected async Task AssertNoDoubleFire(Action<NameValueCollection> configure)
+    /// <param name="configure">Adjusts each node's flat properties.</param>
+    /// <param name="lockedFor">
+    /// The reason every round is expected to take the lock for, as the acquisition instruments tag it, or
+    /// <see langword="null" /> for the shipped expectation: rounds without the lock, and on SQL Server every
+    /// round locked for <c>sql_server</c>.
+    /// </param>
+    protected async Task AssertNoDoubleFire(Action<NameValueCollection> configure, string lockedFor = null)
     {
+        lockedFor ??= Database.AllowsLockFreeRounds ? null : "sql_server";
+
         const int TriggerCount = 30;
 
         void ConfigureNode(NameValueCollection properties)
@@ -63,6 +88,9 @@ public abstract class ClusteredExactlyOnceTestBase : ClusteredJobStoreTestBase
             properties["quartz.threadPool.maxConcurrency"] = "10";
             configure?.Invoke(properties);
         }
+
+        // Both nodes are in this process, so one listener sees every round either runs.
+        using RoundLockRecorder rounds = new();
 
         IScheduler nodeA = await CreateScheduler("nodeA", configure: ConfigureNode);
         IScheduler nodeB = await CreateScheduler("nodeB", configure: ConfigureNode);
@@ -110,15 +138,106 @@ public abstract class ClusteredExactlyOnceTestBase : ClusteredJobStoreTestBase
                 .GroupBy(x => x.InstanceId)
                 .OrderBy(x => x.Key, StringComparer.Ordinal)
                 .Select(x => $"{x.Key}={x.Count()}")));
+            TestContext.Out.WriteLine("Rounds by lock: " + rounds.Describe());
 
             FiredTriggerNames().Should().BeEquivalentTo(expected,
                 "a clustered store hands each one-shot trigger to exactly one node — a repeated name means "
                 + "two nodes acquired the same row, and a missing one means a row was acquired and dropped");
+
+            if (lockedFor is null)
+            {
+                rounds.LockFree.Should().BeGreaterThan(0,
+                    "a round of concurrent-allowed one-shots takes no lock once both nodes have checked in, so a run "
+                    + "in which no round said so never exercised the lock-free path (rounds by lock: {0})", rounds.Describe());
+            }
+            else
+            {
+                rounds.LockFree.Should().Be(0, "every round is locked, for {0} (rounds by lock: {1})", lockedFor, rounds.Describe());
+                rounds.Locked.Should().BeGreaterThan(0);
+                rounds.LockedFor(lockedFor).Should().Be(rounds.Locked,
+                    "the reason is the store's configuration, so every round gives it (rounds by lock: {0})", rounds.Describe());
+            }
         }
         finally
         {
             await nodeA.Shutdown(waitForJobsToComplete: false);
             await nodeB.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// Counts the firing rounds every node in this process runs, by the lock each said it ran under
+    /// (#4067): the <c>quartz.jobstore.lock</c> attribute on <c>quartz.trigger.acquisition.duration</c>,
+    /// and the reason for a locked one.
+    /// </summary>
+    protected sealed class RoundLockRecorder : IDisposable
+    {
+        private readonly MeterListener listener = new();
+        private readonly ConcurrentDictionary<string, int> reasons = new(StringComparer.Ordinal);
+        private int lockFree;
+        private int locked;
+        private int untagged;
+
+        public RoundLockRecorder()
+        {
+            listener.InstrumentPublished = (instrument, meterListener) =>
+            {
+                if (instrument.Meter.Name == QuartzInstrumentation.MeterName
+                    && instrument.Name == QuartzInstrumentation.Instruments.TriggerAcquisitionDuration)
+                {
+                    meterListener.EnableMeasurementEvents(instrument);
+                }
+            };
+            listener.SetMeasurementEventCallback<double>(OnRound);
+            listener.Start();
+        }
+
+        public int LockFree => Volatile.Read(ref lockFree);
+
+        public int Locked => Volatile.Read(ref locked);
+
+        /// <summary>How many rounds took the lock for <paramref name="reason" />, as the reason tag spells it.</summary>
+        public int LockedFor(string reason) => reasons.TryGetValue(reason, out int count) ? count : 0;
+
+        public string Describe()
+        {
+            string byReason = reasons.Count == 0
+                ? ""
+                : " (" + string.Join(", ", reasons.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => $"{x.Key}={x.Value}")) + ")";
+            return $"none={LockFree}, TRIGGER_ACCESS={Locked}{byReason}, untagged={Volatile.Read(ref untagged)}";
+        }
+
+        public void Dispose() => listener.Dispose();
+
+        private void OnRound(Instrument instrument, double value, ReadOnlySpan<KeyValuePair<string, object>> tags, object state)
+        {
+            string lockName = null;
+            string reason = null;
+            foreach (KeyValuePair<string, object> tag in tags)
+            {
+                if (tag.Key == ActivityTags.JobStoreLock)
+                {
+                    lockName = tag.Value as string;
+                }
+                else if (tag.Key == ActivityTags.JobStoreLockReason)
+                {
+                    reason = tag.Value as string;
+                }
+            }
+
+            switch (lockName)
+            {
+                case "none":
+                    Interlocked.Increment(ref lockFree);
+                    break;
+                case "TRIGGER_ACCESS":
+                    Interlocked.Increment(ref locked);
+                    reasons.AddOrUpdate(reason ?? "unknown", 1, static (_, count) => count + 1);
+                    break;
+                default:
+                    Interlocked.Increment(ref untagged);
+                    break;
+            }
         }
     }
 

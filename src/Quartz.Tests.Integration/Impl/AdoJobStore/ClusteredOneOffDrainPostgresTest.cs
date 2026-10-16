@@ -17,7 +17,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <summary>
 /// The gate a clustered store's automatic <c>MaxBatchSize</c> passed before it tracked the pool (#3862,
 /// #3900): two and four nodes draining two thousand one-offs due at one instant, one trigger a round
-/// against the automatic default, and what the cluster-wide lock does to that.
+/// against the automatic default, and what the cluster-wide lock does to that. Since 4.6 also the gate
+/// of the round that takes no lock (#4067): the same drain with the shipped rounds against 4.5's locked
+/// ones, at two and at four nodes.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -43,15 +45,22 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// first.
 /// </para>
 /// <para>
-/// <b>Why one trigger a round is lock-free and the pool is not.</b> The ADO store takes
-/// <c>TRIGGER_ACCESS</c> for an acquisition that asks for more than one trigger, or when
-/// <c>AcquireTriggersWithinLock</c> is on, which it is not by default. So the batched arm buys fewer
-/// rounds and pays the cluster-wide row lock for each, and whether that nets out is the question.
+/// <b>Why one trigger a round was lock-free and the pool was not.</b> Through 4.5 the ADO store took
+/// <c>TRIGGER_ACCESS</c> for an acquisition that asked for more than one trigger, or when
+/// <c>AcquireTriggersWithinLock</c> was on. So the batched arm bought fewer rounds and paid the
+/// cluster-wide row lock for each, and whether that netted out was #3862's question. Those two arms run
+/// with <c>LockFreeFiringRounds</c> off, which is that shape on 4.6's code.
 /// </para>
 /// <para>
-/// <b>The batched arm sets nothing.</b> It is the automatic default, so the gate measures what ships,
-/// and it asserts that each node resolved that default to the pool and acquired more than one trigger a
-/// round.
+/// <b>What #4067's arm asks.</b> With the shipped defaults a round of one-offs takes no lock at all, so
+/// the nodes fire side by side instead of one at a time. The gate is that the lock-free drain is at
+/// least as fast as the locked one at two nodes and at four, and that four nodes drain no slower than
+/// two within noise; the report says the four-to-two ratio either way.
+/// </para>
+/// <para>
+/// <b>The batched arms set nothing but the option.</b> The automatic default is what ships, so the gate
+/// measures it, and asserts that each node resolved that default to the pool and acquired more than one
+/// trigger a round.
 /// </para>
 /// <para>
 /// All nodes are in this process, as in <see cref="ClusteredSoakTestBase" />: they share a thread pool and
@@ -87,10 +96,11 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
         List<Arm> arms = [];
         foreach (int nodes in (int[]) [2, 4])
         {
-            // One is 4.2's behaviour, set explicitly; null sets nothing, which is what ships.
-            foreach (int? batch in (int?[]) [1, null])
+            // One is 4.2's behaviour, set explicitly, and the automatic default with every round locked is
+            // 4.5's; both run with lock-free rounds off. The last arm sets nothing, which is what ships.
+            foreach ((int? batch, bool lockFree) in (IEnumerable<(int?, bool)>) [(1, false), (null, false), (null, true)])
             {
-                arms.Add(await Drain(nodes, batch));
+                arms.Add(await Drain(nodes, batch, lockFree));
                 await CleanUpDatabaseState();
             }
         }
@@ -123,7 +133,8 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
 
     /// <param name="nodeCount">How many nodes drain the backlog.</param>
     /// <param name="configuredBatchSize">The <c>MaxBatchSize</c> to set, or <see langword="null" /> to set nothing.</param>
-    private async Task<Arm> Drain(int nodeCount, int? configuredBatchSize)
+    /// <param name="lockFreeRounds">Whether the rounds take the lock only when something in them needs it, which is what ships, or every round is locked, as 4.5's were.</param>
+    private async Task<Arm> Drain(int nodeCount, int? configuredBatchSize, bool lockFreeRounds)
     {
         DrainJob.Reset();
 
@@ -133,6 +144,11 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
             if (configuredBatchSize is int explicitBatchSize)
             {
                 properties["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = explicitBatchSize.ToString(CultureInfo.InvariantCulture);
+            }
+
+            if (!lockFreeRounds)
+            {
+                properties["quartz.jobStore.lockFreeFiringRounds"] = "false";
             }
 
             // The backlog is older than the default minute by the end of a slow drain, and a trigger past
@@ -231,10 +247,22 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
                     + "starts with more than one thread free takes more than one trigger");
             }
 
+            if (lockFreeRounds)
+            {
+                waits.RoundsLockFree.Should().BeGreaterThan(0,
+                    "with the shipped defaults a round of concurrent-allowed one-offs takes no lock once every node has checked in, "
+                    + "so an arm in which no round said so never ran the path the gate is about");
+            }
+            else
+            {
+                waits.RoundsLockFree.Should().Be(0, "with LockFreeFiringRounds off every round is locked");
+            }
+
             return new Arm(
                 nodeCount,
                 maxBatchSize,
                 configuredBatchSize is null,
+                lockFreeRounds,
                 drain,
                 DrainJob.PerNode.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal),
                 waits,
@@ -319,8 +347,8 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
         StringBuilder report = new();
         report.AppendLine(CultureInfo.InvariantCulture, $"Clustered one-off drain, {Firings} due at one instant, pool {PoolSize} a node, PostgreSQL with {durability}.");
         report.AppendLine();
-        report.AppendLine("| Nodes | MaxBatchSize | Drain (s) | Firings/s | Share per node | TRIGGER_ACCESS waits | p50 (ms) | p99 (ms) | Max (ms) | Rounds | Triggers/round | Commits/firing |");
-        report.AppendLine("|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|");
+        report.AppendLine("| Nodes | MaxBatchSize | Rounds | Drain (s) | Firings/s | Share per node | TRIGGER_ACCESS waits | p50 (ms) | p99 (ms) | Max (ms) | Rounds | Lock-free | Locked | Triggers/round | Commits/firing |");
+        report.AppendLine("|---:|---:|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
 
         foreach (Arm arm in arms)
         {
@@ -334,18 +362,46 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
                 : arm.MaxBatchSize.ToString(CultureInfo.InvariantCulture);
 
             report.AppendLine(CultureInfo.InvariantCulture,
-                $"| {arm.Nodes} | {batch} | {arm.Drain.TotalSeconds:F2} | {arm.FiringsPerSecond:F1} | {shares} | "
+                $"| {arm.Nodes} | {batch} | {(arm.LockFree ? "lock-free (4.6)" : "locked (4.5)")} | {arm.Drain.TotalSeconds:F2} | {arm.FiringsPerSecond:F1} | {shares} | "
                 + $"{waits.TriggerAccess.Count:N0} | {waits.Percentile(50):F1} | {waits.Percentile(99):F1} | {waits.Max:F1} | "
-                + $"{waits.Rounds:N0} | {waits.TriggersPerRound:F2} | {(double) arm.Commits / Firings:F2} |");
+                + $"{waits.Rounds:N0} | {waits.RoundsLockFree:N0} | {waits.RoundsLocked:N0} | {waits.TriggersPerRound:F2} | {(double) arm.Commits / Firings:F2} |");
         }
 
         report.AppendLine();
-        report.AppendLine("Verdict against #3862's gate:");
+        report.AppendLine("Verdict against #4067's gate (the shipped rounds against 4.5's, automatic MaxBatchSize):");
+
+        Arm twoLockFree = arms.Single(x => x.Nodes == 2 && x.Automatic && x.LockFree);
+        Arm twoLocked = arms.Single(x => x.Nodes == 2 && x.Automatic && !x.LockFree);
+        Arm fourLockFree = arms.Single(x => x.Nodes == 4 && x.Automatic && x.LockFree);
+        Arm fourLocked = arms.Single(x => x.Nodes == 4 && x.Automatic && !x.LockFree);
+
+        double twoLockFreeRatio = twoLockFree.FiringsPerSecond / twoLocked.FiringsPerSecond;
+        double fourLockFreeRatio = fourLockFree.FiringsPerSecond / fourLocked.FiringsPerSecond;
+        double fourToTwo = fourLockFree.FiringsPerSecond / twoLockFree.FiringsPerSecond;
+        double fourToTwoLocked = fourLocked.FiringsPerSecond / twoLocked.FiringsPerSecond;
+
+        bool twoLockFreePasses = twoLockFreeRatio >= 1.0;
+        bool fourLockFreePasses = fourLockFreeRatio >= 1.0;
+        bool scalesPasses = fourToTwo >= 0.9;
+
+        report.AppendLine("| Criterion | Measured | Pass |");
+        report.AppendLine("|---|---:|---|");
+        report.AppendLine(CultureInfo.InvariantCulture, $"| 2 nodes, lock-free / locked >= 1.0x | {twoLockFreeRatio:F2}x | {(twoLockFreePasses ? "yes" : "no")} |");
+        report.AppendLine(CultureInfo.InvariantCulture, $"| 4 nodes, lock-free / locked >= 1.0x | {fourLockFreeRatio:F2}x | {(fourLockFreePasses ? "yes" : "no")} |");
+        report.AppendLine(CultureInfo.InvariantCulture, $"| 4 nodes / 2 nodes, lock-free, >= 0.9x (within noise) | {fourToTwo:F2}x | {(scalesPasses ? "yes" : "no")} |");
+        report.AppendLine(CultureInfo.InvariantCulture, $"| 4 nodes / 2 nodes, locked, for comparison | {fourToTwoLocked:F2}x | — |");
+        report.AppendLine();
+        report.AppendLine(twoLockFreePasses && fourLockFreePasses && scalesPasses
+            ? "PASS: a round that takes no lock drains at least as fast as a locked one, and four nodes are no slower than two."
+            : "FAIL: the lock-free round is slower than the locked one, or four nodes are slower than two; see the per-arm rows.");
+
+        report.AppendLine();
+        report.AppendLine("Verdict against #3862's gate (every round locked, as on 4.5):");
 
         Arm two1 = arms.Single(x => x.Nodes == 2 && !x.Automatic);
-        Arm twoDefault = arms.Single(x => x.Nodes == 2 && x.Automatic);
+        Arm twoDefault = twoLocked;
         Arm four1 = arms.Single(x => x.Nodes == 4 && !x.Automatic);
-        Arm fourDefault = arms.Single(x => x.Nodes == 4 && x.Automatic);
+        Arm fourDefault = fourLocked;
 
         double twoRatio = twoDefault.FiringsPerSecond / two1.FiringsPerSecond;
         double fourRatio = fourDefault.FiringsPerSecond / four1.FiringsPerSecond;
@@ -378,6 +434,7 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
     /// <param name="Nodes">How many nodes drained the backlog.</param>
     /// <param name="MaxBatchSize">What each node's <c>MaxBatchSize</c> resolved to.</param>
     /// <param name="Automatic">Whether that was the automatic default rather than a value the arm set.</param>
+    /// <param name="LockFree">Whether the rounds took the lock only when something in them needed it (4.6) or every round was locked (4.5).</param>
     /// <param name="Drain">From the instant the backlog was due to the start of its last firing.</param>
     /// <param name="PerNode">Firings by node.</param>
     /// <param name="Waits">What the store's instruments said while it drained.</param>
@@ -386,6 +443,7 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
         int Nodes,
         int MaxBatchSize,
         bool Automatic,
+        bool LockFree,
         TimeSpan Drain,
         Dictionary<string, int> PerNode,
         LockWaits Waits,
@@ -394,7 +452,12 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
         public double FiringsPerSecond => Firings / Drain.TotalSeconds;
     }
 
-    private sealed record LockWaits(List<double> TriggerAccess, long Rounds, long Acquired)
+    /// <param name="TriggerAccess">Every wait on <c>TRIGGER_ACCESS</c>, in milliseconds.</param>
+    /// <param name="Rounds">How many firing rounds the nodes ran.</param>
+    /// <param name="RoundsLockFree">Of those, how many said they took no lock.</param>
+    /// <param name="RoundsLocked">Of those, how many said they took <c>TRIGGER_ACCESS</c>.</param>
+    /// <param name="Acquired">How many triggers the rounds came back with.</param>
+    private sealed record LockWaits(List<double> TriggerAccess, long Rounds, long RoundsLockFree, long RoundsLocked, long Acquired)
     {
         public double Max => TriggerAccess.Count == 0 ? 0 : TriggerAccess.Max();
 
@@ -423,6 +486,8 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
         private readonly object sync = new();
         private List<double> triggerAccess = [];
         private long rounds;
+        private long roundsLockFree;
+        private long roundsLocked;
         private long acquired;
 
         public LockWaitRecorder()
@@ -449,6 +514,8 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
             {
                 triggerAccess = [];
                 rounds = 0;
+                roundsLockFree = 0;
+                roundsLocked = 0;
                 acquired = 0;
             }
         }
@@ -457,7 +524,7 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
         {
             lock (sync)
             {
-                return new LockWaits([.. triggerAccess], rounds, acquired);
+                return new LockWaits([.. triggerAccess], rounds, roundsLockFree, roundsLocked, acquired);
             }
         }
 
@@ -468,6 +535,23 @@ public sealed class ClusteredOneOffDrainPostgresTest : ClusteredPostgresTestBase
             if (instrument.Name == QuartzInstrumentation.Instruments.TriggerAcquisitionDuration)
             {
                 Interlocked.Increment(ref rounds);
+
+                // The lock the round said it ran under (#4067).
+                foreach (KeyValuePair<string, object> tag in tags)
+                {
+                    if (tag.Key == ActivityTags.JobStoreLock)
+                    {
+                        if ("none".Equals(tag.Value as string, StringComparison.Ordinal))
+                        {
+                            Interlocked.Increment(ref roundsLockFree);
+                        }
+                        else if ("TRIGGER_ACCESS".Equals(tag.Value as string, StringComparison.Ordinal))
+                        {
+                            Interlocked.Increment(ref roundsLocked);
+                        }
+                    }
+                }
+
                 return;
             }
 

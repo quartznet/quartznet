@@ -37,6 +37,7 @@ internal sealed class NodeOptions
         --runs-table         the table every job execution is recorded in
         --log-level          the least level written to standard error (default Warning)
         --history            keep the execution history in the database (UseExecutionHistory())
+        --lock-free          true or false: AdoJobStoreOptions.LockFreeFiringRounds, on the working tree only (default true)
         """;
 
     private static readonly Regex Identifier = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant);
@@ -61,6 +62,13 @@ internal sealed class NodeOptions
     /// <c>UsePersistentStore(store =&gt; store.UseExecutionHistory())</c> does.
     /// </summary>
     public bool History { get; init; }
+
+    /// <summary>
+    /// Whether a firing round takes <c>TRIGGER_ACCESS</c> only when something in it needs the lock
+    /// (<c>AdoJobStoreOptions.LockFreeFiringRounds</c>, #4067). Read by the working-tree build alone: a
+    /// released node has no such option and runs its own rounds.
+    /// </summary>
+    public bool LockFreeRounds { get; init; } = true;
 
     public static NodeOptions Parse(string[] args)
     {
@@ -97,7 +105,8 @@ internal sealed class NodeOptions
             TablePrefix = Required("table-prefix"),
             RunsTable = Required("runs-table"),
             LogLevel = values.TryGetValue("log-level", out string? level) ? Enum.Parse<LogLevel>(level, ignoreCase: true) : LogLevel.Warning,
-            History = values.ContainsKey("history")
+            History = values.ContainsKey("history"),
+            LockFreeRounds = !values.TryGetValue("lock-free", out string? lockFree) || bool.Parse(lockFree)
         };
 
         // Both names are written into SQL text, so they are held to what an unquoted identifier may be.

@@ -102,6 +102,7 @@ internal static class OneOffCensus
         }
 
         Console.WriteLine(RoundTripLatency.Describe());
+        Console.WriteLine(LockFreeRoundsArm.Describe());
         Console.WriteLine();
 
         List<string> tables = [];
@@ -145,6 +146,7 @@ internal static class OneOffCensus
                 store.UsePostgres(connectionString);
                 store.UseSystemTextJsonSerializer();
                 RoundTripLatency.Inject(store, database.ProviderName, connectionString);
+                LockFreeRoundsArm.Apply(store);
 
                 if (executionHistory)
                 {

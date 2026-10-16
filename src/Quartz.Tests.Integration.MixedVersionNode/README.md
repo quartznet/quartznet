@@ -9,7 +9,7 @@ other:
 | Build | Quartz | Output |
 |---|---|---|
 | default | the working tree | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode/<config>/` |
-| `-p:ReleasedQuartzVersion=4.3.0` | that version from nuget.org | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode.4.3.0/<config>/` |
+| `-p:ReleasedQuartzVersion=4.5.1` | that version from nuget.org | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode.4.5.1/<config>/` |
 
 Building the default builds the released one too, so a solution build, `dotnet fallout Compile` and
 `dotnet build src/Quartz.Tests.Integration` all leave both where the test looks.
@@ -24,7 +24,9 @@ Building the default builds the released one too, so a solution build, `dotnet f
 --runs-table         the table each job execution is written to; the test creates it
 --log-level          the least level written to standard error (default Warning)
 --history            keep the execution history in the database (UseExecutionHistory())
+--lock-free          true or false: AdoJobStoreOptions.LockFreeFiringRounds, on the working tree only (default true)
 ```
 
 `Protocol.cs` describes the command format and `Node.cs` lists the commands. Only the working tree reports
-a run's outcome (`JobRunReport`) and a firing's progress.
+a run's outcome (`JobRunReport`) and a firing's progress. `round-locks` answers how many firing rounds the
+node ran with no lock, under `TRIGGER_ACCESS`, and without saying (an older node).

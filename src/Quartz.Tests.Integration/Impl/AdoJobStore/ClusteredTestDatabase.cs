@@ -125,6 +125,12 @@ public abstract class ClusteredTestDatabase
     /// </summary>
     public abstract DbConnection CreateConnection();
 
+    /// <summary>
+    /// Whether a firing round of concurrent-allowed work on this database takes no lock (#4067): true but on
+    /// SQL Server, whose rounds are 4.5's in this release (#4117).
+    /// </summary>
+    public virtual bool AllowsLockFreeRounds => true;
+
     public override string ToString() => Provider;
 
     private sealed class PostgresTestDatabase : ClusteredTestDatabase
@@ -151,6 +157,8 @@ public abstract class ClusteredTestDatabase
         public override IDriverDelegate CreateDriverDelegate() => new SqlServerDelegate();
 
         public override DbConnection CreateConnection() => new SqlConnection(ConnectionString);
+
+        public override bool AllowsLockFreeRounds => false;
     }
 
     private sealed class MySqlTestDatabase : ClusteredTestDatabase

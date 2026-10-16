@@ -1861,3 +1861,84 @@ dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*FireThroughpu
 
 Each on `c782267ff` and on the change, alternating sittings, on a `postgres:15.1` container at its shipped
 durability with `pg_stat_statements` loaded.
+
+## What #4067 changed (2026-10-16)
+
+A firing round takes `TRIGGER_ACCESS` only when something in it needs the lock. A round of triggers whose
+jobs allow concurrent execution claims each row with a compare-and-swap on the fire time its candidate read
+carried, reads the claimed rows back in the same transaction, fires, and commits — no cluster-wide lock, so
+the nodes of a cluster fire side by side where they queued on one row of `QRTZ_LOCKS`. A serial job, a
+`Skip`, `BufferOne` or `CancelPrevious` trigger, or a cluster-scoped limit among the candidates sends the
+round to the locked path, which is the round as #4066 left it; a live node older than 4.6 keeps every round
+locked. The misfire handler and the trigger editors hold their writes to the row they read, which is what
+the lock used to do for a fired row. `LockFreeFiringRounds = false` restores 4.5's rounds, and SQL Server
+keeps them in this release (#4117), so its soak is a regression check against the base.
+
+Nothing about one round got cheaper: the lock-free round makes the statements the locked round made, in a
+different order — the claim before the read where the locked round reads before it claims. What changes is
+how many rounds a cluster runs at once, so the single-node benchmarks are a regression check and the
+clustered drain is the measurement.
+
+### What to measure
+
+Each arm on `3228fb2c2` (the base) and on the change, alternating sittings, on a `postgres:15.1` container
+at its shipped durability with `pg_stat_statements` loaded. `QUARTZ_BENCHMARK_LOCK_FREE_ROUNDS=false` is
+4.5's round shape on 4.6's code, for the `Quartz.Benchmark` arms; the drain and the exactly-once suite carry
+an arm of their own, and `Quartz.Benchmark.Competitors` has none, so its arm is the change against the base.
+
+```powershell
+$env:PG_CONNECTION_STRING = 'Host=localhost;Port=55432;Database=quartznet;Username=quartznet;Password=quartznet'
+$env:QUARTZ_BENCHMARK_POSTGRES = $env:PG_CONNECTION_STRING
+
+# the clustered drain: 2,000 one-offs due at once, 2 and 4 nodes, pool 10 a node; MaxBatchSize 1 and the
+# automatic batch with lock-free rounds off (4.5's shapes), then the shipped rounds; the report carries #4067's verdict
+$env:QUARTZ_TEST_DATABASE = 'basic'
+dotnet test --project src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj --filter 'FullyQualifiedName~ClusteredOneOffDrainPostgresTest' --output Detailed
+
+# statements per firing at the database, the shipped rounds against 4.5's
+dotnet run -c Release --project src/Quartz.Benchmark -- --one-off-census
+$env:QUARTZ_BENCHMARK_LOCK_FREE_ROUNDS = 'false'
+dotnet run -c Release --project src/Quartz.Benchmark -- --one-off-census
+Remove-Item Env:QUARTZ_BENCHMARK_LOCK_FREE_ROUNDS
+
+# punctuality on the ADO store: a hundred schedules firing every second, then twenty (S4 on PostgreSQL), against the base
+dotnet run -c Release --project src/Quartz.Benchmark.Competitors -- --recurring-postgres
+
+# the single-node fire path, plain and [DisallowConcurrentExecution], against the base
+dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*FireThroughputPostgres*'
+
+# the soaks, PostgreSQL and SQL Server, thirty minutes each, each on its own Testcontainers database
+$env:QUARTZ_SOAK_MINUTES = '30'
+$env:QUARTZ_TEST_DATABASE = 'postgres'
+dotnet test --project src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj --filter 'FullyQualifiedName~ClusteredSoakPostgresTest' --output Detailed
+$env:QUARTZ_TEST_DATABASE = 'sqlserver'
+dotnet test --project src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj --filter 'FullyQualifiedName~ClusteredSoakSqlServerTest' --output Detailed
+```
+
+Gates: the lock-free drain at least as fast as the locked one at two nodes and at four; four nodes no
+slower than two, within noise, with the four-to-two ratio reported either way.
+
+### The clustered drain
+
+_To be filled from the drain's report: firings a second, `TRIGGER_ACCESS` waits and lock-free rounds per
+arm, at two and at four nodes, lock-free against locked, and the four-to-two ratio._
+
+| Nodes | Rounds | Firings/s | TRIGGER_ACCESS waits | p99 (ms) | Lock-free rounds | Locked rounds |
+|---:|---|---:|---:|---:|---:|---:|
+| 2 | locked (4.5) | _tbd_ | _tbd_ | _tbd_ | 0 | _tbd_ |
+| 2 | lock-free (4.6) | _tbd_ | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
+| 4 | locked (4.5) | _tbd_ | _tbd_ | _tbd_ | 0 | _tbd_ |
+| 4 | lock-free (4.6) | _tbd_ | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
+
+### Statements per firing
+
+_To be filled from `--one-off-census`, the shipped rounds against `QUARTZ_BENCHMARK_LOCK_FREE_ROUNDS=false`:
+commits and statements per firing. The expectation is the same count on both sides, the lock's
+`SELECT … FOR UPDATE` apart, since the lock-free round reorders the locked round's statements rather than
+removing any._
+
+### Single node
+
+_To be filled from `FireThroughputPostgres` and `--recurring-postgres` against `3228fb2c2`: the plain and the
+`[DisallowConcurrentExecution]` arms, and punctuality at a hundred schedules firing every second and at twenty. The
+expectation is no movement outside noise: one node contends with nobody for the lock._

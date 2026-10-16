@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Reflection;
 
@@ -31,7 +32,8 @@ namespace Quartz.Tests.Integration.MixedVersionNode;
 /// The scheduler is built with the shipped defaults for everything but what makes it a cluster node on
 /// that database: pool, batch size, idle wait, misfire threshold and check-in are what each version
 /// ships. With <c>--history</c> it also keeps its execution history there, bounded so that nothing the
-/// run writes is swept before the test reads it.
+/// run writes is swept before the test reads it. <c>--lock-free false</c> turns 4.6's lock-free firing
+/// rounds off on the working tree; a released node has no such option.
 /// </remarks>
 internal sealed class Node
 {
@@ -42,10 +44,12 @@ internal sealed class Node
     private const int HistoryBound = 1_000_000;
 
     private readonly IScheduler scheduler;
+    private readonly RoundLockCounter rounds;
 
-    private Node(IScheduler scheduler)
+    private Node(IScheduler scheduler, RoundLockCounter rounds)
     {
         this.scheduler = scheduler;
+        this.rounds = rounds;
     }
 
 #if QUARTZ_WORKING_TREE
@@ -69,6 +73,9 @@ internal sealed class Node
     {
         Runs.Configure(options);
 
+        // Listening before the scheduler exists, so that every round it ever runs is counted.
+        RoundLockCounter rounds = new();
+
         IScheduler scheduler = await QuartzSchedulerBuilder
             .Create(q =>
             {
@@ -89,6 +96,13 @@ internal sealed class Node
                     {
                         store.UseExecutionHistory();
                     }
+
+#if QUARTZ_WORKING_TREE
+                    if (!options.LockFreeRounds)
+                    {
+                        store.ConfigureStore(o => o.LockFreeFiringRounds = false);
+                    }
+#endif
                 });
 
                 if (options.History)
@@ -101,7 +115,7 @@ internal sealed class Node
             .BuildScheduler()
             .ConfigureAwait(false);
 
-        return new Node(scheduler);
+        return new Node(scheduler, rounds);
     }
 
     public List<KeyValuePair<string, string>> Describe() =>
@@ -202,6 +216,9 @@ internal sealed class Node
             case "cluster-nodes":
                 List<ClusterNode> nodes = await scheduler.QueryClusterNodes().ConfigureAwait(false);
                 return [new("nodes", string.Join(",", nodes.Select(x => x.InstanceId + ":" + x.State).Order(StringComparer.Ordinal)))];
+
+            case "round-locks":
+                return rounds.Describe();
 
             case "shutdown":
                 await scheduler.Shutdown(waitForJobsToComplete: command.Flag("wait")).ConfigureAwait(false);
@@ -415,4 +432,74 @@ internal sealed class Node
         "progress" => JobBuilder.Create<ProgressJob>().WithIdentity(key).StoreDurably().Build(),
         _ => throw new ArgumentException($"'{type}' is not a job type this node has.")
     };
+
+    /// <summary>
+    /// Counts this node's firing rounds by the lock each said it ran under (#4067): the
+    /// <c>quartz.jobstore.lock</c> attribute on <c>quartz.trigger.acquisition.duration</c>, which a 4.6 node
+    /// tags <c>none</c> or <c>TRIGGER_ACCESS</c> and an older node does not tag at all.
+    /// </summary>
+    /// <remarks>
+    /// Spelled with the instrument and attribute names rather than the constants, so that the same source
+    /// compiles against a released Quartz that may not have the constants.
+    /// </remarks>
+    private sealed class RoundLockCounter
+    {
+        private readonly MeterListener listener = new();
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> reasons = new(StringComparer.Ordinal);
+        private int lockFree;
+        private int locked;
+        private int untagged;
+
+        public RoundLockCounter()
+        {
+            listener.InstrumentPublished = (instrument, meterListener) =>
+            {
+                if (instrument.Meter.Name == "Quartz" && instrument.Name == "quartz.trigger.acquisition.duration")
+                {
+                    meterListener.EnableMeasurementEvents(instrument);
+                }
+            };
+            listener.SetMeasurementEventCallback<double>(OnRound);
+            listener.Start();
+        }
+
+        public List<KeyValuePair<string, string>> Describe() =>
+        [
+            new("lockfree", Volatile.Read(ref lockFree).ToString(CultureInfo.InvariantCulture)),
+            new("locked", Volatile.Read(ref locked).ToString(CultureInfo.InvariantCulture)),
+            new("untagged", Volatile.Read(ref untagged).ToString(CultureInfo.InvariantCulture)),
+            new("reasons", string.Join(",", reasons.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => x.Key + ":" + x.Value.ToString(CultureInfo.InvariantCulture))))
+        ];
+
+        private void OnRound(Instrument instrument, double value, ReadOnlySpan<KeyValuePair<string, object?>> tags, object? state)
+        {
+            string? lockName = null;
+            string? reason = null;
+            foreach (KeyValuePair<string, object?> tag in tags)
+            {
+                if (tag.Key == "quartz.jobstore.lock")
+                {
+                    lockName = tag.Value as string;
+                }
+                else if (tag.Key == "quartz.jobstore.lock.reason")
+                {
+                    reason = tag.Value as string;
+                }
+            }
+
+            if (lockName is null)
+            {
+                Interlocked.Increment(ref untagged);
+            }
+            else if (lockName == "none")
+            {
+                Interlocked.Increment(ref lockFree);
+            }
+            else
+            {
+                Interlocked.Increment(ref locked);
+                reasons.AddOrUpdate(reason ?? "unknown", 1, static (_, count) => count + 1);
+            }
+        }
+    }
 }
