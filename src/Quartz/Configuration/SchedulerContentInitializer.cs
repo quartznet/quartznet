@@ -47,7 +47,13 @@ internal sealed class SchedulerContentInitializer
 
     private object? Key => schedulerKey.Key;
 
-    public async ValueTask Initialize(IScheduler scheduler, CancellationToken cancellationToken)
+    /// <param name="scheduler">The scheduler to apply the content to.</param>
+    /// <param name="storePersists">
+    /// Whether the scheduler's store keeps what it is given across starts, which is when a generated key
+    /// is worth a warning.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public async ValueTask Initialize(IScheduler scheduler, bool storePersists, CancellationToken cancellationToken)
     {
         AddSchedulerListeners(scheduler);
         AddJobListeners(scheduler);
@@ -55,6 +61,7 @@ internal sealed class SchedulerContentInitializer
 
         await AddCalendars(scheduler, cancellationToken).ConfigureAwait(false);
         await processor.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
+        processor.ReportGeneratedIdentities(storePersists);
     }
 
     private void AddSchedulerListeners(IScheduler scheduler)

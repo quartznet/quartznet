@@ -125,6 +125,12 @@ Everything registered this way is stored when the scheduler starts. With a persi
 registrations replace stored definitions of the same name by default, so this list describes the
 schedule on every start rather than seeding it once.
 
+::: warning Name every job and trigger when the store persists
+A registration with no `WithIdentity` gets a generated key, new on every start. A persistent store keeps
+each start's copy, and every copy of a trigger fires. The scheduler logs warning
+[`4030`](../log-events.md) for each such registration as it starts.
+:::
+
 ## Scheduling at run time
 
 Prefer the declarative registrations above for a schedule that is part of the application: the scheduler

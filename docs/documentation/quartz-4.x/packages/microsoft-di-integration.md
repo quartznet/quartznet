@@ -227,7 +227,8 @@ On every start, what you register is compared with the database and the stored s
 ::: warning
 With a persistent job store, always give jobs and triggers explicit names. Without one, each gets a new
 generated name on every start, the existence check finds nothing, and the schedule accumulates duplicates. A
-name is enough; the group defaults to the same value every time.
+name is enough; the group defaults to the same value every time. The scheduler logs warning
+[`4030`](../log-events.md) for each registration that gives none.
 :::
 
 <!-- snippet: sample_di_persistent_store -->

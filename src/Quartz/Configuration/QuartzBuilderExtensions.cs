@@ -148,8 +148,7 @@ public static class QuartzBuilderExtensions
         TryRegisterJobType(builder, typeof(T));
 
         SchedulerContent.Register(builder.Services, builder.SchedulerName, serviceProvider =>
-            new SchedulerContent().Add(
-                ConfigureAndBuildJobDetail(serviceProvider, JobBuilder.Create<T>(), configure)));
+            ConfigureAndBuildJob(serviceProvider, JobBuilder.Create<T>(), configure, $"AddJob<{typeof(T).FullName}>"));
 
         return builder;
     }
@@ -193,8 +192,7 @@ public static class QuartzBuilderExtensions
         TryRegisterJobType(builder, jobType);
 
         SchedulerContent.Register(builder.Services, builder.SchedulerName, serviceProvider =>
-            new SchedulerContent().Add(
-                ConfigureAndBuildJobDetail(serviceProvider, JobBuilder.Create().OfType(jobType), configure)));
+            ConfigureAndBuildJob(serviceProvider, JobBuilder.Create().OfType(jobType), configure, $"AddJob(typeof({jobType.FullName}))"));
 
         return builder;
     }
@@ -231,6 +229,9 @@ public static class QuartzBuilderExtensions
         {
             var c = TriggerBuilder.Create<TJob>(serviceProvider.GetService<TimeProvider>());
             configure.Invoke(serviceProvider, c);
+
+            // Read before Build, which generates a key for a trigger given none and keeps it.
+            bool identityGenerated = c.Key is null;
             var trigger = c.Build();
 
             if (trigger.JobKey is null)
@@ -240,7 +241,17 @@ public static class QuartzBuilderExtensions
                     + "or add the job and its trigger together with ScheduleJob<T>(...).");
             }
 
-            return new SchedulerContent().Add(trigger);
+            SchedulerContent content = new SchedulerContent().Add(trigger);
+            if (identityGenerated)
+            {
+                string registration = typeof(TJob) == typeof(IJob)
+                    ? $"AddTrigger for job '{trigger.JobKey}'"
+                    : $"AddTrigger<{typeof(TJob).FullName}>";
+
+                content.WithGeneratedIdentity(registration, "trigger", trigger.Key.ToString());
+            }
+
+            return content;
         });
 
         return builder;
@@ -327,6 +338,10 @@ public static class QuartzBuilderExtensions
             }
 
             trigger.Invoke(serviceProvider, triggerBuilder);
+
+            // Read before Build, which generates a key for a trigger given none and keeps it. A job given
+            // no identity takes the trigger's, so a generated trigger key is the one key to warn about.
+            bool identityGenerated = triggerBuilder.Key is null;
             var builtTrigger = triggerBuilder.Build();
 
             if (jobBuilder.Key is null)
@@ -349,7 +364,13 @@ public static class QuartzBuilderExtensions
                     + "ScheduleJob adds the job its trigger fires: leave ForJob out, or add the job with AddJob and the trigger with AddTrigger.");
             }
 
-            return new SchedulerContent().Add(jobDetail).Add(builtTrigger);
+            SchedulerContent content = new SchedulerContent().Add(jobDetail).Add(builtTrigger);
+            if (identityGenerated)
+            {
+                content.WithGeneratedIdentity($"ScheduleJob<{typeof(T).FullName}>", "trigger", builtTrigger.Key.ToString());
+            }
+
+            return content;
         });
 
         return builder;
@@ -669,13 +690,24 @@ public static class QuartzBuilderExtensions
             : schedulerName;
     }
 
-    private static IJobDetail ConfigureAndBuildJobDetail<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
+    private static SchedulerContent ConfigureAndBuildJob<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
         IServiceProvider serviceProvider,
         JobBuilder<TJob> builder,
-        Action<IServiceProvider, IJobConfigurator<TJob>> configure) where TJob : IJob
+        Action<IServiceProvider, IJobConfigurator<TJob>> configure,
+        string registration) where TJob : IJob
     {
         configure.Invoke(serviceProvider, builder);
-        return builder.Build();
+
+        IJobDetail job = builder.Build();
+        SchedulerContent content = new SchedulerContent().Add(job);
+
+        // The builder's key stays null when none was given; Build generated the one the job carries.
+        if (builder.Key is null)
+        {
+            content.WithGeneratedIdentity(registration, "job", job.Key.ToString());
+        }
+
+        return content;
     }
 
     /// <summary>

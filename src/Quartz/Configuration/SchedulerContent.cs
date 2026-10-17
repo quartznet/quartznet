@@ -30,7 +30,25 @@ internal interface ISchedulerContent
     /// The triggers this registration contributes.
     /// </summary>
     IReadOnlyList<ITrigger> Triggers { get; }
+
+    /// <summary>
+    /// The key this registration generated, because it gave its job or trigger no identity; otherwise
+    /// <see langword="null" />.
+    /// </summary>
+    /// <remarks>
+    /// Recorded while the builder still knows no key was given, because a generated key cannot be told
+    /// from a chosen one afterwards: a job may be named with a GUID on purpose.
+    /// </remarks>
+    GeneratedIdentity? GeneratedIdentity { get; }
 }
+
+/// <summary>
+/// A key generated for a job or trigger whose registration gave it no identity.
+/// </summary>
+/// <param name="Registration">The call that registered it, naming the job type, or the job's key when the call names no type.</param>
+/// <param name="Kind"><c>job</c> or <c>trigger</c>.</param>
+/// <param name="Key">The generated key.</param>
+internal sealed record GeneratedIdentity(string Registration, string Kind, string Key);
 
 /// <inheritdoc />
 internal sealed class SchedulerContent : ISchedulerContent
@@ -42,6 +60,8 @@ internal sealed class SchedulerContent : ISchedulerContent
 
     public IReadOnlyList<ITrigger> Triggers => triggers;
 
+    public GeneratedIdentity? GeneratedIdentity { get; private set; }
+
     public SchedulerContent Add(IJobDetail job)
     {
         jobs.Add(job);
@@ -51,6 +71,15 @@ internal sealed class SchedulerContent : ISchedulerContent
     public SchedulerContent Add(ITrigger trigger)
     {
         triggers.Add(trigger);
+        return this;
+    }
+
+    /// <summary>
+    /// Records that this registration's job or trigger was given no identity, so its key was generated.
+    /// </summary>
+    public SchedulerContent WithGeneratedIdentity(string registration, string kind, string key)
+    {
+        GeneratedIdentity = new GeneratedIdentity(registration, kind, key);
         return this;
     }
 
