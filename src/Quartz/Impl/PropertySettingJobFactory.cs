@@ -42,7 +42,11 @@ namespace Quartz.Impl;
 /// <see cref="PropertyMismatchBehavior" /> to <see cref="Quartz.Impl.PropertyMismatchBehavior.Warn" />
 /// to log those — useful for troubleshooting a misspelled property name, noisy if you regularly (and
 /// purposely) have extra things in your map — or to
-/// <see cref="Quartz.Impl.PropertyMismatchBehavior.Throw" /> to fail the instantiation outright.
+/// <see cref="Quartz.Impl.PropertyMismatchBehavior.Throw" /> to fail the instantiation outright. One
+/// failure is logged as a warning even when mismatches are ignored: a value a trimmed or native publish
+/// refuses only because it converts nothing through a <see cref="System.ComponentModel.TypeConverter" />
+/// (<c>Quartz.JobData.IsTypeConverterCoercionSupported</c> off), which the same application untrimmed
+/// would have bound.
 /// </remarks>
 /// <seealso cref="IJobFactory" />
 /// <seealso cref="SimpleJobFactory" />
@@ -345,8 +349,13 @@ public class PropertySettingJobFactory : SimpleJobFactory
         catch (NotSupportedException e)
         {
             // No conversion exists, or only a TypeConverter could make one and this publish has none. The
-            // message says which, and what to do about it.
-            HandleError($"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given a {o?.GetType()}: {e.Message}", e);
+            // message says which, and what to do about it. The second is the publish that does not fit,
+            // not the data - the same value binds untrimmed - so it is reported even when mismatches are
+            // ignored, as the type-name switch's refusals throw.
+            HandleError(
+                $"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given a {o?.GetType()}: {e.Message}",
+                e,
+                reportWhenIgnored: e is CoercionNotSupportedException);
         }
         catch (Exception e)
         {
@@ -366,14 +375,25 @@ public class PropertySettingJobFactory : SimpleJobFactory
         return ValueConverter.ConvertValueIfNecessary(requiredType, newValue);
     }
 
-    private void HandleError(string message, Exception? e = null)
+    /// <summary>
+    /// Throws, logs or ignores a value that could not be set, as <see cref="PropertyMismatchBehavior" />
+    /// says.
+    /// </summary>
+    /// <param name="message">What could not be set, and why.</param>
+    /// <param name="e">The failure behind it, if there was one.</param>
+    /// <param name="reportWhenIgnored">
+    /// Whether <see cref="Quartz.Impl.PropertyMismatchBehavior.Ignore" /> logs it too, which only a
+    /// <see cref="CoercionNotSupportedException" /> does: the setting is about data that does not match the
+    /// job, and that refusal is about a publish that cannot convert it.
+    /// </param>
+    private void HandleError(string message, Exception? e = null, bool reportWhenIgnored = false)
     {
         if (PropertyMismatchBehavior == PropertyMismatchBehavior.Throw)
         {
             Throw.SchedulerException(message, e);
         }
 
-        if (PropertyMismatchBehavior == PropertyMismatchBehavior.Warn)
+        if (PropertyMismatchBehavior == PropertyMismatchBehavior.Warn || reportWhenIgnored)
         {
             logger.JobPropertyNotSet(message, e);
         }

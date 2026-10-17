@@ -110,8 +110,9 @@ What stops working, and the message:
 | Job data | a value onto a job property that no built-in conversion handles: a string onto `Version`, `CultureInfo`, `DateOnly` or a type of your own; a `DateTime` onto a `string` | `NotSupportedException`, behind the property's name: *A System.String cannot be converted to System.Version without a TypeConverter, and this publish does not convert through TypeConverter (Quartz.JobData.IsTypeConverterCoercionSupported is false) …* |
 | Job data | `null` for a struct property whose type declares a parameterless constructor | not an error: the property gets the struct's zeroed default, and the constructor does not run |
 
-The job factory reports a refused value through `PropertyMismatchBehavior`. The default, `Ignore`, leaves
-the property as the job's constructor set it; set `Warn` or `Throw` to see the message.
+The job factory logs a refused value as a warning (event `4009`) even under the default
+`PropertyMismatchBehavior.Ignore`, and the job runs with that property as its constructor set it; under
+`Throw` the job fails to instantiate instead.
 
 Quartz's own spellings keep working with the second switch off, mapped to the type with no reflection:
 `quartz.jobStore.type` = `RAMJobStore`; `quartz.threadPool.type` = `SimpleThreadPool`/`DefaultThreadPool`;
