@@ -133,7 +133,8 @@ public sealed class SqliteWeaselSchemaTest
     }
 
     /// <summary>
-    /// 4.3 → 4.4 only adds: five columns and an index on the history table, and the rollup table.
+    /// 4.3 → 4.4 only adds: five columns and an index on the history table, and the rollup table; 4.6 adds
+    /// two indexes on the history table.
     /// </summary>
     [Test]
     public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnlyAndKeepsItsRows()
@@ -154,7 +155,8 @@ public sealed class SqliteWeaselSchemaTest
             TableDelta history = changed.OfType<TableDelta>().Single(x => x.Difference == SchemaPatchDifference.Update);
             history.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(
                 ["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
-            history.Indexes.Missing.Select(x => x.Name.ToUpperInvariant()).Should().Equal(["IDX_QRTZ_EH_JOB_TIME"]);
+            history.Indexes.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(
+                ["IDX_QRTZ_EH_JOB_TIME", "IDX_QRTZ_EH_FIRE_INST", "IDX_QRTZ_EH_TRIG_TIME"], "4.4's job index and 4.6's two lookup indexes");
             history.Columns.Extras.Should().BeEmpty();
             history.Columns.Different.Should().BeEmpty("no column 4.3 created changes shape");
             history.Indexes.Different.Should().BeEmpty("no index 4.3 created changes shape");

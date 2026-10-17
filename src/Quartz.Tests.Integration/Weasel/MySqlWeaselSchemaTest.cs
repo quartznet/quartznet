@@ -187,7 +187,8 @@ public sealed class MySqlWeaselSchemaTest
             history.Columns!.Missing.Select(x => x.Name).Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
             history.Columns.Different.Should().BeEmpty("no column a 4.3 schema has is altered");
             history.Columns.Extras.Should().BeEmpty();
-            history.Indexes!.Missing.Select(x => x.Name).Should().Equal(["IDX_QRTZ_EH_JOB_TIME"]);
+            history.Indexes!.Missing.Select(x => x.Name).Should().BeEquivalentTo(
+                ["IDX_QRTZ_EH_JOB_TIME", "IDX_QRTZ_EH_FIRE_INST", "IDX_QRTZ_EH_TRIG_TIME"], "4.4's job index and 4.6's two lookup indexes");
             history.Indexes.Different.Should().BeEmpty();
             history.Indexes.Extras.Should().BeEmpty();
 

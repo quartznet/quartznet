@@ -822,10 +822,10 @@ public sealed class FirebirdWeaselSchemaTest
         (SchemaSnapshot expectedSchema, List<string> expectedDetails) = await expected.ReadAsync(prefix);
 
         // The premise, so that two empty readings cannot pass for one schema: fifteen tables, every
-        // column read with its details, and fifteen primary keys, five foreign keys and thirteen indexes.
+        // column read with its details, and fifteen primary keys, five foreign keys and fifteen indexes.
         expectedSchema.Tables.Should().HaveCount(15);
         expectedDetails.Count(x => x.StartsWith("COL ", StringComparison.Ordinal)).Should().Be(expectedSchema.Columns.Count);
-        expectedDetails.Count(x => x.StartsWith("IX ", StringComparison.Ordinal)).Should().Be(33);
+        expectedDetails.Count(x => x.StartsWith("IX ", StringComparison.Ordinal)).Should().Be(35);
         expectedDetails.Should().Contain(
             $"IX {prefix}TRIGGERS|FK_{prefix}TRIGGERS_1|0|0|0|FK_{prefix}TRIGGERS_1|FOREIGN KEY|RESTRICT|RESTRICT|PK_{prefix}JOB_DETAILS|SCHED_NAME,JOB_NAME,JOB_GROUP",
             "a foreign key with no rule reads back as RESTRICT, on the key it references");

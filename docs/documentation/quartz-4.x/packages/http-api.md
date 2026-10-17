@@ -641,7 +641,7 @@ missed) is in the container's `IExecutionHistoryStore`, served by eight routes:
 |---|---|---|
 | `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains`, `failedFinally`, and the [exact filters](#filtering-by-job-time-and-result) | A page of executions, newest first |
 | `GET {ApiPath}/schedulers/{name}/history/executions/{entryId}` | none | One execution, `log` and `input` included |
-| `GET {ApiPath}/schedulers/{name}/history/misfires` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `triggerContains`, `jobGroup` + `jobName`, [`reasons`](#vetoes-are-listed-when-asked-for) | A page of misfires, newest first |
+| `GET {ApiPath}/schedulers/{name}/history/misfires` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `triggerContains`, `jobGroup` + `jobName`, `triggerGroup` + `triggerName`, [`reasons`](#vetoes-are-listed-when-asked-for) | A page of misfires, newest first |
 | `GET {ApiPath}/schedulers/{name}/history/misfires/count` | `since`: a `DateTimeOffset`, required | `{ "count": 3 }`, `Missed` rows only |
 | `GET {ApiPath}/schedulers/{name}/history/job-status` | `skip`, `take`, `includeTotalCount`, `failing` | A page of [run statuses](#job-run-status) |
 | `GET {ApiPath}/schedulers/{name}/history/job-status/{jobGroup}/{jobName}` | none | One job's run status |
@@ -719,7 +719,7 @@ On `…/history/executions`, from 4.4 unless the row says otherwise:
 | `results` | A result in the set: `?results=Failed,Cancelled` or `?results=Failed&results=Cancelled`. A row before 4.4 matches `Succeeded` or `Failed` |
 
 - A name that is no result is `400`, naming the ones that are.
-- `jobGroup` and `jobName` narrow `…/history/misfires` too.
+- `jobGroup` and `jobName`, and `triggerGroup` and `triggerName`, narrow `…/history/misfires` too.
 - **A host before 4.4 ignores these parameters**, and one before 4.6 ignores the trigger and the firing; either
   answers every row. `HttpExecutionHistoryStore` reads the host's version from `GET {ApiPath}/schedulers/{name}`
   before its first filtered read, and throws `NotSupportedException` for an older host instead of sending the
@@ -830,7 +830,7 @@ GET /quartz-api/schedulers/QuartzScheduler/history/statistics?jobGroup=billing&j
 
 | Parameter | Matches |
 |---|---|
-| `schedulerInstanceId`, `jobContains`, `triggerContains`, `failedFinally`, `firedFrom`, `firedBefore`, `results` | As on `…/history/executions` |
+| `schedulerInstanceId`, `jobContains`, `triggerContains`, `failedFinally`, `triggerGroup` + `triggerName`, `fireInstanceId`, `firedFrom`, `firedBefore`, `results` | As on `…/history/executions` |
 | `jobGroup` and `jobName` | One job exactly. `jobGroup` alone counts the group; `jobName` alone is `400` |
 | `bucket` | A `TimeSpan`: `01:00:00` when absent, `1.00:00:00` for a day. Under `00:01:00` is `400` |
 

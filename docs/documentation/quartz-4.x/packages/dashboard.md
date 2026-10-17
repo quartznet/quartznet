@@ -1006,12 +1006,14 @@ Every filter is a query parameter, so a narrowed view is a link:
 | Failed after retries | `outcome=failed` |
 | Results | `result=failed,cancelled` |
 | One job exactly | `jobGroup` and `jobName`, which the Job Detail page's *View execution history* link writes |
+| One trigger exactly | `triggerGroup` and `triggerName`, which the Trigger Detail page's *View execution history* and Currently Executing's *Past runs* write. From 4.6 |
 | Window | `window=1h`, `24h`, `7d` or `30d`; absent is all retained |
 
 Below, **misfires** lists firings that did not happen, which never appear as executions: trigger, its job, the
 node that noticed, the missed firing, when it was noticed, and the reason — `Misfire`, `Overlap` for one a
 trigger's [overlap policy](../how-tos/overlap-policy.md) skipped, or `Vetoed` for one a trigger listener
-refused. The overview's tile counts misfires only. With one job selected, the section lists that job's.
+refused. The overview's tile counts misfires only. With one job or one trigger selected, the section lists
+that one's.
 
 ### Job run status
 

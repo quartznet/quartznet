@@ -294,6 +294,8 @@ create index idx_qrtz_ft_t_g on qrtz_fired_triggers(SCHED_NAME,TRIGGER_NAME,TRIG
 create index idx_qrtz_eh_fired_time on qrtz_execution_history(SCHED_NAME,FIRED_TIME);
 create index idx_qrtz_eh_inst on qrtz_execution_history(SCHED_NAME,INSTANCE_NAME);
 create index idx_qrtz_eh_job_time on qrtz_execution_history(SCHED_NAME,JOB_GROUP,JOB_NAME,FIRED_TIME);
+create index idx_qrtz_eh_fire_inst on qrtz_execution_history(SCHED_NAME,FIRE_INSTANCE_ID);
+create index idx_qrtz_eh_trig_time on qrtz_execution_history(SCHED_NAME,TRIGGER_GROUP,TRIGGER_NAME,FIRED_TIME);
 create index idx_qrtz_mh_misfire_time on qrtz_misfire_history(SCHED_NAME,MISFIRE_TIME);
 create index idx_qrtz_mh_inst on qrtz_misfire_history(SCHED_NAME,INSTANCE_NAME);
 

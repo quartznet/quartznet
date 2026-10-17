@@ -177,7 +177,9 @@ migrations therefore reads as unchanged. The execution history tables and `QRTZ_
 it, as they are of a fresh install.
 
 On a 4.3 database an apply only adds: five nullable columns and `IDX_QRTZ_EH_JOB_TIME` on
-`QRTZ_EXECUTION_HISTORY`, and the `QRTZ_JOB_STATUS` table. Nothing is rebuilt.
+`QRTZ_EXECUTION_HISTORY`, and the `QRTZ_JOB_STATUS` table. From 4.6 it also adds `IDX_QRTZ_EH_FIRE_INST` and
+`IDX_QRTZ_EH_TRIG_TIME` on `QRTZ_EXECUTION_HISTORY`, which is all it adds to a 4.4 or 4.5 database. Nothing is
+rebuilt.
 
 ## PostgreSQL
 

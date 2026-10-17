@@ -181,7 +181,8 @@ public sealed class PostgresWeaselSchemaTest
             .Where(x => x.StartsWith("EXECUTION_HISTORY|", StringComparison.Ordinal))
             .Select(x => x.Split('|')[1])
             .Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
-        after.Indexes.Except(before.Indexes).Select(x => x.Split('|')[1]).Distinct().Should().Equal(["IDX_EH_JOB_TIME"]);
+        after.Indexes.Except(before.Indexes).Select(x => x.Split('|')[1]).Distinct().Should().BeEquivalentTo(
+            ["IDX_EH_JOB_TIME", "IDX_EH_FIRE_INST", "IDX_EH_TRIG_TIME"], "4.4's job index and 4.6's two lookup indexes");
 
         await using PostgresWeaselDatabase fresh = await PostgresWeaselDatabase.CreateAsync();
         await fresh.RunRepositoryScriptAsync("database", "tables", "tables_postgres.sql");

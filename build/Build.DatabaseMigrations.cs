@@ -448,6 +448,74 @@ partial class Build
         }
     }
 
+    /// <summary>
+    /// A <c>CREATE INDEX</c> guarded twice: on the index being absent, as <see cref="CreateIndex" /> is, and
+    /// on the table being present, for a table only an optional feature creates.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A database that never turned the feature on has no such table, and running the migration there has
+    /// to change nothing rather than fail. <c>CREATE INDEX IF NOT EXISTS</c> on PostgreSQL still fails on a
+    /// missing table, so the guard there is a block too, resolving the table as the statement would, through
+    /// the search path.
+    /// </para>
+    /// <para>
+    /// SQLite is the exception: it has no conditional DDL but <c>IF NOT EXISTS</c>, which cannot ask about
+    /// another object. Its statement is guarded on the index alone, and its header says so.
+    /// </para>
+    /// </remarks>
+    static string CreateIndexIfTableExists(string dialect, string name, string table, string columns)
+    {
+        string tight = TightColumns(columns);
+
+        switch (dialect)
+        {
+            case "sqlServer":
+                return $"IF OBJECT_ID(N'[dbo].[{table}]', N'U') IS NOT NULL\n"
+                     + $"   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = '{name}' AND object_id = OBJECT_ID('dbo.{table}'))\n"
+                     + $"BEGIN\n  CREATE INDEX [{name}] ON [dbo].[{table}]({columns});\nEND\nGO";
+
+            case "postgres":
+                return "DO $$\n"
+                     + "BEGIN\n"
+                     + $"  IF to_regclass('{table.ToLowerInvariant()}') IS NOT NULL THEN\n"
+                     + $"    CREATE INDEX IF NOT EXISTS {name.ToLowerInvariant()} ON {table.ToLowerInvariant()} ({columns.ToLowerInvariant()});\n"
+                     + "  END IF;\n"
+                     + "END $$;";
+
+            case "sqlite":
+                return CreateIndex(dialect, name, table, columns);
+
+            case "mysql_innodb":
+                return "SET @preparedStatement = (SELECT IF(\n"
+                     + "  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES\n"
+                     + $"   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{table}') = 0\n"
+                     + "  OR (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS\n"
+                     + $"   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{table}' AND INDEX_NAME = '{name}') > 0,\n"
+                     + "  'SELECT 1',\n"
+                     + $"  'CREATE INDEX {name} ON {table}({tight})'\n"
+                     + "));\nPREPARE stmt FROM @preparedStatement;\nEXECUTE stmt;\nDEALLOCATE PREPARE stmt;";
+
+            case "oracle":
+                return "DECLARE\n  table_exists NUMBER;\n  index_exists NUMBER;\nBEGIN\n"
+                     + $"  SELECT COUNT(*) INTO table_exists FROM user_tables WHERE table_name = '{table}';\n"
+                     + $"  SELECT COUNT(*) INTO index_exists FROM user_indexes WHERE index_name = '{name}';\n"
+                     + "  IF table_exists > 0 AND index_exists = 0 THEN\n"
+                     + $"    EXECUTE IMMEDIATE 'CREATE INDEX {name} ON {table}({tight})';\n"
+                     + "  END IF;\nEND;\n/";
+
+            case "firebird":
+                return "SET TERM ^ ;\nEXECUTE BLOCK AS\nBEGIN\n"
+                     + $"  IF (EXISTS(SELECT 1 FROM RDB$RELATIONS WHERE TRIM(RDB$RELATION_NAME) = '{table}')\n"
+                     + $"      AND NOT EXISTS(SELECT 1 FROM RDB$INDICES WHERE TRIM(RDB$INDEX_NAME) = '{name}')) THEN\n"
+                     + $"    EXECUTE STATEMENT 'CREATE INDEX {name} ON {table}({tight})';\n"
+                     + "END^\nSET TERM ; ^\nCOMMIT;";
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(dialect), dialect, "unknown dialect");
+        }
+    }
+
     static string DropIndex(string dialect, string name, string table)
     {
         switch (dialect)

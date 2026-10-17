@@ -50,6 +50,7 @@ editing.
 | 4.0 / 4.1 | 4.3+ | [4.2](#version-4-2), then [4.3](#version-4-3) — both **mandatory** |
 | 4.2 | 4.3+ | [4.3](#version-4-3) — **mandatory** |
 | 4.3 | 4.4 | Nothing mandatory. [4.4](#version-4-4) only with `UseExecutionHistory()` |
+| 4.4 / 4.5 | 4.6 | Nothing mandatory. [4.6](#version-4-6) is performance only, for `UseExecutionHistory()` |
 
 ## Upgrading to 4.x is mandatory
 
@@ -672,6 +673,29 @@ A fresh install from `database/tables/`, and `ProvisionSchema()`, create all of 
 `ProvisionSchema()` no longer creates `FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS`, which `tables_sqlServer.sql`
 never created ([#3949](https://github.com/quartznet/quartznet/issues/3949)). There is no script: a database
 that has the key keeps it, and nothing depends on it.
+
+## Version 4.6
+
+One script, optional and performance only ([#4072](https://github.com/quartznet/quartznet/issues/4072)).
+
+| Script | Status | Adds |
+|---|---|---|
+| [`migrations/4.6/add_execution_history_lookup_indexes_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6) | Optional: performance only | `IDX_QRTZ_EH_FIRE_INST` and `IDX_QRTZ_EH_TRIG_TIME` on `QRTZ_EXECUTION_HISTORY` |
+
+| Index | Columns | Serves |
+|---|---|---|
+| `IDX_QRTZ_EH_FIRE_INST` | `SCHED_NAME, FIRE_INSTANCE_ID` | `ExecutionHistoryQuery.FireInstanceId`: one firing's outcome |
+| `IDX_QRTZ_EH_TRIG_TIME` | `SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME, FIRED_TIME` | `ExecutionHistoryQuery.Trigger`: one trigger's history, newest first |
+
+- No store probes for them. Without them each lookup scans the scheduler's rows: on PostgreSQL over
+  1,000,000 rows, 60 ms for a firing and 261 ms for a rarely firing trigger, against under 0.2 ms with them.
+- On a database without `QRTZ_EXECUTION_HISTORY` the script changes nothing. SQLite cannot check for the
+  table first, so run it there only on a database that has one.
+- A history created before 4.4 needs `4.4/add_execution_outcome_<db>.sql` first: `FIRE_INSTANCE_ID` is one of
+  its columns.
+- Safe under a mixed cluster: an index changes plans, not results.
+
+A fresh install from `database/tables/`, and `ProvisionSchema()`, create both.
 
 ## See also
 

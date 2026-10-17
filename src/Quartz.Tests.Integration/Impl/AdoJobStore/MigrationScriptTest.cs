@@ -89,6 +89,9 @@ public class MigrationScriptTest
     /// <summary>Throwaway schema the drop-switch cases build, fill and then have the script destroy.</summary>
     private const string DropSwitchPrefix = "QRTZS_";
 
+    /// <summary>A prefix no table is created under: a database that keeps no history.</summary>
+    private const string NoHistoryPrefix = "QRTZN_";
+
     /// <summary>Migrations that apply on top of the 3.16 baseline, in the order they must run.</summary>
     /// <remarks>
     /// <para>
@@ -273,6 +276,42 @@ public class MigrationScriptTest
         await BuildMigratedSchemaAsync(connection, "firebird", DirectPrefix, DirectChain, assertRerunnable: false);
         await AssertSchemaMatchesAsync(connection, "firebird", DirectPrefix);
         await MigratedSchemaWorkload.RunAsync(connection, "firebird", connectionString, DirectPrefix);
+    }
+
+    /// <summary>
+    /// The 4.6 lookup-index script changes nothing on a database that keeps no history, however often it
+    /// is run.
+    /// </summary>
+    /// <remarks>
+    /// Run under a prefix nothing was created with, so the history table it names is absent: the database
+    /// of a scheduler that never turned the history on. SQLite is not asked, because it cannot check for a
+    /// table before it creates an index, and its script's header says so.
+    /// </remarks>
+    [TestCase("sqlServer", "MSSQL_CONNECTION_STRING", Category = "db-sqlserver")]
+    [TestCase("postgres", "PG_CONNECTION_STRING", Category = "db-postgres")]
+    [TestCase("mysql_innodb", "MYSQL_CONNECTION_STRING", Category = "db-mysql")]
+    [TestCase("oracle", "ORACLE_CONNECTION_STRING", Category = "db-oracle")]
+    [TestCase("firebird", "FIREBIRD_CONNECTION_STRING", Category = "db-firebird")]
+    public async Task TheLookupIndexScriptChangesNothingWithoutTheHistoryTable(string dialect, string connectionStringVariable)
+    {
+        string connectionString = RequireConnectionString(connectionStringVariable);
+        await using DbConnection connection = dialect switch
+        {
+            "sqlServer" => new SqlConnection(connectionString),
+            "postgres" => new NpgsqlConnection(connectionString),
+            "mysql_innodb" => new MySqlConnection(connectionString),
+            "oracle" => new OracleConnection(connectionString),
+            _ => new FbConnection(connectionString)
+        };
+        await connection.OpenAsync();
+
+        string script = MigrationScript("4.6", "add_execution_history_lookup_indexes", dialect, NoHistoryPrefix);
+        await ExecuteScriptAsync(connection, script, dialect);
+        await ExecuteScriptAsync(connection, script, dialect);
+
+        SchemaSnapshot schema = await SchemaSnapshot.ReadAsync(connection, dialect, NoHistoryPrefix);
+        schema.Tables.Should().BeEmpty("the script creates an index on the history table only where the table is");
+        schema.Indexes.Should().BeEmpty("and so creates no index at all on a database without it");
     }
 
     [Test]

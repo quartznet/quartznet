@@ -472,6 +472,9 @@ partial class Build
 
             // --- 4.4: what a run reported, a job-key index and each job's rollup, which only UseExecutionHistory() needs ---
             files.Add(($"4.4/add_execution_outcome_{d}.sql", Build44ExecutionOutcomeScript(d)));
+
+            // --- 4.6: the indexes a lookup by firing and by trigger read, on the optional history table ---
+            files.Add(($"4.6/add_execution_history_lookup_indexes_{d}.sql", Build46LookupIndexScript(d)));
         }
 
         return files;
@@ -947,6 +950,70 @@ partial class Build
         ];
 
         return header + "\n\n" + string.Join("\n\n", sections);
+    }
+
+    /// <summary>
+    /// The two indexes a read of one firing's outcome and of one trigger's history seek on, on the optional
+    /// execution-history table.
+    /// </summary>
+    /// <remarks>
+    /// Whatever the model marks as 4.6's, as the 4.4 script reads its own. Each statement checks for the
+    /// table as well as the index, through <see cref="CreateIndexIfTableExists" />, so the script changes
+    /// nothing on a database that keeps no history, where the 4.4 script would fail; SQLite alone cannot.
+    /// </remarks>
+    static string Build46LookupIndexScript(string dialect)
+    {
+        const string version = "4.6";
+
+        IndexDef[] indexes = [.. ExecutionHistoryIndexes.Where(i => i.AddedBy == version)];
+
+        List<string> extra =
+        [
+            "IDX_QRTZ_EH_FIRE_INST is (SCHED_NAME, FIRE_INSTANCE_ID): the read a caller holding a",
+            "firing's id makes for its outcome, ExecutionHistoryQuery.FireInstanceId. Without it that",
+            "read scans every row of the scheduler the age bound keeps.",
+            "",
+            "IDX_QRTZ_EH_TRIG_TIME is (SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME, FIRED_TIME), the twin of",
+            "IDX_QRTZ_EH_JOB_TIME: ExecutionHistoryQuery.Trigger, read newest first. Without it a page",
+            "of a trigger that fires rarely reads the scheduler's rows until it is full.",
+            "",
+            "The history is bounded by ExecutionHistoryOptions, so both build in moments. Each costs one",
+            "more index write per recorded run.",
+        ];
+
+        string[] onAMissingTable = dialect == "sqlite"
+            ?
+            [
+                "     SQLite cannot check for a table before it creates an index: run this only on a",
+                "     database that has QRTZ_EXECUTION_HISTORY. On one without it the first statement",
+                "     fails, and nothing is changed.",
+            ]
+            :
+            [
+                "     Safe on a database without QRTZ_EXECUTION_HISTORY: each statement checks for the",
+                "     table, and for the index, before it creates anything, and changes nothing there.",
+            ];
+
+        string header = Header(dialect, "add the execution history lookup indexes", "4.6.0", "#4072",
+            [
+                "4.6  OPTIONAL, performance only. A store configured with",
+                "     UsePersistentStore(s => s.UseExecutionHistory()) runs without them; they turn a",
+                "     read of one firing's outcome, or of one trigger's history, from a scan into a seek.",
+                "",
+                .. onAMissingTable,
+                "",
+                $"     A history created before 4.4 needs ../4.4/add_execution_outcome_{dialect}.sql first:",
+                "     FIRE_INSTANCE_ID is one of its columns.",
+                "",
+                "     Safe under a mixed cluster: an index changes a statement's plan, never its result.",
+                "",
+                "3.x  Not applicable.",
+            ],
+            extra);
+
+        return header + "\n\n"
+               + "-- === The indexes a lookup by firing and by trigger read ===\n\n"
+               + string.Join("\n\n", indexes.Select(i => CreateIndexIfTableExists(dialect, i.Name, i.Table, i.Columns)));
     }
 
     static string Build40Script(string dialect)
