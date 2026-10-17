@@ -500,6 +500,11 @@ public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
         /// <summary>
         /// Make this instance is part of a cluster.
         /// </summary>
+        /// <remarks>
+        /// Each node also needs its own instance id: set <see cref="SchedulerBuilder.SchedulerId" /> to
+        /// <c>AUTO</c>, or to a distinct value per node. A clustered scheduler left at the default
+        /// <c>NON_CLUSTERED</c> logs a warning at startup.
+        /// </remarks>
         public void UseClustering(Action<ClusterOptions>? options = null)
         {
             SetProperty("quartz.jobStore.clustered", "true");
