@@ -196,10 +196,9 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         using var provider = services.BuildServiceProvider();
         var properties = provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties;
 
-        properties["quartz.plugin.Xml.type"].Should().NotBeNull(
+        properties["quartz.plugin.xml.type"].Should().NotBeNull(
             "plugins have no typed options yet, so dropping the section leaves nothing to read them");
-        properties["quartz.plugin.Xml.fileNames"].Should().Be("~/quartz_jobs.xml",
-            "the plugin's name keeps its case, and the property after it is camel-cased");
+        properties["quartz.plugin.xml.fileNames"].Should().Be("~/quartz_jobs.xml");
     }
 
     [Test]
@@ -820,7 +819,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     }
 
     [Test]
-    public void APluginNamedInConfigurationKeepsTheNameItWasWrittenWith()
+    public void APluginNamedInConfigurationKeepsItsCamelCasedName()
     {
         var services = new ServiceCollection();
         services.AddQuartz(Section(new Dictionary<string, string?>
@@ -836,8 +835,8 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var plugins = Quartz.Configuration.SchedulerPluginFactory.Create(
             provider, [], properties, new Quartz.Configuration.SchedulerKey(null));
 
-        plugins.Should().ContainSingle().Which.Name.Should().Be("Recorder",
-            "the plugin is handed this name by Initialize, and the XML plugin builds its file-scan job keys from it");
+        plugins.Should().ContainSingle().Which.Name.Should().Be("recorder",
+            "the XML plugin builds its persisted file-scan job keys from this name, so it stays as 4.5 spelled it");
         ((RecordingPlugin) plugins[0].Plugin).SomeSetting.Should().Be("configured",
             "the segment after the name is a property, and it still reaches the plugin");
     }

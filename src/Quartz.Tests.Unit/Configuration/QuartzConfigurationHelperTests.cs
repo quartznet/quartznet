@@ -126,12 +126,13 @@ public class QuartzConfigurationHelperTests
         QuartzConfigurationHelper.ToNameValueCollection(config).AllKeys.Should().BeEquivalentTo(
             [
                 "quartz.dataSource.MyDS.connectionString",
-                "quartz.plugin.JobHistory.type",
+                "quartz.plugin.jobHistory.type",
                 "quartz.context.key.ApiKey",
                 "quartz.dbprovider.MyDatabase.productName",
                 "quartz.scheduler.idleWaitTime",
             ],
             "a name is compared ordinally by whatever looks it up, while a property is matched without regard to case; "
+            + "a plugin's name stays camel-cased because the XML plugin persists jobs named after it; "
             + "the dbprovider prefix is spelled as its reader spells it, because the reader matches it ordinally");
     }
 
