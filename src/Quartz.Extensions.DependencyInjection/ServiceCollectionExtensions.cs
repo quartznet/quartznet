@@ -509,11 +509,15 @@ public static class ServiceCollectionExtensions
         var optionsName = options.OptionsName;
         options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
         {
-            var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, jobType, c, configure, hasCustomKey: out _);
+            var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, jobType, c, configure, out var hasCustomKey);
 
             return new ConfigureNamedOptions<QuartzOptions>(optionsName, x =>
             {
                 x.jobDetails.Add(jobDetail);
+                if (!hasCustomKey)
+                {
+                    x.generatedIdentities.Add(new GeneratedIdentity($"AddJob<{jobType.FullName}>", "job", jobDetail.Key.ToString()));
+                }
             });
         });
 
@@ -543,6 +547,9 @@ public static class ServiceCollectionExtensions
         {
             var c = new TriggerConfigurator();
             configure.Invoke(serviceProvider, c);
+
+            // Read before Build, which generates a key for a trigger given none.
+            var identityGenerated = c.Key is null;
             var trigger = c.Build();
 
             if (trigger.JobKey is null)
@@ -553,6 +560,10 @@ public static class ServiceCollectionExtensions
             return new ConfigureNamedOptions<QuartzOptions>(optionsName, x =>
             {
                 x.triggers.Add(trigger);
+                if (identityGenerated)
+                {
+                    x.generatedIdentities.Add(new GeneratedIdentity($"AddTrigger for job '{trigger.JobKey}'", "trigger", trigger.Key.ToString()));
+                }
             });
         });
 
@@ -605,6 +616,10 @@ public static class ServiceCollectionExtensions
                 triggerConfigurator.ForJob(jobDetail);
 
                 trigger.Invoke(serviceProvider, triggerConfigurator);
+
+                // Read before Build, which generates a key for a trigger given none. A job given no
+                // identity takes the trigger's, so a generated trigger key is the one key to warn about.
+                var identityGenerated = triggerConfigurator.Key is null;
                 var t = triggerConfigurator.Build();
 
                 // The job configurator is optional and omitted in most examples
@@ -623,6 +638,10 @@ public static class ServiceCollectionExtensions
                 }
 
                 quartzOptions.triggers.Add(t);
+                if (identityGenerated)
+                {
+                    quartzOptions.generatedIdentities.Add(new GeneratedIdentity($"ScheduleJob<{typeof(T).FullName}>", "trigger", t.Key.ToString()));
+                }
             });
         });
 

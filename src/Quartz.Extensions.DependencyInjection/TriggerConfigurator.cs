@@ -6,6 +6,12 @@ internal sealed class TriggerConfigurator : ITriggerConfigurator
 {
     private readonly TriggerBuilder triggerBuilder = new TriggerBuilder();
 
+    /// <summary>
+    /// The key given with <c>WithIdentity</c>, or <see langword="null" /> until <see cref="Build" />
+    /// generates one.
+    /// </summary>
+    internal TriggerKey? Key => triggerBuilder.Key;
+
     public ITriggerConfigurator WithIdentity(string name)
     {
         triggerBuilder.WithIdentity(name);

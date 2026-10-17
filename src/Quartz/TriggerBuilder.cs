@@ -80,6 +80,12 @@ public class TriggerBuilder
 
     private IScheduleBuilder? scheduleBuilder;
 
+    /// <summary>
+    /// The key that identifies the trigger uniquely, or <see langword="null" /> until one is set or
+    /// <see cref="Build" /> generates one.
+    /// </summary>
+    internal TriggerKey? Key => key;
+
     internal TriggerBuilder()
     {
     }

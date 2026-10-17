@@ -11,6 +11,10 @@ public class QuartzOptions : Dictionary<string, string?>
     internal readonly List<IJobDetail> jobDetails = new();
     internal readonly List<ITrigger> triggers = new();
 
+    // The keys registrations generated because they gave their job or trigger no identity, which a
+    // persistent store keeps one more copy of on every start; ContainerConfigurationProcessor warns.
+    internal readonly List<GeneratedIdentity> generatedIdentities = new();
+
     // Deferred configuration lists — populated by DeferredServiceCollection when
     // AddQuartz(Action<IServiceCollectionQuartzConfigurator, IServiceProvider>) is used.
     internal readonly List<SchedulerListenerConfiguration> deferredSchedulerListeners = new();
@@ -65,7 +69,7 @@ public class QuartzOptions : Dictionary<string, string?>
     {
         var builder = JobBuilder.Create(jobType);
         configure(builder);
-        jobDetails.Add(builder.Build());
+        AddJob(builder, $"AddJob(typeof({jobType.FullName}))");
         return this;
     }
 
@@ -77,7 +81,7 @@ public class QuartzOptions : Dictionary<string, string?>
     {
         var builder = JobBuilder.Create<T>();
         configure(builder);
-        jobDetails.Add(builder.Build());
+        AddJob(builder, $"AddJob<{typeof(T).FullName}>");
         return this;
     }
 
@@ -85,8 +89,30 @@ public class QuartzOptions : Dictionary<string, string?>
     {
         var builder = TriggerBuilder.Create();
         configure(builder);
-        triggers.Add(builder.Build());
+
+        // Read before Build, which generates a key for a trigger given none.
+        bool identityGenerated = builder.Key is null;
+        var trigger = builder.Build();
+        triggers.Add(trigger);
+
+        if (identityGenerated)
+        {
+            generatedIdentities.Add(new GeneratedIdentity($"AddTrigger for job '{trigger.JobKey}'", "trigger", trigger.Key.ToString()));
+        }
+
         return this;
+    }
+
+    private void AddJob(JobBuilder builder, string registration)
+    {
+        var jobDetail = builder.Build();
+        jobDetails.Add(jobDetail);
+
+        // The builder's key stays null when none was given; Build generated the one the job carries.
+        if (builder.Key is null)
+        {
+            generatedIdentities.Add(new GeneratedIdentity(registration, "job", jobDetail.Key.ToString()));
+        }
     }
 
     public NameValueCollection ToNameValueCollection()
