@@ -639,7 +639,7 @@ missed) is in the container's `IExecutionHistoryStore`, served by eight routes:
 
 | Path | Query | Answers |
 |---|---|---|
-| `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains`, `failedFinally`, and the [4.4 filters](#filtering-by-job-time-and-result) | A page of executions, newest first |
+| `GET {ApiPath}/schedulers/{name}/history/executions` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `jobContains`, `triggerContains`, `failedFinally`, and the [exact filters](#filtering-by-job-time-and-result) | A page of executions, newest first |
 | `GET {ApiPath}/schedulers/{name}/history/executions/{entryId}` | none | One execution, `log` and `input` included |
 | `GET {ApiPath}/schedulers/{name}/history/misfires` | `skip`, `take`, `includeTotalCount`, `schedulerInstanceId`, `triggerContains`, `jobGroup` + `jobName`, [`reasons`](#vetoes-are-listed-when-asked-for) | A page of misfires, newest first |
 | `GET {ApiPath}/schedulers/{name}/history/misfires/count` | `since`: a `DateTimeOffset`, required | `{ "count": 3 }`, `Missed` rows only |
@@ -707,20 +707,23 @@ To run a failure again with its input, `POST …/jobs/{jobGroup}/{jobName}/trigg
 
 ### Filtering by job, time and result
 
-From 4.4, on `…/history/executions`:
+On `…/history/executions`, from 4.4 unless the row says otherwise:
 
 | Parameter | Matches |
 |---|---|
 | `jobGroup` and `jobName` | One job exactly. Both or neither; one alone is `400` |
+| `triggerGroup` and `triggerName` | One trigger exactly. Both or neither; one alone is `400`. From 4.6 |
+| `fireInstanceId` | One firing exactly: `?fireInstanceId=web-01-17`. From 4.6 |
 | `firedFrom` | Fired at or after, a `DateTimeOffset` |
 | `firedBefore` | Fired before, exclusive |
 | `results` | A result in the set: `?results=Failed,Cancelled` or `?results=Failed&results=Cancelled`. A row before 4.4 matches `Succeeded` or `Failed` |
 
 - A name that is no result is `400`, naming the ones that are.
 - `jobGroup` and `jobName` narrow `…/history/misfires` too.
-- **A host before 4.4 ignores these parameters** and answers every row. `HttpExecutionHistoryStore` reads the
-  host's version from `GET {ApiPath}/schedulers/{name}` before its first filtered read, and throws
-  `NotSupportedException` for an older host instead of sending the filter.
+- **A host before 4.4 ignores these parameters**, and one before 4.6 ignores the trigger and the firing; either
+  answers every row. `HttpExecutionHistoryStore` reads the host's version from `GET {ApiPath}/schedulers/{name}`
+  before its first filtered read, and throws `NotSupportedException` for an older host instead of sending the
+  filter.
 
 ### Vetoes are listed when asked for
 

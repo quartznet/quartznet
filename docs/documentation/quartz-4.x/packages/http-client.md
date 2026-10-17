@@ -322,6 +322,7 @@ From 4.4:
 | Read | Over the wire |
 |---|---|
 | `ExecutionHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results`; `MisfireHistoryQuery.Job`, `Reasons` | [Query parameters](http-api.md#filtering-by-job-time-and-result); `NotSupportedException` against a host before 4.4 |
+| `ExecutionHistoryQuery.Trigger`, `FireInstanceId` | From 4.6. The same query parameters; `NotSupportedException` against a host before 4.6 |
 | `QueryMisfires` | Names every `MisfireReason`, so `Vetoed` rows are [listed](http-api.md#vetoes-are-listed-when-asked-for) |
 | `QueryJobRunStatuses`, `GetJobRunStatus` | The [`…/history/job-status` routes](http-api.md#job-run-status); `NotSupportedException` when the host keeps no status |
 | `QueryExecutionStatistics` | [`…/history/statistics`](http-api.md#run-statistics); `NotSupportedException` against a host before 4.4, which is not asked |
@@ -329,7 +330,8 @@ From 4.4:
 
 - A host before 4.4 ignores the filters and would answer every row. The store reads the host's version before
   the first filtered read and throws instead of sending them.
-- A host seen at 4.4 is not asked again. An older one is asked on each filtered read, so an upgrade is noticed.
+- A host seen at a version new enough for a read is not asked again for it. An older one is asked on each such
+  read, so an upgrade is noticed.
 - An empty `Results` or `Reasons` set answers an empty page without asking.
 
 ## Events

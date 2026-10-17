@@ -367,7 +367,44 @@ public sealed class HistoryEndpointsTest
             "from is inclusive and before is exclusive, so two windows that meet list each execution once");
     }
 
+    /// <summary>
+    /// A caller holding a firing's id, from a listener or the fire-instance listing, reads that firing's
+    /// outcome; a caller holding a trigger's key reads what that trigger fired, and no other's.
+    /// </summary>
+    [Test]
+    public async Task ExecutionsCanBeLookedUpByTriggerAndFiring()
+    {
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await history.AddExecution(Run(start, "nightly", JobRunResult.Succeeded) with { TriggerName = "at-midnight", FireInstanceId = "node-a-1" });
+        await history.AddExecution(Run(start.AddMinutes(1), "nightly", JobRunResult.Failed) with { TriggerName = "at-midnight-2", FireInstanceId = "node-a-17" });
+
+        PagedResultDto<ExecutionHistoryEntryDto> byTrigger = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions?triggerGroup=DummyTriggerGroup&triggerName=at-midnight");
+        byTrigger.Items.Should().ContainSingle("one trigger exactly, where triggerContains would also have matched at-midnight-2")
+            .Which.FireInstanceId.Should().Be("node-a-1");
+
+        PagedResultDto<ExecutionHistoryEntryDto> byFiring = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/executions?fireInstanceId=node-a-17");
+        byFiring.Items.Should().ContainSingle().Which.Result.Should().Be(JobRunResult.Failed);
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, client);
+        PagedResult<ExecutionHistoryEntry> throughTheClient = await remote.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = TestData.SchedulerName,
+            Trigger = new TriggerKey("at-midnight", "DummyTriggerGroup"),
+            FireInstanceId = "node-a-1"
+        });
+        throughTheClient.Items.Should().ContainSingle("the HTTP-backed store sends both, and the host applies both")
+            .Which.FireInstanceId.Should().Be("node-a-1");
+
+        (await remote.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = TestData.SchedulerName, FireInstanceId = "node-a-17" }))
+            .Items.Should().ContainSingle().Which.TriggerName.Should().Be("at-midnight-2");
+        (await remote.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = TestData.SchedulerName, FireInstanceId = "node-a-" }))
+            .Items.Should().BeEmpty("a fragment of both recorded ids is equal to neither");
+    }
+
     [TestCase("jobName=release-stale", "Both jobName and jobGroup*")]
+    [TestCase("triggerGroup=DummyTriggerGroup", "Both triggerName and triggerGroup*")]
     [TestCase("results=Sideways", "Unknown results value 'Sideways'*Succeeded, Failed, Cancelled, Skipped*")]
     [TestCase("results=9", "Unknown results value '9'*")]
     [TestCase("results=Failed%2C%20Skipped%2CBogus", "Unknown results value 'Bogus'*")]
