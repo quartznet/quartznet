@@ -1111,6 +1111,8 @@ public class QuartzScheduler :
             trig.JobDataMap = data;
         }
 
+        ((INextVersionTrigger) trig).ExecutionGroup = await SharedExecutionGroup(jobKey, cancellationToken).ConfigureAwait(false);
+
         bool collision = true;
         while (collision)
         {
@@ -1140,6 +1142,12 @@ public class QuartzScheduler :
 
         trig.ComputeFirstFireTimeUtc(null);
 
+        // A group the caller named is kept; only a trigger without one is given its job's.
+        if (trig is INextVersionTrigger nextVersionTrigger && nextVersionTrigger.ExecutionGroup == null && trig.JobKey != null)
+        {
+            nextVersionTrigger.ExecutionGroup = await SharedExecutionGroup(trig.JobKey, cancellationToken).ConfigureAwait(false);
+        }
+
         bool collision = true;
         while (collision)
         {
@@ -1156,6 +1164,33 @@ public class QuartzScheduler :
 
         NotifySchedulerThread(trig.GetNextFireTimeUtc());
         await NotifySchedulerListenersScheduled(trig, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The execution group every stored trigger of the job carries, so that a manual firing waits for its
+    /// job's execution limit (#4092).
+    /// </summary>
+    /// <returns>
+    /// The group, or <see langword="null" /> when the job has no triggers, or one of them carries no group
+    /// or another group.
+    /// </returns>
+    private async Task<string?> SharedExecutionGroup(JobKey jobKey, CancellationToken cancellationToken)
+    {
+        IReadOnlyCollection<IOperableTrigger> triggers = await resources.JobStore.GetTriggersForJob(jobKey, cancellationToken).ConfigureAwait(false);
+
+        string? shared = null;
+        foreach (IOperableTrigger trigger in triggers)
+        {
+            string? group = (trigger as INextVersionTrigger)?.ExecutionGroup;
+            if (group == null || (shared != null && !string.Equals(shared, group, StringComparison.Ordinal)))
+            {
+                return null;
+            }
+
+            shared = group;
+        }
+
+        return shared;
     }
 
     /// <summary>
