@@ -918,6 +918,8 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException(message);
         }
 
+        WarnOfWildcardSeconds(trig);
+
         ScheduleJobOptions storeOptions = ForStore(options);
         if (storeOptions.Replace || storeOptions.Paused)
         {
@@ -1102,6 +1104,8 @@ internal sealed class QuartzScheduler
             var message = $"Based on configured schedule, the given trigger '{trigger.Key}' will never fire.";
             Throw.SchedulerException(message);
         }
+
+        WarnOfWildcardSeconds(trig);
 
         return (trig, ft.Value);
     }
@@ -1294,6 +1298,7 @@ internal sealed class QuartzScheduler
                     earliestFireTimeUtc = ft.Value;
                 }
 
+                WarnOfWildcardSeconds(trigger);
                 operableTriggers.Add(trigger);
             }
 
@@ -1481,6 +1486,8 @@ internal sealed class QuartzScheduler
             var message = $"Based on configured schedule, the given trigger '{trigger.Key}' will never fire.";
             Throw.SchedulerException(message);
         }
+
+        WarnOfWildcardSeconds(trigger);
 
         if (await resources.JobStore.ReplaceTrigger(triggerKey, trigger, cancellationToken).ConfigureAwait(false))
         {
@@ -1693,6 +1700,31 @@ internal sealed class QuartzScheduler
                 // this new start.
                 trigger.StartTimeUtc = now;
             }
+        }
+    }
+
+    /// <summary>
+    /// Warns of a cron trigger whose seconds field is <c>*</c> under a restricted minute or hour, which
+    /// fires every second of each minute it matches.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Analyzer QZ0007 says this at build time for a literal; this is for an expression from
+    /// configuration, a scheduling file or a database. Every call that stores a trigger of the caller's
+    /// passes through here once per trigger, after the trigger has proven it will fire.
+    /// </para>
+    /// <para>
+    /// Never on acquisition: a stored trigger would repeat it on every firing, sixty times a minute.
+    /// </para>
+    /// </remarks>
+    private void WarnOfWildcardSeconds(IOperableTrigger trigger)
+    {
+        if (trigger is CronTriggerImpl { CronExpression: { HasWildcardSecondsUnderRestrictedMinuteOrHour: true } expression })
+        {
+            logger.CronWildcardSecondsUnderRestrictedMinuteOrHour(
+                trigger.Key,
+                expression.CronExpressionString,
+                CronExpression.WithSecondsAtZero(expression.CronExpressionString));
         }
     }
 
