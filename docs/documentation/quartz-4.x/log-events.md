@@ -179,7 +179,7 @@ matching on its text is not.
 | 3055 | Information | `Quartz` | `"Firing {FireInstanceId} of job {JobKey} was cancelled by the scheduler's shutdown and is not handed back: its fired-trigger row is gone, because a peer recovered it or its trigger was unscheduled while it ran"` |
 | 3056 | Information | `Quartz` | `"Lock-free firing rounds are {State}: {Detail}"` |
 | 3057 | Debug | `Quartz` | `"Firing round takes TRIGGER_ACCESS before its first write: {Reason} ({TriggerKey})"` |
-| 3058 | Warning | `Quartz` | `"Firing round rolled back and run again under TRIGGER_ACCESS: the job or overlap policy of trigger {TriggerKey} changed between the candidate read and the claim"` |
+| 3058 | Warning | `Quartz` | `"Firing round rolled back and run again under TRIGGER_ACCESS: the job, overlap policy or execution group of trigger {TriggerKey} changed between the candidate read and the claim"` |
 | 3059 | Debug | `Quartz` | `"Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write"` |
 | 3100 | Debug | `Quartz` | `"Prepared SQL: {Sql}"` |
 | 3110 | Error | `Quartz` | `"Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."` |

@@ -473,6 +473,87 @@ public sealed class LockFreeRoundTest
     }
 
     /// <summary>
+    /// The candidate read left out the groups this node does not serve (#4069); the read after the claim
+    /// finds the trigger moved into one of them in between. That is a changed definition like a job made
+    /// serial: the round rolls back and runs again under the lock, whose read leaves the trigger to a node
+    /// that serves it, and this node neither fires it nor — when it is due later in the window — reserves it.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task ATriggerMovedToAGroupThisNodeDoesNotServeAfterTheReadIsNeitherFiredNorReserved(bool dueLaterInTheWindow)
+    {
+        // A shipped delegate: its statement keeps unserved groups out, so the store's backstop is not what
+        // stops the trigger here.
+        A.CallTo(() => driverDelegate.FiltersAcquisitionExecutionGroups).Returns(true);
+
+        DateTimeOffset at = dueLaterInTheWindow ? DateTimeOffset.UtcNow.AddHours(1) : FireTime;
+        TriggerAcquireResult candidate = Candidate("t1", at: at) with { ExecutionGroup = "batch" };
+        int reads = 0;
+        A.CallTo(() => driverDelegate.SelectTriggersToAcquire(A<ConnectionAndTransactionHolder>._, A<TriggerAcquisitionCriteria>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new ValueTask<List<TriggerAcquireResult>>(Interlocked.Increment(ref reads) == 1 ? [candidate] : []));
+
+        IOperableTrigger regrouped = CreateTrigger("t1", at);
+        regrouped.ExecutionGroup = "reports";
+        GivenTheTriggersReadBack(regrouped);
+
+        TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow + TimeSpan.FromHours(3),
+            MaxCount = 2,
+            TimeWindow = dueLaterInTheWindow ? TimeSpan.FromHours(2) : TimeSpan.Zero,
+            ServedExecutionGroups = [ExecutionGroupScope.Named("batch")],
+        });
+
+        round.Due.Should().BeEmpty("the trigger now belongs to a group another node serves");
+        round.Pending.Should().BeEmpty("a trigger this node would never run is not reserved by it either");
+        round.LockName.Should().Be(TriggerAccess);
+        round.LockReason.Should().Be("definition_changed");
+        locks.Acquired.Should().Equal([SchedulerLock.TriggerAccess]);
+        store.Transactions.Should().Be(2, "the attempt without the lock, rolled back, and the one under it");
+        reads.Should().Be(2, "the locked attempt reads the candidates again, and its statement leaves the trigger out");
+
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(A<ConnectionAndTransactionHolder>._, A<TriggerFiredUpdate>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.InsertFiredTriggers(A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<IOperableTrigger>>._, A<StoredTriggerState>._, A<IJobDetail>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == RoundRolledBackForLock)
+            .Which.Message.Should().Contain("t1").And.Contain("execution group");
+    }
+
+    /// <summary>
+    /// A trigger read back in a group the node serves is fired as any other: the re-check costs a lookup,
+    /// not a rollback.
+    /// </summary>
+    [Test]
+    public async Task ATriggerReadBackInAGroupThisNodeServesIsFiredWithoutTheLock()
+    {
+        A.CallTo(() => driverDelegate.FiltersAcquisitionExecutionGroups).Returns(true);
+        GivenCandidates(Candidate("t1") with { ExecutionGroup = "batch" });
+        IOperableTrigger batch = CreateTrigger("t1", FireTime);
+        batch.ExecutionGroup = "batch";
+        GivenTheTriggersReadBack(batch);
+
+        // One request for both rounds, as the scheduler hands every round the same lists.
+        TriggerAcquisitionRequest request = new()
+        {
+            NoLaterThan = DateTimeOffset.UtcNow + TimeSpan.FromHours(3),
+            MaxCount = 2,
+            RefusedExecutionGroups = [ExecutionGroupScope.Named("reports")],
+        };
+
+        for (int i = 0; i < 2; i++)
+        {
+            TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(request);
+
+            round.Due.Select(x => x.Key.Name).Should().Equal(["t1"]);
+            round.Fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull();
+            round.LockName.Should().Be("none", "a node that refuses only 'reports' serves 'batch'");
+        }
+
+        store.Transactions.Should().Be(2, "one transaction a round, with no rollback");
+    }
+
+    /// <summary>
     /// A job type that will not load is settled before the claim, as the locked round settles it: stored
     /// <c>ERROR</c> from <c>WAITING</c> — the state the candidate read found, since this round has not
     /// claimed the row and another node may have — reported, and left out of the claim.

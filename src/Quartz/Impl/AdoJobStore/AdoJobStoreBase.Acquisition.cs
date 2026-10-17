@@ -164,6 +164,43 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
+    /// The routing the last criteria carried, kept by the two lists it was built from.
+    /// </summary>
+    private RoutingOfScopes? routingOfScopes;
+
+    /// <summary>
+    /// The groups <paramref name="criteria" /> say this node serves, or <see langword="null" /> when they
+    /// route nothing.
+    /// </summary>
+    /// <remarks>
+    /// Built once rather than once a round: the scheduler hands every request the same two lists, and the
+    /// criteria carry them by reference. Lists other than the last ones build it again.
+    /// </remarks>
+    private ExecutionGroupRouting? RoutingOf(TriggerAcquisitionCriteria criteria)
+    {
+        IReadOnlyCollection<ExecutionGroupScope>? served = criteria.ServedExecutionGroups;
+        IReadOnlyCollection<ExecutionGroupScope>? refused = criteria.RefusedExecutionGroups;
+        if (served is null && refused is null)
+        {
+            return null;
+        }
+
+        RoutingOfScopes? cached = Volatile.Read(ref routingOfScopes);
+        if (cached is null || !ReferenceEquals(cached.Served, served) || !ReferenceEquals(cached.Refused, refused))
+        {
+            cached = new RoutingOfScopes(served, refused, ExecutionGroupRouting.FromScopes(served, refused));
+            Volatile.Write(ref routingOfScopes, cached);
+        }
+
+        return cached.Routing;
+    }
+
+    private sealed record RoutingOfScopes(
+        IReadOnlyCollection<ExecutionGroupScope>? Served,
+        IReadOnlyCollection<ExecutionGroupScope>? Refused,
+        ExecutionGroupRouting? Routing);
+
+    /// <summary>
     /// Resolves a candidate's job type before its claim, settling one that will not load rather than
     /// meeting it again every round: the trigger is stored <c>ERROR</c> and reported.
     /// </summary>
@@ -299,11 +336,11 @@ internal abstract partial class AdoJobStoreBase
                         ? new HashSet<string>(names, StringComparer.Ordinal)
                         : null;
 
-                    // The same backstop for the groups this node serves, and skipped for the same reason
-                    // on every dialect Quartz ships.
-                    ExecutionGroupRouting? unservedBackstop = Delegate.FiltersAcquisitionExecutionGroups
-                        ? null
-                        : ExecutionGroupRouting.FromScopes(criteria.ServedExecutionGroups, criteria.RefusedExecutionGroups);
+                    // The groups this node serves, as the criteria carry them. The statement keeps the rest
+                    // out on every dialect Quartz ships, so the backstop below is for any other delegate;
+                    // a round that takes no lock asks again of the rows it read back after its claim.
+                    ExecutionGroupRouting? routed = RoutingOf(criteria);
+                    ExecutionGroupRouting? unservedBackstop = Delegate.FiltersAcquisitionExecutionGroups ? null : routed;
 
                     // A cluster-scoped limit is counted against the fired-triggers table, so the count is
                     // read here rather than derived from anything this node remembers. One aggregate per
@@ -405,7 +442,7 @@ internal abstract partial class AdoJobStoreBase
                             throw new RoundNeedsLockException(needed.Reason, needed.TriggerKey);
                         }
 
-                        LockFreePass pass = await ClaimAndReadWithoutLock(conn, request, round, results, maxCount, acquiredTriggers, cancellationToken).ConfigureAwait(false);
+                        LockFreePass pass = await ClaimAndReadWithoutLock(conn, request, round, results, maxCount, routed, acquiredTriggers, cancellationToken).ConfigureAwait(false);
                         raced += pass.Raced;
                         reachedBatchEnd = pass.ReachedBatchEnd;
                     }

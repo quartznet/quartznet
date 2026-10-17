@@ -243,7 +243,7 @@
 3057  Debug  AdoJobStoreLog.RoundEscalatedToLock
     "Firing round takes TRIGGER_ACCESS before its first write: {Reason} ({TriggerKey})"
 3058  Warning  AdoJobStoreLog.RoundRolledBackForLock
-    "Firing round rolled back and run again under TRIGGER_ACCESS: the job or overlap policy of trigger {TriggerKey} changed between the candidate read and the claim"
+    "Firing round rolled back and run again under TRIGGER_ACCESS: the job, overlap policy or execution group of trigger {TriggerKey} changed between the candidate read and the claim"
 3059  Debug  AdoJobStoreLog.TriggerEditReapplied
     "Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write"
 3100  Debug  AdoJobStoreLog.SqlPrepared
