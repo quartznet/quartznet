@@ -135,14 +135,17 @@ builder.Services.AddQuartz(q =>
 
 - The run is a one-shot trigger in `SchedulerConstants.StartupGroup` (`QRTZ_STARTUP`), named anew on each
   start and deleted once it has fired. `context.Trigger.Key.Group` tells a startup run from a scheduled one.
-- It is an ordinary trigger: `[DisallowConcurrentExecution]`, listeners and history apply.
+- It is an ordinary trigger: `[DisallowConcurrentExecution]`, listeners and history apply. From 4.6 it carries
+  its job's [execution group](../tutorial/execution-groups.md#manual-and-startup-firings), so limits and routing
+  apply too.
 - On a persistent store it is stored until it has fired. A run that a crash interrupts is recovered like any
   other firing.
 - **A run that a crash prevented is replaced, not added to.** The next start of the same node unschedules that
   node's unfired startup triggers for the job. In a cluster it leaves other nodes' alone, and one already
   reserved or running is left to finish.
 - In a cluster it is pinned to its node with [`PreferredNode.For`](../tutorial/node-affinity.md). It fails over
-  to another node only while that node is down.
+  to another node only while that node is down. A node that refuses the job's execution group leaves its run
+  waiting, as for any [pinned trigger](../tutorial/execution-groups.md#limitations).
 - The job has to be stored by then, durably or with a trigger of its own. If it is not, the start fails with
   `SchedulerException`.
 - Naming the same job twice registers one run.

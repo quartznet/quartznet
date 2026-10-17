@@ -1572,6 +1572,20 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// The execution group a manual firing of <paramref name="jobKey" /> counts against, so that it waits
+    /// for its group's limit and runs only on a node that serves the group.
+    /// </summary>
+    /// <remarks>
+    /// The order is <see cref="ManualFiringExecutionGroup" />'s. The HTTP API, the dashboard, the agents
+    /// and job chaining all fire through <c>TriggerJob</c>, so they all arrive here.
+    /// </remarks>
+    private ValueTask<string?> ResolveManualExecutionGroup(JobKey jobKey, JobDataMap? firingData, CancellationToken cancellationToken)
+    {
+        IJobStore store = resources.JobStore;
+        return ManualFiringExecutionGroup.Resolve(jobKey, firingData, store.GetJob, store.QueryTriggers, cancellationToken);
+    }
+
+    /// <summary>
     /// Makes a trigger's data map ready to be stored: everything <see cref="PrepareJobData" /> does, plus
     /// the trace context of whoever is scheduling it.
     /// </summary>
@@ -1735,6 +1749,9 @@ internal sealed class QuartzScheduler
             trig.JobDataMap = data;
         }
 
+        // Before the map is marked and prepared: a template reads the data as the caller gave it.
+        trig.ExecutionGroup = await ResolveManualExecutionGroup(jobKey, data, cancellationToken).ConfigureAwait(false);
+
         MarkManual(trig);
 
         // After the map has been attached, and unconditionally: a fire-now with no data of its own is
@@ -1769,6 +1786,12 @@ internal sealed class QuartzScheduler
         ValidateState();
 
         trigger.ComputeFirstFireTimeUtc(null);
+
+        // A group the caller named is kept; only a trigger without one is given its job's.
+        if (trigger.ExecutionGroup is null && trigger.JobKey is { } jobKey)
+        {
+            trigger.ExecutionGroup = await ResolveManualExecutionGroup(jobKey, trigger.JobDataMap, cancellationToken).ConfigureAwait(false);
+        }
 
         MarkManual(trigger);
         PrepareTriggerData(trigger);

@@ -23,6 +23,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
+using Quartz.Core;
 using Quartz.Extensibility;
 
 namespace Quartz.Configuration;
@@ -81,7 +82,17 @@ internal sealed class StartupRunPlugin : ISchedulerPlugin
         SchedulerMetadata metadata = await target.GetMetadata(cancellationToken).ConfigureAwait(false);
         string instanceId = metadata.SchedulerInstanceId;
         bool clustered = metadata.JobStoreClustered;
-        ITrigger trigger = CreateTrigger(jobKey, instanceId, clustered, target.TimeProvider);
+
+        // The job type's group, else the one its triggers share. Read before this start's trigger is
+        // stored, so that it does not count itself.
+        string? executionGroup = await ManualFiringExecutionGroup.Resolve(
+            jobKey,
+            firingData: null,
+            target.GetJobDetail,
+            target.QueryTriggers,
+            cancellationToken).ConfigureAwait(false);
+
+        ITrigger trigger = CreateTrigger(jobKey, instanceId, clustered, target.TimeProvider, executionGroup);
 
         // Stored before the leftovers go, so a non-durable job whose only trigger is a leftover is not
         // deleted as an orphan in between. Nothing on this node can fire either yet: its thread has not
@@ -170,9 +181,15 @@ internal sealed class StartupRunPlugin : ISchedulerPlugin
 
     /// <summary>
     /// The one-shot trigger a start schedules: due at once, fired at once if it is late, named for the
-    /// node that started, and pinned to it when the store is shared with others.
+    /// node that started, pinned to it when the store is shared with others, and in the job's execution
+    /// group.
     /// </summary>
-    internal static ITrigger CreateTrigger(JobKey jobKey, string instanceId, bool clustered, TimeProvider timeProvider)
+    internal static ITrigger CreateTrigger(
+        JobKey jobKey,
+        string instanceId,
+        bool clustered,
+        TimeProvider timeProvider,
+        string? executionGroup = null)
     {
         string name = NodeTag(instanceId) + "." + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
 
@@ -181,6 +198,7 @@ internal sealed class StartupRunPlugin : ISchedulerPlugin
             .ForJob(jobKey)
             .WithDescription($"Runs {jobKey} once as {instanceId} starts")
             .WithPreferredNode(clustered ? PreferredNode.For(instanceId) : PreferredNode.None)
+            .WithExecutionGroup(executionGroup is null ? null : ExecutionGroupTemplate.Escape(executionGroup))
             .StartNow()
             .WithSimpleSchedule(x => x.WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow))
             .Build();
