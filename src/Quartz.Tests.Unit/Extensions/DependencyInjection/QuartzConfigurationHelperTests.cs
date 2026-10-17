@@ -187,12 +187,13 @@ public class QuartzConfigurationHelperTests
                 "quartz.executionLimit.tenant:acme",
                 "quartz.context.key.ApiKey",
                 "quartz.dataSource.MyDS.connectionString",
-                "quartz.plugin.JobHistory.type",
+                "quartz.plugin.jobHistory.type",
                 "quartz.jobListener.Audit.type",
                 "quartz.triggerListener.Audit.type",
                 "quartz.scheduler.idleWaitTime",
             },
-            "a name is looked up ordinally, while a property is matched without regard to case; and the prefix is "
+            "a name is looked up ordinally, while a property is matched without regard to case; a plugin's name stays "
+            + "camel-cased because the XML plugin persists jobs named after it; and the prefix is "
             + "spelled as StdSchedulerFactory spells it, because it matches the prefix ordinally");
     }
 
@@ -259,7 +260,7 @@ public class QuartzConfigurationHelperTests
     }
 
     [Test]
-    public async Task AListenerAndAPluginFromConfigurationKeepTheirNames()
+    public async Task AListenerKeepsItsNameAndAPluginKeepsItsCamelCasedName()
     {
         IScheduler scheduler = await SchedulerFrom(new Dictionary<string, string>
         {
@@ -270,8 +271,8 @@ public class QuartzConfigurationHelperTests
         {
             scheduler.ListenerManager.GetJobListener("Audit").Should().BeOfType<NamedJobListener>(
                 "the listener manager finds a listener by its name, ordinally");
-            scheduler.Context.GetString(NamedPlugin.ContextKey).Should().Be("Recorder",
-                "the plugin is handed its name, and the XML plugin builds its file-scan job keys from it");
+            scheduler.Context.GetString(NamedPlugin.ContextKey).Should().Be("recorder",
+                "the XML plugin builds its persisted file-scan job keys from this name, so it stays as before");
         }
         finally
         {

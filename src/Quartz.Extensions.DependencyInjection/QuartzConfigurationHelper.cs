@@ -19,7 +19,7 @@ namespace Quartz;
 /// A name the user chose keeps its case: <c>DataSource:MyDS:ConnectionString</c> becomes
 /// <c>quartz.dataSource.MyDS.connectionString</c>, and <c>ExecutionLimit:Reports</c> becomes
 /// <c>quartz.executionLimit.Reports</c>. The names are those of execution groups, context keys, data
-/// sources, plugins and listeners.
+/// sources and listeners. A plugin's name is still camel-cased: the XML plugin names its stored jobs after it.
 /// </para>
 /// <para>
 /// Keys that already start with "quartz." at the root level are passed through unchanged for backward compatibility.
@@ -91,7 +91,7 @@ public static class QuartzConfigurationHelper
     /// <para>
     /// A property name is matched without regard to case, so it can be camel-cased on the way to the flat
     /// key. A name cannot be: an execution group, a context key, a data source and a listener are each
-    /// looked up ordinally, and a plugin is handed its name. Below an execution limit or a context key the
+    /// looked up ordinally. Below an execution limit or a context key the
     /// rest of the path is the name, rejoined with the <c>:</c> it was written with; below the others the
     /// next segment is the name and what follows it are properties.
     /// </para>
@@ -100,13 +100,17 @@ public static class QuartzConfigurationHelper
     /// being case-insensitive, do not promise, so a section that matches one of these without regard to
     /// case is written in the spelling here.
     /// </para>
+    /// <para>
+    /// A plugin's name is left camel-cased on purpose. Nothing looks it up ordinally, and the XML plugin
+    /// names its persisted file-scan job and trigger after it, so a change of case would leave the
+    /// previous version's job behind, failing on every scan.
+    /// </para>
     /// </remarks>
     private static readonly (string Prefix, bool WholeKey)[] namedChildPrefixes =
     {
         (Impl.StdSchedulerFactory.PropertyExecutionLimitPrefix, true),
         (Impl.StdSchedulerFactory.PropertySchedulerContextPrefix, true),
         (Impl.StdSchedulerFactory.PropertyDataSourcePrefix, false),
-        (Impl.StdSchedulerFactory.PropertyPluginPrefix, false),
         (Impl.StdSchedulerFactory.PropertyJobListenerPrefix, false),
         (Impl.StdSchedulerFactory.PropertyTriggerListenerPrefix, false),
     };
