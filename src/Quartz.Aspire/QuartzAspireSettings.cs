@@ -128,9 +128,9 @@ public sealed class QuartzAspireSettings
     /// locking on with it, as <c>UseClustering()</c> always has.
     /// </para>
     /// <para>
-    /// It also makes the scheduler derive its <c>InstanceId</c>, because a cluster needs distinct ids and
-    /// a replica set has none of its own to borrow: a node recognises its own check-in row and its own
-    /// fired triggers by that id, and every replica starts life carrying
+    /// It also makes the scheduler derive its <c>InstanceId</c>, as <c>UseClustering()</c> does, because a
+    /// cluster needs distinct ids and a replica set has none of its own to borrow: a node recognises its
+    /// own check-in row and its own fired triggers by that id, and every replica starts life carrying
     /// <see cref="QuartzSchedulerOptions.DefaultInstanceId"/> — <c>NON_CLUSTERED</c>. An application that
     /// already set <c>GenerateInstanceId</c>, or that named its nodes by setting <c>InstanceId</c>, keeps
     /// what it said; this only fills the gap.

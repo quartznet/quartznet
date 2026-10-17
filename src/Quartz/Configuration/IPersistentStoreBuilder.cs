@@ -144,6 +144,12 @@ public interface IPersistentStoreBuilder
     /// separable in practice.
     /// </para>
     /// <para>
+    /// It also requires a distinct <see cref="QuartzSchedulerOptions.InstanceId" /> per node. A scheduler
+    /// still on <see cref="QuartzSchedulerOptions.DefaultInstanceId" /> once its options are resolved gets
+    /// <see cref="QuartzSchedulerOptions.GenerateInstanceId" /> turned on. An id set before or after this
+    /// call, or a generator chosen with <c>UseInstanceIdGenerator</c>, is kept.
+    /// </para>
+    /// <para>
     /// Everything about clustering is said here, on <see cref="ClusteringOptions" />. The job store has
     /// no clustering settings of its own to disagree with these, and reports whether it is clustered
     /// rather than offering a second place to say so.

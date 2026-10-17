@@ -297,6 +297,12 @@ internal static class QuartzPropertyBridge
         Reconfigure<InMemoryJobStoreOptions>(services, name, MapInMemoryJobStore);
         Reconfigure<AdoJobStoreOptions>(services, name, MapAdoJobStore);
         Reconfigure<ClusteringOptions>(services, name, MapClustering);
+
+        // What UseClustering() does for a scheduler clustered in code, for one clustered by a key. A
+        // post-configure step, as there, so an InstanceId set in the configuration callback counts as
+        // chosen; and read here, at resolution time, so a key that arrived through QuartzOptions does too.
+        services.AddSingleton<IPostConfigureOptions<QuartzSchedulerOptions>>(provider =>
+            new PostConfigureFromProperties<QuartzSchedulerOptions>(provider, name, GenerateInstanceIdWhenClustered));
     }
 
     private static void Reconfigure<TOptions>(
@@ -306,6 +312,51 @@ internal static class QuartzPropertyBridge
     {
         services.AddSingleton<IConfigureOptions<TOptions>>(provider =>
             new ConfigureFromProperties<TOptions>(provider, name, map));
+    }
+
+    /// <summary>
+    /// Generates the instance id of a scheduler the keys cluster, unless one was chosen.
+    /// </summary>
+    /// <remarks>
+    /// Reads the two spellings <see cref="MapClustering" /> reads, the later deciding, as there. A value
+    /// that is not a boolean is passed over rather than refused: it is <see cref="MapClustering" />'s to
+    /// report when the store reads its clustering options, and a scheduler on the in-memory store, which
+    /// never does, must not start failing over a key it ignores.
+    /// </remarks>
+    private static void GenerateInstanceIdWhenClustered(QuartzSchedulerOptions options, PropertyReader parser)
+    {
+        bool clustered = false;
+
+        if (bool.TryParse(parser.String(ClusteredKey), out bool legacy))
+        {
+            clustered = legacy;
+        }
+
+        if (bool.TryParse(parser.String(ClusteringEnabledKey), out bool hierarchical))
+        {
+            clustered = hierarchical;
+        }
+
+        if (clustered)
+        {
+            ClusteredInstanceId.GenerateUnlessChosen(options);
+        }
+    }
+
+    /// <summary>
+    /// <see cref="ConfigureFromProperties{TOptions}" />, applied after every <c>Configure</c> rather than
+    /// in among them.
+    /// </summary>
+    private sealed class PostConfigureFromProperties<TOptions> : IPostConfigureOptions<TOptions> where TOptions : class
+    {
+        private readonly ConfigureFromProperties<TOptions> configure;
+
+        public PostConfigureFromProperties(IServiceProvider provider, string name, Action<TOptions, PropertyReader> map)
+        {
+            configure = new ConfigureFromProperties<TOptions>(provider, name, map);
+        }
+
+        public void PostConfigure(string? name, TOptions options) => configure.Configure(name, options);
     }
 
     /// <summary>
@@ -1035,8 +1086,8 @@ internal static class QuartzPropertyBridge
             }
         }
 
-        parser.Bool("quartz.jobStore.clustered", ImplyDbLocks);
-        parser.Bool("quartz.jobStore.clustering.enabled", ImplyDbLocks);
+        parser.Bool(ClusteredKey, ImplyDbLocks);
+        parser.Bool(ClusteringEnabledKey, ImplyDbLocks);
         parser.Milliseconds(LegacyPropertyKeys.JobStoreDbRetryInterval, value => options.DbRetryInterval = value);
         // Zero is 3.22's way of saying "leave the provider's own default alone", which here is an unset
         // option: the validator refuses a non-positive timeout, so bridging the zero literally would
@@ -1184,17 +1235,27 @@ internal static class QuartzPropertyBridge
     }
 
     /// <summary>
+    /// Whether the scheduler is clustered, in the legacy spelling.
+    /// </summary>
+    private const string ClusteredKey = "quartz.jobStore.clustered";
+
+    /// <summary>
+    /// Whether the scheduler is clustered, in the spelling <c>JobStore:Clustering:Enabled</c> flattens to.
+    /// </summary>
+    private const string ClusteringEnabledKey = "quartz.jobStore.clustering.enabled";
+
+    /// <summary>
     /// Maps the clustering keys, which are still spelled <c>quartz.jobStore.cluster*</c> even though
     /// they no longer land on the job store's own options.
     /// </summary>
     private static void MapClustering(ClusteringOptions options, PropertyReader parser)
     {
-        parser.Bool("quartz.jobStore.clustered", value => options.Enabled = value);
+        parser.Bool(ClusteredKey, value => options.Enabled = value);
         parser.Milliseconds("quartz.jobStore.clusterCheckinInterval", value => options.CheckinInterval = value);
         parser.Milliseconds("quartz.jobStore.clusterCheckinMisfireThreshold", value => options.CheckinMisfireThreshold = value);
 
         // The hierarchical spelling of the same three settings, which flattens to this prefix.
-        parser.Bool("quartz.jobStore.clustering.enabled", value => options.Enabled = value);
+        parser.Bool(ClusteringEnabledKey, value => options.Enabled = value);
         parser.Milliseconds("quartz.jobStore.clustering.checkinInterval", value => options.CheckinInterval = value);
         parser.Milliseconds("quartz.jobStore.clustering.checkinMisfireThreshold", value => options.CheckinMisfireThreshold = value);
     }

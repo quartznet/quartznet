@@ -166,8 +166,8 @@ public class QuartzAspireRegistrationTest
         using IHost host = builder.Build();
 
         Scheduler(host).InstanceId.Should().Be("orders-1",
-            "this runs from ConfigureAllQuartzSchedulers, which AddQuartz applies after the configuration "
-            + "binding as well as after the scheduler's own callback, so what it reads is everything the "
+            "UseClustering() decides in a post-configure step, which runs after the configuration binding "
+            + "as well as after the scheduler's own callback, so what it reads is everything the "
             + "application said");
         Scheduler(host).GenerateInstanceId.Should().BeFalse();
     }

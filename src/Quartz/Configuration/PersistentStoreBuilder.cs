@@ -247,6 +247,10 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         // is reported as one.
         Services.AddSingleton<IValidateOptions<ClusteringOptions>>(new ClusteringStaysEnabledValidator(OptionsName));
 
+        // Nor has it worked with every node on NON_CLUSTERED, so a scheduler that chose no id gets a
+        // generated one. A post-configure step, so an id set after this call counts as chosen too.
+        Services.PostConfigure<QuartzSchedulerOptions>(OptionsName, ClusteredInstanceId.GenerateUnlessChosen);
+
         // Clustering has never worked without database locking, so enabling one enables the other
         // rather than leaving a configuration nobody meant to write.
         return ConfigureStore(options => options.UseDbLocks = true);
