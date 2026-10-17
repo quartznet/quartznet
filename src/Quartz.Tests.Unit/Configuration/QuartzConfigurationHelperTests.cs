@@ -111,6 +111,68 @@ public class QuartzConfigurationHelperTests
     }
 
     [Test]
+    public void ANameKeepsItsCaseWhileAPropertyIsCamelCased()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "DataSource:MyDS:ConnectionString", "Server=nowhere" },
+            { "Plugin:JobHistory:Type", "Quartz.Plugins.History.LoggingJobHistoryPlugin, Quartz.Plugins" },
+            { "Context:Key:ApiKey", "secret" },
+            { "DbProvider:MyDatabase:ProductName", "My Database" },
+            { "Scheduler:IdleWaitTime", "30000" },
+        });
+
+        // AllKeys, because the collection's own indexer ignores case and would hide the difference.
+        QuartzConfigurationHelper.ToNameValueCollection(config).AllKeys.Should().BeEquivalentTo(
+            [
+                "quartz.dataSource.MyDS.connectionString",
+                "quartz.plugin.JobHistory.type",
+                "quartz.context.key.ApiKey",
+                "quartz.dbprovider.MyDatabase.productName",
+                "quartz.scheduler.idleWaitTime",
+            ],
+            "a name is compared ordinally by whatever looks it up, while a property is matched without regard to case; "
+            + "the dbprovider prefix is spelled as its reader spells it, because the reader matches it ordinally");
+    }
+
+    [Test]
+    public void AnExecutionLimitKeyIsTheRestOfThePathAsWritten()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "ExecutionLimit:Reports", "2" },
+            { "ExecutionLimit:tenant:*", "3" },
+            { "ExecutionLimit:file.v2", "4" },
+            { "ExecutionLimit:*", "5" },
+            { "clusterexecutionlimit:region:eu:*", "6" },
+        });
+
+        QuartzConfigurationHelper.ToNameValueCollection(config).AllKeys.Should().BeEquivalentTo(
+            [
+                "quartz.executionLimit.Reports",
+                "quartz.executionLimit.tenant:*",
+                "quartz.executionLimit.file.v2",
+                "quartz.executionLimit.*",
+                "quartz.clusterExecutionLimit.region:eu:*",
+            ],
+            "':' is the configuration path separator, so it is the separator the key was written with; and the "
+            + "parser matches the prefix ordinally, which configuration keys, being case-insensitive, do not promise");
+    }
+
+    [Test]
+    public void AFlatKeyIsPassedThroughAsWrittenColonIncluded()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "quartz.executionLimit.tenant:*", "3" },
+        });
+
+        QuartzConfigurationHelper.ToNameValueCollection(config).AllKeys.Should().Equal(
+            ["quartz.executionLimit.tenant:*"],
+            "the ':' splits the flat key into a section with no value of its own, which used to drop it");
+    }
+
+    [Test]
     public void FlatKeys_PassThroughUnchanged()
     {
         var config = BuildConfig(new Dictionary<string, string> { { "quartz.scheduler.instanceName", "Flat" } });
