@@ -33,8 +33,8 @@ using Quartz.Impl.AdoJobStore.Common;
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <summary>
-/// The statement a filtered history page is read with: which predicates it carries, and the order its
-/// parameters are bound in.
+/// The statements a filtered history page, misfire page and chart are read with: which predicates they
+/// carry, and the order their parameters are bound in.
 /// </summary>
 /// <remarks>
 /// A provider with <c>BindByName</c> off takes its parameters by position, so every predicate appends its
@@ -119,10 +119,53 @@ public sealed partial class HistoryFilterBindingTest
             Results = [JobRunResult.Failed, JobRunResult.Cancelled]
         });
 
+        AssertBoundInStatementOrder(SqlParameters.TriggerGroup, SqlParameters.TriggerName, SqlParameters.HistoryFireInstanceId);
+    }
+
+    [Test]
+    public async Task TheMisfireListingBindsItsTriggerInStatementOrder()
+    {
+        await adoDelegate.SelectMisfireHistory(conn, new MisfireHistoryQuery
+        {
+            SchedulerName = "TESTSCHED",
+            SchedulerInstanceId = "node-a",
+            TriggerContains = "mid",
+            Job = new JobKey("nightly-report", "reports"),
+            Trigger = new TriggerKey("at-midnight", "nightly"),
+            Reasons = [MisfireReason.Missed, MisfireReason.Vetoed]
+        }, DateTimeOffset.UnixEpoch);
+
+        command.CommandText.Should().Contain(StdAdoConstants.SqlHistoryTriggerPredicate);
+        AssertBoundInStatementOrder(SqlParameters.TriggerGroup, SqlParameters.TriggerName);
+    }
+
+    [Test]
+    public async Task TheRunStatisticsBindTheTriggerAndTheFiringInStatementOrder()
+    {
+        await adoDelegate.SelectExecutionStatistics(conn, new ExecutionStatisticsQuery
+        {
+            SchedulerName = "TESTSCHED",
+            Job = new JobKey("nightly-report", "reports"),
+            Trigger = new TriggerKey("at-midnight", "nightly"),
+            FireInstanceId = "node-a-17",
+            JobGroup = "reports",
+            Results = [JobRunResult.Failed]
+        }, DateTimeOffset.UnixEpoch);
+
+        command.CommandText.Should().Contain(StdAdoConstants.SqlHistoryTriggerPredicate)
+            .And.Contain(StdAdoConstants.SqlExecutionHistoryFireInstancePredicate);
+        AssertBoundInStatementOrder(SqlParameters.TriggerGroup, SqlParameters.TriggerName, SqlParameters.HistoryFireInstanceId);
+    }
+
+    /// <summary>
+    /// The bound parameters carry <paramref name="expected" />, and are bound one per placeholder in the
+    /// order the statement names them.
+    /// </summary>
+    private void AssertBoundInStatementOrder(params string[] expected)
+    {
         List<string> bound = Bound().Select(parameter => parameter.Name).ToList();
 
-        bound.Should().Contain([SqlParameters.TriggerGroup, SqlParameters.TriggerName, SqlParameters.HistoryFireInstanceId],
-            "the trigger and the firing are filters of their own");
+        bound.Should().Contain(expected, "the trigger and the firing are filters of their own");
         bound.Should().Equal(Placeholder().Matches(command.CommandText).Select(match => match.Groups[1].Value),
             "a provider that binds by position takes one value per placeholder, in the statement's order");
     }

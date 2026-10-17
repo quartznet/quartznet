@@ -287,6 +287,7 @@ namespace Quartz.Dashboard.Services
         public System.Collections.Generic.IReadOnlyCollection<Quartz.MisfireReason>? Reasons { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
+        public Quartz.Dashboard.Services.TriggerKeyDto? Trigger { get; init; }
         public string? TriggerFilter { get; init; }
     }
     public sealed record DashboardTriggerQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardTriggerQuery>

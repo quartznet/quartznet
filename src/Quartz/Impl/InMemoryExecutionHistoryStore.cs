@@ -187,7 +187,7 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
 
         if (query.Trigger is { } trigger)
         {
-            filtered = filtered.Where(x => IsTrigger(x, trigger));
+            filtered = filtered.Where(x => IsTrigger(x.TriggerGroup, x.TriggerName, trigger));
         }
 
         if (!string.IsNullOrWhiteSpace(query.FireInstanceId))
@@ -234,6 +234,11 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         if (query.Job is { } job)
         {
             filtered = filtered.Where(x => job.Equals(x.JobKey));
+        }
+
+        if (query.Trigger is { } trigger)
+        {
+            filtered = filtered.Where(x => IsTrigger(x.TriggerGroup, x.TriggerName, trigger));
         }
 
         if (query.Reasons is { } reasons)
@@ -330,10 +335,11 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
                && string.Equals(entry.JobGroup, job.Group, StringComparison.Ordinal);
     }
 
-    private static bool IsTrigger(ExecutionHistoryEntry entry, TriggerKey trigger)
+    /// <summary>Whether a row's trigger is <paramref name="trigger" />, as written: both feeds name it so.</summary>
+    private static bool IsTrigger(string group, string name, TriggerKey trigger)
     {
-        return string.Equals(entry.TriggerName, trigger.Name, StringComparison.Ordinal)
-               && string.Equals(entry.TriggerGroup, trigger.Group, StringComparison.Ordinal);
+        return string.Equals(name, trigger.Name, StringComparison.Ordinal)
+               && string.Equals(group, trigger.Group, StringComparison.Ordinal);
     }
 
     private static IEnumerable<T> OnNode<T>(List<T> entries, string? schedulerInstanceId, Func<T, string> nodeOf)

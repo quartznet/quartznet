@@ -27,7 +27,7 @@ namespace Quartz.Tests.Unit.Impl;
 
 /// <summary>
 /// The 4.6 half of the history contract: an execution looked up by its exact trigger key and by its
-/// fire instance id.
+/// fire instance id, a misfire by its exact trigger key, and runs counted by either.
 /// </summary>
 /// <remarks>
 /// Run against the in-memory store and the database-backed one, as the rest of the contract is.
@@ -127,6 +127,57 @@ public abstract partial class ExecutionHistoryStoreContractTest
             .Items.Should().BeEmpty();
         (await store.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = SchedulerName, FireInstanceId = " " }))
             .Items.Should().ContainSingle("a blank id is no filter, as a blank node is");
+    }
+
+    [Test]
+    public async Task MisfiresCanBeReadForOneTriggerExactly()
+    {
+        IExecutionHistoryStore store = await CreateStore(_ => { });
+
+        await store.AddMisfire(Misfire(Start, "t"));
+        await store.AddMisfire(Misfire(Start, "t2"));
+        await store.AddMisfire(Misfire(Start, "T"));
+        await store.AddMisfire(Misfire(Start, "t") with { TriggerGroup = "other" });
+
+        PagedResult<MisfireHistoryEntry> page = await store.QueryMisfires(new MisfireHistoryQuery
+        {
+            SchedulerName = SchedulerName,
+            Trigger = new TriggerKey("t", TriggerGroup),
+            IncludeTotalCount = true
+        });
+
+        page.Items.Should().ContainSingle("a misfire's trigger is matched as an execution's is: whole and as written")
+            .Which.Should().Match<MisfireHistoryEntry>(row => row.TriggerName == "t" && row.TriggerGroup == TriggerGroup);
+        page.TotalCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task RunsCanBeCountedForOneTriggerAndOneFiring()
+    {
+        IExecutionHistoryStore store = await CreateStore(_ => { });
+
+        await store.AddExecution(Fired(Start, "g", "t", "fire-1"));
+        await store.AddExecution(Fired(Start.AddSeconds(-1), "g", "t", "fire-2"));
+        await store.AddExecution(Fired(Start.AddSeconds(-2), "g", "t2", "fire-3"));
+
+        (await RunsOf(store, new TriggerKey("t", "g"), fireInstanceId: null)).Should().Be(2,
+            "the chart beside a trigger's history counts that trigger's runs, not t2's");
+        (await RunsOf(store, new TriggerKey("t", "g"), "fire-2")).Should().Be(1);
+        (await RunsOf(store, trigger: null, "fire-3")).Should().Be(1);
+        (await RunsOf(store, new TriggerKey("t2", "g"), "fire-1")).Should().Be(0, "the two filters are ANDed");
+    }
+
+    private static async Task<long> RunsOf(IExecutionHistoryStore store, TriggerKey? trigger, string? fireInstanceId)
+    {
+        ExecutionStatistics statistics = await store.QueryExecutionStatistics(new ExecutionStatisticsQuery
+        {
+            SchedulerName = SchedulerName,
+            Trigger = trigger,
+            FireInstanceId = fireInstanceId,
+            BucketSize = TimeSpan.FromDays(1)
+        });
+
+        return statistics.Buckets.Sum(bucket => bucket.RunCount);
     }
 
     /// <summary>One execution of <c>nightly-report</c>, fired by the trigger and as the firing given.</summary>

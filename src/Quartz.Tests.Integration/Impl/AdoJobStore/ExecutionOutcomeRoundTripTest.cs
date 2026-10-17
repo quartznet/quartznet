@@ -155,7 +155,8 @@ public abstract class ExecutionOutcomeRoundTripTest
 
     /// <summary>
     /// An execution looked up by its exact trigger key and by its fire instance id, each bound as this
-    /// dialect binds a string and compared by equality rather than as a pattern.
+    /// dialect binds a string and compared by equality rather than as a pattern; and the run statistics and
+    /// the misfire listing narrowed the same way.
     /// </summary>
     [Test]
     public async Task ExecutionsAreLookedUpByTriggerAndFiringExactly()
@@ -182,6 +183,15 @@ public abstract class ExecutionOutcomeRoundTripTest
 
         (await store.QueryExecutions(Query() with { Trigger = new TriggerKey("t", "outcome"), FireInstanceId = "node-a-17" }))
             .Items.Should().BeEmpty("node-a-17 fired outcome.t2");
+
+        (await RunCount(store, Statistics() with { Trigger = new TriggerKey("t", "outcome") })).Should().Be(2);
+        (await RunCount(store, Statistics() with { Trigger = new TriggerKey("t", "outcome"), FireInstanceId = "node-a-2" })).Should().Be(1,
+            "the statistics read binds the same two predicates, after the listing's");
+
+        await store.AddMisfire(new MisfireHistoryEntry(schedulerName, "node-a", "outcome", "t", null, Now, null));
+        await store.AddMisfire(new MisfireHistoryEntry(schedulerName, "node-a", "outcome", "t2", null, Now, null));
+        (await store.QueryMisfires(new MisfireHistoryQuery { SchedulerName = schedulerName, Trigger = new TriggerKey("t2", "outcome"), IncludeTotalCount = true }))
+            .TotalCount.Should().Be(1, "outcome.t2's misfire, and not outcome.t's");
     }
 
     [TestCaseSource(typeof(MultibyteTexts), nameof(MultibyteTexts.Kinds))]

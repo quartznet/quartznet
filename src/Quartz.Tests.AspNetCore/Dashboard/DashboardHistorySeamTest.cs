@@ -119,7 +119,7 @@ public sealed class DashboardHistorySeamTest
     }
 
     /// <summary>
-    /// The 4.6 lookups, by trigger and by firing, survive the adapters in both directions.
+    /// The 4.6 lookups, by trigger and by firing, survive the adapters in both directions, on both feeds.
     /// </summary>
     [Test]
     public async Task TheTriggerAndFiringLookupsSurviveBothAdapters()
@@ -139,6 +139,13 @@ public sealed class DashboardHistorySeamTest
 
         page.Items.Should().ContainSingle("the trigger and the firing reached the store, or the other two rows would be here")
             .Which.EntryId.Should().Be("entry-1");
+
+        MisfireHistoryEntry missed = new("acme", "node-a", "DummyTriggerGroup", "at-midnight", null, DateTimeOffset.UtcNow, null);
+        await quartzStore.AddMisfire(missed);
+        await quartzStore.AddMisfire(missed with { TriggerName = "at-midnight-2" });
+
+        (await quartzStore.QueryMisfires(new MisfireHistoryQuery { SchedulerName = "acme", Trigger = new TriggerKey("at-midnight", "DummyTriggerGroup") }))
+            .Items.Should().ContainSingle("the misfire listing's trigger reached the store too").Which.TriggerName.Should().Be("at-midnight");
     }
 
     [Test]

@@ -49,6 +49,11 @@ public sealed record MisfireHistoryQuery : PagedQuery
     public JobKey? Job { get; init; }
 
     /// <summary>
+    /// Lists only the misfires of this trigger, matched exactly, or every trigger's when null.
+    /// </summary>
+    public TriggerKey? Trigger { get; init; }
+
+    /// <summary>
     /// Lists only the misfires whose <see cref="MisfireHistoryEntry.Reason" /> is one of these, or every
     /// reason when null. An empty set lists nothing.
     /// </summary>

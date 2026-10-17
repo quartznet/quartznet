@@ -88,8 +88,9 @@ public class CurrentlyExecutingProgressTest
         page.WaitForAssertion(() =>
         {
             IElement link = page.Find("[data-testid=executing-history-link]");
-            link.GetAttribute("href").Should().Be("quartz/history?trigger=nightly.trigger-1",
-                "the history page narrowed to this trigger is where its execution pages are");
+            link.GetAttribute("href").Should().Be("quartz/history?triggerGroup=nightly&triggerName=trigger-1",
+                "the history page narrowed to this trigger exactly is where its execution pages are; the text "
+                + "filter would also list a trigger-10 beside it");
             page.TextOfAll("thead th").Should().Contain("History", "reading history is not a mutation, so read-only keeps it");
         });
     }

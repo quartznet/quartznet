@@ -58,7 +58,8 @@ internal sealed record HistoryParameters
     public string? TriggerName { get; init; }
 
     /// <summary>
-    /// The <c>fireInstanceId</c> parameter: one firing, matched exactly. Blank is no filter.
+    /// The <c>fireInstanceId</c> parameter as the query string carried it. Read through
+    /// <see cref="FireInstance" />.
     /// </summary>
     public string? FireInstanceId { get; init; }
 
@@ -97,6 +98,11 @@ internal sealed record HistoryParameters
             ? new TriggerKey(TriggerName!, TriggerGroup!)
             : null;
     }
+
+    /// <summary>
+    /// The firing asked for, matched exactly, or <see langword="null" /> when the parameter is absent or blank.
+    /// </summary>
+    public string? FireInstance() => string.IsNullOrWhiteSpace(FireInstanceId) ? null : FireInstanceId;
 
     /// <summary>
     /// The job both halves name, or the group alone: the run statistics count a whole group, where a listing

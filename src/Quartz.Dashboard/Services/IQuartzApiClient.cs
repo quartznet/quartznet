@@ -926,6 +926,11 @@ public sealed record DashboardMisfireQuery : PagedQuery
     public JobKeyDto? Job { get; init; }
 
     /// <summary>
+    /// Lists only the misfires of this trigger, matched exactly, or every trigger's when null. Added in 4.6.
+    /// </summary>
+    public TriggerKeyDto? Trigger { get; init; }
+
+    /// <summary>
     /// Lists only the misfires whose <see cref="DashboardMisfireEntry.Reason" /> is one of these, or every
     /// reason when null. An empty set lists nothing. Added in 4.4.
     /// </summary>

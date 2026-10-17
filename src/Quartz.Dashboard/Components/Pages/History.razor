@@ -100,6 +100,16 @@
                     </div>
                 </div>
             }
+            @if (_appliedExactTrigger is { } exactTrigger)
+            {
+                <div class="qz-form-group" data-testid="history-exact-trigger">
+                    <span class="qz-form-label">This trigger only</span>
+                    <div class="qz-row">
+                        <KeyBadge GroupName="@exactTrigger.Group" ItemName="@exactTrigger.Name" />
+                        <button type="button" class="qz-button" data-testid="history-exact-trigger-clear" @onclick="ClearExactTriggerAsync">Every trigger</button>
+                    </div>
+                </div>
+            }
         </div>
         <div class="qz-actions qz-group-actions">
             <button type="button" class="qz-button qz-button-primary" @onclick="ApplyFiltersAsync">Apply filters</button>
@@ -376,6 +386,15 @@
     private JobKeyDto? _appliedExactJob;
 
     /// <summary>
+    /// The one trigger the listing is narrowed to, or <see langword="null" /> for every trigger.
+    /// </summary>
+    /// <remarks>
+    /// Set by the <c>triggerGroup</c> and <c>triggerName</c> query parameters, which the Trigger Detail
+    /// page's history link writes, for the reason <see cref="_appliedExactJob" /> exists.
+    /// </remarks>
+    private TriggerKeyDto? _appliedExactTrigger;
+
+    /// <summary>
     /// The results the listing is narrowed to, in the order the page offers them; empty for every result.
     /// </summary>
     private readonly List<JobRunResult> _appliedResults = [];
@@ -385,8 +404,8 @@
     /// </summary>
     /// <remarks>
     /// A scheduler in another process whose host is older than 4.4 ignores the job, fire-time and result
-    /// filters, and the HTTP client refuses rather than show an unfiltered page as a filtered one. That is
-    /// not "no history here": the page says which it is.
+    /// filters, and one older than 4.6 the trigger filter; the HTTP client refuses rather than show an
+    /// unfiltered page as a filtered one. That is not "no history here": the page says which it is.
     /// </remarks>
     private string? _filterUnsupported;
 
@@ -452,6 +471,14 @@
     [SupplyParameterFromQuery(Name = "jobName")]
     public string? JobNameQuery { get; set; }
 
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "triggerGroup")]
+    public string? TriggerGroupQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "triggerName")]
+    public string? TriggerNameQuery { get; set; }
+
     /// <summary>
     /// The results to list, comma-separated: <c>result=failed,cancelled</c>.
     /// </summary>
@@ -471,12 +498,13 @@
         !string.IsNullOrWhiteSpace(_appliedTriggerFilter) ||
         HasNodeFilter ||
         HasOutcomeFilter ||
-        HasFilterFrom44;
+        HasVersionedFilter;
 
     /// <summary>
-    /// Whether a filter only a 4.4 host answers is applied.
+    /// Whether a filter only a newer host answers is applied: 4.4 for a job, a result or a window, 4.6 for
+    /// a trigger.
     /// </summary>
-    private bool HasFilterFrom44 => _appliedExactJob is not null || _appliedResults.Count > 0 || HasWindow;
+    private bool HasVersionedFilter => _appliedExactJob is not null || _appliedExactTrigger is not null || _appliedResults.Count > 0 || HasWindow;
 
     private bool HasWindow => !ReferenceEquals(_appliedWindow, RunStatisticsWindow.All);
 
@@ -510,6 +538,7 @@
         _appliedNodeFilter = requestedNodeFilter;
         _appliedOutcomeFilter = requestedOutcomeFilter;
         _appliedExactJob = NormalizeExactJob(JobGroupQuery, JobNameQuery);
+        _appliedExactTrigger = NormalizeExactTrigger(TriggerGroupQuery, TriggerNameQuery);
         SetResults(NormalizeResults(ResultQuery));
         _appliedWindow = RunStatisticsWindow.Parse(WindowQuery);
         _page = requestedPage;
@@ -625,7 +654,7 @@
             ComputeAnalytics();
             await LoadStatisticsAsync(schedulerName, now);
         }
-        catch (NotSupportedException ex) when (HasFilterFrom44)
+        catch (NotSupportedException ex) when (HasVersionedFilter)
         {
             // The target serves history, but not these filters. Its words say which host and why.
             _filterUnsupported = ex.Message;
@@ -668,6 +697,8 @@
             _appliedOutcomeFilter,
             _appliedExactJob?.Group,
             _appliedExactJob?.Name,
+            _appliedExactTrigger?.Group,
+            _appliedExactTrigger?.Name,
             string.Join(",", _appliedResults),
             _appliedWindow.Key);
 
@@ -700,6 +731,7 @@
         TriggerContains = string.IsNullOrWhiteSpace(_appliedTriggerFilter) ? null : _appliedTriggerFilter,
         FailedFinally = HasOutcomeFilter ? true : null,
         Job = _appliedExactJob is { } exactJob ? new JobKey(exactJob.Name, exactJob.Group) : null,
+        Trigger = _appliedExactTrigger is { } exactTrigger ? new TriggerKey(exactTrigger.Name, exactTrigger.Group) : null,
         Results = _appliedResults.Count == 0 ? null : [.. _appliedResults]
     };
 
@@ -743,6 +775,7 @@
         // "everything but those" is not a page an operator opens this listing to read.
         FailedFinally = HasOutcomeFilter ? true : null,
         Job = _appliedExactJob,
+        Trigger = _appliedExactTrigger,
         Results = _appliedResults.Count == 0 ? null : [.. _appliedResults],
         FiredFrom = _windowFrom,
         Skip = Math.Max(0, page - 1) * _pageSize,
@@ -760,6 +793,7 @@
         SchedulerInstanceId = NormalizedNodeFilter(),
         TriggerFilter = _appliedTriggerFilter,
         Job = _appliedExactJob,
+        Trigger = _appliedExactTrigger,
         Take = _pageSize
     };
 
@@ -782,7 +816,7 @@
 
     private Task OnWindowChangedAsync(ChangeEventArgs args)
     {
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, _appliedResults, RunStatisticsWindow.Parse(args.Value?.ToString()));
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, _appliedExactTrigger, _appliedResults, RunStatisticsWindow.Parse(args.Value?.ToString()));
     }
 
     private Task OnOutcomeFilterChangedAsync(ChangeEventArgs args)
@@ -799,24 +833,29 @@
             results.Add(result);
         }
 
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, results, _appliedWindow);
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, _appliedExactTrigger, results, _appliedWindow);
     }
 
     private Task ClearExactJobAsync()
     {
-        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, exactJob: null, _appliedResults, _appliedWindow);
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, exactJob: null, _appliedExactTrigger, _appliedResults, _appliedWindow);
+    }
+
+    private Task ClearExactTriggerAsync()
+    {
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter, _appliedOutcomeFilter, _appliedExactJob, exactTrigger: null, _appliedResults, _appliedWindow);
     }
 
     private Task ClearFiltersAsync()
     {
         _jobFilter = string.Empty;
         _triggerFilter = string.Empty;
-        return UpdateQueryStateAsync(1, string.Empty, string.Empty, string.Empty, string.Empty, exactJob: null, results: [], RunStatisticsWindow.All);
+        return UpdateQueryStateAsync(1, string.Empty, string.Empty, string.Empty, string.Empty, exactJob: null, exactTrigger: null, results: [], RunStatisticsWindow.All);
     }
 
     private Task UpdateQueryStateAsync(int page, string jobFilter, string triggerFilter, string nodeFilter, string outcomeFilter)
     {
-        return UpdateQueryStateAsync(page, jobFilter, triggerFilter, nodeFilter, outcomeFilter, _appliedExactJob, _appliedResults, _appliedWindow);
+        return UpdateQueryStateAsync(page, jobFilter, triggerFilter, nodeFilter, outcomeFilter, _appliedExactJob, _appliedExactTrigger, _appliedResults, _appliedWindow);
     }
 
     private Task UpdateQueryStateAsync(
@@ -826,6 +865,7 @@
         string nodeFilter,
         string outcomeFilter,
         JobKeyDto? exactJob,
+        TriggerKeyDto? exactTrigger,
         IReadOnlyCollection<JobRunResult> results,
         RunStatisticsWindow window)
     {
@@ -843,6 +883,7 @@
             normalizedNodeFilter,
             normalizedOutcomeFilter,
             exactJob,
+            exactTrigger,
             normalizedResults,
             window);
 
@@ -858,6 +899,7 @@
             _appliedNodeFilter = normalizedNodeFilter;
             _appliedOutcomeFilter = normalizedOutcomeFilter;
             _appliedExactJob = exactJob;
+            _appliedExactTrigger = exactTrigger;
             SetResults(normalizedResults);
             _appliedWindow = window;
             return LoadDataAsync();
@@ -906,6 +948,14 @@
     }
 
     /// <summary>
+    /// The trigger both halves name, or <see langword="null" /> unless both are given.
+    /// </summary>
+    private static TriggerKeyDto? NormalizeExactTrigger(string? group, string? name)
+    {
+        return string.IsNullOrWhiteSpace(group) || string.IsNullOrWhiteSpace(name) ? null : new TriggerKeyDto(group, name);
+    }
+
+    /// <summary>
     /// The <c>result</c> parameter as the results it names, in the order the page offers them.
     /// </summary>
     /// <remarks>
@@ -944,6 +994,7 @@
         string nodeFilter,
         string outcomeFilter,
         JobKeyDto? exactJob,
+        TriggerKeyDto? exactTrigger,
         IReadOnlyCollection<JobRunResult> results,
         RunStatisticsWindow window)
     {
@@ -979,6 +1030,12 @@
             queryParts.Add("jobName=" + Uri.EscapeDataString(exactJob.Name));
         }
 
+        if (exactTrigger is not null)
+        {
+            queryParts.Add("triggerGroup=" + Uri.EscapeDataString(exactTrigger.Group));
+            queryParts.Add("triggerName=" + Uri.EscapeDataString(exactTrigger.Name));
+        }
+
         if (results.Count > 0)
         {
             queryParts.Add("result=" + string.Join(",", results.Select(result => (Enum.GetName(result) ?? string.Empty).ToLowerInvariant())));
@@ -997,18 +1054,26 @@
         return DashboardLink.To(Options.Value, "history?" + string.Join("&", queryParts));
     }
 
-    private string BuildFilterSummary()
+    /// <summary>
+    /// One key's part of the summary: <c>Any job</c>, <c>Job: night</c>, <c>Job: reports.nightly only</c>, or
+    /// both of the last two at once.
+    /// </summary>
+    private static string KeyFilterSummary(string noun, string filter, string? exactGroup, string? exactName)
     {
-        string jobPart = string.IsNullOrWhiteSpace(_appliedJobFilter) ? "Any job" : "Job: " + _appliedJobFilter;
-        if (_appliedExactJob is { } exactJob)
+        string label = char.ToUpperInvariant(noun[0]) + noun[1..] + ": ";
+        if (exactGroup is null || exactName is null)
         {
-            string key = DisplayValueHelper.FormatKey(exactJob.Group, exactJob.Name);
-            jobPart = string.IsNullOrWhiteSpace(_appliedJobFilter)
-                ? "Job: " + key + " only"
-                : "Job: " + key + " only, matching " + _appliedJobFilter;
+            return string.IsNullOrWhiteSpace(filter) ? "Any " + noun : label + filter;
         }
 
-        string triggerPart = string.IsNullOrWhiteSpace(_appliedTriggerFilter) ? "Any trigger" : "Trigger: " + _appliedTriggerFilter;
+        string key = DisplayValueHelper.FormatKey(exactGroup, exactName);
+        return string.IsNullOrWhiteSpace(filter) ? label + key + " only" : label + key + " only, matching " + filter;
+    }
+
+    private string BuildFilterSummary()
+    {
+        string jobPart = KeyFilterSummary("job", _appliedJobFilter, _appliedExactJob?.Group, _appliedExactJob?.Name);
+        string triggerPart = KeyFilterSummary("trigger", _appliedTriggerFilter, _appliedExactTrigger?.Group, _appliedExactTrigger?.Name);
         string outcomePart = HasOutcomeFilter ? "Failed after retries" : "Any outcome";
         string resultPart = _appliedResults.Count == 0
             ? "Any result"

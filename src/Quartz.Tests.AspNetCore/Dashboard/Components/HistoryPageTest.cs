@@ -911,6 +911,46 @@ public class HistoryPageTest
     }
 
     [Test]
+    public void TheExactTriggerFilterAsksForOneTriggerItsMisfiresAndItsRuns()
+    {
+        GivenHistory(Run(JobRunResult.Succeeded));
+        TriggerKeyDto trigger = new("nightly", "at-midnight");
+
+        context.Navigate("/quartz/history?triggerGroup=nightly&triggerName=at-midnight");
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        A.CallTo(() => context.Api.QueryExecutions(
+                A<DashboardHistoryQuery>.That.Matches(query => query.Trigger == trigger && query.TriggerFilter == ""),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+        A.CallTo(() => context.Api.QueryMisfires(
+                A<DashboardMisfireQuery>.That.Matches(query => query.Trigger == trigger),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+        A.CallTo(() => context.Api.QueryExecutionStatistics(
+                A<ExecutionStatisticsQuery>.That.Matches(query => query.Trigger == new TriggerKey("at-midnight", "nightly")),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+
+        page.Find("[data-testid=history-exact-trigger]").TextContent.Should().Contain("nightly.at-midnight");
+        page.Markup.Should().Contain("Trigger: nightly.at-midnight only");
+    }
+
+    [Test]
+    public void TheExactTriggerFilterIsClearedFromTheUrl()
+    {
+        GivenHistory(Run(JobRunResult.Succeeded));
+        context.Navigate("/quartz/history?outcome=failed&triggerGroup=nightly&triggerName=at-midnight");
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("[data-testid=history-exact-trigger-clear]").Click();
+
+        page.WaitForAssertion(() => context.CurrentUri.Should().EndWith("/quartz/history?outcome=failed",
+            "clearing the trigger keeps every other filter the reader chose"));
+    }
+
+    [Test]
     public void AVetoIsToldApartFromAMisfireAndAnOverlap()
     {
         GivenHistory(Entry(100));

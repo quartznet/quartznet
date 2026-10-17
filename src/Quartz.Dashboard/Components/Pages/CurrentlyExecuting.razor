@@ -285,8 +285,7 @@
 
     private string GetHistoryPathForTrigger(TriggerKeyDto triggerKey)
     {
-        string filterValue = Uri.EscapeDataString(DisplayValueHelper.FormatKey(triggerKey.Group, triggerKey.Name));
-        return DashboardLink.To(Options.Value, "history?trigger=" + filterValue);
+        return DashboardLink.HistoryOfTrigger(Options.Value, triggerKey.Group, triggerKey.Name);
     }
 
     private string FormatFireTime(DateTimeOffset? fireTime)

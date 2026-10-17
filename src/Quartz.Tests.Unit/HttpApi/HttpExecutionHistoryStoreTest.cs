@@ -507,22 +507,58 @@ public class HttpExecutionHistoryStoreTest
     /// A 4.5 host ignores <c>triggerGroup</c>, <c>triggerName</c> and <c>fireInstanceId</c>, so a lookup sent
     /// to it would come back as every row, which reads as that firing's outcome.
     /// </summary>
-    [TestCase("trigger")]
-    [TestCase("fireInstanceId")]
-    public async Task ALookupIsRefusedBeforeItReachesAHostOlderThan46(string filter)
+    [TestCase("executions by trigger")]
+    [TestCase("executions by firing")]
+    [TestCase("misfires by trigger")]
+    [TestCase("statistics by trigger")]
+    [TestCase("statistics by firing")]
+    public async Task ALookupIsRefusedBeforeItReachesAHostOlderThan46(string read)
     {
         handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.5.0.0"));
         handler.Respond(HttpStatusCode.OK, EmptyPage);
+        TriggerKey trigger = new("at-midnight", "reports");
+        HttpExecutionHistoryStore store = Store();
 
-        ExecutionHistoryQuery query = filter == "trigger"
-            ? new ExecutionHistoryQuery { SchedulerName = "Remote", Trigger = new TriggerKey("at-midnight", "reports") }
-            : new ExecutionHistoryQuery { SchedulerName = "Remote", FireInstanceId = "node-a-17" };
-
-        Func<Task> act = async () => await Store().QueryExecutions(query);
+        Func<Task> act = read switch
+        {
+            "executions by trigger" => async () => await store.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote", Trigger = trigger }),
+            "executions by firing" => async () => await store.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote", FireInstanceId = "node-a-17" }),
+            "misfires by trigger" => async () => await store.QueryMisfires(new MisfireHistoryQuery { SchedulerName = "Remote", Trigger = trigger }),
+            "statistics by trigger" => async () => await store.QueryExecutionStatistics(new ExecutionStatisticsQuery { SchedulerName = "Remote", Trigger = trigger }),
+            _ => async () => await store.QueryExecutionStatistics(new ExecutionStatisticsQuery { SchedulerName = "Remote", FireInstanceId = "node-a-17" })
+        };
 
         await act.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*4.5.0.0*trigger and fire instance*4.6 or later*");
         handler.Requests.Should().Equal(["GET http://localhost:8080/schedulers/Remote"],
             "the history route is never asked a question the host would answer wrongly");
+    }
+
+    [Test]
+    public async Task TheMisfireAndStatisticsLookupsAreSentToAHostThatReadsThem()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.6.0.0"));
+        handler.Respond(HttpStatusCode.OK, EmptyPage);
+        HttpExecutionHistoryStore store = Store();
+
+        await store.QueryMisfires(new MisfireHistoryQuery { SchedulerName = "Remote", Trigger = new TriggerKey("at-midnight", "reports") });
+
+        handler.LastRequestUri.Should().Be(
+            "http://localhost:8080/schedulers/Remote/history/misfires?take=250&triggerGroup=reports&triggerName=at-midnight"
+            + "&reasons=Missed&reasons=Overlap&reasons=Vetoed");
+
+        handler.Respond(HttpStatusCode.OK, """{ "bucketSize": "01:00:00", "buckets": [], "truncated": false }""");
+        await store.QueryExecutionStatistics(new ExecutionStatisticsQuery
+        {
+            SchedulerName = "Remote",
+            Trigger = new TriggerKey("at-midnight", "reports"),
+            FireInstanceId = "node-a-17"
+        });
+
+        handler.LastRequestUri.Should().Be(
+            "http://localhost:8080/schedulers/Remote/history/statistics?triggerGroup=reports&triggerName=at-midnight"
+            + "&fireInstanceId=node-a-17&bucket=01%3A00%3A00");
+        handler.Requests.Count(request => request.EndsWith("/schedulers/Remote", StringComparison.Ordinal)).Should().Be(1,
+            "a host seen at 4.6 answers every lookup and every 4.4 read, so its version is read once");
     }
 
     [Test]

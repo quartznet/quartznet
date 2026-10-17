@@ -41,6 +41,15 @@ internal static class DashboardLink
     }
 
     /// <summary>
+    /// The History page narrowed to one trigger exactly, by the <c>triggerGroup</c> and <c>triggerName</c>
+    /// parameters: the <c>trigger</c> text filter would also list <c>nightly-2</c> for <c>nightly</c>.
+    /// </summary>
+    internal static string HistoryOfTrigger(QuartzDashboardOptions options, string group, string name)
+    {
+        return To(options, "history?triggerGroup=" + Uri.EscapeDataString(group) + "&triggerName=" + Uri.EscapeDataString(name));
+    }
+
+    /// <summary>
     /// Converts an absolute URI into a path relative to the dashboard root ("" for the root itself,
     /// no leading slash, query string and fragment stripped), or <see langword="null"/> when the URI
     /// is not a dashboard location. Handles both base URI shapes seen in standalone custom-path mode:
