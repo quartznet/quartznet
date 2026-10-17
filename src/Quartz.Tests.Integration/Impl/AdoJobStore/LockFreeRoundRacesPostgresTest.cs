@@ -306,6 +306,44 @@ public sealed class LockFreeRoundRacesPostgresTest : ClusteredPostgresTestBase
             .Should().Be(1, "the attempt without the lock rolled back, claim and all");
     }
 
+    /// <summary>
+    /// The trigger moved into an execution group the round's node does not serve between the candidate read
+    /// and the claim (#4069): the read after the claim finds the group, and the round rolls back to the lock
+    /// as it does for a job made serial. The locked read leaves the trigger to a node that serves the group,
+    /// so this node fires nothing, and the row is left as the edit wrote it.
+    /// </summary>
+    [Test]
+    public async Task ATriggerMovedToAGroupTheNodeDoesNotServeIsLeftForANodeThatDoes()
+    {
+        IOperableTrigger trigger = Trigger("regrouped", DateTimeOffset.UtcNow.AddSeconds(-5));
+        trigger.ExecutionGroup = "batch";
+        DateTimeOffset due = await Stored(trigger);
+        Gate gate = new();
+        hooks.AfterCandidateRead = gate.Pause;
+
+        TriggerAcquisitionRequest servingBatch = Request() with { ServedExecutionGroups = [ExecutionGroupScope.Named("batch")] };
+        Task<TriggerAcquisitionResult> round = Run(() => roundStore.AcquireNextTriggersAndFireDue(servingBatch));
+        await gate.Reached.WaitAsync(Timeout);
+
+        (await otherStore.UpdateTriggerDetails(new TriggerKey("regrouped", Group), new TriggerDetailsUpdate().WithExecutionGroup("reports")))
+            .Should().BeTrue("the round has only read the row, so the edit lands at once");
+
+        gate.Release();
+        TriggerAcquisitionResult result = await round;
+
+        result.LockName.Should().Be("TRIGGER_ACCESS");
+        result.LockReason.Should().Be("definition_changed", "the trigger the round read after its claim was in a group its candidate read did not return");
+        result.Due.Should().BeEmpty("the locked read leaves a trigger in a group this node does not serve");
+        result.Pending.Should().BeEmpty();
+        (await ReadRow("regrouped")).Should().Be(("WAITING", due), "nothing fired it, and the attempt without the lock rolled its claim back");
+        (await ExecuteScalar(
+                "SELECT EXECUTION_GROUP FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName AND TRIGGER_GROUP = @group AND TRIGGER_NAME = @name",
+                ("schedulerName", SchedulerName), ("group", Group), ("name", "regrouped")))
+            .Should().Be("reports");
+        (await CountRows("SELECT COUNT(*) FROM QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = @schedulerName", ("schedulerName", SchedulerName)))
+            .Should().Be(0, "neither attempt left a firing or a reservation");
+    }
+
     private static Task<T> Run<T>(Func<ValueTask<T>> operation) => Task.Run(() => operation().AsTask());
 
     private async Task<DateTimeOffset> Stored(IOperableTrigger trigger)

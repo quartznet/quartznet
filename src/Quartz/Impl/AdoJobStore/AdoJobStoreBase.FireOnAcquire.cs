@@ -380,7 +380,8 @@ internal abstract partial class AdoJobStoreBase
     /// <para>
     /// A claim that moved no row is a race lost to another node, as in the locked pass. A job type that
     /// will not load is stored <c>ERROR</c> from <c>WAITING</c>, before the claim and only while the row is
-    /// still the candidate's. Nothing here asks the fired-trigger table or the paused groups: no candidate
+    /// still the candidate's. A row read back in an execution group this node does not serve rolls the
+    /// round back to the lock, as a job found serial at the fire does. Nothing here asks the fired-trigger table or the paused groups: no candidate
     /// of this pass is a serial job's or has a policy the fire decides, and a concurrent-allowed fire
     /// writes <c>WAITING</c> or <c>COMPLETE</c> unconditionally — a pause that commits after the candidate
     /// read lands on the row the fire leaves, which is the serialised order, round then pause.
@@ -391,6 +392,7 @@ internal abstract partial class AdoJobStoreBase
     /// <param name="round">The round, which the reads record their findings on.</param>
     /// <param name="results">The candidates, in fire-time order, with the exclusions and the refused rows dropped.</param>
     /// <param name="maxCount">The most the pass may claim.</param>
+    /// <param name="routing">The execution groups this node serves, or <see langword="null" /> for every group.</param>
     /// <param name="acquiredTriggers">Where the claimed triggers go, in candidate order.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     private async ValueTask<LockFreePass> ClaimAndReadWithoutLock(
@@ -399,6 +401,7 @@ internal abstract partial class AdoJobStoreBase
         FireOnAcquireRound round,
         List<TriggerAcquireResult> results,
         int maxCount,
+        ExecutionGroupRouting? routing,
         List<IOperableTrigger> acquiredTriggers,
         CancellationToken cancellationToken)
     {
@@ -481,6 +484,16 @@ internal abstract partial class AdoJobStoreBase
                 // The claim moved the row and this transaction holds it until it commits, so it is there
                 // to read. The attempt rolls back rather than leave a claim with no row behind it.
                 throw new JobPersistenceException($"Trigger '{claim.TriggerKey}' was claimed but could not be read back in the same transaction.");
+            }
+
+            // The candidate read left out every group this node does not serve (#4069); a trigger moved into
+            // one between that read and the claim is a definition changed like a job made serial. The round
+            // rolls back and runs again under the lock, whose read leaves the trigger to a node that serves
+            // it. Asked here rather than at the fire, so that a trigger due later in the window is not
+            // reserved by a node that would never run it.
+            if (routing is not null && !routing.Serves(trigger.ExecutionGroup))
+            {
+                throw new RoundNeedsLockException(RoundLockReason.DefinitionChanged, trigger.Key);
             }
 
             trigger.FireInstanceId = GetFiredTriggerRecordId();

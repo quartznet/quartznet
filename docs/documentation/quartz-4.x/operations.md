@@ -743,7 +743,7 @@ What still takes the lock, by the `quartz.jobstore.lock.reason` value that repor
 | `cluster_limit` | The node has a cluster-scoped execution limit | Nothing; the lock is what makes the ceiling exact |
 | `older_peer` | A live node is older than 4.6, or this node has not checked in yet | Finish the rolling upgrade; see below |
 | `hysteresis` | The round before this one escalated | Nothing; a locked round that needed the lock for nothing ends it |
-| `definition_changed` | A job or trigger was replaced between the round's read and its claim | Nothing; the round ran again under the lock |
+| `definition_changed` | A job or trigger was replaced between the round's read and its claim, or moved to an execution group this node does not serve | Nothing; the round ran again under the lock |
 | `isolation_level` | `TransactionIsolationLevel` is set to anything but `ReadCommitted` | Leave it unset |
 | `acquire_within_lock` | `AcquireTriggersWithinLock = true` | Turn it off |
 | `delegate` | The driver delegate takes no part in fire-on-acquire rounds | Derive from a shipped delegate |

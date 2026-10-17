@@ -67,7 +67,10 @@ internal enum RoundLockReason
     /// <summary>A candidate's overlap policy is one the fire decides under the lock.</summary>
     OverlapPolicy,
 
-    /// <summary>A job or a trigger was replaced between the candidate read and the claim, into something the lock decides.</summary>
+    /// <summary>
+    /// A job or a trigger was replaced between the candidate read and the claim, into something the lock
+    /// decides or into an execution group this node does not serve.
+    /// </summary>
     DefinitionChanged,
 
     /// <summary>The round before this one escalated, and this one starts where it ended.</summary>

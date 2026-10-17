@@ -233,8 +233,9 @@ internal static partial class AdoJobStoreLog
     public static partial void RoundEscalatedToLock(this ILogger logger, string reason, TriggerKey? triggerKey);
 
     // Warning: a definition replaced in the few milliseconds between a round's read and its claim is rare,
-    // and worth seeing — it is a job turned serial, or a trigger given a policy, while it was firing.
-    [LoggerMessage(EventId = 3058, Level = LogLevel.Warning, Message = "Firing round rolled back and run again under TRIGGER_ACCESS: the job or overlap policy of trigger {TriggerKey} changed between the candidate read and the claim")]
+    // and worth seeing — a job turned serial, or a trigger given a policy or moved to a group this node does
+    // not serve, while it was firing.
+    [LoggerMessage(EventId = 3058, Level = LogLevel.Warning, Message = "Firing round rolled back and run again under TRIGGER_ACCESS: the job, overlap policy or execution group of trigger {TriggerKey} changed between the candidate read and the claim")]
     public static partial void RoundRolledBackForLock(this ILogger logger, TriggerKey? triggerKey);
 
     // Debug: the ordinary outcome of an edit racing a firing round that takes no lock (#4067). The edit is
