@@ -157,6 +157,31 @@ public class DbProviderMetadataTest
     }
 
     [Test]
+    public void AProviderDescribedInNestedAppSettingsKeepsItsName()
+    {
+        // The same description written as sections rather than flat keys: Quartz:DbProvider:<name>:<Property>.
+        var values = new Dictionary<string, string?>();
+        var properties = FictionalProviderProperties();
+        foreach (var key in properties.AllKeys)
+        {
+            string property = key!["quartz.dbprovider.".Length..].Split('.')[1];
+            values[$"Quartz:DbProvider:{FictionalProvider}:{char.ToUpperInvariant(property[0])}{property[1..]}"] = properties[key];
+        }
+
+        var section = new ConfigurationBuilder().AddInMemoryCollection(values).Build().GetSection("Quartz");
+
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            section,
+            q => q.UsePersistentStore(store => store.UseGenericDatabase(FictionalProvider, ConnectionString)));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IDbProvider>().Metadata.ProductName.Should().Be("My Fictional Database",
+            "the data source names the provider as written, and the metadata lookup compares provider names ordinally");
+    }
+
+    [Test]
     public void TwoContainersCanDescribeTheSameProviderNameDifferently()
     {
         static ServiceProvider Container(string parameterNamePrefix)

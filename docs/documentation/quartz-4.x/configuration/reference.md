@@ -862,7 +862,8 @@ is applied first.
 - So a misspelled key in `appsettings.json` is silently ignored: `Quartz:Scheduler:IdelWaitTime` leaves
   the default thirty seconds in force. Check a new key against the tables above.
 - Casing is not the risk: configuration keys are case-insensitive, so `Quartz:Jobstore:TablePrefix` is
-  `Quartz:JobStore:TablePrefix`.
+  `Quartz:JobStore:TablePrefix`. A name you choose keeps its case: `Quartz:ExecutionLimit:Reports` limits
+  the group `Reports`, and `Quartz:DataSource:MyDS` is the data source `MyDS`.
 
 **The job store is checked either way.** A persistent store refuses a `quartz.jobStore.*` key that
 nothing reads, written flat or as `Quartz:JobStore:TabelPrefix` — see
@@ -896,6 +897,7 @@ above and produces the same result.
 | `quartz.scheduler.servedExecutionGroups` | `Scheduler:ServedExecutionGroups`, or `ServeExecutionGroups(…)` — comma-separated, entries trimmed; `_` is the ungrouped bucket. Added in 4.6 |
 | `quartz.scheduler.refusedExecutionGroups` | `Scheduler:RefusedExecutionGroups`, or `RefuseExecutionGroups(…)` — the same spellings. Added in 4.6 |
 | `quartz.context.key.NAME` | `Scheduler:Context:NAME` |
+| `quartz.executionLimit.GROUP`, `quartz.clusterExecutionLimit.GROUP` | `UseExecutionLimits(…)`; in `appsettings.json`, `ExecutionLimit:GROUP` and `ClusterExecutionLimit:GROUP`, where `tenant:*` is a prefix. See [Configuring execution limits](../tutorial/execution-groups.md#configuring-execution-limits) |
 | `quartz.threadPool.maxConcurrency` (or `threadCount`) | `ThreadPool:MaxConcurrency` |
 | `quartz.threadPool.type` | `UseThreadPool<T>()` |
 | `quartz.jobStore.type` | `UseInMemoryStore()` / `UsePersistentStore()`, with `UseAmbientTransactions()` inside it for the store 3.x called `JobStoreCMT`; `UsePersistentStore<T>()` for a persistent store of your own |

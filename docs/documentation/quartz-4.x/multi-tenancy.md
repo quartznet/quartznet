@@ -510,6 +510,10 @@ group and the store persists none.
 - `Unlimited(group)` differs from leaving a group out: an unlisted group falls back to `ForOtherGroups`,
   an unlimited one does not.
 
+With a tenant per execution group named `tenant:<id>`, one prefix key covers every tenant, in code or in
+`appsettings.json` as `"ClusterExecutionLimit": { "tenant:*": 2 }`. A group name there keeps its case.
+See [Per-tenant limits](tutorial/execution-groups.md#per-tenant-limits).
+
 `SetExecutionLimits` / `GetExecutionLimits` change limits at runtime, from the next acquisition cycle;
 `null` clears them. The call is per node whatever the scope: set a cluster-scoped quota on every node, or
 configure it.
