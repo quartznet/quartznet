@@ -108,6 +108,7 @@ file whose suffix matches your database: `_sqlServer`, `_postgres`, `_mysql_inno
 | [`4.3`](migrations/4.3) | `add_misfire_reason_<db>.sql`: `REASON` on `QRTZ_MISFIRE_HISTORY`, a misfire told apart from a firing the overlap policy skipped (#3875) | **Optional**: needed only with `UseExecutionHistory()`, and only after `4.2/add_execution_history_<db>.sql`; safe under a mixed cluster | all | `main` only |
 | [`4.3`](migrations/4.3) | `add_pause_reason_<db>.sql`: `PAUSE_REASON`, `PAUSED_BY` and `PAUSED_AT` on `QRTZ_TRIGGERS`, `QRTZ_PAUSED_TRIGGER_GRPS` and `QRTZ_PAUSED_JOB_GRPS`, why a trigger or group is paused (#3879) | **Required on 4.3+**, safe during a mixed 4.2/4.3 window; roll every node before relying on a reason | all | `main` only |
 | [`4.4`](migrations/4.4) | `add_execution_outcome_<db>.sql`: `RESULT`, `SUMMARY`, `METRICS`, `MANUAL`, `FIRE_INSTANCE_ID`, `JOB_INPUT` and `JOB_INPUT_TOO_LARGE` on `QRTZ_EXECUTION_HISTORY`, the index `IDX_QRTZ_EH_JOB_TIME`, and the `QRTZ_JOB_STATUS` table: what a run reported and was given, and each job's rollup (#3958, #4012) | **Optional**: needed only with `UseExecutionHistory()`, and only after `4.2/add_execution_history_<db>.sql`; safe under a mixed cluster | all | `main` only |
+| [`4.6`](migrations/4.6) | `add_execution_history_lookup_indexes_<db>.sql`: `IDX_QRTZ_EH_FIRE_INST` and `IDX_QRTZ_EH_TRIG_TIME` on `QRTZ_EXECUTION_HISTORY`, a firing's outcome and a trigger's history read by seek rather than scan (#4072) | **Optional**, performance only; changes nothing on a database without the history table, except on SQLite; safe under a mixed cluster | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -221,6 +222,20 @@ them. Run it when you want a cluster-wide execution history, at any time, or nev
   and never touches `QRTZ_JOB_STATUS`, so the rollup counts only 4.4 nodes' runs until every node is 4.4.
 - The history is bounded by its retention, so the index builds in moments.
 - A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have all of it.
+
+### Upgrading 4.5 → 4.6
+
+[`migrations/4.6`](migrations/4.6) has one file, and it is optional.
+
+| File | Status | What |
+|---|---|---|
+| `add_execution_history_lookup_indexes_<db>.sql` | Optional, performance only | `IDX_QRTZ_EH_FIRE_INST` on `(SCHED_NAME, FIRE_INSTANCE_ID)` and `IDX_QRTZ_EH_TRIG_TIME` on `(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME, FIRED_TIME)`. A store with `UseExecutionHistory()` runs without them. |
+
+- **It changes nothing on a database without `QRTZ_EXECUTION_HISTORY`.** SQLite cannot check for the table,
+  so run it there only on a database that has one.
+- A history created before 4.4 needs `4.4/add_execution_outcome_<db>.sql` first.
+- Safe under a mixed cluster: an index changes plans, not results.
+- A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have both.
 
 ## Where these files moved
 

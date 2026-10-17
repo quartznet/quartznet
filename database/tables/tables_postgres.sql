@@ -282,5 +282,7 @@ CREATE INDEX idx_qrtz_ft_t_g ON qrtz_fired_triggers (sched_name, trigger_name, t
 CREATE INDEX idx_qrtz_eh_fired_time ON qrtz_execution_history (sched_name, fired_time);
 CREATE INDEX idx_qrtz_eh_inst ON qrtz_execution_history (sched_name, instance_name);
 CREATE INDEX idx_qrtz_eh_job_time ON qrtz_execution_history (sched_name, job_group, job_name, fired_time);
+CREATE INDEX idx_qrtz_eh_fire_inst ON qrtz_execution_history (sched_name, fire_instance_id);
+CREATE INDEX idx_qrtz_eh_trig_time ON qrtz_execution_history (sched_name, trigger_group, trigger_name, fired_time);
 CREATE INDEX idx_qrtz_mh_misfire_time ON qrtz_misfire_history (sched_name, misfire_time);
 CREATE INDEX idx_qrtz_mh_inst ON qrtz_misfire_history (sched_name, instance_name);

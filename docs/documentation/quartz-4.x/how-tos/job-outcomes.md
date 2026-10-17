@@ -266,8 +266,9 @@ foreach (ExecutionHistoryEntry row in page.Items)
 | `FiredBefore` | Fired before, exclusive |
 | `Results` | `EffectiveResult` in the set. An empty set matches nothing |
 
-* `MisfireHistoryQuery.Job` narrows the misfire feed the same way, and `MisfireHistoryQuery.Reasons` to some
-  `MisfireReason`s. An empty set matches nothing. A row a 4.2 node wrote has no reason and matches `Missed`.
+* `MisfireHistoryQuery.Job` and, from 4.6, `MisfireHistoryQuery.Trigger` narrow the misfire feed the same way,
+  and `MisfireHistoryQuery.Reasons` to some `MisfireReason`s. An empty set matches nothing. A row a 4.2 node
+  wrote has no reason and matches `Missed`.
 * A cancelled run matches `FailedFinally = true`.
 
 ### Read one firing's outcome
@@ -289,8 +290,9 @@ if (page.Items.FirstOrDefault() is { } outcome)
 <!-- endSnippet -->
 
 * The row is written when the run ends. Before that, or once retention has trimmed it, the page is empty.
-* The [database history](../tutorial/job-stores.md#execution-history-in-the-database) has no index on the
-  fire instance id or the trigger key, so either lookup can read every row of the scheduler the age bound keeps.
+* The [database history](../tutorial/job-stores.md#execution-history-in-the-database) seeks either lookup on
+  an index of its own from 4.6. A database created earlier gets them from the optional
+  [4.6 migration](../../database/schema-changes.md#version-4-6); without it, a lookup scans the scheduler's rows.
 
 ## Count runs over time
 
@@ -317,7 +319,7 @@ foreach (ExecutionStatisticsBucket bucket in statistics.Buckets)
 | `ExecutionStatisticsQuery` | What |
 |---|---|
 | `SchedulerName` | Required |
-| `SchedulerInstanceId`, `JobContains`, `TriggerContains`, `FailedFinally`, `Job`, `FiredFrom`, `FiredBefore`, `Results` | As on `ExecutionHistoryQuery` |
+| `SchedulerInstanceId`, `JobContains`, `TriggerContains`, `FailedFinally`, `Job`, `Trigger`, `FireInstanceId`, `FiredFrom`, `FiredBefore`, `Results` | As on `ExecutionHistoryQuery`. `Trigger` and `FireInstanceId` from 4.6 |
 | `JobGroup` | One job group, exactly |
 | `BucketSize` | Default one hour; at least `MinimumBucketSize`, one minute |
 
@@ -352,7 +354,7 @@ Measured on 1,000,000 rows over 30 days:
 
 | Where | What |
 |---|---|
-| History page | The result, the summary, a chip per metric and a *Manual* badge on each row. Filters for results, for one job and for a window. A chart of runs over time. See [Execution history and misfires](../packages/dashboard.md#execution-history-and-misfires) |
+| History page | The result, the summary, a chip per metric and a *Manual* badge on each row. Filters for results, for one job or trigger and for a window. A chart of runs over time. See [Execution history and misfires](../packages/dashboard.md#execution-history-and-misfires) |
 | Jobs page | *Last run*, *Last success* and *failing ×N* per job. See [Job run status](../packages/dashboard.md#job-run-status) |
 | Job Detail page | A *Runs* panel and the job's chart. *View execution history* opens that job's rows only |
 | Execution page | The result, the summary, a table of metrics, *Manual*, the fire instance id and the input. *Run again* on a final failure, for a job [still stored](#record-a-run-s-input) |
@@ -434,8 +436,8 @@ or under the scheduler's name for a named scheduler.
 
 * Keep `Result`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId`, `Input` and `InputTooLarge` on the rows
   you store. The recorder sets them. Return `Input` from `GetExecution`; a listing may leave it out.
-* Apply the filters above, `MisfireHistoryQuery.Job` and `MisfireHistoryQuery.Reasons`. A store that
-  ignores `Trigger` or `FireInstanceId` answers a lookup with every row.
+* Apply the filters above, `MisfireHistoryQuery.Job`, `Trigger` and `Reasons`. A store that ignores `Trigger`
+  or `FireInstanceId` answers a lookup with every row.
 * Count only `MisfireReason.Missed` rows in `CountMisfires`.
 * `QueryJobRunStatuses` and `GetJobRunStatus` are default interface members. The first throws
   `NotSupportedException`; the second asks the first for one job. Implement `QueryJobRunStatuses` to keep

@@ -30,7 +30,9 @@ The compiler finds most of the 3.x → 4.0 work.
 
 ## Upgrading from 4.5 to 4.6
 
-An application on 4.5 compiles on 4.6 unchanged, and the database schema did not change.
+An application on 4.5 compiles on 4.6 unchanged. A database that keeps its execution history can take one
+optional migration, [`4.6/add_execution_history_lookup_indexes`](../database/schema-changes.md#version-4-6):
+two indexes, performance only.
 
 | Added | What it is |
 |---|---|
@@ -55,8 +57,13 @@ An application on 4.5 compiles on 4.6 unchanged, and the database schema did not
 | HTTP: `servedExecutionGroups`, `refusedExecutionGroups` on `GET …/schedulers/{name}` | Arrays, empty when the node routes nothing; absent on a host older than 4.6, which the client reads as empty |
 | Log events `1093`, `3609`, `3610` | What a node routes, at start; unserved misfires appeared / are gone |
 | `ExecutionHistoryQuery.Trigger`, `FireInstanceId` | `init`: one trigger exactly, one firing exactly. A history store of your own should apply both. See [Read one firing's outcome](how-tos/job-outcomes.md#read-one-firing-s-outcome) |
+| `MisfireHistoryQuery.Trigger` | `init`: one trigger exactly |
+| `ExecutionStatisticsQuery.Trigger`, `FireInstanceId` | `init`, as on `ExecutionHistoryQuery` |
 | `DashboardHistoryQuery.Trigger`, `FireInstanceId` | `Quartz.Dashboard`, `init`, as on `ExecutionHistoryQuery`. `Trigger` is a `TriggerKeyDto` |
-| HTTP: `triggerGroup`, `triggerName`, `fireInstanceId` on `GET …/history/executions` | Ignored by a host older than 4.6, which `HttpExecutionHistoryStore` refuses to ask. See [Filtering by job, time and result](packages/http-api.md#filtering-by-job-time-and-result) |
+| `DashboardMisfireQuery.Trigger` | `Quartz.Dashboard`, `init`, as on `MisfireHistoryQuery` |
+| HTTP: `triggerGroup`, `triggerName`, `fireInstanceId` on `GET …/history/executions` and `…/history/statistics`; `triggerGroup`, `triggerName` on `…/history/misfires` | Ignored by a host older than 4.6, which `HttpExecutionHistoryStore` refuses to ask. See [Filtering by job, time and result](packages/http-api.md#filtering-by-job-time-and-result) |
+| `IDX_QRTZ_EH_FIRE_INST`, `IDX_QRTZ_EH_TRIG_TIME` | On `QRTZ_EXECUTION_HISTORY`, in a fresh install and `ProvisionSchema()`; optional migration for an existing database. See [Version 4.6](../database/schema-changes.md#version-4-6) |
+| Dashboard: `triggerGroup`, `triggerName` on the History page | One trigger exactly. See [Execution history and misfires](packages/dashboard.md#execution-history-and-misfires) |
 
 Behaviour that changed:
 
@@ -77,6 +84,7 @@ Behaviour that changed:
 | Trimmed, `null` for a struct property was `Activator.CreateInstance` of the struct | The struct's zeroed default; a parameterless constructor it declares does not run | Nothing, unless that constructor sets something; then set `QuartzJobDataTypeConverterSupport` to `true` |
 | A `Type` property set from job data was resolved with `Type.GetType` | Resolved from the registered types first, then by `Type.GetType` while `Quartz.TypeNameResolution.IsSupported` is on | Nothing untrimmed. Trimmed, register the type or map its name with `UseTypeLoader(o => o.Map(name, typeof(T)))` |
 | A clustered node with no `InstanceId` kept `NON_CLUSTERED`, so every such node shared one id | `UseClustering()`, `quartz.jobStore.clustered` and `JobStore:Clustering:Enabled` turn `GenerateInstanceId` on unless `InstanceId` or a generator was chosen. The old `NON_CLUSTERED` check-in row is recovered as a failed node | Nothing. For a fixed id per node, set `InstanceId`: [Naming a node in a container](operations.md#naming-a-node-in-a-container) |
+| The dashboard's Trigger Detail and Currently Executing pages linked to History by the trigger text filter, which also lists `nightly-2` for `nightly` | They link to that trigger exactly. Against a host older than 4.6 the History page says it cannot filter | Nothing. A bookmarked `history?trigger=…` link still filters by fragment |
 
 ## Upgrading from 4.4 to 4.5
 

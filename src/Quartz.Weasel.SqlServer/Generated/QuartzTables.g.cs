@@ -215,6 +215,8 @@ internal static partial class QuartzTables
         naming.Index(executionHistory, "EH_FIRED_TIME", ["SCHED_NAME", "FIRED_TIME"]);
         naming.Index(executionHistory, "EH_INST", ["SCHED_NAME", "INSTANCE_NAME"]);
         naming.Index(executionHistory, "EH_JOB_TIME", ["SCHED_NAME", "JOB_GROUP", "JOB_NAME", "FIRED_TIME"]);
+        naming.Index(executionHistory, "EH_FIRE_INST", ["SCHED_NAME", "FIRE_INSTANCE_ID"]);
+        naming.Index(executionHistory, "EH_TRIG_TIME", ["SCHED_NAME", "TRIGGER_GROUP", "TRIGGER_NAME", "FIRED_TIME"]);
         objects.Add(executionHistory);
 
         Table misfireHistory = naming.Table("MISFIRE_HISTORY");

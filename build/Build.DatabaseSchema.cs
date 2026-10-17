@@ -488,9 +488,11 @@ partial class Build
 
     /// <summary>
     /// The indexes the two history tables carry: the age query and the retention sweep read by
-    /// scheduler and time, the dashboard's node filter reads by scheduler and node, and since 4.4 a
-    /// job's own history reads by scheduler, job key and time. A name or group search stays a scan, as
-    /// <see href="https://github.com/quartznet/quartznet/issues/3771">#3771</see> says it does.
+    /// scheduler and time, the dashboard's node filter reads by scheduler and node, since 4.4 a job's own
+    /// history reads by scheduler, job key and time, and since 4.6 a firing's outcome reads by scheduler
+    /// and fire instance id and a trigger's history by scheduler, trigger key and time. A name or group
+    /// search stays a scan, as <see href="https://github.com/quartznet/quartznet/issues/3771">#3771</see>
+    /// says it does.
     /// </summary>
     /// <remarks>
     /// Kept out of <see cref="Target4XAll" /> because that set is what the 3.x-to-4.0 index migration
@@ -504,6 +506,8 @@ partial class Build
         new("IDX_QRTZ_MH_MISFIRE_TIME", TableMisfireHistory, "SCHED_NAME, MISFIRE_TIME"),
         new("IDX_QRTZ_MH_INST", TableMisfireHistory, "SCHED_NAME, INSTANCE_NAME"),
         new("IDX_QRTZ_EH_JOB_TIME", TableExecutionHistory, "SCHED_NAME, JOB_GROUP, JOB_NAME, FIRED_TIME", AddedBy: "4.4"),
+        new("IDX_QRTZ_EH_FIRE_INST", TableExecutionHistory, "SCHED_NAME, FIRE_INSTANCE_ID", AddedBy: "4.6"),
+        new("IDX_QRTZ_EH_TRIG_TIME", TableExecutionHistory, "SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME, FIRED_TIME", AddedBy: "4.6"),
     ];
 
     /// <summary>

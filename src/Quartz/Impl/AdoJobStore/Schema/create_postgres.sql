@@ -291,3 +291,9 @@ CREATE INDEX IF NOT EXISTS idx_{1}mh_inst ON {0}misfire_history (sched_name, ins
 --;;
 -- IDX_{1}EH_JOB_TIME
 CREATE INDEX IF NOT EXISTS idx_{1}eh_job_time ON {0}execution_history (sched_name, job_group, job_name, fired_time);
+--;;
+-- IDX_{1}EH_FIRE_INST
+CREATE INDEX IF NOT EXISTS idx_{1}eh_fire_inst ON {0}execution_history (sched_name, fire_instance_id);
+--;;
+-- IDX_{1}EH_TRIG_TIME
+CREATE INDEX IF NOT EXISTS idx_{1}eh_trig_time ON {0}execution_history (sched_name, trigger_group, trigger_name, fired_time);

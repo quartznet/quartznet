@@ -322,7 +322,7 @@ From 4.4:
 | Read | Over the wire |
 |---|---|
 | `ExecutionHistoryQuery.Job`, `FiredFrom`, `FiredBefore`, `Results`; `MisfireHistoryQuery.Job`, `Reasons` | [Query parameters](http-api.md#filtering-by-job-time-and-result); `NotSupportedException` against a host before 4.4 |
-| `ExecutionHistoryQuery.Trigger`, `FireInstanceId` | From 4.6. The same query parameters; `NotSupportedException` against a host before 4.6 |
+| `ExecutionHistoryQuery.Trigger`, `FireInstanceId`; `MisfireHistoryQuery.Trigger`; `ExecutionStatisticsQuery.Trigger`, `FireInstanceId` | From 4.6. The same query parameters; `NotSupportedException` against a host before 4.6 |
 | `QueryMisfires` | Names every `MisfireReason`, so `Vetoed` rows are [listed](http-api.md#vetoes-are-listed-when-asked-for) |
 | `QueryJobRunStatuses`, `GetJobRunStatus` | The [`…/history/job-status` routes](http-api.md#job-run-status); `NotSupportedException` when the host keeps no status |
 | `QueryExecutionStatistics` | [`…/history/statistics`](http-api.md#run-statistics); `NotSupportedException` against a host before 4.4, which is not asked |
