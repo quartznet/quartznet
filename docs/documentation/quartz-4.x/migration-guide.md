@@ -87,6 +87,7 @@ Behaviour that changed:
 | A `Type` property set from job data was resolved with `Type.GetType` | Resolved from the registered types first, then by `Type.GetType` while `Quartz.TypeNameResolution.IsSupported` is on | Nothing untrimmed. Trimmed, register the type or map its name with `UseTypeLoader(o => o.Map(name, typeof(T)))` |
 | A clustered node with no `InstanceId` kept `NON_CLUSTERED`, so every such node shared one id | `UseClustering()`, `quartz.jobStore.clustered` and `JobStore:Clustering:Enabled` turn `GenerateInstanceId` on unless `InstanceId` or a generator was chosen. The old `NON_CLUSTERED` check-in row is recovered as a failed node | Nothing. For a fixed id per node, set `InstanceId`: [Naming a node in a container](operations.md#naming-a-node-in-a-container) |
 | The dashboard's Trigger Detail and Currently Executing pages linked to History by the trigger text filter, which also lists `nightly-2` for `nightly` | They link to that trigger exactly. Against a host older than 4.6 the History page says it cannot filter | Nothing. A bookmarked `history?trigger=…` link still filters by fragment |
+| `AddJob`, `AddTrigger` or `ScheduleJob` with no `WithIdentity` stored a generated key in a persistent store, silently | Log event `4030` warns at each start, naming the registration and the key | Give the job or trigger `WithIdentity(...)`, and delete the copies earlier starts left |
 
 ## Upgrading from 4.4 to 4.5
 

@@ -143,4 +143,11 @@ internal static partial class ConfigurationLog
 
     [LoggerMessage(EventId = 4029, Level = LogLevel.Warning, Message = "The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but its window could not be built this round; the next round will try again")]
     public static partial void AttachedStoreWindowFailed(this ILogger logger, string target, string schedulerName, Exception exception);
+
+    /// <remarks>
+    /// Logged only over a store that persists, once per registration, after its content was stored.
+    /// <c>Registration</c> is the call, naming the job type, or the job's key when the call names no type.
+    /// </remarks>
+    [LoggerMessage(EventId = 4030, Level = LogLevel.Warning, Message = "{Registration} gave its {Kind} no identity, so it was stored under the generated key '{Key}'. A persistent store keeps it, so each start adds another copy, and every copy of a trigger fires. Give it a stable key with WithIdentity(...)")]
+    public static partial void GeneratedIdentityInPersistentStore(this ILogger logger, string registration, string kind, string key);
 }

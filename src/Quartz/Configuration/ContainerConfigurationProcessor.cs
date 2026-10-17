@@ -11,9 +11,11 @@ namespace Quartz.Configuration;
 /// </summary>
 internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcessor
 {
+    private readonly ILogger<ContainerConfigurationProcessor> logger;
     private readonly QuartzOptions options;
     private readonly List<IJobDetail> jobs;
     private readonly List<ITrigger> triggers;
+    private readonly List<GeneratedIdentity> generatedIdentities;
 
     /// <remarks>
     /// Takes the resolved options and this scheduler's own content registrations rather than
@@ -28,6 +30,7 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
         IEnumerable<ISchedulerContent> content)
         : base(logger, typeLoader, timeProvider)
     {
+        this.logger = logger;
         this.options = options;
 
         // Materialized once: each registration builds its jobs and triggers when it is first resolved,
@@ -35,6 +38,29 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
         ISchedulerContent[] parts = content.ToArray();
         jobs = parts.SelectMany(x => x.Jobs).ToList();
         triggers = parts.SelectMany(x => x.Triggers).ToList();
+        generatedIdentities = parts.Select(x => x.GeneratedIdentity).OfType<GeneratedIdentity>().ToList();
+    }
+
+    /// <summary>
+    /// Warns once for each registration whose job or trigger was stored under a generated key, when the
+    /// store keeps it.
+    /// </summary>
+    /// <remarks>
+    /// A generated key is new on every start, so a persistent store finds nothing to replace and keeps
+    /// another copy each time. The in-memory store starts empty, which makes the same key harmless there.
+    /// </remarks>
+    /// <param name="storePersists">Whether the scheduler's store keeps what it is given across starts.</param>
+    public void ReportGeneratedIdentities(bool storePersists)
+    {
+        if (!storePersists)
+        {
+            return;
+        }
+
+        foreach (GeneratedIdentity identity in generatedIdentities)
+        {
+            logger.GeneratedIdentityInPersistentStore(identity.Registration, identity.Kind, identity.Key);
+        }
     }
 
     /// <remarks>
