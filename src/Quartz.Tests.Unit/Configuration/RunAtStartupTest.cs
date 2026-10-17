@@ -177,6 +177,41 @@ public sealed class RunAtStartupTest
             "the cron trigger is untouched, and the startup run left nothing behind");
     }
 
+    /// <summary>
+    /// A startup run counts against the job type's <c>[ExecutionGroup]</c>, as a scheduled firing does
+    /// (#4092), so it waits for its group's limit and runs only on a node that serves the group.
+    /// </summary>
+    [TestCase(Store.InMemory)]
+    [TestCase(Store.Sqlite)]
+    public async Task AStartupRunCarriesTheGroupItsJobTypeDeclares(Store store)
+    {
+        IScheduler scheduler = await Build(store, q => q
+            .AddJob<GpuJob>(j => j.WithIdentity(warmKey).StoreDurably())
+            .RunAtStartup(warmKey));
+
+        await scheduler.Start();
+        await CountingJob.FirstRun.Task.WaitAsync(waitLimit);
+
+        CountingJob.ExecutionGroups.Should().Equal(["gpu"],
+            "the job type says [ExecutionGroup(\"gpu\")], and a run at startup is as much a gpu firing as a scheduled one");
+    }
+
+    [Test]
+    public async Task AStartupRunTakesTheGroupTheJobsTriggersShare()
+    {
+        IScheduler scheduler = await Build(Store.InMemory, q => q
+            .ScheduleJob<CountingJob>(
+                trigger => trigger.WithIdentity("nightly", "startup-tests").WithExecutionGroup("reports").WithCronSchedule("0 0 2 * * ?"),
+                job => job.WithIdentity(warmKey))
+            .RunAtStartup(warmKey));
+
+        await scheduler.Start();
+        await CountingJob.FirstRun.Task.WaitAsync(waitLimit);
+
+        CountingJob.ExecutionGroups.Should().Equal(["reports"],
+            "the job type declares no group, and the job's one trigger carries reports");
+    }
+
     [Test]
     public async Task AJobThatDisallowsConcurrentExecutionRunsItsStartupRunInTurn()
     {
@@ -380,6 +415,7 @@ public sealed class RunAtStartupTest
         private static int runs;
         private static readonly Lock gate = new();
         private static readonly List<string> triggerGroups = [];
+        private static readonly List<string?> executionGroups = [];
 
         public static int Runs => Volatile.Read(ref runs);
 
@@ -394,6 +430,17 @@ public sealed class RunAtStartupTest
             }
         }
 
+        public static List<string?> ExecutionGroups
+        {
+            get
+            {
+                lock (gate)
+                {
+                    return [.. executionGroups];
+                }
+            }
+        }
+
         public static TaskCompletionSource FirstRun { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public static void Reset()
@@ -402,6 +449,7 @@ public sealed class RunAtStartupTest
             lock (gate)
             {
                 triggerGroups.Clear();
+                executionGroups.Clear();
             }
 
             FirstRun = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -409,13 +457,32 @@ public sealed class RunAtStartupTest
 
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
+            Record(context);
+            return default;
+        }
+
+        public static void Record(IJobExecutionContext context)
+        {
             lock (gate)
             {
                 triggerGroups.Add(context.Trigger.Key.Group);
+                executionGroups.Add(context.Trigger.ExecutionGroup);
             }
 
             Interlocked.Increment(ref runs);
             FirstRun.TrySetResult();
+        }
+    }
+
+    /// <summary>
+    /// <see cref="CountingJob" />, declaring an execution group.
+    /// </summary>
+    [ExecutionGroup("gpu")]
+    public sealed class GpuJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            CountingJob.Record(context);
             return default;
         }
     }

@@ -78,6 +78,19 @@ Reserved names, which cannot be execution groups:
 Empty or whitespace-only strings become `null` (no group). A name may carry `{key}` placeholders; see
 [Per-tenant limits](#per-tenant-limits).
 
+### Manual and startup firings
+
+`TriggerJob` builds a trigger of its own, and so do the dashboard's **Trigger now**, the HTTP API, an agent,
+a job chain's next link and `RunAtStartup`. From 4.6 that trigger takes the first group that applies:
+
+| Order | Group | Skipped when |
+|---|---|---|
+| 1 | the job type's `[ExecutionGroup]`; placeholders read the job's `JobDataMap` overlaid by the firing's | no attribute, a placeholder with no value, or a job type this node cannot load |
+| 2 | the one group every trigger of the job carries | no triggers, two groups, or an ungrouped trigger |
+| 3 | none | — |
+
+Limits and routing then apply as for any other trigger. A template with no value never fails the firing.
+
 ## Configuring execution limits
 
 ### Via properties
@@ -329,6 +342,7 @@ ITrigger trigger = TriggerBuilder.Create<TenantReportJob>()
 |---|---|
 | `TriggerBuilder.Create<TJob>()`, `q.AddTrigger<TJob>`, `q.ScheduleJob<TJob>`, `[CronTrigger]`, `[SimpleTrigger]` | applied; placeholders read the trigger's `JobDataMap` |
 | `ScheduleJob<TJob, TInput>(input, …)` | applied when it has no placeholders; with placeholders, the call throws `FormatException` unless `OneOffJobOptions.ExecutionGroup` is set |
+| `TriggerJob`, **Trigger now**, `RunAtStartup` | applied; placeholders read the job's and the firing's data. See [Manual and startup firings](#manual-and-startup-firings) |
 | `TriggerBuilder.Create()`, for `IJob` | not read |
 
 * `WithExecutionGroup` or `OneOffJobOptions.ExecutionGroup` wins over the attribute.
@@ -643,6 +657,7 @@ every round, where a route never reads them.
 | Misfire sweep | applies the trigger's misfire instruction | leaves the row untouched |
 | `quartz.trigger.misfire` | counts | does not tick |
 | Cluster recovery | the recovery trigger keeps the firing's group, so a serving node runs it | same |
+| Manual and startup firings | the trigger [carries the job's group](#manual-and-startup-firings), so a serving node runs it | same |
 
 A trigger in a group **no live node serves** waits, unmodified, until a serving node arrives. That node
 applies the trigger's misfire instruction once: `FireNow` runs it once, `DoNothing` skips to the next

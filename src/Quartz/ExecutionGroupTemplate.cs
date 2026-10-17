@@ -103,25 +103,58 @@ internal static class ExecutionGroupTemplate
     /// or resolves to a blank or reserved name.</exception>
     internal static string Resolve(string template, ValueLookup lookup, string source)
     {
-        StringBuilder resolved = new(template.Length + 16);
-        if (Scan(template, lookup, source, resolved) is { } error)
+        if (ResolveInto(template, lookup, source, out string? group) is { } error)
         {
             throw new FormatException(error);
         }
 
-        string group = resolved.ToString().Trim();
+        return group!;
+    }
 
-        if (group.Length == 0)
+    /// <summary>
+    /// Replaces each placeholder with the value <paramref name="lookup" /> holds for it, or answers
+    /// <see langword="null" /> where <see cref="Resolve" /> would throw.
+    /// </summary>
+    /// <remarks>
+    /// For a firing that must not fail over its group, a manual one: it falls back to another answer.
+    /// </remarks>
+    /// <param name="template">A template <see cref="Validate" /> accepts.</param>
+    /// <param name="lookup">Where the values come from.</param>
+    /// <returns>The execution group, trimmed, or <see langword="null" /> when a key is missing or null, or
+    /// the result is blank or reserved.</returns>
+    internal static string? TryResolve(string template, ValueLookup lookup)
+    {
+        return ResolveInto(template, lookup, "the job data", out string? group) is null ? group : null;
+    }
+
+    /// <summary>
+    /// Resolves the template into <paramref name="group" />, and returns what is wrong with it, or
+    /// <see langword="null" />.
+    /// </summary>
+    private static string? ResolveInto(string template, ValueLookup lookup, string source, out string? group)
+    {
+        group = null;
+
+        StringBuilder resolved = new(template.Length + 16);
+        if (Scan(template, lookup, source, resolved) is { } error)
         {
-            throw new FormatException($"The execution group template '{template}' resolves to an empty name.");
+            return error;
         }
 
-        if (ExecutionLimits.IsReservedGroupName(group))
+        string name = resolved.ToString().Trim();
+
+        if (name.Length == 0)
         {
-            throw new FormatException($"The execution group template '{template}' resolves to '{group}', which is reserved for limits configuration.");
+            return $"The execution group template '{template}' resolves to an empty name.";
         }
 
-        return group;
+        if (ExecutionLimits.IsReservedGroupName(name))
+        {
+            return $"The execution group template '{template}' resolves to '{name}', which is reserved for limits configuration.";
+        }
+
+        group = name;
+        return null;
     }
 
     /// <summary>
