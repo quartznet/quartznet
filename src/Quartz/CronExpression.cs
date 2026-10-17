@@ -237,6 +237,32 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     internal bool HasIntervalSemantics => hasIntervalSemantics;
 
     /// <summary>
+    /// True when the seconds field is <c>*</c> while the minute or hour field skips values, so the
+    /// expression fires every second of each minute it matches: <c>* */5 * ? * *</c> fires sixty times
+    /// in every fifth minute, not once every five minutes.
+    /// </summary>
+    /// <remarks>
+    /// The shape five-field habits produce, when a crontab line gets a <c>*</c> prepended for seconds.
+    /// Only a bare <c>*</c> counts: <c>0-59</c> or <c>*/1</c> for seconds is spelled out on purpose, and
+    /// <c>* * * * * ?</c> restricts nothing, so firing every second is plainly what it says. Read by
+    /// QZ0007 at build time and by the scheduler when it stores a cron trigger.
+    /// </remarks>
+    internal bool FiresEverySecondOfARestrictedMinute =>
+        seconds.IsAllSpec && !(minutes.CoversRange(0, 59) && hours.CoversRange(0, 23));
+
+    /// <summary>
+    /// <paramref name="cronExpression" /> with its seconds field replaced by <c>0</c> and the rest as
+    /// written: what an expression <see cref="FiresEverySecondOfARestrictedMinute" /> describes most
+    /// likely meant.
+    /// </summary>
+    internal static string WithSecondsAtZero(string cronExpression)
+    {
+        string trimmed = cronExpression.TrimStart();
+        int end = trimmed.IndexOfAny([' ', '\t']);
+        return end < 0 ? "0" : string.Concat("0", trimmed.AsSpan(end));
+    }
+
+    /// <summary>
     /// Last day of week.
     /// </summary>
     [NonSerialized] private bool lastDayOfWeek;
@@ -3488,6 +3514,12 @@ internal sealed class CronField : IEnumerable<int>
     {
         Clear();
     }
+
+    /// <summary>
+    /// Whether the field was written as <c>*</c>, as opposed to a range or a step that happens to
+    /// cover every value.
+    /// </summary>
+    internal bool IsAllSpec => isAllSpec;
 
     internal int Count
     {

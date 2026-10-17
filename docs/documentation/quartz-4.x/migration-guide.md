@@ -54,6 +54,8 @@ An application on 4.5 compiles on 4.6 unchanged, and the database schema did not
 | `SchedulerDetailDto.ServedExecutionGroups`, `RefusedExecutionGroups`, `RoutesExecutionGroups` | `Quartz.Dashboard`, `init`, empty by default |
 | HTTP: `servedExecutionGroups`, `refusedExecutionGroups` on `GET …/schedulers/{name}` | Arrays, empty when the node routes nothing; absent on a host older than 4.6, which the client reads as empty |
 | Log events `1093`, `3609`, `3610` | What a node routes, at start; unserved misfires appeared / are gone |
+| `QZ0007` CronFiresEverySecond | Warning: a cron schedule with `*` for seconds under a restricted minute or hour, which fires every second of each minute it matches. See [Compile-Time Checks](tutorial/compile-time-checks.md#qz0007-cronfireseverysecond) |
+| Log event `1022` | Warning: the same, for a cron trigger the scheduler stores. The trigger is stored as written |
 
 Behaviour that changed:
 

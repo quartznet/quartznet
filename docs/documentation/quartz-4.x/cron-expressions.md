@@ -31,6 +31,15 @@ output as a draft and confirm it here. Five-field Unix output can be read as wri
 [The Unix five-field form](#the-unix-five-field-form).
 :::
 
+::: warning `*` for seconds fires every second
+`* */5 * ? * *` fires every second of every fifth minute, 60 times in each, not once every five minutes.
+A five-field crontab line with `*` prepended for seconds does this. Write `0` for seconds, `0 */5 * ? * *`,
+or pass the crontab line with [`CronFormat.Unix`](#the-unix-five-field-form). The analyzer reports such a
+literal as [`QZ0007`](tutorial/compile-time-checks.md#qz0007-cronfireseverysecond), and the scheduler logs
+[event `1022`](log-events.md) when it stores such a trigger. `* * * * * ?` restricts nothing and is not
+reported.
+:::
+
 ## Special characters
 
 - `*` — all values. `*` in the minute field is every minute.

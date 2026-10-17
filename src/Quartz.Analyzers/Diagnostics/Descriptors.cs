@@ -142,6 +142,25 @@ internal static class Descriptors
         helpLinkUri: HelpLink + "#qz0006-invalidretrypolicydelay");
 
     /// <summary>
+    /// A cron schedule whose seconds field is <c>*</c> under a restricted minute or hour.
+    /// </summary>
+    /// <remarks>
+    /// A warning rather than an error: the expression parses and does what it says, and firing every
+    /// second of a minute is occasionally meant. It is reported only where the expression becomes a
+    /// trigger's schedule, because a <c>CronCalendar</c> written <c>* * 9 ? * *</c> excludes every
+    /// second of nine o'clock, which is exactly what it is for.
+    /// </remarks>
+    internal static readonly DiagnosticDescriptor CronFiresEverySecond = new DiagnosticDescriptor(
+        id: "QZ0007",
+        title: "Cron schedule fires every second of the minutes it matches",
+        messageFormat: "'{0}' fires every second of each minute it matches, 60 times a minute, because its seconds field is '*'; did you mean '{1}'?",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "Quartz cron has a seconds field before the minutes. A five-field crontab line with '*' prepended for seconds, such as '* */5 * ? * *', fires every second of every fifth minute rather than once every five minutes. '* * * * * ?' restricts nothing and is not reported.",
+        helpLinkUri: HelpLink + "#qz0007-cronfireseverysecond");
+
+    /// <summary>
     /// A <c>[QuartzJob]</c> class the generated registration could not name, or could not schedule.
     /// </summary>
     /// <remarks>

@@ -894,6 +894,7 @@ internal sealed class QuartzScheduler
 
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
+        WarnIfCronFiresEverySecond(trig);
         RefusePausedContinuation(trig, options);
         RetryPolicyResolution.EnsureReadable(jobDetail);
 
@@ -1082,6 +1083,7 @@ internal sealed class QuartzScheduler
         IOperableTrigger trig = AsOperableTrigger(trigger);
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
+        WarnIfCronFiresEverySecond(trig);
 
         PrepareTriggerData(trig);
 
@@ -1264,6 +1266,7 @@ internal sealed class QuartzScheduler
 
                 AdjustSimpleTriggerStartTimeIfInPast(trigger);
                 trigger.Validate();
+                WarnIfCronFiresEverySecond(trigger);
                 RefusePausedContinuation(trigger, options);
 
                 PrepareTriggerData(trigger);
@@ -1440,6 +1443,7 @@ internal sealed class QuartzScheduler
         trigger.JobKey = oldTrigger.JobKey;
         AdjustSimpleTriggerStartTimeIfInPast(trigger);
         trigger.Validate();
+        WarnIfCronFiresEverySecond(trigger);
 
         PrepareTriggerData(trigger);
 
@@ -1677,6 +1681,26 @@ internal sealed class QuartzScheduler
                 // this new start.
                 trigger.StartTimeUtc = now;
             }
+        }
+    }
+
+    /// <summary>
+    /// Says so when a cron trigger's seconds field is <c>*</c> under a restricted minute or hour, the
+    /// shape a five-field crontab line takes when <c>*</c> is prepended for seconds.
+    /// </summary>
+    /// <remarks>
+    /// The trigger is stored as written: the expression is valid, and firing every second of a minute
+    /// is occasionally meant. QZ0007 reports a literal at build time; this is for the expressions it
+    /// cannot see, read from configuration or a database.
+    /// </remarks>
+    private void WarnIfCronFiresEverySecond(IOperableTrigger trigger)
+    {
+        if (trigger is CronTriggerImpl { CronExpression: { FiresEverySecondOfARestrictedMinute: true } expression })
+        {
+            logger.CronTriggerFiresEverySecond(
+                trigger.Key,
+                expression.CronExpressionString,
+                CronExpression.WithSecondsAtZero(expression.CronExpressionString));
         }
     }
 

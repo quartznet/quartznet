@@ -43,12 +43,25 @@ internal static class CronLiteralValidator
     /// valid and <c>CronExpression.Parse("0 H 3 * * ?")</c> is not.
     /// </param>
     internal static string? Validate(string expression, CronFormat format, bool resolvesHash)
+        => Validate(expression, format, resolvesHash, out _);
+
+    /// <inheritdoc cref="Validate(string, CronFormat, bool)" />
+    /// <param name="expression">The literal, as written.</param>
+    /// <param name="format">The dialect the entry point reads it in.</param>
+    /// <param name="resolvesHash">Whether the entry point resolves <c>H</c> tokens.</param>
+    /// <param name="parsed">
+    /// The expression the parser read, for the checks that look at what a valid expression means;
+    /// <see langword="null" /> when it does not parse.
+    /// </param>
+    internal static string? Validate(string expression, CronFormat format, bool resolvesHash, out CronExpression? parsed)
     {
+        parsed = null;
+
         try
         {
             // The seed is irrelevant to whether the expression parses - which values H resolves to
             // does not decide that - so CronScheduleBuilder.Create uses 0 here for the same reason.
-            _ = resolvesHash
+            parsed = resolvesHash
                 ? CronExpression.ParseWithHash(expression, format, hashSeed: 0)
                 : CronExpression.Parse(expression, format);
 

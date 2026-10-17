@@ -108,6 +108,12 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1021, Level = LogLevel.Warning, Message = "Something is subscribed to the DiagnosticListener named '{DiagnosticListenerName}', which Quartz 3.x published on and 4.x does not. Nothing will arrive there. 4.x emits spans on ActivitySource(\"{ActivitySourceName}\") and metrics on Meter(\"{MeterName}\") -- subscribe with AddSource(QuartzInstrumentation.ActivitySourceName) and AddMeter(QuartzInstrumentation.MeterName), and drop OpenTelemetry.Instrumentation.Quartz, which emits nothing here.")]
     public static partial void LegacyDiagnosticListenerSubscribed(this ILogger logger, string diagnosticListenerName, string activitySourceName, string meterName);
 
+    // Warning, because the trigger is stored as written and fires sixty times in each minute it matches.
+    // QZ0007 says the same at build time for a literal; this is for the expression read from
+    // configuration or a database, which no analyzer sees.
+    [LoggerMessage(EventId = 1022, Level = LogLevel.Warning, Message = "Cron trigger {TriggerKey}'s expression '{CronExpression}' fires every second of each minute it matches, 60 times a minute, because its seconds field is '*'; '{SuggestedCronExpression}' would fire once at the start of each of those minutes")]
+    public static partial void CronTriggerFiresEverySecond(this ILogger logger, TriggerKey triggerKey, string cronExpression, string suggestedCronExpression);
+
     [LoggerMessage(EventId = 1030, Level = LogLevel.Debug, Message = "Batch acquisition of {TriggerCount} triggers")]
     public static partial void TriggerBatchAcquired(this ILogger logger, int triggerCount);
 

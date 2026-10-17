@@ -63,23 +63,23 @@ public sealed class CronLiteralAnalyzer : DiagnosticAnalyzer
     /// </remarks>
     private static readonly Dictionary<string, CronEntryPoint> EntryPoints = new Dictionary<string, CronEntryPoint>(StringComparer.Ordinal)
     {
-        ["Quartz.CronScheduleBuilder.Create"] = new CronEntryPoint("cronExpression", resolvesHash: true),
-        ["Quartz.TriggerConfiguratorExtensions.WithCronSchedule"] = new CronEntryPoint("cronExpression", resolvesHash: true),
-        ["Quartz.CronExpression..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: false),
-        ["Quartz.CronExpression.Parse"] = new CronEntryPoint("cronExpression", resolvesHash: false),
-        ["Quartz.CronExpression.TryParse"] = new CronEntryPoint("cronExpression", resolvesHash: false),
-        ["Quartz.CronExpression.ParseWithHash"] = new CronEntryPoint("cronExpression", resolvesHash: true),
-        ["Quartz.CronExpression.TryParseWithHash"] = new CronEntryPoint("cronExpression", resolvesHash: true),
-        ["Quartz.CronExpression.ResolveHash"] = new CronEntryPoint("cronExpression", resolvesHash: true),
+        ["Quartz.CronScheduleBuilder.Create"] = new CronEntryPoint("cronExpression", resolvesHash: true, isSchedule: true),
+        ["Quartz.TriggerConfiguratorExtensions.WithCronSchedule"] = new CronEntryPoint("cronExpression", resolvesHash: true, isSchedule: true),
+        ["Quartz.CronExpression..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: false, isSchedule: false),
+        ["Quartz.CronExpression.Parse"] = new CronEntryPoint("cronExpression", resolvesHash: false, isSchedule: false),
+        ["Quartz.CronExpression.TryParse"] = new CronEntryPoint("cronExpression", resolvesHash: false, isSchedule: false),
+        ["Quartz.CronExpression.ParseWithHash"] = new CronEntryPoint("cronExpression", resolvesHash: true, isSchedule: false),
+        ["Quartz.CronExpression.TryParseWithHash"] = new CronEntryPoint("cronExpression", resolvesHash: true, isSchedule: false),
+        ["Quartz.CronExpression.ResolveHash"] = new CronEntryPoint("cronExpression", resolvesHash: true, isSchedule: false),
         // The attribute a job declares its schedule with. It resolves H, because what the generator
         // emits for it is WithCronSchedule, which resolves H against the trigger's key.
-        ["Quartz.CronTriggerAttribute..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: true),
-        ["Quartz.Impl.Calendar.CronCalendar..ctor"] = new CronEntryPoint("expression", resolvesHash: false),
-        ["Quartz.Impl.Triggers.CronTriggerImpl..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: false),
+        ["Quartz.CronTriggerAttribute..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: true, isSchedule: true),
+        ["Quartz.Impl.Calendar.CronCalendar..ctor"] = new CronEntryPoint("expression", resolvesHash: false, isSchedule: false),
+        ["Quartz.Impl.Triggers.CronTriggerImpl..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: false, isSchedule: true),
     };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        ImmutableArray.Create(Descriptors.InvalidCronExpression);
+        ImmutableArray.Create(Descriptors.InvalidCronExpression, Descriptors.CronFiresEverySecond);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -135,10 +135,22 @@ public sealed class CronLiteralAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        string? message = CronLiteralValidator.Validate(expression, format, entryPoint.ResolvesHash);
+        string? message = CronLiteralValidator.Validate(expression, format, entryPoint.ResolvesHash, out CronExpression? parsed);
         if (message is not null)
         {
             Report(context, expressionArgument, "'" + expression + "' is not a valid cron expression: " + message);
+            return;
+        }
+
+        // Only where the expression becomes a trigger's schedule: a CronCalendar or a bare
+        // CronExpression may mean every second of an hour, and say so on purpose.
+        if (entryPoint.IsSchedule && parsed is { FiresEverySecondOfARestrictedMinute: true })
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                Descriptors.CronFiresEverySecond,
+                expressionArgument.Value.Syntax.GetLocation(),
+                expression,
+                CronExpression.WithSecondsAtZero(expression)));
         }
     }
 
@@ -227,14 +239,20 @@ public sealed class CronLiteralAnalyzer : DiagnosticAnalyzer
     /// </summary>
     private readonly struct CronEntryPoint
     {
-        internal CronEntryPoint(string expressionParameterName, bool resolvesHash)
+        internal CronEntryPoint(string expressionParameterName, bool resolvesHash, bool isSchedule)
         {
             ExpressionParameterName = expressionParameterName;
             ResolvesHash = resolvesHash;
+            IsSchedule = isSchedule;
         }
 
         internal string ExpressionParameterName { get; }
 
         internal bool ResolvesHash { get; }
+
+        /// <summary>
+        /// Whether the expression becomes a trigger's schedule, which is where QZ0007 applies.
+        /// </summary>
+        internal bool IsSchedule { get; }
     }
 }

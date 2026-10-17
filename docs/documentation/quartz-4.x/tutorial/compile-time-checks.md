@@ -37,6 +37,7 @@ exception would have carried.
 | [`QZ0004`](#qz0004-cancellationtokennotobserved) | Info | A job body that awaits or loops without reading its cancellation token |
 | [`QZ0005`](#qz0005-invalidsimpletriggerschedule) | Error | A `[SimpleTrigger]` interval that is not a positive `TimeSpan`, or a `RepeatCount` below `-1` |
 | [`QZ0006`](#qz0006-invalidretrypolicydelay) | Error | A `[RetryPolicy]` delay that is not a `TimeSpan`, or is negative |
+| [`QZ0007`](#qz0007-cronfireseverysecond) | Warning | A cron schedule with `*` for seconds under a restricted minute or hour |
 
 Only values the compiler already knows are checked: a string literal, a `const`, an interpolated string
 with nothing interpolated. A value built at run time, read from configuration or passed in a variable is
@@ -176,6 +177,35 @@ public class ImportJob : IJob  // way TimeSpan does, invariantly: "00:00:30" for
 factor and the jitter are not checked here; the attribute refuses them when the job is added.
 **Suppress** with `dotnet_diagnostic.QZ0006.severity` in `.editorconfig`.
 
+### QZ0007 CronFiresEverySecond
+
+**Reports** a cron schedule whose seconds field is `*` while the minute or hour field is restricted. It fires
+every second of each minute it matches, 60 times a minute. It is what a five-field crontab line becomes with
+`*` prepended for seconds. Checked where the expression becomes a trigger's schedule:
+`CronScheduleBuilder.Create`, `WithCronSchedule`, `CronTriggerImpl`'s constructor and
+[`[CronTrigger]`](declaring-jobs-with-attributes.md).
+
+```csharp
+// warning QZ0007: '* */5 * ? * *' fires every second of each minute it matches, 60 times a minute,
+// because its seconds field is '*'; did you mean '0 */5 * ? * *'?
+_ = TriggerBuilder.Create().WithCronSchedule("* */5 * ? * *").Build();
+```
+
+Not reported:
+
+* `* * * * * ?`. It restricts nothing, so every second is what it says.
+* Seconds written as `0-59` or `*/1`, which spell every second out on purpose.
+* `CronFormat.Unix`. A crontab line has no seconds field, so it fires at second zero.
+* `CronExpression`'s constructors and parse methods, and the `CronCalendar` constructors. A calendar written
+  `* * 9 ? * *` excludes every second of nine o'clock, which is what it is for.
+
+An expression read from configuration or a database is not seen here. The scheduler logs it as event
+[`1022`](../log-events.md), a warning, when it stores the trigger.
+
+**Fix** by writing `0` for seconds, or by passing the crontab line with `CronFormat.Unix`.
+**Suppress** with `dotnet_diagnostic.QZ0007.severity` in `.editorconfig`, or `#pragma warning disable QZ0007`
+where every second is meant.
+
 ## Changing a severity, or turning it off
 
 Each diagnostic is an ordinary compiler diagnostic, so `.editorconfig` sets its severity:
@@ -199,7 +229,7 @@ To remove the analyzer from the build entirely, set one property in the project 
 
 ::: tip
 The property removes the whole assembly, so the [source generator](declaring-jobs-with-attributes.md)
-and its `AddDeclaredJobs()` go with the five diagnostics, and [delegate jobs](delegate-jobs.md#bound-at-compile-time)
+and its `AddDeclaredJobs()` go with the seven diagnostics, and [delegate jobs](delegate-jobs.md#bound-at-compile-time)
 are bound by reflection; nothing else Quartz does is affected. To quiet
 one rule, use `.editorconfig` instead. `ExcludeAssets="analyzers"` on the package reference does not
 work: the .NET 10 SDK still passes the assembly to the compiler.
