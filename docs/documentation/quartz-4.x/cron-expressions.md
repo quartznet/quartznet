@@ -31,6 +31,15 @@ output as a draft and confirm it here. Five-field Unix output can be read as wri
 [The Unix five-field form](#the-unix-five-field-form).
 :::
 
+::: warning `*` in the seconds field fires every second
+Prepending `*` to a five-field expression does not convert it. `* */5 * ? * *` fires **every second** of
+every fifth minute, 60 times a minute; `0 */5 * ? * *` fires once. Write `0` in the seconds field, or pass
+the five fields as they are with [`CronFormat.Unix`](#the-unix-five-field-form). Write `0-59` if every
+second is intended. A `*` seconds field under a restricted minute or hour is warning
+[`QZ0007`](tutorial/compile-time-checks.md#qz0007-wildcardsecondsfield) at build time, and log event
+[`5112`](log-events.md) when the trigger is scheduled.
+:::
+
 ## Special characters
 
 - `*` — all values. `*` in the minute field is every minute.

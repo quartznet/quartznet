@@ -30,7 +30,9 @@ The compiler finds most of the 3.x → 4.0 work.
 
 ## Upgrading from 4.5 to 4.6
 
-An application on 4.5 compiles on 4.6 unchanged. A database that keeps its execution history can take one
+An application on 4.5 compiles on 4.6 unchanged, unless it treats warnings as errors and has a cron literal
+that the new analyzer warning [`QZ0007`](tutorial/compile-time-checks.md#qz0007-wildcardsecondsfield)
+reports. A database that keeps its execution history can take one
 optional migration, [`4.6/add_execution_history_lookup_indexes`](../database/schema-changes.md#version-4-6):
 two indexes, performance only.
 
@@ -69,6 +71,7 @@ Behaviour that changed:
 
 | Before | After | What to do |
 |---|---|---|
+| `* */5 * ? * *` fired every second of every fifth minute, silently | Warning [`QZ0007`](tutorial/compile-time-checks.md#qz0007-wildcardsecondsfield) on a literal or constant; log event `5112` when such a trigger is scheduled | Write `0` for the seconds, or `0-59` if every second is intended |
 | A recovery trigger had no execution group, so a recovered firing ignored its group's limit | It keeps the firing's group, after cluster recovery, a shutdown hand-back and startup recovery | Nothing |
 | A manual firing (`TriggerJob`, **Trigger now**, the HTTP API, agents, job chains) and a `RunAtStartup` run had no execution group, so they ignored the job's group limit and routing | They count against the job type's `[ExecutionGroup]`, else the group every trigger of the job shares. See [Manual and startup firings](tutorial/execution-groups.md#manual-and-startup-firings) | Nothing. A **Trigger now** of a `gpu` job now waits for a `gpu` slot, on a node that serves `gpu` |
 | A type name was resolved with `Type.GetType` | Resolved from the types registered in code first: `AddJob<T>()`, `AddJobType<T>()`, `JobBuilder.Create<T>()`, `Map(name, typeof(T))`; then `Type.GetType` while the switch is on | Nothing untrimmed. Trimmed, register every job type the application runs, including `Quartz.Jobs` types: `AddJobType<NoOpJob>()` |

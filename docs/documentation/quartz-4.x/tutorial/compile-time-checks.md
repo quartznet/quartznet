@@ -37,6 +37,7 @@ exception would have carried.
 | [`QZ0004`](#qz0004-cancellationtokennotobserved) | Info | A job body that awaits or loops without reading its cancellation token |
 | [`QZ0005`](#qz0005-invalidsimpletriggerschedule) | Error | A `[SimpleTrigger]` interval that is not a positive `TimeSpan`, or a `RepeatCount` below `-1` |
 | [`QZ0006`](#qz0006-invalidretrypolicydelay) | Error | A `[RetryPolicy]` delay that is not a `TimeSpan`, or is negative |
+| [`QZ0007`](#qz0007-wildcardsecondsfield) | Warning | A trigger's cron schedule with `*` seconds under a restricted minute or hour, which fires every second |
 
 Only values the compiler already knows are checked: a string literal, a `const`, an interpolated string
 with nothing interpolated. A value built at run time, read from configuration or passed in a variable is
@@ -176,6 +177,36 @@ public class ImportJob : IJob  // way TimeSpan does, invariantly: "00:00:30" for
 factor and the jitter are not checked here; the attribute refuses them when the job is added.
 **Suppress** with `dotnet_diagnostic.QZ0006.severity` in `.editorconfig`.
 
+### QZ0007 WildcardSecondsField
+
+**Reports** a trigger's cron schedule (4.6) whose seconds field is `*` while the minute or the hour field
+is restricted. `*` matches all 60 seconds, so the trigger fires every second of each minute it matches.
+It is what prepending `*` to a five-field crontab line gives.
+
+```csharp
+// warning QZ0007: '* */5 * ? * *' fires 60 times in each minute it matches, because its seconds field
+// is '*'; write '0 */5 * ? * *' to fire once in each of those minutes, or '0-59' for the seconds if
+// every second is intended
+_ = TriggerBuilder.Create().WithCronSchedule("* */5 * ? * *").Build();
+```
+
+| Written | Reported |
+|---|---|
+| `* */5 * ? * *`, `* 0 9 * * ?`, `* * 9-17 * * ?` | yes |
+| `* * * * * ?` | no: nothing is restricted |
+| `0-59 */5 * ? * *`, `*/1 */5 * ? * *` | no: every second, written on purpose |
+| `0 */5 * ? * *`, or five fields with `CronFormat.Unix` | no: once a minute |
+
+* **Where.** `CronScheduleBuilder.Create`, `WithCronSchedule`, `[CronTrigger]` and `CronTriggerImpl`'s
+  constructors. A `CronCalendar` or a bare `CronExpression` is not checked: `* * 0-7 ? * *` is how a
+  window from midnight to eight is written.
+* **At run time.** The scheduler logs event [`5112`](../log-events.md) when such a trigger is scheduled
+  or rescheduled, for an expression from configuration, a scheduling file or a database.
+
+**Fix** by writing `0` in the seconds field, or by passing the five fields with
+[`CronFormat.Unix`](../cron-expressions.md#the-unix-five-field-form). Write `0-59` if every second is
+intended. **Suppress** with `dotnet_diagnostic.QZ0007.severity` in `.editorconfig`.
+
 ## Changing a severity, or turning it off
 
 Each diagnostic is an ordinary compiler diagnostic, so `.editorconfig` sets its severity:
@@ -199,7 +230,7 @@ To remove the analyzer from the build entirely, set one property in the project 
 
 ::: tip
 The property removes the whole assembly, so the [source generator](declaring-jobs-with-attributes.md)
-and its `AddDeclaredJobs()` go with the five diagnostics, and [delegate jobs](delegate-jobs.md#bound-at-compile-time)
+and its `AddDeclaredJobs()` go with the diagnostics, and [delegate jobs](delegate-jobs.md#bound-at-compile-time)
 are bound by reflection; nothing else Quartz does is affected. To quiet
 one rule, use `.editorconfig` instead. `ExcludeAssets="analyzers"` on the package reference does not
 work: the .NET 10 SDK still passes the assembly to the compiler.
@@ -219,4 +250,4 @@ work: the .NET 10 SDK still passes the assembly to the compiler.
 [Declaring Jobs with Attributes](declaring-jobs-with-attributes.md) covers the rest of the 4.2
 compile-time work: attributes that declare a job's schedule on the job class, and a source generator,
 in the same assembly, that registers them. Its diagnostics are `QZ1001` to `QZ1005`; the cron
-expression on an attribute is checked by `QZ0001` above, and the interval by `QZ0005`.
+expression on an attribute is checked by `QZ0001` and `QZ0007` above, and the interval by `QZ0005`.
