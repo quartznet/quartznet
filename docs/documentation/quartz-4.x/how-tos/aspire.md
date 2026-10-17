@@ -184,8 +184,9 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 * Commands come from the data source's connections, so its type mappers, logging and multiplexing apply to
   Quartz's statements. Prefer an existing `NpgsqlDataSource` to a connection string.
 * `GenerateInstanceId` and `UseClustering` are for replicas; see
-  [Clustering](../tutorial/advanced-enterprise-features.md). `settings.Clustered = true` sets both. Nodes
-  that all keep the default `NON_CLUSTERED` id are not a cluster.
+  [Clustering](../tutorial/advanced-enterprise-features.md). `UseClustering()` turns `GenerateInstanceId` on
+  when no `InstanceId` is set, and `settings.Clustered = true` calls `UseClustering()`. Nodes that all keep
+  the default `NON_CLUSTERED` id are not a cluster.
 
 ### More than one database
 
@@ -443,10 +444,10 @@ Full tables: [Observability](../packages/opentelemetry-integration.md).
 
 ## What Aspire does not do for you
 
-* **Clustering.** `WithReplicas(2)` starts two workers, not a cluster. Add `UseClustering()` and a distinct
-  `InstanceId` per node: `GenerateInstanceId = true` uses the host name and a timestamp, distinct across
-  replicas on one machine. A node finds its own check-in row and fired triggers by that id, so every
-  replica keeping `NON_CLUSTERED` breaks clustering. `QuartzAspireSettings.Clustered` sets both.
+* **Clustering.** `WithReplicas(2)` starts two workers, not a cluster. Add `UseClustering()`. Each replica
+  then generates a distinct `InstanceId` from the host name and a timestamp, unless you set one. A node
+  finds its own check-in row and fired triggers by that id. `QuartzAspireSettings.Clustered` calls
+  `UseClustering()`.
 * **Store settings**: table prefix, serializer, misfire threshold, lock strategy. See
   [Configuration Reference](../configuration/reference.md#persistent-job-store).
 * **Startup order beyond the container.** `WaitFor` waits for the database's health check, not the Quartz

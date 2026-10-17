@@ -44,6 +44,10 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 
 The same `UseRedisLockHandler` call works without a host, inside `QuartzSchedulerBuilder.Create(q => …)`.
 
+`UseClustering()` gives each node a generated instance id unless you set `InstanceId`; so does
+`quartz.jobStore.clustered = true` below without `quartz.scheduler.instanceId`. See
+[Naming a node in a container](../operations.md#naming-a-node-in-a-container).
+
 ## Configuration
 
 `RedisLockHandlerOptions`:
