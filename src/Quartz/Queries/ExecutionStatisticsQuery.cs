@@ -79,6 +79,16 @@ public sealed record ExecutionStatisticsQuery
     public JobKey? Job { get; init; }
 
     /// <summary>
+    /// Counts only the runs this trigger fired, matched exactly, or every trigger's when null.
+    /// </summary>
+    public TriggerKey? Trigger { get; init; }
+
+    /// <summary>
+    /// Counts only the runs of this firing, matched exactly, or every firing's when null.
+    /// </summary>
+    public string? FireInstanceId { get; init; }
+
+    /// <summary>
     /// Counts only the runs of the jobs in this group, matched exactly, or every group's when null.
     /// </summary>
     public string? JobGroup { get; init; }
@@ -125,6 +135,8 @@ public sealed record ExecutionStatisticsQuery
         TriggerContains = TriggerContains,
         FailedFinally = FailedFinally,
         Job = Job,
+        Trigger = Trigger,
+        FireInstanceId = FireInstanceId,
         FiredFrom = FiredFrom,
         FiredBefore = FiredBefore,
         Results = Results,

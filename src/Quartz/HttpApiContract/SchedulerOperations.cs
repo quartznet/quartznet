@@ -187,7 +187,7 @@ internal static class SchedulerOperations
             FailedFinally = failedFinally,
             Job = filters.Job(),
             Trigger = filters.Trigger(),
-            FireInstanceId = string.IsNullOrWhiteSpace(filters.FireInstanceId) ? null : filters.FireInstanceId,
+            FireInstanceId = filters.FireInstance(),
             FiredFrom = filters.FiredFrom,
             FiredBefore = filters.FiredBefore,
             Results = filters.ResultSet()
@@ -227,7 +227,7 @@ internal static class SchedulerOperations
     /// application's own that ignores <see cref="MisfireHistoryQuery.Reasons" /> then answers a short page,
     /// rather than a 4.3 client a row that fails its whole listing.
     /// </remarks>
-    /// <exception cref="InvalidRequestException">Half a job key, or a reason that names nothing.</exception>
+    /// <exception cref="InvalidRequestException">Half a job or trigger key, or a reason that names nothing.</exception>
     public static async ValueTask<PagedResultDto<MisfireHistoryEntryDto>> QueryMisfireHistory(
         IScheduler scheduler,
         IExecutionHistoryStore history,
@@ -245,6 +245,7 @@ internal static class SchedulerOperations
             SchedulerInstanceId = schedulerInstanceId,
             TriggerContains = triggerContains,
             Job = filters.Job(),
+            Trigger = filters.Trigger(),
             Reasons = asked
         });
 
@@ -340,11 +341,12 @@ internal static class SchedulerOperations
     /// <param name="jobContains">A job key fragment, or <see langword="null" />.</param>
     /// <param name="triggerContains">A trigger key fragment, or <see langword="null" />.</param>
     /// <param name="failedFinally">Whether to count the occurrences that gave up, or the rest.</param>
-    /// <param name="filters">One job or one group, a fire-time window and a set of results.</param>
+    /// <param name="filters">One job or one group, one trigger, one firing, a fire-time window and a set of results.</param>
     /// <param name="bucket">How much fire time a bucket covers; one hour when absent.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="InvalidRequestException">
-    /// A job name without its group, a result that names nothing, or a bucket shorter than a minute.
+    /// A job name without its group, half a trigger key, a result that names nothing, or a bucket shorter
+    /// than a minute.
     /// </exception>
     public static async ValueTask<ExecutionStatisticsDto> QueryExecutionStatistics(
         IScheduler scheduler,
@@ -374,6 +376,8 @@ internal static class SchedulerOperations
             FailedFinally = failedFinally,
             Job = job,
             JobGroup = jobGroup,
+            Trigger = filters.Trigger(),
+            FireInstanceId = filters.FireInstance(),
             FiredFrom = filters.FiredFrom,
             FiredBefore = filters.FiredBefore,
             Results = filters.ResultSet(),

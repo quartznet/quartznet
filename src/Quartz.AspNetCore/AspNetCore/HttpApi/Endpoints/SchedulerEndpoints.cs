@@ -413,9 +413,9 @@ internal static class SchedulerEndpoints
         [Description("Only executions fired at or after this instant")] DateTimeOffset? firedFrom = null,
         [Description("Only executions fired before this instant")] DateTimeOffset? firedBefore = null,
         [Description(ResultsDescription)] string[]? results = null,
-        [Description("The trigger's group; needs triggerName")] string? triggerGroup = null,
-        [Description("The trigger's name; needs triggerGroup")] string? triggerName = null,
-        [Description("Only the executions of this firing, matched exactly")] string? fireInstanceId = null,
+        [Description(TriggerGroupDescription)] string? triggerGroup = null,
+        [Description(TriggerNameDescription)] string? triggerName = null,
+        [Description(FireInstanceIdDescription)] string? fireInstanceId = null,
         CancellationToken cancellationToken = default)
     {
         ListingParameters listing = endpointHelper.Listing(skip, take, includeTotalCount);
@@ -444,6 +444,12 @@ internal static class SchedulerEndpoints
     }
 
     private const string ResultsDescription = "Only these results: Succeeded, Failed, Cancelled, Skipped. Repeated or comma-separated";
+
+    private const string TriggerGroupDescription = "The trigger's group, matched exactly; needs triggerName";
+
+    private const string TriggerNameDescription = "The trigger's name, matched exactly; needs triggerGroup";
+
+    private const string FireInstanceIdDescription = "Only the executions of this firing, matched exactly";
 
     private const string ReasonsDescription = "Only these reasons: Missed, Overlap, Vetoed. Repeated or comma-separated; "
                                               + "without it, Missed and Overlap, which every client can read";
@@ -479,7 +485,7 @@ internal static class SchedulerEndpoints
     /// <para>
     /// Read from the store <see cref="QueryExecutionHistory" /> reads. <c>schedulerInstanceId</c> and
     /// <c>triggerContains</c> narrow as they do there; from 4.4, <c>jobGroup</c> with <c>jobName</c>
-    /// narrows to one job.
+    /// narrows to one job, and from 4.6 <c>triggerGroup</c> with <c>triggerName</c> to one trigger.
     /// </para>
     /// <para>
     /// <c>reasons</c> names the reasons to list. Without it the listing leaves out <c>Vetoed</c>: a 4.3
@@ -502,6 +508,8 @@ internal static class SchedulerEndpoints
         string? jobGroup = null,
         string? jobName = null,
         [Description(ReasonsDescription)] string[]? reasons = null,
+        [Description(TriggerGroupDescription)] string? triggerGroup = null,
+        [Description(TriggerNameDescription)] string? triggerName = null,
         CancellationToken cancellationToken = default)
     {
         ListingParameters listing = endpointHelper.Listing(skip, take, includeTotalCount);
@@ -509,6 +517,8 @@ internal static class SchedulerEndpoints
         {
             JobGroup = jobGroup,
             JobName = jobName,
+            TriggerGroup = triggerGroup,
+            TriggerName = triggerName,
             Reasons = reasons
         };
 
@@ -675,12 +685,18 @@ internal static class SchedulerEndpoints
         [Description("Only executions fired before this instant")] DateTimeOffset? firedBefore = null,
         [Description(ResultsDescription)] string[]? results = null,
         [Description("How much fire time a bucket covers, as a TimeSpan: 01:00:00 when absent, at least 00:01:00")] TimeSpan? bucket = null,
+        [Description(TriggerGroupDescription)] string? triggerGroup = null,
+        [Description(TriggerNameDescription)] string? triggerName = null,
+        [Description(FireInstanceIdDescription)] string? fireInstanceId = null,
         CancellationToken cancellationToken = default)
     {
         HistoryParameters filters = new()
         {
             JobGroup = jobGroup,
             JobName = jobName,
+            TriggerGroup = triggerGroup,
+            TriggerName = triggerName,
+            FireInstanceId = fireInstanceId,
             FiredFrom = firedFrom,
             FiredBefore = firedBefore,
             Results = results

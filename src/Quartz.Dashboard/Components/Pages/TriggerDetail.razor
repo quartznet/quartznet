@@ -286,10 +286,13 @@
         return DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
     }
 
+    /// <summary>
+    /// The History page narrowed to this trigger exactly: a text filter would also list <c>nightly-2</c> for
+    /// <c>nightly</c>.
+    /// </summary>
     private string GetHistoryPathForTrigger(string group, string name)
     {
-        string filterValue = Uri.EscapeDataString(DisplayValueHelper.FormatKey(group, name));
-        return DashboardLink.To(Options.Value, "history?trigger=" + filterValue);
+        return DashboardLink.HistoryOfTrigger(Options.Value, group, name);
     }
 
     private void PromptPause()

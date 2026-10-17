@@ -694,6 +694,7 @@ public partial class StdAdoDelegate
             HistoryKeyExpression(AdoConstants.ColumnTriggerGroup, AdoConstants.ColumnTriggerName),
             query.TriggerContains);
         AppendJobPredicate(predicateBuilder, parameters, query.Job);
+        AppendTriggerPredicate(predicateBuilder, parameters, query.Trigger);
 
         if (query.Reasons is { } reasons)
         {
@@ -1078,7 +1079,7 @@ public partial class StdAdoDelegate
         parameters.Add(new KeyValuePair<string, object?>(SqlParameters.JobName, job.Name));
     }
 
-    /// <summary>Narrows an execution read to one trigger, matched exactly.</summary>
+    /// <summary>Narrows a history read to one trigger, matched exactly.</summary>
     private static void AppendTriggerPredicate(
         StringBuilder predicate,
         List<KeyValuePair<string, object?>> parameters,
@@ -1089,7 +1090,7 @@ public partial class StdAdoDelegate
             return;
         }
 
-        predicate.Append(StdAdoConstants.SqlExecutionHistoryTriggerPredicate);
+        predicate.Append(StdAdoConstants.SqlHistoryTriggerPredicate);
         parameters.Add(new KeyValuePair<string, object?>(SqlParameters.TriggerGroup, trigger.Group));
         parameters.Add(new KeyValuePair<string, object?>(SqlParameters.TriggerName, trigger.Name));
     }

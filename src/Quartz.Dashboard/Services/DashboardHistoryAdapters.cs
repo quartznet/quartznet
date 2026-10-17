@@ -137,7 +137,7 @@ internal static class DashboardHistoryMapping
             TriggerContains = query.TriggerFilter,
             FailedFinally = query.FailedFinally,
             Job = AsJobKey(query.Job),
-            Trigger = query.Trigger is { } trigger ? new TriggerKey(trigger.Name, trigger.Group) : null,
+            Trigger = AsTriggerKey(query.Trigger),
             FireInstanceId = query.FireInstanceId,
             FiredFrom = query.FiredFrom,
             FiredBefore = query.FiredBefore,
@@ -160,7 +160,7 @@ internal static class DashboardHistoryMapping
             TriggerFilter = query.TriggerContains,
             FailedFinally = query.FailedFinally,
             Job = AsJobKeyDto(query.Job),
-            Trigger = query.Trigger is { } trigger ? new TriggerKeyDto(trigger.Group, trigger.Name) : null,
+            Trigger = AsTriggerKeyDto(query.Trigger),
             FireInstanceId = query.FireInstanceId,
             FiredFrom = query.FiredFrom,
             FiredBefore = query.FiredBefore,
@@ -181,6 +181,7 @@ internal static class DashboardHistoryMapping
             SchedulerInstanceId = query.SchedulerInstanceId,
             TriggerContains = query.TriggerFilter,
             Job = AsJobKey(query.Job),
+            Trigger = AsTriggerKey(query.Trigger),
             Reasons = query.Reasons,
             Skip = query.Skip,
             Take = query.Take,
@@ -198,6 +199,7 @@ internal static class DashboardHistoryMapping
             SchedulerInstanceId = query.SchedulerInstanceId,
             TriggerFilter = query.TriggerContains,
             Job = AsJobKeyDto(query.Job),
+            Trigger = AsTriggerKeyDto(query.Trigger),
             Reasons = query.Reasons,
             Skip = query.Skip,
             Take = query.Take,
@@ -208,6 +210,10 @@ internal static class DashboardHistoryMapping
     public static JobKey? AsJobKey(JobKeyDto? key) => key is null ? null : new JobKey(key.Name, key.Group);
 
     public static JobKeyDto? AsJobKeyDto(JobKey? key) => key is null ? null : new JobKeyDto(key.Group, key.Name);
+
+    public static TriggerKey? AsTriggerKey(TriggerKeyDto? key) => key is null ? null : new TriggerKey(key.Name, key.Group);
+
+    public static TriggerKeyDto? AsTriggerKeyDto(TriggerKey? key) => key is null ? null : new TriggerKeyDto(key.Group, key.Name);
 
     public static PagedResult<TTo> Map<TFrom, TTo>(PagedResult<TFrom> page, Func<TFrom, TTo> convert)
     {

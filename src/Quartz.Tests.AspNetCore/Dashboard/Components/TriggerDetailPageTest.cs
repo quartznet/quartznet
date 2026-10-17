@@ -115,6 +115,18 @@ public class TriggerDetailPageTest
     }
 
     [Test]
+    public void TheHistoryLinkNarrowsToThisTriggerExactly()
+    {
+        GivenTrigger(CronTrigger("0/25 * * * * ?"));
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.FindAll("a").Single(link => link.TextContent.Contains("View execution history", StringComparison.Ordinal))
+            .GetAttribute("href").Should().EndWith($"history?triggerGroup={TriggerGroup}&triggerName={TriggerName}",
+                "a text filter would also list a trigger whose name merely contains this one's");
+    }
+
+    [Test]
     public void ThePageShowsTheTriggersOverlapPolicy()
     {
         GivenTrigger(TriggerBuilder.Create()

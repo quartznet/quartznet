@@ -403,6 +403,47 @@ public sealed class HistoryEndpointsTest
             .Items.Should().BeEmpty("a fragment of both recorded ids is equal to neither");
     }
 
+    /// <summary>
+    /// The misfire listing and the run statistics take the same exact trigger, and the statistics the
+    /// firing, over the wire and through the HTTP-backed store.
+    /// </summary>
+    [Test]
+    public async Task MisfiresAndRunsCanBeNarrowedToOneTrigger()
+    {
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await history.AddMisfire(Misfire(start, "at-midnight"));
+        await history.AddMisfire(Misfire(start, "at-midnight-2"));
+        await history.AddExecution(Run(start, "nightly", JobRunResult.Succeeded) with { TriggerName = "at-midnight", FireInstanceId = "node-a-1" });
+        await history.AddExecution(Run(start, "nightly", JobRunResult.Failed) with { TriggerName = "at-midnight-2", FireInstanceId = "node-a-17" });
+
+        PagedResultDto<MisfireHistoryEntryDto> misfires = await Read<PagedResultDto<MisfireHistoryEntryDto>>(
+            $"{SchedulerUrl}/history/misfires?triggerGroup=DummyTriggerGroup&triggerName=at-midnight");
+        misfires.Items.Should().ContainSingle("one trigger exactly, where triggerContains would also have matched at-midnight-2")
+            .Which.TriggerName.Should().Be("at-midnight");
+
+        ExecutionStatisticsDto byTrigger = await Read<ExecutionStatisticsDto>(
+            $"{SchedulerUrl}/history/statistics?triggerGroup=DummyTriggerGroup&triggerName=at-midnight-2&bucket=1.00:00:00");
+        byTrigger.Buckets.Sum(bucket => bucket.FailedCount).Should().Be(1);
+        byTrigger.Buckets.Sum(bucket => bucket.RunCount).Should().Be(1);
+
+        ExecutionStatisticsDto byFiring = await Read<ExecutionStatisticsDto>(
+            $"{SchedulerUrl}/history/statistics?fireInstanceId=node-a-1&bucket=1.00:00:00");
+        byFiring.Buckets.Sum(bucket => bucket.SucceededCount).Should().Be(1);
+        byFiring.Buckets.Sum(bucket => bucket.RunCount).Should().Be(1);
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, client);
+        (await remote.QueryMisfires(new MisfireHistoryQuery { SchedulerName = TestData.SchedulerName, Trigger = new TriggerKey("at-midnight-2", "DummyTriggerGroup") }))
+            .Items.Should().ContainSingle().Which.TriggerName.Should().Be("at-midnight-2");
+        ExecutionStatistics counted = await remote.QueryExecutionStatistics(new ExecutionStatisticsQuery
+        {
+            SchedulerName = TestData.SchedulerName,
+            Trigger = new TriggerKey("at-midnight", "DummyTriggerGroup"),
+            FireInstanceId = "node-a-1",
+            BucketSize = TimeSpan.FromDays(1)
+        });
+        counted.Buckets.Sum(bucket => bucket.RunCount).Should().Be(1, "the HTTP-backed store sends both, and the host counts by both");
+    }
+
     [TestCase("jobName=release-stale", "Both jobName and jobGroup*")]
     [TestCase("triggerGroup=DummyTriggerGroup", "Both triggerName and triggerGroup*")]
     [TestCase("results=Sideways", "Unknown results value 'Sideways'*Succeeded, Failed, Cancelled, Skipped*")]
@@ -681,6 +722,7 @@ public sealed class HistoryEndpointsTest
     }
 
     [TestCase("jobName=release-stale", "jobName needs jobGroup*")]
+    [TestCase("triggerName=at-midnight", "Both triggerName and triggerGroup*")]
     [TestCase("bucket=00:00:30", "bucket must be at least 00:01:00*")]
     [TestCase("results=Sideways", "Unknown results value 'Sideways'*")]
     public async Task AStatisticsReadTheHostCannotAnswerIsRefused(string query, string detail)

@@ -188,17 +188,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             return Nothing<ExecutionHistoryEntry>(query);
         }
 
-        bool fireInstanceAsked = !string.IsNullOrWhiteSpace(query.FireInstanceId);
-        if (query.Trigger is not null || fireInstanceAsked)
-        {
-            // Asked first: a host new enough for these is new enough for the 4.4 filters too, so the version
-            // is read at most once.
-            await RequireHost(
-                FirstExactLookupVersion,
-                "whose history route ignores the trigger and fire instance filters and would answer with rows they exclude",
-                "to look up its history by trigger and firing",
-                cancellationToken).ConfigureAwait(false);
-        }
+        await RequireLookups(query.Trigger, query.FireInstanceId, cancellationToken).ConfigureAwait(false);
 
         if (query.Job is not null || query.FiredFrom is not null || query.FiredBefore is not null || query.Results is not null)
         {
@@ -238,16 +228,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             parameters.Add("results", wanted.ToString());
         }
 
-        if (query.Trigger is { } trigger)
-        {
-            parameters.Add("triggerGroup", trigger.Group);
-            parameters.Add("triggerName", trigger.Name);
-        }
-
-        if (fireInstanceAsked)
-        {
-            parameters.Add("fireInstanceId", query.FireInstanceId!);
-        }
+        AddLookups(parameters, query.Trigger, query.FireInstanceId);
 
         PagedResultDto<ExecutionHistoryEntryDto> result = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
             At(SchedulerRoutes.QueryExecutionHistory).WithQuery(parameters.ToString()), cancellationToken).ConfigureAwait(false);
@@ -299,8 +280,9 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// </para>
     /// <para>
     /// <see cref="MisfireHistoryQuery.Job" /> and a <see cref="MisfireHistoryQuery.Reasons" /> of the
-    /// caller's own need a host at 4.4 or later, and raise <see cref="NotSupportedException" /> against an
-    /// older one. An empty set of reasons lists nothing, and is answered without asking.
+    /// caller's own need a host at 4.4 or later, and <see cref="MisfireHistoryQuery.Trigger" /> one at 4.6
+    /// or later; each raises <see cref="NotSupportedException" /> against an older one. An empty set of
+    /// reasons lists nothing, and is answered without asking.
     /// </para>
     /// </remarks>
     public async ValueTask<PagedResult<MisfireHistoryEntry>> QueryMisfires(MisfireHistoryQuery query, CancellationToken cancellationToken = default)
@@ -312,6 +294,8 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             return Nothing<MisfireHistoryEntry>(query);
         }
 
+        await RequireLookups(query.Trigger, fireInstanceId: null, cancellationToken).ConfigureAwait(false);
+
         if (query.Job is not null || query.Reasons is not null)
         {
             await RequireFilters("job and reason", cancellationToken).ConfigureAwait(false);
@@ -321,6 +305,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         parameters.AddPaging(query);
         AddFilters(parameters, query.SchedulerInstanceId, query.TriggerContains);
         AddJob(parameters, query.Job);
+        AddLookups(parameters, query.Trigger, fireInstanceId: null);
 
         foreach (MisfireReason reason in query.Reasons ?? Enum.GetValues<MisfireReason>())
         {
@@ -430,8 +415,9 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// <remarks>
     /// <para>
     /// A host before 4.4 has no such route. Its version is read first, as before a filtered read, and an
-    /// older host is refused without being asked. An empty <see cref="ExecutionStatisticsQuery.Results" />
-    /// counts nothing, and is answered without asking.
+    /// older host is refused without being asked; <see cref="ExecutionStatisticsQuery.Trigger" /> and
+    /// <see cref="ExecutionStatisticsQuery.FireInstanceId" /> need 4.6. An empty
+    /// <see cref="ExecutionStatisticsQuery.Results" /> counts nothing, and is answered without asking.
     /// </para>
     /// <para>
     /// The host's store does the counting, so the answer is whatever that store gives: every run for the
@@ -440,7 +426,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// </para>
     /// </remarks>
     /// <exception cref="NotSupportedException">
-    /// The host is older than 4.4, or its history store cannot count.
+    /// The host is older than 4.4 (4.6 for a trigger or a firing), or its history store cannot count.
     /// </exception>
     public async ValueTask<ExecutionStatistics> QueryExecutionStatistics(ExecutionStatisticsQuery query, CancellationToken cancellationToken = default)
     {
@@ -451,6 +437,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             return new ExecutionStatistics { BucketSize = query.BucketSize };
         }
 
+        await RequireLookups(query.Trigger, query.FireInstanceId, cancellationToken).ConfigureAwait(false);
         await RequireHost(
             FirstFilteringVersion,
             "which has no run statistics route",
@@ -478,6 +465,8 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         {
             parameters.Add("jobGroup", query.JobGroup);
         }
+
+        AddLookups(parameters, query.Trigger, query.FireInstanceId);
 
         if (query.FiredFrom is { } firedFrom)
         {
@@ -613,6 +602,39 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         {
             parameters.Add("jobGroup", job.Group);
             parameters.Add("jobName", job.Name);
+        }
+    }
+
+    /// <summary>
+    /// Refuses a read by trigger or by firing before it is sent to a host older than 4.6, which ignores
+    /// both. Asked before the 4.4 check, so a host new enough for both has its version read once.
+    /// </summary>
+    private ValueTask RequireLookups(TriggerKey? trigger, string? fireInstanceId, CancellationToken cancellationToken)
+    {
+        if (trigger is null && string.IsNullOrWhiteSpace(fireInstanceId))
+        {
+            return default;
+        }
+
+        return RequireHost(
+            FirstExactLookupVersion,
+            "whose history routes ignore the trigger and fire instance filters and would answer with rows they exclude",
+            "to look up its history by trigger and firing",
+            cancellationToken);
+    }
+
+    /// <summary>The 4.6 lookups, each sent only when it asks something; a blank firing asks nothing.</summary>
+    private static void AddLookups(QueryStringBuilder parameters, TriggerKey? trigger, string? fireInstanceId)
+    {
+        if (trigger is not null)
+        {
+            parameters.Add("triggerGroup", trigger.Group);
+            parameters.Add("triggerName", trigger.Name);
+        }
+
+        if (!string.IsNullOrWhiteSpace(fireInstanceId))
+        {
+            parameters.Add("fireInstanceId", fireInstanceId);
         }
     }
 
