@@ -41,6 +41,12 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <!--
+      Named, although Aspire.Hosting brings it, because this project does not pin transitively: left to
+      StreamJsonRpc it resolves 2.5.302, which GHSA-qhrr-8q5h-9q3h covers and NuGet audit fails the restore
+      on. Drop it once an Aspire release resolves a fixed version on its own.
+    -->
+    <PackageReference Include="MessagePack" />
   </ItemGroup>
 
   <ItemGroup>
