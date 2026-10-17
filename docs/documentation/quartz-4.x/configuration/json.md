@@ -55,14 +55,18 @@ is refused, and the plugin is added in code with `UseJobHistoryLogging()` or `Ad
 ### Mapping Rules
 
 Each JSON path segment becomes a dot-separated segment of the flat key, with PascalCase converted to
-camelCase:
+camelCase. A name you choose keeps its case: a data source, plugin, `DbProvider` or `Context:Key` name,
+and an execution-limit key, whose segments are rejoined with `:`.
 
 | JSON Path | Flat Property Key |
 |---|---|
 | `Scheduler:InstanceName` | `quartz.scheduler.instanceName` |
 | `ThreadPool:MaxConcurrency` | `quartz.threadPool.maxConcurrency` |
 | `DataSource:default:Provider` | `quartz.dataSource.default.provider` |
+| `DataSource:MyDS:Provider` | `quartz.dataSource.MyDS.provider` |
 | `Plugin:jobHistory:Type` | `quartz.plugin.jobHistory.type` |
+| `ExecutionLimit:Reports` | `quartz.executionLimit.Reports` |
+| `ClusterExecutionLimit:tenant:*` | `quartz.clusterExecutionLimit.tenant:*` |
 
 ### Usage with DI
 

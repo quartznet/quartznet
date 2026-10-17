@@ -123,6 +123,30 @@ quartz.clusterExecutionLimit.tenant:* = 2
 | `unlimited`, `none` or `null` | no restriction, the same as not listing the group; takes no scope |
 | `0` | completely forbidden |
 
+### Via `appsettings.json`
+
+The same keys, as sections:
+
+```json
+{
+  "Quartz": {
+    "ExecutionLimit": {
+      "batch-jobs": 2,
+      "_": 10,
+      "*": 5
+    },
+    "ClusterExecutionLimit": {
+      "tenant-acme": 8,
+      "tenant:*": 2
+    }
+  }
+}
+```
+
+* A group name keeps its case: `"Reports"` limits the group `Reports`.
+* A prefix key is written as it reads. `"tenant:*": 2` and `"tenant": { "*": 2 }` are the same key.
+* As an environment variable, where the platform allows `*` in a name: `Quartz__ClusterExecutionLimit__tenant__*=2`.
+
 ### Via dependency injection
 
 <!-- snippet: sample_execution_groups_dependency_injection -->
@@ -284,6 +308,7 @@ Which limit governs a group, `tenant:acme` for example:
 | Where | Spelling |
 |---|---|
 | Properties | `quartz.executionLimit.tenant:* = 2`, `quartz.clusterExecutionLimit.tenant:* = 2` |
+| `appsettings.json` | `"ClusterExecutionLimit": { "tenant:*": 2 }`. See [Via `appsettings.json`](#via-appsettings-json) |
 | HTTP API body, `HttpScheduler` | the key `"tenant:*"` |
 | Reading limits back | `ExecutionGroupScope.GroupsWithPrefix("tenant:")`: `IsPrefix`, `Prefix` |
 | Dashboard | a "groups starting with 'tenant:'" row; each tenant's row says `(tenant:*)` beside the limit it inherited |
