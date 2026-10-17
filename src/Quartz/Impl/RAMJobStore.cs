@@ -1561,7 +1561,7 @@ public sealed class RAMJobStore : IJobStore
 
             if (obj is not null && !options.Replace)
             {
-                Throw.ObjectAlreadyExistsException($"Calendar with name '{calendarName}' already exists.");
+                Throw.CalendarAlreadyExists(calendarName);
             }
 
             // Worked out in full before anything is changed, because a calendar may throw (#4026).

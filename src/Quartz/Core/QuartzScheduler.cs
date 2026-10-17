@@ -1127,7 +1127,9 @@ internal sealed class QuartzScheduler
 
         if (!options.StoreNonDurableWhileAwaitingScheduling && !jobDetail.Durable)
         {
-            Throw.SchedulerException("Jobs added with no trigger must be durable.");
+            Throw.SchedulerException(
+                $"Job '{jobDetail.Key}' was added with no trigger, so it must be durable. Build it with StoreDurably(), "
+                + "or pass AddJobOptions.StoreNonDurableWhileAwaitingScheduling to keep it until a trigger is scheduled for it.");
         }
 
         RetryPolicyResolution.EnsureReadable(jobDetail);

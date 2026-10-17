@@ -60,12 +60,13 @@ public sealed class ObjectAlreadyExistsException : JobPersistenceException
     /// </para>
     ///
     /// <para>
-    /// The message will read: <br />"Unable to store Job with name: '__' and
-    /// group: '__', because one already exists with this identification."
+    /// The message will read: <br />"Unable to store Job: 'group.name', because one already exists with
+    /// this identification.", followed by the options that replace it.
     /// </para>
     /// </summary>
     public ObjectAlreadyExistsException(IJobDetail offendingJob)
-        : base($"Unable to store Job: '{offendingJob.Key}', because one already exists with this identification.")
+        : base($"Unable to store Job: '{offendingJob.Key}', because one already exists with this identification. "
+               + "To replace it, pass ScheduleJobOptions.Replacing to ScheduleJob, or AddJobOptions.Replacing to AddJob.")
     {
         JobKey = offendingJob.Key;
     }
@@ -76,12 +77,13 @@ public sealed class ObjectAlreadyExistsException : JobPersistenceException
     /// </para>
     ///
     /// <para>
-    /// The message will read: <br />"Unable to store Trigger with name: '__' and
-    /// group: '__', because one already exists with this identification."
+    /// The message will read: <br />"Unable to store Trigger: 'group.name', because one already exists with
+    /// this identification.", followed by the options that replace or keep it.
     /// </para>
     /// </summary>
     public ObjectAlreadyExistsException(ITrigger offendingTrigger)
-        : base($"Unable to store Trigger: '{offendingTrigger.Key}', because one already exists with this identification.")
+        : base($"Unable to store Trigger: '{offendingTrigger.Key}', because one already exists with this identification. "
+               + "To replace it, pass ScheduleJobOptions.Replacing to ScheduleJob; to keep it, call ScheduleTrigger with TriggerConflict.Keep.")
     {
         TriggerKey = offendingTrigger.Key;
     }

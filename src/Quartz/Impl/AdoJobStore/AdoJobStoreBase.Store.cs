@@ -1079,7 +1079,7 @@ internal abstract partial class AdoJobStoreBase
                 bool existingCal = await CalendarExists(conn, calendarName, cancellationToken).ConfigureAwait(false);
                 if (existingCal && !options.Replace)
                 {
-                    Throw.ObjectAlreadyExistsException("Calendar with name '" + calendarName + "' already exists.");
+                    Throw.CalendarAlreadyExists(calendarName);
                 }
 
                 if (existingCal)

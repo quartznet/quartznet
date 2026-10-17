@@ -55,6 +55,54 @@ public sealed class BuiltInDbMetadataFactoryTest
     }
 
     /// <summary>
+    /// A missing driver is the first error a new persistent store usually meets, so it names the package
+    /// to add rather than the provider alone, and keeps the loader's exception for the details.
+    /// </summary>
+    [TestCase("MySql", "MySql.Data")]
+    [TestCase("SQLite", "System.Data.SQLite.Core")]
+    [TestCase("SystemDataSqlClient", "System.Data.SqlClient")]
+    public void ADriverWhoseAssemblyIsMissingNamesThePackageToAdd(string providerName, string package)
+    {
+        Action resolve = () => DbMetadataResolver.BuiltIn().Resolve(providerName);
+
+        resolve.Should().Throw<ArgumentException>()
+            .WithMessage($"Provider '{providerName}' needs the {package} package: dotnet add package {package}.*")
+            .WithInnerException<FileNotFoundException>();
+    }
+
+    /// <summary>
+    /// Every driver Quartz describes has a package to name, or the message above would fall back to the
+    /// provider name alone for it.
+    /// </summary>
+    [Test]
+    public void EveryBuiltInDriverNamesItsPackage()
+    {
+        List<string> providerNames = new BuiltInDbMetadataFactory().GetProviderNames();
+
+        providerNames.Should().AllSatisfy(name => BuiltInDbMetadataFactory.DriverPackage(name).Should().NotBeNullOrEmpty(
+            $"a missing '{name}' driver is reported with the package to add"));
+        BuiltInDbMetadataFactory.DriverPackage("Npgsql").Should().Be("Npgsql");
+        BuiltInDbMetadataFactory.DriverPackage("OracleODPManaged").Should().Be("Oracle.ManagedDataAccess.Core",
+            "the job-store page's table names the .NET Core package, not the .NET Framework one");
+    }
+
+    /// <summary>
+    /// A failure that is not a missing assembly, or one of a provider with no package to name, keeps the
+    /// old wording and adds what the loader said.
+    /// </summary>
+    [Test]
+    public void AFailureThatIsNotAMissingDriverSaysWhatTheLoaderSaid()
+    {
+        BuiltInDbMetadataFactory.DescribeLoadFailure("Npgsql", new TypeLoadException("Could not load type 'NpgsqlTypes.NpgsqlDbType'."))
+            .Should().Be("Error while reading metadata information for provider 'Npgsql': Could not load type 'NpgsqlTypes.NpgsqlDbType'.",
+                "the package is there, so telling the reader to add it would send them the wrong way");
+
+        BuiltInDbMetadataFactory.DescribeLoadFailure("Acme", new FileNotFoundException("Could not load file or assembly 'Acme.Data'."))
+            .Should().Be("Error while reading metadata information for provider 'Acme': Could not load file or assembly 'Acme.Data'.",
+                "Quartz knows no package for a provider it does not describe");
+    }
+
+    /// <summary>
     /// The halves have to agree, or configuring a driver through its factory would spell parameters
     /// differently from configuring the same driver by name.
     /// </summary>

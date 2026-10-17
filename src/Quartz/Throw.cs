@@ -129,6 +129,18 @@ internal static class Throw
         throw new ObjectAlreadyExistsException(message);
     }
 
+    /// <summary>
+    /// A calendar stored under a name that is taken, said the same way by every store, with the option
+    /// that replaces it.
+    /// </summary>
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void CalendarAlreadyExists(string calendarName)
+    {
+        throw new ObjectAlreadyExistsException(
+            $"Calendar with name '{calendarName}' already exists. To replace it, pass AddCalendarOptions.Replacing to AddCalendar.");
+    }
+
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ObjectDoesNotExistException(ITrigger offendingTrigger, TriggerKey missingTrigger)

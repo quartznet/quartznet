@@ -662,7 +662,7 @@ public class ServiceCollectionExtensionsTests
         using var provider = services.BuildServiceProvider();
 
         var act = () => provider.ScheduledJobs();
-        act.Should().Throw<InvalidOperationException>().WithMessage("*doesn't refer to job being scheduled*");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*refers to job 'DEFAULT.someOtherJob', not to job 'jobs.theJob' being scheduled*");
     }
 
     [Test]

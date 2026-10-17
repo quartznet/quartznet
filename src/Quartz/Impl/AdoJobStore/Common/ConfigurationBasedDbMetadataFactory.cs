@@ -84,7 +84,7 @@ internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
             }
             catch (Exception ex)
             {
-                Throw.ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+                Throw.ArgumentException(MetadataReadFailed(providerName, ex), nameof(providerName), ex);
                 return default!;
             }
         }
