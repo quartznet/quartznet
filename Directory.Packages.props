@@ -93,7 +93,7 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.1" />
     <PackageVersion Include="MySqlConnector" Version="2.6.2" />
     <PackageVersion Include="NCrontab" Version="3.4.0" />
-    <PackageVersion Include="NLog.Extensions.Logging" Version="6.2.1" />
+    <PackageVersion Include="NLog.Extensions.Logging" Version="6.2.2" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.7.1" />
     <PackageVersion Include="NUnit" Version="5.0.0" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.15.0" />
