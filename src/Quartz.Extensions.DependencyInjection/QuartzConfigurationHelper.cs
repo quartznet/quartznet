@@ -16,6 +16,12 @@ namespace Quartz;
 /// For example, the JSON path <c>Scheduler:InstanceName</c> becomes <c>quartz.scheduler.instanceName</c>.
 /// </para>
 /// <para>
+/// A name the user chose keeps its case: <c>DataSource:MyDS:ConnectionString</c> becomes
+/// <c>quartz.dataSource.MyDS.connectionString</c>, and <c>ExecutionLimit:Reports</c> becomes
+/// <c>quartz.executionLimit.Reports</c>. The names are those of execution groups, context keys, data
+/// sources, plugins and listeners.
+/// </para>
+/// <para>
 /// Keys that already start with "quartz." at the root level are passed through unchanged for backward compatibility.
 /// </para>
 /// </remarks>
@@ -72,26 +78,97 @@ public static class QuartzConfigurationHelper
             }
             else
             {
-                FlattenSection(child, ToCamelCase(child.Key), properties);
+                FlattenSection(child, "quartz." + ToCamelCase(child.Key), properties);
             }
         }
     }
 
+    /// <summary>
+    /// The prefixes whose children are names the user chose rather than property names, spelled as
+    /// <see cref="Impl.StdSchedulerFactory"/> spells them, and whether the whole rest of the key is the name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A property name is matched without regard to case, so it can be camel-cased on the way to the flat
+    /// key. A name cannot be: an execution group, a context key, a data source and a listener are each
+    /// looked up ordinally, and a plugin is handed its name. Below an execution limit or a context key the
+    /// rest of the path is the name, rejoined with the <c>:</c> it was written with; below the others the
+    /// next segment is the name and what follows it are properties.
+    /// </para>
+    /// <para>
+    /// <c>StdSchedulerFactory</c> matches the prefixes themselves ordinally too, which configuration keys,
+    /// being case-insensitive, do not promise, so a section that matches one of these without regard to
+    /// case is written in the spelling here.
+    /// </para>
+    /// </remarks>
+    private static readonly (string Prefix, bool WholeKey)[] namedChildPrefixes =
+    {
+        (Impl.StdSchedulerFactory.PropertyExecutionLimitPrefix, true),
+        (Impl.StdSchedulerFactory.PropertySchedulerContextPrefix, true),
+        (Impl.StdSchedulerFactory.PropertyDataSourcePrefix, false),
+        (Impl.StdSchedulerFactory.PropertyPluginPrefix, false),
+        (Impl.StdSchedulerFactory.PropertyJobListenerPrefix, false),
+        (Impl.StdSchedulerFactory.PropertyTriggerListenerPrefix, false),
+    };
+
     private static void FlattenSection(
         IConfigurationSection section,
-        string currentPath,
+        string key,
         NameValueCollection properties)
     {
         if (section.Value is not null)
         {
-            properties["quartz." + currentPath] = section.Value;
+            properties[key] = section.Value;
+        }
+
+        string? prefix = NamedChildPrefix(key, out bool wholeKey);
+        foreach (IConfigurationSection child in section.GetChildren())
+        {
+            if (prefix is null)
+            {
+                FlattenSection(child, key + "." + ToCamelCase(child.Key), properties);
+            }
+            else if (wholeKey)
+            {
+                FlattenAsWritten(child, prefix + "." + child.Key, properties);
+            }
+            else
+            {
+                FlattenSection(child, prefix + "." + child.Key, properties);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Writes a section and everything beneath it under the key as the configuration spelled it, with
+    /// the <c>:</c> that separated the segments put back.
+    /// </summary>
+    private static void FlattenAsWritten(IConfigurationSection section, string key, NameValueCollection properties)
+    {
+        if (section.Value is not null)
+        {
+            properties[key] = section.Value;
         }
 
         foreach (IConfigurationSection child in section.GetChildren())
         {
-            string childPath = currentPath + "." + ToCamelCase(child.Key);
-            FlattenSection(child, childPath, properties);
+            FlattenAsWritten(child, key + ConfigurationPath.KeyDelimiter + child.Key, properties);
         }
+    }
+
+    private static string? NamedChildPrefix(string key, out bool wholeKey)
+    {
+        foreach ((string prefix, bool isWholeKey) in namedChildPrefixes)
+        {
+            if (string.Equals(key, prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                wholeKey = isWholeKey;
+                return prefix;
+            }
+        }
+
+        wholeKey = false;
+        return null;
     }
 
     private static string ToCamelCase(string value)

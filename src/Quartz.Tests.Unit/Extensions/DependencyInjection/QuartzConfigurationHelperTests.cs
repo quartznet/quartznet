@@ -1,8 +1,16 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-
+using System.Data.Common;
+using System.Threading;
+using System.Threading.Tasks;
 
 using Microsoft.Extensions.Configuration;
+
+using Quartz.Impl;
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Extensions.DependencyInjection;
 
@@ -156,10 +164,199 @@ public class QuartzConfigurationHelperTests
         result["quartz.serializer.type"].Should().Be("stj");
     }
 
+    [Test]
+    public void ANameKeepsItsCaseWhileAPropertyIsCamelCased()
+    {
+        IConfiguration config = BuildConfig(new Dictionary<string, string>
+        {
+            { "ExecutionLimit:Reports", "2" },
+            { "ExecutionLimit:tenant:acme", "3" },
+            { "Context:Key:ApiKey", "secret" },
+            { "DataSource:MyDS:ConnectionString", "Server=nowhere" },
+            { "Plugin:JobHistory:Type", "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins" },
+            { "JobListener:Audit:Type", "MyApp.AuditListener, MyApp" },
+            { "triggerlistener:Audit:Type", "MyApp.AuditListener, MyApp" },
+            { "Scheduler:IdleWaitTime", "30000" },
+        });
+
+        // AllKeys, because the collection's own indexer ignores case and would hide the difference.
+        QuartzConfigurationHelper.ToNameValueCollection(config).AllKeys.Should().BeEquivalentTo(
+            new[]
+            {
+                "quartz.executionLimit.Reports",
+                "quartz.executionLimit.tenant:acme",
+                "quartz.context.key.ApiKey",
+                "quartz.dataSource.MyDS.connectionString",
+                "quartz.plugin.JobHistory.type",
+                "quartz.jobListener.Audit.type",
+                "quartz.triggerListener.Audit.type",
+                "quartz.scheduler.idleWaitTime",
+            },
+            "a name is looked up ordinally, while a property is matched without regard to case; and the prefix is "
+            + "spelled as StdSchedulerFactory spells it, because it matches the prefix ordinally");
+    }
+
+    [Test]
+    public async Task AnExecutionGroupFromConfigurationKeepsItsName()
+    {
+        IScheduler scheduler = await SchedulerFrom(new Dictionary<string, string>
+        {
+            { "ExecutionLimit:Reports", "2" },
+            { "ExecutionLimit:tenant:acme", "3" },
+        });
+        try
+        {
+            ExecutionLimits limits = await scheduler.GetExecutionLimits();
+
+            limits.Should().ContainKey("Reports",
+                    "groups are matched ordinally, so a limit on 'reports' leaves the group 'Reports' uncapped")
+                .WhoseValue.Should().Be(2);
+            limits.Should().ContainKey("tenant:acme",
+                    "':' is the configuration path separator, so it is the separator the group was written with")
+                .WhoseValue.Should().Be(3);
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public async Task AContextKeyFromConfigurationKeepsItsCase()
+    {
+        IScheduler scheduler = await SchedulerFrom(new Dictionary<string, string>
+        {
+            { "Context:Key:ApiKey", "secret" },
+        });
+        try
+        {
+            scheduler.Context.GetString("ApiKey").Should().Be("secret",
+                "a job reads the context by the key the configuration wrote, and the context compares keys ordinally");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public async Task ADataSourceFromConfigurationIsKnownByTheNameItWasWrittenWith()
+    {
+        string name = "Reports" + Guid.NewGuid().ToString("N");
+        IScheduler scheduler = await SchedulerFrom(new Dictionary<string, string>
+        {
+            { $"DataSource:{name}:ConnectionProvider:Type", typeof(NamedDbProvider).AssemblyQualifiedName },
+        });
+        try
+        {
+            DBConnectionManager.Instance.GetDbProvider(name).Should().BeOfType<NamedDbProvider>(
+                "quartz.jobStore.dataSource names the data source as written, and the job store looks it up ordinally");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public async Task AListenerAndAPluginFromConfigurationKeepTheirNames()
+    {
+        IScheduler scheduler = await SchedulerFrom(new Dictionary<string, string>
+        {
+            { "JobListener:Audit:Type", typeof(NamedJobListener).AssemblyQualifiedName },
+            { "Plugin:Recorder:Type", typeof(NamedPlugin).AssemblyQualifiedName },
+        });
+        try
+        {
+            scheduler.ListenerManager.GetJobListener("Audit").Should().BeOfType<NamedJobListener>(
+                "the listener manager finds a listener by its name, ordinally");
+            scheduler.Context.GetString(NamedPlugin.ContextKey).Should().Be("Recorder",
+                "the plugin is handed its name, and the XML plugin builds its file-scan job keys from it");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    /// <summary>
+    /// The control for the tests above, which passes with or without them: a property segment is still
+    /// camel-cased, and still reaches its reader.
+    /// </summary>
+    [Test]
+    public async Task APropertySegmentIsStillCamelCasedAndStillRead()
+    {
+        IScheduler scheduler = await SchedulerFrom(new Dictionary<string, string>
+        {
+            { "ThreadPool:MaxConcurrency", "3" },
+        });
+        try
+        {
+            SchedulerMetaData metaData = await scheduler.GetMetaData();
+            metaData.ThreadPoolSize.Should().Be(3);
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    private static Task<IScheduler> SchedulerFrom(Dictionary<string, string> values)
+    {
+        values["Scheduler:InstanceName"] = "names-as-written-" + Guid.NewGuid().ToString("N");
+        StdSchedulerFactory factory = new(QuartzConfigurationHelper.ToNameValueCollection(BuildConfig(values)));
+        return factory.GetScheduler();
+    }
+
     private static IConfiguration BuildConfig(Dictionary<string, string> values)
     {
         return new ConfigurationBuilder()
             .AddInMemoryCollection(values)
             .Build();
+    }
+
+    public sealed class NamedDbProvider : IDbProvider
+    {
+        public void Initialize()
+        {
+        }
+
+        public DbCommand CreateCommand() => throw new NotSupportedException();
+
+        public DbConnection CreateConnection() => throw new NotSupportedException();
+
+        public string ConnectionString { get; set; } = "";
+
+        public DbMetadata Metadata { get; } = new();
+
+        public void Shutdown()
+        {
+        }
+    }
+
+    public sealed class NamedJobListener : IJobListener
+    {
+        public string Name { get; set; } = "";
+
+        public Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    public sealed class NamedPlugin : ISchedulerPlugin
+    {
+        public const string ContextKey = "NamedPlugin.Name";
+
+        public Task Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
+        {
+            scheduler.Context.Put(ContextKey, pluginName);
+            return Task.CompletedTask;
+        }
+
+        public Task Start(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task Shutdown(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }
