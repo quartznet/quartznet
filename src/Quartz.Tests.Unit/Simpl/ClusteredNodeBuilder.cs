@@ -48,8 +48,24 @@ internal static class ClusteredNodeBuilder
     /// </summary>
     public static StandaloneSchedulerFactory Build(NameValueCollection properties = null)
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q => q
-            .UseJobStore(provider => new ClusteredInMemoryJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider))));
+        return Build(configure: null, properties);
+    }
+
+    /// <summary>
+    /// Builds a node's factory, with the rest of the node's configuration written in code.
+    /// </summary>
+    /// <param name="configure">
+    /// Runs after the store is chosen. Registration is first-wins, so a store this names loses to the
+    /// clustered stand-in; what it configures still applies.
+    /// </param>
+    /// <param name="properties">The node's flat keys, if any.</param>
+    public static StandaloneSchedulerFactory Build(Action<IQuartzBuilder> configure, NameValueCollection properties = null)
+    {
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q =>
+        {
+            q.UseJobStore(provider => new ClusteredInMemoryJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider)));
+            configure?.Invoke(q);
+        });
 
         if (properties is not null)
         {

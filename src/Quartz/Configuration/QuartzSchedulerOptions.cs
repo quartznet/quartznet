@@ -29,7 +29,9 @@ public sealed class QuartzSchedulerOptions
     /// </summary>
     /// <remarks>
     /// Leave at the default to opt out of clustering. Set <see cref="GenerateInstanceId"/> instead of
-    /// assigning a literal id when the id should be derived at startup.
+    /// assigning a literal id when the id should be derived at startup. A clustered scheduler left at the
+    /// default derives one: <c>UseClustering()</c> and the <c>quartz.jobStore.clustered</c> key turn
+    /// <see cref="GenerateInstanceId"/> on unless an id was chosen.
     /// </remarks>
     public string InstanceId { get; set; } = DefaultInstanceId;
 

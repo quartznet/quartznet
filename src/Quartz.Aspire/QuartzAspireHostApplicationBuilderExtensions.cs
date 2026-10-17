@@ -140,14 +140,11 @@ public static class QuartzAspireHostApplicationBuilderExtensions
 
                 if (clustered)
                 {
+                    // Which also generates the instance id unless the application chose one: a replica
+                    // set has no identity of its own to borrow, and WithReplicas(2) is one call.
                     store.UseClustering();
                 }
             });
-
-            if (clustered)
-            {
-                GenerateAnInstanceIdUnlessOneWasChosen(quartz);
-            }
 
             if (healthChecks)
             {
@@ -187,40 +184,6 @@ public static class QuartzAspireHostApplicationBuilderExtensions
             if (options.SchemaProvisioning == SchemaProvisioning.Validate)
             {
                 options.SchemaProvisioning = provisioning;
-            }
-        });
-    }
-
-    /// <summary>
-    /// Makes a clustered scheduler derive an instance id, unless the application chose one itself.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// A cluster is a set of nodes that recognise their own check-in row and their own fired triggers by
-    /// <c>InstanceId</c>, and every scheduler starts life with the same one —
-    /// <see cref="QuartzSchedulerOptions.DefaultInstanceId"/>, <c>NON_CLUSTERED</c>. Under Aspire that is
-    /// not a hypothetical: <c>WithReplicas(2)</c> is one call, a replica set has no identity of its own to
-    /// borrow, and a cluster whose nodes all carry one id is the worst failure this area has. So
-    /// <see cref="QuartzAspireSettings.Clustered"/> supplies the other half of what clustering needs
-    /// rather than documenting a trap beside it.
-    /// </para>
-    /// <para>
-    /// It only fills a gap. An application that set <c>GenerateInstanceId</c> itself is already doing
-    /// this, and one that set <c>InstanceId</c> has said what its nodes are called — an ordinal deployment
-    /// or a hostname it trusts — so neither is touched. Reading those values here is sound because this
-    /// runs from <c>ConfigureAllQuartzSchedulers</c>, which <c>AddQuartz</c> applies <em>after</em> the
-    /// scheduler's own callback, the property bridge and the configuration binding; options are last-wins,
-    /// so what this delegate sees is everything the application said.
-    /// </para>
-    /// </remarks>
-    private static void GenerateAnInstanceIdUnlessOneWasChosen(IQuartzBuilder quartz)
-    {
-        quartz.ConfigureScheduler(options =>
-        {
-            if (!options.GenerateInstanceId
-                && string.Equals(options.InstanceId, QuartzSchedulerOptions.DefaultInstanceId, StringComparison.Ordinal))
-            {
-                options.GenerateInstanceId = true;
             }
         });
     }
