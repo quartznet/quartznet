@@ -195,7 +195,7 @@ public sealed class ValueConverterDifferentialTest
                         continue;
                     }
 
-                    bool refused = actual.StartsWith("!System.NotSupportedException:", StringComparison.Ordinal)
+                    bool refused = actual.StartsWith($"!{typeof(CoercionNotSupportedException).FullName}:", StringComparison.Ordinal)
                                    && actual.Contains(FeatureSwitches.TypeConverterCoercionSwitch, StringComparison.Ordinal);
 
                     // A refusal stands in for TypeDescriptor's own refusal, or for a pair the fast paths

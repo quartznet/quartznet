@@ -75,8 +75,9 @@ internal static partial class ValueConverter
     /// </param>
     /// <param name="newValue">The proposed change value.</param>
     /// <returns>The new value, possibly the result of type conversion.</returns>
-    /// <exception cref="NotSupportedException">
-    /// No conversion exists, or only a <see cref="TypeConverter" /> could make it and
+    /// <exception cref="NotSupportedException">No conversion exists.</exception>
+    /// <exception cref="CoercionNotSupportedException">
+    /// Only a <see cref="TypeConverter" /> could make the conversion, and
     /// <see cref="FeatureSwitches.IsTypeConverterCoercionSupported" /> is off.
     /// </exception>
     public static object? ConvertValueIfNecessary(Type requiredType, object? newValue)
@@ -107,23 +108,9 @@ internal static partial class ValueConverter
             return ConvertUsingTypeConverter(requiredType, newValue);
         }
 
-        Throw.NotSupportedException(CoercionNotSupported(requiredType, newValue.GetType()));
-        return null;
+        // The callers put the property's name in front of the message.
+        throw new CoercionNotSupportedException(requiredType, newValue.GetType());
     }
-
-    /// <summary>
-    /// What a coercion only a <see cref="TypeConverter" /> could make says when the switch is off. The
-    /// callers put the property's name in front of it.
-    /// </summary>
-    /// <param name="requiredType">The type the property takes.</param>
-    /// <param name="valueType">The type of the value it was given.</param>
-    public static string CoercionNotSupported(Type requiredType, Type valueType) =>
-        $"A {valueType} cannot be converted to {requiredType} without a TypeConverter, and this publish does not "
-        + $"convert through TypeConverter ({FeatureSwitches.TypeConverterCoercionSwitch} is false). Put the value in the "
-        + $"job data as a {requiredType}, or as a string or a number Quartz converts on its own: to a primitive, decimal, "
-        + "an enum, Guid, TimeSpan, DateTime, DateTimeOffset or Uri, or the Nullable<T> of one. Set "
-        + $"<{FeatureSwitches.TypeConverterCoercionProperty}>true</{FeatureSwitches.TypeConverterCoercionProperty}> "
-        + "to convert through TypeConverter again.";
 
     /// <summary>
     /// The value a target of this type holds when there is nothing to put in it.

@@ -21,7 +21,11 @@
 
 #nullable enable
 
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl;
+using Quartz.Tests.Unit.Plugin.History;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Utils;
@@ -38,6 +42,11 @@ namespace Quartz.Tests.Unit.Utils;
 [NonParallelizable]
 public sealed class TypeConverterCoercionSwitchTest
 {
+    /// <summary>
+    /// <c>ConfigurationLog.JobPropertyNotSet</c>, the warning a property that could not be set is logged as.
+    /// </summary>
+    private const int JobPropertyNotSetEvent = 4009;
+
     private FeatureSwitchScope converterOff = null!;
 
     [SetUp]
@@ -71,7 +80,10 @@ public sealed class TypeConverterCoercionSwitchTest
     {
         Action converting = () => ValueConverter.ConvertValueIfNecessary(typeof(Version), "1.2.3");
 
-        converting.Should().Throw<NotSupportedException>()
+        converting.Should().Throw<CoercionNotSupportedException>()
+            .Which.Should().BeAssignableTo<NotSupportedException>("a caller that catches NotSupportedException is unaffected by the subtype");
+
+        converting.Should().Throw<CoercionNotSupportedException>()
             .WithMessage("*System.String*System.Version*")
             .WithMessage($"*{FeatureSwitches.TypeConverterCoercionSwitch} is false*")
             .WithMessage($"*<{FeatureSwitches.TypeConverterCoercionProperty}>true</{FeatureSwitches.TypeConverterCoercionProperty}>*",
@@ -97,7 +109,72 @@ public sealed class TypeConverterCoercionSwitchTest
 
         binding.Should().Throw<SchedulerException>()
             .WithMessage($"*{typeof(CoercedJob)}*'release'*System.Version*System.String*{FeatureSwitches.TypeConverterCoercionSwitch}*{FeatureSwitches.TypeConverterCoercionProperty}*",
-                "one message names the job, the property, both types, the switch and the property that turns it back on");
+                "one message names the job, the property, both types, the switch and the property that turns it back on")
+            .WithInnerException<CoercionNotSupportedException>();
+    }
+
+    [Test]
+    public async Task UnderIgnoreTheRefusalIsLoggedOnceAndTheJobStillRuns()
+    {
+        RecordingLoggerProvider recorder = new();
+        ServiceCollection services = new();
+        services.AddLogging(logging => logging.AddProvider(recorder));
+        services.AddQuartz();
+        await using ServiceProvider container = services.BuildServiceProvider();
+
+        IScheduler scheduler = await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        RunningJob.Ran = new TaskCompletionSource<RunningJob>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // The container's job factory is left at its default, PropertyMismatchBehavior.Ignore.
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<RunningJob>()
+                .UsingJobData(nameof(RunningJob.Release), "1.2.3")
+                .UsingJobData(nameof(RunningJob.Count), "42")
+                .Build(),
+            TriggerBuilder.Create().StartNow().Build());
+        await scheduler.Start();
+
+        RunningJob ran = await RunningJob.Ran.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        ran.Count.Should().Be(42, "the refusal costs the one property it is about, and the job still runs");
+        ran.Release.Should().BeNull("a value the publish cannot convert is not set");
+
+        recorder.Entries.Where(entry => entry.EventId.Id == JobPropertyNotSetEvent).Should().ContainSingle(
+                "a trimmed application whose job needs a TypeConverter must not lose the property in silence, whatever PropertyMismatchBehavior says")
+            .Which.Should().Match<LogEntry>(entry =>
+                entry.Level == LogLevel.Warning
+                && entry.Message.Contains(typeof(RunningJob).FullName!, StringComparison.Ordinal)
+                && entry.Message.Contains($"'{nameof(RunningJob.Release)}'", StringComparison.Ordinal)
+                && entry.Message.Contains(typeof(Version).FullName!, StringComparison.Ordinal)
+                && entry.Message.Contains(typeof(string).FullName!, StringComparison.Ordinal)
+                && entry.Message.Contains(FeatureSwitches.TypeConverterCoercionSwitch, StringComparison.Ordinal)
+                && entry.Message.Contains(FeatureSwitches.TypeConverterCoercionProperty, StringComparison.Ordinal));
+    }
+
+    [Test]
+    public void UnderIgnoreEveryOtherMismatchStaysSilent()
+    {
+        RecordingLoggerProvider recorder = new();
+        using ILoggerFactory loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(recorder));
+        PropertySettingJobFactory factory = new(loggerFactory);
+
+        converterOff.Dispose();
+
+        // A key with no property, and a value no TypeConverter converts either: mismatches of the data,
+        // which Ignore has always meant to pass over.
+        factory.SetObjectProperties(new CoercedJob(), new JobDataMap
+        {
+            ["noSuchProperty"] = "value",
+            ["count"] = new Version(1, 2, 3),
+        });
+
+        // With the switch on, the value the switch refuses converts, and nothing is said about it.
+        CoercedJob job = new();
+        factory.SetObjectProperties(job, new JobDataMap { ["release"] = "1.2.3" });
+
+        job.Release.Should().Be(new Version(1, 2, 3), "with the switch on, VersionConverter reads it as it always has");
+        recorder.Entries.Should().BeEmpty("only the switch's own refusal is reported under Ignore; every other mismatch keeps today's silence");
     }
 
     [Test]
@@ -202,6 +279,24 @@ public sealed class TypeConverterCoercionSwitchTest
         public override bool Equals(object? obj) => obj is Seeded other && Equals(other);
 
         public override int GetHashCode() => Value;
+    }
+
+    /// <summary>
+    /// A job a scheduler runs, reporting the instance its properties were set on.
+    /// </summary>
+    public sealed class RunningJob : IJob
+    {
+        public static TaskCompletionSource<RunningJob> Ran { get; set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int Count { get; set; }
+
+        public Version? Release { get; set; }
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            Ran.TrySetResult(this);
+            return default;
+        }
     }
 
     public sealed class RegisteredForValueConversion : IJob
