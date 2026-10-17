@@ -267,6 +267,11 @@ internal abstract partial class AdoJobStoreBase
                 // refused rows returns them again.
                 HashSet<string>? groupsAtLimit = null;
 
+                // The rows the last read reached for and lost to another node. The last read's, as the
+                // counts above are: a round that gives up after losing every retry took nothing while
+                // due work was there, which is not a round to follow with an idle wait (#4067).
+                int lostToPeers = 0;
+
                 do
                 {
                     // Built inside the loop, so each retry asks again and sees the time it retried at.
@@ -315,6 +320,7 @@ internal abstract partial class AdoJobStoreBase
                     {
                         blocked = 0;
                         groupsAtLimit = null;
+                        lostToPeers = 0;
                         break;
                     }
 
@@ -613,6 +619,7 @@ internal abstract partial class AdoJobStoreBase
                         }
                     }
 
+                    lostToPeers = raced;
                     if (acquiredTriggers.Count > 0)
                     {
                         break;
@@ -654,9 +661,15 @@ internal abstract partial class AdoJobStoreBase
                     : PinnedTriggersBlocked.None;
 
                 // Off a cluster every firing that holds a trigger back runs on this node, whose end wakes
-                // it, so nothing held is news worth looking again early for. A group at its limit is
-                // named on and off a cluster alike: the slot a firing of it frees is this node's own.
-                return new AcquiredTriggers(acquiredTriggers, Clustered ? blocked + pinned.Count : 0, pinned.LatestBlockingFiredUtc, groupsAtLimit);
+                // it, so nothing held is news worth looking again early for, and no other node claims a
+                // row first. A group at its limit is named on and off a cluster alike: the slot a firing
+                // of it frees is this node's own.
+                return new AcquiredTriggers(
+                    acquiredTriggers,
+                    Clustered ? blocked + pinned.Count : 0,
+                    pinned.LatestBlockingFiredUtc,
+                    groupsAtLimit,
+                    Clustered && acquiredTriggers.Count == 0 ? lostToPeers : 0);
             },
             "acquire next trigger");
     }
@@ -707,13 +720,16 @@ internal abstract partial class AdoJobStoreBase
     /// passed over because their job, which disallows concurrent execution, was executing, and — when it
     /// took nothing — this node's pinned triggers a firing on another node holds <c>BLOCKED</c>, with when
     /// the latest of those firings was fired. And the execution groups whose limit turned a due trigger
-    /// away, by the key the limit was evaluated under, or <see langword="null" /> (#4033).
+    /// away, by the key the limit was evaluated under, or <see langword="null" /> (#4033). And, when it
+    /// took nothing on a cluster, how many due triggers its last read reached for and another node
+    /// claimed first (#4067).
     /// </summary>
     private readonly record struct AcquiredTriggers(
         List<IOperableTrigger> Triggers,
         int Blocked,
         DateTimeOffset? LatestBlockingFiredUtc = null,
-        HashSet<string>? GroupsAtLimit = null);
+        HashSet<string>? GroupsAtLimit = null,
+        int ClaimedElsewhere = 0);
 
     /// <summary>
     /// Reads back the triggers an acquisition round has just named, in one statement, keyed by their

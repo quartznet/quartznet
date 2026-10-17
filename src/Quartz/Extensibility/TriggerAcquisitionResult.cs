@@ -86,6 +86,18 @@ public sealed class TriggerAcquisitionResult
     internal int Blocked { get; init; }
 
     /// <summary>
+    /// How many due triggers another node claimed first, in a round that acquired nothing because of it.
+    /// The round found due work it could not have, and more may be due behind it, so the scheduler looks
+    /// again soon rather than after its idle wait (#4067).
+    /// </summary>
+    /// <remarks>
+    /// Rounds that take no lock reach for the same rows on every node, and the loser of each claim finds
+    /// out only after the winner commits. Internal, as <see cref="Blocked" /> is: only the clustered
+    /// ADO.NET store races another node for a row.
+    /// </remarks>
+    internal int ClaimedElsewhere { get; init; }
+
+    /// <summary>
     /// When the latest of the firings on another node that hold this node's pinned triggers was fired, if
     /// any does. A later one than the last round saw is the job having ended and been taken again in
     /// between, so the scheduler starts looking soon again rather than less and less often.

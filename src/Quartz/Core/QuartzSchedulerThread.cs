@@ -608,6 +608,15 @@ internal sealed class QuartzSchedulerThread
                     heldBack = acquisition.Blocked > 0;
                     blockingFiredUtc = acquisition.LatestBlockingFiredUtc;
 
+                    // A round that took nothing because another node claimed every row it reached for found
+                    // due work, just none it could have, and more may be due behind it. Rounds that take no
+                    // lock race for the same rows (#4067), so the loser looks again soon, as after a trigger
+                    // it could not fire, rather than an idle wait behind work that is due.
+                    if (acquisition.ClaimedElsewhere > 0)
+                    {
+                        blockedRetry = BlockedRetryStart;
+                    }
+
                     // For the firings that end from here until the next round answers: one of a group
                     // named here frees a slot a due trigger is waiting for, and wakes this loop. A
                     // reference per round; null, as the store answers it, for a scheduler with no limit.
@@ -892,7 +901,8 @@ internal sealed class QuartzSchedulerThread
     /// holder ending; a job that runs for hours elsewhere costs a look every few seconds, not a poll.
     /// </para>
     /// <para>
-    /// A trigger the loop could not fire starts the count again, as it is fresh news. So does a round
+    /// A trigger the loop could not fire starts the count again, as it is fresh news, and so does a round
+    /// that took nothing because another node claimed every row it reached for (#4067). So does a round
     /// whose held triggers are held by a later firing than the last round's, once the count has grown to
     /// <see cref="ChangedHandsRestartSteps" /> times its start: the job ended and was taken again in
     /// between, and a job changing hands that often frees up often too, but not so often that looking

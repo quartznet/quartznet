@@ -149,6 +149,26 @@ public sealed class SchedulerLoopBlockedRetryTest
     }
 
     /// <summary>
+    /// A round that took nothing because another node claimed every row it reached for found due work,
+    /// just none it could have (#4067). Rounds that take no lock race for the same rows, so the loop looks
+    /// again soon, as after a trigger it could not fire, and the count runs out at the idle wait once
+    /// rounds stop losing rows. Before, the loser slept its whole idle wait behind work that was due.
+    /// </summary>
+    [Test]
+    public async Task ARoundThatLostEveryRowToAnotherNodeIsFollowedByALookSoon()
+    {
+        store.Script(new TriggerAcquisitionResult { ClaimedElsewhere = 2 });
+        StartLoop();
+
+        List<TimeSpan> waits = await WaitsOfTheNextRounds(backoff.Length + 2);
+
+        waits.Take(backoff.Length).Should().Equal(backoff,
+            "the rows were due and another node took them, so more may be due behind them: the loop looks again soon");
+        waits.Skip(backoff.Length).Should().OnlyContain(x => x >= shortestIdleWait && x <= idleWaitTime,
+            "and once rounds stop losing rows, it is back to idle waits");
+    }
+
+    /// <summary>
     /// Nothing blocked, nothing changes: a loop that finds nothing waits out its idle wait every round, as
     /// it always did.
     /// </summary>

@@ -230,6 +230,7 @@ internal abstract partial class AdoJobStoreBase
                 Blocked = attempt.Acquired.Blocked,
                 LatestBlockingFiredUtc = attempt.Acquired.LatestBlockingFiredUtc,
                 GroupsAtLimit = attempt.Acquired.GroupsAtLimit,
+                ClaimedElsewhere = attempt.Acquired.ClaimedElsewhere,
                 LockName = lockReason is null ? "none" : SchedulerLock.TriggerAccess.ToLockName(),
                 LockReason = lockReason?.ToTag(),
             };
