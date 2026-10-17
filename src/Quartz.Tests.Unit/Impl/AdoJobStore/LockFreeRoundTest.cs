@@ -487,6 +487,55 @@ public sealed class LockFreeRoundTest
     public async Task AClusteredNodeStartsLockedAndIsFreedByACheckInThatFindsOnlyPeersAtFourSix()
     {
         store = NewStore(clustered: true);
+        GivenPeersAtFourSix();
+        GivenCandidates(Candidate("t1"));
+
+        (await AcquireAndFire(maxCount: 2)).LockReason.Should().Be("older_peer", "nothing is known about the peers before the state table has been read");
+
+        await store.CheckIn(Guid.NewGuid());
+
+        (await AcquireAndFire(maxCount: 2)).LockName.Should().Be("none");
+    }
+
+    /// <summary>
+    /// Rounds that take no lock race for the same rows on every node. One that loses every claim on every
+    /// retry takes nothing while due work is there, and says how many rows another node took, so that the
+    /// scheduler looks again soon rather than sleeping its idle wait behind due work. Off a cluster no other
+    /// node claims a row, and nothing is said.
+    /// </summary>
+    [TestCase(true, 2)]
+    [TestCase(false, 0)]
+    public async Task ARoundThatLosesEveryClaimSaysHowManyRowsAnotherNodeTook(bool clustered, int claimedElsewhere)
+    {
+        store = NewStore(clustered);
+        if (clustered)
+        {
+            GivenPeersAtFourSix();
+            await store.CheckIn(Guid.NewGuid());
+        }
+
+        GivenCandidates(Candidate("t1"), Candidate("t2"));
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerClaim>>._, A<StoredTriggerState>._, A<StoredTriggerState>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new ValueTask<List<TriggerKey>>(new List<TriggerKey>()));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 2);
+
+        round.Due.Should().BeEmpty();
+        round.Pending.Should().BeEmpty();
+        round.LockName.Should().Be("none");
+        round.ClaimedElsewhere.Should().Be(claimedElsewhere,
+            "a node that lost every row it reached for found due work, and must not sleep its idle wait behind it");
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerClaim>>._, A<StoredTriggerState>._, A<StoredTriggerState>._, A<CancellationToken>._))
+            .MustHaveHappened(3, Times.Exactly);
+    }
+
+    /// <summary>
+    /// A clustered store's next check-in finds one live peer, stamped 4.6.0.
+    /// </summary>
+    private void GivenPeersAtFourSix()
+    {
         store.LastCheckin = DateTimeOffset.UtcNow;
         A.CallTo(() => driverDelegate.UpdateSchedulerState(A<ConnectionAndTransactionHolder>._, A<string>._, A<DateTimeOffset>._, A<CancellationToken>._))
             .Returns(new ValueTask<int>(1));
@@ -497,13 +546,6 @@ public sealed class LockFreeRoundTest
             [
                 new SchedulerStateRecord("peer-a", DateTimeOffset.UtcNow, TimeSpan.FromSeconds(7.5)) { QuartzVersion = "4.6.0" },
             ]));
-        GivenCandidates(Candidate("t1"));
-
-        (await AcquireAndFire(maxCount: 2)).LockReason.Should().Be("older_peer", "nothing is known about the peers before the state table has been read");
-
-        await store.CheckIn(Guid.NewGuid());
-
-        (await AcquireAndFire(maxCount: 2)).LockName.Should().Be("none");
     }
 
     private ValueTask<TriggerAcquisitionResult> AcquireAndFire(int maxCount, TimeSpan window = default)

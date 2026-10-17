@@ -754,6 +754,10 @@ first write and runs it again locked (event 3057, Debug); a job or trigger found
 does the same (event 3058, Warning). The next round starts locked, until a locked round finds nothing that
 needed it.
 
+Rounds that take no lock reach for the same rows on every node. A node that loses every row it reached for
+looks again after a tenth of a second, backing off towards its idle wait, rather than sleeping the idle
+wait behind due work.
+
 | Where to see it | What it says |
 |---|---|
 | `quartz.trigger.acquisition.duration`, `quartz.trigger.acquired` | `quartz.jobstore.lock`: `none` or `TRIGGER_ACCESS`; `quartz.jobstore.lock.reason` on a locked round |
