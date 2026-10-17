@@ -35,6 +35,9 @@ ITrigger trigger = TriggerBuilder.Create()
 Triggers without an execution group (`null`) use the default behavior. All triggers of a job are expected
 to share the same execution group.
 
+From 3.22.7, `IScheduler.TriggerJob` gives the manual firing the group every trigger of the job shares, so it
+waits for that group's limit. A job with no triggers, or with triggers in different groups, fires ungrouped.
+
 ## Configuring execution limits
 
 ### Via properties

@@ -45,14 +45,18 @@ Instead of flat keys like `"quartz.threadPool.maxConcurrency": "10"`, nest the J
 
 ### Mapping Rules
 
-Each JSON path segment becomes a dot-separated segment of the flat key, with PascalCase converted to camelCase:
+Each JSON path segment becomes a dot-separated segment of the flat key, with PascalCase converted to camelCase.
+From 3.22.7 a name you choose keeps its case: an execution-limit group, a `Context:Key` key, and a data source,
+job listener or trigger listener name. An execution-limit key keeps its `:`. A plugin's name is still
+camel-cased, because the XML plugin names its stored jobs after it.
 
 | JSON Path | Flat Property Key |
 |---|---|
 | `Scheduler:InstanceName` | `quartz.scheduler.instanceName` |
 | `ThreadPool:MaxConcurrency` | `quartz.threadPool.maxConcurrency` |
 | `DataSource:default:Provider` | `quartz.dataSource.default.provider` |
-| `Plugin:jobHistory:Type` | `quartz.plugin.jobHistory.type` |
+| `ExecutionLimit:Reports` | `quartz.executionLimit.Reports` (3.22.7; `reports` before) |
+| `Plugin:JobHistory:Type` | `quartz.plugin.jobHistory.type` |
 
 ### Usage with DI
 
