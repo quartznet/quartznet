@@ -986,6 +986,8 @@ public partial class StdAdoDelegate
             query.TriggerContains);
         AppendFailedFinallyPredicate(predicate, parameters, query.FailedFinally);
         AppendJobPredicate(predicate, parameters, query.Job);
+        AppendTriggerPredicate(predicate, parameters, query.Trigger);
+        AppendFireInstancePredicate(predicate, parameters, query.FireInstanceId);
         AppendInstantPredicate(predicate, parameters, StdAdoConstants.SqlExecutionHistoryFiredFrom, SqlParameters.HistoryFiredFrom, query.FiredFrom);
         AppendInstantPredicate(predicate, parameters, StdAdoConstants.SqlExecutionHistoryFiredBefore, SqlParameters.HistoryFiredBefore, query.FiredBefore);
 
@@ -1074,6 +1076,37 @@ public partial class StdAdoDelegate
         predicate.Append(StdAdoConstants.SqlHistoryJobPredicate);
         parameters.Add(new KeyValuePair<string, object?>(SqlParameters.JobGroup, job.Group));
         parameters.Add(new KeyValuePair<string, object?>(SqlParameters.JobName, job.Name));
+    }
+
+    /// <summary>Narrows an execution read to one trigger, matched exactly.</summary>
+    private static void AppendTriggerPredicate(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        TriggerKey? trigger)
+    {
+        if (trigger is null)
+        {
+            return;
+        }
+
+        predicate.Append(StdAdoConstants.SqlExecutionHistoryTriggerPredicate);
+        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.TriggerGroup, trigger.Group));
+        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.TriggerName, trigger.Name));
+    }
+
+    /// <summary>Narrows an execution read to one firing, matched exactly.</summary>
+    private static void AppendFireInstancePredicate(
+        StringBuilder predicate,
+        List<KeyValuePair<string, object?>> parameters,
+        string? fireInstanceId)
+    {
+        if (string.IsNullOrWhiteSpace(fireInstanceId))
+        {
+            return;
+        }
+
+        predicate.Append(StdAdoConstants.SqlExecutionHistoryFireInstancePredicate);
+        parameters.Add(new KeyValuePair<string, object?>(SqlParameters.HistoryFireInstanceId, fireInstanceId));
     }
 
     /// <summary>Narrows a history read to the rows on one side of an instant.</summary>

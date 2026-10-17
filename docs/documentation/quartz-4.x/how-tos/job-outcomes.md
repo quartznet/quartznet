@@ -260,6 +260,8 @@ foreach (ExecutionHistoryEntry row in page.Items)
 | `ExecutionHistoryQuery` | Matches |
 |---|---|
 | `Job` | One job key, exactly |
+| `Trigger` | One trigger key, exactly. From 4.6 |
+| `FireInstanceId` | One firing, exactly. From 4.6 |
 | `FiredFrom` | Fired at or after, inclusive |
 | `FiredBefore` | Fired before, exclusive |
 | `Results` | `EffectiveResult` in the set. An empty set matches nothing |
@@ -267,6 +269,28 @@ foreach (ExecutionHistoryEntry row in page.Items)
 * `MisfireHistoryQuery.Job` narrows the misfire feed the same way, and `MisfireHistoryQuery.Reasons` to some
   `MisfireReason`s. An empty set matches nothing. A row a 4.2 node wrote has no reason and matches `Missed`.
 * A cancelled run matches `FailedFinally = true`.
+
+### Read one firing's outcome
+
+<!-- snippet: sample_job_outcome_by_firing -->
+```csharp
+// fireInstanceId came from IJobExecutionContext.FireInstanceId, JobProgressChanged or QueryFireInstances.
+PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(new ExecutionHistoryQuery
+{
+    SchedulerName = schedulerName,
+    FireInstanceId = fireInstanceId
+});
+
+if (page.Items.FirstOrDefault() is { } outcome)
+{
+    Console.WriteLine($"{outcome.EffectiveResult} after {outcome.Duration}: {outcome.Summary ?? outcome.ExceptionMessage}");
+}
+```
+<!-- endSnippet -->
+
+* The row is written when the run ends. Before that, or once retention has trimmed it, the page is empty.
+* The [database history](../tutorial/job-stores.md#execution-history-in-the-database) has no index on the
+  fire instance id or the trigger key, so either lookup can read every row of the scheduler the age bound keeps.
 
 ## Count runs over time
 
@@ -332,7 +356,7 @@ Measured on 1,000,000 rows over 30 days:
 | Jobs page | *Last run*, *Last success* and *failing ×N* per job. See [Job run status](../packages/dashboard.md#job-run-status) |
 | Job Detail page | A *Runs* panel and the job's chart. *View execution history* opens that job's rows only |
 | Execution page | The result, the summary, a table of metrics, *Manual*, the fire instance id and the input. *Run again* on a final failure, for a job [still stored](#record-a-run-s-input) |
-| HTTP API | The members on each row, `input` on one execution, the four filters, the `…/history/job-status` routes and `…/history/statistics`. See [Execution history](../packages/http-api.md#execution-history) |
+| HTTP API | The members on each row, `input` on one execution, the filters, the `…/history/job-status` routes and `…/history/statistics`. See [Execution history](../packages/http-api.md#execution-history) |
 
 ```http
 GET /quartz-api/schedulers/QuartzScheduler/history/executions?jobGroup=billing&jobName=release-stale&results=Failed,Cancelled
@@ -410,7 +434,8 @@ or under the scheduler's name for a named scheduler.
 
 * Keep `Result`, `Summary`, `MetricsJson`, `Manual`, `FireInstanceId`, `Input` and `InputTooLarge` on the rows
   you store. The recorder sets them. Return `Input` from `GetExecution`; a listing may leave it out.
-* Apply the four filters above, `MisfireHistoryQuery.Job` and `MisfireHistoryQuery.Reasons`.
+* Apply the filters above, `MisfireHistoryQuery.Job` and `MisfireHistoryQuery.Reasons`. A store that
+  ignores `Trigger` or `FireInstanceId` answers a lookup with every row.
 * Count only `MisfireReason.Missed` rows in `CountMisfires`.
 * `QueryJobRunStatuses` and `GetJobRunStatus` are default interface members. The first throws
   `NotSupportedException`; the second asks the first for one job. Implement `QueryJobRunStatuses` to keep
