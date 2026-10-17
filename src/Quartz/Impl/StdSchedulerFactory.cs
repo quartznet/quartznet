@@ -1105,6 +1105,7 @@ Please add configuration to your application config file to correctly initialize
             log.Info($"Quartz Scheduler {qs.Version} - '{SchedulerName}' with instanceId '{qs.SchedulerInstanceId}' initialized");
             log.Info($"Using thread pool '{qs.ThreadPoolClass.FullName}', size: {qs.ThreadPoolSize}");
             log.Info($"Using job store '{qs.JobStoreClass.FullName}', supports persistence: {qs.SupportsPersistence}, clustered: {qs.Clustered}");
+            WarnIfEveryNodeSharesTheDefaultInstanceId(qs);
 
             // prevents the db manager from being garbage collected
             if (dbMgr != null)
@@ -1269,6 +1270,36 @@ Please add configuration to your application config file to correctly initialize
         }
 
         return GetSchedulerRepository().Lookup(schedName);
+    }
+
+    /// <summary>
+    /// Warns when a clustered job store starts with the instance id <see cref="DefaultInstanceId" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A cluster node recognises its own check-in row and its own fired triggers by its instance id,
+    /// and <c>UseClustering()</c> and <c>quartz.jobStore.clustered</c> leave the id at its default. Every
+    /// node configured that way shares the one id: each treats the others' fired triggers as its own,
+    /// none sees another fail, and a restarted node's recovery replays a live peer's firings (#4091).
+    /// </para>
+    /// <para>
+    /// A warning rather than a generated id, because generating one changes what an existing
+    /// deployment's rows are keyed by, which is too much for a maintenance release. 4.6 generates one.
+    /// </para>
+    /// </remarks>
+    private void WarnIfEveryNodeSharesTheDefaultInstanceId(QuartzScheduler scheduler)
+    {
+        if (!scheduler.Clustered || !string.Equals(scheduler.SchedulerInstanceId, DefaultInstanceId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        log.Warn(
+            $"Scheduler '{scheduler.SchedulerName}' uses a clustered job store with the instance id '{DefaultInstanceId}', "
+            + "the default. Every node left at the default shares this id, so each treats the others' fired "
+            + "triggers as its own and none notices another fail. Set "
+            + $"{PropertySchedulerInstanceId} = {AutoGenerateInstanceId} (SchedulerId = \"{AutoGenerateInstanceId}\" "
+            + "in code), or give each node a distinct id.");
     }
 
     /// <summary>
