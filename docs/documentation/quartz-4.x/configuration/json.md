@@ -55,8 +55,9 @@ is refused, and the plugin is added in code with `UseJobHistoryLogging()` or `Ad
 ### Mapping Rules
 
 Each JSON path segment becomes a dot-separated segment of the flat key, with PascalCase converted to
-camelCase. A name you choose keeps its case: a data source, plugin, `DbProvider` or `Context:Key` name,
-and an execution-limit key, whose segments are rejoined with `:`.
+camelCase. A name you choose keeps its case: a data source, `DbProvider` or `Context:Key` name, and an
+execution-limit key, whose segments are rejoined with `:`. A plugin's name is still camel-cased, because the
+XML plugin names its stored jobs after it.
 
 | JSON Path | Flat Property Key |
 |---|---|

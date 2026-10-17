@@ -214,9 +214,14 @@ internal static class LegacyPropertyKeys
     /// A property name is matched without regard to case, so a hierarchical section can camel-case it on
     /// the way to the flat key. A name cannot be: each of these is compared ordinally by something
     /// downstream — an execution group by the limits, a context key by <see cref="SchedulerContext" />,
-    /// a data source by named options, a driver description by the metadata resolver, and a plugin is
-    /// handed its name and may persist it. <c>QuartzConfigurationHelper</c> reads this table to keep each
-    /// name as the configuration wrote it.
+    /// a data source by named options, and a driver description by the metadata resolver.
+    /// <c>QuartzConfigurationHelper</c> reads this table to keep each name as the configuration wrote it.
+    /// </para>
+    /// <para>
+    /// A plugin's name is left camel-cased on purpose. Nothing compares it ordinally — a plugin added in
+    /// code is matched without regard to case — and the XML plugin names its persisted file-scan job and
+    /// trigger after it, so a change of case would leave the previous version's job behind, failing on
+    /// every scan.
     /// </para>
     /// <para>
     /// The readers match the prefixes themselves ordinally too, which configuration keys, being
@@ -236,7 +241,6 @@ internal static class LegacyPropertyKeys
         (SchedulerContextPrefix, NameShape.WholeKey),
         (DataSourcePrefix, NameShape.NameThenProperties),
         (DbProvider, NameShape.NameThenProperties),
-        (PluginPrefix, NameShape.NameThenProperties),
     ];
 
     /// <summary>
