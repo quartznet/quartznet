@@ -206,7 +206,8 @@ await scheduler.UpdateTriggerDetails(
 * **Clustering and a stable instance id.** Affinity only applies in a cluster (`store.UseClustering()`,
   see [Clustering](advanced-enterprise-features.md)) with a *stable* `Scheduler:InstanceId`. With
   `GenerateInstanceId = true`, which `UseClustering()` turns on when no id is set, the id changes on every
-  restart, so a stored pin names a node that no longer exists. Quartz warns at startup when it detects an auto-generated id.
+  restart, so a stored pin names a node that no longer exists. Set `InstanceId` on each node that a pin
+  names; nothing warns about a generated one.
 * **RAMJobStore ignores it.** The pin is stored and returned but never filters acquisition; a single-node
   in-memory scheduler always runs the trigger.
 * **Pinned to a node that never registers.** If the target instance id has never checked in, the trigger
