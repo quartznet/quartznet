@@ -28,6 +28,8 @@ namespace Quartz.Analyzers;
 /// The whole of the analyzer's cron knowledge is these few lines, because every rule it enforces is
 /// the parser's. <c>Quartz.Analyzers.Tests.CronParityTest</c> runs a corpus through this and through
 /// <c>Quartz.CronExpression</c> and fails when the two disagree about validity or about the message.
+/// The one rule about a valid expression, QZ0007, is a member of the parsed expression too, which the
+/// scheduler asks at run time.
 /// </remarks>
 internal static class CronLiteralValidator
 {
@@ -42,13 +44,19 @@ internal static class CronLiteralValidator
     /// ones that do not reject, so this is not a detail: <c>WithCronSchedule("0 H 3 * * ?")</c> is
     /// valid and <c>CronExpression.Parse("0 H 3 * * ?")</c> is not.
     /// </param>
-    internal static string? Validate(string expression, CronFormat format, bool resolvesHash)
+    /// <param name="parsed">
+    /// The expression the parser built, when it parses, so that a rule about a valid expression asks
+    /// the parser's own fields rather than reading the string a second time.
+    /// </param>
+    internal static string? Validate(string expression, CronFormat format, bool resolvesHash, out CronExpression? parsed)
     {
+        parsed = null;
+
         try
         {
             // The seed is irrelevant to whether the expression parses - which values H resolves to
             // does not decide that - so CronScheduleBuilder.Create uses 0 here for the same reason.
-            _ = resolvesHash
+            parsed = resolvesHash
                 ? CronExpression.ParseWithHash(expression, format, hashSeed: 0)
                 : CronExpression.Parse(expression, format);
 

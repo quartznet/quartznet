@@ -142,6 +142,31 @@ internal static class Descriptors
         helpLinkUri: HelpLink + "#qz0006-invalidretrypolicydelay");
 
     /// <summary>
+    /// A trigger's cron schedule whose seconds field is <c>*</c> under a restricted minute or hour.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A warning rather than an error: the expression is valid and does what it says, and every second
+    /// can be what was meant. <c>0-59</c> and <c>*/1</c> say so explicitly and are not reported, so
+    /// the warning always has an answer short of suppressing it.
+    /// </para>
+    /// <para>
+    /// Only where the expression schedules a trigger. A <c>CronCalendar</c> or a bare
+    /// <c>CronExpression</c> also describes a window of time, and <c>* * 0-7 ? * *</c> is how a window
+    /// from midnight to eight is written.
+    /// </para>
+    /// </remarks>
+    internal static readonly DiagnosticDescriptor WildcardSecondsField = new DiagnosticDescriptor(
+        id: "QZ0007",
+        title: "Cron schedule fires every second of each minute it matches",
+        messageFormat: "'{0}' fires 60 times in each minute it matches, because its seconds field is '*'; write '{1}' to fire once in each of those minutes, or '0-59' for the seconds if every second is intended",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "A Quartz cron expression starts with a seconds field, and '*' there matches all 60 seconds. With the minute or the hour restricted, the trigger fires every second of each minute it matches: '* */5 * ? * *' fires 60 times every fifth minute, not once. It is what prepending '*' to a five-field crontab line gives. Write '0' in the seconds field, pass the five fields with CronFormat.Unix, or write '0-59' if every second is intended.",
+        helpLinkUri: HelpLink + "#qz0007-wildcardsecondsfield");
+
+    /// <summary>
     /// A <c>[QuartzJob]</c> class the generated registration could not name, or could not schedule.
     /// </summary>
     /// <remarks>

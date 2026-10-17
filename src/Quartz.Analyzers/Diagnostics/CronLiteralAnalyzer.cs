@@ -29,7 +29,9 @@ using Microsoft.CodeAnalysis.Operations;
 namespace Quartz.Analyzers;
 
 /// <summary>
-/// Reads every cron expression written as a literal or a constant, at the calls that take one.
+/// Reads every cron expression written as a literal or a constant, at the calls that take one:
+/// QZ0001 for one that does not parse, QZ0007 for a trigger's schedule whose <c>*</c> seconds fire
+/// every second of a restricted minute or hour.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -57,29 +59,36 @@ public sealed class CronLiteralAnalyzer : DiagnosticAnalyzer
     /// Every entry point that reads a cron expression string, and what it does with it.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Keyed by the declaring type and the member name, because that pair is what the symbol gives
     /// and what a rename would move. <c>H</c>-resolving entry points accept expressions the others
     /// reject, so the flag is part of the identity of the call rather than a property of cron.
+    /// </para>
+    /// <para>
+    /// So is whether the expression schedules a trigger, which is where QZ0007 applies. A calendar's
+    /// expression, and a <see cref="CronExpression" /> that may yet be a calendar's or an
+    /// <c>IsSatisfiedBy</c> window, write <c>*</c> seconds on purpose.
+    /// </para>
     /// </remarks>
     private static readonly Dictionary<string, CronEntryPoint> EntryPoints = new Dictionary<string, CronEntryPoint>(StringComparer.Ordinal)
     {
-        ["Quartz.CronScheduleBuilder.Create"] = new CronEntryPoint("cronExpression", resolvesHash: true),
-        ["Quartz.TriggerConfiguratorExtensions.WithCronSchedule"] = new CronEntryPoint("cronExpression", resolvesHash: true),
-        ["Quartz.CronExpression..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: false),
-        ["Quartz.CronExpression.Parse"] = new CronEntryPoint("cronExpression", resolvesHash: false),
-        ["Quartz.CronExpression.TryParse"] = new CronEntryPoint("cronExpression", resolvesHash: false),
-        ["Quartz.CronExpression.ParseWithHash"] = new CronEntryPoint("cronExpression", resolvesHash: true),
-        ["Quartz.CronExpression.TryParseWithHash"] = new CronEntryPoint("cronExpression", resolvesHash: true),
-        ["Quartz.CronExpression.ResolveHash"] = new CronEntryPoint("cronExpression", resolvesHash: true),
+        ["Quartz.CronScheduleBuilder.Create"] = new CronEntryPoint("cronExpression", resolvesHash: true, schedulesTrigger: true),
+        ["Quartz.TriggerConfiguratorExtensions.WithCronSchedule"] = new CronEntryPoint("cronExpression", resolvesHash: true, schedulesTrigger: true),
+        ["Quartz.CronExpression..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: false, schedulesTrigger: false),
+        ["Quartz.CronExpression.Parse"] = new CronEntryPoint("cronExpression", resolvesHash: false, schedulesTrigger: false),
+        ["Quartz.CronExpression.TryParse"] = new CronEntryPoint("cronExpression", resolvesHash: false, schedulesTrigger: false),
+        ["Quartz.CronExpression.ParseWithHash"] = new CronEntryPoint("cronExpression", resolvesHash: true, schedulesTrigger: false),
+        ["Quartz.CronExpression.TryParseWithHash"] = new CronEntryPoint("cronExpression", resolvesHash: true, schedulesTrigger: false),
+        ["Quartz.CronExpression.ResolveHash"] = new CronEntryPoint("cronExpression", resolvesHash: true, schedulesTrigger: false),
         // The attribute a job declares its schedule with. It resolves H, because what the generator
         // emits for it is WithCronSchedule, which resolves H against the trigger's key.
-        ["Quartz.CronTriggerAttribute..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: true),
-        ["Quartz.Impl.Calendar.CronCalendar..ctor"] = new CronEntryPoint("expression", resolvesHash: false),
-        ["Quartz.Impl.Triggers.CronTriggerImpl..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: false),
+        ["Quartz.CronTriggerAttribute..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: true, schedulesTrigger: true),
+        ["Quartz.Impl.Calendar.CronCalendar..ctor"] = new CronEntryPoint("expression", resolvesHash: false, schedulesTrigger: false),
+        ["Quartz.Impl.Triggers.CronTriggerImpl..ctor"] = new CronEntryPoint("cronExpression", resolvesHash: false, schedulesTrigger: true),
     };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        ImmutableArray.Create(Descriptors.InvalidCronExpression);
+        ImmutableArray.Create(Descriptors.InvalidCronExpression, Descriptors.WildcardSecondsField);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -135,10 +144,20 @@ public sealed class CronLiteralAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        string? message = CronLiteralValidator.Validate(expression, format, entryPoint.ResolvesHash);
+        string? message = CronLiteralValidator.Validate(expression, format, entryPoint.ResolvesHash, out CronExpression? parsed);
         if (message is not null)
         {
             Report(context, expressionArgument, "'" + expression + "' is not a valid cron expression: " + message);
+            return;
+        }
+
+        if (entryPoint.SchedulesTrigger && parsed is { HasWildcardSecondsUnderRestrictedMinuteOrHour: true })
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                Descriptors.WildcardSecondsField,
+                expressionArgument.Value.Syntax.GetLocation(),
+                expression,
+                CronExpression.WithSecondsAtZero(expression)));
         }
     }
 
@@ -227,14 +246,20 @@ public sealed class CronLiteralAnalyzer : DiagnosticAnalyzer
     /// </summary>
     private readonly struct CronEntryPoint
     {
-        internal CronEntryPoint(string expressionParameterName, bool resolvesHash)
+        internal CronEntryPoint(string expressionParameterName, bool resolvesHash, bool schedulesTrigger)
         {
             ExpressionParameterName = expressionParameterName;
             ResolvesHash = resolvesHash;
+            SchedulesTrigger = schedulesTrigger;
         }
 
         internal string ExpressionParameterName { get; }
 
         internal bool ResolvesHash { get; }
+
+        /// <summary>
+        /// Whether the expression is a trigger's schedule, which is where QZ0007 applies.
+        /// </summary>
+        internal bool SchedulesTrigger { get; }
     }
 }
