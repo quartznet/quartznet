@@ -253,9 +253,8 @@ A custom trigger persistence delegate is registered with
 | `UseSystemDataSqlite` | SQLite, using the legacy System.Data.SQLite driver | `System.Data.SQLite.Core` |
 | `UseGenericDatabase` | Anything else, with the generic SQL dialect; the only one that can [describe its own driver](#describing-a-driver-quartz-does-not-know) | the one your driver ships in |
 
-Quartz references none of these packages; the application adds its own. A method called without its
-driver present compiles, then fails at startup with `Could not load file or assembly`. See
-[Job Stores](../tutorial/job-stores.md#configuring-a-persistent-store).
+Quartz references none of these packages; the application adds its own. See
+[A missing driver package](../tutorial/job-stores.md#a-missing-driver-package).
 
 Each takes a connection string or a callback over `DataSourceOptions`:
 

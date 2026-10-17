@@ -93,9 +93,9 @@ internal sealed class BuiltInDbMetadataFactory : DbMetadataFactory
             }
             catch (Exception ex)
             {
-                // The failure that reaches here is a driver assembly the application did not bring along.
-                // Reported as it always was, naming the provider rather than the type that would not load.
-                Throw.ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+                // The failure that reaches here is nearly always a driver assembly the application did not
+                // bring along, so it names the package to add rather than the type that would not load.
+                Throw.ArgumentException(DescribeLoadFailure(providerName, ex), nameof(providerName), ex);
                 return default!;
             }
         }
@@ -222,6 +222,37 @@ internal sealed class BuiltInDbMetadataFactory : DbMetadataFactory
 
         _ => null
     };
+
+    /// <summary>
+    /// The NuGet package each driver ships in, as the job-store page's table names it.
+    /// </summary>
+    internal static string? DriverPackage(string providerName) => providerName switch
+    {
+        "SqlServer" or "MicrosoftDataSqlClient" => "Microsoft.Data.SqlClient",
+        "SystemDataSqlClient" => "System.Data.SqlClient",
+        "Npgsql" => "Npgsql",
+        "MySql" => "MySql.Data",
+        "MySqlConnector" => "MySqlConnector",
+        "SQLite" => "System.Data.SQLite.Core",
+        "SQLite-Microsoft" => "Microsoft.Data.Sqlite",
+        "Firebird" => "FirebirdSql.Data.FirebirdClient",
+        "OracleODPManaged" => "Oracle.ManagedDataAccess.Core",
+        _ => null
+    };
+
+    /// <summary>
+    /// Says why a driver's types did not load: the package to add when its assembly is missing, and the
+    /// loader's own words otherwise.
+    /// </summary>
+    internal static string DescribeLoadFailure(string providerName, Exception exception)
+    {
+        if (exception is FileNotFoundException && DriverPackage(providerName) is { } package)
+        {
+            return $"Provider '{providerName}' needs the {package} package: dotnet add package {package}.";
+        }
+
+        return MetadataReadFailed(providerName, exception);
+    }
 
     /// <summary>
     /// Adds the driver's own types to a description, resolving each of them by name.

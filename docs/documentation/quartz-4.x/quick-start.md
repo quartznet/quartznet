@@ -196,17 +196,15 @@ await host.RunAsync();
   instance id as it starts. To name a node yourself, for example after its pod, set `options.InstanceId` in
   `ConfigureScheduler`; see [Naming a node in a container](operations.md#naming-a-node-in-a-container).
 
-**Add the ADO.NET driver package yourself.** Quartz names the driver's types; your project references
-the package. `UseSqlServer` needs:
+**Add the ADO.NET driver package yourself.** `UseSqlServer` needs:
 
 ```shell
 dotnet add package Microsoft.Data.SqlClient
 ```
 
-Without it the application compiles, then fails as the scheduler initializes with
-`Could not load file or assembly 'Microsoft.Data.SqlClient'`. The package for each database is in
-[Job Stores](tutorial/job-stores.md#configuring-a-persistent-store). No serializer needs naming:
-System.Text.Json is the default.
+The package for each database is in [Job Stores](tutorial/job-stores.md#configuring-a-persistent-store),
+with [what a missing one looks like](tutorial/job-stores.md#a-missing-driver-package). No serializer needs
+naming: System.Text.Json is the default.
 
 To run the sample without a database, replace `UsePersistentStore(…)` with `UseInMemoryStore()` — no
 driver package, no connection string. The cheapest persistent store to try next is

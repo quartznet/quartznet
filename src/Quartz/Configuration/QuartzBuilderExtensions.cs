@@ -235,7 +235,9 @@ public static class QuartzBuilderExtensions
 
             if (trigger.JobKey is null)
             {
-                throw new InvalidOperationException("Trigger hasn't been associated with a job");
+                Throw.InvalidOperationException(
+                    $"Trigger '{trigger.Key}' hasn't been associated with a job. Point it at one with .ForJob(...), "
+                    + "or add the job and its trigger together with ScheduleJob<T>(...).");
             }
 
             return new SchedulerContent().Add(trigger);
@@ -342,7 +344,9 @@ public static class QuartzBuilderExtensions
 
             if (builtTrigger.JobKey is null || !builtTrigger.JobKey.Equals(jobDetail.Key))
             {
-                Throw.InvalidOperationException("Trigger doesn't refer to job being scheduled");
+                Throw.InvalidOperationException(
+                    $"Trigger '{builtTrigger.Key}' refers to job '{builtTrigger.JobKey}', not to job '{jobDetail.Key}' being scheduled. "
+                    + "ScheduleJob adds the job its trigger fires: leave ForJob out, or add the job with AddJob and the trigger with AddTrigger.");
             }
 
             return new SchedulerContent().Add(jobDetail).Add(builtTrigger);

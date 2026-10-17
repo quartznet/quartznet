@@ -827,8 +827,8 @@ internal class XmlSchedulingDataProcessor
                 if (dupeJ is null)
                 {
                     Throw.SchedulerException(
-                        "A new job defined without any triggers must be durable: " +
-                        detail.Key);
+                        $"A new job defined without any triggers must be durable: {detail.Key}. Mark it durable "
+                        + "(StoreDurably() in code, durable in a schedule file), or give it a trigger.");
                 }
 
                 if (dupeJ.Durable && await JobHasNoTriggers(scheduler, detail.Key, cancellationToken).ConfigureAwait(false))

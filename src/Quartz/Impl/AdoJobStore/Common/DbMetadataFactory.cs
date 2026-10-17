@@ -37,4 +37,13 @@ internal abstract class DbMetadataFactory
     /// </remarks>
     /// <param name="providerName">Name of the provider.</param>
     public virtual DbMetadata GetTypeFreeDbMetadata(string providerName) => GetDbMetadata(providerName);
+
+    /// <summary>
+    /// The message for a description that could not be read, with the cause's own message, since the
+    /// provider's name alone does not say what went wrong.
+    /// </summary>
+    protected static string MetadataReadFailed(string providerName, Exception exception)
+    {
+        return $"Error while reading metadata information for provider '{providerName}': {exception.Message}";
+    }
 }

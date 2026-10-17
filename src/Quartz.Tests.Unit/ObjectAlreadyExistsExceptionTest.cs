@@ -18,7 +18,7 @@ public class ObjectAlreadyExistsExceptionTest
 
         exception.JobKey.Should().Be(new JobKey("import", "nightly"));
         exception.TriggerKey.Should().BeNull("a job's clash is not a trigger's");
-        exception.Message.Should().Contain("nightly.import", "the message is unchanged");
+        exception.Message.Should().Contain("nightly.import", "the message still names the key");
     }
 
     [Test]
@@ -30,7 +30,7 @@ public class ObjectAlreadyExistsExceptionTest
 
         exception.TriggerKey.Should().Be(new TriggerKey("hourly", "imports"));
         exception.JobKey.Should().BeNull("a trigger's clash is not a job's");
-        exception.Message.Should().Contain("imports.hourly", "the message is unchanged");
+        exception.Message.Should().Contain("imports.hourly", "the message still names the key");
     }
 
     [Test]

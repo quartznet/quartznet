@@ -100,13 +100,8 @@ builder.Services.AddQuartz(q =>
 | `UseGenericDatabase` | anything else, using the generic SQL dialect | one you describe |
 
 **Reference the driver package yourself; nothing checks for it until the scheduler starts.** Quartz loads
-the driver's types by name, so a project that calls `UsePostgres` without referencing Npgsql compiles and
-then fails as the store initializes:
-
-```text
-System.ArgumentException: Error while reading metadata information for provider 'Npgsql' (Parameter 'providerName')
- ---> System.IO.FileNotFoundException: Could not load file or assembly 'Npgsql, ...'
-```
+the driver's types by name, so a project without it compiles. See
+[A missing driver package](#a-missing-driver-package).
 
 Each method also takes a callback over `DataSourceOptions` instead of a connection string:
 
@@ -136,6 +131,18 @@ connection-string setting, not a Quartz one.
 Every store setting is on `AdoJobStoreOptions`, set through `store.ConfigureStore(...)` or bound from the
 `Quartz:JobStore` configuration section. See the
 [configuration reference](../configuration/reference.md#persistent-job-store).
+
+#### A missing driver package
+
+A store whose driver package is missing fails as it initializes, naming the package:
+
+```text
+System.ArgumentException: Provider 'Npgsql' needs the Npgsql package: dotnet add package Npgsql. (Parameter 'providerName')
+ ---> System.IO.FileNotFoundException: Could not load file or assembly 'Npgsql, ...'
+```
+
+* Add the package the [table above](#configuring-a-persistent-store) names for your `Use*` method.
+* Before 4.6 the same failure read `Error while reading metadata information for provider 'Npgsql'`.
 
 ### Creating the schema
 
