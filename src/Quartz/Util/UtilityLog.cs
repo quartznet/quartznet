@@ -82,4 +82,20 @@ internal static partial class UtilityLog
     /// </remarks>
     [LoggerMessage(EventId = 5111, Level = LogLevel.Debug, Message = "Type '{OldName}' was resolved as '{NewName}' through a declared type loader alias.")]
     public static partial void TypeFoundUnderDeclaredAlias(this ILogger logger, string oldName, string newName);
+
+    /// <summary>
+    /// A cron trigger scheduled with <c>*</c> in its seconds field under a restricted minute or hour, so
+    /// that it fires every second of each minute it matches.
+    /// </summary>
+    /// <remarks>
+    /// Analyzer QZ0007 says the same at build time, with the same words, for an expression the compiler
+    /// can see; this is for the ones it cannot: configuration, a scheduling file, a database row. The
+    /// scheduler raises it with its own logger. The id is here because it is an event about a trigger.
+    /// </remarks>
+    [LoggerMessage(EventId = 5112, Level = LogLevel.Warning, Message = "Cron trigger '{TriggerKey}' with '{CronExpression}' fires 60 times in each minute it matches, because its seconds field is '*'; write '{Suggested}' to fire once in each of those minutes, or '0-59' for the seconds if every second is intended")]
+    public static partial void CronWildcardSecondsUnderRestrictedMinuteOrHour(
+        this ILogger logger,
+        TriggerKey triggerKey,
+        string cronExpression,
+        string suggested);
 }

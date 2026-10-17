@@ -317,6 +317,7 @@ matching on its text is not.
 | 5107 | Error | `Quartz` | `"Error encountered during chaining to Job '{Job}'"` |
 | 5108 | Warning | `Quartz` | `"Unable to resolve file path '{FileName}' due to security exception, probably running under medium trust"` |
 | 5111 | Debug | `Quartz` | `"Type '{OldName}' was resolved as '{NewName}' through a declared type loader alias."` |
+| 5112 | Warning | `Quartz` | `"Cron trigger '{TriggerKey}' with '{CronExpression}' fires 60 times in each minute it matches, because its seconds field is '*'; write '{Suggested}' to fire once in each of those minutes, or '0-59' for the seconds if every second is intended"` |
 | 6000 | Information | `Quartz.Plugins` | `"{Message}"` |
 | 6001 | Information | `Quartz.Plugins` | `"{Message}"` |
 | 6002 | Warning | `Quartz.Plugins` | `"{Message}"` |
