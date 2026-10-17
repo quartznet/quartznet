@@ -29,6 +29,8 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
+`UseClustering()` gives each node a generated instance id unless you set `InstanceId` yourself.
+
 `UseRedisLockHandler` hangs off the same store configurator with or without a host, and the flat
 `quartz.jobStore.lockHandler.*` keys configure the same handler. `RedisLockHandlerOptions` carries the
 connection string, the key prefix (`quartz:lock:`), the lock time to live (30 seconds) and the retry

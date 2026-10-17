@@ -741,7 +741,8 @@ all five:
 - **Every node of a cluster uses the same scheduler name.** The name makes rows in the database
   belong to one logical scheduler. A name per node makes each node an independent scheduler that
   fires every trigger.
-- **Every node has a unique instance id.** `AUTO` generates one. Never share an id between nodes.
+- **Every node has a unique instance id.** `AUTO` generates one; from 4.6 a clustered node with no id
+  generates one by itself. Never share an id between nodes.
 - **Clustering is on for every node.** One node with it off breaks the cluster for all of them.
 - **The store is persistent.** Two processes with in-memory stores are two schedulers with two
   copies of the schedule, and both fire it.

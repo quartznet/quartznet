@@ -192,6 +192,9 @@ await host.RunAsync();
 * `WebApplication.CreateBuilder(args)` works the same way: `AddQuartz` and `AddQuartzHostedService` are
   extensions on `IHostApplicationBuilder`.
 * The hosted service starts the scheduler with the application and shuts it down with it.
+* `UseClustering()` lets several copies of the application share the store. Each copy generates its own
+  instance id as it starts. To name a node yourself, for example after its pod, set `options.InstanceId` in
+  `ConfigureScheduler`; see [Naming a node in a container](operations.md#naming-a-node-in-a-container).
 
 **Add the ADO.NET driver package yourself.** Quartz names the driver's types; your project references
 the package. `UseSqlServer` needs:

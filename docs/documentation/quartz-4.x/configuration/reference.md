@@ -53,7 +53,7 @@ still accepts them. See [Legacy property keys](#legacy-property-keys).
 |---|---|---|---|
 | `InstanceName` | string | `QuartzScheduler` | Distinguishes schedulers in one process. Every node in a cluster must share it. |
 | `InstanceId` | string | `NON_CLUSTERED` | Must be unique among the nodes of a cluster. |
-| `GenerateInstanceId` | bool | `false` | Derives `InstanceId` at startup from the registered `IInstanceIdGenerator`. |
+| `GenerateInstanceId` | bool | `false` | Derives `InstanceId` at startup from the registered `IInstanceIdGenerator`. Turned on for a clustered scheduler left at `NON_CLUSTERED`. |
 | `IdleWaitTime` | TimeSpan | `00:00:30` | How long to wait before re-querying the job store when nothing is due. At least one second. |
 | `MaxBatchSize` | int | `0`: the pool on a persistent store, `1` in memory | Upper bound on triggers acquired at once; may not exceed `ThreadPool:MaxConcurrency`. See [Batching trigger acquisition](../tutorial/advanced-enterprise-features.md#batching-trigger-acquisition). |
 | `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may join the current batch. At zero, a batch takes the triggers already due. |

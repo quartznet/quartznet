@@ -216,6 +216,9 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
+`UseClustering()` gives each node a generated instance id unless you set `InstanceId`; that id is what
+`LockHandlerContext.InstanceId` carries.
+
 `UseLockHandler(Func<IServiceProvider, ILockHandler>)` is for a handler needing values rather than services;
 it registers under the scheduler's key, unlike a registration on `Services`. `Quartz.Extensions.Redis` uses
 this same public overload:

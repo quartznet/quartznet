@@ -71,9 +71,10 @@ Once the schema is ahead of every node, replace them one at a time. As each goes
   the default settings, exactly like a crash. Its jobs that request recovery run again on another node.
   Use [`WaitForJobsToComplete`](../best-practices.md#shutdown-has-a-deadline) so a node has nothing left to
   recover when it exits.
-- **A node that generates its instance id comes back as a different node.** `GenerateInstanceId` uses the
-  host name and a timestamp, so each restart gets a new id. The old id's check-in row and fired-trigger
-  rows are cleaned up by whichever node notices them. The node's identity in the dashboard, in
+- **A node that generates its instance id comes back as a different node.** Since 4.6 that is every
+  clustered node with no `InstanceId` set. `GenerateInstanceId` uses the host name and a timestamp, so each
+  restart gets a new id. Cluster recovery treats the old id's check-in row as a failed node's: whichever
+  node notices it recovers its firings and deletes its rows. The node's identity in the dashboard, in
   `INSTANCE_NAME` on fired-trigger rows and in a `PREFERRED_NODE` pin does not survive the deployment —
   see [Naming a node in a container](#naming-a-node-in-a-container).
 
@@ -214,7 +215,9 @@ from a 3.x node any calendar a 4.0 node wrote.
 its instance id, so two nodes sharing one act as one member, each treating the other's rows as its own.
 Nothing detects this: no node can see what the others were configured with.
 
-A clustered scheduler must derive an id:
+A clustered scheduler must derive an id. Since 4.6, `UseClustering()`, `quartz.jobStore.clustered` and
+`JobStore:Clustering:Enabled` turn `GenerateInstanceId` on when you set neither it nor `InstanceId`. Set
+explicitly, it reads:
 
 ```csharp
 q.ConfigureScheduler(options =>
@@ -289,8 +292,8 @@ services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-- Keep the fallback: an outdated manifest, or the image run locally, must not give every replica the id
-  `NON_CLUSTERED`.
+- The `else` branch repeats what `UseClustering()` does when no id is set, so the fallback for an outdated
+  manifest, or the image run locally, is visible where the pod name is read.
 - Do not use `metadata.uid`. A pod recreated under the same name gets a new UID, which is the churn the pod
   name avoids.
 - `quartz.scheduler.instanceId = SYS_PROP` selects a generator that reads the environment variable
@@ -323,7 +326,8 @@ reading the timestamp it wrote and comparing it with its own clock. The one thin
 [who sweeps the execution history](#who-sweeps-the-execution-history).
 
 - **The first check-in** happens during `Start()`, before firing begins. It treats the node's *own*
-  previous row as a failed instance, so whatever the last run left behind is recovered then.
+  previous row as a failed instance, so whatever the last run left behind is recovered then. Only a fixed
+  `InstanceId` has a previous row: a generated id's last run is recovered as a failed peer, once overdue.
 - **Later check-ins** update the timestamp and look for failed peers, taking the cluster-wide locks only
   when there are any.
 - **The stored check-in interval is written once.** `CHECKIN_INTERVAL` is set when the row is inserted;

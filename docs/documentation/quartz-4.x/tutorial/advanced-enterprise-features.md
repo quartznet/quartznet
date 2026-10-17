@@ -43,9 +43,10 @@ builder.Services.AddQuartz(q =>
   cluster.
 * **`InstanceId` must be different on every node.** A node recognises its own check-in row and fired
   triggers by it. `GenerateInstanceId = true` derives one at startup from the registered
-  `IInstanceIdGenerator` (by default host name and timestamp); the flat value `AUTO` used to mean this. Set
-  an explicit id when something outside Quartz names the node, such as [node affinity](node-affinity.md),
-  which pins a trigger to an id and needs one that survives a restart.
+  `IInstanceIdGenerator` (by default host name and timestamp); the flat value `AUTO` used to mean this.
+  `UseClustering()` turns it on when you set no `InstanceId`, so the line above is explicit rather than
+  required. Set an explicit id when something outside Quartz names the node, such as
+  [node affinity](node-affinity.md), which pins a trigger to an id and needs one that survives a restart.
 * **The store configuration must match.** Nodes may differ in thread pool size and other process-local
   settings, but must use the same tables, table prefix and serializer.
 

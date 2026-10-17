@@ -73,6 +73,7 @@ Behaviour that changed:
 | A converter registered at run time with `TypeDescriptor.AddAttributes` for `int`, `Guid` or another built-in target converted job data | Not asked: the built-in conversion answers first. An enum's own `[TypeConverter]` attribute is still honoured | Convert the value before it goes into the job data, or override `PropertySettingJobFactory.ConvertValueIfNecessary` |
 | Trimmed, `null` for a struct property was `Activator.CreateInstance` of the struct | The struct's zeroed default; a parameterless constructor it declares does not run | Nothing, unless that constructor sets something; then set `QuartzJobDataTypeConverterSupport` to `true` |
 | A `Type` property set from job data was resolved with `Type.GetType` | Resolved from the registered types first, then by `Type.GetType` while `Quartz.TypeNameResolution.IsSupported` is on | Nothing untrimmed. Trimmed, register the type or map its name with `UseTypeLoader(o => o.Map(name, typeof(T)))` |
+| A clustered node with no `InstanceId` kept `NON_CLUSTERED`, so every such node shared one id | `UseClustering()`, `quartz.jobStore.clustered` and `JobStore:Clustering:Enabled` turn `GenerateInstanceId` on unless `InstanceId` or a generator was chosen. The old `NON_CLUSTERED` check-in row is recovered as a failed node | Nothing. For a fixed id per node, set `InstanceId`: [Naming a node in a container](operations.md#naming-a-node-in-a-container) |
 
 ## Upgrading from 4.4 to 4.5
 

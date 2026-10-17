@@ -14,7 +14,8 @@ ones.
    of every row: two nodes with different names sharing a database are two schedulers, not one cluster —
    [Clustering](tutorial/advanced-enterprise-features.md#enabling-it).
 2. **`InstanceId` is unique per node**, and stable across restarts if you use
-   [node affinity](tutorial/node-affinity.md). For containers, see
+   [node affinity](tutorial/node-affinity.md). A clustered node with no `InstanceId` generates one at every
+   start: unique, not stable. For containers, see
    [Naming a node in a container](operations.md#naming-a-node-in-a-container). If nodes
    [serve different execution groups](tutorial/execution-groups.md#routing-which-node-serves-a-group),
    every group in use has a live node that serves it, and the health check is on.

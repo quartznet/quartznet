@@ -55,6 +55,9 @@ builder.Services.AddQuartzHostedService(o => o.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
 
+`UseClustering()` gives each tenant's scheduler a generated instance id on every replica, unless that
+scheduler's options set `InstanceId`.
+
 One `AddQuartzHostedService` starts them all. The named overload, `AddQuartzHostedService(tenant, o => …)`,
 configures *that* scheduler's start options and still registers only one hosted service; two would each
 start every scheduler in the container.
@@ -870,8 +873,8 @@ restart is a node failure.
 What a restart changes:
 
 - **Clustering.** With a fixed `InstanceId`, the new generation finds its own `SCHEDULER_STATE` row and
-  recovers nothing. With `AUTO` it takes a new id, and the old row expires like a stopped node's, to be
-  recovered by a peer or the new generation.
+  recovers nothing. With a generated id (`AUTO`, or `UseClustering()` with no `InstanceId`) it takes a new
+  id, and the old row expires like a stopped node's, to be recovered by a peer or the new generation.
 - **Declared content is re-applied** under the recipe's `OverwriteExistingData` (`true` by default),
   resetting a declared trigger's stored state. Set `Scheduling.IgnoreDuplicates` to avoid that.
 - **`RAMJobStore` keeps only what the recipe declares**; anything scheduled at runtime is lost.
