@@ -237,6 +237,46 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     internal bool HasIntervalSemantics => hasIntervalSemantics;
 
     /// <summary>
+    /// Whether the seconds field is <c>*</c> while the minute or the hour field leaves a value out, as in
+    /// <c>* */5 * ? * *</c>: every second of every fifth minute, where once every five minutes was almost
+    /// certainly meant.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// QZ0007 asks this at build time and the scheduler asks it when such a trigger is scheduled.
+    /// <c>Quartz.Analyzers</c> links this file, so the two cannot disagree about the shape.
+    /// </para>
+    /// <para>
+    /// The seconds field is read for the wildcard marker, which only a written <c>*</c> stores. <c>0-59</c>
+    /// and <c>*/1</c> store every second as values, and are how an author says every second on purpose.
+    /// The minute and hour fields are read for coverage, so a field naming every value however it is
+    /// spelled restricts nothing, and <c>* * * * * ?</c> is not the shape. A
+    /// <see cref="CronFormat.Unix" /> expression is rewritten with a seconds field of <c>0</c>, so it never
+    /// is.
+    /// </para>
+    /// </remarks>
+    internal bool HasWildcardSecondsUnderRestrictedMinuteOrHour =>
+        seconds.Contains(CronExpressionConstants.AllSpec)
+        && (!minutes.CoversRange(0, 59) || !hours.CoversRange(0, 23));
+
+    /// <summary>
+    /// <paramref name="expression" /> with its first field, the seconds, replaced by <c>0</c>, and the
+    /// other fields as written: what to write instead of an expression
+    /// <see cref="HasWildcardSecondsUnderRestrictedMinuteOrHour" /> answers <see langword="true" /> for.
+    /// </summary>
+    internal static string WithSecondsAtZero(string expression)
+    {
+        string trimmed = expression.Trim();
+        int end = trimmed.IndexOfAny(FieldSeparators);
+        return end < 0 ? "0" : string.Concat("0", trimmed.Remove(0, end));
+    }
+
+    /// <summary>
+    /// What separates two fields, as <see cref="BuildExpression" /> splits them.
+    /// </summary>
+    private static readonly char[] FieldSeparators = [' ', '\t'];
+
+    /// <summary>
     /// Last day of week.
     /// </summary>
     [NonSerialized] private bool lastDayOfWeek;

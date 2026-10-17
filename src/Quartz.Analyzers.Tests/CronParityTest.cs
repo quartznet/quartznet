@@ -217,7 +217,7 @@ public class CronParityTest
     public void TheLinkedParserAnswersExactlyAsQuartzDoes(string expression, CronFormat format, bool resolvesHash)
     {
         string? shipped = ValidateWithQuartz(expression, format, resolvesHash);
-        string? linked = LinkedValidator.Validate(expression, (LinkedCronFormat) (int) format, resolvesHash);
+        string? linked = LinkedValidator.Validate(expression, (LinkedCronFormat) (int) format, resolvesHash, out _);
 
         linked.Should().Be(shipped,
             "Quartz.Analyzers links src/Quartz/CronExpression.cs rather than referencing Quartz.dll, so the "
