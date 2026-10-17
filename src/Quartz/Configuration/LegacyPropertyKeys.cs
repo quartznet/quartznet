@@ -190,6 +190,56 @@ internal static class LegacyPropertyKeys
     ];
 
     /// <summary>
+    /// How the rest of a key under one of <see cref="namedChildPrefixes" /> is made up.
+    /// </summary>
+    internal enum NameShape
+    {
+        /// <summary>
+        /// All of it is one name: an execution group key such as <c>tenant:*</c>, or a context key.
+        /// </summary>
+        WholeKey,
+
+        /// <summary>
+        /// The first segment is a name, and what follows it is that thing's properties.
+        /// </summary>
+        NameThenProperties,
+    }
+
+    /// <summary>
+    /// The prefixes whose children are names the user chose rather than property names, spelled as
+    /// their readers spell them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A property name is matched without regard to case, so a hierarchical section can camel-case it on
+    /// the way to the flat key. A name cannot be: each of these is compared ordinally by something
+    /// downstream — an execution group by the limits, a context key by <see cref="SchedulerContext" />,
+    /// a data source by named options, a driver description by the metadata resolver, and a plugin is
+    /// handed its name and may persist it. <c>QuartzConfigurationHelper</c> reads this table to keep each
+    /// name as the configuration wrote it.
+    /// </para>
+    /// <para>
+    /// The readers match the prefixes themselves ordinally too, which configuration keys, being
+    /// case-insensitive, do not promise: <c>Quartz:DbProvider</c> camel-cases to
+    /// <c>quartz.dbProvider</c>, which is not <see cref="DbProvider" />. So a section that matches one of
+    /// these without regard to case is written in the spelling here.
+    /// </para>
+    /// <para>
+    /// The listener prefixes in <see cref="removedKeys" /> also held names, but nothing reads them any
+    /// more, and Quartz has no flat key for a calendar.
+    /// </para>
+    /// </remarks>
+    internal static readonly (string Prefix, NameShape Shape)[] namedChildPrefixes =
+    [
+        (ExecutionLimitPrefix, NameShape.WholeKey),
+        (ClusterExecutionLimitPrefix, NameShape.WholeKey),
+        (SchedulerContextPrefix, NameShape.WholeKey),
+        (DataSourcePrefix, NameShape.NameThenProperties),
+        (DbProvider, NameShape.NameThenProperties),
+        (PluginPrefix, NameShape.NameThenProperties),
+    ];
+
+    /// <summary>
     /// Keys Quartz used to read, and what to do instead.
     /// </summary>
     /// <remarks>

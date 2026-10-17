@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 using Microsoft.Extensions.Configuration;
@@ -15,7 +16,15 @@ namespace Quartz.Configuration;
 /// For example, the JSON path <c>Scheduler:InstanceName</c> becomes <c>quartz.scheduler.instanceName</c>.
 /// </para>
 /// <para>
-/// Keys that already start with "quartz." at the root level are passed through unchanged for backward compatibility.
+/// A name the user chose keeps its case. Below a key in <see cref="LegacyPropertyKeys.namedChildPrefixes"/>
+/// the next segment is a name — <c>DataSource:MyDS:ConnectionString</c> becomes
+/// <c>quartz.dataSource.MyDS.connectionString</c> — and below an execution limit or a context key the rest
+/// of the path is one name, rejoined with the <c>:</c> it was written with, so
+/// <c>ExecutionLimit:tenant:*</c> becomes <c>quartz.executionLimit.tenant:*</c>.
+/// </para>
+/// <para>
+/// Keys that already start with "quartz." at the root level are passed through as written, a <c>:</c> in
+/// them included, for backward compatibility.
 /// </para>
 /// </remarks>
 internal static class QuartzConfigurationHelper
@@ -160,10 +169,7 @@ internal static class QuartzConfigurationHelper
         {
             if (child.Key.StartsWith("quartz.", StringComparison.OrdinalIgnoreCase))
             {
-                if (child.Value is not null)
-                {
-                    properties[child.Key] = child.Value;
-                }
+                FlattenAsWritten(child, child.Key, properties);
             }
             else if (reservedSectionNames.Contains(child.Key))
             {
@@ -171,24 +177,91 @@ internal static class QuartzConfigurationHelper
             }
             else
             {
-                FlattenSection(child, ToCamelCase(child.Key), properties);
+                FlattenSection(child, LegacyPropertyKeys.Prefix + ToCamelCase(child.Key), properties);
             }
         }
     }
 
-    private static void FlattenSection(IConfigurationSection section, string currentPath, NameValueCollection properties)
+    /// <summary>
+    /// Writes a section under <paramref name="key"/>, and each child under the key extended by the
+    /// child's segment: camel-cased when it is a property, as written when it is a name.
+    /// </summary>
+    private static void FlattenSection(IConfigurationSection section, string key, NameValueCollection properties)
     {
-        var key = "quartz." + currentPath;
         if (section.Value is not null && !IsBoundByTypedOptions(key))
         {
             properties[key] = section.Value;
         }
 
-        foreach (var child in section.GetChildren())
+        if (!TryGetNamedChildPrefix(key, out string? prefix, out LegacyPropertyKeys.NameShape shape))
         {
-            var childPath = currentPath + "." + ToCamelCase(child.Key);
-            FlattenSection(child, childPath, properties);
+            foreach (IConfigurationSection child in section.GetChildren())
+            {
+                FlattenSection(child, key + "." + ToCamelCase(child.Key), properties);
+            }
+
+            return;
         }
+
+        foreach (IConfigurationSection child in section.GetChildren())
+        {
+            string named = prefix + "." + child.Key;
+            if (shape == LegacyPropertyKeys.NameShape.WholeKey)
+            {
+                FlattenAsWritten(child, named, properties);
+            }
+            else
+            {
+                FlattenSection(child, named, properties);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Writes a section and everything beneath it under the key as the configuration spelled it, with
+    /// the <c>:</c> that separated the segments put back.
+    /// </summary>
+    /// <remarks>
+    /// <c>:</c> is the configuration path separator, so a key a user wrote with one in it — the prefix
+    /// key <c>tenant:*</c>, whether as <c>"tenant:*"</c> in JSON, as <c>"tenant": { "*": … }</c>, or as
+    /// <c>tenant__*</c> in an environment variable — arrives as two sections, the first with no value
+    /// of its own. Rejoining them with <c>:</c> gives back what was written.
+    /// </remarks>
+    private static void FlattenAsWritten(IConfigurationSection section, string key, NameValueCollection properties)
+    {
+        if (section.Value is not null)
+        {
+            properties[key] = section.Value;
+        }
+
+        foreach (IConfigurationSection child in section.GetChildren())
+        {
+            FlattenAsWritten(child, key + ConfigurationPath.KeyDelimiter + child.Key, properties);
+        }
+    }
+
+    /// <summary>
+    /// Whether <paramref name="key"/> is one of <see cref="LegacyPropertyKeys.namedChildPrefixes"/>,
+    /// compared without regard to case, and how that prefix is spelled.
+    /// </summary>
+    private static bool TryGetNamedChildPrefix(
+        string key,
+        [NotNullWhen(true)] out string? prefix,
+        out LegacyPropertyKeys.NameShape shape)
+    {
+        foreach ((string candidate, LegacyPropertyKeys.NameShape candidateShape) in LegacyPropertyKeys.namedChildPrefixes)
+        {
+            if (string.Equals(key, candidate, StringComparison.OrdinalIgnoreCase))
+            {
+                prefix = candidate;
+                shape = candidateShape;
+                return true;
+            }
+        }
+
+        prefix = null;
+        shape = default;
+        return false;
     }
 
     private static string ToCamelCase(string value)

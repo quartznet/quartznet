@@ -2,6 +2,7 @@
 
 using System.Collections.Specialized;
 using System.Data.Common;
+using System.Text;
 using System.Text.Json;
 
 using FakeItEasy;
@@ -195,9 +196,10 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         using var provider = services.BuildServiceProvider();
         var properties = provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties;
 
-        properties["quartz.plugin.xml.type"].Should().NotBeNull(
+        properties["quartz.plugin.Xml.type"].Should().NotBeNull(
             "plugins have no typed options yet, so dropping the section leaves nothing to read them");
-        properties["quartz.plugin.xml.fileNames"].Should().Be("~/quartz_jobs.xml");
+        properties["quartz.plugin.Xml.fileNames"].Should().Be("~/quartz_jobs.xml",
+            "the plugin's name keeps its case, and the property after it is camel-cased");
     }
 
     [Test]
@@ -623,6 +625,248 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             await reporting.Shutdown();
             await ingest.Shutdown();
         }
+    }
+
+    /// <summary>
+    /// The shapes an <see cref="IConfiguration"/> source can hand the same execution limits over in.
+    /// </summary>
+    public enum LimitsShape
+    {
+        /// <summary><c>"tenant:*": 3</c> in JSON, which the provider splits at the <c>:</c>.</summary>
+        JsonWithColonInTheKey,
+
+        /// <summary><c>"tenant": { "*": 3 }</c> in JSON.</summary>
+        NestedJson,
+
+        /// <summary><c>Quartz:ExecutionLimit:tenant:*</c> in an in-memory collection.</summary>
+        InMemoryCollection,
+
+        /// <summary><c>Quartz__ExecutionLimit__tenant__*</c>, the environment-variable spelling.</summary>
+        EnvironmentVariables,
+
+        /// <summary><c>"quartz.executionLimit.tenant:*": 3</c>: the flat key, written in JSON.</summary>
+        FlatKeysInJson,
+    }
+
+    private const string JsonWithColonInTheKey = """
+        {
+          "Quartz": {
+            "ExecutionLimit": { "Reports": 2, "tenant:*": 3 },
+            "ClusterExecutionLimit": { "Billing": 4, "region:*": 5 }
+          }
+        }
+        """;
+
+    private const string NestedJson = """
+        {
+          "Quartz": {
+            "ExecutionLimit": { "Reports": 2, "tenant": { "*": 3 } },
+            "ClusterExecutionLimit": { "Billing": 4, "region": { "*": 5 } }
+          }
+        }
+        """;
+
+    private const string FlatKeysInJson = """
+        {
+          "Quartz": {
+            "quartz.executionLimit.Reports": 2,
+            "quartz.executionLimit.tenant:*": 3,
+            "quartz.clusterExecutionLimit.Billing": 4,
+            "quartz.clusterExecutionLimit.region:*": 5
+          }
+        }
+        """;
+
+    private static IConfiguration LimitsSection(LimitsShape shape)
+    {
+        Dictionary<string, string?> keys = new()
+        {
+            ["Quartz:ExecutionLimit:Reports"] = "2",
+            ["Quartz:ExecutionLimit:tenant:*"] = "3",
+            ["Quartz:ClusterExecutionLimit:Billing"] = "4",
+            ["Quartz:ClusterExecutionLimit:region:*"] = "5",
+        };
+
+        ConfigurationBuilder builder = new();
+        switch (shape)
+        {
+            case LimitsShape.JsonWithColonInTheKey:
+                builder.AddJsonStream(new MemoryStream(Encoding.UTF8.GetBytes(JsonWithColonInTheKey)));
+                break;
+            case LimitsShape.NestedJson:
+                builder.AddJsonStream(new MemoryStream(Encoding.UTF8.GetBytes(NestedJson)));
+                break;
+            case LimitsShape.FlatKeysInJson:
+                builder.AddJsonStream(new MemoryStream(Encoding.UTF8.GetBytes(FlatKeysInJson)));
+                break;
+            case LimitsShape.InMemoryCollection:
+                builder.AddInMemoryCollection(keys);
+                break;
+            case LimitsShape.EnvironmentVariables:
+                return EnvironmentVariablesSection(keys);
+        }
+
+        return builder.Build().GetSection("Quartz");
+    }
+
+    /// <summary>
+    /// Writes the keys as environment variables under a prefix no other test uses, and reads them back.
+    /// </summary>
+    /// <remarks>
+    /// The provider takes its snapshot when the configuration is built, so the variables are removed
+    /// again before the test goes on.
+    /// </remarks>
+    private static IConfiguration EnvironmentVariablesSection(Dictionary<string, string?> keys)
+    {
+        string prefix = $"QUARTZ_TEST_{Guid.NewGuid():N}_";
+        List<string> names = [];
+        try
+        {
+            foreach (KeyValuePair<string, string?> pair in keys)
+            {
+                string name = prefix + pair.Key.Replace(":", "__", StringComparison.Ordinal);
+                Environment.SetEnvironmentVariable(name, pair.Value);
+                names.Add(name);
+            }
+
+            return new ConfigurationBuilder().AddEnvironmentVariables(prefix).Build().GetSection("Quartz");
+        }
+        finally
+        {
+            foreach (string name in names)
+            {
+                Environment.SetEnvironmentVariable(name, null);
+            }
+        }
+    }
+
+    [TestCase(LimitsShape.JsonWithColonInTheKey)]
+    [TestCase(LimitsShape.NestedJson)]
+    [TestCase(LimitsShape.InMemoryCollection)]
+    [TestCase(LimitsShape.EnvironmentVariables)]
+    [TestCase(LimitsShape.FlatKeysInJson)]
+    public async Task ExecutionLimitsFromConfigurationKeepGroupNamesAndPrefixesAsWritten(LimitsShape shape)
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(LimitsSection(shape));
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            ExecutionLimits? limits = await scheduler.GetExecutionLimits();
+
+            limits.Should().NotBeNull("every one of the four keys is a limit the configuration states");
+            limits!.Groups.Should().BeEquivalentTo(
+                new[]
+                {
+                    new ExecutionGroupLimit(ExecutionGroupScope.Named("Reports"), 2),
+                    new ExecutionGroupLimit(ExecutionGroupScope.GroupsWithPrefix("tenant:"), 3),
+                    new ExecutionGroupLimit(ExecutionGroupScope.Named("Billing"), 4, ExecutionLimitScope.Cluster),
+                    new ExecutionGroupLimit(ExecutionGroupScope.GroupsWithPrefix("region:"), 5, ExecutionLimitScope.Cluster),
+                },
+                "groups are matched ordinally, so a limit on 'reports' leaves the group 'Reports' uncapped, and a "
+                + "prefix of 'tenant.' matches none of the 'tenant:acme' groups multi-tenancy.md names");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public async Task AContextKeyFromConfigurationKeepsItsCase()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["Context:Key:ApiKey"] = "secret",
+        }));
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            scheduler.Context.Should().ContainKey("ApiKey",
+                    "a job reads the context by the key the configuration wrote, and the context compares keys ordinally")
+                .WhoseValue.Should().Be("secret");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public void ADataSourceFromConfigurationIsKnownByTheNameItWasWrittenWith()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["DataSource:MyDS:Provider"] = "SqlServer",
+            ["DataSource:MyDS:ConnectionString"] = "Server=nowhere",
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties.Keys
+            .Should().Contain("quartz.dataSource.MyDS.connectionString",
+                "quartz.jobStore.dataSource = MyDS names the data source as written, and the bridge registers one "
+                + "named options instance per name it reads")
+            .And.NotContain("quartz.dataSource.myDS.connectionString",
+                "a camel-cased twin is a second data source nobody configured");
+        provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get("MyDS").ConnectionString
+            .Should().Be("Server=nowhere");
+    }
+
+    [Test]
+    public void APluginNamedInConfigurationKeepsTheNameItWasWrittenWith()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["Plugin:Recorder:Type"] = typeof(RecordingPlugin).AssemblyQualifiedName,
+            ["Plugin:Recorder:SomeSetting"] = "configured",
+        }));
+
+        using var provider = services.BuildServiceProvider();
+        var properties = Quartz.Configuration.QuartzConfigurationHelper.ToNameValueCollection(
+            provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties);
+
+        var plugins = Quartz.Configuration.SchedulerPluginFactory.Create(
+            provider, [], properties, new Quartz.Configuration.SchedulerKey(null));
+
+        plugins.Should().ContainSingle().Which.Name.Should().Be("Recorder",
+            "the plugin is handed this name by Initialize, and the XML plugin builds its file-scan job keys from it");
+        ((RecordingPlugin) plugins[0].Plugin).SomeSetting.Should().Be("configured",
+            "the segment after the name is a property, and it still reaches the plugin");
+    }
+
+    /// <summary>
+    /// The control for the tests above, which passes with or without them: only a name keeps its case.
+    /// A property segment is still camel-cased, and still reaches its reader.
+    /// </summary>
+    [Test]
+    public void APropertySegmentIsStillCamelCasedAndStillRead()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["Scheduler:IdleWaitTime"] = "30000",
+            ["DataSource:default:Provider"] = "SqlServer",
+            ["DataSource:default:ConnectionString"] = "Server=nowhere",
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties.Keys
+            .Should().Contain(
+                ["quartz.scheduler.idleWaitTime", "quartz.dataSource.default.provider", "quartz.dataSource.default.connectionString"],
+                "the flat spellings the property readers were written against are camel-cased");
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.IdleWaitTime
+            .Should().Be(TimeSpan.FromSeconds(30), "only the bridge reads a bare integer as milliseconds");
+        provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get("default").ConnectionString
+            .Should().Be("Server=nowhere");
     }
 
     [Test]
