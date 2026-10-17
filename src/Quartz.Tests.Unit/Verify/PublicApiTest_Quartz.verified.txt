@@ -447,6 +447,7 @@ namespace Quartz
     {
         public ExecutionHistoryQuery() { }
         public bool? FailedFinally { get; init; }
+        public string? FireInstanceId { get; init; }
         public System.DateTimeOffset? FiredBefore { get; init; }
         public System.DateTimeOffset? FiredFrom { get; init; }
         public Quartz.JobKey? Job { get; init; }
@@ -454,6 +455,7 @@ namespace Quartz
         public System.Collections.Generic.IReadOnlyCollection<Quartz.JobRunResult>? Results { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
+        public Quartz.TriggerKey? Trigger { get; init; }
         public string? TriggerContains { get; init; }
     }
     public enum ExecutionLimitScope

@@ -153,6 +153,37 @@ public abstract class ExecutionOutcomeRoundTripTest
             .Items.Should().ContainSingle().Which.TriggerName.Should().Be("vetoed");
     }
 
+    /// <summary>
+    /// An execution looked up by its exact trigger key and by its fire instance id, each bound as this
+    /// dialect binds a string and compared by equality rather than as a pattern.
+    /// </summary>
+    [Test]
+    public async Task ExecutionsAreLookedUpByTriggerAndFiringExactly()
+    {
+        using AdoExecutionHistoryStore store = await CreateStore(_ => { });
+
+        await store.AddExecution(Run("nightly", "first", Now.AddMinutes(-3), JobRunResult.Succeeded) with { TriggerName = "t", FireInstanceId = "node-a-1" });
+        await store.AddExecution(Run("nightly", "second", Now.AddMinutes(-2), JobRunResult.Failed) with { TriggerName = "t2", FireInstanceId = "node-a-17" });
+        await store.AddExecution(Run("other", "third", Now.AddMinutes(-1), JobRunResult.Succeeded) with { TriggerName = "t", FireInstanceId = "node-a-2" });
+
+        (await store.QueryExecutions(Query() with { Trigger = new TriggerKey("t", "outcome"), IncludeTotalCount = true })).Items
+            .Select(row => row.EntryId).Should().Equal(["third", "first"], "outcome.t is not outcome.t2");
+        (await store.QueryExecutions(Query() with { FireInstanceId = "node-a-1", IncludeTotalCount = true })).TotalCount
+            .Should().Be(1, "node-a-1 is not node-a-17, in the count as in the page");
+
+        PagedResult<ExecutionHistoryEntry> all = await store.QueryExecutions(Query() with
+        {
+            Job = new JobKey("nightly", "outcome"),
+            Trigger = new TriggerKey("t", "outcome"),
+            FireInstanceId = "node-a-1",
+            Results = [JobRunResult.Succeeded]
+        });
+        all.Items.Should().ContainSingle().Which.EntryId.Should().Be("first", "every exact filter binds its own parameters in order");
+
+        (await store.QueryExecutions(Query() with { Trigger = new TriggerKey("t", "outcome"), FireInstanceId = "node-a-17" }))
+            .Items.Should().BeEmpty("node-a-17 fired outcome.t2");
+    }
+
     [TestCaseSource(typeof(MultibyteTexts), nameof(MultibyteTexts.Kinds))]
     public async Task AMultibyteSummaryAndFailureAreKeptToWhatTheirColumnsHold(MultibyteText kind)
     {

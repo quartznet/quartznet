@@ -139,6 +139,25 @@ public sealed class JobOutcomesSamples
         #endregion
     }
 
+    public static async Task ReadingOneFiringsOutcome(IExecutionHistoryStore history, string schedulerName, string fireInstanceId)
+    {
+        #region sample_job_outcome_by_firing
+
+        // fireInstanceId came from IJobExecutionContext.FireInstanceId, JobProgressChanged or QueryFireInstances.
+        PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = schedulerName,
+            FireInstanceId = fireInstanceId
+        });
+
+        if (page.Items.FirstOrDefault() is { } outcome)
+        {
+            Console.WriteLine($"{outcome.EffectiveResult} after {outcome.Duration}: {outcome.Summary ?? outcome.ExceptionMessage}");
+        }
+
+        #endregion
+    }
+
     public static async Task CountingRunsOverTime(IExecutionHistoryStore history, string schedulerName, DateTimeOffset since)
     {
         #region sample_job_outcome_statistics

@@ -1736,6 +1736,20 @@ internal static class StdAdoConstants
     public static readonly string SqlHistoryJobPredicate =
         Invariant($" AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName}");
 
+    /// <summary>
+    /// One trigger's executions, matched exactly. No index leads with the trigger key: a page reads the
+    /// scheduler's rows newest first on <c>IDX_QRTZ_EH_FIRED_TIME</c> until it is full.
+    /// </summary>
+    public static readonly string SqlExecutionHistoryTriggerPredicate =
+        Invariant($" AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName}");
+
+    /// <summary>
+    /// One firing's executions, matched exactly. No index holds <c>FIRE_INSTANCE_ID</c>, so the lookup reads
+    /// every row of the scheduler the age bound keeps.
+    /// </summary>
+    public static readonly string SqlExecutionHistoryFireInstancePredicate =
+        Invariant($" AND {AdoConstants.ColumnFireInstanceId} = @{SqlParameters.HistoryFireInstanceId}");
+
     /// <summary>The rows that fired at or after an instant.</summary>
     public static readonly string SqlExecutionHistoryFiredFrom =
         Invariant($" AND {AdoConstants.ColumnFiredTime} >= @{SqlParameters.HistoryFiredFrom}");

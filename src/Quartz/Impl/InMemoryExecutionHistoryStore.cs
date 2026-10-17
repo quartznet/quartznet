@@ -185,6 +185,17 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
             filtered = filtered.Where(x => IsJob(x, job));
         }
 
+        if (query.Trigger is { } trigger)
+        {
+            filtered = filtered.Where(x => IsTrigger(x, trigger));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.FireInstanceId))
+        {
+            string fireInstanceId = query.FireInstanceId;
+            filtered = filtered.Where(x => string.Equals(x.FireInstanceId, fireInstanceId, StringComparison.Ordinal));
+        }
+
         if (query.FiredFrom is { } firedFrom)
         {
             filtered = filtered.Where(x => x.FiredAtUtc >= firedFrom);
@@ -317,6 +328,12 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
     {
         return string.Equals(entry.JobName, job.Name, StringComparison.Ordinal)
                && string.Equals(entry.JobGroup, job.Group, StringComparison.Ordinal);
+    }
+
+    private static bool IsTrigger(ExecutionHistoryEntry entry, TriggerKey trigger)
+    {
+        return string.Equals(entry.TriggerName, trigger.Name, StringComparison.Ordinal)
+               && string.Equals(entry.TriggerGroup, trigger.Group, StringComparison.Ordinal);
     }
 
     private static IEnumerable<T> OnNode<T>(List<T> entries, string? schedulerInstanceId, Func<T, string> nodeOf)

@@ -20,8 +20,8 @@
 namespace Quartz;
 
 /// <summary>
-/// One page of the execution history of a scheduler, optionally narrowed by node, job, trigger, fire
-/// time and result.
+/// One page of the execution history of a scheduler, optionally narrowed by node, job, trigger, firing,
+/// fire time and result.
 /// </summary>
 /// <remarks>
 /// A <c>Contains</c> filter matches a key's group, its name, or the two joined as <c>group.name</c>,
@@ -72,6 +72,21 @@ public sealed record ExecutionHistoryQuery : PagedQuery
     /// Lists only the executions of this job, matched exactly, or every job's when null.
     /// </summary>
     public JobKey? Job { get; init; }
+
+    /// <summary>
+    /// Lists only the executions this trigger fired, matched exactly, or every trigger's when null.
+    /// </summary>
+    public TriggerKey? Trigger { get; init; }
+
+    /// <summary>
+    /// Lists only the executions of this firing, matched exactly, or every firing's when null.
+    /// </summary>
+    /// <remarks>
+    /// The id <see cref="IJobExecutionContext.FireInstanceId" /> carries, which a job listener,
+    /// <see cref="IJobListener.JobProgressChanged" /> and <see cref="FireInstance" /> hand out, so a caller
+    /// holding one can read that firing's outcome once it has run.
+    /// </remarks>
+    public string? FireInstanceId { get; init; }
 
     /// <summary>
     /// Lists only the executions that fired at or after this instant, or from the start when null.
