@@ -251,6 +251,7 @@ namespace Quartz.Dashboard.Services
     {
         public DashboardHistoryQuery() { }
         public bool? FailedFinally { get; init; }
+        public string? FireInstanceId { get; init; }
         public System.DateTimeOffset? FiredBefore { get; init; }
         public System.DateTimeOffset? FiredFrom { get; init; }
         public Quartz.Dashboard.Services.JobKeyDto? Job { get; init; }
@@ -258,6 +259,7 @@ namespace Quartz.Dashboard.Services
         public System.Collections.Generic.IReadOnlyCollection<Quartz.JobRunResult>? Results { get; init; }
         public string? SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
+        public Quartz.Dashboard.Services.TriggerKeyDto? Trigger { get; init; }
         public string? TriggerFilter { get; init; }
     }
     public sealed record DashboardJobQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardJobQuery>

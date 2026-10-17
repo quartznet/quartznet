@@ -68,6 +68,12 @@ public sealed class DashboardAgentTest
         w1History.Items.Should().ContainSingle().Which.JobName.Should().Be("watched",
             "the history is read from the worker that ran the job, through the tunnel");
 
+        string fireInstanceId = w1History.Items[0].FireInstanceId!;
+        (await dashboard.Client.QueryExecutions(new DashboardHistoryQuery { SchedulerName = w1.Key, FireInstanceId = fireInstanceId }))
+            .Items.Should().ContainSingle("the agent's carrier reads the firing it is asked for");
+        (await dashboard.Client.QueryExecutions(new DashboardHistoryQuery { SchedulerName = w1.Key, FireInstanceId = fireInstanceId + "-other" }))
+            .Items.Should().BeEmpty("and applies it, rather than answering every row");
+
         PagedResult<DashboardHistoryEntry> w2History = await dashboard.Client.QueryExecutions(new DashboardHistoryQuery { SchedulerName = w2.Key });
         w2History.Items.Should().BeEmpty("the other worker ran nothing");
         otherReading.IsCompleted.Should().BeFalse("the other worker streamed nothing");

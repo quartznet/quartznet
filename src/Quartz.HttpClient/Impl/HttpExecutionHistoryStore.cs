@@ -48,10 +48,11 @@ namespace Quartz.Impl;
 /// <see cref="HttpClientException" />, which still propagates.
 /// </para>
 /// <para>
-/// A host before 4.4 ignores the query parameters it does not know, and would answer a filtered read with
-/// rows the filter excludes. So before the first read that carries a 4.4 filter, and before the first run
-/// statistics read, the host's version is read from <c>GET …/schedulers/{name}</c>, and a host older than
-/// 4.4 is refused with <see cref="NotSupportedException" /> before anything is sent.
+/// A host ignores the query parameters it does not know, and would answer a filtered read with rows the
+/// filter excludes. So before the first read that carries a 4.4 filter, the first run statistics read, and
+/// the first read by trigger or firing, the host's version is read from <c>GET …/schedulers/{name}</c>, and
+/// a host older than 4.4 — 4.6 for a trigger or a firing — is refused with
+/// <see cref="NotSupportedException" /> before anything is sent.
 /// </para>
 /// <para>
 /// A row from a newer host that carries a name this client does not know is read as far as it can be: a
@@ -65,6 +66,11 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// The first version whose history routes read the 4.4 filters.
     /// </summary>
     private static readonly Version FirstFilteringVersion = new(4, 4);
+
+    /// <summary>
+    /// The first version whose executions route reads the trigger and firing filters.
+    /// </summary>
+    private static readonly Version FirstExactLookupVersion = new(4, 6);
 
     /// <summary>
     /// The most keys one status fetch may carry, as the host enforces it.
@@ -91,13 +97,13 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     private readonly WireClient wire;
 
     /// <summary>
-    /// Whether the host has been seen to read the 4.4 filters.
+    /// The newest version the host has reported, or <see langword="null" /> before it has been asked.
     /// </summary>
     /// <remarks>
-    /// Only that answer is kept. An older host is asked again on the next filtered read, so a host upgraded
-    /// under a reader that keeps running is noticed; a 4.4 host is not downgraded in place.
+    /// A host is asked again whenever a read needs more than this, so a host upgraded under a reader that
+    /// keeps running is noticed; a host is not downgraded in place.
     /// </remarks>
-    private volatile bool hostFilters;
+    private volatile Version? hostVersion;
 
     /// <param name="schedulerName">The remote scheduler's name, which every request is addressed to.</param>
     /// <param name="httpClient">The client to call the remote scheduler with.</param>
@@ -168,8 +174,10 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// <remarks>
     /// <see cref="ExecutionHistoryQuery.Job" />, <see cref="ExecutionHistoryQuery.FiredFrom" />,
     /// <see cref="ExecutionHistoryQuery.FiredBefore" /> and <see cref="ExecutionHistoryQuery.Results" /> need
-    /// a host at 4.4 or later, and raise <see cref="NotSupportedException" /> against an older one. An
-    /// empty <see cref="ExecutionHistoryQuery.Results" /> lists nothing, and is answered without asking.
+    /// a host at 4.4 or later, and <see cref="ExecutionHistoryQuery.Trigger" /> and
+    /// <see cref="ExecutionHistoryQuery.FireInstanceId" /> one at 4.6 or later; each raises
+    /// <see cref="NotSupportedException" /> against an older one. An empty
+    /// <see cref="ExecutionHistoryQuery.Results" /> lists nothing, and is answered without asking.
     /// </remarks>
     public async ValueTask<PagedResult<ExecutionHistoryEntry>> QueryExecutions(ExecutionHistoryQuery query, CancellationToken cancellationToken = default)
     {
@@ -178,6 +186,18 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         if (query.Results is { Count: 0 })
         {
             return Nothing<ExecutionHistoryEntry>(query);
+        }
+
+        bool fireInstanceAsked = !string.IsNullOrWhiteSpace(query.FireInstanceId);
+        if (query.Trigger is not null || fireInstanceAsked)
+        {
+            // Asked first: a host new enough for these is new enough for the 4.4 filters too, so the version
+            // is read at most once.
+            await RequireHost(
+                FirstExactLookupVersion,
+                "whose history route ignores the trigger and fire instance filters and would answer with rows they exclude",
+                "to look up its history by trigger and firing",
+                cancellationToken).ConfigureAwait(false);
         }
 
         if (query.Job is not null || query.FiredFrom is not null || query.FiredBefore is not null || query.Results is not null)
@@ -216,6 +236,17 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         foreach (JobRunResult wanted in query.Results ?? [])
         {
             parameters.Add("results", wanted.ToString());
+        }
+
+        if (query.Trigger is { } trigger)
+        {
+            parameters.Add("triggerGroup", trigger.Group);
+            parameters.Add("triggerName", trigger.Name);
+        }
+
+        if (fireInstanceAsked)
+        {
+            parameters.Add("fireInstanceId", query.FireInstanceId!);
         }
 
         PagedResultDto<ExecutionHistoryEntryDto> result = await Read<PagedResultDto<ExecutionHistoryEntryDto>>(
@@ -420,7 +451,8 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             return new ExecutionStatistics { BucketSize = query.BucketSize };
         }
 
-        await RequireHost44(
+        await RequireHost(
+            FirstFilteringVersion,
             "which has no run statistics route",
             "to count its runs over time",
             cancellationToken).ConfigureAwait(false);
@@ -524,23 +556,25 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// <exception cref="NotSupportedException">The host is older than 4.4.</exception>
     private ValueTask RequireFilters(string filters, CancellationToken cancellationToken)
     {
-        return RequireHost44(
+        return RequireHost(
+            FirstFilteringVersion,
             $"whose history routes ignore the {filters} filters and would answer with rows they exclude",
             "to filter its history by them",
             cancellationToken);
     }
 
     /// <summary>
-    /// Refuses a read before it is sent to a host older than 4.4, whose version is read once and kept once
-    /// it is new enough.
+    /// Refuses a read before it is sent to a host older than <paramref name="minimum" />. The host's version
+    /// is read only when the newest one it has reported is older than that.
     /// </summary>
+    /// <param name="minimum">The first version that answers the read correctly.</param>
     /// <param name="why">What the old host would do with the read, as the refusal says it.</param>
     /// <param name="upgradeTo">What upgrading the host would let the caller do.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <exception cref="NotSupportedException">The host is older than 4.4.</exception>
-    private async ValueTask RequireHost44(string why, string upgradeTo, CancellationToken cancellationToken)
+    /// <exception cref="NotSupportedException">The host is older than <paramref name="minimum" />.</exception>
+    private async ValueTask RequireHost(Version minimum, string why, string upgradeTo, CancellationToken cancellationToken)
     {
-        if (hostFilters)
+        if (hostVersion is { } known && known >= minimum)
         {
             return;
         }
@@ -549,15 +583,22 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             SchedulerRoutes.GetSchedulerDetails.For(schedulerName), cancellationToken).ConfigureAwait(false);
 
         string? reported = details.Statistics?.Version;
-        if (Version.TryParse(reported, out Version? version) && version >= FirstFilteringVersion)
+        if (Version.TryParse(reported, out Version? version))
         {
-            hostFilters = true;
-            return;
+            if (hostVersion is null || version > hostVersion)
+            {
+                hostVersion = version;
+            }
+
+            if (version >= minimum)
+            {
+                return;
+            }
         }
 
         throw new NotSupportedException(
             $"The scheduler '{schedulerName}' is reached over HTTP and its host runs Quartz {reported ?? "(unknown)"}, "
-            + $"{why}. Upgrade the scheduler's host to 4.4 or later {upgradeTo}.");
+            + $"{why}. Upgrade the scheduler's host to {minimum.ToString(2)} or later {upgradeTo}.");
     }
 
     /// <summary>The words a refusal of a 4.4 read uses, so each read says what it was.</summary>

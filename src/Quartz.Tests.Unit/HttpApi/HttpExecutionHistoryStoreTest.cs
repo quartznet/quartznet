@@ -482,6 +482,68 @@ public class HttpExecutionHistoryStoreTest
     }
 
     [Test]
+    public async Task ATriggerAndAFiringAreSentToAHostThatReadsThem()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.6.0.0"));
+        handler.Respond(HttpStatusCode.OK, EmptyPage);
+
+        await Store().QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = "Remote",
+            Job = new JobKey("nightly", "reports"),
+            Trigger = new TriggerKey("at-midnight", "reports"),
+            FireInstanceId = "node-a-17"
+        });
+
+        handler.Requests.Should().Equal(
+        [
+            "GET http://localhost:8080/schedulers/Remote",
+            "GET http://localhost:8080/schedulers/Remote/history/executions?take=250&jobGroup=reports&jobName=nightly"
+            + "&triggerGroup=reports&triggerName=at-midnight&fireInstanceId=node-a-17"
+        ], "a host new enough for a lookup is new enough for the 4.4 filters, so its version is read once");
+    }
+
+    /// <summary>
+    /// A 4.5 host ignores <c>triggerGroup</c>, <c>triggerName</c> and <c>fireInstanceId</c>, so a lookup sent
+    /// to it would come back as every row, which reads as that firing's outcome.
+    /// </summary>
+    [TestCase("trigger")]
+    [TestCase("fireInstanceId")]
+    public async Task ALookupIsRefusedBeforeItReachesAHostOlderThan46(string filter)
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.5.0.0"));
+        handler.Respond(HttpStatusCode.OK, EmptyPage);
+
+        ExecutionHistoryQuery query = filter == "trigger"
+            ? new ExecutionHistoryQuery { SchedulerName = "Remote", Trigger = new TriggerKey("at-midnight", "reports") }
+            : new ExecutionHistoryQuery { SchedulerName = "Remote", FireInstanceId = "node-a-17" };
+
+        Func<Task> act = async () => await Store().QueryExecutions(query);
+
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*4.5.0.0*trigger and fire instance*4.6 or later*");
+        handler.Requests.Should().Equal(["GET http://localhost:8080/schedulers/Remote"],
+            "the history route is never asked a question the host would answer wrongly");
+    }
+
+    [Test]
+    public async Task AHostSeenToFilterIsAskedAgainForALookup()
+    {
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.4.0.0"));
+        handler.Respond(HttpStatusCode.OK, EmptyPage);
+        HttpExecutionHistoryStore store = Store();
+
+        await store.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote", Results = [JobRunResult.Failed] });
+
+        handler.RespondTo(DetailsPath, HttpStatusCode.OK, SchedulerDetails("4.6.1.0"));
+        await store.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote", FireInstanceId = "node-a-17" });
+        await store.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote", Results = [JobRunResult.Failed] });
+
+        handler.Requests.Count(request => request.EndsWith("/schedulers/Remote", StringComparison.Ordinal)).Should().Be(2,
+            "4.4 answers the filters but not a lookup, so the lookup asks again; the 4.6 it then hears answers both");
+        handler.Requests.Should().Contain("GET http://localhost:8080/schedulers/Remote/history/executions?take=250&fireInstanceId=node-a-17");
+    }
+
+    [Test]
     public async Task AnEmptySetListsNothingWithoutAsking()
     {
         PagedResult<ExecutionHistoryEntry> executions = await Store().QueryExecutions(

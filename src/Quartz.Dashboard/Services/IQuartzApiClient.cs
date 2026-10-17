@@ -821,8 +821,8 @@ public sealed record DashboardFireInstanceQuery : PagedQuery
 }
 
 /// <summary>
-/// One page of the execution history of a scheduler, optionally narrowed by node, job, trigger, fire time
-/// and result.
+/// One page of the execution history of a scheduler, optionally narrowed by node, job, trigger, firing,
+/// fire time and result.
 /// </summary>
 /// <remarks>
 /// A filter matches a key's group, its name, or the two joined as <c>group.name</c>, case-insensitively.
@@ -865,6 +865,17 @@ public sealed record DashboardHistoryQuery : PagedQuery
     /// Lists only the executions of this job, matched exactly, or every job's when null. Added in 4.4.
     /// </summary>
     public JobKeyDto? Job { get; init; }
+
+    /// <summary>
+    /// Lists only the executions this trigger fired, matched exactly, or every trigger's when null. Added in
+    /// 4.6.
+    /// </summary>
+    public TriggerKeyDto? Trigger { get; init; }
+
+    /// <summary>
+    /// Lists only the executions of this firing, matched exactly, or every firing's when null. Added in 4.6.
+    /// </summary>
+    public string? FireInstanceId { get; init; }
 
     /// <summary>
     /// Lists only the executions that fired at or after this instant, or from the start when null. Added

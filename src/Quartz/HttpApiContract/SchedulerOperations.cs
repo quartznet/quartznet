@@ -159,9 +159,12 @@ internal static class SchedulerOperations
     /// <param name="jobContains">A job key fragment, or <see langword="null" />.</param>
     /// <param name="triggerContains">A trigger key fragment, or <see langword="null" />.</param>
     /// <param name="failedFinally">Whether to narrow to the occurrences that gave up, or to the rest.</param>
-    /// <param name="filters">The 4.4 filters: one job, a fire-time window and a set of results.</param>
+    /// <param name="filters">
+    /// The 4.4 filters, one job, a fire-time window and a set of results, and the 4.6 ones, one trigger and
+    /// one firing.
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <exception cref="InvalidRequestException">Half a job key, or a result that names nothing.</exception>
+    /// <exception cref="InvalidRequestException">Half a job or trigger key, or a result that names nothing.</exception>
     public static async ValueTask<PagedResultDto<ExecutionHistoryEntryDto>> QueryExecutionHistory(
         IScheduler scheduler,
         IExecutionHistoryStore history,
@@ -183,6 +186,8 @@ internal static class SchedulerOperations
             TriggerContains = triggerContains,
             FailedFinally = failedFinally,
             Job = filters.Job(),
+            Trigger = filters.Trigger(),
+            FireInstanceId = string.IsNullOrWhiteSpace(filters.FireInstanceId) ? null : filters.FireInstanceId,
             FiredFrom = filters.FiredFrom,
             FiredBefore = filters.FiredBefore,
             Results = filters.ResultSet()

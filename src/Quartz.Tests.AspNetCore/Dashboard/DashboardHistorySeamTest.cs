@@ -118,6 +118,29 @@ public sealed class DashboardHistorySeamTest
             .Items.Should().BeEmpty("the window reached the store");
     }
 
+    /// <summary>
+    /// The 4.6 lookups, by trigger and by firing, survive the adapters in both directions.
+    /// </summary>
+    [Test]
+    public async Task TheTriggerAndFiringLookupsSurviveBothAdapters()
+    {
+        ExecutionHistoryStoreOverDashboardStore quartzStore = new(TestData.Dashboard.HistoryStore());
+
+        await quartzStore.AddExecution(Execution("acme") with { EntryId = "entry-1", FireInstanceId = "node-a-1" });
+        await quartzStore.AddExecution(Execution("acme") with { EntryId = "entry-2", FireInstanceId = "node-a-17" });
+        await quartzStore.AddExecution(Execution("acme") with { EntryId = "entry-3", TriggerName = "elsewhere", FireInstanceId = "node-a-1" });
+
+        PagedResult<ExecutionHistoryEntry> page = await quartzStore.QueryExecutions(new ExecutionHistoryQuery
+        {
+            SchedulerName = "acme",
+            Trigger = new TriggerKey("at-midnight", "DummyTriggerGroup"),
+            FireInstanceId = "node-a-1"
+        });
+
+        page.Items.Should().ContainSingle("the trigger and the firing reached the store, or the other two rows would be here")
+            .Which.EntryId.Should().Be("entry-1");
+    }
+
     [Test]
     public async Task TheMisfireJobAndReasonsSurviveBothAdapters()
     {

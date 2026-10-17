@@ -54,6 +54,9 @@ An application on 4.5 compiles on 4.6 unchanged, and the database schema did not
 | `SchedulerDetailDto.ServedExecutionGroups`, `RefusedExecutionGroups`, `RoutesExecutionGroups` | `Quartz.Dashboard`, `init`, empty by default |
 | HTTP: `servedExecutionGroups`, `refusedExecutionGroups` on `GET …/schedulers/{name}` | Arrays, empty when the node routes nothing; absent on a host older than 4.6, which the client reads as empty |
 | Log events `1093`, `3609`, `3610` | What a node routes, at start; unserved misfires appeared / are gone |
+| `ExecutionHistoryQuery.Trigger`, `FireInstanceId` | `init`: one trigger exactly, one firing exactly. A history store of your own should apply both. See [Read one firing's outcome](how-tos/job-outcomes.md#read-one-firing-s-outcome) |
+| `DashboardHistoryQuery.Trigger`, `FireInstanceId` | `Quartz.Dashboard`, `init`, as on `ExecutionHistoryQuery`. `Trigger` is a `TriggerKeyDto` |
+| HTTP: `triggerGroup`, `triggerName`, `fireInstanceId` on `GET …/history/executions` | Ignored by a host older than 4.6, which `HttpExecutionHistoryStore` refuses to ask. See [Filtering by job, time and result](packages/http-api.md#filtering-by-job-time-and-result) |
 
 Behaviour that changed:
 

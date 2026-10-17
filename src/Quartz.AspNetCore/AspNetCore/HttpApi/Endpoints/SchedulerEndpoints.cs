@@ -389,6 +389,10 @@ internal static class SchedulerEndpoints
     /// comma-separated. A host before 4.4 ignores all five, which is why the HTTP client asks the host's
     /// version before it sends one.
     /// </para>
+    /// <para>
+    /// From 4.6, <c>triggerGroup</c> with <c>triggerName</c> narrows to one trigger exactly, and
+    /// <c>fireInstanceId</c> to one firing. A host before 4.6 ignores all three.
+    /// </para>
     /// </remarks>
     [ProducesResponseType(typeof(PagedResultDto<ExecutionHistoryEntryDto>), StatusCodes.Status200OK)]
     private static Task<IResult> QueryExecutionHistory(
@@ -409,6 +413,9 @@ internal static class SchedulerEndpoints
         [Description("Only executions fired at or after this instant")] DateTimeOffset? firedFrom = null,
         [Description("Only executions fired before this instant")] DateTimeOffset? firedBefore = null,
         [Description(ResultsDescription)] string[]? results = null,
+        [Description("The trigger's group; needs triggerName")] string? triggerGroup = null,
+        [Description("The trigger's name; needs triggerGroup")] string? triggerName = null,
+        [Description("Only the executions of this firing, matched exactly")] string? fireInstanceId = null,
         CancellationToken cancellationToken = default)
     {
         ListingParameters listing = endpointHelper.Listing(skip, take, includeTotalCount);
@@ -416,6 +423,9 @@ internal static class SchedulerEndpoints
         {
             JobGroup = jobGroup,
             JobName = jobName,
+            TriggerGroup = triggerGroup,
+            TriggerName = triggerName,
+            FireInstanceId = fireInstanceId,
             FiredFrom = firedFrom,
             FiredBefore = firedBefore,
             Results = results

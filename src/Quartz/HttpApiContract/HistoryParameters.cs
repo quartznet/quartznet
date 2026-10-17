@@ -22,8 +22,8 @@
 namespace Quartz.HttpApiContract;
 
 /// <summary>
-/// What a history listing asked for beyond its page and its 4.1 filters: one job, a fire-time window, a
-/// set of results and a set of misfire reasons, as the query string carried them.
+/// What a history listing asked for beyond its page and its 4.1 filters: one job, one trigger, one firing,
+/// a fire-time window, a set of results and a set of misfire reasons, as the query string carried them.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -53,6 +53,15 @@ internal sealed record HistoryParameters
 
     public string? JobName { get; init; }
 
+    public string? TriggerGroup { get; init; }
+
+    public string? TriggerName { get; init; }
+
+    /// <summary>
+    /// The <c>fireInstanceId</c> parameter: one firing, matched exactly. Blank is no filter.
+    /// </summary>
+    public string? FireInstanceId { get; init; }
+
     public DateTimeOffset? FiredFrom { get; init; }
 
     public DateTimeOffset? FiredBefore { get; init; }
@@ -73,14 +82,20 @@ internal sealed record HistoryParameters
     /// <exception cref="InvalidRequestException">Only one half is given.</exception>
     public JobKey? Job()
     {
-        bool hasGroup = !string.IsNullOrWhiteSpace(JobGroup);
-        bool hasName = !string.IsNullOrWhiteSpace(JobName);
-        if (hasGroup != hasName)
-        {
-            throw new InvalidRequestException("Both jobName and jobGroup must be given to filter by job");
-        }
+        return BothHalves(JobGroup, JobName, "Both jobName and jobGroup must be given to filter by job")
+            ? new JobKey(JobName!, JobGroup!)
+            : null;
+    }
 
-        return hasName ? new JobKey(JobName!, JobGroup!) : null;
+    /// <summary>
+    /// The trigger both halves name, or <see langword="null" /> when neither is given.
+    /// </summary>
+    /// <exception cref="InvalidRequestException">Only one half is given.</exception>
+    public TriggerKey? Trigger()
+    {
+        return BothHalves(TriggerGroup, TriggerName, "Both triggerName and triggerGroup must be given to filter by trigger")
+            ? new TriggerKey(TriggerName!, TriggerGroup!)
+            : null;
     }
 
     /// <summary>
@@ -111,6 +126,22 @@ internal sealed record HistoryParameters
     /// </summary>
     /// <exception cref="InvalidRequestException">A value names no reason.</exception>
     public IReadOnlyCollection<MisfireReason> ReasonSet() => ReadSet<MisfireReason>(Reasons, "reasons") ?? ReasonsEveryReaderKnows;
+
+    /// <summary>
+    /// Whether a key's two halves are both given: <see langword="false" /> when neither is.
+    /// </summary>
+    /// <exception cref="InvalidRequestException">Only one half is given.</exception>
+    private static bool BothHalves(string? group, string? name, string halfAKey)
+    {
+        bool hasGroup = !string.IsNullOrWhiteSpace(group);
+        bool hasName = !string.IsNullOrWhiteSpace(name);
+        if (hasGroup != hasName)
+        {
+            throw new InvalidRequestException(halfAKey);
+        }
+
+        return hasName;
+    }
 
     private static List<TEnum>? ReadSet<TEnum>(string[]? values, string parameter) where TEnum : struct, Enum
     {

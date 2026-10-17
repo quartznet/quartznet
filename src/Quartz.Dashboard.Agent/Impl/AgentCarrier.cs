@@ -75,6 +75,8 @@ internal sealed class AgentCarrier
     private const string SchedulerInstanceIdParameter = "schedulerInstanceId";
     private const string JobNameValue = "jobName";
     private const string JobGroupValue = "jobGroup";
+    private const string TriggerNameValue = "triggerName";
+    private const string TriggerGroupValue = "triggerGroup";
     private const string CalendarNameValue = "calendarName";
 
     private static readonly Dictionary<WireRoute, Func<Call, ValueTask<Payload>>> Handlers = BuildHandlers();
@@ -406,7 +408,7 @@ internal sealed class AgentCarrier
         handlers[SchedulerRoutes.ResumeTriggerKeys] = call => call.Json(SchedulerOperations.ResumeTriggerKeys(call.Scheduler, call.Body<TriggerKeySetRequest>(), call.Token));
         handlers[SchedulerRoutes.QueryTriggerGroups] = call => call.Json(SchedulerOperations.QueryTriggerGroups(
             call.Scheduler, call.Listing().WithMatchers(call.Query), call.Query.GetNullableBool("paused"), call.Token));
-        handlers[SchedulerRoutes.IsTriggerGroupPaused] = call => call.Json(SchedulerOperations.IsTriggerGroupPaused(call.Scheduler, call.Values["triggerGroup"], call.Token));
+        handlers[SchedulerRoutes.IsTriggerGroupPaused] = call => call.Json(SchedulerOperations.IsTriggerGroupPaused(call.Scheduler, call.Values[TriggerGroupValue], call.Token));
         handlers[SchedulerRoutes.ScheduleJob] = call => call.Json(SchedulerOperations.ScheduleJob(
             call.Scheduler, call.Body<ScheduleJobRequest>(), call.Carrier.ToJobDetail, authenticatedUser: null, call.Token));
         handlers[SchedulerRoutes.ScheduleJobs] = call => Call.Ok(SchedulerOperations.ScheduleJobs(
@@ -521,7 +523,7 @@ internal sealed class AgentCarrier
 
         public JobKey JobKey() => new(Values[JobNameValue], Values[JobGroupValue]);
 
-        public TriggerKey TriggerKey() => new(Values["triggerName"], Values["triggerGroup"]);
+        public TriggerKey TriggerKey() => new(Values[TriggerNameValue], Values[TriggerGroupValue]);
 
         /// <summary>
         /// The paging the request carried, with this agent's page cap, as the API reads it before any
@@ -543,6 +545,9 @@ internal sealed class AgentCarrier
             {
                 JobGroup = Query.Get(JobGroupValue),
                 JobName = Query.Get(JobNameValue),
+                TriggerGroup = Query.Get(TriggerGroupValue),
+                TriggerName = Query.Get(TriggerNameValue),
+                FireInstanceId = Query.Get("fireInstanceId"),
                 FiredFrom = Query.GetDateTimeOffset("firedFrom"),
                 FiredBefore = Query.GetDateTimeOffset("firedBefore"),
                 Results = Query.GetAll("results"),
