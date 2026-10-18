@@ -27,7 +27,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// escalation event says what the round found.
 /// </summary>
 /// <remarks>
-/// In the order the rule asks them. The first five are a property of the store and are decided once;
+/// In the order the rule asks them. The first six are a property of the store and are decided once;
 /// <see cref="OlderPeer" /> and <see cref="ClusterLimit" /> are decided per round before its first read;
 /// <see cref="SerialJob" />, <see cref="OverlapPolicy" /> and <see cref="Delegate" /> are what the
 /// candidate read can show; <see cref="DefinitionChanged" /> is what the post-claim read can show; and
@@ -40,6 +40,11 @@ internal enum RoundLockReason
 
     /// <summary><c>AdoJobStoreOptions.LockFreeFiringRounds</c> is off.</summary>
     OptionOff,
+
+    /// <summary>
+    /// SQL Server, whose firing rounds work as in 4.5 in this release, as with the option off (#4117).
+    /// </summary>
+    SqlServer,
 
     /// <summary><c>AdoJobStoreOptions.AcquireTriggersWithinLock</c> is on.</summary>
     AcquireTriggersWithinLock,
@@ -79,6 +84,7 @@ internal static class RoundLockReasons
     {
         RoundLockReason.LockAllOperations => "lock_all_operations",
         RoundLockReason.OptionOff => "option_off",
+        RoundLockReason.SqlServer => "sql_server",
         RoundLockReason.AcquireTriggersWithinLock => "acquire_within_lock",
         RoundLockReason.IsolationLevel => "isolation_level",
         RoundLockReason.Delegate => "delegate",
@@ -96,6 +102,7 @@ internal static class RoundLockReasons
     {
         RoundLockReason.LockAllOperations => "SQLite serializes every operation",
         RoundLockReason.OptionOff => "LockFreeFiringRounds is off",
+        RoundLockReason.SqlServer => "SQL Server does not use them in this release, so firing rounds work as in 4.5 (#4117)",
         RoundLockReason.AcquireTriggersWithinLock => "AcquireTriggersWithinLock is on",
         RoundLockReason.IsolationLevel => "the transaction isolation level is above ReadCommitted",
         RoundLockReason.Delegate => "the driver delegate does not take part in fire-on-acquire rounds",

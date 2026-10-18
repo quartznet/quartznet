@@ -437,10 +437,11 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// <summary>
     /// Why every firing round of this store takes <see cref="SchedulerLock.TriggerAccess" />, or
     /// <see langword="null" /> when a round decides for itself (#4067). A property of the store's
-    /// configuration, in the order the rule asks: SQLite, the option, <see cref="AcquireTriggersWithinLock" />,
-    /// an isolation level above read committed — where a lost claim is a serialization failure that costs
-    /// a retry interval rather than a zero-row update — and a delegate that takes no part in fire-on-acquire
-    /// rounds, whose overridden claim or fire the round's members would bypass.
+    /// configuration, in the order the rule asks: SQLite, the option, SQL Server — whose rounds are 4.5's in
+    /// this release, as with the option off — <see cref="AcquireTriggersWithinLock" />, an isolation level
+    /// above read committed — where a lost claim is a serialization failure that costs a retry interval
+    /// rather than a zero-row update — and a delegate that takes no part in fire-on-acquire rounds, whose
+    /// overridden claim or fire the round's members would bypass.
     /// </summary>
     internal RoundLockReason? StaticRoundLockReason
     {
@@ -454,6 +455,11 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             if (!LockFreeFiringRounds)
             {
                 return RoundLockReason.OptionOff;
+            }
+
+            if (Delegate is StdAdoDelegate { UsesLockFreeRounds: false })
+            {
+                return RoundLockReason.SqlServer;
             }
 
             if (AcquireTriggersWithinLock)

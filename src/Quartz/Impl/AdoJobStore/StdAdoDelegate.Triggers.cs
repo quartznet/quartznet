@@ -2059,6 +2059,12 @@ public partial class StdAdoDelegate
         return StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(shape.ExcludedJobTypeBucket, shape.ExecutionGroups, RowLimitFor(shape.MaxCount));
     }
 
+    /// <summary>
+    /// Whether a firing round on this dialect may take no <c>TRIGGER_ACCESS</c> lock when nothing in it
+    /// needs one (#4067). True here; SQL Server says false in this release (#4117).
+    /// </summary>
+    internal virtual bool UsesLockFreeRounds => true;
+
     /// <inheritdoc />
     /// <remarks>
     /// True, because <see cref="GetSelectNextTriggerToAcquireSql" /> puts the exclusions into the
