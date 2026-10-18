@@ -752,7 +752,9 @@ What still takes the lock, by the `quartz.jobstore.lock.reason` value that repor
 A round decides from its first read. A candidate only the lock decides rolls the round back before its
 first write and runs it again locked (event 3057, Debug); a job or trigger found changed after the claim
 does the same (event 3058, Warning). The next round starts locked, until a locked round finds nothing that
-needed it.
+needed it. A round of one trigger that takes the lock takes it as 4.5 did: acquired without it, and fired
+under it in a second transaction. `AcquireTriggersWithinLock` and a cluster-scoped limit keep the
+acquisition under the lock.
 
 Rounds that take no lock reach for the same rows on every node. A node that loses every row it reached for
 looks again after a tenth of a second, backing off towards its idle wait, rather than sleeping the idle

@@ -194,23 +194,108 @@ public sealed class LockFreeRoundTest
     }
 
     /// <summary>
-    /// The 4.5 shape, which the option off keeps: a round of one acquired without the lock is left for the
-    /// scheduler to fire under it. The tag describes that round — the acquisition and the fire it hands
-    /// on — so an operator comparing the two settings sees every round locked, as every round is.
+    /// A round of one that takes the lock takes it as 4.5 did, whatever locked it before its read: acquired
+    /// without the lock and left for the scheduler to fire under it, in a transaction of its own. Folded
+    /// under the lock it held TRIGGER_ACCESS through its read, its claim and its fire, and two SQL Server
+    /// nodes acquiring one trigger at a time ran seconds behind their schedule. The tag describes the round
+    /// — the acquisition and the fire it hands on — so every such round reads as locked, as it is.
     /// </summary>
-    [Test]
-    public async Task WithTheOptionOffARoundOfOneIsLeftForTheSchedulerAndSaysItIsLocked()
+    [TestCase("option_off")]
+    [TestCase("isolation_level")]
+    [TestCase("lock_all_operations")]
+    [TestCase("delegate")]
+    [TestCase("older_peer")]
+    public async Task ALockedRoundOfOneIsLeftForTheSchedulerToFireAsIn45(string reason)
     {
-        store = NewStore(configure: options => options.LockFreeFiringRounds = false);
+        switch (reason)
+        {
+            case "option_off":
+                store = NewStore(configure: options => options.LockFreeFiringRounds = false);
+                break;
+            case "isolation_level":
+                store = NewStore(configure: options => options.TransactionIsolationLevel = IsolationLevel.Serializable);
+                break;
+            case "lock_all_operations":
+                store.LockAllOperations = true;
+                break;
+            case "delegate":
+                A.CallTo(() => driverDelegate.SupportsFireOnAcquire).CallsBaseMethod();
+                break;
+            case "older_peer":
+                store = NewStore(clustered: true);
+                break;
+        }
+
         GivenCandidates(Candidate("t1"));
 
         TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 1);
 
-        round.Due.Should().BeEmpty();
+        round.Due.Should().BeEmpty("4.5 fired a round of one in the scheduler's TriggersFired, not in the acquisition");
         round.Pending.Select(x => x.Key.Name).Should().Equal(["t1"]);
         round.LockName.Should().Be(TriggerAccess, "the scheduler's TriggersFired takes it for the fire");
-        round.LockReason.Should().Be("option_off");
-        locks.Acquired.Should().BeEmpty("the acquisition itself takes none, as it never did");
+        round.LockReason.Should().Be(reason);
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(A<ConnectionAndTransactionHolder>._, A<TriggerFiredUpdate>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A round of one that counts against a cluster-scoped limit stays folded under the lock: the count is
+    /// exact only when the acquisition holds it, which the multi-tenancy page promises.
+    /// </summary>
+    [Test]
+    public async Task ARoundOfOneThatCountsAgainstAClusterScopedLimitStaysFolded()
+    {
+        GivenCandidates(Candidate("t1"));
+
+        TriggerAcquisitionResult round = await store.AcquireNextTriggersAndFireDue(
+            Request(maxCount: 1, limits: ExecutionLimitsBuilder.Create().ForGroup("batch", 2, ExecutionLimitScope.Cluster).Build()));
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1"]);
+        round.Fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull();
+        round.LockReason.Should().Be("cluster_limit");
+        locks.Acquired.Should().Equal([SchedulerLock.TriggerAccess], "the acquisition counts the quota under the lock");
+    }
+
+    /// <summary>
+    /// <c>AcquireTriggersWithinLock</c> asks for the acquisition under the lock, which 4.5 folded too.
+    /// </summary>
+    [Test]
+    public async Task ARoundOfOneAcquiredWithinTheLockStaysFolded()
+    {
+        store = NewStore(configure: options => options.AcquireTriggersWithinLock = true);
+        GivenCandidates(Candidate("t1"));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 1);
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1"]);
+        round.LockReason.Should().Be("acquire_within_lock");
+        locks.Acquired.Should().Equal([SchedulerLock.TriggerAccess]);
+    }
+
+    /// <summary>
+    /// A round of one that escalates is retried as 4.5's round, not folded under the lock; the round after
+    /// it starts in 4.5's shape too, and one that finds nothing needing the lock lets the next go without.
+    /// </summary>
+    [Test]
+    public async Task AnEscalatedRoundOfOneAndTheRoundAfterItAreLeftForTheSchedulerAsIn45()
+    {
+        GivenCandidates(Candidate("t1", serial: true));
+
+        TriggerAcquisitionResult escalated = await AcquireAndFire(maxCount: 1);
+
+        escalated.Due.Should().BeEmpty();
+        escalated.Pending.Select(x => x.Key.Name).Should().Equal(["t1"]);
+        escalated.LockReason.Should().Be("serial_job");
+        store.Transactions.Should().Be(2, "the attempt without the lock, rolled back, and 4.5's acquisition");
+
+        GivenCandidates(Candidate("t2"));
+        TriggerAcquisitionResult hysteresis = await AcquireAndFire(maxCount: 1);
+        hysteresis.Pending.Select(x => x.Key.Name).Should().Equal(["t2"]);
+        hysteresis.LockReason.Should().Be("hysteresis");
+
+        TriggerAcquisitionResult free = await AcquireAndFire(maxCount: 1);
+        free.Due.Select(x => x.Key.Name).Should().Equal(["t2"], "the round before found nothing that needed the lock");
+        free.LockName.Should().Be("none");
     }
 
     /// <summary>

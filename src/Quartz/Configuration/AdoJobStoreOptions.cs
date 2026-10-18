@@ -246,7 +246,7 @@ public sealed class AdoJobStoreOptions
     /// store's transactions run above read committed, when <see cref="AcquireTriggersWithinLock" /> is on,
     /// on SQLite, and — on a cluster — while any live node is older than 4.6 or no check-in has read the
     /// state table yet. Otherwise the claim is a compare-and-swap on each row's fire time, and the fire
-    /// writes rows this transaction holds.
+    /// writes rows this transaction holds. A round of one trigger that takes the lock takes it as 4.5 did.
     /// </para>
     /// <para>
     /// <see langword="false" /> restores 4.5: a round of one acquires without the lock and the scheduler
