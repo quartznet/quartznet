@@ -280,4 +280,7 @@ internal static partial class AdoJobStoreLog
 
     [LoggerMessage(EventId = 3163, Level = LogLevel.Debug, Message = "Execution history sweep for scheduler '{SchedulerName}' is left to node '{InstanceId}', the live node with the lowest instance id")]
     public static partial void ExecutionHistorySweepDeferred(this ILogger logger, string schedulerName, string instanceId);
+
+    [LoggerMessage(EventId = 3164, Level = LogLevel.Warning, Message = "Could not write {RowCount} buffered execution history row(s) for scheduler '{SchedulerName}'. The firings are unaffected; those rows and their jobs' status changes are lost.")]
+    public static partial void ExecutionHistoryWriteBehindFailed(this ILogger logger, string schedulerName, int rowCount, Exception exception);
 }

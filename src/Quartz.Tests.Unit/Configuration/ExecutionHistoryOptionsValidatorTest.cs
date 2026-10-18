@@ -42,8 +42,34 @@ public sealed class ExecutionHistoryOptionsValidatorTest
         options.MaxEntriesPerJob.Should().Be(0, "a per-job cap is opt-in");
         options.RecordInput.Should().BeFalse("an input can hold secrets, so recording it is opt-in");
         options.MaxInputBytes.Should().Be(16 * 1024);
+        options.WriteBehindInterval.Should().BeNull("the status commits with its row unless write-behind is asked for");
 
         Validate(options).Succeeded.Should().BeTrue();
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void TheWriteBehindIntervalMustBePositiveWhenSet(int milliseconds)
+    {
+        ValidateOptionsResult result = Validate(new ExecutionHistoryOptions { WriteBehindInterval = TimeSpan.FromMilliseconds(milliseconds) });
+
+        result.Failed.Should().BeTrue("a window of no time would flush on every completion, which is write-behind off with extra steps");
+        result.FailureMessage.Should().Contain("WriteBehindInterval").And.Contain("null");
+    }
+
+    [Test]
+    public void TheWriteBehindIntervalMustFitATimer()
+    {
+        ValidateOptionsResult result = Validate(new ExecutionHistoryOptions { WriteBehindInterval = TimeSpan.FromDays(60) });
+
+        result.Failed.Should().BeTrue("the writer waits the interval out on a timer, which refuses anything past about 49 days");
+        result.FailureMessage.Should().Contain("WriteBehindInterval");
+    }
+
+    [Test]
+    public void APositiveWriteBehindIntervalIsValid()
+    {
+        Validate(new ExecutionHistoryOptions { WriteBehindInterval = TimeSpan.FromSeconds(1) }).Succeeded.Should().BeTrue();
     }
 
     [TestCase(0)]
