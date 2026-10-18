@@ -142,10 +142,9 @@ await, and return early when cancellation is requested. In 4.x the token is also
 
 * `PreviousFireTimeUtc` belongs to the trigger. Another trigger of the job and a `TriggerJob` firing start
   at `null`.
-* `ScheduleJob` replacing a trigger under the same key keeps it. `RescheduleJob` with a new trigger does
-  not, and neither does a start that re-applies an `AddTrigger` or `ScheduleJob` registration to a
-  persistent store, unless `SchedulingOptions.ScheduleTriggerRelativeToReplacedTrigger` is on and the
-  trigger does not start in the future.
+* `ScheduleJob` replacing a trigger under the same key keeps it, and so does a start that re-applies an
+  `AddTrigger` or `ScheduleJob` registration to a persistent store (4.6). `RescheduleJob` with a new
+  trigger does not.
 * The run status needs the [execution history](quartz-4.x/how-tos/job-outcomes.md#read-a-job-s-status). A
   run is recorded when it ends, so `JobRunStatus.RunCount` counts the runs before this one.
 

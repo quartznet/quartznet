@@ -49,7 +49,8 @@ if (next is null)
 <!-- endSnippet -->
 
 Everything derived from the old trigger resets: `PreviousFireTimeUtc` is empty, a `SimpleTrigger`'s repeat
-count starts over, and a paused trigger takes whatever state its new group implies.
+count starts over, and a paused trigger takes whatever state its new group implies. A process start that
+re-applies a registration keeps `PreviousFireTimeUtc` (4.6); the rest resets there too.
 
 A firing already running is not touched: it completes as the old trigger, and in a persistent store its
 fired-trigger record stays until then, so a job that requested recovery is still recovered if the node dies.

@@ -196,4 +196,87 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
 
         return store;
     }
+
+    /// <summary>
+    /// A trigger the application declares is re-applied by every scheduler created over the store, and the
+    /// re-applied trigger keeps the time it last fired, so the first firing after a restart reports the one
+    /// before it (#1834, #4122).
+    /// </summary>
+    /// <remarks>
+    /// Here rather than in the contract the in-memory store answers too: it takes a scheduler, and a
+    /// restart only means something over rows that outlive one. The unit suite has the in-memory case.
+    /// </remarks>
+    [Test]
+    public async Task ADeclaredTriggerReappliedAtStartupKeepsItsPreviousFireTime()
+    {
+        JobKey jobKey = new("declared", JobGroupA);
+        TriggerKey triggerKey = new("declared", TriggerGroupA);
+
+        await CreateASchedulerDeclaring(jobKey, triggerKey);
+
+        TriggerFiredBundle firstFiring = await FireAndComplete(triggerKey);
+        firstFiring.PreviousFireTimeUtc.Should().BeNull("the premise: a new trigger's first firing has no previous one");
+
+        DateTimeOffset? previous = (await Store.GetTrigger(triggerKey)).PreviousFireTimeUtc;
+        previous.Should().NotBeNull("the premise: a trigger that has fired knows when it last fired");
+
+        await CreateASchedulerDeclaring(jobKey, triggerKey);
+
+        (await Store.GetTrigger(triggerKey)).PreviousFireTimeUtc.Should().Be(previous,
+            "creating a scheduler re-applies the declared trigger, and re-applying the same trigger must not "
+            + "forget that it has fired");
+
+        TriggerFiredBundle nextFiring = await FireAndComplete(triggerKey);
+        nextFiring.PreviousFireTimeUtc.Should().Be(previous,
+            "context.PreviousFireTimeUtc on the first firing after a restart is the firing before the restart");
+    }
+
+    /// <summary>
+    /// What a process start does to this fixture's rows: a scheduler of the same name over a store of its
+    /// own, which applies the job and trigger the application declares as it is created. Never started, and
+    /// shut down again, so the firings stay the test's to drive.
+    /// </summary>
+    private async ValueTask CreateASchedulerDeclaring(JobKey jobKey, TriggerKey triggerKey)
+    {
+        AdoJobStoreBase store = CreateJobStore(new DbProvider(DbProviderName, preparedConnectionString), CreateDriverDelegate());
+
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q =>
+            {
+                q.ConfigureScheduler(options =>
+                {
+                    options.InstanceName = SchedulerName;
+                    options.InstanceId = InstanceId;
+                });
+                q.UseJobStore(store);
+                q.AddJob<ContractTestJob>(job => job.WithIdentity(jobKey));
+                q.AddTrigger(trigger => trigger
+                    .WithIdentity(triggerKey)
+                    .ForJob(jobKey)
+                    .StartNow()
+                    .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever()));
+            })
+            .BuildScheduler();
+
+        await scheduler.Shutdown();
+    }
+
+    private async ValueTask<TriggerFiredBundle> FireAndComplete(TriggerKey triggerKey)
+    {
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 1,
+        });
+
+        IOperableTrigger firing = acquired.Should().ContainSingle(x => x.Key.Equals(triggerKey),
+            "the declared trigger starts now and is the only one due").Subject;
+
+        List<TriggerFiredResult> fired = await Store.TriggersFired([firing]);
+        TriggerFiredBundle bundle = fired.Should().ContainSingle().Which.TriggerFiredBundle;
+        bundle.Should().NotBeNull("the trigger is due and nothing stands in its way");
+
+        await Store.TriggeredJobComplete(firing, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+        return bundle;
+    }
 }
