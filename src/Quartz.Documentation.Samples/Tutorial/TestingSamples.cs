@@ -46,7 +46,40 @@ public static class TestingSamples
             .FiredAt(new DateTimeOffset(2026, 3, 6, 9, 0, 0, TimeSpan.Zero))
             .Build();
 
-        await job.Execute(context, CancellationToken.None);
+        await job.Execute(context, context.CancellationToken);
+
+        #endregion
+    }
+
+    public static async ValueTask ARecoveringJob(ICheckpointedImporter importer)
+    {
+        #region sample_testing_recovering_job
+
+        IJobDetail detail = JobBuilder.Create<ResumableImportJob>()
+            .RequestRecovery()
+            .Build();
+
+        ResumableImportJob job = new(importer);
+        using JobExecutionContextImpl context = JobExecutionContextBuilder.For(job)
+            .WithJob(detail)
+            .Recovering()
+            .Build();
+
+        await job.Execute(context, context.CancellationToken);
+
+        #endregion
+    }
+
+    public static void TheLastAttempt(IOutbox outbox)
+    {
+        #region sample_testing_last_attempt
+
+        DeliveryJob job = new(outbox);
+        using JobExecutionContextImpl context = JobExecutionContextBuilder.For(job)
+            .WithRetryAttempt(3)
+            .Build();
+
+        Func<Task> deliver = async () => await job.Execute(context, context.CancellationToken);
 
         #endregion
     }
@@ -91,6 +124,61 @@ public sealed class ImportJob(IImporter importer) : IJob
         return importer.Import(context.MergedJobDataMap.GetString("source")!, cancellationToken);
     }
 }
+
+/// <summary>What <see cref="ResumableImportJob" /> imports through, which a test fakes.</summary>
+public interface ICheckpointedImporter
+{
+    ValueTask<long> LastCheckpoint(CancellationToken cancellationToken);
+
+    ValueTask ImportFrom(long checkpoint, CancellationToken cancellationToken);
+}
+
+#region sample_testing_resumable_job
+
+public sealed class ResumableImportJob(ICheckpointedImporter importer) : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        // A recovered firing resumes where the interrupted one stopped; any other starts over.
+        long from = context.Recovering ? await importer.LastCheckpoint(cancellationToken) : 0;
+        await importer.ImportFrom(from, cancellationToken);
+    }
+}
+
+#endregion
+
+/// <summary>Where <see cref="DeliveryJob" /> sends from, which a test fakes.</summary>
+public interface IOutbox
+{
+    ValueTask Deliver(CancellationToken cancellationToken);
+
+    ValueTask DeadLetter(CancellationToken cancellationToken);
+}
+
+#region sample_testing_delivery_job
+
+[RetryPolicy(3, "00:05:00")]
+public sealed class DeliveryJob(IOutbox outbox) : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await outbox.Deliver(cancellationToken);
+        }
+        catch (HttpRequestException) when (IsLastAttempt(context))
+        {
+            await outbox.DeadLetter(cancellationToken);
+            throw;
+        }
+    }
+
+    // No retry follows the last attempt: the policy's attempts are spent, or there is no policy.
+    private static bool IsLastAttempt(IJobExecutionContext context)
+        => context.RetryPolicy is not { } policy || context.RetryAttempt >= policy.MaxAttempts;
+}
+
+#endregion
 
 #region sample_testing_completion_listener
 
