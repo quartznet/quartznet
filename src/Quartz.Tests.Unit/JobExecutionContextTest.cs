@@ -17,6 +17,8 @@
  */
 #endregion
 
+using Microsoft.Extensions.Time.Testing;
+
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
@@ -93,27 +95,53 @@ public class JobExecutionContextTest
     /// <summary>
     /// The documentation used to promise <see cref="TimeSpan.MinValue" /> until the job completed, and
     /// a listener written against it (<c>if (context.JobRunTime == TimeSpan.MinValue)</c>) never took
-    /// its branch: mid-execution the value is the wall clock less the fire time, and once the scheduler
-    /// has measured the run it is what the scheduler stored.
+    /// its branch. Mid-execution the value was then the wall clock less the fire time, which a fake clock
+    /// could not move (#4097); it is now the time since the run began, on the context's clock, and once
+    /// the run has stopped it is the measurement.
     /// </summary>
     [Test]
-    public void JobRunTimeEstimatesWhileRunningAndReportsTheMeasurementOnceStored()
+    public void JobRunTimeCountsFromTheRunsStartOnItsClockAndHoldsTheMeasurementOnceStopped()
     {
-        TriggerFiredBundle bundle = TestUtil.NewMinimalTriggerFiredBundle();
-        bundle = bundle with { FireTimeUtc = DateTimeOffset.UtcNow.AddMinutes(-5) };
+        FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 6, 9, 0, 0, TimeSpan.Zero));
+        TriggerFiredBundle bundle = TestUtil.NewMinimalTriggerFiredBundle() with { FireTimeUtc = clock.GetUtcNow().AddMinutes(-5) };
 
-        JobExecutionContextImpl ctx = new(null, bundle, null);
+        JobExecutionContextImpl ctx = new(null, bundle, null, inputSerializer: null, clock);
 
-        ctx.JobRunTime.Should().BeGreaterThan(TimeSpan.Zero,
-            "a job that fired five minutes ago and has not finished has run for about five minutes");
+        ctx.JobRunTime.Should().Be(TimeSpan.Zero, "a firing whose job has not been called yet has run for no time at all");
+
+        ctx.StartRunClock();
+        clock.Advance(TimeSpan.FromSeconds(7));
+
+        ctx.JobRunTime.Should().Be(TimeSpan.FromSeconds(7),
+            "the run counts from its start on the context's clock, not from a fire time five minutes earlier");
         ctx.JobRunTime.Should().NotBe(TimeSpan.MinValue,
             "TimeSpan.MinValue is what the documentation used to promise and what the property has never returned");
 
-        ctx.JobRunTime = TimeSpan.FromMilliseconds(17);
+        ctx.StopRunClock();
+        clock.Advance(TimeSpan.FromMinutes(1));
 
-        ctx.JobRunTime.Should().Be(TimeSpan.FromMilliseconds(17),
-            "once the scheduler has measured the completed run, that measurement is the answer and the "
-            + "wall-clock estimate is not consulted again");
+        ctx.JobRunTime.Should().Be(TimeSpan.FromSeconds(7),
+            "once the run has stopped, its measurement is the answer and the clock is not consulted again");
+    }
+
+    /// <summary>
+    /// A context built with the public constructor is built to be handed to a job straight away, so its run
+    /// counts from its construction, on the system clock — never from <see cref="DateTimeOffset.UtcNow" />
+    /// less the fire time.
+    /// </summary>
+    [Test]
+    public void AContextBuiltByHandCountsFromItsConstructionOnTheSystemClock()
+    {
+        TriggerFiredBundle bundle = TestUtil.NewMinimalTriggerFiredBundle() with { FireTimeUtc = DateTimeOffset.UtcNow.AddHours(-1) };
+        long before = TimeProvider.System.GetTimestamp();
+
+        JobExecutionContextImpl ctx = new(null, bundle, null);
+
+        TimeSpan runTime = ctx.JobRunTime;
+        TimeSpan sinceBefore = TimeProvider.System.GetElapsedTime(before);
+        runTime.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero)
+            .And.BeLessThanOrEqualTo(sinceBefore,
+                "the run began when the context was built, after the timestamp taken before it, and not when the trigger fired an hour ago");
     }
 
     /// <summary>

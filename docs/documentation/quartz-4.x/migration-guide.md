@@ -64,6 +64,7 @@ two indexes, performance only.
 | HTTP: `triggerGroup`, `triggerName`, `fireInstanceId` on `GET …/history/executions` and `…/history/statistics`; `triggerGroup`, `triggerName` on `…/history/misfires` | Ignored by a host older than 4.6, which `HttpExecutionHistoryStore` refuses to ask. See [Filtering by job, time and result](packages/http-api.md#filtering-by-job-time-and-result) |
 | `IDX_QRTZ_EH_FIRE_INST`, `IDX_QRTZ_EH_TRIG_TIME` | On `QRTZ_EXECUTION_HISTORY`, in a fresh install and `ProvisionSchema()`; optional migration for an existing database. See [Version 4.6](../database/schema-changes.md#version-4-6) |
 | Dashboard: `triggerGroup`, `triggerName` on the History page | One trigger exactly. See [Execution history and misfires](packages/dashboard.md#execution-history-and-misfires) |
+| `JobExecutionContextBuilder.Recovering(bool = true)`, `WithRetryAttempt(int)`, `WithRefireCount(int)`, `WithCalendar(ICalendar)`, `WithCancellation(CancellationToken)`, `WithTimeProvider(TimeProvider)` | What a job branches on, set for a level-1 test. See [Level 1](tutorial/testing.md#level-1-one-job-one-context) |
 
 Behaviour that changed:
 
@@ -88,6 +89,7 @@ Behaviour that changed:
 | A clustered node with no `InstanceId` kept `NON_CLUSTERED`, so every such node shared one id | `UseClustering()`, `quartz.jobStore.clustered` and `JobStore:Clustering:Enabled` turn `GenerateInstanceId` on unless `InstanceId` or a generator was chosen. The old `NON_CLUSTERED` check-in row is recovered as a failed node | Nothing. For a fixed id per node, set `InstanceId`: [Naming a node in a container](operations.md#naming-a-node-in-a-container) |
 | The dashboard's Trigger Detail and Currently Executing pages linked to History by the trigger text filter, which also lists `nightly-2` for `nightly` | They link to that trigger exactly. Against a host older than 4.6 the History page says it cannot filter | Nothing. A bookmarked `history?trigger=…` link still filters by fragment |
 | `AddJob`, `AddTrigger` or `ScheduleJob` with no `WithIdentity` stored a generated key in a persistent store, silently | Log event `4030` warns at each start, naming the registration and the key | Give the job or trigger `WithIdentity(...)`, and delete the copies earlier starts left |
+| `JobRunTime` read while the job ran was `DateTimeOffset.UtcNow` less `FireTimeUtc` | The time since the job was called, on the scheduler's `TimeProvider`, from the start the final value counts from. `TimeSpan.Zero` before the job is called, so a vetoed firing reports zero | Nothing. Under a `FakeTimeProvider` it advances by exactly what the clock advanced |
 
 ## Upgrading from 4.4 to 4.5
 
