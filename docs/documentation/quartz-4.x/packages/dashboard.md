@@ -227,7 +227,8 @@ detail page.
   user's name. A paused trigger shows **Paused: reason (by who, when)** on its page and its listing rows, and a
   paused job group shows its record on the Jobs page. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
 - *Reset error state* clears an `ERROR` trigger once its cause is fixed.
-- The cron reschedule editor previews the next five fires.
+- The cron reschedule editor previews the next five fires of the expression being edited, before it is saved,
+  in the trigger's time zone and less what its calendar excludes.
 
 ### Editing a trigger
 
