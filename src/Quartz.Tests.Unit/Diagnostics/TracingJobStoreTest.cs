@@ -59,6 +59,19 @@ public sealed class TracingJobStoreTest
     private ActivityListener activityListener;
     private MeterListener meterListener;
 
+    /// <summary>
+    /// The scheduler name of the store the current test builds, which no other scheduler in the process
+    /// has.
+    /// </summary>
+    /// <remarks>
+    /// The listeners hear every activity on the Quartz source and every measurement on the Quartz meter,
+    /// including those of schedulers other tests leave running, and those landed in the lists below and
+    /// broke assertions such as "exactly one acquisition span" on macOS (#4087, #4124). The decorator tags
+    /// every span and measurement with its store's scheduler name, so the listeners keep only the ones
+    /// carrying this name: the lists hold this test's store and nothing else.
+    /// </remarks>
+    private string schedulerName;
+
     [SetUp]
     public void SetUp()
     {
@@ -72,12 +85,19 @@ public sealed class TracingJobStoreTest
             measurements.Clear();
         }
 
+        string ours = schedulerName = $"traced-{Guid.NewGuid():N}";
+
         activityListener = new ActivityListener
         {
             ShouldListenTo = static source => source.Name == QuartzInstrumentation.ActivitySourceName,
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
             ActivityStopped = activity =>
             {
+                if (!Equals(activity.GetTagItem(SchedulerNameTag), ours))
+                {
+                    return;
+                }
+
                 lock (stoppedActivities)
                 {
                     stoppedActivities.Add(activity);
@@ -107,6 +127,11 @@ public sealed class TracingJobStoreTest
             foreach (KeyValuePair<string, object> tag in tags)
             {
                 copy[tag.Key] = tag.Value;
+            }
+
+            if (!copy.TryGetValue(SchedulerNameTag, out object name) || !Equals(name, ours))
+            {
+                return;
             }
 
             lock (measurements)
@@ -142,7 +167,7 @@ public sealed class TracingJobStoreTest
             "a store call is an outbound request as far as a trace is concerned, whether the store is a "
             + "database or a dictionary");
         span.Source.Name.Should().Be(QuartzInstrumentation.ActivitySourceName);
-        span.GetTagItem(SchedulerNameTag).Should().Be("traced");
+        span.GetTagItem(SchedulerNameTag).Should().Be(schedulerName);
         span.GetTagItem(SchedulerIdTag).Should().Be("node-1");
         span.GetTagItem(ActivityTags.JobGroup).Should().Be("jobs");
         span.GetTagItem(ActivityTags.JobName).Should().Be("job");
@@ -296,7 +321,7 @@ public sealed class TracingJobStoreTest
 
         measurement.Unit.Should().Be("s", "OpenTelemetry records durations in seconds");
         measurement.Value.Should().BeGreaterThanOrEqualTo(0);
-        measurement.Tags.Should().Contain(new KeyValuePair<string, object>(SchedulerNameTag, "traced"))
+        measurement.Tags.Should().Contain(new KeyValuePair<string, object>(SchedulerNameTag, schedulerName))
             .And.Contain(new KeyValuePair<string, object>(SchedulerIdTag, "node-1"))
             .And.Contain(new KeyValuePair<string, object>(OperationTag, OperationName.JobStore.PauseAll),
                 "the measurement is named by the same string the operation's span is called, so one value "
@@ -362,7 +387,6 @@ public sealed class TracingJobStoreTest
     [Test]
     public async Task TheSchedulerOption_TurnsTheStoreSpansExceptionEventsOff()
     {
-        string schedulerName = $"no-exception-events-{Guid.NewGuid():N}";
         ServiceCollection services = new();
         services.AddQuartz(quartz => quartz.ConfigureScheduler(options =>
         {
@@ -528,10 +552,6 @@ public sealed class TracingJobStoreTest
         using ActivitySource unlistened = new("Quartz.Tests.Unlistened");
         IJobStore inner = StubStore();
 
-        // A name no other scheduler in the process has, because every span carries its store's scheduler
-        // name and that is what tells this store's spans apart from everybody else's.
-        string schedulerName = $"quiet-{Guid.NewGuid():N}";
-
         TracingJobStore store = new(inner, new Meters(meterFactory: null), TimeProvider.System, unlistened);
         await store.Initialize(new SchedulerIdentity { SchedulerName = schedulerName, InstanceId = "node-0" });
 
@@ -546,11 +566,9 @@ public sealed class TracingJobStoreTest
         await store.PauseTriggersWith([new TriggerKey("t")], details);
         await store.PauseJobsWith([new JobKey("j")], details);
 
-        // Only this store's spans: the listener hears every "Quartz" activity in the process, including
-        // those of schedulers other tests leave running, which is what made this flake on macOS (#4087).
         lock (stoppedActivities)
         {
-            stoppedActivities.Should().NotContain(a => Equals(a.GetTagItem(SchedulerNameTag), schedulerName),
+            stoppedActivities.Should().BeEmpty(
                 "no listener on the source the store was handed means no activity to create, and the store "
                 + "may not fall back to the Quartz source instead");
         }
@@ -636,9 +654,9 @@ public sealed class TracingJobStoreTest
         return store;
     }
 
-    private static async Task<IJobStore> Decorated(IJobStore inner, bool recordExceptionEvents = true)
+    private async Task<IJobStore> Decorated(IJobStore inner, bool recordExceptionEvents = true)
     {
-        SchedulerIdentity identity = new() { SchedulerName = "traced", InstanceId = "node-1" };
+        SchedulerIdentity identity = new() { SchedulerName = schedulerName, InstanceId = "node-1" };
         await inner.Initialize(identity);
 
         TracingJobStore store = new(inner, new Meters(meterFactory: null), TimeProvider.System, recordExceptionEvents);
