@@ -1045,7 +1045,11 @@ public class QuartzScheduler :
     /// will produce a future fire time. This handles the case where a trigger is
     /// created well before it is actually scheduled.
     /// </summary>
-    private static void AdjustSimpleTriggerStartTimeIfInPast(IOperableTrigger trigger)
+    /// <remarks>
+    /// Also called by the scheduling-data processor before it gives a re-applied trigger the previous fire
+    /// time it had, which would otherwise skip this and leave the next fire time where it was not before.
+    /// </remarks>
+    internal static void AdjustSimpleTriggerStartTimeIfInPast(IOperableTrigger trigger)
     {
         if (trigger is ISimpleTrigger simpleTrigger
             && trigger.GetPreviousFireTimeUtc() is null
