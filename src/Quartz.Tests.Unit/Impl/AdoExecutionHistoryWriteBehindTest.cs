@@ -201,6 +201,34 @@ public sealed partial class AdoExecutionHistoryStoreContractTest
     }
 
     /// <summary>
+    /// A run that arrives after the store was disposed is not queued where nothing would write it: it is
+    /// written as it arrives, which a disposed store refuses, and the loss is reported like any other.
+    /// </summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task ARunAfterDisposalIsNotQueued(bool queuedBefore)
+    {
+        await CreateStore(_ => { });
+        RecordingLoggerProvider logs = new();
+        using ILoggerFactory loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(logs));
+        AdoExecutionHistoryStore history = WriteBehindStore(new SQLiteDelegate(), loggerFactory: loggerFactory);
+
+        if (queuedBefore)
+        {
+            await history.AddExecution(Named(busy, "before", 0, JobRunResult.Succeeded));
+        }
+
+        await history.DisposeAsync();
+
+        Func<Task> late = async () => await history.AddExecution(Named(busy, "after", 1, JobRunResult.Succeeded));
+
+        await late.Should().NotThrowAsync("a history write never fails the firing it records");
+        logs.Entries.Should().ContainSingle(entry => entry.EventId.Id == 3160,
+            "the late run was written as it arrived, which the disposed store refused and reported");
+        (await RowCount()).Should().Be(queuedBefore ? 1 : 0, "only the run queued before the disposal was written");
+    }
+
+    /// <summary>
     /// A run that finds the queue full writes itself, as with write-behind off: nothing waits for room and
     /// nothing is dropped, and the flush that follows folds onto the row that run wrote.
     /// </summary>
