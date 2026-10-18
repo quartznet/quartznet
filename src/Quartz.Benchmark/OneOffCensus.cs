@@ -65,6 +65,18 @@ internal static class OneOffCensus
     private static readonly bool executionHistory = string.Equals(
         Environment.GetEnvironmentVariable("QUARTZ_CENSUS_EXECUTION_HISTORY"), "true", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Whether that history is written behind, from <c>QUARTZ_CENSUS_HISTORY_WRITE_BEHIND=true</c> beside
+    /// <c>QUARTZ_CENSUS_EXECUTION_HISTORY=true</c>: a completion queues its row, and a writer flushes the
+    /// queue every <see cref="HistoryModes.WriteBehindInterval" /> with one status update per job (#3979).
+    /// </summary>
+    /// <remarks>
+    /// The last flush of a drain lands inside the counted tail, which is longer than the interval, so the
+    /// statement and commit columns still carry every firing's history.
+    /// </remarks>
+    private static readonly bool historyWriteBehind = executionHistory && string.Equals(
+        Environment.GetEnvironmentVariable("QUARTZ_CENSUS_HISTORY_WRITE_BEHIND"), "true", StringComparison.OrdinalIgnoreCase);
+
     public static void Run()
     {
         RunCore().GetAwaiter().GetResult();
@@ -83,7 +95,9 @@ internal static class OneOffCensus
 
         if (executionHistory)
         {
-            Console.WriteLine("Execution history is on (QUARTZ_CENSUS_EXECUTION_HISTORY): the first arm's first firing inserts the job's status row, every other firing updates it.");
+            Console.WriteLine(historyWriteBehind
+                ? "Execution history is on and written behind (QUARTZ_CENSUS_HISTORY_WRITE_BEHIND): completions are queued and flushed once a second, one status update per flush."
+                : "Execution history is on (QUARTZ_CENSUS_EXECUTION_HISTORY): the first arm's first firing inserts the job's status row, every other firing updates it.");
             await ClearExecutionHistoryRows(database, SchedulerName).ConfigureAwait(false);
         }
 
@@ -135,6 +149,11 @@ internal static class OneOffCensus
                 if (executionHistory)
                 {
                     store.UseExecutionHistory();
+                }
+
+                if (historyWriteBehind)
+                {
+                    quartz.Services.AddQuartzExecutionHistory(options => options.WriteBehindInterval = HistoryModes.WriteBehindInterval);
                 }
             })).ConfigureAwait(false);
 

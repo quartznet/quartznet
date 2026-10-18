@@ -37,8 +37,10 @@ namespace Quartz.Benchmark;
 /// <para>
 /// <c>--one-off-census</c> is the same workload with the statements counted at the database instead
 /// of the wall clock measured here. <see cref="ExecutionHistory" /> is the census's
-/// <c>QUARTZ_CENSUS_EXECUTION_HISTORY</c> as a parameter: with it on, every firing also writes its
-/// history row and its job's status row, in a transaction of their own on the worker's thread.
+/// <c>QUARTZ_CENSUS_EXECUTION_HISTORY</c> and <c>QUARTZ_CENSUS_HISTORY_WRITE_BEHIND</c> as a parameter:
+/// <see cref="HistoryMode.On" /> writes every firing's history row and its job's status row in a
+/// transaction of their own on the worker's thread, and <see cref="HistoryMode.WriteBehind" /> queues them
+/// for a writer that flushes once a second (#3979).
 /// </para>
 /// <para>
 /// <see cref="RoundTripLatency" /> applies here: with <c>QUARTZ_BENCHMARK_ROUND_TRIP_MS</c> set, every
@@ -69,10 +71,11 @@ public class OneOffThroughputPostgresBenchmark
 
     /// <summary>
     /// Whether the store keeps its execution history in the database (<c>UseExecutionHistory()</c>), so
-    /// that a firing's cost includes its history row and its job's status row.
+    /// that a firing's cost includes its history row and its job's status row, and whether those are
+    /// written behind.
     /// </summary>
-    [Params(false, true)]
-    public bool ExecutionHistory { get; set; }
+    [Params(HistoryMode.Off, HistoryMode.On, HistoryMode.WriteBehind)]
+    public HistoryMode ExecutionHistory { get; set; }
 
     private BenchmarkDatabase database = null!;
     private IScheduler scheduler = null!;
@@ -86,7 +89,7 @@ public class OneOffThroughputPostgresBenchmark
 
         string connectionString = database.Provider.ConnectionString;
         string providerName = database.ProviderName;
-        bool executionHistory = ExecutionHistory;
+        HistoryMode executionHistory = ExecutionHistory;
 
         scheduler = await OneOffThroughput.StartScheduler(
             instanceName: SchedulerName,
@@ -98,9 +101,14 @@ public class OneOffThroughputPostgresBenchmark
                 store.UseSystemTextJsonSerializer();
                 RoundTripLatency.Inject(store, providerName, connectionString);
 
-                if (executionHistory)
+                if (executionHistory != HistoryMode.Off)
                 {
                     store.UseExecutionHistory();
+                }
+
+                if (executionHistory == HistoryMode.WriteBehind)
+                {
+                    quartz.Services.AddQuartzExecutionHistory(options => options.WriteBehindInterval = HistoryModes.WriteBehindInterval);
                 }
             })).ConfigureAwait(false);
     }
@@ -133,4 +141,31 @@ public class OneOffThroughputPostgresBenchmark
     /// <summary>One operation is one firing; the body waits for the whole batch of them to happen.</summary>
     [Benchmark(OperationsPerInvoke = Firings)]
     public void Fire() => OneOffThroughput.Drain(Firings);
+}
+
+/// <summary>How a benchmark's scheduler keeps its execution history.</summary>
+public enum HistoryMode
+{
+    /// <summary>No database history: the shipped default.</summary>
+    Off,
+
+    /// <summary><c>UseExecutionHistory()</c>: each completion writes its row and its job's status before it returns.</summary>
+    On,
+
+    /// <summary>
+    /// <c>UseExecutionHistory()</c> with <c>WriteBehindInterval</c> set to
+    /// <see cref="HistoryModes.WriteBehindInterval" />: a completion queues its row, and a writer flushes the
+    /// queue with one status update per job.
+    /// </summary>
+    WriteBehind,
+}
+
+/// <summary>What the benchmarks' write-behind arm is configured with.</summary>
+internal static class HistoryModes
+{
+    /// <summary>
+    /// The flush interval: one second, inside the census's three-second tail, so the last flush of a drain
+    /// is counted.
+    /// </summary>
+    internal static readonly TimeSpan WriteBehindInterval = TimeSpan.FromSeconds(1);
 }
