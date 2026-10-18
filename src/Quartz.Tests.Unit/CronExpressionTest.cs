@@ -786,7 +786,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [Test]
     public void TestCronExpressionWeekdaysMonFri()
     {
-        CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI");
+        CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI", TimeZoneInfo.Utc);
         int[] arrJuneDaysThatShouldFire =
             [1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29];
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
@@ -797,7 +797,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [Test]
     public void TestCronExpressionWeekdaysFriday()
     {
-        CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI");
+        CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI", TimeZoneInfo.Utc);
         var nextRunTime = cronExpression.GetTimeAfter(DateTimeOffset.Now);
         var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
 
@@ -811,7 +811,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [Test]
     public void TestCronExpressionLastDayOfMonth()
     {
-        CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
+        CronExpression cronExpression = new CronExpression("0 0 12 L * ?", TimeZoneInfo.Utc);
         int[] arrJuneDaysThatShouldFire = [30];
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
@@ -877,8 +877,9 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         List<int> fireDays = [];
 
-        DateTime date = new DateTime(2007, 6, 1, 11, 0, 0).ToUniversalTime();
-        DateTimeOffset? nextFireTime = date;
+        // UTC, like the callers' expressions, because the days are read off the firing times as UTC: in
+        // a zone more than twelve hours ahead of UTC, local noon falls on the previous UTC day.
+        DateTimeOffset? nextFireTime = new DateTimeOffset(2007, 6, 1, 11, 0, 0, TimeSpan.Zero);
 
         for (int i = 0; i < DateTime.DaysInMonth(2007, 6); ++i)
         {
@@ -1441,74 +1442,76 @@ public class CronTestScenarios
         public string TestCase { get; init; }
     }
 
+    // The instants below are UTC, so the expressions are read in UTC too. In the machine's zone, 12:00Z is
+    // before that day's noon firing behind UTC, and local noon falls on the previous UTC day at UTC+14.
     private static IEnumerable<TestCaseProps> TestCaseData =>
     [
         new TestCaseProps
         {
-            CronExpression = new CronExpression("0 0 12 15W * ?"),
+            CronExpression = new CronExpression("0 0 12 15W * ?", TimeZoneInfo.Utc),
             TimeAfterDate = new DateTimeOffset(2024, 5, 15, 12, 0, 0, TimeSpan.Zero),
             ExpectedNextFireTime = new DateTimeOffset(2024, 6, 14, 12, 0, 0, TimeSpan.Zero),
             TestCase = "Run on Weekday 15th Every Month - 2024-06-15 is a Sat, schedule should be Fri 14th"
         },
         new TestCaseProps
         {
-            CronExpression = new CronExpression("0 0 12 15W * ?"),
+            CronExpression = new CronExpression("0 0 12 15W * ?", TimeZoneInfo.Utc),
             TimeAfterDate = new DateTimeOffset(2024, 8, 15, 12, 0, 0, TimeSpan.Zero),
             ExpectedNextFireTime = new DateTimeOffset(2024, 9, 16, 12, 0, 0, TimeSpan.Zero),
             TestCase = "Run on Weekday 15th Every Month - 2024-09-15 is a Sunday, expect schedule to be Mon 16th"
         },
         new TestCaseProps
         {
-            CronExpression = new CronExpression("0 0 12 15W * ?"),
+            CronExpression = new CronExpression("0 0 12 15W * ?", TimeZoneInfo.Utc),
             TimeAfterDate = new DateTimeOffset(2023, 12, 15, 12, 0, 0, TimeSpan.Zero),
             ExpectedNextFireTime = new DateTimeOffset(2024, 1, 15, 12, 0, 0, TimeSpan.Zero),
             TestCase = "Run on Weekday 15th Every Month - 2024-01-15 is Monday, should run on Monday"
         },
         new TestCaseProps
         {
-            CronExpression = new CronExpression("0 0 12 31W * ?"),
+            CronExpression = new CronExpression("0 0 12 31W * ?", TimeZoneInfo.Utc),
             TimeAfterDate = new DateTimeOffset(2025, 1, 31, 12, 0, 0, TimeSpan.Zero),
             ExpectedNextFireTime = new DateTimeOffset(2025, 2, 28, 12, 0, 0, TimeSpan.Zero),
             TestCase = "Test that next fire time to be in next month with less days in month - Issue #2330"
         },
         new TestCaseProps
         {
-            CronExpression = new CronExpression("0 0 12 LW * ?"),
+            CronExpression = new CronExpression("0 0 12 LW * ?", TimeZoneInfo.Utc),
             TimeAfterDate = new DateTimeOffset(2023, 2, 28, 12, 0, 0, TimeSpan.Zero),
             ExpectedNextFireTime = new DateTimeOffset(2023, 3, 31, 12, 0, 0, TimeSpan.Zero),
             TestCase = "Run on last weekday of the month - 2023-03-31 is a Friday"
         },
         new TestCaseProps
         {
-            CronExpression = new CronExpression("0 0 12 L-2 * ?"),
+            CronExpression = new CronExpression("0 0 12 L-2 * ?", TimeZoneInfo.Utc),
             TimeAfterDate = new DateTimeOffset(2023, 4, 28, 12, 0, 0, TimeSpan.Zero),
             ExpectedNextFireTime = new DateTimeOffset(2023, 5, 29, 12, 0, 0, TimeSpan.Zero),
             TestCase = "Run on the second-to-last day of the month"
         },
         new TestCaseProps
         {
-            CronExpression = new CronExpression("0 0 12 ? * 6L"),
+            CronExpression = new CronExpression("0 0 12 ? * 6L", TimeZoneInfo.Utc),
             TimeAfterDate = new DateTimeOffset(2023, 6, 24, 12, 0, 0, TimeSpan.Zero),
             ExpectedNextFireTime = new DateTimeOffset(2023, 6, 30, 12, 0, 0, TimeSpan.Zero),
             TestCase = "Run on the last Friday of the month - 2023-06-30 is the last Friday"
         },
         new TestCaseProps
         {
-            CronExpression = new CronExpression("0 0 12 ? * 6#3"),
+            CronExpression = new CronExpression("0 0 12 ? * 6#3", TimeZoneInfo.Utc),
             TimeAfterDate = new DateTimeOffset(2023, 7, 21, 12, 0, 0, TimeSpan.Zero),
             ExpectedNextFireTime = new DateTimeOffset(2023, 8, 18, 12, 0, 0, TimeSpan.Zero),
             TestCase = "Run on the third Friday of the month"
         },
         new TestCaseProps
         {
-            CronExpression = new CronExpression("0 0 12 ? * 2/2"),
+            CronExpression = new CronExpression("0 0 12 ? * 2/2", TimeZoneInfo.Utc),
             TimeAfterDate = new DateTimeOffset(2023, 9, 5, 12, 0, 0, TimeSpan.Zero),
             ExpectedNextFireTime = new DateTimeOffset(2023, 9, 6, 12, 0, 0, TimeSpan.Zero),
             TestCase = "Run every second day (/2) starting Monday (2)"
         },
         new TestCaseProps
         {
-            CronExpression = new CronExpression("0 0 12 1W * ?"),
+            CronExpression = new CronExpression("0 0 12 1W * ?", TimeZoneInfo.Utc),
             TimeAfterDate = new DateTimeOffset(2023, 10, 1, 12, 0, 0, TimeSpan.Zero),
             ExpectedNextFireTime = new DateTimeOffset(2023, 10, 2, 12, 0, 0, TimeSpan.Zero),
             TestCase = "Run on the first weekday of the month - 2023-10-01 is a Sunday, expect schedule to be Mon 2nd"
