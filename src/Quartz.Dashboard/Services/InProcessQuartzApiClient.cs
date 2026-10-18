@@ -361,8 +361,7 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient, IQuartzApiClien
             throw new KeyNotFoundException($"Calendar '{calendarName}' was not found in scheduler '{schedulerName}'.");
         }
 
-        JsonElement calendarJson = JsonSerializer.SerializeToElement<object>(calendar, serializerOptions);
-        return new CalendarDetailDto(calendarJson);
+        return new CalendarDetailDto(SerializeCalendar(calendar));
     }
 
     public Task AddCalendar(string schedulerName, AddCalendarRequest request)
@@ -408,6 +407,13 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient, IQuartzApiClien
         return Task.FromResult<JobHistoryPageDto?>(new JobHistoryPageDto(JsonSerializer.SerializeToElement(payload, serializerOptions)));
     }
 
+    /// <summary>
+    /// The Quartz converters this client reads a posted trigger or calendar with, and writes the ones it
+    /// returns with, so that a page can read a returned one back as what it is: the trigger page's cron
+    /// preview reads the trigger a save would post, and the calendar it names, through these.
+    /// </summary>
+    internal static JsonSerializerOptions QuartzJsonOptions => deserializerOptions;
+
     private static JsonSerializerOptions CreateDeserializerOptions()
     {
         JsonSerializerOptions options = new(JsonSerializerDefaults.Web);
@@ -429,6 +435,22 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient, IQuartzApiClien
             // Custom trigger types aren't handled by the converter; fall back to a best-effort
             // reflection serialization so the detail page still renders.
             return JsonSerializer.SerializeToElement<object>(trigger, serializerOptions);
+        }
+    }
+
+    private static JsonElement SerializeCalendar(ICalendar calendar)
+    {
+        try
+        {
+            // The shape AddCalendar reads, for the reason SerializeTrigger uses it: the cron preview reads
+            // the calendar back to apply it, and the calendar page reads its type, which plain reflection omits.
+            return JsonSerializer.SerializeToElement<object>(calendar, deserializerOptions);
+        }
+        catch (JsonSerializationException)
+        {
+            // A calendar type the converters do not know: shown as reflection sees it, as before, and
+            // previewed without.
+            return JsonSerializer.SerializeToElement<object>(calendar, serializerOptions);
         }
     }
 
