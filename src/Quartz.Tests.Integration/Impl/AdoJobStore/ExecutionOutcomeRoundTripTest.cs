@@ -461,6 +461,140 @@ public abstract class ExecutionOutcomeRoundTripTest
         daily.Buckets.Should().OnlyContain(bucket => bucket.StartUtc.TimeOfDay == TimeSpan.Zero, "a day bucket starts at midnight UTC");
     }
 
+    /// <summary>
+    /// With write-behind on, the rows and the status a flush writes on this dialect are the ones the
+    /// statements per run write for the same runs: the batched inserts, the status read by key, the guarded
+    /// update and the insert of a first status.
+    /// </summary>
+    /// <remarks>
+    /// The same runs go to two scheduler names, one per mode, so the two sets of rows sit side by side. The
+    /// runs complete out of order and mix every result, and the write-behind store flushes twice, so the
+    /// second flush folds onto statuses the first inserted.
+    /// </remarks>
+    [Test]
+    public async Task WriteBehindWritesTheRowsAndStatusesTheStatementsPerRunWrite()
+    {
+        string behindScheduler = schedulerName + "_wb";
+        using AdoExecutionHistoryStore perRun = await CreateStore(_ => { });
+        await using AdoExecutionHistoryStore behind = await CreateStore(options => options.WriteBehindInterval = TimeSpan.FromMinutes(1));
+
+        ExecutionHistoryEntry[] runs =
+        [
+            Run("folded", "r1", Now.AddMinutes(-10), JobRunResult.Succeeded) with { Summary = "first" },
+            Run("other", "o1", Now.AddMinutes(-9), JobRunResult.Skipped),
+            Run("folded", "r2", Now.AddMinutes(-9), JobRunResult.Failed) with { RetryScheduled = true, ExceptionMessage = "retrying" },
+            Run("folded", "r3", Now.AddMinutes(-8), JobRunResult.Failed) with { ExceptionMessage = "gave up" },
+            Run("folded", "r4", Now.AddMinutes(-2), JobRunResult.Skipped) with { SchedulerInstanceId = "node-b" },
+            Run("other", "o2", Now.AddMinutes(-3), JobRunResult.Failed) with { ExceptionMessage = "refused" },
+            Run("folded", "r5", Now.AddMinutes(-5), JobRunResult.Failed) with { ExceptionMessage = "completed late" },
+            Run("folded", "r6", Now.AddMinutes(-1), JobRunResult.Cancelled),
+            Run("folded", "r7", Now.AddMinutes(-1), JobRunResult.Failed) with { Summary = "reported, same instant" },
+            Run("folded", "r8", Now.AddMinutes(-20), JobRunResult.Succeeded) with { Result = null, Summary = "a 4.3 row" }
+        ];
+
+        for (int i = 0; i < runs.Length; i++)
+        {
+            await perRun.AddExecution(runs[i]);
+            await behind.AddExecution(runs[i] with { SchedulerName = behindScheduler });
+
+            if (i == 2)
+            {
+                await behind.Flush();
+            }
+        }
+
+        (await behind.QueryExecutions(Query() with { SchedulerName = behindScheduler, IncludeTotalCount = true })).TotalCount
+            .Should().Be(3, "the runs after the first flush are still queued");
+
+        await behind.Flush();
+
+        foreach (string job in new[] { "folded", "other" })
+        {
+            JobKey key = new(job, "outcome");
+            (await behind.GetJobRunStatus(behindScheduler, key)).Should().BeEquivalentTo(
+                await perRun.GetJobRunStatus(schedulerName, key),
+                options => options.Excluding(status => status.SchedulerName),
+                "a flush leaves {0}'s status where the statements per run leave it", job);
+        }
+
+        List<ExecutionHistoryEntry> written = (await behind.QueryExecutions(Query() with { SchedulerName = behindScheduler })).Items.ToList();
+        written.Should().BeEquivalentTo(
+            (await perRun.QueryExecutions(Query())).Items,
+            options => options.Excluding(row => row.SchedulerName).WithStrictOrdering(),
+            "a batched insert writes every column a single insert writes");
+    }
+
+    /// <summary>
+    /// Disposing a write-behind store, which is how a container shuts it down, writes what is queued on this
+    /// dialect.
+    /// </summary>
+    [Test]
+    public async Task DisposingAWriteBehindStoreWritesWhatIsQueued()
+    {
+        AdoExecutionHistoryStore behind = await CreateStore(options => options.WriteBehindInterval = TimeSpan.FromMinutes(1));
+
+        await behind.AddExecution(Run("nightly", "first", Now.AddMinutes(-2), JobRunResult.Failed) with { ExceptionMessage = "refused" });
+        await behind.AddExecution(Run("nightly", "second", Now.AddMinutes(-1), JobRunResult.Succeeded));
+        await behind.AddExecution(Run("other", "third", Now, JobRunResult.Succeeded));
+
+        (await behind.QueryExecutions(Query())).Items.Should().BeEmpty("every run is queued until something flushes it");
+
+        await behind.DisposeAsync();
+
+        using AdoExecutionHistoryStore reader = await CreateStore(_ => { });
+        (await reader.QueryExecutions(Query())).Items.Should().HaveCount(3, "disposal flushed the queue");
+
+        JobRunStatus nightly = await reader.GetJobRunStatus(schedulerName, new JobKey("nightly", "outcome"));
+        nightly.RunCount.Should().Be(2);
+        nightly.FailureCount.Should().Be(1);
+        nightly.ConsecutiveFailures.Should().Be(0, "the newer run succeeded");
+        (await reader.GetJobRunStatus(schedulerName, new JobKey("other", "outcome"))).RunCount.Should().Be(1);
+    }
+
+    /// <summary>
+    /// Two nodes flushing runs of one job at once, on this dialect's locking, count every run exactly once.
+    /// </summary>
+    /// <remarks>
+    /// The first round has both insert the job's first status, and the second insert fails on the key. Every
+    /// later round has both read the same <c>RUN_COUNT</c>, and the update of whichever commits second
+    /// matches nothing. Both send the flush round again; nothing is counted twice or lost. The retry pause is
+    /// short so a dialect that reports the conflict as a transient failure — Firebird's write conflict —
+    /// retries quickly.
+    /// </remarks>
+    [Test]
+    public async Task TwoNodesWritingBehindToOneJobCountEveryRun()
+    {
+        AdoJobStoreOptions retries = new() { MaxTransientRetries = 10, TransientRetryInterval = TimeSpan.FromMilliseconds(100) };
+        await using AdoExecutionHistoryStore nodeA = await CreateStore(options => options.WriteBehindInterval = TimeSpan.FromMinutes(1), retries);
+        await using AdoExecutionHistoryStore nodeB = await CreateStore(options => options.WriteBehindInterval = TimeSpan.FromMinutes(1), retries);
+
+        const int Rounds = 5;
+        const int RunsPerNode = 20;
+        int finalFailures = 0;
+
+        for (int round = 0; round < Rounds; round++)
+        {
+            for (int i = 0; i < RunsPerNode; i++)
+            {
+                bool failed = i % 4 == 0;
+                finalFailures += failed ? 2 : 0;
+                JobRunResult result = failed ? JobRunResult.Failed : JobRunResult.Succeeded;
+                DateTimeOffset firedAt = Now.AddSeconds(round * RunsPerNode + i - Rounds * RunsPerNode);
+
+                await nodeA.AddExecution(Run("contended", "a-" + round + "-" + i, firedAt, result));
+                await nodeB.AddExecution(Run("contended", "b-" + round + "-" + i, firedAt, result) with { SchedulerInstanceId = "node-b" });
+            }
+
+            await Task.WhenAll(nodeA.Flush().AsTask(), nodeB.Flush().AsTask());
+        }
+
+        JobRunStatus status = await nodeA.GetJobRunStatus(schedulerName, new JobKey("contended", "outcome"));
+        status.RunCount.Should().Be(2 * Rounds * RunsPerNode, "each node's runs were counted once, whichever flush committed first");
+        status.FailureCount.Should().Be(finalFailures);
+        (await nodeA.QueryExecutions(Query() with { IncludeTotalCount = true, Take = 1 })).TotalCount
+            .Should().Be(2 * Rounds * RunsPerNode, "a flush that went round again wrote its rows once");
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     private ExecutionStatisticsQuery Statistics() => new() { SchedulerName = schedulerName };
@@ -515,7 +649,9 @@ public abstract class ExecutionOutcomeRoundTripTest
         await action(new ConnectionAndTransactionHolder(connection, transaction: null, ownsResources: false));
     }
 
-    private async ValueTask<AdoExecutionHistoryStore> CreateStore(Action<ExecutionHistoryOptions> configure)
+    private async ValueTask<AdoExecutionHistoryStore> CreateStore(
+        Action<ExecutionHistoryOptions> configure,
+        AdoJobStoreOptions storeOptions = null)
     {
         string connectionString = await PrepareDatabase();
         dbProvider = new DbProvider(DbProviderName, connectionString);
@@ -538,7 +674,9 @@ public abstract class ExecutionOutcomeRoundTripTest
             driverDelegate,
             Options.Create(options),
             Options.Create(new QuartzSchedulerOptions { InstanceName = schedulerName }),
-            new FrozenClock(clock));
+            new FrozenClock(clock),
+            loggerFactory: null,
+            storeOptions is null ? null : Options.Create(storeOptions));
     }
 
     /// <summary>
