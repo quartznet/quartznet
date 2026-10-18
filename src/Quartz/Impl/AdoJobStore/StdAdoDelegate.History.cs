@@ -117,49 +117,62 @@ public partial class StdAdoDelegate
     /// <param name="entryId">The row's key, which the store mints.</param>
     /// <param name="entry">The execution that finished.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    internal virtual async ValueTask<int> InsertExecutionHistory(
+    internal virtual ValueTask<int> InsertExecutionHistory(
         ConnectionAndTransactionHolder conn,
         string entryId,
         ExecutionHistoryEntry entry,
         CancellationToken cancellationToken = default)
     {
-        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertExecutionHistory));
+        return ExecuteHistoryStatement(conn, DescribeExecutionHistoryInsert(entryId, entry), cancellationToken);
+    }
 
-        AddCommandParameter(cmd, SqlParameters.SchedulerName, entry.SchedulerName);
-        AddCommandParameter(cmd, SqlParameters.EntryId, entryId);
-        AddCommandParameter(cmd, SqlParameters.InstanceName, entry.SchedulerInstanceId);
-        AddCommandParameter(cmd, SqlParameters.JobName, entry.JobName);
-        AddCommandParameter(cmd, SqlParameters.JobGroup, entry.JobGroup);
-        AddCommandParameter(cmd, SqlParameters.TriggerName, entry.TriggerName);
-        AddCommandParameter(cmd, SqlParameters.TriggerGroup, entry.TriggerGroup);
-        AddCommandParameter(cmd, SqlParameters.FiredTime, GetDbDateTimeValue(entry.FiredAtUtc));
-        AddCommandParameter(cmd, SqlParameters.RunTime, entry.Duration.Ticks);
-        AddCommandParameter(cmd, SqlParameters.Succeeded, GetDbBooleanValue(entry.Succeeded));
-        AddCommandParameter(cmd, SqlParameters.ErrorMessage, CutToColumn(entry.ExceptionMessage, AdoConstants.ColumnErrorMessage, MaxErrorMessageLength));
-        AddCommandParameter(cmd, SqlParameters.HistoryRetryAttempt, entry.RetryAttempt);
-        AddCommandParameter(cmd, SqlParameters.HistoryRetryScheduled, GetDbBooleanValue(entry.RetryScheduled));
+    /// <summary>
+    /// The insert of one execution, as data: issued alone by <see cref="InsertExecutionHistory" />, or as one
+    /// command of a write-behind flush's batch.
+    /// </summary>
+    /// <param name="entryId">The row's key, which the store mints.</param>
+    /// <param name="entry">The execution that finished.</param>
+    private SqlStatement DescribeExecutionHistoryInsert(string entryId, ExecutionHistoryEntry entry)
+    {
+        Enum? largeText = DbProvider.Metadata.LargeTextParameterType;
 
-        // Written whole: the capture already bounded it, and the column is a large object on every
-        // dialect, so there is no width here to cut it to. Bound as the driver's large-text type where
-        // its description names one, which is the managed Oracle driver's Clob: a string it would bind
-        // as Varchar2, and more than 4,000 bytes of that into a CLOB fails the whole row.
-        AddCommandParameter(cmd, SqlParameters.ExecutionLog, entry.Log, DbProvider.Metadata.LargeTextParameterType);
+        // In the order the statement names them, for the providers that bind positionally.
+        return new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlInsertExecutionHistory),
+        [
+            new SqlStatementParameter(SqlParameters.SchedulerName, entry.SchedulerName),
+            new SqlStatementParameter(SqlParameters.EntryId, entryId),
+            new SqlStatementParameter(SqlParameters.InstanceName, entry.SchedulerInstanceId),
+            new SqlStatementParameter(SqlParameters.JobName, entry.JobName),
+            new SqlStatementParameter(SqlParameters.JobGroup, entry.JobGroup),
+            new SqlStatementParameter(SqlParameters.TriggerName, entry.TriggerName),
+            new SqlStatementParameter(SqlParameters.TriggerGroup, entry.TriggerGroup),
+            new SqlStatementParameter(SqlParameters.FiredTime, GetDbDateTimeValue(entry.FiredAtUtc)),
+            new SqlStatementParameter(SqlParameters.RunTime, entry.Duration.Ticks),
+            new SqlStatementParameter(SqlParameters.Succeeded, GetDbBooleanValue(entry.Succeeded)),
+            new SqlStatementParameter(SqlParameters.ErrorMessage, CutToColumn(entry.ExceptionMessage, AdoConstants.ColumnErrorMessage, MaxErrorMessageLength)),
+            new SqlStatementParameter(SqlParameters.HistoryRetryAttempt, entry.RetryAttempt),
+            new SqlStatementParameter(SqlParameters.HistoryRetryScheduled, GetDbBooleanValue(entry.RetryScheduled)),
 
-        // The 4.4 outcome. RESULT is written as reported, null included, so a reader tells a row that
-        // said nothing from one that said Succeeded. The summary is cut as ERROR_MESSAGE is; the metrics
-        // are a large object like the log, already bounded by the recorder.
-        AddCommandParameter(cmd, SqlParameters.HistoryResult, entry.Result is { } result ? (int) result : null);
-        AddCommandParameter(cmd, SqlParameters.HistorySummary, CutToColumn(entry.Summary, AdoConstants.ColumnSummary, JobRunReport.MaxSummaryLength));
-        AddCommandParameter(cmd, SqlParameters.HistoryMetrics, entry.MetricsJson, DbProvider.Metadata.LargeTextParameterType);
-        AddCommandParameter(cmd, SqlParameters.HistoryManual, GetDbBooleanValue(entry.Manual));
-        AddCommandParameter(cmd, SqlParameters.HistoryFireInstanceId, entry.FireInstanceId);
+            // Written whole: the capture already bounded it, and the column is a large object on every
+            // dialect, so there is no width here to cut it to. Bound as the driver's large-text type where
+            // its description names one, which is the managed Oracle driver's Clob: a string it would bind
+            // as Varchar2, and more than 4,000 bytes of that into a CLOB fails the whole row.
+            new SqlStatementParameter(SqlParameters.ExecutionLog, entry.Log, largeText),
 
-        // The run's input, a large object like the log: the recorder already held it to
-        // ExecutionHistoryOptions.MaxInputBytes, and a cut one would be a different input.
-        AddCommandParameter(cmd, SqlParameters.HistoryJobInput, entry.Input, DbProvider.Metadata.LargeTextParameterType);
-        AddCommandParameter(cmd, SqlParameters.HistoryJobInputTooLarge, GetDbBooleanValue(entry.InputTooLarge));
+            // The 4.4 outcome. RESULT is written as reported, null included, so a reader tells a row that
+            // said nothing from one that said Succeeded. The summary is cut as ERROR_MESSAGE is; the metrics
+            // are a large object like the log, already bounded by the recorder.
+            new SqlStatementParameter(SqlParameters.HistoryResult, entry.Result is { } result ? (int) result : null),
+            new SqlStatementParameter(SqlParameters.HistorySummary, CutToColumn(entry.Summary, AdoConstants.ColumnSummary, JobRunReport.MaxSummaryLength)),
+            new SqlStatementParameter(SqlParameters.HistoryMetrics, entry.MetricsJson, largeText),
+            new SqlStatementParameter(SqlParameters.HistoryManual, GetDbBooleanValue(entry.Manual)),
+            new SqlStatementParameter(SqlParameters.HistoryFireInstanceId, entry.FireInstanceId),
 
-        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            // The run's input, a large object like the log: the recorder already held it to
+            // ExecutionHistoryOptions.MaxInputBytes, and a cut one would be a different input.
+            new SqlStatementParameter(SqlParameters.HistoryJobInput, entry.Input, largeText),
+            new SqlStatementParameter(SqlParameters.HistoryJobInputTooLarge, GetDbBooleanValue(entry.InputTooLarge))
+        ]);
     }
 
     /// <summary>
@@ -208,31 +221,85 @@ public partial class StdAdoDelegate
     /// <param name="conn">The unit of work, which is the history store's own connection and transaction.</param>
     /// <param name="entry">The execution just recorded, its <see cref="ExecutionHistoryEntry.EntryId" /> set.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    internal virtual async ValueTask<int> InsertJobRunStatus(
+    internal virtual ValueTask<int> InsertJobRunStatus(
         ConnectionAndTransactionHolder conn,
         ExecutionHistoryEntry entry,
         CancellationToken cancellationToken = default)
     {
-        JobRunStatus first = JobRunStatusFold.Apply(current: null, entry);
+        return InsertJobRunStatus(conn, JobRunStatusFold.Apply(current: null, entry), cancellationToken);
+    }
 
-        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertJobStatus));
+    /// <summary>
+    /// Creates a job's <c>QRTZ_JOB_STATUS</c> row with the values given: one run's fold, or a write-behind
+    /// flush's fold of every run of the job it holds.
+    /// </summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection and transaction.</param>
+    /// <param name="status">The job's status as the fold left it.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual ValueTask<int> InsertJobRunStatus(
+        ConnectionAndTransactionHolder conn,
+        JobRunStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteHistoryStatement(conn, DescribeJobRunStatusWrite(status, readRunCount: null), cancellationToken);
+    }
 
-        AddCommandParameter(cmd, SqlParameters.SchedulerName, entry.SchedulerName);
-        AddCommandParameter(cmd, SqlParameters.JobGroup, entry.JobGroup);
-        AddCommandParameter(cmd, SqlParameters.JobName, entry.JobName);
-        AddCommandParameter(cmd, SqlParameters.StatusFirstFiredTime, GetDbDateTimeValue(first.FirstFiredAtUtc));
-        AddCommandParameter(cmd, SqlParameters.StatusLastFiredTime, GetDbDateTimeValue(first.LastFiredAtUtc));
-        AddCommandParameter(cmd, SqlParameters.StatusLastResult, (int) first.LastResult);
-        AddCommandParameter(cmd, SqlParameters.StatusLastRunTime, first.LastDuration.Ticks);
-        AddCommandParameter(cmd, SqlParameters.StatusLastInstanceName, first.LastSchedulerInstanceId);
-        AddCommandParameter(cmd, SqlParameters.StatusLastEntryId, first.LastEntryId);
-        AddCommandParameter(cmd, SqlParameters.StatusLastSummary, CutToColumn(first.LastSummary, AdoConstants.ColumnLastSummary, JobRunReport.MaxSummaryLength));
-        AddCommandParameter(cmd, SqlParameters.StatusLastSuccessTime, GetDbDateTimeValue(first.LastSucceededAtUtc));
-        AddCommandParameter(cmd, SqlParameters.StatusLastFailureTime, GetDbDateTimeValue(first.LastFailedAtUtc));
-        AddCommandParameter(cmd, SqlParameters.StatusLastFailureMessage, CutToColumn(first.LastFailureMessage, AdoConstants.ColumnLastFailureMessage, MaxErrorMessageLength));
-        AddCommandParameter(cmd, SqlParameters.StatusConsecutiveFailures, first.ConsecutiveFailures);
-        AddCommandParameter(cmd, SqlParameters.StatusRunCount, first.RunCount);
-        AddCommandParameter(cmd, SqlParameters.StatusFailureCount, first.FailureCount);
+    /// <summary>
+    /// The insert of a job's status, or with <paramref name="readRunCount" /> its update guarded by the
+    /// <c>RUN_COUNT</c> a flush read, as data.
+    /// </summary>
+    /// <remarks>
+    /// Both bind the whole status, cut as the per-run update cuts it, so a row a flush writes is the row the
+    /// per-run statements would have left. The insert names the key first and the update last, each in the
+    /// order its statement does.
+    /// </remarks>
+    private SqlStatement DescribeJobRunStatusWrite(JobRunStatus status, long? readRunCount)
+    {
+        SqlStatementParameter[] values =
+        [
+            new(SqlParameters.StatusFirstFiredTime, GetDbDateTimeValue(status.FirstFiredAtUtc)),
+            new(SqlParameters.StatusLastFiredTime, GetDbDateTimeValue(status.LastFiredAtUtc)),
+            new(SqlParameters.StatusLastResult, (int) status.LastResult),
+            new(SqlParameters.StatusLastRunTime, status.LastDuration.Ticks),
+            new(SqlParameters.StatusLastInstanceName, status.LastSchedulerInstanceId),
+            new(SqlParameters.StatusLastEntryId, status.LastEntryId),
+            new(SqlParameters.StatusLastSummary, CutToColumn(status.LastSummary, AdoConstants.ColumnLastSummary, JobRunReport.MaxSummaryLength)),
+            new(SqlParameters.StatusLastSuccessTime, GetDbDateTimeValue(status.LastSucceededAtUtc)),
+            new(SqlParameters.StatusLastFailureTime, GetDbDateTimeValue(status.LastFailedAtUtc)),
+            new(SqlParameters.StatusLastFailureMessage, CutToColumn(status.LastFailureMessage, AdoConstants.ColumnLastFailureMessage, MaxErrorMessageLength)),
+            new(SqlParameters.StatusConsecutiveFailures, status.ConsecutiveFailures),
+            new(SqlParameters.StatusRunCount, status.RunCount),
+            new(SqlParameters.StatusFailureCount, status.FailureCount)
+        ];
+
+        SqlStatementParameter[] key =
+        [
+            new(SqlParameters.SchedulerName, status.SchedulerName),
+            new(SqlParameters.JobGroup, status.Job.Group),
+            new(SqlParameters.JobName, status.Job.Name)
+        ];
+
+        if (readRunCount is not { } runCount)
+        {
+            return new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlInsertJobStatus), [.. key, .. values]);
+        }
+
+        return new SqlStatement(
+            ReplaceTablePrefix(StdAdoConstants.SqlUpdateJobStatusIfUnchanged),
+            [.. values, .. key, new SqlStatementParameter(SqlParameters.StatusReadRunCount, runCount)]);
+    }
+
+    /// <summary>Issues one statement described as data, through the delegate's own parameter binding.</summary>
+    private async ValueTask<int> ExecuteHistoryStatement(
+        ConnectionAndTransactionHolder conn,
+        SqlStatement statement,
+        CancellationToken cancellationToken)
+    {
+        using DbCommand cmd = PrepareCommand(conn, statement.Sql);
+        foreach (SqlStatementParameter parameter in statement.Parameters)
+        {
+            AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
+        }
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -346,32 +413,8 @@ public partial class StdAdoDelegate
         string failing,
         CancellationToken cancellationToken)
     {
-        List<JobKey> requested = Deduplicate(jobs);
-        List<JobRunStatus> found = [];
-
-        for (int offset = 0; offset < requested.Count; offset += AdoUtil.MaxJobKeysPerPredicate)
-        {
-            int length = Math.Min(AdoUtil.MaxJobKeysPerPredicate, requested.Count - offset);
-            int paddedCount = AdoUtil.RoundUpJobKeyCount(length);
-
-            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
-                StdAdoConstants.SqlSelectJobStatuses + failing + " AND " + AdoUtil.BuildJobKeyPredicate(paddedCount)));
-            AddCommandParameter(cmd, SqlParameters.SchedulerName, query.SchedulerName);
-
-            for (int i = 0; i < paddedCount; i++)
-            {
-                // Padded by repeating the chunk's last key: the predicate is a disjunction.
-                JobKey key = requested[offset + Math.Min(i, length - 1)];
-                AddCommandParameter(cmd, AdoUtil.JobKeyNameParameter(i), key.Name);
-                AddCommandParameter(cmd, AdoUtil.JobKeyGroupParameter(i), key.Group);
-            }
-
-            using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                found.Add(ReadJobRunStatus(rs, query.SchedulerName));
-            }
-        }
+        List<JobRunStatus> found = await ReadJobRunStatusesOf(
+            conn, query.SchedulerName, Deduplicate(jobs), failing, cancellationToken).ConfigureAwait(false);
 
         found.Sort(static (left, right) =>
         {
@@ -384,6 +427,51 @@ public partial class StdAdoDelegate
         List<JobRunStatus> page = found.GetRange(skip, take);
 
         return new PagedResult<JobRunStatus>(page, skip + page.Count < found.Count, query.IncludeTotalCount ? found.Count : null);
+    }
+
+    /// <summary>
+    /// The statuses of <paramref name="requested" />, in no order: a key-set predicate, chunked as every
+    /// batch read by key is.
+    /// </summary>
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="schedulerName">The scheduler the jobs belong to.</param>
+    /// <param name="requested">The jobs, each once.</param>
+    /// <param name="failing">A predicate on the failure streak to append, or an empty string.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask<List<JobRunStatus>> ReadJobRunStatusesOf(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        List<JobKey> requested,
+        string failing,
+        CancellationToken cancellationToken)
+    {
+        List<JobRunStatus> found = [];
+
+        for (int offset = 0; offset < requested.Count; offset += AdoUtil.MaxJobKeysPerPredicate)
+        {
+            int length = Math.Min(AdoUtil.MaxJobKeysPerPredicate, requested.Count - offset);
+            int paddedCount = AdoUtil.RoundUpJobKeyCount(length);
+
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
+                StdAdoConstants.SqlSelectJobStatuses + failing + " AND " + AdoUtil.BuildJobKeyPredicate(paddedCount)));
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+
+            for (int i = 0; i < paddedCount; i++)
+            {
+                // Padded by repeating the chunk's last key: the predicate is a disjunction.
+                JobKey key = requested[offset + Math.Min(i, length - 1)];
+                AddCommandParameter(cmd, AdoUtil.JobKeyNameParameter(i), key.Name);
+                AddCommandParameter(cmd, AdoUtil.JobKeyGroupParameter(i), key.Group);
+            }
+
+            using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                found.Add(ReadJobRunStatus(rs, schedulerName));
+            }
+        }
+
+        return found;
     }
 
     /// <summary>Reads one recorded execution by its key, its captured log and recorded input included.</summary>

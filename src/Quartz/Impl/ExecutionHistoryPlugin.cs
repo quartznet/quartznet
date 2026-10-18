@@ -81,7 +81,31 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     public ValueTask Start(CancellationToken cancellationToken = default) => default;
 
     /// <inheritdoc />
-    public ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
+    /// <remarks>
+    /// Writes what a store with <see cref="ExecutionHistoryOptions.WriteBehindInterval" /> is still holding.
+    /// The scheduler shuts its plugins down once its jobs have finished, or once it has stopped waiting for
+    /// them, and before its job store closes the connection provider the history writes through — so this is
+    /// the last moment the buffered rows can still reach the database. A store that buffers nothing has
+    /// nothing to write.
+    /// </remarks>
+    public async ValueTask Shutdown(CancellationToken cancellationToken = default)
+    {
+        IBufferedExecutionHistoryStore? buffered;
+        try
+        {
+            buffered = serviceProvider.GetService<IExecutionHistoryStore>() as IBufferedExecutionHistoryStore;
+        }
+        catch (ObjectDisposedException)
+        {
+            // The container went first, and disposing the store wrote what it held.
+            return;
+        }
+
+        if (buffered is not null)
+        {
+            await buffered.Flush(cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     /// <inheritdoc />
     public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;

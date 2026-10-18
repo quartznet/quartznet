@@ -442,6 +442,7 @@ namespace Quartz
         public bool RecordInput { get; set; }
         public System.TimeSpan Retention { get; set; }
         public System.Collections.Generic.Dictionary<Quartz.JobRunResult, System.TimeSpan> RetentionByResult { get; }
+        public System.TimeSpan? WriteBehindInterval { get; set; }
     }
     public sealed record ExecutionHistoryQuery : Quartz.PagedQuery, System.IEquatable<Quartz.ExecutionHistoryQuery>
     {

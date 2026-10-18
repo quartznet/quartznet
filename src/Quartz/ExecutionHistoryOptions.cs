@@ -19,6 +19,8 @@
 
 using Microsoft.Extensions.Options;
 
+using Quartz.Util;
+
 namespace Quartz;
 
 /// <summary>
@@ -116,6 +118,30 @@ public sealed class ExecutionHistoryOptions
     /// <see cref="MaxEntriesPerScheduler" />.
     /// </remarks>
     public int MaxInputBytes { get; set; } = 16 * 1024;
+
+    /// <summary>
+    /// How long the database history buffers executions before writing them, or <see langword="null" />, the
+    /// default, to write each one as it completes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set, a completion is queued and the worker returns at once. One writer empties the queue every
+    /// interval, and sooner when a batch is full: the rows, and one <c>QRTZ_JOB_STATUS</c> update per job
+    /// with that job's runs folded in memory, in one transaction. A job that completes many times at once
+    /// no longer serializes on its status row.
+    /// </para>
+    /// <para>
+    /// The price: the status no longer commits with the row; a crash loses what is still buffered, normally
+    /// at most one interval of rows and status changes; reads of the history and of
+    /// <see cref="JobRunStatus" /> lag by up to one interval. A full queue makes a completion write itself,
+    /// as with this off. A shutdown or disposal writes what is buffered first.
+    /// </para>
+    /// <para>
+    /// Read only by the database history, <c>UsePersistentStore(store =&gt; store.UseExecutionHistory())</c>;
+    /// the in-memory history ignores it. Must be positive when set.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? WriteBehindInterval { get; set; }
 }
 
 /// <summary>
@@ -173,6 +199,25 @@ internal sealed class ExecutionHistoryOptionsValidator : IValidateOptions<Execut
             return ValidateOptionsResult.Fail(
                 $"{nameof(ExecutionHistoryOptions.MaxInputBytes)} must be positive, was {options.MaxInputBytes}. "
                 + $"To record no input, leave {nameof(ExecutionHistoryOptions.RecordInput)} off.");
+        }
+
+        if (options.WriteBehindInterval is { } writeBehind)
+        {
+            if (writeBehind <= TimeSpan.Zero)
+            {
+                return ValidateOptionsResult.Fail(
+                    $"{nameof(ExecutionHistoryOptions.WriteBehindInterval)} must be positive when set, was {writeBehind}. "
+                    + "Leave it null to write each execution as it completes.");
+            }
+
+            if (writeBehind > TimerLimits.MaxDelay)
+            {
+                return ValidateOptionsResult.Fail(TimerLimits.TooLong(
+                    nameof(ExecutionHistoryOptions.WriteBehindInterval),
+                    writeBehind,
+                    TimerLimits.MaxDelay,
+                    "The history's writer waits it out between flushes."));
+            }
         }
 
         return ValidateOptionsResult.Success;

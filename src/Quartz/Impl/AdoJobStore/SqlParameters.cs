@@ -363,6 +363,11 @@ internal static class SqlParameters
     public const string StatusRunCount = "statusRunCount";
     public const string StatusFailureCount = "statusFailureCount";
 
+    /// <summary>
+    /// The <c>RUN_COUNT</c> a write-behind flush read, which its update requires to be unchanged.
+    /// </summary>
+    public const string StatusReadRunCount = "statusReadRunCount";
+
     // Paging, for the dialects whose clause takes its bounds as parameters.
 
     public const string PageSkip = "pageSkip";

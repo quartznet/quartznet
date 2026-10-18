@@ -52,6 +52,11 @@ namespace Quartz.Impl.AdoJobStore;
 /// connection — its row and its job's <c>QRTZ_JOB_STATUS</c> row commit together or not at all.
 /// </para>
 /// <para>
+/// With <see cref="ExecutionHistoryOptions.WriteBehindInterval" /> set, an execution is queued instead and
+/// written by a flush: every queued row, and one status write per job, in one transaction. See
+/// <see cref="WriteBatch" />.
+/// </para>
+/// <para>
 /// Reading applies the longest age bound as well as the sweep does, as the in-memory history does and
 /// for the same reason: a scheduler that has stopped running jobs never writes again, and it is that
 /// scheduler whose page would otherwise go on showing executions from days ago. The shorter tiers of
@@ -60,8 +65,15 @@ namespace Quartz.Impl.AdoJobStore;
 /// it on every read would mean a window function six dialects spell differently.
 /// </para>
 /// </remarks>
-internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDisposable
+internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBufferedExecutionHistoryStore, IDisposable, IAsyncDisposable
 {
+    /// <summary>
+    /// How many times a flush runs again with its statuses folded because another writer changed one of
+    /// their rows since it read them. The next run folds each execution into its status on its own, as the
+    /// store does with write-behind off, which no other writer can make miss.
+    /// </summary>
+    internal const int FoldedFlushAttempts = 3;
+
     /// <summary>
     /// How many rows one <c>DELETE</c> of the retention sweep removes, so that a long-idle store
     /// cannot lock the table for minutes on the first pass.
@@ -169,6 +181,33 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     private int sweepScheduled;
     private volatile bool disposed;
 
+    /// <summary>
+    /// How many more times a flush that failed transiently is run, and how long it waits first: the job
+    /// store's <see cref="AdoJobStoreOptions.MaxTransientRetries" /> and
+    /// <see cref="AdoJobStoreOptions.TransientRetryInterval" />, which is how its own writes are retried.
+    /// </summary>
+    private readonly int maxTransientRetries;
+
+    private readonly TimeSpan transientRetryInterval;
+
+    /// <summary>The job store's <see cref="AdoJobStoreOptions.IsTransient" />, asked before the built-in answer.</summary>
+    private readonly Func<Exception, bool>? configuredIsTransient;
+
+    /// <summary>
+    /// Taken to create <see cref="writeBehind" /> once, and by the disposal to close it, so that no queue is
+    /// created after the store has started going away.
+    /// </summary>
+    private readonly Lock writeBehindGate = new();
+
+    /// <summary>
+    /// The queue executions wait in with <see cref="ExecutionHistoryOptions.WriteBehindInterval" /> set:
+    /// created by the first write, so a store that only reads starts no writer.
+    /// </summary>
+    private ExecutionHistoryWriteBehind? writeBehind;
+
+    /// <summary>Set by the disposal, after which an execution is written as it arrives.</summary>
+    private bool writeBehindClosed;
+
     /// <param name="dbProvider">The database this scheduler reads and writes through.</param>
     /// <param name="driverDelegate">
     /// The dialect the statements are issued in, already initialized, and this store's alone: a scheduler's
@@ -185,13 +224,18 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     /// test that moves it forward sees the store forget.
     /// </param>
     /// <param name="loggerFactory">Where a failed write or sweep is reported.</param>
+    /// <param name="storeOptions">
+    /// The scheduler's job store settings, of which a write-behind flush reads how transient failures are
+    /// retried. Without them it retries as the job store's defaults do.
+    /// </param>
     public AdoExecutionHistoryStore(
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
         IOptions<ExecutionHistoryOptions> historyOptions,
         IOptions<QuartzSchedulerOptions> schedulerOptions,
         TimeProvider? timeProvider = null,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        IOptions<AdoJobStoreOptions>? storeOptions = null)
     {
         ArgumentNullException.ThrowIfNull(dbProvider);
         ArgumentNullException.ThrowIfNull(driverDelegate);
@@ -218,7 +262,22 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
 
         ownSchedulerName = schedulerOptions.Value.InstanceName;
         schedulers.TryAdd(ownSchedulerName, 0);
+
+        AdoJobStoreOptions retries = storeOptions?.Value ?? new AdoJobStoreOptions();
+        maxTransientRetries = retries.MaxTransientRetries;
+        transientRetryInterval = retries.TransientRetryInterval;
+        configuredIsTransient = retries.IsTransient;
     }
+
+    /// <summary>
+    /// How many executions make a write-behind batch. Internal so that a test can make a batch of a few.
+    /// </summary>
+    internal int WriteBehindBatchSize { get; init; } = ExecutionHistoryWriteBehind.DefaultBatchSize;
+
+    /// <summary>
+    /// How many executions the write-behind queue holds. Internal so that a test can fill it.
+    /// </summary>
+    internal int WriteBehindCapacity { get; init; } = ExecutionHistoryWriteBehind.DefaultCapacity;
 
     private StdAdoDelegate Delegate => (StdAdoDelegate) driverDelegate;
 
@@ -233,6 +292,11 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
     /// fails on the key. That transaction is rolled back, which takes its execution row with it, and run
     /// once more, when the update finds the row; nothing is counted twice.
     /// </para>
+    /// <para>
+    /// With <see cref="ExecutionHistoryOptions.WriteBehindInterval" /> set the execution is queued and this
+    /// returns at once; a flush writes it. A full queue, or one closed by the disposal, leaves it to be
+    /// written here as above.
+    /// </para>
     /// </remarks>
     public async ValueTask AddExecution(ExecutionHistoryEntry entry, CancellationToken cancellationToken = default)
     {
@@ -243,6 +307,12 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         // The recorder's key when it named the row, which is what makes the row findable by the key a
         // reader was given; a key of this store's own when nothing did. The status names the same one.
         ExecutionHistoryEntry named = entry.EntryId is null ? entry with { EntryId = NewEntryId() } : entry;
+
+        if (WriteBehind() is { } queue && queue.TryEnqueue(named))
+        {
+            StartSweeping();
+            return;
+        }
 
         try
         {
@@ -462,9 +532,38 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         sweepGate.Release();
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// Nothing to do without <see cref="ExecutionHistoryOptions.WriteBehindInterval" />, or before the first
+    /// write has created the queue.
+    /// </remarks>
+    public ValueTask Flush(CancellationToken cancellationToken = default)
+    {
+        return Volatile.Read(ref writeBehind) is { } queue ? queue.Flush(cancellationToken) : default;
+    }
+
+    /// <summary>
+    /// Writes what the write-behind queue holds, then stops the sweep as <see cref="Dispose" /> does.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (CloseWriteBehind() is { } queue)
+        {
+            await queue.DisposeAsync().ConfigureAwait(false);
+        }
+
+        Dispose();
+    }
+
     /// <remarks>
     /// <para>
-    /// Stops the timer and cancels a pass it started, and waits for nothing: a pass in flight stops at
+    /// First writes what the write-behind queue holds, waiting for it: those executions happened, and a
+    /// disposal is the store's last chance to record them. The connections they go through are this store's
+    /// own, opened per flush, so they are there to write with. A container disposed asynchronously calls
+    /// <see cref="DisposeAsync" /> instead, which waits the same way without holding a thread.
+    /// </para>
+    /// <para>
+    /// Then stops the timer and cancels a pass it started, and waits for nothing: a pass in flight stops at
     /// its next statement and gives the gate back itself, which is why the gate is not disposed here.
     /// <see cref="disposed" /> is set first, so a pass that fails because of any of this sees that it did.
     /// </para>
@@ -481,6 +580,13 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
             return;
         }
 
+        if (CloseWriteBehind() is { } queue)
+        {
+            // The writer and the store's statements never capture a context, so blocking here cannot
+            // starve the continuations it waits for of a thread they need.
+            queue.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+
         disposed = true;
         Interlocked.Exchange(ref sweepTimer, null)?.Dispose();
         stopping.Cancel();
@@ -489,6 +595,57 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
 
     /// <summary>Whether <see cref="Dispose" /> has run, read afresh on every call.</summary>
     private bool IsDisposed() => disposed;
+
+    /// <summary>
+    /// The write-behind queue, created on first use; <see langword="null" /> when
+    /// <see cref="ExecutionHistoryOptions.WriteBehindInterval" /> is unset or the store is going away.
+    /// </summary>
+    private ExecutionHistoryWriteBehind? WriteBehind()
+    {
+        if (Volatile.Read(ref writeBehind) is { } existing)
+        {
+            return Volatile.Read(ref writeBehindClosed) ? null : existing;
+        }
+
+        if (historyOptions.Value.WriteBehindInterval is not { } interval)
+        {
+            return null;
+        }
+
+        lock (writeBehindGate)
+        {
+            if (writeBehindClosed)
+            {
+                return null;
+            }
+
+            if (writeBehind is null)
+            {
+                Volatile.Write(ref writeBehind, new ExecutionHistoryWriteBehind(
+                    interval, timeProvider, WriteBuffered, logger, WriteBehindBatchSize, WriteBehindCapacity));
+            }
+
+            return writeBehind;
+        }
+    }
+
+    /// <summary>
+    /// Stops the write-behind queue being used, and hands it to the one disposal that closed it, which
+    /// writes what it holds. Every other caller gets <see langword="null" />.
+    /// </summary>
+    private ExecutionHistoryWriteBehind? CloseWriteBehind()
+    {
+        lock (writeBehindGate)
+        {
+            if (writeBehindClosed)
+            {
+                return null;
+            }
+
+            Volatile.Write(ref writeBehindClosed, true);
+            return writeBehind;
+        }
+    }
 
     /// <summary>
     /// Adds a scheduler to the ones the sweep walks, and learns this node's instance id in its own.
@@ -1097,7 +1254,23 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
         CancellationToken cancellationToken)
     {
         await Delegate.InsertExecutionHistory(conn, entry.EntryId!, entry, cancellationToken).ConfigureAwait(false);
+        return await FoldIn(conn, entry, lastAttempt, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// Folds one execution into its job's status in the database: the update, or the insert on the job's
+    /// first recorded run.
+    /// </summary>
+    /// <returns>
+    /// <see langword="false" /> when the insert failed and this is not the last attempt; see
+    /// <see cref="RecordIn" />.
+    /// </returns>
+    private async ValueTask<bool> FoldIn(
+        ConnectionAndTransactionHolder conn,
+        ExecutionHistoryEntry entry,
+        bool lastAttempt,
+        CancellationToken cancellationToken)
+    {
         if (await Delegate.UpdateJobRunStatus(conn, entry, cancellationToken).ConfigureAwait(false) > 0)
         {
             return true;
@@ -1114,6 +1287,228 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IDispos
             // on MySQL is the same race; either way the unit runs once more.
             return false;
         }
+    }
+
+    /// <summary>
+    /// Writes one batch the write-behind queue took, running it again after a transient failure as the job
+    /// store runs its own writes again.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Throws once the retries are spent, or at once for a failure that is not transient; the queue reports
+    /// the batch lost. Not cancellable: what it writes has already happened, and a disposal waits for it.
+    /// </para>
+    /// <para>
+    /// The pause between attempts is on the system clock, not the scheduler's: it waits for a database to
+    /// recover, which happens in wall time, and a shutdown waits for this flush. On a scheduler clock nobody
+    /// advances — a test's <c>FakeTimeProvider</c> — that shutdown would wait for ever, the trap the
+    /// scheduler's own shutdown guards were fixed for (#3892).
+    /// </para>
+    /// </remarks>
+    private async ValueTask WriteBuffered(List<ExecutionHistoryEntry> batch)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await WriteBatch(batch, CancellationToken.None).ConfigureAwait(false);
+                return;
+            }
+            catch (Exception failure) when (attempt < maxTransientRetries && IsTransient(failure))
+            {
+                if (transientRetryInterval > TimeSpan.Zero)
+                {
+                    await Task.Delay(transientRetryInterval, TimeProvider.System).ConfigureAwait(false);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether a flush that failed is worth running again: the job store's predicate first, then the
+    /// built-in answer, as <c>AdoJobStoreBase.IsTransient</c> asks them.
+    /// </summary>
+    private bool IsTransient(Exception failure)
+    {
+        return configuredIsTransient?.Invoke(failure) == true || TransientErrorDetector.IsTransient(failure);
+    }
+
+    /// <summary>
+    /// Records a write-behind batch and folds it into its jobs' statuses, in one transaction of this store's
+    /// own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The rows first, so the transaction holds its write lock from its first statement — SQLite's whole
+    /// database, and nothing a status read could then deadlock against. Then the statuses, read once for
+    /// every job the batch holds, each folded with <see cref="JobRunStatusFold" /> over that job's runs in
+    /// the order they were queued, and written back by one update per job that requires <c>RUN_COUNT</c>
+    /// to be unchanged. A job with no status yet gets an insert of its fold.
+    /// </para>
+    /// <para>
+    /// Another writer that changed a status since the read — another node, or this one writing a run itself
+    /// while its queue was full — makes the update match nothing, and two that both found no row make the
+    /// second insert fail on the key. Either way the transaction is rolled back, rows and all, and run again
+    /// from the read. After <see cref="FoldedFlushAttempts" /> such runs the next folds each execution on its
+    /// own, as the store does without write-behind: those updates add to the row as it stands, so no other
+    /// writer can make them miss, and the batch is written however busy its jobs' rows are.
+    /// </para>
+    /// <para>
+    /// The statuses are written in key order, so two nodes flushing the same jobs take their rows in the
+    /// same order and cannot deadlock on them.
+    /// </para>
+    /// </remarks>
+    private async ValueTask WriteBatch(List<ExecutionHistoryEntry> batch, CancellationToken cancellationToken)
+    {
+        DbConnection connection = await OpenConnection(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                bool folded = attempt < FoldedFlushAttempts;
+
+                // The last attempt is the second one that folds runs singly; its insert is not caught.
+                bool lastAttempt = attempt > FoldedFlushAttempts;
+
+                DbTransaction transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+                await using (transaction.ConfigureAwait(false))
+                {
+                    ConnectionAndTransactionHolder holder = new(connection, transaction, ownsResources: false);
+
+                    await Delegate.InsertExecutionHistories(holder, batch, cancellationToken).ConfigureAwait(false);
+
+                    bool written = folded
+                        ? await WriteFoldedStatuses(holder, batch, cancellationToken).ConfigureAwait(false)
+                        : await FoldEachIn(holder, batch, lastAttempt, cancellationToken).ConfigureAwait(false);
+
+                    if (written)
+                    {
+                        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Folds each execution of a batch into its status on its own, in the order they were queued.
+    /// </summary>
+    /// <returns><see langword="false" /> when a first-run insert lost a race; see <see cref="FoldIn" />.</returns>
+    private async ValueTask<bool> FoldEachIn(
+        ConnectionAndTransactionHolder conn,
+        List<ExecutionHistoryEntry> batch,
+        bool lastAttempt,
+        CancellationToken cancellationToken)
+    {
+        foreach (ExecutionHistoryEntry entry in batch)
+        {
+            if (!await FoldIn(conn, entry, lastAttempt, cancellationToken).ConfigureAwait(false))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Reads the batch's jobs' statuses, folds each job's runs into its own, and writes each back once.
+    /// </summary>
+    /// <returns>
+    /// <see langword="false" /> when a status changed since it was read, or a first-run insert failed: the
+    /// caller rolls the flush back and runs it again.
+    /// </returns>
+    private async ValueTask<bool> WriteFoldedStatuses(
+        ConnectionAndTransactionHolder conn,
+        List<ExecutionHistoryEntry> batch,
+        CancellationToken cancellationToken)
+    {
+        // Each job's runs, in the order they were queued, which is the order the fold takes them in.
+        SortedDictionary<StatusKey, List<ExecutionHistoryEntry>> runsByJob = new(StatusKey.Ordinal);
+        foreach (ExecutionHistoryEntry entry in batch)
+        {
+            StatusKey key = new(entry.SchedulerName, new JobKey(entry.JobName, entry.JobGroup));
+            if (!runsByJob.TryGetValue(key, out List<ExecutionHistoryEntry>? runs))
+            {
+                runsByJob[key] = runs = [];
+            }
+
+            runs.Add(entry);
+        }
+
+        Dictionary<StatusKey, JobRunStatus> current = [];
+        foreach (IGrouping<string, StatusKey> scheduler in runsByJob.Keys.GroupBy(static key => key.SchedulerName, StringComparer.Ordinal))
+        {
+            List<JobKey> jobs = [.. scheduler.Select(static key => key.Job)];
+            Dictionary<JobKey, JobRunStatus> read = await Delegate.SelectJobRunStatusesByKey(
+                conn, scheduler.Key, jobs, cancellationToken).ConfigureAwait(false);
+
+            foreach (KeyValuePair<JobKey, JobRunStatus> status in read)
+            {
+                current[new StatusKey(scheduler.Key, status.Key)] = status.Value;
+            }
+        }
+
+        List<(JobRunStatus Status, long ReadRunCount)> updates = [];
+        List<JobRunStatus> inserts = [];
+
+        foreach ((StatusKey key, List<ExecutionHistoryEntry> runs) in runsByJob)
+        {
+            JobRunStatus? before = current.GetValueOrDefault(key);
+            JobRunStatus? after = before;
+            foreach (ExecutionHistoryEntry run in runs)
+            {
+                after = JobRunStatusFold.Apply(after, run);
+            }
+
+            if (before is null)
+            {
+                inserts.Add(after!);
+            }
+            else
+            {
+                updates.Add((after!, before.RunCount));
+            }
+        }
+
+        if (updates.Count > 0
+            && await Delegate.UpdateJobRunStatusesIfUnchanged(conn, updates, cancellationToken).ConfigureAwait(false) != updates.Count)
+        {
+            return false;
+        }
+
+        foreach (JobRunStatus first in inserts)
+        {
+            try
+            {
+                await Delegate.InsertJobRunStatus(conn, first, cancellationToken).ConfigureAwait(false);
+            }
+            catch (DbException)
+            {
+                // Another writer inserted the job's first status since the read, as in RecordIn.
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>One job's status row: its scheduler and its key, ordered ordinally by all three.</summary>
+    private readonly record struct StatusKey(string SchedulerName, JobKey Job)
+    {
+        public static readonly IComparer<StatusKey> Ordinal = Comparer<StatusKey>.Create(static (left, right) =>
+        {
+            int order = string.CompareOrdinal(left.SchedulerName, right.SchedulerName);
+            if (order == 0)
+            {
+                order = string.CompareOrdinal(left.Job.Group, right.Job.Group);
+            }
+
+            return order != 0 ? order : string.CompareOrdinal(left.Job.Name, right.Job.Name);
+        });
     }
 
     private async ValueTask<T> Execute<T>(
