@@ -249,6 +249,10 @@ public sealed class AdoJobStoreOptions
     /// writes rows this transaction holds. A round of one trigger that takes the lock takes it as 4.5 did.
     /// </para>
     /// <para>
+    /// Not used on SQL Server in this release: firing rounds there work as in 4.5, as with this option off
+    /// (<see href="https://github.com/quartznet/quartznet/issues/4117">#4117</see>).
+    /// </para>
+    /// <para>
     /// <see langword="false" /> restores 4.5: a round of one acquires without the lock and the scheduler
     /// fires it under the lock in a second transaction, and every other round is locked throughout.
     /// </para>

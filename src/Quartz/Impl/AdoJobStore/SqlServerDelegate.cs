@@ -49,6 +49,17 @@ public class SqlServerDelegate : StdAdoDelegate
     protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.InProjection("TOP", count);
 
     /// <summary>
+    /// False in this release: SQL Server's firing rounds work as in 4.5, as with
+    /// <c>AdoJobStoreOptions.LockFreeFiringRounds</c> off (#4117).
+    /// </summary>
+    /// <remarks>
+    /// Two nodes acquiring one trigger at a time ran seconds behind their schedule on SQL Server with 4.6's
+    /// round, locked or not, against tenths of a second in 4.5's; under SQL Server's default locking read
+    /// committed a round's read also deadlocked with another node's claim.
+    /// </remarks>
+    internal override bool UsesLockFreeRounds => false;
+
+    /// <summary>
     /// T-SQL reads <c>[</c> as the start of a character class in a <c>LIKE</c> pattern, so a filter
     /// asking for a name containing <c>[a-z]</c> would match by class here and literally everywhere else.
     /// </summary>

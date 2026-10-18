@@ -245,18 +245,19 @@ internal abstract partial class AdoJobStoreBase
     /// <para>
     /// Two exceptions keep the folded round, as 4.5 did or as 4.6 promises: <see cref="AcquireTriggersWithinLock" />,
     /// which asks for the acquisition under the lock, and a cluster-scoped execution limit, whose count is
-    /// exact only when the acquisition holds the lock — unless the rounds are 4.5's by configuration, with
-    /// the option off.
+    /// exact only when the acquisition holds the lock — unless the rounds are 4.5's by configuration: the
+    /// option off, or SQL Server.
     /// </para>
     /// </remarks>
-    private bool FiresRoundOfOneAsIn45(TriggerAcquisitionRequest request, RoundLockReason? lockReason)
+    internal bool FiresRoundOfOneAsIn45(TriggerAcquisitionRequest request, RoundLockReason? lockReason)
     {
         if (request.MaxCount > 1 || AcquireTriggersWithinLock || lockReason is not { } reason)
         {
             return false;
         }
 
-        return reason == RoundLockReason.OptionOff || request.ExecutionLimits?.HasClusterScopedLimits != true;
+        return reason is RoundLockReason.OptionOff or RoundLockReason.SqlServer
+               || request.ExecutionLimits?.HasClusterScopedLimits != true;
     }
 
     /// <summary>

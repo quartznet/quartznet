@@ -731,7 +731,8 @@ fire faster or one job finish sooner; a schedule dominated by one long job gains
 Since 4.6 a firing round on a persistent store takes `TRIGGER_ACCESS` only when something in it needs the
 lock. A round of triggers whose jobs allow concurrent execution claims each row with a compare-and-swap on
 its fire time and fires in the same transaction, with no cluster-wide lock, so the nodes of a cluster fire
-side by side. `LockFreeFiringRounds = false` (`quartz.jobStore.lockFreeFiringRounds`) restores 4.5.
+side by side. `LockFreeFiringRounds = false` (`quartz.jobStore.lockFreeFiringRounds`) restores 4.5. On
+SQL Server, rounds work as in 4.5 in this release ([#4117](https://github.com/quartznet/quartznet/issues/4117)).
 
 What still takes the lock, by the `quartz.jobstore.lock.reason` value that reports it:
 
@@ -748,6 +749,7 @@ What still takes the lock, by the `quartz.jobstore.lock.reason` value that repor
 | `delegate` | The driver delegate takes no part in fire-on-acquire rounds | Derive from a shipped delegate |
 | `lock_all_operations` | SQLite | Nothing |
 | `option_off` | `LockFreeFiringRounds = false` | Turn it on |
+| `sql_server` | SQL Server, whose rounds work as in 4.5 in this release | Nothing; [#4117](https://github.com/quartznet/quartznet/issues/4117) tracks it |
 
 A round decides from its first read. A candidate only the lock decides rolls the round back before its
 first write and runs it again locked (event 3057, Debug); a job or trigger found changed after the claim
