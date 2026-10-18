@@ -80,7 +80,8 @@ trigger:
 
 * Nothing is raised when the old trigger is not found.
 * A start that re-applies an `AddTrigger` or `ScheduleJob` registration to a persistent store reschedules
-  each trigger already stored, so the pair is raised then too.
+  each trigger already stored, so the pair is raised then too. That trigger keeps its
+  `PreviousFireTimeUtc` (4.6).
 * `UpdateTriggerDetails` keeps the fire times and raises nothing.
 * Only the scheduler that made the call raises them. Other nodes of a cluster hear nothing.
 

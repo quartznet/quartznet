@@ -1686,6 +1686,16 @@ internal sealed class QuartzScheduler
     /// </summary>
     private void AdjustSimpleTriggerStartTimeIfInPast(IOperableTrigger trigger)
     {
+        AdjustSimpleTriggerStartTimeIfInPast(trigger, timeProvider);
+    }
+
+    /// <inheritdoc cref="AdjustSimpleTriggerStartTimeIfInPast(IOperableTrigger)" />
+    /// <remarks>
+    /// Also called by the scheduling-data processor before it gives a re-applied trigger the previous fire
+    /// time it had, which would otherwise skip this and leave the next fire time where it was not before.
+    /// </remarks>
+    internal static void AdjustSimpleTriggerStartTimeIfInPast(IOperableTrigger trigger, TimeProvider timeProvider)
+    {
         if (trigger is ISimpleTrigger simpleTrigger
             && trigger.PreviousFireTimeUtc is null
             && simpleTrigger.RepeatCount != 0

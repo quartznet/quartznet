@@ -21,6 +21,7 @@ using System.Xml.Schema;
 
 using Microsoft.Extensions.Logging;
 
+using Quartz.Core;
 using Quartz.Extensibility;
 using Quartz.Util;
 
@@ -1119,6 +1120,19 @@ internal class XmlSchedulingDataProcessor
             // if oldTriggerPreviousFireTime is null then NextFireTime should be set relative to oldTrigger.StartTimeUtc
             // to be able to handle misfiring for an existing trigger that has never been executed before.
             ((IOperableTrigger) trigger).NextFireTimeUtc = trigger.GetFireTimeAfter(oldTriggerPreviousFireTime ?? oldTrigger.StartTimeUtc);
+        }
+
+        // Re-applying a declared trigger is the same trigger again, not a new one, so it keeps the time it
+        // last fired whatever the relative-scheduling setting says (#1834, #4122). An application's own
+        // RescheduleJob does not come through here, and its new trigger starts with no previous fire time.
+        if (oldTrigger?.PreviousFireTimeUtc is { } storedPreviousFireTime && trigger.PreviousFireTimeUtc is null)
+        {
+            IOperableTrigger operableTrigger = (IOperableTrigger) trigger;
+
+            // RescheduleJob moves the start time of a simple trigger that has never fired up to now, and
+            // a previous fire time would stop it. Moved here first, the next fire time stays what it was.
+            QuartzScheduler.AdjustSimpleTriggerStartTimeIfInPast(operableTrigger, timeProvider);
+            operableTrigger.PreviousFireTimeUtc = storedPreviousFireTime;
         }
 
         return scheduler.RescheduleJob(trigger.Key, trigger, cancellationToken);
