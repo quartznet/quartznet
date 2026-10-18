@@ -156,7 +156,9 @@ internal static class JobDataCheck
         Expect(failures, job.Delay == TimeSpan.FromSeconds(90), $"Delay is {job.Delay}, not 00:01:30: a string did not bind onto a TimeSpan property");
         Expect(failures, job.Day == CanaryDay, $"Day is {job.Day:O}, not {CanaryDay:O}: a string did not bind onto a DateOnly property");
         Expect(failures, job.Time == CanaryTime, $"Time is {job.Time:O}, not {CanaryTime:O}: a string did not bind onto a TimeOnly property");
-        Expect(failures, job.Ratio == CanaryRatio, $"Ratio is {job.Ratio}, not {CanaryRatio}: a string did not bind onto a Half property");
+        // Bit for bit, not within a tolerance: the string is the round-trip form Half's own ToString wrote, so
+        // reading it back has to give exactly the value that wrote it.
+        Expect(failures, BitConverter.HalfToUInt16Bits(job.Ratio) == BitConverter.HalfToUInt16Bits(CanaryRatio), $"Ratio is {job.Ratio}, not {CanaryRatio}: a string did not bind onto a Half property");
         Expect(failures, job.Wide == CanaryWide, $"Wide is {job.Wide}, not {CanaryWide}: a string did not bind onto an Int128 property");
         Expect(failures, job.UnsignedWide == CanaryUnsignedWide, $"UnsignedWide is {job.UnsignedWide}, not {CanaryUnsignedWide}: a string did not bind onto a UInt128 property");
     }

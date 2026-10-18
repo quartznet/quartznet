@@ -109,7 +109,7 @@ internal static class StoreCheck
     /// </summary>
     public static async Task<string?> Run()
     {
-        string databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-canary-{Guid.NewGuid():N}.db");
+        string databaseFile = StoreRoundTrip.NewDatabaseFile("store");
         string connectionString = $"Data Source={databaseFile}";
 
         try
@@ -338,8 +338,7 @@ internal static class StoreCheck
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            TryDelete(databaseFile);
+            StoreRoundTrip.DeleteDatabase(databaseFile);
         }
     }
 
@@ -389,18 +388,6 @@ internal static class StoreCheck
             (false, true) => "bound by reflection",
             _ => $"called through a stack that says neither or both: {stack}",
         };
-    }
-
-    private static void TryDelete(string databaseFile)
-    {
-        try
-        {
-            File.Delete(databaseFile);
-        }
-        catch (IOException)
-        {
-            // A leftover temporary file is not a failure of anything this checks.
-        }
     }
 
     /// <summary>
