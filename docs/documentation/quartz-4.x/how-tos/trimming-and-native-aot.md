@@ -57,7 +57,7 @@ arrived in .NET 10, and many compatible libraries do not declare it. Treat the l
 
 | Package | Trimmable | `IsAotCompatible` | What proves it natively | What a trimmed publish reports against it |
 |---|---|---|---|---|
-| `Quartz` | yes | yes | `Quartz.Trimming.Canary`: a SQLite store, configuration binding, job data bound without `TypeConverter`, a type name refused once the switches are off | nothing |
+| `Quartz` | yes | yes | `Quartz.Trimming.Canary`: a SQLite store, one over a registered `DbDataSource`, configuration binding, job data bound without `TypeConverter`, a type name refused once the switches are off | nothing |
 | `Quartz.Jobs` | yes | yes | `Quartz.Trimming.Canary`: `DirectoryScanJob` finds its listener by name | nothing |
 | `Quartz.Plugins` | yes | yes | `Quartz.Trimming.Canary`: JSON and XML schedule files, structured job logging | nothing |
 | `Quartz.Plugins.TimeZoneConverter` | yes | yes | `Quartz.Trimming.Canary`, published without ICU: a zone only the converter resolves | nothing |
@@ -206,13 +206,31 @@ The factory creates the connection, which creates commands and their parameters.
 [configuration reference](../configuration/reference.md#naming-a-driver-or-handing-over-its-factory) lists
 them, including Oracle, which needs two settings a factory cannot carry.
 
-::: warning The factory overload is the one to use, not merely one of two
-A registered `DbDataSource` (pooling, type mappers, logging, Aspire) does not solve this. Its overload,
-`UseSqlite(db => db.UseRegisteredDataSource = true)`, carries `[RequiresUnreferencedCode]` because it can
-also name a connection string, and the data-source path still resolves the driver's description by type
-loading. It works in practice (an application holding a `DbDataSource` roots the driver's types), but
-without the factory's guarantee, and the warning is real.
-:::
+### Or take connections from a registered `DbDataSource`
+
+A `DbDataSource` in the container (pooling, type mappers, logging, Aspire) names no type either: it hands
+over every connection, and Quartz reads only the type-free half of the driver's description.
+`UseSqlite(db => db.UseRegisteredDataSource = true)` still warns, because the same callback could set a
+connection string instead. Register it with the two calls that overload makes:
+
+<!-- snippet: sample_trimming_registered_data_source -->
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    // What UseSqlite(db => db.UseRegisteredDataSource = true) registers, as the two calls it makes.
+    // The data source hands over every connection, so only the type-free half of the driver
+    // description is read and nothing is resolved from a string.
+    store.UseDriverDelegate<SQLiteDelegate>();
+    store.UseDataSource(db =>
+    {
+        db.Provider = DataSourceOptions.Providers.Sqlite;
+        db.UseRegisteredDataSource = true;
+    });
+}));
+```
+<!-- endSnippet -->
+
+The canary runs this natively over a `DbDataSource` of its own, with no connection string configured.
 
 ### Name job types as types
 
@@ -327,27 +345,34 @@ See [Feature switches](#feature-switches).
 2. **The store.** Creates SQLite from Quartz's schema with `UseSqlite(SqliteFactory.Instance, …)` and
    `SchemaProvisioning.Validate`, schedules a job, waits for it to fire (the job type comes back out of
    `JOB_CLASS_NAME` as a string), and reads the job and trigger back through `IScheduler`.
-3. **The binding.** Builds a scheduler from an in-memory `IConfiguration` and reads ten values back from
+3. **Weasel.** Under a real `IHost`, `UseWeaselForSqlite()` creates the schema on an empty database as the
+   host starts (`Quartz.Weasel.SQLite`); the store validates it, schedules, fires and reads back.
+4. **A registered `DbDataSource`.** A `DbDataSource` of the canary's own over `SqliteConnection`,
+   registered as an application registers Npgsql's, and taken with `UseRegisteredDataSource`. No connection
+   string is configured. It asserts the store's connection provider holds this data source and no connection
+   string, provisions the schema, schedules, fires, reads back, and counts the connections the data source
+   handed out.
+5. **The binding.** Builds a scheduler from an in-memory `IConfiguration` and reads ten values back from
    the components: the scheduler name, thread pool size, scheduler context, and the rest from options.
-4. **The side packages.** `DirectoryScanJob` scans a directory and finds its listener in the container by
+6. **The side packages.** `DirectoryScanJob` scans a directory and finds its listener in the container by
    the name in its job data (`Quartz.Jobs`); a `quartz_jobs.json` and a `quartz_jobs.xml` each name a job's
    type as text, and the job fires, with the structured job history plugin listening (`Quartz.Plugins`);
    `TimeZones.FindById` answers an id .NET alone refuses, through `UseTimeZoneConverter`
    (`Quartz.Plugins.TimeZoneConverter`). The canary publishes with `InvariantGlobalization` for the last:
    with ICU present .NET converts every IANA and Windows id itself, and no id ever reaches a resolver.
-5. **Retry classification.** A `SqliteException` reporting busy or locked, wrapped the way the store wraps
+7. **Retry classification.** A `SqliteException` reporting busy or locked, wrapped the way the store wraps
    it, is transient; a constraint failure is not. The answer comes from `SqliteErrorCode`, read by name.
-6. **Type names.** Asserts both [feature switches](#feature-switches) read `false`. A registered job's name
+8. **Type names.** Asserts both [feature switches](#feature-switches) read `false`. A registered job's name
    resolves through the container's `ITypeLoader`; `NoOpJob`, registered with `AddJobType<NoOpJob>()`,
    resolves under its 4.x spelling and the 3.x one a database may hold; a type that exists in the
    executable but was never registered is refused with the `TypeLoadException` that names `AddJob<T>()`
    and the switch. That line is what shows reflection is off rather than unset: with it on, the runtime
    finds the type. Then `AddQuartz` over a property bag naming `Quartz.Simpl.RAMJobStore` builds a
    scheduler, and one naming a store Quartz does not ship is refused naming `UseJobStore<T>()`.
-7. **Job data.** Asserts the third switch reads `false`. A job fires whose `int`, enum, `Guid`,
+9. **Job data.** Asserts the third switch reads `false`. A job fires whose `int`, enum, `Guid`,
    `TimeSpan`, `DateOnly`, `TimeOnly`, `Half`, `Int128` and `UInt128` properties are set from string job
-   data, the last five written as their own `ToString` writes them; a missing value for an `int?` is `null` and for a
-   struct its zeroed default; a `Version` from `"1.2.3"` is refused with the message that names the property,
+   data, the last five written as their own `ToString` writes them; a missing value for an `int?` is `null`
+   and for a struct its zeroed default; a `Version` from `"1.2.3"` is refused with the message that names the property,
    both types and the switch. With the switch on, `VersionConverter` would have read it.
 
 `src/Quartz.Trimming.Canary.Wire` does the same for the three packages that put a scheduler on a wire. One

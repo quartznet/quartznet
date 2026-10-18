@@ -76,6 +76,12 @@
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
     <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <!--
+      The one Weasel dialect that needs no server, and Quartz.Weasel with it: WeaselCheck lets it create the
+      schema as a host starts. A warning Weasel or JasperFx reports is theirs, and build/Build.cs logs it;
+      one against Quartz.Weasel* fails the leg like any other Quartz warning.
+    -->
+    <ProjectReference Include="..\Quartz.Weasel.SQLite\Quartz.Weasel.SQLite.csproj" />
+    <!--
       What a consumer gets from analyzers/dotnet/cs inside Quartz.nupkg; a ProjectReference does not
       carry analyzers the way a PackageReference does, so the project is named. The canary declares
       one of its jobs with [QuartzJob] and registers it with the generated AddDeclaredJobs, which is
