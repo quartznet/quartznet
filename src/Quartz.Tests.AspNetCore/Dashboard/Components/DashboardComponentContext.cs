@@ -168,6 +168,13 @@ internal sealed class DashboardComponentContext : BunitContext
         A.CallTo(() => Api.GetJobGroupPause(A<string>._, A<string>._, A<CancellationToken>._))
             .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
 
+        // And no calendar by any name, which the in-process client answers as not found. A dummy calendar
+        // excludes every time, and the Trigger Detail page's cron preview would walk it to the end of the
+        // cron year range looking for one it includes.
+        A.CallTo(() => Api.GetCalendar(A<string>._, A<string>._, A<CancellationToken>._))
+            .Throws((string schedulerName, string calendarName, CancellationToken _) =>
+                new KeyNotFoundException($"Calendar '{calendarName}' was not found in scheduler '{schedulerName}'."));
+
         SchedulerState = Services.GetRequiredService<SchedulerState>();
         SchedulerState.SelectedTimeZoneId = TimeZoneInfo.Utc.Id;
         Toasts = Services.GetRequiredService<ToastService>();
