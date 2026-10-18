@@ -188,7 +188,8 @@ internal static class FeatureSwitches
     /// <see cref="Util.ValueConverter" /> answers the conversions job data needs in practice first,
     /// whatever this says: a string to a primitive, <see cref="decimal" />, an enum,
     /// <see cref="Guid" />, <see cref="TimeSpan" />, <see cref="DateTime" />,
-    /// <see cref="DateTimeOffset" />, <see cref="Uri" /> or the <see cref="Nullable{T}" /> of one, a number
+    /// <see cref="DateTimeOffset" />, <see cref="DateOnly" />, <see cref="TimeOnly" />, <see cref="Half" />,
+    /// <see cref="Int128" />, <see cref="UInt128" />, <see cref="Uri" /> or the <see cref="Nullable{T}" /> of one, a number
     /// to a number or an enum, and the way back. Off, any other conversion is refused with a
     /// <see cref="NotSupportedException" /> naming the two types and this switch, and a missing value for
     /// a struct property is the struct's zeroed default rather than what its parameterless constructor

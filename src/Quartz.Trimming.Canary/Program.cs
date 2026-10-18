@@ -79,8 +79,9 @@ namespace Quartz.Trimming.Canary;
 /// </para>
 /// <para>
 /// Finally <see cref="JobDataCheck" /> shows the third switch is off: job data still binds onto a job's
-/// <see cref="int" />, enum, <see cref="Guid" /> and <see cref="TimeSpan" /> properties from strings, and a
-/// conversion only a <c>TypeConverter</c> could make is refused naming the switch.
+/// <see cref="int" />, enum, <see cref="Guid" />, <see cref="TimeSpan" />, <see cref="DateOnly" />,
+/// <see cref="TimeOnly" />, <see cref="Half" />, <see cref="Int128" /> and <see cref="UInt128" /> properties
+/// from strings, and a conversion only a <c>TypeConverter</c> could make is refused naming the switch.
 /// </para>
 /// <para>
 /// Before any of it, <see cref="TrimWitness" /> makes the one reflective call the canary keeps on purpose,

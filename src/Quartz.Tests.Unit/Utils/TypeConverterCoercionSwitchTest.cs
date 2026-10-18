@@ -21,6 +21,8 @@
 
 #nullable enable
 
+using System.Globalization;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -73,6 +75,30 @@ public sealed class TypeConverterCoercionSwitchTest
         ValueConverter.ConvertValueIfNecessary(typeof(int?), "").Should().BeNull("NullableConverter reads the empty string as no value");
         ValueConverter.ConvertValueIfNecessary(typeof(long), 42).Should().Be(42L);
         ValueConverter.ConvertValueIfNecessary(typeof(string), DayOfWeek.Wednesday).Should().Be("Wednesday");
+    }
+
+    [Test]
+    public void TheNewerValueTypesConvertFromTheirOwnRoundTripForms()
+    {
+        DateOnly day = new(2026, 10, 16);
+        TimeOnly time = new(12, 34, 56, 789);
+
+        ValueConverter.ConvertValueIfNecessary(typeof(DateOnly), day.ToString("O", CultureInfo.InvariantCulture)).Should().Be(day, "DateOnlyConverter reads the round-trip form");
+        ValueConverter.ConvertValueIfNecessary(typeof(DateOnly), day.ToString(CultureInfo.InvariantCulture)).Should().Be(day, "and the invariant culture's own");
+        ValueConverter.ConvertValueIfNecessary(typeof(DateOnly), " ").Should().Be(DateOnly.MinValue, "DateOnlyConverter reads blank as the minimum");
+        ValueConverter.ConvertValueIfNecessary(typeof(TimeOnly), time.ToString("O", CultureInfo.InvariantCulture)).Should().Be(time, "TimeOnlyConverter reads the round-trip form");
+        ValueConverter.ConvertValueIfNecessary(typeof(TimeOnly?), "").Should().BeNull("NullableConverter reads the empty string as no value");
+        ValueConverter.ConvertValueIfNecessary(typeof(Half), "1,000.5").Should().Be((Half) 1000.5, "Half's default style allows a thousands separator");
+        ValueConverter.ConvertValueIfNecessary(typeof(Int128), Int128.MaxValue.ToString(CultureInfo.InvariantCulture)).Should().Be(Int128.MaxValue);
+        ValueConverter.ConvertValueIfNecessary(typeof(Int128), "0x1F").Should().Be((Int128) 31, "Int128Converter reads hexadecimal as the narrower integers' converters do");
+        ValueConverter.ConvertValueIfNecessary(typeof(UInt128), UInt128.MaxValue.ToString(CultureInfo.InvariantCulture)).Should().Be(UInt128.MaxValue);
+
+        Action overflowing = () => ValueConverter.ConvertValueIfNecessary(typeof(UInt128), "-1");
+        overflowing.Should().Throw<ArgumentException>().WithMessage("-1 is not a valid value for UInt128.*",
+            "UInt128Converter refuses a negative number with its own message, and the fast path must refuse it the same way rather than answer");
+
+        Action fromANumber = () => ValueConverter.ConvertValueIfNecessary(typeof(Int128), 42);
+        fromANumber.Should().Throw<CoercionNotSupportedException>("Int128Converter reads only strings, so TypeDescriptor refused an int too");
     }
 
     [Test]

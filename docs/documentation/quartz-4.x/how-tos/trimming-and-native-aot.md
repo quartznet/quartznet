@@ -107,7 +107,7 @@ What stops working, and the message:
 | Type names | a stored `JOB_CLASS_NAME`, or a job type in a request body, nothing registered | the job lists and loads; its first fire fails to instantiate with the same text, and the trigger goes to `ERROR` |
 | Type names | `UseSqlite(connectionString)` and its siblings, `quartz.dataSource.<name>.provider` | `SchedulerConfigException` at startup: *Driver 'X' is described by type names, which this publish does not resolve … Pass the driver's DbProviderFactory* |
 | Component keys | `quartz.jobStore.type`, `quartz.threadPool.type`, `quartz.serializer.type`, `quartz.scheduler.typeLoadHelper.type`, `quartz.scheduler.jobFactory.type`, `quartz.scheduler.instanceIdGenerator.type`, `quartz.timeProvider.type`, `quartz.jobStore.driverDelegateType`, `quartz.jobStore.driverDelegateInitString`, `quartz.jobStore.lockHandler.type`, `quartz.dataSource.<name>.connectionProvider.type`, `quartz.dbprovider.*`, `quartz.plugin.*`, and a component's leftover keys | `SchedulerConfigException` from `AddQuartz` (`GetScheduler()` for `quartz.plugin.*`): *Configuration property 'X' names a component or sets its properties by string, which this publish does not do … In code, `UseJobStore<T>()` …* |
-| Job data | a value onto a job property that no built-in conversion handles: a string onto `Version`, `CultureInfo`, `DateOnly` or a type of your own; a `DateTime` onto a `string` | `NotSupportedException`, behind the property's name: *A System.String cannot be converted to System.Version without a TypeConverter, and this publish does not convert through TypeConverter (Quartz.JobData.IsTypeConverterCoercionSupported is false) …* |
+| Job data | a value onto a job property that no built-in conversion handles: a string onto `Version`, `CultureInfo` or a type of your own; a `DateTime` onto a `string` | `NotSupportedException`, behind the property's name: *A System.String cannot be converted to System.Version without a TypeConverter, and this publish does not convert through TypeConverter (Quartz.JobData.IsTypeConverterCoercionSupported is false) …* |
 | Job data | `null` for a struct property whose type declares a parameterless constructor | not an error: the property gets the struct's zeroed default, and the constructor does not run |
 
 The job factory logs a refused value as a warning (event `4009`) even under the default
@@ -127,11 +127,11 @@ ADO.NET store in every trimmed application.
 
 These convert with the third switch off, exactly as their `TypeConverter` does: under the invariant
 culture, hexadecimal integers after `#`, `0x` or `&h`, enum names in any case and combined with commas, a
-blank string as `DateTime.MinValue`, and an empty one as `null` for `Nullable<T>`.
+blank string as `MinValue` for a date or a time, and an empty one as `null` for `Nullable<T>`.
 
 | From | To |
 |---|---|
-| `string` | a primitive, `decimal`, an enum, `Guid`, `TimeSpan`, `DateTime`, `DateTimeOffset`, `Uri`, or the `Nullable<T>` of one |
+| `string` | a primitive, `decimal`, an enum, `Guid`, `TimeSpan`, `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly`, `Half`, `Int128`, `UInt128`, `Uri`, or the `Nullable<T>` of one |
 | a number | a primitive; an enum, from an integral number; `string` |
 | an enum | `string`; any target above, through its number |
 | `bool`, `char`, `Guid`, `TimeSpan`, `Uri` | `string` |
@@ -344,8 +344,9 @@ See [Feature switches](#feature-switches).
    and the switch. That line is what shows reflection is off rather than unset: with it on, the runtime
    finds the type. Then `AddQuartz` over a property bag naming `Quartz.Simpl.RAMJobStore` builds a
    scheduler, and one naming a store Quartz does not ship is refused naming `UseJobStore<T>()`.
-7. **Job data.** Asserts the third switch reads `false`. A job fires whose `int`, enum, `Guid` and
-   `TimeSpan` properties are set from string job data; a missing value for an `int?` is `null` and for a
+7. **Job data.** Asserts the third switch reads `false`. A job fires whose `int`, enum, `Guid`,
+   `TimeSpan`, `DateOnly`, `TimeOnly`, `Half`, `Int128` and `UInt128` properties are set from string job
+   data, the last five written as their own `ToString` writes them; a missing value for an `int?` is `null` and for a
    struct its zeroed default; a `Version` from `"1.2.3"` is refused with the message that names the property,
    both types and the switch. With the switch on, `VersionConverter` would have read it.
 
