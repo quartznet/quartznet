@@ -5,6 +5,9 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
+using Quartz.Configuration;
+using Quartz.Extensibility;
+using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Tests.Unit.Aspire;
@@ -27,24 +30,63 @@ public class QuartzAspireRegistrationTest
     [Test]
     public void CallingItBeforeOrAfterAddQuartzGivesTheSameContainer()
     {
-        (DataSourceOptions DataSource, AdoJobStoreOptions Store) before = Build(builder =>
+        using IHost before = Host(builder =>
         {
             builder.AddQuartzPersistentStore("quartz", settings => settings.TablePrefix = "APP_");
             builder.AddQuartz();
         });
 
-        (DataSourceOptions DataSource, AdoJobStoreOptions Store) after = Build(builder =>
+        using IHost after = Host(builder =>
         {
             builder.AddQuartz();
             builder.AddQuartzPersistentStore("quartz", settings => settings.TablePrefix = "APP_");
         });
 
-        after.DataSource.Should().BeEquivalentTo(before.DataSource);
-        after.Store.Should().BeEquivalentTo(before.Store);
+        AspireApplication.DataSourceOf(after.Services).Should().BeEquivalentTo(AspireApplication.DataSourceOf(before.Services));
+        AspireApplication.StoreOf(after.Services).Should().BeEquivalentTo(AspireApplication.StoreOf(before.Services));
+        JobStoreOf(after).Should().Be(JobStoreOf(before),
+            "the options are configured either way, so only the store that reads them shows which order "
+            + "was ignored (#4104)");
+        DriverDelegateOf(after).Should().Be(DriverDelegateOf(before));
 
-        before.DataSource.Provider.Should().Be(DataSourceOptions.Providers.Npgsql,
+        AspireApplication.DataSourceOf(before.Services).Provider.Should().Be(DataSourceOptions.Providers.Npgsql,
             "a comparison of two empty results would pass just as well, so one of them is checked for "
             + "having happened at all");
+        JobStoreOf(before).Should().Be(typeof(LocalTransactionJobStore),
+            "two in-memory stores would compare equal too");
+    }
+
+    /// <summary>
+    /// The registration #4104 reported: <c>AddQuartz</c> first, then this, for the default scheduler and
+    /// for a named one.
+    /// </summary>
+    /// <remarks>
+    /// The scheduler's registration fills in the in-memory store as its default, and the store this call
+    /// chooses through <c>ConfigureAllQuartzSchedulers</c> used to be a <c>TryAdd</c> that lost to it.
+    /// </remarks>
+    [TestCase(null, null)]
+    [TestCase("Scheduler", null)]
+    [TestCase("Scheduler", "Scheduler")]
+    public void AddingItAfterAddQuartzGivesTheSchedulerTheDatabaseStore(string? schedulerName, string? settingsSchedulerName)
+    {
+        using IHost host = Host(builder =>
+        {
+            if (schedulerName is null)
+            {
+                builder.AddQuartz(q => q.UseDefaultThreadPool(2));
+            }
+            else
+            {
+                builder.AddQuartz(schedulerName, q => q.UseDefaultThreadPool(2));
+            }
+
+            builder.AddQuartzPersistentStore("quartz", settings => settings.SchedulerName = settingsSchedulerName);
+        });
+
+        JobStoreOf(host, schedulerName).Should().Be(typeof(LocalTransactionJobStore),
+            "a schedule on the in-memory store does not survive a restart, and nothing says so");
+        DriverDelegateOf(host, schedulerName).Should().Be(typeof(PostgreSQLDelegate),
+            "the store speaks the dialect of the database the connection string names");
     }
 
     [Test]
@@ -357,6 +399,19 @@ public class QuartzAspireRegistrationTest
         HostApplicationBuilder builder = AspireApplication.WorkerWith(AspireApplication.Postgres);
         configure(builder);
         return builder.Services;
+    }
+
+    /// <summary>
+    /// The type of the store the container builds for a scheduler. Constructing it opens no connection.
+    /// </summary>
+    private static Type JobStoreOf(IHost host, string? schedulerName = null)
+    {
+        return host.Services.GetScheduler<IJobStore>(schedulerName).GetType();
+    }
+
+    private static Type DriverDelegateOf(IHost host, string? schedulerName = null)
+    {
+        return host.Services.GetScheduler<IDriverDelegate>(schedulerName).GetType();
     }
 
     private static QuartzSchedulerOptions Scheduler(IHost host, string? schedulerName = null)

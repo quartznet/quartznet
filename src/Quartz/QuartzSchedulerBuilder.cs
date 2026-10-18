@@ -167,16 +167,17 @@ public sealed class QuartzSchedulerBuilder
     {
         NameValueCollection configured = ApplyProperties();
 
-        // Phase 4, for everyone: the pass AddQuartz makes straight after a scheduler's own callback. That
-        // callback ran in the constructor, and what it registered through ConfigureAllQuartzSchedulers
-        // - the execution history recorder, the scheduler events plugin, whatever a library contributes -
-        // was recorded against a scheduler that did not exist yet, and nothing else carries it to this
-        // one. Before the property-named registrations, so that what code registered beats what a string
-        // named, as it does in the container.
-        SchedulerNameRegistry.For(services).ApplyConfigureAll(services, schedulerName: null);
-
         // Phase 5: registration is first-wins, so the implementations named by keys go in after it.
         QuartzPropertyBridge.ApplyRegistrations(services, configured);
+
+        // Phase 5, for everyone: the pass AddQuartz makes once a scheduler has said everything about
+        // itself. The callback ran in the constructor, and what it registered through
+        // ConfigureAllQuartzSchedulers - the execution history recorder, the scheduler events plugin,
+        // whatever a library contributes - was recorded against a scheduler that did not exist yet, and
+        // nothing else carries it to this one. After the property-named registrations, so that a part
+        // chosen for every scheduler loses to one this scheduler's own keys named, as it does in the
+        // container.
+        SchedulerNameRegistry.For(services).ApplyConfigureAll(services, schedulerName: null);
 
         BridgeLoggingToLogProvider();
 

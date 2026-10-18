@@ -350,14 +350,9 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
 
     private void RegisterProvider(Func<IServiceProvider, IDbProvider> factory)
     {
-        if (schedulerKey is null)
-        {
-            Services.TryAddSingleton(factory);
-        }
-        else
-        {
-            Services.TryAddKeyedSingleton<IDbProvider>(schedulerKey, (provider, _) => factory(provider));
-        }
+        SchedulerParts.TryAdd(Services, schedulerKey is null
+            ? ServiceDescriptor.Singleton<IDbProvider>(factory)
+            : ServiceDescriptor.KeyedSingleton<IDbProvider>(schedulerKey, (provider, _) => factory(provider)));
     }
 
     /// <summary>
@@ -381,20 +376,19 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     /// Registers a per-scheduler service built by a factory, which is given a provider resolving this
     /// scheduler's parts.
     /// </summary>
+    /// <remarks>
+    /// A driver delegate and a serializer have defaults the scheduler's registration fills in, and this
+    /// replaces one of those rather than losing to it — see <see cref="SchedulerParts" />.
+    /// </remarks>
     private void RegisterScoped<TService>(Func<IServiceProvider, TService> factory) where TService : class
     {
-        if (schedulerKey is null)
-        {
-            // Through the same wrapper as the keyed branch, although the default scheduler's parts need
-            // no redirecting: it is what supplies an ILoggerFactory to a component that asks for one in
-            // a container that has none, which Quartz no longer registers (#3730).
-            Services.TryAddSingleton(provider => factory(SchedulerScopedServiceProvider.For(provider, key: null)));
-        }
-        else
-        {
-            Services.TryAddKeyedSingleton<TService>(
+        // Through the same wrapper as the keyed branch, although the default scheduler's parts need no
+        // redirecting: it is what supplies an ILoggerFactory to a component that asks for one in a
+        // container that has none, which Quartz no longer registers (#3730).
+        SchedulerParts.TryAdd(Services, schedulerKey is null
+            ? ServiceDescriptor.Singleton<TService>(provider => factory(SchedulerScopedServiceProvider.For(provider, key: null)))
+            : ServiceDescriptor.KeyedSingleton<TService>(
                 schedulerKey,
-                (provider, key) => factory(SchedulerScopedServiceProvider.For(provider, key)));
-        }
+                (provider, key) => factory(SchedulerScopedServiceProvider.For(provider, key))));
     }
 }

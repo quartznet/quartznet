@@ -5,8 +5,9 @@ namespace Quartz.Configuration;
 /// <summary>
 /// What the container has been told to register a scheduler under, while it is still being told: the
 /// names <c>AddQuartz(name, …)</c> has been called with, so that a second registration under a name
-/// already taken is refused where it is written rather than where the scheduler is bound, and the
-/// container-wide configuration <c>ConfigureAllQuartzSchedulers</c> has recorded.
+/// already taken is refused where it is written rather than where the scheduler is bound, the
+/// container-wide configuration <c>ConfigureAllQuartzSchedulers</c> has recorded, and which of each
+/// scheduler's parts are still the defaults its registration filled in.
 /// </summary>
 /// <remarks>
 /// Names are compared case-insensitively, because <see cref="Quartz.Impl.SchedulerRepository"/> indexes
@@ -41,6 +42,16 @@ internal sealed class SchedulerNameRegistry
     /// carries it there.
     /// </remarks>
     private readonly HashSet<(Action<IQuartzBuilder> Configure, string? SchedulerName)> applied = [];
+
+    /// <summary>
+    /// The registrations a scheduler's own registration filled in as its defaults, and still holds.
+    /// </summary>
+    /// <remarks>
+    /// By reference, because a descriptor is the identity here: it carries the service type and the
+    /// scheduler's key, and two defaults are never the same object. See <see cref="SchedulerParts" />
+    /// for why a default has to be told apart from a choice.
+    /// </remarks>
+    private readonly HashSet<ServiceDescriptor> defaults = new(ReferenceEqualityComparer.Instance);
 
     public IReadOnlyList<string> Names => names;
 
@@ -79,6 +90,22 @@ internal sealed class SchedulerNameRegistry
     /// </remarks>
     public static SchedulerNameRegistry For(IServiceCollection services)
     {
+        if (Existing(services) is { } existing)
+        {
+            return existing;
+        }
+
+        SchedulerNameRegistry registry = new();
+        services.AddSingleton(registry);
+        return registry;
+    }
+
+    /// <summary>
+    /// Returns the registry belonging to a service collection, or <see langword="null" /> when nothing has
+    /// registered one yet.
+    /// </summary>
+    public static SchedulerNameRegistry? Existing(IServiceCollection services)
+    {
         foreach (ServiceDescriptor descriptor in services)
         {
             if (descriptor.ServiceType == typeof(SchedulerNameRegistry)
@@ -88,9 +115,31 @@ internal sealed class SchedulerNameRegistry
             }
         }
 
-        SchedulerNameRegistry registry = new();
-        services.AddSingleton(registry);
-        return registry;
+        return null;
+    }
+
+    /// <summary>
+    /// Records that a scheduler's registration filled in this part as a default.
+    /// </summary>
+    public void RecordDefaultPart(ServiceDescriptor descriptor)
+    {
+        defaults.Add(descriptor);
+    }
+
+    /// <summary>
+    /// Whether this registration is a default a scheduler's registration filled in, rather than a choice.
+    /// </summary>
+    public bool IsDefaultPart(ServiceDescriptor descriptor)
+    {
+        return defaults.Contains(descriptor);
+    }
+
+    /// <summary>
+    /// Forgets a default that a choice has replaced.
+    /// </summary>
+    public void ForgetDefaultPart(ServiceDescriptor descriptor)
+    {
+        defaults.Remove(descriptor);
     }
 
     public void Add(string name)
@@ -157,11 +206,12 @@ internal sealed class SchedulerNameRegistry
     /// Applies every recorded container-wide delegate to one scheduler.
     /// </summary>
     /// <remarks>
-    /// Called from <c>AddQuartz</c> after the caller's own configuration callback, which is the same
-    /// place in the order that a scheduler registered earlier gets it — <c>ConfigureAllQuartzSchedulers</c>
-    /// applies it to those where it is called, and that is after their callbacks too. Container-wide
-    /// configuration therefore lands in one position regardless of the order the calls were written in,
-    /// which is the whole point of it.
+    /// Called from <c>AddQuartz</c> after the caller's own configuration callback and the registrations
+    /// its keys name, and before its defaults, which is the same place in the order that a scheduler
+    /// registered earlier gets it — <c>ConfigureAllQuartzSchedulers</c> applies it to those where it is
+    /// called, after everything they said about themselves, and a part it chooses there replaces a default
+    /// (see <see cref="SchedulerParts" />). Container-wide configuration therefore lands in one position
+    /// regardless of the order the calls were written in, which is the whole point of it.
     /// </remarks>
     public void ApplyConfigureAll(IServiceCollection services, string? schedulerName)
     {

@@ -283,9 +283,9 @@ builder.Services.ConfigureAllQuartzSchedulers(q =>
 - **Order does not matter.** It runs after each scheduler's own callback, whether that scheduler was
   registered before or after this call, so a package can use it without knowing when schedulers are
   registered.
-- **Precedence:** registration is first-wins, so a job store or thread pool a tenant chose stays; options
-  are last-wins, so a value set here overrides a tenant's, as `ConfigureAll<TOptions>` overrides a named
-  `Configure`.
+- **Precedence:** a part chosen here replaces a default, never a job store or thread pool a tenant chose;
+  options are last-wins, so a value set here overrides a tenant's, as `ConfigureAll<TOptions>` overrides a
+  named `Configure`.
 - **Each scheduler gets its own instance** of what the callback adds, under its key: a plugin added to
   three schedulers is three instances, each initialized with its scheduler's name.
 - **It reaches `AddQuartz()`, `AddQuartz(name, …)` and `AddQuartzSchedulers(…)`**, not remote schedulers

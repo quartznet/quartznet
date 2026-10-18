@@ -41,6 +41,8 @@ namespace Quartz.Configuration;
 /// <para>
 /// Every component is registered with <c>TryAdd</c>, so anything the application registered first wins.
 /// That is what makes "bring your own job store / thread pool / serializer" work without type-name strings.
+/// The parts of one scheduler's graph are also recorded as its defaults, so a part chosen after them
+/// replaces one rather than losing to it — see <see cref="SchedulerParts" />.
 /// </para>
 /// </remarks>
 internal static class QuartzServiceRegistration
@@ -172,7 +174,10 @@ internal static class QuartzServiceRegistration
         // name, which is also their options name.
         object? key = schedulerName;
 
-        JobFactoryDescriptor.TryAdd(services, key, typeof(MicrosoftDependencyInjectionJobFactory), static (provider, key) =>
+        // Every part below is a default, recorded as one as it goes in: a part chosen after this - by
+        // ConfigureAllQuartzSchedulers once this scheduler is registered, or by a second AddQuartz() for
+        // the default scheduler - replaces it rather than losing to it. See SchedulerParts.
+        JobFactoryDescriptor.TryAddDefault(services, key, typeof(MicrosoftDependencyInjectionJobFactory), static (provider, key) =>
             ActivatorUtilities.CreateInstance<MicrosoftDependencyInjectionJobFactory>(Scoped(provider, key)));
 
         services.TryAddKeyed<IJobRunShellFactory>(key, static (provider, key) =>
@@ -217,9 +222,9 @@ internal static class QuartzServiceRegistration
         // set — services.AddKeyedSingleton(schedulerName, registry) — without affecting the others.
         if (schedulerName is not null)
         {
-            services.TryAddKeyedSingleton<SystemTextJsonSerializerRegistry>(
+            SchedulerParts.TryAddDefault(services, ServiceDescriptor.KeyedSingleton<SystemTextJsonSerializerRegistry>(
                 schedulerName,
-                static (provider, _) => provider.GetRequiredService<SystemTextJsonSerializerRegistry>());
+                static (provider, _) => provider.GetRequiredService<SystemTextJsonSerializerRegistry>()));
         }
 
         services.TryAddKeyed<IObjectSerializer>(key, static (provider, key) =>
@@ -325,7 +330,7 @@ internal static class QuartzServiceRegistration
     }
 
     /// <summary>
-    /// Registers a service either keyed or unkeyed depending on whether a key was given, so callers do
+    /// Registers a default either keyed or unkeyed depending on whether a key was given, so callers do
     /// not have to branch on "is this the default scheduler" at every registration.
     /// </summary>
     private static void TryAddKeyed<TService>(
@@ -333,14 +338,9 @@ internal static class QuartzServiceRegistration
         object? key,
         Func<IServiceProvider, object?, TService> factory) where TService : class
     {
-        if (key is null)
-        {
-            services.TryAddSingleton(provider => factory(provider, null));
-        }
-        else
-        {
-            services.TryAddKeyedSingleton(key, (provider, serviceKey) => factory(provider, serviceKey));
-        }
+        SchedulerParts.TryAddDefault(services, key is null
+            ? ServiceDescriptor.Singleton<TService>(provider => factory(provider, null))
+            : ServiceDescriptor.KeyedSingleton<TService>(key, (provider, serviceKey) => factory(provider, serviceKey)));
     }
 
     /// <summary>
