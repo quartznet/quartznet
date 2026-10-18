@@ -743,6 +743,7 @@ What still takes the lock, by the `quartz.jobstore.lock.reason` value that repor
 | `cluster_limit` | The node has a cluster-scoped execution limit | Nothing; the lock is what makes the ceiling exact |
 | `older_peer` | A live node is older than 4.6, or this node has not checked in yet | Finish the rolling upgrade; see below |
 | `hysteresis` | The round before this one escalated | Nothing; a locked round that needed the lock for nothing ends it |
+| `contention` | A round without the lock lost a claim to another node | Nothing; a locked round that comes back short ends it, or 2 s |
 | `definition_changed` | A job or trigger was replaced between the round's read and its claim, or moved to an execution group this node does not serve | Nothing; the round ran again under the lock |
 | `isolation_level` | `TransactionIsolationLevel` is set to anything but `ReadCommitted` | Leave it unset |
 | `acquire_within_lock` | `AcquireTriggersWithinLock = true` | Turn it off |
@@ -758,9 +759,11 @@ needed it. A round of one trigger that takes the lock takes it as 4.5 did: acqui
 under it in a second transaction. `AcquireTriggersWithinLock` and a cluster-scoped limit keep the
 acquisition under the lock.
 
-Rounds that take no lock reach for the same rows on every node. A node that loses every row it reached for
-looks again after a tenth of a second, backing off towards its idle wait, rather than sleeping the idle
-wait behind due work.
+Rounds that take no lock reach for the same rows on every node. Under contention, rounds take the lock
+until the backlog clears: a round that lost a claim to another node makes the rounds after it locked, and
+the next one runs at once (event 3060, Debug, once per episode). The episode ends when a locked round
+acquires fewer triggers than it asked for, or after two seconds, when one round goes without the lock to
+see whether the nodes still contend.
 
 | Where to see it | What it says |
 |---|---|

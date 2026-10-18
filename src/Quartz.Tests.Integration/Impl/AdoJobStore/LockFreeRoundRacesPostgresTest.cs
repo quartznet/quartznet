@@ -344,6 +344,52 @@ public sealed class LockFreeRoundRacesPostgresTest : ClusteredPostgresTestBase
             .Should().Be(0, "neither attempt left a firing or a reservation");
     }
 
+    /// <summary>
+    /// Two clustered nodes reach for the same backlog. The round paused after its candidate read loses both
+    /// rows to the other node's round, which claims and commits them first, and fires what was due behind
+    /// them; the round after it takes the lock, for contention (#4067).
+    /// </summary>
+    [Test]
+    public async Task ARoundThatLosesItsClaimsToAnotherNodeLocksTheNextRoundForContention()
+    {
+        HookedPostgresDelegate contenderHooks = new();
+        LocalTransactionJobStore contender = await CreateStore("contender-node", contenderHooks, TimeSpan.FromMinutes(10), signaler: null, clustered: true);
+        LocalTransactionJobStore rival = await CreateStore("rival-node", new PostgreSQLDelegate(), TimeSpan.FromMinutes(10), signaler: null, clustered: true);
+
+        // Each node's check-in has to have read the other's 4.6 row before its rounds may take no lock.
+        await contender.CheckIn(Guid.NewGuid());
+        await rival.CheckIn(Guid.NewGuid());
+        await contender.CheckIn(Guid.NewGuid());
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await Stored(Trigger("first", now.AddSeconds(-5)));
+        await Stored(Trigger("second", now.AddSeconds(-4)));
+        await Stored(Trigger("behind", now.AddSeconds(-3)));
+
+        Gate gate = new();
+        contenderHooks.AfterCandidateRead = gate.Pause;
+        TriggerAcquisitionRequest two = Request() with { MaxCount = 2 };
+
+        Task<TriggerAcquisitionResult> contended = Run(() => contender.AcquireNextTriggersAndFireDue(two));
+        await gate.Reached.WaitAsync(Timeout);
+
+        TriggerAcquisitionResult won = await rival.AcquireNextTriggersAndFireDue(two);
+        won.LockName.Should().Be("none");
+        won.Due.Select(x => x.Key.Name).Should().Equal(["first", "second"], "the rival's round reads the same two rows and commits first");
+
+        gate.Release();
+        TriggerAcquisitionResult lost = await contended;
+        lost.LockName.Should().Be("none");
+        lost.Due.Select(x => x.Key.Name).Should().Equal(["behind"], "both claims found their row moved, and the read after them found what was due behind");
+        lost.Contended.Should().BeTrue("it lost two claims to the other node");
+
+        TriggerAcquisitionResult next = await contender.AcquireNextTriggersAndFireDue(two);
+        next.LockName.Should().Be("TRIGGER_ACCESS");
+        next.LockReason.Should().Be("contention", "the round before lost claims to another node, so this one queues on the lock instead of racing");
+        (await CountRows("SELECT COUNT(*) FROM QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = @schedulerName", ("schedulerName", SchedulerName)))
+            .Should().Be(3, "each trigger fired once, whichever node won it");
+    }
+
     private static Task<T> Run<T>(Func<ValueTask<T>> operation) => Task.Run(() => operation().AsTask());
 
     private async Task<DateTimeOffset> Stored(IOperableTrigger trigger)
@@ -392,10 +438,17 @@ public sealed class LockFreeRoundRacesPostgresTest : ClusteredPostgresTestBase
     }
 
     /// <summary>
-    /// One node's store on the shared database: not clustered, so that no check-in has to read the state
-    /// table before a round may take no lock, and locking through the database as a clustered node does.
+    /// One node's store on the shared database: not clustered unless <paramref name="clustered" /> says so,
+    /// so that no check-in has to read the state table before a round may take no lock, and locking through
+    /// the database as a clustered node does. A clustered one is what a contention episode needs: off a
+    /// cluster no other node takes a row.
     /// </summary>
-    private async Task<LocalTransactionJobStore> CreateStore(string instanceId, IDriverDelegate driverDelegate, TimeSpan misfireThreshold, ISchedulerSignaler signaler)
+    private async Task<LocalTransactionJobStore> CreateStore(
+        string instanceId,
+        IDriverDelegate driverDelegate,
+        TimeSpan misfireThreshold,
+        ISchedulerSignaler signaler,
+        bool clustered = false)
     {
         LocalTransactionJobStore store = new(TestJobStores.Dependencies(
             signaler: signaler,
@@ -405,7 +458,7 @@ public sealed class LockFreeRoundRacesPostgresTest : ClusteredPostgresTestBase
                 options.UseDbLocks = true;
                 options.MisfireThreshold = misfireThreshold;
             }),
-            clusteringOptions: TestJobStores.ClusteringOptions(options => options.Enabled = false),
+            clusteringOptions: TestJobStores.ClusteringOptions(options => options.Enabled = clustered),
             dbProvider: new DbProvider(Database.Provider, Database.ConnectionString),
             driverDelegate: driverDelegate) with
         {

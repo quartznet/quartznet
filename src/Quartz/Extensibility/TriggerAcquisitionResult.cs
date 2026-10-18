@@ -98,6 +98,14 @@ public sealed class TriggerAcquisitionResult
     internal int ClaimedElsewhere { get; init; }
 
     /// <summary>
+    /// Whether this round, which took no lock, lost a claim to another node, so that the rounds after it
+    /// take the lock until the backlog clears (#4067). The next round waits on the lock, not on another
+    /// node's claims, so a round that took nothing is followed by one at once rather than a look soon.
+    /// </summary>
+    /// <remarks>Internal, as <see cref="ClaimedElsewhere" /> is.</remarks>
+    internal bool Contended { get; init; }
+
+    /// <summary>
     /// When the latest of the firings on another node that hold this node's pinned triggers was fired, if
     /// any does. A later one than the last round saw is the job having ended and been taken again in
     /// between, so the scheduler starts looking soon again rather than less and less often.

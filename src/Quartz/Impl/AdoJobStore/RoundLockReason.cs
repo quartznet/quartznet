@@ -75,6 +75,12 @@ internal enum RoundLockReason
 
     /// <summary>The round before this one escalated, and this one starts where it ended.</summary>
     Hysteresis,
+
+    /// <summary>
+    /// A round that took no lock lost a claim to another node, and the rounds after it take the lock until
+    /// the backlog clears: a locked round comes back short, or the cool-down passes.
+    /// </summary>
+    Contention,
 }
 
 /// <summary>
@@ -97,6 +103,7 @@ internal static class RoundLockReasons
         RoundLockReason.OverlapPolicy => "overlap_policy",
         RoundLockReason.DefinitionChanged => "definition_changed",
         RoundLockReason.Hysteresis => "hysteresis",
+        RoundLockReason.Contention => "contention",
         _ => "unknown",
     };
 
@@ -115,6 +122,7 @@ internal static class RoundLockReasons
         RoundLockReason.OverlapPolicy => "a candidate's overlap policy is decided under the lock",
         RoundLockReason.DefinitionChanged => "a job or trigger changed between the read and the claim",
         RoundLockReason.Hysteresis => "the previous round had to take it",
+        RoundLockReason.Contention => "nodes are claiming the same triggers, until the backlog clears",
         _ => "unknown",
     };
 }

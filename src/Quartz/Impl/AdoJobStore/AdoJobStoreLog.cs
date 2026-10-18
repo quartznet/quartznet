@@ -238,6 +238,11 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3058, Level = LogLevel.Warning, Message = "Firing round rolled back and run again under TRIGGER_ACCESS: the job, overlap policy or execution group of trigger {TriggerKey} changed between the candidate read and the claim")]
     public static partial void RoundRolledBackForLock(this ILogger logger, TriggerKey? triggerKey);
 
+    // Debug, once per episode: nodes racing for the same backlog is ordinary, and the rounds that follow
+    // carry the reason on the acquisition instruments without a line each (#4067).
+    [LoggerMessage(EventId = 3060, Level = LogLevel.Debug, Message = "Firing rounds take TRIGGER_ACCESS until the backlog clears: a round without it lost {ClaimsLost} claims to another node")]
+    public static partial void RoundsLockedForContention(this ILogger logger, int claimsLost);
+
     // Debug: the ordinary outcome of an edit racing a firing round that takes no lock (#4067). The edit is
     // applied to the row as the fire left it, which is the serialised order.
     [LoggerMessage(EventId = 3059, Level = LogLevel.Debug, Message = "Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write")]

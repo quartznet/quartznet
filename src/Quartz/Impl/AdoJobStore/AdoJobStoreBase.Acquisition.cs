@@ -309,6 +309,10 @@ internal abstract partial class AdoJobStoreBase
                 // due work was there, which is not a round to follow with an idle wait (#4067).
                 int lostToPeers = 0;
 
+                // Every row any read of this round reached for and lost, which is what a round that took no
+                // lock goes by to turn the rounds after it to the lock (#4067).
+                int claimsLost = 0;
+
                 // Whether any read found a candidate only the lock decides: what a round of one taken in
                 // 4.5's shape for the previous round's sake goes by, as a folded round goes by its own note.
                 bool candidateNeededLock = false;
@@ -664,6 +668,7 @@ internal abstract partial class AdoJobStoreBase
                     }
 
                     lostToPeers = raced;
+                    claimsLost += raced;
                     if (acquiredTriggers.Count > 0)
                     {
                         break;
@@ -714,7 +719,8 @@ internal abstract partial class AdoJobStoreBase
                     pinned.LatestBlockingFiredUtc,
                     groupsAtLimit,
                     Clustered && acquiredTriggers.Count == 0 ? lostToPeers : 0,
-                    candidateNeededLock);
+                    candidateNeededLock,
+                    Clustered ? claimsLost : 0);
             },
             "acquire next trigger");
     }
@@ -767,7 +773,8 @@ internal abstract partial class AdoJobStoreBase
     /// the latest of those firings was fired. And the execution groups whose limit turned a due trigger
     /// away, by the key the limit was evaluated under, or <see langword="null" /> (#4033). And, when it
     /// took nothing on a cluster, how many due triggers its last read reached for and another node
-    /// claimed first, and whether any read found a candidate only the lock decides (#4067).
+    /// claimed first, and whether any read found a candidate only the lock decides (#4067). And, on a
+    /// cluster, how many rows the round's reads lost to another node, whatever it took.
     /// </summary>
     private readonly record struct AcquiredTriggers(
         List<IOperableTrigger> Triggers,
@@ -775,7 +782,8 @@ internal abstract partial class AdoJobStoreBase
         DateTimeOffset? LatestBlockingFiredUtc = null,
         HashSet<string>? GroupsAtLimit = null,
         int ClaimedElsewhere = 0,
-        bool CandidateNeededLock = false);
+        bool CandidateNeededLock = false,
+        int ClaimsLost = 0);
 
     /// <summary>
     /// Reads back the triggers an acquisition round has just named, in one statement, keyed by their
