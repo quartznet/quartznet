@@ -109,6 +109,11 @@ when the detail is built.
 * **Quartz.NET 1.x:** implement `IStatefulJob` instead of `IJob`. See the API documentation for
   `IStatefulJob`.
 
+With a clustered persistent store the attribute holds
+[across every node](best-practices.md#disallowconcurrentexecution-bounds-one-job-key). Nodes with
+in-memory stores share nothing, so each can run the job at the same time. In 4.3 and later a trigger can
+decide instead, with an [overlap policy](quartz-4.x/how-tos/overlap-policy.md).
+
 ## How do I stop a Job that is currently executing?
 
 **Quartz 1.x and 2.x:** see the `Quartz.IInterruptableJob` interface and the
@@ -127,6 +132,22 @@ Both cancel the token the execution was given, so the job must co-operate: check
 `IJobExecutionContext.CancellationToken.IsCancellationRequested`, or forward the token to what you
 await, and return early when cancellation is requested. In 4.x the token is also a parameter of
 `Execute`, so forwarding it is the default.
+
+## How does a Job know it is running for the first time?
+
+| Check | Means |
+|---|---|
+| `context.PreviousFireTimeUtc is null` | This trigger has not fired before |
+| `IExecutionHistoryStore.GetJobRunStatus(schedulerName, jobKey)` returns `null` (4.4) | No run of this job has been recorded |
+
+* `PreviousFireTimeUtc` belongs to the trigger. Another trigger of the job and a `TriggerJob` firing start
+  at `null`.
+* `ScheduleJob` replacing a trigger under the same key keeps it. `RescheduleJob` with a new trigger does
+  not, and neither does a start that re-applies an `AddTrigger` or `ScheduleJob` registration to a
+  persistent store, unless `SchedulingOptions.ScheduleTriggerRelativeToReplacedTrigger` is on and the
+  trigger does not start in the future.
+* The run status needs the [execution history](quartz-4.x/how-tos/job-outcomes.md#read-a-job-s-status). A
+  run is recorded when it ends, so `JobRunStatus.RunCount` counts the runs before this one.
 
 # Questions About Triggers
 
@@ -184,6 +205,23 @@ For anything more:
 
 1. Most often, `Scheduler.Start()` was not called. Nothing fires until it is.
 2. Next most often, the trigger or its trigger group is paused.
+
+On 4.x, check these too:
+
+| Cause | How to see it | Fix |
+|---|---|---|
+| No `AddQuartzHostedService()`, so nothing starts the scheduler | `IScheduler.Status` is `Created`; event `1002` (*started*) is never logged; the health check is *Unhealthy* | Add `AddQuartzHostedService()`, or call `Start()` |
+| A paused trigger group or job group | Trigger state `Paused`; the dashboard's **Paused groups** tile; `GetPausedTriggerGroups()`, `IsJobGroupPaused(group)` | `ResumeTriggerGroups`, `ResumeJobGroups`, or *Resume* on the dashboard |
+| A [continuation](quartz-4.x/how-tos/job-continuations.md) waiting for its parent (4.2) | Trigger state `Awaiting`; the dashboard's **Awaiting only** filter | None needed: it fires when the parent's firing ends with an outcome its condition names |
+| An execution group no live node serves (4.6) | Health check *Degraded*; the dashboard's **Overdue** column; events `3609` and `1093` | Run a node that serves the group. See [Routing](quartz-4.x/tutorial/execution-groups.md#routing-which-node-serves-a-group) |
+| An execution limit of `0`, which forbids the group | The dashboard's Overview shows `0 (forbidden)`; `GetExecutionLimits()` | Raise it. To keep a group off a node, refuse it with `RefuseExecutionGroups` |
+| A misfire under `DoNothing`, which skips the missed occurrence | The dashboard's **Misfires** list; `ITriggerListener.TriggerMisfired`; the `quartz.trigger.misfire` counter | `FireAndProceed`, if a missed occurrence must still run. See [Choosing a misfire instruction](best-practices.md#choosing-a-misfire-instruction-by-its-consequence) |
+| `Blocked`: a firing of its `[DisallowConcurrentExecution]` job, or of itself under `BufferOne`, is running | Trigger state `Blocked`; `QueryFireInstances` lists the firing | Wait for it, or find the firing that never ends: [Fired triggers: backlog or leak](quartz-4.x/operations.md#fired-triggers-backlog-or-leak) |
+
+* A pause is stored, so it survives a restart. On 4.x a trigger added later to a paused group is stored
+  paused.
+* Standby, `Error` and a mistyped table prefix are in
+  [Nothing is firing](quartz-4.x/operations.md#nothing-is-firing).
 
 ## Daylight Saving Time and Triggers
 

@@ -940,6 +940,42 @@ app.UseRouting();
 ```
 <!-- endSnippet -->
 
+- **Behind a proxy that strips the prefix** (the browser asks for `/my-api/quartz`, the application receives
+  `/quartz`), `UsePathBase` has nothing to strip. Keep the default `DashboardPath` and set the path base before
+  static files and routing:
+
+  | The proxy | Set the path base with |
+  |---|---|
+  | Sends the stripped prefix as `X-Forwarded-Prefix` | the forwarded-headers middleware |
+  | Sends nothing | a middleware that writes the known prefix |
+
+<!-- snippet: sample_dashboard_forwarded_prefix -->
+```csharp
+// The proxy strips /my-api and names it in X-Forwarded-Prefix, which becomes the path base.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedPrefix
+});
+app.UseRouting();
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_dashboard_fixed_path_base -->
+```csharp
+// The proxy strips /my-api and says nothing, so the application puts it back.
+app.Use((context, next) =>
+{
+    context.Request.PathBase = "/my-api";
+    return next(context);
+});
+app.UseRouting();
+```
+<!-- endSnippet -->
+
+- The forwarded-headers middleware ignores the header from a proxy it does not know. Only loopback is known by
+  default; add your proxy to `KnownProxies` or `KnownIPNetworks`.
+- Forward WebSocket connections for the circuit as well, here `/my-api/_blazor`.
+
 ::: warning Upgrading existing custom-path deployments
 The Blazor circuit used to stay at the site root. With a custom `DashboardPath` it now connects at
 `{DashboardPath}/_blazor`; update reverse-proxy rules scoped to `/_blazor`, such as a WebSocket-upgrade location.

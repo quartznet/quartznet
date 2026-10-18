@@ -43,12 +43,12 @@ public static class ComingFromSamples
         // RecurringJob.AddOrUpdate("nightly-import", () => importer.Run(), "0 2 * * *")
         services.AddQuartz(q =>
         {
-            q.AddJob<NightlyImportJob>(j => j.WithIdentity("nightly-import"));
-            q.AddTrigger<NightlyImportJob>(t => t
-                .ForJob("nightly-import")
-                // Six fields, and one of the two day fields must be '?'. A Hangfire expression is
-                // five fields read as minutes upward, so prepend the seconds field.
-                .WithCronSchedule("0 0 2 * * ?", x => x
+            // One call adds the job and its trigger, and the job takes the trigger's key.
+            q.ScheduleJob<NightlyImportJob>(t => t
+                .WithIdentity("nightly-import")
+                // Six fields, seconds first. Prepend 0 to Hangfire's five, not '*', which fires
+                // every second of the matching minute.
+                .WithCronSchedule("0 0 2 * * *", x => x
                     // Hangfire reads a cron in UTC unless RecurringJobOptions says otherwise; a
                     // Quartz cron trigger reads it in the machine's local zone unless you say
                     // otherwise. Say otherwise.

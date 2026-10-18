@@ -68,6 +68,22 @@ public sealed class AuditSchedulerListener : ISchedulerListener
 The argument is the scheduler itself, so the listener can act on it: pause the trigger, read `Status`,
 ask for the job. For identity only, read `SchedulerName` and `SchedulerInstanceId`.
 
+## Hearing a reschedule
+
+There is no reschedule callback. `RescheduleJob` raises two, in this order, once the store has replaced the
+trigger:
+
+| Order | Callback | Receives |
+|---|---|---|
+| 1 | `JobUnscheduled` | the old trigger's key |
+| 2 | `JobScheduled` | the new trigger |
+
+* Nothing is raised when the old trigger is not found.
+* A start that re-applies an `AddTrigger` or `ScheduleJob` registration to a persistent store reschedules
+  each trigger already stored, so the pair is raised then too.
+* `UpdateTriggerDetails` keeps the fire times and raises nothing.
+* Only the scheduler that made the call raises them. Other nodes of a cluster hear nothing.
+
 ## Reporting an error
 
 `SchedulerError` is raised when something goes seriously wrong: a job that could not be built, a job store

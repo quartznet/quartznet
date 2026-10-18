@@ -315,6 +315,11 @@ Two attributes on the job class control state and concurrency. Both apply to a j
 With `[DisallowConcurrentExecution]` on "SalesReportJob", only one "SalesReportForJoe" runs at a time, but
 it can run concurrently with "SalesReportForMike".
 
+With a clustered persistent store this holds
+[across every node](../../best-practices.md#disallowconcurrentexecution-bounds-one-job-key). Nodes with
+in-memory stores share nothing, so each can run the job at the same time. To decide per trigger instead,
+use an [overlap policy](../how-tos/overlap-policy.md).
+
 If you use `[PersistJobDataAfterExecution]`, also use `[DisallowConcurrentExecution]`. Otherwise two
 concurrent executions race over which data is left stored.
 
