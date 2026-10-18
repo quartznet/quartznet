@@ -158,6 +158,25 @@ public sealed class TriggerCronPreviewTest
         });
     }
 
+    /// <summary>
+    /// The save parses the expression too, and an exception out of a click handler ends the circuit.
+    /// </summary>
+    [Test]
+    public void SavingAnExpressionThatDoesNotParseSaysWhyAndPostsNothing()
+    {
+        GivenTrigger(Cron("0 0 12 * * ?", TimeZoneInfo.Utc));
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.Find("#trigger-cron-expression").Change("0 0 25 * * ?");
+        page.Find("button.qz-button-primary").Click();
+
+        page.WaitForAssertion(() => context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().StartWith("Invalid cron expression: ",
+                "the reader is told why nothing was saved, as the preview already told them why it shows nothing"));
+        A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
     [Test]
     public void ATriggerThatHasEndedHasNoUpcomingFires()
     {
