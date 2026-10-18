@@ -106,7 +106,7 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
         {
             SingleReader = true,
             SingleWriter = false,
-            FullMode = BoundedChannelFullMode.Wait
+            FullMode = BoundedChannelFullMode.Wait,
         });
 
         writer = Task.Run(Run);
@@ -271,7 +271,10 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
         }
     }
 
-    private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static TaskCompletionSource NewSignal()
+    {
+        return new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
 
     /// <summary>One item in the queue: an execution, or a flush to answer once those before it are written.</summary>
     private readonly record struct BufferedWrite(ExecutionHistoryEntry? Entry, TaskCompletionSource? Written);

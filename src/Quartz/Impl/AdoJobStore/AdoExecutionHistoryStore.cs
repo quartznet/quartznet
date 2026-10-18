@@ -1307,18 +1307,23 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     /// </remarks>
     private async ValueTask WriteBuffered(List<ExecutionHistoryEntry> batch)
     {
-        for (int attempt = 0; ; attempt++)
+        // Ended by the return, or by the failure the filter lets through once the retries are spent.
+        int retries = 0;
+        while (true)
         {
             try
             {
                 await WriteBatch(batch, CancellationToken.None).ConfigureAwait(false);
                 return;
             }
-            catch (Exception failure) when (attempt < maxTransientRetries && IsTransient(failure))
+            catch (Exception failure) when (retries < maxTransientRetries && IsTransient(failure))
             {
+                retries++;
                 if (transientRetryInterval > TimeSpan.Zero)
                 {
-                    await Task.Delay(transientRetryInterval, TimeProvider.System).ConfigureAwait(false);
+                    // Not the stopping token: the disposal cancels it and then waits for this flush, which
+                    // must not lose its rows to a retry the shutdown cut short.
+                    await Task.Delay(transientRetryInterval, TimeProvider.System, CancellationToken.None).ConfigureAwait(false);
                 }
             }
         }
@@ -1363,12 +1368,15 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
         DbConnection connection = await OpenConnection(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
-            for (int attempt = 0; ; attempt++)
+            // Ended by the commit, or by the last attempt's insert, which is not caught.
+            int attempt = 0;
+            while (true)
             {
                 bool folded = attempt < FoldedFlushAttempts;
 
                 // The last attempt is the second one that folds runs singly; its insert is not caught.
                 bool lastAttempt = attempt > FoldedFlushAttempts;
+                attempt++;
 
                 DbTransaction transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
                 await using (transaction.ConfigureAwait(false))
