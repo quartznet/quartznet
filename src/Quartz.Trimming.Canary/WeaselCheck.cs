@@ -46,14 +46,12 @@ namespace Quartz.Trimming.Canary;
 /// </remarks>
 internal static class WeaselCheck
 {
-    private static readonly TaskCompletionSource fired = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
     /// <summary>
     /// Runs the check, returning <see langword="null" /> when it passed and a message when it did not.
     /// </summary>
     public static async Task<string?> Run()
     {
-        string databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-canary-weasel-{Guid.NewGuid():N}.db");
+        string databaseFile = StoreRoundTrip.NewDatabaseFile("weasel");
         string connectionString = $"Data Source={databaseFile}";
 
         try
@@ -88,41 +86,16 @@ internal static class WeaselCheck
 
             int tables = await CountQuartzTables(connectionString).ConfigureAwait(false);
 
+            // The hosted service started this scheduler, so the round trip only schedules on it.
             IScheduler scheduler = await host.Services.GetRequiredService<ISchedulerFactory>().GetScheduler().ConfigureAwait(false);
 
-            JobKey jobKey = new("weasel", "store");
-            TriggerKey triggerKey = new("weasel", "store");
-
-            await scheduler.ScheduleJob(
-                JobBuilder.Create<WeaselJob>()
-                    .WithIdentity(jobKey)
-                    .UsingJobData("payload", Payload)
-                    .Build(),
-                TriggerBuilder.Create()
-                    .WithIdentity(triggerKey)
-                    .StartNow()
-                    .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
-                    .Build()).ConfigureAwait(false);
-
-            Task completed = await Task.WhenAny(fired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-            if (completed != fired.Task)
-            {
-                return "FAIL weasel: the job never fired within a minute, so the store on Weasel's schema never handed a trigger to the scheduler.";
-            }
-
-            IJobDetail? job = await scheduler.GetJobDetail(jobKey).ConfigureAwait(false);
-            if (job?.JobDataMap.GetString("payload") != Payload)
-            {
-                return $"FAIL weasel: the job came back as {(job is null ? "nothing" : $"one carrying '{job.JobDataMap.GetString("payload")}'")}.";
-            }
-
-            ITrigger? trigger = await scheduler.GetTrigger(triggerKey).ConfigureAwait(false);
-            if (trigger is null || !Equals(trigger.JobKey, jobKey))
-            {
-                return $"FAIL weasel: the trigger came back as {(trigger is null ? "nothing" : $"one pointing at '{trigger.JobKey}'")}.";
-            }
-
+            string? roundTripFailure = await StoreRoundTrip.Run(scheduler, "weasel", Payload).ConfigureAwait(false);
             await host.StopAsync().ConfigureAwait(false);
+
+            if (roundTripFailure is not null)
+            {
+                return roundTripFailure;
+            }
 
             Console.WriteLine($"PASS weasel: Quartz.Weasel.SQLite created {tables} tables as the host started, Quartz's schema validation accepted them, and a store on them scheduled, fired and read back.");
             return null;
@@ -133,8 +106,7 @@ internal static class WeaselCheck
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            TryDelete(databaseFile);
+            StoreRoundTrip.DeleteDatabase(databaseFile);
         }
     }
 
@@ -151,29 +123,5 @@ internal static class WeaselCheck
         using SqliteCommand command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'QRTZ!_%' ESCAPE '!'";
         return Convert.ToInt32(await command.ExecuteScalarAsync().ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
-    }
-
-    private static void TryDelete(string databaseFile)
-    {
-        try
-        {
-            File.Delete(databaseFile);
-        }
-        catch (IOException)
-        {
-            // A leftover temporary file is not a failure of anything this checks.
-        }
-    }
-
-    /// <summary>
-    /// Signals that the store handed this job to the scheduler.
-    /// </summary>
-    public sealed class WeaselJob : IJob
-    {
-        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
-        {
-            fired.TrySetResult();
-            return default;
-        }
     }
 }

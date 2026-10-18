@@ -58,14 +58,12 @@ namespace Quartz.Trimming.Canary;
 /// </remarks>
 internal static class DataSourceCheck
 {
-    private static readonly TaskCompletionSource fired = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
     /// <summary>
     /// Runs the check, returning <see langword="null" /> when it passed and a message when it did not.
     /// </summary>
     public static async Task<string?> Run()
     {
-        string databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-canary-datasource-{Guid.NewGuid():N}.db");
+        string databaseFile = StoreRoundTrip.NewDatabaseFile("data-source");
 
         try
         {
@@ -115,42 +113,15 @@ internal static class DataSourceCheck
             }
 
             IScheduler scheduler = await container.GetRequiredService<ISchedulerFactory>().GetScheduler().ConfigureAwait(false);
-
-            JobKey jobKey = new("data-source", "store");
-            TriggerKey triggerKey = new("data-source", "store");
-
-            await scheduler.ScheduleJob(
-                JobBuilder.Create<DataSourceJob>()
-                    .WithIdentity(jobKey)
-                    .UsingJobData("payload", Payload)
-                    .Build(),
-                TriggerBuilder.Create()
-                    .WithIdentity(triggerKey)
-                    .StartNow()
-                    .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
-                    .Build()).ConfigureAwait(false);
-
             await scheduler.Start().ConfigureAwait(false);
 
-            Task completed = await Task.WhenAny(fired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-            if (completed != fired.Task)
-            {
-                return "FAIL data-source: the job never fired within a minute, so the store never handed a trigger to the scheduler.";
-            }
-
-            IJobDetail? job = await scheduler.GetJobDetail(jobKey).ConfigureAwait(false);
-            if (job?.JobDataMap.GetString("payload") != Payload)
-            {
-                return $"FAIL data-source: the job came back as {(job is null ? "nothing" : $"one carrying '{job.JobDataMap.GetString("payload")}'")}.";
-            }
-
-            ITrigger? trigger = await scheduler.GetTrigger(triggerKey).ConfigureAwait(false);
-            if (trigger is null || !Equals(trigger.JobKey, jobKey))
-            {
-                return $"FAIL data-source: the trigger came back as {(trigger is null ? "nothing" : $"one pointing at '{trigger.JobKey}'")}.";
-            }
-
+            string? roundTripFailure = await StoreRoundTrip.Run(scheduler, "data-source", Payload).ConfigureAwait(false);
             await scheduler.Shutdown(waitForJobsToComplete: true).ConfigureAwait(false);
+
+            if (roundTripFailure is not null)
+            {
+                return roundTripFailure;
+            }
 
             int connections = dataSource.ConnectionsCreated;
             if (connections == 0)
@@ -167,24 +138,11 @@ internal static class DataSourceCheck
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            TryDelete(databaseFile);
+            StoreRoundTrip.DeleteDatabase(databaseFile);
         }
     }
 
     private const string Payload = "the store round-trips a job data map over a registered DbDataSource";
-
-    private static void TryDelete(string databaseFile)
-    {
-        try
-        {
-            File.Delete(databaseFile);
-        }
-        catch (IOException)
-        {
-            // A leftover temporary file is not a failure of anything this checks.
-        }
-    }
 
     /// <summary>
     /// A data source over <see cref="SqliteConnection" />, standing in for the one a server driver ships,
@@ -212,18 +170,6 @@ internal static class DataSourceCheck
         {
             Interlocked.Increment(ref connectionsCreated);
             return new SqliteConnection(connectionString);
-        }
-    }
-
-    /// <summary>
-    /// Signals that the store handed this job to the scheduler.
-    /// </summary>
-    public sealed class DataSourceJob : IJob
-    {
-        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
-        {
-            fired.TrySetResult();
-            return default;
         }
     }
 }
