@@ -55,9 +55,11 @@ namespace Quartz.Impl.AdoJobStore;
 /// <para>
 /// What the lock used to keep still for a concurrent-allowed fire — other writers re-arming a row the
 /// round had just fired — the writers themselves now keep off: the misfire handler and the trigger
-/// editors hold their writes to the row as they read it. With <see cref="LockFreeFiringRounds" /> off,
-/// a round that acquires one trigger at a time without <see cref="AcquireTriggersWithinLock" /> is two
-/// transactions, as it was in 4.5, and every other round is locked throughout.
+/// editors hold their writes to the row as they read it. A round that acquires one trigger at a time and
+/// has to take the lock is two transactions, as it was in 4.5 — acquired without the lock, fired under it —
+/// unless <see cref="AcquireTriggersWithinLock" /> or a cluster-scoped limit asks for the acquisition under
+/// it; every other locked round is locked throughout. With <see cref="LockFreeFiringRounds" /> off, every
+/// round is 4.5's.
 /// </para>
 /// <para>
 /// The round reads and inserts through the delegate's round members, which stand in for its single-trigger
@@ -87,25 +89,13 @@ internal abstract partial class AdoJobStoreBase
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (!LockFreeFiringRounds && !AcquireTriggersWithinLock && request.MaxCount <= 1)
+        // Why this round takes TRIGGER_ACCESS, or null for a round that takes none (#4067). Decided here
+        // from what is known before the first read; an attempt that finds a candidate only the lock
+        // decides rolls back and the round runs again with the reason it found.
+        RoundLockReason? lockReason = RoundLockReasonBeforeRead(request);
+        if (FiresRoundOfOneAsIn45(request, lockReason))
         {
-            // With lock-free rounds off, 4.5's shape exactly: acquired without the lock, as it always was,
-            // and fired by the scheduler's TriggersFired under the lock in a transaction of its own. With
-            // them on, a round of one is a round like any other below, and takes no lock when nothing in
-            // it needs one (#4067).
-            AcquiredTriggers acquired = await AcquireNextTriggersWithoutFiring(request, cancellationToken).ConfigureAwait(false);
-            return new TriggerAcquisitionResult
-            {
-                Pending = acquired.Triggers,
-                Blocked = acquired.Blocked,
-                LatestBlockingFiredUtc = acquired.LatestBlockingFiredUtc,
-                GroupsAtLimit = acquired.GroupsAtLimit,
-
-                // The round — this acquisition and the fire the scheduler makes of it — runs under the
-                // lock, which TriggersFired takes; the tag describes the round, as it does below.
-                LockName = SchedulerLock.TriggerAccess.ToLockName(),
-                LockReason = RoundLockReason.OptionOff.ToTag(),
-            };
+            return await AcquireRoundOfOneAsIn45(request, lockReason!.Value, cancellationToken).ConfigureAwait(false);
         }
 
         // The triggers whose fire failed in an attempt of this call, with why. Each is claimed but not
@@ -118,11 +108,6 @@ internal abstract partial class AdoJobStoreBase
         // Whether the round claims and writes one trigger at a time rather than together: once a batch has
         // failed without saying which trigger it failed on, which the one-at-a-time run says.
         bool oneByOne = false;
-
-        // Why this round takes TRIGGER_ACCESS, or null for a round that takes none (#4067). Decided here
-        // from what is known before the first read; an attempt that finds a candidate only the lock
-        // decides rolls back and the round runs again with the reason it found.
-        RoundLockReason? lockReason = RoundLockReasonBeforeRead(request);
 
         while (true)
         {
@@ -153,6 +138,14 @@ internal abstract partial class AdoJobStoreBase
 
                 lockReason = needsLock.Reason;
                 Volatile.Write(ref nextRoundStartsLocked, true);
+
+                // A round of one that has to take the lock takes it as 4.5 did. Not once a fire of this
+                // call has failed: the attempts after it are the ones that settle the failure.
+                if (failed is null && FiresRoundOfOneAsIn45(request, lockReason))
+                {
+                    return await AcquireRoundOfOneAsIn45(request, lockReason.Value, cancellationToken).ConfigureAwait(false);
+                }
+
                 continue;
             }
             catch (TriggerWriteFailedException batch)
@@ -235,6 +228,66 @@ internal abstract partial class AdoJobStoreBase
                 LockReason = lockReason?.ToTag(),
             };
         }
+    }
+
+    /// <summary>
+    /// Whether a round of one that takes the lock does so as 4.5 did: acquired without it, and fired by the
+    /// scheduler's <see cref="TriggersFired" /> under it in a transaction of its own (#4067).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Folded into one transaction, a locked round of one holds <c>TRIGGER_ACCESS</c> through its read, its
+    /// claim and its fire, where 4.5 held it for the fire alone. Two SQL Server nodes acquiring one trigger
+    /// at a time ran seconds behind their schedule that way, against tenths of a second in 4.5's shape, so a
+    /// locked round of one is 4.5's: whatever locked it before its read — the configuration, an older peer,
+    /// the round before — and an attempt that escalated.
+    /// </para>
+    /// <para>
+    /// Two exceptions keep the folded round, as 4.5 did or as 4.6 promises: <see cref="AcquireTriggersWithinLock" />,
+    /// which asks for the acquisition under the lock, and a cluster-scoped execution limit, whose count is
+    /// exact only when the acquisition holds the lock — unless the rounds are 4.5's by configuration, with
+    /// the option off.
+    /// </para>
+    /// </remarks>
+    private bool FiresRoundOfOneAsIn45(TriggerAcquisitionRequest request, RoundLockReason? lockReason)
+    {
+        if (request.MaxCount > 1 || AcquireTriggersWithinLock || lockReason is not { } reason)
+        {
+            return false;
+        }
+
+        return reason == RoundLockReason.OptionOff || request.ExecutionLimits?.HasClusterScopedLimits != true;
+    }
+
+    /// <summary>
+    /// A locked round of one in 4.5's shape: acquired without the lock, and left for the scheduler to fire
+    /// under it (<see cref="FiresRoundOfOneAsIn45" />).
+    /// </summary>
+    private async ValueTask<TriggerAcquisitionResult> AcquireRoundOfOneAsIn45(
+        TriggerAcquisitionRequest request,
+        RoundLockReason lockReason,
+        CancellationToken cancellationToken)
+    {
+        AcquiredTriggers acquired = await AcquireNextTriggersWithoutFiring(request, cancellationToken).ConfigureAwait(false);
+
+        if (lockReason == RoundLockReason.Hysteresis && !acquired.CandidateNeededLock)
+        {
+            // Locked for the previous round's sake, and nothing in this one needed it.
+            Volatile.Write(ref nextRoundStartsLocked, false);
+        }
+
+        return new TriggerAcquisitionResult
+        {
+            Pending = acquired.Triggers,
+            Blocked = acquired.Blocked,
+            LatestBlockingFiredUtc = acquired.LatestBlockingFiredUtc,
+            GroupsAtLimit = acquired.GroupsAtLimit,
+
+            // The round — this acquisition and the fire the scheduler makes of it — runs under the lock,
+            // which TriggersFired takes; the tag describes the round, as it does for a folded one.
+            LockName = SchedulerLock.TriggerAccess.ToLockName(),
+            LockReason = lockReason.ToTag(),
+        };
     }
 
     /// <summary>

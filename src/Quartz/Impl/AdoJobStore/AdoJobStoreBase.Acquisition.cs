@@ -272,6 +272,10 @@ internal abstract partial class AdoJobStoreBase
                 // due work was there, which is not a round to follow with an idle wait (#4067).
                 int lostToPeers = 0;
 
+                // Whether any read found a candidate only the lock decides: what a round of one taken in
+                // 4.5's shape for the previous round's sake goes by, as a folded round goes by its own note.
+                bool candidateNeededLock = false;
+
                 do
                 {
                     // Built inside the loop, so each retry asks again and sees the time it retried at.
@@ -388,10 +392,9 @@ internal abstract partial class AdoJobStoreBase
                     // What in this read only the lock decides (#4067): a job that disallows concurrent
                     // execution, an overlap policy the fire decides from the trigger's running firings, or
                     // a delegate that did not read what the rule reads. A round that holds no lock and finds
-                    // one rolls back before its first write and runs again under the lock; a round that
-                    // holds it notes that it was needed, for the round after this one. An acquisition that
-                    // fires nothing is always under the lock or always without it, and asks neither.
-                    (RoundLockReason Reason, TriggerKey TriggerKey)? needsLock = round is null ? null : FirstCandidateNeedingLock(results);
+                    // one rolls back before its first write and runs again under the lock; any other notes
+                    // that it was needed, for the round after this one.
+                    (RoundLockReason Reason, TriggerKey TriggerKey)? needsLock = FirstCandidateNeedingLock(results);
                     if (round is { HoldsLock: false })
                     {
                         if (needsLock is { } needed)
@@ -408,9 +411,13 @@ internal abstract partial class AdoJobStoreBase
                     }
                     else
                     {
-                        if (round is not null && needsLock is not null)
+                        if (needsLock is not null)
                         {
-                            round.CandidateNeededLock = true;
+                            candidateNeededLock = true;
+                            if (round is not null)
+                            {
+                                round.CandidateNeededLock = true;
+                            }
                         }
 
                         // One read for the whole round's candidates. The acquisition statement just named
@@ -669,7 +676,8 @@ internal abstract partial class AdoJobStoreBase
                     Clustered ? blocked + pinned.Count : 0,
                     pinned.LatestBlockingFiredUtc,
                     groupsAtLimit,
-                    Clustered && acquiredTriggers.Count == 0 ? lostToPeers : 0);
+                    Clustered && acquiredTriggers.Count == 0 ? lostToPeers : 0,
+                    candidateNeededLock);
             },
             "acquire next trigger");
     }
@@ -722,14 +730,15 @@ internal abstract partial class AdoJobStoreBase
     /// the latest of those firings was fired. And the execution groups whose limit turned a due trigger
     /// away, by the key the limit was evaluated under, or <see langword="null" /> (#4033). And, when it
     /// took nothing on a cluster, how many due triggers its last read reached for and another node
-    /// claimed first (#4067).
+    /// claimed first, and whether any read found a candidate only the lock decides (#4067).
     /// </summary>
     private readonly record struct AcquiredTriggers(
         List<IOperableTrigger> Triggers,
         int Blocked,
         DateTimeOffset? LatestBlockingFiredUtc = null,
         HashSet<string>? GroupsAtLimit = null,
-        int ClaimedElsewhere = 0);
+        int ClaimedElsewhere = 0,
+        bool CandidateNeededLock = false);
 
     /// <summary>
     /// Reads back the triggers an acquisition round has just named, in one statement, keyed by their
