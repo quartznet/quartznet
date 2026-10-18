@@ -52,7 +52,7 @@ It is stored by its key, not as a serialized call, so every node registers it. S
 | `BackgroundJob.Requeue(jobId)` | `scheduler.TriggerJob(jobKey)`, optionally with a `JobDataMap` | fires the job again now; there is no failed record to requeue |
 | `BackgroundJob.Reschedule(jobId, …)` | `scheduler.RescheduleJob(triggerKey, newTrigger)` | |
 | `BackgroundJob.ContinueJobWith(parentId, …)` | `.StartAfter(parentTriggerKey, condition)` on the follow-up's trigger | see [Continuations](#continuations) |
-| `RecurringJob.AddOrUpdate(id, () => …, cron)` | `q.AddJob<T>(…)` + `q.AddTrigger<T>(t => t.WithCronSchedule(…))`, or from 4.3 [`q.ScheduleJob(id, lambda, t => t.WithCronSchedule(…))`](../tutorial/delegate-jobs.md) | six cron fields, not five, and a different default time zone |
+| `RecurringJob.AddOrUpdate(id, () => …, cron)` | `q.ScheduleJob<T>(t => t.WithIdentity(id).WithCronSchedule(…))`, or from 4.3 [`q.ScheduleJob(id, lambda, t => t.WithCronSchedule(…))`](../tutorial/delegate-jobs.md) | six cron fields, not five, and a different default time zone |
 | [`Cron.MinuteInterval(10)`, `Cron.HourInterval(6)`, `Cron.Daily(3, 0)`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/Cron.cs) | from 4.3, `t.WithCronSchedule(cron => cron.Every(TimeSpan.FromMinutes(10)))`, `cron.Every(TimeSpan.FromHours(6))`, `cron.AtTime(new TimeOnly(3, 0))` | an interval that does not divide the hour or day throws instead of firing unevenly |
 | `RecurringJob.RemoveIfExists(id)` | `scheduler.DeleteJob(jobKey)`, or `UnscheduleJob` to keep the job | |
 | `RecurringJob.TriggerJob(id)` | `scheduler.TriggerJob(jobKey)` | |
@@ -80,19 +80,20 @@ await scheduler.UnscheduleJob(tomorrow.TriggerKey, cancellationToken);
 ```
 <!-- endSnippet -->
 
-A recurring job becomes a durable job plus a trigger, with a new cron format and an explicit time zone:
+A recurring job becomes a job and its trigger, added in one call, with a new cron format and an explicit
+time zone:
 
 <!-- snippet: sample_coming_from_hangfire_recurring -->
 ```csharp
 // RecurringJob.AddOrUpdate("nightly-import", () => importer.Run(), "0 2 * * *")
 services.AddQuartz(q =>
 {
-    q.AddJob<NightlyImportJob>(j => j.WithIdentity("nightly-import"));
-    q.AddTrigger<NightlyImportJob>(t => t
-        .ForJob("nightly-import")
-        // Six fields, and one of the two day fields must be '?'. A Hangfire expression is
-        // five fields read as minutes upward, so prepend the seconds field.
-        .WithCronSchedule("0 0 2 * * ?", x => x
+    // One call adds the job and its trigger, and the job takes the trigger's key.
+    q.ScheduleJob<NightlyImportJob>(t => t
+        .WithIdentity("nightly-import")
+        // Six fields, seconds first. Prepend 0 to Hangfire's five, not '*', which fires
+        // every second of the matching minute.
+        .WithCronSchedule("0 0 2 * * *", x => x
             // Hangfire reads a cron in UTC unless RecurringJobOptions says otherwise; a
             // Quartz cron trigger reads it in the machine's local zone unless you say
             // otherwise. Say otherwise.
@@ -100,6 +101,9 @@ services.AddQuartz(q =>
 });
 ```
 <!-- endSnippet -->
+
+A job that several triggers fire is added once with `AddJob<T>`, and each trigger with `AddTrigger<T>`;
+see [Microsoft DI Integration](../packages/microsoft-di-integration.md#a-worked-configuration).
 
 ### Attributes and filters
 
@@ -139,10 +143,17 @@ services.AddQuartz(q =>
 | | Hangfire ([Cronos](https://github.com/HangfireIO/Cronos)) | Quartz ([reference](../cron-expressions.md)) |
 |---|---|---|
 | Fields | five, or six with a leading seconds field | six or seven, seconds first |
-| Day fields | `*` in both | **one of the two must be `?`** (the two are a union) |
+| Day fields | both restricted: their intersection | `*` or `?` restricts nothing; both restricted: their **union** |
+| Day-of-week numbers | Sunday is `0` | Sunday is `1` |
 | Default time zone | UTC ([`RecurringJobOptions.TimeZone`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/RecurringJobOptions.cs)) | `TimeZoneInfo.Local` |
 
-* Hangfire's `0 2 * * *` is Quartz's `0 0 2 * * ?`.
+* Hangfire's `0 2 * * *` is Quartz's `0 0 2 * * *`. Prepend `0`, not `*`: a `*` seconds field fires every
+  second of each matching minute, and
+  [`QZ0007`](../tutorial/compile-time-checks.md#qz0007-wildcardsecondsfield) warns of it.
+* Write days of the week as names. `1` is Monday in Hangfire and Sunday here; `MON` is Monday in both. See
+  [If your expressions came from another .NET cron library](../cron-expressions.md#if-your-expressions-came-from-another-net-cron-library).
+* Hangfire's `0 2 13 * FRI` fires only on a Friday the 13th. Quartz's `0 0 2 13 * FRI` fires on every 13th
+  and every Friday.
 * **Set `InTimeZone(TimeZoneInfo.Utc)` on every trigger you move.** Otherwise, on a server not in UTC, it
   fires at a different hour, and twice or not at all on the two days a year the offset changes.
 * [`CronFormat.Unix`](../cron-expressions.md#the-unix-five-field-form) keeps the five-field form. The format

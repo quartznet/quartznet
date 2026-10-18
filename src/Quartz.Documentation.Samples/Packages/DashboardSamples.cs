@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Quartz.Documentation.Samples.Packages;
@@ -73,6 +74,35 @@ public static class DashboardSamples
         #region sample_dashboard_path_base
 
         app.UsePathBase("/my-api");
+        app.UseRouting();
+
+        #endregion
+    }
+
+    public static void ForwardedPrefix(WebApplication app)
+    {
+        #region sample_dashboard_forwarded_prefix
+
+        // The proxy strips /my-api and names it in X-Forwarded-Prefix, which becomes the path base.
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedPrefix
+        });
+        app.UseRouting();
+
+        #endregion
+    }
+
+    public static void FixedPathBase(WebApplication app)
+    {
+        #region sample_dashboard_fixed_path_base
+
+        // The proxy strips /my-api and says nothing, so the application puts it back.
+        app.Use((context, next) =>
+        {
+            context.Request.PathBase = "/my-api";
+            return next(context);
+        });
         app.UseRouting();
 
         #endregion
