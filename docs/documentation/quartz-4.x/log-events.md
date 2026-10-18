@@ -181,6 +181,7 @@ matching on its text is not.
 | 3057 | Debug | `Quartz` | `"Firing round takes TRIGGER_ACCESS before its first write: {Reason} ({TriggerKey})"` |
 | 3058 | Warning | `Quartz` | `"Firing round rolled back and run again under TRIGGER_ACCESS: the job, overlap policy or execution group of trigger {TriggerKey} changed between the candidate read and the claim"` |
 | 3059 | Debug | `Quartz` | `"Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write"` |
+| 3060 | Debug | `Quartz` | `"Firing rounds take TRIGGER_ACCESS until the backlog clears: a round without it lost {ClaimsLost} claims to another node"` |
 | 3100 | Debug | `Quartz` | `"Prepared SQL: {Sql}"` |
 | 3110 | Error | `Quartz` | `"Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."` |
 | 3111 | Debug | `Quartz` | `"Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown."` |

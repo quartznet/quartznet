@@ -25,6 +25,7 @@ using System.Data.Common;
 using FakeItEasy;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore;
@@ -53,6 +54,9 @@ public sealed class LockFreeRoundTest
     /// <summary>Log events <c>AdoJobStoreLog.RoundEscalatedToLock</c> and <c>AdoJobStoreLog.RoundRolledBackForLock</c>.</summary>
     private const int RoundEscalatedToLock = 3057;
     private const int RoundRolledBackForLock = 3058;
+
+    /// <summary>Log event <c>AdoJobStoreLog.RoundsLockedForContention</c>.</summary>
+    private const int RoundsLockedForContention = 3060;
 
     private const string TriggerAccess = "TRIGGER_ACCESS";
 
@@ -698,6 +702,174 @@ public sealed class LockFreeRoundTest
     }
 
     /// <summary>
+    /// A round without the lock that lost a claim to another node turns the rounds after it to the lock,
+    /// for contention, and says so once (#4067): the nodes were racing for the same backlog, and the lock
+    /// serialises them more cheaply than the race. The round that lost says it, so the loop goes again at once.
+    /// </summary>
+    [Test]
+    public async Task ARoundThatLosesAClaimToAnotherNodeTurnsTheRoundsAfterItToTheLock()
+    {
+        await GivenAClusterAtFourSix();
+        GivenCandidates(Candidate("t1"), Candidate("t2"));
+        GivenClaimsLost("t2");
+
+        TriggerAcquisitionResult first = await AcquireAndFire(maxCount: 2);
+        first.LockName.Should().Be("none");
+        first.Due.Select(x => x.Key.Name).Should().Equal(["t1"]);
+        first.Contended.Should().BeTrue("it lost t2 to another node, which is what turns the next rounds to the lock");
+
+        GivenClaimsLost();
+        TriggerAcquisitionResult second = await AcquireAndFire(maxCount: 2);
+        second.LockName.Should().Be(TriggerAccess);
+        second.LockReason.Should().Be("contention");
+        second.Contended.Should().BeFalse("a locked round loses no claim to a node that takes the lock too");
+
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == RoundsLockedForContention)
+            .Which.Message.Should().Contain("lost 1 claims");
+    }
+
+    /// <summary>
+    /// The episode lasts while the backlog does: a locked round that takes all it asked for leaves the next
+    /// one locked, so the rounds do not alternate and race on every other one.
+    /// </summary>
+    [Test]
+    public async Task AContentionEpisodeHoldsWhileLockedRoundsComeBackFull()
+    {
+        await GivenAClusterAtFourSix();
+        await GivenAContentionEpisode();
+
+        (await AcquireAndFire(maxCount: 2)).LockReason.Should().Be("contention");
+        (await AcquireAndFire(maxCount: 2)).LockReason.Should().Be("contention", "the round before took both triggers it asked for: the backlog is still there");
+        (await AcquireAndFire(maxCount: 2)).LockReason.Should().Be("contention");
+        logs.Entries.Count(x => x.EventId.Id == RoundsLockedForContention).Should().Be(1, "once per episode");
+    }
+
+    /// <summary>
+    /// A locked round that comes back short of what it asked for found the backlog gone, and the round after
+    /// it goes without the lock again.
+    /// </summary>
+    [Test]
+    public async Task AContentionEpisodeEndsWithALockedRoundThatComesBackShort()
+    {
+        await GivenAClusterAtFourSix();
+        await GivenAContentionEpisode();
+
+        GivenCandidates(Candidate("t3"));
+        TriggerAcquisitionResult shortRound = await AcquireAndFire(maxCount: 2);
+        shortRound.LockReason.Should().Be("contention");
+        shortRound.Due.Should().ContainSingle();
+
+        TriggerAcquisitionResult after = await AcquireAndFire(maxCount: 2);
+        after.LockName.Should().Be("none", "one trigger for a round that asked for two: the backlog is gone");
+        after.LockReason.Should().BeNull();
+    }
+
+    /// <summary>
+    /// An episode whose rounds keep coming back full ends after <see cref="AdoJobStoreBase.ContentionCoolDown" />
+    /// all the same, and one round goes without the lock to find out whether the nodes still contend.
+    /// </summary>
+    [Test]
+    public async Task AContentionEpisodeEndsAfterItsCoolDown()
+    {
+        FakeTimeProvider clock = new(FireTime);
+        await GivenAClusterAtFourSix(clock);
+        await GivenAContentionEpisode();
+
+        clock.Advance(AdoJobStoreBase.ContentionCoolDown - TimeSpan.FromMilliseconds(1));
+        (await AcquireAndFire(maxCount: 2)).LockReason.Should().Be("contention", "the cool-down has not passed and the round before came back full");
+
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        TriggerAcquisitionResult probe = await AcquireAndFire(maxCount: 2);
+        probe.LockName.Should().Be("none", "the cool-down passed, so one round finds out whether the nodes still contend");
+    }
+
+    /// <summary>
+    /// A round of one locked for contention is 4.5's, whose acquisition still claims without the lock. One
+    /// that loses every claim says how many rows another node took, so the scheduler looks again soon rather
+    /// than after its idle wait, and coming back empty that way does not end the episode: the backlog is there.
+    /// </summary>
+    [Test]
+    public async Task ARoundOfOneLockedForContentionThatLosesEveryClaimSaysSoAndKeepsTheEpisode()
+    {
+        await GivenAClusterAtFourSix();
+        await GivenAContentionEpisode();
+        GivenClaimsLost("t1", "t2");
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 1);
+        round.LockReason.Should().Be("contention");
+        round.Pending.Should().BeEmpty();
+        round.ClaimedElsewhere.Should().BeGreaterThan(0, "a node that lost every row it reached for found due work, and must not sleep its idle wait behind it");
+
+        (await AcquireAndFire(maxCount: 1)).LockReason.Should().Be("contention",
+            "the round before came back empty because another node took its rows, not because the backlog was gone");
+    }
+
+    /// <summary>
+    /// Off a cluster no other node claims a row: a claim this node could not make starts no episode, and a
+    /// single node's rounds stay lock-free.
+    /// </summary>
+    [Test]
+    public async Task OffAClusterALostClaimStartsNoEpisode()
+    {
+        GivenCandidates(Candidate("t1"), Candidate("t2"));
+        GivenClaimsLost("t2");
+
+        (await AcquireAndFire(maxCount: 2)).Contended.Should().BeFalse();
+
+        GivenClaimsLost();
+        (await AcquireAndFire(maxCount: 2)).LockName.Should().Be("none");
+        logs.Entries.Should().NotContain(x => x.EventId.Id == RoundsLockedForContention);
+    }
+
+    /// <summary>
+    /// The serial-job hysteresis keeps its own rule: a short round under it ends nothing, because the round
+    /// still found a candidate that needed the lock, whatever a short round means to a contention episode.
+    /// </summary>
+    [Test]
+    public async Task TheSerialHysteresisIsNotEndedByAShortRound()
+    {
+        GivenCandidates(Candidate("t1", serial: true));
+        (await AcquireAndFire(maxCount: 2)).LockReason.Should().Be("serial_job");
+
+        (await AcquireAndFire(maxCount: 2)).LockReason.Should().Be("hysteresis");
+        (await AcquireAndFire(maxCount: 2)).LockReason.Should().Be("hysteresis",
+            "the round before came back short, but it needed the lock for its serial candidate, and that is the hysteresis's rule");
+    }
+
+    /// <summary>
+    /// A clustered store at 4.6 whose peers allow rounds without the lock, on <paramref name="clock" />.
+    /// </summary>
+    private async Task GivenAClusterAtFourSix(TimeProvider clock = null)
+    {
+        store = NewStore(clustered: true, timeProvider: clock);
+        GivenPeersAtFourSix();
+        await store.CheckIn(Guid.NewGuid());
+    }
+
+    /// <summary>
+    /// A round without the lock loses t2 to another node, and the store is in a contention episode with two
+    /// candidates due and every claim winning from then on.
+    /// </summary>
+    private async Task GivenAContentionEpisode()
+    {
+        GivenCandidates(Candidate("t1"), Candidate("t2"));
+        GivenClaimsLost("t2");
+        (await AcquireAndFire(maxCount: 2)).Contended.Should().BeTrue();
+        GivenClaimsLost();
+    }
+
+    /// <summary>
+    /// The claims on these triggers find their row already moved by another node, and every other claim wins.
+    /// </summary>
+    private void GivenClaimsLost(params string[] names)
+    {
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<TriggerKey>._, A<StoredTriggerState>._, A<StoredTriggerState>._, A<DateTimeOffset>._, A<CancellationToken>._))
+            .ReturnsLazily((ConnectionAndTransactionHolder _, TriggerKey key, StoredTriggerState _, StoredTriggerState _, DateTimeOffset _, CancellationToken _) =>
+                new ValueTask<int>(names.Contains(key.Name) ? 0 : 1));
+    }
+
+    /// <summary>
     /// A clustered store's next check-in finds one live peer, stamped 4.6.0.
     /// </summary>
     private void GivenPeersAtFourSix()
@@ -730,9 +902,9 @@ public sealed class LockFreeRoundTest
         };
     }
 
-    private CountingStore NewStore(bool clustered = false, Action<AdoJobStoreOptions> configure = null)
+    private CountingStore NewStore(bool clustered = false, Action<AdoJobStoreOptions> configure = null, TimeProvider timeProvider = null)
     {
-        return new CountingStore(clustered, loggerFactory, configure)
+        return new CountingStore(clustered, loggerFactory, configure, timeProvider)
         {
             DirectDelegate = driverDelegate,
             DirectSignaler = signaler,
@@ -847,8 +1019,8 @@ public sealed class LockFreeRoundTest
     {
         private int transactions;
 
-        public CountingStore(bool clustered, ILoggerFactory loggerFactory, Action<AdoJobStoreOptions> configure)
-            : base(clustered, timeProvider: null, loggerFactory, configure)
+        public CountingStore(bool clustered, ILoggerFactory loggerFactory, Action<AdoJobStoreOptions> configure, TimeProvider timeProvider = null)
+            : base(clustered, timeProvider, loggerFactory, configure)
         {
         }
 

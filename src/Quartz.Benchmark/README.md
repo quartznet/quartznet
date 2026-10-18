@@ -1872,7 +1872,10 @@ the nodes of a cluster fire side by side where they queued on one row of `QRTZ_L
 round to the locked path, which is the round as #4066 left it; a live node older than 4.6 keeps every round
 locked. The misfire handler and the trigger editors hold their writes to the row they read, which is what
 the lock used to do for a fired row. `LockFreeFiringRounds = false` restores 4.5's rounds, and SQL Server
-keeps them in this release (#4117), so its soak is a regression check against the base.
+keeps them in this release (#4117), so its soak is a regression check against the base. Under contention,
+rounds take the lock until the backlog clears: a round that loses a claim to another node turns the rounds
+after it to the lock, reason `contention`, until one comes back short or two seconds pass. The first drain
+on `de94698e8`, before that, lost to the locked rounds at two nodes (0.83×) and at four (0.29×).
 
 Nothing about one round got cheaper: the lock-free round makes the statements the locked round made, in a
 different order — the claim before the read where the locked round reads before it claims. What changes is

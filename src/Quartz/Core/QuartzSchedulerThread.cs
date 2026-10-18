@@ -612,7 +612,9 @@ internal sealed class QuartzSchedulerThread
                     // due work, just none it could have, and more may be due behind it. Rounds that take no
                     // lock race for the same rows (#4067), so the loser looks again soon, as after a trigger
                     // it could not fire, rather than an idle wait behind work that is due.
-                    if (acquisition.ClaimedElsewhere > 0)
+                    // Not when the store has turned to the lock for it: the next round waits on the lock,
+                    // not on another node's claims, and goes at once (below).
+                    if (acquisition.ClaimedElsewhere > 0 && !acquisition.Contended)
                     {
                         blockedRetry = BlockedRetryStart;
                     }
@@ -764,6 +766,14 @@ internal sealed class QuartzSchedulerThread
                     // A round that fired everything it acquired goes straight back for more, as one that
                     // fired a batch after waiting for it does.
                     if (acquisition.Due.Count > 0)
+                    {
+                        continue; // while (!halted)
+                    }
+
+                    // A round that took nothing because another node claimed it first, with the store's
+                    // next rounds under the lock for it (#4067): the next one queues on the lock rather than
+                    // racing, so it goes now.
+                    if (acquisition.Contended)
                     {
                         continue; // while (!halted)
                     }

@@ -247,6 +247,9 @@ public sealed class AdoJobStoreOptions
     /// on SQLite, and — on a cluster — while any live node is older than 4.6 or no check-in has read the
     /// state table yet. Otherwise the claim is a compare-and-swap on each row's fire time, and the fire
     /// writes rows this transaction holds. A round of one trigger that takes the lock takes it as 4.5 did.
+    /// Under contention, rounds take the lock until the backlog clears: a round that lost a claim to another
+    /// node makes the rounds after it locked, reason <c>contention</c>, until a locked round comes back short
+    /// or two seconds pass.
     /// </para>
     /// <para>
     /// Not used on SQL Server in this release: firing rounds there work as in 4.5, as with this option off

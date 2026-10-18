@@ -169,6 +169,24 @@ public sealed class SchedulerLoopBlockedRetryTest
     }
 
     /// <summary>
+    /// A round that lost its claims and turned the store's next rounds to the lock for contention is
+    /// followed by the next round at once (#4067): that round waits on the lock, not on another node's
+    /// claims, so neither the 100 ms look nor an idle wait comes between them.
+    /// </summary>
+    [Test]
+    public async Task ARoundThatTurnedTheStoreToTheLockForContentionIsFollowedByOneAtOnce()
+    {
+        store.Script(new TriggerAcquisitionResult { ClaimedElsewhere = 2, Contended = true });
+        StartLoop();
+
+        TimeSpan wait = await NextWait();
+
+        store.LookAheads.Count.Should().Be(2, "the round after the contended one went without parking first");
+        wait.Should().BeGreaterThanOrEqualTo(shortestIdleWait,
+            "that round took nothing for no other node's sake, so it waits its idle wait, and no 100 ms look was started");
+    }
+
+    /// <summary>
     /// Nothing blocked, nothing changes: a loop that finds nothing waits out its idle wait every round, as
     /// it always did.
     /// </summary>

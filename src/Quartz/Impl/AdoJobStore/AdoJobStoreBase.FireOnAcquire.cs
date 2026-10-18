@@ -195,6 +195,8 @@ internal abstract partial class AdoJobStoreBase
                 Volatile.Write(ref nextRoundStartsLocked, false);
             }
 
+            bool contended = NoteContention(request, lockReason, attempt.Acquired);
+
             List<TriggerFiredResult> fired = new(attempt.Due.Count);
             for (int i = 0; i < attempt.Due.Count; i++)
             {
@@ -224,6 +226,7 @@ internal abstract partial class AdoJobStoreBase
                 LatestBlockingFiredUtc = attempt.Acquired.LatestBlockingFiredUtc,
                 GroupsAtLimit = attempt.Acquired.GroupsAtLimit,
                 ClaimedElsewhere = attempt.Acquired.ClaimedElsewhere,
+                Contended = contended,
                 LockName = lockReason is null ? "none" : SchedulerLock.TriggerAccess.ToLockName(),
                 LockReason = lockReason?.ToTag(),
             };
@@ -277,12 +280,19 @@ internal abstract partial class AdoJobStoreBase
             Volatile.Write(ref nextRoundStartsLocked, false);
         }
 
+        NoteContention(request, lockReason, acquired);
+
         return new TriggerAcquisitionResult
         {
             Pending = acquired.Triggers,
             Blocked = acquired.Blocked,
             LatestBlockingFiredUtc = acquired.LatestBlockingFiredUtc,
             GroupsAtLimit = acquired.GroupsAtLimit,
+
+            // 4.5 said nothing of rows another node took, and a round that is 4.5's by configuration
+            // still does not. One that is 4.5's for contention claims without the lock all the same, so
+            // one that lost every claim says so, and the scheduler looks again soon, not after its idle wait.
+            ClaimedElsewhere = lockReason == RoundLockReason.Contention ? acquired.ClaimedElsewhere : 0,
 
             // The round — this acquisition and the fire the scheduler makes of it — runs under the lock,
             // which TriggersFired takes; the tag describes the round, as it does for a folded one.
@@ -297,6 +307,76 @@ internal abstract partial class AdoJobStoreBase
     /// for this reason alone and found nothing in its candidates that needed it.
     /// </summary>
     private bool nextRoundStartsLocked;
+
+    /// <summary>
+    /// How long a contention episode lasts at most once begun (#4067): two seconds on the store's clock.
+    /// </summary>
+    /// <remarks>
+    /// A time rather than a round count, because the rounds a backlog takes depend on its size, the batch
+    /// and the pool, and a time bounds what a probe costs whatever they are: when the cool-down ends one
+    /// round goes without the lock again, and if it loses a claim the next episode begins. Two seconds is
+    /// one such round a node in every two seconds of a backlog that never comes back short, such as a
+    /// steady stream, against the racing rounds an episode saves every node.
+    /// </remarks>
+    internal static readonly TimeSpan ContentionCoolDown = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// When the current contention episode began, as the store's clock counts timestamps, or zero for none
+    /// (#4067). Begun by a round without the lock that lost a claim to another node; ended by a round locked
+    /// for it that comes back short of what it asked for, or by <see cref="ContentionCoolDown" />.
+    /// </summary>
+    private long contentionSince;
+
+    /// <summary>
+    /// Whether rounds take the lock because nodes contend for the same backlog, ending an episode whose
+    /// cool-down has passed.
+    /// </summary>
+    private bool InContention()
+    {
+        long since = Interlocked.Read(ref contentionSince);
+        if (since == 0)
+        {
+            return false;
+        }
+
+        if (timeProvider.GetElapsedTime(since) < ContentionCoolDown)
+        {
+            return true;
+        }
+
+        Interlocked.CompareExchange(ref contentionSince, 0, since);
+        return false;
+    }
+
+    /// <summary>
+    /// Begins a contention episode after a round without the lock lost a claim to another node, or ends one
+    /// when a round locked for it came back short: the backlog is gone (#4067). The serial-job hysteresis
+    /// keeps its own rule.
+    /// </summary>
+    /// <returns>Whether this round began an episode.</returns>
+    private bool NoteContention(TriggerAcquisitionRequest request, RoundLockReason? lockReason, AcquiredTriggers acquired)
+    {
+        if (lockReason is null && acquired.ClaimsLost > 0)
+        {
+            // Zero is what "no episode" is, so a clock that starts its timestamps there still begins one.
+            long now = Math.Max(timeProvider.GetTimestamp(), 1);
+            if (Interlocked.Exchange(ref contentionSince, now) == 0)
+            {
+                Logger.RoundsLockedForContention(acquired.ClaimsLost);
+            }
+
+            return true;
+        }
+
+        // Short of its own accord, not for claims another node took first: a round of one in 4.5's shape
+        // still claims without the lock, and losing there is the backlog, not its end.
+        if (lockReason == RoundLockReason.Contention && acquired.Triggers.Count < request.MaxCount && acquired.ClaimsLost == 0)
+        {
+            Interlocked.Exchange(ref contentionSince, 0);
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Why a round takes <see cref="SchedulerLock.TriggerAccess" /> before anything has been read, or
@@ -320,6 +400,12 @@ internal abstract partial class AdoJobStoreBase
         if (request.ExecutionLimits?.HasClusterScopedLimits == true)
         {
             return RoundLockReason.ClusterLimit;
+        }
+
+        // Ahead of the hysteresis, which it leaves as it is: each reason ends by its own rule.
+        if (InContention())
+        {
+            return RoundLockReason.Contention;
         }
 
         if (Volatile.Read(ref nextRoundStartsLocked))
