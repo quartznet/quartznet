@@ -51,11 +51,13 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
     [Test]
     public void TestDayExclusion()
     {
-        // use end of day to get by with utc offsets
+        // UTC, because the expectation is built from the zone's base offset, and that is not the offset
+        // in force on 1 January in a zone whose summer it is.
+        calendar.TimeZone = TimeZoneInfo.Utc;
         DateTime excluded = new DateTime(2007, 12, 31);
         calendar.AddExcludedDay(DateOnly.FromDateTime(excluded));
 
-        Assert.That(calendar.GetNextIncludedTimeUtc(excluded), Is.EqualTo(new DateTimeOffset(2008, 1, 1, 0, 0, 0, calendar.TimeZone.BaseUtcOffset)));
+        Assert.That(calendar.GetNextIncludedTimeUtc(new DateTimeOffset(excluded, TimeSpan.Zero)), Is.EqualTo(new DateTimeOffset(2008, 1, 1, 0, 0, 0, calendar.TimeZone.BaseUtcOffset)));
     }
 
     /// <summary>

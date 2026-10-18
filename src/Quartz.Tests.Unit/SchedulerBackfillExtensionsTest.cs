@@ -228,7 +228,7 @@ public sealed class SchedulerBackfillExtensionsTest
             .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(1)))
             .WithPreferredNode(PreferredNode.For("node-a"))
             .StartAt(since)
-            .WithCronSchedule("0 0 * * * ?")
+            .WithCronSchedule("0 0 * * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc))
             .Build());
 
         BackfillResult result = await scheduler.Backfill(hourlyKey, day, day.AddHours(1));
