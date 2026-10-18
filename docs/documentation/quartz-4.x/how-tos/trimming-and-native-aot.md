@@ -8,7 +8,7 @@ A trimmed publish removes code the application does not reach; native AOT compil
 an executable that needs no installed runtime. Both need everything used at run time to be visible in IL.
 Quartz's position:
 
-* `Quartz` and six side packages declare `IsAotCompatible`. Each is published by ILCompiler and run on
+* `Quartz` and seven side packages declare `IsAotCompatible`. Each is published by ILCompiler and run on
   every pull request.
 * Every other shipped package declares whether it is trimmable.
 * A job type arriving as a string resolves from the types you registered. The reflective fallback is a
@@ -41,7 +41,7 @@ A quiet build is not necessarily safe. To see everything:
 `IL3050`. It turns on `IsTrimmable` and the trim, AOT and single-file analyzers. It does **not** claim that
 no `IL2xxx` remains.
 
-Seven packages declare it, and only those: each is referenced by a canary that is published natively and
+Eight packages declare it, and only those: each is referenced by a canary that is published natively and
 *run* on every pull request, and whose native publish reports no warning against any Quartz package. The
 [table below](#which-packages-say-whether-they-can-be-trimmed) names the canary for each. To list
 dependencies that have not declared it:
@@ -66,7 +66,8 @@ arrived in .NET 10, and many compatible libraries do not declare it. Treat the l
 | `Quartz.Dashboard.Agent` | yes | yes | `Quartz.Trimming.Canary.Wire`: dials a hub, is driven down the tunnel | nothing |
 | `Quartz.Extensions.Redis` | yes | no: a canary needs a Redis server | — | nothing |
 | `Quartz.Aspire` | yes | no: its one path names a driver, which is `[RequiresUnreferencedCode]` | — | that call site, at your `AddQuartzPersistentStore` |
-| `Quartz.Weasel` and the six dialect packages | yes | no: each dialect needs its database | — | nothing |
+| `Quartz.Weasel.SQLite` | yes | yes | `Quartz.Trimming.Canary`: creates the schema as a host starts; a store on it schedules, fires and reads back | nothing; `Weasel.Core` reports one `IL2093` of its own |
+| `Quartz.Weasel` and the five server dialect packages | yes | no: each dialect needs its database | — | nothing |
 | `Quartz.Serialization.Newtonsoft` | **no** | no | — | see [below](#the-two-packages-that-are-not-trimmable) |
 | `Quartz.Dashboard` | **no** | no | — | see [below](#the-two-packages-that-are-not-trimmable) |
 

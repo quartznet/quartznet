@@ -10,6 +10,22 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!-- Signed like every Quartz package; Weasel.Sqlite and the rest of the JasperFx stack are not (CS8002). -->
     <NoWarn>$(NoWarn);CS8002</NoWarn>
+    <!--
+      The claim, read the way Quartz.csproj's is: no IL3050, proven by a run rather than argued.
+
+      What is proven: Quartz.Trimming.Canary references this package, is published by ILCompiler as a native
+      executable on Windows, Linux and macOS on every pull request, and is run. Under a real host,
+      UseWeaselForSqlite() creates the schema on an empty file database in StartingAsync - through
+      Quartz.Weasel's registrar, startup service and system part, and Weasel.Sqlite's migrator - and a store
+      on it validates the schema, schedules a job, fires it and reads it back. SQLite is the one Weasel
+      dialect that needs no server, which is why it is the one that can say this.
+
+      What a native publish reports against this package and Quartz.Weasel: nothing. Weasel.Core reports one
+      IL2093 of its own (MultiCommandDataReader.GetFieldType does not repeat DbDataReader's return
+      annotation), which is Weasel's to fix and build/Build.cs logs rather than fails on. The db-apply,
+      db-assert, db-patch and resources commands are JasperFx's and are not run by the canary.
+    -->
+    <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
