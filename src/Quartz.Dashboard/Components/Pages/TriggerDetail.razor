@@ -367,9 +367,19 @@
             return;
         }
 
-        if (_trigger is null || !TriggerPayloadBuilder.TryWithCronExpression(_trigger, cronExpression, out ITrigger? newTrigger))
+        ITrigger? newTrigger;
+        try
         {
-            Toasts.Error("This trigger cannot be rescheduled from the dashboard.");
+            if (_trigger is null || !TriggerPayloadBuilder.TryWithCronExpression(_trigger, cronExpression, out newTrigger))
+            {
+                Toasts.Error("This trigger cannot be rescheduled from the dashboard.");
+                return;
+            }
+        }
+        catch (FormatException ex)
+        {
+            // Said the way the preview says it. Thrown out of a click handler, it would end the circuit.
+            Toasts.Error("Invalid cron expression: " + ex.Message);
             return;
         }
 
