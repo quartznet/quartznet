@@ -134,6 +134,18 @@ public partial class Build : IConfigureGitHubActions
             return;
         }
 
+        // Windows and macOS stay in UTC, so this leg runs the tests behind it, with DST, to catch zone assumptions.
+        if (pipeline.WorkflowName == "pr-tests-unit" && pipeline.Image == GitHubActionsImage.UbuntuLatest)
+        {
+            pipeline.Insert(GitHubActionsStepPosition.PreRun, new GitHubActionsCustomStep
+            {
+                Name = "Setup: unit test time zone",
+                // A parameter rather than TZ itself, so that only the test hosts see it: PublishTrimmed,
+                // PublishAot and the smoke targets run in this job too, and keep the runner's zone.
+                Run = ["echo \"UnitTestTimeZone=America/Chicago\" >> \"$GITHUB_ENV\""]
+            });
+        }
+
         pipeline.Insert(GitHubActionsStepPosition.PostRun, new GitHubActionsCustomStep
         {
             Name = "Publish: test results",

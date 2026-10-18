@@ -41,6 +41,9 @@ partial class Build : FalloutBuild, ICompile, IPack
     [Parameter("Collect line and branch coverage while running the unit tests, in OpenCover format")]
     readonly bool Coverage;
 
+    [Parameter("IANA time zone the unit test hosts run in, handed to them as TZ. Linux and macOS only: .NET on Windows ignores TZ")]
+    readonly string UnitTestTimeZone;
+
     [GitRepository] readonly GitRepository GitRepository;
 
     AbsolutePath SourceDirectory => RootDirectory / "src";
@@ -465,7 +468,12 @@ partial class Build : FalloutBuild, ICompile, IPack
             var resultsDirectory = Coverage ? CoverageDirectory : TestResultsDirectory;
             resultsDirectory.CreateOrCleanDirectory();
 
-            RunTests(testRuns, resultsDirectory, run =>
+            if (!string.IsNullOrEmpty(UnitTestTimeZone))
+            {
+                Log.Information("Unit tests run with TZ={TimeZone}", UnitTestTimeZone);
+            }
+
+            RunTests(testRuns, resultsDirectory, timeZone: UnitTestTimeZone, applicationArguments: run =>
             [
                 // A test that hangs has to name itself: HangDump kills a host in which no test has
                 // finished for UnitTestHangTimeout, fails the run, and writes <host>_<pid>_hang.log
@@ -502,11 +510,16 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// Every run writes a TRX named after its project, and on GitHub Actions annotates its failures and
     /// writes a job summary.
     /// </para>
+    /// <para>
+    /// A <paramref name="timeZone" /> reaches the test hosts as <c>TZ</c> and nothing else in the build,
+    /// so the targets that run after the tests in the same job keep the machine's zone.
+    /// </para>
     /// </remarks>
     void RunTests(
         (Project Project, string Framework)[] testRuns,
         AbsolutePath resultsDirectory,
-        Func<(Project Project, string Framework), string[]> applicationArguments)
+        Func<(Project Project, string Framework), string[]> applicationArguments,
+        string timeZone = null)
     {
         var configuration = ((ICompile) this).Configuration;
 
@@ -516,6 +529,7 @@ partial class Build : FalloutBuild, ICompile, IPack
             .SetConfiguration(configuration)
             .SetResultsDirectory(resultsDirectory)
             .SetProcessLogger(LogTestOutput)
+            .When(!string.IsNullOrEmpty(timeZone), _ => _.SetProcessEnvironmentVariable("TZ", timeZone))
             .CombineWith(testRuns, (_, run) => _
                 .SetFramework(run.Framework)
                 .SetProcessAdditionalArguments(

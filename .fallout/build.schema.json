@@ -167,6 +167,10 @@
         "Solution": {
           "type": "string",
           "description": "Path to a solution file that is automatically loaded"
+        },
+        "UnitTestTimeZone": {
+          "type": "string",
+          "description": "IANA time zone the unit test hosts run in, handed to them as TZ. Linux and macOS only: .NET on Windows ignores TZ"
         }
       }
     },
