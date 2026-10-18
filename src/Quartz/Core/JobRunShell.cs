@@ -190,7 +190,7 @@ internal sealed class JobRunShell
             {
                 try
                 {
-                    context = new JobExecutionContextImpl(scheduler, firedTriggerBundle, jobScope.Job, qs.resources.JobInputSerializer)
+                    context = new JobExecutionContextImpl(scheduler, firedTriggerBundle, jobScope.Job, qs.resources.JobInputSerializer, qs.resources.TimeProvider)
                     {
                         SchedulerDefaultRetryPolicy = qs.resources.DefaultRetryPolicy
                     };
@@ -264,9 +264,11 @@ internal sealed class JobRunShell
                         logger.JobExecuting(jobDetail.Key);
                     }
 
+                    // The run begins here, on the context, so that JobRunTime read by the job while it runs
+                    // counts from the same timestamp, on the same clock, as the value it ends with. It ends
+                    // as the job returns or throws, before an error is reported to anybody.
                     TimeProvider timeProvider = qs.resources.TimeProvider;
-                    long startTimestamp = timeProvider.GetTimestamp();
-                    long endTimestamp;
+                    context.StartRunClock();
 
                     StartedActivity activity = QuartzActivitySource.StartJobExecute(context, timeProvider);
                     Instrumentation instrumentation = qs.resources.Meters.StartJobExecute(context);
@@ -284,24 +286,24 @@ internal sealed class JobRunShell
                             : pipeline(context, context.CancellationToken);
 
                         await execution.ConfigureAwait(false);
-                        endTimestamp = timeProvider.GetTimestamp();
+                        context.StopRunClock();
                     }
                     catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
                     {
-                        endTimestamp = timeProvider.GetTimestamp();
+                        context.StopRunClock();
                         cancelled = true;
                         logger.JobCancelled(jobDetail.Key);
                     }
                     catch (JobExecutionException jee)
                     {
-                        endTimestamp = timeProvider.GetTimestamp();
+                        context.StopRunClock();
                         jee.JobDetail = jobDetail;
                         jobExEx = jee;
                         logger.JobThrewJobExecutionException(jobDetail.Key, jee);
                     }
                     catch (Exception e)
                     {
-                        endTimestamp = timeProvider.GetTimestamp();
+                        context.StopRunClock();
                         logger.JobThrewUnhandledException(jobDetail.Key, e);
                         SchedulerException se = new JobExecutionProcessException(context, e);
                         await qs.NotifySchedulerListenersError(
@@ -310,8 +312,6 @@ internal sealed class JobRunShell
                         jobExEx = new JobExecutionException(se);
                         jobExEx.JobDetail = jobDetail;
                     }
-
-                    context.JobRunTime = timeProvider.GetElapsedTime(startTimestamp, endTimestamp);
 
                     // How the firing ended, worked out once and used by every exit below. It says what
                     // happened and nothing else: a job that ran and threw failed, whether or not the

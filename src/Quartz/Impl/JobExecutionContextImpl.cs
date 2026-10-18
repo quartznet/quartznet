@@ -86,7 +86,25 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
 
     private readonly IScheduler scheduler;
 
+    /// <summary>
+    /// The clock <see cref="JobRunTime" /> is measured on: the scheduler's, or the one a context built by
+    /// hand was given.
+    /// </summary>
+    private readonly TimeProvider timeProvider;
+
+    /// <summary>
+    /// The <see cref="TimeProvider.GetTimestamp" /> the current run of the job began at, which
+    /// <see cref="StartRunClock" /> writes.
+    /// </summary>
+    private long runStartTimestamp;
+
     private int numRefires;
+
+    /// <summary>
+    /// What <see cref="JobRunTime" /> answers without consulting the clock: <see cref="TimeSpan.Zero" />
+    /// before the run has begun, <see langword="null" /> while it runs, and the measurement once it has
+    /// ended. A state of its own would cost the context a field.
+    /// </summary>
     private TimeSpan? jobRunTime;
 
     private const int NotInterrupted = 0;
@@ -120,14 +138,41 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     /// built by hand without one reports a <see cref="SchedulerException" /> if a job asks it for a
     /// stored input, rather than reflecting its way to an answer.
     /// </param>
+    /// <remarks>
+    /// <see cref="JobRunTime" /> counts from here, on <see cref="TimeProvider.System" />: a context built
+    /// by hand is built to be handed to the job straight away.
+    /// </remarks>
     public JobExecutionContextImpl(
         IScheduler scheduler,
         TriggerFiredBundle firedBundle,
         IJob job,
         IJobInputSerializer? inputSerializer = null)
+        : this(scheduler, firedBundle, job, inputSerializer, TimeProvider.System)
+    {
+        StartRunClock();
+    }
+
+    /// <summary>
+    /// Create a JobExecutionContext whose <see cref="JobRunTime" /> is measured on
+    /// <paramref name="timeProvider" />, and whose run has not begun.
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than another public overload, so the public surface keeps the one constructor. The
+    /// run shell calls <c>StartRunClock</c> just before it calls the job, which keeps the trigger listeners
+    /// and the job factory out of the measurement; <see cref="Extensibility.JobExecutionContextBuilder" />
+    /// calls it as it builds.
+    /// </remarks>
+    internal JobExecutionContextImpl(
+        IScheduler scheduler,
+        TriggerFiredBundle firedBundle,
+        IJob job,
+        IJobInputSerializer? inputSerializer,
+        TimeProvider timeProvider)
     {
         this.scheduler = scheduler;
         this.inputSerializer = inputSerializer;
+        this.timeProvider = timeProvider;
+        jobRunTime = TimeSpan.Zero;
         trigger = firedBundle.Trigger;
         Calendar = firedBundle.Calendar;
         jobDetail = firedBundle.JobDetail;
@@ -188,7 +233,15 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     /// Gets the refire count.
     /// </summary>
     /// <value>The refire count.</value>
-    public int RefireCount => numRefires;
+    /// <remarks>
+    /// Written by the run shell as it refires the job, and by
+    /// <see cref="Extensibility.JobExecutionContextBuilder.WithRefireCount" /> for a context built by hand.
+    /// </remarks>
+    public int RefireCount
+    {
+        get => numRefires;
+        internal init => numRefires = value;
+    }
 
     /// <summary>
     /// How many times this occurrence has already been retried under its <see cref="RetryPolicy" />.
@@ -419,28 +472,68 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     public object? Result { get; set; }
 
     /// <inheritdoc />
-    public TimeSpan JobRunTime
-    {
-        get
-        {
-            if (jobRunTime is null)
-            {
-                // we are still in progress, calculate dynamically
-                return DateTimeOffset.UtcNow - FireTimeUtc;
-            }
+    /// <remarks>
+    /// <para>
+    /// Measured on the scheduler's <see cref="TimeProvider" />, from one start timestamp. The run shell
+    /// takes it just before it calls the job, through the middleware, and measures to the moment the job
+    /// returned or threw, so a read while the job runs and the final value count from the same start on
+    /// the same clock.
+    /// </para>
+    /// <para>
+    /// A context built by hand, by <see cref="Extensibility.JobExecutionContextBuilder" /> or the public
+    /// constructor, starts its run as it is built, on <see cref="TimeProvider.System" /> unless the builder
+    /// was given a clock.
+    /// </para>
+    /// </remarks>
+    public TimeSpan JobRunTime => jobRunTime ?? timeProvider.GetElapsedTime(runStartTimestamp);
 
-            return jobRunTime.Value;
+    /// <summary>
+    /// Begins a run of the job: <see cref="JobRunTime" /> counts from now until <see cref="StopRunClock" />.
+    /// </summary>
+    /// <remarks>
+    /// Called again for each refire, so a refired job's run time is that attempt's alone, as its final
+    /// value always was. The start is written before the old measurement is cleared, so a reader on
+    /// another thread sees one or the other and never a start that is not this run's.
+    /// </remarks>
+    internal void StartRunClock()
+    {
+        runStartTimestamp = timeProvider.GetTimestamp();
+        jobRunTime = null;
+    }
+
+    /// <summary>
+    /// Ends the run <see cref="StartRunClock" /> began, and fixes <see cref="JobRunTime" /> at its length.
+    /// </summary>
+    internal void StopRunClock()
+    {
+        jobRunTime = timeProvider.GetElapsedTime(runStartTimestamp);
+    }
+
+    /// <summary>
+    /// Makes <see cref="CancellationToken" /> cancel when <paramref name="cancellationToken" /> does, as
+    /// well as when the firing is interrupted.
+    /// </summary>
+    /// <remarks>
+    /// The context's source is linked to the token rather than replaced by it, because
+    /// <see cref="IInterruptableJobExecutionContext.Interrupt" /> has to be able to cancel it.
+    /// <see cref="Extensibility.JobExecutionContextBuilder" /> calls this on the context it has just built,
+    /// before anybody can have read the token.
+    /// </remarks>
+    internal void LinkCancellation(CancellationToken cancellationToken)
+    {
+        if (cancellationToken.CanBeCanceled)
+        {
+            cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         }
-        internal set => jobRunTime = value;
     }
 
     /// <summary>
     /// Increments the refire count.
     /// </summary>
     /// <remarks>
-    /// Both this and the <see cref="JobRunTime" /> setter record what the scheduler observed while
-    /// running the job. <see cref="Core.JobRunShell" /> is the only caller, and a job or listener
-    /// writing either would be reporting a fire that never happened.
+    /// This and <see cref="StopRunClock" /> record what the scheduler observed while running the job.
+    /// <see cref="Core.JobRunShell" /> is the only caller, and a job or listener calling either would be
+    /// reporting a fire that never happened.
     /// </remarks>
     internal void IncrementRefireCount()
     {

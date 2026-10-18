@@ -301,15 +301,17 @@ public interface IJobExecutionContext
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Once the job has completed — or thrown — this is what the scheduler measured, from a monotonic
-    /// timestamp, and it is the value <see cref="IJobListener" />s and <see cref="ITriggerListener" />s
-    /// see. That is what the member is for.
+    /// Once the job has completed — or thrown — this is what the scheduler measured, on its
+    /// <see cref="TimeProvider" />, and it is the value <see cref="IJobListener" />s and
+    /// <see cref="ITriggerListener" />s see. That is what the member is for.
     /// </para>
     /// <para>
-    /// Read while the job is still running, it is an estimate instead: the wall clock now, less
-    /// <see cref="FireTimeUtc" />. It is read from <see cref="DateTimeOffset.UtcNow" /> rather than
-    /// from the scheduler's <see cref="TimeProvider" />, so under a fake clock set to another instant
-    /// it is meaningless and can come out negative. The testing tutorial says more.
+    /// Read while the job is still running, it is the time since the run began, on the same clock and
+    /// from the same start, so it grows into the final value: under a fake clock it advances by exactly
+    /// what the clock was advanced. Before the job is first called — in
+    /// <see cref="ITriggerListener.TriggerFired" /> or <see cref="IJobListener.JobToBeExecuted" /> — it is
+    /// <see cref="TimeSpan.Zero" />. A refired job's run begins again with each attempt, and until it does
+    /// the value is the previous attempt's measurement.
     /// </para>
     /// </remarks>
     TimeSpan JobRunTime { get; }
