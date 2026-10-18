@@ -528,8 +528,12 @@ public sealed class TracingJobStoreTest
         using ActivitySource unlistened = new("Quartz.Tests.Unlistened");
         IJobStore inner = StubStore();
 
+        // A name no other scheduler in the process has, because every span carries its store's scheduler
+        // name and that is what tells this store's spans apart from everybody else's.
+        string schedulerName = $"quiet-{Guid.NewGuid():N}";
+
         TracingJobStore store = new(inner, new Meters(meterFactory: null), TimeProvider.System, unlistened);
-        await store.Initialize(new SchedulerIdentity { SchedulerName = "quiet", InstanceId = "node-0" });
+        await store.Initialize(new SchedulerIdentity { SchedulerName = schedulerName, InstanceId = "node-0" });
 
         await store.PauseAll();
 
@@ -542,9 +546,13 @@ public sealed class TracingJobStoreTest
         await store.PauseTriggersWith([new TriggerKey("t")], details);
         await store.PauseJobsWith([new JobKey("j")], details);
 
+        // Only this store's spans: the listener hears every "Quartz" activity in the process, including
+        // those of schedulers other tests leave running, which is what made this flake on macOS (#4087).
         lock (stoppedActivities)
         {
-            stoppedActivities.Should().BeEmpty("no listener means no activity to create");
+            stoppedActivities.Should().NotContain(a => Equals(a.GetTagItem(SchedulerNameTag), schedulerName),
+                "no listener on the source the store was handed means no activity to create, and the store "
+                + "may not fall back to the Quartz source instead");
         }
 
         A.CallTo(() => inner.PauseTriggersWith(A<IReadOnlyCollection<TriggerKey>>.Ignored, details, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
