@@ -241,11 +241,13 @@ public static partial class QuartzServiceCollectionExtensions
     /// a middleware added here always composes <em>inside</em> one a scheduler's own <c>AddQuartz</c>
     /// callback added, because middleware runs in registration order and this registration is always the
     /// later of the two. That is the right way round — what a library wraps, an outbox or a unit of work,
-    /// belongs within what the application wraps, such as its tenant scope. The usual precedence follows —
-    /// registration is first-wins, so a component a scheduler chose for itself is not replaced by one
-    /// chosen here; options are last-wins, so a value set here overrides the same option set on one
-    /// scheduler, exactly as <c>ConfigureAll&lt;TOptions&gt;</c> overrides an earlier named
-    /// <c>Configure</c>.
+    /// belongs within what the application wraps, such as its tenant scope.
+    /// </para>
+    /// <para>
+    /// A part chosen here — a job store, a thread pool, a job factory — replaces a Quartz default, never a
+    /// part the scheduler chose for itself in its callback, its configuration or a key. Options are
+    /// last-wins, so a value set here overrides the same option set on one scheduler, exactly as
+    /// <c>ConfigureAll&lt;TOptions&gt;</c> overrides an earlier named <c>Configure</c>.
     /// </para>
     /// <para>
     /// Remote schedulers registered with <c>AddQuartzHttpClient</c> are not built by a builder and are
@@ -510,13 +512,15 @@ public static partial class QuartzServiceCollectionExtensions
         // Phase 4.
         configure?.Invoke(new QuartzBuilder(services, schedulerName));
 
-        // Phase 4, for everyone: what ConfigureAllQuartzSchedulers said about every scheduler in the
-        // container. After this scheduler's own callback, which is where a scheduler registered before
-        // that call gets it too, so the order the two calls were written in does not decide anything.
-        registry.ApplyConfigureAll(services, schedulerName);
-
         // Phase 5: registration is first-wins, so the implementations named by keys go in after it.
         QuartzPropertyBridge.ApplyRegistrations(services, properties, schedulerName);
+
+        // Phase 5, for everyone: what ConfigureAllQuartzSchedulers said about every scheduler in the
+        // container. After everything this scheduler said about itself - its callback and its keys - and
+        // before its defaults, which is exactly where a scheduler registered before that call gets it
+        // too: there, its parts replace the defaults and lose to everything else. So the order the two
+        // calls were written in decides nothing.
+        registry.ApplyConfigureAll(services, schedulerName);
 
         // Phase 6.
         services.AddQuartzScheduler(schedulerName);

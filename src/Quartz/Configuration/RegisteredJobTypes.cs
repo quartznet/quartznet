@@ -30,7 +30,9 @@ namespace Quartz.Configuration;
 /// Whether <c>AddJob</c> registers the job type at all is settled late for the same reason. Only a
 /// scheduler whose job factory builds jobs from the container gets the registration, and
 /// <c>UseJobFactory</c> may be written after <c>AddJob</c> in the same callback, so the registration
-/// waits in <see cref="Request" /> until the scheduler's registration is complete.
+/// waits in <see cref="Request" /> until the scheduler's registration is complete. A factory chosen even
+/// later — by <c>ConfigureAllQuartzSchedulers</c> after <c>AddQuartz</c> — replaces the default the
+/// decision was made against, and <see cref="Reconsider" /> makes it again.
 /// </para>
 /// </remarks>
 internal sealed class RegisteredJobTypes
@@ -38,11 +40,23 @@ internal sealed class RegisteredJobTypes
     private readonly IServiceCollection services;
 
     /// <summary>
-    /// Which scheduler was told to carry which job type. A set, because the same job type can be named
-    /// twice for one scheduler — <c>AddQuartz()</c> is additive, and container-wide configuration
-    /// reaches every scheduler — and saying it twice is not two jobs.
+    /// Which scheduler <c>AddJobType</c> told to carry which job type, whatever its job factory. A set,
+    /// because the same job type can be named twice for one scheduler — <c>AddQuartz()</c> is additive,
+    /// and container-wide configuration reaches every scheduler — and saying it twice is not two jobs.
     /// </summary>
-    private readonly HashSet<(string SchedulerName, Type JobType)> registered = [];
+    private readonly HashSet<(string SchedulerName, Type JobType)> declared = [];
+
+    /// <summary>
+    /// The job types <see cref="RegisterRequested" /> registered for a scheduler, one entry per scheduler
+    /// and type, with the registration it added on that scheduler's behalf — or <see langword="null" />
+    /// when one was already there, the application's or another scheduler's.
+    /// </summary>
+    /// <remarks>
+    /// The registration is unkeyed, so schedulers share it, and which of them added it decides nothing
+    /// but who hands it on: <see cref="Reconsider" /> removes it only when no scheduler still on a
+    /// container-backed factory asked for the same type.
+    /// </remarks>
+    private readonly List<(string SchedulerName, Type JobType, ServiceDescriptor? Added)> granted = [];
 
     /// <summary>
     /// The registrations <c>AddJob</c> and <c>ScheduleJob</c> asked for, waiting for the job factory of
@@ -108,7 +122,7 @@ internal sealed class RegisteredJobTypes
     /// <param name="jobType">The job type, as the container knows it.</param>
     public void Add(string? schedulerName, Type jobType)
     {
-        registered.Add((schedulerName ?? Options.DefaultName, jobType));
+        declared.Add((schedulerName ?? Options.DefaultName, jobType));
     }
 
     /// <summary>
@@ -133,36 +147,122 @@ internal sealed class RegisteredJobTypes
     /// <remarks>
     /// <para>
     /// Called once the scheduler's registration is complete, which is when its job factory can be read:
-    /// Quartz registers its default factory last and first-wins, so nothing Quartz registers afterwards
-    /// replaces it. A factory of the application's own gets neither the registration nor the check. It
-    /// builds its jobs its own way, so the container never constructs them for this scheduler.
+    /// Quartz registers its default factory last, so everything the scheduler chose for itself is in by
+    /// then. A factory of the application's own gets neither the registration nor the check. It builds
+    /// its jobs its own way, so the container never constructs them for this scheduler.
     /// </para>
     /// <para>
-    /// A registration is only ever withheld, never removed. The <c>TryAdd</c> keeps a registration the
-    /// application made itself, and a job type that a scheduler on a container-backed factory asked for
-    /// stays registered whatever another scheduler's factory is.
+    /// The <c>TryAdd</c> keeps a registration the application made itself, and a job type that a
+    /// scheduler on a container-backed factory asked for stays registered whatever another scheduler's
+    /// factory is — including when <see cref="Reconsider" /> takes back what this added.
     /// </para>
     /// </remarks>
     /// <param name="schedulerName">The scheduler, <see langword="null"/> or empty for the default one.</param>
     public void RegisterRequested(string? schedulerName)
     {
         string name = schedulerName ?? Options.DefaultName;
-        object? key = string.IsNullOrEmpty(name) ? null : name;
 
-        // The registration the container resolves, which is the last one.
-        if (Last(typeof(IJobFactory), key) is { } jobFactory && JobFactoryDescriptor.BuildsJobsFromContainer(jobFactory))
+        if (BuildsJobsFromContainer(name))
         {
             foreach ((string requestedFor, ServiceDescriptor registration) in requested)
             {
                 if (string.Equals(requestedFor, name, StringComparison.Ordinal))
                 {
+                    int before = services.Count;
                     services.TryAdd(registration);
-                    registered.Add((name, registration.ServiceType));
+                    Grant(name, registration.ServiceType, services.Count > before ? registration : null);
                 }
             }
         }
 
         requested.RemoveAll(request => string.Equals(request.SchedulerName, name, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Decides again whether a scheduler's job types are registered, now that a job factory chosen after
+    /// its registration replaced the default the first decision was made against.
+    /// </summary>
+    /// <remarks>
+    /// The default builds jobs from the container, so the first decision registered everything the
+    /// scheduler asked for. A factory that builds them its own way takes that back — exactly what the
+    /// scheduler would have had if the factory had been chosen before its registration completed, which is
+    /// the point: <c>ConfigureAllQuartzSchedulers(q =&gt; q.UseJobFactory&lt;T&gt;())</c> means the same
+    /// thing on either side of <c>AddQuartz</c>. A registration another scheduler still relies on is handed
+    /// to it rather than removed.
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler, <see langword="null"/> or empty for the default one.</param>
+    public void Reconsider(string? schedulerName)
+    {
+        string name = schedulerName ?? Options.DefaultName;
+
+        if (BuildsJobsFromContainer(name))
+        {
+            return;
+        }
+
+        for (int i = granted.Count - 1; i >= 0; i--)
+        {
+            (string grantedTo, Type jobType, ServiceDescriptor? added) = granted[i];
+            if (!string.Equals(grantedTo, name, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            granted.RemoveAt(i);
+
+            if (added is not null && !HandOver(jobType, added))
+            {
+                services.Remove(added);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Records that a scheduler's job type is registered, once per scheduler and type.
+    /// </summary>
+    private void Grant(string schedulerName, Type jobType, ServiceDescriptor? added)
+    {
+        foreach ((string grantedTo, Type grantedType, _) in granted)
+        {
+            if (string.Equals(grantedTo, schedulerName, StringComparison.Ordinal) && grantedType == jobType)
+            {
+                return;
+            }
+        }
+
+        granted.Add((schedulerName, jobType, added));
+    }
+
+    /// <summary>
+    /// Gives a registration to another scheduler that asked for the same job type, if there is one.
+    /// </summary>
+    /// <remarks>
+    /// Every scheduler still holding a grant is on a container-backed factory, since
+    /// <see cref="Reconsider" /> takes a scheduler's grants away the moment its factory stops being one.
+    /// </remarks>
+    private bool HandOver(Type jobType, ServiceDescriptor registration)
+    {
+        for (int i = 0; i < granted.Count; i++)
+        {
+            (string grantedTo, Type grantedType, ServiceDescriptor? added) = granted[i];
+            if (grantedType == jobType && added is null)
+            {
+                granted[i] = (grantedTo, grantedType, registration);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether the job factory the container resolves for a scheduler — the last registration — builds
+    /// jobs from the container.
+    /// </summary>
+    private bool BuildsJobsFromContainer(string schedulerName)
+    {
+        object? key = string.IsNullOrEmpty(schedulerName) ? null : schedulerName;
+        return Last(typeof(IJobFactory), key) is { } jobFactory && JobFactoryDescriptor.BuildsJobsFromContainer(jobFactory);
     }
 
     /// <summary>
@@ -176,13 +276,25 @@ internal sealed class RegisteredJobTypes
         // key to a container.
         object? key = string.IsNullOrEmpty(schedulerName) ? null : schedulerName;
 
-        foreach ((string name, Type jobType) in registered)
+        HashSet<Type> jobTypes = [];
+        foreach ((string name, Type jobType) in declared)
         {
-            if (!string.Equals(name, schedulerName, StringComparison.Ordinal))
+            if (string.Equals(name, schedulerName, StringComparison.Ordinal))
             {
-                continue;
+                jobTypes.Add(jobType);
             }
+        }
 
+        foreach ((string name, Type jobType, _) in granted)
+        {
+            if (string.Equals(name, schedulerName, StringComparison.Ordinal))
+            {
+                jobTypes.Add(jobType);
+            }
+        }
+
+        foreach (Type jobType in jobTypes)
+        {
             if (Winner(jobType, key) is { } descriptor)
             {
                 found.Add(descriptor);

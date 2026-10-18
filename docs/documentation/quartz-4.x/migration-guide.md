@@ -93,6 +93,7 @@ Behaviour that changed:
 | The dashboard's Trigger Detail and Currently Executing pages linked to History by the trigger text filter, which also lists `nightly-2` for `nightly` | They link to that trigger exactly. Against a host older than 4.6 the History page says it cannot filter | Nothing. A bookmarked `history?trigger=…` link still filters by fragment |
 | `AddJob`, `AddTrigger` or `ScheduleJob` with no `WithIdentity` stored a generated key in a persistent store, silently | Log event `4030` warns at each start, naming the registration and the key | Give the job or trigger `WithIdentity(...)`, and delete the copies earlier starts left |
 | `JobRunTime` read while the job ran was `DateTimeOffset.UtcNow` less `FireTimeUtc` | The time since the job was called, on the scheduler's `TimeProvider`, from the start the final value counts from. `TimeSpan.Zero` before the job is called, so a vetoed firing reports zero | Nothing. Under a `FakeTimeProvider` it advances by exactly what the clock advanced |
+| A part `ConfigureAllQuartzSchedulers` or `AddQuartzPersistentStore` chose after `AddQuartz` was ignored: the scheduler kept its default, such as `RAMJobStore` | It replaces the default in either order, as does a part a second `AddQuartz()` chooses. A part the scheduler chose in its callback, its configuration or a key still wins, in either order | Nothing. Calling `AddQuartzPersistentStore` before `AddQuartz` still works |
 
 ## Upgrading from 4.4 to 4.5
 

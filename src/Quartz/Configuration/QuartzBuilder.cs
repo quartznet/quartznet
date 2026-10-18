@@ -535,17 +535,18 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     /// <summary>
     /// Registers a per-scheduler service built by a factory that knows which scheduler it belongs to.
     /// </summary>
-    private void RegisterConfigured<TService>(Func<IServiceProvider, object?, TService> factory)
+    /// <remarks>
+    /// First-wins against anything chosen before it, but not against a default: a builder handed to
+    /// <c>ConfigureAllQuartzSchedulers</c> can reach a scheduler whose registration has already filled in
+    /// its defaults, and a choice made there replaces the default rather than losing to it.
+    /// </remarks>
+    /// <returns>Whether this registration is the one the container will resolve.</returns>
+    private bool RegisterConfigured<TService>(Func<IServiceProvider, object?, TService> factory)
         where TService : class
     {
-        if (schedulerKey is null)
-        {
-            Services.TryAddSingleton(provider => factory(provider, null));
-        }
-        else
-        {
-            Services.TryAddKeyedSingleton(schedulerKey, (provider, key) => factory(provider, key));
-        }
+        return SchedulerParts.TryAdd(Services, schedulerKey is null
+            ? ServiceDescriptor.Singleton<TService>(provider => factory(provider, null))
+            : ServiceDescriptor.KeyedSingleton<TService>(schedulerKey, (provider, key) => factory(provider, key)));
     }
 
     /// <summary>
@@ -561,19 +562,16 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     /// is not a nicety.
     /// </para>
     /// <para>
-    /// The note is added only when this registration is the one that takes. Registration is first-wins,
-    /// so an instance supplied after something else already claimed the part is inert — and a note about
-    /// an object nothing will ever resolve would refuse a restart that replays perfectly.
+    /// The note is added only when this registration is the one that takes — into an empty slot, or in
+    /// place of a default. An instance supplied after something else already chose the part is inert,
+    /// and a note about an object nothing will ever resolve would refuse a restart that replays
+    /// perfectly.
     /// </para>
     /// </remarks>
     private void RegisterConfiguredInstance<TService>(TService instance)
         where TService : class
     {
-        bool alreadyClaimed = IsRegistered(typeof(TService));
-
-        RegisterConfigured<TService>((_, _) => instance);
-
-        if (alreadyClaimed)
+        if (!RegisterConfigured<TService>((_, _) => instance))
         {
             return;
         }
@@ -588,31 +586,6 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         {
             Services.AddKeyedSingleton(schedulerKey, part);
         }
-    }
-
-    /// <summary>
-    /// Whether this scheduler's collection already says how to build one of its parts.
-    /// </summary>
-    private bool IsRegistered(Type serviceType)
-    {
-        foreach (ServiceDescriptor descriptor in Services)
-        {
-            if (descriptor.ServiceType != serviceType)
-            {
-                continue;
-            }
-
-            bool mine = schedulerKey is null
-                ? !descriptor.IsKeyedService
-                : descriptor.IsKeyedService && string.Equals(descriptor.ServiceKey as string, schedulerKey, StringComparison.Ordinal);
-
-            if (mine)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /// <summary>

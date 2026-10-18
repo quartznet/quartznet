@@ -225,6 +225,32 @@ public sealed class CustomJobFactoryRegistrationTest
             services.AddQuartz(q => q.AddJob<OutsideJob>(Identity));
         });
 
+        // These choose the factory after the scheduler's registration has decided on the default one, a
+        // choice that used to be ignored, leaving the default in place and the job registered (#4104).
+        yield return Case("a factory of its own chosen for every scheduler afterwards", registered: false, services =>
+        {
+            services.AddQuartz(q => q.AddJob<OutsideJob>(Identity));
+            services.ConfigureAllQuartzSchedulers(q => q.UseJobFactory<OutsideJobFactory>());
+        });
+
+        yield return Case("a factory handed over as an instance for every scheduler afterwards", registered: false, services =>
+        {
+            services.AddQuartz("acme", q => q.AddJob<OutsideJob>(Identity));
+            services.ConfigureAllQuartzSchedulers(q => q.UseJobFactory(new OutsideJobFactory(new OtherContainer())));
+        });
+
+        yield return Case("a factory of its own chosen by a second AddQuartz()", registered: false, services =>
+        {
+            services.AddQuartz(q => q.AddJob<OutsideJob>(Identity));
+            services.AddQuartz(q => q.UseJobFactory<OutsideJobFactory>());
+        });
+
+        yield return Case("a factory derived from the default chosen for every scheduler afterwards", registered: true, services =>
+        {
+            services.AddQuartz(q => q.AddJob<OutsideJob>(Identity));
+            services.ConfigureAllQuartzSchedulers(q => q.UseJobFactory<DerivedJobFactory>());
+        });
+
         static TestCaseData Case(string name, bool registered, Action<IServiceCollection> register)
         {
             return new TestCaseData(register, registered).SetArgDisplayNames(name);
@@ -232,8 +258,8 @@ public sealed class CustomJobFactoryRegistrationTest
     }
 
     /// <summary>
-    /// Withheld, never removed: a scheduler on the default factory that carries the same job type keeps
-    /// the registration, whichever of the two was registered first.
+    /// A scheduler on the default factory that carries the same job type keeps the registration, whichever
+    /// of the two was registered first.
     /// </summary>
     [TestCase(true)]
     [TestCase(false)]

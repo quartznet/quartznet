@@ -935,9 +935,9 @@ public static class QuartzBuilderExtensions
         jobTypes.Request(builder.SchedulerName, ServiceDescriptor.Scoped(jobType, jobType));
 
         // A scheduler whose registration is already complete - one ConfigureAllQuartzSchedulers reaches
-        // after its AddQuartz call, or the default scheduler added to by a second AddQuartz() - keeps the
-        // job factory it has, so what it asked for is decided now. Otherwise the end of its registration
-        // decides it.
+        // after its AddQuartz call, or the default scheduler added to by a second AddQuartz() - has a job
+        // factory already, so what it asked for is decided now, and decided again if a factory chosen
+        // later replaces the default. Otherwise the end of its registration decides it.
         if (SchedulerNameRegistry.For(builder.Services).IsRegistered(builder.SchedulerName))
         {
             jobTypes.RegisterRequested(builder.SchedulerName);

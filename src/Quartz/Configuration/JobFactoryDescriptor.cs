@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Quartz.Extensibility;
 using Quartz.Impl;
@@ -42,8 +41,8 @@ internal sealed class JobFactoryDescriptor : ServiceDescriptor
     public Type FactoryType { get; }
 
     /// <summary>
-    /// Registers a scheduler's job factory, keyed for a named scheduler and unkeyed for the default one,
-    /// unless the scheduler already has one.
+    /// Registers a job factory somebody chose for a scheduler, keyed for a named scheduler and unkeyed for
+    /// the default one, unless the scheduler already has one that is not a default.
     /// </summary>
     /// <param name="services">The service collection to register into.</param>
     /// <param name="schedulerKey">The scheduler's service key, or <see langword="null" /> for the default scheduler.</param>
@@ -55,9 +54,30 @@ internal sealed class JobFactoryDescriptor : ServiceDescriptor
         Type factoryType,
         Func<IServiceProvider, object?, IJobFactory> create)
     {
-        services.TryAdd(schedulerKey is null
+        SchedulerParts.TryAdd(services, Describe(schedulerKey, factoryType, create));
+    }
+
+    /// <summary>
+    /// Registers the job factory a scheduler gets when nothing chose one, recorded as a default.
+    /// </summary>
+    /// <inheritdoc cref="TryAdd" path="/param" />
+    public static void TryAddDefault(
+        IServiceCollection services,
+        object? schedulerKey,
+        Type factoryType,
+        Func<IServiceProvider, object?, IJobFactory> create)
+    {
+        SchedulerParts.TryAddDefault(services, Describe(schedulerKey, factoryType, create));
+    }
+
+    private static JobFactoryDescriptor Describe(
+        object? schedulerKey,
+        Type factoryType,
+        Func<IServiceProvider, object?, IJobFactory> create)
+    {
+        return schedulerKey is null
             ? new JobFactoryDescriptor(factoryType, provider => create(provider, null))
-            : new JobFactoryDescriptor(factoryType, schedulerKey, (provider, key) => create(provider, key)));
+            : new JobFactoryDescriptor(factoryType, schedulerKey, (provider, key) => create(provider, key));
     }
 
     /// <summary>

@@ -367,6 +367,30 @@ public class QuartzSchedulerBuilderTest
     }
 
     /// <summary>
+    /// A key is the scheduler's own configuration, so it beats a part <c>ConfigureAllQuartzSchedulers</c>
+    /// chose, as it does in the container (#4104).
+    /// </summary>
+    [Test]
+    public async Task AKeyBeatsAPartContainerWideConfigurationChose()
+    {
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.Services.ConfigureAllQuartzSchedulers(all => all.UseThreadPool<ZeroSizeThreadPool>()))
+            .UseProperties(new NameValueCollection { ["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool, Quartz" })
+            .BuildScheduler();
+
+        try
+        {
+            (await scheduler.GetMetadata()).ThreadPoolTypeName.Should().Contain(nameof(DefaultThreadPool),
+                "a container-wide choice replaces a default, never a part the scheduler's own configuration "
+                + "named, and the standalone builder applies the two in the container's order");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    /// <summary>
     /// The same recorder, asked for through the legacy key. The bridge registers it while the
     /// property-derived options are being built in a collection of their own, so this is the route that
     /// needs that collection to share the builder's registry rather than grow one of its own.

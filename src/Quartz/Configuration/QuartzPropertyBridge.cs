@@ -164,11 +164,11 @@ internal static class QuartzPropertyBridge
     /// <remarks>
     /// <para>
     /// Here rather than in <see cref="ApplyRegistrations" />, where every other registration this
-    /// bridge makes lives, because of when the two run.
+    /// bridge makes lives, so that it is recorded before anything is carried to the scheduler.
     /// <c>AddQuartzExecutionHistory()</c> installs the recorder through
     /// <c>ConfigureAllQuartzSchedulers</c>, and a scheduler mid-registration is carried those delegates
-    /// by the pass that runs straight after its own configuration callback — before the registration
-    /// phase. Called from there, the recorder would reach every scheduler but this one.
+    /// by one pass, once it has said everything about itself; a delegate recorded after that pass would
+    /// reach every scheduler but this one.
     /// </para>
     /// <para>
     /// The typed option is still set in <see cref="MapAdoJobStore" /> with the rest of them: this says
@@ -833,38 +833,17 @@ internal static class QuartzPropertyBridge
             return;
         }
 
-        // A persistent store the application already chose in code: the key would have lost the TryAdd to
-        // that registration, so it names what code named and is left at that. Nothing registered in code
-        // means the key alone was to build the store, which this publish cannot do.
+        // A persistent store the application already chose in code, rather than a default an earlier
+        // registration filled in: the key would have lost the TryAdd to that registration, so it names what
+        // code named and is left at that. Nothing chosen in code means the key alone was to build the store,
+        // which this publish cannot do.
         if (TryMatchBuiltIn(configured, shippedPersistentStores, out string? _)
-            && IsRegistered<IJobStore>(services, schedulerName))
+            && SchedulerParts.IsChosen(services, typeof(IJobStore), schedulerName))
         {
             return;
         }
 
         Throw.SchedulerConfigException(LegacyPropertyKeys.ComponentKeyRefused(LegacyPropertyKeys.JobStoreType));
-    }
-
-    /// <summary>
-    /// Whether a registration <see cref="RegisterConfigured{TService}" /> would lose to already exists:
-    /// unkeyed for the default scheduler, keyed by the scheduler's name otherwise.
-    /// </summary>
-    private static bool IsRegistered<TService>(IServiceCollection services, string? schedulerName)
-    {
-        foreach (ServiceDescriptor descriptor in services)
-        {
-            if (descriptor.ServiceType != typeof(TService))
-            {
-                continue;
-            }
-
-            if (schedulerName is null ? !descriptor.IsKeyedService : descriptor.IsKeyedService && Equals(descriptor.ServiceKey, schedulerName))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static void RegisterDriverDelegate(IServiceCollection services, PropertyReader parser, string? schedulerName)
@@ -1391,14 +1370,11 @@ internal static class QuartzPropertyBridge
         string? schedulerName,
         Func<IServiceProvider, object?, TService> factory) where TService : class
     {
-        if (schedulerName is null)
-        {
-            services.TryAddSingleton(provider => factory(provider, null));
-        }
-        else
-        {
-            services.TryAddKeyedSingleton(schedulerName, (provider, key) => factory(provider, key));
-        }
+        // A key is a choice, so it replaces a default rather than losing to it - which only arises for a
+        // second AddQuartz() of the default scheduler, whose first call has filled its defaults in.
+        SchedulerParts.TryAdd(services, schedulerName is null
+            ? ServiceDescriptor.Singleton<TService>(provider => factory(provider, null))
+            : ServiceDescriptor.KeyedSingleton<TService>(schedulerName, (provider, key) => factory(provider, key)));
     }
 
     /// <summary>
