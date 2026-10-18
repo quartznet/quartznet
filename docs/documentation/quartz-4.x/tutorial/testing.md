@@ -137,7 +137,7 @@ using JobExecutionContextImpl context = JobExecutionContextBuilder.For(job)
     .FiredAt(new DateTimeOffset(2026, 3, 6, 9, 0, 0, TimeSpan.Zero))
     .Build();
 
-await job.Execute(context, CancellationToken.None);
+await job.Execute(context, context.CancellationToken);
 ```
 <!-- endSnippet -->
 
@@ -151,18 +151,103 @@ Then assert on what the job did: `importer.LastSource.Should().Be("orders")`.
 | `FiredAt(fireTime, scheduledFireTime)` | `FireTimeUtc` and `ScheduledFireTimeUtc` | now, on time |
 | `WithInput(input)` | what an `IJob<TInput>` is handed and `GetInput<T>()` reads | no input |
 | `WithScheduler(scheduler)` | `context.Scheduler` | `null` |
+| `Recovering()` | `Recovering`, and `RecoveringTriggerKey` as the trigger's key | not recovering |
+| `WithRetryAttempt(n)` | `RetryAttempt` | the trigger's own: `0` |
+| `WithRefireCount(n)` | `RefireCount` | `0` |
+| `WithCalendar(calendar)` | `Calendar`; `NextFireTimeUtc` skips what it excludes | no calendar |
+| `WithCancellation(token)` | a token that cancels `context.CancellationToken` | cancelled only by an interrupt |
+| `WithTimeProvider(clock)` | "now", and the clock `JobRunTime` is measured on | `TimeProvider.System` |
 
 * The trigger is copied, as a job store copies the trigger it fires, so the one you pass is unchanged.
 * `NextFireTimeUtc` is the next time the trigger's schedule gives, as a job store reports it.
 * `context.Scheduler` is `null` unless you pass one. Fake the scheduler when the job uses it.
+* The builder does not ask the scheduler for its clock. Pass the clock with `WithTimeProvider`.
+* `JobRunTime` counts from `Build()`. Under a `FakeTimeProvider` it advances by exactly what you advance.
+* Pass `context.CancellationToken` to `Execute`, as the scheduler does, so the job sees `WithCancellation`'s
+  token cancel.
 * Dispose the context: it owns a cancellation source once the job reads its token.
 
-::: warning
-`context.JobRunTime` while a job is running is computed from `DateTimeOffset.UtcNow`, not from the
-scheduler's `TimeProvider`. Under a fake clock set to another instant the mid-execution value is
-meaningless and can be negative. The value recorded *after* the job completes uses a monotonic timestamp
-and is always correct.
-:::
+### A recovering job
+
+A job that requests recovery runs again after a crash, with `context.Recovering` set. `Recovering()` builds
+that firing:
+
+<!-- snippet: sample_testing_resumable_job -->
+```csharp
+public sealed class ResumableImportJob(ICheckpointedImporter importer) : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        // A recovered firing resumes where the interrupted one stopped; any other starts over.
+        long from = context.Recovering ? await importer.LastCheckpoint(cancellationToken) : 0;
+        await importer.ImportFrom(from, cancellationToken);
+    }
+}
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_testing_recovering_job -->
+```csharp
+IJobDetail detail = JobBuilder.Create<ResumableImportJob>()
+    .RequestRecovery()
+    .Build();
+
+ResumableImportJob job = new(importer);
+using JobExecutionContextImpl context = JobExecutionContextBuilder.For(job)
+    .WithJob(detail)
+    .Recovering()
+    .Build();
+
+await job.Execute(context, context.CancellationToken);
+```
+<!-- endSnippet -->
+
+Then assert that the job imported from the checkpoint the fake returned.
+
+### The last attempt
+
+The last attempt is the one whose `RetryAttempt` is the policy's `MaxAttempts`. `DeliveryJob` takes its
+policy from its type:
+
+<!-- snippet: sample_testing_delivery_job -->
+```csharp
+[RetryPolicy(3, "00:05:00")]
+public sealed class DeliveryJob(IOutbox outbox) : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await outbox.Deliver(cancellationToken);
+        }
+        catch (HttpRequestException) when (IsLastAttempt(context))
+        {
+            await outbox.DeadLetter(cancellationToken);
+            throw;
+        }
+    }
+
+    // No retry follows the last attempt: the policy's attempts are spent, or there is no policy.
+    private static bool IsLastAttempt(IJobExecutionContext context)
+        => context.RetryPolicy is not { } policy || context.RetryAttempt >= policy.MaxAttempts;
+}
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_testing_last_attempt -->
+```csharp
+DeliveryJob job = new(outbox);
+using JobExecutionContextImpl context = JobExecutionContextBuilder.For(job)
+    .WithRetryAttempt(3)
+    .Build();
+
+Func<Task> deliver = async () => await job.Execute(context, context.CancellationToken);
+```
+<!-- endSnippet -->
+
+With the fake outbox throwing, assert `await deliver.Should().ThrowAsync<HttpRequestException>()` and that
+the message was dead-lettered. At `WithRetryAttempt(2)` it was not. See
+[What the job sees](../how-tos/retrying-failed-jobs.md#what-the-job-sees).
 
 ### Keeping jobs testable
 
