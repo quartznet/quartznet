@@ -171,7 +171,7 @@ public partial class StdAdoDelegate
             // The run's input, a large object like the log: the recorder already held it to
             // ExecutionHistoryOptions.MaxInputBytes, and a cut one would be a different input.
             new SqlStatementParameter(SqlParameters.HistoryJobInput, entry.Input, largeText),
-            new SqlStatementParameter(SqlParameters.HistoryJobInputTooLarge, GetDbBooleanValue(entry.InputTooLarge))
+            new SqlStatementParameter(SqlParameters.HistoryJobInputTooLarge, GetDbBooleanValue(entry.InputTooLarge)),
         ]);
     }
 
@@ -269,14 +269,14 @@ public partial class StdAdoDelegate
             new(SqlParameters.StatusLastFailureMessage, CutToColumn(status.LastFailureMessage, AdoConstants.ColumnLastFailureMessage, MaxErrorMessageLength)),
             new(SqlParameters.StatusConsecutiveFailures, status.ConsecutiveFailures),
             new(SqlParameters.StatusRunCount, status.RunCount),
-            new(SqlParameters.StatusFailureCount, status.FailureCount)
+            new(SqlParameters.StatusFailureCount, status.FailureCount),
         ];
 
         SqlStatementParameter[] key =
         [
             new(SqlParameters.SchedulerName, status.SchedulerName),
             new(SqlParameters.JobGroup, status.Job.Group),
-            new(SqlParameters.JobName, status.Job.Name)
+            new(SqlParameters.JobName, status.Job.Name),
         ];
 
         if (readRunCount is not { } runCount)
@@ -295,13 +295,16 @@ public partial class StdAdoDelegate
         SqlStatement statement,
         CancellationToken cancellationToken)
     {
-        using DbCommand cmd = PrepareCommand(conn, statement.Sql);
-        foreach (SqlStatementParameter parameter in statement.Parameters)
+        DbCommand cmd = PrepareCommand(conn, statement.Sql);
+        await using (cmd.ConfigureAwait(false))
         {
-            AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
-        }
+            foreach (SqlStatementParameter parameter in statement.Parameters)
+            {
+                AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
+            }
 
-        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>What one placeholder of a <c>QRTZ_JOB_STATUS</c> update is bound to.</summary>

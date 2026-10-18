@@ -136,9 +136,16 @@ public partial class StdAdoDelegate
         int offset = 0;
         foreach (int length in RoundBatchLengths(statements))
         {
-            using DbCommand parameterFactory = conn.Connection.CreateCommand();
-            using DbBatch batch = CreateStatementBatch(conn, parameterFactory, statements, offset, length);
-            affected += await batch.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            DbCommand parameterFactory = conn.Connection.CreateCommand();
+            await using (parameterFactory.ConfigureAwait(false))
+            {
+                DbBatch batch = CreateStatementBatch(conn, parameterFactory, statements, offset, length);
+                await using (batch.ConfigureAwait(false))
+                {
+                    affected += await batch.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+
             offset += length;
         }
 
