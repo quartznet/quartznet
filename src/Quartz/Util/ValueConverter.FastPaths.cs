@@ -43,8 +43,9 @@ namespace Quartz.Util;
 /// What is covered: a string to a primitive, <see cref="decimal" />, an enum, <see cref="Guid" />,
 /// <see cref="TimeSpan" />, <see cref="DateTime" />, <see cref="DateTimeOffset" />, <see cref="DateOnly" />,
 /// <see cref="TimeOnly" />, <see cref="Half" />, <see cref="Int128" />, <see cref="UInt128" />,
-/// <see cref="Uri" />, or the <see cref="Nullable{T}" /> of one; a number to a primitive, to an enum, or to a string; an
-/// enum to a string, or to any of those targets through its underlying number; and
+/// <see cref="Uri" />, or the <see cref="Nullable{T}" /> of one; a number to a primitive, to an enum, or to
+/// a string; an enum to a string, or to any of those targets through its underlying number (the five
+/// that read only strings excepted); and
 /// <see cref="bool" />, <see cref="char" />, <see cref="Guid" />, <see cref="TimeSpan" /> and
 /// <see cref="Uri" /> to a string. An enum declaring a <see cref="TypeConverterAttribute" /> of its own is
 /// left to that converter. A converter registered at run time through <see cref="TypeDescriptor" /> for
