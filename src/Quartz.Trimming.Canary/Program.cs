@@ -55,6 +55,13 @@ namespace Quartz.Trimming.Canary;
 /// the half that a compile can substitute for least.
 /// </para>
 /// <para>
+/// Two more stores follow it. <see cref="WeaselCheck" /> lets <c>Quartz.Weasel.SQLite</c> create the
+/// schema as a host starts, which is the one Weasel dialect that needs no server and what that package's
+/// <c>IsAotCompatible</c> rests on. <see cref="DataSourceCheck" /> takes its connections from a
+/// <c>DbDataSource</c> in the container and is given no connection string, which is the registration
+/// <c>Npgsql</c>'s data source and Aspire's use.
+/// </para>
+/// <para>
 /// Last, <see cref="BindingCheck" /> builds a scheduler out of an <see cref="Microsoft.Extensions.Configuration.IConfiguration" />
 /// and reads every bound value back. That one is here for the same reason as the rest, and it is the
 /// only check whose failure needs the <em>native</em> leg rather than the trimmed one: built against
@@ -124,6 +131,16 @@ internal static class Program
             failures.Add(storeFailure);
         }
 
+        if (await WeaselCheck.Run().ConfigureAwait(false) is { } weaselFailure)
+        {
+            failures.Add(weaselFailure);
+        }
+
+        if (await DataSourceCheck.Run().ConfigureAwait(false) is { } dataSourceFailure)
+        {
+            failures.Add(dataSourceFailure);
+        }
+
         if (await BindingCheck.Run().ConfigureAwait(false) is { } bindingFailure)
         {
             failures.Add(bindingFailure);
@@ -155,7 +172,7 @@ internal static class Program
         }
 
         Console.WriteLine(failures.Count == 0
-            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, a time zone resolves through the converter, a busy database is one to retry, a type name resolves only once registered, and job data binds without a TypeConverter."
+            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, so do one on a schema Weasel made and one over a registered DbDataSource, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, a time zone resolves through the converter, a busy database is one to retry, a type name resolves only once registered, and job data binds without a TypeConverter."
             : $"Quartz.Trimming.Canary: {failures.Count} check(s) failed.");
 
         return failures.Count == 0 ? 0 : 1;

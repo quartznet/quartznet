@@ -172,8 +172,9 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <c>Quartz.Trimming.Canary</c> is a scheduler in its own process: Quartz over a SQLite store, and the
-    /// three packages such a scheduler loads — <c>Quartz.Jobs</c>, <c>Quartz.Plugins</c> and
+    /// <c>Quartz.Trimming.Canary</c> is a scheduler in its own process: Quartz over a SQLite store — reached
+    /// by its factory, by a registered <c>DbDataSource</c>, and on a schema <c>Quartz.Weasel.SQLite</c>
+    /// creates — and the three packages such a scheduler loads — <c>Quartz.Jobs</c>, <c>Quartz.Plugins</c> and
     /// <c>Quartz.Plugins.TimeZoneConverter</c>. <c>Quartz.Trimming.Canary.Wire</c> (#3965) is a scheduler
     /// on a wire: it serves the HTTP API with <c>Quartz.AspNetCore</c>, drives it with
     /// <c>Quartz.HttpClient</c>, and dials a second scheduler out through <c>Quartz.Dashboard.Agent</c> to

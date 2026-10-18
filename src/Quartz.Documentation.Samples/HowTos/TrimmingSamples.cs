@@ -4,6 +4,8 @@ using Microsoft.Data.Sqlite;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.Impl.AdoJobStore;
+
 namespace Quartz.Documentation.Samples.HowTos;
 
 /// <summary>
@@ -24,6 +26,26 @@ public static class TrimmingSamples
             // The driver's own factory, rather than its name. Nothing is resolved from a string, so
             // there is nothing for the trimmer to have removed.
             store.UseSqlite(SqliteFactory.Instance, connectionString);
+        }));
+
+        #endregion
+    }
+
+    public static void RegisterTheStoreOverARegisteredDataSource(IServiceCollection services)
+    {
+        #region sample_trimming_registered_data_source
+
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            // What UseSqlite(db => db.UseRegisteredDataSource = true) registers, as the two calls it makes.
+            // The data source hands over every connection, so only the type-free half of the driver
+            // description is read and nothing is resolved from a string.
+            store.UseDriverDelegate<SQLiteDelegate>();
+            store.UseDataSource(db =>
+            {
+                db.Provider = DataSourceOptions.Providers.Sqlite;
+                db.UseRegisteredDataSource = true;
+            });
         }));
 
         #endregion
