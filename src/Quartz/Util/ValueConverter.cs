@@ -46,7 +46,8 @@ namespace Quartz.Util;
 /// <para>
 /// Nothing on the common path reflects. A value that already is what the target takes, a missing
 /// value, a type name, and the conversions job data needs in practice — strings to primitives, enums,
-/// <see cref="Guid" />, <see cref="TimeSpan" />, dates and <see cref="Uri" />, numbers to numbers and
+/// <see cref="Guid" />, <see cref="TimeSpan" />, dates, times of day, <see cref="Half" />, the 128-bit
+/// integers and <see cref="Uri" />, numbers to numbers and
 /// enums, and the way back — are answered in front of <see cref="TypeConverter" />, each the way the
 /// converter <see cref="TypeDescriptor" /> would have picked answers it, quirks included
 /// (<c>ValueConverterDifferentialTest</c> holds them to that). What none of them answers reaches

@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -35,9 +36,11 @@ namespace Quartz.Trimming.Canary;
 /// <remarks>
 /// <para>
 /// First, that the switch really is off: a run with it on proves nothing about a publish without
-/// <c>TypeDescriptor</c>. Then a job whose <see cref="int" />, enum, <see cref="Guid" /> and
-/// <see cref="TimeSpan" /> properties are set from string job data fires on a scheduler, which is the
-/// conversion every job factory makes and the one the fast paths exist for. A missing value for a
+/// <c>TypeDescriptor</c>. Then a job whose <see cref="int" />, enum, <see cref="Guid" />,
+/// <see cref="TimeSpan" />, <see cref="DateOnly" />, <see cref="TimeOnly" />, <see cref="Half" />,
+/// <see cref="Int128" /> and <see cref="UInt128" /> properties are set from string job data fires on a
+/// scheduler, which is the conversion every job factory makes and the one the fast paths exist for. The
+/// last five are each written in the form the type's own <c>ToString</c> gives. A missing value for a
 /// <see cref="Nullable{T}" /> is <see langword="null" /> and for a struct its zeroed default, with no
 /// <c>Activator</c> behind either. And a conversion only a <c>TypeConverter</c> could make — a
 /// <see cref="Version" /> from a string — is refused with the message that names the property, both types,
@@ -48,6 +51,16 @@ namespace Quartz.Trimming.Canary;
 internal static class JobDataCheck
 {
     private static readonly Guid CanaryId = new("6f1c3b2a-8d4e-4f5a-9b6c-7d8e9f0a1b2c");
+
+    private static readonly DateOnly CanaryDay = new(2026, 10, 16);
+
+    private static readonly TimeOnly CanaryTime = new(12, 34, 56, 789);
+
+    private static readonly Half CanaryRatio = (Half) 0.333;
+
+    private static readonly Int128 CanaryWide = Int128.MinValue;
+
+    private static readonly UInt128 CanaryUnsignedWide = UInt128.MaxValue;
 
     private static readonly TaskCompletionSource<CoercedJob> fired = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -70,7 +83,7 @@ internal static class JobDataCheck
                 return "FAIL job-data: " + string.Join(Environment.NewLine + "  ", failures);
             }
 
-            Console.WriteLine("PASS job-data: the TypeConverter switch is off; a job's int, enum, Guid and TimeSpan properties bind from string job data, missing values take their defaults, and a Version is refused naming the switch.");
+            Console.WriteLine("PASS job-data: the TypeConverter switch is off; a job's int, enum, Guid, TimeSpan, DateOnly, TimeOnly, Half, Int128 and UInt128 properties bind from string job data, missing values take their defaults, and a Version is refused naming the switch.");
             return null;
         }
         catch (Exception e)
@@ -114,6 +127,11 @@ internal static class JobDataCheck
                 .UsingJobData(nameof(CoercedJob.Colour), "green")
                 .UsingJobData(nameof(CoercedJob.Id), CanaryId.ToString())
                 .UsingJobData(nameof(CoercedJob.Delay), "00:01:30")
+                .UsingJobData(nameof(CoercedJob.Day), CanaryDay.ToString("O", CultureInfo.InvariantCulture))
+                .UsingJobData(nameof(CoercedJob.Time), CanaryTime.ToString("O", CultureInfo.InvariantCulture))
+                .UsingJobData(nameof(CoercedJob.Ratio), CanaryRatio.ToString(CultureInfo.InvariantCulture))
+                .UsingJobData(nameof(CoercedJob.Wide), CanaryWide.ToString(CultureInfo.InvariantCulture))
+                .UsingJobData(nameof(CoercedJob.UnsignedWide), CanaryUnsignedWide.ToString(CultureInfo.InvariantCulture))
                 .Build(),
             TriggerBuilder.Create()
                 .WithIdentity("coerced", "job-data")
@@ -136,6 +154,11 @@ internal static class JobDataCheck
         Expect(failures, job.Colour == CanaryColour.Green, $"Colour is {job.Colour}, not Green: 'green' did not bind onto an enum property case-insensitively");
         Expect(failures, job.Id == CanaryId, $"Id is {job.Id}, not {CanaryId}: a string did not bind onto a Guid property");
         Expect(failures, job.Delay == TimeSpan.FromSeconds(90), $"Delay is {job.Delay}, not 00:01:30: a string did not bind onto a TimeSpan property");
+        Expect(failures, job.Day == CanaryDay, $"Day is {job.Day:O}, not {CanaryDay:O}: a string did not bind onto a DateOnly property");
+        Expect(failures, job.Time == CanaryTime, $"Time is {job.Time:O}, not {CanaryTime:O}: a string did not bind onto a TimeOnly property");
+        Expect(failures, job.Ratio == CanaryRatio, $"Ratio is {job.Ratio}, not {CanaryRatio}: a string did not bind onto a Half property");
+        Expect(failures, job.Wide == CanaryWide, $"Wide is {job.Wide}, not {CanaryWide}: a string did not bind onto an Int128 property");
+        Expect(failures, job.UnsignedWide == CanaryUnsignedWide, $"UnsignedWide is {job.UnsignedWide}, not {CanaryUnsignedWide}: a string did not bind onto a UInt128 property");
     }
 
     private static void CheckDefaults(List<string> failures)
@@ -213,6 +236,16 @@ internal static class JobDataCheck
         public Guid Id { get; set; }
 
         public TimeSpan Delay { get; set; }
+
+        public DateOnly Day { get; set; }
+
+        public TimeOnly Time { get; set; }
+
+        public Half Ratio { get; set; }
+
+        public Int128 Wide { get; set; }
+
+        public UInt128 UnsignedWide { get; set; }
 
         public int? Limit { get; set; } = 7;
 

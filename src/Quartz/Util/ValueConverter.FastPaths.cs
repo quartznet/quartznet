@@ -21,6 +21,7 @@
 
 using System.ComponentModel;
 using System.Globalization;
+using System.Numerics;
 
 namespace Quartz.Util;
 
@@ -40,8 +41,9 @@ namespace Quartz.Util;
 /// </para>
 /// <para>
 /// What is covered: a string to a primitive, <see cref="decimal" />, an enum, <see cref="Guid" />,
-/// <see cref="TimeSpan" />, <see cref="DateTime" />, <see cref="DateTimeOffset" />, <see cref="Uri" />,
-/// or the <see cref="Nullable{T}" /> of one; a number to a primitive, to an enum, or to a string; an
+/// <see cref="TimeSpan" />, <see cref="DateTime" />, <see cref="DateTimeOffset" />, <see cref="DateOnly" />,
+/// <see cref="TimeOnly" />, <see cref="Half" />, <see cref="Int128" />, <see cref="UInt128" />,
+/// <see cref="Uri" />, or the <see cref="Nullable{T}" /> of one; a number to a primitive, to an enum, or to a string; an
 /// enum to a string, or to any of those targets through its underlying number; and
 /// <see cref="bool" />, <see cref="char" />, <see cref="Guid" />, <see cref="TimeSpan" /> and
 /// <see cref="Uri" /> to a string. An enum declaring a <see cref="TypeConverterAttribute" /> of its own is
@@ -113,7 +115,7 @@ internal static partial class ValueConverter
     private static bool TryConvertString(Type requiredType, string text, out object? converted)
     {
         Type target = Nullable.GetUnderlyingType(requiredType) ?? requiredType;
-        if (!HasBuiltInConversion(target))
+        if (!HasBuiltInConversion(target) && !ReadsOnlyStrings(target))
         {
             converted = null;
             return false;
@@ -147,6 +149,36 @@ internal static partial class ValueConverter
         if (target == typeof(DateTimeOffset))
         {
             converted = ParseDate(text, DateTimeOffset.MinValue);
+            return true;
+        }
+
+        if (target == typeof(DateOnly))
+        {
+            converted = ParseDate(text, DateOnly.MinValue);
+            return true;
+        }
+
+        if (target == typeof(TimeOnly))
+        {
+            converted = ParseDate(text, TimeOnly.MinValue);
+            return true;
+        }
+
+        if (target == typeof(Half))
+        {
+            converted = ParseHalf(text);
+            return true;
+        }
+
+        if (target == typeof(Int128))
+        {
+            converted = ParseWideInteger<Int128>(text);
+            return true;
+        }
+
+        if (target == typeof(UInt128))
+        {
+            converted = ParseWideInteger<UInt128>(text);
             return true;
         }
 
@@ -255,6 +287,19 @@ internal static partial class ValueConverter
     }
 
     /// <summary>
+    /// Whether the type is one whose intrinsic converter this file reproduces for a string only:
+    /// <see cref="DateOnly" />, <see cref="TimeOnly" />, <see cref="Half" />, <see cref="Int128" /> and
+    /// <see cref="UInt128" />.
+    /// </summary>
+    /// <remarks>
+    /// Kept apart from <see cref="HasBuiltInConversion" /> because no other source reaches them: none is
+    /// <see cref="IConvertible" />, so an enum's underlying number cannot be handed on to one, and their
+    /// converters read nothing but a string.
+    /// </remarks>
+    private static bool ReadsOnlyStrings(Type type) =>
+        type == typeof(DateOnly) || type == typeof(TimeOnly) || type == typeof(Half) || type == typeof(Int128) || type == typeof(UInt128);
+
+    /// <summary>
     /// Whether the type names a converter of its own, which <see cref="TypeDescriptor" /> would pick
     /// over the intrinsic one this file reproduces.
     /// </summary>
@@ -338,6 +383,54 @@ internal static partial class ValueConverter
     }
 
     /// <summary>
+    /// <c>HalfConverter</c>, through <c>BaseNumberConverter.ConvertFrom</c>: the trimmed string under
+    /// <see cref="Half" />'s own default style, which allows thousands separators where
+    /// <see cref="ParseFloatingPoint" />'s converters do not, no hexadecimal, and every failure wrapped in
+    /// an <see cref="ArgumentException" />.
+    /// </summary>
+    private static Half ParseHalf(string value)
+    {
+        string text = value.Trim();
+        try
+        {
+            return Half.Parse(text, InvariantNumbers);
+        }
+        catch (Exception e)
+        {
+            throw new ArgumentException(NotAValidValue(text, typeof(Half)), nameof(value), e);
+        }
+    }
+
+    /// <summary>
+    /// <c>Int128Converter</c> and <c>UInt128Converter</c>, through <c>BaseNumberConverter.ConvertFrom</c>:
+    /// <see cref="ParseInteger" />'s prefixes, but the digits after one read by
+    /// <see cref="NumberStyles.HexNumber" /> rather than <see cref="Convert" />, which has no 128-bit
+    /// overloads, and every failure wrapped in an <see cref="ArgumentException" />.
+    /// </summary>
+    private static T ParseWideInteger<T>(string value) where T : IBinaryInteger<T>
+    {
+        string text = value.Trim();
+        try
+        {
+            if (text[0] == '#')
+            {
+                return T.Parse(text.AsSpan(1), NumberStyles.HexNumber, InvariantNumbers);
+            }
+
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || text.StartsWith("&h", StringComparison.OrdinalIgnoreCase))
+            {
+                return T.Parse(text.AsSpan(2), NumberStyles.HexNumber, InvariantNumbers);
+            }
+
+            return T.Parse(text, NumberStyles.Integer, InvariantNumbers);
+        }
+        catch (Exception e)
+        {
+            throw new ArgumentException(NotAValidValue(text, typeof(T)), nameof(value), e);
+        }
+    }
+
+    /// <summary>
     /// <c>CharConverter.ConvertFrom</c>: a single character is itself, whitespace included; a longer
     /// string is trimmed and must then be one character; the empty string is NUL.
     /// </summary>
@@ -406,8 +499,9 @@ internal static partial class ValueConverter
     }
 
     /// <summary>
-    /// <c>DateTimeConverter.ConvertFrom</c> and <c>DateTimeOffsetConverter.ConvertFrom</c>: the trimmed
-    /// string under the invariant culture's date format, a blank one meaning the type's minimum.
+    /// <c>DateTimeConverter.ConvertFrom</c>, <c>DateTimeOffsetConverter.ConvertFrom</c>,
+    /// <c>DateOnlyConverter.ConvertFrom</c> and <c>TimeOnlyConverter.ConvertFrom</c>: the trimmed string
+    /// under the invariant culture's date format, a blank one meaning the type's minimum.
     /// </summary>
     private static T ParseDate<T>(string value, T blank) where T : IParsable<T>
     {

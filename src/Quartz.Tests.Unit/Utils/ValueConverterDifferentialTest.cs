@@ -60,6 +60,7 @@ public sealed class ValueConverterDifferentialTest
         typeof(bool), typeof(char), typeof(sbyte), typeof(byte), typeof(short), typeof(ushort), typeof(int), typeof(uint),
         typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal), typeof(IntPtr),
         typeof(DateTime), typeof(DateTimeOffset), typeof(TimeSpan), typeof(Guid),
+        typeof(DateOnly), typeof(TimeOnly), typeof(Half), typeof(Int128), typeof(UInt128),
         typeof(DayOfWeek), typeof(ByteEnum), typeof(Permissions), typeof(WideFlags), typeof(LongEnum), typeof(TurkishEnum), typeof(ConvertedEnum),
     ];
 
@@ -75,6 +76,13 @@ public sealed class ValueConverterDifferentialTest
         "2147483647", "2147483648", "-2147483648", "-2147483649", "4294967295", "4294967296",
         "9223372036854775807", "9223372036854775808", "-9223372036854775808", "18446744073709551615", "18446744073709551616",
         "79228162514264337593543950335", "1e400", "-1e400", "3.4028235E+38", "3.5E+38",
+        // Int128's and UInt128's boundaries, either side, and Half's: its largest finite value, what rounds to
+        // it, what overflows to infinity, its smallest subnormal, and the round-trip forms its ToString writes.
+        "170141183460469231731687303715884105727", "170141183460469231731687303715884105728",
+        "-170141183460469231731687303715884105728", "-170141183460469231731687303715884105729",
+        "340282366920938463463374607431768211455", "340282366920938463463374607431768211456",
+        "65504", "65519", "65520", "-65504", "6E-08", "5.9604645E-08", "0.000061035156", "0.3333", "1,000.5",
+        "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "0x1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "# 1F",
         // Hexadecimal, which only the integral converters read, and the prefixes' corner cases.
         "0x1F", "0X1f", "0x", "0xFF", "0xFFFF", "0xFFFFFFFF", "0x7FFFFFFF", "0x80000000", "0xFFFFFFFFFFFFFFFF", "0x0x1F", "0xG",
         " 0x1F ", "#1F", "#", "#-1", "#FFFFFFFF", "&h1F", "&H1f", "&h", "&hFF",
@@ -99,6 +107,10 @@ public sealed class ValueConverterDifferentialTest
         "2026-10-16", "2026-10-16T12:34:56", "2026-10-16T12:34:56Z", "2026-10-16T12:34:56.1234567+03:00", "2026-10-16 12:34",
         "10/16/2026", "16/10/2026", "16.10.2026", "Oct 16, 2026", "16 October 2026", "Fri, 16 Oct 2026 12:00:00 GMT", "0001-01-01",
         "9999-12-31T23:59:59.9999999", "9999-12-31T23:59:59.9999999-01:00", "2026-02-30", "12:00", "2026-10-16T25:00",
+        // DateOnly's and TimeOnly's own round trips (ToString() and "O" under the invariant culture), and
+        // what their parsers refuse: a date with a time of day, a time with a date, an offset.
+        "Friday, 16 October 2026", "00:00", "12:34", "12:34:56", "12:34:56.1234567", "23:59:59.9999999",
+        "12:34 PM", "1:02 AM", "00:00:00.0000000", "2026-10-16T00:00:00", "12:34:56Z", "12:34:56+03:00", "24:00:00",
         // Absolute, relative and malformed addresses.
         "https://example.com/a?b=c#d", "https://example.com/a b", "relative/path", "/rooted", "http://", "::", @"\\server\share",
         "file:///c:/x", "https://\u4F8B\u3048.jp", "mailto:a@b.c",
@@ -116,6 +128,8 @@ public sealed class ValueConverterDifferentialTest
         new Guid("d3b07384-d9a0-4c9f-8d6b-1b2b3c4d5e6f"), Guid.Empty, TimeSpan.FromMinutes(90), TimeSpan.MinValue,
         new DateTime(2026, 10, 16), new DateTime(2026, 10, 16, 12, 34, 56, DateTimeKind.Utc), DateTime.MinValue,
         new DateTimeOffset(2026, 10, 16, 12, 0, 0, TimeSpan.FromHours(3)),
+        new DateOnly(2026, 10, 16), DateOnly.MinValue, new TimeOnly(12, 34, 56), (Half) 1.5, Half.PositiveInfinity,
+        (Int128) 42, Int128.MaxValue, (UInt128) 42, UInt128.MaxValue,
         new Uri("https://example.com/a?b=c"), new Uri("relative/path", UriKind.Relative),
         DayOfWeek.Wednesday, (DayOfWeek) 99, Permissions.Read | Permissions.Write, (Permissions) 64, WideFlags.High | WideFlags.Low,
         ByteEnum.Max, LongEnum.Min, TurkishEnum.Info, ConvertedEnum.Beta,
@@ -252,6 +266,14 @@ public sealed class ValueConverterDifferentialTest
             return true;
         }
 
+        // The converters of DateOnly, TimeOnly, Half, Int128 and UInt128 read strings, and the fast paths
+        // reproduce only that direction: none of the five is IConvertible, so their way out to a number is
+        // an InvalidCastException, and their way out to a string is formatting nothing in Quartz asks for.
+        if (value is DateOnly or TimeOnly or Half or Int128 or UInt128)
+        {
+            return true;
+        }
+
         // Enum.ToObject accepts a bool or a char as readily as a number, and nothing stores a flag as one.
         if (underlying.IsEnum && value is bool or char)
         {
@@ -344,6 +366,8 @@ public sealed class ValueConverterDifferentialTest
         null => "null",
         DateTime date => $"DateTime:{date.ToString("O", CultureInfo.InvariantCulture)}",
         DateTimeOffset date => $"DateTimeOffset:{date.ToString("O", CultureInfo.InvariantCulture)}",
+        DateOnly date => $"DateOnly:{date.ToString("O", CultureInfo.InvariantCulture)}",
+        TimeOnly time => $"TimeOnly:{time.ToString("O", CultureInfo.InvariantCulture)}",
         float number => $"Single:{number.ToString("R", CultureInfo.InvariantCulture)}",
         double number => $"Double:{number.ToString("R", CultureInfo.InvariantCulture)}",
         Uri uri => $"Uri:{uri.OriginalString}|{uri.IsAbsoluteUri}",
