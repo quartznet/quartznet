@@ -262,10 +262,19 @@ internal sealed class OracleWeaselDatabase : IAsyncDisposable
         return (provider, databases.Single());
     }
 
+    /// <summary>How many times <see cref="DropUserAsync" /> tries the drop before it lets ORA-01940 through.</summary>
+    private const int DropAttempts = 6;
+
     /// <summary>
     /// Drops a user and what it owns, ending any session it still has first: a session left behind by a
     /// pool the test could not reach would otherwise refuse the drop (ORA-01940).
     /// </summary>
+    /// <remarks>
+    /// Between attempts every pool in the process is cleared, not only the ones <see cref="DisposeAsync" />
+    /// can name: Weasel and a hosted scheduler open connections of their own, and a pooled session that is
+    /// killed rather than returned can stay in <c>v$session</c> long enough to lose the drop again (#4090).
+    /// The wait doubles each time, so the six attempts span about six seconds.
+    /// </remarks>
     private async Task DropUserAsync(string user)
     {
         await using OracleConnection connection = new(adminConnectionString);
@@ -279,8 +288,12 @@ internal sealed class OracleWeaselDatabase : IAsyncDisposable
                 await drop.ExecuteNonQueryAsync();
                 return;
             }
-            catch (OracleException e) when (e.Number == 1940 && attempt < 5)
+            catch (OracleException e) when (e.Number == 1940 && attempt < DropAttempts)
             {
+                // Idle pooled connections close now, and busy ones close when they are handed back,
+                // so this process gives up every session it holds without breaking one in use.
+                OracleConnection.ClearAllPools();
+
                 await using OracleCommand sessions = new($"SELECT sid, serial# FROM v$session WHERE username = '{user}'", connection);
                 List<string> kill = [];
                 await using (DbDataReader reader = await sessions.ExecuteReaderAsync())
@@ -304,7 +317,7 @@ internal sealed class OracleWeaselDatabase : IAsyncDisposable
                     }
                 }
 
-                await Task.Delay(TimeSpan.FromMilliseconds(200 * attempt));
+                await Task.Delay(TimeSpan.FromMilliseconds(100 << attempt));
             }
         }
     }
