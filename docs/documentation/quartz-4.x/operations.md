@@ -101,6 +101,7 @@ watch:
 |---|---|---|
 | A 4.5 node is up | It serves every group: a group the 4.6 nodes refuse still runs on it | Roll the 4.5 nodes out before relying on a refusal |
 | A 4.5 node sweeps misfires | It re-arms every misfired trigger, served or not, so the 4.6 nodes' health check sees no unserved group while it is up | Nothing; the reading becomes reliable once the last 4.5 node is gone |
+| A 4.6 node [writes its history behind](tutorial/job-stores.md#write-behind) | Its rows and status updates are the ones a 4.5 node writes; a flush that finds a status a 4.5 node changed folds again | Nothing |
 
 ### A mixed 3.x and 4.0 window
 
@@ -788,6 +789,8 @@ history on, over six arms:
 
 - With the history off, or with runs spread over many jobs, nothing waits: no other write takes that row.
 - The wait is in the status update: 3.3–20.7 s per 500 firings, 7–41 ms a firing.
+- [Write behind](tutorial/job-stores.md#write-behind) takes the write off the worker and updates each
+  job's status once per flush. It costs up to one interval of history in a crash, and reads lag by as much.
 
 ### Scheduling and cron
 

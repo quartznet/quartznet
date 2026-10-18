@@ -66,6 +66,7 @@ two indexes, performance only.
 | HTTP: `triggerGroup`, `triggerName`, `fireInstanceId` on `GET …/history/executions` and `…/history/statistics`; `triggerGroup`, `triggerName` on `…/history/misfires` | Ignored by a host older than 4.6, which `HttpExecutionHistoryStore` refuses to ask. See [Filtering by job, time and result](packages/http-api.md#filtering-by-job-time-and-result) |
 | `IDX_QRTZ_EH_FIRE_INST`, `IDX_QRTZ_EH_TRIG_TIME` | On `QRTZ_EXECUTION_HISTORY`, in a fresh install and `ProvisionSchema()`; optional migration for an existing database. See [Version 4.6](../database/schema-changes.md#version-4-6) |
 | Dashboard: `triggerGroup`, `triggerName` on the History page | One trigger exactly. See [Execution history and misfires](packages/dashboard.md#execution-history-and-misfires) |
+| `ExecutionHistoryOptions.WriteBehindInterval`, log event `3164` | `TimeSpan?`, default `null`: the database history queues runs and writes them every interval, one status update per job; `3164` reports rows a flush lost. See [Write behind](tutorial/job-stores.md#write-behind) |
 | `JobExecutionContextBuilder.Recovering(bool = true)`, `WithRetryAttempt(int)`, `WithRefireCount(int)`, `WithCalendar(ICalendar)`, `WithCancellation(CancellationToken)`, `WithTimeProvider(TimeProvider)` | What a job branches on, set for a level-1 test. See [Level 1](tutorial/testing.md#level-1-one-job-one-context) |
 
 Behaviour that changed:

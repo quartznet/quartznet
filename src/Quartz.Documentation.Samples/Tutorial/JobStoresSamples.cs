@@ -135,6 +135,29 @@ public static class JobStoresSamples
         #endregion
     }
 
+    public static void ExecutionHistoryWriteBehind(IHostApplicationBuilder builder, string connectionString)
+    {
+        #region sample_job_stores_execution_history_write_behind
+
+        builder.Services.AddQuartz(q =>
+        {
+            q.UsePersistentStore(store =>
+            {
+                store.UsePostgres(connectionString);
+                store.UseExecutionHistory();
+            });
+        });
+
+        // Queue each completion and write the queue once a second: one transaction per flush, and one
+        // QRTZ_JOB_STATUS update per job in it, however many times the job ran.
+        builder.Services.AddQuartzExecutionHistory(options =>
+        {
+            options.WriteBehindInterval = TimeSpan.FromSeconds(1);
+        });
+
+        #endregion
+    }
+
     public static void AcceptEnlistedTransactions(IHostApplicationBuilder builder, string connectionString)
     {
         #region sample_job_stores_accept_enlisted_transactions
