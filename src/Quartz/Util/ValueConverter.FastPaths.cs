@@ -116,7 +116,8 @@ internal static partial class ValueConverter
     private static bool TryConvertString(Type requiredType, string text, out object? converted)
     {
         Type target = Nullable.GetUnderlyingType(requiredType) ?? requiredType;
-        if (!HasBuiltInConversion(target) && !ReadsOnlyStrings(target))
+        bool readsOnlyStrings = ReadsOnlyStrings(target);
+        if (!readsOnlyStrings && !HasBuiltInConversion(target))
         {
             converted = null;
             return false;
@@ -128,76 +129,78 @@ internal static partial class ValueConverter
             return true;
         }
 
+        converted = readsOnlyStrings ? ParseStringOnlyTarget(target, text) : ParseBuiltInTarget(target, text);
+        return true;
+    }
+
+    /// <summary>
+    /// A string onto a type <see cref="HasBuiltInConversion" /> covers, the way that type's converter reads it.
+    /// </summary>
+    private static object? ParseBuiltInTarget(Type target, string text)
+    {
         if (target.IsEnum)
         {
-            converted = ParseEnum(target, text);
-            return true;
+            return ParseEnum(target, text);
         }
 
         if (target == typeof(Guid))
         {
             // GuidConverter trims nothing, and lets the constructor's FormatException out as it is.
-            converted = new Guid(text);
-            return true;
+            return new Guid(text);
         }
 
         if (target == typeof(TimeSpan))
         {
-            converted = ParseTrimmed<TimeSpan>(text);
-            return true;
+            return ParseTrimmed<TimeSpan>(text);
         }
 
         if (target == typeof(DateTimeOffset))
         {
-            converted = ParseDate(text, DateTimeOffset.MinValue);
-            return true;
-        }
-
-        if (target == typeof(DateOnly))
-        {
-            converted = ParseDate(text, DateOnly.MinValue);
-            return true;
-        }
-
-        if (target == typeof(TimeOnly))
-        {
-            converted = ParseDate(text, TimeOnly.MinValue);
-            return true;
-        }
-
-        if (target == typeof(Half))
-        {
-            converted = ParseHalf(text);
-            return true;
-        }
-
-        if (target == typeof(Int128))
-        {
-            converted = ParseWideInteger<Int128>(text);
-            return true;
-        }
-
-        if (target == typeof(UInt128))
-        {
-            converted = ParseWideInteger<UInt128>(text);
-            return true;
+            return ParseDate(text, DateTimeOffset.MinValue);
         }
 
         if (target == typeof(Uri))
         {
-            converted = text.Length == 0 ? null : new Uri(text, UriKind.RelativeOrAbsolute);
-            return true;
+            return text.Length == 0 ? null : new Uri(text, UriKind.RelativeOrAbsolute);
         }
 
-        converted = Type.GetTypeCode(target) switch
+        return Type.GetTypeCode(target) switch
         {
-            TypeCode.Boolean => (object) ParseTrimmed<bool>(text),
-            TypeCode.Char => (object) ParseChar(text),
+            TypeCode.Boolean => ParseTrimmed<bool>(text),
+            TypeCode.Char => ParseChar(text),
             TypeCode.Single or TypeCode.Double or TypeCode.Decimal => ParseFloatingPoint(text, target),
-            TypeCode.DateTime => (object) ParseDate(text, DateTime.MinValue),
+            TypeCode.DateTime => ParseDate(text, DateTime.MinValue),
             _ => ParseInteger(text, target),
         };
-        return true;
+    }
+
+    /// <summary>
+    /// A string onto one of the five types <see cref="ReadsOnlyStrings" /> covers, the way that type's
+    /// converter reads it.
+    /// </summary>
+    private static object ParseStringOnlyTarget(Type target, string text)
+    {
+        if (target == typeof(DateOnly))
+        {
+            return ParseDate(text, DateOnly.MinValue);
+        }
+
+        if (target == typeof(TimeOnly))
+        {
+            return ParseDate(text, TimeOnly.MinValue);
+        }
+
+        if (target == typeof(Half))
+        {
+            return ParseHalf(text);
+        }
+
+        if (target == typeof(Int128))
+        {
+            return ParseWideInteger<Int128>(text);
+        }
+
+        return ParseWideInteger<UInt128>(text);
     }
 
     /// <summary>
