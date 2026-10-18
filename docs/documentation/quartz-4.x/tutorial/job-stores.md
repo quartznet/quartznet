@@ -386,8 +386,66 @@ The flat key is `quartz.jobStore.executionHistory`.
   its commit. The write runs before the trigger completes, so a job run many times at once completes
   more slowly with the history on; see
   [The execution history's status row](../operations.md#the-execution-history-s-status-row).
+  [Write behind](#write-behind) takes the write off the worker.
 * A history write never runs inside the job's transaction or under the trigger lock. A failed write is
   logged and dropped with its status change; it never fails the firing.
+
+#### Write behind
+
+Set `WriteBehindInterval` to queue each completion and write the queue in the background. The worker
+returns at once. Off by default.
+
+<!-- snippet: sample_job_stores_execution_history_write_behind -->
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.UsePersistentStore(store =>
+    {
+        store.UsePostgres(connectionString);
+        store.UseExecutionHistory();
+    });
+});
+
+// Queue each completion and write the queue once a second: one transaction per flush, and one
+// QRTZ_JOB_STATUS update per job in it, however many times the job ran.
+builder.Services.AddQuartzExecutionHistory(options =>
+{
+    options.WriteBehindInterval = TimeSpan.FromSeconds(1);
+});
+```
+<!-- endSnippet -->
+
+| Property | Value |
+|---|---|
+| flush | every interval, sooner when 256 runs are queued |
+| one flush | one transaction: a row per run, then one `QRTZ_JOB_STATUS` update per job, its runs folded in memory |
+| queue | 4,096 runs; a completion that finds it full writes itself, as with write-behind off |
+| shutdown and disposal | write the queue first, before the connection provider closes |
+| a transient failure | the flush runs again, `MaxTransientRetries` times, `TransientRetryInterval` apart |
+| a failure for good | event [`3164`](../log-events.md) names how many rows were lost; the writer carries on |
+| misfires, overlaps, vetoes | written as they happen, not queued |
+| the in-memory history | ignores the option |
+
+What you give up:
+
+* **A crash loses the queue.** Runs not yet flushed lose their rows and their status changes: normally at
+  most one interval.
+* **Reads lag by up to one interval.** The dashboard's History page, which refreshes every second, shows a
+  run once its flush commits. The job pages, `GetJobRunStatus`, the HTTP API and
+  [`RequireSuccessWithin`](../how-tos/job-outcomes.md#alert-when-a-job-stops-succeeding) read the status as
+  of the last flush. Keep a required window longer than the interval.
+* **The record lands after the trigger completes, not before.** A row and its status still commit
+  together, a flush at a time.
+
+Turn it on for a job that completes many times at once, where the status row costs throughput; see
+[The execution history's status row](../operations.md#the-execution-history-s-status-row). Leave it off
+when a run must be readable the moment it ends.
+
+* A flush reads each job's status once, folds the runs into it with the rule a single run uses, and writes
+  it back only if `RUN_COUNT` has not moved since the read. Another writer that got there first sends the
+  flush round again; after three such rounds the flush updates run by run, which cannot miss.
+* The rows and statuses are the ones a run written on its own leaves. A cluster can mix nodes with
+  write-behind on and off, and 4.5 nodes; the sweep and its election are unchanged.
 
 **The store trims the history itself**, with a sweep on its own timer:
 
