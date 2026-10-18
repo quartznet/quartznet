@@ -18,6 +18,7 @@
   <ItemGroup>
     <PackageReference Include="AwesomeAssertions" Version="9.5.0" />
     <PackageReference Include="AwesomeAssertions.Analyzers" Version="9.0.8" />
+    <PackageReference Include="bunit" Version="2.11.3" />
     <PackageReference Include="GitHubActionsTestLogger" Version="2.4.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.8" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />

@@ -1,75 +1,234 @@
+@using System.Globalization
+@using System.Text.Json
+@using Microsoft.Extensions.DependencyInjection
 @using Quartz
-@inject Quartz.Dashboard.Services.SchedulerState Scheduler
+@using Quartz.Dashboard.Services
+@using Quartz.Spi
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IServiceProvider Services
 
+@* The next fires of Expression as Trigger would have them once rescheduled to it: computed on the trigger a save
+   would post, read back the way the API client reads it, so in the trigger's own time zone, from its start or now,
+   whichever is later, until its end, and less what its calendar excludes. The times show in the dashboard's zone,
+   as the page's other times do. *@
 <div class="qz-cron-next-fires">
-    @if (!string.IsNullOrWhiteSpace(_error))
+    @if (_error is { } error)
     {
-        <ErrorAlert Message="@_error" />
+        <ErrorAlert Message="@error" />
     }
-    else if (_nextFires.Count == 0)
+    else if (_unsupported)
     {
-        <span class="qz-muted">No upcoming fire times.</span>
+        <span class="qz-muted">The dashboard cannot preview this trigger's fire times.</span>
     }
-    else
+    else if (!_readingCalendar)
     {
-        <ul class="qz-list">
-            @foreach (DateTimeOffset nextFire in _nextFires)
-            {
-                <li>
-                    <span>@Scheduler.FormatInSelectedTimeZone(nextFire, "u")</span>
-                    <span class="qz-muted">(<TimeAgo Timestamp="@nextFire" />)</span>
-                </li>
-            }
-        </ul>
+        @if (_nextFires.Count == 0)
+        {
+            <span class="qz-muted">No upcoming fire times.</span>
+        }
+        else
+        {
+            <ul class="qz-list">
+                @foreach (DateTimeOffset nextFire in _nextFires)
+                {
+                    <li>
+                        <span>@Scheduler.FormatInSelectedTimeZone(nextFire, "u")</span>
+                        <span class="qz-muted">(@Until(nextFire))</span>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Basis is { } basis)
+        {
+            <p class="qz-muted" data-testid="cron-next-fires-basis">@basis</p>
+        }
+
+        @if (_calendarUnreadable is { } reason)
+        {
+            <p class="qz-muted" data-testid="cron-next-fires-calendar">Calendar '@CalendarNameOf(Trigger)' could not be read, so these times include any it excludes. @reason</p>
+        }
     }
 </div>
 
 @code {
     private readonly List<DateTimeOffset> _nextFires = [];
     private string? _error;
+    private bool _unsupported;
+    private string? _timeZoneId;
+    private DateTimeOffset _now;
 
+    private object? _calendarReadFor;
+    private ICalendar? _calendar;
+    private string? _calendarUnreadable;
+    private bool _readingCalendar;
+
+    /// <summary>
+    /// The trigger as the page last read it, which is the JSON the API client returned: its type, zone,
+    /// start, end and calendar are the preview's.
+    /// </summary>
+    [Parameter]
+    [EditorRequired]
+    public object? Trigger { get; set; }
+
+    /// <summary>
+    /// The expression to preview, which is the one in the editor rather than the one saved.
+    /// </summary>
     [Parameter]
     public string? Expression { get; set; }
 
     [Parameter]
     public int Count { get; set; } = 5;
 
-    protected override void OnParametersSet()
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    /// <summary>
+    /// What the times were computed in and against, said once: the expression's hours are the trigger's
+    /// zone's, which the times in the list, shown in the dashboard's zone, need not be.
+    /// </summary>
+    private string? Basis => _timeZoneId is not { } timeZoneId
+        ? null
+        : _calendar is null
+            ? "Read in " + timeZoneId + ", the trigger's time zone."
+            : "Read in " + timeZoneId + ", the trigger's time zone, less what calendar '" + CalendarNameOf(Trigger) + "' excludes.";
+
+    /// <summary>
+    /// Reads the calendar once per trigger the page reads, and computes the fires on every render, since an
+    /// edit to the expression arrives as one.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
     {
+        if (!ReferenceEquals(Trigger, _calendarReadFor))
+        {
+            await ReadCalendarAsync(Trigger);
+        }
+
         RebuildFireTimes();
+    }
+
+    /// <summary>
+    /// The calendar the trigger names, read through the API client the way the calendar page reads it. One
+    /// that cannot be read leaves the preview without it, and says so; the trigger is already on the page,
+    /// and failing the page for its preview would take that away.
+    /// </summary>
+    private async Task ReadCalendarAsync(object? trigger)
+    {
+        _calendarReadFor = trigger;
+        _calendar = null;
+        _calendarUnreadable = null;
+
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        string calendarName = CalendarNameOf(trigger);
+        if (string.IsNullOrWhiteSpace(calendarName) || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        _readingCalendar = true;
+        ICalendar? calendar = null;
+        string? unreadable = null;
+        try
+        {
+            CalendarDetailDto detail = await Api.GetCalendar(schedulerName, calendarName);
+            calendar = detail.Value.Deserialize<ICalendar>(InProcessQuartzApiClient.QuartzJsonOptions)
+                       ?? throw new InvalidOperationException("The calendar payload is empty.");
+        }
+        catch (Exception ex)
+        {
+            unreadable = ex.Message;
+        }
+
+        // The page may have read the trigger again while this one's calendar was on its way.
+        if (ReferenceEquals(trigger, _calendarReadFor))
+        {
+            _calendar = calendar;
+            _calendarUnreadable = unreadable;
+            _readingCalendar = false;
+        }
     }
 
     private void RebuildFireTimes()
     {
         _nextFires.Clear();
         _error = null;
+        _unsupported = false;
+        _timeZoneId = null;
+        _now = Clock.GetUtcNow();
 
-        if (string.IsNullOrWhiteSpace(Expression))
+        string expression = Expression?.Trim() ?? string.Empty;
+        if (expression.Length == 0)
         {
             return;
         }
 
+        if (Trigger is not JsonElement trigger || !TriggerPayloadBuilder.TryWithCronExpression(trigger, expression, out JsonElement payload))
+        {
+            _unsupported = true;
+            return;
+        }
+
+        // The payload a save would post, read back as RescheduleJob reads it, so an expression with H tokens
+        // is resolved against the trigger's key here as it is there.
+        ITrigger? preview;
         try
         {
-            CronExpression cronExpression = new(Expression);
-            DateTimeOffset current = DateTimeOffset.UtcNow;
-            int max = Count <= 0 ? 1 : Count;
-
-            for (int i = 0; i < max; i++)
-            {
-                DateTimeOffset? nextFire = cronExpression.GetTimeAfter(current);
-                if (nextFire is null)
-                {
-                    break;
-                }
-
-                _nextFires.Add(nextFire.Value);
-                current = nextFire.Value;
-            }
+            preview = payload.Deserialize<ITrigger>(InProcessQuartzApiClient.QuartzJsonOptions);
         }
-        catch (FormatException ex)
+        catch (JsonSerializationException ex) when (ex.InnerException is FormatException format)
         {
-            _error = "Invalid cron expression: " + ex.Message;
+            _error = "Invalid cron expression: " + format.Message;
+            return;
         }
+
+        if (preview is not IOperableTrigger operable || preview is not ICronTrigger cron)
+        {
+            _unsupported = true;
+            return;
+        }
+
+        _timeZoneId = cron.TimeZone.Id;
+        if (operable.EndTimeUtc < _now)
+        {
+            return;
+        }
+
+        // A trigger whose start has passed fires next after now, not at the first fire after its start.
+        if (operable.StartTimeUtc < _now)
+        {
+            operable.StartTimeUtc = _now;
+        }
+
+        operable.SetNextFireTimeUtc(null);
+        _nextFires.AddRange(TriggerUtils.ComputeFireTimes(operable, _calendar, Count <= 0 ? 1 : Count));
+    }
+
+    private static string CalendarNameOf(object? trigger)
+    {
+        return DisplayValueHelper.GetString(trigger, "CalendarName");
+    }
+
+    /// <summary>
+    /// How long until <paramref name="fireTime" />, to the largest whole unit.
+    /// </summary>
+    private string Until(DateTimeOffset fireTime)
+    {
+        TimeSpan until = fireTime - _now;
+        if (until < TimeSpan.FromMinutes(1))
+        {
+            return "in under a minute";
+        }
+
+        if (until < TimeSpan.FromHours(1))
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"in {until.Minutes}m");
+        }
+
+        if (until < TimeSpan.FromDays(1))
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"in {until.Hours}h");
+        }
+
+        return string.Create(CultureInfo.InvariantCulture, $"in {until.Days}d");
     }
 }

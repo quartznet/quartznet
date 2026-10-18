@@ -77,7 +77,14 @@
         @if (!string.IsNullOrWhiteSpace(_cronExpression))
         {
             <h2>Upcoming cron fires</h2>
-            <CronNextFires Expression="@_cronExpression" Count="5" />
+            @if (IsPreviewingAnEdit)
+            {
+                <p class="qz-muted" data-testid="cron-preview-unsaved">Of the edited expression, which is not saved yet.</p>
+            }
+
+            @* The editor's expression, which is the saved one until somebody edits it - and always in read-only
+               mode, which has no editor. *@
+            <CronNextFires Trigger="@_trigger" Expression="@_editedCronExpression" Count="5" />
         }
     }
 </div>
@@ -106,6 +113,12 @@
     private bool IsReadOnly => Options.Value.ReadOnly;
 
     private JobDataMap? TriggerDataMap => DisplayValueHelper.GetJobDataMap(_trigger, "JobDataMap", "jobDataMap");
+
+    /// <summary>
+    /// Whether the cron preview shows an expression the trigger is not running with, which the page says
+    /// so that nobody reads the preview as the trigger's schedule.
+    /// </summary>
+    private bool IsPreviewingAnEdit => !string.Equals(_editedCronExpression.Trim(), _cronExpression, StringComparison.Ordinal);
 
     protected override async Task OnInitializedAsync()
     {
