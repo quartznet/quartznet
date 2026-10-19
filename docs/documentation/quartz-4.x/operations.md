@@ -739,7 +739,7 @@ What still takes the lock, by the `quartz.jobstore.lock.reason` value that repor
 | Reason | When | What to do |
 |---|---|---|
 | `serial_job` | A candidate's job disallows concurrent execution | Nothing |
-| `overlap_policy` | A candidate's trigger has `Skip`, `BufferOne` or `CancelPrevious` | Nothing; `Default` and `AllowAll` need no lock |
+| `overlap_policy` | A candidate's trigger has `Skip`, `BufferOne` or `CancelPrevious`, or is [measured from completion](tutorial/simpletriggers.md#measured-from-completion) | Nothing; `Default` and `AllowAll` need no lock |
 | `cluster_limit` | The node has a cluster-scoped execution limit | Nothing; the lock is what makes the ceiling exact |
 | `older_peer` | A live node is older than 4.6, or this node has not checked in yet | Finish the rolling upgrade; see below |
 | `hysteresis` | The round before this one escalated | Nothing; a locked round that needed the lock for nothing ends it |

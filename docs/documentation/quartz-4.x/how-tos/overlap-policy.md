@@ -38,6 +38,9 @@ builder.Services.AddQuartz(q =>
 * A retry is never skipped, held or cancelled: it continues an occurrence that already started.
 * `[DisallowConcurrentExecution]` wins. While one of the job's firings runs, none of its triggers fires,
   whatever the policy says; a slot missed meanwhile is the misfire instruction's, as it always was.
+* A simple trigger [measured from completion](../tutorial/simpletriggers.md#measured-from-completion) never
+  overlaps itself: it is held while it runs, so its policy is never asked. Any policy is accepted on it,
+  `AllowAll` included, and none changes anything.
 
 ## Skip
 

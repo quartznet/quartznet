@@ -53,6 +53,7 @@ services.AddQuartz(q =>
 | `new TimeTickerEntity { Function = "name", ExecutionTime = … }` | `scheduler.ScheduleJob<TJob, TInput>(input, at)` | |
 | `timeTicker.AddAsync<WelcomeJob>(executionTime)` | the same call | both typed; Quartz's also carries the payload type |
 | `new CronTickerEntity { Expression = … }` | a cron trigger through `TriggerBuilder` | |
+| A function that adds its own next `TimeTicker` before it returns, to run again after a pause | from 4.7, a simple trigger with [`MeasureIntervalFromCompletion()`](../tutorial/simpletriggers.md#measured-from-completion) | the store schedules the next run when the firing completes, however it ended, and never runs it twice at once |
 | `RunCondition` on a child ticker | `.StartAfter(parentTriggerKey, condition)` on the follow-up's trigger | see [Chaining](#chaining-and-its-condition) |
 | `Retries` + `RetryIntervals = [30, 120, 600]` | `RetryPolicy.Explicit(…)` on the trigger | the wait is held in the store, not the process |
 | `maxConcurrency` on `[TickerFunction]` | an [execution group](../tutorial/execution-groups.md) and a limit | the limit can be cluster-wide |
@@ -189,7 +190,9 @@ services.AddQuartz(q =>
 
 `[DisallowConcurrentExecution]` is narrower: one firing per job key at a time, cluster-wide with a persistent
 store. From 4.3 an [overlap policy](overlap-policy.md) decides it per trigger: skip, buffer one, or cancel
-the running firing.
+the running firing. From 4.7 a simple trigger can
+[measure its interval from completion](../tutorial/simpletriggers.md#measured-from-completion), so it never
+overlaps itself at all.
 
 ### The dashboard will not start until you say who may reach it
 

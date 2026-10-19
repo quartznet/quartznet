@@ -245,6 +245,7 @@ applies to both formats.
 | a [continuation](../how-tos/job-continuations.md) (waits for another trigger's firing) | `<continues-after>`, `<continuation-condition>` | `ContinuesAfter`, `ContinuationCondition` |
 | a trigger with an [overlap policy](../how-tos/overlap-policy.md) | `<overlap-policy>` | `OverlapPolicy` |
 | a trigger with its [own misfire threshold](../tutorial/more-about-triggers.md#a-trigger-s-own-misfire-threshold) | `<misfire-threshold>` | `MisfireThreshold` |
+| a simple trigger [measured from completion](../tutorial/simpletriggers.md#measured-from-completion) | `<measure-interval-from-completion>` in `<simple>` | `MeasureIntervalFromCompletion` in `Simple` |
 
 - **XML scheduling is not deprecated and is not going away in 4.x.** A `quartz_jobs.xml` that worked on 3.x
   works here.

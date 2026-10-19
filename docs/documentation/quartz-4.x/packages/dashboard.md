@@ -219,7 +219,7 @@ detail page.
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
 | **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete |
-| **Triggers**: state, next and previous fire times, execution group | from 4.7, its [upcoming fires](#upcoming-fires); the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
+| **Triggers**: state, next and previous fire times, execution group | from 4.7, its [upcoming fires](#upcoming-fires); the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
 | **Calendars**: names | one calendar | create, replace or delete a cron calendar |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
@@ -260,6 +260,7 @@ times and state are kept; the cron editor is the one that reschedules.
 | Preferred node | any node, the first node to fire it, or a named node |
 | Overlap policy | one of the five; disabled, with the reason, for a trigger that does not derive from `TriggerBase` |
 | Misfire threshold | a `TimeSpan`, `00:15:00`; blank is the store's. Disabled, with the reason, for a trigger that does not derive from `TriggerBase`. 4.6 |
+| Interval measured from completion | a checkbox, on a simple trigger only: see [Measured from completion](../tutorial/simpletriggers.md#measured-from-completion). 4.7 |
 | `JobDataMap` | add, edit and remove entries; an entry nobody edited keeps its value and type |
 
 - **Only what changed is sent.** A field left alone is not written back.

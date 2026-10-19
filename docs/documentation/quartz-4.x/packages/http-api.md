@@ -1041,6 +1041,7 @@ pin, execution group, retry policy, overlap policy and misfire threshold unchang
 | `retryPolicy` | string or `null` | The [retry policy](../how-tos/retrying-failed-jobs.md) in stored form, e.g. `"fixed;3;00:00:30"`; `"none"` never retries; `null` removes the trigger's own, so it inherits the job type's or the scheduler's |
 | `overlapPolicy` | string or `null` | The [overlap policy](../how-tos/overlap-policy.md) by name: `Skip`, `BufferOne`, `CancelPrevious`, `AllowAll`, `Default`; `null` is `Default`. From 4.3 |
 | `misfireThreshold` | string or `null` | The trigger's [own misfire threshold](../tutorial/more-about-triggers.md#a-trigger-s-own-misfire-threshold) as a `TimeSpan`, `"00:15:00"`; `null` puts it back on the store's. From 4.6; an older host ignores it |
+| `measureIntervalFromCompletion` | boolean or `null` | Whether a simple trigger is [measured from completion](../tutorial/simpletriggers.md#measured-from-completion); `null` is `false`. Refused for any other trigger. From 4.7; an older host ignores it |
 
 **Name the misfire instruction's family.** `misfireInstructionFamily` is `Simple`, `Cron`, `CalendarInterval`,
 `DailyTimeInterval` or `Recurrence`. The same number means a different policy per family (`2` is *do nothing*
@@ -1159,6 +1160,19 @@ A 4.5 client ignores the member, and a 4.5 host ignores it in a trigger body or 
 A trigger scheduled through the API arrives deserialized, so its misfire instruction is stated and the
 host's [default instruction](../tutorial/more-about-triggers.md#the-scheduler-s-default-instruction) does
 not apply to it.
+
+## Intervals measured from completion
+
+From 4.7. A simple trigger [measured from completion](../tutorial/simpletriggers.md#measured-from-completion)
+carries it as a boolean:
+
+| Where | Member |
+|---|---|
+| Trigger body | `"measureIntervalFromCompletion": true`; absent on a fixed-rate trigger |
+| `update-details` | `measureIntervalFromCompletion`, [above](#editing-a-trigger-in-place) |
+
+A 4.6 client ignores the member and reads such a trigger as a fixed-rate one; a 4.6 host ignores it in a
+trigger body or an update it is sent.
 
 ## Continuations
 

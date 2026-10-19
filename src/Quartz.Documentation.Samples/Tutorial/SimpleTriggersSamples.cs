@@ -96,4 +96,20 @@ public static class SimpleTriggersSamples
 
         #endregion
     }
+
+    public static void MeasuredFromCompletion()
+    {
+        #region sample_simpletriggers_measured_from_completion
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("poll-inbox", "group1")
+            .WithSimpleSchedule(x => x
+                .WithInterval(TimeSpan.FromSeconds(30))
+                .RepeatForever()
+                // Thirty seconds after each run ends, however long it took.
+                .MeasureIntervalFromCompletion())
+            .Build();
+
+        #endregion
+    }
 }

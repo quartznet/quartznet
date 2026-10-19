@@ -107,6 +107,59 @@ await scheduler.ScheduleJob(job, trigger);
 
 `TriggerBuilder` and `WithSimpleSchedule` have more options than these examples show.
 
+## Measured from completion
+
+`MeasureIntervalFromCompletion()` makes the interval a fixed delay: the next run starts one interval after
+the previous run completes, however long it took. The default is a fixed rate, measured from each run's
+scheduled time. From 4.7.
+
+<!-- snippet: sample_simpletriggers_measured_from_completion -->
+```csharp
+ITrigger trigger = TriggerBuilder.Create()
+    .WithIdentity("poll-inbox", "group1")
+    .WithSimpleSchedule(x => x
+        .WithInterval(TimeSpan.FromSeconds(30))
+        .RepeatForever()
+        // Thirty seconds after each run ends, however long it took.
+        .MeasureIntervalFromCompletion())
+    .Build();
+```
+<!-- endSnippet -->
+
+| | Fixed rate, the default | Measured from completion |
+|---|---|---|
+| A 300 ms job every second starts at | 0, 1, 2 s | 0, 1.3, 2.6 s |
+| While a run is in progress | The next may start beside it, as the [overlap policy](../how-tos/overlap-policy.md) says | The trigger is held, on every node. The overlap policy is never asked |
+| Repeat count | Counts runs | Counts runs |
+| End time | Bounds the runs | Bounds the runs: a completion whose next run would be past it ends the trigger |
+| A failed run with a retry policy | Retries, unless the next occurrence comes first | Retries at its retry time; the delay follows the last attempt |
+| A vetoed run, or one the scheduler could not start | Keeps its schedule | Counts as completed when the store hears of it |
+
+* While a run is in progress, `NextFireTimeUtc` is provisional: the run's scheduled time plus the
+  interval. The completion replaces it.
+* A calendar moves the next run on by whole intervals past what it excludes.
+* It holds this trigger only. The job's other triggers and `TriggerJob` still start beside it; use
+  [`[DisallowConcurrentExecution]`](more-about-jobs.md#job-state-and-concurrency) to hold the job.
+* The `[SimpleTrigger]` attribute, the [JSON](../configuration/json.md) `Simple` schedule and XML's
+  `<simple>` carry it as `MeasureIntervalFromCompletion` and `<measure-interval-from-completion>`.
+* A persistent store needs the 4.7 migration,
+  [`add_trigger_fixed_delay_<db>.sql`](../../database/schema-changes.md#version-4-7). A cluster measures from
+  completion only once every node is 4.7 or later: an older node runs the trigger at a fixed rate.
+
+A run missed while the scheduler was down has no backlog, because each run is measured from a completion:
+
+| Misfire instruction | Measured from completion |
+|---|---|
+| `SmartPolicy` | Fires once now, then measures from that run's completion |
+| `IgnoreMisfires` | Fires once now |
+| `FireNow` | Fires once now; the missed run does not count |
+| `NowWithExistingCount` | Fires once now; the missed run does not count |
+| `NowWithRemainingCount` | Fires once now; the missed run counts against the repeat count |
+| `NextWithExistingCount` | Skips the missed run; the next is one interval from now |
+| `NextWithRemainingCount` | Skips the missed run, which counts; the next is one interval from now |
+
+Every instruction keeps to the end time and the repeat count.
+
 ## SimpleTrigger Misfire Instructions
 
 Misfires are explained in [More About Triggers](more-about-triggers.md#misfire-instructions). SimpleTrigger's
