@@ -212,6 +212,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
         ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
         ApplyMigration("4.6", "add_trigger_misfire_threshold_sqlite.sql");
+        ApplyMigration("4.7", "add_trigger_fixed_delay_sqlite.sql");
 
         Func<Task> act = async () => await (await GetScheduler(
             nameof(TheMigrationsTheMessageNamesAreTheOnesThatMakeTheSchemaStart), provision: true)).Shutdown();
@@ -293,6 +294,32 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     }
 
     /// <summary>
+    /// A database 4.6 left behind is refused for the one column 4.7 adds, and told which script adds it.
+    /// </summary>
+    [Test]
+    public async Task A46SchemaIsRefusedForTheFixedDelayColumn()
+    {
+        Install320Schema();
+        ApplyMigration("4.0", "schema_30_to_40_upgrade_sqlite.sql");
+        ApplyMigration("4.2", "add_continuations_sqlite.sql");
+        ApplyMigration("4.3", "add_fire_progress_sqlite.sql");
+        ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
+        ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
+        ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
+        ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
+        ApplyMigration("4.6", "add_trigger_misfire_threshold_sqlite.sql");
+
+        SchedulerException failure = await StartAndCatch(nameof(A46SchemaIsRefusedForTheFixedDelayColumn));
+
+        MessagesOf(failure).Should().ContainMatch($"*{AdoConstants.ColumnFixedDelay} of table QRTZ_TRIGGERS*",
+            "every trigger a 4.7 node stores names the column, and its firing rounds read it, so its absence "
+            + "is refused at startup rather than at the first write");
+
+        failure.Message.Should().Contain("database/migrations/4.7/add_trigger_fixed_delay_sqlite.sql",
+            "and the script that adds it is the remedy");
+    }
+
+    /// <summary>
     /// A database that took every 4.3 script but the pause one is refused for the columns it adds, on
     /// all three tables it adds them to.
     /// </summary>
@@ -353,6 +380,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
         ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
         ApplyMigration("4.6", "add_trigger_misfire_threshold_sqlite.sql");
+        ApplyMigration("4.7", "add_trigger_fixed_delay_sqlite.sql");
 
         if (withHistory)
         {
@@ -468,6 +496,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
         ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
         ApplyMigration("4.6", "add_trigger_misfire_threshold_sqlite.sql");
+        ApplyMigration("4.7", "add_trigger_fixed_delay_sqlite.sql");
 
         TableExists("QRTZ_EXECUTION_HISTORY").Should().BeFalse(
             "the migrations run so far are the ones every 4.2 database needs, and the history's are not "
@@ -524,6 +553,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
         ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
         ApplyMigration("4.6", "add_trigger_misfire_threshold_sqlite.sql");
+        ApplyMigration("4.7", "add_trigger_fixed_delay_sqlite.sql");
 
         Func<Task> withoutHistory = async () => await (await GetScheduler(
             nameof(A42HistoryTableIsRefusedForTheExecutionLogOnlyWhenTheHistoryIsOn) + "-off", provision: false)).Shutdown();
@@ -566,6 +596,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
         ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
         ApplyMigration("4.6", "add_trigger_misfire_threshold_sqlite.sql");
+        ApplyMigration("4.7", "add_trigger_fixed_delay_sqlite.sql");
         ApplyMigration("4.3", "add_execution_log_sqlite.sql");
 
         Func<Task> withoutHistory = async () => await (await GetScheduler(
@@ -668,6 +699,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
         ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
         ApplyMigration("4.6", "add_trigger_misfire_threshold_sqlite.sql");
+        ApplyMigration("4.7", "add_trigger_fixed_delay_sqlite.sql");
 
         AdoConstants.OptionalMigrations.Should().Contain(AdoConstants.Migration44ExecutionOutcome,
             "the premise: the list the store names is the one this applies");

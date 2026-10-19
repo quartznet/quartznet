@@ -64,7 +64,10 @@ internal enum RoundLockReason
     /// <summary>A candidate's job disallows concurrent execution.</summary>
     SerialJob,
 
-    /// <summary>A candidate's overlap policy is one the fire decides under the lock.</summary>
+    /// <summary>
+    /// A candidate's overlap policy is one the fire decides under the lock, or the candidate measures its
+    /// interval from completion, which holds it while it runs as <c>BufferOne</c> does.
+    /// </summary>
     OverlapPolicy,
 
     /// <summary>
@@ -119,7 +122,7 @@ internal static class RoundLockReasons
         RoundLockReason.OlderPeer => "a live node older than 4.6 is in the cluster, or no check-in has read the state table yet",
         RoundLockReason.ClusterLimit => "the round counts against a cluster-scoped execution limit",
         RoundLockReason.SerialJob => "a candidate's job disallows concurrent execution",
-        RoundLockReason.OverlapPolicy => "a candidate's overlap policy is decided under the lock",
+        RoundLockReason.OverlapPolicy => "a candidate's overlap policy, or its hold while it runs, is decided under the lock",
         RoundLockReason.DefinitionChanged => "a job or trigger changed between the read and the claim",
         RoundLockReason.Hysteresis => "the previous round had to take it",
         RoundLockReason.Contention => "nodes are claiming the same triggers, until the backlog clears",

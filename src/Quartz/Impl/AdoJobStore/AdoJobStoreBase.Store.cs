@@ -1028,6 +1028,7 @@ internal abstract partial class AdoJobStoreBase
                 update.EnsureMisfireInstructionMatchesFamily(existing, triggerKey);
                 update.EnsureOverlapPolicyCanBeCarried(existing, triggerKey);
                 update.EnsureMisfireThresholdCanBeCarried(existing, triggerKey);
+                update.EnsureMeasureIntervalFromCompletionCanBeCarried(existing, triggerKey);
 
                 if (update.HasCalendarName && update.CalendarName is not null)
                 {
@@ -1192,6 +1193,9 @@ internal abstract partial class AdoJobStoreBase
             // MISFIRE_THRESHOLD is part of the same generic UPDATE.
             ((TriggerBase) existing).MisfireThreshold = update.MisfireThreshold;
         }
+
+        // FIXED_DELAY is part of the same generic UPDATE (#4140).
+        update.ApplyMeasureIntervalFromCompletion(existing);
     }
 
     /// <summary>

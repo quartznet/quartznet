@@ -123,7 +123,11 @@ internal sealed record DeclaredCronSchedule(string CronExpression, string? TimeZ
 /// <param name="RepeatCount">
 /// How many times the trigger repeats after its first firing, or <c>-1</c> for forever.
 /// </param>
-internal sealed record DeclaredSimpleSchedule(long IntervalTicks, string IntervalText, int RepeatCount) : DeclaredSchedule;
+/// <param name="MeasureIntervalFromCompletion">
+/// Whether the interval is measured from the previous run's completion, which is emitted only when set.
+/// </param>
+internal sealed record DeclaredSimpleSchedule(long IntervalTicks, string IntervalText, int RepeatCount, bool MeasureIntervalFromCompletion = false) : DeclaredSchedule;
+
 
 /// <summary>
 /// A <c>[CronTrigger]</c> or <c>[SimpleTrigger]</c> on a class that declares no job.

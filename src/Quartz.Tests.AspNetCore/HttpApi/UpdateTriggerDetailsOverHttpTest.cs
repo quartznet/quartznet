@@ -148,6 +148,42 @@ public class UpdateTriggerDetailsOverHttpTest
         }
     }
 
+    /// <summary>
+    /// A simple trigger is made to measure its interval from completion over the wire, and back again, and
+    /// a cron trigger is refused it (#4140).
+    /// </summary>
+    [Test]
+    public async Task ASimpleTriggerIsMadeToMeasureFromCompletionAndACronTriggerIsRefused()
+    {
+        (IScheduler scheduler, HttpScheduler client) = await CreateScheduler();
+
+        try
+        {
+            TriggerKey cronKey = new("cron", "group");
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(),
+                TriggerBuilder.Create().WithIdentity(triggerKey).ForJob(jobKey)
+                    .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever())
+                    .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+                    .Build());
+            await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity(cronKey).ForJob(jobKey).WithCronSchedule("0 0 12 * * ?").Build());
+
+            (await client.UpdateTriggerDetails(triggerKey, new TriggerDetailsUpdate().WithMeasureIntervalFromCompletion(true))).Should().BeTrue();
+            ((ISimpleTrigger) (await client.GetTrigger(triggerKey))!).MeasureIntervalFromCompletion.Should().BeTrue(
+                "the update's body carries the setting and the trigger body brings it back");
+
+            await client.UpdateTriggerDetails(triggerKey, new TriggerDetailsUpdate().WithMeasureIntervalFromCompletion(false));
+            ((ISimpleTrigger) (await client.GetTrigger(triggerKey))!).MeasureIntervalFromCompletion.Should().BeFalse();
+
+            Func<Task> cron = async () => await client.UpdateTriggerDetails(cronKey, new TriggerDetailsUpdate().WithMeasureIntervalFromCompletion(true));
+            await cron.Should().ThrowAsync<SchedulerException>("only a simple trigger has an interval to measure from completion");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
     [Test]
     public async Task ATriggerThatDoesNotExistIsReportedRatherThanRefused()
     {

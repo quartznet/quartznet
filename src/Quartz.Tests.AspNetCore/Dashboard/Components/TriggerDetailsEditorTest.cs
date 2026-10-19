@@ -177,6 +177,38 @@ public sealed class TriggerDetailsEditorTest
     }
 
     [Test]
+    public void ASimpleTriggerIsMadeToMeasureFromCompletionByTheCheckbox()
+    {
+        GivenTrigger(TriggerBuilder.Create()
+            .WithIdentity(TriggerName, TriggerGroup)
+            .ForJob("export", "reports")
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever())
+            .Build());
+        IRenderedComponent<TriggerDetail> page = OpenEditor();
+
+        page.Find("#trigger-edit-measure-from-completion").Change(true);
+        page.Find(".qz-trigger-editor-save").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.UpdateTriggerDetails(
+                TestData.SchedulerName,
+                TriggerKey,
+                A<TriggerDetailsUpdate>.That.Matches(update =>
+                    update.HasMeasureIntervalFromCompletion && update.MeasureIntervalFromCompletion
+                    && !update.HasPriority && !update.HasOverlapPolicy && !update.HasMisfireInstruction),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+    }
+
+    [Test]
+    public void ACronTriggerIsNotOfferedMeasuringFromCompletion()
+    {
+        GivenTrigger(CronTrigger());
+        IRenderedComponent<TriggerDetail> page = OpenEditor();
+
+        page.FindAll("#trigger-edit-measure-from-completion").Should().BeEmpty("only a simple trigger has an interval to measure");
+    }
+
+    [Test]
     public void SavingWithNothingChangedSendsNothing()
     {
         GivenTrigger(CronTrigger());

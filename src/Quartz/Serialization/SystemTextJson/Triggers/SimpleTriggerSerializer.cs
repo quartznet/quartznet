@@ -25,7 +25,8 @@ public class SimpleTriggerSerializer : TriggerSerializer<SimpleTriggerImpl>
 
         return SimpleScheduleBuilder.Create()
             .WithInterval(repeatInterval)
-            .WithRepeatCount(repeatCount);
+            .WithRepeatCount(repeatCount)
+            .MeasureIntervalFromCompletion(ReadMeasureIntervalFromCompletion(jsonElement, options));
     }
 
     /// <inheritdoc />
@@ -34,6 +35,12 @@ public class SimpleTriggerSerializer : TriggerSerializer<SimpleTriggerImpl>
         writer.WriteNumber(options.GetPropertyName("RepeatCount"), trigger.RepeatCount);
         writer.WriteString(options.GetPropertyName("RepeatIntervalTimeSpan"), trigger.RepeatInterval);
         writer.WriteNumber(options.GetPropertyName("TimesTriggered"), trigger.TimesTriggered);
+
+        // Only when set: a trigger at a fixed rate writes exactly the payload it wrote before 4.7 (#4140).
+        if (trigger.MeasureIntervalFromCompletion)
+        {
+            writer.WriteBoolean(options.GetPropertyName("MeasureIntervalFromCompletion"), true);
+        }
     }
 
     /// <inheritdoc />
@@ -42,5 +49,15 @@ public class SimpleTriggerSerializer : TriggerSerializer<SimpleTriggerImpl>
         // This property might not exist in the JSON if trigger was serialized with older version
         var timesTriggered = jsonElement.GetPropertyOrNull(options.GetPropertyName("TimesTriggered"))?.GetInt32();
         trigger.TimesTriggered = timesTriggered ?? 0;
+        trigger.MeasureIntervalFromCompletion = ReadMeasureIntervalFromCompletion(jsonElement, options);
+    }
+
+    /// <summary>
+    /// Whether the payload says the interval is measured from completion. Absent, as from every payload of
+    /// a fixed-rate trigger and every one written before 4.7, it does not.
+    /// </summary>
+    private static bool ReadMeasureIntervalFromCompletion(JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        return jsonElement.GetPropertyOrNull(options.GetPropertyName("MeasureIntervalFromCompletion")) is { ValueKind: JsonValueKind.True };
     }
 }

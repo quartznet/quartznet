@@ -181,7 +181,9 @@ internal abstract partial class AdoJobStoreBase
     /// <item>A <see cref="OverlapPolicy.BufferOne" /> or <see cref="OverlapPolicy.CancelPrevious" />
     /// firing may let go of its trigger, <c>BLOCKED</c> to <c>WAITING</c>, and then apply the misfire
     /// policy to it with an unconditional write. <c>PauseTrigger</c> reads <c>BLOCKED</c> and writes
-    /// <c>PAUSED_BLOCKED</c> unconditionally too, so without the lock one of the two writes is lost.</item>
+    /// <c>PAUSED_BLOCKED</c> unconditionally too, so without the lock one of the two writes is lost. A
+    /// firing of a trigger that measures from completion holds its trigger the same way, and its
+    /// completion decides the next fire time from a read of the row (#4140).</item>
     /// <item>A <see cref="OverlapPolicy.Skip" /> firing whose next occurrence is the trigger's last owes
     /// the trigger a deletion if that occurrence was skipped while it ran, decided from a read of the
     /// row that a skip under the lock could overtake.</item>
@@ -210,7 +212,7 @@ internal abstract partial class AdoJobStoreBase
         }
 
         IOperableTrigger trigger = context.Trigger;
-        if (trigger.OverlapPolicy is OverlapPolicy.BufferOne or OverlapPolicy.CancelPrevious)
+        if (trigger.OverlapPolicy is OverlapPolicy.BufferOne or OverlapPolicy.CancelPrevious || FixedDelaySchedule.Applies(trigger))
         {
             return true;
         }
@@ -337,6 +339,10 @@ internal abstract partial class AdoJobStoreBase
         // DeleteTriggerAndChildren sweeps QRTZ_FIRED_TRIGGERS by trigger key, and this firing's row
         // is one of them. Read after the transaction body below, where the delete branches set it.
         bool triggerDeleted = false;
+
+        // Whether the completion of a firing of a trigger that measures from completion settled it: gave
+        // it its next fire time and let go of it (#4140). One it did not settle is let go of below.
+        bool fixedDelaySettled = false;
 
         await Guarded(
             async () =>
@@ -469,6 +475,16 @@ internal abstract partial class AdoJobStoreBase
                     await Delegate.UpdateTriggerForRetry(conn, trigger, retryState, cancellationToken).ConfigureAwait(false);
                     conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
+                else if (triggerInstructionCode == SchedulerInstruction.NoInstruction
+                         && trigger.NextFireTimeUtc.HasValue
+                         && FixedDelaySchedule.Applies(trigger))
+                {
+                    // The firing of a trigger that measures from completion held it while it ran, and the
+                    // fire time it left on it is provisional: the next one is measured from now. Before the
+                    // unblock of a serial job's triggers below, which applies the misfire policy to whatever
+                    // it lets go of (#4140).
+                    (fixedDelaySettled, triggerDeleted) = await CompleteFixedDelayFiring(conn, trigger.Key, jobDetail, !continuationsSettled, cancellationToken).ConfigureAwait(false);
+                }
                 else if (!trigger.NextFireTimeUtc.HasValue)
                 {
                     // Every instruction that settles the trigger is above, so what reaches here is a
@@ -508,12 +524,15 @@ internal abstract partial class AdoJobStoreBase
 
                     await RecoverUnblockedMisfires(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
                 }
-                else if (!triggerDeleted && trigger.OverlapPolicy is OverlapPolicy.BufferOne or OverlapPolicy.CancelPrevious)
+                else if (!triggerDeleted
+                         && !fixedDelaySettled
+                         && (trigger.OverlapPolicy is OverlapPolicy.BufferOne or OverlapPolicy.CancelPrevious || FixedDelaySchedule.Applies(trigger)))
                 {
                     // This firing may have held its own trigger back: BufferOne from the moment it
                     // started, CancelPrevious when a firing of it came due on a node that could not
                     // interrupt this one. The firing's policy decides rather than the stored one, which
-                    // may have changed since: it is this firing that did the holding.
+                    // may have changed since: it is this firing that did the holding. So did a firing of a
+                    // trigger that measures from completion, whose trigger the branch above did not settle.
                     await ReleaseOverlapHold(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                 }
                 else if (!triggerDeleted
@@ -566,6 +585,77 @@ internal abstract partial class AdoJobStoreBase
         await Guarded(
             () => Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId!, cancellationToken),
             "delete fired trigger").ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Settles a trigger that measures from completion as its firing completes: one interval from now, and
+    /// let go of (#4140).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only a row still held — <c>BLOCKED</c> or <c>PAUSED_BLOCKED</c> — whose stored trigger still measures
+    /// from completion. The stored definition decides rather than the firing's: a trigger replaced while
+    /// the firing ran is stored as the new one it is, and is nobody's to move. Its repeat count, end time and
+    /// calendar bound the fire time, which goes out with the state the hold gives way to in the one narrow
+    /// statement a retry writes its instant with.
+    /// </para>
+    /// <para>
+    /// One with no firing left is deleted, and the scheduler listeners hear it is finalized once the
+    /// completion commits: the run shell announced nothing, because the provisional fire time said there
+    /// was one. A calendar that throws leaves the trigger to the ordinary release, with its provisional fire
+    /// time, rather than failing a completion that would be retried against it for good.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// Whether the trigger was settled here, and whether that deleted it — and its fired rows with it.
+    /// </returns>
+    private async ValueTask<(bool Settled, bool Deleted)> CompleteFixedDelayFiring(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        IJobDetail jobDetail,
+        bool settleContinuations,
+        CancellationToken cancellationToken)
+    {
+        StoredTriggerHeader? header = await Delegate.SelectTriggerHeader(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        if (header is not { State: StoredTriggerState.Blocked or StoredTriggerState.PausedBlocked })
+        {
+            return (false, false);
+        }
+
+        IOperableTrigger? stored = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        if (stored is not ISimpleTrigger { MeasureIntervalFromCompletion: true } simple)
+        {
+            return (false, false);
+        }
+
+        ICalendar? calendar = stored.CalendarName is { } calendarName
+            ? await GetCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false)
+            : null;
+
+        DateTimeOffset? next;
+        try
+        {
+            next = FixedDelaySchedule.FireTimeAfter(simple, timeProvider.GetUtcNow(), calendar);
+        }
+        catch (Exception e)
+        {
+            Logger.FixedDelayFireTimeFailed(triggerKey, e);
+            return (false, false);
+        }
+
+        if (next is null)
+        {
+            bool deleted = await DeleteTrigger(conn, triggerKey, jobDetail, settleContinuations, header.TriggerType, cancellationToken).ConfigureAwait(false);
+            ITrigger finalized = stored;
+            conn.NotifyAfterCommit((notifier, token) => notifier.NotifySchedulerListenersFinalized(finalized, token));
+            return (true, deleted);
+        }
+
+        stored.NextFireTimeUtc = next;
+        StoredTriggerState released = header.State == StoredTriggerState.Blocked ? StoredTriggerState.Waiting : StoredTriggerState.Paused;
+        await Delegate.UpdateTriggerForRetry(conn, stored, released, cancellationToken).ConfigureAwait(false);
+        conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
+        return (true, false);
     }
 
     //---------------------------------------------------------------------------

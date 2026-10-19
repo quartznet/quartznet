@@ -28,6 +28,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -70,6 +71,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -112,6 +114,7 @@ SELECT TOP 20
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -154,6 +157,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -196,6 +200,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -238,6 +243,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -280,6 +286,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -322,6 +329,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -364,6 +372,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -406,6 +415,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -448,6 +458,7 @@ SELECT * FROM (SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -490,6 +501,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -532,6 +544,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -574,6 +587,7 @@ SELECT
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
                 t.MISFIRE_THRESHOLD,
+                t.FIXED_DELAY,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM

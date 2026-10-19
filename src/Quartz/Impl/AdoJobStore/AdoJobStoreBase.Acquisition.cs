@@ -1323,11 +1323,14 @@ internal abstract partial class AdoJobStoreBase
 
         // A round that holds no lock (#4067) decided from its candidate read that nothing in it needed
         // one, and read the row and the job again after its claim. Either may have been replaced in
-        // between — the job made serial, the trigger given a policy the fire decides — and then the
-        // decision no longer holds. The round rolls back and runs again under the lock: taking it here
-        // would wait on TRIGGER_ACCESS while holding row locks, the inverse of every locked path's order.
+        // between — the job made serial, the trigger given a policy the fire decides or made to measure
+        // from completion — and then the decision no longer holds. The round rolls back and runs again
+        // under the lock: taking it here would wait on TRIGGER_ACCESS while holding row locks, the
+        // inverse of every locked path's order.
         if (prefetch is { HoldsLock: false }
-            && (job.ConcurrentExecutionDisallowed || trigger.OverlapPolicy is not (OverlapPolicy.Default or OverlapPolicy.AllowAll)))
+            && (job.ConcurrentExecutionDisallowed
+                || trigger.OverlapPolicy is not (OverlapPolicy.Default or OverlapPolicy.AllowAll)
+                || FixedDelaySchedule.Applies(trigger)))
         {
             throw new RoundNeedsLockException(RoundLockReason.DefinitionChanged, trigger.Key);
         }
@@ -1469,10 +1472,12 @@ internal abstract partial class AdoJobStoreBase
             state2 = StoredTriggerState.Blocked;
             force = false;
         }
-        else if (trigger.OverlapPolicy == OverlapPolicy.BufferOne)
+        else if (trigger.OverlapPolicy == OverlapPolicy.BufferOne || FixedDelaySchedule.Applies(trigger))
         {
             // Held back while this firing runs, as a [DisallowConcurrentExecution] job's triggers are,
-            // but this trigger alone: nothing of it is acquired until the completion lets go of it.
+            // but this trigger alone: nothing of it is acquired until the completion lets go of it. A
+            // trigger that measures from completion takes its next fire time from that completion too
+            // (#4140); the one Triggered() left on it is provisional.
             state2 = StoredTriggerState.Blocked;
             force = false;
         }

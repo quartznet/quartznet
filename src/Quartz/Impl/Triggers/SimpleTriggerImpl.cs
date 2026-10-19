@@ -159,13 +159,34 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     /// <inheritdoc />
     public SimpleTriggerMisfireInstruction MisfireInstruction => (SimpleTriggerMisfireInstruction) MisfireInstructionCode;
 
+    /// <summary>
+    /// Get or set whether the interval is measured from the previous run's completion rather than from its
+    /// scheduled time: a fixed delay rather than a fixed rate.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// While a firing runs, <see cref="NextFireTimeUtc" /> is provisional — the scheduled time plus the
+    /// interval — and the job store replaces it with the completion time plus the interval when the firing
+    /// completes. The trigger is held meanwhile, so no node fires it again.
+    /// </para>
+    /// <para>
+    /// A misfire is settled without a backlog: <see cref="SimpleTriggerMisfireInstruction.SmartPolicy" />,
+    /// <see cref="SimpleTriggerMisfireInstruction.IgnoreMisfires" />, <see cref="SimpleTriggerMisfireInstruction.FireNow" />
+    /// and both <c>Now…</c> instructions fire once now; both <c>Next…</c> instructions wait one interval
+    /// from now. The <c>…RemainingCount</c> instructions count the missed run; the rest do not.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="ISimpleTrigger.MeasureIntervalFromCompletion" />
+    public bool MeasureIntervalFromCompletion { get; set; }
+
     /// <inheritdoc />
-    /// <remarks>The repeat count and the repeat interval.</remarks>
+    /// <remarks>The repeat count, the repeat interval, and whether it is measured from completion.</remarks>
     internal override bool HasSameScheduleAs(TriggerBase other)
     {
         return other is SimpleTriggerImpl simple
                && RepeatCount == simple.RepeatCount
-               && RepeatInterval == simple.RepeatInterval;
+               && RepeatInterval == simple.RepeatInterval
+               && MeasureIntervalFromCompletion == simple.MeasureIntervalFromCompletion;
     }
 
     /// <inheritdoc />
@@ -183,6 +204,11 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
         SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
             .WithInterval(RepeatInterval)
             .WithRepeatCount(RepeatCount);
+
+        if (MeasureIntervalFromCompletion)
+        {
+            sb.MeasureIntervalFromCompletion();
+        }
 
         // Only a stated instruction, so a rebuilt trigger leaves unstated what this one left unstated and
         // takes the scheduler's default as this one would have.
@@ -282,6 +308,12 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     /// </remarks>
     public override void UpdateAfterMisfire(ICalendar? calendar)
     {
+        if (MeasureIntervalFromCompletion)
+        {
+            UpdateAfterFixedDelayMisfire(calendar);
+            return;
+        }
+
         int instr = MisfireInstructionCode;
         if (instr == Quartz.MisfireInstruction.SmartPolicy)
         {
@@ -413,16 +445,66 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     }
 
     /// <summary>
+    /// The misfire instruction of a trigger that measures from completion, which has no backlog: its next
+    /// run was due one interval after a completion, and a run that never happened has no completion to
+    /// measure the one after it from (#4140).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SimpleTriggerMisfireInstruction.SmartPolicy" />, <see cref="SimpleTriggerMisfireInstruction.FireNow" />
+    /// and both <c>Now…</c> instructions fire once now; both <c>Next…</c> instructions skip the missed run
+    /// and wait one interval from now. The <c>…RemainingCount</c> instructions count the missed run against
+    /// the repeat count. Every one of them keeps to the end time and the repeat count.
+    /// <see cref="SimpleTriggerMisfireInstruction.IgnoreMisfires" /> never gets here: the stores fire such a
+    /// trigger at its past fire time, which is once now.
+    /// </remarks>
+    private void UpdateAfterFixedDelayMisfire(ICalendar? calendar)
+    {
+        int instr = MisfireInstructionCode;
+        DateTimeOffset now = TimeProvider.GetUtcNow();
+
+        if (instr is Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount
+            or Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
+        {
+            timesTriggered++;
+        }
+
+        if (instr is Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount
+            or Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
+        {
+            NextFireTimeUtc = FixedDelaySchedule.FireTimeAfter(this, now, calendar);
+            return;
+        }
+
+        if (instr == Quartz.MisfireInstruction.IgnoreMisfirePolicy)
+        {
+            return;
+        }
+
+        NextFireTimeUtc = FixedDelaySchedule.HasRunsLeft(this) ? FixedDelaySchedule.FirstIncludedFrom(this, now, calendar: null) : null;
+    }
+
+    /// <summary>
     /// Called when the <see cref="IScheduler" /> has decided to 'fire'
     /// the trigger (Execute the associated <see cref="IJob" />), in order to
     /// give the <see cref="ITrigger" /> a chance to update itself for its next
     /// triggering (if any).
     /// </summary>
+    /// <remarks>
+    /// A trigger that measures from completion takes a provisional next fire time, its scheduled time plus
+    /// the interval, which the job store replaces when the firing completes.
+    /// </remarks>
     /// <seealso cref="JobExecutionException" />
     public override void Triggered(ICalendar? calendar)
     {
         timesTriggered++;
         PreviousFireTimeUtc = NextFireTimeUtc;
+
+        if (MeasureIntervalFromCompletion)
+        {
+            NextFireTimeUtc = FixedDelaySchedule.FireTimeAfter(this, PreviousFireTimeUtc ?? TimeProvider.GetUtcNow(), calendar);
+            return;
+        }
+
         NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
         if (calendar is not null && NextFireTimeUtc.HasValue)
@@ -446,6 +528,28 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
         }
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// A trigger that measures from completion takes the provisional next fire time
+    /// <see cref="Triggered" /> takes, the retry instant plus the interval, without counting a run.
+    /// </remarks>
+    public override void RetryFired(ICalendar? calendar)
+    {
+        if (!MeasureIntervalFromCompletion)
+        {
+            base.RetryFired(calendar);
+            return;
+        }
+
+        NextFireTimeUtc = FixedDelaySchedule.FireTimeAfter(this, NextFireTimeUtc ?? TimeProvider.GetUtcNow(), calendar);
+    }
+
+    /// <summary>
+    /// A trigger that measures from completion has no next occurrence until its last attempt completes, so
+    /// no retry of it can land beside one.
+    /// </summary>
+    internal override bool RetryYieldsToNextOccurrence => !MeasureIntervalFromCompletion;
+
     /// <summary>
     /// Updates the instance with new calendar.
     /// </summary>
@@ -453,6 +557,14 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     /// <param name="misfireThreshold">The misfire threshold.</param>
     public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
     {
+        if (MeasureIntervalFromCompletion)
+        {
+            // Measured from a completion, which recomputing from the previous fire time would lose: the
+            // fire time only moves on, by whole intervals, past what the new calendar excludes.
+            NextFireTimeUtc = NextFireTimeUtc is { } next ? FixedDelaySchedule.FirstIncludedFrom(this, next, calendar) : null;
+            return;
+        }
+
         NextFireTimeUtc = GetFireTimeAfter(PreviousFireTimeUtc);
 
         if (NextFireTimeUtc is null || calendar is null)

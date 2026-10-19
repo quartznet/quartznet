@@ -70,6 +70,7 @@ public class DeclaredJobsSimpleTriggerTest
                 Group = "polling",
                 RepeatCount = 9,
                 MisfireInstruction = SimpleTriggerMisfireInstruction.NextWithRemainingCount,
+                MeasureIntervalFromCompletion = true,
                 Priority = 7,
                 Description = "every thirty seconds, ten times",
                 ExecutionGroup = "io")]
@@ -81,6 +82,7 @@ public class DeclaredJobsSimpleTriggerTest
 
         run.Diagnostics.Should().BeEmpty();
         run.Generated.Should().Contain(".WithRepeatCount(9)")
+            .And.Contain(".MeasureIntervalFromCompletion()", "an interval measured from completion is the schedule builder's call")
             .And.Contain("global::Quartz.SimpleTriggerMisfireInstruction.NextWithRemainingCount",
                 "the misfire instruction is the simple trigger family's, not the cron one's");
 
@@ -295,12 +297,14 @@ public class DeclaredJobsSimpleTriggerTest
         poll.RepeatCount.Should().Be(-1, "an unwritten RepeatCount repeats forever");
         poll.MisfireInstructionCode.Should().Be((int) SimpleTriggerMisfireInstruction.SmartPolicy);
         poll.MisfireThreshold.Should().BeNull("an attribute that names no threshold leaves the trigger on the store's");
+        poll.MeasureIntervalFromCompletion.Should().BeFalse("an attribute that does not say so declares a fixed rate");
 
         ISimpleTrigger warmUp = await SimpleTriggerOf(built.Scheduler, "warm-up");
         warmUp.RepeatInterval.Should().Be(TimeSpan.FromSeconds(5));
         warmUp.RepeatCount.Should().Be(3);
         warmUp.MisfireInstructionCode.Should().Be((int) SimpleTriggerMisfireInstruction.FireNow);
         warmUp.MisfireThreshold.Should().Be(TimeSpan.FromSeconds(30), "the attribute's threshold reaches the trigger it declares");
+        warmUp.MeasureIntervalFromCompletion.Should().BeTrue("and so does measuring the interval from completion");
         warmUp.Priority.Should().Be(8);
         warmUp.Description.Should().Be("four quick polls as the host starts");
         warmUp.ExecutionGroup.Should().Be("io");
@@ -405,6 +409,7 @@ public class DeclaredJobsSimpleTriggerTest
             RepeatCount = 3,
             MisfireInstruction = SimpleTriggerMisfireInstruction.FireNow,
             MisfireThreshold = "00:00:30",
+            MeasureIntervalFromCompletion = true,
             Priority = 8,
             Description = "four quick polls as the host starts",
             ExecutionGroup = "io")]

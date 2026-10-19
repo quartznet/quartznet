@@ -1274,6 +1274,7 @@ public sealed class RAMJobStore : IJobStore
             update.EnsureMisfireInstructionMatchesFamily(trigger, triggerKey);
             update.EnsureOverlapPolicyCanBeCarried(trigger, triggerKey);
             update.EnsureMisfireThresholdCanBeCarried(trigger, triggerKey);
+            update.EnsureMeasureIntervalFromCompletionCanBeCarried(trigger, triggerKey);
 
             if (update.HasCalendarName && update.CalendarName is not null)
             {
@@ -1349,6 +1350,10 @@ public sealed class RAMJobStore : IJobStore
                 // From the next acquisition pass, which is where this store decides a misfire.
                 ((TriggerBase) trigger).MisfireThreshold = update.MisfireThreshold;
             }
+
+            // From the next firing. One running when it is turned off is let go with the fire time it
+            // left, as the completion finds the stored trigger no longer measuring from completion.
+            update.ApplyMeasureIntervalFromCompletion(trigger);
 
             return new ValueTask<bool>(true);
         }
@@ -3864,10 +3869,11 @@ public sealed class RAMJobStore : IJobStore
         }
         else if (tw.Trigger.NextFireTimeUtc is not null)
         {
-            if (overlapPolicy == OverlapPolicy.BufferOne)
+            if (overlapPolicy == OverlapPolicy.BufferOne || FixedDelaySchedule.Applies(tw.Trigger))
             {
                 // Held back while this firing runs, as a [DisallowConcurrentExecution] job's
-                // triggers are, but for this trigger alone. The completion lets go of it.
+                // triggers are, but for this trigger alone. The completion lets go of it — and a
+                // trigger that measures from completion takes its next fire time from it (#4140).
                 tw.state = StoredTriggerState.Blocked;
             }
             else
@@ -4055,6 +4061,15 @@ public sealed class RAMJobStore : IJobStore
 
         lock (lockObject)
         {
+            // A trigger that measures from completion (#4140) takes its next fire time from this moment,
+            // before a serial job's other triggers are let go below: that applies the misfire policy to
+            // whatever is waiting, and the fire time this firing left on its trigger is only provisional.
+            // Only for a firing whose ending leaves the schedule to the store; every other instruction
+            // settles the trigger itself.
+            bool fixedDelaySettled = triggerInstructionCode == SchedulerInstruction.NoInstruction
+                                     && FixedDelaySchedule.Applies(trigger)
+                                     && CompleteFixedDelayFiringNoLock(trigger.Key, ref pending);
+
             // It's possible that the job is null if:
             //   1- it was deleted during execution
             //   2- RAMJobStore is being used only for volatile jobs / triggers
@@ -4143,8 +4158,10 @@ public sealed class RAMJobStore : IJobStore
 
             // BufferOne: this firing held its own trigger back while it ran, and lets go of it now. The
             // firing's policy decides rather than the stored one, which may have changed since: it is
-            // this firing that did the holding.
-            if (trigger.OverlapPolicy == OverlapPolicy.BufferOne && !jobDetail.ConcurrentExecutionDisallowed)
+            // this firing that did the holding. So did a fixed-delay firing whose trigger the step above
+            // did not settle — replaced, or no longer measuring from completion.
+            if ((trigger.OverlapPolicy == OverlapPolicy.BufferOne || (FixedDelaySchedule.Applies(trigger) && !fixedDelaySettled))
+                && !jobDetail.ConcurrentExecutionDisallowed)
             {
                 ReleaseOverlapBlockNoLock(trigger.Key, ref pending);
             }
@@ -4359,6 +4376,74 @@ public sealed class RAMJobStore : IJobStore
         {
             tw.state = StoredTriggerState.Paused;
         }
+    }
+
+    /// <summary>
+    /// Settles a trigger that measures from completion as its firing completes: one interval from now, and
+    /// let go of (#4140).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only a trigger still held — <see cref="StoredTriggerState.Blocked" /> or
+    /// <see cref="StoredTriggerState.PausedBlocked" /> — and still measuring from completion, which is what
+    /// the stored definition says rather than the firing: a trigger replaced while the firing ran is stored
+    /// as the new one it is, and is nobody's to move. The stored trigger's repeat count, end time and
+    /// calendar bound the fire time.
+    /// </para>
+    /// <para>
+    /// One with no firing left is stored complete and announced as finalized: the run shell announced
+    /// nothing, because the provisional fire time said there was one. The completion removes it with the
+    /// rest of what it settles, after the continuations awaiting it. A calendar that throws leaves the
+    /// trigger to the ordinary release, with its provisional fire time.
+    /// </para>
+    /// </remarks>
+    /// <returns>Whether the trigger was settled here.</returns>
+    private bool CompleteFixedDelayFiringNoLock(TriggerKey triggerKey, ref PendingSignals pending)
+    {
+        if (!triggersByKey.TryGetValue(triggerKey, out TriggerWrapper? tw)
+            || tw.state is not (StoredTriggerState.Blocked or StoredTriggerState.PausedBlocked)
+            || tw.Trigger is not ISimpleTrigger { MeasureIntervalFromCompletion: true } simple)
+        {
+            return false;
+        }
+
+        ICalendar? calendar = null;
+        if (tw.Trigger.CalendarName is { } calendarName)
+        {
+            calendarsByName.TryGetValue(calendarName, out calendar);
+        }
+
+        DateTimeOffset? next;
+        try
+        {
+            next = FixedDelaySchedule.FireTimeAfter(simple, timeProvider.GetUtcNow(), calendar);
+        }
+        catch (Exception e)
+        {
+            logger.FixedDelayFireTimeFailed(triggerKey, e);
+            return false;
+        }
+
+        timeTriggers.Remove(tw);
+        tw.Trigger.NextFireTimeUtc = next;
+
+        if (next is null)
+        {
+            tw.state = StoredTriggerState.Complete;
+            pending.RecordFinalized(tw.Trigger.Clone());
+        }
+        else if (tw.state == StoredTriggerState.Blocked)
+        {
+            tw.state = StoredTriggerState.Waiting;
+            timeTriggers.Add(tw);
+        }
+        else
+        {
+            tw.state = StoredTriggerState.Paused;
+        }
+
+        pending.RecordSchedulingChange();
+        return true;
     }
 
     /// <inheritdoc />

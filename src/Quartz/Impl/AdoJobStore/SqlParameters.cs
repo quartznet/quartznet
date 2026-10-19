@@ -158,6 +158,7 @@ internal static class SqlParameters
     public const string NewContinuesGroup = "newContinuesGroup";
     public const string TriggerOverlapPolicy = "triggerOverlapPolicy";
     public const string TriggerMisfireThreshold = "triggerMisfireThreshold";
+    public const string TriggerFixedDelay = "triggerFixedDelay";
 
     // What a pause recorded, on a trigger's row and on a paused group's.
 

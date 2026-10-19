@@ -629,6 +629,61 @@ public class JsonSchedulingTests
     }
 
     [Test]
+    public void AddQuartz_WithMeasureIntervalFromCompletionInJson_MakesTheSimpleTriggerAFixedDelayOne()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "pollJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "fixed-delay" },
+            { "Schedule:Triggers:0:JobName", "pollJob" },
+            { "Schedule:Triggers:0:Simple:Interval", "00:00:30" },
+            { "Schedule:Triggers:0:Simple:RepeatCount", "-1" },
+            { "Schedule:Triggers:0:Simple:MeasureIntervalFromCompletion", "true" },
+            { "Schedule:Triggers:1:Name", "fixed-rate" },
+            { "Schedule:Triggers:1:JobName", "pollJob" },
+            { "Schedule:Triggers:1:Simple:Interval", "00:00:30" },
+            { "Schedule:Triggers:1:Simple:RepeatCount", "-1" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        using var provider = services.BuildServiceProvider();
+        var triggers = provider.ScheduledTriggers();
+
+        ((ISimpleTrigger) triggers.Single(x => x.Key.Name == "fixed-delay")).MeasureIntervalFromCompletion.Should().BeTrue();
+        ((ISimpleTrigger) triggers.Single(x => x.Key.Name == "fixed-rate")).MeasureIntervalFromCompletion.Should().BeFalse(
+            "a simple schedule that does not say so runs at a fixed rate, as one built in code does");
+    }
+
+    [Test]
+    public void AddQuartz_WithAMeasureIntervalFromCompletionThatIsNotABoolean_IsRefused()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "pollJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "typo" },
+            { "Schedule:Triggers:0:JobName", "pollJob" },
+            { "Schedule:Triggers:0:Simple:Interval", "00:00:30" },
+            { "Schedule:Triggers:0:Simple:MeasureIntervalFromCompletion", "sometimes" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        using var provider = services.BuildServiceProvider();
+        Action act = () => provider.ScheduledTriggers();
+
+        act.Should().Throw<SchedulerConfigException>().WithMessage("*'sometimes'*Simple.MeasureIntervalFromCompletion*");
+    }
+
+    [Test]
     public void AddQuartz_WithContinuationInJson_MakesTheTriggerWaitForTheParent()
     {
         var config = BuildConfig(new Dictionary<string, string>

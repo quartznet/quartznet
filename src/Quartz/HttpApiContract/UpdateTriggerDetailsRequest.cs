@@ -36,9 +36,10 @@ namespace Quartz.HttpApiContract;
 /// <para>
 /// The body is read the way RFC 7386 reads a merge patch, which is the only reading that can say what
 /// this API has to say: a member that is <b>absent</b> leaves the trigger's value alone, and a member
-/// present as <c>null</c> <b>clears</b> it. Six of the ten are clearable — the description, the
+/// present as <c>null</c> <b>clears</b> it. Six of the eleven are clearable — the description, the
 /// calendar name, the execution group, the retry policy, the node pin and the misfire threshold — so a
-/// shape in which absent and null were the same thing could set them but never unset them.
+/// shape in which absent and null were the same thing could set them but never unset them. A
+/// <c>null</c> <c>measureIntervalFromCompletion</c> reads as <see langword="false" />.
 /// </para>
 /// <para>
 /// That distinction is what the nested converter exists for: a record's generated reader cannot tell an
@@ -148,6 +149,15 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
     /// </summary>
     public string? MisfireThreshold { get; init; }
 
+    /// <summary>Whether <see cref="MeasureIntervalFromCompletion" /> is part of the update.</summary>
+    public bool HasMeasureIntervalFromCompletion { get; init; }
+
+    /// <summary>
+    /// Whether a simple trigger measures its interval from the previous run's completion. A host older
+    /// than 4.7 ignores the member.
+    /// </summary>
+    public bool MeasureIntervalFromCompletion { get; init; }
+
     /// <summary>
     /// The five families, spelled on the wire. Written out rather than derived from the internal enum,
     /// so that renaming a member of that enum cannot quietly rename a wire value.
@@ -188,7 +198,9 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             HasOverlapPolicy = update.HasOverlapPolicy,
             OverlapPolicy = update.HasOverlapPolicy ? update.OverlapPolicy.ToString() : null,
             HasMisfireThreshold = update.HasMisfireThreshold,
-            MisfireThreshold = update.MisfireThreshold is { } threshold ? SchedulingFileValues.FormatMisfireThreshold(threshold) : null
+            MisfireThreshold = update.MisfireThreshold is { } threshold ? SchedulingFileValues.FormatMisfireThreshold(threshold) : null,
+            HasMeasureIntervalFromCompletion = update.HasMeasureIntervalFromCompletion,
+            MeasureIntervalFromCompletion = update.MeasureIntervalFromCompletion
         };
     }
 
@@ -270,6 +282,11 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
         if (HasMisfireThreshold)
         {
             update.WithMisfireThreshold(SchedulingFileValues.TryReadMisfireThreshold(MisfireThreshold, out TimeSpan misfireThreshold) ? misfireThreshold : null);
+        }
+
+        if (HasMeasureIntervalFromCompletion)
+        {
+            update.WithMeasureIntervalFromCompletion(MeasureIntervalFromCompletion);
         }
 
         return update;
@@ -360,6 +377,7 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             JsonElement? retryPolicy = Member(root, options, "RetryPolicy");
             JsonElement? overlapPolicy = Member(root, options, "OverlapPolicy");
             JsonElement? misfireThreshold = Member(root, options, "MisfireThreshold");
+            JsonElement? measureIntervalFromCompletion = Member(root, options, "MeasureIntervalFromCompletion");
 
             return new UpdateTriggerDetailsRequest
             {
@@ -384,7 +402,9 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
                 HasOverlapPolicy = overlapPolicy.HasValue,
                 OverlapPolicy = Text(overlapPolicy, "overlapPolicy"),
                 HasMisfireThreshold = misfireThreshold.HasValue,
-                MisfireThreshold = Text(misfireThreshold, "misfireThreshold")
+                MisfireThreshold = Text(misfireThreshold, "misfireThreshold"),
+                HasMeasureIntervalFromCompletion = measureIntervalFromCompletion.HasValue,
+                MeasureIntervalFromCompletion = Flag(measureIntervalFromCompletion, "measureIntervalFromCompletion")
             };
         }
 
@@ -403,6 +423,20 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
                 null or JsonValueKind.Null => null,
                 JsonValueKind.String => member.Value.GetString(),
                 _ => throw new JsonException($"'{name}' must be a string or null")
+            };
+        }
+
+        /// <summary>
+        /// A member that is absent, null or a boolean, where absent and null are <see langword="false" />.
+        /// A member of any other kind is refused, for the reason <see cref="Text" /> refuses one.
+        /// </summary>
+        private static bool Flag(JsonElement? member, string name)
+        {
+            return member?.ValueKind switch
+            {
+                null or JsonValueKind.Null or JsonValueKind.False => false,
+                JsonValueKind.True => true,
+                _ => throw new JsonException($"'{name}' must be true, false or null")
             };
         }
 
@@ -494,6 +528,11 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             if (value.HasMisfireThreshold)
             {
                 writer.WriteString(options.GetPropertyName("MisfireThreshold"), value.MisfireThreshold);
+            }
+
+            if (value.HasMeasureIntervalFromCompletion)
+            {
+                writer.WriteBoolean(options.GetPropertyName("MeasureIntervalFromCompletion"), value.MeasureIntervalFromCompletion);
             }
 
             writer.WriteEndObject();

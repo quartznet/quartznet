@@ -41,4 +41,24 @@ public interface ISimpleTrigger : ITrigger
     /// </summary>
     /// <seealso cref="SimpleScheduleBuilder.WithMisfireInstruction" />
     SimpleTriggerMisfireInstruction MisfireInstruction { get; }
+
+    /// <summary>
+    /// Whether the interval is measured from the previous run's completion rather than from its scheduled
+    /// time: a fixed delay rather than a fixed rate. <see langword="false" /> — the default — is a fixed
+    /// rate.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// While a firing runs the trigger is held, on every node, so it never overlaps itself and its
+    /// <see cref="ITrigger.OverlapPolicy" /> is never asked. When the firing completes, however it ended,
+    /// the next fire time becomes the completion time plus <see cref="RepeatInterval" />, within the end
+    /// time and the repeat count. A retry fires at its retry time; the delay follows the last attempt.
+    /// </para>
+    /// <para>
+    /// A cluster measures from completion only once every node is 4.7 or later: an older node ignores the
+    /// column and runs the trigger at a fixed rate.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="SimpleScheduleBuilder.MeasureIntervalFromCompletion" />
+    bool MeasureIntervalFromCompletion => false;
 }

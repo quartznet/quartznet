@@ -174,9 +174,9 @@ public sealed class OracleWeaselSchemaTest
     }
 
     /// <summary>
-    /// 4.3 → 4.6 only adds: five columns and an index on the history table, the rollup table, the version
+    /// 4.3 → 4.7 only adds: five columns and an index on the history table, the rollup table, the version
     /// column on the state table, the interrupt column on the fired-trigger table, and the misfire threshold
-    /// column on the triggers table.
+    /// and fixed-delay columns on the triggers table.
     /// </summary>
     [Test]
     public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnly()
@@ -195,7 +195,7 @@ public sealed class OracleWeaselSchemaTest
 
             changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
                 [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGERS", SchemaPatchDifference.Update)],
-                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table: " + Describe(planned));
+                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table, and 4.7 the fixed-delay column to it: " + Describe(planned));
 
             TableDelta history = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_EXECUTION_HISTORY", StringComparison.OrdinalIgnoreCase));
             history.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
@@ -219,8 +219,8 @@ public sealed class OracleWeaselSchemaTest
             fired.Columns.Extras.Should().BeEmpty();
 
             TableDelta triggers = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_TRIGGERS", StringComparison.OrdinalIgnoreCase));
-            triggers.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().Equal(["MISFIRE_THRESHOLD"],
-                "the one thing 4.6 adds to a trigger's row is its own misfire threshold (#4070)");
+            triggers.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(["MISFIRE_THRESHOLD", "FIXED_DELAY"],
+                "4.6 adds a trigger's own misfire threshold (#4070) and 4.7 whether it measures from completion (#4140)");
             triggers.Columns.Different.Should().BeEmpty("no column a 4.3 schema has is altered");
             triggers.Columns.Extras.Should().BeEmpty();
 
@@ -235,7 +235,7 @@ public sealed class OracleWeaselSchemaTest
         after.Indexes.Should().Contain(before.Indexes, "nor an index");
         afterDetails.Should().Contain(beforeDetails, "nor a type, a default or a key");
 
-        await ShouldMatchFreshInstallAsync(database, "what 4.4 and 4.6 added is all a 4.3 schema lacks");
+        await ShouldMatchFreshInstallAsync(database, "what 4.4, 4.6 and 4.7 added is all a 4.3 schema lacks");
         await ShouldHoldTheSeedAsync(database);
         await ShouldHoldTheHistoryRowWithNoOutcomeAsync(database);
     }

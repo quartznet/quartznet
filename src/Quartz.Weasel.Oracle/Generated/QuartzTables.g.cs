@@ -69,6 +69,7 @@ internal static partial class QuartzTables
         triggers.AddColumn("PAUSED_BY", "VARCHAR2(800)");
         triggers.AddColumn("PAUSED_AT", "NUMBER(19)");
         triggers.AddColumn("MISFIRE_THRESHOLD", "NUMBER(19)");
+        triggers.AddColumn("FIXED_DELAY", "VARCHAR2(1)");
         triggers.AddColumn("JOB_DATA", "BLOB");
         naming.PrimaryKey(triggers, "TRIGGERS");
         naming.ForeignKey(triggers, "JOB_DETAILS", ["SCHED_NAME", "JOB_NAME", "JOB_GROUP"], ["SCHED_NAME", "JOB_NAME", "JOB_GROUP"], cascade: false, "TRIGGER_TO_JOBS_FK");

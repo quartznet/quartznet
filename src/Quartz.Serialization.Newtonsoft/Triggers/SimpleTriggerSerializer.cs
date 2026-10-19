@@ -29,7 +29,8 @@ public class SimpleTriggerSerializer : TriggerSerializer<SimpleTriggerImpl>
 
         return SimpleScheduleBuilder.Create()
             .WithInterval(repeatInterval)
-            .WithRepeatCount(repeatCount);
+            .WithRepeatCount(repeatCount)
+            .MeasureIntervalFromCompletion(source.Value<bool?>("MeasureIntervalFromCompletion") ?? false);
     }
 
     /// <inheritdoc />
@@ -43,6 +44,13 @@ public class SimpleTriggerSerializer : TriggerSerializer<SimpleTriggerImpl>
 
         writer.WritePropertyName("TimesTriggered");
         writer.WriteValue(trigger.TimesTriggered);
+
+        // Only when set: a trigger at a fixed rate writes exactly the payload it wrote before 4.7 (#4140).
+        if (trigger.MeasureIntervalFromCompletion)
+        {
+            writer.WritePropertyName("MeasureIntervalFromCompletion");
+            writer.WriteValue(true);
+        }
     }
 
     /// <inheritdoc />
@@ -51,5 +59,8 @@ public class SimpleTriggerSerializer : TriggerSerializer<SimpleTriggerImpl>
         // This properties might not exist in the JSON if trigger was serialized with older version
         var timesTriggered = source.Value<int?>("TimesTriggered");
         trigger.TimesTriggered = timesTriggered ?? 0;
+
+        // Absent from every payload of a fixed-rate trigger and every one written before 4.7.
+        trigger.MeasureIntervalFromCompletion = source.Value<bool?>("MeasureIntervalFromCompletion") ?? false;
     }
 }

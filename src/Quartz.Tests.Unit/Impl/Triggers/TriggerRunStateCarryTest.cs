@@ -54,6 +54,7 @@ public sealed class TriggerRunStateCarryTest
         Func<ITrigger> simple = Simple(s => s.WithInterval(TimeSpan.FromHours(1)).WithRepeatCount(3));
         yield return Case("simple, another repeat count", simple, Simple(s => s.WithInterval(TimeSpan.FromHours(1)).WithRepeatCount(4)));
         yield return Case("simple, another interval", simple, Simple(s => s.WithInterval(TimeSpan.FromHours(2)).WithRepeatCount(3)));
+        yield return Case("simple, now measured from completion", simple, Simple(s => s.WithInterval(TimeSpan.FromHours(1)).WithRepeatCount(3).MeasureIntervalFromCompletion()));
 
         Func<ITrigger> cron = Cron("0 0 2 * * ?", plusTwo);
         yield return Case("cron, another expression", cron, Cron("0 0 3 * * ?", plusTwo));

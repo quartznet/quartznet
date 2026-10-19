@@ -114,4 +114,17 @@ public readonly record struct TriggerAcquireResult(TriggerKey TriggerKey, string
     /// counts that group's firings under, so that one of them ending wakes the scheduler for it (#4033).
     /// </remarks>
     internal string? LimitTriggerGroup { get; init; }
+
+    /// <summary>
+    /// Whether the trigger measures its interval from the previous run's completion, as its row's
+    /// <c>FIXED_DELAY</c> says (#4140).
+    /// </summary>
+    /// <remarks>
+    /// Such a trigger is held while it runs, as a <see cref="Quartz.OverlapPolicy.BufferOne" /> one is, and its
+    /// fire stores it held against the paused groups, which only the lock keeps still, so a candidate that
+    /// says so makes the round take it. Every dialect Quartz ships reads it. A delegate that does not
+    /// answers <see langword="false" />, and a round that claims such a trigger without the lock rolls back
+    /// at the fire and runs again under it.
+    /// </remarks>
+    public bool MeasureIntervalFromCompletion { get; init; }
 }

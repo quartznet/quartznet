@@ -183,6 +183,7 @@ internal sealed class JobSchedulingData
                 {
                     RepeatCount = Text(child, "repeat-count"),
                     RepeatInterval = Text(child, "repeat-interval"),
+                    MeasureIntervalFromCompletion = Flag(child, "measure-interval-from-completion", defaultValue: false),
                 }, child);
             }
 
@@ -440,6 +441,12 @@ internal sealed class SimpleTriggerDefinition : TriggerDefinition
     public string? RepeatCount { get; init; }
 
     public string? RepeatInterval { get; init; }
+
+    /// <summary>
+    /// The <c>measure-interval-from-completion</c> element: whether the interval is measured from the
+    /// previous run's completion. Absent is a fixed rate.
+    /// </summary>
+    public bool MeasureIntervalFromCompletion { get; init; }
 }
 
 /// <summary>

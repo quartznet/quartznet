@@ -332,6 +332,7 @@ internal static class TriggerRows
         AdoConstants.ColumnContinuationCondition,
         AdoConstants.ColumnOverlapPolicy,
         AdoConstants.ColumnMisfireThreshold,
+        AdoConstants.ColumnFixedDelay,
         AdoConstants.ColumnTriggerName,
         AdoConstants.ColumnTriggerGroup
     ];
@@ -373,6 +374,7 @@ internal static class TriggerRows
         DBNull.Value,
         DBNull.Value,
         0,
+        DBNull.Value,
         DBNull.Value,
         DBNull.Value,
         DBNull.Value,

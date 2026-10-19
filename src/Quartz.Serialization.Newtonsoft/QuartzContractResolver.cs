@@ -110,6 +110,13 @@ internal sealed class QuartzContractResolver : DefaultContractResolver
             property.NullValueHandling = NullValueHandling.Ignore;
         }
 
+        // Left out when it is false, so a fixed-rate simple trigger writes the object graph it wrote before
+        // a trigger could measure from completion (#4140).
+        if (member.DeclaringType == typeof(Quartz.Impl.Triggers.SimpleTriggerImpl) && member.Name == nameof(Quartz.Impl.Triggers.SimpleTriggerImpl.MeasureIntervalFromCompletion))
+        {
+            property.DefaultValueHandling = DefaultValueHandling.Ignore;
+        }
+
         return property;
     }
 

@@ -127,6 +127,17 @@
                 <span class="qz-muted" data-testid="trigger-editor-overlap-unavailable">@overlapReason</span>
             }
         </div>
+        @if (_form.OffersMeasureIntervalFromCompletion)
+        {
+            <div class="qz-form-group">
+                <label class="qz-form-label qz-live-filter-item"
+                       for="trigger-edit-measure-from-completion"
+                       title="Measure the interval from the previous run's completion rather than its scheduled time: the trigger never overlaps itself, and its overlap policy is not asked. Every node must be 4.7 or later">
+                    <input id="trigger-edit-measure-from-completion" type="checkbox" @bind="_form.MeasureIntervalFromCompletion" />
+                    <span>Interval measured from completion</span>
+                </label>
+            </div>
+        }
     </div>
 
     <h3>JobDataMap</h3>

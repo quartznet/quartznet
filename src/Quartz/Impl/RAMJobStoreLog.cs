@@ -63,4 +63,7 @@ internal static partial class RAMJobStoreLog
 
     [LoggerMessage(EventId = 2010, Level = LogLevel.Error, Message = "Misfire handling of trigger {TriggerKey} failed; the trigger is left as it was, to be handled again, and the rest goes on without it")]
     public static partial void TriggerMisfireHandlingFailed(this ILogger logger, TriggerKey triggerKey, Exception exception);
+
+    [LoggerMessage(EventId = 2011, Level = LogLevel.Error, Message = "Next fire time of trigger {TriggerKey}, which measures from completion, could not be computed; it is let go with the fire time its firing left on it")]
+    public static partial void FixedDelayFireTimeFailed(this ILogger logger, TriggerKey triggerKey, Exception exception);
 }

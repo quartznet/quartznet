@@ -69,6 +69,7 @@ internal sealed class TriggerDetailsForm
         PreferredNodeName = original.PreferredNode is { IsAutomatic: false, Node: { } node } ? node : string.Empty;
         OverlapPolicy = original.OverlapPolicy.ToString();
         MisfireThreshold = original.MisfireThreshold is { } threshold ? SchedulingFileValues.FormatMisfireThreshold(threshold) : string.Empty;
+        MeasureIntervalFromCompletion = original is ISimpleTrigger { MeasureIntervalFromCompletion: true };
         JobDataMap = Copy(original.JobDataMap);
         MisfireOptions = OptionsFor(original);
 
@@ -126,6 +127,17 @@ internal sealed class TriggerDetailsForm
     /// the job store's.
     /// </summary>
     public string MisfireThreshold { get; set; }
+
+    /// <summary>
+    /// Whether the simple trigger measures its interval from the previous run's completion.
+    /// </summary>
+    public bool MeasureIntervalFromCompletion { get; set; }
+
+    /// <summary>
+    /// Whether the trigger is a simple one, the only kind that can measure from completion; the editor
+    /// offers the field only then, as <see cref="TriggerDetailsUpdate" /> refuses it for any other.
+    /// </summary>
+    public bool OffersMeasureIntervalFromCompletion => original is SimpleTriggerImpl;
 
     /// <summary>
     /// A copy of the trigger's map, which the map editor writes into. The trigger's own is never touched.
@@ -198,6 +210,13 @@ internal sealed class TriggerDetailsForm
         BuildPreferredNode(update, changes, errors);
         BuildOverlapPolicy(update, changes, errors);
         BuildMisfireThreshold(update, changes, errors);
+
+        bool measuresFromCompletion = original is ISimpleTrigger { MeasureIntervalFromCompletion: true };
+        if (OffersMeasureIntervalFromCompletion && MeasureIntervalFromCompletion != measuresFromCompletion)
+        {
+            update.WithMeasureIntervalFromCompletion(MeasureIntervalFromCompletion);
+            changes.Add(Changed("interval measured from", FromWhat(measuresFromCompletion), FromWhat(MeasureIntervalFromCompletion)));
+        }
 
         if (!JobDataMap.Equals(Copy(original.JobDataMap)))
         {
@@ -411,6 +430,9 @@ internal sealed class TriggerDetailsForm
 
     private static string DescribeThreshold(TimeSpan? threshold)
         => threshold is { } value ? SchedulingFileValues.FormatMisfireThreshold(value) : "store's";
+
+    private static string FromWhat(bool measureIntervalFromCompletion)
+        => measureIntervalFromCompletion ? "completion" : "scheduled time";
 
     private static List<MisfireOption> OptionsFor(ITrigger trigger)
     {

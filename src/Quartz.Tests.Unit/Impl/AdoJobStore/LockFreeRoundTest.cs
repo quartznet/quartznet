@@ -375,6 +375,43 @@ public sealed class LockFreeRoundTest
     }
 
     /// <summary>
+    /// A trigger that measures its interval from completion is held while it runs, and its fire stores it
+    /// held against the paused groups, which only the lock keeps still (#4140).
+    /// </summary>
+    [Test]
+    public async Task ACandidateThatMeasuresFromCompletionSendsTheRoundToTheLock()
+    {
+        GivenCandidates(Candidate("t1", fixedDelay: true));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 2);
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1"]);
+        round.LockName.Should().Be(TriggerAccess);
+        round.LockReason.Should().Be("overlap_policy", "the hold is the one a BufferOne firing takes, and is reported as one");
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == RoundEscalatedToLock,
+            "the candidate read said so, so the round escalated before it claimed anything");
+        logs.Entries.Should().NotContain(x => x.EventId.Id == RoundRolledBackForLock);
+    }
+
+    /// <summary>
+    /// A delegate that did not read whether a trigger measures from completion answers "no", and the fire
+    /// that finds the trigger does rolls the round back to the lock rather than store the hold without it.
+    /// </summary>
+    [Test]
+    public async Task ATriggerFoundMeasuringFromCompletionAfterTheClaimRollsTheRoundBack()
+    {
+        GivenCandidates(Candidate("t1"));
+        GivenTheTriggersReadBack(CreateTrigger("t1", FireTime, fixedDelay: true));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 2);
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1"]);
+        round.LockReason.Should().Be("definition_changed");
+        store.Transactions.Should().Be(2);
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == RoundRolledBackForLock);
+    }
+
+    /// <summary>
     /// A delegate that says it takes part in the round but did not read what the rule decides by — a
     /// subclass whose acquisition statement is 4.5's — gives the rule no answer, and no answer is "lock".
     /// </summary>
@@ -928,13 +965,15 @@ public sealed class LockFreeRoundTest
         DateTimeOffset? at = null,
         bool serial = false,
         OverlapPolicy policy = OverlapPolicy.Default,
-        string jobTypeName = null)
+        string jobTypeName = null,
+        bool fixedDelay = false)
     {
         return new TriggerAcquireResult(new TriggerKey(name, "g1"), jobTypeName ?? typeof(NoOpJob).AssemblyQualifiedName, null)
         {
             ConcurrentExecutionDisallowed = serial,
             NextFireTimeUtc = at ?? FireTime,
             OverlapPolicy = policy,
+            MeasureIntervalFromCompletion = fixedDelay,
         };
     }
 
@@ -947,7 +986,7 @@ public sealed class LockFreeRoundTest
         A.CallTo(() => driverDelegate.SelectTriggersToAcquire(A<ConnectionAndTransactionHolder>._, A<TriggerAcquisitionCriteria>._, A<CancellationToken>._))
             .ReturnsLazily(() => new ValueTask<List<TriggerAcquireResult>>(candidates.ToList()));
 
-        GivenTheTriggersReadBack(candidates.Select(x => CreateTrigger(x.TriggerKey.Name, x.NextFireTimeUtc ?? FireTime, x.OverlapPolicy ?? OverlapPolicy.Default)).ToArray());
+        GivenTheTriggersReadBack(candidates.Select(x => CreateTrigger(x.TriggerKey.Name, x.NextFireTimeUtc ?? FireTime, x.OverlapPolicy ?? OverlapPolicy.Default, x.MeasureIntervalFromCompletion)).ToArray());
     }
 
     private void GivenTheTriggersReadBack(params IOperableTrigger[] triggers)
@@ -957,14 +996,14 @@ public sealed class LockFreeRoundTest
                 new ValueTask<List<IOperableTrigger>>(triggers.Where(x => keys.Contains(x.Key)).Select(x => (IOperableTrigger) x.Clone()).ToList()));
     }
 
-    private static IOperableTrigger CreateTrigger(string name, DateTimeOffset nextFireTimeUtc, OverlapPolicy policy = OverlapPolicy.Default)
+    private static IOperableTrigger CreateTrigger(string name, DateTimeOffset nextFireTimeUtc, OverlapPolicy policy = OverlapPolicy.Default, bool fixedDelay = false)
     {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
             .WithIdentity(name, "g1")
             .ForJob(jobKey)
             .StartAt(nextFireTimeUtc)
             .WithOverlapPolicy(policy)
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever().MeasureIntervalFromCompletion(fixedDelay))
             .Build();
         trigger.NextFireTimeUtc = nextFireTimeUtc;
         return trigger;

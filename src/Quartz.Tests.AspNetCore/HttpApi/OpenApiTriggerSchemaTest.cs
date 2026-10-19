@@ -62,9 +62,10 @@ public class OpenApiTriggerSchemaTest
             .WithRecurrenceSchedule("FREQ=WEEKLY;BYDAY=MO,WE,FR")
             .Build(),
 
+        // Measured from completion, which a trigger body carries only when it is.
         TriggerBuilder.Create()
             .WithIdentity("simple", "group")
-            .WithSimpleSchedule(builder => builder.WithInterval(TimeSpan.FromMinutes(1)).WithRepeatCount(10))
+            .WithSimpleSchedule(builder => builder.WithInterval(TimeSpan.FromMinutes(1)).WithRepeatCount(10).MeasureIntervalFromCompletion())
             .Build()
     ];
 

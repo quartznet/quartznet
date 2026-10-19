@@ -646,6 +646,12 @@ partial class Build
                     oracle: "NUMBER(19) NULL",
                     sqlite: "BIGINT NULL",
                     firebird: "BIGINT DEFAULT NULL") with { AddedBy = "4.6" },
+                // Whether a simple trigger measures its interval from the previous run's completion; NULL
+                // is a fixed rate, which is what every row a node older than 4.7 writes reads as (#4140).
+                // On this table rather than SIMPLE_TRIGGERS because the firing round's candidate read, which
+                // reads this table alone, decides from it whether the round takes the lock. Never searched
+                // on, so it has no index.
+                Flag("FIXED_DELAY", required: false) with { AddedBy = "4.7" },
                 Blob("JOB_DATA", required: false),
             ],
             new SchemaForeignKey(JobKey, "JOB_DETAILS", JobKey, Cascade: false, OracleName: "TRIGGER_TO_JOBS_FK")),

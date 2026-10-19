@@ -980,6 +980,12 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     internal static readonly TimeSpan RetrySupersedeMargin = TimeSpan.FromSeconds(1);
 
     /// <summary>
+    /// Whether a retry gives way to the next scheduled occurrence when it would land at or beside it. A
+    /// simple trigger that measures its interval from completion says no (#4140).
+    /// </summary>
+    internal virtual bool RetryYieldsToNextOccurrence => true;
+
+    /// <summary>
     /// Moves the trigger's next fire time to the retry instant, if there is room for one before the
     /// next scheduled occurrence.
     /// </summary>
@@ -1008,8 +1014,9 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
 
         DateTimeOffset retryAt = now + delay;
 
-        // What the schedule says comes next, which the fire that just completed advanced this to.
-        DateTimeOffset? regularNext = NextFireTimeUtc;
+        // What the schedule says comes next, which the fire that just completed advanced this to. A
+        // trigger whose next occurrence is measured from its last attempt's completion has none yet.
+        DateTimeOffset? regularNext = RetryYieldsToNextOccurrence ? NextFireTimeUtc : null;
 
         if (regularNext is not null && retryAt + RetrySupersedeMargin >= regularNext.Value)
         {

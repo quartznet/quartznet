@@ -123,6 +123,7 @@ matching on its text is not.
 | 2008 | Error | `Quartz` | `"Fire of trigger {TriggerKey} failed; the rest of the batch fires without it"` |
 | 2009 | Error | `Quartz` | `"Trigger {TriggerKey} failed to fire {Failures} times in a row and is set to ERROR state; ResetTriggerFromErrorState returns it once the cause is fixed"` |
 | 2010 | Error | `Quartz` | `"Misfire handling of trigger {TriggerKey} failed; the trigger is left as it was, to be handled again, and the rest goes on without it"` |
+| 2011 | Error | `Quartz` | `"Next fire time of trigger {TriggerKey}, which measures from completion, could not be computed; it is let go with the fire time its firing left on it"` |
 | 3000 | Information | `Quartz` | `"Detected SQLite usage, changing to use SqliteLockHandler for in-memory locking"` |
 | 3001 | Information | `Quartz` | `"With SQLite we need to set AcquireTriggersWithinLock to true, changing"` |
 | 3002 | Information | `Quartz` | `"Detected usage of SQLiteDelegate - forcing transaction isolation level to 'Serializable'"` |
@@ -184,6 +185,7 @@ matching on its text is not.
 | 3058 | Warning | `Quartz` | `"Firing round rolled back and run again under TRIGGER_ACCESS: the job, overlap policy or execution group of trigger {TriggerKey} changed between the candidate read and the claim"` |
 | 3059 | Debug | `Quartz` | `"Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write"` |
 | 3060 | Debug | `Quartz` | `"Firing rounds take TRIGGER_ACCESS until the backlog clears: a round without it lost {ClaimsLost} claims to another node"` |
+| 3061 | Error | `Quartz` | `"Next fire time of trigger {TriggerKey}, which measures from completion, could not be computed; it is let go with the fire time its firing left on it"` |
 | 3100 | Debug | `Quartz` | `"Prepared SQL: {Sql}"` |
 | 3110 | Error | `Quartz` | `"Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."` |
 | 3111 | Debug | `Quartz` | `"Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown."` |
