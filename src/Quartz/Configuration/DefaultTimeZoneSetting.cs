@@ -60,11 +60,10 @@ internal static class DefaultTimeZoneSetting
         }
         catch (TimeZoneNotFoundException e)
         {
-            Throw.SchedulerConfigException(
+            throw new SchedulerConfigException(
                 $"Value '{id}' of '{key}' is not a time zone this system can resolve. Name it by an IANA id such as "
                 + $"'Europe/Helsinki' or a Windows id such as 'FLE Standard Time'. {e.Message}",
                 e);
-            return null!;
         }
     }
 }
