@@ -32,17 +32,19 @@ The compiler finds most of the 3.x → 4.0 work.
 
 An application on 4.5 compiles on 4.6 unchanged, unless it treats warnings as errors and has a cron literal
 that the new analyzer warning [`QZ0007`](tutorial/compile-time-checks.md#qz0007-wildcardsecondsfield)
-reports. The upgrade has a database migration:
-[`database/migrations/4.6/add_scheduler_version_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6)
-adds the nullable `QUARTZ_VERSION` column to `QRTZ_SCHEDULER_STATE`. A 4.6 node refuses to start
-without it; a 4.5 node never names it. A database that keeps its execution history can also take one
+reports. The upgrade has two database migrations, in
+[`database/migrations/4.6/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6):
+`add_scheduler_version_<db>.sql` adds the nullable `QUARTZ_VERSION` column to `QRTZ_SCHEDULER_STATE`, and
+`add_fired_trigger_interrupt_<db>.sql` adds the nullable `INTERRUPT_REQUESTED_TIME` column to
+`QRTZ_FIRED_TRIGGERS`. A 4.6 node refuses to start without them; a 4.5 node never names them. A database that keeps its execution history can also take one
 optional migration, [`4.6/add_execution_history_lookup_indexes`](../database/schema-changes.md#version-4-6):
 two indexes, performance only.
 
 To roll a cluster from 4.5:
 
-1. Run the migration while the 4.5 nodes are up.
-2. Roll the nodes. While any 4.5 node is live, every 4.6 firing round takes `TRIGGER_ACCESS` (event 3517).
+1. Run the migrations while the 4.5 nodes are up.
+2. Roll the nodes. While any 4.5 node is live, every 4.6 firing round takes `TRIGGER_ACCESS` (event 3517),
+   and an interrupt asked of a firing it runs goes unanswered (event 3520).
 3. The last 4.5 node stops. Once its row ages out, rounds of concurrent-allowed work take no lock (event 3518).
 
 Nothing else is configured, and rolling back to 4.5 needs nothing. See
@@ -58,6 +60,12 @@ Nothing else is configured, and rolling back to 4.5 needs nothing. See
 | `MisfiredTriggerUpdate.ExpectedNextFireTimeUtc` | `init`: the fire time the misfire pass read, which the guarded write holds the row to |
 | `SchedulerStateRecord.QuartzVersion` | `string?`, `init`: the node's stamp, `null` from a node older than 4.6 |
 | `AdoConstants.ColumnQuartzVersion` | `QUARTZ_VERSION` |
+| `IJobStore.RequestInterrupt(string fireInstanceId, …)` | Default interface member, `false`: records an interrupt asked of a firing another node runs. See [Interrupt requests](how-tos/custom-job-store.md#interrupt-requests) |
+| `IJobStore.GetInterruptRequests(…)` | Default interface member, empty: this node's firings that carry a request |
+| `DelegatingJobStore.RequestInterrupt`, `.GetInterruptRequests` | `virtual`; hand both on |
+| `OperationName.JobStore.RequestInterrupt` | `Quartz.JobStore.RequestInterrupt`, the span over a recorded request |
+| `AdoConstants.ColumnInterruptRequestedTime` | `INTERRUPT_REQUESTED_TIME` |
+| Log events `1039`, `1040`, `3519`, `3520` | A remote interrupt carried out, its read failed, a request recorded, a node that will never answer one |
 | `FiredTriggerRecord.ExecutionGroup` | `string?`, `init`: the execution group the firing's trigger carried, as written to `QRTZ_FIRED_TRIGGERS`; `null` for none |
 | `Quartz.TypeNameResolution.IsSupported` | Feature switch, MSBuild property `QuartzTypeNameResolutionSupport`. On by default; the `Quartz` package sets it off under `PublishTrimmed` and `PublishAot`. Off, a type name resolves only to a registered type. See [Feature switches](how-tos/trimming-and-native-aot.md#feature-switches) |
 | `Quartz.LegacyComponentKeys.IsSupported` | Feature switch, MSBuild property `QuartzLegacyComponentKeysSupport`. Same defaults. Off, a flat `quartz.*` key naming a component by type, or setting its properties by string, fails `AddQuartz` |
@@ -101,6 +109,8 @@ Behaviour that changed:
 | A misfire write, a trigger edit and a calendar update wrote the row by key | Each lands only while the row is as it was read; an edit that lost the race re-reads and re-applies | Nothing. A custom `IDriverDelegate` keeps the by-key write until it overrides the two new members |
 | `quartz.trigger.acquisition.duration` and `quartz.trigger.acquired` had no lock attributes | On the ADO.NET store they carry `quartz.jobstore.lock` and `quartz.jobstore.lock.reason` | A dashboard summing them keeps summing; one splitting on the new attributes sees one series per lock mode |
 | A node wrote `LAST_CHECKIN_TIME` at check-in | It writes `QUARTZ_VERSION` beside it | Run the migration |
+| On a clustered store, `Interrupt` and `InterruptFireInstance` reached only this node | They also record a request for a firing on another node and answer `true`; that node interrupts it after its next check-in. See [Interrupting a firing on another node](tutorial/advanced-enterprise-features.md#interrupting-a-firing-on-another-node) | Run the migration. `true` means interrupted or asked, not stopped |
+| A `CancelPrevious` firing that came due while the previous one ran on another node waited for it, as `BufferOne` | It starts, and asks that node to interrupt the previous one; it still waits for a firing on a 4.5 node (event `3044`, reworded) | Nothing. The two overlap for up to one check-in interval |
 | A recovery trigger had no execution group, so a recovered firing ignored its group's limit | It keeps the firing's group, after cluster recovery, a shutdown hand-back and startup recovery | Nothing |
 | A manual firing (`TriggerJob`, **Trigger now**, the HTTP API, agents, job chains) and a `RunAtStartup` run had no execution group, so they ignored the job's group limit and routing | They count against the job type's `[ExecutionGroup]`, else the group every trigger of the job shares. See [Manual and startup firings](tutorial/execution-groups.md#manual-and-startup-firings) | Nothing. A **Trigger now** of a `gpu` job now waits for a `gpu` slot, on a node that serves `gpu` |
 | A type name was resolved with `Type.GetType` | Resolved from the types registered in code first: `AddJob<T>()`, `AddJobType<T>()`, `JobBuilder.Create<T>()`, `Map(name, typeof(T))`; then `Type.GetType` while the switch is on | Nothing untrimmed. Trimmed, register every job type the application runs, including `Quartz.Jobs` types: `AddJobType<NoOpJob>()` |

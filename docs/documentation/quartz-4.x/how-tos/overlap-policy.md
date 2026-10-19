@@ -104,9 +104,12 @@ public sealed class ReportJob : IJob
 | The running firing is on | Then |
 |---|---|
 | This node | It is interrupted: `JobInterrupted` is raised, and log event [`1037`](../log-events.md) |
-| Another node of a cluster | It cannot be interrupted from here, so the trigger waits for it, as `BufferOne`; log event [`3044`](../log-events.md) |
+| Another 4.6 node of a cluster | The new firing starts; a request is recorded on the running firing (log event [`3519`](../log-events.md)), and that node interrupts it after its next check-in (log event [`1039`](../log-events.md)). From 4.6 |
+| A node older than 4.6 | It cannot be asked, so the trigger waits for it, as `BufferOne`; log event [`3044`](../log-events.md) |
 
-A job that ignores its token runs on beside the new firing.
+* A job that ignores its token runs on beside the new firing.
+* Across nodes the two firings overlap for up to one check-in interval, 7.5 seconds by default. See
+  [Interrupting a firing on another node](../tutorial/advanced-enterprise-features.md#interrupting-a-firing-on-another-node).
 
 ## Change a policy
 

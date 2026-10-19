@@ -579,10 +579,12 @@ Before pointing one at production:
 
 - **One target is one process.** Behind a load balancer, node-local operations land on whichever node the
   balancer picks, and two page renders may reach two nodes.
-  - Node-local: **interrupting a firing** (must reach the running node), **start, stand-by and shutdown** (act on
-    the answering node), **node-scoped execution limits**, the node's figures in the scheduler details (instance
-    id, running since, jobs executed, jobs executing here), and **live events** (the answering node's; each names
-    its node).
+  - Node-local: **interrupting a firing** (must reach the running node, unless the store is clustered and every
+    node is 4.6: then the answering node records a request the running node acts on after its next check-in, see
+    [Interrupting a firing on another node](../tutorial/advanced-enterprise-features.md#interrupting-a-firing-on-another-node)),
+    **start, stand-by and shutdown** (act on the answering node), **node-scoped execution limits**, the node's
+    figures in the scheduler details (instance id, running since, jobs executed, jobs executing here), and **live
+    events** (the answering node's; each names its node).
   - Not node-local: with a persistent store, jobs, triggers and [firings in flight](#currently-executing) are the
     whole cluster's whichever node answers.
   - Point one target at each node's own address, and the dashboard shows the nodes as
