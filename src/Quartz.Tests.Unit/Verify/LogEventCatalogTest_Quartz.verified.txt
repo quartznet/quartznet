@@ -344,6 +344,8 @@
     "Interrupt of fire instance {FireInstanceId} requested of node {SchedulerInstanceId}, which cancels the job's token after its next check-in"
 3520  Warning  ClusterLog.InterruptRequestsUndeliverable
     "Interrupt requests for firings on node {SchedulerInstanceId} (Quartz {QuartzVersion}) are recorded but never answered: a node reads them from Quartz {InterruptRequestsSince}. Interrupt its firings through that node, or upgrade it"
+3521  Information  ClusterLog.NoLivePeerKeepsRoundsLocked
+    "Firing rounds take TRIGGER_ACCESS while no other live node is in the cluster: on SQL Server a round takes no lock only beside another live node of Quartz {LockFreeRoundsSince} or later"
 3600  Information  MisfireLog.HandlingFirstMisfiredTriggers
     "Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed."
 3601  Information  MisfireLog.HandlingMisfiredTriggers

@@ -103,6 +103,11 @@ internal static partial class ClusterLog
     [LoggerMessage(EventId = 3518, Level = LogLevel.Information, Message = "Every live node ({PeerCount} beside this one) is Quartz {LockFreeRoundsSince} or later: a firing round of work that allows concurrent execution takes no TRIGGER_ACCESS lock")]
     public static partial void EveryPeerAllowsLockFreeRounds(this ILogger logger, int peerCount, Version lockFreeRoundsSince);
 
+    // Information, once per transition, beside 3517 and 3518: a SQL Server node alone in its cluster keeps
+    // 4.5's rounds, which are the faster ones with no other node to contend with (#4117).
+    [LoggerMessage(EventId = 3521, Level = LogLevel.Information, Message = "Firing rounds take TRIGGER_ACCESS while no other live node is in the cluster: on SQL Server a round takes no lock only beside another live node of Quartz {LockFreeRoundsSince} or later")]
+    public static partial void NoLivePeerKeepsRoundsLocked(this ILogger logger, Version lockFreeRoundsSince);
+
     // An interrupt asked of a firing another node runs (#4071): recorded on its row, and acted on by that
     // node after its next check-in.
     [LoggerMessage(EventId = 3519, Level = LogLevel.Information, Message = "Interrupt of fire instance {FireInstanceId} requested of node {SchedulerInstanceId}, which cancels the job's token after its next check-in")]

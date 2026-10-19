@@ -263,7 +263,8 @@ internal abstract partial class AdoJobStoreBase
     /// Two exceptions keep the folded round, as 4.5 did or as 4.6 promises: <see cref="AcquireTriggersWithinLock" />,
     /// which asks for the acquisition under the lock, and a cluster-scoped execution limit, whose count is
     /// exact only when the acquisition holds the lock — unless the rounds are 4.5's by configuration: the
-    /// option off, or a SQL Server database without <c>READ_COMMITTED_SNAPSHOT</c> (#4117).
+    /// option off, a SQL Server database without <c>READ_COMMITTED_SNAPSHOT</c>, or a SQL Server node with no
+    /// other live node beside it (#4117).
     /// </para>
     /// </remarks>
     internal bool FiresRoundOfOneAsIn45(TriggerAcquisitionRequest request, RoundLockReason? lockReason)
@@ -273,7 +274,7 @@ internal abstract partial class AdoJobStoreBase
             return false;
         }
 
-        return reason is RoundLockReason.OptionOff or RoundLockReason.ReadCommittedSnapshotOff
+        return reason is RoundLockReason.OptionOff or RoundLockReason.ReadCommittedSnapshotOff or RoundLockReason.NoLivePeer
                || request.ExecutionLimits?.HasClusterScopedLimits != true;
     }
 
@@ -588,9 +589,10 @@ internal abstract partial class AdoJobStoreBase
             return configured;
         }
 
-        if (!PeersAllowLockFreeRounds)
+        // An older live node, or — for SQL Server — no other live node to run beside (#4117).
+        if (PeerRoundLockReason is { } peers)
         {
-            return RoundLockReason.OlderPeer;
+            return peers;
         }
 
         // The quota's count is read under the lock, and the docs promise each node adds at most one.

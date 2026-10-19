@@ -38,7 +38,8 @@ namespace Quartz.Benchmark;
 /// commits are the database's <c>Transactions/sec</c> counter, statements are
 /// <c>sys.dm_exec_query_stats</c>' executions under the database (the plan cache is cleared at the start of
 /// each window), and there is no "no reset" arm, which is an Npgsql setting. The run says whether the
-/// database has <c>READ_COMMITTED_SNAPSHOT</c> on, which decides whether its rounds take no lock.
+/// database has <c>READ_COMMITTED_SNAPSHOT</c> on. The census node is not clustered, so on SQL Server its
+/// rounds are 4.5's either way (<c>no_live_peer</c>): the two arms should be level, which is what they check.
 /// </para>
 /// </remarks>
 internal static class OneOffCensus
@@ -111,7 +112,7 @@ internal static class OneOffCensus
                 ? "sys.dm_exec_query_stats is readable; the statement columns are counts, and the commits are the database's Transactions/sec counter."
                 : "sys.dm_exec_query_stats is NOT readable by this login (VIEW SERVER STATE), so the statement columns are blank.");
             Console.WriteLine(await database.Scalar("SELECT CAST(is_read_committed_snapshot_on AS int) FROM sys.databases WHERE database_id = DB_ID()").ConfigureAwait(false) == 1
-                ? "READ_COMMITTED_SNAPSHOT is ON: firing rounds may take no lock, and fire apart."
+                ? "READ_COMMITTED_SNAPSHOT is ON. The census node is not clustered, so its rounds are 4.5's all the same (no_live_peer)."
                 : "READ_COMMITTED_SNAPSHOT is OFF: every firing round is locked, as 4.5's were.");
         }
         else

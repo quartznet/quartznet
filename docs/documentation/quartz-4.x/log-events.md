@@ -230,6 +230,7 @@ matching on its text is not.
 | 3518 | Information | `Quartz` | `"Every live node ({PeerCount} beside this one) is Quartz {LockFreeRoundsSince} or later: a firing round of work that allows concurrent execution takes no TRIGGER_ACCESS lock"` |
 | 3519 | Information | `Quartz` | `"Interrupt of fire instance {FireInstanceId} requested of node {SchedulerInstanceId}, which cancels the job's token after its next check-in"` |
 | 3520 | Warning | `Quartz` | `"Interrupt requests for firings on node {SchedulerInstanceId} (Quartz {QuartzVersion}) are recorded but never answered: a node reads them from Quartz {InterruptRequestsSince}. Interrupt its firings through that node, or upgrade it"` |
+| 3521 | Information | `Quartz` | `"Firing rounds take TRIGGER_ACCESS while no other live node is in the cluster: on SQL Server a round takes no lock only beside another live node of Quartz {LockFreeRoundsSince} or later"` |
 | 3600 | Information | `Quartz` | `"Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed."` |
 | 3601 | Information | `Quartz` | `"Handling {Count} trigger(s) that missed their scheduled fire-time."` |
 | 3602 | Debug | `Quartz` | `"Found 0 triggers that missed their scheduled fire-time."` |

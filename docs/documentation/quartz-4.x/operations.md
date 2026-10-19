@@ -733,7 +733,7 @@ lock. A round of triggers whose jobs allow concurrent execution claims each row 
 its fire time and fires in the same transaction, with no cluster-wide lock, so the nodes of a cluster fire
 side by side. `LockFreeFiringRounds = false` (`quartz.jobStore.lockFreeFiringRounds`) restores 4.5. On
 SQL Server, since 4.7, they need [`READ_COMMITTED_SNAPSHOT`](db/index.md#sql-server-read-committed-snapshot)
-on; see [SQL Server](#sql-server) below.
+on and a cluster of two or more live 4.7 nodes; see [SQL Server](#sql-server) below.
 
 What still takes the lock, by the `quartz.jobstore.lock.reason` value that reports it:
 
@@ -743,6 +743,7 @@ What still takes the lock, by the `quartz.jobstore.lock.reason` value that repor
 | `overlap_policy` | A candidate's trigger has `Skip`, `BufferOne` or `CancelPrevious`, or is [measured from completion](tutorial/simpletriggers.md#measured-from-completion) | Nothing; `Default` and `AllowAll` need no lock |
 | `cluster_limit` | The node has a cluster-scoped execution limit | Nothing; the lock is what makes the ceiling exact |
 | `older_peer` | A live node is older than 4.6 (4.7 on SQL Server), or this node has not checked in yet | Finish the rolling upgrade; see below |
+| `no_live_peer` | SQL Server, and the store is not clustered or no other live node is in its cluster | Nothing; a single node's fastest round is 4.5's |
 | `hysteresis` | The round before this one escalated | Nothing; a locked round that needed the lock for nothing ends it |
 | `contention` | A round without the lock lost a claim to another node | Nothing; a locked round that comes back short ends it, or 2 s |
 | `definition_changed` | A job or trigger was replaced between the round's read and its claim, or moved to an execution group this node does not serve | Nothing; the round ran again under the lock |
@@ -772,13 +773,23 @@ see whether the nodes still contend.
 | `Quartz.JobStore.AcquireNextTriggers` span | The same two attributes |
 | Event 3056 at startup | Whether the store's configuration allows lock-free rounds at all, and what locks every round if not |
 | Events 3517 and 3518 | A cluster's rounds locked for an older node, and freed once every live node is 4.6 (4.7 on SQL Server) |
+| Event 3521 | A SQL Server node's rounds locked while no other live node is in its cluster |
 | Events 3062 and 3063 | A SQL Server round's fire handed to the scheduler under the lock |
 
 ### SQL Server
 
-A round takes no lock on SQL Server only while the database has
-[`READ_COMMITTED_SNAPSHOT`](db/index.md#sql-server-read-committed-snapshot) on. Without it, every round
-is 4.5's, reason `read_committed_snapshot_off`.
+A round takes no lock on SQL Server only in a cluster of two or more live 4.7 nodes, because that is
+where it helps, and only while the database has
+[`READ_COMMITTED_SNAPSHOT`](db/index.md#sql-server-read-committed-snapshot) on. Otherwise every round is
+4.5's:
+
+| Reason | When |
+|---|---|
+| `no_live_peer` | The store is not clustered, or the last check-in found no other live node (event 3521, once per change) |
+| `read_committed_snapshot_off` | The database has `READ_COMMITTED_SNAPSHOT` off |
+
+A single node has no `TRIGGER_ACCESS` contention to save. A round without the lock costs it extra statements
+and commits, and on one node the one-off census fired 9–28% fewer triggers a second with it.
 
 With it, a round without the lock is two transactions, neither under the lock:
 
@@ -793,7 +804,7 @@ With it, a round without the lock is two transactions, neither under the lock:
   completion, between the two sends the round's due triggers back to the scheduler, which fires them under
   the lock (event 3062, Warning). So does a fire that fails (event 3063, Warning).
 - Every live node has to be 4.7. A 4.6 node locks every SQL Server round, and while one is live its 4.7
-  peers do too (`older_peer`).
+  peers do too (`older_peer`). A node whose peers have all gone keeps the lock until one is live again.
 - A locked round is unchanged: a round of one is 4.5's two transactions, and a larger one is folded
   under the lock.
 

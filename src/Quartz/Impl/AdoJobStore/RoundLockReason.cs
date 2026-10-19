@@ -28,7 +28,8 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <remarks>
 /// In the order the rule asks them. The first six are a property of the store and are decided once;
-/// <see cref="OlderPeer" /> and <see cref="ClusterLimit" /> are decided per round before its first read;
+/// <see cref="OlderPeer" />, <see cref="NoLivePeer" /> and <see cref="ClusterLimit" /> are decided per round
+/// before its first read, though <see cref="NoLivePeer" /> is the store's for good when it is not clustered;
 /// <see cref="SerialJob" />, <see cref="OverlapPolicy" /> and <see cref="Delegate" /> are what the
 /// candidate read can show; <see cref="DefinitionChanged" /> is what the post-claim read can show; and
 /// <see cref="Hysteresis" /> is a round locked because the one before it had to be.
@@ -62,6 +63,13 @@ internal enum RoundLockReason
     /// Server — or no check-in has read the state table yet.
     /// </summary>
     OlderPeer,
+
+    /// <summary>
+    /// The dialect's lock-free rounds help only beside another live node, and none is live: the store is not
+    /// clustered, or the last check-in found no other live node (#4117). SQL Server: a single node has no
+    /// <c>TRIGGER_ACCESS</c> contention to save, and would pay the split round's extra statements for nothing.
+    /// </summary>
+    NoLivePeer,
 
     /// <summary>The request carries a cluster-scoped execution limit, whose count is read under the lock.</summary>
     ClusterLimit,
@@ -106,6 +114,7 @@ internal static class RoundLockReasons
         RoundLockReason.Delegate => "delegate",
         RoundLockReason.ReadCommittedSnapshotOff => "read_committed_snapshot_off",
         RoundLockReason.OlderPeer => "older_peer",
+        RoundLockReason.NoLivePeer => "no_live_peer",
         RoundLockReason.ClusterLimit => "cluster_limit",
         RoundLockReason.SerialJob => "serial_job",
         RoundLockReason.OverlapPolicy => "overlap_policy",
@@ -127,6 +136,8 @@ internal static class RoundLockReasons
             "the SQL Server database does not have READ_COMMITTED_SNAPSHOT on, so firing rounds work as in 4.5; "
             + "turn it on with ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE and restart the scheduler",
         RoundLockReason.OlderPeer => "a live node is older than lock-free rounds allow (4.6, or 4.7 on SQL Server), or no check-in has read the state table yet",
+        RoundLockReason.NoLivePeer =>
+            "the store is not clustered, or no other live node is in its cluster, and SQL Server's lock-free rounds help only beside one, so firing rounds work as in 4.5",
         RoundLockReason.ClusterLimit => "the round counts against a cluster-scoped execution limit",
         RoundLockReason.SerialJob => "a candidate's job disallows concurrent execution",
         RoundLockReason.OverlapPolicy => "a candidate's overlap policy, or its hold while it runs, is decided under the lock",

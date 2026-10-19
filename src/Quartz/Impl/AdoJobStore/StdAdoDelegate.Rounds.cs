@@ -123,6 +123,18 @@ public partial class StdAdoDelegate
     internal virtual bool FiresLockFreeRoundsApart => false;
 
     /// <summary>
+    /// Whether a firing round on this dialect takes no lock only while another live node is in the cluster
+    /// (#4117): a store that is not clustered, and a clustered node alone, keep 4.5's rounds.
+    /// </summary>
+    /// <remarks>
+    /// False here: the folded round is faster than 4.5's on a single PostgreSQL node too. SQL Server says
+    /// true. A single node has no <c>TRIGGER_ACCESS</c> contention to save, and its split round costs
+    /// statements and commits 4.5's does not: on one node the one-off census fired up to 28% fewer triggers
+    /// a second with it.
+    /// </remarks>
+    internal virtual bool LockFreeRoundsNeedLivePeer => false;
+
+    /// <summary>
     /// The release every live peer of a cluster must be for a firing round on this dialect to take no lock
     /// (#4067): 4.6, whose writers hold their writes to the row as read.
     /// </summary>
