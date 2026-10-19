@@ -350,11 +350,12 @@ internal abstract partial class AdoJobStoreBase
                     // read here rather than derived from anything this node remembers. One aggregate per
                     // attempt, and none at all unless a cluster-scoped limit is configured - which is also
                     // why an override that already answered the question is left alone.
-                    if (criteria.ClusterInFlight is null && criteria.ExecutionLimits?.HasClusterScopedLimits == true)
+                    if (criteria.ClusterInFlight is null && criteria.ExecutionLimits is { HasClusterScopedLimits: true } clusterLimits)
                     {
+                        List<ExecutionGroupInFlight> inFlight = await Delegate.SelectExecutionGroupsInFlight(conn, cancellationToken).ConfigureAwait(false);
                         criteria = criteria with
                         {
-                            ClusterInFlight = await Delegate.SelectExecutionGroupsInFlight(conn, cancellationToken).ConfigureAwait(false),
+                            ClusterInFlight = await CountRecoveredFiringsUnderTheirOwnGroup(conn, inFlight, clusterLimits.UsesTriggerGroupWhenUnset, cancellationToken).ConfigureAwait(false),
                         };
                     }
 
@@ -419,7 +420,7 @@ internal abstract partial class AdoJobStoreBase
                             groupsAtLimit ??= new HashSet<string>(StringComparer.Ordinal);
                             groupsAtLimit.Add(ExecutionLimits.ResolveGroupKey(
                                 candidate.ExecutionGroup,
-                                candidate.TriggerKey.Group,
+                                candidate.LimitTriggerGroup ?? candidate.TriggerKey.Group,
                                 criteria.ExecutionLimits?.UsesTriggerGroupWhenUnset == true));
                         }
                     }
@@ -765,6 +766,62 @@ internal abstract partial class AdoJobStoreBase
     /// trigger after its idle wait, as before.
     /// </remarks>
     internal virtual bool AsksAfterPinnedTriggersHeld => Clustered && Delegate is StdAdoDelegate { IsShipped: true };
+
+    /// <summary>
+    /// The cluster's in-flight work as the delegate counted it, with each recovered firing that has no
+    /// execution group counted under the trigger group it replays rather than the recovery group, where the
+    /// limits derive a group from the trigger group (#4142).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The delegate counts fired rows by their pair of groups, and a recovered firing's row is in
+    /// <see cref="SchedulerConstants.DefaultRecoveryGroup" />. Only the recovery trigger's data map names the
+    /// group it replays, so those firings are read one by one, as acquisition reads such a candidate.
+    /// </para>
+    /// <para>
+    /// The pair is rare - a recovery trigger fires once - so the rest of the time this costs nothing: no pair
+    /// in the recovery group, or limits that do not derive a group, and the count is returned as it came.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The acquisition's connection.</param>
+    /// <param name="inFlight">What the delegate counted.</param>
+    /// <param name="useTriggerGroupWhenUnset">Whether the limits derive a group from the trigger group.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask<List<ExecutionGroupInFlight>> CountRecoveredFiringsUnderTheirOwnGroup(
+        ConnectionAndTransactionHolder conn,
+        List<ExecutionGroupInFlight> inFlight,
+        bool useTriggerGroupWhenUnset,
+        CancellationToken cancellationToken)
+    {
+        int recovered = inFlight.FindIndex(x => ExecutionLimits.NeedsOriginalTriggerGroup(x.ExecutionGroup, x.TriggerGroup, useTriggerGroupWhenUnset));
+        if (recovered < 0)
+        {
+            return inFlight;
+        }
+
+        PagedResult<FireInstance> firings = await Delegate.SelectFireInstances(
+            conn,
+            new FireInstanceQuery
+            {
+                TriggerGroup = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultRecoveryGroup),
+                State = null,
+                Take = PagedQuery.All
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        List<ExecutionGroupInFlight> counted = [.. inFlight];
+        counted.RemoveAt(recovered);
+        foreach (FireInstance firing in firings.Items)
+        {
+            if (firing.ExecutionGroup is null)
+            {
+                JobDataMap jobDataMap = await Delegate.SelectTriggerJobDataMap(conn, firing.TriggerKey, cancellationToken).ConfigureAwait(false);
+                counted.Add(new ExecutionGroupInFlight(null, ExecutionLimits.LimitTriggerGroup(firing.TriggerKey, jobDataMap), 1));
+            }
+        }
+
+        return counted;
+    }
 
     /// <summary>
     /// What one acquisition took, and how many due triggers a running firing holds back from it: ones it

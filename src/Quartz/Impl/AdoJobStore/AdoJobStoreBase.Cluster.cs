@@ -836,10 +836,11 @@ internal abstract partial class AdoJobStoreBase
     /// </para>
     /// <para>
     /// The trigger keeps the execution group the firing's row carries, so the replay counts against the
-    /// same limit (#4081). Known limitation: a trigger with no execution group of its own, limited under
-    /// <see cref="ExecutionLimitsBuilder.UseTriggerGroupWhenUnset" />, is limited under
-    /// <see cref="SchedulerConstants.DefaultRecoveryGroup" /> once recovered, because that derivation reads
-    /// the recovery trigger's group.
+    /// same limit (#4081). A firing with no execution group of its own, limited under
+    /// <see cref="ExecutionLimitsBuilder.UseTriggerGroupWhenUnset" />, is limited under the group its data
+    /// map's <see cref="SchedulerConstants.FailedJobOriginalTriggerGroup" /> names rather than
+    /// <see cref="SchedulerConstants.DefaultRecoveryGroup" />: see <c>ExecutionLimits.LimitTriggerGroup</c>
+    /// (#4142).
     /// </para>
     /// </remarks>
     /// <param name="conn">The unit of work.</param>

@@ -400,6 +400,85 @@ public sealed class ExecutionLimits
     }
 
     /// <summary>
+    /// The key a trigger's firing counts against: <see cref="ResolveGroupKey(string?, string, bool)" />,
+    /// with a recovery trigger limited as the trigger whose firing it replays.
+    /// </summary>
+    /// <remarks>
+    /// The data map is read only when the derivation needs it, so a trigger with an execution group, or
+    /// limits that do not derive one, cost nothing more than before.
+    /// </remarks>
+    internal static string ResolveGroupKeyOf(ITrigger trigger, bool useTriggerGroupWhenUnset)
+    {
+        string triggerGroup = NeedsOriginalTriggerGroup(trigger.ExecutionGroup, trigger.Key.Group, useTriggerGroupWhenUnset)
+            ? LimitTriggerGroup(trigger)
+            : trigger.Key.Group;
+
+        return ResolveGroupKey(trigger.ExecutionGroup, triggerGroup, useTriggerGroupWhenUnset);
+    }
+
+    /// <inheritdoc cref="LimitTriggerGroup(TriggerKey, JobDataMap)" />
+    /// <remarks>
+    /// Reads the data map only of a trigger in the recovery group: a trigger's map is created on first
+    /// read, and acquisition asks this of every candidate.
+    /// </remarks>
+    internal static string LimitTriggerGroup(ITrigger trigger)
+    {
+        return IsRecoveryGroup(trigger.Key.Group) ? LimitTriggerGroup(trigger.Key, trigger.JobDataMap) : trigger.Key.Group;
+    }
+
+    /// <summary>
+    /// The trigger group a trigger's limit is derived from when <see cref="UsesTriggerGroupWhenUnset" />
+    /// stands one in for an execution group: its own, or for a recovery trigger the group of the trigger
+    /// whose firing it replays (#4142).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A recovery trigger is stored in <see cref="SchedulerConstants.DefaultRecoveryGroup" />, and each
+    /// path that makes one — cluster recovery, a firing a shutdown hands back, a node recovering its own
+    /// firings as it starts — writes the original trigger's group into its data map under
+    /// <see cref="SchedulerConstants.FailedJobOriginalTriggerGroup" />. Deriving the key from the recovery
+    /// group would let the replay run beside the firings its own group's limit holds back, and leave that
+    /// group's in-flight count short until the replay ended.
+    /// </para>
+    /// <para>
+    /// Only the limit key reads the recovery group this way. The trigger's key, what the job is told, what
+    /// a matcher selects and the execution group a node routes by are unchanged.
+    /// </para>
+    /// </remarks>
+    /// <param name="triggerKey">The trigger's key.</param>
+    /// <param name="jobDataMap">The trigger's data map.</param>
+    internal static string LimitTriggerGroup(TriggerKey triggerKey, JobDataMap jobDataMap)
+    {
+        if (IsRecoveryGroup(triggerKey.Group)
+            && jobDataMap.TryGetValue(SchedulerConstants.FailedJobOriginalTriggerGroup, out object? original)
+            && original is string { Length: > 0 } originalGroup)
+        {
+            return originalGroup;
+        }
+
+        return triggerKey.Group;
+    }
+
+    /// <summary>
+    /// Whether resolving a firing's key needs the original group a recovery trigger's data map carries:
+    /// the firing has no execution group, the limits derive one from the trigger group, and the trigger
+    /// group is the recovery group.
+    /// </summary>
+    /// <remarks>
+    /// A store that reads its candidates without their data maps asks this first, so that only a recovery
+    /// trigger costs it a read.
+    /// </remarks>
+    internal static bool NeedsOriginalTriggerGroup(string? executionGroup, string triggerGroup, bool useTriggerGroupWhenUnset)
+    {
+        return executionGroup is null && useTriggerGroupWhenUnset && IsRecoveryGroup(triggerGroup);
+    }
+
+    private static bool IsRecoveryGroup(string triggerGroup)
+    {
+        return string.Equals(triggerGroup, SchedulerConstants.DefaultRecoveryGroup, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Tells whether a configuration key names the default (ungrouped) bucket.
     /// </summary>
     internal static bool IsDefaultGroupAlias(string key)

@@ -152,6 +152,36 @@ public sealed class SchedulerLoopExecutionLimitWakeTest
     }
 
     /// <summary>
+    /// A recovered firing of a trigger with no execution group holds a slot of the group of the trigger it
+    /// replays, not of the recovery group (#4142): the store takes the slot under that group, and the loop
+    /// counts the running firing under it, so the group's other due trigger waits until the replay ends.
+    /// </summary>
+    [Test]
+    public async Task ARecoveredFiringHoldsTheSlotOfTheTriggerGroupItReplays()
+    {
+        scheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create().ForGroup(Batch, 1).UseTriggerGroupWhenUnset().Build());
+        await GivenDueRecoveryOf(Batch, "recover_dead-node_1");
+        await GivenDueTrigger("second", executionGroup: null, triggerGroup: Batch);
+
+        StartLoop();
+
+        await ShouldObserve(GatedJob.Started.Reaches(1), "the replay is first in line, and takes the batch group's one slot");
+        await ShouldObserve(clock.Armed(IdleWait), "the batch group's other trigger is held back, so the loop parks in its idle wait");
+
+        // Counted on the thread pool rather than on the jobs, which start on tasks of their own: the loop
+        // hands a firing over before it parks, so this count is settled once it has.
+        Fake.GetCalls(threadPool).Count(call => call.Method.Name == nameof(IThreadPool.TryRunWithState)).Should().Be(1,
+            "the running replay is counted under the batch group, whose limit of one it fills; counted under the recovery group, "
+            + "the next round would have run the second trigger beside it");
+        GatedJob.Started.Entries.Should().Equal(["recover_dead-node_1"]);
+
+        GatedJob.Release("recover_dead-node_1");
+
+        await ShouldObserve(GatedJob.Started.Reaches(2), "the replay's end gives the batch group's slot back, and wakes the loop for the trigger waiting on it");
+        GatedJob.Started.Entries[^1].Should().Be("second");
+    }
+
+    /// <summary>
     /// A completion is a wake only for the group whose limit held something back. Another group's firing
     /// ending frees a slot nothing is waiting for, and waking the loop for it would be a round for nothing
     /// on every completion while the first group stays full.
@@ -240,6 +270,29 @@ public sealed class SchedulerLoopExecutionLimitWakeTest
             .WithIdentity(name, triggerGroup)
             .ForJob(job)
             .WithExecutionGroup(executionGroup)
+            .StartAt(start)
+            .Build();
+
+        trigger.ComputeFirstFireTimeUtc(calendar: null);
+        await store.ScheduleJob(job, trigger);
+    }
+
+    /// <summary>
+    /// A recovery trigger as the ADO.NET store builds one: in the recovery group, with no execution group,
+    /// and with the replayed trigger's key in its data map. Ahead of every other due trigger by priority.
+    /// </summary>
+    private async Task GivenDueRecoveryOf(string originalTriggerGroup, string name)
+    {
+        IJobDetail job = JobBuilder.Create<GatedJob>()
+            .WithIdentity(name, "loop")
+            .Build();
+
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(name, SchedulerConstants.DefaultRecoveryGroup)
+            .ForJob(job)
+            .WithPriority(10)
+            .UsingJobData(SchedulerConstants.FailedJobOriginalTriggerName, "original")
+            .UsingJobData(SchedulerConstants.FailedJobOriginalTriggerGroup, originalTriggerGroup)
             .StartAt(start)
             .Build();
 
