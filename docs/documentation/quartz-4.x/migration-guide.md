@@ -49,6 +49,7 @@ Behaviour that changed:
 | `InTimeZone(null)` meant `TimeZoneInfo.Local` | It names no zone, so the trigger takes `DefaultTimeZone`: `TimeZoneInfo.Local` unless configured | Nothing. With a default set, pass `TimeZoneInfo.Local` for a trigger that must stay local |
 | `GetTriggerBuilder()` of a trigger nobody gave a zone carried `InTimeZone(TimeZoneInfo.Local)` | It carries no zone, so the rebuilt trigger takes the default too. A trigger read from a store carries its stored zone | Nothing |
 | Under `UseTriggerGroupWhenUnset`, a recovered firing of a trigger with no execution group was limited under `RECOVERING_JOBS` | It is limited under the group of the trigger it replays, after cluster recovery, a shutdown hand-back and startup recovery, in both stores. See [Letting the trigger group stand in](tutorial/execution-groups.md#letting-the-trigger-group-stand-in) | Nothing |
+| A start that re-applied an `AddTrigger` or `ScheduleJob` registration, or a scheduling file, reset `TimesTriggered`, dropped a pending retry and resumed a trigger paused on its own | The count and the retry are kept while the schedule is unchanged, so a finite repeat count or `COUNT` does not start over; the pause is kept with its record. See [What a start keeps](how-tos/rescheduling-jobs.md#what-a-start-keeps) | Nothing. To run a finite schedule again from the start, change its schedule or unschedule its trigger first |
 
 ## Upgrading from 4.5 to 4.6
 

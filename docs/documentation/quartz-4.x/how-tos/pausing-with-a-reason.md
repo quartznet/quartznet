@@ -86,7 +86,8 @@ if (pause is not null)
 
 Each is `null` when the trigger or group is not paused, does not exist, was paused without a reason, or was paused
 by a 4.2 node (see [below](#a-mixed-cluster)). **Resuming clears the record**, and so does a replace that leaves
-the trigger unpaused; one that stays paused keeps it.
+the trigger unpaused; one that stays paused keeps it. A start that re-applies a declared trigger keeps its pause
+and the record (4.7): see [What a start keeps](rescheduling-jobs.md#what-a-start-keeps).
 
 ## Scheduling a trigger paused
 
