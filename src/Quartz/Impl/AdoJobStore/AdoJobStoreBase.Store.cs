@@ -932,6 +932,10 @@ internal abstract partial class AdoJobStoreBase
                 // row has gone, which is what refuses a trigger replaced by one that waits for itself.
                 await EnsureContinuationParentExists(conn, newTrigger, alsoStored: null, cancellationToken).ConfigureAwait(false);
 
+                // Read before the row goes: a declared trigger re-applied at a start keeps the pause the row
+                // has, with its record (#4128). Any other replace decides the state afresh.
+                (bool keepPause, PauseInfo? keptPause) = await PauseKeptByReplace(conn, triggerKey, newTrigger, cancellationToken).ConfigureAwait(false);
+
                 bool removedTrigger = await Delegate.DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) > 0;
                 if (!removedTrigger)
                 {
@@ -941,11 +945,52 @@ internal abstract partial class AdoJobStoreBase
                     return false;
                 }
 
-                await AddTrigger(conn, newTrigger, job, false, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
+                await AddTrigger(
+                    conn,
+                    newTrigger,
+                    job,
+                    replace: false,
+                    StoredTriggerState.Waiting,
+                    forceState: false,
+                    recovering: false,
+                    continuationParentChecked: false,
+                    cancellationToken,
+                    storePaused: keepPause,
+                    pause: keptPause).ConfigureAwait(false);
 
                 return true;
             },
             "replace trigger");
+    }
+
+    /// <summary>
+    /// What a replace keeps of the pause on the row it replaces: whether to store the replacement paused,
+    /// and the record to store with it.
+    /// </summary>
+    /// <remarks>
+    /// Kept only for a declared trigger the scheduling-data processor re-applies at a start, so a redeploy
+    /// does not resume a trigger an operator paused (#4128); read in the replace's own transaction, under
+    /// <c>TRIGGER_ACCESS</c>. The record is the one the trigger answers while paused: its own, or its
+    /// group's when it has none.
+    /// </remarks>
+    private async ValueTask<(bool Paused, PauseInfo? Pause)> PauseKeptByReplace(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        IOperableTrigger newTrigger,
+        CancellationToken cancellationToken)
+    {
+        if (newTrigger is not TriggerBase { KeepsPauseOnReplace: true })
+        {
+            return (false, null);
+        }
+
+        StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        if (state is not (StoredTriggerState.Paused or StoredTriggerState.PausedBlocked))
+        {
+            return (false, null);
+        }
+
+        return (true, await Delegate.SelectTriggerPause(conn, triggerKey, cancellationToken).ConfigureAwait(false));
     }
 
     /// <inheritdoc />

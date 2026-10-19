@@ -377,4 +377,26 @@ public class RecurrenceTriggerImpl : TriggerBase, IRecurrenceTrigger
         }
         return rule;
     }
+
+    /// <inheritdoc />
+    /// <remarks>The rule, as written, and the time zone.</remarks>
+    internal override bool HasSameScheduleAs(TriggerBase other)
+    {
+        return other is RecurrenceTriggerImpl recurrence
+               && string.Equals(RecurrenceRule, recurrence.RecurrenceRule, StringComparison.Ordinal)
+               && SameTimeZone(TimeZone, recurrence.TimeZone);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A rule's <c>COUNT</c> is counted against this, so a carried count is what keeps a restart from
+    /// running the rule's occurrences again.
+    /// </remarks>
+    internal override void CarryTimesTriggeredFrom(TriggerBase stored)
+    {
+        if (TimesTriggered == 0 && stored is RecurrenceTriggerImpl recurrence)
+        {
+            TimesTriggered = recurrence.TimesTriggered;
+        }
+    }
 }

@@ -997,4 +997,30 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
 
     /// <inheritdoc />
     public DailyTimeIntervalTriggerMisfireInstruction MisfireInstruction => (DailyTimeIntervalTriggerMisfireInstruction) MisfireInstructionCode;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The interval and its unit, the days of the week, the daily start and end, the daily repeat count and
+    /// the time zone.
+    /// </remarks>
+    internal override bool HasSameScheduleAs(TriggerBase other)
+    {
+        return other is DailyTimeIntervalTriggerImpl daily
+               && RepeatInterval == daily.RepeatInterval
+               && RepeatIntervalUnit == daily.RepeatIntervalUnit
+               && DaySet.SetEquals(daily.DaySet)
+               && StartTimeOfDay == daily.StartTimeOfDay
+               && EndTimeOfDay == daily.EndTimeOfDay
+               && RepeatCount == daily.RepeatCount
+               && SameTimeZone(TimeZone, daily.TimeZone);
+    }
+
+    /// <inheritdoc />
+    internal override void CarryTimesTriggeredFrom(TriggerBase stored)
+    {
+        if (TimesTriggered == 0 && stored is DailyTimeIntervalTriggerImpl daily)
+        {
+            TimesTriggered = daily.TimesTriggered;
+        }
+    }
 }

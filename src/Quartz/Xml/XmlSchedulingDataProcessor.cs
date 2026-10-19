@@ -23,6 +23,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Core;
 using Quartz.Extensibility;
+using Quartz.Impl.Triggers;
 using Quartz.Util;
 
 namespace Quartz.Xml;
@@ -1111,14 +1112,41 @@ internal class XmlSchedulingDataProcessor
         logger.DuplicatelyNamedTrigger(trigger.Key);
     }
 
-    private ValueTask<DateTimeOffset?> DoRescheduleJob(
+    private async ValueTask<DateTimeOffset?> DoRescheduleJob(
         IScheduler scheduler,
         IMutableTrigger trigger,
         ITrigger? oldTrigger,
         CancellationToken cancellationToken = default)
     {
+        if (oldTrigger is not null)
+        {
+            ScheduleRelativeToReplacedTrigger(trigger, oldTrigger);
+            KeepRunState(trigger, oldTrigger);
+        }
+
+        if (trigger is not TriggerBase reapplied)
+        {
+            return await scheduler.RescheduleJob(trigger.Key, trigger, cancellationToken).ConfigureAwait(false);
+        }
+
+        // A redeploy must not resume a trigger an operator paused (#4128). The store decides under its own
+        // lock, from the trigger it replaces; an application's own RescheduleJob carries no such instruction,
+        // and ends an individual pause as it always has.
+        reapplied.KeepsPauseOnReplace = true;
+        try
+        {
+            return await scheduler.RescheduleJob(trigger.Key, trigger, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            reapplied.KeepsPauseOnReplace = false;
+        }
+    }
+
+    private void ScheduleRelativeToReplacedTrigger(IMutableTrigger trigger, ITrigger oldTrigger)
+    {
         // if this is a trigger with default start time we can consider relative scheduling
-        if (oldTrigger is not null && trigger.StartTimeUtc - timeProvider.GetUtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
+        if (trigger.StartTimeUtc - timeProvider.GetUtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
         {
             logger.UsingRelativeScheduling(trigger.Key);
 
@@ -1129,11 +1157,20 @@ internal class XmlSchedulingDataProcessor
             // to be able to handle misfiring for an existing trigger that has never been executed before.
             ((IOperableTrigger) trigger).NextFireTimeUtc = trigger.GetFireTimeAfter(oldTriggerPreviousFireTime ?? oldTrigger.StartTimeUtc);
         }
+    }
 
-        // Re-applying a declared trigger is the same trigger again, not a new one, so it keeps the time it
-        // last fired whatever the relative-scheduling setting says (#1834, #4122). An application's own
-        // RescheduleJob does not come through here, and its new trigger starts with no previous fire time.
-        if (oldTrigger?.PreviousFireTimeUtc is { } storedPreviousFireTime && trigger.PreviousFireTimeUtc is null)
+    /// <summary>
+    /// Gives a re-applied declared trigger the run state of the trigger it replaces, which a start would
+    /// otherwise reset.
+    /// </summary>
+    /// <remarks>
+    /// Re-applying a declared trigger is the same trigger again, not a new one. An application's own
+    /// <c>RescheduleJob</c> does not come through here, and its new trigger starts with no run state.
+    /// </remarks>
+    private void KeepRunState(IMutableTrigger trigger, ITrigger oldTrigger)
+    {
+        // The time it last fired, whatever the relative-scheduling setting says (#1834, #4122).
+        if (oldTrigger.PreviousFireTimeUtc is { } storedPreviousFireTime && trigger.PreviousFireTimeUtc is null)
         {
             IOperableTrigger operableTrigger = (IOperableTrigger) trigger;
 
@@ -1143,7 +1180,12 @@ internal class XmlSchedulingDataProcessor
             operableTrigger.PreviousFireTimeUtc = storedPreviousFireTime;
         }
 
-        return scheduler.RescheduleJob(trigger.Key, trigger, cancellationToken);
+        // How many times it has fired and a retry it is waiting on, while its schedule is the stored one
+        // (#4128). A changed schedule is a new trigger, and starts fresh.
+        if (trigger is TriggerBase reapplied)
+        {
+            reapplied.CarryRunStateFrom(oldTrigger);
+        }
     }
 
     protected virtual Dictionary<JobKey, List<IMutableTrigger>> BuildTriggersByFullyQualifiedJobNameMap(IReadOnlyCollection<ITrigger> triggers)

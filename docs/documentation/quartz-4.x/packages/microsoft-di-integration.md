@@ -223,6 +223,8 @@ trigger, the job detail and `bundle.Trigger.FireInstanceId`.
 ## Persistent job stores
 
 On every start, what you register is compared with the database and the stored schedule is updated to match.
+A stored trigger keeps its pause, and its run state unless its schedule changed: see
+[What a start keeps](../how-tos/rescheduling-jobs.md#what-a-start-keeps).
 
 ::: warning
 With a persistent job store, always give jobs and triggers explicit names. Without one, each gets a new

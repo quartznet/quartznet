@@ -455,7 +455,7 @@ Run before scheduling. All fields are optional:
 
 | Field | Default | Description |
 |---|---|---|
-| `OverwriteExistingData` | `true` | Replace existing jobs/triggers with the same identity. The default applies only when the file does not carry `IgnoreDuplicates`. |
+| `OverwriteExistingData` | `true` | Replace existing jobs/triggers with the same identity; a replaced trigger keeps [its run state](../how-tos/rescheduling-jobs.md#what-a-start-keeps). The default applies only when the file does not carry `IgnoreDuplicates`. |
 | `IgnoreDuplicates` | `false` | Skip duplicates instead of failing. A file with this and no `OverwriteExistingData` gets overwriting turned off. |
 | `ScheduleTriggerRelativeToReplacedTrigger` | `false` | Time a replacing trigger from the old trigger's last fire time. |
 

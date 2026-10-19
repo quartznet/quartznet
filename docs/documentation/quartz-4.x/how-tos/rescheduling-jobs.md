@@ -49,14 +49,34 @@ if (next is null)
 <!-- endSnippet -->
 
 Everything derived from the old trigger resets: `PreviousFireTimeUtc` is empty, a `SimpleTrigger`'s repeat
-count starts over, and a paused trigger takes whatever state its new group implies. A process start that
-re-applies a registration keeps `PreviousFireTimeUtc` (4.6); the rest resets there too.
+count starts over, a pending retry is dropped, and a paused trigger takes whatever state its new group
+implies. A process start keeps most of it: see [What a start keeps](#what-a-start-keeps).
 
 A firing already running is not touched: it completes as the old trigger, and in a persistent store its
 fired-trigger record stays until then, so a job that requested recovery is still recovered if the node dies.
 This matters because `AddJob` and `AddTrigger` registrations are re-applied as a reschedule on every process
 start, before the scheduler starts and recovery runs. Unscheduling, by contrast, removes its executions'
 records, and nothing is recovered.
+
+## What a start keeps
+
+With `OverwriteExistingData` on, the default, every start re-applies each `AddTrigger` and `ScheduleJob`
+registration, and each scheduling file, over the trigger the store holds. The trigger keeps what it has done:
+
+| State | Kept |
+|---|---|
+| `PreviousFireTimeUtc` | Always (4.6) |
+| `TimesTriggered` of a simple, daily time interval, calendar interval or recurrence trigger | While the schedule is unchanged (4.7) |
+| A pending retry: `RetryAttempt` and its fire time | While the schedule is unchanged (4.7) |
+| A pause on the trigger itself, with its reason | Always (4.7) |
+
+* The schedule is what the trigger's schedule builder sets: the interval and repeat count, the cron
+  expression or recurrence rule, the time zone, and so on. Start and end times are not part of it.
+* A changed schedule, or another kind of trigger, starts fresh: the count starts over and a pending retry is
+  dropped. Its pause is kept.
+* A trigger in a paused group stays paused, as any trigger stored into the group does.
+* `ScheduleTriggerRelativeToReplacedTrigger` still decides the next fire time. A pending retry wins over it.
+* A trigger that has finished is no longer in the store, so a start schedules it from the beginning.
 
 ## Changing metadata in place: UpdateTriggerDetails
 

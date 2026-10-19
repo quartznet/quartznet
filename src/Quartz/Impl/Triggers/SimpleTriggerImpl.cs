@@ -160,6 +160,24 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     public SimpleTriggerMisfireInstruction MisfireInstruction => (SimpleTriggerMisfireInstruction) MisfireInstructionCode;
 
     /// <inheritdoc />
+    /// <remarks>The repeat count and the repeat interval.</remarks>
+    internal override bool HasSameScheduleAs(TriggerBase other)
+    {
+        return other is SimpleTriggerImpl simple
+               && RepeatCount == simple.RepeatCount
+               && RepeatInterval == simple.RepeatInterval;
+    }
+
+    /// <inheritdoc />
+    internal override void CarryTimesTriggeredFrom(TriggerBase stored)
+    {
+        if (timesTriggered == 0 && stored is SimpleTriggerImpl simple)
+        {
+            timesTriggered = simple.TimesTriggered;
+        }
+    }
+
+    /// <inheritdoc />
     public override IScheduleBuilder GetScheduleBuilder()
     {
         SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
