@@ -261,6 +261,10 @@ services.AddQuartz(q =>
 - Resolvers are asked after Quartz's own contract and the registry's, in the order added, and before reflection.
 - It can be called more than once and is safe whether or not the application is published trimmed.
 - `UseSystemTextJsonSerializer(json => json.AddTypeInfoResolver(…))` also works, for job data only.
+- A declared job-data object reads back as a `Dictionary<string, string>` of its members: a number,
+  boolean or object member as its JSON text (`"3"`, `"true"`), a null member as `null`. A collection, as the
+  value or a member, is refused with a `JsonSerializationException` when the map is written. See
+  [Declare your own job-data and input types](../how-tos/trimming-and-native-aot.md#declare-your-own-job-data-and-input-types).
 
 The `Quartz.Serialization.Newtonsoft` serializer relies on reflection and has no metadata equivalent; a trimmed
 application uses this one. `AddJsonTypeInfoResolver` also declares a job-data value type the serializer will
