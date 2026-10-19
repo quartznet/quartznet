@@ -23,6 +23,33 @@ public static class MoreAboutTriggersSamples
             .Build();
     }
 
+    public static void MisfireThresholdOfItsOwn()
+    {
+        #region sample_more_about_triggers_misfire_threshold
+
+        // Behind a quota, this report may start up to fifteen minutes late and still be worth running.
+        // Every other trigger keeps the store's threshold.
+        ITrigger report = TriggerBuilder.Create()
+            .WithIdentity("nightly-report")
+            .ForJob("report")
+            .WithCronSchedule("0 0 2 * * ?")
+            .WithMisfireThreshold(TimeSpan.FromMinutes(15))
+            .Build();
+
+        #endregion
+    }
+
+    public static void DefaultMisfireHandling(IServiceCollection services)
+    {
+        #region sample_more_about_triggers_default_misfire_handling
+
+        // A trigger nobody gave an instruction skips what it missed and waits for its next time.
+        services.AddQuartz(q => q.ConfigureScheduler(options =>
+            options.DefaultMisfireHandling = Quartz.DefaultMisfireHandling.DoNothing));
+
+        #endregion
+    }
+
     public static void ExecutionGroup()
     {
         #region sample_more_about_triggers_execution_group

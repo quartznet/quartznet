@@ -1024,7 +1024,7 @@ member as `null` clears them all.
 ```
 
 This sets the description and priority, removes the calendar, and leaves job data, misfire instruction, node
-pin, execution group, retry policy and overlap policy unchanged.
+pin, execution group, retry policy, overlap policy and misfire threshold unchanged.
 
 | Member | Type | Meaning |
 |---|---|---|
@@ -1039,6 +1039,7 @@ pin, execution group, retry policy and overlap policy unchanged.
 | `executionGroup` | string or `null` | The [execution group](../tutorial/execution-groups.md) whose thread limit applies; `null` leaves every group |
 | `retryPolicy` | string or `null` | The [retry policy](../how-tos/retrying-failed-jobs.md) in stored form, e.g. `"fixed;3;00:00:30"`; `"none"` never retries; `null` removes the trigger's own, so it inherits the job type's or the scheduler's |
 | `overlapPolicy` | string or `null` | The [overlap policy](../how-tos/overlap-policy.md) by name: `Skip`, `BufferOne`, `CancelPrevious`, `AllowAll`, `Default`; `null` is `Default`. From 4.3 |
+| `misfireThreshold` | string or `null` | The trigger's [own misfire threshold](../tutorial/more-about-triggers.md#a-trigger-s-own-misfire-threshold) as a `TimeSpan`, `"00:15:00"`; `null` puts it back on the store's. From 4.6; an older host ignores it |
 
 **Name the misfire instruction's family.** `misfireInstructionFamily` is `Simple`, `Cron`, `CalendarInterval`,
 `DailyTimeInterval` or `Recurrence`. The same number means a different policy per family (`2` is *do nothing*
@@ -1115,6 +1116,21 @@ From 4.3. A trigger's [overlap policy](../how-tos/overlap-policy.md) travels by 
 | Misfire history | `"reason"`: `Missed`, or `Overlap` for a firing `Skip` dropped; from 4.4, `Vetoed` [when asked for](#vetoes-are-listed-when-asked-for) |
 
 A 4.2 client ignores the members, and a 4.2 host ignores `overlapPolicy` in a trigger body it is sent.
+
+## Misfire thresholds
+
+From 4.6. A trigger's [own misfire threshold](../tutorial/more-about-triggers.md#a-trigger-s-own-misfire-threshold)
+travels as a `TimeSpan` string:
+
+| Where | Member |
+|---|---|
+| Trigger body | `"misfireThreshold": "00:15:00"`; absent for a trigger on the store's |
+| `update-details` | `misfireThreshold`, [above](#editing-a-trigger-in-place) |
+
+A 4.5 client ignores the member, and a 4.5 host ignores it in a trigger body or an update it is sent.
+A trigger scheduled through the API arrives deserialized, so its misfire instruction is stated and the
+host's [default instruction](../tutorial/more-about-triggers.md#the-scheduler-s-default-instruction) does
+not apply to it.
 
 ## Continuations
 

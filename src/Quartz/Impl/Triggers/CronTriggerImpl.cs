@@ -430,15 +430,20 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
             ? CronScheduleBuilder.Create(cronEx)
             : CronScheduleBuilder.Create(CronExpressionString!);
 
+        // Only a stated instruction, as SimpleTriggerImpl.GetScheduleBuilder says. An unstated one is 0,
+        // which is defined, so it could never have reached the log below.
         CronTriggerMisfireInstruction instruction = MisfireInstruction;
-        if (Enum.IsDefined(instruction))
+        if (MisfireInstructionStated)
         {
-            cb.WithMisfireInstruction(instruction);
-        }
-        else
-        {
-            var logger = LogProvider.CreateLogger<CronTriggerImpl>();
-            logger.UnrecognizedCronMisfirePolicy(MisfireInstructionCode);
+            if (Enum.IsDefined(instruction))
+            {
+                cb.WithMisfireInstruction(instruction);
+            }
+            else
+            {
+                var logger = LogProvider.CreateLogger<CronTriggerImpl>();
+                logger.UnrecognizedCronMisfirePolicy(MisfireInstructionCode);
+            }
         }
 
         return cb;

@@ -1487,6 +1487,7 @@ public class InProcessQuartzApiClientTest
                 .WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)
                 .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(5)))
                 .WithOverlapPolicy(OverlapPolicy.Skip)
+                .WithMisfireThreshold(TimeSpan.FromMinutes(5))
                 .WithJobDataMap(new JobDataMap { ["region"] = "eu" });
 
             (await client.UpdateTriggerDetails(scheduler.SchedulerName, new TriggerKeyDto("group1", "cron"), update)).Should().BeTrue();
@@ -1498,6 +1499,7 @@ public class InProcessQuartzApiClientTest
             stored.MisfireInstruction.Should().Be(CronTriggerMisfireInstruction.DoNothing);
             stored.RetryPolicy.Should().Be(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(5)));
             stored.OverlapPolicy.Should().Be(OverlapPolicy.Skip);
+            stored.MisfireThreshold.Should().Be(TimeSpan.FromMinutes(5));
             stored.JobDataMap.GetString("region").Should().Be("eu");
             stored.NextFireTimeUtc.Should().Be(nextFire, "an edit in place is not a reschedule, and the fire time is kept");
 

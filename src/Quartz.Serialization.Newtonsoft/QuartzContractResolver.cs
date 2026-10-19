@@ -103,6 +103,13 @@ internal sealed class QuartzContractResolver : DefaultContractResolver
             property.DefaultValueHandling = DefaultValueHandling.Ignore;
         }
 
+        // Left out when it is null, for the same reason: a trigger on the store's misfire threshold writes
+        // the object graph it wrote before triggers had one of their own.
+        if (member.DeclaringType == typeof(Quartz.Impl.Triggers.TriggerBase) && member.Name == nameof(Quartz.Impl.Triggers.TriggerBase.MisfireThreshold))
+        {
+            property.NullValueHandling = NullValueHandling.Ignore;
+        }
+
         return property;
     }
 

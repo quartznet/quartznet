@@ -979,8 +979,9 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
             .WithRepeatCount(RepeatCount)
             .InTimeZone(TimeZone);
 
+        // Only a stated instruction, as SimpleTriggerImpl.GetScheduleBuilder says.
         DailyTimeIntervalTriggerMisfireInstruction instruction = MisfireInstruction;
-        if (Enum.IsDefined(instruction))
+        if (MisfireInstructionStated && Enum.IsDefined(instruction))
         {
             cb.WithMisfireInstruction(instruction);
         }

@@ -224,6 +224,27 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     }
 
     /// <summary>
+    /// Set how late the trigger may fire before it counts as misfired, in place of the job store's
+    /// <c>MisfireThreshold</c>.
+    /// </summary>
+    /// <remarks>
+    /// A default interface member, for the reason <see cref="StartAfter" /> is one.
+    /// <see cref="TriggerBuilder{TJob}" /> overrides it.
+    /// </remarks>
+    /// <param name="misfireThreshold">the threshold: longer than zero, in whole milliseconds</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <exception cref="NotSupportedException">
+    /// The implementation does not build misfire thresholds.
+    /// </exception>
+    /// <seealso cref="ITrigger.MisfireThreshold" />
+    ITriggerConfigurator<TJob> WithMisfireThreshold(TimeSpan misfireThreshold)
+    {
+        Throw.NotSupportedException(
+            $"{GetType().FullName} does not support misfire thresholds; {nameof(WithMisfireThreshold)} was added in Quartz.NET 4.6 and this configurator has not implemented it.");
+        return this;
+    }
+
+    /// <summary>
     /// Set the time at which the Trigger will no longer fire - even if it's
     /// schedule has remaining repeats.
     /// </summary>

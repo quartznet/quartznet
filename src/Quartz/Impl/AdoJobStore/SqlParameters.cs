@@ -121,6 +121,13 @@ internal static class SqlParameters
 
     public const string NoLaterThan = "noLaterThan";
     public const string NoEarlierThan = "noEarlierThan";
+
+    // The two the misfire predicates bind beside @nextFireTime and @noEarlierThan: the instant a
+    // trigger's own MISFIRE_THRESHOLD counts back from, and the bound that keeps the misfire scan a range
+    // over NEXT_FIRE_TIME. Both are now, and both are bound, because a provider that binds positionally
+    // needs each name to appear once (#4070).
+    public const string MisfireCountedFrom = "misfireCountedFrom";
+    public const string MisfireScanBound = "misfireScanBound";
     public const string MisfireOrigFireTime = "misfireOrigFireTime";
     public const string ExecutionGroup = "executionGroup";
 
@@ -150,6 +157,7 @@ internal static class SqlParameters
     public const string NewContinuesName = "newContinuesName";
     public const string NewContinuesGroup = "newContinuesGroup";
     public const string TriggerOverlapPolicy = "triggerOverlapPolicy";
+    public const string TriggerMisfireThreshold = "triggerMisfireThreshold";
 
     // What a pause recorded, on a trigger's row and on a paused group's.
 

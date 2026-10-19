@@ -73,6 +73,7 @@ CREATE TABLE qrtz_triggers
     pause_reason VARCHAR(250) NULL,
     paused_by VARCHAR(200) NULL,
     paused_at BIGINT NULL,
+    misfire_threshold BIGINT NULL,
     job_data BYTEA NULL,
     PRIMARY KEY (sched_name, trigger_name, trigger_group),
     FOREIGN KEY (sched_name, job_name, job_group)

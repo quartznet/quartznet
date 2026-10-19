@@ -163,6 +163,13 @@ public static class AdoConstants
     internal const string Migration46FiredTriggerInterrupt = "4.6/add_fired_trigger_interrupt_{0}.sql";
 
     /// <summary>
+    /// The migration that adds a trigger's own misfire threshold to <see cref="TableTriggers" />, which a
+    /// database created by 4.5 or earlier needs: a 4.6 node reads and writes it with every trigger, and
+    /// its misfire scan and acquisition compare against it (#4070).
+    /// </summary>
+    internal const string Migration46TriggerMisfireThreshold = "4.6/add_trigger_misfire_threshold_{0}.sql";
+
+    /// <summary>
     /// The columns only a feature that is off by default reads or writes, on a table only that feature
     /// reads — probed, like <see cref="OptionalTableNames" />, only when the feature is on.
     /// </summary>
@@ -261,7 +268,8 @@ public static class AdoConstants
         (TablePausedJobs, ColumnPausedBy, Migration43PauseReason),
         (TablePausedJobs, ColumnPausedAt, Migration43PauseReason),
         (TableSchedulerState, ColumnQuartzVersion, Migration46SchedulerVersion),
-        (TableFiredTriggers, ColumnInterruptRequestedTime, Migration46FiredTriggerInterrupt)
+        (TableFiredTriggers, ColumnInterruptRequestedTime, Migration46FiredTriggerInterrupt),
+        (TableTriggers, ColumnMisfireThreshold, Migration46TriggerMisfireThreshold)
     ];
 
     // Table names
@@ -504,6 +512,13 @@ public static class AdoConstants
     /// <c>OverlapPolicy</c>, where <see langword="null" /> is <c>OverlapPolicy.Default</c>.
     /// </summary>
     public const string ColumnOverlapPolicy = "OVERLAP_POLICY";
+
+    /// <summary>
+    /// The <c>MISFIRE_THRESHOLD</c> column of <see cref="TableTriggers" />: the trigger's own
+    /// <see cref="ITrigger.MisfireThreshold" /> in milliseconds, where <see langword="null" /> is the
+    /// store's (#4070).
+    /// </summary>
+    public const string ColumnMisfireThreshold = "MISFIRE_THRESHOLD";
 
     /// <summary>
     /// The <c>PAUSE_REASON</c> column of <see cref="TableTriggers" />, <see cref="TablePausedTriggers" />

@@ -398,6 +398,7 @@ CREATE TABLE [dbo].[QRTZ_TRIGGERS] (
   [PAUSE_REASON] nvarchar(250) NULL,
   [PAUSED_BY] nvarchar(200) NULL,
   [PAUSED_AT] bigint NULL,
+  [MISFIRE_THRESHOLD] bigint NULL,
   [JOB_DATA] varbinary(max) NULL
 );
 GO

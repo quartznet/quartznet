@@ -635,6 +635,17 @@ partial class Build
                     sqlite: "INTEGER NULL",
                     firebird: "INTEGER DEFAULT NULL") with { AddedBy = "4.3" },
                 .. PauseColumns(),
+                // The trigger's own misfire threshold in milliseconds, a 64-bit integer as the other
+                // durations here are; NULL is the store's MisfireThreshold, which is what every row a node
+                // older than 4.6 writes reads as (#4070). Never searched on by itself: the misfire scan and
+                // acquisition read it as a residual beside NEXT_FIRE_TIME, so it has no index.
+                Column("MISFIRE_THRESHOLD",
+                    sqlServer: "bigint NULL",
+                    postgres: "BIGINT NULL",
+                    mysql: "BIGINT NULL",
+                    oracle: "NUMBER(19) NULL",
+                    sqlite: "BIGINT NULL",
+                    firebird: "BIGINT DEFAULT NULL") with { AddedBy = "4.6" },
                 Blob("JOB_DATA", required: false),
             ],
             new SchemaForeignKey(JobKey, "JOB_DETAILS", JobKey, Cascade: false, OracleName: "TRIGGER_TO_JOBS_FK")),

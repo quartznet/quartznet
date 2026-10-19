@@ -146,6 +146,12 @@ internal sealed class JsonFileTriggerDefinition
     /// </summary>
     public string? OverlapPolicy { get; set; }
 
+    /// <summary>
+    /// How late the trigger may fire before it counts as misfired, as a <see cref="TimeSpan" /> in its
+    /// invariant form — <c>00:05:00</c> for five minutes. Absent means the job store's own threshold.
+    /// </summary>
+    public string? MisfireThreshold { get; set; }
+
     public string? StartTime { get; set; }
     public int? StartTimeSecondsInFuture { get; set; }
     public string? EndTime { get; set; }

@@ -137,7 +137,8 @@ Write one per schedule; a job with three gets three triggers.
 | `Name` | the job's name, then `-2`, `-3` … | the trigger key's name |
 | `Group` | the job's group | the trigger key's group |
 | `TimeZone` | the scheduler's local zone | the zone the schedule is read in, by the id `TimeZones.FindById` resolves — IANA or Windows |
-| `MisfireInstruction` | `SmartPolicy` | what the trigger does about a firing it missed |
+| `MisfireInstruction` | the scheduler's [default](more-about-triggers.md#the-scheduler-s-default-instruction) | what the trigger does about a firing it missed; written, `SmartPolicy` included, it is stated |
+| `MisfireThreshold` (4.6) | the store's | how late it may fire before it misfires, as an invariant `TimeSpan` string — see [A trigger's own misfire threshold](more-about-triggers.md#a-trigger-s-own-misfire-threshold) |
 | `Priority` | `5` | who wins when two triggers want the same moment and one worker is free |
 | `Description` | none | the description carried on the trigger |
 | `ExecutionGroup` | none | the [execution group](execution-groups.md) the firing counts against |
@@ -175,7 +176,8 @@ public sealed class PollInboxJob : IJob
 | `RepeatCount` | `-1`, forever | how many times it repeats after the first firing |
 | `Name` | the job's name, then `-2`, `-3` … | the trigger key's name |
 | `Group` | the job's group | the trigger key's group |
-| `MisfireInstruction` | `SmartPolicy` | a `SimpleTriggerMisfireInstruction`: what the trigger does about a firing it missed |
+| `MisfireInstruction` | the scheduler's [default](more-about-triggers.md#the-scheduler-s-default-instruction) | a `SimpleTriggerMisfireInstruction`: what the trigger does about a firing it missed; written, `SmartPolicy` included, it is stated |
+| `MisfireThreshold` (4.6) | the store's | how late it may fire before it misfires, as an invariant `TimeSpan` string |
 | `Priority` | `5` | who wins when two triggers want the same moment and one worker is free |
 | `Description` | none | the description carried on the trigger |
 | `ExecutionGroup` | none | the [execution group](execution-groups.md) the firing counts against |
@@ -185,7 +187,8 @@ public sealed class PollInboxJob : IJob
   when the scheduler is built. `RepeatCount = 0` is that one firing.
 * The interval is parsed at build time and written into the registration as ticks, so nothing parses it
   at run time. One that is not a positive `TimeSpan`, and a `RepeatCount` below `-1`, are
-  [`QZ0005`](compile-time-checks.md#qz0005-invalidsimpletriggerschedule).
+  [`QZ0005`](compile-time-checks.md#qz0005-invalidsimpletriggerschedule). A `MisfireThreshold` that is not
+  a positive `TimeSpan` in whole milliseconds is [`QZ0008`](compile-time-checks.md#qz0008-invalidmisfirethreshold).
 
 ## A schedule from configuration
 

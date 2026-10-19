@@ -248,6 +248,7 @@ namespace Quartz
         public string? ExecutionGroup { get; init; }
         public string? Group { get; init; }
         public Quartz.CronTriggerMisfireInstruction MisfireInstruction { get; init; }
+        public string? MisfireThreshold { get; init; }
         public string? Name { get; init; }
         public int Priority { get; init; }
         public string? TimeZone { get; init; }
@@ -361,6 +362,13 @@ namespace Quartz
         public Quartz.DateBuilder OnDay(int day) { }
         public static Quartz.DateBuilder Create(System.TimeProvider? timeProvider = null) { }
         public static Quartz.DateBuilder CreateInTimeZone(System.TimeZoneInfo timeZone, System.TimeProvider? timeProvider = null) { }
+    }
+    public enum DefaultMisfireHandling
+    {
+        SmartPolicy = 0,
+        IgnoreMisfires = 1,
+        FireAndProceed = 2,
+        DoNothing = 3,
     }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Interface)]
     public sealed class DisallowConcurrentExecutionAttribute : System.Attribute
@@ -973,6 +981,7 @@ namespace Quartz
         Quartz.TriggerKey Key { get; }
         bool MayFireAgain { get; }
         int MisfireInstructionCode { get; }
+        System.TimeSpan? MisfireThreshold { get; } // default implementation
         System.DateTimeOffset? NextFireTimeUtc { get; }
         Quartz.OverlapPolicy OverlapPolicy { get; } // default implementation
         Quartz.PreferredNode PreferredNode { get; }
@@ -1010,6 +1019,7 @@ namespace Quartz
         Quartz.ITriggerConfigurator<TJob> WithIdentity(Quartz.TriggerKey key);
         Quartz.ITriggerConfigurator<TJob> WithIdentity(string name);
         Quartz.ITriggerConfigurator<TJob> WithIdentity(string name, string group);
+        Quartz.ITriggerConfigurator<TJob> WithMisfireThreshold(System.TimeSpan misfireThreshold); // default implementation
         Quartz.ITriggerConfigurator<TJob> WithOverlapPolicy(Quartz.OverlapPolicy overlapPolicy); // default implementation
         Quartz.ITriggerConfigurator<TJob> WithPreferredNode(Quartz.PreferredNode preferredNode);
         Quartz.ITriggerConfigurator<TJob> WithPriority(int priority);
@@ -1704,6 +1714,7 @@ namespace Quartz
         public QuartzSchedulerOptions() { }
         public System.TimeSpan BatchTriggerAcquisitionFireAheadTimeWindow { get; set; }
         public System.Collections.Generic.Dictionary<string, string> Context { get; }
+        public Quartz.DefaultMisfireHandling DefaultMisfireHandling { get; set; }
         public bool GenerateInstanceId { get; set; }
         public System.TimeSpan IdleWaitTime { get; set; }
         public string InstanceId { get; set; }
@@ -2062,6 +2073,7 @@ namespace Quartz
         public string? Group { get; init; }
         public System.TimeSpan Interval { get; }
         public Quartz.SimpleTriggerMisfireInstruction MisfireInstruction { get; init; }
+        public string? MisfireThreshold { get; init; }
         public string? Name { get; init; }
         public int Priority { get; init; }
         public int RepeatCount { get; init; }
@@ -2177,6 +2189,7 @@ namespace Quartz
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithIdentity(Quartz.TriggerKey)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithIdentity(string)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithIdentity(string, string)
+        // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithMisfireThreshold(System.TimeSpan)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithOverlapPolicy(Quartz.OverlapPolicy)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithPreferredNode(Quartz.PreferredNode)
         // explicit interface implementation: Quartz.ITriggerConfigurator<TJob>.WithPriority(int)
@@ -2201,6 +2214,7 @@ namespace Quartz
         public Quartz.TriggerBuilder<TJob> WithIdentity(Quartz.TriggerKey key) { }
         public Quartz.TriggerBuilder<TJob> WithIdentity(string name) { }
         public Quartz.TriggerBuilder<TJob> WithIdentity(string name, string group) { }
+        public Quartz.TriggerBuilder<TJob> WithMisfireThreshold(System.TimeSpan misfireThreshold) { }
         public Quartz.TriggerBuilder<TJob> WithOverlapPolicy(Quartz.OverlapPolicy overlapPolicy) { }
         public Quartz.TriggerBuilder<TJob> WithPreferredNode(Quartz.PreferredNode preferredNode) { }
         public Quartz.TriggerBuilder<TJob> WithPriority(int priority) { }
@@ -2262,6 +2276,7 @@ namespace Quartz
         public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.RecurrenceTriggerMisfireInstruction misfireInstruction) { }
         public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.SimpleTriggerMisfireInstruction misfireInstruction) { }
         public Quartz.TriggerDetailsUpdate WithMisfireInstructionCode(int misfireInstructionCode) { }
+        public Quartz.TriggerDetailsUpdate WithMisfireThreshold(System.TimeSpan? misfireThreshold) { }
         public Quartz.TriggerDetailsUpdate WithOverlapPolicy(Quartz.OverlapPolicy overlapPolicy) { }
         public Quartz.TriggerDetailsUpdate WithPreferredNode(Quartz.PreferredNode preferredNode) { }
         public Quartz.TriggerDetailsUpdate WithPriority(int priority) { }
@@ -2783,6 +2798,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnMisfireInstruction = "MISFIRE_INSTR";
         public const string ColumnMisfireOriginalFireTime = "MISFIRE_ORIG_FIRE_TIME";
         public const string ColumnMisfireReason = "REASON";
+        public const string ColumnMisfireThreshold = "MISFIRE_THRESHOLD";
         public const string ColumnMisfireTime = "MISFIRE_TIME";
         public const string ColumnNextFireTime = "NEXT_FIRE_TIME";
         public const string ColumnOverlapPolicy = "OVERLAP_POLICY";
@@ -4331,6 +4347,7 @@ namespace Quartz.Impl.Triggers
         public Quartz.TriggerKey Key { get; set; }
         public abstract bool MayFireAgain { get; }
         public virtual int MisfireInstructionCode { get; set; }
+        public System.TimeSpan? MisfireThreshold { get; set; }
         public abstract System.DateTimeOffset? NextFireTimeUtc { get; set; }
         public Quartz.OverlapPolicy OverlapPolicy { get; set; }
         public Quartz.PreferredNode PreferredNode { get; set; }

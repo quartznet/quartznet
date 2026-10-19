@@ -98,6 +98,15 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
                     { ValueKind: JsonValueKind.Number } numeric when numeric.TryGetInt32(out int stored) && Enum.IsDefined((OverlapPolicy) stored) => (OverlapPolicy) stored,
                     _ => OverlapPolicy.Default
                 };
+
+                // Absent from every payload of a trigger on the store's threshold, and from every payload
+                // written before triggers had one of their own: both read back as null. A value this
+                // version cannot take reads as null too, as an unreadable retry policy reads as none.
+                abstractTrigger.MisfireThreshold = SchedulingFileValues.TryReadMisfireThreshold(
+                    rootElement.GetPropertyOrNull(options.GetPropertyName("MisfireThreshold")) is { ValueKind: JsonValueKind.String } threshold ? threshold.GetString() : null,
+                    out TimeSpan misfireThreshold)
+                    ? misfireThreshold
+                    : null;
             }
 
             triggerSerializer.DeserializeFields(trigger, rootElement, options);
@@ -161,6 +170,13 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
                 if (abstractTrigger.OverlapPolicy != OverlapPolicy.Default)
                 {
                     writer.WriteString(options.GetPropertyName("OverlapPolicy"), abstractTrigger.OverlapPolicy.ToString());
+                }
+
+                // Only when there is one, as the TimeSpan's invariant constant form: a trigger on the
+                // store's threshold writes exactly the payload it wrote before triggers had one.
+                if (abstractTrigger.MisfireThreshold is { } misfireThreshold)
+                {
+                    writer.WriteString(options.GetPropertyName("MisfireThreshold"), SchedulingFileValues.FormatMisfireThreshold(misfireThreshold));
                 }
             }
 

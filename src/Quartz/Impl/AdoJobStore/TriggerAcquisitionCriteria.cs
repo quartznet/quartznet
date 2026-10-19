@@ -52,6 +52,12 @@ public sealed record TriggerAcquisitionCriteria
     /// what keeps a misfired trigger out of the acquisition path. Only applies to triggers that have a
     /// misfire instruction.
     /// </summary>
+    /// <remarks>
+    /// Now less the store's <c>MisfireThreshold</c>, for a trigger with no threshold of its own.
+    /// <see cref="StdAdoDelegate" /> keeps a trigger with a <c>MISFIRE_THRESHOLD</c> of its own out once its
+    /// fire time is at or before now less that instead, now being the delegate's
+    /// <see cref="DriverDelegateContext.TimeProvider" /> (#4070).
+    /// </remarks>
     public required DateTimeOffset NoEarlierThan { get; init; }
 
     /// <summary>

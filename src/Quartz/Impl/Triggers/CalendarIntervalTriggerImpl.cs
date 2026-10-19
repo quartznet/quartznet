@@ -824,8 +824,9 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
             .PreserveHourOfDayAcrossDaylightSavings(PreserveHourOfDayAcrossDaylightSavings)
             .SkipDayIfHourDoesNotExist(SkipDayIfHourDoesNotExist);
 
+        // Only a stated instruction, as SimpleTriggerImpl.GetScheduleBuilder says.
         CalendarIntervalTriggerMisfireInstruction instruction = MisfireInstruction;
-        if (Enum.IsDefined(instruction))
+        if (MisfireInstructionStated && Enum.IsDefined(instruction))
         {
             cb.WithMisfireInstruction(instruction);
         }

@@ -80,6 +80,7 @@ internal static class BindingCheck
                     ["Quartz:Scheduler:IdleWaitTime"] = "00:00:20",
                     ["Quartz:Scheduler:MaxBatchSize"] = "3",
                     ["Quartz:Scheduler:ShutdownJobInterruption"] = nameof(ShutdownJobInterruption.Always),
+                    ["Quartz:Scheduler:DefaultMisfireHandling"] = nameof(DefaultMisfireHandling.DoNothing),
                     ["Quartz:Scheduler:Context:environment"] = ContextValue,
 
                     ["Quartz:ThreadPool:MaxConcurrency"] = "7",
@@ -118,6 +119,7 @@ internal static class BindingCheck
             Check(wrong, "Scheduler:IdleWaitTime", TimeSpan.FromSeconds(20), schedulerOptions.IdleWaitTime);
             Check(wrong, "Scheduler:MaxBatchSize", 3, schedulerOptions.MaxBatchSize);
             Check(wrong, "Scheduler:ShutdownJobInterruption", ShutdownJobInterruption.Always, schedulerOptions.ShutdownJobInterruption);
+            Check(wrong, "Scheduler:DefaultMisfireHandling", DefaultMisfireHandling.DoNothing, schedulerOptions.DefaultMisfireHandling);
 
             Check(wrong, "JobStore:MisfireThreshold", TimeSpan.FromSeconds(150),
                 container.GetRequiredService<IOptions<InMemoryJobStoreOptions>>().Value.MisfireThreshold);

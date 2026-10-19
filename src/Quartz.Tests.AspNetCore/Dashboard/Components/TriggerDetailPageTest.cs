@@ -143,6 +143,22 @@ public class TriggerDetailPageTest
     }
 
     [Test]
+    public void ThePageShowsTheTriggersMisfireThresholdOrTheStores()
+    {
+        GivenTrigger(TriggerBuilder.Create()
+            .WithIdentity(TriggerName, TriggerGroup)
+            .ForJob("CronJobKey", "CronJobGroup")
+            .WithCronSchedule("0/25 * * * * ?")
+            .WithMisfireThreshold(TimeSpan.FromMinutes(5))
+            .Build());
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Markup.Should().Contain("<th>Misfire Threshold</th><td>00:05:00</td>",
+            "how late a trigger may fire before it misfires is part of what it is"));
+    }
+
+    [Test]
     public void ATriggerWithNoCronExpressionIsNotOfferedACronEditor()
     {
         GivenTrigger(TestData.SimpleTrigger);

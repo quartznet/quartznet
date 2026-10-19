@@ -61,8 +61,9 @@ internal sealed record DeclaredJob(
 /// The trigger key's name, already defaulted from the job's name and the trigger's position.
 /// </param>
 /// <param name="MisfireInstruction">
-/// The misfire instruction's numeric value, so that <c>0</c> — <c>SmartPolicy</c> in both families,
-/// the default — needs no call emitted for it.
+/// The misfire instruction's numeric value, or <see langword="null" /> when the attribute did not write
+/// one: then no call is emitted, the trigger's instruction is unstated and the scheduler's default
+/// misfire handling decides it. A written <c>SmartPolicy</c> is <c>0</c>, and is emitted.
 /// </param>
 /// <param name="MisfireInstructionName">
 /// The enum member the value is, read off the enum rather than spelled here, or <see langword="null" />
@@ -72,17 +73,27 @@ internal sealed record DeclaredJob(
 /// The configuration key whose value replaces the schedule's expression or interval when it is set, or
 /// <see langword="null" /> for a schedule that is the attribute's alone.
 /// </param>
+/// <param name="MisfireThresholdTicks">
+/// The trigger's own misfire threshold as the ticks this build read, or <see langword="null" /> for the
+/// job store's, which is also what a threshold <c>QZ0008</c> refuses leaves.
+/// </param>
+/// <param name="MisfireThresholdText">
+/// The threshold in <see cref="TimeSpan" />'s invariant constant format, which the generated file
+/// carries beside the ticks for its reader.
+/// </param>
 internal sealed record DeclaredTrigger(
     DeclaredSchedule Schedule,
     string Name,
     string? Group,
-    int MisfireInstruction,
+    int? MisfireInstruction,
     string? MisfireInstructionName,
     int Priority,
     string? Description,
     string? ExecutionGroup,
     string? ConfigurationKey,
-    LocationInfo? Location);
+    LocationInfo? Location,
+    long? MisfireThresholdTicks = null,
+    string? MisfireThresholdText = null);
 
 /// <summary>
 /// What a declared trigger fires on.

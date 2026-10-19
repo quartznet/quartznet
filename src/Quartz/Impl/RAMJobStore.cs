@@ -1247,9 +1247,7 @@ public sealed class RAMJobStore : IJobStore
                 return new ValueTask<bool>(false);
             }
 
-            if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
-                && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode
-                && !update.HasExecutionGroup && !update.HasRetryPolicy && !update.HasOverlapPolicy)
+            if (update.ChangesNothing)
             {
                 return new ValueTask<bool>(true);
             }
@@ -1258,6 +1256,7 @@ public sealed class RAMJobStore : IJobStore
 
             update.EnsureMisfireInstructionMatchesFamily(trigger, triggerKey);
             update.EnsureOverlapPolicyCanBeCarried(trigger, triggerKey);
+            update.EnsureMisfireThresholdCanBeCarried(trigger, triggerKey);
 
             if (update.HasCalendarName && update.CalendarName is not null)
             {
@@ -1326,6 +1325,12 @@ public sealed class RAMJobStore : IJobStore
                 // From the next firing that comes due. A firing already running keeps the policy it
                 // started under, which is also what releases a trigger it held back.
                 ((TriggerBase) trigger).OverlapPolicy = update.OverlapPolicy;
+            }
+
+            if (update.HasMisfireThreshold)
+            {
+                // From the next acquisition pass, which is where this store decides a misfire.
+                ((TriggerBase) trigger).MisfireThreshold = update.MisfireThreshold;
             }
 
             return new ValueTask<bool>(true);
@@ -1608,7 +1613,7 @@ public sealed class RAMJobStore : IJobStore
             IOperableTrigger updated = (IOperableTrigger) tw.Trigger.Clone();
             try
             {
-                updated.UpdateWithNewCalendar(calendar, MisfireThreshold);
+                updated.UpdateWithNewCalendar(calendar, updated.MisfireThreshold ?? MisfireThreshold);
             }
             catch (Exception e) when (e is not JobPersistenceException and not OperationCanceledException)
             {
@@ -3098,11 +3103,8 @@ public sealed class RAMJobStore : IJobStore
             return false;
         }
 
-        DateTimeOffset misfireTime = timeProvider.GetUtcNow();
-        if (MisfireThreshold > TimeSpan.Zero)
-        {
-            misfireTime = misfireTime.AddTicks(-1 * MisfireThreshold.Ticks);
-        }
+        // The trigger's own threshold where it has one, shorter or longer than the store's (#4070).
+        DateTimeOffset misfireTime = MisfireThresholds.MisfireTime(timeProvider.GetUtcNow(), tw.Trigger, MisfireThreshold);
 
         DateTimeOffset? tnft = tw.Trigger.NextFireTimeUtc;
         if (!tnft.HasValue || tnft.GetValueOrDefault() > misfireTime)

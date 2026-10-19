@@ -296,7 +296,18 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
             string name = Text(attribute, nameof(DeclaredTrigger.Name))
                 ?? (index == 1 ? jobName : jobName + "-" + index.ToString(CultureInfo.InvariantCulture));
 
-            (int misfire, string? misfireName) = Misfire(attribute);
+            (int? misfire, string? misfireName) = Misfire(attribute);
+
+            // A threshold QZ0008 refuses is left out, as an interval QZ0005 refuses leaves out its
+            // schedule: the error stops the build either way, and nothing here should throw at start.
+            long? thresholdTicks = null;
+            string? thresholdText = null;
+            if (Text(attribute, MisfireThresholdLiteralAnalyzer.MisfireThresholdPropertyName) is { } threshold
+                && MisfireThresholdLiteralAnalyzer.Validate(threshold, out TimeSpan parsedThreshold) is null)
+            {
+                thresholdTicks = parsedThreshold.Ticks;
+                thresholdText = parsedThreshold.ToString("c", CultureInfo.InvariantCulture);
+            }
 
             builder.Add(new DeclaredTrigger(
                 schedule,
@@ -308,7 +319,9 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
                 Text(attribute, nameof(DeclaredTrigger.Description)),
                 Text(attribute, nameof(DeclaredTrigger.ExecutionGroup)),
                 Text(attribute, nameof(DeclaredTrigger.ConfigurationKey)),
-                LocationInfo.From(attribute.ApplicationSyntaxReference)));
+                LocationInfo.From(attribute.ApplicationSyntaxReference),
+                thresholdTicks,
+                thresholdText));
         }
 
         return builder.ToImmutable();
@@ -619,15 +632,22 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// The misfire instruction's value and the enum member it is.
+    /// The misfire instruction's value and the enum member it is, or no value when the attribute did not
+    /// write one.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The member's name is read off the enum rather than spelled here, so the generated call says
     /// what the application wrote and a member added to <c>CronTriggerMisfireInstruction</c> or
     /// <c>SimpleTriggerMisfireInstruction</c> needs no change in this file. A value that names no member
     /// is emitted as the cast it was written as.
+    /// </para>
+    /// <para>
+    /// Written and unwritten are told apart, <c>SmartPolicy</c> included: a written one states the
+    /// trigger's instruction, and an unwritten one leaves it to the scheduler's default (#4070).
+    /// </para>
     /// </remarks>
-    private static (int Value, string? Name) Misfire(AttributeData attribute)
+    private static (int? Value, string? Name) Misfire(AttributeData attribute)
     {
         foreach (KeyValuePair<string, TypedConstant> argument in attribute.NamedArguments)
         {
@@ -652,6 +672,6 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
             return (value, null);
         }
 
-        return (0, null);
+        return (null, null);
     }
 }

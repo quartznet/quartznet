@@ -70,7 +70,8 @@ public class UpdateTriggerDetailsOverHttpTest
                 .WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)
                 .WithPreferredNode(PreferredNode.For("node-a"))
                 .WithExecutionGroup("imports")
-                .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30))));
+                .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30)))
+                .WithMisfireThreshold(TimeSpan.FromMinutes(5)));
 
             applied.Should().BeTrue("the trigger exists, so the update applied");
 
@@ -86,6 +87,8 @@ public class UpdateTriggerDetailsOverHttpTest
                 after.PreferredNode.Should().Be(PreferredNode.For("node-a"));
                 after.ExecutionGroup.Should().Be("imports");
                 after.RetryPolicy.Should().Be(RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30)));
+                after.MisfireThreshold.Should().Be(TimeSpan.FromMinutes(5),
+                    "the update's body carries the threshold and the trigger body brings it back");
 
                 after.StartTimeUtc.Should().Be(before.StartTimeUtc, "an update is not a reschedule");
                 after.NextFireTimeUtc.Should().Be(before.NextFireTimeUtc, "the fire times are what this call leaves alone");

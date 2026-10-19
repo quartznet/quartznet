@@ -58,6 +58,16 @@ public sealed class TriggerDetailsUpdate
     internal bool HasOverlapPolicy { get; private set; }
     internal OverlapPolicy OverlapPolicy { get; private set; }
 
+    internal bool HasMisfireThreshold { get; private set; }
+    internal TimeSpan? MisfireThreshold { get; private set; }
+
+    /// <summary>
+    /// Whether the update sets nothing at all, which a store answers as done without touching the trigger.
+    /// </summary>
+    internal bool ChangesNothing => !HasDescription && !HasPriority && !HasJobDataMap
+        && !HasCalendarName && !HasMisfireInstruction && !HasPreferredNode
+        && !HasExecutionGroup && !HasRetryPolicy && !HasOverlapPolicy && !HasMisfireThreshold;
+
     /// <summary>
     /// Refuses an overlap policy for a stored trigger that cannot carry one, before a store changes
     /// anything else about it.
@@ -68,6 +78,19 @@ public sealed class TriggerDetailsUpdate
         {
             Throw.JobPersistenceException(
                 $"Trigger '{triggerKey}' is a {trigger.GetType().FullName}, which does not derive from TriggerBase and so cannot carry an overlap policy.");
+        }
+    }
+
+    /// <summary>
+    /// Refuses a misfire threshold for a stored trigger that cannot carry one, before a store changes
+    /// anything else about it.
+    /// </summary>
+    internal void EnsureMisfireThresholdCanBeCarried(ITrigger trigger, TriggerKey triggerKey)
+    {
+        if (HasMisfireThreshold && trigger is not Impl.Triggers.TriggerBase)
+        {
+            Throw.JobPersistenceException(
+                $"Trigger '{triggerKey}' is a {trigger.GetType().FullName}, which does not derive from TriggerBase and so cannot carry a misfire threshold.");
         }
     }
 
@@ -272,6 +295,31 @@ public sealed class TriggerDetailsUpdate
 
         HasOverlapPolicy = true;
         OverlapPolicy = overlapPolicy;
+        return this;
+    }
+
+    /// <summary>
+    /// Set how late the trigger may fire before it counts as misfired, or <see langword="null" /> to put
+    /// it back on the job store's <c>MisfireThreshold</c>.
+    /// </summary>
+    /// <remarks>
+    /// The new threshold decides from the store's next misfire scan and acquisition. A host older than
+    /// 4.6 ignores it over the HTTP API, and a node older than 4.6 ignores the stored value.
+    /// </remarks>
+    /// <param name="misfireThreshold">the threshold: longer than zero, in whole milliseconds; or <see langword="null" /></param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The threshold is zero or negative, or is not a whole number of milliseconds.
+    /// </exception>
+    /// <seealso cref="ITrigger.MisfireThreshold" />
+    public TriggerDetailsUpdate WithMisfireThreshold(TimeSpan? misfireThreshold)
+    {
+        if (misfireThreshold is { } threshold)
+        {
+            Impl.Triggers.TriggerBase.RequireValidMisfireThreshold(threshold, nameof(misfireThreshold));
+        }
+
+        HasMisfireThreshold = true;
+        MisfireThreshold = misfireThreshold;
         return this;
     }
 }

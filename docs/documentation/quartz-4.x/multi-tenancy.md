@@ -530,9 +530,10 @@ tenant's triggers run. See [Routing](tutorial/execution-groups.md#routing-which-
   acquiring at once could overshoot to at most `limit + (nodes − 1)`.
 - It **fails closed**: the quota ledger and the work queue are the same database, so a node that cannot
   reach the store fires nothing. A database outage stops work; it does not remove the ceiling.
-- A group held at its ceiling longer than `MisfireThreshold` (one minute by default) sends its backlog to
-  misfire handling. Pair a tight quota with `MisfireInstruction.IgnoreMisfirePolicy` or a larger
-  threshold. See [Execution Groups](tutorial/execution-groups.md#clustering-considerations).
+- A group held at its ceiling longer than its triggers' misfire threshold (the store's, one minute by
+  default) sends its backlog to misfire handling. Give a tightly limited tenant's triggers a
+  [threshold of their own](tutorial/more-about-triggers.md#a-trigger-s-own-misfire-threshold), or
+  `IgnoreMisfires`. See [Execution Groups](tutorial/execution-groups.md#clustering-considerations).
 :::
 
 ## Shared database

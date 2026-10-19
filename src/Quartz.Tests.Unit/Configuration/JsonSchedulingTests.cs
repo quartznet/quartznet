@@ -567,6 +567,68 @@ public class JsonSchedulingTests
     }
 
     [Test]
+    public void AddQuartz_WithMisfireThresholdInJson_GivesTheTriggerThatThresholdAndLeavesItsInstructionUnstated()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "reportJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "tolerant" },
+            { "Schedule:Triggers:0:JobName", "reportJob" },
+            { "Schedule:Triggers:0:MisfireThreshold", "00:10:00" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+            { "Schedule:Triggers:1:Name", "smart" },
+            { "Schedule:Triggers:1:JobName", "reportJob" },
+            { "Schedule:Triggers:1:Cron:Expression", "0 0 * * * ?" },
+            { "Schedule:Triggers:1:Cron:MisfireInstruction", "SmartPolicy" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        using var provider = services.BuildServiceProvider();
+        var triggers = provider.ScheduledTriggers();
+
+        ITrigger tolerant = triggers.Single(x => x.Key.Name == "tolerant");
+        tolerant.MisfireThreshold.Should().Be(TimeSpan.FromMinutes(10), "the threshold is a setting of the trigger, whatever its schedule");
+        ((Quartz.Impl.Triggers.TriggerBase) tolerant).MisfireInstructionStated.Should().BeFalse(
+            "a file that names no instruction leaves it to the scheduler's default");
+
+        ITrigger smart = triggers.Single(x => x.Key.Name == "smart");
+        smart.MisfireThreshold.Should().BeNull("a trigger that names none is on the store's threshold, as one built in code is");
+        ((Quartz.Impl.Triggers.TriggerBase) smart).MisfireInstructionStated.Should().BeTrue(
+            "a file that names SmartPolicy states it, and the scheduler's default then leaves it alone");
+    }
+
+    [Test]
+    public void AddQuartz_WithAMisfireThresholdThatIsNotOne_IsRefused()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "reportJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "typo" },
+            { "Schedule:Triggers:0:JobName", "reportJob" },
+            { "Schedule:Triggers:0:MisfireThreshold", "ten minutes" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        using var provider = services.BuildServiceProvider();
+        Action act = () => provider.ScheduledTriggers();
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a trigger meant to tolerate a delay that silently would not is a mistake to report at startup")
+            .WithMessage("*'ten minutes' is not a misfire threshold*TimeSpan*");
+    }
+
+    [Test]
     public void AddQuartz_WithContinuationInJson_MakesTheTriggerWaitForTheParent()
     {
         var config = BuildConfig(new Dictionary<string, string>

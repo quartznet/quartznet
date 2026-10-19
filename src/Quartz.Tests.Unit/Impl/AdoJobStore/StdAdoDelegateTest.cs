@@ -156,6 +156,7 @@ public class StdAdoDelegateTest
             "@state",
             "@noLaterThan",
             "@noEarlierThan",
+            "@misfireCountedFrom",
             "@instanceId",
             "@autoPinSentinel",
             "@liveNodeCutoff",
@@ -163,7 +164,7 @@ public class StdAdoDelegateTest
             "@excludedJobType0001",
             "@excludedJobType0002",
             "@excludedJobType0003");
-        boundParameters.Skip(7).Select(x => x.Value).Should().Equal(
+        boundParameters.Skip(8).Select(x => x.Value).Should().Equal(
             "First.Job",
             "Second.Job",
             "Third.Job",

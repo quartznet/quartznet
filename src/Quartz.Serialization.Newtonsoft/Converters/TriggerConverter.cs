@@ -89,6 +89,14 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
                     writer.WritePropertyName("OverlapPolicy");
                     writer.WriteValue(abstractTrigger.OverlapPolicy.ToString());
                 }
+
+                // Only when there is one, as the TimeSpan's invariant constant form: a trigger on the
+                // store's threshold writes exactly the payload it wrote before triggers had one.
+                if (abstractTrigger.MisfireThreshold is { } misfireThreshold)
+                {
+                    writer.WritePropertyName("MisfireThreshold");
+                    writer.WriteValue(SchedulingFileValues.FormatMisfireThreshold(misfireThreshold));
+                }
             }
 
             // The pin travels as the pair the triggers table holds - the node name (or the auto-pin
@@ -202,6 +210,12 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
                                                 && Enum.IsDefined(overlapPolicy)
                     ? overlapPolicy
                     : OverlapPolicy.Default;
+
+                // Absent for a trigger on the store's threshold and from payloads written before triggers
+                // had one: both read back as null, as does a value this version cannot take.
+                abstractTrigger.MisfireThreshold = SchedulingFileValues.TryReadMisfireThreshold(source.Value<string>("MisfireThreshold"), out TimeSpan misfireThreshold)
+                    ? misfireThreshold
+                    : null;
             }
 
             triggerSerializer.DeserializeFields(trigger, source);

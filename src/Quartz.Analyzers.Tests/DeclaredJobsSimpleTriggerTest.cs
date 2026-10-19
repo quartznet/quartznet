@@ -294,11 +294,13 @@ public class DeclaredJobsSimpleTriggerTest
         poll.RepeatInterval.Should().Be(TimeSpan.FromMinutes(10));
         poll.RepeatCount.Should().Be(-1, "an unwritten RepeatCount repeats forever");
         poll.MisfireInstructionCode.Should().Be((int) SimpleTriggerMisfireInstruction.SmartPolicy);
+        poll.MisfireThreshold.Should().BeNull("an attribute that names no threshold leaves the trigger on the store's");
 
         ISimpleTrigger warmUp = await SimpleTriggerOf(built.Scheduler, "warm-up");
         warmUp.RepeatInterval.Should().Be(TimeSpan.FromSeconds(5));
         warmUp.RepeatCount.Should().Be(3);
         warmUp.MisfireInstructionCode.Should().Be((int) SimpleTriggerMisfireInstruction.FireNow);
+        warmUp.MisfireThreshold.Should().Be(TimeSpan.FromSeconds(30), "the attribute's threshold reaches the trigger it declares");
         warmUp.Priority.Should().Be(8);
         warmUp.Description.Should().Be("four quick polls as the host starts");
         warmUp.ExecutionGroup.Should().Be("io");
@@ -402,6 +404,7 @@ public class DeclaredJobsSimpleTriggerTest
             Name = "warm-up",
             RepeatCount = 3,
             MisfireInstruction = SimpleTriggerMisfireInstruction.FireNow,
+            MisfireThreshold = "00:00:30",
             Priority = 8,
             Description = "four quick polls as the host starts",
             ExecutionGroup = "io")]

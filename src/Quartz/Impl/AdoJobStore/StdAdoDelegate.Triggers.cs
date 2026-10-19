@@ -183,7 +183,7 @@ public partial class StdAdoDelegate
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetCountMisfiredTriggersInStateSql()));
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
-        AddCommandParameter(cmd, SqlParameters.NextFireTime, GetDbDateTimeValue(misfireTime));
+        AddMisfireParameters(cmd, misfireTime);
         AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(state));
         AddExecutionGroupParameters(cmd, routedShape, routedGroups);
 
@@ -216,7 +216,7 @@ public partial class StdAdoDelegate
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.BuildSqlCountUnservedMisfiredTriggers(routedShape)));
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
-        AddCommandParameter(cmd, SqlParameters.NextFireTime, GetDbDateTimeValue(misfireTime));
+        AddMisfireParameters(cmd, misfireTime);
         AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(StoredTriggerState.Waiting));
 
         // The complement binds the same names under the other prefix: a serve-list's complement is a
@@ -522,6 +522,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.TriggerContinuesGroup, (object?) continuation.Parent?.Group ?? DBNull.Value);
         AddCommandParameter(cmd, SqlParameters.TriggerContinuationCondition, (object?) continuation.StoredCondition ?? DBNull.Value);
         AddCommandParameter(cmd, SqlParameters.TriggerOverlapPolicy, OverlapPolicyColumn.ToDbValue(trigger));
+        AddCommandParameter(cmd, SqlParameters.TriggerMisfireThreshold, MisfireThresholdValue(trigger));
 
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
@@ -767,6 +768,9 @@ public partial class StdAdoDelegate
 
         // And the overlap policy, after the continuation and before the optional pin in every flavour.
         parameters.Add(new SqlStatementParameter(SqlParameters.TriggerOverlapPolicy, OverlapPolicyColumn.ToDbValue(trigger)));
+
+        // And the misfire threshold, after the overlap policy and before the optional pin in every flavour.
+        parameters.Add(new SqlStatementParameter(SqlParameters.TriggerMisfireThreshold, MisfireThresholdValue(trigger)));
 
         if (writePreferredNode)
         {
@@ -1333,6 +1337,7 @@ public partial class StdAdoDelegate
         public string? ContinuesTriggerGroup;
         public int? ContinuationCondition;
         public int? OverlapPolicy;
+        public TimeSpan? MisfireThreshold;
 
         /// <summary>Populated from the joined row for SIMPLE and CRON triggers, <c>null</c> otherwise.</summary>
         public TriggerPropertyBundle? Props;
@@ -1381,6 +1386,7 @@ public partial class StdAdoDelegate
             ContinuesTriggerGroup = rs.GetOrdinal(AdoConstants.ColumnContinuesTriggerGroup);
             ContinuationCondition = rs.GetOrdinal(AdoConstants.ColumnContinuationCondition);
             OverlapPolicy = rs.GetOrdinal(AdoConstants.ColumnOverlapPolicy);
+            MisfireThreshold = rs.GetOrdinal(AdoConstants.ColumnMisfireThreshold);
         }
 
         public int TriggerName { get; }
@@ -1406,6 +1412,7 @@ public partial class StdAdoDelegate
         public int ContinuesTriggerGroup { get; }
         public int ContinuationCondition { get; }
         public int OverlapPolicy { get; }
+        public int MisfireThreshold { get; }
 
         public TriggerKey ReadKey(DbDataReader rs) => new(rs.GetString(TriggerName), rs.GetString(TriggerGroup));
     }
@@ -1461,8 +1468,17 @@ public partial class StdAdoDelegate
             : Convert.ToInt32(rs.GetValue(ordinals.ContinuationCondition), CultureInfo.InvariantCulture);
         row.OverlapPolicy = OverlapPolicyColumn.Read(rs, ordinals.OverlapPolicy);
 
+        // Whole milliseconds, NULL on every row a node older than 4.6 wrote, which is the store's (#4070).
+        row.MisfireThreshold = GetTimeSpanFromDbValue(rs.GetValue(ordinals.MisfireThreshold));
+
         return row;
     }
+
+    /// <summary>
+    /// What the <c>MISFIRE_THRESHOLD</c> column holds for <paramref name="trigger" />: its own threshold in
+    /// whole milliseconds, or <c>NULL</c> for the store's (#4070).
+    /// </summary>
+    private object MisfireThresholdValue(ITrigger trigger) => GetDbTimeSpanValue(trigger.MisfireThreshold) ?? DBNull.Value;
 
     private static string? ReadNullableString(DbDataReader rs, int ordinal)
         => rs.IsDBNull(ordinal) ? null : rs.GetString(ordinal);
@@ -1504,6 +1520,7 @@ public partial class StdAdoDelegate
             triggerBase.SetPreferredNode(PreferredNode.FromStored(row.PreferredNode, row.PreferredNodeAuto), markDirty: false);
             triggerBase.Continuation = Continuation.FromStored(row.ContinuesTriggerName, row.ContinuesTriggerGroup, row.ContinuationCondition);
             OverlapPolicyColumn.Apply(triggerBase, row.OverlapPolicy);
+            triggerBase.MisfireThreshold = row.MisfireThreshold;
         }
     }
 
@@ -2141,6 +2158,30 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
+    /// Binds what <c>StdAdoConstants.MisfiredPredicate</c> compares against, in the order it names them:
+    /// the scan's upper bound, <paramref name="misfireTime" /> for a row with no threshold of its own, and
+    /// the instant a row's own <c>MISFIRE_THRESHOLD</c> counts back from (#4070).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The instant is this delegate's now, from the store's own clock: the caller's
+    /// <paramref name="misfireTime" /> is now less the store's threshold, and a trigger with a threshold of
+    /// its own is late once its fire time is at or before now less that.
+    /// </para>
+    /// <para>
+    /// The bound is the later of now and <paramref name="misfireTime" />, so that a caller asking about a
+    /// misfire time ahead of the clock is answered for every row it always was.
+    /// </para>
+    /// </remarks>
+    private void AddMisfireParameters(DbCommand cmd, DateTimeOffset misfireTime)
+    {
+        DateTimeOffset now = timeProvider.GetUtcNow();
+        AddCommandParameter(cmd, SqlParameters.MisfireScanBound, GetDbDateTimeValue(misfireTime > now ? misfireTime : now));
+        AddCommandParameter(cmd, SqlParameters.NextFireTime, GetDbDateTimeValue(misfireTime));
+        AddCommandParameter(cmd, SqlParameters.MisfireCountedFrom, GetDbDateTimeValue(now));
+    }
+
+    /// <summary>
     /// The statement counting the triggers in the given states that have misfired.
     /// </summary>
     protected virtual string GetCountMisfiredTriggersInStateSql()
@@ -2177,6 +2218,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(StoredTriggerState.Waiting));
         AddCommandParameter(cmd, SqlParameters.NoLaterThan, GetDbDateTimeValue(criteria.NoLaterThan));
         AddCommandParameter(cmd, SqlParameters.NoEarlierThan, GetDbDateTimeValue(criteria.NoEarlierThan));
+        AddCommandParameter(cmd, SqlParameters.MisfireCountedFrom, GetDbDateTimeValue(timeProvider.GetUtcNow()));
         AddPreferredNodeParameters(cmd, criteria.LiveNodeCutoff);
 
         if (excludedJobTypeNames is not null)
@@ -2893,7 +2935,7 @@ public partial class StdAdoDelegate
         using (var cmd = PrepareCommand(conn, sql))
         {
             AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
-            AddCommandParameter(cmd, SqlParameters.NextFireTime, GetDbDateTimeValue(misfireTime));
+            AddMisfireParameters(cmd, misfireTime);
             AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(state));
             AddExecutionGroupParameters(cmd, routedShape, routedGroups);
 

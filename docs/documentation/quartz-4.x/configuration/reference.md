@@ -900,6 +900,7 @@ above and produces the same result.
 | `quartz.scheduler.interruptJobsOnShutdownWithWait` | `Scheduler:ShutdownJobInterruption` — `true` alone means `WhenWaitingForJobs`; both keys `true` means `Always` |
 | `quartz.scheduler.servedExecutionGroups` | `Scheduler:ServedExecutionGroups`, or `ServeExecutionGroups(…)` — comma-separated, entries trimmed; `_` is the ungrouped bucket. Added in 4.6 |
 | `quartz.scheduler.refusedExecutionGroups` | `Scheduler:RefusedExecutionGroups`, or `RefuseExecutionGroups(…)` — the same spellings. Added in 4.6 |
+| `quartz.scheduler.defaultMisfireHandling` | `Scheduler:DefaultMisfireHandling` — `SmartPolicy`, `IgnoreMisfires`, `FireAndProceed` or `DoNothing`. See [The scheduler's default instruction](../tutorial/more-about-triggers.md#the-scheduler-s-default-instruction). Added in 4.6 |
 | `quartz.context.key.NAME` | `Scheduler:Context:NAME` |
 | `quartz.executionLimit.GROUP`, `quartz.clusterExecutionLimit.GROUP` | `UseExecutionLimits(…)`; in `appsettings.json`, `ExecutionLimit:GROUP` and `ClusterExecutionLimit:GROUP`, where `tenant:*` is a prefix. See [Configuring execution limits](../tutorial/execution-groups.md#configuring-execution-limits) |
 | `quartz.threadPool.maxConcurrency` (or `threadCount`) | `ThreadPool:MaxConcurrency` |

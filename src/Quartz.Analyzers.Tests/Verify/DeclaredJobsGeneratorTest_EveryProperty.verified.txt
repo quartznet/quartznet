@@ -31,6 +31,7 @@ namespace Quartz
                 .WithPriority(9)
                 .WithDescription("every six hours, Helsinki time")
                 .WithExecutionGroup("maintenance")
+                .WithMisfireThreshold(global::System.TimeSpan.FromTicks(3000000000)) // 00:05:00
                 .WithCronSchedule("0 0 0/6 * * ?", cron => cron
                     .InTimeZone(global::Quartz.TimeZones.FindById("Europe/Helsinki"))
                     .WithMisfireInstruction(global::Quartz.CronTriggerMisfireInstruction.DoNothing)));

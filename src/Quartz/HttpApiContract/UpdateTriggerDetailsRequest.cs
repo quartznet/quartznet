@@ -36,9 +36,9 @@ namespace Quartz.HttpApiContract;
 /// <para>
 /// The body is read the way RFC 7386 reads a merge patch, which is the only reading that can say what
 /// this API has to say: a member that is <b>absent</b> leaves the trigger's value alone, and a member
-/// present as <c>null</c> <b>clears</b> it. Five of the eight are clearable — the description, the
-/// calendar name, the execution group, the retry policy and the node pin — so a shape in which absent
-/// and null were the same thing could set them but never unset them.
+/// present as <c>null</c> <b>clears</b> it. Six of the ten are clearable — the description, the
+/// calendar name, the execution group, the retry policy, the node pin and the misfire threshold — so a
+/// shape in which absent and null were the same thing could set them but never unset them.
 /// </para>
 /// <para>
 /// That distinction is what the nested converter exists for: a record's generated reader cannot tell an
@@ -138,6 +138,16 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
     /// </summary>
     public string? OverlapPolicy { get; init; }
 
+    /// <summary>Whether <see cref="MisfireThreshold" /> is part of the update.</summary>
+    public bool HasMisfireThreshold { get; init; }
+
+    /// <summary>
+    /// The trigger's own misfire threshold as a <see cref="TimeSpan" /> in its invariant form —
+    /// <c>00:05:00</c> — or <see langword="null" /> to put the trigger back on the store's. A host older
+    /// than 4.6 ignores the member.
+    /// </summary>
+    public string? MisfireThreshold { get; init; }
+
     /// <summary>
     /// The five families, spelled on the wire. Written out rather than derived from the internal enum,
     /// so that renaming a member of that enum cannot quietly rename a wire value.
@@ -176,7 +186,9 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             HasRetryPolicy = update.HasRetryPolicy,
             RetryPolicy = update.RetryPolicy?.ToStoredString(),
             HasOverlapPolicy = update.HasOverlapPolicy,
-            OverlapPolicy = update.HasOverlapPolicy ? update.OverlapPolicy.ToString() : null
+            OverlapPolicy = update.HasOverlapPolicy ? update.OverlapPolicy.ToString() : null,
+            HasMisfireThreshold = update.HasMisfireThreshold,
+            MisfireThreshold = update.MisfireThreshold is { } threshold ? SchedulingFileValues.FormatMisfireThreshold(threshold) : null
         };
     }
 
@@ -255,6 +267,11 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             update.WithOverlapPolicy(SchedulingFileValues.TryReadOverlapPolicy(OverlapPolicy, out Quartz.OverlapPolicy overlapPolicy) ? overlapPolicy : Quartz.OverlapPolicy.Default);
         }
 
+        if (HasMisfireThreshold)
+        {
+            update.WithMisfireThreshold(SchedulingFileValues.TryReadMisfireThreshold(MisfireThreshold, out TimeSpan misfireThreshold) ? misfireThreshold : null);
+        }
+
         return update;
     }
 
@@ -278,6 +295,11 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
         if (HasOverlapPolicy && !SchedulingFileValues.TryReadOverlapPolicy(OverlapPolicy, out _))
         {
             yield return $"Overlap policy '{OverlapPolicy}' is not an overlap policy. {SchedulingFileValues.OverlapPolicyNames}";
+        }
+
+        if (HasMisfireThreshold && MisfireThreshold is not null && !SchedulingFileValues.TryReadMisfireThreshold(MisfireThreshold, out _))
+        {
+            yield return $"Misfire threshold '{MisfireThreshold}' is not a misfire threshold. {SchedulingFileValues.MisfireThresholdForm}";
         }
     }
 
@@ -337,6 +359,7 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             JsonElement? executionGroup = Member(root, options, "ExecutionGroup");
             JsonElement? retryPolicy = Member(root, options, "RetryPolicy");
             JsonElement? overlapPolicy = Member(root, options, "OverlapPolicy");
+            JsonElement? misfireThreshold = Member(root, options, "MisfireThreshold");
 
             return new UpdateTriggerDetailsRequest
             {
@@ -359,7 +382,9 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
                 HasRetryPolicy = retryPolicy.HasValue,
                 RetryPolicy = Text(retryPolicy, "retryPolicy"),
                 HasOverlapPolicy = overlapPolicy.HasValue,
-                OverlapPolicy = Text(overlapPolicy, "overlapPolicy")
+                OverlapPolicy = Text(overlapPolicy, "overlapPolicy"),
+                HasMisfireThreshold = misfireThreshold.HasValue,
+                MisfireThreshold = Text(misfireThreshold, "misfireThreshold")
             };
         }
 
@@ -464,6 +489,11 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
             if (value.HasOverlapPolicy)
             {
                 writer.WriteString(options.GetPropertyName("OverlapPolicy"), value.OverlapPolicy);
+            }
+
+            if (value.HasMisfireThreshold)
+            {
+                writer.WriteString(options.GetPropertyName("MisfireThreshold"), value.MisfireThreshold);
             }
 
             writer.WriteEndObject();

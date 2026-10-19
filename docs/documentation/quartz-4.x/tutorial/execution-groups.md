@@ -573,11 +573,13 @@ deliberately includes nodes that have missed a check-in: one still running jobs 
 counting and let the cluster exceed the ceiling.
 
 **4. Held-back work can misfire.** A trigger held back by a ceiling stays `WAITING`, and acquisition
-excludes anything older than `MisfireThreshold` (one minute by default). A group at its ceiling for
-longer sends its backlog to `RecoverMisfiredJobs`, which applies each trigger's misfire instruction. This
-is likelier with a cluster-scoped limit: a saturated node loses the trigger to a peer, but a saturated
-cluster has no peer. If the backlog matters, pair a tightly limited group with
-`MisfireInstruction.IgnoreMisfirePolicy`, or raise `MisfireThreshold`.
+excludes anything older than its misfire threshold (the store's `MisfireThreshold`, one minute by default).
+A group at its ceiling for longer sends its backlog to `RecoverMisfiredJobs`, which applies each trigger's
+misfire instruction. This is likelier with a cluster-scoped limit: a saturated node loses the trigger to a
+peer, but a saturated cluster has no peer. If the backlog matters, give the limited group's triggers a
+[threshold of their own](more-about-triggers.md#a-trigger-s-own-misfire-threshold) with
+`WithMisfireThreshold`, or `IgnoreMisfires`. Raising the store's `MisfireThreshold` does it for every
+trigger.
 
 **Cost.** One extra aggregate per acquisition attempt, not per trigger, and only when at least one limit
 is cluster-scoped. A configuration without one pays nothing.

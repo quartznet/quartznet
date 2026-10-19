@@ -32,19 +32,26 @@ The compiler finds most of the 3.x → 4.0 work.
 
 An application on 4.5 compiles on 4.6 unchanged, unless it treats warnings as errors and has a cron literal
 that the new analyzer warning [`QZ0007`](tutorial/compile-time-checks.md#qz0007-wildcardsecondsfield)
-reports. The upgrade has two database migrations, in
+reports. The upgrade has three required database migrations, in
 [`database/migrations/4.6/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6):
-`add_scheduler_version_<db>.sql` adds the nullable `QUARTZ_VERSION` column to `QRTZ_SCHEDULER_STATE`, and
-`add_fired_trigger_interrupt_<db>.sql` adds the nullable `INTERRUPT_REQUESTED_TIME` column to
-`QRTZ_FIRED_TRIGGERS`. A 4.6 node refuses to start without them; a 4.5 node never names them. A database that keeps its execution history can also take one
-optional migration, [`4.6/add_execution_history_lookup_indexes`](../database/schema-changes.md#version-4-6):
-two indexes, performance only.
+
+| Migration | Adds, nullable |
+|---|---|
+| `add_scheduler_version_<db>.sql` | `QUARTZ_VERSION` on `QRTZ_SCHEDULER_STATE` |
+| `add_fired_trigger_interrupt_<db>.sql` | `INTERRUPT_REQUESTED_TIME` on `QRTZ_FIRED_TRIGGERS` |
+| `add_trigger_misfire_threshold_<db>.sql` | `MISFIRE_THRESHOLD` on `QRTZ_TRIGGERS` |
+
+A 4.6 node refuses to start without them; a 4.5 node never names them. A database that keeps its execution
+history can also take one optional migration,
+[`4.6/add_execution_history_lookup_indexes`](../database/schema-changes.md#version-4-6): two indexes,
+performance only.
 
 To roll a cluster from 4.5:
 
 1. Run the migrations while the 4.5 nodes are up.
-2. Roll the nodes. While any 4.5 node is live, every 4.6 firing round takes `TRIGGER_ACCESS` (event 3517),
-   and an interrupt asked of a firing it runs goes unanswered (event 3520).
+2. Roll the nodes. While any 4.5 node is live, every 4.6 firing round takes `TRIGGER_ACCESS` (event 3517).
+   A 4.5 node never answers an interrupt asked of a firing it runs (event 3520), and judges every trigger by
+   the store's misfire threshold.
 3. The last 4.5 node stops. Once its row ages out, rounds of concurrent-allowed work take no lock (event 3518).
 
 Nothing else is configured, and rolling back to 4.5 needs nothing. See
@@ -96,12 +103,30 @@ Nothing else is configured, and rolling back to 4.5 needs nothing. See
 | Dashboard: `triggerGroup`, `triggerName` on the History page | One trigger exactly. See [Execution history and misfires](packages/dashboard.md#execution-history-and-misfires) |
 | `ExecutionHistoryOptions.WriteBehindInterval`, log event `3164` | `TimeSpan?`, default `null`: the database history queues runs and writes them every interval, one status update per job; `3164` reports rows a flush lost. See [Write behind](tutorial/job-stores.md#write-behind) |
 | `JobExecutionContextBuilder.Recovering(bool = true)`, `WithRetryAttempt(int)`, `WithRefireCount(int)`, `WithCalendar(ICalendar)`, `WithCancellation(CancellationToken)`, `WithTimeProvider(TimeProvider)` | What a job branches on, set for a level-1 test. See [Level 1](tutorial/testing.md#level-1-one-job-one-context) |
+| `ITrigger.MisfireThreshold` | `TimeSpan?`, default interface member answering `null`: the trigger's own misfire threshold; `null` is the store's. See [A trigger's own misfire threshold](tutorial/more-about-triggers.md#a-trigger-s-own-misfire-threshold) |
+| `TriggerBase.MisfireThreshold` | `TimeSpan?`: positive, whole milliseconds |
+| `TriggerBuilder<TJob>.WithMisfireThreshold(TimeSpan)` | Positive, whole milliseconds |
+| `ITriggerConfigurator<TJob>.WithMisfireThreshold(TimeSpan)` | Default interface member: throws `NotSupportedException` |
+| `TriggerDetailsUpdate.WithMisfireThreshold(TimeSpan?)` | `null` puts the trigger back on the store's |
+| `CronTriggerAttribute.MisfireThreshold`, `SimpleTriggerAttribute.MisfireThreshold` | `string?`, `init`: an invariant `TimeSpan` |
+| Analyzer [`QZ0008`](tutorial/compile-time-checks.md#qz0008-invalidmisfirethreshold) | Error: an attribute's `MisfireThreshold` that is not a positive `TimeSpan` in whole milliseconds |
+| `MisfireThreshold` in the JSON schedule, `<misfire-threshold>` in XML | See [JSON](configuration/json.md) and [Quartz.Plugins](packages/quartz-plugins.md) |
+| HTTP: `misfireThreshold` on the trigger body and `update-details` | Absent for the store's; a host older than 4.6 ignores it. See [Misfire thresholds](packages/http-api.md#misfire-thresholds) |
+| Dashboard: *Misfire threshold* in *Edit details* | See [Editing a trigger](packages/dashboard.md#editing-a-trigger) |
+| `QRTZ_TRIGGERS.MISFIRE_THRESHOLD`, `AdoConstants.ColumnMisfireThreshold` | Nullable 64-bit milliseconds, from the required `4.6/add_trigger_misfire_threshold_<db>.sql`. See [Version 4.6](../database/schema-changes.md#version-4-6) |
+| `DefaultMisfireHandling` | `enum { SmartPolicy, IgnoreMisfires, FireAndProceed, DoNothing }`. See [The scheduler's default instruction](tutorial/more-about-triggers.md#the-scheduler-s-default-instruction) |
+| `QuartzSchedulerOptions.DefaultMisfireHandling` | Default `SmartPolicy`; flat key `quartz.scheduler.defaultMisfireHandling` |
 | Log events 3056–3060, 3517, 3518, 3608 | A store's lock-free verdict at startup, a round escalated or rolled back to the lock, rounds locked while nodes contend, an edit re-applied, a cluster's older-peer verdict, a misfire write skipped. See [Log Events](log-events.md) |
 
 Behaviour that changed:
 
 | Before | After | What to do |
 |---|---|---|
+| A schedule builder never given a misfire instruction stored `0`, the same as an explicit `SmartPolicy` | The instruction is unstated until the scheduler stores the trigger and gives it `DefaultMisfireHandling`'s mapping: `SmartPolicy` unless configured | Nothing |
+| `[CronTrigger]`/`[SimpleTrigger]` with `MisfireInstruction = …SmartPolicy` generated no call | It generates `WithMisfireInstruction(…SmartPolicy)`, so the instruction is stated | Nothing |
+| A trigger's row was written without a threshold of its own | A 4.6 node writes `MISFIRE_THRESHOLD` with every trigger, and refuses a schema without it | Run the migration |
+| The misfire scan read `NEXT_FIRE_TIME <= now - MisfireThreshold` | It reads `NEXT_FIRE_TIME <= now`, with each row's own threshold as a residual | Nothing |
+| A `StdAdoDelegate` subclass that rewrote the acquisition or misfire statements from scratch bound the old parameters | The statements also bind `@misfireCountedFrom`, and the misfire ones `@misfireScanBound` | Start from `base`'s statement, as `MySQLDelegate` does |
 | `* */5 * ? * *` fired every second of every fifth minute, silently | Warning [`QZ0007`](tutorial/compile-time-checks.md#qz0007-wildcardsecondsfield) on a literal or constant; log event `5112` when such a trigger is scheduled | Write `0` for the seconds, or `0-59` if every second is intended |
 | Every firing round of more than one trigger took `TRIGGER_ACCESS`; a round of one acquired without it and fired under it in a second transaction | A round takes the lock only when a serial job, a `Skip`/`BufferOne`/`CancelPrevious` trigger, a cluster-scoped limit, an isolation level above `ReadCommitted`, `AcquireTriggersWithinLock`, SQLite or a live 4.5 node asks for it, and while nodes contend for the same backlog; a round of one that takes no lock fires in the round, and one that takes it is 4.5's two transactions | Nothing. `LockFreeFiringRounds = false` restores 4.5 |
 | A cluster-scoped execution limit could overshoot by one per node on a round of one | Exact: every round that counts against one is locked | Nothing |

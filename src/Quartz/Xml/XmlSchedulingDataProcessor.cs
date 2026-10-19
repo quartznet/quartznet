@@ -391,6 +391,7 @@ internal class XmlSchedulingDataProcessor
                 triggerNode.ContinuationCondition.TrimEmptyToNull(),
                 $"XML trigger '{triggerName}'");
             OverlapPolicy triggerOverlapPolicy = SchedulingFileValues.ReadOverlapPolicy(triggerNode.OverlapPolicy.TrimEmptyToNull(), $"XML trigger '{triggerName}'");
+            TimeSpan? triggerMisfireThreshold = SchedulingFileValues.ReadMisfireThreshold(triggerNode.MisfireThreshold.TrimEmptyToNull(), $"XML trigger '{triggerName}'");
             string triggerJobName = triggerNode.JobName.TrimEmptyToNull()!;
             string triggerJobGroup = triggerNode.JobGroup.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
 
@@ -486,6 +487,13 @@ internal class XmlSchedulingDataProcessor
             if (triggerContinuation.Parent is { } continuationParent)
             {
                 triggerBuilder.StartAfter(continuationParent, triggerContinuation.When);
+            }
+
+            // Only when the document states one: the builder takes a positive threshold, and one it is
+            // never given builds a trigger on the store's.
+            if (triggerMisfireThreshold is { } misfireThreshold)
+            {
+                triggerBuilder.WithMisfireThreshold(misfireThreshold);
             }
 
             IMutableTrigger trigger = (IMutableTrigger) triggerBuilder.Build();

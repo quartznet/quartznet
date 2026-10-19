@@ -100,7 +100,9 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     private CronExpression? cronExpression;
     private readonly string? deferredHashExpression;
     private TimeZoneInfo? deferredTimeZone;
-    private int misfireInstruction = MisfireInstruction.SmartPolicy;
+    // Null until WithMisfireInstruction is called: a builder never told what to do about a misfire
+    // leaves the trigger's instruction unstated, so the scheduler's default applies to it.
+    private int? misfireInstruction;
 
     private CronScheduleBuilder(CronExpression cronExpression)
     {
@@ -141,7 +143,10 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
         // CronExpression is immutable, so every trigger built here can safely share this instance;
         // its setter also adopts the expression's time zone as the trigger's.
         ct.CronExpression = cronExpression;
-        ct.MisfireInstructionCode = misfireInstruction;
+        if (misfireInstruction is { } stated)
+        {
+            ct.MisfireInstructionCode = stated;
+        }
 
         return ct;
     }
@@ -276,8 +281,12 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     /// <summary>
     /// Say what the trigger should do when it misses a firing.
     /// </summary>
-    /// <param name="instruction">the policy to apply; defaults to
-    /// <see cref="CronTriggerMisfireInstruction.SmartPolicy" />.</param>
+    /// <param name="instruction">the policy to apply. A builder never given one leaves the
+    /// instruction unstated, and the scheduler's
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" /> decides it when the trigger is
+    /// scheduled: <see cref="CronTriggerMisfireInstruction.SmartPolicy" /> unless configured otherwise.
+    /// Passing <see cref="CronTriggerMisfireInstruction.SmartPolicy" /> states it, and the default then
+    /// leaves it alone.</param>
     /// <returns>the updated CronScheduleBuilder</returns>
     /// <seealso cref="CronTriggerMisfireInstruction" />
     public CronScheduleBuilder WithMisfireInstruction(CronTriggerMisfireInstruction instruction)

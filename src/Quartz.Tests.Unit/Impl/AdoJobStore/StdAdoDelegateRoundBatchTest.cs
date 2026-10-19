@@ -135,16 +135,20 @@ public class StdAdoDelegateRoundBatchTest
     /// The fires of a round go as one batch of every statement each fire makes, in order: the fired row
     /// inserted, the trigger's row, its type table.
     /// </summary>
+    /// <remarks>
+    /// Two fires, the size the batch limit was measured at. Three of these stub fires sat under two hundred
+    /// bytes below the limit until the trigger row's update gained <c>MISFIRE_THRESHOLD</c> (#4070).
+    /// </remarks>
     [Test]
     public async Task FireWritesGoAsOneBatchInTheOrderOfTheFires()
     {
         PostgreSQLDelegate driverDelegate = Shipped(new PostgreSQLDelegate());
         StubBatchingConnection connection = new();
 
-        await driverDelegate.ApplyTriggersFired(Holder(connection), Updates(3));
+        await driverDelegate.ApplyTriggersFired(Holder(connection), Updates(2));
 
-        StubBatch batch = connection.Batches.Should().ContainSingle("three fires fit one batch").Subject;
-        batch.Commands.Should().HaveCount(9, "three statements a fire: the fired row, the trigger row, the simple trigger row");
+        StubBatch batch = connection.Batches.Should().ContainSingle("two fires fit one batch").Subject;
+        batch.Commands.Should().HaveCount(6, "three statements a fire: the fired row, the trigger row, the simple trigger row");
         batch.Commands[0].CommandText.Should().StartWith("INSERT INTO QRTZ_FIRED_TRIGGERS", "a fire on acquisition inserts its row");
         batch.Commands[1].CommandText.Should().StartWith("UPDATE QRTZ_TRIGGERS");
         batch.Commands[2].CommandText.Should().StartWith("UPDATE QRTZ_SIMPLE_TRIGGERS");

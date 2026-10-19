@@ -50,7 +50,7 @@ editing.
 | 4.0 / 4.1 | 4.3+ | [4.2](#version-4-2), then [4.3](#version-4-3) — both **mandatory** |
 | 4.2 | 4.3+ | [4.3](#version-4-3) — **mandatory**; then [4.6](#version-4-6) for 4.6+ |
 | 4.3 | 4.4 / 4.5 | Nothing mandatory. [4.4](#version-4-4) only with `UseExecutionHistory()` |
-| 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version and interrupt columns **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()` |
+| 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version, interrupt and misfire threshold columns **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()` |
 
 ## Upgrading to 4.x is mandatory
 
@@ -676,14 +676,16 @@ that has the key keeps it, and nothing depends on it.
 
 ## Version 4.6
 
-Three scripts: two mandatory ([#4067](https://github.com/quartznet/quartznet/issues/4067),
-[#4071](https://github.com/quartznet/quartznet/issues/4071)), one optional and performance only
+Four scripts: three mandatory ([#4067](https://github.com/quartznet/quartznet/issues/4067),
+[#4071](https://github.com/quartznet/quartznet/issues/4071),
+[#4070](https://github.com/quartznet/quartznet/issues/4070)), one optional and performance only
 ([#4072](https://github.com/quartznet/quartznet/issues/4072)). 4.5 changed no schema.
 
 | Script | Status | Adds |
 |---|---|---|
 | [`migrations/4.6/add_scheduler_version_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6) | **Mandatory** for 4.6 and later | `QUARTZ_VERSION` on `QRTZ_SCHEDULER_STATE` |
 | [`migrations/4.6/add_fired_trigger_interrupt_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6) | **Mandatory** for 4.6 and later | `INTERRUPT_REQUESTED_TIME` on `QRTZ_FIRED_TRIGGERS` |
+| [`migrations/4.6/add_trigger_misfire_threshold_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6) | **Mandatory** for 4.6 and later | `MISFIRE_THRESHOLD` on `QRTZ_TRIGGERS` |
 | [`migrations/4.6/add_execution_history_lookup_indexes_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6) | Optional: performance only | `IDX_QRTZ_EH_FIRE_INST` and `IDX_QRTZ_EH_TRIG_TIME` on `QRTZ_EXECUTION_HISTORY` |
 
 ### The version column
@@ -718,10 +720,27 @@ Three scripts: two mandatory ([#4067](https://github.com/quartznet/quartznet/iss
   with, and one node's rows are the firings it holds.
 - A 4.6 node refuses to start without it; the startup check names the column and the script.
 
+### The misfire threshold column
+
+`MISFIRE_THRESHOLD` is the trigger's own [misfire threshold](../quartz-4.x/tutorial/more-about-triggers.md#a-trigger-s-own-misfire-threshold)
+in milliseconds.
+
+| Value | Meaning |
+|---|---|
+| `NULL` | The store's `MisfireThreshold`; every row a node older than 4.6 writes |
+| a positive number | How late the trigger may fire before it misfires |
+
+- Nullable, no default, a 64-bit integer (`bigint`, `BIGINT`, `NUMBER(19)`).
+- No index. The misfire scan and acquisition still range over `IDX_QRTZ_T_NFT_ST` on `NEXT_FIRE_TIME`, and
+  read the column as a residual beside it.
+- A 4.5 node ignores it, so a cluster honours a trigger's threshold only once every node is 4.6. A 4.5 node
+  that updates the row leaves the column as it was.
+- A 4.6 node refuses to start without it; the startup check names the column and the script.
+
 ### Rolling 4.5 → 4.6
 
-Run both mandatory scripts while 4.5 nodes are still up. Both columns are nullable with no default, and a
-4.5 node never names them: its state row reads `NULL`.
+Run all three mandatory scripts while 4.5 nodes are still up. All three columns are nullable with no
+default, and a 4.5 node never names them: its state row reads `NULL`.
 
 | While | A 4.6 node |
 |---|---|

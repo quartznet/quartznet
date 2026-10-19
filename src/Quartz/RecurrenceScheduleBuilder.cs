@@ -29,7 +29,9 @@ namespace Quartz;
 public sealed class RecurrenceScheduleBuilder : IScheduleBuilder
 {
     private string recurrenceRule;
-    private int misfireInstruction = MisfireInstruction.SmartPolicy;
+    // Null until WithMisfireInstruction is called: a builder never told what to do about a misfire
+    // leaves the trigger's instruction unstated, so the scheduler's default applies to it.
+    private int? misfireInstruction;
     private TimeZoneInfo? timeZone;
 
     private RecurrenceScheduleBuilder(string recurrenceRule)
@@ -62,7 +64,10 @@ public sealed class RecurrenceScheduleBuilder : IScheduleBuilder
     {
         RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
         trigger.RecurrenceRule = recurrenceRule;
-        trigger.MisfireInstructionCode = misfireInstruction;
+        if (misfireInstruction is { } stated)
+        {
+            trigger.MisfireInstructionCode = stated;
+        }
         trigger.triggerTimeZone = timeZone;
         return trigger;
     }
@@ -81,8 +86,12 @@ public sealed class RecurrenceScheduleBuilder : IScheduleBuilder
     /// <summary>
     /// Say what the trigger should do when it misses a firing.
     /// </summary>
-    /// <param name="instruction">the policy to apply; defaults to
-    /// <see cref="RecurrenceTriggerMisfireInstruction.SmartPolicy" />.</param>
+    /// <param name="instruction">the policy to apply. A builder never given one leaves the
+    /// instruction unstated, and the scheduler's
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" /> decides it when the trigger is
+    /// scheduled: <see cref="RecurrenceTriggerMisfireInstruction.SmartPolicy" /> unless configured otherwise.
+    /// Passing <see cref="RecurrenceTriggerMisfireInstruction.SmartPolicy" /> states it, and the default then
+    /// leaves it alone.</param>
     /// <returns>the updated RecurrenceScheduleBuilder</returns>
     /// <seealso cref="RecurrenceTriggerMisfireInstruction" />
     public RecurrenceScheduleBuilder WithMisfireInstruction(RecurrenceTriggerMisfireInstruction instruction)

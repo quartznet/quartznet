@@ -35,6 +35,7 @@ namespace Quartz
                 .WithPriority(8)
                 .WithDescription("four quick polls as the host starts")
                 .WithExecutionGroup("io")
+                .WithMisfireThreshold(global::System.TimeSpan.FromTicks(300000000)) // 00:00:30
                 .WithSimpleSchedule(simple => simple
                     .WithInterval(global::System.TimeSpan.FromTicks(50000000)) // 00:00:05
                     .WithRepeatCount(3)

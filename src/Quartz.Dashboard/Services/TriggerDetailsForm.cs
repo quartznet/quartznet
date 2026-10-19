@@ -20,6 +20,7 @@
 using System.Globalization;
 
 using Quartz.Impl.Triggers;
+using Quartz.Util;
 
 namespace Quartz.Dashboard.Services;
 
@@ -67,6 +68,7 @@ internal sealed class TriggerDetailsForm
         PreferredNodeMode = ModeOf(original.PreferredNode);
         PreferredNodeName = original.PreferredNode is { IsAutomatic: false, Node: { } node } ? node : string.Empty;
         OverlapPolicy = original.OverlapPolicy.ToString();
+        MisfireThreshold = original.MisfireThreshold is { } threshold ? SchedulingFileValues.FormatMisfireThreshold(threshold) : string.Empty;
         JobDataMap = Copy(original.JobDataMap);
         MisfireOptions = OptionsFor(original);
 
@@ -75,6 +77,11 @@ internal sealed class TriggerDetailsForm
         OverlapPolicyUnavailable = original is TriggerBase
             ? null
             : "A " + original.GetType().Name + " does not derive from TriggerBase, so it cannot carry an overlap policy.";
+
+        // Refused the same way, for the same reason.
+        MisfireThresholdUnavailable = original is TriggerBase
+            ? null
+            : "A " + original.GetType().Name + " does not derive from TriggerBase, so it cannot carry a misfire threshold.";
     }
 
     /// <summary>
@@ -115,6 +122,12 @@ internal sealed class TriggerDetailsForm
     public string OverlapPolicy { get; set; }
 
     /// <summary>
+    /// The trigger's own misfire threshold as a <see cref="TimeSpan" /> in its invariant form, or blank for
+    /// the job store's.
+    /// </summary>
+    public string MisfireThreshold { get; set; }
+
+    /// <summary>
     /// A copy of the trigger's map, which the map editor writes into. The trigger's own is never touched.
     /// </summary>
     public JobDataMap JobDataMap { get; }
@@ -129,6 +142,11 @@ internal sealed class TriggerDetailsForm
     /// Why the overlap policy cannot be edited for this trigger, or <see langword="null" /> when it can.
     /// </summary>
     public string? OverlapPolicyUnavailable { get; }
+
+    /// <summary>
+    /// Why the misfire threshold cannot be edited, or <see langword="null" /> when it can.
+    /// </summary>
+    public string? MisfireThresholdUnavailable { get; }
 
     /// <summary>
     /// The update the fields ask for, the changes it makes in words, and whatever the fields got wrong.
@@ -179,6 +197,7 @@ internal sealed class TriggerDetailsForm
         BuildRetryPolicy(update, changes, errors);
         BuildPreferredNode(update, changes, errors);
         BuildOverlapPolicy(update, changes, errors);
+        BuildMisfireThreshold(update, changes, errors);
 
         if (!JobDataMap.Equals(Copy(original.JobDataMap)))
         {
@@ -349,6 +368,49 @@ internal sealed class TriggerDetailsForm
         update.WithOverlapPolicy(policy);
         changes.Add(Changed("overlap policy", original.OverlapPolicy.ToString(), policy.ToString()));
     }
+
+    /// <summary>
+    /// The trigger's own misfire threshold as the detail page shows it, or <c>Store's</c> when it is on the
+    /// job store's.
+    /// </summary>
+    public static string MisfireThresholdOf(ITrigger trigger)
+    {
+        ArgumentNullException.ThrowIfNull(trigger);
+        return trigger.MisfireThreshold is { } threshold ? SchedulingFileValues.FormatMisfireThreshold(threshold) : "Store's";
+    }
+
+    private void BuildMisfireThreshold(TriggerDetailsUpdate update, List<string> changes, List<string> errors)
+    {
+        if (MisfireThresholdUnavailable is not null)
+        {
+            return;
+        }
+
+        // Blank is the store's threshold, which is what a trigger with none of its own is on.
+        string? text = Blank(MisfireThreshold);
+        TimeSpan? threshold = null;
+        if (text is not null)
+        {
+            if (!SchedulingFileValues.TryReadMisfireThreshold(text, out TimeSpan parsed))
+            {
+                errors.Add("Misfire threshold: '" + text + "' is not a misfire threshold. " + SchedulingFileValues.MisfireThresholdForm);
+                return;
+            }
+
+            threshold = parsed;
+        }
+
+        if (threshold == original.MisfireThreshold)
+        {
+            return;
+        }
+
+        update.WithMisfireThreshold(threshold);
+        changes.Add(Changed("misfire threshold", DescribeThreshold(original.MisfireThreshold), DescribeThreshold(threshold)));
+    }
+
+    private static string DescribeThreshold(TimeSpan? threshold)
+        => threshold is { } value ? SchedulingFileValues.FormatMisfireThreshold(value) : "store's";
 
     private static List<MisfireOption> OptionsFor(ITrigger trigger)
     {
