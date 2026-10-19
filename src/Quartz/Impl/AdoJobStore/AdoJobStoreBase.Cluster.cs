@@ -346,6 +346,7 @@ internal abstract partial class AdoJobStoreBase
             bool selfFailedOut = !foundThisScheduler && !firstCheckIn;
 
             RecordPeerVersions(states, failedInstances);
+            RecordLivePeerVersions(states, failedInstances);
 
             return new ClusterStateScan(states, failedInstances, selfFailedOut);
         }

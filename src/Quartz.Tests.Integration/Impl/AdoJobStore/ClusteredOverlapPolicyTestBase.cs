@@ -50,11 +50,11 @@ public abstract class ClusteredOverlapPolicyTestBase : ClusteredJobStoreTestBase
     public void LetGo() => HeldJob.Stop();
 
     /// <summary>
-    /// An interrupt reaches only the node the firing runs on, so a firing that comes due on another node
-    /// waits for it instead — BufferOne — and starts once it ends.
+    /// A firing that comes due on another node starts at once and asks the node running the previous one,
+    /// through the store, to interrupt it (#4071): that node cancels it after its next check-in.
     /// </summary>
     [Test]
-    public async Task CancelPreviousWaitsForAFiringOnAnotherNodeAndStartsWhenItEnds()
+    public async Task CancelPreviousStartsOnAnotherNodeAndThatFiringIsInterruptedThroughTheStore()
     {
         IScheduler nodeA = await CreateScheduler(NodeA);
         IScheduler nodeB = await CreateScheduler(NodeB);
@@ -85,32 +85,27 @@ public abstract class ClusteredOverlapPolicyTestBase : ClusteredJobStoreTestBase
                 timeoutMs: 60_000,
                 async () => $"the first firing to start on {NodeA}. State:\n{await DumpDatabaseState()}");
 
-            HeldJob.Started.Single().Node.Should().Be(NodeA);
+            (string first, string firstNode) = HeldJob.Started.Single();
+            firstNode.Should().Be(NodeA);
 
-            // From here only B acquires the trigger, so the next firing comes due on the node that cannot
-            // interrupt the running one.
+            // From here only B acquires the trigger, so the next firing comes due on the node that does not
+            // run the previous one.
             await nodeA.UpdateTriggerDetails(triggerKey, new TriggerDetailsUpdate().WithPreferredNode(PreferredNode.For(NodeB)));
-
-            await WaitForCondition(
-                async () => await IsBlocked(triggerKey),
-                timeoutMs: 60_000,
-                async () => $"{NodeB} to hold the trigger behind the firing on {NodeA}. State:\n{await DumpDatabaseState()}");
-
-            await Task.Delay(TimeSpan.FromSeconds(7));
-
-            HeldJob.Started.Should().ContainSingle(
-                "the firing on another node cannot be interrupted, so nothing starts beside it");
-            HeldJob.Cancelled.Should().BeEmpty("an interrupt never crosses nodes");
-
-            HeldJob.LetOneGo();
 
             await WaitForCondition(
                 () => Task.FromResult(HeldJob.Started.Count >= 2),
                 timeoutMs: 60_000,
-                async () => $"the held firing to start once {NodeA}'s ended. State:\n{await DumpDatabaseState()}");
+                async () => $"the next firing to start on {NodeB}. State:\n{await DumpDatabaseState()}");
 
             HeldJob.Started.Skip(1).First().Node.Should().Be(NodeB,
-                "the node that held the firing is the one that runs it once the first firing's completion let go");
+                "the firing that came due on B starts at once rather than waiting for A's to end");
+            (await IsBlocked(triggerKey)).Should().BeFalse("a firing that can be interrupted is not waited for");
+
+            // A checks in every second, and reads the request after its next check-in.
+            await WaitForCondition(
+                () => Task.FromResult(HeldJob.Cancelled.Contains(first)),
+                timeoutMs: 10_000,
+                async () => $"{NodeA} to interrupt the firing B replaced. State:\n{await DumpDatabaseState()}");
         }
         finally
         {

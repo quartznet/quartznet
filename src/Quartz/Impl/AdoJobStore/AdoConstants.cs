@@ -156,6 +156,13 @@ public static class AdoConstants
     internal const string Migration46SchedulerVersion = "4.6/add_scheduler_version_{0}.sql";
 
     /// <summary>
+    /// The migration that adds an interrupt requested from another node to
+    /// <see cref="TableFiredTriggers" />, which a database created by 4.5 or earlier needs: a 4.6 node
+    /// records a request there and reads its own firings' requests at every check-in (#4071).
+    /// </summary>
+    internal const string Migration46FiredTriggerInterrupt = "4.6/add_fired_trigger_interrupt_{0}.sql";
+
+    /// <summary>
     /// The columns only a feature that is off by default reads or writes, on a table only that feature
     /// reads — probed, like <see cref="OptionalTableNames" />, only when the feature is on.
     /// </summary>
@@ -253,7 +260,8 @@ public static class AdoConstants
         (TablePausedJobs, ColumnPauseReason, Migration43PauseReason),
         (TablePausedJobs, ColumnPausedBy, Migration43PauseReason),
         (TablePausedJobs, ColumnPausedAt, Migration43PauseReason),
-        (TableSchedulerState, ColumnQuartzVersion, Migration46SchedulerVersion)
+        (TableSchedulerState, ColumnQuartzVersion, Migration46SchedulerVersion),
+        (TableFiredTriggers, ColumnInterruptRequestedTime, Migration46FiredTriggerInterrupt)
     ];
 
     // Table names
@@ -589,6 +597,13 @@ public static class AdoConstants
     /// job last reported beside its percentage.
     /// </summary>
     public const string ColumnProgressMessage = "PROGRESS_MESSAGE";
+
+    /// <summary>
+    /// The <c>INTERRUPT_REQUESTED_TIME</c> column of <see cref="TableFiredTriggers" />: when an interrupt
+    /// of the firing was requested from another node, in ticks, and <c>NULL</c> while nobody has asked.
+    /// The node running the firing reads it at every check-in (#4071).
+    /// </summary>
+    public const string ColumnInterruptRequestedTime = "INTERRUPT_REQUESTED_TIME";
 
     // TableCalendars columns names
     /// <summary>

@@ -235,6 +235,25 @@ The same listing is behind `GET /schedulers/{name}/nodes` in the
 [HTTP API](../packages/http-api.md#cluster-nodes) and the Cluster page of the
 [dashboard](../packages/dashboard.md).
 
+## Interrupting a firing on another node
+
+From 4.6, `Interrupt(jobKey)` and `InterruptFireInstance(fireInstanceId)` reach every node of the cluster,
+whichever node you call them on.
+
+| The firing runs on | What happens | Returns |
+|---|---|---|
+| This node | Its token is cancelled before the call returns | `true` |
+| Another 4.6 node | A request is recorded on its `QRTZ_FIRED_TRIGGERS` row (event 3519); that node cancels the token after its next check-in (event 1039) | `true` |
+| A node older than 4.6 | The request is recorded and never answered; event 3520, once per node | `true` |
+| No node: it has completed | Nothing | `false` |
+
+* **A remote interrupt is a request.** It lands within one `CheckinInterval`, 7.5 seconds by default.
+* The node running the firing raises `JobInterrupted`, as for a local interrupt.
+* A `CancelPrevious` trigger asks the same way when its previous firing runs on another 4.6 node; see
+  [CancelPrevious](../how-tos/overlap-policy.md#cancelprevious).
+* It needs every node on 4.6, and the [4.6 migration](../../database/schema-changes.md#version-4-6).
+* The HTTP API and the dashboard interrupt through the same call, so they reach every node too.
+
 ## When a node leaves
 
 A node that is shut down, rather than killed, hands back what it can.

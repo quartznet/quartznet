@@ -102,4 +102,13 @@ internal static partial class ClusterLog
 
     [LoggerMessage(EventId = 3518, Level = LogLevel.Information, Message = "Every live node ({PeerCount} beside this one) is Quartz {LockFreeRoundsSince} or later: a firing round of work that allows concurrent execution takes no TRIGGER_ACCESS lock")]
     public static partial void EveryPeerAllowsLockFreeRounds(this ILogger logger, int peerCount, Version lockFreeRoundsSince);
+
+    // An interrupt asked of a firing another node runs (#4071): recorded on its row, and acted on by that
+    // node after its next check-in.
+    [LoggerMessage(EventId = 3519, Level = LogLevel.Information, Message = "Interrupt of fire instance {FireInstanceId} requested of node {SchedulerInstanceId}, which cancels the job's token after its next check-in")]
+    public static partial void InterruptRequestRecorded(this ILogger logger, string fireInstanceId, string schedulerInstanceId);
+
+    // Once per node: a 4.5 node never reads the column, so every request for its firings goes unanswered.
+    [LoggerMessage(EventId = 3520, Level = LogLevel.Warning, Message = "Interrupt requests for firings on node {SchedulerInstanceId} (Quartz {QuartzVersion}) are recorded but never answered: a node reads them from Quartz {InterruptRequestsSince}. Interrupt its firings through that node, or upgrade it")]
+    public static partial void InterruptRequestsUndeliverable(this ILogger logger, string schedulerInstanceId, string quartzVersion, Version interruptRequestsSince);
 }

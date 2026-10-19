@@ -135,6 +135,13 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1038, Level = LogLevel.Warning, Message = "Could not interrupt fire instance {FireInstanceId} of trigger {TriggerKey} for its CancelPrevious overlap policy; it runs on beside the new firing")]
     public static partial void PreviousFiringCancelFailed(this ILogger logger, TriggerKey triggerKey, string fireInstanceId, Exception exception);
 
+    // The executing node's half of an interrupt asked of it through the job store (#4071).
+    [LoggerMessage(EventId = 1039, Level = LogLevel.Information, Message = "Interrupting fire instance {FireInstanceId} of job {JobKey}: another node asked for it through the job store")]
+    public static partial void InterruptRequestDelivered(this ILogger logger, string fireInstanceId, JobKey jobKey);
+
+    [LoggerMessage(EventId = 1040, Level = LogLevel.Warning, Message = "Could not read the interrupt requests of this node's firings; they are read again after the next check-in")]
+    public static partial void InterruptRequestPollFailed(this ILogger logger, Exception exception);
+
     [LoggerMessage(EventId = 1050, Level = LogLevel.Debug, Message = "Calling Execute on job {JobKey}")]
     public static partial void JobExecuting(this ILogger logger, JobKey jobKey);
 

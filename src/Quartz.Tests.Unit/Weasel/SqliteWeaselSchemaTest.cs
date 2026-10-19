@@ -134,7 +134,8 @@ public sealed class SqliteWeaselSchemaTest
 
     /// <summary>
     /// 4.3 → 4.6 only adds: five columns and an index on the history table, the rollup table, two lookup
-    /// indexes on the history table, and the version column on the state table.
+    /// indexes on the history table, the version column on the state table, and the interrupt column on
+    /// the fired-trigger table.
     /// </summary>
     [Test]
     public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnlyAndKeepsItsRows()
@@ -149,8 +150,8 @@ public sealed class SqliteWeaselSchemaTest
             List<ISchemaObjectDelta> changed = [.. planned.Deltas.Where(x => x.Difference != SchemaPatchDifference.None)];
 
             changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
-                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update)],
-                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table: " + Describe(planned));
+                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update)],
+                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table and the interrupt column to the fired-trigger table: " + Describe(planned));
 
             TableDelta history = changed.OfType<TableDelta>().Single(x => x.Difference == SchemaPatchDifference.Update && x.SchemaObject.Identifier.Name.Equals("QRTZ_EXECUTION_HISTORY", StringComparison.OrdinalIgnoreCase));
             history.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(
@@ -167,6 +168,12 @@ public sealed class SqliteWeaselSchemaTest
                 "the one thing 4.6 adds is the version each node stamps at check-in (#4067)");
             state.Columns.Extras.Should().BeEmpty();
             state.Columns.Different.Should().BeEmpty("no column 4.3 created changes shape");
+
+            TableDelta fired = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_FIRED_TRIGGERS", StringComparison.OrdinalIgnoreCase));
+            fired.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().Equal(["INTERRUPT_REQUESTED_TIME"],
+                "the one thing 4.6 adds to a firing's row is when another node asked for it to be interrupted (#4071)");
+            fired.Columns.Extras.Should().BeEmpty();
+            fired.Columns.Different.Should().BeEmpty("no column 4.3 created changes shape");
 
             (await weasel.Database.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
             (await weasel.Database.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,

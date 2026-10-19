@@ -210,6 +210,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
         ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
+        ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
 
         Func<Task> act = async () => await (await GetScheduler(
             nameof(TheMigrationsTheMessageNamesAreTheOnesThatMakeTheSchemaStart), provision: true)).Shutdown();
@@ -349,6 +350,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
         ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
+        ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
 
         if (withHistory)
         {
@@ -462,6 +464,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
         ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
+        ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
 
         TableExists("QRTZ_EXECUTION_HISTORY").Should().BeFalse(
             "the migrations run so far are the ones every 4.2 database needs, and the history's are not "
@@ -516,6 +519,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
         ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
+        ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
 
         Func<Task> withoutHistory = async () => await (await GetScheduler(
             nameof(A42HistoryTableIsRefusedForTheExecutionLogOnlyWhenTheHistoryIsOn) + "-off", provision: false)).Shutdown();
@@ -556,6 +560,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
         ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
+        ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
         ApplyMigration("4.3", "add_execution_log_sqlite.sql");
 
         Func<Task> withoutHistory = async () => await (await GetScheduler(
@@ -656,6 +661,7 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
         ApplyMigration("4.3", "add_overlap_policy_sqlite.sql");
         ApplyMigration("4.3", "add_pause_reason_sqlite.sql");
         ApplyMigration("4.6", "add_scheduler_version_sqlite.sql");
+        ApplyMigration("4.6", "add_fired_trigger_interrupt_sqlite.sql");
 
         AdoConstants.OptionalMigrations.Should().Contain(AdoConstants.Migration44ExecutionOutcome,
             "the premise: the list the store names is the one this applies");

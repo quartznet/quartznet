@@ -816,6 +816,10 @@ partial class Build
                     oracle: "VARCHAR2(1000) NULL",
                     sqlite: "NVARCHAR(250) NULL",
                     firebird: "VARCHAR(250) DEFAULT NULL") with { AddedBy = "4.3" },
+                // When an interrupt of the firing was requested from another node, in ticks like the
+                // table's other times. The node running the firing reads its own rows' requests at every
+                // check-in and cancels the job's token (#4071).
+                Timestamp("INTERRUPT_REQUESTED_TIME", required: false) with { AddedBy = "4.6" },
             ],
             OracleStem: "FIRED_TRIGGER"),
 

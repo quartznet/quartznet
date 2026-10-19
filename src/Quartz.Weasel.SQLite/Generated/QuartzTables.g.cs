@@ -169,6 +169,7 @@ internal static partial class QuartzTables
         firedTriggers.AddColumn("execution_group", "NVARCHAR(200)");
         firedTriggers.AddColumn("progress", "INTEGER");
         firedTriggers.AddColumn("progress_message", "NVARCHAR(250)");
+        firedTriggers.AddColumn("interrupt_requested_time", "BIGINT");
         naming.PrimaryKey(firedTriggers);
         naming.Index(firedTriggers, "FT_INST_JOB_REQ_RCVRY", ["SCHED_NAME", "INSTANCE_NAME", "REQUESTS_RECOVERY"]);
         naming.Index(firedTriggers, "FT_J_G", ["SCHED_NAME", "JOB_NAME", "JOB_GROUP"]);

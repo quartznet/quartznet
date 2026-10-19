@@ -1,0 +1,54 @@
+--
+-- Quartz.NET schema migration -- add the fired trigger interrupt column
+--
+-- Introduced in Quartz.NET 4.6.0 (#4071)
+--
+-- Firebird only. Run the file matching your database; the other dialects live
+-- alongside this one in the same folder.
+--
+-- STATUS
+--   4.6  REQUIRED. A 4.6 node writes this column when an interrupt is asked of a firing
+--        another node runs, and reads it for its own firings at every check-in, so it
+--        refuses to start against a database without it.
+--
+--        Safe to run while 4.5 nodes are still up: the column is nullable with no default,
+--        so every existing row is already valid, and a 4.5 node never names it. A request
+--        for a firing a 4.5 node runs is recorded and never answered; a 4.6 node says so
+--        once per such node. Roll every node before relying on a cluster-wide interrupt.
+--
+--   4.1  Run ../4.2/add_continuations_firebird.sql first on a database created by
+--        4.0 or 4.1, and every later required migration.
+--
+--   3.x  Not applicable. Upgrading from 3.x means running
+--        ../4.0/schema_30_to_40_upgrade_firebird.sql and every later migration first;
+--        this file is what 4.6 adds on top of them.
+--
+-- INTERRUPT_REQUESTED_TIME is when an interrupt of the firing was requested from a node
+-- other than the one running it, in ticks like FIRED_TIME. NULL is a firing nobody asked
+-- to interrupt. The row is deleted when the firing completes, as it always was, so a
+-- request never outlives its firing.
+--
+-- The node running the firing reads the requests on its own rows at every check-in and
+-- cancels each job's token, as a local interrupt does: a request lands within one
+-- check-in interval.
+--
+-- No index is added. The read filters SCHED_NAME and INSTANCE_NAME, which
+-- IDX_QRTZ_FT_INST_JOB_REQ_RCVRY already leads with, and one node's rows are the firings
+-- it holds: at most its thread count plus one acquisition batch.
+--
+-- Replace 'QRTZ_' with your configured table prefix if different.
+-- Every statement checks first, so this script is safe to run more than once.
+--
+-- !! FIRST RUN IN TEST ENVIRONMENT AGAINST A COPY OF YOUR PRODUCTION DATABASE !!
+--
+
+SET TERM ^ ;
+EXECUTE BLOCK AS
+BEGIN
+  IF (NOT EXISTS(SELECT 1 FROM RDB$RELATION_FIELDS
+                 WHERE TRIM(RDB$RELATION_NAME) = 'QRTZ_FIRED_TRIGGERS'
+                   AND TRIM(RDB$FIELD_NAME) = 'INTERRUPT_REQUESTED_TIME')) THEN
+    EXECUTE STATEMENT 'ALTER TABLE QRTZ_FIRED_TRIGGERS ADD INTERRUPT_REQUESTED_TIME BIGINT DEFAULT NULL';
+END^
+SET TERM ; ^
+COMMIT;

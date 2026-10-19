@@ -354,6 +354,32 @@ internal sealed class TracingJobStore : DelegatingJobStore
         return InnerJobStore.UpdateFireInstanceProgress(fireInstanceId, progress, cancellationToken);
     }
 
+    public override ValueTask<bool> RequestInterrupt(string fireInstanceId, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.RequestInterrupt);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.RequestInterrupt(fireInstanceId, cancellationToken);
+        }
+
+        operation.Tag(ActivityTags.FireInstanceId, fireInstanceId);
+        return Complete(operation, (InnerJobStore, fireInstanceId, cancellationToken),
+            static s => s.InnerJobStore.RequestInterrupt(s.fireInstanceId, s.cancellationToken));
+    }
+
+    /// <summary>
+    /// Hands the read of this node's interrupt requests on without a span of its own.
+    /// </summary>
+    /// <remarks>
+    /// Declared rather than inherited only to say so. The scheduler asks it after every cluster check-in,
+    /// off any caller's flow, so a span here would be a new root trace every check-in of every node: the
+    /// unbounded-trace shape #3797 took out.
+    /// </remarks>
+    public override ValueTask<List<string>> GetInterruptRequests(CancellationToken cancellationToken = default)
+    {
+        return InnerJobStore.GetInterruptRequests(cancellationToken);
+    }
+
     public override ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.DeleteJob);

@@ -1362,6 +1362,27 @@ internal static class StdAdoConstants
     public static readonly string SqlUpdateFireInstanceProgress =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableFiredTriggers} SET {AdoConstants.ColumnProgress} = @{SqlParameters.Progress}, {AdoConstants.ColumnProgressMessage} = @{SqlParameters.ProgressMessage} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnEntryId} = @{SqlParameters.EntryId}");
 
+    /// <summary>
+    /// The node an executing firing runs on, by its entry id: who a request to interrupt it goes to.
+    /// </summary>
+    public static readonly string SqlSelectExecutingFiredTriggerInstance =
+        Invariant($"SELECT {AdoConstants.ColumnInstanceName} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnEntryId} = @{SqlParameters.EntryId} AND {AdoConstants.ColumnEntryState} = @{SqlParameters.ExecutingState}");
+
+    /// <summary>
+    /// A request to interrupt an executing firing, written onto its row by primary key under no lock: the
+    /// node running it reads the column, nothing else writes it, and a completed firing's row is simply not
+    /// there to update (#4071).
+    /// </summary>
+    public static readonly string SqlUpdateFiredTriggerInterruptRequested =
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableFiredTriggers} SET {AdoConstants.ColumnInterruptRequestedTime} = @{SqlParameters.InterruptRequestedTime} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnEntryId} = @{SqlParameters.EntryId} AND {AdoConstants.ColumnEntryState} = @{SqlParameters.ExecutingState}");
+
+    /// <summary>
+    /// The firings of one node that carry an interrupt request, on <c>IDX_QRTZ_FT_INST_JOB_REQ_RCVRY</c>,
+    /// whose leading pair narrows the read to that node's rows (#4071).
+    /// </summary>
+    public static readonly string SqlSelectFiredTriggerInterruptRequests =
+        Invariant($"SELECT {AdoConstants.ColumnEntryId} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName} AND {AdoConstants.ColumnInterruptRequestedTime} IS NOT NULL");
+
     public static readonly string SqlUpdateTriggerGroupStateFromStateEquals =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.NewState} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.OldState}");
 

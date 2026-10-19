@@ -88,6 +88,8 @@ matching on its text is not.
 | 1036 | Error | `Quartz` | `"Error releasing acquired trigger '{TriggerKey}' {Context}"` |
 | 1037 | Information | `Quartz` | `"Interrupting fire instance {FireInstanceId} of trigger {TriggerKey}: a new firing of it is starting, and its overlap policy is CancelPrevious"` |
 | 1038 | Warning | `Quartz` | `"Could not interrupt fire instance {FireInstanceId} of trigger {TriggerKey} for its CancelPrevious overlap policy; it runs on beside the new firing"` |
+| 1039 | Information | `Quartz` | `"Interrupting fire instance {FireInstanceId} of job {JobKey}: another node asked for it through the job store"` |
+| 1040 | Warning | `Quartz` | `"Could not read the interrupt requests of this node's firings; they are read again after the next check-in"` |
 | 1050 | Debug | `Quartz` | `"Calling Execute on job {JobKey}"` |
 | 1051 | Information | `Quartz` | `"Job {JobDetailKey} was cancelled"` |
 | 1052 | Error | `Quartz` | `"Job {JobDetailKey} threw a JobExecutionException: "` |
@@ -165,7 +167,7 @@ matching on its text is not.
 | 3041 | Debug | `Quartz` | `"Schema creation under table prefix '{TablePrefix}' failed on attempt {Attempt} of {Attempts} and the schema does not validate yet, retrying"` |
 | 3042 | Warning | `Quartz` | `"Lock handler {LockHandlerType} failed to shut down, so whatever it opened is still open."` |
 | 3043 | Information | `Quartz` | `"Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"` |
-| 3044 | Information | `Quartz` | `"Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on another node"` |
+| 3044 | Information | `Quartz` | `"Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on a node that is not known to read interrupt requests, which a node does from Quartz 4.6"` |
 | 3045 | Debug | `Quartz` | `"Completion of trigger {TriggerKey} found continuations awaiting it; running it again under TRIGGER_ACCESS"` |
 | 3046 | Warning | `Quartz` | `"Completion of trigger {TriggerKey} failed without TRIGGER_ACCESS; running it again under the lock"` |
 | 3047 | Information | `Quartz` | `"Settled {Count} continuation(s) awaiting a trigger that no longer exists: {Released} released, {Parked} parked in ERROR"` |
@@ -222,6 +224,8 @@ matching on its text is not.
 | 3516 | Warning | `Quartz` | `"Scheduler instance ({InstanceId}) was failed out by another instance, which cannot be identified: {OtherInstanceCount} other instances have scheduler state rows and no row records which of them recovered this one. Its own row has been written back; the work that instance recovered is not recovered again here."` |
 | 3517 | Information | `Quartz` | `"Firing rounds take TRIGGER_ACCESS while node {InstanceId} (Quartz {QuartzVersion}) is live: a round of work that allows concurrent execution takes no lock only once every live node is {LockFreeRoundsSince} or later"` |
 | 3518 | Information | `Quartz` | `"Every live node ({PeerCount} beside this one) is Quartz {LockFreeRoundsSince} or later: a firing round of work that allows concurrent execution takes no TRIGGER_ACCESS lock"` |
+| 3519 | Information | `Quartz` | `"Interrupt of fire instance {FireInstanceId} requested of node {SchedulerInstanceId}, which cancels the job's token after its next check-in"` |
+| 3520 | Warning | `Quartz` | `"Interrupt requests for firings on node {SchedulerInstanceId} (Quartz {QuartzVersion}) are recorded but never answered: a node reads them from Quartz {InterruptRequestsSince}. Interrupt its firings through that node, or upgrade it"` |
 | 3600 | Information | `Quartz` | `"Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed."` |
 | 3601 | Information | `Quartz` | `"Handling {Count} trigger(s) that missed their scheduled fire-time."` |
 | 3602 | Debug | `Quartz` | `"Found 0 triggers that missed their scheduled fire-time."` |

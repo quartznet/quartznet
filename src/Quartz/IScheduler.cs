@@ -1590,8 +1590,8 @@ public interface IScheduler : IAsyncDisposable
     ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Request the cancellation, within this Scheduler instance, of all
-    /// currently executing instances of the identified <see cref="IJob" />.
+    /// Request the cancellation of all currently executing instances of the identified
+    /// <see cref="IJob" />: on this node, and, with a clustered persistent store, on every other node.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -1611,12 +1611,17 @@ public interface IScheduler : IAsyncDisposable
     /// <see cref="InterruptFireInstance" />.
     /// </para>
     /// <para>
-    /// This method is not cluster aware. That is, it will only interrupt instances of the identified
-    /// job currently executing in this scheduler instance, not across the entire cluster.
+    /// An instance running on this node is interrupted before this returns. With a clustered store
+    /// (<see cref="IJobStore.Clustered" />), an instance running on another node gets a request recorded
+    /// on its row instead, through <see cref="IJobStore.RequestInterrupt" />: that node cancels the token
+    /// after its next cluster check-in, so a remote interrupt lands within one check-in interval, and raises
+    /// <see cref="ISchedulerListener.JobInterrupted(IScheduler, JobKey, string, CancellationToken)" /> itself. A node older than 4.6 never reads the
+    /// request. Any other store interrupts this node's instances only.
     /// </para>
     /// </remarks>
     /// <returns>
-    /// true is at least one instance of the identified job was found and interrupted.
+    /// <see langword="true" /> if at least one instance of the identified job was interrupted on this
+    /// node, or had a request recorded for the node running it.
     /// </returns>
     /// <seealso cref="QueryFireInstances" />
     /// <exception cref="ArgumentNullException"><paramref name="jobKey" /> is <see langword="null" />.</exception>
@@ -1627,8 +1632,8 @@ public interface IScheduler : IAsyncDisposable
     ValueTask<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Request the cancellation, within this Scheduler instance, of the
-    /// identified executing job instance.
+    /// Request the cancellation of the identified executing job instance, on whichever node of a
+    /// cluster runs it.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -1637,8 +1642,10 @@ public interface IScheduler : IAsyncDisposable
     /// never observes it runs to completion.
     /// </para>
     /// <para>
-    /// This method is not cluster aware. That is, it will only interrupt an instance currently
-    /// executing in this scheduler instance, not across the entire cluster.
+    /// A firing on this node is interrupted before this returns. With a clustered store, a firing on
+    /// another node gets a request recorded on its row, as for
+    /// <see cref="Interrupt(JobKey, CancellationToken)" />: that node cancels the token after its next
+    /// cluster check-in. Any other store interrupts a firing on this node only.
     /// </para>
     /// </remarks>
     /// <seealso cref="QueryFireInstances" />
@@ -1648,7 +1655,10 @@ public interface IScheduler : IAsyncDisposable
     /// the unique identifier of the job instance to  be interrupted (see <see cref="IJobExecutionContext.FireInstanceId" />)
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>true if the identified job instance was found and interrupted.</returns>
+    /// <returns>
+    /// <see langword="true" /> if the identified job instance was interrupted on this node, or had a
+    /// request recorded for the node running it.
+    /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="fireInstanceId" /> is <see langword="null" />.</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken" /> was cancelled.</exception>
     ValueTask<bool> InterruptFireInstance(string fireInstanceId, CancellationToken cancellationToken = default);

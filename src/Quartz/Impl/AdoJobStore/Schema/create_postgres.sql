@@ -172,6 +172,7 @@ CREATE TABLE IF NOT EXISTS {0}fired_triggers (
   execution_group varchar(200) null,
   progress integer null,
   progress_message varchar(250) null,
+  interrupt_requested_time bigint null,
   primary key (sched_name,entry_id)
 );
 --;;

@@ -87,7 +87,8 @@ public sealed record TriggerFiredBundle
     /// Set by a store when the trigger's <see cref="ITrigger.OverlapPolicy" /> is
     /// <see cref="OverlapPolicy.CancelPrevious" /> and earlier firings of it are running on this node.
     /// The scheduler interrupts each of them once the store has recorded this fire and before it runs the
-    /// job. A firing on another node is never named here: the store holds the trigger back instead.
+    /// job. A firing on another node is never named here: a clustered store records an interrupt request
+    /// on it for that node to act on, or holds the trigger back when that node does not read requests.
     /// </remarks>
     public IReadOnlyList<string>? SupersededFireInstanceIds { get; init; }
 }

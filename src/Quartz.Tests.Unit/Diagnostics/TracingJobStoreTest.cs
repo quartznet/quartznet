@@ -203,6 +203,29 @@ public sealed class TracingJobStoreTest
     }
 
     /// <summary>
+    /// A request to interrupt a firing on another node is traced with the firing it names, and the
+    /// decorator hands the store's answer back unchanged (#4071).
+    /// </summary>
+    [Test]
+    public async Task AnInterruptRequestIsTracedWithItsFiringAndHandedOn()
+    {
+        IJobStore inner = StubStore();
+        A.CallTo(() => inner.RequestInterrupt("fired-elsewhere", A<CancellationToken>.Ignored)).Returns(new ValueTask<bool>(true));
+        A.CallTo(() => inner.GetInterruptRequests(A<CancellationToken>.Ignored)).Returns(new ValueTask<List<string>>(new List<string> { "fired-here" }));
+
+        IJobStore store = await Decorated(inner);
+
+        (await store.RequestInterrupt("fired-elsewhere")).Should().BeTrue();
+        (await store.GetInterruptRequests()).Should().Equal(["fired-here"]);
+
+        SpanFor(OperationName.JobStore.RequestInterrupt).GetTagItem(ActivityTags.FireInstanceId).Should().Be("fired-elsewhere");
+        lock (stoppedActivities)
+        {
+            stoppedActivities.Should().ContainSingle("the read of this node's requests opens no span of its own");
+        }
+    }
+
+    /// <summary>
     /// And the ADO store still emits exactly the names it did, since a dashboard was written against
     /// them. The snapshot is the whole set the decorator can produce.
     /// </summary>
@@ -747,6 +770,11 @@ public sealed class TracingJobStoreTest
         await store.ReleaseAcquiredTrigger(trigger);
         await store.TriggersFired([trigger]);
         await store.TriggeredJobComplete(trigger, job, SchedulerInstruction.NoInstruction);
+        await store.RequestInterrupt("fired-elsewhere");
+
+        // A read, made after every check-in off any caller's flow, and so given no span: the snapshot below
+        // has none for it.
+        await store.GetInterruptRequests();
     }
 
     private Activity SpanFor(string operationName)

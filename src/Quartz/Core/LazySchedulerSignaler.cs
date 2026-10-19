@@ -22,7 +22,7 @@ namespace Quartz.Core;
 /// every job store as a service locator.
 /// </para>
 /// </remarks>
-internal sealed class LazySchedulerSignaler : ISchedulerSignaler
+internal sealed class LazySchedulerSignaler : ISchedulerSignaler, IInterruptRequestPoller
 {
     private readonly Lazy<ISchedulerSignaler> signaler;
 
@@ -73,5 +73,15 @@ internal sealed class LazySchedulerSignaler : ISchedulerSignaler
     public ValueTask NotifySchedulerListenersError(SchedulerErrorContext error, CancellationToken cancellationToken = default)
     {
         return signaler.Value.NotifySchedulerListenersError(error, cancellationToken);
+    }
+
+    // Handed on for the same reason as the rest: the store holds this adapter, and the scheduler behind it
+    // is what reads the requests.
+    public void PollInterruptRequests()
+    {
+        if (signaler.Value is IInterruptRequestPoller poller)
+        {
+            poller.PollInterruptRequests();
+        }
     }
 }

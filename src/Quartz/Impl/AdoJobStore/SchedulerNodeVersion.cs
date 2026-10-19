@@ -59,9 +59,27 @@ internal static class SchedulerNodeVersion
     /// <param name="quartzVersion">The peer's stamp, or <see langword="null" /> for a row it never stamped.</param>
     internal static bool SupportsLockFreeRounds(string? quartzVersion)
     {
+        return IsAtLeast(quartzVersion, LockFreeRoundsSince);
+    }
+
+    /// <summary>The release whose nodes read the interrupt requests recorded on their firings (#4071).</summary>
+    internal static readonly Version InterruptRequestsSince = new(4, 6);
+
+    /// <summary>
+    /// Whether a peer that stamped its row <paramref name="quartzVersion" /> reads the interrupt requests
+    /// recorded on its firings, so that a request for one of them is answered.
+    /// </summary>
+    /// <param name="quartzVersion">The peer's stamp, or <see langword="null" /> for a row it never stamped.</param>
+    internal static bool SupportsInterruptRequests(string? quartzVersion)
+    {
+        return IsAtLeast(quartzVersion, InterruptRequestsSince);
+    }
+
+    private static bool IsAtLeast(string? quartzVersion, Version since)
+    {
         return quartzVersion is not null
                && Version.TryParse(quartzVersion, out Version? version)
-               && version >= LockFreeRoundsSince;
+               && version >= since;
     }
 
     private static string Format(Version version)

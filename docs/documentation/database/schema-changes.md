@@ -50,7 +50,7 @@ editing.
 | 4.0 / 4.1 | 4.3+ | [4.2](#version-4-2), then [4.3](#version-4-3) — both **mandatory** |
 | 4.2 | 4.3+ | [4.3](#version-4-3) — **mandatory**; then [4.6](#version-4-6) for 4.6+ |
 | 4.3 | 4.4 / 4.5 | Nothing mandatory. [4.4](#version-4-4) only with `UseExecutionHistory()` |
-| 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version column **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()` |
+| 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version and interrupt columns **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()` |
 
 ## Upgrading to 4.x is mandatory
 
@@ -676,12 +676,14 @@ that has the key keeps it, and nothing depends on it.
 
 ## Version 4.6
 
-Two scripts: one mandatory ([#4067](https://github.com/quartznet/quartznet/issues/4067)), one optional and performance only
+Three scripts: two mandatory ([#4067](https://github.com/quartznet/quartznet/issues/4067),
+[#4071](https://github.com/quartznet/quartznet/issues/4071)), one optional and performance only
 ([#4072](https://github.com/quartznet/quartznet/issues/4072)). 4.5 changed no schema.
 
 | Script | Status | Adds |
 |---|---|---|
 | [`migrations/4.6/add_scheduler_version_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6) | **Mandatory** for 4.6 and later | `QUARTZ_VERSION` on `QRTZ_SCHEDULER_STATE` |
+| [`migrations/4.6/add_fired_trigger_interrupt_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6) | **Mandatory** for 4.6 and later | `INTERRUPT_REQUESTED_TIME` on `QRTZ_FIRED_TRIGGERS` |
 | [`migrations/4.6/add_execution_history_lookup_indexes_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.6) | Optional: performance only | `IDX_QRTZ_EH_FIRE_INST` and `IDX_QRTZ_EH_TRIG_TIME` on `QRTZ_EXECUTION_HISTORY` |
 
 ### The version column
@@ -702,10 +704,24 @@ Two scripts: one mandatory ([#4067](https://github.com/quartznet/quartznet/issue
 - No index. The column is read with the row the check-in already reads.
 - A 4.6 node refuses to start without it; the startup check names the column and the script.
 
+### The interrupt column
+
+`INTERRUPT_REQUESTED_TIME` is when another node asked for the firing to be interrupted, in ticks like
+`FIRED_TIME`. `NULL` is a firing nobody asked to interrupt.
+
+- Nullable, no default; `BIGINT` (`NUMBER(19)` on Oracle).
+- Written by `IScheduler.Interrupt`, `InterruptFireInstance` and a `CancelPrevious` fire on a clustered
+  store, for an executing firing another node runs. Read by the node running it after each check-in, which
+  cancels the job's token. See [Interrupting a firing on another node](../quartz-4.x/tutorial/advanced-enterprise-features.md#interrupting-a-firing-on-another-node).
+- The row is deleted when the firing completes, request and all.
+- No index. The read filters `SCHED_NAME` and `INSTANCE_NAME`, which `IDX_QRTZ_FT_INST_JOB_REQ_RCVRY` leads
+  with, and one node's rows are the firings it holds.
+- A 4.6 node refuses to start without it; the startup check names the column and the script.
+
 ### Rolling 4.5 → 4.6
 
-Run the version script while 4.5 nodes are still up. The column is nullable with no default, and a 4.5
-node never names it: its row reads `NULL`.
+Run both mandatory scripts while 4.5 nodes are still up. Both columns are nullable with no default, and a
+4.5 node never names them: its state row reads `NULL`.
 
 | While | A 4.6 node |
 |---|---|
@@ -716,6 +732,10 @@ A row past its check-in failure threshold is a node about to be recovered and do
 needs configuring for the rollout: roll every node, and each 4.6 node switches on its next check-in after
 the last 4.5 row ages out. A node downgraded under the same instance id does not keep a 4.6 stamp: its
 first check-in recovers and deletes its own earlier row before it inserts a fresh one.
+
+A 4.5 node never reads `INTERRUPT_REQUESTED_TIME`. A request for its firing is recorded and never answered,
+and a 4.6 node says so once per such node (event 3520). A `CancelPrevious` firing still waits for one, as
+before. Interrupting across the cluster needs every node on 4.6.
 
 ### The history lookup indexes
 
@@ -732,7 +752,7 @@ first check-in recovers and deletes its own earlier row before it inserts a fres
   its columns.
 - Safe under a mixed cluster: an index changes plans, not results.
 
-A fresh install from `database/tables/`, and `ProvisionSchema()`, create the column and both indexes.
+A fresh install from `database/tables/`, and `ProvisionSchema()`, create both columns and both indexes.
 
 ## See also
 

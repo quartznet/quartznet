@@ -228,6 +228,11 @@ public static class OperationName
         public const string ResetTriggersFromErrorState = "Quartz.JobStore.ResetTriggersFromErrorState";
 
         /// <summary>
+        /// The span covering <c>IJobStore.RequestInterrupt</c>.
+        /// </summary>
+        public const string RequestInterrupt = "Quartz.JobStore.RequestInterrupt";
+
+        /// <summary>
         /// The span covering <c>IJobStore.Clear</c>.
         /// </summary>
         public const string Clear = "Quartz.JobStore.Clear";
