@@ -332,7 +332,7 @@ internal static class Utf8JsonWriterExtensions
 
         foreach (JsonProperty property in jsonElement.EnumerateObject())
         {
-            result.Add(property.Name, JobDataValues.Read(property.Value, options));
+            result.Add(property.Name, JobDataValues.Read(property.Value));
         }
 
         result.ClearDirtyFlag();
