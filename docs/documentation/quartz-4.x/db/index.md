@@ -127,6 +127,43 @@ DataSource=localhost;Database=/data/quartz.fdb;User=SYSDBA;Password=masterkey;Ch
   `MAX_STRING_SIZE` is `STANDARD`.
 * Use an `AL32UTF8` database character set. A single-byte one replaces a character it cannot encode.
 
+## SQL Server: `READ_COMMITTED_SNAPSHOT`
+
+Turn it on for [lock-free firing rounds](../operations.md#lock-free-firing-rounds) on SQL Server. Without
+it, every firing round takes `TRIGGER_ACCESS`, as in 4.5.
+
+| | |
+|---|---|
+| What it is | A database option: read committed reads a row's last committed version instead of taking a shared lock |
+| Why rounds need it | Without it, a round's read waits on, and can deadlock with, another node's claim |
+| Default | Off on SQL Server and Azure SQL Managed Instance; on in Azure SQL Database |
+| When Quartz reads it | Once, at scheduler startup |
+
+Turn it on, then restart the schedulers:
+
+```sql
+ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+```
+
+Check it:
+
+```sql
+SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID();
+```
+
+* **The `ALTER` needs the database to itself.** `WITH ROLLBACK IMMEDIATE` rolls back and disconnects every
+  other session. Stop the schedulers and run it in a maintenance window.
+* **It changes reads for the whole database**, not only Quartz's tables. A read under read committed no
+  longer waits for a writer; it sees each row as of the start of its statement. Check the other
+  applications on the database first.
+* **Row versions take space.** They live in `tempdb`, or in the database itself under accelerated
+  database recovery.
+* **A setting changed while a scheduler runs is not seen** until that scheduler restarts.
+
+Without it, every round is locked with reason `read_committed_snapshot_off`, and event 3056 says so once
+at startup, naming the `ALTER DATABASE` statement. A store that cannot read the setting counts it as off.
+Exactly-once holds either way.
+
 ## The QRTZ_TRIGGERS table
 
 Holds the data shared by all trigger types. Type-specific data is in `QRTZ_CRON_TRIGGERS`,

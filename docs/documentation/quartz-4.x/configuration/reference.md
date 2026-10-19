@@ -193,7 +193,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `UseDbLocks` | bool | `false` | Uses database row locks. Required for clustering, and implied by `UseClustering()`. |
 | `LockOnInsert` | bool | `true` | Takes a lock when inserting rows. |
 | `AcquireTriggersWithinLock` | bool | `false` | Acquires triggers inside the database lock. |
-| `LockFreeFiringRounds` | bool | `true` | A firing round whose every trigger may run beside itself takes no `TRIGGER_ACCESS` lock. `false` restores 4.5. Under contention, rounds take the lock until the backlog clears. Not used on SQL Server in 4.6 ([#4117](https://github.com/quartznet/quartznet/issues/4117)). See [Lock-free firing rounds](../operations.md#lock-free-firing-rounds). |
+| `LockFreeFiringRounds` | bool | `true` | A firing round whose every trigger may run beside itself takes no `TRIGGER_ACCESS` lock. `false` restores 4.5. Under contention, rounds take the lock until the backlog clears. On SQL Server, only with [`READ_COMMITTED_SNAPSHOT`](../db/index.md#sql-server-read-committed-snapshot) on (4.7). See [Lock-free firing rounds](../operations.md#lock-free-firing-rounds). |
 | `TransactionIsolationLevel` | IsolationLevel? | none | Isolation level of the store's own transactions. Unset: `ReadCommitted`. Anything else also locks every firing round. See below. |
 | `AcceptEnlistedTransactions` | bool | `false` | Lets the store use a connection the application enlisted with `SchedulerEnlistmentExtensions.EnlistTransaction`, so scheduling commits with the application's work. See [Joining an existing transaction](../tutorial/job-stores.md#joining-an-existing-transaction). |
 | `DoubleCheckLockMisfireHandler` | bool | `true` | Re-checks the lock before handling misfires. |
@@ -258,8 +258,8 @@ A custom trigger persistence delegate is registered with
 Quartz references none of these packages; the application adds its own. See
 [A missing driver package](../tutorial/job-stores.md#a-missing-driver-package).
 
-On SQL Server, firing rounds work as in 4.5 in this release: [lock-free firing rounds](../operations.md#lock-free-firing-rounds)
-are not used there yet ([#4117](https://github.com/quartznet/quartznet/issues/4117)).
+On SQL Server, [lock-free firing rounds](../operations.md#lock-free-firing-rounds) need
+[`READ_COMMITTED_SNAPSHOT`](../db/index.md#sql-server-read-committed-snapshot) on.
 
 Each takes a connection string or a callback over `DataSourceOptions`:
 
