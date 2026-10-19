@@ -263,7 +263,7 @@ internal static class StoreCheck
                 return "FAIL store: the typed-input job never fired within a minute.";
             }
 
-            Task manualTyped = await Task.WhenAny(manualTypedRun.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+            Task manualTyped = await Task.WhenAny(manualTypedRun.Task, Task.Delay(TimeSpan.FromSeconds(60), scheduler.TimeProvider)).ConfigureAwait(false);
             if (manualTyped != manualTypedRun.Task)
             {
                 return "FAIL store: the typed job TriggerJob<TInput> fired never ran within a minute.";
