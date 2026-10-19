@@ -75,6 +75,19 @@ public class AnalyzerReleaseTrackingTest
             "4.4.0 added QZ0006 and changed no rule that shipped before it");
     }
 
+    [Test]
+    public void RulesThatShippedIn460AreRecordedAsShippedIn460()
+    {
+        List<string> rules = RulesRecordedUnder("4.6.0", "4.6.0 shipped QZ0007 and QZ0008; 4.5.0 shipped no rule");
+
+        rules.Should().Equal(
+            [
+                "QZ0007 | Quartz | Warning",
+                "QZ0008 | Quartz | Error",
+            ],
+            "4.6.0 added QZ0007 and QZ0008 and changed no rule that shipped before it");
+    }
+
     /// <summary>
     /// The first three cells of every rule row in one release's block of <c>AnalyzerReleases.Shipped.md</c>:
     /// the id, the category and the severity, new and changed rules alike.
