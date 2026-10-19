@@ -363,10 +363,19 @@ public partial class StdAdoDelegate
 
             // load job data map and transfer information
             JobDataMap jd = await SelectTriggerJobDataMap(conn, key, cancellationToken).ConfigureAwait(false);
-            jd[SchedulerConstants.FailedJobOriginalTriggerName] = key.Name;
-            jd[SchedulerConstants.FailedJobOriginalTriggerGroup] = key.Group;
-            jd[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture)!;
-            jd[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)!;
+
+            // A replay of a replay keeps the original firing's markers, as cluster recovery's does: the
+            // recovery trigger's own key would lose the original group, and the execution limit it names.
+            bool replaysARecovery = key.Group == SchedulerConstants.DefaultRecoveryGroup
+                                    && jd.ContainsKey(SchedulerConstants.FailedJobOriginalTriggerName);
+            if (!replaysARecovery)
+            {
+                jd[SchedulerConstants.FailedJobOriginalTriggerName] = key.Name;
+                jd[SchedulerConstants.FailedJobOriginalTriggerGroup] = key.Group;
+                jd[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture)!;
+                jd[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)!;
+            }
+
             trigger.JobDataMap = jd;
         }
 
