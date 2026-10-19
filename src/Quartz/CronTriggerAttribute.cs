@@ -158,6 +158,10 @@ public sealed class CronTriggerAttribute(string cronExpression) : Attribute
     /// that does not parse, an empty one included, stops the host from starting with the parser's
     /// message rather than leaving a schedule that never fires.
     /// </para>
+    /// <para>
+    /// A configured value of exactly <c>-</c> switches the trigger off: it is not scheduled, and one a
+    /// persistent store already holds under its key is unscheduled as the scheduler starts.
+    /// </para>
     /// </remarks>
     public string? ConfigurationKey { get; init; }
 }

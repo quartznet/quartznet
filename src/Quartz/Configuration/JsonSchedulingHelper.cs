@@ -60,7 +60,13 @@ internal static class JsonSchedulingHelper
                     content.Add(job);
                 }
 
-                foreach (var trigger in ReadTriggers(scheduleSection.GetSection("Triggers"), timeProvider))
+                List<SwitchedOffTrigger> switchedOff = [];
+                foreach (var trigger in ReadTriggers(scheduleSection.GetSection("Triggers"), timeProvider, switchedOff))
+                {
+                    content.Add(trigger);
+                }
+
+                foreach (SwitchedOffTrigger trigger in switchedOff)
                 {
                     content.Add(trigger);
                 }
@@ -148,7 +154,11 @@ internal static class JsonSchedulingHelper
     /// given no start time and for one given <c>StartTimeSecondsInFuture</c>, and it is the clock each
     /// built trigger keeps for its own misfire and retry arithmetic.
     /// </param>
-    internal static List<ITrigger> ReadTriggers(IConfigurationSection triggersSection, TimeProvider timeProvider)
+    /// <param name="switchedOff">
+    /// Receives each trigger whose schedule string is <c>-</c>, which is not built: see
+    /// <see cref="NotSwitchedOff" />.
+    /// </param>
+    internal static List<ITrigger> ReadTriggers(IConfigurationSection triggersSection, TimeProvider timeProvider, List<SwitchedOffTrigger> switchedOff)
     {
         var triggers = new List<ITrigger>();
 
@@ -157,7 +167,7 @@ internal static class JsonSchedulingHelper
             return triggers;
         }
 
-        foreach (var triggerSection in triggersSection.GetChildren())
+        foreach (var triggerSection in NotSwitchedOff(triggersSection, switchedOff))
         {
             var name = triggerSection[nameof(JsonTriggerDefinition.Name)];
             var jobName = triggerSection[nameof(JsonTriggerDefinition.JobName)];
@@ -295,6 +305,66 @@ internal static class JsonSchedulingHelper
         }
 
         return triggers;
+    }
+
+    /// <summary>
+    /// The schedule strings a <c>-</c> switches a trigger off in: the cron expression, the simple interval
+    /// and the recurrence rule, as a declared trigger's <c>ConfigurationKey</c> value does.
+    /// </summary>
+    private static readonly (string Schedule, string Value)[] ScheduleStrings =
+    [
+        (nameof(JsonTriggerDefinition.Cron), nameof(JsonCronSchedule.Expression)),
+        (nameof(JsonTriggerDefinition.Simple), nameof(JsonSimpleSchedule.Interval)),
+        (nameof(JsonTriggerDefinition.Recurrence), nameof(JsonRecurrenceSchedule.Rule)),
+    ];
+
+    /// <summary>
+    /// The trigger sections to build: every one but those whose schedule string switches it off, which are
+    /// added to <paramref name="switchedOff" /> instead.
+    /// </summary>
+    /// <remarks>
+    /// A switched-off trigger is not read past its identity, so nothing else about it has to be valid. One
+    /// that names no trigger or no job is handed on, for <see cref="ReadTriggers" /> to refuse as it refuses
+    /// any other.
+    /// </remarks>
+    private static List<IConfigurationSection> NotSwitchedOff(IConfigurationSection triggersSection, List<SwitchedOffTrigger> switchedOff)
+    {
+        List<IConfigurationSection> scheduled = [];
+        foreach (IConfigurationSection triggerSection in triggersSection.GetChildren())
+        {
+            string? name = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.Name)]);
+            string? jobName = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.JobName)]);
+
+            if (name is null || jobName is null || SwitchedOffBy(triggerSection) is not { } source)
+            {
+                scheduled.Add(triggerSection);
+                continue;
+            }
+
+            string group = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.Group)]) ?? TriggerKey.DefaultGroup;
+            string jobGroup = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.JobGroup)]) ?? JobKey.DefaultGroup;
+            switchedOff.Add(new SwitchedOffTrigger(new TriggerKey(name, group), new JobKey(jobName, jobGroup), source));
+        }
+
+        return scheduled;
+    }
+
+    /// <summary>
+    /// The path of the schedule string that switches this trigger off, or <see langword="null" /> when none
+    /// does.
+    /// </summary>
+    private static string? SwitchedOffBy(IConfigurationSection triggerSection)
+    {
+        foreach ((string schedule, string value) in ScheduleStrings)
+        {
+            IConfigurationSection setting = triggerSection.GetSection(schedule).GetSection(value);
+            if (ConfiguredSchedule.IsSwitchedOff(setting.Value))
+            {
+                return setting.Path;
+            }
+        }
+
+        return null;
     }
 
     private static IScheduleBuilder BuildSchedule(IConfigurationSection triggerSection, string triggerName)

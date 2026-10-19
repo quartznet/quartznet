@@ -59,8 +59,10 @@ public class DeclaredJobsConfigurationKeyTest
         GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Snippet(Declarations));
 
         run.Diagnostics.Should().BeEmpty();
-        run.Generated.Should().Contain("builder.AddTrigger<global::App.CleanupJob>((services, trigger) => trigger",
-            "a schedule read from configuration needs the container, which only the (IServiceProvider, …) overload is handed");
+        run.Generated.Should().Contain("builder.AddConfiguredTrigger<global::App.CleanupJob>(\"Jobs:Cleanup:Cron\", Configured, (services, configured, trigger) => trigger",
+            "a schedule read from configuration goes through the call that reads the value and decides what it means");
+        run.Generated.Should().Contain(".WithCronSchedule(configured ?? \"0 0 3 * * ?\")",
+            "the attribute's expression is the schedule wherever nothing is configured");
         run.Generated.Should().Contain("builder.AddTrigger<global::App.CleanupJob>(trigger => trigger",
             "a schedule that is the attribute's alone keeps the shorter call, so what is written is what was asked for");
         run.Generated.Should().NotContain("System.Reflection").And.NotContain("Type.GetType",
@@ -81,7 +83,7 @@ public class DeclaredJobsConfigurationKeyTest
             }
             """));
 
-        run.Generated.Should().NotContain("ConfiguredCronExpression").And.NotContain("IConfiguration",
+        run.Generated.Should().NotContain("AddConfiguredTrigger").And.NotContain("IConfiguration",
             "a call that is not in the attributes is not in the file");
     }
 
@@ -202,6 +204,22 @@ public class DeclaredJobsConfigurationKeyTest
 
         ICronTrigger noon = (ICronTrigger) (await built.Scheduler.GetTrigger(new TriggerKey("noon")))!;
         noon.TimeZone.Id.Should().Be(TimeZones.FindById("UTC").Id, "a TimeZone written on the attribute is stated");
+    }
+
+    /// <summary>
+    /// <c>-</c> switches the one trigger off (#4137): the generated call hands the value to the scheduler,
+    /// which leaves the trigger out instead of handing <c>-</c> to the cron parser.
+    /// </summary>
+    [TestCase("-")]
+    [TestCase(" - ")]
+    public async Task ADashSwitchesTheConfiguredScheduleOff(string configured)
+    {
+        await using Built built = await Build(new Dictionary<string, string?> { ["Jobs:Cleanup:Cron"] = configured });
+
+        (await built.Scheduler.GetTrigger(new TriggerKey("cleanup"))).Should().BeNull(
+            "the key switched its trigger off, so nothing is scheduled under it");
+        (await CronOf(built.Scheduler, "noon")).Should().Be("0 0 12 ? * MON-FRI", "another key's trigger is its own");
+        (await CronOf(built.Scheduler, "evening")).Should().Be("0 0 18 * * ?");
     }
 
     /// <summary>

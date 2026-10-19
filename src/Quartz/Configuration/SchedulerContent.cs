@@ -32,6 +32,12 @@ internal interface ISchedulerContent
     IReadOnlyList<ITrigger> Triggers { get; }
 
     /// <summary>
+    /// The triggers this registration's configuration switched off: not to be scheduled, and to be
+    /// unscheduled where a copy is already stored.
+    /// </summary>
+    IReadOnlyList<SwitchedOffTrigger> SwitchedOffTriggers { get; }
+
+    /// <summary>
     /// The key this registration generated, because it gave its job or trigger no identity; otherwise
     /// <see langword="null" />.
     /// </summary>
@@ -55,10 +61,13 @@ internal sealed class SchedulerContent : ISchedulerContent
 {
     private readonly List<IJobDetail> jobs = [];
     private readonly List<ITrigger> triggers = [];
+    private readonly List<SwitchedOffTrigger> switchedOff = [];
 
     public IReadOnlyList<IJobDetail> Jobs => jobs;
 
     public IReadOnlyList<ITrigger> Triggers => triggers;
+
+    public IReadOnlyList<SwitchedOffTrigger> SwitchedOffTriggers => switchedOff;
 
     public GeneratedIdentity? GeneratedIdentity { get; private set; }
 
@@ -71,6 +80,15 @@ internal sealed class SchedulerContent : ISchedulerContent
     public SchedulerContent Add(ITrigger trigger)
     {
         triggers.Add(trigger);
+        return this;
+    }
+
+    /// <summary>
+    /// Records a trigger its configuration switched off, in place of the trigger.
+    /// </summary>
+    public SchedulerContent Add(SwitchedOffTrigger trigger)
+    {
+        switchedOff.Add(trigger);
         return this;
     }
 

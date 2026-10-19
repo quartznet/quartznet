@@ -258,6 +258,28 @@ This trigger kind is JSON only. The XML format is
 will not gain a `<recurrence>` element; declare a recurrence rule in JSON or in code.
 :::
 
+### Switching a trigger off
+
+From 4.7, a schedule string of `-` switches the trigger off: `Cron.Expression`, `Simple.Interval` or
+`Recurrence.Rule`. An environment variable such as `Quartz__Schedule__Triggers__0__Cron__Expression=-`
+turns one trigger off without editing the file.
+
+```json
+{
+  "Name": "nightlyReport",
+  "JobName": "reportJob",
+  "Cron": { "Expression": "-" }
+}
+```
+
+- The trigger is not scheduled, and nothing else in it is read past `Name`, `Group`, `JobName` and
+  `JobGroup`.
+- A copy a persistent store holds under its key is unscheduled at startup.
+- Each switched-off trigger logs event `4032` (Information) once at startup, naming the setting's path.
+- A non-durable job is deleted with its last trigger, as always. One whose every trigger is switched off is
+  not stored.
+- An empty or unparsable schedule string is still refused.
+
 ### Common Trigger Fields
 
 | Field | Description |

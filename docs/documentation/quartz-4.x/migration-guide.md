@@ -65,6 +65,8 @@ measure from completion only once every node is 4.7. See [Version 4.7](../databa
 | `FireInstance.InterruptRequestedUtc` | `DateTimeOffset?`, `init`: when another node asked the firing to stop, until it ends. Read from `INTERRUPT_REQUESTED_TIME`; always `null` in memory. See [Interrupting a firing on another node](tutorial/advanced-enterprise-features.md#interrupting-a-firing-on-another-node) |
 | `interruptRequestedUtc` on a fire instance, HTTP API | The same; absent from an older host, which reads as `null` |
 | `FireInstanceDto.InterruptRequestedUtc` | `Quartz.Dashboard`, `init`: the same, shown as *Interrupt requested* on Currently Executing |
+| `QuartzBuilderExtensions.AddConfiguredTrigger<TJob>(this IQuartzBuilder, string, Func<IServiceProvider, string, string?>, Action<IServiceProvider, string?, ITriggerConfigurator<TJob>>)` | What the generator now writes for a `ConfigurationKey`: a trigger whose configured value replaces its schedule, or with `-` switches it off. Hidden from IntelliSense |
+| Log event `4032` | A trigger switched off by a configured `-` (Information) |
 
 Behaviour that changed:
 
@@ -72,6 +74,7 @@ Behaviour that changed:
 |---|---|---|
 | `CronExpressionBuilder` wrote `*` for an unconfigured second: `WithMinuteIncrements(0, 5)` was `* 0/5 * ? * *`, every second of every fifth minute | It writes `0`: `0 0/5 * ? * *`, once every five minutes. A call that sets the second, such as `AtTime` or `Every`, is unchanged. See [Building cron expressions programmatically](cron-expressions.md#building-cron-expressions-programmatically) | Nothing, unless every second was meant: add `WithSecondRange(0, 59)` |
 | A clustered node with a generated instance id said nothing about declared triggers pinned with `PreferredNode.For(…)`, which never matched it | Log event `4031` warns once at start, with the count and up to five trigger keys. See [Requirements and limitations](tutorial/node-affinity.md#requirements-and-limitations) | Set `InstanceId` on each node a pin names, or pin with `PreferredNode.Auto` |
+| A `ConfigurationKey` value, or a `Quartz:Schedule` cron expression, simple interval or recurrence rule, of `-` stopped the host: the parser refused it | It switches that trigger off: not scheduled, a stored copy unscheduled, event `4032`. See [Switching one trigger off](tutorial/declaring-jobs-with-attributes.md#switching-one-trigger-off) | Nothing. Use `-` to turn a trigger off from configuration |
 | A schedule builder never given a zone, and `new CronTriggerImpl(…)`, set `TimeZoneInfo.Local` on the trigger | The zone is unstated until the scheduler stores the trigger and gives it `DefaultTimeZone`: `TimeZoneInfo.Local` unless configured | Nothing |
 | `InTimeZone(null)` meant `TimeZoneInfo.Local` | It names no zone, so the trigger takes `DefaultTimeZone`: `TimeZoneInfo.Local` unless configured | Nothing. With a default set, pass `TimeZoneInfo.Local` for a trigger that must stay local |
 | `GetTriggerBuilder()` of a trigger nobody gave a zone carried `InTimeZone(TimeZoneInfo.Local)` | It carries no zone, so the rebuilt trigger takes the default too. A trigger read from a store carries its stored zone | Nothing |

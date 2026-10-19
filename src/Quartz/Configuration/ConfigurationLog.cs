@@ -157,4 +157,11 @@ internal static partial class ConfigurationLog
     /// </remarks>
     [LoggerMessage(EventId = 4031, Level = LogLevel.Warning, Message = "Scheduler '{SchedulerName}' runs under the generated instance id '{SchedulerInstanceId}', which changes at every start, yet {PinnedTriggerCount} declared trigger(s) are pinned to a named node: {TriggerKeys}. A pin matches only a node whose instance id is the name it carries, which a generated id never is. Set InstanceId (quartz.scheduler.instanceId) on each node a pin names, or pin with PreferredNode.Auto")]
     public static partial void PinnedTriggersUnderGeneratedInstanceId(this ILogger logger, string schedulerName, string schedulerInstanceId, int pinnedTriggerCount, string triggerKeys);
+
+    /// <remarks>
+    /// Logged once per switched-off trigger as the registrations are applied. <c>Source</c> is the
+    /// configuration key, or the path of the JSON schedule string, that holds <c>-</c>.
+    /// </remarks>
+    [LoggerMessage(EventId = 4032, Level = LogLevel.Information, Message = "Trigger '{TriggerKey}' is switched off: '{Source}' is '-', so it is not scheduled. A copy already stored was unscheduled: {Unscheduled}")]
+    public static partial void TriggerSwitchedOffByConfiguration(this ILogger logger, TriggerKey triggerKey, string source, bool unscheduled);
 }
