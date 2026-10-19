@@ -172,6 +172,34 @@ identifier, in a group named after the job type), `Description`, `Priority`, `Ex
 `MisfireInstruction`, and `OnConflict`. **The group is the correlation axis**: give one saga, tenant or
 conversation one group to list, pause or unschedule its firings together.
 
+## A stored typed job, run now
+
+From 4.7. Pass `TriggerJob` the input instead of a `JobDataMap`. It fires a stored `IJob<TInput>` now and
+returns the key of the trigger that fires it:
+
+<!-- snippet: sample_one_off_job_trigger_now_typed -->
+```csharp
+public async ValueTask RunNow(IScheduler scheduler, ILogger logger, SendInvoice invoice, CancellationToken cancellationToken)
+{
+    // A durable SendInvoiceJob stored under this key, fired now with its input.
+    TriggerKey firing = await scheduler.TriggerJob(new JobKey("send-invoice", "billing"), invoice, cancellationToken);
+
+    // The manual run's trigger: ExecutionHistoryQuery.Trigger finds the run once it has ended.
+    logger.LogInformation("Invoice run {Trigger} requested", firing);
+}
+```
+<!-- endSnippet -->
+
+* It is the firing `TriggerJob(jobKey)` makes: a one-shot trigger in the default group, recorded as manual,
+  in the job's [execution group](../tutorial/execution-groups.md).
+* The input is stored as `UsingInput` stores it, by the scheduler's `IJobInputSerializer`.
+* Find the run with the key: `ExecutionHistoryQuery.Trigger` in the
+  [history](job-outcomes.md#read-one-firing-s-outcome), or `FireInstanceQuery.TriggerName` while it runs.
+* Trimmed or native AOT: declare the input type with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver`.
+* Over `HttpScheduler`, pass a string. A structured input is refused before it is sent, because the wire
+  carries it as a job data value. Serialize it to the JSON the host's serializer reads.
+* `TriggerJob(jobKey, token)` throws `ArgumentException`. Name the token: `cancellationToken: token`.
+
 ## Scheduling the same name twice
 
 `OnConflict` decides what a call does when a firing is already scheduled under its `Name`:

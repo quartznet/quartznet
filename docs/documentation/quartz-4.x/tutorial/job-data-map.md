@@ -314,6 +314,8 @@ public static class TypedInputScheduling
   (`QRTZ_JOB_INPUT`). The scheduler serializes it to a **string** when the job or trigger is stored, so it
   survives `StoreJobDataAsStrings`, the serializer's type check, the blob column and the HTTP API.
 * An input on the trigger overrides an input on the job.
+* From 4.7, `scheduler.TriggerJob(jobKey, input)` runs a stored typed job now with an input. See
+  [One-Off Job](../how-tos/one-off-job.md#a-stored-typed-job-run-now).
 * A job that is not an `IJob<TInput>` can read the payload with `context.GetInput<SendEmail>()`, which
   returns `null` when there is none.
 * An `IJob<TInput>` whose input is missing fails the firing with a `SchedulerException` naming the key,

@@ -45,7 +45,7 @@ It is stored by its key, not as a serialized call, so every node registers it. S
 
 | Hangfire | Quartz.NET | Difference |
 |---|---|---|
-| `BackgroundJob.Enqueue(() => …)` | `scheduler.ScheduleJob<TJob, TInput>(input, TimeSpan.Zero)` | a trigger that fires now, not a queue entry |
+| `BackgroundJob.Enqueue(() => …)` | `scheduler.ScheduleJob<TJob, TInput>(input, TimeSpan.Zero)`, or from 4.7 [`scheduler.TriggerJob(jobKey, input)`](one-off-job.md#a-stored-typed-job-run-now) for a stored job | a trigger that fires now, not a queue entry; both answer with its `TriggerKey` |
 | `BackgroundJob.Schedule(() => …, TimeSpan)` | the same call with the delay | |
 | `BackgroundJob.Schedule(() => …, DateTimeOffset)` | the `DateTimeOffset` overload of the same call | |
 | `BackgroundJob.Delete(jobId)` | `scheduler.UnscheduleJob(triggerKey)` | the `TriggerKey` on the returned `ScheduledOneOffJob` is the handle |

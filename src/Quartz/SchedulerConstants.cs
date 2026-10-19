@@ -117,7 +117,8 @@ public static class SchedulerConstants
 
     /// <summary>
     /// The <see cref="JobDataMap" /> key, set to <c>"true"</c>, marking the trigger
-    /// <see cref="IScheduler.TriggerJob" /> creates, so the run is recorded as manual.
+    /// <see cref="IScheduler.TriggerJob" /> or <see cref="SchedulerJobExtensions.TriggerJob{TInput}" />
+    /// creates, so the run is recorded as manual.
     /// </summary>
     /// <remarks>
     /// Written onto the trigger's map, so it persists in every store and reads through

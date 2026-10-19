@@ -83,6 +83,10 @@ Behaviour that changed:
 | A dashboard cluster row asked every member to interrupt a job | It asks the preferred 4.6 member, and the next if it fails, plus each member older than 4.6. With every member at 4.6, an interrupt of one firing is asked the same way, without looking up its owner | Nothing |
 | A store-attached window refused every interrupt with `NotSupportedException` | It records a request for a firing on a node with a live 4.6 or later check-in row, and refuses any other with `SchedulerException` naming the node. Currently Executing offers the button. See [What a window can and cannot do](packages/dashboard.md#what-a-window-can-and-cannot-do) | Nothing |
 
+| Added | What it is |
+|---|---|
+| `SchedulerJobExtensions.TriggerJob<TInput>(this IScheduler, JobKey, TInput, CancellationToken)` | Fires a stored `IJob<TInput>` now with its input, as `TriggerJob` fires a job, and returns the trigger's `TriggerKey`. See [A stored typed job, run now](how-tos/one-off-job.md#a-stored-typed-job-run-now) |
+
 ## Upgrading from 4.5 to 4.6
 
 An application on 4.5 compiles on 4.6 unchanged, unless it treats warnings as errors and has a cron literal
