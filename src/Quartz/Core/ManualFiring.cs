@@ -76,13 +76,13 @@ internal static class ManualFiring
             jobKey.Name,
             jobKey.Group,
             timeProvider.GetUtcNow(),
-            null,
-            0,
-            TimeSpan.Zero,
+            endTimeUtc: null,
+            repeatCount: 0,
+            repeatInterval: TimeSpan.Zero,
             timeProvider);
 
         trigger.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
-        trigger.ComputeFirstFireTimeUtc(null);
+        trigger.ComputeFirstFireTimeUtc(calendar: null);
         if (data is not null)
         {
             trigger.JobDataMap = data;

@@ -174,7 +174,8 @@ public static class SchedulerJobExtensions
 
         SimpleTriggerImpl trigger = ManualFiring.CreateTrigger(jobKey, data, executionGroup, scheduler.TimeProvider);
 
-        for (int attempt = 1; ; attempt++)
+        int attempt = 1;
+        while (true)
         {
             try
             {
@@ -183,6 +184,7 @@ public static class SchedulerJobExtensions
             }
             catch (ObjectAlreadyExistsException) when (attempt < ManualFiringAttempts)
             {
+                attempt++;
                 trigger.Key = ManualFiring.NewTriggerKey();
             }
         }
