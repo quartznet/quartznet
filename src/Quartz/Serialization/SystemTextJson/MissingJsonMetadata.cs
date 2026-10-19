@@ -71,7 +71,7 @@ internal static class MissingJsonMetadata
     }
 
     /// <summary>
-    /// The type as C# source writes it inside <c>typeof</c>: <c>List&lt;String&gt;</c> rather than
+    /// The type as C# source writes it inside <see langword="typeof" />: <c>List&lt;String&gt;</c> rather than
     /// <c>List`1</c>.
     /// </summary>
     internal static string SourceName(Type type)
