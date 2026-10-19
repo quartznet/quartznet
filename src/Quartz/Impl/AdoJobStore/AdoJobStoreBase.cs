@@ -21,6 +21,7 @@
 
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz.Diagnostics;
@@ -437,13 +438,36 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// <summary>
     /// Why every firing round of this store takes <see cref="SchedulerLock.TriggerAccess" />, or
     /// <see langword="null" /> when a round decides for itself (#4067). A property of the store's
-    /// configuration, in the order the rule asks: SQLite, the option, SQL Server — whose rounds are 4.5's in
-    /// this release, as with the option off — <see cref="AcquireTriggersWithinLock" />, an isolation level
-    /// above read committed — where a lost claim is a serialization failure that costs a retry interval
-    /// rather than a zero-row update — and a delegate that takes no part in fire-on-acquire rounds, whose
-    /// overridden claim or fire the round's members would bypass.
+    /// configuration and its database, in the order the rule asks: SQLite, the option,
+    /// <see cref="AcquireTriggersWithinLock" />, an isolation level above read committed — where a lost claim
+    /// is a serialization failure that costs a retry interval rather than a zero-row update — a delegate that
+    /// takes no part in fire-on-acquire rounds, whose overridden claim or fire the round's members would
+    /// bypass, and a SQL Server database that does not read committed snapshots (#4117).
     /// </summary>
     internal RoundLockReason? StaticRoundLockReason
+    {
+        get
+        {
+            if (ConfiguredRoundLockReason is { } configured)
+            {
+                return configured;
+            }
+
+            // Until the startup probe has said otherwise, which is also what a failed probe leaves.
+            if (Delegate is StdAdoDelegate { LockFreeRoundsNeedReadCommittedSnapshot: true } && readsCommittedSnapshot != true)
+            {
+                return RoundLockReason.ReadCommittedSnapshotOff;
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The part of <see cref="StaticRoundLockReason" /> the store's options and its delegate decide, with no
+    /// database to ask.
+    /// </summary>
+    private RoundLockReason? ConfiguredRoundLockReason
     {
         get
         {
@@ -455,11 +479,6 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             if (!LockFreeFiringRounds)
             {
                 return RoundLockReason.OptionOff;
-            }
-
-            if (Delegate is StdAdoDelegate { UsesLockFreeRounds: false })
-            {
-                return RoundLockReason.SqlServer;
             }
 
             if (AcquireTriggersWithinLock)
@@ -479,6 +498,82 @@ internal abstract partial class AdoJobStoreBase : IJobStore
 
             return null;
         }
+    }
+
+    /// <summary>
+    /// What the startup probe found the database's <c>READ_COMMITTED_SNAPSHOT</c> to be, for a dialect that
+    /// asks (<see cref="StdAdoDelegate.LockFreeRoundsNeedReadCommittedSnapshot" />); <see langword="null" />
+    /// before it has asked, and <see langword="false" /> when the asking failed (#4117).
+    /// </summary>
+    private bool? readsCommittedSnapshot;
+
+    /// <summary>Why the probe failed, for the startup line; <see langword="null" /> when it did not.</summary>
+    private string? readCommittedSnapshotProbeFailure;
+
+    /// <summary>
+    /// Asks the database once whether it reads committed snapshots, for a dialect whose firing rounds may
+    /// take no lock only then (#4117): SQL Server's read committed otherwise takes shared locks, and a
+    /// round's read waits on — and deadlocks with — another node's claim.
+    /// </summary>
+    /// <remarks>
+    /// Not asked when the options or the delegate lock every round anyway, nor of a dialect that does not
+    /// need it. A failure — a database not reachable yet, a login refused the catalog view — is an answer
+    /// of no: the rounds keep the lock, which is always correct. Asked once: a database switched over while
+    /// the scheduler runs keeps the answer it had at startup until the scheduler restarts.
+    /// </remarks>
+    internal async ValueTask ProbeReadCommittedSnapshot(CancellationToken cancellationToken = default)
+    {
+        if (ConfiguredRoundLockReason is not null || Delegate is not StdAdoDelegate { LockFreeRoundsNeedReadCommittedSnapshot: true } dialect)
+        {
+            return;
+        }
+
+        try
+        {
+            readsCommittedSnapshot = await ExecuteWithoutLock(conn => dialect.SelectReadsCommittedSnapshot(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+            readCommittedSnapshotProbeFailure = null;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            readsCommittedSnapshot = false;
+            readCommittedSnapshotProbeFailure = e.Message;
+        }
+    }
+
+    /// <summary>
+    /// Says once, at startup, whether a firing round may take no lock, and if not, why and what to change.
+    /// </summary>
+    /// <remarks>
+    /// After the schema check and the probe, with everything the static rule reads settled: SQLite's
+    /// forcing, the delegate, the isolation level, the database. What a round decides for itself is its
+    /// own to log.
+    /// </remarks>
+    internal void LogLockFreeFiringRounds()
+    {
+        if (StaticRoundLockReason is { } roundsLockedBy)
+        {
+            string detail = roundsLockedBy.Describe();
+            if (roundsLockedBy == RoundLockReason.ReadCommittedSnapshotOff && readCommittedSnapshotProbeFailure is { } failure)
+            {
+                detail += " (the setting could not be read: " + failure + ")";
+            }
+
+            Logger.LockFreeFiringRounds("off", detail);
+            return;
+        }
+
+        string locked = "a round with a serial job, an overlap policy or a cluster-scoped limit still takes TRIGGER_ACCESS";
+        if (Clustered)
+        {
+            locked += string.Create(CultureInfo.InvariantCulture, $", as does every round while a live node is older than {LockFreeRoundsPeerVersion.ToString(2)}");
+        }
+
+        if (Delegate is StdAdoDelegate { FiresLockFreeRoundsApart: true })
+        {
+            locked += "; a round without it claims in one transaction and fires in a second";
+        }
+
+        Logger.LockFreeFiringRounds("on", locked);
     }
 
     /// <summary>
@@ -781,19 +876,6 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             LoggerFactory = LoggerFactory,
         });
 
-        // Once, with everything the static rule reads settled: SQLite's forcing above, the delegate, the
-        // isolation level. What a round decides for itself is its own to log.
-        if (StaticRoundLockReason is { } roundsLockedBy)
-        {
-            Logger.LockFreeFiringRounds("off", roundsLockedBy.Describe());
-        }
-        else
-        {
-            Logger.LockFreeFiringRounds("on", Clustered
-                ? "a round with a serial job, an overlap policy or a cluster-scoped limit still takes TRIGGER_ACCESS, as does every round while a live node is older than 4.6"
-                : "a round with a serial job, an overlap policy or a cluster-scoped limit still takes TRIGGER_ACCESS");
-        }
-
         if (SchemaProvisioning == SchemaProvisioning.CreateIfMissing)
         {
             await CreateSchema(cancellationToken).ConfigureAwait(false);
@@ -830,6 +912,11 @@ internal abstract partial class AdoJobStoreBase : IJobStore
             }
         }
 
+        // Once, with everything the static rule reads settled: SQLite's forcing above, the delegate, the
+        // isolation level, and — on SQL Server — the database's READ_COMMITTED_SNAPSHOT, asked once the schema
+        // is known to be there (#4117).
+        await ProbeReadCommittedSnapshot(cancellationToken).ConfigureAwait(false);
+        LogLockFreeFiringRounds();
     }
 
     /// <summary>How many times the schema is created before the failure is reported as one.</summary>

@@ -35,9 +35,17 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [NonParallelizable]
 public abstract class ClusteredJobStoreTestBase
 {
-    protected ClusteredJobStoreTestBase(string provider)
+    protected ClusteredJobStoreTestBase(string provider) : this(ClusteredTestDatabase.For(provider))
     {
-        Database = ClusteredTestDatabase.For(provider);
+    }
+
+    /// <summary>
+    /// For a fixture on a database no provider name picks out, such as SQL Server with
+    /// <c>READ_COMMITTED_SNAPSHOT</c> on.
+    /// </summary>
+    protected ClusteredJobStoreTestBase(ClusteredTestDatabase database)
+    {
+        Database = database;
     }
 
     /// <summary>

@@ -30,6 +30,10 @@ public abstract class ClusteredHardeningTestBase : ClusteredExactlyOnceTestBase
     {
     }
 
+    protected ClusteredHardeningTestBase(ClusteredTestDatabase database) : base(database)
+    {
+    }
+
     protected override string SchedulerName => "ClusterHardeningTest";
 
     /// <summary>

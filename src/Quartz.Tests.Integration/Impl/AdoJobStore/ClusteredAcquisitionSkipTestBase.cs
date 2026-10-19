@@ -61,7 +61,19 @@ public abstract class ClusteredAcquisitionSkipTestBase : ClusteredJobStoreTestBa
     /// </summary>
     private static readonly int firingsExpected = (int) observation.TotalSeconds - 4;
 
+    /// <summary>
+    /// The arm a measurement compares against (#4117): <c>QUARTZ_TEST_LOCK_FREE_ROUNDS=false</c> turns
+    /// <c>LockFreeFiringRounds</c> off on both nodes, which is 4.5's round on this code. Unset, or anything
+    /// else, is what ships.
+    /// </summary>
+    private static readonly bool lockFreeRoundsOff = string.Equals(
+        Environment.GetEnvironmentVariable("QUARTZ_TEST_LOCK_FREE_ROUNDS"), "false", StringComparison.OrdinalIgnoreCase);
+
     protected ClusteredAcquisitionSkipTestBase(string provider) : base(provider)
+    {
+    }
+
+    protected ClusteredAcquisitionSkipTestBase(ClusteredTestDatabase database) : base(database)
     {
     }
 
@@ -84,7 +96,14 @@ public abstract class ClusteredAcquisitionSkipTestBase : ClusteredJobStoreTestBa
             // the base fixture's two, and short enough that the run is not.
             properties["quartz.scheduler.idleWaitTime"] = ((int) idleWait.TotalMilliseconds).ToString(CultureInfo.InvariantCulture);
             properties["quartz.threadPool.maxConcurrency"] = "4";
+            if (lockFreeRoundsOff)
+            {
+                properties["quartz.jobStore.lockFreeFiringRounds"] = "false";
+            }
         }
+
+        // Both nodes are in this process, so one listener sees every round either runs.
+        using RoundLockRecorder rounds = new();
 
         IScheduler nodeA = await CreateScheduler(NodeA, configure: ConfigureNode);
         IScheduler nodeB = await CreateScheduler(NodeB, configure: ConfigureNode);
@@ -166,8 +185,19 @@ public abstract class ClusteredAcquisitionSkipTestBase : ClusteredJobStoreTestBa
         TestContext.Out.WriteLine(report);
         TestContext.Out.WriteLine($"Serial job: {SerialJob.Completed} completed, peak concurrency {SerialJob.PeakConcurrency}, "
                                   + "on " + string.Join(", ", SerialJob.Nodes.GroupBy(x => x, StringComparer.Ordinal).Select(x => $"{x.Key}={x.Count()}")));
+        TestContext.Out.WriteLine((lockFreeRoundsOff ? "LockFreeFiringRounds off. " : "") + "Rounds by lock: " + rounds.Describe());
 
         SerialJob.Completed.Should().BeGreaterThan(1, "the premise: the serial job was running throughout");
+        if (lockFreeRoundsOff || !Database.AllowsLockFreeRounds)
+        {
+            rounds.LockFree.Should().Be(0, "every round of this arm is locked (rounds by lock: {0})", rounds.Describe());
+        }
+        else
+        {
+            rounds.LockFree.Should().BeGreaterThan(0,
+                "the busy triggers' rounds need no lock, so a run in which none went without it never ran the shape the test is about "
+                + "(rounds by lock: {0})", rounds.Describe());
+        }
         SerialJob.PeakConcurrency.Should().Be(1, "the fix must not buy liveness by letting the serial job overlap itself");
 
         foreach (string node in (string[]) [NodeA, NodeB])

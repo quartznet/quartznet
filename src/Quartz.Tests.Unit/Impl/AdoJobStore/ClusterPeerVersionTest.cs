@@ -62,13 +62,22 @@ public sealed class ClusterPeerVersionTest
         clock = new FakeTimeProvider(Now);
         logs = new RecordingLoggerProvider();
         loggerFactory = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Trace).AddProvider(logs));
-        driverDelegate = A.Fake<IDriverDelegate>();
-
         store = new AdoJobStoreBaseTest.TestAdoJobStoreBase(clustered: true, timeProvider: clock, loggerFactory: loggerFactory);
-        store.DirectDelegate = driverDelegate;
         store.DirectSignaler = A.Fake<ISchedulerSignaler>();
         store.LockHandler = new InProcessLockHandler();
         store.LastCheckin = Now;
+
+        UseDelegate(A.Fake<IDriverDelegate>());
+    }
+
+    /// <summary>
+    /// The store's delegate is <paramref name="fake" />, whose check-in writes take and which finds no fired
+    /// trigger of a node without a state row.
+    /// </summary>
+    private void UseDelegate(IDriverDelegate fake)
+    {
+        driverDelegate = fake;
+        store.DirectDelegate = driverDelegate;
 
         A.CallTo(() => driverDelegate.UpdateSchedulerState(A<ConnectionAndTransactionHolder>._, A<string>._, A<DateTimeOffset>._, A<CancellationToken>._))
             .Returns(new ValueTask<int>(1));
@@ -168,6 +177,35 @@ public sealed class ClusterPeerVersionTest
         store.PeersAllowLockFreeRounds.Should().BeTrue("there is no older node whose writes the lock would have to keep off a fired row");
         logs.Entries.Should().ContainSingle(x => x.EventId.Id == EveryPeerAllowsLockFreeRounds)
             .Which.Message.Should().Contain("0 beside this one");
+    }
+
+    /// <summary>
+    /// A 4.6 node locks every SQL Server round of its own, so a SQL Server cluster with one keeps 4.6's rounds
+    /// on every node until it is gone (#4117). The other dialects keep 4.6 as the line.
+    /// </summary>
+    [TestCase("4.6.0", false)]
+    [TestCase("4.7.0", true)]
+    public async Task OnSqlServerEveryLivePeerHasToBeFourSeven(string stamp, bool allows)
+    {
+        UseDelegate(A.Fake<SqlServerDelegate>());
+        GivenPeers(Live("peer-a", stamp));
+
+        await store.CheckIn(Guid.NewGuid());
+
+        store.PeersAllowLockFreeRounds.Should().Be(allows, "SQL Server's rounds take no lock beside 4.7 nodes only");
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == (allows ? EveryPeerAllowsLockFreeRounds : OlderPeerKeepsRoundsLocked))
+            .Which.Message.Should().Contain("4.7", "the line names the release the dialect needs");
+    }
+
+    [Test]
+    public async Task OnPostgreSqlAFourSixPeerAllowsLockFreeRounds()
+    {
+        UseDelegate(A.Fake<PostgreSQLDelegate>());
+        GivenPeers(Live("peer-a", "4.6.0"));
+
+        await store.CheckIn(Guid.NewGuid());
+
+        store.PeersAllowLockFreeRounds.Should().BeTrue("a 4.6 node holds its writes to the row as read, which is all a PostgreSQL round needs of it");
     }
 
     [Test]

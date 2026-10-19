@@ -186,6 +186,8 @@ matching on its text is not.
 | 3059 | Debug | `Quartz` | `"Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write"` |
 | 3060 | Debug | `Quartz` | `"Firing rounds take TRIGGER_ACCESS until the backlog clears: a round without it lost {ClaimsLost} claims to another node"` |
 | 3061 | Error | `Quartz` | `"Next fire time of trigger {TriggerKey}, which measures from completion, could not be computed; it is let go with the fire time its firing left on it"` |
+| 3062 | Warning | `Quartz` | `"Firing round claimed without TRIGGER_ACCESS hands its due triggers to the scheduler, which fires them under the lock: the job, overlap policy or schedule of trigger {TriggerKey} changed between the claim and the fire"` |
+| 3063 | Warning | `Quartz` | `"The fire of a firing round claimed without TRIGGER_ACCESS failed; the scheduler fires its due triggers under the lock"` |
 | 3100 | Debug | `Quartz` | `"Prepared SQL: {Sql}"` |
 | 3110 | Error | `Quartz` | `"Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."` |
 | 3111 | Debug | `Quartz` | `"Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown."` |

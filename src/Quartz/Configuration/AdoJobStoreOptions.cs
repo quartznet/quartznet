@@ -252,7 +252,10 @@ public sealed class AdoJobStoreOptions
     /// or two seconds pass.
     /// </para>
     /// <para>
-    /// Not used on SQL Server in this release: firing rounds there work as in 4.5, as with this option off
+    /// On SQL Server since 4.7, only while the database has <c>READ_COMMITTED_SNAPSHOT</c> on, which the
+    /// store reads once at startup; without it, firing rounds work as with this option off, reason
+    /// <c>read_committed_snapshot_off</c>. A SQL Server round that takes no lock claims in one transaction
+    /// and fires in a second, and needs every live node of a cluster to be 4.7
     /// (<see href="https://github.com/quartznet/quartznet/issues/4117">#4117</see>).
     /// </para>
     /// <para>

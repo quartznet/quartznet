@@ -58,6 +58,10 @@ public sealed class LockFreeRoundTest
     /// <summary>Log event <c>AdoJobStoreLog.RoundsLockedForContention</c>.</summary>
     private const int RoundsLockedForContention = 3060;
 
+    /// <summary>Log events <c>AdoJobStoreLog.RoundFireHandedToLock</c> and <c>AdoJobStoreLog.RoundFireWithoutLockFailed</c>.</summary>
+    private const int RoundFireHandedToLock = 3062;
+    private const int RoundFireWithoutLockFailed = 3063;
+
     private const string TriggerAccess = "TRIGGER_ACCESS";
 
     /// <summary>Safely in the past, so that every candidate is due.</summary>
@@ -874,6 +878,202 @@ public sealed class LockFreeRoundTest
     }
 
     /// <summary>
+    /// A round without the lock on a dialect that fires apart (#4117) is two transactions, neither locked:
+    /// the claim, which reserves every trigger it claims and fires none, and the fire, which claims the due
+    /// rows again from ACQUIRED at the fire time the claim held them to, reads them, and updates each
+    /// reservation to EXECUTING.
+    /// </summary>
+    [Test]
+    public async Task ARoundThatFiresApartClaimsInOneTransactionAndFiresInASecondWithoutTheLock()
+    {
+        store.FiresApart = true;
+        GivenCandidates(Candidate("t1"), Candidate("t2"), Candidate("t3"));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 3);
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1", "t2", "t3"]);
+        round.Fired.Should().OnlyContain(x => x.TriggerFiredBundle != null);
+        round.Pending.Should().BeEmpty();
+        round.LockName.Should().Be("none");
+        round.LockReason.Should().BeNull();
+        locks.Acquired.Should().BeEmpty("neither transaction needs TRIGGER_ACCESS");
+        store.Transactions.Should().Be(2, "the claim and the fire each commit on their own");
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerClaim>>.That.Matches(x => x.Count == 3), StoredTriggerState.Acquired, StoredTriggerState.Waiting, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly()
+            .Then(A.CallTo(() => driverDelegate.InsertFiredTriggers(
+                    A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<IOperableTrigger>>.That.Matches(x => x.Count == 3), StoredTriggerState.Acquired, null, A<CancellationToken>._))
+                .MustHaveHappenedOnceExactly())
+            .Then(A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                    A<ConnectionAndTransactionHolder>._,
+                    A<IReadOnlyList<TriggerClaim>>.That.Matches(x => x.Count == 3 && x.All(claim => claim.NextFireTimeUtc == FireTime)),
+                    StoredTriggerState.Acquired,
+                    StoredTriggerState.Acquired,
+                    A<CancellationToken>._))
+                .MustHaveHappenedOnceExactly())
+            .Then(A.CallTo(() => driverDelegate.SelectTriggers(A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+                .MustHaveHappened());
+
+        // Read after the claim, and again after the guard: what the fire writes over is the row it holds.
+        A.CallTo(() => driverDelegate.SelectTriggers(A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly();
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(A<ConnectionAndTransactionHolder>._, A<TriggerFiredUpdate>.That.Matches(x => !x.FiredOnAcquire), A<CancellationToken>._))
+            .MustHaveHappened(3, Times.Exactly);
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(A<ConnectionAndTransactionHolder>._, A<TriggerFiredUpdate>.That.Matches(x => x.FiredOnAcquire), A<CancellationToken>._))
+            .MustNotHaveHappened();
+        round.Fired.Select(x => x.TriggerFiredBundle.Trigger.FireInstanceId).Should().Equal(round.Due.Select(x => x.FireInstanceId),
+            "each fire updates the reservation its claim wrote");
+    }
+
+    /// <summary>
+    /// The same dialect folds a round as before when something in it needs the lock: the split is a round
+    /// without the lock's shape, and a locked batch stays one locked transaction.
+    /// </summary>
+    [Test]
+    public async Task ARoundThatEscalatesIsFoldedUnderTheLockWhereTheDialectFiresApart()
+    {
+        store.FiresApart = true;
+        GivenCandidates(Candidate("t1"), Candidate("t2", serial: true));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 2);
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1", "t2"]);
+        round.LockReason.Should().Be("serial_job");
+        store.Transactions.Should().Be(2, "the attempt without the lock, rolled back before any write, and the locked round");
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<TriggerClaim>>._, StoredTriggerState.Acquired, StoredTriggerState.Acquired, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A row the guard does not move was paused, deleted, rescheduled or recovered between the claim and the
+    /// fire. It is not fired, and keeps its reservation for the scheduler to release, as
+    /// <c>TriggersFired</c> answers a trigger no longer ACQUIRED; the rest of the round fires.
+    /// </summary>
+    [Test]
+    public async Task ARowMovedBetweenTheClaimAndTheFireIsNotFired()
+    {
+        store.FiresApart = true;
+        GivenCandidates(Candidate("t1"), Candidate("t2"));
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._, new TriggerKey("t2", "g1"), StoredTriggerState.Acquired, StoredTriggerState.Acquired, A<DateTimeOffset>._, A<CancellationToken>._))
+            .Returns(new ValueTask<int>(0));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 2);
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1", "t2"]);
+        round.Fired[0].TriggerFiredBundle.Should().NotBeNull();
+        round.Fired[1].Should().Match<TriggerFiredResult>(x => x.TriggerFiredBundle == null && !x.IsDeclined && x.Exception == null,
+            "a reservation the scheduler releases, which leaves a paused or replaced row as it is");
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(A<ConnectionAndTransactionHolder>._, A<TriggerFiredUpdate>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        // t2 keeps the reservation its claim wrote: nothing reserves it again.
+        A.CallTo(() => driverDelegate.InsertFiredTriggers(A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<IOperableTrigger>>._, A<StoredTriggerState>._, A<IJobDetail>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// A job turned serial between the claim and the fire needs the lock, which the fire cannot take while it
+    /// holds row locks and cannot roll the committed claim back for. Every due trigger goes back to the
+    /// scheduler still reserved, which fires it through <c>TriggersFired</c> under the lock, and the next
+    /// round starts locked.
+    /// </summary>
+    [Test]
+    public async Task AJobFoundSerialAtTheFireHandsTheDueTriggersToTheSchedulerUnderTheLock()
+    {
+        store.FiresApart = true;
+        GivenCandidates(Candidate("t1"), Candidate("t2"));
+        GivenTheJob(JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().DisallowConcurrentExecution().Build());
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 2);
+
+        round.Due.Should().BeEmpty();
+        round.Pending.Select(x => x.Key.Name).Should().Equal(["t1", "t2"]);
+        round.Pending.Should().OnlyContain(x => x.FireInstanceId != null, "each is still reserved by its claim");
+        round.LockName.Should().Be(TriggerAccess, "the scheduler's TriggersFired takes it for the fire");
+        round.LockReason.Should().Be("definition_changed");
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(A<ConnectionAndTransactionHolder>._, A<TriggerFiredUpdate>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == RoundFireHandedToLock)
+            .Which.Should().Match<LogEntry>(x => x.Level == LogLevel.Warning && x.Message.Contains("t1"));
+
+        GivenTheJob(ConcurrentJob());
+        GivenCandidates(Candidate("t3"));
+        (await AcquireAndFire(maxCount: 2)).LockReason.Should().Be("hysteresis", "the round after a definition changed starts locked");
+    }
+
+    /// <summary>
+    /// A fire that fails without the lock cannot take the committed claims with it. The due triggers go back
+    /// to the scheduler still reserved, whose <c>TriggersFired</c> fires them under the lock and handles a
+    /// fire that fails again.
+    /// </summary>
+    [Test]
+    public async Task AFireThatFailsWithoutTheLockHandsTheDueTriggersToTheScheduler()
+    {
+        store.FiresApart = true;
+        GivenCandidates(Candidate("t1"));
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(A<ConnectionAndTransactionHolder>._, A<TriggerFiredUpdate>._, A<CancellationToken>._))
+            .Throws(new InvalidOperationException("the fire's write failed"));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 1);
+
+        round.Due.Should().BeEmpty();
+        round.Pending.Select(x => x.Key.Name).Should().Equal(["t1"]);
+        round.LockName.Should().Be("none", "nothing about the round asked for the lock");
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == RoundFireWithoutLockFailed)
+            .Which.Should().Match<LogEntry>(x => x.Level == LogLevel.Warning && x.Exception != null);
+    }
+
+    /// <summary>
+    /// A trigger due later in the batch window is claimed and reserved as before, and left pending; only the
+    /// due ones are claimed again and fired. A round that claimed nothing due makes no second transaction.
+    /// </summary>
+    [Test]
+    public async Task ARoundThatFiresApartFiresOnlyWhatIsDue()
+    {
+        store.FiresApart = true;
+        DateTimeOffset later = DateTimeOffset.UtcNow.AddHours(1);
+        GivenCandidates(Candidate("t1"), Candidate("t2", at: later));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 2, window: TimeSpan.FromHours(2));
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1"]);
+        round.Pending.Select(x => x.Key.Name).Should().Equal(["t2"]);
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>._,
+                A<IReadOnlyList<TriggerClaim>>.That.Matches(x => x.Count == 1 && x[0].TriggerKey.Name == "t1"),
+                StoredTriggerState.Acquired,
+                StoredTriggerState.Acquired,
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        GivenCandidates(Candidate("t4", at: later));
+        int before = store.Transactions;
+        TriggerAcquisitionResult nothingDue = await AcquireAndFire(maxCount: 1, window: TimeSpan.FromHours(2));
+        nothingDue.Pending.Select(x => x.Key.Name).Should().Equal(["t4"]);
+        (store.Transactions - before).Should().Be(1, "with nothing due there is nothing to fire");
+    }
+
+    /// <summary>
+    /// A round of one without the lock fires apart too: the split is the round's shape, whatever its size.
+    /// </summary>
+    [Test]
+    public async Task ARoundOfOneFiresApartWithoutTheLock()
+    {
+        store.FiresApart = true;
+        GivenCandidates(Candidate("t1"));
+
+        TriggerAcquisitionResult round = await AcquireAndFire(maxCount: 1);
+
+        round.Due.Select(x => x.Key.Name).Should().Equal(["t1"]);
+        round.Fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull();
+        round.LockName.Should().Be("none");
+        locks.Acquired.Should().BeEmpty();
+        store.Transactions.Should().Be(2);
+    }
+
+    /// <summary>
     /// A clustered store at 4.6 whose peers allow rounds without the lock, on <paramref name="clock" />.
     /// </summary>
     private async Task GivenAClusterAtFourSix(TimeProvider clock = null)
@@ -1064,6 +1264,14 @@ public sealed class LockFreeRoundTest
         }
 
         public int Transactions => Volatile.Read(ref transactions);
+
+        /// <summary>
+        /// Whether a round without the lock fires apart, as a dialect asks through its delegate (#4117); the
+        /// delegate here is a fake, so the store answers for it.
+        /// </summary>
+        public bool FiresApart { get; set; }
+
+        internal override bool FiresLockFreeRoundsApart => FiresApart;
 
         protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
         {

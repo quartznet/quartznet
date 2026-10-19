@@ -112,22 +112,24 @@ internal abstract partial class AdoJobStoreBase
     private volatile bool peersScanned;
 
     /// <summary>
-    /// Whether the last scan found a live peer older than <see cref="SchedulerNodeVersion.LockFreeRoundsSince" />,
-    /// or one whose row says nothing about its version, which is the same thing.
+    /// Whether the last scan found a live peer older than <see cref="LockFreeRoundsPeerVersion" />, or one
+    /// whose row says nothing about its version, which is the same thing.
     /// </summary>
     private volatile bool olderPeerLive;
 
     /// <summary>
     /// Whether this node's peers let a firing round of work that allows concurrent execution take no
     /// <c>TRIGGER_ACCESS</c> lock (#4067): every live row of the state table carries a Quartz version of
-    /// 4.6 or later, as the last check-in read it. A store that is not clustered has no peers and answers
-    /// <see langword="true" />; a clustered one answers <see langword="false" /> until its first check-in
-    /// has read the table, and while any live row is <c>NULL</c>, below 4.6 or unreadable.
+    /// 4.6 or later — 4.7 on SQL Server (#4117) — as the last check-in read it. A store that is not
+    /// clustered has no peers and answers <see langword="true" />; a clustered one answers
+    /// <see langword="false" /> until its first check-in has read the table, and while any live row is
+    /// <c>NULL</c>, below that release or unreadable.
     /// </summary>
     /// <remarks>
     /// A node older than 4.6 writes a trigger's row it read by key — its misfire handler, its editors —
     /// relying on the lock to keep a round off that row in between. This node cannot guard writes it does
-    /// not make, so it keeps the lock for every round while such a node is live. A row past its failure
+    /// not make, so it keeps the lock for every round while such a node is live. A 4.6 node on SQL Server
+    /// locks every round of its own, and its 4.7 peers keep 4.6's rounds beside it. A row past its failure
     /// threshold is a node about to be recovered, and is not counted; a 4.5 node's first check-in recovers
     /// and deletes its own earlier row before it inserts a fresh one without the column, so a stamp a 4.6
     /// run left under the same instance id does not survive a downgrade.
@@ -366,6 +368,7 @@ internal abstract partial class AdoJobStoreBase
     /// <param name="failedInstances">The rows the scan judged failed, which are not live.</param>
     private void RecordPeerVersions(List<SchedulerStateRecord> states, List<SchedulerStateRecord> failedInstances)
     {
+        Version since = LockFreeRoundsPeerVersion;
         SchedulerStateRecord? older = null;
         int peers = 0;
         foreach (SchedulerStateRecord record in states)
@@ -376,7 +379,7 @@ internal abstract partial class AdoJobStoreBase
             }
 
             peers++;
-            if (older is null && !SchedulerNodeVersion.SupportsLockFreeRounds(record.QuartzVersion))
+            if (older is null && !SchedulerNodeVersion.SupportsLockFreeRounds(record.QuartzVersion, since))
             {
                 older = record;
             }
@@ -389,13 +392,19 @@ internal abstract partial class AdoJobStoreBase
 
         if (older is not null && (!wasKnown || !wasOlderLive))
         {
-            Logger.OlderPeerKeepsRoundsLocked(older.SchedulerInstanceId, older.QuartzVersion ?? "none", SchedulerNodeVersion.LockFreeRoundsSince);
+            Logger.OlderPeerKeepsRoundsLocked(older.SchedulerInstanceId, older.QuartzVersion ?? "none", since);
         }
         else if (older is null && (!wasKnown || wasOlderLive))
         {
-            Logger.EveryPeerAllowsLockFreeRounds(peers, SchedulerNodeVersion.LockFreeRoundsSince);
+            Logger.EveryPeerAllowsLockFreeRounds(peers, since);
         }
     }
+
+    /// <summary>
+    /// The release every live peer has to be for this node's rounds to take no lock: 4.6, or what the
+    /// dialect asks for instead — 4.7 on SQL Server, whose 4.6 nodes lock every round (#4117).
+    /// </summary>
+    private Version LockFreeRoundsPeerVersion => Delegate is StdAdoDelegate dialect ? dialect.LockFreeRoundsSince : SchedulerNodeVersion.LockFreeRoundsSince;
 
     /// <summary>
     /// Create dummy <see cref="SchedulerStateRecord" /> objects for fired triggers

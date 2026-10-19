@@ -256,6 +256,10 @@
     "Firing rounds take TRIGGER_ACCESS until the backlog clears: a round without it lost {ClaimsLost} claims to another node"
 3061  Error  AdoJobStoreLog.FixedDelayFireTimeFailed
     "Next fire time of trigger {TriggerKey}, which measures from completion, could not be computed; it is let go with the fire time its firing left on it"
+3062  Warning  AdoJobStoreLog.RoundFireHandedToLock
+    "Firing round claimed without TRIGGER_ACCESS hands its due triggers to the scheduler, which fires them under the lock: the job, overlap policy or schedule of trigger {TriggerKey} changed between the claim and the fire"
+3063  Warning  AdoJobStoreLog.RoundFireWithoutLockFailed
+    "The fire of a firing round claimed without TRIGGER_ACCESS failed; the scheduler fires its due triggers under the lock"
 3100  Debug  AdoJobStoreLog.SqlPrepared
     "Prepared SQL: {Sql}"
 3110  Error  AdoJobStoreLog.ConnectionCloseFailed

@@ -881,6 +881,19 @@ internal abstract partial class AdoJobStoreBase
             keys.Add(result.TriggerKey);
         }
 
+        return await ReadAcquisitionCandidates(conn, keys, round, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// <see cref="ReadAcquisitionCandidates(ConnectionAndTransactionHolder, List{TriggerAcquireResult}, FireOnAcquireRound?, CancellationToken)" />
+    /// by key, for a round that fires apart and reads its claimed rows again after its guard (#4117).
+    /// </summary>
+    private async ValueTask<Dictionary<TriggerKey, IOperableTrigger>> ReadAcquisitionCandidates(
+        ConnectionAndTransactionHolder conn,
+        List<TriggerKey> keys,
+        FireOnAcquireRound? round,
+        CancellationToken cancellationToken)
+    {
         if (ShippedDelegate is { } shipped)
         {
             List<StoredTriggerRead> stored = await Guarded(
@@ -1507,7 +1520,9 @@ internal abstract partial class AdoJobStoreBase
             ScheduledFireTimeUtc = scheduledFireTimeUtc,
             ClearMisfireOriginalFireTime = scheduledFireTime.HasValue,
             BlockJobTriggers = job.ConcurrentExecutionDisallowed,
-            FiredOnAcquire = prefetch is not null,
+            // Inserted as EXECUTING by a round that wrote no reservation for it; a round that fires apart
+            // updates the reservation its claim wrote, as the fire of an acquired trigger does (#4117).
+            FiredOnAcquire = prefetch is { Reserved: false },
         };
 
         if (deferredWrites is not null)

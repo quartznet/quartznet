@@ -87,6 +87,52 @@ public partial class StdAdoDelegate
     public virtual bool SupportsFireOnAcquire => IsShipped;
 
     /// <summary>
+    /// Whether a firing round on this dialect may take no <c>TRIGGER_ACCESS</c> lock only while the database
+    /// reads committed snapshots, which <see cref="SelectReadsCommittedSnapshot" /> asks once at startup
+    /// (#4117).
+    /// </summary>
+    /// <remarks>
+    /// False here: the other dialects read committed versions without shared locks, so a round's read never
+    /// waits on another node's claim. SQL Server's read committed takes shared locks unless the database's
+    /// <c>READ_COMMITTED_SNAPSHOT</c> is on.
+    /// </remarks>
+    internal virtual bool LockFreeRoundsNeedReadCommittedSnapshot => false;
+
+    /// <summary>
+    /// Whether the database reads committed snapshots, for a dialect that says
+    /// <see cref="LockFreeRoundsNeedReadCommittedSnapshot" />. Asked once, at startup.
+    /// </summary>
+    internal virtual ValueTask<bool> SelectReadsCommittedSnapshot(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default) => new(true);
+
+    /// <summary>
+    /// Whether a firing round that takes no lock claims in one transaction and fires in a second, rather
+    /// than claiming and firing in one (#4117).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// False here: on PostgreSQL the folded round is the fast one, and the other dialects keep it.
+    /// </para>
+    /// <para>
+    /// SQL Server says true. Two nodes acquiring one trigger at a time ran seconds behind their schedule
+    /// with the folded round, which holds the claimed rows through the claim, the read and the fire, against
+    /// tenths of a second with 4.5's split. Split, each transaction holds the rows for a moment, and neither
+    /// takes the lock: the fire claims its rows again from <c>ACQUIRED</c> at the fire time the claim held
+    /// them to, and fires what it holds.
+    /// </para>
+    /// </remarks>
+    internal virtual bool FiresLockFreeRoundsApart => false;
+
+    /// <summary>
+    /// The release every live peer of a cluster must be for a firing round on this dialect to take no lock
+    /// (#4067): 4.6, whose writers hold their writes to the row as read.
+    /// </summary>
+    /// <remarks>
+    /// SQL Server says 4.7. A 4.6 node keeps every SQL Server round locked, and a cluster that has one keeps
+    /// 4.6's rounds on every node until it is gone, as a 4.5 node does on the other dialects.
+    /// </remarks>
+    internal virtual Version LockFreeRoundsSince => SchedulerNodeVersion.LockFreeRoundsSince;
+
+    /// <summary>
     /// Roughly how many bytes of statements and values one of a round's batches carries at most.
     /// </summary>
     /// <remarks>

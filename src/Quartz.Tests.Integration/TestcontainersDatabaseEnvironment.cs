@@ -173,6 +173,12 @@ internal static class TestcontainersDatabaseEnvironment
     private const string SqlServerMotDatabase = "quartznet_mot";
 
     /// <summary>
+    /// The standard schema again, in a database with <c>READ_COMMITTED_SNAPSHOT</c> on: the one SQL Server
+    /// configuration whose firing rounds take no lock (#4117), on the same server as the default one.
+    /// </summary>
+    private const string SqlServerSnapshotDatabase = "quartznet_rcsi";
+
+    /// <summary>
     /// Prepares a SQL Server table script for a fresh Testcontainer: substitutes its placeholders for
     /// <paramref name="databaseName" /> and prepends the <c>CREATE DATABASE</c> the script assumes.
     /// </summary>
@@ -238,6 +244,12 @@ internal static class TestcontainersDatabaseEnvironment
         ExecResult memoryOptimizedResult = await sqlServerContainer.ExecScriptAsync(PrepareSqlServerScript(memoryOptimizedScript, SqlServerMotDatabase));
         EnsureScriptSucceeded("SQL Server (memory-optimized)", memoryOptimizedResult);
 
+        // Switched on before anything connects to it: the ALTER needs the database to itself.
+        ExecResult snapshotResult = await sqlServerContainer.ExecScriptAsync(
+            PrepareSqlServerScript(script, SqlServerSnapshotDatabase)
+            + $"\nGO\nALTER DATABASE {SqlServerSnapshotDatabase} SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;\nGO\n");
+        EnsureScriptSucceeded("SQL Server (READ_COMMITTED_SNAPSHOT ON)", snapshotResult);
+
         string connectionString = sqlServerContainer.GetConnectionString();
         SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(connectionString)
         {
@@ -251,6 +263,9 @@ internal static class TestcontainersDatabaseEnvironment
 
         builder.InitialCatalog = SqlServerMotDatabase;
         Environment.SetEnvironmentVariable("MSSQL_CONNECTION_STRING_MOT", builder.ConnectionString);
+
+        builder.InitialCatalog = SqlServerSnapshotDatabase;
+        Environment.SetEnvironmentVariable("MSSQL_CONNECTION_STRING_RCSI", builder.ConnectionString);
     }
 
     private static async Task StartMySqlContainerAsync(string script)

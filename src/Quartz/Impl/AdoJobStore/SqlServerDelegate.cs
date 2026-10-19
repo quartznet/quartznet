@@ -49,15 +49,51 @@ public class SqlServerDelegate : StdAdoDelegate
     protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.InProjection("TOP", count);
 
     /// <summary>
-    /// False in this release: SQL Server's firing rounds work as in 4.5, as with
-    /// <c>AdoJobStoreOptions.LockFreeFiringRounds</c> off (#4117).
+    /// The one statement <see cref="SelectReadsCommittedSnapshot" /> asks: whether the database the
+    /// connection is in reads committed snapshots.
+    /// </summary>
+    private const string SqlSelectReadCommittedSnapshot = "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()";
+
+    /// <summary>
+    /// True: SQL Server's read committed takes shared locks unless the database's
+    /// <c>READ_COMMITTED_SNAPSHOT</c> is on (#4117).
     /// </summary>
     /// <remarks>
-    /// Two nodes acquiring one trigger at a time ran seconds behind their schedule on SQL Server with 4.6's
-    /// round, locked or not, against tenths of a second in 4.5's; under SQL Server's default locking read
-    /// committed a round's read also deadlocked with another node's claim.
+    /// A firing round that takes no lock reads its candidates while another node claims and fires rows. A
+    /// locking read holds a shared lock on an index key while it looks the row up, and the other node's
+    /// update holds the row and needs that key: SQL Server breaks the cycle as a deadlock, after up to five
+    /// seconds. With the snapshot on, the read takes no shared lock and the cycle cannot form.
     /// </remarks>
-    internal override bool UsesLockFreeRounds => false;
+    internal override bool LockFreeRoundsNeedReadCommittedSnapshot => true;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Every login sees its own database's row of <c>sys.databases</c>. A <c>NULL</c> or a missing row
+    /// answers no.
+    /// </remarks>
+    internal override async ValueTask<bool> SelectReadsCommittedSnapshot(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, SqlSelectReadCommittedSnapshot);
+        object? value = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return value is true;
+    }
+
+    /// <summary>
+    /// True: a round that takes no lock claims in one transaction and fires in another (#4117).
+    /// </summary>
+    /// <remarks>
+    /// Folded into one transaction, a round holds its claimed rows through the read back, the job read and
+    /// the fire's writes, and another node's claim of a row it read before this one's commit waits all that
+    /// time to lose it. Two nodes acquiring one trigger at a time ran seconds behind their schedule that way,
+    /// locked or not, against tenths of a second with 4.5's two transactions.
+    /// </remarks>
+    internal override bool FiresLockFreeRoundsApart => true;
+
+    /// <summary>
+    /// 4.7: a 4.6 node keeps every SQL Server round locked, and so does every node of a cluster that has one
+    /// (#4117).
+    /// </summary>
+    internal override Version LockFreeRoundsSince => SchedulerNodeVersion.SqlServerLockFreeRoundsSince;
 
     /// <summary>
     /// T-SQL reads <c>[</c> as the start of a character class in a <c>LIKE</c> pattern, so a filter
