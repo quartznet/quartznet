@@ -462,7 +462,7 @@ public class JobDataMapPortabilityTest
     private IEnumerable<(string Label, IObjectSerializer Writer, string Declaration)> Writers()
     {
         yield return ("newtonsoft", newtonsoftSerializer, "AddJobDataValueType");
-        yield return ("system.text.json", systemTextJsonSerializer, "AddTypeInfoResolver");
+        yield return ("system.text.json", systemTextJsonSerializer, "AddJsonTypeInfoResolver");
     }
 
     /// <summary>

@@ -40,6 +40,12 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     protected SystemTextJsonSerializerRegistry Registry { get; }
 
     /// <summary>
+    /// <see cref="Options" />, for a test to read the chain a container built and take the reflection
+    /// resolver back out of it before first use.
+    /// </summary>
+    internal JsonSerializerOptions SerializerOptions => Options;
+
+    /// <summary>
     /// The options this serializer reads and writes with, built on first use so that
     /// <see cref="CreateSerializerOptions" /> is not called from the constructor.
     /// </summary>
@@ -68,9 +74,11 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     /// The chain is Quartz's own generated
     /// <see cref="System.Text.Json.Serialization.JsonSerializerContext" />, then the scheduler's
     /// registry — the trigger and calendar types registered with it, and whatever the application handed to
-    /// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> — then reflection, where a
-    /// publish has left any. A resolver decides only how a type is answered; the payload is still
-    /// written by the converters, byte for byte as every earlier version of Quartz wrote it.
+    /// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> and, for a serializer Quartz
+    /// built, to <see cref="SystemTextJsonConfigurationExtensions.AddJsonTypeInfoResolver" /> — then
+    /// reflection, where a publish has left any. A resolver decides only how a type is answered; the
+    /// payload is still written by the converters, byte for byte as every earlier version of Quartz
+    /// wrote it.
     /// </remarks>
     protected virtual JsonSerializerOptions CreateSerializerOptions()
     {

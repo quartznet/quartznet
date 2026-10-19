@@ -2137,6 +2137,7 @@ namespace Quartz
     }
     public static class SystemTextJsonConfigurationExtensions
     {
+        public static Quartz.IQuartzBuilder AddJsonTypeInfoResolver(this Quartz.IQuartzBuilder builder, System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver resolver) { }
         public static Quartz.IPersistentStoreBuilder UseSystemTextJsonSerializer(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry>? configure = null) { }
     }
     public sealed class ThreadPoolOptions

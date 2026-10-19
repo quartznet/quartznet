@@ -78,7 +78,7 @@ namespace Quartz.Serialization.SystemTextJson;
 /// double, null or a <c>Dictionary&lt;string, string&gt;</c> and nothing else, and the writer refuses
 /// a value it could not produce. Every type in that set is listed here, so a trimmed application can
 /// write all of it. Anything past them is the application's own choice, and reaches Quartz through
-/// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" />.
+/// <see cref="SystemTextJsonConfigurationExtensions.AddJsonTypeInfoResolver" />.
 /// </description>
 /// </item>
 /// </list>

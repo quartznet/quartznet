@@ -85,7 +85,7 @@ public class StdAdoDelegateTest
         // instead, and each names the registration that says otherwise — which is the only part of the
         // message that differs between them.
         string declaration = serializer is SystemTextJsonObjectSerializer
-            ? "AddTypeInfoResolver"
+            ? "AddJsonTypeInfoResolver"
             : "AddJobDataValueType";
 
         serializeApplicationType.Should().Throw<JsonSerializationException>(
