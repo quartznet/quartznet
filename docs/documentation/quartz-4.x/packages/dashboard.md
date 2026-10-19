@@ -229,7 +229,8 @@ detail page.
   paused job group shows its record on the Jobs page. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
 - *Reset error state* clears an `ERROR` trigger once its cause is fixed.
 - The cron reschedule editor previews the next five fires of the expression being edited, before it is saved,
-  in the trigger's time zone and less what its calendar excludes.
+  in the trigger's time zone and less what its calendar excludes. The preview shows only while the edited
+  expression differs from the saved one.
 
 ### Upcoming fires
 
@@ -240,10 +241,13 @@ From 4.7, every trigger's page lists its next ten fire times, whatever the trigg
   [`fire-times` route](http-api.md#upcoming-fire-times).
 - **The times show in the dashboard's time zone**, each with how long until it (`in 12h`).
 - **A trigger that does not fire again** says so: *This trigger does not fire again.*
+- **A simple trigger [measured from completion](../tutorial/simpletriggers.md#measured-from-completion)**
+  lists its next fire time, then *Then every 30 s after each run completes.*
 - **A source that cannot answer** says so in the panel, and the rest of the page still shows. An agent whose
   `IsOperationAllowed` refuses `GetTriggerFireTimes` is one; an agent older than 4.7 is computed from the
   trigger and its calendar instead.
-- The cron editor's preview is separate: it shows the expression being edited, before it is saved.
+- The cron editor's preview is separate: it shows the expression being edited, before it is saved, and only
+  once it differs from the saved one. Read-only mode has no editor and no preview.
 
 ### Editing a trigger
 

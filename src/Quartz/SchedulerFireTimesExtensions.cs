@@ -50,6 +50,11 @@ public static class SchedulerFireTimesExtensions
     /// any misfire handling resuming applies.
     /// </para>
     /// <para>
+    /// A simple trigger that measures its interval from completion answers only its next fire time: each run
+    /// after it starts an interval after the one before it completes, which nothing knows ahead of time, and
+    /// while a firing runs even that next time is provisional.
+    /// </para>
+    /// <para>
     /// On an <c>HttpScheduler</c> this is one request to the host's <c>fire-times</c> route, computed where the
     /// trigger and its calendar are stored. A host older than 4.7 has no such route, and the times are computed
     /// here from the trigger and calendar it answers with.
@@ -161,15 +166,26 @@ internal static class UpcomingFireTimes
     /// next fire time on.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A stored trigger with no next fire time does not fire again — it has fired for the last time — so it
     /// answers none, rather than the first fire times <see cref="TriggerFireTimes.Compute(ITrigger, ICalendar?, int)" />
     /// would compute again from its start.
+    /// </para>
+    /// <para>
+    /// A simple trigger that measures its interval from completion answers its next fire time alone (#4140).
+    /// Its schedule's grid is not when it fires after that: each run waits for the one before it to complete.
+    /// </para>
     /// </remarks>
     public static List<DateTimeOffset> Compute(ITrigger trigger, ICalendar? calendar, int count)
     {
-        if (trigger.NextFireTimeUtc is null)
+        if (trigger.NextFireTimeUtc is not { } nextFireTime)
         {
             return [];
+        }
+
+        if (trigger is ISimpleTrigger { MeasureIntervalFromCompletion: true })
+        {
+            return [nextFireTime.ToUniversalTime()];
         }
 
         List<DateTimeOffset> fireTimes = TriggerFireTimes.Compute(trigger, calendar, count);

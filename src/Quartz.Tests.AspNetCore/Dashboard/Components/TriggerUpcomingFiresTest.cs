@@ -62,8 +62,49 @@ public sealed class TriggerUpcomingFiresTest
             "an upcoming fire is said as how long until it");
         page.Markup.Should().Contain("Upcoming fires");
         page.FindAll(".qz-cron-next-fires").Should().BeEmpty("the cron preview is the cron editor's, and a simple trigger has none");
+        page.FindAll("[data-testid=upcoming-fires-from-completion]").Should().BeEmpty(
+            "a trigger at a fixed rate is listed as far ahead as was asked, with nothing to add");
         A.CallTo(() => context.Api.GetUpcomingFireTimes(TestData.SchedulerName, key, 10, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// A trigger measured from completion has one fire time anybody knows ahead of time, and the panel says
+    /// how the runs after it are spaced instead of listing them.
+    /// </summary>
+    [Test]
+    public void ATriggerMeasuredFromCompletionSaysHowItsLaterRunsAreSpaced()
+    {
+        GivenTrigger(Simple(fromCompletion: true));
+        A.CallTo(() => context.Api.GetUpcomingFireTimes(TestData.SchedulerName, key, 10, A<CancellationToken>._))
+            .Returns(new List<DateTimeOffset> { two });
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=upcoming-fires-from-completion]").TextContent.Should().Be(
+            "Then every 30 s after each run completes.",
+            "each run after the next starts an interval after the one before it completes, which no list can say ahead of time"));
+        FireTimes(page).Should().Equal(["2026-10-06 02:00:00 +00:00"]);
+    }
+
+    /// <summary>
+    /// The data source's default member computes the times in core, which answers only the next one for such
+    /// a trigger.
+    /// </summary>
+    [Test]
+    public void ADataSourceOfItsOwnAnswersOnlyTheNextFireOfATriggerMeasuredFromCompletion()
+    {
+        ITrigger fixedDelay = Simple(fromCompletion: true);
+        ((IOperableTrigger) fixedDelay).ComputeFirstFireTimeUtc(null);
+        GivenTrigger(fixedDelay);
+        A.CallTo(() => context.Api.GetUpcomingFireTimes(A<string>._, A<TriggerKeyDto>._, A<int>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => FireTimes(page).Should().ContainSingle(
+            "the grid of its start and interval is not when it fires after the next run, so the list stops there"));
+        page.Find("[data-testid=upcoming-fires-from-completion]").TextContent.Should().Be("Then every 30 s after each run completes.");
     }
 
     [Test]
@@ -135,14 +176,19 @@ public sealed class TriggerUpcomingFiresTest
             "09:00 in Kathmandu is 03:15 UTC, and the calendar excludes the 7th there"));
     }
 
-    private static ITrigger Simple()
+    /// <param name="fromCompletion">
+    /// Whether the trigger measures its interval from completion, every 30 seconds rather than every day.
+    /// </param>
+    private static ITrigger Simple(bool fromCompletion = false)
     {
-        return TriggerBuilder.Create()
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create()
             .WithIdentity(TriggerName, TriggerGroup)
             .ForJob("export", "reports")
-            .StartAt(new DateTimeOffset(2026, 8, 1, 2, 0, 0, TimeSpan.Zero))
-            .WithSimpleSchedule(TimeSpan.FromDays(1))
-            .Build();
+            .StartAt(new DateTimeOffset(2026, 8, 1, 2, 0, 0, TimeSpan.Zero));
+
+        return fromCompletion
+            ? builder.WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromSeconds(30)).RepeatForever().MeasureIntervalFromCompletion()).Build()
+            : builder.WithSimpleSchedule(TimeSpan.FromDays(1)).Build();
     }
 
     private static List<string> FireTimes(IRenderedComponent<TriggerDetail> page)

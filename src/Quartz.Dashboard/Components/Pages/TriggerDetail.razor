@@ -139,16 +139,12 @@
             </section>
         }
 
-        @if (!string.IsNullOrWhiteSpace(_cronExpression))
+        @* The editor's expression, once it is not the saved one: the saved schedule is Upcoming fires above, and
+           read-only mode has no editor to preview. *@
+        @if (!IsReadOnly && !string.IsNullOrWhiteSpace(_cronExpression) && IsPreviewingAnEdit)
         {
             <h2>Upcoming cron fires</h2>
-            @if (IsPreviewingAnEdit)
-            {
-                <p class="qz-muted" data-testid="cron-preview-unsaved">Of the edited expression, which is not saved yet.</p>
-            }
-
-            @* The editor's expression, which is the saved one until somebody edits it - and always in read-only
-               mode, which has no editor. *@
+            <p class="qz-muted" data-testid="cron-preview-unsaved">Of the edited expression, which is not saved yet.</p>
             <CronNextFires Trigger="@_trigger" Expression="@_editedCronExpression" Count="5" />
         }
     }
@@ -221,8 +217,8 @@
     private JobDataMap? TriggerDataMap => _trigger?.JobDataMap;
 
     /// <summary>
-    /// Whether the cron preview shows an expression the trigger is not running with, which the page says
-    /// so that nobody reads the preview as the trigger's schedule.
+    /// Whether the editor holds an expression the trigger is not running with, which is the only time the
+    /// page previews one: until then the preview would repeat <em>Upcoming fires</em>.
     /// </summary>
     private bool IsPreviewingAnEdit => !string.Equals(_editedCronExpression.Trim(), _cronExpression, StringComparison.Ordinal);
 
