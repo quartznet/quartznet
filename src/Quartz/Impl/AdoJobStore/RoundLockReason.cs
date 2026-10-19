@@ -41,11 +41,6 @@ internal enum RoundLockReason
     /// <summary><c>AdoJobStoreOptions.LockFreeFiringRounds</c> is off.</summary>
     OptionOff,
 
-    /// <summary>
-    /// SQL Server, whose firing rounds work as in 4.5 in this release, as with the option off (#4117).
-    /// </summary>
-    SqlServer,
-
     /// <summary><c>AdoJobStoreOptions.AcquireTriggersWithinLock</c> is on.</summary>
     AcquireTriggersWithinLock,
 
@@ -55,7 +50,17 @@ internal enum RoundLockReason
     /// <summary>The driver delegate does not take part in fire-on-acquire rounds, or did not read what the rule decides by.</summary>
     Delegate,
 
-    /// <summary>A live node older than 4.6 is in the cluster, or no check-in has read the state table yet.</summary>
+    /// <summary>
+    /// SQL Server, and the database does not read committed snapshots — or could not be asked — so a round's
+    /// read would take shared locks and wait on, or deadlock with, another node's claim (#4117). Its rounds
+    /// work as with the option off.
+    /// </summary>
+    ReadCommittedSnapshotOff,
+
+    /// <summary>
+    /// A live node is older than the release whose rounds this one can run beside — 4.6, or 4.7 on SQL
+    /// Server — or no check-in has read the state table yet.
+    /// </summary>
     OlderPeer,
 
     /// <summary>The request carries a cluster-scoped execution limit, whose count is read under the lock.</summary>
@@ -96,10 +101,10 @@ internal static class RoundLockReasons
     {
         RoundLockReason.LockAllOperations => "lock_all_operations",
         RoundLockReason.OptionOff => "option_off",
-        RoundLockReason.SqlServer => "sql_server",
         RoundLockReason.AcquireTriggersWithinLock => "acquire_within_lock",
         RoundLockReason.IsolationLevel => "isolation_level",
         RoundLockReason.Delegate => "delegate",
+        RoundLockReason.ReadCommittedSnapshotOff => "read_committed_snapshot_off",
         RoundLockReason.OlderPeer => "older_peer",
         RoundLockReason.ClusterLimit => "cluster_limit",
         RoundLockReason.SerialJob => "serial_job",
@@ -115,11 +120,13 @@ internal static class RoundLockReasons
     {
         RoundLockReason.LockAllOperations => "SQLite serializes every operation",
         RoundLockReason.OptionOff => "LockFreeFiringRounds is off",
-        RoundLockReason.SqlServer => "SQL Server does not use them in this release, so firing rounds work as in 4.5 (#4117)",
         RoundLockReason.AcquireTriggersWithinLock => "AcquireTriggersWithinLock is on",
         RoundLockReason.IsolationLevel => "the transaction isolation level is above ReadCommitted",
         RoundLockReason.Delegate => "the driver delegate does not take part in fire-on-acquire rounds",
-        RoundLockReason.OlderPeer => "a live node older than 4.6 is in the cluster, or no check-in has read the state table yet",
+        RoundLockReason.ReadCommittedSnapshotOff =>
+            "the SQL Server database does not have READ_COMMITTED_SNAPSHOT on, so firing rounds work as in 4.5; "
+            + "turn it on with ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE and restart the scheduler",
+        RoundLockReason.OlderPeer => "a live node is older than lock-free rounds allow (4.6, or 4.7 on SQL Server), or no check-in has read the state table yet",
         RoundLockReason.ClusterLimit => "the round counts against a cluster-scoped execution limit",
         RoundLockReason.SerialJob => "a candidate's job disallows concurrent execution",
         RoundLockReason.OverlapPolicy => "a candidate's overlap policy, or its hold while it runs, is decided under the lock",

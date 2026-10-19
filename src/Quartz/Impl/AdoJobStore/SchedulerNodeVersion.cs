@@ -47,6 +47,12 @@ internal static class SchedulerNodeVersion
     internal static readonly Version LockFreeRoundsSince = new(4, 6);
 
     /// <summary>
+    /// The release whose SQL Server rounds may take no lock (#4117). A 4.6 node locks every SQL Server round,
+    /// and its peers keep 4.6's rounds while it is live.
+    /// </summary>
+    internal static readonly Version SqlServerLockFreeRoundsSince = new(4, 7);
+
+    /// <summary>
     /// This node's version as it is written to <c>QRTZ_SCHEDULER_STATE.QUARTZ_VERSION</c>: the Quartz
     /// assembly's major, minor and build, which the build stamps from the package version.
     /// </summary>
@@ -60,6 +66,17 @@ internal static class SchedulerNodeVersion
     internal static bool SupportsLockFreeRounds(string? quartzVersion)
     {
         return IsAtLeast(quartzVersion, LockFreeRoundsSince);
+    }
+
+    /// <summary>
+    /// Whether a peer that stamped its row <paramref name="quartzVersion" /> is at least
+    /// <paramref name="since" />, the release a dialect's lock-free rounds need beside them.
+    /// </summary>
+    /// <param name="quartzVersion">The peer's stamp, or <see langword="null" /> for a row it never stamped.</param>
+    /// <param name="since">The release the dialect asks for.</param>
+    internal static bool SupportsLockFreeRounds(string? quartzVersion, Version since)
+    {
+        return IsAtLeast(quartzVersion, since);
     }
 
     /// <summary>The release whose nodes read the interrupt requests recorded on their firings (#4071).</summary>

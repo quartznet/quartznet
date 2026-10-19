@@ -62,6 +62,13 @@ namespace Quartz.Impl.AdoJobStore;
 /// round is 4.5's.
 /// </para>
 /// <para>
+/// A dialect may ask for a round without the lock to fire apart (<see cref="StdAdoDelegate.FiresLockFreeRoundsApart" />),
+/// which SQL Server does (#4117): two transactions, neither under the lock. The first claims and reserves
+/// every trigger it claims; the second claims the due ones again, from <c>ACQUIRED</c> at the fire time the
+/// first held them to, reads them, and fires them. Folded, a SQL Server round held its claimed rows through
+/// the read and the fire, and two nodes acquiring one trigger at a time fell seconds behind their schedule.
+/// </para>
+/// <para>
 /// The round reads and inserts through the delegate's round members, which stand in for its single-trigger
 /// ones, only for a delegate that says it supports them (<see cref="IDriverDelegate.SupportsFireOnAcquire" />):
 /// the ones Quartz ships. Any other delegate's round is still one transaction, but it claims, reserves, reads
@@ -112,7 +119,7 @@ internal abstract partial class AdoJobStoreBase
         while (true)
         {
             FireOnAcquireAttempt attempt;
-            FireOnAcquireRound round = new(failed, oneByOne, Delegate.SupportsFireOnAcquire, lockReason);
+            FireOnAcquireRound round = new(failed, oneByOne, Delegate.SupportsFireOnAcquire, lockReason, firesApart: lockReason is null && FiresLockFreeRoundsApart);
             try
             {
                 attempt = await ExecuteInLocalTransactionLock(
@@ -197,6 +204,13 @@ internal abstract partial class AdoJobStoreBase
 
             bool contended = NoteContention(request, lockReason, attempt.Acquired);
 
+            if (round.FiresApart && attempt.Due.Count > 0)
+            {
+                // Claimed and reserved, every one, and committed: the due ones are fired in a transaction of
+                // their own (#4117).
+                return await FireRoundApart(attempt, contended, cancellationToken).ConfigureAwait(false);
+            }
+
             List<TriggerFiredResult> fired = new(attempt.Due.Count);
             for (int i = 0; i < attempt.Due.Count; i++)
             {
@@ -249,7 +263,7 @@ internal abstract partial class AdoJobStoreBase
     /// Two exceptions keep the folded round, as 4.5 did or as 4.6 promises: <see cref="AcquireTriggersWithinLock" />,
     /// which asks for the acquisition under the lock, and a cluster-scoped execution limit, whose count is
     /// exact only when the acquisition holds the lock — unless the rounds are 4.5's by configuration: the
-    /// option off, or SQL Server.
+    /// option off, or a SQL Server database without <c>READ_COMMITTED_SNAPSHOT</c> (#4117).
     /// </para>
     /// </remarks>
     internal bool FiresRoundOfOneAsIn45(TriggerAcquisitionRequest request, RoundLockReason? lockReason)
@@ -259,8 +273,191 @@ internal abstract partial class AdoJobStoreBase
             return false;
         }
 
-        return reason is RoundLockReason.OptionOff or RoundLockReason.SqlServer
+        return reason is RoundLockReason.OptionOff or RoundLockReason.ReadCommittedSnapshotOff
                || request.ExecutionLimits?.HasClusterScopedLimits != true;
+    }
+
+    /// <summary>
+    /// Whether a round that takes no lock claims in one transaction and fires in a second, as the dialect
+    /// asks (<see cref="StdAdoDelegate.FiresLockFreeRoundsApart" />): SQL Server (#4117).
+    /// </summary>
+    internal virtual bool FiresLockFreeRoundsApart => Delegate is StdAdoDelegate { FiresLockFreeRoundsApart: true };
+
+    /// <summary>
+    /// The second transaction of a round that takes no lock and fires apart (#4117): the due triggers its
+    /// first transaction claimed and reserved, fired without the lock.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The claims have committed, so this cannot roll them back. A fire this transaction cannot make without
+    /// the lock — a job turned serial, or a trigger given a policy the fire decides or made to measure from
+    /// completion, since the claim — and a fire that fails hand every due trigger back to the scheduler as
+    /// pending, still reserved, and the scheduler fires them through <see cref="TriggersFired" /> under the
+    /// lock, as it fires any acquired trigger, with that path's handling of a failed fire. The round after a
+    /// definition changed starts locked, as after an escalation.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<TriggerAcquisitionResult> FireRoundApart(
+        FireOnAcquireAttempt attempt,
+        bool contended,
+        CancellationToken cancellationToken)
+    {
+        List<TriggerFiredResult>? fired = null;
+        RoundLockReason? handedOver = null;
+        try
+        {
+            fired = await ExecuteInLocalTransactionLock(
+                lockKind: null,
+                conn => FireReservedWithoutLock(conn, attempt.Due, cancellationToken),
+                (conn, result) => ValidateFired(conn, result, cancellationToken),
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (RoundNeedsLockException needsLock)
+        {
+            Logger.RoundFireHandedToLock(needsLock.TriggerKey);
+            Volatile.Write(ref nextRoundStartsLocked, true);
+            handedOver = needsLock.Reason;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            Logger.RoundFireWithoutLockFailed(e);
+        }
+
+        if (fired is null)
+        {
+            // Due first, then the rest of the window, in the order the claim took them: the scheduler waits
+            // for the first one's fire time, which has come, and fires the lot.
+            List<IOperableTrigger> pending = new(attempt.Due.Count + attempt.Pending.Count);
+            pending.AddRange(attempt.Due);
+            pending.AddRange(attempt.Pending);
+
+            return new TriggerAcquisitionResult
+            {
+                Pending = pending,
+                Blocked = attempt.Acquired.Blocked,
+                LatestBlockingFiredUtc = attempt.Acquired.LatestBlockingFiredUtc,
+                GroupsAtLimit = attempt.Acquired.GroupsAtLimit,
+                ClaimedElsewhere = attempt.Acquired.ClaimedElsewhere,
+                Contended = contended,
+
+                // A fire handed over for a definition changed runs under the lock, which the scheduler's
+                // TriggersFired takes, and the tag describes the round with it, as it does a 4.5-shaped
+                // round of one. One handed over for a failure is retried there too, but nothing about the
+                // round asked for the lock.
+                LockName = handedOver is null ? "none" : SchedulerLock.TriggerAccess.ToLockName(),
+                LockReason = handedOver?.ToTag(),
+            };
+        }
+
+        ForgetFireFailures(attempt.Due, fired);
+
+        return new TriggerAcquisitionResult
+        {
+            Due = attempt.Due,
+            Fired = fired,
+            Pending = attempt.Pending,
+            Blocked = attempt.Acquired.Blocked,
+            LatestBlockingFiredUtc = attempt.Acquired.LatestBlockingFiredUtc,
+            GroupsAtLimit = attempt.Acquired.GroupsAtLimit,
+            ClaimedElsewhere = attempt.Acquired.ClaimedElsewhere,
+            Contended = contended,
+            LockName = "none",
+            LockReason = null,
+        };
+    }
+
+    /// <summary>
+    /// Fires the due triggers a round claimed and reserved in an earlier transaction, without the lock, and
+    /// answers a result for each, index-aligned with <paramref name="due" /> (#4117).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The guard.</b> Each row is claimed again first, from <c>ACQUIRED</c> to <c>ACQUIRED</c> at the
+    /// fire time the first transaction held it to. A row that moves is still this node's reservation and
+    /// unchanged since the claim, and this transaction holds it until it commits, so the read after it is
+    /// the row the fire writes over, as in a folded round. A row that does not move was paused, deleted,
+    /// rescheduled or recovered in between, and is answered <see cref="TriggerFiredResult.NotFired" />,
+    /// which the scheduler releases, as <see cref="TriggersFired" /> answers a trigger no longer
+    /// <c>ACQUIRED</c>. No other node can have claimed the row since: a claim moves a row from
+    /// <c>WAITING</c> only.
+    /// </para>
+    /// <para>
+    /// The count of a guard that writes the value the row already holds is the number of rows it matched on
+    /// SQL Server and PostgreSQL, which is what the claims count by. A dialect whose driver counts only the
+    /// rows a statement changed could not take part, and none of those asks to fire apart.
+    /// </para>
+    /// <para>
+    /// The fire is a folded round's, with one difference: every trigger has its reservation, so a fire
+    /// updates that row to <c>EXECUTING</c> rather than inserting one, as the fire of an acquired trigger
+    /// does, and one that does not fire keeps its reservation for the scheduler to release.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="RoundNeedsLockException">
+    /// A job turned serial, or a trigger given a policy the fire decides or made to measure from completion,
+    /// since the claim.
+    /// </exception>
+    private async ValueTask<List<TriggerFiredResult>> FireReservedWithoutLock(
+        ConnectionAndTransactionHolder conn,
+        List<IOperableTrigger> due,
+        CancellationToken cancellationToken)
+    {
+        List<TriggerClaim> guards = new(due.Count);
+        foreach (IOperableTrigger trigger in due)
+        {
+            guards.Add(new TriggerClaim { TriggerKey = trigger.Key, NextFireTimeUtc = trigger.NextFireTimeUtc!.Value });
+        }
+
+        List<TriggerKey> held = await Delegate.UpdateTriggerStatesFromOtherStateWithNextFireTime(
+            conn,
+            guards,
+            StoredTriggerState.Acquired,
+            StoredTriggerState.Acquired,
+            cancellationToken).ConfigureAwait(false);
+
+        List<TriggerFiredResult> results = new(due.Count);
+        for (int i = 0; i < due.Count; i++)
+        {
+            results.Add(TriggerFiredResult.NotFired);
+        }
+
+        if (held.Count == 0)
+        {
+            return results;
+        }
+
+        FireOnAcquireRound round = new(failed: null, oneByOne: false, throughRoundMembers: Delegate.SupportsFireOnAcquire, lockReason: null, firesApart: true);
+        Dictionary<TriggerKey, IOperableTrigger> rows = await ReadAcquisitionCandidates(conn, held, round, cancellationToken).ConfigureAwait(false);
+
+        HashSet<TriggerKey> holds = [.. held];
+        List<IOperableTrigger> firing = new(held.Count);
+        List<int> positions = new(held.Count);
+        for (int i = 0; i < due.Count; i++)
+        {
+            IOperableTrigger claimed = due[i];
+            if (!holds.Contains(claimed.Key))
+            {
+                continue;
+            }
+
+            if (!rows.TryGetValue(claimed.Key, out IOperableTrigger? row))
+            {
+                // The guard moved the row and this transaction holds it, so it is there to read.
+                throw new JobPersistenceException($"Trigger '{claimed.Key}' was claimed again but could not be read back in the same transaction.");
+            }
+
+            // The reservation the first transaction wrote, which the fire updates.
+            row.FireInstanceId = claimed.FireInstanceId;
+            firing.Add(row);
+            positions.Add(i);
+        }
+
+        TriggerFiredResult?[] fired = await FireDue(conn, firing, round, cancellationToken).ConfigureAwait(false);
+        for (int i = 0; i < fired.Length; i++)
+        {
+            results[positions[i]] = fired[i]!;
+        }
+
+        return results;
     }
 
     /// <summary>
@@ -675,7 +872,9 @@ internal abstract partial class AdoJobStoreBase
             }
         }
 
-        TriggerFiredResult?[] fired = due.Count > 0
+        // A round that fires apart reserved every trigger it claimed, and fires the due ones once this
+        // transaction has committed (#4117).
+        TriggerFiredResult?[] fired = due.Count > 0 && !round.FiresApart
             ? await FireDue(conn, due, round, cancellationToken).ConfigureAwait(false)
             : [];
 
@@ -733,7 +932,8 @@ internal abstract partial class AdoJobStoreBase
             // reads the headers in one statement, as it did. Both stand in either form of the round
             // (#4067): under the lock, because every reschedule takes it and nothing can replace a row
             // between the read and the claim; without it, because the read came after the claim, on a
-            // row this transaction holds.
+            // row this transaction holds. A round that fires apart claimed its rows again, from ACQUIRED,
+            // before it read them, so the same holds there (#4117).
             Dictionary<TriggerKey, StoredTriggerIdentity> stored = new(triggerKeys.Count);
             if (round.StoredTypes is { } storedTypes)
             {
@@ -762,7 +962,8 @@ internal abstract partial class AdoJobStoreBase
                 await ReadJobsToFire(conn, jobKeys, cancellationToken).ConfigureAwait(false),
                 round.IdleJobs,
                 ShippedDelegate,
-                round.HoldsLock);
+                round.HoldsLock,
+                round.ReservesEveryTrigger);
         }
 
         // The due triggers that did not fire after all, left ACQUIRED with no row: reserved below, as
@@ -1046,7 +1247,16 @@ internal abstract partial class AdoJobStoreBase
     /// Why the attempt runs under <see cref="SchedulerLock.TriggerAccess" />, or <see langword="null" />
     /// for an attempt that takes no lock (#4067).
     /// </param>
-    private sealed class FireOnAcquireRound(Dictionary<TriggerKey, Exception>? failed, bool oneByOne, bool throughRoundMembers, RoundLockReason? lockReason)
+    /// <param name="firesApart">
+    /// Whether the round claims in one transaction and fires in a second (#4117): the claiming attempt
+    /// reserves every trigger it claims and fires none, and the firing one updates those reservations.
+    /// </param>
+    private sealed class FireOnAcquireRound(
+        Dictionary<TriggerKey, Exception>? failed,
+        bool oneByOne,
+        bool throughRoundMembers,
+        RoundLockReason? lockReason,
+        bool firesApart = false)
     {
         /// <summary>
         /// The store's clock when the attempt claimed its first trigger. A trigger due at or before it is
@@ -1105,9 +1315,15 @@ internal abstract partial class AdoJobStoreBase
 
         /// <summary>
         /// Whether every trigger the round claims is reserved as acquisition reserves it, due or not, so that
-        /// its fire updates the reservation as the fire of an acquired trigger does.
+        /// its fire updates the reservation as the fire of an acquired trigger does: a round through the
+        /// single-trigger members, and one that fires apart (#4117).
         /// </summary>
-        public bool ReservesEveryTrigger => !throughRoundMembers;
+        public bool ReservesEveryTrigger => !throughRoundMembers || firesApart;
+
+        /// <summary>
+        /// Whether the round claims in one transaction and fires in a second (#4117).
+        /// </summary>
+        public bool FiresApart => firesApart;
 
         /// <summary>
         /// Forgets the clock reading and what the acquisition read, for an attempt the transaction wrapper
@@ -1159,9 +1375,9 @@ internal abstract partial class AdoJobStoreBase
         {
             // Read once, when there is a trigger to decide about: a reading taken before the candidates were
             // read would leave the triggers that came due while they were read waiting for a second
-            // transaction.
+            // transaction. A round that fires apart reads it too, for which of its triggers are due.
             now ??= clock.GetUtcNow();
-            return throughRoundMembers && nextFireTimeUtc <= now.Value && (failed is null || !failed.ContainsKey(triggerKey));
+            return throughRoundMembers && !firesApart && nextFireTimeUtc <= now.Value && (failed is null || !failed.ContainsKey(triggerKey));
         }
 
         /// <summary>
@@ -1208,18 +1424,24 @@ internal abstract partial class AdoJobStoreBase
         /// Whether the round holds <see cref="SchedulerLock.TriggerAccess" />. A fire in a round that does
         /// not re-checks, from the rows read after the claim, that nothing it fires needs it (#4067).
         /// </param>
+        /// <param name="reserved">
+        /// Whether every trigger the round fires has its reservation row already, which its fire updates
+        /// rather than inserting a row of its own: a round that fires apart (#4117).
+        /// </param>
         public FireOnAcquirePrefetch(
             Dictionary<TriggerKey, StoredTriggerIdentity> stored,
             Dictionary<JobKey, IJobDetail>? jobs,
             HashSet<JobKey>? idleJobs,
             StdAdoDelegate? shipped,
-            bool holdsLock)
+            bool holdsLock,
+            bool reserved)
         {
             this.stored = stored;
             this.idleJobs = idleJobs;
             this.shipped = shipped;
             Jobs = jobs;
             HoldsLock = holdsLock;
+            Reserved = reserved;
         }
 
         /// <summary>
@@ -1231,6 +1453,11 @@ internal abstract partial class AdoJobStoreBase
         /// Whether the round holds <see cref="SchedulerLock.TriggerAccess" />; see the constructor.
         /// </summary>
         public bool HoldsLock { get; }
+
+        /// <summary>
+        /// Whether every trigger the round fires has its reservation row already; see the constructor.
+        /// </summary>
+        public bool Reserved { get; }
 
         /// <summary>
         /// The stored state and discriminator of a due trigger, or <see langword="null" /> for one whose

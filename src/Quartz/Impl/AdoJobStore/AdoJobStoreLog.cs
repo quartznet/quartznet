@@ -243,6 +243,16 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3060, Level = LogLevel.Debug, Message = "Firing rounds take TRIGGER_ACCESS until the backlog clears: a round without it lost {ClaimsLost} claims to another node")]
     public static partial void RoundsLockedForContention(this ILogger logger, int claimsLost);
 
+    // Warning, as 3058 is: a job turned serial or a trigger given a lock-decided policy or schedule in the
+    // moment between a SQL Server round's claim and its fire is rare, and worth seeing (#4117).
+    [LoggerMessage(EventId = 3062, Level = LogLevel.Warning, Message = "Firing round claimed without TRIGGER_ACCESS hands its due triggers to the scheduler, which fires them under the lock: the job, overlap policy or schedule of trigger {TriggerKey} changed between the claim and the fire")]
+    public static partial void RoundFireHandedToLock(this ILogger logger, TriggerKey? triggerKey);
+
+    // Warning: the claims stand, and the scheduler fires the triggers under the lock, whose own failure
+    // handling then says what it finds (#4117).
+    [LoggerMessage(EventId = 3063, Level = LogLevel.Warning, Message = "The fire of a firing round claimed without TRIGGER_ACCESS failed; the scheduler fires its due triggers under the lock")]
+    public static partial void RoundFireWithoutLockFailed(this ILogger logger, Exception exception);
+
     // Debug: the ordinary outcome of an edit racing a firing round that takes no lock (#4067). The edit is
     // applied to the row as the fire left it, which is the serialised order.
     [LoggerMessage(EventId = 3059, Level = LogLevel.Debug, Message = "Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write")]

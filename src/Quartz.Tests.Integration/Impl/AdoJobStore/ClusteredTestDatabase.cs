@@ -34,6 +34,12 @@ public abstract class ClusteredTestDatabase
     public static ClusteredTestDatabase SqlServer { get; } = new SqlServerTestDatabase();
 
     /// <summary>
+    /// The assembly-wide SQL Server's database with <c>READ_COMMITTED_SNAPSHOT</c> on, the one SQL Server
+    /// configuration whose firing rounds may take no lock (#4117).
+    /// </summary>
+    public static ClusteredTestDatabase SqlServerSnapshot { get; } = new SqlServerSnapshotTestDatabase();
+
+    /// <summary>
     /// The assembly-wide MySQL database.
     /// </summary>
     public static ClusteredTestDatabase MySql { get; } = new MySqlTestDatabase();
@@ -127,7 +133,7 @@ public abstract class ClusteredTestDatabase
 
     /// <summary>
     /// Whether a firing round of concurrent-allowed work on this database takes no lock (#4067): true but on
-    /// SQL Server, whose rounds are 4.5's in this release (#4117).
+    /// SQL Server without <c>READ_COMMITTED_SNAPSHOT</c>, whose rounds are 4.5's (#4117).
     /// </summary>
     public virtual bool AllowsLockFreeRounds => true;
 
@@ -158,7 +164,23 @@ public abstract class ClusteredTestDatabase
 
         public override DbConnection CreateConnection() => new SqlConnection(ConnectionString);
 
+        /// <summary>False: the database is created with SQL Server's default, <c>READ_COMMITTED_SNAPSHOT</c> off.</summary>
         public override bool AllowsLockFreeRounds => false;
+    }
+
+    private sealed class SqlServerSnapshotTestDatabase : ClusteredTestDatabase
+    {
+        public override string Provider => TestConstants.DefaultSqlServerProvider;
+
+        public override string ConnectionString => ContainerConnectionString("MSSQL_CONNECTION_STRING_RCSI");
+
+        public override string DriverDelegateType => "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+
+        public override IDriverDelegate CreateDriverDelegate() => new SqlServerDelegate();
+
+        public override DbConnection CreateConnection() => new SqlConnection(ConnectionString);
+
+        public override string ToString() => Provider + " (READ_COMMITTED_SNAPSHOT ON)";
     }
 
     private sealed class MySqlTestDatabase : ClusteredTestDatabase
