@@ -61,7 +61,7 @@ internal static class Program
             "Schedules one job for now on an idle scheduler, 200 times, and prints the schedule-to-execute percentiles and where they go.",
             LatencyProbe.Run),
         ("--one-off-census",
-            "Drains one-off firings against PostgreSQL and prints the commits, the statements and every statement by name. Needs QUARTZ_BENCHMARK_POSTGRES and pg_stat_statements.",
+            "Drains one-off firings against PostgreSQL and prints the commits, the statements and every statement by name. Needs QUARTZ_BENCHMARK_POSTGRES and pg_stat_statements; QUARTZ_CENSUS_DIALECT=sqlserver runs it against QUARTZ_BENCHMARK_SQLSERVER instead.",
             OneOffCensus.Run),
     ];
 
