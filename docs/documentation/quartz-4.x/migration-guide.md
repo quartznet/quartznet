@@ -18,7 +18,8 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). It has a database migration |
+| From 4.6 | [Upgrading from 4.6 to 4.7](#upgrading-from-4-6-to-4-7) |
+| From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). It has a database migration. Then 4.6 to 4.7 |
 | From 4.4 | [Upgrading from 4.4 to 4.5](#upgrading-from-4-4-to-4-5). No database migration. Then 4.5 to 4.6 |
 | From 4.3 | [Upgrading from 4.3 to 4.4](#upgrading-from-4-3-to-4-4). Its database migration is optional. Then 4.4 to 4.5 |
 | From 4.2 | [Upgrading from 4.2 to 4.3](#upgrading-from-4-2-to-4-3). It has a database migration. Then 4.3 to 4.4 |
@@ -27,6 +28,16 @@ If you are a new user starting with the latest version, you don't need to follow
 | Nothing: you are starting a new project | The [quick start](quick-start.md), then [the tutorial](tutorial/) |
 
 The compiler finds most of the 3.x → 4.0 work.
+
+## Upgrading from 4.6 to 4.7
+
+An application on 4.6 compiles on 4.7 unchanged.
+
+Behaviour that changed:
+
+| Before | After | What to do |
+|---|---|---|
+| `CronExpressionBuilder` wrote `*` for an unconfigured second: `WithMinuteIncrements(0, 5)` was `* 0/5 * ? * *`, every second of every fifth minute | It writes `0`: `0 0/5 * ? * *`, once every five minutes. A call that sets the second, such as `AtTime` or `Every`, is unchanged. See [Building cron expressions programmatically](cron-expressions.md#building-cron-expressions-programmatically) | Nothing, unless every second was meant: add `WithSecondRange(0, 59)` |
 
 ## Upgrading from 4.5 to 4.6
 

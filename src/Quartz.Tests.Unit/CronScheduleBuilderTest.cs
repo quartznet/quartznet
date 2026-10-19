@@ -103,7 +103,7 @@ public class CronScheduleBuilderTest
         methodGroup.CronExpressionString.Should().Be("0 0/15 * ? * *");
         withConfigure.CronExpressionString.Should().Be("0 0 0/6 ? * *");
         withConfigure.TimeZone.Should().Be(TimeZoneInfo.Utc, "the configure callback applies to the schedule, as on the other overloads");
-        named.CronExpressionString.Should().Be("* * * L * ?");
+        named.CronExpressionString.Should().Be("0 * * L * ?");
         named.MisfireInstruction.Should().Be(CronTriggerMisfireInstruction.DoNothing);
     }
 
