@@ -129,8 +129,9 @@ public static class SchedulerJobExtensions
     /// <returns>The key of the manual firing's trigger.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="scheduler" /> or <paramref name="jobKey" /> is <see langword="null" />.</exception>
     /// <exception cref="ArgumentException">
-    /// <paramref name="input" /> is a <see cref="CancellationToken" />: the call meant was
-    /// <c>TriggerJob(jobKey, cancellationToken: token)</c>.
+    /// <paramref name="input" /> is a <see cref="CancellationToken" />, which only an explicit
+    /// <c>TriggerJob&lt;CancellationToken&gt;(…)</c> can pass: <c>TriggerJob(jobKey, token)</c> binds to
+    /// <see cref="TriggerJob(IScheduler, JobKey, CancellationToken)" />.
     /// </exception>
     /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
     /// <exception cref="JobPersistenceException">No job is stored under <paramref name="jobKey" />.</exception>
@@ -143,17 +144,49 @@ public static class SchedulerJobExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
         ArgumentNullException.ThrowIfNull(jobKey);
 
-        // TriggerJob(jobKey, token) binds here, the token as the input, because the instance member's
-        // second parameter is a JobDataMap. It reads as a fire-now; refuse it as one rather than store a token.
+        // TriggerJob(jobKey, token) binds to the non-generic overload below, so a token arrives here only
+        // through an explicit TriggerJob<CancellationToken>(…). It is not a payload; refuse it as one.
         if (input is CancellationToken)
         {
             throw new ArgumentException(
-                "A CancellationToken is not a job input. Name it, as in TriggerJob(jobKey, cancellationToken: token), "
+                "A CancellationToken is not a job input. Pass it as the cancellation token, as in TriggerJob(jobKey, token), "
                 + "to fire the job with no input.",
                 nameof(input));
         }
 
         return FireNow(scheduler, jobKey, input, cancellationToken);
+    }
+
+    /// <summary>
+    /// Fires the stored job now with no data of its own: <see cref="IScheduler.TriggerJob" /> with the token
+    /// as the second argument.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The interface member's second parameter is a <see cref="JobDataMap" />, so <c>TriggerJob(jobKey, token)</c>
+    /// does not bind to it. Without this overload it would bind to <see cref="TriggerJob{TInput}" />, the token
+    /// as the input. A non-generic overload is preferred over a generic one, so the call means what it reads as.
+    /// </para>
+    /// <para>
+    /// A <see cref="JobDataMap" />, or <see langword="null" />, as the second argument still binds to the
+    /// interface member, which an instance member always wins.
+    /// </para>
+    /// </remarks>
+    /// <param name="scheduler">The scheduler to fire the job on.</param>
+    /// <param name="jobKey">The stored job to fire.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="scheduler" /> or <paramref name="jobKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    /// <exception cref="JobPersistenceException">No job is stored under <paramref name="jobKey" />.</exception>
+    public static ValueTask TriggerJob(
+        this IScheduler scheduler,
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(scheduler);
+        ArgumentNullException.ThrowIfNull(jobKey);
+
+        return scheduler.TriggerJob(jobKey, data: null, cancellationToken);
     }
 
     private static async ValueTask<TriggerKey> FireNow<TInput>(
