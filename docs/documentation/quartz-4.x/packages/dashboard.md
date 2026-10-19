@@ -354,6 +354,8 @@ progress. It is the fire-instance listing, so **with a persistent job store it c
   reported shows a dash. It is read from the store, so a store-attached window shows it too, and it can
   trail the job by up to a second.
 
+- **Interrupt requested** under the run time marks a firing another node was asked to stop. It stays until the
+  firing ends; the node running it acts after its next check-in. From 4.7, read from `FireInstance.InterruptRequestedUtc`.
 - Interrupting interrupts *that one firing*, not every firing of the job. This matters for a job without
   `[DisallowConcurrentExecution]`, which can have several in flight.
 - Each interrupt is recorded in the [Action Log](#action-log) with the fire instance and node, whether or not the
@@ -829,12 +831,16 @@ The window writes no check-in row and is never listed as a node; the Cluster pag
 | Available | Not available |
 |---|---|
 | Jobs, triggers, calendars, groups, paused groups: read, added, edited and deleted | `Start`, `Standby`, `Shutdown` |
-| Pause, resume, reschedule, edit in place, backfill, unschedule, trigger now, bulk actions | Interrupting a running job or a firing |
-| Currently Executing, from `QRTZ_FIRED_TRIGGERS` | Live Logs and the live event stream |
-| Cluster, from the nodes' check-ins | The node's own figures: instance id, running since, jobs executed |
+| Pause, resume, reschedule, edit in place, backfill, unschedule, trigger now, bulk actions | Live Logs and the live event stream |
+| Interrupting a job or a firing, from 4.7 | The node's own figures: instance id, running since, jobs executed |
+| Currently Executing, from `QRTZ_FIRED_TRIGGERS` | |
+| Cluster, from the nodes' check-ins | |
 | Execution History and the misfire tile, when the cluster keeps history in the database | |
 
 - The left column writes the shared tables, and whichever node picks up the work honours it, as in any cluster.
+- An interrupt is a request on the firing's `QRTZ_FIRED_TRIGGERS` row. The node running it acts after its next
+  check-in. A firing on a node with no live 4.6 or later check-in row is refused with `SchedulerException`
+  naming the node: a node that is not clustered, is older, or has died never reads the request.
 - The right column belongs to **one process**; a database cannot instruct a node. The pages do not offer these,
   the client refuses them, and the Overview says so.
 - The [HTTP API](http-api.md) of a process holding a window refuses `start`, `standby` and `shutdown` for it with
@@ -894,8 +900,8 @@ What goes where:
 | Operation | Routed to |
 |---|---|
 | Jobs, triggers, calendars, pause, resume, trigger now, reschedule, bulk, delete, cluster nodes | The preferred member: the first, by target, that answered the last round |
-| `Interrupt` (job) | Every member; `true` if any interrupted |
-| Interrupt a firing | The member whose node owns the firing, per the store; every member when none does |
+| `Interrupt` (job) | From 4.7, the preferred member, or the next if it fails, plus every member older than 4.6; `true` if any interrupted or recorded a request. With no member at 4.6, every member |
+| Interrupt a firing | From 4.7, with every member at 4.6, as `Interrupt`. Otherwise the member whose node owns the firing, per the store; every member when none does |
 | Execution limits, set | Every member, in target order; the first failure names the members already set |
 | Execution limits, read | The preferred member's |
 | Status | `Running` if any member is, else `Standby` if any, else what the rest say; `Unknown` when none answered |

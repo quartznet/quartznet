@@ -67,40 +67,96 @@ internal abstract partial class AdoJobStoreBase
     /// by, and through a delegate that does not derive from <see cref="StdAdoDelegate" />, which has no
     /// such statement.
     /// </para>
+    /// <para>
+    /// A dashboard's store-attached window (#4141) records one too, clustered or not, but only for a firing
+    /// on a node that reads it: a live row in <c>QRTZ_SCHEDULER_STATE</c> stamped 4.6 or later. A window
+    /// runs no check-in, so it reads that row in the same transaction rather than trusting one it last saw.
+    /// For any other firing it records nothing and throws, naming the node and why.
+    /// </para>
     /// </remarks>
+    /// <exception cref="SchedulerException">
+    /// A store-attached window was asked to interrupt a firing on a node that never reads a request: one
+    /// that is not clustered, is older than 4.6, or has stopped checking in.
+    /// </exception>
     public async ValueTask<bool> RequestInterrupt(string fireInstanceId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(fireInstanceId);
 
-        if (!Clustered || Delegate is not StdAdoDelegate standard)
+        if ((!Clustered && !ClusterObserver) || Delegate is not StdAdoDelegate standard)
         {
             return false;
         }
 
-        string? runningOn = await ExecuteWithoutLock(
+        RequestedInterrupt requested = await ExecuteWithoutLock(
             conn => Guarded(
                 async () =>
                 {
                     string? owner = await standard.SelectExecutingFiredTriggerInstance(conn, fireInstanceId, cancellationToken).ConfigureAwait(false);
                     if (owner is null)
                     {
-                        return null;
+                        return default;
+                    }
+
+                    if (ClusterObserver && await WhyNoRequestIsRead(conn, owner, cancellationToken).ConfigureAwait(false) is { } refusal)
+                    {
+                        return new RequestedInterrupt(owner, refusal);
                     }
 
                     int written = await standard.UpdateFiredTriggerInterruptRequested(conn, fireInstanceId, timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
-                    return written > 0 ? owner : null;
+                    return written > 0 ? new RequestedInterrupt(owner, Refusal: null) : default;
                 },
                 "request an interrupt of fire instance " + fireInstanceId),
             cancellationToken).ConfigureAwait(false);
 
-        if (runningOn is null)
+        if (requested.RunningOn is not { } runningOn)
         {
             return false;
+        }
+
+        if (requested.Refusal is { } why)
+        {
+            Throw.SchedulerException(
+                $"Fire instance '{fireInstanceId}' cannot be interrupted through the store-attached window '{InstanceName}': "
+                + $"the node running it, '{runningOn}', {why}, so it would never read the request. "
+                + "Interrupt it through that node itself: its HTTP API or its agent.");
         }
 
         ReportInterruptRequested(fireInstanceId, runningOn);
         return true;
     }
+
+    /// <summary>
+    /// Why the node <paramref name="instanceId" /> would never read an interrupt request, or
+    /// <see langword="null" /> when it would: its row in <c>QRTZ_SCHEDULER_STATE</c> is live and stamped 4.6
+    /// or later.
+    /// </summary>
+    /// <remarks>
+    /// Judged as the window judges every node in its listing, by the row alone; see <see cref="FailedIfAfter" />.
+    /// </remarks>
+    private async ValueTask<string?> WhyNoRequestIsRead(ConnectionAndTransactionHolder conn, string instanceId, CancellationToken cancellationToken)
+    {
+        List<SchedulerStateRecord> rows = await Delegate.SelectSchedulerStateRecords(conn, instanceId, cancellationToken).ConfigureAwait(false);
+        if (rows.Count == 0)
+        {
+            return "writes no check-in row, which a node that is not clustered never does";
+        }
+
+        SchedulerStateRecord row = rows[0];
+        if (ClassifyClusterNode(row, timeProvider.GetUtcNow()) == ClusterNodeState.Failed)
+        {
+            return $"has not checked in since {row.CheckinTimestamp:O}";
+        }
+
+        return SchedulerNodeVersion.SupportsInterruptRequests(row.QuartzVersion)
+            ? null
+            : $"runs Quartz {row.QuartzVersion ?? "older than 4.6"}, and nodes before {SchedulerNodeVersion.InterruptRequestsSince} read no requests";
+    }
+
+    /// <summary>
+    /// What one request came to: the node running the firing, or <see langword="null" /> when nothing is
+    /// executing under its id, and why it was not recorded when it was not.
+    /// </summary>
+    private readonly record struct RequestedInterrupt(string? RunningOn, string? Refusal);
 
     /// <inheritdoc />
     /// <remarks>

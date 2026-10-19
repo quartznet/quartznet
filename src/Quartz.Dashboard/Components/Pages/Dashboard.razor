@@ -46,9 +46,11 @@
                 <strong>@_windowDisplayName</strong> is a window onto the store attached as
                 <strong>@_windowTarget</strong>, not a scheduler this process runs. Scheduling changes —
                 pause, resume, reschedule, trigger now, add and delete — are writes to the database the
-                cluster shares, and whichever node picks the work up honours them. Starting, standing
-                down, shutting down and interrupting a running job belong to one process and are not
-                offered here; reach the node itself through an API or agent target for those.
+                cluster shares, and whichever node picks the work up honours them. Interrupting a running
+                job is asked of the node running it the same way, which acts after its next check-in;
+                a node that is not clustered or is older than 4.6 never reads the request, so it is refused.
+                Starting, standing down and shutting down belong to one process and are not offered here;
+                reach the node itself through an API or agent target for those.
             </p>
         }
         else if (_isCluster)

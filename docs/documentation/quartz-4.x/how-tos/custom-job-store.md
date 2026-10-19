@@ -228,6 +228,8 @@ From 4.6, two default interface members carry an interrupt asked of a firing ano
 * Answer only executing firings, and only this node's from `GetInterruptRequests`.
 * In 4.6 the scheduler reads `GetInterruptRequests` only after a check-in of the ADO.NET store. A store of
   your own is not asked, so a request it records is not delivered by the scheduler.
+* From 4.7, `QueryFireInstances` can set `FireInstance.InterruptRequestedUtc` on a firing that carries a request,
+  so the dashboard and the HTTP API show it pending. Left `null`, nothing is shown.
 * `DelegatingJobStore` forwards both.
 
 ### Bulk members

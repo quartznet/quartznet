@@ -823,7 +823,8 @@ public partial class StdAdoDelegate
         {
             // Converted rather than read as an int, because Oracle hands a NUMBER back as a decimal.
             Progress = rs.IsDBNull(10) ? null : Convert.ToInt32(rs.GetValue(10), CultureInfo.InvariantCulture),
-            ProgressMessage = rs.IsDBNull(11) ? null : rs.GetString(11)
+            ProgressMessage = rs.IsDBNull(11) ? null : rs.GetString(11),
+            InterruptRequestedUtc = GetDateTimeFromDbValue(rs.GetValue(12))
         };
     }
 

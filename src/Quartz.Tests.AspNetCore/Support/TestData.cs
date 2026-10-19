@@ -254,7 +254,8 @@ public static class TestData
             ExecutionGroup: "reports")
         {
             Progress = 40,
-            ProgressMessage = "page 4 of 10"
+            ProgressMessage = "page 4 of 10",
+            InterruptRequestedUtc = new DateTimeOffset(2024, 5, 6, 7, 8, 30, TimeSpan.Zero)
         };
 
         AcquiredFireInstance = new FireInstance(

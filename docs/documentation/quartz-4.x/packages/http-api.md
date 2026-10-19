@@ -485,7 +485,8 @@ execution group, retry policy and attempt, and [what the trigger is waiting for]
 ³ `fireInstanceId`, trigger key, job key (`null` while only reserved), `schedulerInstanceId`, `state`,
 `fireTimeUtc`, `scheduledFireTimeUtc`, `executionGroup`, and what the job
 [last reported](../how-tos/progress-and-execution-logs.md#report-progress): `progress` (0–100) and
-`progressMessage`, both `null` until it reports.
+`progressMessage`, both `null` until it reports. From 4.7, `interruptRequestedUtc`: when another node asked the
+firing to stop, `null` when no request is pending or the host is older.
 
 - Results are ordered by group, then name, on every page. Fire instances add the fire instance id, since one
   trigger can have several firings at once.

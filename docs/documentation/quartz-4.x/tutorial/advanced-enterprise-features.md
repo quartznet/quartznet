@@ -253,6 +253,13 @@ whichever node you call them on.
   [CancelPrevious](../how-tos/overlap-policy.md#cancelprevious).
 * It needs every node on 4.6, and the [4.6 migration](../../database/schema-changes.md#version-4-6).
 * The HTTP API and the dashboard interrupt through the same call, so they reach every node too.
+* From 4.7, a pending request shows: `FireInstance.InterruptRequestedUtc` is set until the firing ends, and the
+  dashboard's Currently Executing says *Interrupt requested*. The HTTP API carries it as `interruptRequestedUtc`.
+* From 4.7, a dashboard [cluster row](../packages/dashboard.md#a-cluster-behind-several-targets) asks one 4.6
+  member and falls back to the next, instead of every member. A member older than 4.6 is still asked directly.
+* From 4.7, a [store-attached window](../packages/dashboard.md#what-a-window-can-and-cannot-do) records the request
+  too, for a firing on a node with a live 4.6 or later check-in row. Any other firing is refused with
+  `SchedulerException`, naming the node.
 
 ## When a node leaves
 

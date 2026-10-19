@@ -1248,6 +1248,16 @@ public sealed record FireInstanceDto(
     /// What the running job said beside its <see cref="Progress" />, or <see langword="null" />.
     /// </summary>
     public string? ProgressMessage { get; init; }
+
+    /// <summary>
+    /// When an interrupt of the firing was asked for from another node, or <see langword="null" /> when
+    /// none is pending — which is what Currently Executing shows as "Interrupt requested".
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Quartz.FireInstance.InterruptRequestedUtc" />, carried over. Always <see langword="null" />
+    /// from a host older than 4.7.
+    /// </remarks>
+    public DateTimeOffset? InterruptRequestedUtc { get; init; }
 }
 
 /// <summary>

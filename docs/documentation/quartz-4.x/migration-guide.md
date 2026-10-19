@@ -41,6 +41,9 @@ An application on 4.6 compiles on 4.7 unchanged.
 | `SchedulerFireTimesExtensions.GetUpcomingFireTimes` | Extension on `IScheduler`: a stored trigger's next 1 to 100 fire times in UTC, `null` for no such trigger. See [Upcoming fire times](tutorial/more-about-triggers.md#upcoming-fire-times) |
 | `IQuartzApiClient.GetUpcomingFireTimes` | Default interface member, computed from `GetTrigger` and `GetCalendar` by default. The Trigger Detail page's [Upcoming fires](packages/dashboard.md#upcoming-fires) reads it |
 | `GET …/triggers/{triggerGroup}/{triggerName}/fire-times` | HTTP API route answering `{ fireTimesUtc }`; agent operation `GetTriggerFireTimes`, allowed by default. See [Upcoming fire times](packages/http-api.md#upcoming-fire-times) |
+| `FireInstance.InterruptRequestedUtc` | `DateTimeOffset?`, `init`: when another node asked the firing to stop, until it ends. Read from `INTERRUPT_REQUESTED_TIME`; always `null` in memory. See [Interrupting a firing on another node](tutorial/advanced-enterprise-features.md#interrupting-a-firing-on-another-node) |
+| `interruptRequestedUtc` on a fire instance, HTTP API | The same; absent from an older host, which reads as `null` |
+| `FireInstanceDto.InterruptRequestedUtc` | `Quartz.Dashboard`, `init`: the same, shown as *Interrupt requested* on Currently Executing |
 
 Behaviour that changed:
 
@@ -53,6 +56,8 @@ Behaviour that changed:
 | `GetTriggerBuilder()` of a trigger nobody gave a zone carried `InTimeZone(TimeZoneInfo.Local)` | It carries no zone, so the rebuilt trigger takes the default too. A trigger read from a store carries its stored zone | Nothing |
 | Under `UseTriggerGroupWhenUnset`, a recovered firing of a trigger with no execution group was limited under `RECOVERING_JOBS` | It is limited under the group of the trigger it replays, after cluster recovery, a shutdown hand-back and startup recovery, in both stores. See [Letting the trigger group stand in](tutorial/execution-groups.md#letting-the-trigger-group-stand-in) | Nothing |
 | A start that re-applied an `AddTrigger` or `ScheduleJob` registration, or a scheduling file, reset `TimesTriggered`, dropped a pending retry and resumed a trigger paused on its own | The count and the retry are kept while the schedule is unchanged, so a finite repeat count or `COUNT` does not start over; the pause is kept with its record. See [What a start keeps](how-tos/rescheduling-jobs.md#what-a-start-keeps) | Nothing. To run a finite schedule again from the start, change its schedule or unschedule its trigger first |
+| A dashboard cluster row asked every member to interrupt a job | It asks the preferred 4.6 member, and the next if it fails, plus each member older than 4.6. With every member at 4.6, an interrupt of one firing is asked the same way, without looking up its owner | Nothing |
+| A store-attached window refused every interrupt with `NotSupportedException` | It records a request for a firing on a node with a live 4.6 or later check-in row, and refuses any other with `SchedulerException` naming the node. Currently Executing offers the button. See [What a window can and cannot do](packages/dashboard.md#what-a-window-can-and-cannot-do) | Nothing |
 
 ## Upgrading from 4.5 to 4.6
 

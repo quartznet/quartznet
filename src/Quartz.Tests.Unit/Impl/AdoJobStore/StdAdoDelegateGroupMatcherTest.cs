@@ -541,7 +541,7 @@ public class StdAdoDelegateGroupMatcherTest
 
         string expectedCommandText = "SELECT ENTRY_ID, TRIGGER_NAME, TRIGGER_GROUP, JOB_NAME, JOB_GROUP, "
                                      + "INSTANCE_NAME, STATE, FIRED_TIME, SCHED_TIME, EXECUTION_GROUP, "
-                                     + "PROGRESS, PROGRESS_MESSAGE "
+                                     + "PROGRESS, PROGRESS_MESSAGE, INTERRUPT_REQUESTED_TIME "
                                      + "FROM QRTZ_FIRED_TRIGGERS "
                                      + "WHERE SCHED_NAME = @schedulerName "
                                      + "AND STATE <> @entryState "

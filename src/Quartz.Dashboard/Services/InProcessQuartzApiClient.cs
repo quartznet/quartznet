@@ -377,7 +377,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 ExecutionGroup: instance.ExecutionGroup)
             {
                 Progress = instance.Progress,
-                ProgressMessage = instance.ProgressMessage
+                ProgressMessage = instance.ProgressMessage,
+                InterruptRequestedUtc = instance.InterruptRequestedUtc
             });
         }
 
@@ -446,26 +447,25 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     }
 
     /// <remarks>
-    /// Allowed on a cluster, unlike the lifecycle verbs: the cluster asks every node, and the job may be
-    /// running on any of them.
+    /// Allowed on a cluster, unlike the lifecycle verbs: the job may be running on any node, and the cluster
+    /// reaches every one. Allowed on a window too (#4141): it records a request on each firing's row, which
+    /// the node running it reads after its next check-in, and refuses a firing on a node that never would.
     /// </remarks>
     public async ValueTask<bool> Interrupt(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
-        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
-        EnsureNotAWindow(resolved, "interrupt a running job");
-        return await resolved.Scheduler.Interrupt(AsJobKey(key), cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.Interrupt(AsJobKey(key), cancellationToken).ConfigureAwait(false);
     }
 
     /// <remarks>
-    /// Allowed on a cluster, which routes the interruption to the node the firing belongs to.
+    /// Allowed on a cluster and on a window, as <see cref="Interrupt" /> is.
     /// </remarks>
     public async ValueTask<bool> InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
-        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
-        EnsureNotAWindow(resolved, "interrupt a running job");
-        return await resolved.Scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<bool> DeleteJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
@@ -1221,16 +1221,16 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// <remarks>
     /// <para>
     /// A window is a scheduler this process built over somebody else's database and never started, so
-    /// starting it, standing it down, shutting it down or interrupting a job on it would all act on
-    /// <em>this</em> object and reach nobody: the nodes doing the work would not notice, and an
-    /// operator would believe a cluster had been stood down. The pages hide these for a window, and
-    /// this is what makes hiding them safe — the same argument <see cref="EnsureWritable" /> makes
-    /// about <see cref="QuartzDashboardOptions.ReadOnly" />.
+    /// starting it, standing it down or shutting it down would all act on <em>this</em> object and reach
+    /// nobody: the nodes doing the work would not notice, and an operator would believe a cluster had been
+    /// stood down. The pages hide these for a window, and this is what makes hiding them safe — the same
+    /// argument <see cref="EnsureWritable" /> makes about <see cref="QuartzDashboardOptions.ReadOnly" />.
     /// </para>
     /// <para>
     /// Everything the <em>store</em> is stays available: pausing, resuming, rescheduling, triggering
     /// now, adding and deleting are writes to the shared tables, and whichever node picks the work up
-    /// honours them.
+    /// honours them. So is interrupting, from 4.7: the request is a write to the firing's row, which the
+    /// node running it reads.
     /// </para>
     /// </remarks>
     private static void EnsureNotAWindow(SchedulerResolution resolved, string what)

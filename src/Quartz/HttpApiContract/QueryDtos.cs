@@ -192,6 +192,16 @@ internal sealed record FireInstanceDto(
     /// <inheritdoc cref="Progress" />
     public string? ProgressMessage { get; init; }
 
+    /// <summary>
+    /// When an interrupt was asked of the firing from another node, or <see langword="null" /> when none
+    /// is pending.
+    /// </summary>
+    /// <remarks>
+    /// Non-positional, as <see cref="Progress" /> is: a host older than 4.7 sends nothing, which reads back
+    /// as <see langword="null" />.
+    /// </remarks>
+    public DateTimeOffset? InterruptRequestedUtc { get; init; }
+
     public static FireInstanceDto Create(FireInstance instance)
     {
         ArgumentNullException.ThrowIfNull(instance);
@@ -210,7 +220,8 @@ internal sealed record FireInstanceDto(
         )
         {
             Progress = instance.Progress,
-            ProgressMessage = instance.ProgressMessage
+            ProgressMessage = instance.ProgressMessage,
+            InterruptRequestedUtc = instance.InterruptRequestedUtc
         };
     }
 
@@ -228,7 +239,8 @@ internal sealed record FireInstanceDto(
         )
         {
             Progress = Progress,
-            ProgressMessage = ProgressMessage
+            ProgressMessage = ProgressMessage,
+            InterruptRequestedUtc = InterruptRequestedUtc
         };
     }
 }

@@ -70,7 +70,21 @@
                         <td>@fireInstance.SchedulerInstanceId</td>
                         <td>@(string.IsNullOrEmpty(fireInstance.ExecutionGroup) ? "—" : fireInstance.ExecutionGroup)</td>
                         <td>@FormatFireTime(fireInstance.FireTimeUtc)</td>
-                        <td>@FormatRunTime(fireInstance.FireTimeUtc)</td>
+                        <td>
+                            @FormatRunTime(fireInstance.FireTimeUtc)
+                            @if (fireInstance.InterruptRequestedUtc is { } requestedAt)
+                            {
+                                @* Asked of another node, which acts after its next check-in: until the firing
+                                   ends, the row has been told to stop and may still be running. *@
+                                <div>
+                                    <span class="qz-state-indicator qz-state-paused"
+                                          data-testid="interrupt-requested"
+                                          title="@("Interrupt requested at " + FormatFireTime(requestedAt) + "; the node running it acts after its next check-in")">
+                                        <span class="qz-state-dot"></span>Interrupt requested
+                                    </span>
+                                </div>
+                            }
+                        </td>
                         <td>
                             @if (fireInstance.Progress is int percent)
                             {
@@ -131,13 +145,10 @@
     private bool IsReadOnly => Options.Value.ReadOnly;
 
     /// <summary>
-    /// Whether the active scheduler is a window onto an attached store. A firing belongs to the node
-    /// running it, and nothing in a shared database carries a request to stop one, so the column is
-    /// not offered rather than offered and refused.
+    /// Whether the column is offered. A window onto an attached store offers it too, from 4.7: it asks the
+    /// node running the firing through the firing's row, and says so when that node never reads one.
     /// </summary>
-    private bool _isWindow;
-
-    private bool ShowInterrupt => !IsReadOnly && !_isWindow;
+    private bool ShowInterrupt => !IsReadOnly;
     private int TableColumnCount => ShowInterrupt ? 9 : 8;
 
     protected override async Task OnInitializedAsync()
@@ -215,7 +226,6 @@
             _fireInstances.Clear();
             _hasMore = false;
             _totalCount = 0;
-            _isWindow = Scheduler.Find(schedulerName)?.IsWindow == true;
 
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {

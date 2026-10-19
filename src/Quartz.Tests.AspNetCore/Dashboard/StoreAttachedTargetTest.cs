@@ -207,8 +207,8 @@ public sealed class StoreAttachedTargetTest
         Func<Task> shutdown = async () => await client.Shutdown(ClusterScheduler);
         await shutdown.Should().ThrowAsync<NotSupportedException>();
 
-        Func<Task> interrupt = async () => await client.InterruptFireInstance(ClusterScheduler, "whatever");
-        await interrupt.Should().ThrowAsync<NotSupportedException>();
+        (await client.InterruptFireInstance(ClusterScheduler, "whatever")).Should().BeFalse(
+            "from 4.7 an interrupt is a write to the firing's row, which a window can make; nothing runs under this id");
 
         // And the other half of the promise: what the store is, the window can do.
         bool paused = await client.PauseTrigger(ClusterScheduler, new TriggerKeyDto("nightly", "at-midnight"));
@@ -216,6 +216,72 @@ public sealed class StoreAttachedTargetTest
 
         TriggerState state = await client.GetTriggerState(ClusterScheduler, new TriggerKeyDto("nightly", "at-midnight"));
         state.Should().Be(TriggerState.Paused);
+    }
+
+    /// <summary>
+    /// A window records an interrupt on the firing's row (#4141), as a 4.6 node does for a peer's firing, and
+    /// the listing reads it back, so the page can say one is pending.
+    /// </summary>
+    [Test]
+    public async Task AWindowRecordsAnInterruptForAFiringOnALiveNodeThatReadsOne()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow, version: "4.7.0");
+        WriteExecutingFiring("fire-1", NodeA);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+        IQuartzApiClient client = dashboard.Client;
+
+        FireInstanceDto before = (await client.QueryFireInstances(ClusterScheduler, new DashboardFireInstanceQuery())).Items.Should().ContainSingle().Subject;
+        before.InterruptRequestedUtc.Should().BeNull("nobody has asked yet");
+
+        (await client.InterruptFireInstance(ClusterScheduler, "fire-1")).Should().BeTrue(
+            "node-a checks in, stamped 4.7, so it reads the request at its next check-in");
+
+        InterruptRequestedTicks("fire-1").Should().NotBeNull("the request is a write to the firing's row");
+
+        FireInstanceDto after = (await client.QueryFireInstances(ClusterScheduler, new DashboardFireInstanceQuery())).Items.Should().ContainSingle().Subject;
+        after.InterruptRequestedUtc.Should().NotBeNull("the listing reads the request back, which is what Currently Executing shows");
+    }
+
+    [Test]
+    public async Task AWindowRecordsAnInterruptForEveryRunningFiringOfAJob()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow, version: "4.7.0");
+        WriteExecutingFiring("fire-1", NodeA);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+
+        (await dashboard.Client.Interrupt(ClusterScheduler, new JobKeyDto("batch", "nightly"))).Should().BeTrue();
+        InterruptRequestedTicks("fire-1").Should().NotBeNull("the job's running firing carries the request");
+    }
+
+    /// <summary>
+    /// A node that would never read the request is refused by name rather than recorded and left to wait:
+    /// the window, unlike a node, has no check-in to have learned that from, so it reads the row as it asks.
+    /// </summary>
+    [TestCase(false, null, 0, "writes no check-in row, which a node that is not clustered never does")]
+    [TestCase(true, null, 0, "runs Quartz older than 4.6")]
+    [TestCase(true, "4.5.3", 0, "runs Quartz 4.5.3")]
+    [TestCase(true, "4.7.0", 2, "has not checked in since")]
+    public async Task AWindowRefusesAnInterruptForAFiringOnANodeThatNeverReadsOne(bool checksIn, string? version, int hoursSilent, string reason)
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        if (checksIn)
+        {
+            WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow - TimeSpan.FromHours(hoursSilent), version);
+        }
+
+        WriteExecutingFiring("fire-1", NodeA);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+
+        Func<Task> interrupt = async () => await dashboard.Client.InterruptFireInstance(ClusterScheduler, "fire-1");
+
+        (await interrupt.Should().ThrowAsync<SchedulerException>())
+            .WithMessage($"*'fire-1'*the node running it, '{NodeA}', {reason}*HTTP API or its agent*");
+        InterruptRequestedTicks("fire-1").Should().BeNull("a request nobody will read is not recorded");
     }
 
     /// <summary>
@@ -421,22 +487,59 @@ public sealed class StoreAttachedTargetTest
     /// The check-in row a clustered node writes, in the format <c>StdAdoDelegate</c> reads it back in:
     /// the timestamp as UTC ticks, the interval as whole milliseconds.
     /// </summary>
-    private void WriteCheckIn(string schedulerName, string instanceId, DateTimeOffset checkedInAt)
+    private void WriteCheckIn(string schedulerName, string instanceId, DateTimeOffset checkedInAt, string? version = null)
     {
         using SqliteConnection connection = new(database.ConnectionString);
         connection.Open();
 
         using SqliteCommand command = connection.CreateCommand();
         command.CommandText =
-            "INSERT INTO QRTZ_SCHEDULER_STATE (SCHED_NAME, INSTANCE_NAME, LAST_CHECKIN_TIME, CHECKIN_INTERVAL) "
-            + "VALUES (@scheduler, @instance, @checkin, @interval)";
+            "INSERT INTO QRTZ_SCHEDULER_STATE (SCHED_NAME, INSTANCE_NAME, LAST_CHECKIN_TIME, CHECKIN_INTERVAL, QUARTZ_VERSION) "
+            + "VALUES (@scheduler, @instance, @checkin, @interval, @version)";
         command.Parameters.AddWithValue("@scheduler", schedulerName);
         command.Parameters.AddWithValue("@instance", instanceId);
         command.Parameters.AddWithValue("@checkin", checkedInAt.UtcTicks);
         command.Parameters.AddWithValue(
             "@interval",
             (long) CheckInInterval.TotalMilliseconds);
+        command.Parameters.AddWithValue("@version", (object?) version ?? DBNull.Value);
         command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// The row a node writes for a firing it is running, as the node itself would: <c>EXECUTING</c>, with
+    /// the job's key. Written by hand for the reason the check-in row is: nothing here runs the job.
+    /// </summary>
+    private void WriteExecutingFiring(string entryId, string instanceId)
+    {
+        using SqliteConnection connection = new(database.ConnectionString);
+        connection.Open();
+
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText =
+            "INSERT INTO QRTZ_FIRED_TRIGGERS (SCHED_NAME, ENTRY_ID, TRIGGER_NAME, TRIGGER_GROUP, INSTANCE_NAME, FIRED_TIME, SCHED_TIME, PRIORITY, STATE, JOB_NAME, JOB_GROUP, IS_NONCONCURRENT, REQUESTS_RECOVERY) "
+            + "VALUES (@scheduler, @entry, 'at-midnight', 'nightly', @instance, @fired, @fired, 5, 'EXECUTING', 'nightly', 'batch', 0, 0)";
+        command.Parameters.AddWithValue("@scheduler", ClusterScheduler);
+        command.Parameters.AddWithValue("@entry", entryId);
+        command.Parameters.AddWithValue("@instance", instanceId);
+        command.Parameters.AddWithValue("@fired", DateTimeOffset.UtcNow.UtcTicks);
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// <c>INTERRUPT_REQUESTED_TIME</c> on a firing's row, as ticks, or <see langword="null" /> when no request
+    /// was recorded.
+    /// </summary>
+    private long? InterruptRequestedTicks(string entryId)
+    {
+        using SqliteConnection connection = new(database.ConnectionString);
+        connection.Open();
+
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT INTERRUPT_REQUESTED_TIME FROM QRTZ_FIRED_TRIGGERS WHERE ENTRY_ID = @entry";
+        command.Parameters.AddWithValue("@entry", entryId);
+        object? value = command.ExecuteScalar();
+        return value is null or DBNull ? null : Convert.ToInt64(value, CultureInfo.InvariantCulture);
     }
 
     /// <summary>
