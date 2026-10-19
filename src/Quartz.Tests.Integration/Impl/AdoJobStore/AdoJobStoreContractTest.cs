@@ -232,11 +232,102 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
     }
 
     /// <summary>
+    /// The rest of a declared trigger's run state survives a start the same way: how many times it has
+    /// fired, so a finite repeat count is not run again (#4128).
+    /// </summary>
+    [Test]
+    public async Task ADeclaredTriggerReappliedAtStartupKeepsItsFireCount()
+    {
+        JobKey jobKey = new("counted", JobGroupA);
+        TriggerKey triggerKey = new("counted", TriggerGroupA);
+
+        await CreateASchedulerDeclaring(jobKey, triggerKey, FourFiringsAMinuteApart);
+        (await FireOnce(triggerKey)).Should().BeTrue();
+        (await FireOnce(triggerKey)).Should().BeTrue();
+
+        await CreateASchedulerDeclaring(jobKey, triggerKey, FourFiringsAMinuteApart);
+
+        ((ISimpleTrigger) await Store.GetTrigger(triggerKey)).TimesTriggered.Should().Be(2,
+            "the trigger fired twice before the start, and the start re-applies the same trigger");
+        (await FireUntilDone(triggerKey)).Should().Be(2,
+            "a repeat count of three is four firings in all, two of which happened before the start");
+    }
+
+    /// <summary>
+    /// A changed schedule wins: the declaration says something new, and its trigger starts fresh (#4128).
+    /// </summary>
+    [Test]
+    public async Task ADeclaredTriggerWithAChangedRepeatCountStartsFreshAtStartup()
+    {
+        JobKey jobKey = new("recounted", JobGroupA);
+        TriggerKey triggerKey = new("recounted", TriggerGroupA);
+
+        await CreateASchedulerDeclaring(jobKey, triggerKey, FourFiringsAMinuteApart);
+        (await FireOnce(triggerKey)).Should().BeTrue();
+        (await FireOnce(triggerKey)).Should().BeTrue();
+
+        await CreateASchedulerDeclaring(jobKey, triggerKey, t => t.WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromMinutes(1)).WithRepeatCount(5)));
+
+        ((ISimpleTrigger) await Store.GetTrigger(triggerKey)).TimesTriggered.Should().Be(0, "a changed schedule is a new trigger");
+        (await FireUntilDone(triggerKey)).Should().Be(6, "a repeat count of five is six firings, all of them still to come");
+    }
+
+    /// <summary>
+    /// A retry the trigger is waiting on at shutdown is still waiting after the start, at its time (#4128).
+    /// </summary>
+    [Test]
+    public async Task ADeclaredTriggerWaitingOnARetryKeepsItAtStartup()
+    {
+        JobKey jobKey = new("retrying", JobGroupA);
+        TriggerKey triggerKey = new("retrying", TriggerGroupA);
+        Action<ITriggerConfigurator<IJob>> retrying = t => t
+            .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(10)));
+
+        await CreateASchedulerDeclaring(jobKey, triggerKey, retrying);
+        (await FireOnce(triggerKey, new JobExecutionException(new InvalidOperationException("transient")))).Should().BeTrue();
+
+        IOperableTrigger beforeStart = await Store.GetTrigger(triggerKey);
+        beforeStart.RetryAttempt.Should().Be(1, "the premise: the failed firing scheduled a retry");
+
+        await CreateASchedulerDeclaring(jobKey, triggerKey, retrying);
+
+        IOperableTrigger afterStart = await Store.GetTrigger(triggerKey);
+        afterStart.RetryAttempt.Should().Be(1, "the retry pending at shutdown is still pending");
+        afterStart.NextFireTimeUtc.Should().Be(beforeStart.NextFireTimeUtc, "a retry pending at shutdown still happens at its time");
+    }
+
+    /// <summary>
+    /// A trigger an operator paused on its own stays paused, with its record, when a start re-applies it
+    /// (#4128).
+    /// </summary>
+    [Test]
+    public async Task ADeclaredTriggerPausedOnItsOwnStaysPausedAtStartup()
+    {
+        JobKey jobKey = new("paused", JobGroupA);
+        TriggerKey triggerKey = new("paused", TriggerGroupA);
+
+        await CreateASchedulerDeclaring(jobKey, triggerKey);
+        (await Store.PauseTriggerWith(triggerKey, new PauseDetails { Reason = "maintenance window", RequestedBy = "ops" })).Should().BeTrue();
+        PauseInfo pause = await Store.GetTriggerPause(triggerKey);
+
+        await CreateASchedulerDeclaring(jobKey, triggerKey);
+
+        (await Store.GetTriggerState(triggerKey)).Should().Be(TriggerState.Paused, "a redeploy is not somebody resuming the trigger");
+        (await Store.GetTriggerPause(triggerKey)).Should().Be(pause, "the pause is the one the operator made, not a new one");
+    }
+
+    private static void FourFiringsAMinuteApart(ITriggerConfigurator<IJob> trigger)
+    {
+        trigger.WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromMinutes(1)).WithRepeatCount(3));
+    }
+
+    /// <summary>
     /// What a process start does to this fixture's rows: a scheduler of the same name over a store of its
     /// own, which applies the job and trigger the application declares as it is created. Never started, and
     /// shut down again, so the firings stay the test's to drive.
     /// </summary>
-    private async ValueTask CreateASchedulerDeclaring(JobKey jobKey, TriggerKey triggerKey)
+    private async ValueTask CreateASchedulerDeclaring(JobKey jobKey, TriggerKey triggerKey, Action<ITriggerConfigurator<IJob>> schedule = null)
     {
         AdoJobStoreBase store = CreateJobStore(new DbProvider(DbProviderName, preparedConnectionString), CreateDriverDelegate());
 
@@ -250,15 +341,67 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
                 });
                 q.UseJobStore(store);
                 q.AddJob<ContractTestJob>(job => job.WithIdentity(jobKey));
-                q.AddTrigger(trigger => trigger
-                    .WithIdentity(triggerKey)
-                    .ForJob(jobKey)
-                    .StartNow()
-                    .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever()));
+                q.AddTrigger(trigger =>
+                {
+                    trigger.WithIdentity(triggerKey).ForJob(jobKey).StartNow();
+
+                    if (schedule is null)
+                    {
+                        trigger.WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromHours(1)).RepeatForever());
+                    }
+                    else
+                    {
+                        schedule(trigger);
+                    }
+                });
             })
             .BuildScheduler();
 
         await scheduler.Shutdown();
+    }
+
+    /// <summary>
+    /// Fires the trigger at its next fire time within the hour, completing the firing the way the run
+    /// shell does: the trigger decides what comes next. Answers whether there was a firing to make.
+    /// </summary>
+    private async ValueTask<bool> FireOnce(TriggerKey triggerKey, JobExecutionException failure = null)
+    {
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddHours(1),
+            MaxCount = 1,
+        });
+
+        if (acquired.Count == 0)
+        {
+            return false;
+        }
+
+        acquired.Should().ContainSingle(x => x.Key.Equals(triggerKey), "the declared trigger is the only one stored");
+
+        List<TriggerFiredResult> fired = await Store.TriggersFired(acquired);
+        TriggerFiredBundle bundle = fired.Should().ContainSingle().Which.TriggerFiredBundle;
+        bundle.Should().NotBeNull("the trigger is due and nothing stands in its way");
+
+        // The bundle's trigger, as the run shell's: the store advanced a copy of its own.
+        SchedulerInstruction instruction = bundle.Trigger.ExecutionComplete(FakeItEasy.A.Fake<IJobExecutionContext>(), failure);
+        await Store.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, instruction);
+        return true;
+    }
+
+    private async ValueTask<int> FireUntilDone(TriggerKey triggerKey)
+    {
+        const int Ceiling = 20;
+
+        for (int fired = 0; fired < Ceiling; fired++)
+        {
+            if (!await FireOnce(triggerKey))
+            {
+                return fired;
+            }
+        }
+
+        return Ceiling;
     }
 
     private async ValueTask<TriggerFiredBundle> FireAndComplete(TriggerKey triggerKey)

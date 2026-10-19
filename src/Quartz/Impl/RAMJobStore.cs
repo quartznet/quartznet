@@ -745,6 +745,13 @@ public sealed class RAMJobStore : IJobStore
 
         TriggerWrapper tw = new((IOperableTrigger) trigger.Clone());
 
+        // An instruction to the call storing it, not part of what is stored: a trigger read back and handed
+        // to an explicit replace must not keep a pause through it (#4128).
+        if (tw.Trigger is TriggerBase stored)
+        {
+            stored.KeepsPauseOnReplace = false;
+        }
+
         // The record of the pause the replaced trigger had, which the replacement keeps if it stays
         // paused, as the ADO store's row does; a replacement stored unpaused has no pause to explain.
         PauseInfo? replacedPause = null;
@@ -1182,8 +1189,12 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     /// <remarks>
     /// The replacement must name the same job: a trigger that pointed somewhere else would move work
-    /// from one job to another under a call that says it is replacing a schedule. A trigger that was
-    /// paused stays paused, and one that was blocked is re-evaluated against the job's current state.
+    /// from one job to another under a call that says it is replacing a schedule. The replacement's state
+    /// is decided afresh, as in the ADO store: paused if its trigger group or job group is paused, blocked
+    /// if its job disallows concurrent execution and is running, and waiting otherwise. So a replace resumes
+    /// a trigger that was paused on its own, which is the store contract and Java's. One that stays paused
+    /// because a group is keeps the record of its pause. A declared trigger re-applied at a start is the
+    /// exception: it keeps an individual pause (#4128).
     /// </remarks>
     /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
     /// <param name="trigger">The new trigger.</param>
@@ -1211,6 +1222,12 @@ public sealed class RAMJobStore : IJobStore
                 // refusal below, the old trigger would come back awaiting rather than as it was.
                 EnsureContinuationParentExistsNoLock(trigger, alsoStored: null);
 
+                // Read before the old trigger goes: a declared trigger re-applied at a start keeps the pause
+                // the trigger it replaces has, with its record (#4128). Any other replace decides afresh.
+                bool keepPause = trigger is TriggerBase { KeepsPauseOnReplace: true }
+                                 && tw.state is StoredTriggerState.Paused or StoredTriggerState.PausedBlocked;
+                PauseInfo? keptPause = keepPause ? tw.pause : null;
+
                 // The old trigger is deleted rather than updated, but its executions stay: a replaced
                 // trigger keeps its identity and its job, so what was running under the key is still
                 // running under it, as in the ADO store where a replacement leaves the fired-trigger rows
@@ -1222,7 +1239,7 @@ public sealed class RAMJobStore : IJobStore
                 {
                     // Checked again now the old trigger has gone, which is what refuses a trigger
                     // replaced by one that waits for itself.
-                    AddTriggerNoLock(trigger, replace: false, checkContinuationParent: true, ref pending);
+                    AddTriggerNoLock(trigger, replace: false, checkContinuationParent: true, ref pending, keepPause, keptPause);
                 }
                 catch (JobPersistenceException)
                 {

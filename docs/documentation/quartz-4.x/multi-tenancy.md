@@ -879,8 +879,10 @@ What a restart changes:
 - **Clustering.** With a fixed `InstanceId`, the new generation finds its own `SCHEDULER_STATE` row and
   recovers nothing. With a generated id (`AUTO`, or `UseClustering()` with no `InstanceId`) it takes a new
   id, and the old row expires like a stopped node's, to be recovered by a peer or the new generation.
-- **Declared content is re-applied** under the recipe's `OverwriteExistingData` (`true` by default),
-  resetting a declared trigger's stored state. Set `Scheduling.IgnoreDuplicates` to avoid that.
+- **Declared content is re-applied** under the recipe's `OverwriteExistingData` (`true` by default). A
+  declared trigger keeps its pause, and its run state unless its schedule changed: see
+  [What a start keeps](how-tos/rescheduling-jobs.md#what-a-start-keeps). Set `Scheduling.IgnoreDuplicates` to
+  leave the stored trigger exactly as it is.
 - **`RAMJobStore` keeps only what the recipe declares**; anything scheduled at runtime is lost.
 - **Configuration beside `AddQuartz` is not in the recipe.** A
   `services.Configure<QuartzSchedulerOptions>("acme", …)`, a keyed registration on the application's
