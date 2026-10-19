@@ -48,6 +48,7 @@ Behaviour that changed:
 | A schedule builder never given a zone, and `new CronTriggerImpl(…)`, set `TimeZoneInfo.Local` on the trigger | The zone is unstated until the scheduler stores the trigger and gives it `DefaultTimeZone`: `TimeZoneInfo.Local` unless configured | Nothing |
 | `InTimeZone(null)` meant `TimeZoneInfo.Local` | It names no zone, so the trigger takes `DefaultTimeZone`: `TimeZoneInfo.Local` unless configured | Nothing. With a default set, pass `TimeZoneInfo.Local` for a trigger that must stay local |
 | `GetTriggerBuilder()` of a trigger nobody gave a zone carried `InTimeZone(TimeZoneInfo.Local)` | It carries no zone, so the rebuilt trigger takes the default too. A trigger read from a store carries its stored zone | Nothing |
+| Under `UseTriggerGroupWhenUnset`, a recovered firing of a trigger with no execution group was limited under `RECOVERING_JOBS` | It is limited under the group of the trigger it replays, after cluster recovery, a shutdown hand-back and startup recovery, in both stores. See [Letting the trigger group stand in](tutorial/execution-groups.md#letting-the-trigger-group-stand-in) | Nothing |
 
 ## Upgrading from 4.5 to 4.6
 
