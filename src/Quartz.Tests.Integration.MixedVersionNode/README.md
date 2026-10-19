@@ -9,14 +9,14 @@ other:
 | Build | Quartz | Output |
 |---|---|---|
 | default | the working tree | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode/<config>/` |
-| `-p:ReleasedQuartzVersion=4.5.1` | that version from nuget.org | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode.4.5.1/<config>/` |
+| `-p:ReleasedQuartzVersion=4.6.0` | that version from nuget.org | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode.4.6.0/<config>/` |
 
 Building the default builds the released one too, so a solution build, `dotnet fallout Compile` and
 `dotnet build src/Quartz.Tests.Integration` all leave both where the test looks.
 
 ## Running it
 
-```
+```text
 --instance-id        this node's instance id
 --scheduler-name     the cluster's scheduler name
 --connection-string  the PostgreSQL both nodes share

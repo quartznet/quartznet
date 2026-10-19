@@ -33,7 +33,7 @@ namespace Quartz.Tests.Integration.MixedVersionNode;
 /// that database: pool, batch size, idle wait, misfire threshold and check-in are what each version
 /// ships. With <c>--history</c> it also keeps its execution history there, bounded so that nothing the
 /// run writes is swept before the test reads it. <c>--lock-free false</c> turns 4.6's lock-free firing
-/// rounds off on the working tree; a released node has no such option.
+/// rounds off on the working tree; a released node keeps its shipped default.
 /// </remarks>
 internal sealed class Node
 {
@@ -329,7 +329,8 @@ internal sealed class Node
 
     /// <summary>
     /// One simple trigger every <c>intervalMs=</c>, repeating forever unless <c>repeat=</c> says how often
-    /// or <c>end=</c> when to stop, optionally pinned to a node and given an overlap policy and a retry policy.
+    /// or <c>end=</c> when to stop, optionally pinned to a node, given an overlap policy and a retry policy,
+    /// and measuring its interval from completion (<c>fromCompletion=</c>, the working tree only).
     /// </summary>
     private async Task<List<KeyValuePair<string, string>>> Schedule(Command command)
     {
@@ -340,6 +341,16 @@ internal sealed class Node
         schedule = command.OptionalText("repeat") is { } repeat
             ? schedule.WithRepeatCount(int.Parse(repeat, CultureInfo.InvariantCulture))
             : schedule.RepeatForever();
+
+        // An interval measured from the previous run's completion (#4140), which only the working tree has.
+        if (command.OptionalText("fromCompletion") is not null)
+        {
+#if QUARTZ_WORKING_TREE
+            schedule = schedule.MeasureIntervalFromCompletion(command.Flag("fromCompletion"));
+#else
+            throw new ArgumentException($"Quartz {QuartzVersion} cannot measure an interval from completion; only the working tree is sent fromCompletion=.");
+#endif
+        }
 
         TriggerBuilder<IJob> trigger = TriggerBuilder.Create()
             .WithIdentity(TriggerKeyOf(command))
@@ -362,8 +373,7 @@ internal sealed class Node
             trigger = trigger.WithOverlapPolicy(Enum.Parse<OverlapPolicy>(policy));
         }
 
-        // The stored form, parsed by whichever Quartz this node runs: the released one cannot read
-        // 'none', so only the working tree is sent it.
+        // The stored form, parsed by whichever Quartz this node runs.
         if (command.OptionalText("retry") is { } retry)
         {
             trigger = trigger.WithRetryPolicy(RetryPolicy.Parse(retry));

@@ -66,7 +66,7 @@ internal sealed class NodeOptions
     /// <summary>
     /// Whether a firing round takes <c>TRIGGER_ACCESS</c> only when something in it needs the lock
     /// (<c>AdoJobStoreOptions.LockFreeFiringRounds</c>, #4067). Read by the working-tree build alone: a
-    /// released node has no such option and runs its own rounds.
+    /// released node runs its rounds as its version ships them.
     /// </summary>
     public bool LockFreeRounds { get; init; } = true;
 

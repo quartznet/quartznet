@@ -152,7 +152,7 @@ jobs:
           #
           # src/Quartz.Tests.Integration.MixedVersionNode is excused for the same reason: it is the
           # cluster node MixedVersionClusterPostgresTest runs out of process, built once against the
-          # working tree and once against the released Quartz 4.2.2.
+          # working tree and once against the previous minor's released Quartz.
           #
           # database/ is excused from copy-paste detection, from four PL/SQL rules and from a
           # coverage figure this workflow does not produce, and from nothing else. Its bug and
