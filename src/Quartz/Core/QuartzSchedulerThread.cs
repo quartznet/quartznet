@@ -1119,11 +1119,11 @@ internal sealed class QuartzSchedulerThread
             }
 
             // Resolved the same way the stores resolve it when they filter, derivation
-            // included: a ledger keyed differently from the filter would subtract from
-            // one bucket what the filter had allowed out of another.
-            string normalizedGroup = ExecutionLimits.ResolveGroupKey(
-                trigger.ExecutionGroup,
-                trigger.Key.Group,
+            // included - a recovery trigger counted under the group it replays (#4142): a
+            // ledger keyed differently from the filter would subtract from one bucket what
+            // the filter had allowed out of another.
+            string normalizedGroup = ExecutionLimits.ResolveGroupKeyOf(
+                trigger,
                 qs.GetExecutionLimits()?.UsesTriggerGroupWhenUnset == true);
 
             // Always track counts so that limits enabled at runtime

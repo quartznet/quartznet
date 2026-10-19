@@ -225,6 +225,8 @@ A trigger with no execution group is then limited as though its group were its `
   writes `null` to `EXECUTION_GROUP`. The rule applies only where a limit is evaluated: the scheduler
   thread's in-flight counting and both job stores' acquisition filters. Turning it off changes only how
   limits are read.
+* **A recovered firing counts against its own trigger's group.** A recovery trigger is stored in
+  `RECOVERING_JOBS`, but from 4.7 its firing is limited under the group of the trigger it replays.
 * **`ForDefaultGroup` stops applying.** No trigger is ungrouped, so they fall under
   `ForGroup`/`ForOtherGroups`. Exception: a trigger whose group is spelled like a reserved name (`*`, `_`,
   `null`) stays ungrouped.

@@ -2211,9 +2211,34 @@ public partial class StdAdoDelegate
             static (shape, self) => self.ReplaceTablePrefix(self.GetSelectNextTriggerToAcquireSql(shape)),
             this);
 
-        using var cmd = PrepareCommand(conn, sql);
-        List<TriggerAcquireResult> nextTriggers = new();
+        List<TriggerAcquireResult> nextTriggers;
+        using (DbCommand cmd = PrepareCommand(conn, sql))
+        {
+            BindTriggersToAcquireParameters(cmd, criteria, excludedJobTypeNames, excludedJobTypeBucket, executionGroups);
+            nextTriggers = await ReadTriggersToAcquire(cmd, maxCount, cancellationToken).ConfigureAwait(false);
+        }
 
+        // Work on a copy: the slots are decremented as rows are taken, and the caller may reuse the
+        // criteria across retries. Cluster-scoped limits arrive already lowered by what the cluster
+        // holds in flight; node-scoped ones were lowered by the scheduler thread before the request.
+        if (criteria.ExecutionLimits is { } limits)
+        {
+            await TakeExecutionSlots(conn, nextTriggers, limits.CreateSlots(criteria.ClusterInFlight), limits.UsesTriggerGroupWhenUnset, cancellationToken).ConfigureAwait(false);
+        }
+
+        return nextTriggers;
+    }
+
+    /// <summary>
+    /// Binds the acquisition statement's parameters, in the order the statement names them.
+    /// </summary>
+    private void BindTriggersToAcquireParameters(
+        DbCommand cmd,
+        TriggerAcquisitionCriteria criteria,
+        List<string>? excludedJobTypeNames,
+        int excludedJobTypeBucket,
+        ExecutionGroupClauseShape executionGroups)
+    {
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(StoredTriggerState.Waiting));
         AddCommandParameter(cmd, SqlParameters.NoLaterThan, GetDbDateTimeValue(criteria.NoLaterThan));
@@ -2234,11 +2259,14 @@ public partial class StdAdoDelegate
 
         // After the exclusions, which is where the template splices the clause.
         AddExecutionGroupParameters(cmd, executionGroups, criteria.ServedExecutionGroups ?? criteria.RefusedExecutionGroups);
+    }
 
-        // Work on a copy: the slots are decremented as rows are taken, and the caller may reuse the
-        // criteria across retries. Cluster-scoped limits arrive already lowered by what the cluster
-        // holds in flight; node-scoped ones were lowered by the scheduler thread before the request.
-        ExecutionSlots? executionSlots = criteria.ExecutionLimits?.CreateSlots(criteria.ClusterInFlight);
+    /// <summary>
+    /// Reads the acquisition statement's rows, up to <paramref name="maxCount" />, with no slot taken yet.
+    /// </summary>
+    private async ValueTask<List<TriggerAcquireResult>> ReadTriggersToAcquire(DbCommand cmd, int maxCount, CancellationToken cancellationToken)
+    {
+        List<TriggerAcquireResult> nextTriggers = new();
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         int execGroupOrdinal = -1;
@@ -2283,17 +2311,11 @@ public partial class StdAdoDelegate
                 ? null
                 : rs.GetString(execGroupOrdinal);
 
-            // Read before the limit check rather than after it: the limits may be configured to
-            // stand in the trigger group for an execution group the trigger does not carry.
+            // Carried for the limit check after the read: the limits may be configured to stand in the
+            // trigger group for an execution group the trigger does not carry.
             TriggerKey triggerKey = new(
                 rs.GetString(triggerNameOrdinal),
                 rs.GetString(triggerGroupOrdinal));
-
-            // A row whose group has no slot left is returned flagged rather than dropped: the statement
-            // above already limited the rows to the count asked for, so a row dropped here would be one
-            // the store never learns it read, and could not read past (#3928). It counts toward the row
-            // cap above for the same reason - it is a row this read returned.
-            bool executionGroupAtLimit = executionSlots is not null && !executionSlots.TryTake(executionGroup, triggerKey.Group);
 
             nextTriggers.Add(new TriggerAcquireResult(
                 triggerKey,
@@ -2303,7 +2325,6 @@ public partial class StdAdoDelegate
                 ConcurrentExecutionDisallowed = nonConcurrentOrdinal < 0
                     ? null
                     : GetBooleanFromDbValue(rs.GetValue(nonConcurrentOrdinal)),
-                ExecutionGroupAtLimit = executionGroupAtLimit,
                 NextFireTimeUtc = nextFireTimeOrdinal < 0
                     ? null
                     : GetDateTimeFromDbValue(rs.GetValue(nextFireTimeOrdinal)),
@@ -2314,6 +2335,49 @@ public partial class StdAdoDelegate
         }
 
         return nextTriggers;
+    }
+
+    /// <summary>
+    /// Takes a slot of the execution limits for each candidate, in the order the statement returned them,
+    /// and flags each one whose group has none left.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A row whose group has no slot left is returned flagged rather than dropped: the statement already
+    /// limited the rows to the count asked for, so a row dropped here would be one the store never learns
+    /// it read, and could not read past (#3928). It counted toward the row cap for the same reason - it is
+    /// a row the read returned.
+    /// </para>
+    /// <para>
+    /// After the read rather than during it, because a recovery trigger is limited under the group of the
+    /// trigger it replays, which only its data map says (#4142), and an open reader is in the way of a
+    /// second statement. Only an ungrouped candidate in the recovery group, under limits that derive a
+    /// group from the trigger group, costs that read.
+    /// </para>
+    /// </remarks>
+    private async ValueTask TakeExecutionSlots(
+        ConnectionAndTransactionHolder conn,
+        List<TriggerAcquireResult> candidates,
+        ExecutionSlots slots,
+        bool useTriggerGroupWhenUnset,
+        CancellationToken cancellationToken)
+    {
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            TriggerAcquireResult candidate = candidates[i];
+            string? limitTriggerGroup = null;
+            if (ExecutionLimits.NeedsOriginalTriggerGroup(candidate.ExecutionGroup, candidate.TriggerKey.Group, useTriggerGroupWhenUnset))
+            {
+                JobDataMap jobDataMap = await SelectTriggerJobDataMap(conn, candidate.TriggerKey, cancellationToken).ConfigureAwait(false);
+                limitTriggerGroup = ExecutionLimits.LimitTriggerGroup(candidate.TriggerKey, jobDataMap);
+            }
+
+            candidates[i] = candidate with
+            {
+                ExecutionGroupAtLimit = !slots.TryTake(candidate.ExecutionGroup, limitTriggerGroup ?? candidate.TriggerKey.Group),
+                LimitTriggerGroup = limitTriggerGroup,
+            };
+        }
     }
 
     /// <summary>

@@ -361,6 +361,56 @@ public sealed class ExecutionGroupsTest
             "...and so it counts against the default group's one slot");
     }
 
+    /// <summary>
+    /// A recovery trigger is stored in the recovery group, and its data map names the group of the trigger
+    /// it replays; with the derivation on, that is the group it is limited under (#4142).
+    /// </summary>
+    [Test]
+    public void ARecoveryTriggerIsLimitedUnderTheTriggerGroupItReplays()
+    {
+        ITrigger recovery = TriggerBuilder.Create()
+            .WithIdentity("recover_node-a_1", SchedulerConstants.DefaultRecoveryGroup)
+            .ForJob("job")
+            .UsingJobData(SchedulerConstants.FailedJobOriginalTriggerGroup, "reports")
+            .Build();
+
+        ExecutionLimits.ResolveGroupKeyOf(recovery, useTriggerGroupWhenUnset: true).Should().Be("reports",
+            "the replay is a firing of a 'reports' trigger, and is limited as one");
+        ExecutionLimits.ResolveGroupKeyOf(recovery, useTriggerGroupWhenUnset: false).Should().Be(ExecutionLimits.DefaultGroupKey,
+            "without the derivation an ungrouped replay is ungrouped, as the firing it replays was");
+    }
+
+    /// <summary>
+    /// Only the limit key of an ungrouped trigger in the recovery group reads the data map, and only when
+    /// it names a group.
+    /// </summary>
+    [Test]
+    public void OnlyAnUngroupedRecoveryTriggersDataMapNamesItsLimitGroup()
+    {
+        ITrigger ordinary = TriggerBuilder.Create()
+            .WithIdentity("t", "ingest")
+            .ForJob("job")
+            .UsingJobData(SchedulerConstants.FailedJobOriginalTriggerGroup, "reports")
+            .Build();
+        ITrigger unmarked = TriggerBuilder.Create()
+            .WithIdentity("recover_node-a_2", SchedulerConstants.DefaultRecoveryGroup)
+            .ForJob("job")
+            .Build();
+        ITrigger grouped = TriggerBuilder.Create()
+            .WithIdentity("recover_node-a_3", SchedulerConstants.DefaultRecoveryGroup)
+            .ForJob("job")
+            .WithExecutionGroup("gpu")
+            .UsingJobData(SchedulerConstants.FailedJobOriginalTriggerGroup, "reports")
+            .Build();
+
+        ExecutionLimits.ResolveGroupKeyOf(ordinary, useTriggerGroupWhenUnset: true).Should().Be("ingest",
+            "the key the data map carries means something only on a recovery trigger");
+        ExecutionLimits.ResolveGroupKeyOf(unmarked, useTriggerGroupWhenUnset: true).Should().Be(SchedulerConstants.DefaultRecoveryGroup,
+            "a recovery trigger whose data map names no group has only its own to go by");
+        ExecutionLimits.ResolveGroupKeyOf(grouped, useTriggerGroupWhenUnset: true).Should().Be("gpu",
+            "an explicit execution group always wins, the one #4084 keeps on a replay among them");
+    }
+
     [Test]
     public void CreateSlots_LeavesTheSnapshotAlone()
     {
