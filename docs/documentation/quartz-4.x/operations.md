@@ -732,7 +732,8 @@ Since 4.6 a firing round on a persistent store takes `TRIGGER_ACCESS` only when 
 lock. A round of triggers whose jobs allow concurrent execution claims each row with a compare-and-swap on
 its fire time and fires in the same transaction, with no cluster-wide lock, so the nodes of a cluster fire
 side by side. `LockFreeFiringRounds = false` (`quartz.jobStore.lockFreeFiringRounds`) restores 4.5. On
-SQL Server, rounds work as in 4.5 in this release ([#4117](https://github.com/quartznet/quartznet/issues/4117)).
+SQL Server, since 4.7, they need [`READ_COMMITTED_SNAPSHOT`](db/index.md#sql-server-read-committed-snapshot)
+on; see [SQL Server](#sql-server) below.
 
 What still takes the lock, by the `quartz.jobstore.lock.reason` value that reports it:
 
@@ -741,7 +742,7 @@ What still takes the lock, by the `quartz.jobstore.lock.reason` value that repor
 | `serial_job` | A candidate's job disallows concurrent execution | Nothing |
 | `overlap_policy` | A candidate's trigger has `Skip`, `BufferOne` or `CancelPrevious`, or is [measured from completion](tutorial/simpletriggers.md#measured-from-completion) | Nothing; `Default` and `AllowAll` need no lock |
 | `cluster_limit` | The node has a cluster-scoped execution limit | Nothing; the lock is what makes the ceiling exact |
-| `older_peer` | A live node is older than 4.6, or this node has not checked in yet | Finish the rolling upgrade; see below |
+| `older_peer` | A live node is older than 4.6 (4.7 on SQL Server), or this node has not checked in yet | Finish the rolling upgrade; see below |
 | `hysteresis` | The round before this one escalated | Nothing; a locked round that needed the lock for nothing ends it |
 | `contention` | A round without the lock lost a claim to another node | Nothing; a locked round that comes back short ends it, or 2 s |
 | `definition_changed` | A job or trigger was replaced between the round's read and its claim, or moved to an execution group this node does not serve | Nothing; the round ran again under the lock |
@@ -750,7 +751,7 @@ What still takes the lock, by the `quartz.jobstore.lock.reason` value that repor
 | `delegate` | The driver delegate takes no part in fire-on-acquire rounds | Derive from a shipped delegate |
 | `lock_all_operations` | SQLite | Nothing |
 | `option_off` | `LockFreeFiringRounds = false` | Turn it on |
-| `sql_server` | SQL Server, whose rounds work as in 4.5 in this release | Nothing; [#4117](https://github.com/quartznet/quartznet/issues/4117) tracks it |
+| `read_committed_snapshot_off` | SQL Server, and the database has `READ_COMMITTED_SNAPSHOT` off, or the store could not read it | [Turn it on](db/index.md#sql-server-read-committed-snapshot) |
 
 A round decides from its first read. A candidate only the lock decides rolls the round back before its
 first write and runs it again locked (event 3057, Debug); a job or trigger found changed after the claim
@@ -770,7 +771,33 @@ see whether the nodes still contend.
 | `quartz.trigger.acquisition.duration`, `quartz.trigger.acquired` | `quartz.jobstore.lock`: `none` or `TRIGGER_ACCESS`; `quartz.jobstore.lock.reason` on a locked round |
 | `Quartz.JobStore.AcquireNextTriggers` span | The same two attributes |
 | Event 3056 at startup | Whether the store's configuration allows lock-free rounds at all, and what locks every round if not |
-| Events 3517 and 3518 | A cluster's rounds locked for an older node, and freed once every live node is 4.6 |
+| Events 3517 and 3518 | A cluster's rounds locked for an older node, and freed once every live node is 4.6 (4.7 on SQL Server) |
+| Events 3062 and 3063 | A SQL Server round's fire handed to the scheduler under the lock |
+
+### SQL Server
+
+A round takes no lock on SQL Server only while the database has
+[`READ_COMMITTED_SNAPSHOT`](db/index.md#sql-server-read-committed-snapshot) on. Without it, every round
+is 4.5's, reason `read_committed_snapshot_off`.
+
+With it, a round without the lock is two transactions, neither under the lock:
+
+| Transaction | What it does |
+|---|---|
+| Claim | Reads the candidates, claims each row with a compare-and-swap on its fire time, and reserves every trigger it claimed |
+| Fire | Claims the due rows again, from `ACQUIRED` at the fire time the claim held them to, reads them, and fires them |
+
+- A row paused, deleted or rescheduled between the two is not fired. The scheduler releases its
+  reservation.
+- A job made serial, or a trigger given a `Skip`, `BufferOne` or `CancelPrevious` policy or measured from
+  completion, between the two sends the round's due triggers back to the scheduler, which fires them under
+  the lock (event 3062, Warning). So does a fire that fails (event 3063, Warning).
+- Every live node has to be 4.7. A 4.6 node locks every SQL Server round, and while one is live its 4.7
+  peers do too (`older_peer`).
+- A locked round is unchanged: a round of one is 4.5's two transactions, and a larger one is folded
+  under the lock.
+
+The other databases keep the folded round: claim and fire in one transaction.
 
 ### Rolling upgrade from 4.5
 
