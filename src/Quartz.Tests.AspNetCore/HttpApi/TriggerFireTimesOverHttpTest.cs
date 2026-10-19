@@ -85,6 +85,28 @@ public sealed class TriggerFireTimesOverHttpTest
         answer.RootElement.GetProperty("fireTimesUtc").GetArrayLength().Should().Be(10, "ten is the documented default");
     }
 
+    [Test]
+    public async Task ATriggerMeasuredFromCompletionIsAnsweredWithItsNextFireTimeAlone()
+    {
+        Api api = await StartApi();
+        IScheduler scheduler = schedulers[^1];
+        await scheduler.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity("fixed-delay", "reports")
+            .ForJob(jobKey)
+            .StartAt(new DateTimeOffset(2030, 10, 5, 0, 0, 0, TimeSpan.Zero))
+            .WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromMinutes(5)).RepeatForever().MeasureIntervalFromCompletion())
+            .Build());
+
+        using HttpResponseMessage response = await api.Get("reports/fixed-delay/fire-times?count=10");
+        string body = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK, body);
+        using JsonDocument answer = JsonDocument.Parse(body);
+        answer.RootElement.GetProperty("fireTimesUtc").EnumerateArray().Select(element => element.GetString()).Should().Equal(
+            ["2030-10-05T00:00:00+00:00"],
+            "each run after the next starts five minutes after the one before it completes, which the host cannot know yet");
+    }
+
     [TestCase(0)]
     [TestCase(101)]
     public async Task ACountOutsideOneToAHundredIsA400(int count)

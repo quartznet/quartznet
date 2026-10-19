@@ -52,8 +52,8 @@ public class TriggerDetailPageTest
 
         page.Find("#trigger-cron-expression").GetAttribute("value").Should().Be("0/25 * * * * ?",
             "the editor starts from the schedule the trigger is running with");
-        page.Markup.Should().Contain("Upcoming cron fires",
-            "the page previews the expression so a reader can see what it means before saving");
+        page.Markup.Should().NotContain("Upcoming cron fires",
+            "the preview is of an edit, and until there is one the saved schedule's fires are Upcoming fires");
     }
 
     [Test]
@@ -200,8 +200,9 @@ public class TriggerDetailPageTest
         page.HasButton("Unschedule").Should().BeFalse();
         page.Markup.Should().NotContain("Edit cron schedule",
             "a read-only dashboard shows the schedule but does not offer to change it");
-        page.Markup.Should().Contain("Upcoming cron fires",
+        page.Markup.Should().Contain("Upcoming fires",
             "reading the schedule is exactly what a read-only dashboard is for");
+        page.Markup.Should().NotContain("Upcoming cron fires", "with no editor there is no edit to preview");
     }
 
     [Test]
