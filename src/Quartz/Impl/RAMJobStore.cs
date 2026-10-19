@@ -2199,19 +2199,25 @@ public sealed class RAMJobStore : IJobStore
     {
         Dictionary<(string? ExecutionGroup, string TriggerGroup), int> counts = new();
 
+        // Each under the trigger group its limit derives from, which for a recovery trigger is the group
+        // of the trigger it replays (#4142), as acquisition takes its slot.
         foreach (TriggerWrapper tw in triggersByKey.Values)
         {
             if (tw.state == StoredTriggerState.Acquired)
             {
-                CountOne(counts, tw.Trigger.ExecutionGroup, tw.TriggerKey.Group);
+                CountOne(counts, tw.Trigger.ExecutionGroup, ExecutionLimits.LimitTriggerGroup(tw.Trigger));
             }
         }
 
         foreach (KeyValuePair<TriggerKey, Dictionary<string, FireInstanceEntry>> byTrigger in executingFireInstances)
         {
+            string triggerGroup = triggersByKey.TryGetValue(byTrigger.Key, out TriggerWrapper? running)
+                ? ExecutionLimits.LimitTriggerGroup(running.Trigger)
+                : byTrigger.Key.Group;
+
             foreach (FireInstanceEntry entry in byTrigger.Value.Values)
             {
-                CountOne(counts, entry.ExecutionGroup, byTrigger.Key.Group);
+                CountOne(counts, entry.ExecutionGroup, triggerGroup);
             }
         }
 
@@ -3542,8 +3548,10 @@ public sealed class RAMJobStore : IJobStore
             if (executionSlots is not null)
             {
                 // The trigger group goes along because the limits may be configured to stand in for
-                // an execution group the trigger does not carry.
-                if (!executionSlots.TryTake(tw.Trigger.ExecutionGroup, tw.TriggerKey.Group))
+                // an execution group the trigger does not carry - a recovery trigger's being the group
+                // of the trigger it replays (#4142).
+                string limitTriggerGroup = ExecutionLimits.LimitTriggerGroup(tw.Trigger);
+                if (!executionSlots.TryTake(tw.Trigger.ExecutionGroup, limitTriggerGroup))
                 {
                     excludedTriggers ??= [];
                     excludedTriggers.Add(tw);
@@ -3554,7 +3562,7 @@ public sealed class RAMJobStore : IJobStore
                     groupsAtLimit ??= new HashSet<string>(StringComparer.Ordinal);
                     groupsAtLimit.Add(ExecutionLimits.ResolveGroupKey(
                         tw.Trigger.ExecutionGroup,
-                        tw.TriggerKey.Group,
+                        limitTriggerGroup,
                         request.ExecutionLimits!.UsesTriggerGroupWhenUnset));
                     continue;
                 }

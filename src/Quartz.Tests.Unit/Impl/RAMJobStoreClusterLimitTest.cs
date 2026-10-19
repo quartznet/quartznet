@@ -220,6 +220,41 @@ public class RAMJobStoreClusterLimitTest
         round.GroupsAtLimit.Should().BeEquivalentTo([TriggerGroup], "the trigger carries no execution group, so the limits stood its trigger group in");
     }
 
+    /// <summary>
+    /// A recovered firing in flight is counted under the group of the trigger it replays, which its data map
+    /// names, not under the recovery group (#4142): reserved or running, it holds that group's slot.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task ARecoveredFiringInFlightHoldsTheSlotOfTheTriggerGroupItReplays(bool started)
+    {
+        IJobDetail job = JobBuilder.Create<ClusterLimitTestJob>().WithIdentity("recovered", "jobs").Build();
+        IOperableTrigger recovery = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("recover_dead-node_1", SchedulerConstants.DefaultRecoveryGroup)
+            .ForJob(job)
+            .UsingJobData(SchedulerConstants.FailedJobOriginalTriggerGroup, TriggerGroup)
+            .StartNow()
+            .Build();
+        recovery.ComputeFirstFireTimeUtc(calendar: null);
+        await store.ScheduleJob(job, recovery);
+
+        List<IOperableTrigger> first = await AcquireWith(limits: null, maxCount: 1);
+        if (started)
+        {
+            await store.TriggersFired(first);
+        }
+
+        await GivenDueTrigger("candidate", executionGroup: null);
+
+        List<IOperableTrigger> acquired = await AcquireWith(ExecutionLimitsBuilder.Create()
+            .ForGroup(TriggerGroup, 1, ExecutionLimitScope.Cluster)
+            .UseTriggerGroupWhenUnset()
+            .Build());
+
+        acquired.Should().BeEmpty(
+            "the replay is a firing of a trigger in the candidate's group, so it holds that group's one cluster-wide slot");
+    }
+
     private static ExecutionLimits ClusterLimit(int maxConcurrent)
     {
         return ExecutionLimitsBuilder.Create()

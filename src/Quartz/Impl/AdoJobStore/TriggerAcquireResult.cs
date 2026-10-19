@@ -104,4 +104,14 @@ public readonly record struct TriggerAcquireResult(TriggerKey TriggerKey, string
     /// nothing is known.
     /// </remarks>
     public OverlapPolicy? OverlapPolicy { get; init; }
+
+    /// <summary>
+    /// The trigger group the execution limits derived this candidate's key from, when it is not the
+    /// candidate's own: a recovery trigger's original group (#4142). <see langword="null" /> otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Internal: only the store reads it, to name a held-back candidate's group by the key the scheduler
+    /// counts that group's firings under, so that one of them ending wakes the scheduler for it (#4033).
+    /// </remarks>
+    internal string? LimitTriggerGroup { get; init; }
 }
