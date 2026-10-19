@@ -123,6 +123,64 @@ public sealed class RecoveredLimitGroupSqliteTest
     }
 
     /// <summary>
+    /// A node killed again while it runs the replay its startup made replays that replay on its next start,
+    /// and the new recovery trigger still names the first firing, as cluster recovery's does: named after the
+    /// replay instead, it lost the original group, and with it the limit the replay counts against.
+    /// </summary>
+    [Test]
+    public async Task StartupRecoveryOfAReplayKeepsTheFiringItReplays()
+    {
+        await using (ServiceProvider killed = BuildNode("one"))
+        {
+            await LeaveAFiringBehind(killed);
+        }
+
+        TriggerFiredBundle firstReplay;
+        await using (ServiceProvider killedAgain = BuildNode("one"))
+        {
+            IScheduler scheduler = await killedAgain.GetRequiredService<ISchedulerFactory>().GetScheduler();
+            IJobStore store = killedAgain.GetRequiredService<IJobStore>();
+            await store.SchedulerStarted();
+            try
+            {
+                firstReplay = await FireWhatIsDue(store);
+            }
+            finally
+            {
+                await scheduler.Shutdown(waitForJobsToComplete: false);
+            }
+        }
+
+        firstReplay.Trigger.Key.Group.Should().Be(SchedulerConstants.DefaultRecoveryGroup, "the premise: the first start replays the firing");
+
+        await using ServiceProvider restarted = BuildNode("one");
+        IScheduler third = await restarted.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        IJobStore thirdStore = restarted.GetRequiredService<IJobStore>();
+        await thirdStore.SchedulerStarted();
+        try
+        {
+            List<TriggerKey> recoveries = await third.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultRecoveryGroup));
+            TriggerKey secondReplay = recoveries.Should().ContainSingle("the replay that never completed is replayed, and the spent one removed").Which;
+            secondReplay.Should().NotBe(firstReplay.Trigger.Key);
+
+            JobDataMap markers = (await third.GetTrigger(secondReplay))!.JobDataMap;
+            markers.GetString(SchedulerConstants.FailedJobOriginalTriggerName).Should().Be(triggerKey.Name,
+                "the second replay stands for the same firing as the first, not for the first replay");
+            markers.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup).Should().Be(Tenant,
+                "the original group is what an ungrouped replay's limit is derived from");
+            markers.GetString(SchedulerConstants.FailedJobOriginalTriggerFireTime).Should().Be(
+                firstReplay.Trigger.JobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerFireTime),
+                "and the time the original firing fired, which the first replay carried");
+
+            await TheReplayWaitsForASlotOfItsTriggerGroup(thirdStore);
+        }
+        finally
+        {
+            await third.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
     /// The in-flight half: while the replay runs it holds its trigger group's slot across the cluster, so a
     /// due trigger of the same group waits. The cluster count reads fired rows, and a replay's row is in the
     /// recovery group.
@@ -272,6 +330,23 @@ public sealed class RecoveredLimitGroupSqliteTest
             TimeWindow = TimeSpan.Zero
         });
         acquired.Should().ContainSingle().Which.Key.Should().Be(key);
+
+        List<TriggerFiredResult> fired = await store.TriggersFired(acquired);
+        return fired.Should().ContainSingle().Which.TriggerFiredBundle!;
+    }
+
+    /// <summary>
+    /// Acquires and fires the one trigger that is due through the store, whatever its key.
+    /// </summary>
+    private static async Task<TriggerFiredBundle> FireWhatIsDue(IJobStore store)
+    {
+        List<IOperableTrigger> acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = TimeProvider.System.GetUtcNow().AddMinutes(1),
+            MaxCount = 1,
+            TimeWindow = TimeSpan.Zero
+        });
+        acquired.Should().ContainSingle();
 
         List<TriggerFiredResult> fired = await store.TriggersFired(acquired);
         return fired.Should().ContainSingle().Which.TriggerFiredBundle!;
