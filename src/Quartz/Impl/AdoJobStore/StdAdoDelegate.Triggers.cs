@@ -1493,9 +1493,16 @@ public partial class StdAdoDelegate
         trigger.NextFireTimeUtc = row.NextFireTimeUtc;
         trigger.PreviousFireTimeUtc = row.PreviousFireTimeUtc;
 
-        if (row.MisfireOriginalFireTime.HasValue && trigger is TriggerBase at)
+        if (trigger is TriggerBase at)
         {
-            at.MisfiredFromFireTimeUtc = row.MisfireOriginalFireTime;
+            // The zone the trigger was stored with, as the instruction above is, even off a row whose
+            // zone column is empty: a stored trigger keeps its zone wherever it is scheduled next.
+            at.TimeZoneStated = true;
+
+            if (row.MisfireOriginalFireTime.HasValue)
+            {
+                at.MisfiredFromFireTimeUtc = row.MisfireOriginalFireTime;
+            }
         }
     }
 

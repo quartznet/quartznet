@@ -1626,6 +1626,7 @@ namespace Quartz
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder ServeExecutionGroups(this Quartz.IQuartzBuilder builder, params string[] groups) { }
         public static Quartz.IQuartzBuilder UseDefaultRetryPolicy(this Quartz.IQuartzBuilder builder, Quartz.RetryPolicy policy) { }
+        public static Quartz.IQuartzBuilder UseDefaultTimeZone(this Quartz.IQuartzBuilder builder, System.TimeZoneInfo timeZone) { }
         public static Quartz.IQuartzBuilder UseExecutionLimits(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ExecutionLimitsBuilder> configure) { }
         public static Quartz.IQuartzBuilder UseExecutionLogCapture(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ExecutionLogCaptureOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseSimpleTypeLoader(this Quartz.IQuartzBuilder builder) { }
@@ -1715,6 +1716,7 @@ namespace Quartz
         public System.TimeSpan BatchTriggerAcquisitionFireAheadTimeWindow { get; set; }
         public System.Collections.Generic.Dictionary<string, string> Context { get; }
         public Quartz.DefaultMisfireHandling DefaultMisfireHandling { get; set; }
+        public System.TimeZoneInfo? DefaultTimeZone { get; set; }
         public bool GenerateInstanceId { get; set; }
         public System.TimeSpan IdleWaitTime { get; set; }
         public string InstanceId { get; set; }

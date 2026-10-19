@@ -858,6 +858,12 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     public TimeZoneInfo TimeZone => timeZone ?? TimeZoneInfo.Local;
 
     /// <summary>
+    /// Whether this expression was given a time zone, rather than reading as the local one because it was
+    /// given none. A cron trigger built from it states its zone only then.
+    /// </summary>
+    internal bool TimeZoneStated => timeZone is not null;
+
+    /// <summary>
     /// Returns a copy of this expression resolved in the given time zone.
     /// </summary>
     /// <param name="timeZone">The time zone the copy's times are resolved in;

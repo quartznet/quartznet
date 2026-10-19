@@ -78,6 +78,16 @@
       of its ten values without a word.
     -->
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <!--
+      QuartzSchedulerOptions.DefaultTimeZone is a TimeZoneInfo, which the generator cannot construct
+      (SYSLIB1100), so it skips the property (SYSLIB1101); a file writes it as an id, and
+      DefaultTimeZoneSetting reads that one. Neither #pragma nor a per-file .editorconfig severity reaches
+      a generator's diagnostics - both were tried - so this is the one place they can be turned off. What
+      they guarded is still guarded: ConfigurationBindingIsSourceGeneratedTest
+      writes every member of every bound options type into configuration and reads it back, so a member
+      the generator skips without a reader of its own fails it.
+    -->
+    <NoWarn>$(NoWarn);SYSLIB1100;SYSLIB1101</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

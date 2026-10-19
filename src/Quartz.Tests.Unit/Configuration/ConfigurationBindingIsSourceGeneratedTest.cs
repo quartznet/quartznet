@@ -372,6 +372,13 @@ public class ConfigurationBindingIsSourceGeneratedTest
             return Enum.GetNames(type).Last(name => !Equals(Enum.Parse(type, name), current));
         }
 
+        if (type == typeof(TimeZoneInfo))
+        {
+            // Written as an id, which the generator cannot bind and QuartzTypedOptions reads beside it: the
+            // split binding this test asks for of a member configuration cannot express as an object.
+            return current is TimeZoneInfo { BaseUtcOffset.Hours: 9 } ? "UTC" : "Asia/Tokyo";
+        }
+
         return null;
     }
 
@@ -397,6 +404,11 @@ public class ConfigurationBindingIsSourceGeneratedTest
         if (type == typeof(TimeSpan))
         {
             return TimeSpan.Parse(sample, CultureInfo.InvariantCulture);
+        }
+
+        if (type == typeof(TimeZoneInfo))
+        {
+            return TimeZones.FindById(sample);
         }
 
         return Enum.Parse(type, sample);

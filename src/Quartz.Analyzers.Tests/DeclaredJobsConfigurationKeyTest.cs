@@ -186,6 +186,25 @@ public class DeclaredJobsConfigurationKeyTest
     }
 
     /// <summary>
+    /// A declared schedule that names no zone states none, so the scheduler's default zone applies to it;
+    /// one that names a zone keeps it (#4135).
+    /// </summary>
+    [Test]
+    public async Task AScheduleNamingNoZoneTakesTheSchedulersDefault()
+    {
+        TimeZoneInfo tokyo = TimeZones.FindById("Asia/Tokyo");
+        await using Built built = await Build(configuration: null, q => q.UseDefaultTimeZone(tokyo));
+
+        ICronTrigger cleanup = (ICronTrigger) (await built.Scheduler.GetTrigger(new TriggerKey("cleanup")))!;
+        cleanup.TimeZone.Should().Be(tokyo, "the generator writes InTimeZone only for an attribute that names a TimeZone");
+        TimeZoneInfo.ConvertTime(cleanup.NextFireTimeUtc!.Value, tokyo).TimeOfDay.Should().Be(TimeSpan.FromHours(3),
+            "the first fire time is read in the zone the default gave the trigger");
+
+        ICronTrigger noon = (ICronTrigger) (await built.Scheduler.GetTrigger(new TriggerKey("noon")))!;
+        noon.TimeZone.Id.Should().Be(TimeZones.FindById("UTC").Id, "a TimeZone written on the attribute is stated");
+    }
+
+    /// <summary>
     /// The loud failure: a configured value the parser refuses is an exception while the scheduler is
     /// built, naming the value, rather than a trigger that is registered and never fires.
     /// </summary>
@@ -221,7 +240,7 @@ public class DeclaredJobsConfigurationKeyTest
     /// Runs the generator, loads what it wrote, and builds a scheduler with the generated
     /// <c>AddDeclaredJobs</c> — the registration an application's own build would produce.
     /// </summary>
-    private static async Task<Built> Build(IReadOnlyDictionary<string, string?>? configuration)
+    private static async Task<Built> Build(IReadOnlyDictionary<string, string?>? configuration, Action<IQuartzBuilder>? configure = null)
     {
         GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Snippet(Declarations));
         Assembly generated = run.Load();
@@ -236,7 +255,11 @@ public class DeclaredJobsConfigurationKeyTest
         }
 
         string schedulerName = "declared-" + Guid.NewGuid().ToString("N");
-        services.AddQuartz(schedulerName, q => addDeclaredJobs.Invoke(null, [q]));
+        services.AddQuartz(schedulerName, q =>
+        {
+            configure?.Invoke(q);
+            addDeclaredJobs.Invoke(null, [q]);
+        });
 
         ServiceProvider provider = services.BuildServiceProvider();
         try

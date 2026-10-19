@@ -68,15 +68,22 @@ public sealed class RecurrenceScheduleBuilder : IScheduleBuilder
         {
             trigger.MisfireInstructionCode = stated;
         }
-        trigger.triggerTimeZone = timeZone;
+        // Only a zone somebody named: a builder never given one leaves the trigger's zone unstated, so the
+        // scheduler's default applies to it.
+        if (timeZone is not null)
+        {
+            trigger.TimeZone = timeZone;
+        }
+
         return trigger;
     }
 
     /// <summary>
     /// Set the time zone for recurrence calculations.
     /// </summary>
-    /// <param name="timeZone">the time-zone for the schedule; <see langword="null" /> means the
-    /// system's local time zone.</param>
+    /// <param name="timeZone">the time-zone for the schedule. <see langword="null" />, like never calling
+    /// this, names none: the scheduler's <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> applies when
+    /// the trigger is stored, and the system's local time zone when that is not set.</param>
     public RecurrenceScheduleBuilder InTimeZone(TimeZoneInfo? timeZone)
     {
         this.timeZone = timeZone;

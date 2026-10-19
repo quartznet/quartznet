@@ -358,6 +358,13 @@ internal sealed class QuartzSchedulerResources
     public DefaultMisfireHandling DefaultMisfireHandling { get; set; }
 
     /// <summary>
+    /// The time zone a trigger whose own zone nobody stated is given when it is scheduled, as
+    /// <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> set it; <see langword="null" /> leaves such a
+    /// trigger reading as <see cref="TimeZoneInfo.Local" />.
+    /// </summary>
+    public TimeZoneInfo? DefaultTimeZone { get; set; }
+
+    /// <summary>
     /// Which execution groups this node serves, as <see cref="QuartzSchedulerOptions.ServedExecutionGroups" />
     /// or <see cref="QuartzSchedulerOptions.RefusedExecutionGroups" /> configured it;
     /// <see langword="null" /> for a node that serves every group.

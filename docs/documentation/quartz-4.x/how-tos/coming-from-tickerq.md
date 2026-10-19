@@ -81,7 +81,7 @@ await scheduler.ScheduleJob<SendWelcomeEmailJob, string>(
 | `app.UseTickerQ()` | `builder.AddQuartzHostedService()` |
 | `app.UseTickerQ(TickerQStartMode.Manual)` | `builder.AddQuartzHostedService(o => o.AutoStart = false)`, then `scheduler.Start()` |
 | `s.MaxConcurrency = 16` | `q.UseDefaultThreadPool(maxConcurrency: 16)` |
-| `s.SchedulerTimeZone = …` | `InTimeZone(…)` on each trigger — there is no scheduler-wide zone |
+| `s.SchedulerTimeZone = …` | `q.UseDefaultTimeZone(…)`, from 4.7; `InTimeZone(…)` on a trigger overrides it |
 | `s.NodeIdentifier = …` | `QuartzSchedulerOptions.InstanceId`, and [`PreferredNode`](../tutorial/node-affinity.md) to pin a trigger to a node |
 | `s.MinPollingInterval` | `IdleWaitTime` — a ceiling, not a floor: see [below](#there-is-no-polling-floor) |
 | `s.FallbackIntervalChecker` | the misfire handler, whose cadence follows `MisfireThreshold` |
@@ -115,8 +115,11 @@ at its stated cadence, including one TickerQ was rounding up. See
 
 ### Time zones are per trigger, and the default is the machine's
 
-Both default to the machine's zone (TickerQ's `SchedulerTimeZone`, Quartz's `TimeZoneInfo.Local` per cron
-trigger), but Quartz has no scheduler-wide setting. Set `InTimeZone(…)` explicitly on every trigger.
+Both default to the machine's zone (TickerQ's `SchedulerTimeZone`, Quartz's `TimeZoneInfo.Local`). From 4.7,
+`q.UseDefaultTimeZone(…)` is the scheduler-wide setting: every cron, calendar-interval, daily and
+recurrence trigger that names no zone takes it, and `InTimeZone(…)` on a trigger wins. On 4.6 and earlier,
+set `InTimeZone(…)` on every trigger. See
+[The scheduler's default time zone](../tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone).
 
 ### A missed occurrence is a decision, not a late run
 

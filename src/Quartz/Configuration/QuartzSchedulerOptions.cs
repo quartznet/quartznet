@@ -169,6 +169,32 @@ public sealed class QuartzSchedulerOptions
     public DefaultMisfireHandling DefaultMisfireHandling { get; set; }
 
     /// <summary>
+    /// The time zone a cron, calendar-interval, daily time-interval or recurrence trigger is given when
+    /// nobody stated one for it. Defaults to <see langword="null" />, which leaves such a trigger in
+    /// <see cref="TimeZoneInfo.Local" />, as every trigger was before there was a default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A zone a builder's <c>InTimeZone</c>, a cron expression, an attribute, the JSON or XML schedule, or a
+    /// stored or deserialized trigger stated - <see cref="TimeZoneInfo.Local" /> included - is left alone.
+    /// A trigger an <c>HttpScheduler</c> sends is deserialized on the host, so it keeps the zone the client
+    /// gave it, and the host's default does not apply.
+    /// </para>
+    /// <para>
+    /// Resolved as the trigger is stored, before its first fire time is computed, so the stored zone is
+    /// explicit, it changes no trigger already in a store, and every node, an older one included, reads the
+    /// same zone. Each node of a cluster applies its own default to what it schedules, so set the same one
+    /// on every node.
+    /// </para>
+    /// <para>
+    /// A configuration file writes it as an id <see cref="TimeZones.FindById" /> resolves, IANA or Windows:
+    /// <c>Quartz:Scheduler:DefaultTimeZone</c>, or the flat <c>quartz.scheduler.defaultTimeZone</c> key. An
+    /// id the system cannot resolve fails the scheduler's start.
+    /// </para>
+    /// </remarks>
+    public TimeZoneInfo? DefaultTimeZone { get; set; }
+
+    /// <summary>
     /// Values seeded into <see cref="SchedulerContext"/> when the scheduler is created.
     /// </summary>
     /// <remarks>Replaces the <c>quartz.context.key.*</c> property keys.</remarks>

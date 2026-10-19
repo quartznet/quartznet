@@ -128,7 +128,8 @@ public class OptionsConventionTest
     private static readonly HashSet<Type> scalarTypes =
     [
         typeof(string), typeof(decimal), typeof(TimeSpan), typeof(DateTime), typeof(DateTimeOffset),
-        typeof(TimeOnly), typeof(DateOnly), typeof(Guid), typeof(Uri), typeof(Type), typeof(Version)
+        typeof(TimeOnly), typeof(DateOnly), typeof(Guid), typeof(Uri), typeof(Type), typeof(Version),
+        typeof(TimeZoneInfo)
     ];
 
     /// <summary>

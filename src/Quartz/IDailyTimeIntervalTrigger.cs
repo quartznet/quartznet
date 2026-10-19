@@ -120,7 +120,8 @@ public interface IDailyTimeIntervalTrigger : ITrigger
     /// Gets the time zone within which time calculations related to this trigger will be performed.
     /// </summary>
     /// <remarks>
-    /// If null, the system default TimeZone will be used.
+    /// A trigger nobody gave a zone reads as <see cref="TimeZoneInfo.Local" /> until a scheduler stores it,
+    /// which gives it <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> when that is set.
     /// </remarks>
     TimeZoneInfo TimeZone { get; }
 }

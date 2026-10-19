@@ -56,6 +56,9 @@ public class RecurrenceTriggerImpl : TriggerBase, IRecurrenceTrigger
     /// <summary>
     /// The time zone for recurrence calculations.
     /// </summary>
+    /// <remarks>
+    /// Setting a zone states it, and null names none, as on <see cref="CronTriggerImpl.TimeZone" />.
+    /// </remarks>
     public TimeZoneInfo TimeZone
     {
         get
@@ -66,7 +69,11 @@ public class RecurrenceTriggerImpl : TriggerBase, IRecurrenceTrigger
             }
             return triggerTimeZone;
         }
-        set => triggerTimeZone = value;
+        set
+        {
+            triggerTimeZone = value;
+            TimeZoneStated = value is not null;
+        }
     }
 
     /// <summary>
@@ -354,8 +361,13 @@ public class RecurrenceTriggerImpl : TriggerBase, IRecurrenceTrigger
     /// <inheritdoc/>
     public override IScheduleBuilder GetScheduleBuilder()
     {
-        RecurrenceScheduleBuilder sb = RecurrenceScheduleBuilder.Create(recurrenceRuleString)
-            .InTimeZone(TimeZone);
+        RecurrenceScheduleBuilder sb = RecurrenceScheduleBuilder.Create(recurrenceRuleString);
+
+        // Only a stated zone, as CronTriggerImpl.GetScheduleBuilder says.
+        if (TimeZoneStated)
+        {
+            sb.InTimeZone(TimeZone);
+        }
 
         // Only a stated instruction, as SimpleTriggerImpl.GetScheduleBuilder says.
         RecurrenceTriggerMisfireInstruction instruction = MisfireInstruction;

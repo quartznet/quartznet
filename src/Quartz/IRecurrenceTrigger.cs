@@ -30,8 +30,11 @@ public interface IRecurrenceTrigger : ITrigger
 
     /// <summary>
     /// The time zone within which recurrence calculations are performed.
-    /// Defaults to <see cref="TimeZoneInfo.Local"/> if not set.
     /// </summary>
+    /// <remarks>
+    /// A trigger nobody gave a zone reads as <see cref="TimeZoneInfo.Local" /> until a scheduler stores it,
+    /// which gives it <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> when that is set.
+    /// </remarks>
     TimeZoneInfo TimeZone { get; }
 
     /// <summary>

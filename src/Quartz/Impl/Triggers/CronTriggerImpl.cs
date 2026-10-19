@@ -192,14 +192,14 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// Create a <see cref="CronTriggerImpl" /> with no settings.
     /// </summary>
     /// <remarks>
-    /// The start-time will also be set to the current time, and the time zone
-    /// will be set to the system's default time zone.
+    /// The start-time will also be set to the current time. No time zone is stated: the trigger reads as
+    /// the system's local zone until one is, and a scheduler storing it gives it
+    /// <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> when that is set.
     /// </remarks>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     public CronTriggerImpl(TimeProvider? timeProvider = null) : base(timeProvider)
     {
         StartTimeUtc = TimeProvider.GetUtcNow();
-        TimeZone = TimeZoneInfo.Local;
     }
 
     /// <summary>
@@ -222,8 +222,8 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// expression.
     /// </summary>
     /// <remarks>
-    /// The start-time will also be set to the current time, and the time zone
-    /// will be set to the system's default time zone. Everything else this trigger
+    /// The start-time will also be set to the current time, and no time zone is stated, as with the
+    /// parameterless constructor. Everything else this trigger
     /// needs is a settable property, so the object-initializer form
     /// <c>new CronTriggerImpl { Key = ..., JobKey = ..., EndTimeUtc = ... }</c> replaces
     /// the constructor overloads that used to spell out each combination.
@@ -238,7 +238,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
         Key = new TriggerKey(name, group);
         CronExpressionString = cronExpression;
         StartTimeUtc = TimeProvider.GetUtcNow();
-        TimeZone = TimeZoneInfo.Local;
     }
 
     /// <summary>
@@ -250,8 +249,11 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
         if (cronEx is not null)
         {
             // CronExpression is immutable, so the copy shares this instance; assigning through the
-            // property keeps the copy's own time zone field in step with it.
+            // property keeps the copy's own time zone field in step with it. The expression says only
+            // whether it carries a zone, and the copy is the same trigger, so it keeps this one's
+            // statedness rather than the expression's.
             copy.CronExpression = cronEx;
+            copy.TimeZoneStated = TimeZoneStated;
         }
         return copy;
     }
@@ -259,14 +261,14 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// <summary>
     /// Gets or sets the cron expression string.
     /// </summary>
+    /// <remarks>
+    /// The new expression keeps the trigger's time zone, and carries it only when it was stated, so an
+    /// unstated zone stays unstated.
+    /// </remarks>
     /// <value>The cron expression string.</value>
     public string? CronExpressionString
     {
-        set
-        {
-            TimeZoneInfo originalTimeZone = TimeZone;
-            cronEx = new CronExpression(value!, originalTimeZone);
-        }
+        set => cronEx = new CronExpression(value!, TimeZoneStated ? TimeZone : null);
         get => cronEx?.CronExpressionString;
     }
 
@@ -274,6 +276,10 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// Set the CronExpression to the given one.  The TimeZone on the passed-in
     /// CronExpression over-rides any that was already set on the Trigger.
     /// </summary>
+    /// <remarks>
+    /// The trigger's zone is stated when the expression was given one, and unstated when it was not, so
+    /// a scheduler's <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> applies to it.
+    /// </remarks>
     /// <value>The cron expression.</value>
     public CronExpression? CronExpression
     {
@@ -282,6 +288,7 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
         {
             cronEx = value;
             timeZone = value?.TimeZone;
+            TimeZoneStated = value is { TimeZoneStated: true };
         }
     }
 
@@ -351,11 +358,18 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// <see cref="ICronTrigger" /> will be resolved.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// If <see cref="ICronTrigger.CronExpressionString" /> is set after this
     /// property, the TimeZone setting on the CronExpression will "win".  However
     /// if <see cref="CronExpressionString" /> is set after this property, the
     /// time zone applied by this method will remain in effect, since the
     /// string cron expression does not carry a time zone!
+    /// </para>
+    /// <para>
+    /// Setting a zone states it, so a scheduler's <see cref="QuartzSchedulerOptions.DefaultTimeZone" />
+    /// leaves it alone. A trigger nobody gave a zone reads as <see cref="TimeZoneInfo.Local" /> until a
+    /// scheduler stores it.
+    /// </para>
     /// </remarks>
     /// <value>The time zone.</value>
     public TimeZoneInfo TimeZone
@@ -382,6 +396,9 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
                 cronEx = cronEx.WithTimeZone(value);
             }
             timeZone = value;
+
+            // Null names no zone, so it leaves the trigger to read as Local again, unstated.
+            TimeZoneStated = value is not null;
         }
     }
 
@@ -429,6 +446,14 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
         CronScheduleBuilder cb = cronEx is not null
             ? CronScheduleBuilder.Create(cronEx)
             : CronScheduleBuilder.Create(CronExpressionString!);
+
+        // Only a stated zone, so a rebuilt trigger leaves unstated what this one did and a scheduler's
+        // default still applies to it. A trigger stated without the expression carrying the zone - one a
+        // store read or a blob deserialized - hands over the zone it reads as.
+        if (TimeZoneStated)
+        {
+            cb.InTimeZone(TimeZone);
+        }
 
         // Only a stated instruction, as SimpleTriggerImpl.GetScheduleBuilder says. An unstated one is 0,
         // which is defined, so it could never have reached the log below.

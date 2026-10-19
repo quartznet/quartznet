@@ -167,6 +167,10 @@ public interface ICronTrigger : ITrigger
     /// The time zone within which the <see cref="CronExpressionString" /> of this
     /// <see cref="ICronTrigger" /> is resolved.
     /// </summary>
+    /// <remarks>
+    /// A trigger nobody gave a zone reads as <see cref="TimeZoneInfo.Local" /> until a scheduler stores it,
+    /// which gives it <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> when that is set.
+    /// </remarks>
     /// <value>The time zone.</value>
     TimeZoneInfo TimeZone { get; }
 

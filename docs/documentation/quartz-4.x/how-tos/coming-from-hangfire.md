@@ -145,8 +145,10 @@ see [Microsoft DI Integration](../packages/microsoft-di-integration.md#a-worked-
 | Fields | five, or six with a leading seconds field | six or seven, seconds first |
 | Day fields | both restricted: their intersection | `*` or `?` restricts nothing; both restricted: their **union** |
 | Day-of-week numbers | Sunday is `0` | Sunday is `1` |
-| Default time zone | UTC ([`RecurringJobOptions.TimeZone`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/RecurringJobOptions.cs)) | `TimeZoneInfo.Local` |
+| Default time zone | UTC ([`RecurringJobOptions.TimeZone`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/RecurringJobOptions.cs)) | `TimeZoneInfo.Local`, or the scheduler's [`DefaultTimeZone`](../tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone) from 4.7 |
 
+* `q.UseDefaultTimeZone(TimeZoneInfo.Utc)` gives every trigger that names no zone Hangfire's default, so a
+  migrated schedule fires at the same instants without an `InTimeZone` on each.
 * Hangfire's `0 2 * * *` is Quartz's `0 0 2 * * *`. Prepend `0`, not `*`: a `*` seconds field fires every
   second of each matching minute, and
   [`QZ0007`](../tutorial/compile-time-checks.md#qz0007-wildcardsecondsfield) warns of it.

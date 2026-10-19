@@ -60,6 +60,7 @@ still accepts them. See [Legacy property keys](#legacy-property-keys).
 | `ShutdownJobInterruption` | `ShutdownJobInterruption` | `Never` | When a shutting-down scheduler signals cancellation to running jobs. |
 | `PropagateTraceContext` | bool | `true` | Stores the ambient trace context on a trigger scheduled inside an `Activity`, so the firing's span links back. See below. |
 | `RecordExceptionSpanEvents` | bool? | `null`: follows `OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN`, which records them unless it is `logs` | Records a thrown exception as an `exception` event on the failed span. See [Exceptions as span events](../packages/opentelemetry-integration.md#exceptions-as-span-events). |
+| `DefaultTimeZone` | TimeZoneInfo? | `null`: `TimeZoneInfo.Local` | The zone a cron, calendar-interval, daily or recurrence trigger that names none is given when it is scheduled. Configuration writes it as an IANA or Windows id; `UseDefaultTimeZone(…)` in code. See [The scheduler's default time zone](../tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone). |
 | `Context` | dictionary | empty | Values seeded into `SchedulerContext`. Get-only: add to it (`options.Context["environment"] = "staging"`). |
 | `ServedExecutionGroups` | List&lt;string&gt; | empty | The execution groups this node acquires and misfire-handles, and nothing else; `_` is the triggers with no group. Empty: every group not refused. Exclusive with `RefusedExecutionGroups`. See [Routing](../tutorial/execution-groups.md#routing-which-node-serves-a-group). |
 | `RefusedExecutionGroups` | List&lt;string&gt; | empty | The execution groups this node never acquires or misfire-handles. Empty: none. Same spellings. |
@@ -901,6 +902,7 @@ above and produces the same result.
 | `quartz.scheduler.servedExecutionGroups` | `Scheduler:ServedExecutionGroups`, or `ServeExecutionGroups(…)` — comma-separated, entries trimmed; `_` is the ungrouped bucket. Added in 4.6 |
 | `quartz.scheduler.refusedExecutionGroups` | `Scheduler:RefusedExecutionGroups`, or `RefuseExecutionGroups(…)` — the same spellings. Added in 4.6 |
 | `quartz.scheduler.defaultMisfireHandling` | `Scheduler:DefaultMisfireHandling` — `SmartPolicy`, `IgnoreMisfires`, `FireAndProceed` or `DoNothing`. See [The scheduler's default instruction](../tutorial/more-about-triggers.md#the-scheduler-s-default-instruction). Added in 4.6 |
+| `quartz.scheduler.defaultTimeZone` | `Scheduler:DefaultTimeZone`, or `UseDefaultTimeZone(…)` — an IANA or Windows id. See [The scheduler's default time zone](../tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone). Added in 4.7 |
 | `quartz.context.key.NAME` | `Scheduler:Context:NAME` |
 | `quartz.executionLimit.GROUP`, `quartz.clusterExecutionLimit.GROUP` | `UseExecutionLimits(…)`; in `appsettings.json`, `ExecutionLimit:GROUP` and `ClusterExecutionLimit:GROUP`, where `tenant:*` is a prefix. See [Configuring execution limits](../tutorial/execution-groups.md#configuring-execution-limits) |
 | `quartz.threadPool.maxConcurrency` (or `threadCount`) | `ThreadPool:MaxConcurrency` |

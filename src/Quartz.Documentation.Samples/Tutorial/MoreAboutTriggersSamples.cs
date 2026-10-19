@@ -50,6 +50,17 @@ public static class MoreAboutTriggersSamples
         #endregion
     }
 
+    public static void DefaultTimeZone(IServiceCollection services)
+    {
+        #region sample_more_about_triggers_default_time_zone
+
+        // A cron, calendar-interval, daily or recurrence trigger that names no zone reads its schedule in UTC,
+        // whatever zone the machine is in.
+        services.AddQuartz(q => q.UseDefaultTimeZone(TimeZoneInfo.Utc));
+
+        #endregion
+    }
+
     public static void ExecutionGroup()
     {
         #region sample_more_about_triggers_execution_group

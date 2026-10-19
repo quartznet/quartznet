@@ -274,6 +274,7 @@ internal static class QuartzServiceRegistration
                 RecordExceptionSpanEvents = recordExceptionSpanEvents,
                 DefaultRetryPolicy = provider.GetSchedulerOptions<SchedulerRetryOptions>(key).DefaultPolicy,
                 DefaultMisfireHandling = options.DefaultMisfireHandling,
+                DefaultTimeZone = options.DefaultTimeZone,
                 ExecutionGroupRouting = ExecutionGroupRouting.From(options),
                 TimeProvider = timeProvider,
                 LoggerFactory = provider.GetSchedulerLoggerFactory(),

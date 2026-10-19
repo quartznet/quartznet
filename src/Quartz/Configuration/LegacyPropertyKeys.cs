@@ -92,6 +92,12 @@ internal static class LegacyPropertyKeys
     /// <c>SmartPolicy</c>, <c>IgnoreMisfires</c>, <c>FireAndProceed</c> or <c>DoNothing</c>.
     /// </summary>
     internal const string SchedulerDefaultMisfireHandling = "quartz.scheduler.defaultMisfireHandling";
+
+    /// <summary>
+    /// <see cref="QuartzSchedulerOptions.DefaultTimeZone" />, by an id <see cref="TimeZones.FindById" />
+    /// resolves: IANA, such as <c>Europe/Helsinki</c>, or Windows, such as <c>FLE Standard Time</c>.
+    /// </summary>
+    internal const string SchedulerDefaultTimeZone = "quartz.scheduler.defaultTimeZone";
     internal const string SchedulerContextPrefix = "quartz.context.key";
     internal const string ThreadPoolPrefix = "quartz.threadPool";
     internal const string ThreadPoolType = "quartz.threadPool.type";
@@ -182,6 +188,7 @@ internal static class LegacyPropertyKeys
         SchedulerServedExecutionGroups,
         SchedulerRefusedExecutionGroups,
         SchedulerDefaultMisfireHandling,
+        SchedulerDefaultTimeZone,
         SchedulerContextPrefix,
         ThreadPoolPrefix,
         TimeProviderType,
