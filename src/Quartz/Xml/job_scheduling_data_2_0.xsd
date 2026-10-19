@@ -232,6 +232,11 @@
             <xs:element name="repeat-count" type="repeat-countType" />
             <xs:element name="repeat-interval" type="xs:nonNegativeInteger" />
           </xs:sequence>
+          <xs:element name="measure-interval-from-completion" type="xs:boolean" minOccurs="0">
+            <xs:annotation>
+              <xs:documentation>Whether the interval is measured from the previous run's completion rather than from its scheduled time: a fixed delay. The trigger then never overlaps itself. Defaults to false, a fixed rate. Added in Quartz.NET 4.7; optional, so the schema stays 2.0.</xs:documentation>
+            </xs:annotation>
+          </xs:element>
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>

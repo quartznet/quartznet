@@ -460,6 +460,62 @@ public sealed class SchedulingDataPluginTwinsTest
         json.Should().Throw<SchedulerConfigException>().WithMessage("*'soon' is not a misfire threshold*");
     }
 
+    /// <summary>
+    /// The two formats declare a simple schedule measured from completion in the same words (#4140).
+    /// </summary>
+    [Test]
+    public async Task BothFormatsDeclareTheSameIntervalMeasuredFromCompletion()
+    {
+        List<ITrigger> xml = await ReadXml($"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+              <schedule>
+                <job>
+                  <name>job1</name>
+                  <job-type>{JobType}</job-type>
+                </job>
+                <trigger>
+                  <simple>
+                    <name>fixed-delay</name>
+                    <job-name>job1</job-name>
+                    <repeat-count>-1</repeat-count>
+                    <repeat-interval>30000</repeat-interval>
+                    <measure-interval-from-completion>true</measure-interval-from-completion>
+                  </simple>
+                </trigger>
+                <trigger>
+                  <simple>
+                    <name>fixed-rate</name>
+                    <job-name>job1</job-name>
+                    <repeat-count>-1</repeat-count>
+                    <repeat-interval>30000</repeat-interval>
+                  </simple>
+                </trigger>
+              </schedule>
+            </job-scheduling-data>
+            """);
+
+        List<ITrigger> json = ReadJson($$"""
+            {
+              "Schedule": {
+                "Jobs": [{ "Name": "job1", "JobType": "{{JobType}}" }],
+                "Triggers": [
+                  { "Name": "fixed-delay", "JobName": "job1", "Simple": { "RepeatCount": -1, "Interval": "00:00:30", "MeasureIntervalFromCompletion": true } },
+                  { "Name": "fixed-rate", "JobName": "job1", "Simple": { "RepeatCount": -1, "Interval": "00:00:30" } }
+                ]
+              }
+            }
+            """);
+
+        MeasuredFrom(xml).Should().Equal(MeasuredFrom(json), "the two formats are one feature spelled twice");
+        MeasuredFrom(xml).Should().Equal(["fixed-delay: completion", "fixed-rate: scheduled time"]);
+    }
+
+    private static List<string> MeasuredFrom(List<ITrigger> triggers)
+    {
+        return triggers.Select(x => $"{x.Key.Name}: {(((ISimpleTrigger) x).MeasureIntervalFromCompletion ? "completion" : "scheduled time")}").ToList();
+    }
+
     private static List<string> MisfireThresholds(List<ITrigger> triggers)
     {
         return triggers.Select(x => $"{x.Key.Name}: {(x.MisfireThreshold is { } threshold ? threshold.ToString("c", System.Globalization.CultureInfo.InvariantCulture) : "store's")}").ToList();

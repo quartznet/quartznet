@@ -424,8 +424,10 @@ internal abstract partial class AdoJobStoreBase
     /// A job that disallows concurrent execution is decided against the fired-trigger table, a
     /// <see cref="OverlapPolicy.Skip" />, <see cref="OverlapPolicy.BufferOne" /> or
     /// <see cref="OverlapPolicy.CancelPrevious" /> trigger against its running firings, and both reads
-    /// are kept still only by the lock. A candidate whose delegate did not read the flag, the policy or
-    /// the fire time gives no answer, and no answer is "lock".
+    /// are kept still only by the lock; a trigger that measures from completion is stored held, against
+    /// the paused groups. A candidate whose delegate did not read the flag, the policy or the fire time
+    /// gives no answer, and no answer is "lock". One that did not read whether the trigger measures from
+    /// completion answers "no", and the fire rolls the round back to the lock if it does.
     /// </remarks>
     private static (RoundLockReason Reason, TriggerKey TriggerKey)? FirstCandidateNeedingLock(List<TriggerAcquireResult> results)
     {
@@ -441,7 +443,9 @@ internal abstract partial class AdoJobStoreBase
                 return (RoundLockReason.SerialJob, candidate.TriggerKey);
             }
 
-            if (candidate.OverlapPolicy is not (OverlapPolicy.Default or OverlapPolicy.AllowAll))
+            // A trigger that measures from completion is held while it runs, as a BufferOne trigger is
+            // (#4140): its fire stores BLOCKED, which reads the paused groups.
+            if (candidate.OverlapPolicy is not (OverlapPolicy.Default or OverlapPolicy.AllowAll) || candidate.MeasureIntervalFromCompletion)
             {
                 return (RoundLockReason.OverlapPolicy, candidate.TriggerKey);
             }

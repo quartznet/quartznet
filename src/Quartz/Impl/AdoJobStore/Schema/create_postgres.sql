@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS {0}triggers (
   paused_by varchar(200) null,
   paused_at bigint null,
   misfire_threshold bigint null,
+  fixed_delay bool null,
   job_data bytea null,
   primary key (sched_name,trigger_name,trigger_group),
   foreign key (sched_name,job_name,job_group) references {0}job_details (sched_name,job_name,job_group)

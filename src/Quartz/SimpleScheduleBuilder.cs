@@ -65,6 +65,7 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
     // Null until WithMisfireInstruction is called: a builder never told what to do about a misfire
     // leaves the trigger's instruction unstated, so the scheduler's default applies to it.
     private int? misfireInstruction;
+    private bool measureIntervalFromCompletion;
 
     private SimpleScheduleBuilder()
     {
@@ -90,6 +91,7 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
         SimpleTriggerImpl st = new SimpleTriggerImpl();
         st.RepeatInterval = interval;
         st.RepeatCount = repeatCount;
+        st.MeasureIntervalFromCompletion = measureIntervalFromCompletion;
         if (misfireInstruction is { } stated)
         {
             st.MisfireInstructionCode = stated;
@@ -152,6 +154,24 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
     public SimpleScheduleBuilder WithMisfireInstruction(SimpleTriggerMisfireInstruction instruction)
     {
         misfireInstruction = (int) instruction;
+        return this;
+    }
+
+    /// <summary>
+    /// Measure the interval from the previous run's completion rather than from its scheduled time: a
+    /// fixed delay, where the default is a fixed rate.
+    /// </summary>
+    /// <remarks>
+    /// The trigger never overlaps itself: it is held while a firing runs, on every node, and its next fire
+    /// time is the completion time plus the interval. The repeat count still counts runs, and the end time
+    /// still bounds them. Every node of a cluster must be 4.7 or later.
+    /// </remarks>
+    /// <param name="measureIntervalFromCompletion">whether to measure from completion</param>
+    /// <returns>the updated SimpleScheduleBuilder</returns>
+    /// <seealso cref="ISimpleTrigger.MeasureIntervalFromCompletion" />
+    public SimpleScheduleBuilder MeasureIntervalFromCompletion(bool measureIntervalFromCompletion = true)
+    {
+        this.measureIntervalFromCompletion = measureIntervalFromCompletion;
         return this;
     }
 }

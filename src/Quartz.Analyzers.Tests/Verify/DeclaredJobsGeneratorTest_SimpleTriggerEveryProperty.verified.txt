@@ -31,6 +31,7 @@ namespace Quartz
                 .WithSimpleSchedule(simple => simple
                     .WithInterval(global::System.TimeSpan.FromTicks(300000000)) // 00:00:30
                     .WithRepeatCount(9)
+                    .MeasureIntervalFromCompletion()
                     .WithMisfireInstruction(global::Quartz.SimpleTriggerMisfireInstruction.NextWithRemainingCount)));
 
             return builder;

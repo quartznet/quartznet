@@ -170,6 +170,13 @@ public static class AdoConstants
     internal const string Migration46TriggerMisfireThreshold = "4.6/add_trigger_misfire_threshold_{0}.sql";
 
     /// <summary>
+    /// The migration that adds whether a simple trigger measures its interval from completion to
+    /// <see cref="TableTriggers" />, which a database created by 4.6 or earlier needs: a 4.7 node reads and
+    /// writes it with every trigger, and its firing rounds decide from it whether to take the lock (#4140).
+    /// </summary>
+    internal const string Migration47TriggerFixedDelay = "4.7/add_trigger_fixed_delay_{0}.sql";
+
+    /// <summary>
     /// The columns only a feature that is off by default reads or writes, on a table only that feature
     /// reads — probed, like <see cref="OptionalTableNames" />, only when the feature is on.
     /// </summary>
@@ -269,7 +276,8 @@ public static class AdoConstants
         (TablePausedJobs, ColumnPausedAt, Migration43PauseReason),
         (TableSchedulerState, ColumnQuartzVersion, Migration46SchedulerVersion),
         (TableFiredTriggers, ColumnInterruptRequestedTime, Migration46FiredTriggerInterrupt),
-        (TableTriggers, ColumnMisfireThreshold, Migration46TriggerMisfireThreshold)
+        (TableTriggers, ColumnMisfireThreshold, Migration46TriggerMisfireThreshold),
+        (TableTriggers, ColumnFixedDelay, Migration47TriggerFixedDelay)
     ];
 
     // Table names
@@ -519,6 +527,14 @@ public static class AdoConstants
     /// store's (#4070).
     /// </summary>
     public const string ColumnMisfireThreshold = "MISFIRE_THRESHOLD";
+
+    /// <summary>
+    /// The <c>FIXED_DELAY</c> column of <see cref="TableTriggers" />: whether a simple trigger
+    /// measures its interval from the previous run's completion
+    /// (<see cref="ISimpleTrigger.MeasureIntervalFromCompletion" />), where <see langword="null" /> is a
+    /// fixed rate (#4140).
+    /// </summary>
+    public const string ColumnFixedDelay = "FIXED_DELAY";
 
     /// <summary>
     /// The <c>PAUSE_REASON</c> column of <see cref="TableTriggers" />, <see cref="TablePausedTriggers" />

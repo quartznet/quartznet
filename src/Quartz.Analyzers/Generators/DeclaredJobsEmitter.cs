@@ -423,6 +423,11 @@ internal static class DeclaredJobsEmitter
                 : $".WithRepeatCount({simple.RepeatCount.ToString(CultureInfo.InvariantCulture)})",
         ];
 
+        if (simple.MeasureIntervalFromCompletion)
+        {
+            schedule.Add(".MeasureIntervalFromCompletion()");
+        }
+
         AddMisfireInstruction(schedule, trigger, SimpleMisfireInstructionTypeName);
 
         lines.Add("    .WithSimpleSchedule(simple => simple");

@@ -63,6 +63,11 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     private const string JobInterfaceTypeName = "Quartz.IJob";
 
     /// <summary>
+    /// The <c>[SimpleTrigger]</c> property that measures the interval from completion (#4140).
+    /// </summary>
+    private const string MeasureIntervalFromCompletionPropertyName = "MeasureIntervalFromCompletion";
+
+    /// <summary>
     /// What a <c>ConfigurationKey</c> is read from, and what the generated registration names to read it.
     /// </summary>
     private const string ConfigurationTypeName = "Microsoft.Extensions.Configuration.IConfiguration";
@@ -365,7 +370,11 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
             return null;
         }
 
-        return new DeclaredSimpleSchedule(interval.Ticks, interval.ToString("c", CultureInfo.InvariantCulture), repeatCount);
+        return new DeclaredSimpleSchedule(
+            interval.Ticks,
+            interval.ToString("c", CultureInfo.InvariantCulture),
+            repeatCount,
+            Flag(attribute, MeasureIntervalFromCompletionPropertyName));
     }
 
     /// <summary>

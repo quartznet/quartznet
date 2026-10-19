@@ -223,6 +223,12 @@ internal interface Trigger
     /// does not count its fires. Defaults to 0 when omitted from a trigger being scheduled.
     /// </summary>
     int? TimesTriggered { get; }
+
+    /// <summary>
+    /// Whether a SimpleTrigger measures its interval from the previous run's completion rather than from
+    /// its scheduled time. Present, as true, only when it does
+    /// </summary>
+    bool? MeasureIntervalFromCompletion { get; }
 }
 
 internal interface AddCalendarRequest
@@ -376,4 +382,10 @@ internal interface UpdateTriggerDetailsRequest
     /// than 4.6 ignores it
     /// </summary>
     string? MisfireThreshold { get; }
+
+    /// <summary>
+    /// Whether a simple trigger measures its interval from the previous run's completion; null is false.
+    /// Refused for a trigger that is not a simple one. A host older than 4.7 ignores it
+    /// </summary>
+    bool? MeasureIntervalFromCompletion { get; }
 }

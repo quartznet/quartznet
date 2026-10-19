@@ -248,6 +248,9 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3059, Level = LogLevel.Debug, Message = "Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write")]
     public static partial void TriggerEditReapplied(this ILogger logger, TriggerKey triggerKey);
 
+    [LoggerMessage(EventId = 3061, Level = LogLevel.Error, Message = "Next fire time of trigger {TriggerKey}, which measures from completion, could not be computed; it is let go with the fire time its firing left on it")]
+    public static partial void FixedDelayFireTimeFailed(this ILogger logger, TriggerKey triggerKey, Exception exception);
+
     [LoggerMessage(EventId = 3100, Level = LogLevel.Debug, Message = "Prepared SQL: {Sql}")]
     public static partial void SqlPrepared(this ILogger logger, string sql);
 

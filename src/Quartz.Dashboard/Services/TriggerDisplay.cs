@@ -51,7 +51,8 @@ internal static class TriggerDisplay
                 return cron.CronExpressionString;
             case ISimpleTrigger simple:
                 string summary = "Every " + simple.RepeatInterval;
-                return summary + (simple.RepeatCount < 0 ? ", repeat forever" : ", " + simple.RepeatCount + " time(s)");
+                summary += simple.RepeatCount < 0 ? ", repeat forever" : ", " + simple.RepeatCount + " time(s)";
+                return simple.MeasureIntervalFromCompletion ? summary + ", measured from completion" : summary;
             default:
                 return null;
         }

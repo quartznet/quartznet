@@ -1798,9 +1798,16 @@ public interface IDriverDelegate
     /// many attempts at the current occurrence are behind it, and the state it waits in.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Narrow on purpose. The trigger's schedule has not changed — only which instant it fires at
     /// next — so the generic trigger UPDATE would write a row's worth of columns to move one, and
     /// would write back a preferred node and a job data map this path has no business touching.
+    /// </para>
+    /// <para>
+    /// The completion of a simple trigger that measures its interval from completion writes its next fire
+    /// time through it too, for the same reason: the instant and the state its hold gives way to, with the
+    /// attempt the row already holds (#4140).
+    /// </para>
     /// </remarks>
     /// <param name="conn">The DB connection.</param>
     /// <param name="trigger">

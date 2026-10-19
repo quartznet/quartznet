@@ -523,6 +523,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.TriggerContinuationCondition, (object?) continuation.StoredCondition ?? DBNull.Value);
         AddCommandParameter(cmd, SqlParameters.TriggerOverlapPolicy, OverlapPolicyColumn.ToDbValue(trigger));
         AddCommandParameter(cmd, SqlParameters.TriggerMisfireThreshold, MisfireThresholdValue(trigger));
+        AddCommandParameter(cmd, SqlParameters.TriggerFixedDelay, FixedDelayValue(trigger));
 
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
@@ -771,6 +772,10 @@ public partial class StdAdoDelegate
 
         // And the misfire threshold, after the overlap policy and before the optional pin in every flavour.
         parameters.Add(new SqlStatementParameter(SqlParameters.TriggerMisfireThreshold, MisfireThresholdValue(trigger)));
+
+        // And whether it measures from completion, after the misfire threshold and before the optional pin
+        // in every flavour.
+        parameters.Add(new SqlStatementParameter(SqlParameters.TriggerFixedDelay, FixedDelayValue(trigger)));
 
         if (writePreferredNode)
         {
@@ -1338,6 +1343,7 @@ public partial class StdAdoDelegate
         public int? ContinuationCondition;
         public int? OverlapPolicy;
         public TimeSpan? MisfireThreshold;
+        public bool FixedDelay;
 
         /// <summary>Populated from the joined row for SIMPLE and CRON triggers, <c>null</c> otherwise.</summary>
         public TriggerPropertyBundle? Props;
@@ -1387,6 +1393,7 @@ public partial class StdAdoDelegate
             ContinuationCondition = rs.GetOrdinal(AdoConstants.ColumnContinuationCondition);
             OverlapPolicy = rs.GetOrdinal(AdoConstants.ColumnOverlapPolicy);
             MisfireThreshold = rs.GetOrdinal(AdoConstants.ColumnMisfireThreshold);
+            FixedDelay = rs.GetOrdinal(AdoConstants.ColumnFixedDelay);
         }
 
         public int TriggerName { get; }
@@ -1413,6 +1420,7 @@ public partial class StdAdoDelegate
         public int ContinuationCondition { get; }
         public int OverlapPolicy { get; }
         public int MisfireThreshold { get; }
+        public int FixedDelay { get; }
 
         public TriggerKey ReadKey(DbDataReader rs) => new(rs.GetString(TriggerName), rs.GetString(TriggerGroup));
     }
@@ -1471,6 +1479,9 @@ public partial class StdAdoDelegate
         // Whole milliseconds, NULL on every row a node older than 4.6 wrote, which is the store's (#4070).
         row.MisfireThreshold = GetTimeSpanFromDbValue(rs.GetValue(ordinals.MisfireThreshold));
 
+        // NULL on every row a node older than 4.7 wrote, and on every trigger that runs at a fixed rate (#4140).
+        row.FixedDelay = ReadFixedDelay(rs, ordinals.FixedDelay);
+
         return row;
     }
 
@@ -1479,6 +1490,19 @@ public partial class StdAdoDelegate
     /// whole milliseconds, or <c>NULL</c> for the store's (#4070).
     /// </summary>
     private object MisfireThresholdValue(ITrigger trigger) => GetDbTimeSpanValue(trigger.MisfireThreshold) ?? DBNull.Value;
+
+    /// <summary>
+    /// What the <c>FIXED_DELAY</c> column holds for <paramref name="trigger" />: true for a
+    /// simple trigger that measures its interval from completion, and <c>NULL</c> for every other trigger,
+    /// which is what a row a node older than 4.7 writes holds (#4140).
+    /// </summary>
+    private object FixedDelayValue(ITrigger trigger) => FixedDelaySchedule.Applies(trigger) ? GetDbBooleanValue(true) : DBNull.Value;
+
+    /// <summary>
+    /// Whether the <c>FIXED_DELAY</c> column at <paramref name="ordinal" /> says the trigger
+    /// measures from completion: <c>NULL</c> says it does not (#4140).
+    /// </summary>
+    private bool ReadFixedDelay(DbDataReader rs, int ordinal) => !rs.IsDBNull(ordinal) && GetBooleanFromDbValue(rs.GetValue(ordinal));
 
     private static string? ReadNullableString(DbDataReader rs, int ordinal)
         => rs.IsDBNull(ordinal) ? null : rs.GetString(ordinal);
@@ -1528,6 +1552,11 @@ public partial class StdAdoDelegate
             triggerBase.Continuation = Continuation.FromStored(row.ContinuesTriggerName, row.ContinuesTriggerGroup, row.ContinuationCondition);
             OverlapPolicyColumn.Apply(triggerBase, row.OverlapPolicy);
             triggerBase.MisfireThreshold = row.MisfireThreshold;
+        }
+
+        if (trigger is SimpleTriggerImpl simple)
+        {
+            simple.MeasureIntervalFromCompletion = row.FixedDelay;
         }
     }
 
@@ -2283,6 +2312,7 @@ public partial class StdAdoDelegate
         int nonConcurrentOrdinal = -1;
         int nextFireTimeOrdinal = -1;
         int overlapPolicyOrdinal = -1;
+        int fixedDelayOrdinal = -1;
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             if (nextTriggers.Count >= maxCount)
@@ -2312,6 +2342,11 @@ public partial class StdAdoDelegate
                 // for 4.5 does not project them, and its delegate's rounds take the lock, as they did.
                 nextFireTimeOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnNextFireTime);
                 overlapPolicyOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnOverlapPolicy);
+
+                // And whether the trigger is held while it runs (#4140): a statement written for 4.6 does
+                // not project it, and a fixed-delay trigger it claims without the lock rolls its round back
+                // at the fire.
+                fixedDelayOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnFixedDelay);
             }
 
             string? executionGroup = rs.IsDBNull(execGroupOrdinal)
@@ -2338,6 +2373,7 @@ public partial class StdAdoDelegate
                 OverlapPolicy = overlapPolicyOrdinal < 0
                     ? null
                     : OverlapPolicyColumn.Decode(OverlapPolicyColumn.Read(rs, overlapPolicyOrdinal)).Policy,
+                MeasureIntervalFromCompletion = fixedDelayOrdinal >= 0 && ReadFixedDelay(rs, fixedDelayOrdinal),
             });
         }
 

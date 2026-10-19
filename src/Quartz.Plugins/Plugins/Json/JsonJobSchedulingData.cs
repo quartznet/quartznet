@@ -179,6 +179,12 @@ internal sealed class JsonFileSimpleSchedule
     public int RepeatCount { get; set; }
     public string Interval { get; set; } = "00:00:00";
     public string? MisfireInstruction { get; set; }
+
+    /// <summary>
+    /// Whether the interval is measured from the previous run's completion rather than from its scheduled
+    /// time. Absent means <see langword="false" />: a fixed rate.
+    /// </summary>
+    public bool MeasureIntervalFromCompletion { get; set; }
 }
 
 internal sealed class JsonFileCronSchedule

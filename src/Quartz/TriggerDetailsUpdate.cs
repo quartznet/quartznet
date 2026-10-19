@@ -61,12 +61,16 @@ public sealed class TriggerDetailsUpdate
     internal bool HasMisfireThreshold { get; private set; }
     internal TimeSpan? MisfireThreshold { get; private set; }
 
+    internal bool HasMeasureIntervalFromCompletion { get; private set; }
+    internal bool MeasureIntervalFromCompletion { get; private set; }
+
     /// <summary>
     /// Whether the update sets nothing at all, which a store answers as done without touching the trigger.
     /// </summary>
     internal bool ChangesNothing => !HasDescription && !HasPriority && !HasJobDataMap
         && !HasCalendarName && !HasMisfireInstruction && !HasPreferredNode
-        && !HasExecutionGroup && !HasRetryPolicy && !HasOverlapPolicy && !HasMisfireThreshold;
+        && !HasExecutionGroup && !HasRetryPolicy && !HasOverlapPolicy && !HasMisfireThreshold
+        && !HasMeasureIntervalFromCompletion;
 
     /// <summary>
     /// Refuses an overlap policy for a stored trigger that cannot carry one, before a store changes
@@ -91,6 +95,31 @@ public sealed class TriggerDetailsUpdate
         {
             Throw.JobPersistenceException(
                 $"Trigger '{triggerKey}' is a {trigger.GetType().FullName}, which does not derive from TriggerBase and so cannot carry a misfire threshold.");
+        }
+    }
+
+    /// <summary>
+    /// Refuses to measure from completion for a stored trigger that is not a simple one, before a store
+    /// changes anything else about it.
+    /// </summary>
+    internal void EnsureMeasureIntervalFromCompletionCanBeCarried(ITrigger trigger, TriggerKey triggerKey)
+    {
+        if (HasMeasureIntervalFromCompletion && trigger is not Impl.Triggers.SimpleTriggerImpl)
+        {
+            Throw.JobPersistenceException(
+                $"Trigger '{triggerKey}' is a {trigger.GetType().FullName}, which is not a simple trigger and so cannot measure its interval from completion.");
+        }
+    }
+
+    /// <summary>
+    /// Writes what the update says about measuring from completion onto a stored trigger that
+    /// <see cref="EnsureMeasureIntervalFromCompletionCanBeCarried" /> passed.
+    /// </summary>
+    internal void ApplyMeasureIntervalFromCompletion(ITrigger trigger)
+    {
+        if (HasMeasureIntervalFromCompletion)
+        {
+            ((Impl.Triggers.SimpleTriggerImpl) trigger).MeasureIntervalFromCompletion = MeasureIntervalFromCompletion;
         }
     }
 
@@ -320,6 +349,25 @@ public sealed class TriggerDetailsUpdate
 
         HasMisfireThreshold = true;
         MisfireThreshold = misfireThreshold;
+        return this;
+    }
+
+    /// <summary>
+    /// Set whether a simple trigger measures its interval from the previous run's completion rather than
+    /// from its scheduled time.
+    /// </summary>
+    /// <remarks>
+    /// The stored fire time is left alone. Turned on, it decides from the next firing's completion; turned
+    /// off while a firing runs, that firing's completion lets go of the trigger with the fixed-rate fire
+    /// time it left. A trigger that is not a simple one is refused. A host older than 4.7 ignores it over
+    /// the HTTP API, and a node older than 4.7 ignores the stored value.
+    /// </remarks>
+    /// <param name="measureIntervalFromCompletion">whether to measure from completion</param>
+    /// <seealso cref="ISimpleTrigger.MeasureIntervalFromCompletion" />
+    public TriggerDetailsUpdate WithMeasureIntervalFromCompletion(bool measureIntervalFromCompletion)
+    {
+        HasMeasureIntervalFromCompletion = true;
+        MeasureIntervalFromCompletion = measureIntervalFromCompletion;
         return this;
     }
 }

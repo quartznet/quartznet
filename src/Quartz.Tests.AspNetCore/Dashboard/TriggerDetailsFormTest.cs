@@ -184,6 +184,30 @@ public sealed class TriggerDetailsFormTest
         TriggerDetailsForm.MisfireThresholdOf(trigger).Should().Be("Store's");
     }
 
+    [Test]
+    public void ASimpleTriggerIsOfferedMeasuringFromCompletionAndACronTriggerIsNot()
+    {
+        TriggerDetailsForm form = TriggerDetailsForm.From(TriggerBuilder.Create().WithIdentity("t").ForJob("j")
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever())
+            .Build());
+        form.OffersMeasureIntervalFromCompletion.Should().BeTrue();
+        form.MeasureIntervalFromCompletion.Should().BeFalse();
+        form.Build().Update.Should().BeNull("an unchanged setting is not an edit");
+
+        form.MeasureIntervalFromCompletion = true;
+        TriggerDetailsEdit edit = form.Build();
+
+        edit.Errors.Should().BeEmpty();
+        edit.Update!.HasMeasureIntervalFromCompletion.Should().BeTrue();
+        edit.Update.MeasureIntervalFromCompletion.Should().BeTrue();
+        edit.Changes.Should().Equal("interval measured from scheduled time → completion");
+
+        TriggerDetailsForm cron = TriggerDetailsForm.From(Cron());
+        cron.OffersMeasureIntervalFromCompletion.Should().BeFalse("only a simple trigger has an interval to measure");
+        cron.MeasureIntervalFromCompletion = true;
+        cron.Build().Update.Should().BeNull("a setting the trigger cannot carry is not offered, so it is not sent");
+    }
+
     private static ITrigger Cron()
     {
         return TriggerBuilder.Create().WithIdentity("t").ForJob("j").WithCronSchedule("0 0 1 * * ?").Build();

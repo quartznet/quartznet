@@ -963,6 +963,7 @@ namespace Quartz
     }
     public interface ISimpleTrigger : Quartz.ITrigger
     {
+        bool MeasureIntervalFromCompletion { get; } // default implementation
         Quartz.SimpleTriggerMisfireInstruction MisfireInstruction { get; }
         int RepeatCount { get; }
         System.TimeSpan RepeatInterval { get; }
@@ -2063,6 +2064,7 @@ namespace Quartz
     public sealed class SimpleScheduleBuilder : Quartz.IScheduleBuilder
     {
         public Quartz.Extensibility.IMutableTrigger Build() { }
+        public Quartz.SimpleScheduleBuilder MeasureIntervalFromCompletion(bool measureIntervalFromCompletion = true) { }
         public Quartz.SimpleScheduleBuilder RepeatForever() { }
         public Quartz.SimpleScheduleBuilder WithInterval(System.TimeSpan timeSpan) { }
         public Quartz.SimpleScheduleBuilder WithMisfireInstruction(Quartz.SimpleTriggerMisfireInstruction instruction) { }
@@ -2078,6 +2080,7 @@ namespace Quartz
         public string? ExecutionGroup { get; init; }
         public string? Group { get; init; }
         public System.TimeSpan Interval { get; }
+        public bool MeasureIntervalFromCompletion { get; init; }
         public Quartz.SimpleTriggerMisfireInstruction MisfireInstruction { get; init; }
         public string? MisfireThreshold { get; init; }
         public string? Name { get; init; }
@@ -2276,6 +2279,7 @@ namespace Quartz
         public Quartz.TriggerDetailsUpdate WithDescription(string? description) { }
         public Quartz.TriggerDetailsUpdate WithExecutionGroup(string? executionGroup) { }
         public Quartz.TriggerDetailsUpdate WithJobDataMap(Quartz.JobDataMap jobDataMap) { }
+        public Quartz.TriggerDetailsUpdate WithMeasureIntervalFromCompletion(bool measureIntervalFromCompletion) { }
         public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.CalendarIntervalTriggerMisfireInstruction misfireInstruction) { }
         public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.CronTriggerMisfireInstruction misfireInstruction) { }
         public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.DailyTimeIntervalTriggerMisfireInstruction misfireInstruction) { }
@@ -2777,6 +2781,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnFireInstanceId = "FIRE_INSTANCE_ID";
         public const string ColumnFiredTime = "FIRED_TIME";
         public const string ColumnFirstFiredTime = "FIRST_FIRED_TIME";
+        public const string ColumnFixedDelay = "FIXED_DELAY";
         public const string ColumnInstanceName = "INSTANCE_NAME";
         public const string ColumnInterruptRequestedTime = "INTERRUPT_REQUESTED_TIME";
         public const string ColumnIsDurable = "IS_DURABLE";
@@ -3547,6 +3552,7 @@ namespace Quartz.Impl.AdoJobStore
         public string? ExecutionGroup { get; init; }
         public bool ExecutionGroupAtLimit { get; init; }
         public string JobTypeName { get; init; }
+        public bool MeasureIntervalFromCompletion { get; init; }
         public System.DateTimeOffset? NextFireTimeUtc { get; init; }
         public Quartz.OverlapPolicy? OverlapPolicy { get; init; }
         public Quartz.TriggerKey TriggerKey { get; init; }
@@ -4319,6 +4325,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         protected override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
+        public bool MeasureIntervalFromCompletion { get; set; }
         public Quartz.SimpleTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
         public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
@@ -4330,6 +4337,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTimeUtc) { }
         public System.DateTimeOffset? GetFireTimeBefore(System.DateTimeOffset endUtc) { }
         public override Quartz.IScheduleBuilder GetScheduleBuilder() { }
+        public override void RetryFired(Quartz.ICalendar? calendar) { }
         public override void Triggered(Quartz.ICalendar? calendar) { }
         public override void UpdateAfterMisfire(Quartz.ICalendar? calendar) { }
         public override void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold) { }

@@ -328,6 +328,46 @@ public class NewtonsoftTriggerRoundTripTest
         RoundTrip(trigger).MisfireThreshold.Should().BeNull();
     }
 
+    [Test]
+    public void MeasuringFromCompletionSurvivesTheRoundTrip()
+    {
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("fixed-delay", "group"),
+            JobKey = new JobKey("job", "jobGroup"),
+            StartTimeUtc = startTime,
+            EndTimeUtc = startTime.AddDays(1),
+            RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+            RepeatInterval = TimeSpan.FromMinutes(5),
+            MeasureIntervalFromCompletion = true
+        };
+
+        string payload = Encoding.UTF8.GetString(((IObjectSerializer) serializer).Serialize(trigger));
+
+        payload.Should().Contain("\"MeasureIntervalFromCompletion\":true");
+        RoundTrip(trigger).MeasureIntervalFromCompletion.Should().BeTrue(
+            "a stored trigger that measures from completion has to come back doing so");
+    }
+
+    [Test]
+    public void AFixedRateTriggerWritesThePayloadItAlwaysDid()
+    {
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("fixed-rate", "group"),
+            JobKey = new JobKey("job", "jobGroup"),
+            StartTimeUtc = startTime,
+            EndTimeUtc = startTime.AddDays(1),
+            RepeatCount = 3,
+            RepeatInterval = TimeSpan.FromMinutes(5)
+        };
+
+        string payload = Encoding.UTF8.GetString(((IObjectSerializer) serializer).Serialize(trigger));
+
+        payload.Should().NotContain("MeasureIntervalFromCompletion", "a fixed-rate trigger is written exactly as it was before 4.7");
+        RoundTrip(trigger).MeasureIntervalFromCompletion.Should().BeFalse();
+    }
+
     private T RoundTrip<T>(T trigger) where T : class, IOperableTrigger
     {
         byte[] bytes = ((IObjectSerializer) serializer).Serialize(trigger);

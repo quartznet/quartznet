@@ -1739,6 +1739,79 @@ public abstract class JobStoreContractTest
         (await Store.GetTrigger(tolerant.Key)).NextFireTimeUtc.Should().Be(longOverdue, "inside its own threshold it is still owed, not misfired");
     }
 
+    /// <summary>
+    /// A simple trigger measured from completion keeps the setting through a store round trip and an update,
+    /// on every dialect the contract runs on (#4140).
+    /// </summary>
+    [Test]
+    public async Task ATriggerMeasuredFromCompletionKeepsTheSettingAcrossAStoreRoundTrip()
+    {
+        IJobDetail job = CreateJob("fixed-delay", JobGroupA);
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("fixed-delay", TriggerGroupA)
+            .ForJob(job.Key)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever().MeasureIntervalFromCompletion())
+            .StartAt(RoundTripStart)
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        await Store.ScheduleJob(job, trigger);
+
+        ((ISimpleTrigger) await Store.GetTrigger(trigger.Key)).MeasureIntervalFromCompletion.Should().BeTrue();
+
+        (await Store.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithMeasureIntervalFromCompletion(false))).Should().BeTrue();
+        ((ISimpleTrigger) await Store.GetTrigger(trigger.Key)).MeasureIntervalFromCompletion.Should().BeFalse("an update turns it off");
+
+        (await Store.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithMeasureIntervalFromCompletion(true))).Should().BeTrue();
+        ((ISimpleTrigger) await Store.GetTrigger(trigger.Key)).MeasureIntervalFromCompletion.Should().BeTrue("and back on");
+    }
+
+    /// <summary>
+    /// A firing of a trigger measured from completion holds it, so no acquisition takes its next run while it
+    /// runs, and its completion measures that run from the moment it completed (#4140).
+    /// </summary>
+    [Test]
+    public async Task AFiringMeasuredFromCompletionHoldsItsTriggerAndTheCompletionMeasuresTheNextRun()
+    {
+        IJobDetail job = CreateJob("measured", JobGroupA);
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddSeconds(-10);
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("measured", TriggerGroupA)
+            .ForJob(job.Key)
+            .StartAt(start)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever().MeasureIntervalFromCompletion())
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        await Store.ScheduleJob(job, trigger);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddSeconds(1),
+            MaxCount = 1
+        });
+        IOperableTrigger firing = acquired.Should().ContainSingle(x => x.Key.Equals(trigger.Key)).Subject;
+        (await Store.TriggersFired([firing])).Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull();
+
+        List<IOperableTrigger> ahead = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddHours(2),
+            MaxCount = 1
+        });
+        ahead.Should().BeEmpty("the trigger is held while its firing runs, however far ahead an acquisition reaches");
+
+        DateTimeOffset completed = DateTimeOffset.UtcNow;
+        await Store.FiringComplete(new TriggeredJobCompleteContext
+        {
+            Trigger = firing,
+            JobDetail = job,
+            Instruction = SchedulerInstruction.NoInstruction,
+            Outcome = ExecutionOutcome.Succeeded
+        });
+
+        (await Store.GetTrigger(trigger.Key)).NextFireTimeUtc.Should().BeOnOrAfter(completed.AddHours(1),
+            "the next run is an hour after the completion, not an hour after the run's scheduled time ten seconds earlier");
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal, "the completion lets go of the trigger");
+    }
+
     private async Task<IOperableTrigger> ScheduleOverdue(string name, DateTimeOffset overdue, TimeSpan? threshold)
     {
         IJobDetail job = CreateJob(name, JobGroupA);

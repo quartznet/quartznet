@@ -370,7 +370,10 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
     private SimpleScheduleBuilder BuildSimpleSchedule(JsonFileSimpleSchedule simple)
     {
         var interval = TimeSpan.Parse(simple.Interval, CultureInfo.InvariantCulture);
-        var builder = SimpleScheduleBuilder.Create().WithInterval(interval).WithRepeatCount(simple.RepeatCount);
+        var builder = SimpleScheduleBuilder.Create()
+            .WithInterval(interval)
+            .WithRepeatCount(simple.RepeatCount)
+            .MeasureIntervalFromCompletion(simple.MeasureIntervalFromCompletion);
         if (simple.MisfireInstruction is not null) builder.WithMisfireInstruction((SimpleTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.Simple, simple.MisfireInstruction, logger));
         return builder;
     }

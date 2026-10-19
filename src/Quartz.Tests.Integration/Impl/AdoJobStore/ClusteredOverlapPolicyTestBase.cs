@@ -165,6 +165,54 @@ public abstract class ClusteredOverlapPolicyTestBase : ClusteredJobStoreTestBase
         }
     }
 
+    /// <summary>
+    /// A simple trigger measured from completion (#4140) never runs on both nodes at once, and each run
+    /// starts an interval after the previous one completed, on whichever node ran either.
+    /// </summary>
+    [Test]
+    public async Task AnIntervalMeasuredFromCompletionNeverRunsOnBothNodesAndIsMeasuredFromWhereverItEnded()
+    {
+        IScheduler nodeA = await CreateScheduler(NodeA);
+        IScheduler nodeB = await CreateScheduler(NodeB);
+        TriggerKey triggerKey = new("fixed-delay", Group);
+        TimedJob.Reset();
+
+        try
+        {
+            await nodeA.Start();
+            await nodeB.Start();
+
+            IJobDetail job = JobBuilder.Create<TimedJob>().WithIdentity("fixed-delay", Group).StoreDurably().Build();
+            await nodeA.AddJob(job, new AddJobOptions { Replace = true });
+
+            await nodeA.ScheduleJob(TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(job)
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(2))
+                .WithSimpleSchedule(x => x.WithInterval(TimedJob.Interval).RepeatForever().MeasureIntervalFromCompletion())
+                .Build());
+
+            await WaitForCondition(
+                () => Task.FromResult(TimedJob.Runs.Count >= 5),
+                timeoutMs: 60_000,
+                async () => $"five runs. Runs: {TimedJob.Runs.Count}. State:\n{await DumpDatabaseState()}");
+        }
+        finally
+        {
+            await nodeA.Shutdown(waitForJobsToComplete: true);
+            await nodeB.Shutdown(waitForJobsToComplete: true);
+        }
+
+        List<(TimeSpan Start, TimeSpan End, string Node)> runs = [.. TimedJob.Runs.OrderBy(x => x.Start)];
+        TimedJob.MaxConcurrent.Should().Be(1, "the trigger is held while a firing of it runs, on every node");
+
+        for (int i = 1; i < runs.Count; i++)
+        {
+            (runs[i].Start - runs[i - 1].End).Should().BeGreaterThanOrEqualTo(TimedJob.Interval - TimeSpan.FromMilliseconds(20),
+                $"run {i + 1} on {runs[i].Node} is due an interval after run {i} completed on {runs[i - 1].Node}");
+        }
+    }
+
     private async Task<bool> IsBlocked(TriggerKey key)
     {
         return await CountRows(
@@ -193,6 +241,49 @@ public abstract class ClusteredOverlapPolicyTestBase : ClusteredJobStoreTestBase
         {
             skipped.Enqueue((trigger.NextFireTimeUtc, scheduler.SchedulerInstanceId));
             return default;
+        }
+    }
+
+    /// <summary>
+    /// Runs for half a second, recording when and where on one monotonic clock, and how many ran at once.
+    /// </summary>
+    public sealed class TimedJob : IJob
+    {
+        public static readonly TimeSpan Interval = TimeSpan.FromSeconds(1);
+
+        private static readonly long origin = TimeProvider.System.GetTimestamp();
+        private static int running;
+        private static int maxConcurrent;
+
+        public static ConcurrentQueue<(TimeSpan Start, TimeSpan End, string Node)> Runs { get; private set; } = new();
+
+        public static int MaxConcurrent => Volatile.Read(ref maxConcurrent);
+
+        public static void Reset()
+        {
+            Runs = new ConcurrentQueue<(TimeSpan, TimeSpan, string)>();
+            running = 0;
+            maxConcurrent = 0;
+        }
+
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            TimeSpan start = TimeProvider.System.GetElapsedTime(origin);
+            int now = Interlocked.Increment(ref running);
+            int seen;
+            while (now > (seen = Volatile.Read(ref maxConcurrent)) && Interlocked.CompareExchange(ref maxConcurrent, now, seen) != seen)
+            {
+            }
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref running);
+                Runs.Enqueue((start, TimeProvider.System.GetElapsedTime(origin), context.Scheduler.SchedulerInstanceId));
+            }
         }
     }
 

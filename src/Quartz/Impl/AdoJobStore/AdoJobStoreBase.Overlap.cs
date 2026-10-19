@@ -36,7 +36,9 @@ namespace Quartz.Impl.AdoJobStore;
 /// <see cref="OverlapPolicy.BufferOne" /> asks nothing here. Its firing stores the trigger
 /// <c>BLOCKED</c> when it starts, exactly as a <see cref="DisallowConcurrentExecutionAttribute" />
 /// job's firing does for all of that job's triggers, and its completion lets go of it — so no firing of
-/// it is ever acquired while one runs. <see cref="OverlapPolicy.Skip" /> and
+/// it is ever acquired while one runs. A simple trigger that measures its interval from completion is held
+/// the same way whatever its policy, and its completion gives it its next fire time as it lets go (#4140).
+/// <see cref="OverlapPolicy.Skip" /> and
 /// <see cref="OverlapPolicy.CancelPrevious" /> look at the trigger's running firings when a firing of
 /// it comes due. <see cref="OverlapPolicy.Default" /> and <see cref="OverlapPolicy.AllowAll" /> cost
 /// nothing.
@@ -217,7 +219,8 @@ internal abstract partial class AdoJobStoreBase
     /// </summary>
     /// <remarks>
     /// Two statements that match nothing when nothing is held, which is the common case for
-    /// <see cref="OverlapPolicy.CancelPrevious" />; issued only for firings of those two policies.
+    /// <see cref="OverlapPolicy.CancelPrevious" />; issued only for firings of those two policies, and for a
+    /// firing of a trigger that measures from completion whose completion did not settle it.
     /// </remarks>
     private async ValueTask ReleaseOverlapHold(
         ConnectionAndTransactionHolder conn,

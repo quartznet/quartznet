@@ -339,7 +339,10 @@ internal static class JsonSchedulingHelper
         var interval = intervalStr is not null ? SafeParseTimeSpan(intervalStr, "Simple.Interval") : TimeSpan.Zero;
         var repeatCount = repeatCountStr is not null ? SafeParseInt(repeatCountStr, "Simple.RepeatCount") : 0;
 
-        var builder = SimpleScheduleBuilder.Create().WithInterval(interval).WithRepeatCount(repeatCount);
+        var builder = SimpleScheduleBuilder.Create()
+            .WithInterval(interval)
+            .WithRepeatCount(repeatCount)
+            .MeasureIntervalFromCompletion(ParseBool(section[nameof(JsonSimpleSchedule.MeasureIntervalFromCompletion)], "Simple.MeasureIntervalFromCompletion"));
 
         var misfireInstruction = section[nameof(JsonSimpleSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)

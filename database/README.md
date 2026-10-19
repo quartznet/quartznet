@@ -112,6 +112,7 @@ file whose suffix matches your database: `_sqlServer`, `_postgres`, `_mysql_inno
 | [`4.6`](migrations/4.6) | `add_fired_trigger_interrupt_<db>.sql`: `INTERRUPT_REQUESTED_TIME` on `QRTZ_FIRED_TRIGGERS`, an interrupt another node asked of the firing, which the node running it reads after each check-in (#4071) | **Required on 4.6+**, safe during a mixed 4.5/4.6 window; a 4.5 node never answers a request | all | `main` only |
 | [`4.6`](migrations/4.6) | `add_trigger_misfire_threshold_<db>.sql`: `MISFIRE_THRESHOLD` on `QRTZ_TRIGGERS`, a trigger's own misfire threshold in milliseconds (#4070) | **Required on 4.6+**, safe during a mixed 4.5/4.6 window; a 4.5 node ignores the column, so give a trigger a threshold only once every node is 4.6 | all | `main` only |
 | [`4.6`](migrations/4.6) | `add_execution_history_lookup_indexes_<db>.sql`: `IDX_QRTZ_EH_FIRE_INST` and `IDX_QRTZ_EH_TRIG_TIME` on `QRTZ_EXECUTION_HISTORY`, a firing's outcome and a trigger's history read by seek rather than scan (#4072) | **Optional**, performance only; changes nothing on a database without the history table, except on SQLite; safe under a mixed cluster | all | `main` only |
+| [`4.7`](migrations/4.7) | `add_trigger_fixed_delay_<db>.sql`: `FIXED_DELAY` on `QRTZ_TRIGGERS`, a simple trigger whose interval is measured from the previous run's completion (#4140) | **Required on 4.7+**, safe during a mixed 4.6/4.7 window; a 4.6 node ignores the column, so measure from completion only once every node is 4.7 | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -255,6 +256,20 @@ them. Run it when you want a cluster-wide execution history, at any time, or nev
   results.
 - A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have all three columns and
   both indexes.
+
+### Upgrading 4.6 → 4.7
+
+[`migrations/4.7`](migrations/4.7) has one file, and it is required.
+
+| File | Status | What |
+|---|---|---|
+| `add_trigger_fixed_delay_<db>.sql` | **Required** | `FIXED_DELAY` on `QRTZ_TRIGGERS`: a simple trigger whose next run is the previous run's completion plus the interval, `NULL` for a fixed rate. A 4.7 node reads and writes it with every trigger, its firing rounds read it, and it refuses to start without it. |
+
+- **Run it while 4.6 nodes are still up.** The column is nullable with no default, and a 4.6 node never
+  names it, so its rows read `NULL`.
+- **Make a trigger measure from completion only once every node is 4.7.** A 4.6 node ignores the column
+  and runs the trigger at a fixed rate, beside a running firing of it.
+- A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have the column.
 
 ## Where these files moved
 

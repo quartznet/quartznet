@@ -202,13 +202,14 @@ public sealed class MixedVersionClusterPostgresTest
         "SELECT job_group, job_name, run_count, last_instance_name FROM qrtzv_job_status WHERE sched_name = @schedulerName";
 
     private const string SelectTriggerColumns =
-        "SELECT trigger_state, overlap_policy, pause_reason, paused_by, paused_at, description, priority, retry_policy, misfire_threshold "
+        "SELECT trigger_state, overlap_policy, pause_reason, paused_by, paused_at, description, priority, retry_policy, misfire_threshold, fixed_delay "
         + "FROM qrtzv_triggers WHERE sched_name = @schedulerName AND trigger_group = @group AND trigger_name = @name";
 
     // A threshold of a trigger's own, written straight into the row a 4.5 node then fires: the store's own
     // minute, so the working tree's handling of the trigger is what it would have been without it (#4070).
+    // And the interval measured from completion, which the released node runs at a fixed rate (#4140).
     private const string StampMisfireThreshold =
-        "UPDATE qrtzv_triggers SET misfire_threshold = 60000 "
+        "UPDATE qrtzv_triggers SET misfire_threshold = 60000, fixed_delay = TRUE "
         + "WHERE sched_name = @schedulerName AND trigger_group = @group AND trigger_name = @name";
 
     private const string SelectTriggerGroupPause =
@@ -327,6 +328,8 @@ public sealed class MixedVersionClusterPostgresTest
                 AssertRetryPolicyNoneSurvivesTheReleasedNode(runs, columns, retryPolicyAsScheduled, releasedLiveUntil);
                 columns.Triggers["state.retry-none"].MisfireThreshold.Should().Be(60000,
                     "a 4.5 node writes the trigger it fired back without naming MISFIRE_THRESHOLD, so the column it does not know is left as it was");
+                columns.Triggers["state.retry-none"].FixedDelay.Should().BeTrue(
+                    "and the same for FIXED_DELAY, which it never names either");
                 AssertTheWorkingTreeReadsThemBack(columns, triggerPause, groupPause, jobGroupPause);
                 AssertProgressSurvived(runs);
                 AssertEachRunIsInTheHistoryOnce(runs, history);
@@ -1162,7 +1165,7 @@ public sealed class MixedVersionClusterPostgresTest
         if (!await reader.ReadAsync())
         {
             // Asserted on with everything else rather than here, so one gone row does not hide the rest.
-            return new TriggerColumns("<no row>", null, null, null, null, null, null, null, null);
+            return new TriggerColumns("<no row>", null, null, null, null, null, null, null, null, null);
         }
 
         return new TriggerColumns(
@@ -1174,7 +1177,8 @@ public sealed class MixedVersionClusterPostgresTest
             reader.IsDBNull(5) ? null : reader.GetString(5),
             reader.IsDBNull(6) ? null : reader.GetInt32(6),
             reader.IsDBNull(7) ? null : reader.GetString(7),
-            reader.IsDBNull(8) ? null : reader.GetInt64(8));
+            reader.IsDBNull(8) ? null : reader.GetInt64(8),
+            reader.IsDBNull(9) ? null : reader.GetBoolean(9));
     }
 
     private static async Task<ColumnsAfter> ReadColumns(string connectionString)
@@ -1369,7 +1373,8 @@ public sealed class MixedVersionClusterPostgresTest
         string Description,
         int? Priority,
         string RetryPolicy,
-        long? MisfireThreshold);
+        long? MisfireThreshold,
+        bool? FixedDelay);
 
     private sealed record PauseColumns(string PauseReason, string PausedBy, long? PausedAt);
 

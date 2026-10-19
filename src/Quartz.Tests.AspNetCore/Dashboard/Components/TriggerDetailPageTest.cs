@@ -159,6 +159,22 @@ public class TriggerDetailPageTest
     }
 
     [Test]
+    public void ThePageSaysASimpleTriggerMeasuresFromCompletion()
+    {
+        GivenTrigger(TriggerBuilder.Create()
+            .WithIdentity(TriggerName, TriggerGroup)
+            .ForJob("CronJobKey", "CronJobGroup")
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever().MeasureIntervalFromCompletion())
+            .Build());
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Markup.Should().Contain("<th>Interval</th><td>Measured from completion</td>",
+            "whether the next run waits for this one to end is part of what the trigger is"));
+        page.Markup.Should().Contain("Every 00:05:00, repeat forever, measured from completion", "and the schedule's summary says so too");
+    }
+
+    [Test]
     public void ATriggerWithNoCronExpressionIsNotOfferedACronEditor()
     {
         GivenTrigger(TestData.SimpleTrigger);

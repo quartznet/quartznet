@@ -254,6 +254,10 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto)).Returns(20);
         A.CallTo(() => dataReader.IsDBNull(20)).Returns(true);
 
+        // And the fixed-delay column, which a row a node older than 4.7 wrote holds as NULL (#4140).
+        A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnFixedDelay)).Returns(21);
+        A.CallTo(() => dataReader.IsDBNull(21)).Returns(true);
+
         var persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
         var exception = new InvalidOperationException();
         A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, CancellationToken.None)).Throws(exception);
@@ -558,6 +562,10 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto)).Returns(20);
         A.CallTo(() => dataReader.IsDBNull(20)).Returns(true);
 
+        // And the fixed-delay column, which a row a node older than 4.7 wrote holds as NULL (#4140).
+        A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnFixedDelay)).Returns(21);
+        A.CallTo(() => dataReader.IsDBNull(21)).Returns(true);
+
         var persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
         var exception = new InvalidOperationException();
         A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, CancellationToken.None)).Throws(exception);
@@ -637,6 +645,10 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto)).Returns(20);
         A.CallTo(() => dataReader.IsDBNull(20)).Returns(true);
 
+        // And the fixed-delay column, which a row a node older than 4.7 wrote holds as NULL (#4140).
+        A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnFixedDelay)).Returns(21);
+        A.CallTo(() => dataReader.IsDBNull(21)).Returns(true);
+
         // Create a blob trigger with no fire times set (simulating a freshly deserialized custom trigger)
         var blobTrigger = new SimpleTriggerImpl
         {
@@ -714,6 +726,10 @@ public class StdAdoDelegateTest
         // Preferred node auto-claim column reads as absent (distinct ordinal, no collision)
         A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto)).Returns(20);
         A.CallTo(() => dataReader.IsDBNull(20)).Returns(true);
+
+        // And the fixed-delay column, which a row a node older than 4.7 wrote holds as NULL (#4140).
+        A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnFixedDelay)).Returns(21);
+        A.CallTo(() => dataReader.IsDBNull(21)).Returns(true);
 
         var blobTrigger = new SimpleTriggerImpl
         {
@@ -903,6 +919,10 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader.IsDBNull(11)).Returns(true);
         A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto)).Returns(20);
         A.CallTo(() => dataReader.IsDBNull(20)).Returns(true);
+
+        // And the fixed-delay column, which a row a node older than 4.7 wrote holds as NULL (#4140).
+        A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnFixedDelay)).Returns(21);
+        A.CallTo(() => dataReader.IsDBNull(21)).Returns(true);
     }
 
     /// <summary>

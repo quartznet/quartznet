@@ -390,7 +390,8 @@ public class WireFormatSnapshotTest : WebApiTest
             .WithExecutionGroup("imports")
             .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30)))
             .WithOverlapPolicy(OverlapPolicy.Skip)
-            .WithMisfireThreshold(TimeSpan.FromMinutes(5)));
+            .WithMisfireThreshold(TimeSpan.FromMinutes(5))
+            .WithMeasureIntervalFromCompletion(true));
 
         await VerifyBody(body);
     }

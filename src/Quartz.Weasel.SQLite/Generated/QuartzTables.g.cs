@@ -69,6 +69,7 @@ internal static partial class QuartzTables
         triggers.AddColumn("paused_by", "NVARCHAR(200)");
         triggers.AddColumn("paused_at", "BIGINT");
         triggers.AddColumn("misfire_threshold", "BIGINT");
+        triggers.AddColumn("fixed_delay", "BIT");
         triggers.AddColumn("job_data", "BLOB");
         naming.PrimaryKey(triggers);
         naming.ForeignKey(triggers, "JOB_DETAILS", ["SCHED_NAME", "JOB_NAME", "JOB_GROUP"], ["SCHED_NAME", "JOB_NAME", "JOB_GROUP"], cascade: false);

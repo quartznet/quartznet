@@ -165,6 +165,16 @@ public sealed class SimpleTriggerAttribute : Attribute
     }
 
     /// <summary>
+    /// Whether the interval is measured from the previous run's completion rather than from its scheduled
+    /// time: a fixed delay. Defaults to <see langword="false" />, a fixed rate.
+    /// </summary>
+    /// <remarks>
+    /// The trigger then never overlaps itself. Every node of a cluster must be 4.7 or later.
+    /// </remarks>
+    /// <seealso cref="SimpleScheduleBuilder.MeasureIntervalFromCompletion" />
+    public bool MeasureIntervalFromCompletion { get; init; }
+
+    /// <summary>
     /// The trigger's priority, which decides who wins when two triggers want the same moment and
     /// only one worker is free. Defaults to <see cref="TriggerConstants.DefaultPriority" />.
     /// </summary>

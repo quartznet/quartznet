@@ -426,7 +426,8 @@ internal class XmlSchedulingDataProcessor
 
                 scheduleBuilder = SimpleScheduleBuilder.Create()
                     .WithInterval(repeatInterval)
-                    .WithRepeatCount(repeatCount);
+                    .WithRepeatCount(repeatCount)
+                    .MeasureIntervalFromCompletion(simpleTrigger.MeasureIntervalFromCompletion);
 
                 if (!string.IsNullOrWhiteSpace(simpleTrigger.MisfireInstruction))
                 {

@@ -130,6 +130,8 @@
     "Trigger {TriggerKey} failed to fire {Failures} times in a row and is set to ERROR state; ResetTriggerFromErrorState returns it once the cause is fixed"
 2010  Error  RAMJobStoreLog.TriggerMisfireHandlingFailed
     "Misfire handling of trigger {TriggerKey} failed; the trigger is left as it was, to be handled again, and the rest goes on without it"
+2011  Error  RAMJobStoreLog.FixedDelayFireTimeFailed
+    "Next fire time of trigger {TriggerKey}, which measures from completion, could not be computed; it is let go with the fire time its firing left on it"
 3000  Information  AdoJobStoreLog.SqliteLockHandlerSubstituted
     "Detected SQLite usage, changing to use SqliteLockHandler for in-memory locking"
 3001  Information  AdoJobStoreLog.SqliteAcquireTriggersWithinLockForced
@@ -252,6 +254,8 @@
     "Edit of trigger {TriggerKey} is applied again: a firing moved the row between the edit's read and its write"
 3060  Debug  AdoJobStoreLog.RoundsLockedForContention
     "Firing rounds take TRIGGER_ACCESS until the backlog clears: a round without it lost {ClaimsLost} claims to another node"
+3061  Error  AdoJobStoreLog.FixedDelayFireTimeFailed
+    "Next fire time of trigger {TriggerKey}, which measures from completion, could not be computed; it is let go with the fire time its firing left on it"
 3100  Debug  AdoJobStoreLog.SqlPrepared
     "Prepared SQL: {Sql}"
 3110  Error  AdoJobStoreLog.ConnectionCloseFailed
