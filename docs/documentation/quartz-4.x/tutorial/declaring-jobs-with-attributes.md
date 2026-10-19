@@ -178,6 +178,7 @@ public sealed class PollInboxJob : IJob
 | `Group` | the job's group | the trigger key's group |
 | `MisfireInstruction` | the scheduler's [default](more-about-triggers.md#the-scheduler-s-default-instruction) | a `SimpleTriggerMisfireInstruction`: what the trigger does about a firing it missed; written, `SmartPolicy` included, it is stated |
 | `MisfireThreshold` (4.6) | the store's | how late it may fire before it misfires, as an invariant `TimeSpan` string |
+| `MeasureIntervalFromCompletion` (4.7) | `false`, a fixed rate | `true` starts each run an interval after the previous one completes — see [Measured from completion](simpletriggers.md#measured-from-completion) |
 | `Priority` | `5` | who wins when two triggers want the same moment and one worker is free |
 | `Description` | none | the description carried on the trigger |
 | `ExecutionGroup` | none | the [execution group](execution-groups.md) the firing counts against |

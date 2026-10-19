@@ -175,6 +175,8 @@ or `Recurrence` — and that object decides the trigger type.
 
 - `RepeatCount`: how many times to repeat; `-1` for indefinite, `0` to fire once.
 - `Interval`: a TimeSpan string, e.g. `"00:00:10"` for 10 seconds, `"01:00:00"` for 1 hour.
+- `MeasureIntervalFromCompletion` (4.7): `true` starts each run an interval after the previous one
+  completes. Omitted: `false`, a fixed rate. See [Measured from completion](../tutorial/simpletriggers.md#measured-from-completion).
 
 #### Cron Trigger
 

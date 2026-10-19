@@ -18,7 +18,7 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.6 | [Upgrading from 4.6 to 4.7](#upgrading-from-4-6-to-4-7) |
+| From 4.6 | [Upgrading from 4.6 to 4.7](#upgrading-from-4-6-to-4-7). It has a database migration |
 | From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). It has a database migration. Then 4.6 to 4.7 |
 | From 4.4 | [Upgrading from 4.4 to 4.5](#upgrading-from-4-4-to-4-5). No database migration. Then 4.5 to 4.6 |
 | From 4.3 | [Upgrading from 4.3 to 4.4](#upgrading-from-4-3-to-4-4). Its database migration is optional. Then 4.4 to 4.5 |
@@ -31,10 +31,31 @@ The compiler finds most of the 3.x → 4.0 work.
 
 ## Upgrading from 4.6 to 4.7
 
-An application on 4.6 compiles on 4.7 unchanged.
+An application on 4.6 compiles on 4.7 unchanged. The upgrade has one required database migration, in
+[`database/migrations/4.7/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.7):
+
+| Migration | Adds, nullable |
+|---|---|
+| `add_trigger_fixed_delay_<db>.sql` | `FIXED_DELAY` on `QRTZ_TRIGGERS` |
+
+A 4.7 node refuses to start without it; a 4.6 node never names it. Run it while the 4.6 nodes are up, then
+roll the nodes. A 4.6 node runs a trigger that measures from completion at a fixed rate, so make a trigger
+measure from completion only once every node is 4.7. See [Version 4.7](../database/schema-changes.md#version-4-7).
 
 | Added | What it is |
 |---|---|
+| `SimpleScheduleBuilder.MeasureIntervalFromCompletion(bool = true)` | A fixed delay: the next run is the previous run's completion plus the interval. See [Measured from completion](tutorial/simpletriggers.md#measured-from-completion) |
+| `ISimpleTrigger.MeasureIntervalFromCompletion` | `bool`, default interface member answering `false` |
+| `SimpleTriggerImpl.MeasureIntervalFromCompletion` | `bool`, get and set |
+| `SimpleTriggerImpl.RetryFired(ICalendar?)` | Override: a trigger that measures from completion takes the retry instant plus the interval |
+| `SimpleTriggerAttribute.MeasureIntervalFromCompletion` | `bool`, `init` |
+| `TriggerDetailsUpdate.WithMeasureIntervalFromCompletion(bool)` | Refused for a trigger that is not a simple one |
+| `TriggerAcquireResult.MeasureIntervalFromCompletion` | `bool`, `init`: what the candidate read carries; `true` makes a lock-free round take the lock |
+| `QRTZ_TRIGGERS.FIXED_DELAY`, `AdoConstants.ColumnFixedDelay` | Nullable flag, from the required `4.7/add_trigger_fixed_delay_<db>.sql`; `NULL` is a fixed rate. See [Version 4.7](../database/schema-changes.md#version-4-7) |
+| `MeasureIntervalFromCompletion` in the JSON schedule's `Simple`, `<measure-interval-from-completion>` in XML | See [JSON](configuration/json.md) and [Quartz.Plugins](packages/quartz-plugins.md) |
+| HTTP: `measureIntervalFromCompletion` on the trigger body and `update-details` | Absent on a fixed-rate trigger; a host older than 4.7 ignores it |
+| Dashboard: *Interval measured from completion* in *Edit details* | Simple triggers only |
+| Log events `2011`, `3061` | A completion could not compute the next fire time from the trigger's calendar. See [Log Events](log-events.md) |
 | `QuartzSchedulerOptions.DefaultTimeZone` | `TimeZoneInfo?`, default `null` (`TimeZoneInfo.Local`): the zone a cron, calendar-interval, daily time-interval or recurrence trigger that names none is given when it is scheduled. See [The scheduler's default time zone](tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone) |
 | `UseDefaultTimeZone(this IQuartzBuilder, TimeZoneInfo)` | Sugar over `DefaultTimeZone` |
 | `Scheduler:DefaultTimeZone`, `quartz.scheduler.defaultTimeZone` | The configuration keys: an IANA or Windows id. An id the system cannot resolve stops the scheduler starting |

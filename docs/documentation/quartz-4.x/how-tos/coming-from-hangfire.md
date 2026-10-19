@@ -54,6 +54,7 @@ It is stored by its key, not as a serialized call, so every node registers it. S
 | `BackgroundJob.ContinueJobWith(parentId, …)` | `.StartAfter(parentTriggerKey, condition)` on the follow-up's trigger | see [Continuations](#continuations) |
 | `RecurringJob.AddOrUpdate(id, () => …, cron)` | `q.ScheduleJob<T>(t => t.WithIdentity(id).WithCronSchedule(…))`, or from 4.3 [`q.ScheduleJob(id, lambda, t => t.WithCronSchedule(…))`](../tutorial/delegate-jobs.md) | six cron fields, not five, and a different default time zone |
 | [`Cron.MinuteInterval(10)`, `Cron.HourInterval(6)`, `Cron.Daily(3, 0)`](https://github.com/HangfireIO/Hangfire/blob/v1.8.25/src/Hangfire.Core/Cron.cs) | from 4.3, `t.WithCronSchedule(cron => cron.Every(TimeSpan.FromMinutes(10)))`, `cron.Every(TimeSpan.FromHours(6))`, `cron.AtTime(new TimeOnly(3, 0))` | an interval that does not divide the hour or day throws instead of firing unevenly |
+| A job that ends with `BackgroundJob.Schedule(…, delay)` to run again after a pause | from 4.7, a simple trigger with [`MeasureIntervalFromCompletion()`](../tutorial/simpletriggers.md#measured-from-completion) | the store schedules the next run when the firing completes, however it ended, and never runs it twice at once |
 | `RecurringJob.RemoveIfExists(id)` | `scheduler.DeleteJob(jobKey)`, or `UnscheduleJob` to keep the job | |
 | `RecurringJob.TriggerJob(id)` | `scheduler.TriggerJob(jobKey)` | |
 | `IBackgroundJobClient`, `IRecurringJobManager` | `IScheduler`, injected | one interface for both; every member is awaitable |
@@ -199,6 +200,8 @@ store the exclusion is cluster-wide.
 
 From 4.3 a trigger can decide instead of its job, with an [overlap policy](overlap-policy.md): `BufferOne`
 holds one firing until the running one ends, `Skip` drops it, `CancelPrevious` interrupts the running one.
+From 4.7 a simple trigger can [measure its interval from completion](../tutorial/simpletriggers.md#measured-from-completion),
+so it never overlaps itself at all.
 
 ### Queues become execution groups
 
