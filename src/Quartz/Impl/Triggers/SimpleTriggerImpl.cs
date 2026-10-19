@@ -301,6 +301,24 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// <value></value>
     public override bool HasMillisecondPrecision => true;
 
+    /// <inheritdoc />
+    /// <remarks>The repeat count and the repeat interval.</remarks>
+    internal override bool HasSameScheduleAs(AbstractTrigger other)
+    {
+        return other is SimpleTriggerImpl simple
+               && RepeatCount == simple.RepeatCount
+               && RepeatInterval == simple.RepeatInterval;
+    }
+
+    /// <inheritdoc />
+    internal override void CarryTimesTriggeredFrom(AbstractTrigger stored)
+    {
+        if (timesTriggered == 0 && stored is SimpleTriggerImpl simple)
+        {
+            timesTriggered = simple.TimesTriggered;
+        }
+    }
+
     /// <summary>
     /// Validates the misfire instruction.
     /// </summary>

@@ -88,6 +88,11 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     [NonSerialized] // we have the key in string fields
     private TriggerKey? key;
 
+    // An instruction to one ReplaceTrigger, set by the scheduling-data processor on a declared trigger it
+    // re-applies; see KeepsPauseOnReplace. Not serialized: it is not part of the trigger.
+    [NonSerialized]
+    private bool keepsPauseOnReplace;
+
     /// <summary>
     /// Stores the original NextFireTimeUtc before misfire handling changes it.
     /// Used to provide the correct ScheduledFireTimeUtc in JobExecutionContext.
@@ -866,6 +871,76 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
         }
 
         return Key.GetHashCode();
+    }
+
+    /// <summary>
+    /// Whether a store's <see cref="IJobStore.ReplaceTrigger" /> keeps the pause of the trigger this one
+    /// replaces: stored paused when that trigger is paused, rather than in the state its groups give it.
+    /// </summary>
+    /// <remarks>
+    /// Only the scheduling-data processor sets it, on a declared trigger it re-applies at a start, so a
+    /// redeploy does not resume a trigger an operator paused (#4128). An explicit <c>RescheduleJob</c> never
+    /// carries it, and its replacement takes the state its groups and job give it, as it always has. The
+    /// in-memory store clears it on the copy it keeps, so a trigger read back does not carry it.
+    /// </remarks>
+    internal bool KeepsPauseOnReplace
+    {
+        get => keepsPauseOnReplace;
+        set => keepsPauseOnReplace = value;
+    }
+
+    /// <summary>
+    /// Gives this trigger, a declared one being re-applied over <paramref name="stored" />, the number of
+    /// times the stored trigger has fired, when the two are the same kind of trigger on the same schedule
+    /// (#4128).
+    /// </summary>
+    /// <remarks>
+    /// A changed schedule, or another kind of trigger, carries nothing: the declaration has said something
+    /// new, and its trigger starts fresh.
+    /// </remarks>
+    /// <param name="stored">The trigger the store holds under the same key.</param>
+    /// <returns>Whether the schedules matched, so that the run state was carried.</returns>
+    internal bool CarryRunStateFrom(ITrigger stored)
+    {
+        if (stored is not AbstractTrigger storedTrigger || storedTrigger.GetType() != GetType() || !HasSameScheduleAs(storedTrigger))
+        {
+            return false;
+        }
+
+        CarryTimesTriggeredFrom(storedTrigger);
+        return true;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="other" />, a trigger of the same type, fires on the same schedule as this one:
+    /// the fields this kind's schedule builder sets, other than the misfire instruction.
+    /// </summary>
+    /// <remarks>
+    /// The start and end times are not compared. A declared trigger starts when it was built unless it says
+    /// otherwise, so its start time is new at every start. A kind that does not override this answers
+    /// <see langword="false" />, and its run state is never carried.
+    /// </remarks>
+    /// <param name="other">A trigger of exactly this one's type.</param>
+    internal virtual bool HasSameScheduleAs(AbstractTrigger other)
+    {
+        return false;
+    }
+
+    /// <summary>
+    /// Takes the number of times <paramref name="stored" /> has fired, for a kind that counts them and when
+    /// this trigger has not counted any of its own.
+    /// </summary>
+    /// <param name="stored">A trigger of exactly this one's type, on the same schedule.</param>
+    internal virtual void CarryTimesTriggeredFrom(AbstractTrigger stored)
+    {
+    }
+
+    /// <summary>
+    /// Whether two time zones are the same zone, by id: what a store writes and reads a zone back by.
+    /// </summary>
+    internal static bool SameTimeZone(TimeZoneInfo first, TimeZoneInfo second)
+    {
+        return string.Equals(first.Id, second.Id, StringComparison.Ordinal);
     }
 
     /// <summary>

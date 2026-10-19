@@ -1123,4 +1123,30 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
     /// in millisecond precision.
     /// </summary>
     public override bool HasMillisecondPrecision => true;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The interval and its unit, the days of the week, the daily start and end, the repeat count and the
+    /// time zone.
+    /// </remarks>
+    internal override bool HasSameScheduleAs(AbstractTrigger other)
+    {
+        return other is DailyTimeIntervalTriggerImpl daily
+               && RepeatInterval == daily.RepeatInterval
+               && RepeatIntervalUnit == daily.RepeatIntervalUnit
+               && new HashSet<DayOfWeek>(DaysOfWeek).SetEquals(daily.DaysOfWeek)
+               && Equals(StartTimeOfDay, daily.StartTimeOfDay)
+               && Equals(EndTimeOfDay, daily.EndTimeOfDay)
+               && RepeatCount == daily.RepeatCount
+               && SameTimeZone(TimeZone, daily.TimeZone);
+    }
+
+    /// <inheritdoc />
+    internal override void CarryTimesTriggeredFrom(AbstractTrigger stored)
+    {
+        if (TimesTriggered == 0 && stored is DailyTimeIntervalTriggerImpl daily)
+        {
+            TimesTriggered = daily.TimesTriggered;
+        }
+    }
 }

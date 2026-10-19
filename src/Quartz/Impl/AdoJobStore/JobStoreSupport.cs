@@ -2731,9 +2731,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
             }
 
+            // Read before the row goes: a declared trigger re-applied at a start keeps the pause the row has
+            // (#4128), stored paused rather than waiting and paused-blocked if its job is running. Any other
+            // replace decides the state afresh.
+            string state = await KeepsPauseOnReplace(conn, triggerKey, newTrigger, cancellationToken).ConfigureAwait(false)
+                ? StatePaused
+                : StateWaiting;
+
             bool removedTrigger = await Delegate.DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) > 0;
 
-            await StoreTrigger(conn, newTrigger, job, false, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+            await StoreTrigger(conn, newTrigger, job, false, state, false, false, cancellationToken).ConfigureAwait(false);
 
             return removedTrigger;
         }
@@ -2741,6 +2748,25 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         {
             throw new JobPersistenceException("Couldn't replace trigger: " + e.Message, e);
         }
+    }
+
+    /// <summary>
+    /// Whether a replace keeps the pause on the row it replaces: only for a declared trigger the
+    /// scheduling-data processor re-applies at a start, and only when the row is paused (#4128).
+    /// </summary>
+    private async Task<bool> KeepsPauseOnReplace(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        IOperableTrigger newTrigger,
+        CancellationToken cancellationToken)
+    {
+        if (newTrigger is not AbstractTrigger { KeepsPauseOnReplace: true })
+        {
+            return false;
+        }
+
+        string state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        return state == StatePaused || state == StatePausedBlocked;
     }
 
     /// <inheritdoc />
