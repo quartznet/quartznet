@@ -38,6 +38,7 @@ Behaviour that changed:
 | Before | After | What to do |
 |---|---|---|
 | `CronExpressionBuilder` wrote `*` for an unconfigured second: `WithMinuteIncrements(0, 5)` was `* 0/5 * ? * *`, every second of every fifth minute | It writes `0`: `0 0/5 * ? * *`, once every five minutes. A call that sets the second, such as `AtTime` or `Every`, is unchanged. See [Building cron expressions programmatically](cron-expressions.md#building-cron-expressions-programmatically) | Nothing, unless every second was meant: add `WithSecondRange(0, 59)` |
+| A clustered node with a generated instance id said nothing about declared triggers pinned with `PreferredNode.For(…)`, which never matched it | Log event `4031` warns once at start, with the count and up to five trigger keys. See [Requirements and limitations](tutorial/node-affinity.md#requirements-and-limitations) | Set `InstanceId` on each node a pin names, or pin with `PreferredNode.Auto` |
 
 ## Upgrading from 4.5 to 4.6
 

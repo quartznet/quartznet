@@ -52,8 +52,12 @@ internal sealed class SchedulerContentInitializer
     /// Whether the scheduler's store keeps what it is given across starts, which is when a generated key
     /// is worth a warning.
     /// </param>
+    /// <param name="instanceIdGenerated">
+    /// Whether the default generator produced this clustered node's instance id, which then differs at
+    /// every start, so a trigger pinned to a node by name is worth a warning.
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public async ValueTask Initialize(IScheduler scheduler, bool storePersists, CancellationToken cancellationToken)
+    public async ValueTask Initialize(IScheduler scheduler, bool storePersists, bool instanceIdGenerated, CancellationToken cancellationToken)
     {
         AddSchedulerListeners(scheduler);
         AddJobListeners(scheduler);
@@ -62,6 +66,11 @@ internal sealed class SchedulerContentInitializer
         await AddCalendars(scheduler, cancellationToken).ConfigureAwait(false);
         await processor.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
         processor.ReportGeneratedIdentities(storePersists);
+
+        if (instanceIdGenerated)
+        {
+            processor.ReportPinsUnderGeneratedInstanceId(scheduler.SchedulerName, scheduler.SchedulerInstanceId);
+        }
     }
 
     private void AddSchedulerListeners(IScheduler scheduler)
