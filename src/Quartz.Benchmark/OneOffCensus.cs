@@ -33,10 +33,26 @@ namespace Quartz.Benchmark;
 /// than the number of transactions Quartz opens. That is the finding, not an artefact: the census
 /// names it as a row of its own.
 /// </para>
+/// <para>
+/// <c>QUARTZ_CENSUS_DIALECT=sqlserver</c> runs it against <c>QUARTZ_BENCHMARK_SQLSERVER</c> instead (#4117):
+/// commits are the database's <c>Transactions/sec</c> counter, statements are
+/// <c>sys.dm_exec_query_stats</c>' executions under the database (the plan cache is cleared at the start of
+/// each window), and there is no "no reset" arm, which is an Npgsql setting. The run says whether the
+/// database has <c>READ_COMMITTED_SNAPSHOT</c> on, which decides whether its rounds take no lock.
+/// </para>
 /// </remarks>
 internal static class OneOffCensus
 {
-    private const string SchedulerName = "PostgresOneOffCensus";
+    /// <summary>
+    /// The database the census runs against: PostgreSQL, or SQL Server with
+    /// <c>QUARTZ_CENSUS_DIALECT=sqlserver</c>.
+    /// </summary>
+    private static readonly BenchmarkDialect dialect = string.Equals(
+        Environment.GetEnvironmentVariable("QUARTZ_CENSUS_DIALECT"), "sqlserver", StringComparison.OrdinalIgnoreCase)
+        ? BenchmarkDialect.SqlServer
+        : BenchmarkDialect.Postgres;
+
+    private static readonly string SchedulerName = dialect == BenchmarkDialect.SqlServer ? "SqlServerOneOffCensus" : "PostgresOneOffCensus";
 
     /// <summary>How many firings each arm drains. Large enough that the per-firing division is steady.</summary>
     private const int Firings = 500;
@@ -84,14 +100,26 @@ internal static class OneOffCensus
 
     private static async Task RunCore()
     {
-        await using BenchmarkDatabase database = await BenchmarkDatabase.Open(BenchmarkDialect.Postgres).ConfigureAwait(false);
+        await using BenchmarkDatabase database = await BenchmarkDatabase.Open(dialect).ConfigureAwait(false);
         bool statements = await HasStatementStatistics(database).ConfigureAwait(false);
 
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"One-off census: {Firings} firings per arm, MaxConcurrency {MaxConcurrency}, one durable job and one single-shot trigger per firing."));
-        Console.WriteLine(statements
-            ? "pg_stat_statements is loaded; the statement columns are counts."
-            : "pg_stat_statements is NOT loaded on this server, so the statement columns are blank. Start the container with -c shared_preload_libraries=pg_stat_statements.");
+        if (dialect == BenchmarkDialect.SqlServer)
+        {
+            Console.WriteLine(statements
+                ? "sys.dm_exec_query_stats is readable; the statement columns are counts, and the commits are the database's Transactions/sec counter."
+                : "sys.dm_exec_query_stats is NOT readable by this login (VIEW SERVER STATE), so the statement columns are blank.");
+            Console.WriteLine(await database.Scalar("SELECT CAST(is_read_committed_snapshot_on AS int) FROM sys.databases WHERE database_id = DB_ID()").ConfigureAwait(false) == 1
+                ? "READ_COMMITTED_SNAPSHOT is ON: firing rounds may take no lock, and fire apart."
+                : "READ_COMMITTED_SNAPSHOT is OFF: every firing round is locked, as 4.5's were.");
+        }
+        else
+        {
+            Console.WriteLine(statements
+                ? "pg_stat_statements is loaded; the statement columns are counts."
+                : "pg_stat_statements is NOT loaded on this server, so the statement columns are blank. Start the container with -c shared_preload_libraries=pg_stat_statements.");
+        }
 
         if (executionHistory)
         {
@@ -112,7 +140,8 @@ internal static class OneOffCensus
 
         foreach (OneOffProfile profile in Enum.GetValues<OneOffProfile>())
         {
-            foreach (bool noResetOnClose in (bool[]) [false, true])
+            // "No Reset On Close" is an Npgsql setting; SQL Server has no such arm.
+            foreach (bool noResetOnClose in dialect == BenchmarkDialect.Postgres ? (bool[]) [false, true] : [false])
             {
                 tables.Add(await Measure(database, profile, noResetOnClose, statements).ConfigureAwait(false));
             }
@@ -143,7 +172,15 @@ internal static class OneOffCensus
             profile: profile,
             configureStore: quartz => quartz.UsePersistentStore(store =>
             {
-                store.UsePostgres(connectionString);
+                if (dialect == BenchmarkDialect.SqlServer)
+                {
+                    store.UseSqlServer(connectionString);
+                }
+                else
+                {
+                    store.UsePostgres(connectionString);
+                }
+
                 store.UseSystemTextJsonSerializer();
                 RoundTripLatency.Inject(store, database.ProviderName, connectionString);
                 LockFreeRoundsArm.Apply(store);
@@ -277,6 +314,11 @@ internal static class OneOffCensus
 
     private static async Task<bool> HasStatementStatistics(BenchmarkDatabase database)
     {
+        if (dialect == BenchmarkDialect.SqlServer)
+        {
+            return await database.Scalar("SELECT COUNT_BIG(*) FROM sys.dm_exec_query_stats").ConfigureAwait(false) >= 0;
+        }
+
         try
         {
             await database.Execute("CREATE EXTENSION IF NOT EXISTS pg_stat_statements").ConfigureAwait(false);
@@ -289,23 +331,39 @@ internal static class OneOffCensus
         return await database.Scalar("SELECT COALESCE(SUM(calls), 0) FROM pg_stat_statements").ConfigureAwait(false) >= 0;
     }
 
+    /// <summary>
+    /// The statements SQL Server's plan cache says ran under this database, which is how its executions are
+    /// told apart from other databases' on the same server: an ad hoc statement's text carries no database.
+    /// </summary>
+    private const string SqlServerQueryStatsOfDatabase =
+        "FROM sys.dm_exec_query_stats qs CROSS APPLY sys.dm_exec_plan_attributes(qs.plan_handle) pa "
+        + "WHERE pa.attribute = 'dbid' AND CONVERT(int, pa.value) = DB_ID()";
+
     private static Task<long> Commits(BenchmarkDatabase database)
     {
-        return database.Scalar("SELECT xact_commit FROM pg_stat_database WHERE datname = current_database()");
+        return database.Scalar(dialect == BenchmarkDialect.SqlServer
+            ? "SELECT cntr_value FROM sys.dm_os_performance_counters WHERE counter_name = 'Transactions/sec' AND object_name LIKE '%:Databases%' AND instance_name = DB_NAME()"
+            : "SELECT xact_commit FROM pg_stat_database WHERE datname = current_database()");
     }
 
     private static Task<long> Statements(BenchmarkDatabase database, bool statements)
     {
-        return statements
-            ? database.Scalar("SELECT COALESCE(SUM(calls), 0) FROM pg_stat_statements")
-            : Task.FromResult(0L);
+        if (!statements)
+        {
+            return Task.FromResult(0L);
+        }
+
+        return database.Scalar(dialect == BenchmarkDialect.SqlServer
+            ? "SELECT COALESCE(SUM(qs.execution_count), 0) " + SqlServerQueryStatsOfDatabase
+            : "SELECT COALESCE(SUM(calls), 0) FROM pg_stat_statements");
     }
 
     private static async Task ResetStatements(BenchmarkDatabase database, bool statements)
     {
         if (statements)
         {
-            await database.Execute("SELECT pg_stat_statements_reset()").ConfigureAwait(false);
+            // SQL Server keeps its counts with the cached plans, so clearing the cache is what resets them.
+            await database.Execute(dialect == BenchmarkDialect.SqlServer ? "DBCC FREEPROCCACHE WITH NO_INFOMSGS" : "SELECT pg_stat_statements_reset()").ConfigureAwait(false);
         }
     }
 
@@ -318,7 +376,12 @@ internal static class OneOffCensus
         }
 
         using DbCommand command = database.Connection.CreateCommand();
-        command.CommandText = "SELECT calls, total_exec_time, query FROM pg_stat_statements WHERE calls > 0 ORDER BY calls DESC LIMIT 40";
+        command.CommandText = dialect == BenchmarkDialect.SqlServer
+            ? "SELECT TOP 40 qs.execution_count, CAST(qs.total_elapsed_time / 1000.0 AS float), "
+              + "SUBSTRING(st.text, qs.statement_start_offset / 2 + 1, (CASE qs.statement_end_offset WHEN -1 THEN DATALENGTH(st.text) ELSE qs.statement_end_offset END - qs.statement_start_offset) / 2 + 1) "
+              + SqlServerQueryStatsOfDatabase.Replace("CROSS APPLY", "CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) st CROSS APPLY", StringComparison.Ordinal)
+              + " AND qs.execution_count > 0 ORDER BY qs.execution_count DESC"
+            : "SELECT calls, total_exec_time, query FROM pg_stat_statements WHERE calls > 0 ORDER BY calls DESC LIMIT 40";
 
         using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
         while (await reader.ReadAsync().ConfigureAwait(false))
