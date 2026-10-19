@@ -50,7 +50,7 @@ internal static class ConfiguredSchedule
     /// </summary>
     internal static bool IsSwitchedOff([NotNullWhen(true)] string? value)
     {
-        return value is not null && value.AsSpan().Trim().SequenceEqual(SwitchedOff);
+        return value is not null && value.AsSpan().Trim() is SwitchedOff;
     }
 }
 

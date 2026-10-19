@@ -43,37 +43,43 @@ internal static class JsonSchedulingHelper
         // Read jobs and triggers from the Schedule section
         if (scheduleSection.Exists())
         {
-            SchedulerContent.Register(services, name, serviceProvider =>
-            {
-                var options = serviceProvider.GetRequiredService<IOptionsMonitor<QuartzOptions>>().Get(name);
-                var typeLoader = ResolveTypeLoader(serviceProvider);
-
-                // The clock this scheduler runs on, resolved the same way every other part of it is. A
-                // trigger declared in configuration is anchored to it and carries it, so a scheduler on a
-                // test clock reads its JSON triggers on that clock rather than on the wall clock.
-                TimeProvider timeProvider = serviceProvider.GetSchedulerTimeProvider(
-                    string.IsNullOrEmpty(name) ? null : name);
-
-                var content = new SchedulerContent();
-                foreach (var job in ReadJobs(scheduleSection.GetSection("Jobs"), typeLoader))
-                {
-                    content.Add(job);
-                }
-
-                List<SwitchedOffTrigger> switchedOff = [];
-                foreach (var trigger in ReadTriggers(scheduleSection.GetSection("Triggers"), timeProvider, switchedOff))
-                {
-                    content.Add(trigger);
-                }
-
-                foreach (SwitchedOffTrigger trigger in switchedOff)
-                {
-                    content.Add(trigger);
-                }
-
-                return content;
-            });
+            SchedulerContent.Register(services, name, serviceProvider => ReadContent(serviceProvider, name, scheduleSection));
         }
+    }
+
+    /// <summary>
+    /// The jobs, triggers and switched-off triggers a <c>Schedule</c> section declares, read as the scheduler
+    /// is built.
+    /// </summary>
+    private static SchedulerContent ReadContent(IServiceProvider serviceProvider, string name, IConfigurationSection scheduleSection)
+    {
+        QuartzOptions options = serviceProvider.GetRequiredService<IOptionsMonitor<QuartzOptions>>().Get(name);
+        ITypeLoader typeLoader = ResolveTypeLoader(serviceProvider);
+
+        // The clock this scheduler runs on, resolved the same way every other part of it is. A
+        // trigger declared in configuration is anchored to it and carries it, so a scheduler on a
+        // test clock reads its JSON triggers on that clock rather than on the wall clock.
+        TimeProvider timeProvider = serviceProvider.GetSchedulerTimeProvider(
+            string.IsNullOrEmpty(name) ? null : name);
+
+        SchedulerContent content = new();
+        foreach (IJobDetail job in ReadJobs(scheduleSection.GetSection("Jobs"), typeLoader))
+        {
+            content.Add(job);
+        }
+
+        List<SwitchedOffTrigger> switchedOff = [];
+        foreach (ITrigger trigger in ReadTriggers(scheduleSection.GetSection("Triggers"), timeProvider, switchedOff))
+        {
+            content.Add(trigger);
+        }
+
+        foreach (SwitchedOffTrigger trigger in switchedOff)
+        {
+            content.Add(trigger);
+        }
+
+        return content;
     }
 
     internal static List<IJobDetail> ReadJobs(IConfigurationSection jobsSection, ITypeLoader typeLoader)
@@ -167,7 +173,7 @@ internal static class JsonSchedulingHelper
             return triggers;
         }
 
-        foreach (var triggerSection in NotSwitchedOff(triggersSection, switchedOff))
+        foreach (IConfigurationSection triggerSection in NotSwitchedOff(triggersSection, switchedOff))
         {
             var name = triggerSection[nameof(JsonTriggerDefinition.Name)];
             var jobName = triggerSection[nameof(JsonTriggerDefinition.JobName)];
