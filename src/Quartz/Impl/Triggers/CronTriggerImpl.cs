@@ -509,14 +509,14 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
 
     /// <inheritdoc />
     /// <remarks>
-    /// The expression, as written, and its time zone. A cron trigger counts no fires, so only a pending
-    /// retry carries.
+    /// The expression, as written, and its time zone if this trigger stated one. A cron trigger counts no
+    /// fires, so only a pending retry carries.
     /// </remarks>
     internal override bool HasSameScheduleAs(TriggerBase other)
     {
         return other is CronTriggerImpl cron
                && string.Equals(CronExpressionString, cron.CronExpressionString, StringComparison.Ordinal)
-               && SameTimeZone(TimeZone, cron.TimeZone);
+               && SameTimeZoneAs(TimeZone, cron.TimeZone);
     }
 
     /// <summary>

@@ -1013,7 +1013,7 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
     /// <inheritdoc />
     /// <remarks>
     /// The interval and its unit, the days of the week, the daily start and end, the daily repeat count and
-    /// the time zone.
+    /// the time zone if this trigger stated one.
     /// </remarks>
     internal override bool HasSameScheduleAs(TriggerBase other)
     {
@@ -1024,7 +1024,7 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
                && StartTimeOfDay == daily.StartTimeOfDay
                && EndTimeOfDay == daily.EndTimeOfDay
                && RepeatCount == daily.RepeatCount
-               && SameTimeZone(TimeZone, daily.TimeZone);
+               && SameTimeZoneAs(TimeZone, daily.TimeZone);
     }
 
     /// <inheritdoc />

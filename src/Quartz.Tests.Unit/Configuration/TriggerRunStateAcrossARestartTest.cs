@@ -176,6 +176,35 @@ public sealed class TriggerRunStateAcrossARestartTest
         await Complete(store, retry, bundle);
     }
 
+    /// <summary>
+    /// A declared trigger that names no zone takes the scheduler's <c>DefaultTimeZone</c> when it is stored.
+    /// Re-applied, it still names none, which is not a changed schedule: read before it is stored, its zone
+    /// says Local, and the stored one says the default (#4135).
+    /// </summary>
+    [TestCase(StoreKind.InMemory)]
+    [TestCase(StoreKind.Sqlite)]
+    public async Task ATriggerThatNamesNoZoneKeepsItsCountUnderADefaultTimeZone(StoreKind kind)
+    {
+        // Hours away from this machine's clock, and a system zone, so the SQLite row reads it back by id.
+        TimeZoneInfo defaultZone = TimeZones.FindById(TimeZoneInfo.Local.BaseUtcOffset == TimeSpan.FromHours(9) ? "Pacific/Honolulu" : "Asia/Tokyo");
+        Action<ITriggerConfigurator<IJob>> hourly = t => t.WithSchedule(CalendarIntervalScheduleBuilder.Create().WithInterval(1, IntervalUnit.Hour));
+
+        await using (ServiceProvider first = await Start(kind, hourly, defaultZone))
+        {
+            await FireAndComplete(StoreOf(first));
+            clock.Advance(interval);
+            await FireAndComplete(StoreOf(first));
+        }
+
+        clock.Advance(TimeSpan.FromMinutes(30));
+        await using ServiceProvider restarted = await Start(kind, hourly, defaultZone);
+
+        ICalendarIntervalTrigger stored = (ICalendarIntervalTrigger) (await StoreOf(restarted).GetTrigger(triggerKey))!;
+        stored.TimeZone.Id.Should().Be(defaultZone.Id, "the premise: the trigger took the scheduler's default zone when it was stored");
+        stored.TimesTriggered.Should().Be(2,
+            "the declaration names no zone either time, so its schedule is the stored one and the start re-applies the same trigger");
+    }
+
     [TestCase(StoreKind.InMemory)]
     [TestCase(StoreKind.Sqlite)]
     public async Task ATriggerPausedOnItsOwnStaysPausedAcrossAStart(StoreKind kind)
@@ -247,7 +276,10 @@ public sealed class TriggerRunStateAcrossARestartTest
             "a replace the application asks for decides the state afresh, which is the store contract and Java's");
     }
 
-    private async Task<ServiceProvider> Start(StoreKind kind, Action<ITriggerConfigurator<IJob>>? schedule = null)
+    private async Task<ServiceProvider> Start(
+        StoreKind kind,
+        Action<ITriggerConfigurator<IJob>>? schedule = null,
+        TimeZoneInfo? defaultTimeZone = null)
     {
         ServiceCollection services = new();
         services.AddQuartz(q =>
@@ -259,6 +291,11 @@ public sealed class TriggerRunStateAcrossARestartTest
             });
             q.UseTimeProvider(clock);
             UseStore(q, kind);
+
+            if (defaultTimeZone is not null)
+            {
+                q.UseDefaultTimeZone(defaultTimeZone);
+            }
 
             q.AddJob<NoOpJob>(job => job.WithIdentity(jobKey));
             q.AddTrigger(trigger =>

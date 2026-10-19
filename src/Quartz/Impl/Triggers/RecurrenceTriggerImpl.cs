@@ -391,12 +391,12 @@ public class RecurrenceTriggerImpl : TriggerBase, IRecurrenceTrigger
     }
 
     /// <inheritdoc />
-    /// <remarks>The rule, as written, and the time zone.</remarks>
+    /// <remarks>The rule, as written, and the time zone if this trigger stated one.</remarks>
     internal override bool HasSameScheduleAs(TriggerBase other)
     {
         return other is RecurrenceTriggerImpl recurrence
                && string.Equals(RecurrenceRule, recurrence.RecurrenceRule, StringComparison.Ordinal)
-               && SameTimeZone(TimeZone, recurrence.TimeZone);
+               && SameTimeZoneAs(TimeZone, recurrence.TimeZone);
     }
 
     /// <inheritdoc />
