@@ -85,10 +85,16 @@ namespace Quartz.Trimming.Canary;
 /// key naming a component Quartz does not ship is refused at <c>AddQuartz</c>.
 /// </para>
 /// <para>
-/// Finally <see cref="JobDataCheck" /> shows the third switch is off: job data still binds onto a job's
+/// <see cref="JobDataCheck" /> shows the third switch is off: job data still binds onto a job's
 /// <see cref="int" />, enum, <see cref="Guid" />, <see cref="TimeSpan" />, <see cref="DateOnly" />,
 /// <see cref="TimeOnly" />, <see cref="Half" />, <see cref="Int128" /> and <see cref="UInt128" /> properties
 /// from strings, and a conversion only a <c>TypeConverter</c> could make is refused naming the switch.
+/// </para>
+/// <para>
+/// Finally <see cref="ApplicationTypesCheck" /> declares a type of the canary's own once, with
+/// <c>AddJsonTypeInfoResolver</c>, and stores it as job data and passes it as a typed job's input through
+/// a SQLite store: the two serializers a publish without reflection needs it declared to. A type nothing
+/// declared is refused naming that call.
 /// </para>
 /// <para>
 /// Before any of it, <see cref="TrimWitness" /> makes the one reflective call the canary keeps on purpose,
@@ -166,13 +172,18 @@ internal static class Program
             failures.Add(jobDataFailure);
         }
 
+        if (await ApplicationTypesCheck.Run().ConfigureAwait(false) is { } applicationTypesFailure)
+        {
+            failures.Add(applicationTypesFailure);
+        }
+
         foreach (string failure in failures)
         {
             Console.WriteLine(failure);
         }
 
         Console.WriteLine(failures.Count == 0
-            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, so do one on a schema Weasel made and one over a registered DbDataSource, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, a time zone resolves through the converter, a busy database is one to retry, a type name resolves only once registered, and job data binds without a TypeConverter."
+            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, so do one on a schema Weasel made and one over a registered DbDataSource, configuration binds, a shipped job finds its listener, two schedule files and a history plugin load, a time zone resolves through the converter, a busy database is one to retry, a type name resolves only once registered, job data binds without a TypeConverter, and an application's own type, declared once, is stored as job data and passed as a typed input."
             : $"Quartz.Trimming.Canary: {failures.Count} check(s) failed.");
 
         return failures.Count == 0 ? 0 : 1;
