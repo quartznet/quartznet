@@ -370,3 +370,23 @@ q.AddCalendar<HolidayCalendar>("myHolidays", new AddCalendarOptions { Replace = 
 Other `ICalendar` implementations in the `Quartz.Impl.Calendar` namespace: `AnnualCalendar` (the same
 days every year), `CronCalendar`, `DailyCalendar` (a time range each day), `HolidayCalendar`,
 `MonthlyCalendar` and `WeeklyCalendar`.
+
+## Upcoming fire times
+
+From 4.7, `GetUpcomingFireTimes` answers what a scheduled trigger fires next:
+
+<!-- snippet: sample_more_about_triggers_upcoming_fire_times -->
+```csharp
+// The next ten fire times, in UTC; null when there is no such trigger.
+List<DateTimeOffset>? fireTimes = await scheduler.GetUpcomingFireTimes(new TriggerKey("myTrigger"), count: 10);
+```
+<!-- endSnippet -->
+
+* It works for every trigger type. The list starts at the trigger's next fire time and follows its schedule
+  in the trigger's own time zone, skipping what its calendar excludes and stopping at its end time.
+* `count` is 1 to 100. The list is shorter when the schedule ends sooner, and empty for a trigger that does
+  not fire again.
+* A paused trigger answers the times it would fire once resumed, before misfire handling.
+* On an `HttpScheduler` it is one request; the host computes the times. See
+  [Upcoming fire times](../packages/http-api.md#upcoming-fire-times) in the HTTP API.
+* For a trigger you have not scheduled, use [`TriggerFireTimes`](testing.md#level-0-schedules-with-no-scheduler).

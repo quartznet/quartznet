@@ -216,6 +216,20 @@ public class WireFormatSnapshotTest : WebApiTest
     }
 
     /// <summary>
+    /// A trigger's upcoming fire times: one array of UTC instants, from the trigger's next fire time on.
+    /// </summary>
+    [Test]
+    public async Task TriggerFireTimesBody()
+    {
+        TriggerKey triggerKey = TestData.Wire.CronTrigger.Key;
+        A.CallTo(() => FakeScheduler.GetTrigger(triggerKey, A<CancellationToken>._)).Returns(TestData.Wire.CronTrigger);
+        A.CallTo(() => FakeScheduler.GetCalendar("SomeCalendar", A<CancellationToken>._)).Returns(TestData.Wire.HolidayCalendar);
+
+        string body = await Get($"{SchedulerUrl}/triggers/{triggerKey.Group}/{triggerKey.Name}/fire-times?count=3");
+        await VerifyBody(body);
+    }
+
+    /// <summary>
     /// The scheduler listing, whose two shapes are the point of it: a scheduler that exists, and a
     /// registration nothing has built.
     /// </summary>

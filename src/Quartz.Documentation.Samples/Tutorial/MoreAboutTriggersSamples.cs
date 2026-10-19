@@ -138,4 +138,14 @@ public static class MoreAboutTriggersSamples
             #endregion
         });
     }
+
+    public static async ValueTask UpcomingFireTimes(IScheduler scheduler)
+    {
+        #region sample_more_about_triggers_upcoming_fire_times
+
+        // The next ten fire times, in UTC; null when there is no such trigger.
+        List<DateTimeOffset>? fireTimes = await scheduler.GetUpcomingFireTimes(new TriggerKey("myTrigger"), count: 10);
+
+        #endregion
+    }
 }

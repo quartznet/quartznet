@@ -1916,6 +1916,10 @@ namespace Quartz
     {
         public static System.Threading.Tasks.ValueTask<Quartz.IScheduler> GetRequiredScheduler(this Quartz.ISchedulerFactory schedulerFactory, string schedulerName, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public static class SchedulerFireTimesExtensions
+    {
+        public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<System.DateTimeOffset>?> GetUpcomingFireTimes(this Quartz.IScheduler scheduler, Quartz.TriggerKey triggerKey, int count, System.Threading.CancellationToken cancellationToken = default) { }
+    }
     public enum SchedulerInstruction
     {
         NoInstruction = 0,
@@ -3905,6 +3909,7 @@ namespace Quartz.Impl
     public class DelegatingScheduler : Quartz.IScheduler, System.IAsyncDisposable
     {
         // explicit interface implementation: Quartz.Impl.IBackfillingScheduler.Backfill(Quartz.TriggerKey, System.DateTimeOffset, System.DateTimeOffset, Quartz.BackfillOptions, System.Threading.CancellationToken)
+        // explicit interface implementation: Quartz.Impl.IUpcomingFireTimesScheduler.GetUpcomingFireTimes(Quartz.TriggerKey, int, System.Threading.CancellationToken)
         public DelegatingScheduler(Quartz.IScheduler scheduler) { }
         public virtual Quartz.SchedulerContext Context { get; }
         protected Quartz.IScheduler InnerScheduler { get; }

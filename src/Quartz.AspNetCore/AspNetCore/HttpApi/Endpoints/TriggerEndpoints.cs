@@ -31,6 +31,9 @@ internal static class TriggerEndpoints
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.GetTriggerState), GetTriggerState)
             .WithQuartzDefaults(SchedulerRoutes.GetTriggerState, "Get the current state of the trigger");
 
+        yield return builder.MapGet(options.PatternFor(SchedulerRoutes.GetTriggerFireTimes), GetTriggerFireTimes)
+            .WithQuartzDefaults(SchedulerRoutes.GetTriggerFireTimes, "Get the trigger's upcoming fire times");
+
         yield return builder.MapPost(options.PatternFor(SchedulerRoutes.ResetTriggerFromErrorState), ResetTriggerFromErrorState)
             .WithQuartzDefaults(SchedulerRoutes.ResetTriggerFromErrorState, "Resets trigger from error state")
             .WithQuartzMutation(options);
@@ -215,6 +218,33 @@ internal static class TriggerEndpoints
     {
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
             scheduler => SchedulerOperations.GetTriggerState(scheduler, new TriggerKey(triggerName, triggerGroup), cancellationToken));
+    }
+
+    /// <summary>
+    /// The trigger's next fire times, computed on this host in the trigger's own time zone, less what its
+    /// calendar excludes and up to its end time — <c>?count=10</c>.
+    /// </summary>
+    /// <remarks>
+    /// <c>{ "fireTimesUtc": [...] }</c>, earliest first, from the trigger's next fire time; empty for a trigger
+    /// that does not fire again. A <c>count</c> outside 1 to 100 is a <c>400</c>; a trigger the key does not
+    /// resolve is a <c>404</c>.
+    /// </remarks>
+    [ProducesResponseType(typeof(TriggerFireTimesResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> GetTriggerFireTimes(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        string triggerGroup,
+        string triggerName,
+        [Description("How many fire times to answer, from 1 to 100")] int count = UpcomingFireTimes.DefaultCount,
+        CancellationToken cancellationToken = default)
+    {
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            TriggerKey triggerKey = new(triggerName, triggerGroup);
+            return await SchedulerOperations.GetTriggerFireTimes(scheduler, triggerKey, count, cancellationToken).ConfigureAwait(false)
+                   ?? throw NotFoundException.ForTrigger(triggerKey);
+        });
     }
 
     [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]

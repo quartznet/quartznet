@@ -707,6 +707,23 @@ internal static class SchedulerOperations
         return new TriggerStateDto(state, PauseDto.Create(pause));
     }
 
+    /// <summary>
+    /// The trigger's next <paramref name="count" /> fire times, as
+    /// <see cref="SchedulerFireTimesExtensions.GetUpcomingFireTimes" /> computes them, or
+    /// <see langword="null" /> when there is no trigger under <paramref name="triggerKey" />.
+    /// </summary>
+    /// <exception cref="InvalidRequestException"><paramref name="count" /> is not from 1 to 100.</exception>
+    public static async ValueTask<TriggerFireTimesResponse?> GetTriggerFireTimes(IScheduler scheduler, TriggerKey triggerKey, int count, CancellationToken cancellationToken)
+    {
+        if (UpcomingFireTimes.CountRefusal(count) is { } refusal)
+        {
+            throw new InvalidRequestException(refusal);
+        }
+
+        List<DateTimeOffset>? fireTimes = await scheduler.GetUpcomingFireTimes(triggerKey, count, cancellationToken).ConfigureAwait(false);
+        return fireTimes is null ? null : new TriggerFireTimesResponse([.. fireTimes]);
+    }
+
     public static async ValueTask<OperationAppliedResponse> ResetTriggerFromErrorState(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken)
     {
         bool applied = await scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken).ConfigureAwait(false);

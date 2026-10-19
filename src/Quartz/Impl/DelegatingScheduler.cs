@@ -10,7 +10,7 @@ namespace Quartz.Impl;
 /// Every member is <c>virtual</c>, and a member added to <see cref="IScheduler" /> lands here as one
 /// more forwarder — which is what keeps a decorator in somebody else's codebase compiling.
 /// </remarks>
-public class DelegatingScheduler : IScheduler, IBackfillingScheduler
+public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler
 {
     private readonly IScheduler scheduler;
 
@@ -529,16 +529,43 @@ public class DelegatingScheduler : IScheduler, IBackfillingScheduler
         BackfillOptions options,
         CancellationToken cancellationToken)
     {
+        // What the wrapped scheduler is, when the innermost one can backfill: that scheduler, or another
+        // decorator, which forwards the same way.
+        return EndsIn<IBackfillingScheduler>()
+            ? ((IBackfillingScheduler) scheduler).Backfill(triggerKey, from, until, options, cancellationToken)
+            : Backfilling.Compose(this, triggerKey, from, until, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Computes the upcoming fire times in one request where the scheduler is, when the scheduler this
+    /// wrapping ends in can, and otherwise composes them over this decorator, as the extension would.
+    /// </summary>
+    /// <remarks>
+    /// Forwarded for the reason <see cref="IBackfillingScheduler.Backfill" /> is, and decided the same way: by
+    /// the innermost scheduler, so a cluster's wrapped <c>HttpScheduler</c> asks its host once rather than
+    /// reading the trigger and its calendar back to compute here.
+    /// </remarks>
+    ValueTask<List<DateTimeOffset>?> IUpcomingFireTimesScheduler.GetUpcomingFireTimes(
+        TriggerKey triggerKey,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        return EndsIn<IUpcomingFireTimesScheduler>()
+            ? ((IUpcomingFireTimesScheduler) scheduler).GetUpcomingFireTimes(triggerKey, count, cancellationToken)
+            : UpcomingFireTimes.Compose(this, triggerKey, count, cancellationToken);
+    }
+
+    /// <summary>
+    /// Whether the scheduler this wrapping ends in, past every decorator, is a <typeparamref name="T" />.
+    /// </summary>
+    private bool EndsIn<T>()
+    {
         IScheduler innermost = scheduler;
         while (innermost is DelegatingScheduler delegating)
         {
             innermost = delegating.InnerScheduler;
         }
 
-        // What the wrapped scheduler is, when the innermost one can backfill: that scheduler, or another
-        // decorator, which forwards the same way.
-        return innermost is IBackfillingScheduler
-            ? ((IBackfillingScheduler) scheduler).Backfill(triggerKey, from, until, options, cancellationToken)
-            : Backfilling.Compose(this, triggerKey, from, until, options, cancellationToken);
+        return innermost is T;
     }
 }
