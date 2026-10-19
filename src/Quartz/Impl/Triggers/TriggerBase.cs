@@ -1330,11 +1330,20 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     }
 
     /// <summary>
-    /// Whether two time zones are the same zone, by id: what a store writes and reads a zone back by.
+    /// Whether this trigger's zone says the same as <paramref name="storedZone" />, for a schedule comparison:
+    /// the same zone by id, which is what a store writes and reads a zone back by.
     /// </summary>
-    internal static bool SameTimeZone(TimeZoneInfo first, TimeZoneInfo second)
+    /// <remarks>
+    /// A zone this trigger never stated matches whatever the stored trigger has. It is not
+    /// <see cref="TimeZoneInfo.Local" /> yet: it takes <see cref="QuartzSchedulerOptions.DefaultTimeZone" />
+    /// when the scheduler stores it, after this comparison, which is where the stored trigger got its zone
+    /// too (#4135).
+    /// </remarks>
+    /// <param name="ownZone">The zone this trigger reads as.</param>
+    /// <param name="storedZone">The zone of the trigger the store holds.</param>
+    internal bool SameTimeZoneAs(TimeZoneInfo ownZone, TimeZoneInfo storedZone)
     {
-        return string.Equals(first.Id, second.Id, StringComparison.Ordinal);
+        return !TimeZoneStated || string.Equals(ownZone.Id, storedZone.Id, StringComparison.Ordinal);
     }
 
     /// <summary>

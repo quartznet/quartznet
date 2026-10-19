@@ -71,7 +71,9 @@ registration, and each scheduling file, over the trigger the store holds. The tr
 | A pause on the trigger itself, with its reason | Always (4.7) |
 
 * The schedule is what the trigger's schedule builder sets: the interval and repeat count, the cron
-  expression or recurrence rule, the time zone, and so on. Start and end times are not part of it.
+  expression or recurrence rule, the time zone, and so on. Start and end times are not part of it, and
+  neither is a zone the registration does not name: that one comes from
+  [`DefaultTimeZone`](../tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone) when stored.
 * A changed schedule, or another kind of trigger, starts fresh: the count starts over and a pending retry is
   dropped. Its pause is kept.
 * A trigger in a paused group stays paused, as any trigger stored into the group does.

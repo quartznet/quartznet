@@ -85,6 +85,17 @@ public sealed class TriggerRunStateCarryTest
             new TestCaseData(stored, declared).SetArgDisplayNames(name);
     }
 
+    private static IEnumerable<TestCaseData> UnstatedZoneCases()
+    {
+        yield return Case("cron", Cron("0 0 2 * * ?", plusTwo), Cron("0 0 2 * * ?", null));
+        yield return Case("daily time interval", Daily(d => d), Daily(d => d.InTimeZone(null)));
+        yield return Case("calendar interval", Calendar(c => c), Calendar(c => c.InTimeZone(null)));
+        yield return Case("recurrence", Recurrence("FREQ=DAILY;COUNT=5", plusTwo), Recurrence("FREQ=DAILY;COUNT=5", null));
+
+        static TestCaseData Case(string name, Func<ITrigger> stored, Func<ITrigger> declared) =>
+            new TestCaseData(stored, declared).SetArgDisplayNames(name);
+    }
+
     [TestCaseSource(nameof(SameScheduleCases))]
     public void TheSameScheduleCarriesTheFireCount(Func<ITrigger> build)
     {
@@ -108,6 +119,24 @@ public sealed class TriggerRunStateCarryTest
         declared.CarryRunStateFrom(stored).Should().BeFalse("the declaration has said something new");
         TimesTriggeredOf(declared).Should().Be(0, "a changed schedule is a new trigger, which has not fired");
         declared.RetryAttempt.Should().Be(0, "a retry of the old schedule's occurrence is not the new schedule's");
+    }
+
+    /// <summary>
+    /// A declaration that names no zone takes the scheduler's <c>DefaultTimeZone</c> when it is stored, after
+    /// the comparison, which is where the stored trigger's zone came from too (#4135). Read before that, it
+    /// says Local, which is not a zone anybody chose.
+    /// </summary>
+    [TestCaseSource(nameof(UnstatedZoneCases))]
+    public void AZoneTheDeclarationDoesNotStateMatchesTheStoredZone(Func<ITrigger> buildStored, Func<ITrigger> buildDeclared)
+    {
+        TriggerBase stored = (TriggerBase) buildStored();
+        PutInRetry(stored, epoch.AddMinutes(5));
+        TriggerBase declared = (TriggerBase) buildDeclared();
+        declared.TimeZoneStated.Should().BeFalse("the premise: the declaration names no zone");
+
+        declared.CarryRunStateFrom(stored).Should().BeTrue(
+            "an unstated zone is the default the scheduler gives it when it stores the trigger, not a changed schedule");
+        declared.RetryAttempt.Should().Be(1);
     }
 
     [Test]
@@ -240,7 +269,7 @@ public sealed class TriggerRunStateCarryTest
     private static Func<ITrigger> Simple(Action<SimpleScheduleBuilder> schedule, DateTimeOffset? start = null) =>
         () => Build(start ?? epoch, b => b.WithSimpleSchedule(schedule));
 
-    private static Func<ITrigger> Cron(string expression, TimeZoneInfo zone, DateTimeOffset? start = null) =>
+    private static Func<ITrigger> Cron(string expression, TimeZoneInfo? zone, DateTimeOffset? start = null) =>
         () => Build(start ?? epoch, b => b.WithSchedule(CronScheduleBuilder.Create(expression).InTimeZone(zone)));
 
     private static Func<ITrigger> Daily(Func<DailyTimeIntervalScheduleBuilder, DailyTimeIntervalScheduleBuilder> change) =>
@@ -259,7 +288,7 @@ public sealed class TriggerRunStateCarryTest
             .PreserveHourOfDayAcrossDaylightSavings()
             .SkipDayIfHourDoesNotExist())));
 
-    private static Func<ITrigger> Recurrence(string rule, TimeZoneInfo zone) =>
+    private static Func<ITrigger> Recurrence(string rule, TimeZoneInfo? zone) =>
         () => Build(epoch, b => b.WithSchedule(RecurrenceScheduleBuilder.Create(rule).InTimeZone(zone)));
 
     private static ITrigger Build(DateTimeOffset start, Func<TriggerBuilder<IJob>, TriggerBuilder<IJob>> schedule)
