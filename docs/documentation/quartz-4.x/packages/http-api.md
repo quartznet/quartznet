@@ -1127,6 +1127,7 @@ trigger type: in the trigger's own time zone, less what its calendar excludes, u
 |---|---|
 | No `count` | ten times |
 | A trigger that does not fire again | an empty array |
+| A simple trigger [measured from completion](../tutorial/simpletriggers.md#measured-from-completion) | its next fire time only |
 | No such trigger | `404` |
 | `count` outside 1 to 100, or not a number | `400` |
 | `ReadOnly` | served: a read |

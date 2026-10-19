@@ -226,8 +226,9 @@ internal static class TriggerEndpoints
     /// </summary>
     /// <remarks>
     /// <c>{ "fireTimesUtc": [...] }</c>, earliest first, from the trigger's next fire time; empty for a trigger
-    /// that does not fire again. A <c>count</c> outside 1 to 100 is a <c>400</c>; a trigger the key does not
-    /// resolve is a <c>404</c>.
+    /// that does not fire again, and only the next for a simple trigger that measures its interval from
+    /// completion, whose later runs each wait for the one before to complete. A <c>count</c> outside 1 to 100
+    /// is a <c>400</c>; a trigger the key does not resolve is a <c>404</c>.
     /// </remarks>
     [ProducesResponseType(typeof(TriggerFireTimesResponse), StatusCodes.Status200OK)]
     private static Task<IResult> GetTriggerFireTimes(

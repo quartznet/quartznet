@@ -6,8 +6,9 @@
 @inject IServiceProvider Services
 
 @* The trigger's next fires as its scheduler computes them - in the trigger's own zone, less what its calendar
-   excludes, up to its end time - read through the client, so a scheduler in another process answers for
-   itself. The times show in the dashboard's zone, as the page's other times do. *@
+   excludes, up to its end time, and only the next for a trigger measured from completion - read through the
+   client, so a scheduler in another process answers for itself. The times show in the dashboard's zone, as
+   the page's other times do. *@
 <div class="qz-upcoming-fires" data-testid="upcoming-fires">
     @if (_unreadable is { } reason)
     {
@@ -28,6 +29,12 @@
                 </li>
             }
         </ul>
+
+        @* Its scheduler answers only the next one: each run after it waits for the one before to complete. *@
+        @if (Trigger is ISimpleTrigger { MeasureIntervalFromCompletion: true } fixedDelay)
+        {
+            <p class="qz-muted" data-testid="upcoming-fires-from-completion">Then every @DisplayValueHelper.FormatDuration(fixedDelay.RepeatInterval) after each run completes.</p>
+        }
     }
 </div>
 
