@@ -131,6 +131,22 @@ public sealed class Invoicing
 
 #endregion
 
+public sealed class TypedRunNow
+{
+    #region sample_one_off_job_trigger_now_typed
+
+    public async ValueTask RunNow(IScheduler scheduler, ILogger logger, SendInvoice invoice, CancellationToken cancellationToken)
+    {
+        // A durable SendInvoiceJob stored under this key, fired now with its input.
+        TriggerKey firing = await scheduler.TriggerJob(new JobKey("send-invoice", "billing"), invoice, cancellationToken);
+
+        // The manual run's trigger: ExecutionHistoryQuery.Trigger finds the run once it has ended.
+        logger.LogInformation("Invoice run {Trigger} requested", firing);
+    }
+
+    #endregion
+}
+
 public sealed class RecoverableInvoicing
 {
     #region sample_one_off_job_request_recovery

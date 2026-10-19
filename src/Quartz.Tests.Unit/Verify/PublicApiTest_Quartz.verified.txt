@@ -1945,6 +1945,7 @@ namespace Quartz
             where TJob : Quartz.IJob<TInput> { }
         public static System.Threading.Tasks.ValueTask<Quartz.ScheduledOneOffJob> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.IScheduler scheduler, TInput input, System.TimeSpan delay, Quartz.OneOffJobOptions options = default, System.Threading.CancellationToken cancellationToken = default)
             where TJob : Quartz.IJob<TInput> { }
+        public static System.Threading.Tasks.ValueTask<Quartz.TriggerKey> TriggerJob<TInput>(this Quartz.IScheduler scheduler, Quartz.JobKey jobKey, TInput input, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed record SchedulerMetadata : System.IEquatable<Quartz.SchedulerMetadata>
     {

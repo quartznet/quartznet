@@ -1579,18 +1579,6 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Marks a trigger either <c>TriggerJob</c> overload fires, so its run is recorded as manual.
-    /// </summary>
-    /// <remarks>
-    /// On the trigger's map, the store-neutral place a firing reads back: the key persists wherever the
-    /// trigger does, as <see cref="SchedulerConstants.TraceParent" /> does.
-    /// </remarks>
-    private static void MarkManual(IMutableTrigger trigger)
-    {
-        trigger.JobDataMap[SchedulerConstants.ManualTrigger] = "true";
-    }
-
-    /// <summary>
     /// The execution group a manual firing of <paramref name="jobKey" /> counts against, so that it waits
     /// for its group's limit and runs only on a node that serves the group.
     /// </summary>
@@ -1777,32 +1765,6 @@ internal sealed class QuartzScheduler
         }
     }
 
-    private static string NewTriggerId()
-    {
-        long r = NextLong();
-        if (r < 0)
-        {
-            r = -r;
-        }
-        return "MT_" + Convert.ToString(r, CultureInfo.InvariantCulture);
-    }
-
-    /// <summary>
-    /// Creates a new positive random number
-    /// </summary>
-    /// <returns>Returns a new positive random number</returns>
-    private static long NextLong()
-    {
-        long temporaryLong = QuartzRandom.Next();
-        temporaryLong = (temporaryLong << 32) + QuartzRandom.Next();
-        if (QuartzRandom.Next(-1, 1) < 0)
-        {
-            return -temporaryLong;
-        }
-
-        return temporaryLong;
-    }
-
     /// <summary>
     /// Trigger the identified <see cref="IJob" /> (Execute it now) - with a non-volatile trigger.
     /// </summary>
@@ -1814,28 +1776,11 @@ internal sealed class QuartzScheduler
         ArgumentNullException.ThrowIfNull(jobKey);
         ValidateState();
 
-        // TODO: use builder
-        SimpleTriggerImpl trig = new SimpleTriggerImpl(
-            NewTriggerId(),
-            TriggerKey.DefaultGroup,
-            jobKey.Name,
-            jobKey.Group,
-            this.resources.TimeProvider.GetUtcNow(),
-            null,
-            0,
-            TimeSpan.Zero,
-            this.resources.TimeProvider);
-
-        trig.ComputeFirstFireTimeUtc(null);
-        if (data is not null)
-        {
-            trig.JobDataMap = data;
-        }
-
         // Before the map is marked and prepared: a template reads the data as the caller gave it.
-        trig.ExecutionGroup = await ResolveManualExecutionGroup(jobKey, data, cancellationToken).ConfigureAwait(false);
+        string? executionGroup = await ResolveManualExecutionGroup(jobKey, data, cancellationToken).ConfigureAwait(false);
 
-        MarkManual(trig);
+        // The trigger SchedulerJobExtensions.TriggerJob<TInput> builds too, so the two firings are one shape.
+        SimpleTriggerImpl trig = ManualFiring.CreateTrigger(jobKey, data, executionGroup, resources.TimeProvider);
 
         // After the map has been attached, and unconditionally: a fire-now with no data of its own is
         // still a firing worth linking back to whoever asked for it.
@@ -1851,7 +1796,7 @@ internal sealed class QuartzScheduler
             }
             catch (ObjectAlreadyExistsException)
             {
-                trig.Key = new TriggerKey(NewTriggerId(), TriggerKey.DefaultGroup);
+                trig.Key = ManualFiring.NewTriggerKey();
             }
         }
 
@@ -1876,7 +1821,7 @@ internal sealed class QuartzScheduler
             trigger.ExecutionGroup = await ResolveManualExecutionGroup(jobKey, trigger.JobDataMap, cancellationToken).ConfigureAwait(false);
         }
 
-        MarkManual(trigger);
+        ManualFiring.Mark(trigger);
         PrepareTriggerData(trigger);
 
         bool collision = true;
@@ -1889,7 +1834,7 @@ internal sealed class QuartzScheduler
             }
             catch (ObjectAlreadyExistsException)
             {
-                trigger.Key = new TriggerKey(NewTriggerId(), TriggerKey.DefaultGroup);
+                trigger.Key = ManualFiring.NewTriggerKey();
             }
         }
 

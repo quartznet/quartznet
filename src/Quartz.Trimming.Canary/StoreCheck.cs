@@ -67,6 +67,17 @@ internal static class StoreCheck
     private static readonly TaskCompletionSource<CanaryInput> typedInput = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
+    /// What the typed job was handed when <c>TriggerJob&lt;TInput&gt;</c> fired it, and on which trigger: the
+    /// manual run's input goes through the same serializer, and its trigger is the key the call answered with.
+    /// </summary>
+    private static readonly TaskCompletionSource<(CanaryInput Input, TriggerKey Trigger)> manualTypedRun = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// The attempt number the manual run's input carries, which is how the typed job tells it from the scheduled one.
+    /// </summary>
+    private const int ManualAttempt = 8;
+
+    /// <summary>
     /// Signals that the job nothing registered by hand fired: <see cref="DeclaredCanaryJob" /> is
     /// declared with <c>[QuartzJob]</c> and <c>[CronTrigger]</c> and reaches the store through the
     /// registration the source generator wrote. Generated or not, that code calls the same
@@ -215,6 +226,14 @@ internal static class StoreCheck
                     .UsingInput(new CanaryInput("the typed input round-trips out of a trimmed publish", 7))
                     .Build()).ConfigureAwait(false);
 
+            // The same job type stored durably, for TriggerJob<TInput> to fire once the scheduler runs.
+            JobKey manualTypedKey = new("typed-manual", "store");
+            await scheduler.AddJob(
+                JobBuilder.Create<TypedCanaryJob>()
+                    .WithIdentity(manualTypedKey)
+                    .StoreDurably()
+                    .Build()).ConfigureAwait(false);
+
             // A job whose type declares its retry policy, on a trigger that declares none.
             await scheduler.ScheduleJob(
                 JobBuilder.Create<RetryingCanaryJob>()
@@ -226,6 +245,9 @@ internal static class StoreCheck
                     .Build()).ConfigureAwait(false);
 
             await scheduler.Start().ConfigureAwait(false);
+
+            CanaryInput manualInput = new("a typed manual run round-trips out of a trimmed publish", ManualAttempt);
+            TriggerKey manualKey = await scheduler.TriggerJob(manualTypedKey, manualInput).ConfigureAwait(false);
 
             // Signalled by the job itself. A sleep would pass on a machine slow enough to make it
             // meaningless, and fail on one that is merely busy.
@@ -239,6 +261,18 @@ internal static class StoreCheck
             if (typed != typedInput.Task)
             {
                 return "FAIL store: the typed-input job never fired within a minute.";
+            }
+
+            Task manualTyped = await Task.WhenAny(manualTypedRun.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+            if (manualTyped != manualTypedRun.Task)
+            {
+                return "FAIL store: the typed job TriggerJob<TInput> fired never ran within a minute.";
+            }
+
+            (CanaryInput manualReceived, TriggerKey manualRanOn) = await manualTypedRun.Task.ConfigureAwait(false);
+            if (manualReceived != manualInput || !manualRanOn.Equals(manualKey))
+            {
+                return $"FAIL store: TriggerJob<TInput> answered '{manualKey}' and the job was handed '{manualReceived}' on '{manualRanOn}'.";
             }
 
             Task declared = await Task.WhenAny(declaredFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
@@ -329,7 +363,7 @@ internal static class StoreCheck
             Console.WriteLine($"PASS delegate: {delegateRun}");
             Console.WriteLine($"PASS delegate: {reflectedDelegateRun}");
             Console.WriteLine($"PASS retry: a job declaring [RetryPolicy] was retried under {retryPolicy} on a trigger that names no policy.");
-            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input, jobs declared with [CronTrigger] and [SimpleTrigger] on configured schedules and two delegate jobs, one bound at compile time and one by reflection, included.");
+            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input scheduled and fired with TriggerJob<TInput>, jobs declared with [CronTrigger] and [SimpleTrigger] on configured schedules and two delegate jobs, one bound at compile time and one by reflection, included.");
             return null;
         }
         catch (Exception e)
@@ -414,7 +448,15 @@ internal static class StoreCheck
     {
         public ValueTask Execute(IJobExecutionContext context, CanaryInput input, CancellationToken cancellationToken = default)
         {
-            typedInput.TrySetResult(input);
+            if (input.Attempt == ManualAttempt)
+            {
+                manualTypedRun.TrySetResult((input, context.Trigger.Key));
+            }
+            else
+            {
+                typedInput.TrySetResult(input);
+            }
+
             return default;
         }
     }

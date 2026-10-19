@@ -21,6 +21,9 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
+using Quartz.Core;
+using Quartz.Impl.Triggers;
+
 namespace Quartz;
 
 /// <summary>
@@ -80,6 +83,109 @@ public static class SchedulerJobExtensions
         }
 
         return scheduler.ScheduleJob(jobBuilder.Build(), trigger, cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// The attempts <see cref="TriggerJob{TInput}" /> makes at a free trigger name before it lets the
+    /// collision through. A name is 63 random bits, so a second attempt is already a curiosity.
+    /// </summary>
+    private const int ManualFiringAttempts = 3;
+
+    /// <summary>
+    /// Fires the stored job now with the given input, and returns the key of the trigger that fires it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The typed twin of <see cref="IScheduler.TriggerJob" />, and the same firing: a one-shot trigger
+    /// named <c>MT_</c> and a number in the default group, marked with
+    /// <see cref="SchedulerConstants.ManualTrigger" /> so history and the dashboard show a manual run, and
+    /// in the execution group <c>TriggerJob</c> would give it. The input goes under
+    /// <see cref="SchedulerConstants.JobInput" />, where <c>UsingInput</c> puts it, and the scheduler's
+    /// <see cref="Quartz.Extensibility.IJobInputSerializer" /> writes it as the trigger is stored, so an
+    /// <see cref="IJob{TInput}" /> receives it as its parameter.
+    /// </para>
+    /// <para>
+    /// The trigger is stored with <see cref="IScheduler.ScheduleJob(ITrigger, ScheduleJobOptions, CancellationToken)" />,
+    /// so its key is known before it can fire. Look the run up with it: <see cref="ExecutionHistoryQuery.Trigger" />
+    /// in the execution history, or <see cref="FireInstanceQuery.TriggerName" /> while it runs.
+    /// </para>
+    /// <para>
+    /// Trimmed or native AOT: declare <typeparamref name="TInput" /> with
+    /// <see cref="Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry.AddTypeInfoResolver" />,
+    /// as for <c>UsingInput</c>. Nothing here reflects.
+    /// </para>
+    /// <para>
+    /// Over <c>HttpScheduler</c> the input crosses the wire as a job data value, before any input
+    /// serializer sees it, so it has to be a string or a job data value type. Pass a structured payload
+    /// as the string the host's serializer reads: JSON, for the default one. The execution group is
+    /// resolved by the calling process, which skips a job type it cannot load.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TInput">The input's type, inferred from <paramref name="input" />.</typeparam>
+    /// <param name="scheduler">The scheduler to fire the job on.</param>
+    /// <param name="jobKey">The stored job to fire.</param>
+    /// <param name="input">The payload the firing carries, put on the trigger.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The key of the manual firing's trigger.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="scheduler" /> or <paramref name="jobKey" /> is <see langword="null" />.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="input" /> is a <see cref="CancellationToken" />: the call meant was
+    /// <c>TriggerJob(jobKey, cancellationToken: token)</c>.
+    /// </exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    /// <exception cref="JobPersistenceException">No job is stored under <paramref name="jobKey" />.</exception>
+    public static ValueTask<TriggerKey> TriggerJob<TInput>(
+        this IScheduler scheduler,
+        JobKey jobKey,
+        TInput input,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(scheduler);
+        ArgumentNullException.ThrowIfNull(jobKey);
+
+        // TriggerJob(jobKey, token) binds here, the token as the input, because the instance member's
+        // second parameter is a JobDataMap. It reads as a fire-now; refuse it as one rather than store a token.
+        if (input is CancellationToken)
+        {
+            throw new ArgumentException(
+                "A CancellationToken is not a job input. Name it, as in TriggerJob(jobKey, cancellationToken: token), "
+                + "to fire the job with no input.",
+                nameof(input));
+        }
+
+        return FireNow(scheduler, jobKey, input, cancellationToken);
+    }
+
+    private static async ValueTask<TriggerKey> FireNow<TInput>(
+        IScheduler scheduler,
+        JobKey jobKey,
+        TInput input,
+        CancellationToken cancellationToken)
+    {
+        JobDataMap data = new() { [SchedulerConstants.JobInput] = input };
+
+        // TriggerJob's order, read through the scheduler rather than its store: RunAtStartup does the same.
+        string? executionGroup = await ManualFiringExecutionGroup.Resolve(
+            jobKey,
+            data,
+            scheduler.GetJobDetail,
+            scheduler.QueryTriggers,
+            cancellationToken).ConfigureAwait(false);
+
+        SimpleTriggerImpl trigger = ManualFiring.CreateTrigger(jobKey, data, executionGroup, scheduler.TimeProvider);
+
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await scheduler.ScheduleJob(trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
+                return trigger.Key;
+            }
+            catch (ObjectAlreadyExistsException) when (attempt < ManualFiringAttempts)
+            {
+                trigger.Key = ManualFiring.NewTriggerKey();
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------

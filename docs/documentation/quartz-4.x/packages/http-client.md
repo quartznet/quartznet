@@ -205,6 +205,10 @@ The wire carries data, not objects.
 - **Names travel escaped.** Any character reaches the server as written, except in a path: a name containing `/`,
   or one that is `.` or `..`, is refused with `ArgumentException`. See
   [Names in a path](http-api.md#names-in-a-path).
+- **A typed input travels as a job data value.** `UsingInput`, `ScheduleJob<TJob, TInput>` and
+  `TriggerJob(jobKey, input)` put it in a job data map before any input serializer sees it, so it has to be a
+  string or a job data value type. A structured input is refused with `JsonSerializationException` before it is
+  sent. Pass the JSON the host's `IJobInputSerializer` reads instead.
 
 ## A host newer than the client
 
