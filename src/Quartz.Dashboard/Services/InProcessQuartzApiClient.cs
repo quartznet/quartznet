@@ -586,6 +586,20 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return await scheduler.GetTriggerState(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <remarks>
+    /// The extension over whichever scheduler the name resolves to, so a scheduler in another process — an
+    /// HTTP target, an agent, a cluster's preferred member — computes them where the trigger is stored, in one
+    /// request that <c>HttpScheduler</c> sends.
+    /// </remarks>
+    public async ValueTask<List<DateTimeOffset>> GetUpcomingFireTimes(string schedulerName, TriggerKeyDto triggerKey, int count, CancellationToken cancellationToken = default)
+    {
+        TriggerKey key = AsTriggerKey(triggerKey);
+        UpcomingFireTimes.CheckCount(count);
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.GetUpcomingFireTimes(key, count, cancellationToken).ConfigureAwait(false)
+               ?? throw new KeyNotFoundException($"Trigger '{triggerKey.Group}.{triggerKey.Name}' was not found in scheduler '{schedulerName}'.");
+    }
+
     public async ValueTask<bool> PauseTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
         EnsureWritable();

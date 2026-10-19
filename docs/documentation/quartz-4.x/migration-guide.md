@@ -39,6 +39,7 @@ An application on 4.6 compiles on 4.7 unchanged.
 | `UseDefaultTimeZone(this IQuartzBuilder, TimeZoneInfo)` | Sugar over `DefaultTimeZone` |
 | `Scheduler:DefaultTimeZone`, `quartz.scheduler.defaultTimeZone` | The configuration keys: an IANA or Windows id. An id the system cannot resolve stops the scheduler starting |
 | `SchedulerFireTimesExtensions.GetUpcomingFireTimes` | Extension on `IScheduler`: a stored trigger's next 1 to 100 fire times in UTC, `null` for no such trigger. See [Upcoming fire times](tutorial/more-about-triggers.md#upcoming-fire-times) |
+| `IQuartzApiClient.GetUpcomingFireTimes` | Default interface member, computed from `GetTrigger` and `GetCalendar` by default. The Trigger Detail page's [Upcoming fires](packages/dashboard.md#upcoming-fires) reads it |
 | `GET …/triggers/{triggerGroup}/{triggerName}/fire-times` | HTTP API route answering `{ fireTimesUtc }`; agent operation `GetTriggerFireTimes`, allowed by default. See [Upcoming fire times](packages/http-api.md#upcoming-fire-times) |
 
 Behaviour that changed:

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
 using Quartz.Impl;
+using Quartz.Impl.Calendar;
 using Quartz.Tests.AspNetCore.Support;
 
 // The wire's own names, aliased rather than imported: the dashboard's DTOs and the contract's share three
@@ -447,6 +448,51 @@ public sealed class QuartzApiClientContractTest
         result.Scheduled.Should().Be(4, "an hourly trigger has four fire times in four hours");
         (await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("backfill:backfill-contract")))
             .Should().BeEquivalentTo(result.ScheduledTriggers, "the scheduler holds what the client says it scheduled, over both carriers");
+    }
+
+    /// <summary>
+    /// A trigger's upcoming fire times are read through the client, computed where the scheduler runs: for the
+    /// HTTP and agent carriers by the <c>fire-times</c> route <see cref="HttpScheduler" /> sends.
+    /// </summary>
+    /// <remarks>
+    /// 09:00 in Kathmandu, UTC+05:45, every day from 5 October 2030, under a calendar that excludes the 7th
+    /// there: years ahead of every carrier's clock, so no carrier's "now" moves the first fire time.
+    /// </remarks>
+    [Test]
+    public async Task UpcomingFireTimesAreReadThroughTheClient()
+    {
+        TimeZoneInfo kathmandu = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kathmandu");
+        HolidayCalendar holidays = new() { TimeZone = kathmandu };
+        holidays.AddExcludedDay(new DateOnly(2030, 10, 7));
+        await scheduler.AddCalendar("fire-times-holidays", holidays);
+
+        JobKey jobKey = new("daily-export", "fire-times-contract");
+        TriggerKey triggerKey = new("daily", "fire-times-contract");
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<DummyJob>().WithIdentity(jobKey).Build(),
+            TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(jobKey)
+                .StartAt(new DateTimeOffset(2030, 10, 5, 0, 0, 0, TimeSpan.Zero))
+                .WithCalendarName("fire-times-holidays")
+                .WithCronSchedule("0 0 9 * * ?", cron => cron.InTimeZone(kathmandu))
+                .Build());
+
+        List<DateTimeOffset> fireTimes = await client.GetUpcomingFireTimes(key, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), 3);
+
+        DateTimeOffset nine = new(2030, 10, 5, 3, 15, 0, TimeSpan.Zero);
+        fireTimes.Should().Equal([nine, nine.AddDays(1), nine.AddDays(3)],
+            "the trigger's own zone and calendar decide its fire times, whichever carrier the page reads them through");
+    }
+
+    [Test]
+    public async Task TheFireTimesOfAMissingTriggerAreReportedAsAMissingKey()
+    {
+        Func<Task> act = () => client.GetUpcomingFireTimes(key, new TriggerKeyDto("ghosts", "no-such-trigger"), 3).AsTask();
+
+        (await act.Should().ThrowAsync<KeyNotFoundException>(
+            "the answer is a non-nullable list, so a trigger that is not there has no other answer than the one GetTrigger gives"))
+            .Which.Message.Should().Contain("no-such-trigger");
     }
 
     /// <summary>
