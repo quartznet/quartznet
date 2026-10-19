@@ -68,6 +68,7 @@ measure from completion only once every node is 4.7. See [Version 4.7](../databa
 | `FireInstanceDto.InterruptRequestedUtc` | `Quartz.Dashboard`, `init`: the same, shown as *Interrupt requested* on Currently Executing |
 | `QuartzBuilderExtensions.AddConfiguredTrigger<TJob>(this IQuartzBuilder, string, Func<IServiceProvider, string, string?>, Action<IServiceProvider, string?, ITriggerConfigurator<TJob>>)` | What the generator now writes for a `ConfigurationKey`: a trigger whose configured value replaces its schedule, or with `-` switches it off. Hidden from IntelliSense |
 | Log event `4032` | A trigger switched off by a configured `-` (Information) |
+| `SchedulerJobExtensions.TriggerJob<TInput>(this IScheduler, JobKey, TInput, CancellationToken)` | Fires a stored `IJob<TInput>` now with its input, as `TriggerJob` fires a job, and returns the trigger's `TriggerKey`. See [A stored typed job, run now](how-tos/one-off-job.md#a-stored-typed-job-run-now) |
 
 Behaviour that changed:
 
@@ -87,10 +88,6 @@ Behaviour that changed:
 | A start that re-applied an `AddTrigger` or `ScheduleJob` registration, or a scheduling file, reset `TimesTriggered`, dropped a pending retry and resumed a trigger paused on its own | The count and the retry are kept while the schedule is unchanged, so a finite repeat count or `COUNT` does not start over; the pause is kept with its record. See [What a start keeps](how-tos/rescheduling-jobs.md#what-a-start-keeps) | Nothing. To run a finite schedule again from the start, change its schedule or unschedule its trigger first |
 | A dashboard cluster row asked every member to interrupt a job | It asks the preferred 4.6 member, and the next if it fails, plus each member older than 4.6. With every member at 4.6, an interrupt of one firing is asked the same way, without looking up its owner | Nothing |
 | A store-attached window refused every interrupt with `NotSupportedException` | It records a request for a firing on a node with a live 4.6 or later check-in row, and refuses any other with `SchedulerException` naming the node. Currently Executing offers the button. See [What a window can and cannot do](packages/dashboard.md#what-a-window-can-and-cannot-do) | Nothing |
-
-| Added | What it is |
-|---|---|
-| `SchedulerJobExtensions.TriggerJob<TInput>(this IScheduler, JobKey, TInput, CancellationToken)` | Fires a stored `IJob<TInput>` now with its input, as `TriggerJob` fires a job, and returns the trigger's `TriggerKey`. See [A stored typed job, run now](how-tos/one-off-job.md#a-stored-typed-job-run-now) |
 
 ## Upgrading from 4.5 to 4.6
 
