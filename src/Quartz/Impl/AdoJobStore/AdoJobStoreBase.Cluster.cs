@@ -136,6 +136,63 @@ internal abstract partial class AdoJobStoreBase
     /// </remarks>
     internal bool PeersAllowLockFreeRounds => !Clustered || (peersScanned && !olderPeerLive);
 
+    /// <summary>
+    /// How many live nodes beside this one the last scan found.
+    /// </summary>
+    private volatile int livePeers;
+
+    /// <summary>
+    /// Why this node's peers keep a firing round under <c>TRIGGER_ACCESS</c>, or <see langword="null" />
+    /// when they do not: <see cref="RoundLockReason.OlderPeer" /> while <see cref="PeersAllowLockFreeRounds" />
+    /// says no, and <see cref="RoundLockReason.NoLivePeer" /> while the last scan found no other live node,
+    /// for a dialect whose rounds help only beside one (#4117). A store that is not clustered answers
+    /// <see langword="null" />: its <see cref="RoundLockReason.NoLivePeer" /> is its configuration's, in
+    /// <see cref="StaticRoundLockReason" />.
+    /// </summary>
+    internal RoundLockReason? PeerRoundLockReason
+    {
+        get
+        {
+            if (!PeersAllowLockFreeRounds)
+            {
+                return RoundLockReason.OlderPeer;
+            }
+
+            if (Clustered && livePeers == 0 && NeedsLivePeerForLockFreeRounds)
+            {
+                return RoundLockReason.NoLivePeer;
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// What a scan of the state table found about the peers, as the line logged on each change says it.
+    /// </summary>
+    private enum PeerVerdict
+    {
+        Unknown,
+        OlderPeer,
+        NoLivePeer,
+        Allows,
+    }
+
+    private PeerVerdict CurrentPeerVerdict(bool needsLivePeer)
+    {
+        if (!peersScanned)
+        {
+            return PeerVerdict.Unknown;
+        }
+
+        if (olderPeerLive)
+        {
+            return PeerVerdict.OlderPeer;
+        }
+
+        return livePeers == 0 && needsLivePeer ? PeerVerdict.NoLivePeer : PeerVerdict.Allows;
+    }
+
     internal async ValueTask<bool> CheckIn(
         Guid requestorId,
         CancellationToken cancellationToken = default)
@@ -362,7 +419,8 @@ internal abstract partial class AdoJobStoreBase
 
     /// <summary>
     /// Decides from one read of the state table whether every live peer is a node whose writes a
-    /// lock-free firing round can run beside (#4067), and says so once each time the answer changes.
+    /// lock-free firing round can run beside (#4067), and how many there are, which a dialect whose rounds
+    /// help only beside another live node goes by (#4117); and says so once each time the answer changes.
     /// </summary>
     /// <param name="states">Every row the scan read.</param>
     /// <param name="failedInstances">The rows the scan judged failed, which are not live.</param>
@@ -385,18 +443,30 @@ internal abstract partial class AdoJobStoreBase
             }
         }
 
-        bool wasKnown = peersScanned;
-        bool wasOlderLive = olderPeerLive;
+        bool needsLivePeer = NeedsLivePeerForLockFreeRounds;
+        PeerVerdict previous = CurrentPeerVerdict(needsLivePeer);
         olderPeerLive = older is not null;
+        livePeers = peers;
         peersScanned = true;
+        PeerVerdict current = CurrentPeerVerdict(needsLivePeer);
 
-        if (older is not null && (!wasKnown || !wasOlderLive))
+        // Once per change, not per check-in.
+        if (current == previous)
         {
-            Logger.OlderPeerKeepsRoundsLocked(older.SchedulerInstanceId, older.QuartzVersion ?? "none", since);
+            return;
         }
-        else if (older is null && (!wasKnown || wasOlderLive))
+
+        switch (current)
         {
-            Logger.EveryPeerAllowsLockFreeRounds(peers, since);
+            case PeerVerdict.OlderPeer:
+                Logger.OlderPeerKeepsRoundsLocked(older!.SchedulerInstanceId, older.QuartzVersion ?? "none", since);
+                break;
+            case PeerVerdict.NoLivePeer:
+                Logger.NoLivePeerKeepsRoundsLocked(since);
+                break;
+            default:
+                Logger.EveryPeerAllowsLockFreeRounds(peers, since);
+                break;
         }
     }
 

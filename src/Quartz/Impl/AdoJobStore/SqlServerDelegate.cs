@@ -90,6 +90,16 @@ public class SqlServerDelegate : StdAdoDelegate
     internal override bool FiresLockFreeRoundsApart => true;
 
     /// <summary>
+    /// True: SQL Server's lock-free rounds help only beside another live 4.7 node (#4117).
+    /// </summary>
+    /// <remarks>
+    /// What a split round saves is the queue on <c>TRIGGER_ACCESS</c>, which a single node does not have, and
+    /// it costs statements and commits: on one node the one-off census fired 9–28% fewer triggers a second
+    /// with it than with 4.5's round.
+    /// </remarks>
+    internal override bool LockFreeRoundsNeedLivePeer => true;
+
+    /// <summary>
     /// 4.7: a 4.6 node keeps every SQL Server round locked, and so does every node of a cluster that has one
     /// (#4117).
     /// </summary>

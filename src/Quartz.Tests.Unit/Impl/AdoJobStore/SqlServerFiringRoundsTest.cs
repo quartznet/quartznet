@@ -136,6 +136,36 @@ public sealed class SqlServerFiringRoundsTest
         store.StaticRoundLockReason.Should().BeNull("PostgreSQL's read never takes a shared lock");
     }
 
+    /// <summary>
+    /// A SQL Server store that is not clustered keeps 4.5's rounds for good: a single node has no
+    /// TRIGGER_ACCESS contention to save, and the split round's extra statements cost it throughput. The
+    /// database is not asked, since the answer could change nothing.
+    /// </summary>
+    [Test]
+    public async Task ASqlServerStoreThatIsNotClusteredKeepsEveryRoundLockedWithoutAskingTheDatabase()
+    {
+        int asked = 0;
+        ProbingStore store = Store(new ScriptedSqlServerDelegate(() =>
+        {
+            asked++;
+            return true;
+        }), clustered: false);
+
+        await store.ProbeReadCommittedSnapshot();
+
+        asked.Should().Be(0, "no answer of the database's lets a store with no peer go without the lock");
+        store.StaticRoundLockReason.Should().Be(RoundLockReason.NoLivePeer);
+        RoundLockReason.NoLivePeer.ToTag().Should().Be("no_live_peer", "the reason tag on the acquisition instruments");
+        RoundLockReason.NoLivePeer.Describe().Should().Contain("not clustered").And.Contain("as in 4.5");
+    }
+
+    [Test]
+    public void APostgreSqlStoreThatIsNotClusteredStillTakesLockFreeRounds()
+    {
+        Store(new PostgreSQLDelegate(), clustered: false).StaticRoundLockReason.Should().BeNull(
+            "PostgreSQL's folded round is the faster one on a single node too");
+    }
+
     [TestCase(true, true)]
     [TestCase(false, false)]
     [TestCase(null, false)]
@@ -161,7 +191,8 @@ public sealed class SqlServerFiringRoundsTest
 
         logs.Entries.Should().ContainSingle(x => x.EventId.Id == LockFreeFiringRoundsEvent)
             .Which.Message.Should().Contain("on").And.Contain("fires in a second",
-                "an operator reading the line sees that SQL Server's rounds are two transactions");
+                "an operator reading the line sees that SQL Server's rounds are two transactions")
+            .And.Contain("no other live node is in the cluster", "and that a node alone keeps the lock");
     }
 
     [Test]
@@ -188,6 +219,7 @@ public sealed class SqlServerFiringRoundsTest
     /// stays exact.
     /// </summary>
     [TestCase("read_committed_snapshot_off", true)]
+    [TestCase("no_live_peer", true)]
     [TestCase("option_off", true)]
     [TestCase("older_peer", false)]
     [TestCase("cluster_limit", false)]
@@ -214,16 +246,20 @@ public sealed class SqlServerFiringRoundsTest
             .Should().BeFalse("4.5 fired a batch in one locked transaction too");
     }
 
-    private static ProbingStore Store(StdAdoDelegate driverDelegate, ILoggerFactory loggerFactory = null, Action<AdoJobStoreOptions> configure = null)
+    /// <summary>
+    /// A store over <paramref name="driverDelegate" />, clustered unless the test says otherwise: a SQL Server
+    /// store that is not clustered never asks the database, having no peer for a round to help beside.
+    /// </summary>
+    private static ProbingStore Store(StdAdoDelegate driverDelegate, ILoggerFactory loggerFactory = null, Action<AdoJobStoreOptions> configure = null, bool clustered = true)
     {
-        return new ProbingStore(loggerFactory, configure) { DirectDelegate = driverDelegate };
+        return new ProbingStore(loggerFactory, configure, clustered) { DirectDelegate = driverDelegate };
     }
 
     /// <summary>
     /// The test store, running what it is asked to run without a lock on a connection that goes nowhere.
     /// </summary>
-    private sealed class ProbingStore(ILoggerFactory loggerFactory, Action<AdoJobStoreOptions> configure)
-        : AdoJobStoreBaseTest.TestAdoJobStoreBase(clustered: false, timeProvider: null, loggerFactory, configure)
+    private sealed class ProbingStore(ILoggerFactory loggerFactory, Action<AdoJobStoreOptions> configure, bool clustered)
+        : AdoJobStoreBaseTest.TestAdoJobStoreBase(clustered, timeProvider: null, loggerFactory, configure)
     {
         protected override ValueTask<T> ExecuteInLock<T>(
             SchedulerLock? lockKind,

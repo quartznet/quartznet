@@ -442,7 +442,8 @@ internal abstract partial class AdoJobStoreBase : IJobStore
     /// <see cref="AcquireTriggersWithinLock" />, an isolation level above read committed — where a lost claim
     /// is a serialization failure that costs a retry interval rather than a zero-row update — a delegate that
     /// takes no part in fire-on-acquire rounds, whose overridden claim or fire the round's members would
-    /// bypass, and a SQL Server database that does not read committed snapshots (#4117).
+    /// bypass, a SQL Server store that is not clustered, and a SQL Server database that does not read committed
+    /// snapshots (#4117).
     /// </summary>
     internal RoundLockReason? StaticRoundLockReason
     {
@@ -496,9 +497,21 @@ internal abstract partial class AdoJobStoreBase : IJobStore
                 return RoundLockReason.Delegate;
             }
 
+            // A store that is not clustered has no peer, and never will (#4117).
+            if (!Clustered && NeedsLivePeerForLockFreeRounds)
+            {
+                return RoundLockReason.NoLivePeer;
+            }
+
             return null;
         }
     }
+
+    /// <summary>
+    /// Whether the dialect's rounds take no lock only beside another live node
+    /// (<see cref="StdAdoDelegate.LockFreeRoundsNeedLivePeer" />): SQL Server (#4117).
+    /// </summary>
+    private bool NeedsLivePeerForLockFreeRounds => Delegate is StdAdoDelegate { LockFreeRoundsNeedLivePeer: true };
 
     /// <summary>
     /// What the startup probe found the database's <c>READ_COMMITTED_SNAPSHOT</c> to be, for a dialect that
@@ -566,6 +579,10 @@ internal abstract partial class AdoJobStoreBase : IJobStore
         if (Clustered)
         {
             locked += string.Create(CultureInfo.InvariantCulture, $", as does every round while a live node is older than {LockFreeRoundsPeerVersion.ToString(2)}");
+            if (NeedsLivePeerForLockFreeRounds)
+            {
+                locked += " or no other live node is in the cluster";
+            }
         }
 
         if (Delegate is StdAdoDelegate { FiresLockFreeRoundsApart: true })

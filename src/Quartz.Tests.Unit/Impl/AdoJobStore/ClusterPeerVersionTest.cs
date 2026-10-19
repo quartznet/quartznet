@@ -47,6 +47,9 @@ public sealed class ClusterPeerVersionTest
     private const int OlderPeerKeepsRoundsLocked = 3517;
     private const int EveryPeerAllowsLockFreeRounds = 3518;
 
+    /// <summary>Log event <c>ClusterLog.NoLivePeerKeepsRoundsLocked</c>.</summary>
+    private const int NoLivePeerKeepsRoundsLocked = 3521;
+
     private static readonly DateTimeOffset Now = new(2026, 10, 16, 12, 0, 0, TimeSpan.Zero);
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(7.5);
 
@@ -195,6 +198,51 @@ public sealed class ClusterPeerVersionTest
         store.PeersAllowLockFreeRounds.Should().Be(allows, "SQL Server's rounds take no lock beside 4.7 nodes only");
         logs.Entries.Should().ContainSingle(x => x.EventId.Id == (allows ? EveryPeerAllowsLockFreeRounds : OlderPeerKeepsRoundsLocked))
             .Which.Message.Should().Contain("4.7", "the line names the release the dialect needs");
+    }
+
+    /// <summary>
+    /// On SQL Server a round takes no lock only beside another live node, so a node alone keeps 4.5's
+    /// rounds with reason <c>no_live_peer</c> (#4117). The verdict follows the peers as each check-in finds
+    /// them — none, one, none again — and is logged once per change, not once per check-in.
+    /// </summary>
+    [Test]
+    public async Task OnSqlServerANodeAloneKeepsTheLockUntilAPeerIsLiveAndAfterItGoes()
+    {
+        UseDelegate(A.Fake<SqlServerDelegate>());
+
+        GivenPeers();
+        await store.CheckIn(Guid.NewGuid());
+        store.PeerRoundLockReason.Should().Be(RoundLockReason.NoLivePeer, "a node alone has no contention for a round without the lock to save");
+        store.PeersAllowLockFreeRounds.Should().BeTrue("no older node is live; it is the missing peer that keeps the lock");
+
+        await store.CheckIn(Guid.NewGuid());
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == NoLivePeerKeepsRoundsLocked, "nothing changed at the second check-in")
+            .Which.Message.Should().Contain("no other live node").And.Contain("4.7");
+
+        GivenPeers(Live("peer-a", "4.7.0"));
+        await store.CheckIn(Guid.NewGuid());
+        store.PeerRoundLockReason.Should().BeNull("a live 4.7 peer is what a SQL Server round without the lock helps beside");
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == EveryPeerAllowsLockFreeRounds)
+            .Which.Message.Should().Contain("1 beside this one");
+
+        GivenPeers(Failed("peer-a", "4.7.0"));
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(A<ConnectionAndTransactionHolder>._, A<FiredTriggerQuery>._, A<CancellationToken>._))
+            .Returns(new ValueTask<List<FiredTriggerRecord>>(new List<FiredTriggerRecord>()));
+        await store.CheckIn(Guid.NewGuid());
+        store.PeerRoundLockReason.Should().Be(RoundLockReason.NoLivePeer, "a peer past its failure threshold is not live");
+        logs.Entries.Count(x => x.EventId.Id == NoLivePeerKeepsRoundsLocked).Should().Be(2, "one line for each change back to a node alone");
+    }
+
+    [Test]
+    public async Task OnPostgreSqlANodeAloneTakesLockFreeRounds()
+    {
+        UseDelegate(A.Fake<PostgreSQLDelegate>());
+        GivenPeers();
+
+        await store.CheckIn(Guid.NewGuid());
+
+        store.PeerRoundLockReason.Should().BeNull("PostgreSQL's folded round is the faster one on a single node too");
+        logs.Entries.Should().NotContain(x => x.EventId.Id == NoLivePeerKeepsRoundsLocked);
     }
 
     [Test]

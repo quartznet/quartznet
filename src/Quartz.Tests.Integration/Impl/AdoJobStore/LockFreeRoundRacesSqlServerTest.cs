@@ -35,10 +35,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Two job stores on one database, as two nodes are: the round's, whose <see cref="SqlServerDelegate" /> is
-/// subclassed to pause the round where the test says, and the other node's, which writes while the round is
-/// paused. The stores are not clustered unless a test says so, but take the database lock a clustered node
-/// takes, so the other node's writes run under <c>TRIGGER_ACCESS</c> as they would there.
+/// Two job stores on one database, as two clustered nodes are: the round's, whose
+/// <see cref="SqlServerDelegate" /> is subclassed to pause the round where the test says, and the other
+/// node's, which writes while the round is paused. A SQL Server round takes no lock only beside another live
+/// node, so each test that needs one starts with both nodes checked in (<see cref="PeersCheckedIn" />).
 /// </remarks>
 [Category("db-sqlserver")]
 [NonParallelizable]
@@ -83,14 +83,15 @@ public sealed class LockFreeRoundRacesSqlServerTest : ClusteredJobStoreTestBase
     }
 
     /// <summary>
-    /// The baseline: with the snapshot on, a round of one concurrent-allowed trigger takes no lock, claims
-    /// and reserves in one transaction, and fires in a second, which leaves the row advanced and the
-    /// reservation <c>EXECUTING</c>.
+    /// The baseline: with the snapshot on and another live node beside it, a round of one concurrent-allowed
+    /// trigger takes no lock, claims and reserves in one transaction, and fires in a second, which leaves the
+    /// row advanced and the reservation <c>EXECUTING</c>.
     /// </summary>
     [Test]
     public async Task ARoundOfConcurrentAllowedWorkFiresApartWithoutTheLock()
     {
         roundStore.StaticRoundLockReason.Should().BeNull("the premise: the store found the database reading committed snapshots");
+        await PeersCheckedIn();
         DateTimeOffset due = await Stored(Trigger("plain", DateTimeOffset.UtcNow.AddSeconds(-5)));
 
         TriggerAcquisitionResult round = await roundStore.AcquireNextTriggersAndFireDue(Request());
@@ -113,6 +114,7 @@ public sealed class LockFreeRoundRacesSqlServerTest : ClusteredJobStoreTestBase
     [Test]
     public async Task APauseBetweenTheClaimAndTheFireLeavesTheTriggerPausedAndUnfired()
     {
+        await PeersCheckedIn();
         DateTimeOffset due = await Stored(Trigger("pausedBetween", DateTimeOffset.UtcNow.AddSeconds(-5)));
         Gate gate = new();
         hooks.BeforeGuard = gate.Pause;
@@ -141,6 +143,7 @@ public sealed class LockFreeRoundRacesSqlServerTest : ClusteredJobStoreTestBase
     [Test]
     public async Task APauseAfterTheGuardWaitsForTheFireAndLandsOnTheRowItLeft()
     {
+        await PeersCheckedIn();
         DateTimeOffset due = await Stored(Trigger("pausedAfter", DateTimeOffset.UtcNow.AddSeconds(-5)));
         Gate gate = new();
         hooks.AfterGuard = gate.Pause;
@@ -169,6 +172,7 @@ public sealed class LockFreeRoundRacesSqlServerTest : ClusteredJobStoreTestBase
     [Test]
     public async Task AJobMadeSerialBetweenTheClaimAndTheFireIsFiredOnceUnderTheLock()
     {
+        await PeersCheckedIn();
         DateTimeOffset due = await Stored(Trigger("serialised", DateTimeOffset.UtcNow.AddSeconds(-5)));
         Gate gate = new();
         hooks.BeforeGuard = gate.Pause;
@@ -235,6 +239,46 @@ public sealed class LockFreeRoundRacesSqlServerTest : ClusteredJobStoreTestBase
     }
 
     /// <summary>
+    /// A node alone in its cluster keeps 4.5's rounds, reason <c>no_live_peer</c>: a single node has no
+    /// contention for a round without the lock to save (#4117). Once another live node has checked in and
+    /// this node's check-in has seen it, its rounds take no lock.
+    /// </summary>
+    [Test]
+    public async Task ANodeAloneKeeps45sRoundsUntilAnotherNodeIsLive()
+    {
+        await roundStore.CheckIn(Guid.NewGuid());
+        await Stored(Trigger("alone", DateTimeOffset.UtcNow.AddSeconds(-5)));
+
+        TriggerAcquisitionResult alone = await roundStore.AcquireNextTriggersAndFireDue(Request() with { MaxCount = 1 });
+
+        alone.LockReason.Should().Be("no_live_peer");
+        alone.Due.Should().BeEmpty("a round of one that takes the lock is 4.5's: acquired, and fired by the scheduler");
+        alone.Pending.Should().ContainSingle().Which.Key.Name.Should().Be("alone");
+        hooks.Guards.Should().Be(0, "nothing fired apart");
+        await roundStore.ReleaseAcquiredTrigger(alone.Pending[0]);
+
+        await otherStore.CheckIn(Guid.NewGuid());
+        await roundStore.CheckIn(Guid.NewGuid());
+
+        TriggerAcquisitionResult beside = await roundStore.AcquireNextTriggersAndFireDue(Request() with { MaxCount = 1 });
+        beside.LockName.Should().Be("none", "another live 4.7 node has checked in");
+        beside.Fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull();
+        hooks.Guards.Should().Be(1);
+    }
+
+    /// <summary>
+    /// A store that is not clustered never takes a round without the lock on SQL Server, and does not ask the
+    /// database.
+    /// </summary>
+    [Test]
+    public async Task AStoreThatIsNotClusteredKeepsEveryRoundLocked()
+    {
+        LocalTransactionJobStore store = await CreateStore("single-node", new SqlServerDelegate(), Database, clustered: false);
+
+        store.StaticRoundLockReason.Should().Be(RoundLockReason.NoLivePeer);
+    }
+
+    /// <summary>
     /// The same server's default database, where <c>READ_COMMITTED_SNAPSHOT</c> is off: the store asks at
     /// startup and keeps 4.5's rounds, and says why.
     /// </summary>
@@ -273,6 +317,18 @@ public sealed class LockFreeRoundRacesSqlServerTest : ClusteredJobStoreTestBase
 
     private static Task<T> Run<T>(Func<ValueTask<T>> operation) => Task.Run(() => operation().AsTask());
 
+    /// <summary>
+    /// Both nodes checked in, and the round's node has read the other's 4.7 row: what a SQL Server round
+    /// without the lock needs beside it.
+    /// </summary>
+    private async Task PeersCheckedIn()
+    {
+        await roundStore.CheckIn(Guid.NewGuid());
+        await otherStore.CheckIn(Guid.NewGuid());
+        await roundStore.CheckIn(Guid.NewGuid());
+        roundStore.PeerRoundLockReason.Should().BeNull("the premise: another live 4.7 node is beside the round's");
+    }
+
     private async Task<DateTimeOffset> Stored(IOperableTrigger trigger)
     {
         await roundStore.AddJob(JobBuilder.Create<RaceJob>().WithIdentity(JobKey).StoreDurably().Build(), AddJobOptions.Replacing);
@@ -294,15 +350,15 @@ public sealed class LockFreeRoundRacesSqlServerTest : ClusteredJobStoreTestBase
     }
 
     /// <summary>
-    /// One node's store on <paramref name="database" />: not clustered unless <paramref name="clustered" />
-    /// says so, so that no check-in has to read the state table before a round may take no lock, and locking
-    /// through the database as a clustered node does.
+    /// One node's store on <paramref name="database" />, clustered unless <paramref name="clustered" /> says
+    /// otherwise, and locking through the database. Nothing checks in on its own: a test that needs a round
+    /// without the lock checks the nodes in itself.
     /// </summary>
     private async Task<LocalTransactionJobStore> CreateStore(
         string instanceId,
         IDriverDelegate driverDelegate,
         ClusteredTestDatabase database,
-        bool clustered = false)
+        bool clustered = true)
     {
         LocalTransactionJobStore store = new(TestJobStores.Dependencies(
             schedulerOptions: TestJobStores.SchedulerOptions(SchedulerName, instanceId),

@@ -129,8 +129,9 @@ DataSource=localhost;Database=/data/quartz.fdb;User=SYSDBA;Password=masterkey;Ch
 
 ## SQL Server: `READ_COMMITTED_SNAPSHOT`
 
-Turn it on for [lock-free firing rounds](../operations.md#lock-free-firing-rounds) on SQL Server. Without
-it, every firing round takes `TRIGGER_ACCESS`, as in 4.5.
+Turn it on for [lock-free firing rounds](../operations.md#lock-free-firing-rounds) on SQL Server, which
+run only in a cluster of two or more live 4.7 nodes, because that is where they help. Without it, every
+firing round takes `TRIGGER_ACCESS`, as in 4.5. A single node keeps 4.5's rounds either way.
 
 | | |
 |---|---|
