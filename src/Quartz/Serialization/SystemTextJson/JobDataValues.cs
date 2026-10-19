@@ -21,7 +21,6 @@
 
 using System.Collections.Frozen;
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 
 namespace Quartz.Serialization.SystemTextJson;
 
@@ -50,8 +49,9 @@ namespace Quartz.Serialization.SystemTextJson;
 /// <para>
 /// Past those, a value is the application's own choice, and
 /// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> is how it declares one. That is
-/// the same escape hatch a trimmed publish needs, so a type an application has already answered for is
-/// a type this refuses nothing about.
+/// the same escape hatch a trimmed publish needs. Such a value reads back as the string map of its
+/// members, a number or a boolean among them as its JSON text, so the one thing refused about a declared
+/// type is a collection, as the value or among its members (#4156).
 /// </para>
 /// <para>
 /// The gate lives in <c>JobDataMapConverter</c>, which <c>AddQuartzConverters</c> registers for the
@@ -118,7 +118,8 @@ internal static class JobDataValues
     /// because refusing has to happen before a single byte reaches the column.
     /// </remarks>
     /// <exception cref="JsonSerializationException">
-    /// The value is of a type no reader can turn back into it, and the application has not declared one.
+    /// The value is of a type no reader can turn back into it, and the application has not declared one;
+    /// or the application declared it, and it is a collection or has one among its members.
     /// </exception>
     public static void Refuse(string key, object? value, JsonSerializerOptions options, SystemTextJsonSerializerRegistry registry)
     {
@@ -128,9 +129,16 @@ internal static class JobDataValues
         }
 
         Type type = value.GetType();
-        if (Accepted.Contains(type) || type.IsEnum || registry.DeclaresJobDataValueType(type, options))
+        if (Accepted.Contains(type) || type.IsEnum)
         {
             RefuseTypeMarker(key, value);
+            return;
+        }
+
+        if (registry.DeclaresJobDataValueType(type, options))
+        {
+            RefuseTypeMarker(key, value);
+            RefuseCollection(key, value, type, options);
             return;
         }
 
@@ -140,6 +148,65 @@ internal static class JobDataValues
             "(string, bool, char, int, long, float, double, decimal, DateTime, DateTimeOffset, TimeSpan, Guid, DateOnly, TimeOnly or an enum), " +
             "a Dictionary<string, string>, or a type the application declares through SystemTextJsonSerializerRegistry.AddTypeInfoResolver. " +
             "Anything with structure of its own has to be serialized by the job and stored as a string.");
+    }
+
+    /// <summary>
+    /// Throws when a value of a type the application declared is written as a JSON array, or has one among
+    /// its members or theirs (#4156).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An object comes back as a string map (see <see cref="Read" />), whose members are strings: a number,
+    /// a boolean or an object member reads back as its JSON text, but an array has no place in the map and
+    /// a top-level array none in the reader at all. Refusing it here keeps such a value out of the column,
+    /// where it would have made the whole map unreadable at the next load.
+    /// </para>
+    /// <para>
+    /// The value is written once to find out, because what reaches the column is what the application's
+    /// metadata writes: a member typed <see cref="object" />, or a converter of the application's own, can
+    /// write an array where no declared member type says so. Only a declared type pays for it.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="JsonSerializationException">
+    /// The value is written as an array, or a member of it is, named by its path.
+    /// </exception>
+    private static void RefuseCollection(string key, object value, Type type, JsonSerializerOptions options)
+    {
+        JsonElement written = JsonSerializer.SerializeToElement(value, options.GetTypeInfo(type));
+        if (written.ValueKind == JsonValueKind.Array)
+        {
+            throw new JsonSerializationException(
+                $"Job data entry '{key}' holds a {type.FullName}, which is a collection, and Quartz's JSON format cannot read a collection back. " +
+                "Store each item under an entry of its own, or have the job serialize the collection and store it as a string.");
+        }
+
+        if (written.ValueKind == JsonValueKind.Object && FirstArrayMember(written, path: null) is { } member)
+        {
+            throw new JsonSerializationException(
+                $"Job data entry '{key}' holds a {type.FullName}, whose member '{member}' is a collection, which Quartz's JSON format cannot read back: " +
+                "it reads an object back as a Dictionary<string, string> of its members, and a collection has no string there. " +
+                "Give the member a type that is not a collection, or have the job serialize the value and store it as a string.");
+        }
+    }
+
+    /// <summary>
+    /// The path of the first member, at any depth, that is written as an array, or <see langword="null" />.
+    /// </summary>
+    private static string? FirstArrayMember(JsonElement written, string? path)
+    {
+        foreach (JsonProperty member in written.EnumerateObject())
+        {
+            string memberPath = path is null ? member.Name : path + "." + member.Name;
+            switch (member.Value.ValueKind)
+            {
+                case JsonValueKind.Array:
+                    return memberPath;
+                case JsonValueKind.Object when FirstArrayMember(member.Value, memberPath) is { } nested:
+                    return nested;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -170,7 +237,7 @@ internal static class JobDataValues
     /// Turns one stored entry back into the value a job reads, which is the whole of what a job data
     /// blob can say.
     /// </summary>
-    public static object? Read(JsonElement value, JsonSerializerOptions options)
+    public static object? Read(JsonElement value)
     {
         switch (value.ValueKind)
         {
@@ -200,19 +267,50 @@ internal static class JobDataValues
                 return value.GetDouble();
 
             case JsonValueKind.Object:
-                // The one shape past the primitives a job data value comes back as, and the reason
-                // Dictionary<string, string> is both named in QuartzStoreJsonContext and accepted above.
-                Dictionary<string, string>? stringMap = value.Deserialize((JsonTypeInfo<Dictionary<string, string>>) options.GetTypeInfo(typeof(Dictionary<string, string>)));
-
-                // A blob Quartz.Serialization.Newtonsoft wrote before string maps went out plain carries
-                // the type it wrote the map under. That is metadata to the reader that wrote it, and it has
-                // to be metadata here too: handing it back would put an assembly-qualified type name in the
-                // application's own key space, under a name RefuseTypeMarker keeps anything from storing.
-                stringMap?.Remove(TypeMarker);
-                return stringMap;
+                return ReadStringMap(value);
 
             default:
                 throw new JsonException($"Unsupported value kind: {value.ValueKind}");
         }
+    }
+
+    /// <summary>
+    /// An object entry as the one shape past the primitives a job data value comes back as: a
+    /// <c>Dictionary&lt;string, string&gt;</c>, whatever the members were written as.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A string member is its string and a null member is null. Any other member — a number, a boolean, or
+    /// structure a blob written before #4156 can still hold — is its JSON text: <c>3</c> reads back as
+    /// <c>"3"</c>, <c>true</c> as <c>"true"</c>. That is what lets an object of a type the application declared
+    /// with a number or a boolean among its members be read back at all; the accessors in
+    /// <see cref="DataMapExtensions" /> parse the text where a job wants the number.
+    /// </para>
+    /// <para>
+    /// A blob Quartz.Serialization.Newtonsoft wrote before string maps went out plain carries the type it
+    /// wrote the map under. That is metadata to the reader that wrote it, and it has to be metadata here too:
+    /// handing it back would put an assembly-qualified type name in the application's own key space, under a
+    /// name <see cref="RefuseTypeMarker" /> keeps anything from storing.
+    /// </para>
+    /// </remarks>
+    private static Dictionary<string, string> ReadStringMap(JsonElement value)
+    {
+        Dictionary<string, string> stringMap = [];
+        foreach (JsonProperty member in value.EnumerateObject())
+        {
+            if (member.NameEquals(TypeMarker))
+            {
+                continue;
+            }
+
+            stringMap[member.Name] = member.Value.ValueKind switch
+            {
+                JsonValueKind.String => member.Value.GetString()!,
+                JsonValueKind.Null => null!,
+                _ => member.Value.GetRawText()
+            };
+        }
+
+        return stringMap;
     }
 }
