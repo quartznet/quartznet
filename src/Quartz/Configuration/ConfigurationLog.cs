@@ -150,4 +150,11 @@ internal static partial class ConfigurationLog
     /// </remarks>
     [LoggerMessage(EventId = 4030, Level = LogLevel.Warning, Message = "{Registration} gave its {Kind} no identity, so it was stored under the generated key '{Key}'. A persistent store keeps it, so each start adds another copy, and every copy of a trigger fires. Give it a stable key with WithIdentity(...)")]
     public static partial void GeneratedIdentityInPersistentStore(this ILogger logger, string registration, string kind, string key);
+
+    /// <remarks>
+    /// Logged once, after the declared jobs and triggers are applied, by a clustered node whose instance id
+    /// the default generator produced. <c>TriggerKeys</c> names at most five triggers, then how many more.
+    /// </remarks>
+    [LoggerMessage(EventId = 4031, Level = LogLevel.Warning, Message = "Scheduler '{SchedulerName}' runs under the generated instance id '{SchedulerInstanceId}', which changes at every start, yet {PinnedTriggerCount} declared trigger(s) are pinned to a named node: {TriggerKeys}. A pin matches only a node whose instance id is the name it carries, which a generated id never is. Set InstanceId (quartz.scheduler.instanceId) on each node a pin names, or pin with PreferredNode.Auto")]
+    public static partial void PinnedTriggersUnderGeneratedInstanceId(this ILogger logger, string schedulerName, string schedulerInstanceId, int pinnedTriggerCount, string triggerKeys);
 }

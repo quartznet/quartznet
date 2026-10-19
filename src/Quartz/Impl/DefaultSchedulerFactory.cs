@@ -196,9 +196,12 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             resources.AddSchedulerPlugin(plugin);
         }
 
+        // Whether the default generator produced the id, which then differs at every start: a declared
+        // trigger pinned to a node by name is a pin no start of this node ever carries (#4139).
+        bool instanceIdGenerated = false;
         if (options.GenerateInstanceId)
         {
-            resources.InstanceId = await GenerateInstanceId(resources, cancellationToken).ConfigureAwait(false);
+            (resources.InstanceId, instanceIdGenerated) = await GenerateInstanceId(resources, cancellationToken).ConfigureAwait(false);
         }
 
         await resources.ThreadPool.Initialize(cancellationToken).ConfigureAwait(false);
@@ -254,7 +257,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
 
             // Listeners, calendars, jobs and triggers can only be applied once a scheduler exists.
             await serviceProvider.GetScheduler<SchedulerContentInitializer>(Key)
-                .Initialize(scheduler, quartzScheduler.SupportsPersistence, cancellationToken)
+                .Initialize(scheduler, quartzScheduler.SupportsPersistence, instanceIdGenerated, cancellationToken)
                 .ConfigureAwait(false);
 
             logger.SchedulerInitialized(
@@ -319,14 +322,19 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         }
     }
 
-    private async ValueTask<string> GenerateInstanceId(QuartzSchedulerResources resources, CancellationToken cancellationToken)
+    /// <returns>
+    /// The instance id, and whether the default generator produced it. That generator appends the clock to
+    /// the host name, so its id differs at every start; a generator the application chose, or one a key
+    /// such as <c>SYS_PROP</c> selected, derives the id by a rule of the application's own.
+    /// </returns>
+    private async ValueTask<(string InstanceId, bool Generated)> GenerateInstanceId(QuartzSchedulerResources resources, CancellationToken cancellationToken)
     {
         try
         {
             // A non-clustered scheduler shares its database with nobody, so a generated id buys nothing.
             if (!resources.JobStore.Clustered)
             {
-                return QuartzSchedulerOptions.DefaultInstanceId;
+                return (QuartzSchedulerOptions.DefaultInstanceId, false);
             }
 
             var generator = serviceProvider.GetScheduler<IInstanceIdGenerator>(Key);
@@ -336,13 +344,13 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
                 Throw.SchedulerException($"Instance id generator '{generator.GetType()}' produced an empty instance id.");
             }
 
-            return instanceId!;
+            return (instanceId!, generator is SimpleInstanceIdGenerator);
         }
         catch (Exception e) when (e is not SchedulerException)
         {
             logger.InstanceIdGenerationFailed(e);
             Throw.SchedulerException("Cannot run without an instance id.", e);
-            return default!;
+            return default;
         }
     }
 

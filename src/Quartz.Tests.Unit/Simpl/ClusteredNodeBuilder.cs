@@ -21,6 +21,7 @@
 
 using System.Collections.Specialized;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
@@ -61,11 +62,7 @@ internal static class ClusteredNodeBuilder
     /// <param name="properties">The node's flat keys, if any.</param>
     public static StandaloneSchedulerFactory Build(Action<IQuartzBuilder> configure, NameValueCollection properties = null)
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q =>
-        {
-            q.UseJobStore(provider => new ClusteredInMemoryJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider)));
-            configure?.Invoke(q);
-        });
+        QuartzSchedulerBuilder builder = Create(configure);
 
         if (properties is not null)
         {
@@ -73,6 +70,26 @@ internal static class ClusteredNodeBuilder
         }
 
         return builder.Build();
+    }
+
+    /// <summary>
+    /// Builds a node's factory, with part of the node's configuration in a <c>Quartz</c> section, as
+    /// <see cref="QuartzSchedulerBuilder.UseConfiguration" /> reads one.
+    /// </summary>
+    /// <param name="configure">As on the other overload.</param>
+    /// <param name="configuration">The node's <c>Quartz</c> section.</param>
+    public static StandaloneSchedulerFactory Build(Action<IQuartzBuilder> configure, IConfiguration configuration)
+    {
+        return Create(configure).UseConfiguration(configuration).Build();
+    }
+
+    private static QuartzSchedulerBuilder Create(Action<IQuartzBuilder> configure)
+    {
+        return QuartzSchedulerBuilder.Create(q =>
+        {
+            q.UseJobStore(provider => new ClusteredInMemoryJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider)));
+            configure?.Invoke(q);
+        });
     }
 
     /// <summary>

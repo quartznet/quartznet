@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -16,6 +18,11 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
     private readonly List<IJobDetail> jobs;
     private readonly List<ITrigger> triggers;
     private readonly List<GeneratedIdentity> generatedIdentities;
+
+    /// <summary>
+    /// The most trigger keys <see cref="ReportPinsUnderGeneratedInstanceId" /> names; the rest are counted.
+    /// </summary>
+    private const int PinnedTriggerKeysNamed = 5;
 
     /// <remarks>
     /// Takes the resolved options and this scheduler's own content registrations rather than
@@ -61,6 +68,50 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
         {
             logger.GeneratedIdentityInPersistentStore(identity.Registration, identity.Kind, identity.Key);
         }
+    }
+
+    /// <summary>
+    /// Warns once when declared triggers are pinned to a node by name and this node's instance id was
+    /// generated (#4139).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A pin names an instance id, and a generated one carries the clock, so it is never the name a pin
+    /// carries; a pin taken from it breaks at that node's next start. Such a trigger runs on whichever
+    /// node acquires it, and nothing else says why. Only a pin named with <see cref="PreferredNode.For" />
+    /// counts: <see cref="PreferredNode.Auto" /> is claimed by whichever node fires the trigger, whatever
+    /// its id.
+    /// </para>
+    /// <para>
+    /// The declared triggers are the ones registered in code, by attribute and in a <c>Quartz:Schedule</c>
+    /// file. One warning for all of them, naming the first few, rather than one per trigger: the fix is the
+    /// node's configuration, not each trigger.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler's name.</param>
+    /// <param name="instanceId">The instance id this node generated.</param>
+    public void ReportPinsUnderGeneratedInstanceId(string schedulerName, string instanceId)
+    {
+        List<TriggerKey> pinned = [];
+        foreach (ITrigger trigger in triggers)
+        {
+            if (trigger.PreferredNode is { IsNone: false, IsAutomatic: false })
+            {
+                pinned.Add(trigger.Key);
+            }
+        }
+
+        if (pinned.Count == 0)
+        {
+            return;
+        }
+
+        string named = string.Join(", ", pinned.Take(PinnedTriggerKeysNamed).Select(static key => $"'{key}'"));
+        string keys = pinned.Count > PinnedTriggerKeysNamed
+            ? $"{named} and {(pinned.Count - PinnedTriggerKeysNamed).ToString(CultureInfo.InvariantCulture)} more"
+            : named;
+
+        logger.PinnedTriggersUnderGeneratedInstanceId(schedulerName, instanceId, pinned.Count, keys);
     }
 
     /// <remarks>

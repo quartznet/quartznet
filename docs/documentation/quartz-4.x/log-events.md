@@ -285,6 +285,7 @@ matching on its text is not.
 | 4028 | Warning | `Quartz` | `"The store attached as '{Target}' could not be read, so the schedulers in it are not shown; the next round will try again"` |
 | 4029 | Warning | `Quartz` | `"The store attached as '{Target}' holds a scheduler named '{SchedulerName}', but its window could not be built this round; the next round will try again"` |
 | 4030 | Warning | `Quartz` | `"{Registration} gave its {Kind} no identity, so it was stored under the generated key '{Key}'. A persistent store keeps it, so each start adds another copy, and every copy of a trigger fires. Give it a stable key with WithIdentity(...)"` |
+| 4031 | Warning | `Quartz` | `"Scheduler '{SchedulerName}' runs under the generated instance id '{SchedulerInstanceId}', which changes at every start, yet {PinnedTriggerCount} declared trigger(s) are pinned to a named node: {TriggerKeys}. A pin matches only a node whose instance id is the name it carries, which a generated id never is. Set InstanceId (quartz.scheduler.instanceId) on each node a pin names, or pin with PreferredNode.Auto"` |
 | 5000 | Information | `Quartz` | `"Parsing XML file: {FileName} with systemId: {SystemId}"` |
 | 5001 | Information | `Quartz` | `"Parsing XML from stream with systemId: {SystemId}"` |
 | 5002 | Debug | `Quartz` | `"Found {JobGroupCount} delete job group commands."` |
