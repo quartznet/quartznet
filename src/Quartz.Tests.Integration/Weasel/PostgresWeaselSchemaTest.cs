@@ -145,8 +145,8 @@ public sealed class PostgresWeaselSchemaTest
     }
 
     /// <summary>
-    /// 4.3 → 4.6 only adds: five columns and an index on the history table, the rollup table, and the
-    /// version column on the state table.
+    /// 4.3 → 4.6 only adds: five columns and an index on the history table, the rollup table, the version
+    /// column on the state table, and the interrupt column on the fired-trigger table.
     /// </summary>
     [Test]
     public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnly()
@@ -164,8 +164,8 @@ public sealed class PostgresWeaselSchemaTest
             List<ISchemaObjectDelta> changed = [.. planned.Deltas.Where(x => x.Difference != SchemaPatchDifference.None)];
 
             changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
-                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update)],
-                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table: " + Describe(planned));
+                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update)],
+                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table and the interrupt column to the fired-trigger table: " + Describe(planned));
 
             (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
             (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,
@@ -186,6 +186,10 @@ public sealed class PostgresWeaselSchemaTest
             .Where(x => x.StartsWith("SCHEDULER_STATE|", StringComparison.Ordinal))
             .Select(x => x.Split('|')[1])
             .Should().Equal(["QUARTZ_VERSION"], "the one column 4.6 adds is the version each node stamps at check-in (#4067)");
+        after.Columns.Except(before.Columns)
+            .Where(x => x.StartsWith("FIRED_TRIGGERS|", StringComparison.Ordinal))
+            .Select(x => x.Split('|')[1])
+            .Should().Equal(["INTERRUPT_REQUESTED_TIME"], "the one column 4.6 adds to a firing's row is when another node asked for it to be interrupted (#4071)");
         after.Indexes.Except(before.Indexes).Select(x => x.Split('|')[1]).Distinct().Should().BeEquivalentTo(
             ["IDX_EH_JOB_TIME", "IDX_EH_FIRE_INST", "IDX_EH_TRIG_TIME"], "4.4's job index and 4.6's two lookup indexes");
 

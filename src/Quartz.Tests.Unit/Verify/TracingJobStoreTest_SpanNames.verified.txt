@@ -17,6 +17,7 @@ Quartz.JobStore.PauseTriggerGroups
 Quartz.JobStore.PauseTriggers
 Quartz.JobStore.ReleaseAcquiredTrigger
 Quartz.JobStore.ReplaceTrigger
+Quartz.JobStore.RequestInterrupt
 Quartz.JobStore.ResetTriggerFromErrorState
 Quartz.JobStore.ResetTriggersFromErrorState
 Quartz.JobStore.ResumeAll

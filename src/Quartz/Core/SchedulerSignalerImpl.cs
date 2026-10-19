@@ -29,7 +29,7 @@ namespace Quartz.Core;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
+internal sealed class SchedulerSignalerImpl : ISchedulerSignaler, IInterruptRequestPoller
 {
     private readonly ILogger<SchedulerSignalerImpl> logger;
     private readonly QuartzScheduler scheduler;
@@ -152,5 +152,11 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
         CancellationToken cancellationToken = default)
     {
         return scheduler.NotifySchedulerListenersError(error, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public void PollInterruptRequests()
+    {
+        scheduler.PollInterruptRequests();
     }
 }

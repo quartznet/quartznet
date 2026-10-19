@@ -461,6 +461,106 @@ public class ClusterManagerTest
         }
     }
 
+    /// <summary>
+    /// The loop's check-in is when the scheduler reads the interrupts other nodes asked of this one's
+    /// firings (#4071): every check-in that reached the database asks for one read, and the first, inline
+    /// in <c>Initialize</c> before the scheduler has started anything, asks for none.
+    /// </summary>
+    [Test]
+    public async Task EveryCheckInOfTheLoopThatReachesTheDatabaseAsksForTheInterruptRequestsToBeRead()
+    {
+        DateTimeOffset start = new(2026, 10, 18, 12, 0, 0, TimeSpan.Zero);
+        FakeTimeProvider clock = new(start);
+        RecordingTimeProvider recorder = new(clock);
+        IDriverDelegate driverDelegate = A.Fake<IDriverDelegate>();
+        A.CallTo(() => driverDelegate.SelectSchedulerStateRecords(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily(() => new ValueTask<List<SchedulerStateRecord>>([new SchedulerStateRecord("TestInstanceId", clock.GetUtcNow(), Interval)]));
+
+        PollCountingSignaler signaler = new();
+        TestAdoJobStoreBase jobStoreSupport = new(recorder, driverDelegate, Interval, signaler);
+        jobStoreSupport.SetFirstCheckIn(false);
+        ClusterManager clusterManager = new(jobStoreSupport, NullLogger<ClusterManager>.Instance);
+
+        try
+        {
+            await clusterManager.Initialize();
+            signaler.Polls.Should().Be(0, "the check-in Initialize makes runs before the scheduler has started a firing");
+
+            await WaitUntil(() => recorder.Delays.Count >= 1);
+            clock.Advance(Interval);
+            await WaitUntil(() => signaler.Polls == 1);
+
+            await WaitUntil(() => recorder.Delays.Count >= 2);
+            clock.Advance(Interval);
+            await WaitUntil(() => signaler.Polls == 2);
+        }
+        finally
+        {
+            await clusterManager.Shutdown();
+        }
+    }
+
+    /// <summary>
+    /// A check-in that failed asks for no read: the read would fail the same way, and the retry the loop
+    /// schedules inside the window is what asks next.
+    /// </summary>
+    [Test]
+    public async Task ACheckInThatFailsAsksForNoInterruptRequestRead()
+    {
+        DateTimeOffset start = new(2026, 10, 18, 12, 0, 0, TimeSpan.Zero);
+        FakeTimeProvider clock = new(start);
+        RecordingTimeProvider recorder = new(clock);
+        IDriverDelegate driverDelegate = A.Fake<IDriverDelegate>();
+        A.CallTo(() => driverDelegate.SelectSchedulerStateRecords(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<SchedulerStateRecord>>([new SchedulerStateRecord("TestInstanceId", start, Interval)]))
+            .Once()
+            .Then
+            .Throws(new InvalidOperationException("state table unavailable"));
+
+        PollCountingSignaler signaler = new();
+        TestAdoJobStoreBase jobStoreSupport = new(recorder, driverDelegate, Interval, signaler);
+        jobStoreSupport.SetFirstCheckIn(false);
+        ClusterManager clusterManager = new(jobStoreSupport, NullLogger<ClusterManager>.Instance);
+
+        try
+        {
+            await clusterManager.Initialize();
+            await WaitUntil(() => recorder.Delays.Count >= 1);
+
+            clock.Advance(Interval);
+
+            // The retry's sleep is registered once the failed pass is over, so the pass has decided.
+            await WaitUntil(() => recorder.Delays.Count >= 2);
+            signaler.Polls.Should().Be(0, "a check-in that did not reach the database asks for no read");
+        }
+        finally
+        {
+            await clusterManager.Shutdown();
+        }
+    }
+
+    /// <summary>
+    /// The scheduler's half of a signaler, counting the reads of interrupt requests a store asks for.
+    /// </summary>
+    private sealed class PollCountingSignaler : ISchedulerSignaler, Quartz.Core.IInterruptRequestPoller
+    {
+        private int polls;
+
+        public int Polls => Volatile.Read(ref polls);
+
+        public void PollInterruptRequests() => Interlocked.Increment(ref polls);
+
+        public ValueTask NotifyTriggerListenersMisfired(ITrigger trigger, CancellationToken cancellationToken = default) => default;
+
+        public ValueTask NotifySchedulerListenersFinalized(ITrigger trigger, CancellationToken cancellationToken = default) => default;
+
+        public ValueTask NotifySchedulerListenersJobDeleted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+
+        public ValueTask SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc, CancellationToken cancellationToken = default) => default;
+
+        public ValueTask NotifySchedulerListenersError(SchedulerErrorContext errorContext, CancellationToken cancellationToken = default) => default;
+    }
+
     private static async Task WaitUntil(Func<bool> condition)
     {
         // Real time: the loop's continuation after a fake timer fires runs on a pool thread, and only
@@ -538,8 +638,9 @@ public class ClusterManagerTest
         {
         }
 
-        public TestAdoJobStoreBase(TimeProvider timeProvider, IDriverDelegate driverDelegate, TimeSpan checkinInterval)
+        public TestAdoJobStoreBase(TimeProvider timeProvider, IDriverDelegate driverDelegate, TimeSpan checkinInterval, ISchedulerSignaler signaler = null)
             : base(TestJobStores.Dependencies(
+                signaler: signaler,
                 timeProvider: timeProvider,
                 schedulerOptions: TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"),
                 clusteringOptions: TestJobStores.ClusteringOptions(configure: options => options.CheckinInterval = checkinInterval),

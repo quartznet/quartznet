@@ -478,9 +478,56 @@ partial class Build
 
             // --- 4.6: the Quartz version each node stamps at check-in, which decides whether a firing round may take no lock ---
             files.Add(($"4.6/add_scheduler_version_{d}.sql", Build46SchedulerVersionScript(d)));
+
+            // --- 4.6: an interrupt requested from another node, on the firing's own row ---
+            files.Add(($"4.6/add_fired_trigger_interrupt_{d}.sql", Build46FiredTriggerInterruptScript(d)));
         }
 
         return files;
+    }
+
+    /// <summary>
+    /// The column an interrupt requested from another node is recorded in, on the firing's own row, for
+    /// the node running it to read at its check-in (#4071).
+    /// </summary>
+    static string Build46FiredTriggerInterruptScript(string dialect)
+    {
+        string header = Header(dialect, "add the fired trigger interrupt column", "4.6.0", "#4071",
+            [
+                "4.6  REQUIRED. A 4.6 node writes this column when an interrupt is asked of a firing",
+                "     another node runs, and reads it for its own firings at every check-in, so it",
+                "     refuses to start against a database without it.",
+                "",
+                "     Safe to run while 4.5 nodes are still up: the column is nullable with no default,",
+                "     so every existing row is already valid, and a 4.5 node never names it. A request",
+                "     for a firing a 4.5 node runs is recorded and never answered; a 4.6 node says so",
+                "     once per such node. Roll every node before relying on a cluster-wide interrupt.",
+                "",
+                $"4.1  Run ../4.2/add_continuations_{dialect}.sql first on a database created by",
+                "     4.0 or 4.1, and every later required migration.",
+                "",
+                "3.x  Not applicable. Upgrading from 3.x means running",
+                $"     ../4.0/schema_30_to_40_upgrade_{dialect}.sql and every later migration first;",
+                "     this file is what 4.6 adds on top of them.",
+            ],
+            [
+                "INTERRUPT_REQUESTED_TIME is when an interrupt of the firing was requested from a node",
+                "other than the one running it, in ticks like FIRED_TIME. NULL is a firing nobody asked",
+                "to interrupt. The row is deleted when the firing completes, as it always was, so a",
+                "request never outlives its firing.",
+                "",
+                "The node running the firing reads the requests on its own rows at every check-in and",
+                "cancels each job's token, as a local interrupt does: a request lands within one",
+                "check-in interval.",
+                "",
+                "No index is added. The read filters SCHED_NAME and INSTANCE_NAME, which",
+                "IDX_QRTZ_FT_INST_JOB_REQ_RCVRY already leads with, and one node's rows are the firings",
+                "it holds: at most its thread count plus one acquisition batch.",
+            ],
+            sqliteNotIdempotent: true);
+
+        return header
+            + "\n\n" + AddColumn(dialect, TableFired, "INTERRUPT_REQUESTED_TIME", ModelColumn(dialect, TableFired, "INTERRUPT_REQUESTED_TIME"));
     }
 
     /// <summary>

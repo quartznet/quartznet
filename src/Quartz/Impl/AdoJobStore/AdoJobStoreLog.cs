@@ -188,7 +188,7 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3043, Level = LogLevel.Information, Message = "Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip")]
     public static partial void OverlappingFiringSkipped(this ILogger logger, TriggerKey triggerKey, DateTimeOffset? scheduledFireTimeUtc);
 
-    [LoggerMessage(EventId = 3044, Level = LogLevel.Information, Message = "Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on another node")]
+    [LoggerMessage(EventId = 3044, Level = LogLevel.Information, Message = "Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on a node that is not known to read interrupt requests, which a node does from Quartz 4.6")]
     public static partial void OverlappingFiringHeld(this ILogger logger, TriggerKey triggerKey, string schedulerInstanceId);
 
     [LoggerMessage(EventId = 3045, Level = LogLevel.Debug, Message = "Completion of trigger {TriggerKey} found continuations awaiting it; running it again under TRIGGER_ACCESS")]

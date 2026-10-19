@@ -3600,7 +3600,8 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Cancels the token of every currently executing firing of the identified job.
+    /// Cancels the token of every executing firing of the identified job on this node, and, on a
+    /// clustered store, asks the node running each of the others to do the same.
     /// </summary>
     public async ValueTask<bool> Interrupt(
         JobKey jobKey,
@@ -3631,19 +3632,63 @@ internal sealed class QuartzScheduler
             await NotifyJobInterrupted(jobKey, fireInstanceId, cancellationToken).ConfigureAwait(false);
         }
 
-        return interruptedFirings.Count > 0;
+        int requested = await RequestInterruptsElsewhere(jobKey, interruptedFirings, cancellationToken).ConfigureAwait(false);
+
+        return interruptedFirings.Count > 0 || requested > 0;
     }
 
     /// <summary>
-    /// Cancels the token of the one firing with the given fire instance id.
+    /// Records an interrupt request against every executing firing of the job that this node did not
+    /// interrupt itself, for the node running it to act on after its next check-in (#4071).
     /// </summary>
     /// <remarks>
-    /// This method is not cluster aware. That is, it will only interrupt a firing currently executing
-    /// in this scheduler instance, not across the entire cluster.
+    /// Only on a clustered store, the one kind whose firings may run on another node. The listing is the
+    /// store's, so it names every node's firings; the requests are recorded one at a time, and a firing that
+    /// completed in between records nothing.
     /// </remarks>
+    /// <returns>How many requests were recorded.</returns>
+    private async ValueTask<int> RequestInterruptsElsewhere(
+        JobKey jobKey,
+        List<string> interruptedHere,
+        CancellationToken cancellationToken)
+    {
+        IJobStore store = resources.JobStore;
+        if (!store.Clustered)
+        {
+            return 0;
+        }
+
+        PagedResult<FireInstance> executing = await store.QueryFireInstances(
+            new FireInstanceQuery { Job = jobKey, Take = PagedQuery.All },
+            cancellationToken).ConfigureAwait(false);
+
+        int requested = 0;
+        foreach (FireInstance firing in executing.Items)
+        {
+            if (interruptedHere.Contains(firing.FireInstanceId, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            if (await store.RequestInterrupt(firing.FireInstanceId, cancellationToken).ConfigureAwait(false))
+            {
+                requested++;
+            }
+        }
+
+        return requested;
+    }
+
+    /// <summary>
+    /// Cancels the token of the one firing with the given fire instance id, when it runs on this node, and
+    /// otherwise, on a clustered store, asks the node running it to.
+    /// </summary>
     /// <param name="fireInstanceId">The firing to interrupt.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns><see langword="true" /> if the firing was found and interrupted.</returns>
+    /// <returns>
+    /// <see langword="true" /> if the firing was found and interrupted here, or a request was recorded for
+    /// it.
+    /// </returns>
     public async ValueTask<bool> InterruptFireInstance(
         string fireInstanceId,
         CancellationToken cancellationToken = default)
@@ -3656,12 +3701,99 @@ internal sealed class QuartzScheduler
         if (!jobMgr.TryGetExecutingJob(fireInstanceId, out var context)
             || context is not IInterruptableJobExecutionContext interruptableContext)
         {
-            return false;
+            IJobStore store = resources.JobStore;
+            return store.Clustered
+                   && await store.RequestInterrupt(fireInstanceId, cancellationToken).ConfigureAwait(false);
         }
 
         interruptableContext.Interrupt();
         await NotifyJobInterrupted(interruptableContext.JobDetail.Key, fireInstanceId, cancellationToken).ConfigureAwait(false);
         return true;
+    }
+
+    /// <summary>
+    /// Whether a read of this node's interrupt requests is queued or running, so that a check-in arriving
+    /// while one is slow does not start a second beside it.
+    /// </summary>
+    private int interruptRequestPollRunning;
+
+    /// <summary>
+    /// Starts reading this node's interrupt requests from the store, and interrupting the firings they
+    /// name, on the thread pool; what the store asks for after each check-in (#4071).
+    /// </summary>
+    /// <remarks>
+    /// Returns at once. The read and the cancellations run off the caller's thread, which is the store's
+    /// check-in loop: a job's cancellation callbacks run synchronously on whoever cancels its token, and one
+    /// that blocked there would delay the check-in until the peers judged this node dead. The work item
+    /// carries no execution context, so nothing ambient the check-in had reaches it.
+    /// </remarks>
+    internal void PollInterruptRequests()
+    {
+        if (status is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown)
+        {
+            return;
+        }
+
+        if (Interlocked.CompareExchange(ref interruptRequestPollRunning, 1, 0) != 0)
+        {
+            return;
+        }
+
+        ThreadPool.UnsafeQueueUserWorkItem(
+            static state => _ = state.RunInterruptRequestPoll(),
+            this,
+            preferLocal: false);
+    }
+
+    private async Task RunInterruptRequestPoll()
+    {
+        try
+        {
+            await DeliverInterruptRequests(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            logger.InterruptRequestPollFailed(e);
+        }
+        finally
+        {
+            Volatile.Write(ref interruptRequestPollRunning, 0);
+        }
+    }
+
+    /// <summary>
+    /// Interrupts every firing on this node that the store holds an interrupt request for, as a local
+    /// <see cref="InterruptFireInstance" /> does: the same token, and the same
+    /// <see cref="ISchedulerListener.JobInterrupted(IScheduler, JobKey, string, CancellationToken)" /> notification.
+    /// </summary>
+    /// <remarks>
+    /// A request stays on its firing's row until the firing completes, so the same one is read after every
+    /// check-in. A firing whose token is already cancelled has been interrupted, by this or anything else,
+    /// and is passed over, so it is interrupted and announced once. A request for a firing this node is not
+    /// running yet — its fire committed, its job not started — is acted on by a later read.
+    /// </remarks>
+    /// <returns>How many firings were interrupted.</returns>
+    internal async ValueTask<int> DeliverInterruptRequests(CancellationToken cancellationToken = default)
+    {
+        List<string> requested = await resources.JobStore.GetInterruptRequests(cancellationToken).ConfigureAwait(false);
+
+        int delivered = 0;
+        foreach (string fireInstanceId in requested)
+        {
+            if (!jobMgr.TryGetExecutingJob(fireInstanceId, out IJobExecutionContext? context)
+                || context is not IInterruptableJobExecutionContext interruptableContext
+                || context.CancellationToken.IsCancellationRequested)
+            {
+                continue;
+            }
+
+            logger.InterruptRequestDelivered(fireInstanceId, context.JobDetail.Key);
+            interruptableContext.Interrupt();
+            await NotifyJobInterrupted(context.JobDetail.Key, fireInstanceId, cancellationToken).ConfigureAwait(false);
+            delivered++;
+        }
+
+        return delivered;
     }
 
     private ValueTask NotifyJobInterrupted(JobKey jobKey, string fireInstanceId, CancellationToken cancellationToken)

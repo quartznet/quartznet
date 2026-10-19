@@ -530,6 +530,18 @@ public class DelegatingJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    public virtual ValueTask<bool> RequestInterrupt(string fireInstanceId, CancellationToken cancellationToken = default)
+    {
+        return jobStore.RequestInterrupt(fireInstanceId, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<List<string>> GetInterruptRequests(CancellationToken cancellationToken = default)
+    {
+        return jobStore.GetInterruptRequests(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public virtual TimeSpan GetAcquireRetryDelay(int failureCount)
     {
         return jobStore.GetAcquireRetryDelay(failureCount);

@@ -198,25 +198,26 @@ public interface IQuartzApiClient
     ValueTask TriggerJob(string schedulerName, JobKeyDto jobKey, JobDataMap? jobDataMap = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Interrupts every execution of the job on this node. Returns <see langword="true" /> when at
-    /// least one execution was asked to stop, <see langword="false" /> when the job was not running
-    /// here.
+    /// Interrupts every execution of the job: on the server's node, and, with a clustered persistent
+    /// store, on every other node, by recording a request that node acts on after its next check-in.
+    /// Returns <see langword="true" /> when at least one execution was asked to stop,
+    /// <see langword="false" /> when the job was not running.
     /// </summary>
     /// <remarks>
     /// A job that does not watch its cancellation token runs to completion regardless, so the flag says
-    /// the interrupt was delivered rather than that the work stopped.
+    /// the interrupt was delivered or requested rather than that the work stopped.
     /// </remarks>
     ValueTask<bool> Interrupt(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Interrupts one execution, named by its fire instance id. Returns <see langword="true" /> when
     /// that execution was found and asked to stop, <see langword="false" /> when it had already
-    /// finished or belongs to another node.
+    /// finished, or belongs to another node of a store that is not clustered.
     /// </summary>
     /// <remarks>
     /// The single-execution form of <see cref="Interrupt" />, which interrupts every execution of the
-    /// job. Node-local on the server side: a firing owned by another node is interrupted by asking that
-    /// node.
+    /// job. With a clustered persistent store, a firing owned by another node gets a request that node
+    /// acts on after its next check-in; otherwise it is interrupted by asking that node.
     /// </remarks>
     ValueTask<bool> InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default);
 

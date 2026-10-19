@@ -346,7 +346,7 @@ public sealed class OverlapPolicyStoreTest
 
         clock.Advance(TimeSpan.FromHours(1));
         (await FireResults(trigger.Key)).Should().ContainSingle().Which.IsDeclined.Should().BeTrue(
-            "an interrupt cannot reach another node, so the trigger waits for that firing as BufferOne would");
+            "the other node is not known to read interrupt requests, so the trigger waits for that firing as BufferOne would");
 
         await StoredStateShouldBe(trigger.Key, AdoConstants.StateBlocked, "held until the other node's firing ends");
         (await FiredRowCount(trigger.Key)).Should().Be(1, "the held acquisition leaves no fired row behind");
@@ -386,6 +386,58 @@ public sealed class OverlapPolicyStoreTest
         await Fire(trigger.Key);
         Convert.ToInt32(await ReadColumn("OVERLAP_POLICY", trigger.Key)).Should().Be((int) OverlapPolicy.CancelPrevious,
             "a firing that found nothing running settled the policy, so the next overlap is waited for");
+    }
+
+    [Test]
+    public async Task CancelPreviousAsksAPeerThatReadsInterruptRequestsAndFiresAtOnce()
+    {
+        IgnoreUnlessSqlite("Only a database is shared by two nodes.");
+
+        IOperableTrigger trigger = await Schedule("trigger", OverlapPolicy.CancelPrevious);
+        otherNode = await SqliteStore("node-b", clear: false);
+        await JoinCluster(otherNode);
+        await JoinCluster(store);
+
+        List<IOperableTrigger> remote = await Fire(otherNode, trigger.Key);
+
+        clock.Advance(TimeSpan.FromHours(1));
+        List<TriggerFiredResult> second = await FireResults(trigger.Key);
+
+        TriggerFiredBundle bundle = second.Should().ContainSingle().Which.TriggerFiredBundle!;
+        bundle.Should().NotBeNull("the other node reads interrupt requests, so the new firing starts rather than waiting for it (#4071)");
+        bundle.SupersededFireInstanceIds.Should().BeNull("the running firing is the other node's to interrupt, not this one's");
+
+        (await otherNode.GetInterruptRequests()).Should().Equal([remote[0].FireInstanceId],
+            "the fire recorded a request on the other node's firing, which that node reads after its next check-in");
+        (await store.GetInterruptRequests()).Should().BeEmpty("nothing of this node's was asked for");
+        await StoredStateShouldBe(trigger.Key, AdoConstants.StateWaiting, "nothing holds the trigger back");
+    }
+
+    [Test]
+    public async Task CancelPreviousStillWaitsForAFiringOnANodeOlderThan46()
+    {
+        IgnoreUnlessSqlite("Only a database is shared by two nodes.");
+
+        IOperableTrigger trigger = await Schedule("trigger", OverlapPolicy.CancelPrevious);
+        otherNode = await SqliteStore("node-b", clear: false);
+        await JoinCluster(otherNode);
+        await JoinCluster(store);
+
+        // The other node's row as a 4.5 node writes it, read by this node's next check-in.
+        await ExecuteNonQuery("UPDATE QRTZ_SCHEDULER_STATE SET QUARTZ_VERSION = NULL WHERE INSTANCE_NAME = 'node-b'");
+        await ((AdoJobStoreBase) store).CheckIn(Guid.NewGuid());
+
+        List<IOperableTrigger> remote = await Fire(otherNode, trigger.Key);
+
+        clock.Advance(TimeSpan.FromHours(1));
+        (await FireResults(trigger.Key)).Should().ContainSingle().Which.IsDeclined.Should().BeTrue(
+            "a node older than 4.6 never reads a request, so the trigger waits for its firing as before");
+
+        await StoredStateShouldBe(trigger.Key, AdoConstants.StateBlocked, "held until the other node's firing ends");
+        (await otherNode.GetInterruptRequests()).Should().BeEmpty("no request is recorded for a node that would never read it");
+
+        await Complete(otherNode, remote[0]);
+        (await store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal, "its completion lets go of the trigger, as it always has");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -682,6 +734,28 @@ public sealed class OverlapPolicyStoreTest
             Instruction = instruction,
             Outcome = outcome
         });
+    }
+
+    /// <summary>
+    /// Makes a store a node of a cluster and checks it in, so that its check-in row is there for its peers
+    /// to read, and its peers' rows are read. A SQLite store refuses to be configured clustered, so it is
+    /// told after it has been initialized.
+    /// </summary>
+    private static async Task JoinCluster(IJobStore node)
+    {
+        AdoJobStoreBase ado = (AdoJobStoreBase) node;
+        ado.Clustered = true;
+        await ado.CheckIn(Guid.NewGuid());
+    }
+
+    private async Task ExecuteNonQuery(string sql)
+    {
+        await using SqliteConnection connection = new(database!.ConnectionString);
+        await connection.OpenAsync();
+
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = sql;
+        (await command.ExecuteNonQueryAsync()).Should().Be(1);
     }
 
     private async Task<object?> ReadColumn(string column, TriggerKey key)

@@ -2094,6 +2094,9 @@ public abstract class JobStoreContractTest
         yield return new MissingEntityCase(nameof(IJobStore.ResumeJob), store => store.ResumeJob(MissingJobKey));
         yield return new MissingEntityCase(nameof(IJobStore.PauseTriggerWith), store => store.PauseTriggerWith(MissingTriggerKey, Maintenance));
         yield return new MissingEntityCase(nameof(IJobStore.PauseJobWith), store => store.PauseJobWith(MissingJobKey, Maintenance));
+
+        // A firing that is not executing anywhere has no row to carry the request (#4071).
+        yield return new MissingEntityCase(nameof(IJobStore.RequestInterrupt), store => store.RequestInterrupt("missing-fire-instance"));
     }
 
     /// <summary>

@@ -1157,6 +1157,55 @@ public interface IJobStore
     }
 
     /// <summary>
+    /// Records a request that a running firing be interrupted, on the firing's own record, for the node
+    /// running it to act on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A clustered store's way of reaching a firing on another node. The scheduler calls this from
+    /// <see cref="IScheduler.Interrupt(JobKey, CancellationToken)" /> and
+    /// <see cref="IScheduler.InterruptFireInstance" />, only when <see cref="Clustered" /> is
+    /// <see langword="true" />, for each executing firing it could not interrupt itself. The node running
+    /// the firing reads its requests through <see cref="GetInterruptRequests" /> and cancels the job's token
+    /// as a local interrupt does. A request is not an error when the firing has completed: there is nothing
+    /// to record it on, and the answer is <see langword="false" />.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.6. The default records nothing and answers
+    /// <see langword="false" />, so that store's interrupts stay with the node they are asked of.
+    /// </para>
+    /// </remarks>
+    /// <param name="fireInstanceId">The firing, as <see cref="IJobExecutionContext.FireInstanceId" /> names it.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>
+    /// <see langword="true" /> when an executing firing with that id was found and the request recorded.
+    /// </returns>
+    ValueTask<bool> RequestInterrupt(string fireInstanceId, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<bool>(false);
+    }
+
+    /// <summary>
+    /// The fire instance ids of this node's executing firings that carry an interrupt request
+    /// <see cref="RequestInterrupt" /> recorded.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The scheduler asks this when the store says it is time to, and interrupts each of the firings named
+    /// that it is running and has not interrupted yet. A request stays recorded until its firing completes,
+    /// so the same id may be answered more than once.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.6. The default answers an empty list.
+    /// </para>
+    /// </remarks>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<List<string>> GetInterruptRequests(CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<List<string>>(new List<string>());
+    }
+
+    /// <summary>
     /// Get the amount of time to wait when accessing this job store repeatedly fails.
     /// </summary>
     /// <remarks>

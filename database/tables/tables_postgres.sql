@@ -187,6 +187,7 @@ CREATE TABLE qrtz_fired_triggers
     execution_group VARCHAR(200) NULL,
     progress INTEGER NULL,
     progress_message VARCHAR(250) NULL,
+    interrupt_requested_time BIGINT NULL,
     PRIMARY KEY (sched_name, entry_id)
 );
 

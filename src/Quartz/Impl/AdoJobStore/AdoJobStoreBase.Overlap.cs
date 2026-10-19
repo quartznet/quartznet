@@ -79,13 +79,18 @@ internal abstract partial class AdoJobStoreBase
             return TriggerFiredResult.Declined;
         }
 
-        // CancelPrevious. An interrupt reaches only this node's firings; one on another node can only be
-        // waited for. It is waited for only when every running firing started under this policy, because
-        // it is such a firing's completion that lets go of the trigger — an unsettled one fires beside it.
+        // CancelPrevious. This node's firings are interrupted by the scheduler once the fire commits. One on
+        // a peer that reads interrupt requests — a 4.6 node the last check-in read live — gets a request on
+        // its row, in this transaction, and that node interrupts it after its next check-in (#4071). One on
+        // any other node can only be waited for, and is waited for only when every running firing started
+        // under this policy, because it is such a firing's completion that lets go of the trigger — an
+        // unsettled one fires beside it.
         List<FiredTriggerRecord> firings = await Guarded(
             () => Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Trigger = trigger.Key }, cancellationToken),
             $"read running firings of trigger '{trigger.Key}'").ConfigureAwait(false);
 
+        StdAdoDelegate? standard = Clustered ? Delegate as StdAdoDelegate : null;
+        List<FiredTriggerRecord>? requested = null;
         string? elsewhere = null;
         foreach (FiredTriggerRecord firing in firings)
         {
@@ -98,6 +103,10 @@ internal abstract partial class AdoJobStoreBase
             {
                 superseded.Add(firing.FireInstanceId);
             }
+            else if (standard is not null && ReadsInterruptRequests(firing.SchedulerInstanceId))
+            {
+                (requested ??= []).Add(firing);
+            }
             else
             {
                 elsewhere ??= firing.SchedulerInstanceId;
@@ -108,6 +117,14 @@ internal abstract partial class AdoJobStoreBase
         {
             await HoldBehindRunningFiring(conn, trigger, elsewhere, cancellationToken).ConfigureAwait(false);
             return TriggerFiredResult.Declined;
+        }
+
+        if (requested is not null)
+        {
+            foreach (FiredTriggerRecord firing in requested)
+            {
+                await RecordInterruptRequest(conn, standard!, firing.FireInstanceId, firing.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return null;
@@ -165,8 +182,9 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Holds a <see cref="OverlapPolicy.CancelPrevious" /> trigger back until its firing on another node
-    /// ends, which is <see cref="OverlapPolicy.BufferOne" />: the firing it was acquired for stays due.
+    /// Holds a <see cref="OverlapPolicy.CancelPrevious" /> trigger back until its firing on a node that
+    /// does not read interrupt requests ends, which is <see cref="OverlapPolicy.BufferOne" />: the firing it
+    /// was acquired for stays due.
     /// </summary>
     private async ValueTask HoldBehindRunningFiring(
         ConnectionAndTransactionHolder conn,

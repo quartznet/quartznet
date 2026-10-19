@@ -99,6 +99,10 @@ public class OperationNameTest
         // for every job that reports — the unbounded-trace shape #3797 took out.
         "UpdateFireInstanceProgress",
 
+        // A read, and one the scheduler makes after every cluster check-in, off any caller's flow: a
+        // span would be a new root trace every check-in of every node, the same shape (#4071).
+        "GetInterruptRequests",
+
         // Lifecycle. Each happens once, outside any request, so its span would be a root of its own
         // with nothing to be a child of — and Initialize runs before the store knows its identity,
         // which is the tag every other span here carries.

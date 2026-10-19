@@ -1,0 +1,46 @@
+--
+-- Quartz.NET schema migration -- add the fired trigger interrupt column
+--
+-- Introduced in Quartz.NET 4.6.0 (#4071)
+--
+-- SQLite only. Run the file matching your database; the other dialects live
+-- alongside this one in the same folder.
+--
+-- STATUS
+--   4.6  REQUIRED. A 4.6 node writes this column when an interrupt is asked of a firing
+--        another node runs, and reads it for its own firings at every check-in, so it
+--        refuses to start against a database without it.
+--
+--        Safe to run while 4.5 nodes are still up: the column is nullable with no default,
+--        so every existing row is already valid, and a 4.5 node never names it. A request
+--        for a firing a 4.5 node runs is recorded and never answered; a 4.6 node says so
+--        once per such node. Roll every node before relying on a cluster-wide interrupt.
+--
+--   4.1  Run ../4.2/add_continuations_sqlite.sql first on a database created by
+--        4.0 or 4.1, and every later required migration.
+--
+--   3.x  Not applicable. Upgrading from 3.x means running
+--        ../4.0/schema_30_to_40_upgrade_sqlite.sql and every later migration first;
+--        this file is what 4.6 adds on top of them.
+--
+-- INTERRUPT_REQUESTED_TIME is when an interrupt of the firing was requested from a node
+-- other than the one running it, in ticks like FIRED_TIME. NULL is a firing nobody asked
+-- to interrupt. The row is deleted when the firing completes, as it always was, so a
+-- request never outlives its firing.
+--
+-- The node running the firing reads the requests on its own rows at every check-in and
+-- cancels each job's token, as a local interrupt does: a request lands within one
+-- check-in interval.
+--
+-- No index is added. The read filters SCHED_NAME and INSTANCE_NAME, which
+-- IDX_QRTZ_FT_INST_JOB_REQ_RCVRY already leads with, and one node's rows are the firings
+-- it holds: at most its thread count plus one acquisition batch.
+--
+-- Replace 'QRTZ_' with your configured table prefix if different.
+-- NOT IDEMPOTENT: SQLite has no conditional DDL, so re-running this fails with a
+-- duplicate-column error. Check PRAGMA table_info(<table>) before applying.
+--
+-- !! FIRST RUN IN TEST ENVIRONMENT AGAINST A COPY OF YOUR PRODUCTION DATABASE !!
+--
+
+ALTER TABLE QRTZ_FIRED_TRIGGERS ADD COLUMN INTERRUPT_REQUESTED_TIME BIGINT NULL;

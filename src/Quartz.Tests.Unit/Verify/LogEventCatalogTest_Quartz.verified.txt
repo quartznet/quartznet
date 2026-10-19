@@ -60,6 +60,10 @@
     "Interrupting fire instance {FireInstanceId} of trigger {TriggerKey}: a new firing of it is starting, and its overlap policy is CancelPrevious"
 1038  Warning  CoreLog.PreviousFiringCancelFailed
     "Could not interrupt fire instance {FireInstanceId} of trigger {TriggerKey} for its CancelPrevious overlap policy; it runs on beside the new firing"
+1039  Information  CoreLog.InterruptRequestDelivered
+    "Interrupting fire instance {FireInstanceId} of job {JobKey}: another node asked for it through the job store"
+1040  Warning  CoreLog.InterruptRequestPollFailed
+    "Could not read the interrupt requests of this node's firings; they are read again after the next check-in"
 1050  Debug  CoreLog.JobExecuting
     "Calling Execute on job {JobKey}"
 1051  Information  CoreLog.JobCancelled
@@ -215,7 +219,7 @@
 3043  Information  AdoJobStoreLog.OverlappingFiringSkipped
     "Firing of trigger {TriggerKey} due at {ScheduledFireTimeUtc} skipped: an earlier firing of it is still running, and its overlap policy is Skip"
 3044  Information  AdoJobStoreLog.OverlappingFiringHeld
-    "Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on another node"
+    "Firing of trigger {TriggerKey} held until its running firing on {SchedulerInstanceId} ends: CancelPrevious cannot interrupt a firing on a node that is not known to read interrupt requests, which a node does from Quartz 4.6"
 3045  Debug  AdoJobStoreLog.CompletionEscalatedToLock
     "Completion of trigger {TriggerKey} found continuations awaiting it; running it again under TRIGGER_ACCESS"
 3046  Warning  AdoJobStoreLog.CompletionWithoutLockFailed
@@ -328,6 +332,10 @@
     "Firing rounds take TRIGGER_ACCESS while node {InstanceId} (Quartz {QuartzVersion}) is live: a round of work that allows concurrent execution takes no lock only once every live node is {LockFreeRoundsSince} or later"
 3518  Information  ClusterLog.EveryPeerAllowsLockFreeRounds
     "Every live node ({PeerCount} beside this one) is Quartz {LockFreeRoundsSince} or later: a firing round of work that allows concurrent execution takes no TRIGGER_ACCESS lock"
+3519  Information  ClusterLog.InterruptRequestRecorded
+    "Interrupt of fire instance {FireInstanceId} requested of node {SchedulerInstanceId}, which cancels the job's token after its next check-in"
+3520  Warning  ClusterLog.InterruptRequestsUndeliverable
+    "Interrupt requests for firings on node {SchedulerInstanceId} (Quartz {QuartzVersion}) are recorded but never answered: a node reads them from Quartz {InterruptRequestsSince}. Interrupt its firings through that node, or upgrade it"
 3600  Information  MisfireLog.HandlingFirstMisfiredTriggers
     "Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed."
 3601  Information  MisfireLog.HandlingMisfiredTriggers

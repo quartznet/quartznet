@@ -737,7 +737,8 @@ internal abstract partial class AdoJobStoreBase
     /// <remarks>
     /// A <c>PAUSED_BLOCKED</c> trigger whose job is not what blocks it was held back by an overlap policy
     /// — a <see cref="OverlapPolicy.BufferOne" /> firing of it, or a
-    /// <see cref="OverlapPolicy.CancelPrevious" /> firing on another node — and that firing's completion
+    /// <see cref="OverlapPolicy.CancelPrevious" /> firing on a node that does not read interrupt requests —
+    /// and that firing's completion
     /// is what lets go of it. Resuming it to <c>WAITING</c> while the firing runs would let the next one
     /// start beside it.
     /// </remarks>

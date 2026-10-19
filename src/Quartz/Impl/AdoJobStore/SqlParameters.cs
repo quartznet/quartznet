@@ -196,6 +196,7 @@ internal static class SqlParameters
     public const string ScheduledTime = "scheduledTime";
     public const string Progress = "progress";
     public const string ProgressMessage = "progressMessage";
+    public const string InterruptRequestedTime = "interruptRequestedTime";
     public const string IsNonConcurrent = "isNonConcurrent";
     public const string RequestsRecovery = "requestsRecovery";
 
