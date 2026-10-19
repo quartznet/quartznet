@@ -377,7 +377,6 @@ To build a schedule from user input, such as a scheduling UI with dropdowns, use
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("myTrigger")
     .WithCronSchedule(CronExpressionBuilder.Create()
-        .WithSecond(0)
         .WithMinuteIncrements(0, 15) // every 15 minutes
         .WithHourRange(8, 17)        // between 8:00 and 17:59
         .OnWeekdays())               // "0 0/15 8-17 ? * MON-FRI"
@@ -438,16 +437,19 @@ The special characters have dedicated methods:
 
 <!-- snippet: sample_cron_expressions_day_rules -->
 ```csharp
-CronExpressionBuilder.Create().OnLastDayOfMonth();                         // "* * * L * ?"
-CronExpressionBuilder.Create().OnNearestWeekdayOfMonth(15);                // "* * * 15W * ?"
-CronExpressionBuilder.Create().OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 3); // "* * * ? * FRI#3"
-CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Friday);   // "* * * ? * FRIL"
+CronExpressionBuilder.Create().OnLastDayOfMonth();                         // "0 * * L * ?"
+CronExpressionBuilder.Create().OnNearestWeekdayOfMonth(15);                // "0 * * 15W * ?"
+CronExpressionBuilder.Create().OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 3); // "0 * * ? * FRI#3"
+CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Friday);   // "0 * * ? * FRIL"
 ```
 <!-- endSnippet -->
 
 Rules:
 
-- Unconfigured fields default to `*` (every value).
+- An unconfigured second is `0`, so naming only a minute or an hour fires once in each minute it matches.
+  It was `*` before 4.7. For every second, call `WithSecondRange(0, 59)`.
+- An unconfigured minute, hour, month or day of week is `*`, an unconfigured day of month is `?`, and an
+  unconfigured year is left out.
 - Each field can be configured once; configuring it again throws `InvalidOperationException`.
 - The builder uses one day field: it renders the other as `?` and throws if you configure both. That is
   the builder's rule, not cron's. An expression naming both day fields fires on their union

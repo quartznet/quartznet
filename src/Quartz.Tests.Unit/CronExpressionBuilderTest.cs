@@ -9,8 +9,48 @@ public class CronExpressionBuilderTest
     {
         CronExpressionBuilder builder = CronExpressionBuilder.Create();
 
-        builder.ToString().Should().Be("* * * ? * *");
-        builder.Build().CronExpressionString.Should().Be("* * * ? * *");
+        builder.ToString().Should().Be("0 * * ? * *");
+        builder.Build().CronExpressionString.Should().Be("0 * * ? * *");
+    }
+
+    /// <summary>
+    /// A builder that names only a minute or an hour fires once in each minute it matches. Before 4.7 an
+    /// unconfigured second was <c>*</c>, which fired sixty times in each of them: the trap QZ0007 reports
+    /// in a cron literal, built in by default (#4143).
+    /// </summary>
+    [Test]
+    public void TestAnUnconfiguredSecondIsZero()
+    {
+        CronExpression everyFiveMinutes = CronExpressionBuilder.Create().WithMinuteIncrements(0, 5).Build().WithTimeZone(TimeZoneInfo.Utc);
+
+        everyFiveMinutes.CronExpressionString.Should().Be("0 0/5 * ? * *");
+        everyFiveMinutes.GetNextValidTimeAfter(new DateTimeOffset(2026, 10, 19, 10, 0, 0, TimeSpan.Zero))
+            .Should().Be(new DateTimeOffset(2026, 10, 19, 10, 5, 0, TimeSpan.Zero),
+                "minute 10:00 fires once, at its second 0, so the next firing is the next fifth minute rather than 10:00:01");
+        everyFiveMinutes.HasWildcardSecondsUnderRestrictedMinuteOrHour.Should().BeFalse(
+            "a builder left at its defaults must not produce the shape the scheduler warns about when it is scheduled");
+
+        CronExpressionBuilder.Create().WithHour(9).ToString().Should().Be("0 * 9 ? * *", "an hour alone is once a minute through that hour");
+    }
+
+    /// <summary>
+    /// Every second is said explicitly. <c>WithSecondRange(0, 59)</c> keeps the meaning an unconfigured
+    /// second had before 4.7, in the spelling the wildcard-seconds warning takes as deliberate. Every
+    /// call that sets the second field keeps its meaning: <c>Every</c> with one second is still <c>*</c>.
+    /// </summary>
+    [Test]
+    public void TestEverySecondIsSaidExplicitly()
+    {
+        CronExpression everySecondOfMinuteFive = CronExpressionBuilder.Create().WithSecondRange(0, 59).WithMinute(5).Build().WithTimeZone(TimeZoneInfo.Utc);
+
+        everySecondOfMinuteFive.CronExpressionString.Should().Be("0-59 5 * ? * *");
+        everySecondOfMinuteFive.GetNextValidTimeAfter(new DateTimeOffset(2026, 10, 19, 10, 5, 0, TimeSpan.Zero))
+            .Should().Be(new DateTimeOffset(2026, 10, 19, 10, 5, 1, TimeSpan.Zero), "every second of the minute fires");
+        everySecondOfMinuteFive.HasWildcardSecondsUnderRestrictedMinuteOrHour.Should().BeFalse(
+            "0-59 is how an author says every second on purpose, so the scheduler does not warn about it");
+
+        CronExpressionBuilder.Create().Every(TimeSpan.FromSeconds(1)).ToString().Should().Be("* * * ? * *");
+        CronExpressionBuilder.Create().Every(TimeSpan.FromSeconds(15)).ToString().Should().Be("0/15 * * ? * *");
     }
 
     [Test]
@@ -26,62 +66,62 @@ public class CronExpressionBuilderTest
     [Test]
     public void TestMinuteField()
     {
-        CronExpressionBuilder.Create().WithMinute(10).ToString().Should().Be("* 10 * ? * *");
-        CronExpressionBuilder.Create().WithMinutes(17, 51).ToString().Should().Be("* 17,51 * ? * *");
-        CronExpressionBuilder.Create().WithMinuteRange(20, 30).ToString().Should().Be("* 20-30 * ? * *");
-        CronExpressionBuilder.Create().WithMinuteIncrements(0, 10).ToString().Should().Be("* 0/10 * ? * *");
+        CronExpressionBuilder.Create().WithMinute(10).ToString().Should().Be("0 10 * ? * *");
+        CronExpressionBuilder.Create().WithMinutes(17, 51).ToString().Should().Be("0 17,51 * ? * *");
+        CronExpressionBuilder.Create().WithMinuteRange(20, 30).ToString().Should().Be("0 20-30 * ? * *");
+        CronExpressionBuilder.Create().WithMinuteIncrements(0, 10).ToString().Should().Be("0 0/10 * ? * *");
     }
 
     [Test]
     public void TestHourField()
     {
-        CronExpressionBuilder.Create().WithHour(10).ToString().Should().Be("* * 10 ? * *");
-        CronExpressionBuilder.Create().WithHours(1, 5).ToString().Should().Be("* * 1,5 ? * *");
-        CronExpressionBuilder.Create().WithHourRange(8, 17).ToString().Should().Be("* * 8-17 ? * *");
-        CronExpressionBuilder.Create().WithHourRange(22, 2).ToString().Should().Be("* * 22-2 ? * *");
-        CronExpressionBuilder.Create().WithHourIncrements(0, 6).ToString().Should().Be("* * 0/6 ? * *");
+        CronExpressionBuilder.Create().WithHour(10).ToString().Should().Be("0 * 10 ? * *");
+        CronExpressionBuilder.Create().WithHours(1, 5).ToString().Should().Be("0 * 1,5 ? * *");
+        CronExpressionBuilder.Create().WithHourRange(8, 17).ToString().Should().Be("0 * 8-17 ? * *");
+        CronExpressionBuilder.Create().WithHourRange(22, 2).ToString().Should().Be("0 * 22-2 ? * *");
+        CronExpressionBuilder.Create().WithHourIncrements(0, 6).ToString().Should().Be("0 * 0/6 ? * *");
     }
 
     [Test]
     public void TestDayOfMonthField()
     {
-        CronExpressionBuilder.Create().WithDayOfMonth(10).ToString().Should().Be("* * * 10 * ?");
-        CronExpressionBuilder.Create().WithDaysOfMonth(1, 15).ToString().Should().Be("* * * 1,15 * ?");
-        CronExpressionBuilder.Create().WithDayOfMonthRange(20, 22).ToString().Should().Be("* * * 20-22 * ?");
-        CronExpressionBuilder.Create().WithDayOfMonthIncrements(1, 5).ToString().Should().Be("* * * 1/5 * ?");
-        CronExpressionBuilder.Create().OnLastDayOfMonth().ToString().Should().Be("* * * L * ?");
-        CronExpressionBuilder.Create().OnNearestWeekdayOfMonth(15).ToString().Should().Be("* * * 15W * ?");
+        CronExpressionBuilder.Create().WithDayOfMonth(10).ToString().Should().Be("0 * * 10 * ?");
+        CronExpressionBuilder.Create().WithDaysOfMonth(1, 15).ToString().Should().Be("0 * * 1,15 * ?");
+        CronExpressionBuilder.Create().WithDayOfMonthRange(20, 22).ToString().Should().Be("0 * * 20-22 * ?");
+        CronExpressionBuilder.Create().WithDayOfMonthIncrements(1, 5).ToString().Should().Be("0 * * 1/5 * ?");
+        CronExpressionBuilder.Create().OnLastDayOfMonth().ToString().Should().Be("0 * * L * ?");
+        CronExpressionBuilder.Create().OnNearestWeekdayOfMonth(15).ToString().Should().Be("0 * * 15W * ?");
     }
 
     [Test]
     public void TestMonthField()
     {
-        CronExpressionBuilder.Create().WithMonth(2).ToString().Should().Be("* * * ? 2 *");
-        CronExpressionBuilder.Create().WithMonths(3, 12).ToString().Should().Be("* * * ? 3,12 *");
-        CronExpressionBuilder.Create().WithMonthRange(2, 8).ToString().Should().Be("* * * ? 2-8 *");
-        CronExpressionBuilder.Create().WithMonthIncrements(3, 4).ToString().Should().Be("* * * ? 3/4 *");
+        CronExpressionBuilder.Create().WithMonth(2).ToString().Should().Be("0 * * ? 2 *");
+        CronExpressionBuilder.Create().WithMonths(3, 12).ToString().Should().Be("0 * * ? 3,12 *");
+        CronExpressionBuilder.Create().WithMonthRange(2, 8).ToString().Should().Be("0 * * ? 2-8 *");
+        CronExpressionBuilder.Create().WithMonthIncrements(3, 4).ToString().Should().Be("0 * * ? 3/4 *");
     }
 
     [Test]
     public void TestDayOfWeekField()
     {
-        CronExpressionBuilder.Create().WithDaysOfWeek(DayOfWeek.Thursday).ToString().Should().Be("* * * ? * THU");
-        CronExpressionBuilder.Create().WithDaysOfWeek(DayOfWeek.Sunday, DayOfWeek.Wednesday).ToString().Should().Be("* * * ? * SUN,WED");
-        CronExpressionBuilder.Create().WithDayOfWeekRange(DayOfWeek.Monday, DayOfWeek.Friday).ToString().Should().Be("* * * ? * MON-FRI");
-        CronExpressionBuilder.Create().WithDayOfWeekRange(DayOfWeek.Thursday, DayOfWeek.Sunday).ToString().Should().Be("* * * ? * THU-SUN");
-        CronExpressionBuilder.Create().OnNthDayOfWeekOfMonth(DayOfWeek.Sunday, 3).ToString().Should().Be("* * * ? * SUN#3");
-        CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Thursday).ToString().Should().Be("* * * ? * THUL");
-        CronExpressionBuilder.Create().OnLastDayOfWeek().ToString().Should().Be("* * * ? * L");
-        CronExpressionBuilder.Create().OnWeekdays().ToString().Should().Be("* * * ? * MON-FRI");
+        CronExpressionBuilder.Create().WithDaysOfWeek(DayOfWeek.Thursday).ToString().Should().Be("0 * * ? * THU");
+        CronExpressionBuilder.Create().WithDaysOfWeek(DayOfWeek.Sunday, DayOfWeek.Wednesday).ToString().Should().Be("0 * * ? * SUN,WED");
+        CronExpressionBuilder.Create().WithDayOfWeekRange(DayOfWeek.Monday, DayOfWeek.Friday).ToString().Should().Be("0 * * ? * MON-FRI");
+        CronExpressionBuilder.Create().WithDayOfWeekRange(DayOfWeek.Thursday, DayOfWeek.Sunday).ToString().Should().Be("0 * * ? * THU-SUN");
+        CronExpressionBuilder.Create().OnNthDayOfWeekOfMonth(DayOfWeek.Sunday, 3).ToString().Should().Be("0 * * ? * SUN#3");
+        CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Thursday).ToString().Should().Be("0 * * ? * THUL");
+        CronExpressionBuilder.Create().OnLastDayOfWeek().ToString().Should().Be("0 * * ? * L");
+        CronExpressionBuilder.Create().OnWeekdays().ToString().Should().Be("0 * * ? * MON-FRI");
     }
 
     [Test]
     public void TestDayOfWeekIncrementsExpandToExplicitList()
     {
-        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Monday, 2).ToString().Should().Be("* * * ? * MON,WED,FRI");
-        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Sunday, 3).ToString().Should().Be("* * * ? * SUN,WED,SAT");
-        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Friday, 2).ToString().Should().Be("* * * ? * FRI");
-        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Sunday, 1).ToString().Should().Be("* * * ? * SUN,MON,TUE,WED,THU,FRI,SAT");
+        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Monday, 2).ToString().Should().Be("0 * * ? * MON,WED,FRI");
+        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Sunday, 3).ToString().Should().Be("0 * * ? * SUN,WED,SAT");
+        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Friday, 2).ToString().Should().Be("0 * * ? * FRI");
+        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Sunday, 1).ToString().Should().Be("0 * * ? * SUN,MON,TUE,WED,THU,FRI,SAT");
     }
 
     [Test]
@@ -114,10 +154,10 @@ public class CronExpressionBuilderTest
     [Test]
     public void TestYearField()
     {
-        CronExpressionBuilder.Create().WithYear(2030).ToString().Should().Be("* * * ? * * 2030");
-        CronExpressionBuilder.Create().WithYears(2030, 2032).ToString().Should().Be("* * * ? * * 2030,2032");
-        CronExpressionBuilder.Create().WithYearRange(2030, 2035).ToString().Should().Be("* * * ? * * 2030-2035");
-        CronExpressionBuilder.Create().WithYearIncrements(2030, 2).ToString().Should().Be("* * * ? * * 2030/2");
+        CronExpressionBuilder.Create().WithYear(2030).ToString().Should().Be("0 * * ? * * 2030");
+        CronExpressionBuilder.Create().WithYears(2030, 2032).ToString().Should().Be("0 * * ? * * 2030,2032");
+        CronExpressionBuilder.Create().WithYearRange(2030, 2035).ToString().Should().Be("0 * * ? * * 2030-2035");
+        CronExpressionBuilder.Create().WithYearIncrements(2030, 2).ToString().Should().Be("0 * * ? * * 2030/2");
     }
 
     [Test]
@@ -129,8 +169,8 @@ public class CronExpressionBuilderTest
         List<int> hours = [8, 16];
 
         CronExpressionBuilder.Create().WithSeconds(seconds).ToString().Should().Be("30,0 * * ? * *");
-        CronExpressionBuilder.Create().WithDaysOfWeek(days).ToString().Should().Be("* * * ? * SUN,WED");
-        CronExpressionBuilder.Create().WithHours(CollectionsMarshal.AsSpan(hours)).ToString().Should().Be("* * 8,16 ? * *");
+        CronExpressionBuilder.Create().WithDaysOfWeek(days).ToString().Should().Be("0 * * ? * SUN,WED");
+        CronExpressionBuilder.Create().WithHours(CollectionsMarshal.AsSpan(hours)).ToString().Should().Be("0 * 8,16 ? * *");
 
         Invoking(x => x.WithSeconds((int[]) null)).Should().Throw<ArgumentException>();
         Invoking(x => x.WithDaysOfWeek((DayOfWeek[]) null)).Should().Throw<ArgumentException>();
@@ -263,8 +303,8 @@ public class CronExpressionBuilderTest
         Action act = () => builder.AtTime(new TimeOnly(9, 30));
 
         act.Should().Throw<InvalidOperationException>();
-        builder.ToString().Should().Be("* * 0 ? * *",
-            "the hour was rejected before the second and minute were written, so nothing was left half-applied");
+        builder.WithSecond(15).WithMinute(45).ToString().Should().Be("15 45 0 ? * *",
+            "the hour was rejected before the second and minute were written, so both are still free to configure");
     }
 
     /// <summary>
@@ -416,8 +456,8 @@ public class CronExpressionBuilderTest
         Action act = () => builder.Every(TimeSpan.FromMinutes(10));
 
         act.Should().Throw<InvalidOperationException>();
-        builder.ToString().Should().Be("* 5 * ? * *",
-            "the minute was refused before the second was written, so nothing was left half-applied");
+        builder.WithSecond(30).ToString().Should().Be("30 5 * ? * *",
+            "the minute was refused before the second was written, so the second is still free to configure");
     }
 
     /// <summary>

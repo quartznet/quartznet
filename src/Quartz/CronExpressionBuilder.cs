@@ -30,7 +30,13 @@ namespace Quartz;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Unconfigured fields default to every value ('*'). One expression carries one
+/// An unconfigured second is '0', so a builder that names only a minute or an hour fires once in
+/// each minute it matches. Every other unconfigured field is every value ('*'), and an unconfigured
+/// year is left out; <see cref="Build" /> lists them. Before 4.7 an unconfigured second was '*'.
+/// For every second, say so: <c>WithSecondRange(0, 59)</c>.
+/// </para>
+/// <para>
+/// One expression carries one
 /// day field here: configuring day-of-month and day-of-week both is refused, and
 /// the unused one renders as '?'. That is this builder's constraint rather than
 /// cron's — an expression naming both days fires on the union of the two, which
@@ -47,7 +53,6 @@ namespace Quartz;
 /// ITrigger trigger = TriggerBuilder.Create()
 ///     .WithIdentity("myTrigger")
 ///     .WithCronSchedule(CronExpressionBuilder.Create()
-///         .WithSecond(0)
 ///         .WithMinuteIncrements(0, 15)
 ///         .WithHourRange(8, 17)
 ///         .OnWeekdays()) // "0 0/15 8-17 ? * MON-FRI"
@@ -72,15 +77,20 @@ public sealed class CronExpressionBuilder
     private TimeSpan? interval;
 
     // intended source differences to the 3.x branch version of this file: the year cap, which is
-    // the public CronExpression.MaxYear there, and Every, which 4.3 added
+    // the public CronExpression.MaxYear there, Every, which 4.3 added, and the unconfigured second,
+    // which is "0" here since 4.7 (#4143) and stays "*" there
     private static int MaxYear => TriggerConstants.YearToGiveUpSchedulingAt;
+
+    // what an unconfigured second renders as; a builder naming only a minute or an hour fires once in
+    // each minute it matches rather than sixty times, the trap QZ0007 reports in a cron literal
+    private const string UnconfiguredSecond = "0";
 
     private CronExpressionBuilder()
     {
     }
 
     /// <summary>
-    /// Create a new CronExpressionBuilder with all fields unconfigured ("* * * ? * *").
+    /// Create a new CronExpressionBuilder with all fields unconfigured ("0 * * ? * *": once a minute).
     /// </summary>
     /// <returns>the new CronExpressionBuilder</returns>
     public static CronExpressionBuilder Create()
@@ -118,7 +128,8 @@ public sealed class CronExpressionBuilder
 
     /// <summary>
     /// Set the second field to a range of values, e.g. "20-30". The range may
-    /// wrap around, e.g. "55-5".
+    /// wrap around, e.g. "55-5". <c>WithSecondRange(0, 59)</c> is every second,
+    /// which an unconfigured second is not.
     /// </summary>
     /// <param name="start">the first second of the range (0-59)</param>
     /// <param name="end">the last second of the range (0-59)</param>
@@ -677,6 +688,17 @@ public sealed class CronExpressionBuilder
     /// <summary>
     /// Build a validated <see cref="CronExpression" /> from the configured fields.
     /// </summary>
+    /// <remarks>
+    /// <para>A field that was never configured renders as:</para>
+    /// <list type="table">
+    /// <listheader><term>Field</term><description>Unconfigured</description></listheader>
+    /// <item><term>Second</term><description>'0'. Before 4.7 it was '*'; <c>WithSecondRange(0, 59)</c> is every second</description></item>
+    /// <item><term>Minute, hour, month</term><description>'*'</description></item>
+    /// <item><term>Day-of-month</term><description>'?'</description></item>
+    /// <item><term>Day-of-week</term><description>'*', or '?' when day-of-month is configured</description></item>
+    /// <item><term>Year</term><description>left out, which is every year</description></item>
+    /// </list>
+    /// </remarks>
     /// <returns>the new CronExpression</returns>
     /// <exception cref="FormatException">if the composed expression fails final validation</exception>
     public CronExpression Build()
@@ -685,13 +707,14 @@ public sealed class CronExpressionBuilder
     }
 
     /// <summary>
-    /// Returns the cron expression string composed from the configured fields.
+    /// Returns the cron expression string composed from the configured fields, with the unconfigured
+    /// ones rendered as <see cref="Build" /> lists.
     /// </summary>
     public override string ToString()
     {
         string dayOfMonthPart = dayOfMonth ?? "?";
         string dayOfWeekPart = dayOfWeek ?? (dayOfMonth is not null ? "?" : "*");
-        string expression = $"{second ?? "*"} {minute ?? "*"} {hour ?? "*"} {dayOfMonthPart} {month ?? "*"} {dayOfWeekPart}";
+        string expression = $"{second ?? UnconfiguredSecond} {minute ?? "*"} {hour ?? "*"} {dayOfMonthPart} {month ?? "*"} {dayOfWeekPart}";
         return year is null ? expression : $"{expression} {year}";
     }
 

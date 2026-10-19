@@ -87,7 +87,6 @@ public static class CronExpressionsSamples
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("myTrigger")
             .WithCronSchedule(CronExpressionBuilder.Create()
-                .WithSecond(0)
                 .WithMinuteIncrements(0, 15) // every 15 minutes
                 .WithHourRange(8, 17)        // between 8:00 and 17:59
                 .OnWeekdays())               // "0 0/15 8-17 ? * MON-FRI"
@@ -132,10 +131,10 @@ public static class CronExpressionsSamples
     {
         #region sample_cron_expressions_day_rules
 
-        CronExpressionBuilder.Create().OnLastDayOfMonth();                         // "* * * L * ?"
-        CronExpressionBuilder.Create().OnNearestWeekdayOfMonth(15);                // "* * * 15W * ?"
-        CronExpressionBuilder.Create().OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 3); // "* * * ? * FRI#3"
-        CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Friday);   // "* * * ? * FRIL"
+        CronExpressionBuilder.Create().OnLastDayOfMonth();                         // "0 * * L * ?"
+        CronExpressionBuilder.Create().OnNearestWeekdayOfMonth(15);                // "0 * * 15W * ?"
+        CronExpressionBuilder.Create().OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 3); // "0 * * ? * FRI#3"
+        CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Friday);   // "0 * * ? * FRIL"
 
         #endregion
     }
