@@ -818,6 +818,44 @@ public abstract class JobStoreContractTest
             "the replacement stays paused, so the pause the trigger had stands");
     }
 
+    /// <summary>
+    /// <see cref="IJobStore.ReplaceTrigger" /> decides the replacement's state afresh, as a replace through
+    /// <c>AddTrigger</c> does, so a trigger paused on its own is resumed by it: Java's contract, and what an
+    /// application's <c>RescheduleJob</c> has always meant.
+    /// </summary>
+    [Test]
+    public async Task ReplaceTriggerEndsAnIndividualPause()
+    {
+        IOperableTrigger original = await ScheduleJobWithTrigger("replaced-explicitly", JobGroupA, TriggerGroupA);
+        await Store.PauseTriggerWith(original.Key, Maintenance);
+
+        (await Store.ReplaceTrigger(original.Key, CreateTrigger("replaced-explicitly", TriggerGroupA, original.JobKey))).Should().BeTrue();
+
+        (await Store.GetTriggerState(original.Key)).Should().Be(TriggerState.Normal, "a replace decides the state afresh");
+        (await Store.GetTriggerPause(original.Key)).Should().BeNull("the replace ended the pause, and its record with it");
+    }
+
+    /// <summary>
+    /// A declared trigger the scheduling-data processor re-applies at a start is the exception: the store
+    /// keeps the pause of the trigger it replaces, with its record, in the replace's own operation, so a
+    /// redeploy does not resume a trigger an operator paused (#4128).
+    /// </summary>
+    [Test]
+    public async Task ReplaceTriggerReapplyingADeclaredTriggerKeepsAnIndividualPause()
+    {
+        IOperableTrigger original = await ScheduleJobWithTrigger("reapplied", JobGroupA, TriggerGroupA);
+        await Store.PauseTriggerWith(original.Key, Maintenance);
+        PauseInfo pause = await Store.GetTriggerPause(original.Key);
+
+        IOperableTrigger reapplied = CreateTrigger("reapplied", TriggerGroupA, original.JobKey, startAt: DateTimeOffset.UtcNow);
+        ((TriggerBase) reapplied).KeepsPauseOnReplace = true;
+        (await Store.ReplaceTrigger(original.Key, reapplied)).Should().BeTrue();
+
+        (await Store.GetTriggerState(original.Key)).Should().Be(TriggerState.Paused, "a redeploy is not somebody resuming the trigger");
+        (await Store.GetTriggerPause(original.Key)).Should().Be(pause, "the pause is the one the operator made, not a new one");
+        (await AcquireDue()).Should().BeEmpty("the replacement is due, and was stored paused, so there was never anything to acquire");
+    }
+
     private ValueTask<List<IOperableTrigger>> AcquireDue()
     {
         return Store.AcquireNextTriggers(new TriggerAcquisitionRequest

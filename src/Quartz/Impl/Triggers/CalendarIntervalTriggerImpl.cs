@@ -833,4 +833,27 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
 
         return cb;
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The interval and its unit, the time zone, and the two daylight-saving settings.
+    /// </remarks>
+    internal override bool HasSameScheduleAs(TriggerBase other)
+    {
+        return other is CalendarIntervalTriggerImpl calendar
+               && RepeatInterval == calendar.RepeatInterval
+               && RepeatIntervalUnit == calendar.RepeatIntervalUnit
+               && PreserveHourOfDayAcrossDaylightSavings == calendar.PreserveHourOfDayAcrossDaylightSavings
+               && SkipDayIfHourDoesNotExist == calendar.SkipDayIfHourDoesNotExist
+               && SameTimeZone(TimeZone, calendar.TimeZone);
+    }
+
+    /// <inheritdoc />
+    internal override void CarryTimesTriggeredFrom(TriggerBase stored)
+    {
+        if (TimesTriggered == 0 && stored is CalendarIntervalTriggerImpl calendar)
+        {
+            TimesTriggered = calendar.TimesTriggered;
+        }
+    }
 }
