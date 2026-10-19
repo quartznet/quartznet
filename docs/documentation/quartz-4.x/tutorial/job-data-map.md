@@ -211,8 +211,8 @@ A persistent store reads job data back through the serializer or, in string mode
 
 To store a type of your own, do one of:
 
-* declare it with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver` on the default serializer (the
-  same registration a trimmed or native-AOT publish needs);
+* declare it with `q.AddJsonTypeInfoResolver(…)` for the default serializer (the same registration a
+  trimmed or native-AOT publish needs);
 * declare it with `NewtonsoftJsonSerializerRegistry.AddJobDataValueType<T>()` on the Newtonsoft
   serializer;
 * serialize it yourself and store the string.
@@ -326,9 +326,10 @@ public static class TypedInputScheduling
   already a string.
 
 The scheduler's `IJobInputSerializer` writes the payload. It defaults to
-`SystemTextJsonJobInputSerializer`, built from the same registry as the store's serializer; see
-[JSON Serialization](../packages/system-text-json.md). A trimmed or native-AOT application declares its
-payload types with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver`, as for a job data value type.
+`SystemTextJsonJobInputSerializer`; see [JSON Serialization](../packages/system-text-json.md). A trimmed or
+native-AOT application declares its payload types with `q.AddJsonTypeInfoResolver(…)`, the same call that
+declares a job data value type. See
+[Publishing Trimmed and Native AOT](../how-tos/trimming-and-native-aot.md#declare-your-own-job-data-and-input-types).
 
 ## Persisting changes across fires
 

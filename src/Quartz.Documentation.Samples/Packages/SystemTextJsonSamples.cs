@@ -152,13 +152,19 @@ public static class SystemTextJsonSamples
     {
         #region sample_stj_type_info_resolver
 
-        // The metadata for this application's own job-data value types. Only a trimmed or native AOT
-        // publish needs it: with reflection on, the resolver chain still ends in reflection.
-        services.AddQuartz(q => q.UsePersistentStore(store =>
+        // The metadata for this application's own job-data value and job input types. Only a trimmed or
+        // native AOT publish needs it: with reflection on, the resolver chain still ends in reflection.
+        services.AddQuartz(q =>
         {
-            store.UseSqlServer("my connection string");
-            store.UseSystemTextJsonSerializer(json => json.AddTypeInfoResolver(JobDataContext.Default));
-        }));
+            q.UsePersistentStore(store =>
+            {
+                store.UseSqlServer("my connection string");
+                store.UseSystemTextJsonSerializer();
+            });
+
+            // One registration for the store's serializer and the job input serializer.
+            q.AddJsonTypeInfoResolver(JobDataContext.Default);
+        });
 
         #endregion
     }

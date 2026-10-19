@@ -236,24 +236,33 @@ everything Quartz writes:
 - every custom trigger and calendar registered with `AddTriggerSerializer<TTrigger>` and
   `AddCalendarSerializer<TCalendar>`, which know the type statically.
 
-A **job-data value of your own type** needs metadata. Pass a generated `JsonSerializerContext` to the registry:
+A **job-data value or job input of your own type** needs metadata. Hand a generated `JsonSerializerContext` to
+the scheduler:
 
 <!-- snippet: sample_stj_type_info_resolver -->
 ```csharp
-// The metadata for this application's own job-data value types. Only a trimmed or native AOT
-// publish needs it: with reflection on, the resolver chain still ends in reflection.
-services.AddQuartz(q => q.UsePersistentStore(store =>
+// The metadata for this application's own job-data value and job input types. Only a trimmed or
+// native AOT publish needs it: with reflection on, the resolver chain still ends in reflection.
+services.AddQuartz(q =>
 {
-    store.UseSqlServer("my connection string");
-    store.UseSystemTextJsonSerializer(json => json.AddTypeInfoResolver(JobDataContext.Default));
-}));
+    q.UsePersistentStore(store =>
+    {
+        store.UseSqlServer("my connection string");
+        store.UseSystemTextJsonSerializer();
+    });
+
+    // One registration for the store's serializer and the job input serializer.
+    q.AddJsonTypeInfoResolver(JobDataContext.Default);
+});
 ```
 <!-- endSnippet -->
 
-Resolvers are asked in the order added, after Quartz's own contract and before reflection. `AddTypeInfoResolver`
-can be called more than once and is safe whether or not the application is published trimmed.
+- `AddJsonTypeInfoResolver` reaches the store's serializer and the job input serializer.
+- Resolvers are asked after Quartz's own contract and the registry's, in the order added, and before reflection.
+- It can be called more than once and is safe whether or not the application is published trimmed.
+- `UseSystemTextJsonSerializer(json => json.AddTypeInfoResolver(…))` also works, for job data only.
 
 The `Quartz.Serialization.Newtonsoft` serializer relies on reflection and has no metadata equivalent; a trimmed
-application uses this one. `AddTypeInfoResolver` also declares a job-data value type the serializer will write
-(both serializers refuse the same set). Newtonsoft's counterpart for that is
+application uses this one. `AddJsonTypeInfoResolver` also declares a job-data value type the serializer will
+write (both serializers refuse the same set). Newtonsoft's counterpart for that is
 [`AddJobDataValueType<T>()`](json-serialization.md#what-a-job-data-map-may-hold).

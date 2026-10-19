@@ -59,6 +59,7 @@ measure from completion only once every node is 4.7. See [Version 4.7](../databa
 | `QuartzSchedulerOptions.DefaultTimeZone` | `TimeZoneInfo?`, default `null` (`TimeZoneInfo.Local`): the zone a cron, calendar-interval, daily time-interval or recurrence trigger that names none is given when it is scheduled. See [The scheduler's default time zone](tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone) |
 | `UseDefaultTimeZone(this IQuartzBuilder, TimeZoneInfo)` | Sugar over `DefaultTimeZone` |
 | `Scheduler:DefaultTimeZone`, `quartz.scheduler.defaultTimeZone` | The configuration keys: an IANA or Windows id. An id the system cannot resolve stops the scheduler starting |
+| `AddJsonTypeInfoResolver(this IQuartzBuilder, IJsonTypeInfoResolver)` | Hands the scheduler your `JsonSerializerContext` once, for the store's serializer and the job input serializer. See [Declare your own job-data and input types](how-tos/trimming-and-native-aot.md#declare-your-own-job-data-and-input-types) |
 | `SchedulerFireTimesExtensions.GetUpcomingFireTimes` | Extension on `IScheduler`: a stored trigger's next 1 to 100 fire times in UTC, `null` for no such trigger. See [Upcoming fire times](tutorial/more-about-triggers.md#upcoming-fire-times) |
 | `IQuartzApiClient.GetUpcomingFireTimes` | Default interface member, computed from `GetTrigger` and `GetCalendar` by default. The Trigger Detail page's [Upcoming fires](packages/dashboard.md#upcoming-fires) reads it |
 | `GET …/triggers/{triggerGroup}/{triggerName}/fire-times` | HTTP API route answering `{ fireTimesUtc }`; agent operation `GetTriggerFireTimes`, allowed by default. See [Upcoming fire times](packages/http-api.md#upcoming-fire-times) |
@@ -75,6 +76,10 @@ Behaviour that changed:
 | A schedule builder never given a zone, and `new CronTriggerImpl(…)`, set `TimeZoneInfo.Local` on the trigger | The zone is unstated until the scheduler stores the trigger and gives it `DefaultTimeZone`: `TimeZoneInfo.Local` unless configured | Nothing |
 | `InTimeZone(null)` meant `TimeZoneInfo.Local` | It names no zone, so the trigger takes `DefaultTimeZone`: `TimeZoneInfo.Local` unless configured | Nothing. With a default set, pass `TimeZoneInfo.Local` for a trigger that must stay local |
 | `GetTriggerBuilder()` of a trigger nobody gave a zone carried `InTimeZone(TimeZoneInfo.Local)` | It carries no zone, so the rebuilt trigger takes the default too. A trigger read from a store carries its stored zone | Nothing |
+| `store.UseSystemTextJsonSerializer(r => r.AddTypeInfoResolver(…))` was the documented registration for a trimmed publish, and never reached an `IJob<TInput>`'s input | It still covers job data. `q.AddJsonTypeInfoResolver(…)` covers job data and inputs | Move the context to `q.AddJsonTypeInfoResolver(…)` if an input type is your own |
+| An input type with no metadata failed with System.Text.Json's `NotSupportedException` | Still `NotSupportedException`, naming the type and `AddJsonTypeInfoResolver` | Nothing |
+| A job-data enum with no metadata failed with `JsonSerializationException`: *Failed to serialize JobDataMap to json* | The message names the entry, the type and `AddJsonTypeInfoResolver`. System.Text.Json's exception is inside | Nothing |
+| Refusing a job-data value Quartz cannot read back named `SystemTextJsonSerializerRegistry.AddTypeInfoResolver` | It names `AddJsonTypeInfoResolver`, and the container's registry for the HTTP API | Nothing, unless you match on the message |
 | Under `UseTriggerGroupWhenUnset`, a recovered firing of a trigger with no execution group was limited under `RECOVERING_JOBS` | It is limited under the group of the trigger it replays, after cluster recovery, a shutdown hand-back and startup recovery, in both stores. See [Letting the trigger group stand in](tutorial/execution-groups.md#letting-the-trigger-group-stand-in) | Nothing |
 | A start that re-applied an `AddTrigger` or `ScheduleJob` registration, or a scheduling file, reset `TimesTriggered`, dropped a pending retry and resumed a trigger paused on its own | The count and the retry are kept while the schedule is unchanged, so a finite repeat count or `COUNT` does not start over; the pause is kept with its record. See [What a start keeps](how-tos/rescheduling-jobs.md#what-a-start-keeps) | Nothing. To run a finite schedule again from the start, change its schedule or unschedule its trigger first |
 | A dashboard cluster row asked every member to interrupt a job | It asks the preferred 4.6 member, and the next if it fails, plus each member older than 4.6. With every member at 4.6, an interrupt of one firing is asked the same way, without looking up its owner | Nothing |
@@ -3241,9 +3246,8 @@ public ValueTask Execute(IJobExecutionContext context, CancellationToken cancell
 `GetInput<TInput>()` cannot tell a payload that read back as `null` from no payload.
 
 **Serialization.** `IJobInputSerializer` is registered per scheduler, keyed by name. It defaults to
-`SystemTextJsonJobInputSerializer`, built from the same `SystemTextJsonSerializerRegistry` as the
-store's `IObjectSerializer`. For a trimmed or native publish, declare payload types with
-`SystemTextJsonSerializerRegistry.AddTypeInfoResolver`, as for job data values. See
+`SystemTextJsonJobInputSerializer`. For a trimmed or native publish, declare payload types with
+`q.AddJsonTypeInfoResolver(…)`, which reaches the store's `IObjectSerializer` too. See
 [Job Data](tutorial/job-data-map.md#a-typed-input-the-third-read-side).
 
 ## Scheduling a trigger can replace one atomically
@@ -5001,13 +5005,14 @@ refuses it, naming the entry and the type:
 Job data entry 'recipients' holds a System.Collections.Generic.List`1[[System.String, …]], which Quartz's
 JSON format cannot read back. A job data value has to be one of the types JobDataMap declares an accessor
 for (string, bool, char, int, long, float, double, decimal, DateTime, DateTimeOffset, TimeSpan, Guid,
-DateOnly, TimeOnly or an enum), a Dictionary<string, string>, or a type the application declares through
-SystemTextJsonSerializerRegistry.AddTypeInfoResolver. Anything with structure of its own has to be
-serialized by the job and stored as a string.
+DateOnly, TimeOnly or an enum), a Dictionary<string, string>, or a type the application declares with
+AddJsonTypeInfoResolver on the scheduler's builder. The HTTP API reads the container's
+SystemTextJsonSerializerRegistry, whose AddTypeInfoResolver takes the same context. Anything with structure
+of its own has to be serialized by the job and stored as a string.
 ```
 
 * Allowed: the types `DataMapExtensions` has an accessor for, `Dictionary<string, string>`, and enums.
-* Declare a type of your own with `AddTypeInfoResolver`, which a trimmed or native-AOT publish needs
+* Declare a type of your own with `AddJsonTypeInfoResolver`, which a trimmed or native-AOT publish needs
   anyway. It is then written like any other, and read back as the string map the store format gives for
   any object.
 * The HTTP API shares the job data map converter, so the check applies there too, whatever the store,

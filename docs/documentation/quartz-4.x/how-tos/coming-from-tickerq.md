@@ -90,7 +90,7 @@ await scheduler.ScheduleJob<SendWelcomeEmailJob, string>(
 | `opt.AddOperationalStore(ef => …)` | `q.UsePersistentStore(s => s.UsePostgres(cs))` — [ADO.NET, not EF Core](../tutorial/job-stores.md) |
 | `opt.AddDashboard()` | `services.AddQuartzDashboard()` + `app.MapQuartzDashboard()`, plus an authorization decision |
 | `opt.AddOpenTelemetryInstrumentation()` | `AddSource(QuartzInstrumentation.ActivitySourceName)` and `AddMeter(QuartzInstrumentation.MeterName)` — [no package needed](../packages/opentelemetry-integration.md) |
-| `opt.WithJsonContext(AppJsonContext.Default)` | `store.UseSystemTextJsonSerializer(r => r.AddTypeInfoResolver(…))` — [Publishing Trimmed and Native AOT](trimming-and-native-aot.md) |
+| `opt.WithJsonContext(AppJsonContext.Default)` | `q.AddJsonTypeInfoResolver(AppJsonContext.Default)` — [Publishing Trimmed and Native AOT](trimming-and-native-aot.md#declare-your-own-job-data-and-input-types) |
 
 ## The differences that bite
 
