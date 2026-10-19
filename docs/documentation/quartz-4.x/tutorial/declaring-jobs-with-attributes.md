@@ -136,7 +136,7 @@ Write one per schedule; a job with three gets three triggers.
 | the constructor argument | — | the cron expression, in Quartz's [six- or seven-field form](../cron-expressions.md) |
 | `Name` | the job's name, then `-2`, `-3` … | the trigger key's name |
 | `Group` | the job's group | the trigger key's group |
-| `TimeZone` | the scheduler's local zone | the zone the schedule is read in, by the id `TimeZones.FindById` resolves — IANA or Windows |
+| `TimeZone` | the scheduler's [`DefaultTimeZone`](more-about-triggers.md#the-scheduler-s-default-time-zone), else the local zone | the zone the schedule is read in, by the id `TimeZones.FindById` resolves — IANA or Windows |
 | `MisfireInstruction` | the scheduler's [default](more-about-triggers.md#the-scheduler-s-default-instruction) | what the trigger does about a firing it missed; written, `SmartPolicy` included, it is stated |
 | `MisfireThreshold` (4.6) | the store's | how late it may fire before it misfires, as an invariant `TimeSpan` string — see [A trigger's own misfire threshold](more-about-triggers.md#a-trigger-s-own-misfire-threshold) |
 | `Priority` | `5` | who wins when two triggers want the same moment and one worker is free |

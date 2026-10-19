@@ -1266,6 +1266,26 @@ public static class QuartzBuilderExtensions
     }
 
     /// <summary>
+    /// Gives every cron, calendar-interval, daily time-interval and recurrence trigger that names no time
+    /// zone <paramref name="timeZone" /> when it is scheduled, instead of <see cref="TimeZoneInfo.Local" />.
+    /// </summary>
+    /// <remarks>
+    /// Sugar over <see cref="QuartzSchedulerOptions.DefaultTimeZone" />, which says which triggers take it
+    /// and when. A trigger given a zone of its own, <see cref="TimeZoneInfo.Local" /> included, keeps it.
+    /// Calling this again replaces the default.
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="timeZone">The zone, for example <c>TimeZoneInfo.Utc</c> or <c>TimeZones.FindById("Europe/Helsinki")</c>.</param>
+    public static IQuartzBuilder UseDefaultTimeZone(this IQuartzBuilder builder, TimeZoneInfo timeZone)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(timeZone);
+
+        builder.Services.Configure<QuartzSchedulerOptions>(builder.SchedulerName, options => options.DefaultTimeZone = timeZone);
+        return builder;
+    }
+
+    /// <summary>
     /// Makes this node acquire and misfire-handle only the execution groups named, and nothing else.
     /// </summary>
     /// <remarks>

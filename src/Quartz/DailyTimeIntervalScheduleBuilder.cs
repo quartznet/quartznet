@@ -188,7 +188,13 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder, ITimePr
             st.MisfireInstructionCode = stated;
         }
         st.RepeatCount = repeatCount;
-        st.timeZone = timeZone;
+
+        // Only a zone somebody named: a builder never given one leaves the trigger's zone unstated, so the
+        // scheduler's default applies to it.
+        if (timeZone is not null)
+        {
+            st.TimeZone = timeZone;
+        }
 
         if (daysOfWeek is not null)
         {
@@ -435,8 +441,9 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder, ITimePr
     /// <summary>
     /// TimeZone in which to base the schedule.
     /// </summary>
-    /// <param name="timeZone">the time-zone for the schedule; <see langword="null" /> means the
-    /// system's local time zone.</param>
+    /// <param name="timeZone">the time-zone for the schedule. <see langword="null" />, like never calling
+    /// this, names none: the scheduler's <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> applies when
+    /// the trigger is stored, and the system's local time zone when that is not set.</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
     /// <seealso cref="IDailyTimeIntervalTrigger.TimeZone" />
     public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo? timeZone)

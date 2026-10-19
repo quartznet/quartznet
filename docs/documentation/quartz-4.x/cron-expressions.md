@@ -567,7 +567,8 @@ at 03:30, an instant its expression does not match. An interval expression fires
 once, so an "every minute" schedule loses an hour of real time each autumn.
 :::
 
-**Name the time zone.** An expression with none uses `TimeZoneInfo.Local`: the developer's machine in
-development, and often UTC in a container.
+**Name the time zone**, on the trigger or
+[once for the scheduler](tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone). A trigger with
+neither uses `TimeZoneInfo.Local`: the developer's machine in development, and often UTC in a container.
 [Daylight saving, clock changes and cluster skew](../best-practices.md#daylight-saving-clock-changes-and-cluster-skew)
 covers the choice of trigger family, and the [FAQ](../faq.md#daylight-saving-time-and-triggers) has more.

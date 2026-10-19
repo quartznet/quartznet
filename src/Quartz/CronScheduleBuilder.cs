@@ -259,8 +259,10 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     /// <summary>
     /// The <see cref="TimeZoneInfo" /> in which to base the schedule.
     /// </summary>
-    /// <param name="timeZone">the time-zone for the schedule; <see langword="null" /> means the
-    /// system's local time zone.</param>
+    /// <param name="timeZone">the time-zone for the schedule. <see langword="null" />, like never calling
+    /// this, names none: the scheduler's <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> applies when
+    /// the trigger is stored, and the system's local time zone when that is not set. An expression handed
+    /// to <see cref="Create(CronExpression)" /> with a zone of its own states that zone.</param>
     /// <returns>the updated CronScheduleBuilder</returns>
     /// <seealso cref="CronExpression.TimeZone" />
     public CronScheduleBuilder InTimeZone(TimeZoneInfo? timeZone)

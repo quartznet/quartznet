@@ -33,12 +33,21 @@ The compiler finds most of the 3.x → 4.0 work.
 
 An application on 4.6 compiles on 4.7 unchanged.
 
+| Added | What it is |
+|---|---|
+| `QuartzSchedulerOptions.DefaultTimeZone` | `TimeZoneInfo?`, default `null` (`TimeZoneInfo.Local`): the zone a cron, calendar-interval, daily time-interval or recurrence trigger that names none is given when it is scheduled. See [The scheduler's default time zone](tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone) |
+| `UseDefaultTimeZone(this IQuartzBuilder, TimeZoneInfo)` | Sugar over `DefaultTimeZone` |
+| `Scheduler:DefaultTimeZone`, `quartz.scheduler.defaultTimeZone` | The configuration keys: an IANA or Windows id. An id the system cannot resolve stops the scheduler starting |
+
 Behaviour that changed:
 
 | Before | After | What to do |
 |---|---|---|
 | `CronExpressionBuilder` wrote `*` for an unconfigured second: `WithMinuteIncrements(0, 5)` was `* 0/5 * ? * *`, every second of every fifth minute | It writes `0`: `0 0/5 * ? * *`, once every five minutes. A call that sets the second, such as `AtTime` or `Every`, is unchanged. See [Building cron expressions programmatically](cron-expressions.md#building-cron-expressions-programmatically) | Nothing, unless every second was meant: add `WithSecondRange(0, 59)` |
 | A clustered node with a generated instance id said nothing about declared triggers pinned with `PreferredNode.For(…)`, which never matched it | Log event `4031` warns once at start, with the count and up to five trigger keys. See [Requirements and limitations](tutorial/node-affinity.md#requirements-and-limitations) | Set `InstanceId` on each node a pin names, or pin with `PreferredNode.Auto` |
+| A schedule builder never given a zone, and `new CronTriggerImpl(…)`, set `TimeZoneInfo.Local` on the trigger | The zone is unstated until the scheduler stores the trigger and gives it `DefaultTimeZone`: `TimeZoneInfo.Local` unless configured | Nothing |
+| `InTimeZone(null)` meant `TimeZoneInfo.Local` | It names no zone, so the trigger takes `DefaultTimeZone`: `TimeZoneInfo.Local` unless configured | Nothing. With a default set, pass `TimeZoneInfo.Local` for a trigger that must stay local |
+| `GetTriggerBuilder()` of a trigger nobody gave a zone carried `InTimeZone(TimeZoneInfo.Local)` | It carries no zone, so the rebuilt trigger takes the default too. A trigger read from a store carries its stored zone | Nothing |
 
 ## Upgrading from 4.5 to 4.6
 

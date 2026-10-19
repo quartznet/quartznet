@@ -73,7 +73,12 @@ public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
         {
             st.MisfireInstructionCode = stated;
         }
-        st.timeZone = timeZone;
+        // Only a zone somebody named: a builder never given one leaves the trigger's zone unstated, so the
+        // scheduler's default applies to it.
+        if (timeZone is not null)
+        {
+            st.TimeZone = timeZone;
+        }
         st.PreserveHourOfDayAcrossDaylightSavings = preserveHourOfDayAcrossDaylightSavings;
         st.SkipDayIfHourDoesNotExist = skipDayIfHourDoesNotExist;
 
@@ -116,8 +121,9 @@ public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
     /// <summary>
     /// TimeZone in which to base the schedule.
     /// </summary>
-    /// <param name="timeZone">the time-zone for the schedule; <see langword="null" /> means the
-    /// system's local time zone.</param>
+    /// <param name="timeZone">the time-zone for the schedule. <see langword="null" />, like never calling
+    /// this, names none: the scheduler's <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> applies when
+    /// the trigger is stored, and the system's local time zone when that is not set.</param>
     /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
     /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
     public CalendarIntervalScheduleBuilder InTimeZone(TimeZoneInfo? timeZone)

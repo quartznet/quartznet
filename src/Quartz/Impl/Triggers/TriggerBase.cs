@@ -78,6 +78,12 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     [NonSerialized]
     private bool misfireInstructionStated;
 
+    // Whether anything stated the time zone of a trigger type that has one, which the zone it reads as
+    // cannot say: an unstated zone and an explicit TimeZoneInfo.Local both read as Local. Not serialized,
+    // for the reason misfireInstructionStated is not.
+    [NonSerialized]
+    private bool timeZoneStated;
+
     // A blob written before triggers had a threshold of their own has no such field and deserializes to
     // null, which is the store's.
     private TimeSpan? misfireThreshold;
@@ -566,6 +572,30 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// </para>
     /// </remarks>
     internal bool MisfireInstructionStated => misfireInstructionStated;
+
+    /// <summary>
+    /// Whether this trigger's time zone was stated, rather than left to read as
+    /// <see cref="TimeZoneInfo.Local" />. Only the trigger types with a zone read it: cron, calendar
+    /// interval, daily time interval and recurrence.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every assignment of a zone states it: a schedule builder's <c>InTimeZone</c>, a cron expression that
+    /// carries a zone, the trigger's own <c>TimeZone</c> setter, a job store reading the stored row, a
+    /// deserialized trigger. A schedule builder never given a zone, or given <see langword="null" />, leaves
+    /// it unstated.
+    /// </para>
+    /// <para>
+    /// The scheduler reads it when the trigger is stored: an unstated zone takes
+    /// <see cref="QuartzSchedulerOptions.DefaultTimeZone" />, which states it, before the first fire time is
+    /// computed. So the stored zone is always one somebody chose.
+    /// </para>
+    /// </remarks>
+    internal bool TimeZoneStated
+    {
+        get => timeZoneStated;
+        set => timeZoneStated = value;
+    }
 
     /// <summary>
     /// Get or set the <see cref="JobDataMap" /> that is associated with the
@@ -1230,8 +1260,9 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     [OnDeserialized]
     private void OnDeserialized(StreamingContext context)
     {
-        // A deserialized trigger's instruction was decided when it was written, whatever it is.
+        // A deserialized trigger's instruction and zone were decided when it was written, whatever they are.
         misfireInstructionStated = true;
+        timeZoneStated = true;
 
         if (name is not null && group is not null)
         {

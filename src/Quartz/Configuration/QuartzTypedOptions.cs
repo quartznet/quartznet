@@ -116,7 +116,12 @@ internal static class QuartzTypedOptions
 
         var name = schedulerName ?? Options.DefaultName;
 
-        services.Configure<QuartzSchedulerOptions>(name, quartzSection.GetSection(SchedulerSection));
+        // Split: the generator binds every scheduler option but DefaultTimeZone, a TimeZoneInfo it cannot
+        // construct, and the second call reads that one from its id. Quartz.csproj says why the generator's
+        // diagnostics about it are off.
+        IConfigurationSection schedulerSection = quartzSection.GetSection(SchedulerSection);
+        services.Configure<QuartzSchedulerOptions>(name, schedulerSection);
+        services.Configure<QuartzSchedulerOptions>(name, options => DefaultTimeZoneSetting.Bind(options, schedulerSection));
         services.Configure<ThreadPoolOptions>(name, quartzSection.GetSection(ThreadPoolSection));
 
         // In-memory and ADO.NET stores share the JobStore section but bind to different options types,

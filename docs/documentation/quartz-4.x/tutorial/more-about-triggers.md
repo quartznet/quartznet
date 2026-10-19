@@ -40,6 +40,37 @@ Priorities are only compared when triggers have the same fire time. A trigger sc
 When a trigger's job is detected to require recovery, its recovery is scheduled with the same priority as the original trigger.
 :::
 
+## Time Zones
+
+Cron, calendar-interval, daily time-interval and recurrence triggers read their schedule in a time zone. A
+trigger given none reads as `TimeZoneInfo.Local`: the developer's machine in development, and often UTC in
+a container. Name it with `InTimeZone(…)` on the trigger, or once for the scheduler.
+
+### The scheduler's default time zone
+
+A trigger whose zone nobody stated takes the scheduler's `DefaultTimeZone` when it is scheduled (4.7):
+
+<!-- snippet: sample_more_about_triggers_default_time_zone -->
+```csharp
+// A cron, calendar-interval, daily or recurrence trigger that names no zone reads its schedule in UTC,
+// whatever zone the machine is in.
+services.AddQuartz(q => q.UseDefaultTimeZone(TimeZoneInfo.Utc));
+```
+<!-- endSnippet -->
+
+* Default `null`: `TimeZoneInfo.Local`, as before 4.7.
+* **Stated wins, `TimeZoneInfo.Local` included.** `InTimeZone(…)`, a `CronExpression` built with a zone,
+  an attribute's or the JSON schedule's `TimeZone`, the XML file's `<time-zone>`, and a trigger read from
+  a store or deserialized all state it. `InTimeZone(null)` states none.
+* Resolved by `ScheduleJob`, `ScheduleJobs`, `ScheduleTrigger` and `RescheduleJob`, before the first fire
+  time is computed, so the store holds the zone. Triggers already stored keep theirs. A trigger scheduled
+  over the HTTP API arrives deserialized, so it keeps the zone the client gave it.
+* Simple triggers and `TriggerJob`'s one-shot triggers have no zone. A `CronExpression` used on its own
+  reads its own.
+* Configuration: `Scheduler:DefaultTimeZone` or the flat key `quartz.scheduler.defaultTimeZone`, an IANA
+  or Windows id; an id the system cannot resolve stops the scheduler starting. Each node applies its own,
+  so set the same on every node.
+
 ## Misfire Instructions
 
 A misfire occurs when a persistent trigger misses its firing time because the scheduler was shut down or

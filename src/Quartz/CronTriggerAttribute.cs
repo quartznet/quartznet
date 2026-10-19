@@ -84,7 +84,8 @@ public sealed class CronTriggerAttribute(string cronExpression) : Attribute
     /// <summary>
     /// The time zone the schedule is read in, by the id <see cref="TimeZones.FindById" /> resolves —
     /// an IANA id such as <c>"Europe/Helsinki"</c> or a Windows one such as <c>"FLE Standard Time"</c>.
-    /// Defaults to the scheduler's local time zone.
+    /// Defaults to the scheduler's <see cref="QuartzSchedulerOptions.DefaultTimeZone" />, which is the
+    /// local time zone unless it is set.
     /// </summary>
     /// <remarks>
     /// Resolved when the registration runs rather than at build time: the build machine's zone

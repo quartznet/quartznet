@@ -270,6 +270,9 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
     public int TimesTriggered { get; set; }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Setting a zone states it, and null names none, as on <see cref="CronTriggerImpl.TimeZone" />.
+    /// </remarks>
     public TimeZoneInfo TimeZone
     {
         get
@@ -281,7 +284,11 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
             return timeZone;
         }
 
-        set => timeZone = value;
+        set
+        {
+            timeZone = value;
+            TimeZoneStated = value is not null;
+        }
     }
 
     /// <summary>
@@ -976,8 +983,13 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
             .OnDaysOfTheWeek(DaysOfWeek)
             .StartingDailyAt(StartTimeOfDay)
             .EndingDailyAt(EndTimeOfDay)
-            .WithRepeatCount(RepeatCount)
-            .InTimeZone(TimeZone);
+            .WithRepeatCount(RepeatCount);
+
+        // Only a stated zone, as CronTriggerImpl.GetScheduleBuilder says.
+        if (TimeZoneStated)
+        {
+            cb.InTimeZone(TimeZone);
+        }
 
         // Only a stated instruction, as SimpleTriggerImpl.GetScheduleBuilder says.
         DailyTimeIntervalTriggerMisfireInstruction instruction = MisfireInstruction;

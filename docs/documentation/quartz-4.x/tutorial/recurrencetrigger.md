@@ -117,7 +117,9 @@ ITrigger trigger = TriggerBuilder.Create()
 
 ## Time Zone Support
 
-Recurrence calculations use the system's local time zone by default. Set another with `InTimeZone`:
+Recurrence calculations use the scheduler's
+[`DefaultTimeZone`](more-about-triggers.md#the-scheduler-s-default-time-zone), the system's local zone
+unless set. Set another with `InTimeZone`:
 
 <!-- snippet: sample_recurrencetrigger_in_time_zone -->
 ```csharp

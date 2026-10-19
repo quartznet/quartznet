@@ -894,6 +894,7 @@ internal sealed class QuartzScheduler
 
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         ApplyDefaultMisfireHandling(trig);
+        ApplyDefaultTimeZone(trig);
         trig.Validate();
         RefusePausedContinuation(trig, options);
         RetryPolicyResolution.EnsureReadable(jobDetail);
@@ -1085,6 +1086,7 @@ internal sealed class QuartzScheduler
         IOperableTrigger trig = AsOperableTrigger(trigger);
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         ApplyDefaultMisfireHandling(trig);
+        ApplyDefaultTimeZone(trig);
         trig.Validate();
 
         PrepareTriggerData(trig);
@@ -1272,6 +1274,7 @@ internal sealed class QuartzScheduler
 
                 AdjustSimpleTriggerStartTimeIfInPast(trigger);
                 ApplyDefaultMisfireHandling(trigger);
+                ApplyDefaultTimeZone(trigger);
                 trigger.Validate();
                 RefusePausedContinuation(trigger, options);
 
@@ -1450,6 +1453,7 @@ internal sealed class QuartzScheduler
         trigger.JobKey = oldTrigger.JobKey;
         AdjustSimpleTriggerStartTimeIfInPast(trigger);
         ApplyDefaultMisfireHandling(trigger);
+        bool rezoned = ApplyDefaultTimeZone(trigger);
         trigger.Validate();
 
         PrepareTriggerData(trigger);
@@ -1468,7 +1472,7 @@ internal sealed class QuartzScheduler
         }
 
         DateTimeOffset? ft;
-        if (trigger.NextFireTimeUtc is not null && trigger.NextFireTimeUtc >= trigger.StartTimeUtc)
+        if (!rezoned && trigger.NextFireTimeUtc is not null && trigger.NextFireTimeUtc >= trigger.StartTimeUtc)
         {
             // use a cloned trigger so that we don't lose possible forcefully set next fire time
             var clonedTrigger = (IOperableTrigger) trigger.Clone();
@@ -1482,6 +1486,8 @@ internal sealed class QuartzScheduler
             // way fires at the stale next fire time and then, because GetFireTimeAfter answers with the
             // start time for anything before it, immediately again at its own start; the job store keeps
             // whichever next fire time it is handed, so this is the only place that can say no to it.
+            // Or the scheduler's default has just given the trigger its zone, and a next fire time it
+            // carried was worked out in the zone it no longer has.
             ft = trigger.ComputeFirstFireTimeUtc(calendar);
         }
 
@@ -1694,6 +1700,21 @@ internal sealed class QuartzScheduler
     private void ApplyDefaultMisfireHandling(IOperableTrigger trigger)
     {
         MisfireDefaults.Apply(trigger, resources.DefaultMisfireHandling);
+    }
+
+    /// <summary>
+    /// Gives a trigger whose time zone nobody stated the scheduler's
+    /// <see cref="QuartzSchedulerOptions.DefaultTimeZone" />, before its first fire time is computed.
+    /// </summary>
+    /// <remarks>
+    /// Before, because a zoned trigger's fire times are read in its zone. Here, as the trigger is stored,
+    /// for the reason <see cref="ApplyDefaultMisfireHandling" /> gives: the stored zone is then always one
+    /// somebody chose, and every node, an older one included, reads the same zone.
+    /// </remarks>
+    /// <returns>Whether the zone the trigger reads as changed.</returns>
+    private bool ApplyDefaultTimeZone(IOperableTrigger trigger)
+    {
+        return TimeZoneDefaults.Apply(trigger, resources.DefaultTimeZone);
     }
 
     /// <summary>

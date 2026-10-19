@@ -240,8 +240,9 @@ or `Recurrence` — and that object decides the trigger type.
 ```
 
 - `Rule`: the RFC 5545 recurrence rule, required. See [Recurrence Triggers](../tutorial/recurrencetrigger.md).
-- `TimeZone`: the zone the rule's days and times are read in. Defaults to the machine's local zone, so
-  name it if the schedule must mean the same thing wherever it runs.
+- `TimeZone`: the zone the rule's days and times are read in. Defaults to the scheduler's
+  [`DefaultTimeZone`](../tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone), the machine's
+  local zone unless set, so name one if the schedule must mean the same thing wherever it runs.
 - `MisfireInstruction`: `SmartPolicy` (the default), `FireOnceNow`, `DoNothing` or `IgnoreMisfirePolicy`.
 
 The trigger's `StartTime` anchors the rule, as `DTSTART` does in iCalendar: `FREQ=WEEKLY;INTERVAL=2` is
