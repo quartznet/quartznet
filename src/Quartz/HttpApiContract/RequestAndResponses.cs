@@ -352,7 +352,8 @@ internal record RescheduleJobRequest(ITrigger NewTrigger) : IValidatable
 internal record RescheduleJobResponse(DateTimeOffset? FirstFireTimeUtc);
 
 /// <summary>
-/// A trigger's upcoming fire times, in UTC and earliest first; empty for a trigger that does not fire again.
+/// A trigger's upcoming fire times, in UTC and earliest first; empty for a trigger that does not fire again,
+/// and only the next for a simple trigger that measures its interval from completion.
 /// </summary>
 internal sealed record TriggerFireTimesResponse(DateTimeOffset[] FireTimesUtc);
 

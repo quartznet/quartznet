@@ -733,7 +733,7 @@ public interface IQuartzApiClient
     /// The trigger's next <paramref name="count" /> fire times, in UTC and earliest first, as
     /// <see cref="SchedulerFireTimesExtensions.GetUpcomingFireTimes" /> answers them: from its next fire time,
     /// in its own time zone, less what its calendar excludes and up to its end time. Empty for a trigger that
-    /// does not fire again.
+    /// does not fire again, and only the next for a simple trigger that measures its interval from completion.
     /// </summary>
     /// <remarks>
     /// <para>

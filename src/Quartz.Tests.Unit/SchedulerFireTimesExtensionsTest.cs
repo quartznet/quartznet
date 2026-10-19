@@ -130,6 +130,28 @@ public sealed class SchedulerFireTimesExtensionsTest
             "the end time is the last instant the trigger may fire, so a fire time on it is listed and none after it, however many were asked for");
     }
 
+    /// <summary>
+    /// A simple trigger measured from completion fires next at its next fire time, and each time after that an
+    /// interval after the run before it completes, which nothing knows ahead of time (#4140).
+    /// </summary>
+    [Test]
+    public async Task ATriggerMeasuredFromCompletionAnswersOnlyItsNextFireTime([Values] StoreKind store)
+    {
+        IScheduler scheduler = await Scheduler(store);
+        ITrigger fixedDelay = TriggerBuilder.Create(clock)
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartAt(nine)
+            .WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).RepeatForever().MeasureIntervalFromCompletion())
+            .Build();
+        await scheduler.ScheduleJob(Job(), fixedDelay);
+
+        List<DateTimeOffset>? fireTimes = await scheduler.GetUpcomingFireTimes(triggerKey, 10);
+
+        fireTimes.Should().Equal([nine],
+            "the hourly grid from its start is when a fixed-rate trigger fires, and this one fires an hour after each run completes");
+    }
+
     [TestCase(1)]
     [TestCase(100)]
     public async Task ACountFromOneToAHundredIsAnswered(int count)

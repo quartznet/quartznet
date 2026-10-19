@@ -386,6 +386,9 @@ List<DateTimeOffset>? fireTimes = await scheduler.GetUpcomingFireTimes(new Trigg
   in the trigger's own time zone, skipping what its calendar excludes and stopping at its end time.
 * `count` is 1 to 100. The list is shorter when the schedule ends sooner, and empty for a trigger that does
   not fire again.
+* A simple trigger [measured from completion](simpletriggers.md#measured-from-completion) answers its next
+  fire time only: each later run starts an interval after the one before it completes. While a firing runs,
+  that next time is provisional.
 * A paused trigger answers the times it would fire once resumed, before misfire handling.
 * On an `HttpScheduler` it is one request; the host computes the times. See
   [Upcoming fire times](../packages/http-api.md#upcoming-fire-times) in the HTTP API.
