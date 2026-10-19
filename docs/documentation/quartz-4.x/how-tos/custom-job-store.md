@@ -215,6 +215,21 @@ The six paged `Query…` members are abstract:
   `State` with **the same predicate as its failover pass**. `Overdue` is a missed check-in; `Failed` is
   when the store takes over the node's work.
 
+### Interrupt requests
+
+From 4.6, two default interface members carry an interrupt asked of a firing another node runs:
+
+| Member | The scheduler calls it | Default |
+|---|---|---|
+| `ValueTask<bool> RequestInterrupt(fireInstanceId)` | From `Interrupt` and `InterruptFireInstance` when `Clustered` is `true`, for each executing firing it did not interrupt itself. Answer `true` when the request was recorded | `false` |
+| `ValueTask<List<string>> GetInterruptRequests()` | To find this node's firings that carry a request, which it then interrupts | an empty list |
+
+* Record the request on the firing's own record, so it goes when the firing completes.
+* Answer only executing firings, and only this node's from `GetInterruptRequests`.
+* In 4.6 the scheduler reads `GetInterruptRequests` only after a check-in of the ADO.NET store. A store of
+  your own is not asked, so a request it records is not delivered by the scheduler.
+* `DelegatingJobStore` forwards both.
+
 ### Bulk members
 
 Key-set members such as `PauseJobs(keys)`, `ResumeTriggers(keys)` and `DeleteJobs(keys)` default to looping

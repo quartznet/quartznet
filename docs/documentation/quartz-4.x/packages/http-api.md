@@ -513,8 +513,16 @@ Caveats for a UI:
   to `fireTimeUtc` is not misfire lateness.
 
 `POST {ApiPath}/schedulers/{name}/jobs/interrupt/{fireInstanceId}` interrupts one firing;
-`POST …/jobs/{group}/{name}/interrupt` interrupts every execution of the job. Both are node-local on the server:
-interrupt a firing owned by another node through that node.
+`POST …/jobs/{group}/{name}/interrupt` interrupts every execution of the job.
+
+| The firing runs on | `applied: true` means |
+|---|---|
+| The server's node | Its token was cancelled |
+| Another node, with a clustered persistent store (4.6) | A request was recorded; that node cancels the token after its next check-in |
+
+`applied` does not say the job has stopped. Cancellation is cooperative, and a remote one lands within one
+check-in interval. See [Interrupting a firing on another node](../tutorial/advanced-enterprise-features.md#interrupting-a-firing-on-another-node).
+Before 4.6 both were node-local on the server.
 
 To get whole objects for a page of headers, post the keys back:
 

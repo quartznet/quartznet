@@ -789,6 +789,11 @@ A store that is not clustered has no peers to wait for. Rolling back to 4.5 need
 first check-in recovers and deletes its own earlier row, stamp and all. The schema side is in
 [Schema changes](../database/schema-changes.md#version-4-6).
 
+An interrupt reaches another node only once that node is 4.6. A request for a firing on a 4.5 node is
+recorded and never answered, and the asking node logs event 3520 once per such node; a `CancelPrevious`
+trigger still waits for that firing. See
+[Interrupting a firing on another node](tutorial/advanced-enterprise-features.md#interrupting-a-firing-on-another-node).
+
 ## Performance
 
 These are the only end-to-end firing figures published for 4.0, summarised from

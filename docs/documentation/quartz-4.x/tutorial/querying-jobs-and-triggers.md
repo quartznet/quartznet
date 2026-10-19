@@ -234,7 +234,8 @@ FireInstanceQuery reservedOnly = new() { State = FireInstanceState.Acquired };
   owning node recorded it. Its gap to `FireTimeUtc` is not misfire lateness.
 
 To stop a single firing, use `InterruptFireInstance(fireInstanceId)`. `Interrupt(jobKey)` stops every
-execution of the job.
+execution of the job. On a cluster both reach the node running the firing; see
+[Interrupting a firing on another node](advanced-enterprise-features.md#interrupting-a-firing-on-another-node).
 
 ## Group pause state
 
