@@ -227,19 +227,7 @@ public static class QuartzBuilderExtensions
 
         SchedulerContent.Register(builder.Services, builder.SchedulerName, serviceProvider =>
         {
-            var c = TriggerBuilder.Create<TJob>(serviceProvider.GetService<TimeProvider>());
-            configure.Invoke(serviceProvider, c);
-
-            // Read before Build, which generates a key for a trigger given none and keeps it.
-            bool identityGenerated = c.Key is null;
-            var trigger = c.Build();
-
-            if (trigger.JobKey is null)
-            {
-                Throw.InvalidOperationException(
-                    $"Trigger '{trigger.Key}' hasn't been associated with a job. Point it at one with .ForJob(...), "
-                    + "or add the job and its trigger together with ScheduleJob<T>(...).");
-            }
+            (ITrigger trigger, bool identityGenerated) = BuildRegisteredTrigger(serviceProvider, configure);
 
             SchedulerContent content = new SchedulerContent().Add(trigger);
             if (identityGenerated)
@@ -255,6 +243,88 @@ public static class QuartzBuilderExtensions
         });
 
         return builder;
+    }
+
+    /// <summary>
+    /// Adds a trigger whose schedule a configuration value can replace or switch off: what Quartz's source
+    /// generator writes for a <c>[CronTrigger]</c> or <c>[SimpleTrigger]</c> with a <c>ConfigurationKey</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <paramref name="read" /> reads the value as the scheduler is built. Exactly <c>-</c>, surrounding
+    /// white space aside, switches the trigger off: it is not scheduled, and one stored under its key is
+    /// unscheduled as the registrations are applied, with log event <c>4032</c>. A non-durable job whose
+    /// every trigger is switched off is not stored, and a stored copy goes with its last trigger.
+    /// </para>
+    /// <para>
+    /// Any other value, <see langword="null" /> where the key is not set, is handed to
+    /// <paramref name="configure" />, which spells the schedule from it and refuses one it cannot read.
+    /// Switched off, <paramref name="configure" /> is handed <see langword="null" /> and builds the declared
+    /// schedule, for the key the trigger would have had; nothing it builds is stored.
+    /// </para>
+    /// <para>
+    /// The read is the caller's, so the generated file is the one that names <c>IConfiguration</c>, and
+    /// <c>QZ1005</c> can say when an assembly cannot. Generated code calls this; an application can too.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TJob">The type of job the trigger fires.</typeparam>
+    /// <param name="builder">The builder.</param>
+    /// <param name="configurationKey">The key the schedule is read from, named in the log when it switches the trigger off.</param>
+    /// <param name="read">Reads the value at a key, given the scheduler's view of the container.</param>
+    /// <param name="configure">Configures the trigger, given the container and the configured value.</param>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null" />.</exception>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static IQuartzBuilder AddConfiguredTrigger<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
+        this IQuartzBuilder builder,
+        string configurationKey,
+        Func<IServiceProvider, string, string?> read,
+        Action<IServiceProvider, string?, ITriggerConfigurator<TJob>> configure) where TJob : IJob
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configurationKey);
+        ArgumentNullException.ThrowIfNull(read);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        SchedulerContent.Register(builder.Services, builder.SchedulerName, serviceProvider =>
+        {
+            string? configured = read(serviceProvider, configurationKey);
+            bool switchedOff = ConfiguredSchedule.IsSwitchedOff(configured);
+
+            (ITrigger trigger, _) = BuildRegisteredTrigger<TJob>(
+                serviceProvider,
+                (services, triggerConfigurator) => configure(services, switchedOff ? null : configured, triggerConfigurator));
+
+            return switchedOff
+                ? new SchedulerContent().Add(new SwitchedOffTrigger(trigger.Key, trigger.JobKey, configurationKey))
+                : new SchedulerContent().Add(trigger);
+        });
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Builds the trigger a container registration configures, refusing one that names no job.
+    /// </summary>
+    /// <returns>The trigger, and whether its key was generated because it was given none.</returns>
+    private static (ITrigger Trigger, bool IdentityGenerated) BuildRegisteredTrigger<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
+        IServiceProvider serviceProvider,
+        Action<IServiceProvider, ITriggerConfigurator<TJob>> configure) where TJob : IJob
+    {
+        var c = TriggerBuilder.Create<TJob>(serviceProvider.GetService<TimeProvider>());
+        configure.Invoke(serviceProvider, c);
+
+        // Read before Build, which generates a key for a trigger given none and keeps it.
+        bool identityGenerated = c.Key is null;
+        var trigger = c.Build();
+
+        if (trigger.JobKey is null)
+        {
+            Throw.InvalidOperationException(
+                $"Trigger '{trigger.Key}' hasn't been associated with a job. Point it at one with .ForJob(...), "
+                + "or add the job and its trigger together with ScheduleJob<T>(...).");
+        }
+
+        return (trigger, identityGenerated);
     }
 
     /// <summary>

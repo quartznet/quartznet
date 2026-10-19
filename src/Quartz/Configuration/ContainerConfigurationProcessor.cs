@@ -18,6 +18,7 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
     private readonly List<IJobDetail> jobs;
     private readonly List<ITrigger> triggers;
     private readonly List<GeneratedIdentity> generatedIdentities;
+    private readonly List<SwitchedOffTrigger> switchedOff;
 
     /// <summary>
     /// The most trigger keys <see cref="ReportPinsUnderGeneratedInstanceId" /> names; the rest are counted.
@@ -43,9 +44,55 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
         // Materialized once: each registration builds its jobs and triggers when it is first resolved,
         // and enumerating twice would be two passes over the same lazily built content.
         ISchedulerContent[] parts = content.ToArray();
-        jobs = parts.SelectMany(x => x.Jobs).ToList();
         triggers = parts.SelectMany(x => x.Triggers).ToList();
+        switchedOff = parts.SelectMany(x => x.SwitchedOffTriggers).ToList();
+        jobs = WithoutJobsLeftUntriggered(parts.SelectMany(x => x.Jobs), triggers, switchedOff);
         generatedIdentities = parts.Select(x => x.GeneratedIdentity).OfType<GeneratedIdentity>().ToList();
+    }
+
+    /// <summary>
+    /// The jobs to store, less every non-durable one whose triggers were all switched off.
+    /// </summary>
+    /// <remarks>
+    /// Such a job has nothing left to fire it, and storing a non-durable job without a trigger is refused,
+    /// so it is left out rather than failing the start. A copy already stored goes as non-durable jobs do:
+    /// with the last of its triggers, which <see cref="ScheduleJobs" /> unschedules.
+    /// </remarks>
+    private static List<IJobDetail> WithoutJobsLeftUntriggered(
+        IEnumerable<IJobDetail> jobs,
+        List<ITrigger> triggers,
+        List<SwitchedOffTrigger> switchedOff)
+    {
+        if (switchedOff.Count == 0)
+        {
+            return jobs.ToList();
+        }
+
+        HashSet<JobKey> triggered = [.. triggers.Select(x => x.JobKey)];
+        HashSet<JobKey> lostTriggers = [.. switchedOff.Select(x => x.JobKey)];
+
+        return jobs
+            .Where(job => job.Durable || triggered.Contains(job.Key) || !lostTriggers.Contains(job.Key))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Unschedules every switched-off trigger a store already holds, saying so once for each, then stores
+    /// the rest.
+    /// </summary>
+    /// <remarks>
+    /// First, as a file's delete commands are: a non-durable job whose only stored trigger is switched off is
+    /// deleted with it, before the registrations that remain are applied.
+    /// </remarks>
+    public override async ValueTask ScheduleJobs(IScheduler scheduler, CancellationToken cancellationToken = default)
+    {
+        foreach (SwitchedOffTrigger trigger in switchedOff)
+        {
+            bool unscheduled = await scheduler.UnscheduleJob(trigger.Key, cancellationToken).ConfigureAwait(false);
+            logger.TriggerSwitchedOffByConfiguration(trigger.Key, trigger.Source, unscheduled);
+        }
+
+        await base.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

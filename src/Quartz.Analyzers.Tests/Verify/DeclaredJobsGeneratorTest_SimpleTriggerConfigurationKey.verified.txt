@@ -22,11 +22,11 @@ namespace Quartz
             builder.AddJob<global::App.PollJob>(job => job
                 .WithIdentity("PollJob"));
 
-            builder.AddTrigger<global::App.PollJob>((services, trigger) => trigger
+            builder.AddConfiguredTrigger<global::App.PollJob>("Jobs:Poll:Interval", Configured, (services, configured, trigger) => trigger
                 .WithIdentity("PollJob")
                 .ForJob("PollJob")
                 .WithSimpleSchedule(simple => simple
-                    .WithInterval(ConfiguredInterval(services, "Jobs:Poll:Interval", global::System.TimeSpan.FromTicks(6000000000))) // 00:10:00
+                    .WithInterval(ConfiguredInterval(configured, "Jobs:Poll:Interval", global::System.TimeSpan.FromTicks(6000000000))) // 00:10:00
                     .RepeatForever()));
 
             builder.AddTrigger<global::App.PollJob>(trigger => trigger
@@ -57,20 +57,31 @@ namespace Quartz
         }
 
         /// <summary>
-        /// The interval configured at <paramref name="key" />, or <paramref name="declared" />, the
-        /// attribute's own, where the key is not set or no configuration is registered.
+        /// The value configured at <paramref name="key" />, or <see langword="null" /> where the key is
+        /// not set or no configuration is registered.
         /// </summary>
         /// <param name="services">The scheduler's view of the container.</param>
         /// <param name="key">The attribute's <c>ConfigurationKey</c>.</param>
-        /// <param name="declared">The attribute's interval.</param>
-        /// <returns>The interval the trigger fires on.</returns>
-        /// <exception cref="global::System.FormatException">The configured value is not a positive invariant <c>TimeSpan</c>.</exception>
-        private static global::System.TimeSpan ConfiguredInterval(global::System.IServiceProvider services, string key, global::System.TimeSpan declared)
+        /// <returns>The configured schedule, which <c>-</c> switches off.</returns>
+        private static string? Configured(global::System.IServiceProvider services, string key)
         {
             global::Microsoft.Extensions.Configuration.IConfiguration? configuration =
                 services.GetService(typeof(global::Microsoft.Extensions.Configuration.IConfiguration)) as global::Microsoft.Extensions.Configuration.IConfiguration;
 
-            string? configured = configuration?[key];
+            return configuration?[key];
+        }
+
+        /// <summary>
+        /// The interval <paramref name="configured" /> spells, or <paramref name="declared" />, the
+        /// attribute's own, where nothing is configured.
+        /// </summary>
+        /// <param name="configured">The value configured at <paramref name="key" />, or <see langword="null" />.</param>
+        /// <param name="key">The attribute's <c>ConfigurationKey</c>.</param>
+        /// <param name="declared">The attribute's interval.</param>
+        /// <returns>The interval the trigger fires on.</returns>
+        /// <exception cref="global::System.FormatException">The configured value is not a positive invariant <c>TimeSpan</c>.</exception>
+        private static global::System.TimeSpan ConfiguredInterval(string? configured, string key, global::System.TimeSpan declared)
+        {
             if (configured is null)
             {
                 return declared;

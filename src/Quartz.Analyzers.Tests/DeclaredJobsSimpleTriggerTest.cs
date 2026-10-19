@@ -118,10 +118,9 @@ public class DeclaredJobsSimpleTriggerTest
         GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Snippet(ConfiguredDeclarations));
 
         run.Diagnostics.Should().BeEmpty();
-        run.Generated.Should().Contain("builder.AddTrigger<global::App.PollJob>((services, trigger) => trigger",
-            "an interval read from configuration needs the container, which only the (IServiceProvider, …) overload is handed");
-        run.Generated.Should().Contain("ConfiguredInterval(services, \"Jobs:Poll:Interval\", global::System.TimeSpan.FromTicks(6000000000))");
-        run.Generated.Should().NotContain("ConfiguredCronExpression", "a helper nothing calls is not written");
+        run.Generated.Should().Contain("builder.AddConfiguredTrigger<global::App.PollJob>(\"Jobs:Poll:Interval\", Configured, (services, configured, trigger) => trigger",
+            "an interval read from configuration goes through the call that reads the value and decides what it means");
+        run.Generated.Should().Contain("ConfiguredInterval(configured, \"Jobs:Poll:Interval\", global::System.TimeSpan.FromTicks(6000000000))");
         run.Generated.Should().NotContain("System.Reflection").And.NotContain("Type.GetType",
             "the read is a service lookup, which a trimmed or native publish keeps");
 
@@ -328,6 +327,16 @@ public class DeclaredJobsSimpleTriggerTest
 
         (await SimpleTriggerOf(built.Scheduler, "PollJob")).RepeatInterval.Should().Be(TimeSpan.FromMinutes(10),
             "an unset key falls back to the interval the analyzer checked");
+    }
+
+    [Test]
+    public async Task ADashSwitchesTheConfiguredIntervalOff()
+    {
+        await using Built built = await Build(ConfiguredDeclarations, new Dictionary<string, string?> { ["Jobs:Poll:Interval"] = "-" });
+
+        (await built.Scheduler.GetTrigger(new TriggerKey("PollJob"))).Should().BeNull(
+            "'-' switches the interval's trigger off rather than reaching the TimeSpan parser");
+        (await SimpleTriggerOf(built.Scheduler, "warm-up")).RepeatCount.Should().Be(3, "the job's other trigger is untouched");
     }
 
     /// <summary>

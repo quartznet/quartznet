@@ -59,13 +59,19 @@ internal static class DeclaredJobsEmitter
     private const string TimeSpanTypeName = "global::System.TimeSpan";
 
     /// <summary>
-    /// The generated helper a <c>[CronTrigger]</c> with a <c>ConfigurationKey</c> reads its expression
-    /// through.
+    /// The generated helper a trigger with a <c>ConfigurationKey</c> has its value read through, handed to
+    /// <c>AddConfiguredTrigger</c>.
     /// </summary>
-    private const string ConfiguredCronExpressionName = "ConfiguredCronExpression";
+    private const string ConfiguredValueName = "Configured";
 
     /// <summary>
-    /// The generated helper a <c>[SimpleTrigger]</c> with a <c>ConfigurationKey</c> reads its interval
+    /// The parameter a configured trigger's callback is handed the value in: <see langword="null" /> where
+    /// the key is not set.
+    /// </summary>
+    private const string ConfiguredParameterName = "configured";
+
+    /// <summary>
+    /// The generated helper a <c>[SimpleTrigger]</c> with a <c>ConfigurationKey</c> parses its interval
     /// through.
     /// </summary>
     private const string ConfiguredIntervalName = "ConfiguredInterval";
@@ -140,9 +146,9 @@ internal static class DeclaredJobsEmitter
             AppendAssemblyMethod(source, registration.AssemblyMethodName);
         }
 
-        if (jobs.Any(x => x.Triggers.Any(y => y.ConfigurationKey is not null && y.Schedule is DeclaredCronSchedule)))
+        if (jobs.Any(x => x.Triggers.Any(y => y.ConfigurationKey is not null)))
         {
-            AppendConfiguredCronExpression(source);
+            AppendConfiguredValue(source);
         }
 
         if (jobs.Any(x => x.Triggers.Any(y => y.ConfigurationKey is not null && y.Schedule is DeclaredSimpleSchedule)))
@@ -180,36 +186,36 @@ internal static class DeclaredJobsEmitter
     }
 
     /// <summary>
-    /// The read a <c>ConfigurationKey</c> turns into, written once and called by every trigger that has one.
+    /// The read a <c>ConfigurationKey</c> turns into, written once and handed to every
+    /// <c>AddConfiguredTrigger</c>, which decides what the value means: <c>-</c> switches the trigger off.
     /// </summary>
     /// <remarks>
     /// <c>GetService(Type)</c> rather than the generic extension, so the file names only
     /// <c>IConfiguration</c>, which is exactly what the generator checks the compilation for. Nothing here
     /// reflects: it is the lookup a hand-written <c>(services, trigger) =&gt;</c> registration would make.
     /// </remarks>
-    private static void AppendConfiguredCronExpression(StringBuilder source)
+    private static void AppendConfiguredValue(StringBuilder source)
     {
         source.AppendLine();
         source.AppendLine("        /// <summary>");
-        source.AppendLine("        /// The cron expression configured at <paramref name=\"key\" />, or <paramref name=\"declared\" />,");
-        source.AppendLine("        /// the attribute's own, where the key is not set or no configuration is registered.");
+        source.AppendLine("        /// The value configured at <paramref name=\"key\" />, or <see langword=\"null\" /> where the key is");
+        source.AppendLine("        /// not set or no configuration is registered.");
         source.AppendLine("        /// </summary>");
         source.AppendLine("        /// <param name=\"services\">The scheduler's view of the container.</param>");
         source.AppendLine("        /// <param name=\"key\">The attribute's <c>ConfigurationKey</c>.</param>");
-        source.AppendLine("        /// <param name=\"declared\">The attribute's cron expression.</param>");
-        source.AppendLine("        /// <returns>The expression the trigger fires on.</returns>");
-        source.AppendLine($"        private static string {ConfiguredCronExpressionName}(global::System.IServiceProvider services, string key, string declared)");
+        source.AppendLine("        /// <returns>The configured schedule, which <c>-</c> switches off.</returns>");
+        source.AppendLine($"        private static string? {ConfiguredValueName}(global::System.IServiceProvider services, string key)");
         source.AppendLine("        {");
         source.Append(BodyIndent).AppendLine($"{ConfigurationTypeName}? configuration =");
         source.Append(BodyIndent).AppendLine($"    services.GetService(typeof({ConfigurationTypeName})) as {ConfigurationTypeName};");
         source.AppendLine();
-        source.Append(BodyIndent).AppendLine("return configuration?[key] ?? declared;");
+        source.Append(BodyIndent).AppendLine("return configuration?[key];");
         source.AppendLine("        }");
     }
 
     /// <summary>
-    /// The read a <c>[SimpleTrigger]</c>'s <c>ConfigurationKey</c> turns into, written once and called by
-    /// every interval that has one.
+    /// The parse a <c>[SimpleTrigger]</c>'s configured value turns into, written once and called by every
+    /// interval that has one.
     /// </summary>
     /// <remarks>
     /// The configured string is parsed as the attribute's is, invariantly, and a value that is not a
@@ -220,20 +226,16 @@ internal static class DeclaredJobsEmitter
     {
         source.AppendLine();
         source.AppendLine("        /// <summary>");
-        source.AppendLine("        /// The interval configured at <paramref name=\"key\" />, or <paramref name=\"declared\" />, the");
-        source.AppendLine("        /// attribute's own, where the key is not set or no configuration is registered.");
+        source.AppendLine("        /// The interval <paramref name=\"configured\" /> spells, or <paramref name=\"declared\" />, the");
+        source.AppendLine("        /// attribute's own, where nothing is configured.");
         source.AppendLine("        /// </summary>");
-        source.AppendLine("        /// <param name=\"services\">The scheduler's view of the container.</param>");
+        source.AppendLine("        /// <param name=\"configured\">The value configured at <paramref name=\"key\" />, or <see langword=\"null\" />.</param>");
         source.AppendLine("        /// <param name=\"key\">The attribute's <c>ConfigurationKey</c>.</param>");
         source.AppendLine("        /// <param name=\"declared\">The attribute's interval.</param>");
         source.AppendLine("        /// <returns>The interval the trigger fires on.</returns>");
         source.AppendLine("        /// <exception cref=\"global::System.FormatException\">The configured value is not a positive invariant <c>TimeSpan</c>.</exception>");
-        source.AppendLine($"        private static {TimeSpanTypeName} {ConfiguredIntervalName}(global::System.IServiceProvider services, string key, {TimeSpanTypeName} declared)");
+        source.AppendLine($"        private static {TimeSpanTypeName} {ConfiguredIntervalName}(string? configured, string key, {TimeSpanTypeName} declared)");
         source.AppendLine("        {");
-        source.Append(BodyIndent).AppendLine($"{ConfigurationTypeName}? configuration =");
-        source.Append(BodyIndent).AppendLine($"    services.GetService(typeof({ConfigurationTypeName})) as {ConfigurationTypeName};");
-        source.AppendLine();
-        source.Append(BodyIndent).AppendLine("string? configured = configuration?[key];");
         source.Append(BodyIndent).AppendLine("if (configured is null)");
         source.Append(BodyIndent).AppendLine("{");
         source.Append(BodyIndent).AppendLine("    return declared;");
@@ -310,13 +312,16 @@ internal static class DeclaredJobsEmitter
             ? $".ForJob({Literal(job.Name)})"
             : $".ForJob({Literal(job.Name)}, {Literal(job.Group)})";
 
-        // A schedule read from configuration needs the container, which only the (services, trigger)
-        // overload is handed; one that is the attribute's alone keeps the shorter call.
-        string configurator = trigger.ConfigurationKey is null ? "trigger" : "(services, trigger)";
+        // A schedule read from configuration goes through AddConfiguredTrigger, which reads the value with
+        // the helper this file declares and decides what it means — "-" switches the trigger off — before
+        // the callback spells the schedule from it. One that is the attribute's alone keeps the shorter call.
+        string call = trigger.ConfigurationKey is null
+            ? $"builder.AddTrigger<{job.TypeName}>(trigger => trigger"
+            : $"builder.AddConfiguredTrigger<{job.TypeName}>({Literal(trigger.ConfigurationKey)}, {ConfiguredValueName}, (services, {ConfiguredParameterName}, trigger) => trigger";
 
         List<string> lines =
         [
-            $"builder.AddTrigger<{job.TypeName}>({configurator} => trigger",
+            call,
             "    " + Identity(trigger.Name, trigger.Group),
             "    " + forJob,
         ];
@@ -362,7 +367,7 @@ internal static class DeclaredJobsEmitter
 
         string expression = trigger.ConfigurationKey is null
             ? Literal(cron.CronExpression)
-            : $"{ConfiguredCronExpressionName}(services, {Literal(trigger.ConfigurationKey)}, {Literal(cron.CronExpression)})";
+            : $"{ConfiguredParameterName} ?? {Literal(cron.CronExpression)}";
 
         if (schedule.Count == 0)
         {
@@ -413,7 +418,7 @@ internal static class DeclaredJobsEmitter
 
         string interval = trigger.ConfigurationKey is null
             ? declared
-            : $"{ConfiguredIntervalName}(services, {Literal(trigger.ConfigurationKey)}, {declared})";
+            : $"{ConfiguredIntervalName}({ConfiguredParameterName}, {Literal(trigger.ConfigurationKey)}, {declared})";
 
         List<string> schedule =
         [

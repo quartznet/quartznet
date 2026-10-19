@@ -226,6 +226,7 @@ public sealed class DailyReportJob : IJob
 |---|---|
 | set | the configured value |
 | not set, or no `IConfiguration` registered | the attribute's expression or interval |
+| set to `-` (4.7) | none: the trigger is not scheduled, and a copy the store holds under its key is unscheduled at startup |
 | set to a value the parser refuses, empty included | none: building the scheduler throws `FormatException`, so the host does not start |
 
 * A configured interval is an invariant `TimeSpan` string, as the attribute's is: `"00:05:00"`. One that
@@ -234,10 +235,32 @@ public sealed class DailyReportJob : IJob
 * A configured value is checked only at run time, when the scheduler is built.
 * Only the expression or interval comes from configuration; `Name`, `TimeZone`, `RepeatCount` and the
   rest stay the attribute's.
-* The generated registration reads it through `(services, trigger) => …`, the same lookup a
-  hand-written one makes. Nothing is reflected, so it stays trimming- and AOT-safe.
+* The generated registration reads the key with `IConfiguration`, the same lookup a hand-written one
+  makes, and hands the value to `AddConfiguredTrigger`. Nothing is reflected, so it stays trimming- and
+  AOT-safe.
 * An assembly that does not reference `Microsoft.Extensions.Configuration.Abstractions` cannot read the
   key: [`QZ1005`](#qz1005-configurationkeywithoutconfiguration).
+
+### Switching one trigger off
+
+From 4.7, a configured value of `-` switches the trigger off, as Spring's `CRON_DISABLED` does:
+
+```json
+{
+  "Jobs": {
+    "Report": {
+      "Cron": "-"
+    }
+  }
+}
+```
+
+* The trigger is not scheduled. A copy a persistent store holds under its key is unscheduled at startup.
+* Each switched-off trigger logs event `4032` (Information) once at startup, naming the key.
+* A non-durable job is deleted with its last trigger, as always. One whose every trigger is switched off
+  is not stored.
+* Only `-` itself, surrounding spaces aside: `--` or `-00:10:00` is a value the parser refuses.
+* The [`Quartz:Schedule` section](../configuration/json.md#switching-a-trigger-off) takes the same spelling.
 
 ## One scheduler out of several
 
