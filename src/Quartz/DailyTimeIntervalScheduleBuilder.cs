@@ -324,11 +324,20 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder, ITimePr
     /// the count, the interval and the StartTimeOfDay.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The calculation is deferred to <see cref="Build" />, so it sees the schedule's final start
     /// time, interval and time zone regardless of the order the builder was configured in, and it
     /// runs against the clock of the <see cref="TriggerBuilder{TJob}" /> that builds the trigger.
     /// A count too large for the daily window is therefore reported by <see cref="Build" />, not by
     /// this call.
+    /// </para>
+    /// <para>
+    /// It reads the day in the zone <see cref="InTimeZone" /> named, or <see cref="TimeZoneInfo.Local" />:
+    /// a scheduler's <see cref="QuartzSchedulerOptions.DefaultTimeZone" /> is given to the trigger only
+    /// when it is scheduled, after this has run. The zone matters only on the build day, and only when
+    /// that day is one the zone changes its clocks on, which makes it longer or shorter than 24 hours.
+    /// Name the zone with <see cref="InTimeZone" /> to have that day read in it.
+    /// </para>
     /// </remarks>
     /// <param name="count">the number of firings per day (&gt;= 1).</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>

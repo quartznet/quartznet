@@ -67,6 +67,10 @@ services.AddQuartz(q => q.UseDefaultTimeZone(TimeZoneInfo.Utc));
   over the HTTP API arrives deserialized, so it keeps the zone the client gave it.
 * Simple triggers and `TriggerJob`'s one-shot triggers have no zone. A `CronExpression` used on its own
   reads its own.
+* A daily time-interval schedule's `EndingDailyAfterCount` works out the window's end when the trigger is
+  built, in its `InTimeZone` zone or else the machine's: the default does not reach it. The two give the
+  same end except on a day either zone changes its clocks. Name the zone with `InTimeZone` if that day
+  matters.
 * Configuration: `Scheduler:DefaultTimeZone` or the flat key `quartz.scheduler.defaultTimeZone`, an IANA
   or Windows id; an id the system cannot resolve stops the scheduler starting. Each node applies its own,
   so set the same on every node.
