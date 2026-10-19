@@ -198,7 +198,7 @@ public async ValueTask RunNow(IScheduler scheduler, ILogger logger, SendInvoice 
 * Trimmed or native AOT: declare the input type with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver`.
 * Over `HttpScheduler`, pass a string. A structured input is refused before it is sent, because the wire
   carries it as a job data value. Serialize it to the JSON the host's serializer reads.
-* `TriggerJob(jobKey, token)` throws `ArgumentException`. Name the token: `cancellationToken: token`.
+* `TriggerJob(jobKey, token)` fires the job with no input, as `TriggerJob(jobKey, cancellationToken: token)` does.
 
 ## Scheduling the same name twice
 

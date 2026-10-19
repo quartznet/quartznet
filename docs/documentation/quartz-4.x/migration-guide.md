@@ -68,6 +68,7 @@ measure from completion only once every node is 4.7. See [Version 4.7](../databa
 | `QuartzBuilderExtensions.AddConfiguredTrigger<TJob>(this IQuartzBuilder, string, Func<IServiceProvider, string, string?>, Action<IServiceProvider, string?, ITriggerConfigurator<TJob>>)` | What the generator now writes for a `ConfigurationKey`: a trigger whose configured value replaces its schedule, or with `-` switches it off. Hidden from IntelliSense |
 | Log event `4032` | A trigger switched off by a configured `-` (Information) |
 | `SchedulerJobExtensions.TriggerJob<TInput>(this IScheduler, JobKey, TInput, CancellationToken)` | Fires a stored `IJob<TInput>` now with its input, as `TriggerJob` fires a job, and returns the trigger's `TriggerKey`. See [A stored typed job, run now](how-tos/one-off-job.md#a-stored-typed-job-run-now) |
+| `SchedulerJobExtensions.TriggerJob(this IScheduler, JobKey, CancellationToken)` | `TriggerJob(jobKey, token)`, which did not compile, fires the job with no data. It forwards to `TriggerJob(jobKey, null, token)` |
 
 Behaviour that changed:
 

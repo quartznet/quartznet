@@ -50,6 +50,7 @@ public sealed class TypedTriggerJobTest
     public void SetUp()
     {
         Runs.Reset();
+        PlainRuns.Reset();
     }
 
     [TearDown]
@@ -175,18 +176,78 @@ public sealed class TypedTriggerJobTest
     }
 
     /// <summary>
-    /// <c>TriggerJob(jobKey, token)</c> compiles against the extension, because the member's second parameter is
-    /// a <see cref="JobDataMap" />. What it means is a fire-now with no input, so it is refused as that.
+    /// <c>TriggerJob(jobKey, token)</c> was a compile error before the typed extension, and with it alone would
+    /// bind the token as the input. The non-generic overload makes it the fire-now it reads as.
     /// </summary>
     [Test]
-    public async Task ACancellationTokenInTheInputsPlaceIsRefused()
+    public async Task ATokenAsTheSecondArgumentFiresTheJobWithNoInput()
+    {
+        (IScheduler scheduler, _) = await Build();
+        JobKey job = await AddDurable<PlainJob>(scheduler, "plain");
+        await scheduler.Start();
+        using CancellationTokenSource source = new();
+
+        await scheduler.TriggerJob(job, source.Token);
+
+        PlainRun run = await PlainRuns.Of(job).WaitAsync(waitLimit);
+        run.Manual.Should().Be("true", "it is the firing TriggerJob makes, marked manual");
+        run.HasInput.Should().BeFalse("the token is the cancellation instruction, not a payload");
+    }
+
+    [Test]
+    public async Task ATokenAsTheSecondArgumentReachesTheInterfaceMemberWithNoData()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        JobKey job = new("invoice", JobGroup);
+        using CancellationTokenSource source = new();
+
+        await scheduler.TriggerJob(job, source.Token);
+
+        A.CallTo(() => scheduler.TriggerJob(job, null, source.Token)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.ScheduleJob(A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// The instance member still wins for a <see cref="JobDataMap" /> and for <see langword="null" />: neither
+    /// call reaches the typed extension, which would read the job and schedule a trigger of its own.
+    /// </summary>
+    [Test]
+    public async Task AMapOrANullAsTheSecondArgumentStillBindsToTheInterfaceMember()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        JobKey job = new("invoice", JobGroup);
+        JobDataMap map = new() { ["reason"] = "rerun" };
+
+        await scheduler.TriggerJob(job, (JobDataMap?) null);
+        await scheduler.TriggerJob(job, map);
+
+        A.CallTo(() => scheduler.TriggerJob(job, null, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.TriggerJob(job, map, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.ScheduleJob(A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A token only reaches the typed overload when the type argument is spelled out, and it is not a payload.
+    /// </summary>
+    [Test]
+    public async Task AnExplicitTokenInputIsRefused()
     {
         IScheduler scheduler = A.Fake<IScheduler>();
 
-        Func<Task> act = async () => await scheduler.TriggerJob(new JobKey("invoice", JobGroup), CancellationToken.None);
+        Func<Task> act = async () => await scheduler.TriggerJob<CancellationToken>(new JobKey("invoice", JobGroup), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*cancellationToken: token*");
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*not a job input*");
         A.CallTo(scheduler).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task TheTokenOverloadRefusesANullSchedulerOrJobKey()
+    {
+        Func<Task> noScheduler = async () => await SchedulerJobExtensions.TriggerJob(null!, new JobKey("invoice", JobGroup), CancellationToken.None);
+        Func<Task> noJob = async () => await A.Fake<IScheduler>().TriggerJob(null!, CancellationToken.None);
+
+        await noScheduler.Should().ThrowAsync<ArgumentNullException>().WithParameterName("scheduler");
+        await noJob.Should().ThrowAsync<ArgumentNullException>().WithParameterName("jobKey");
     }
 
     [Test]
@@ -315,6 +376,36 @@ public sealed class TypedTriggerJobTest
         private static TaskCompletionSource<Run> SourceFor(JobKey job)
         {
             return firstRuns.GetOrAdd(job, _ => new TaskCompletionSource<Run>(TaskCreationOptions.RunContinuationsAsynchronously));
+        }
+    }
+
+    private sealed record PlainRun(string? Manual, bool HasInput);
+
+    /// <summary>What each plain job's first run carried, by job.</summary>
+    private static class PlainRuns
+    {
+        private static readonly ConcurrentDictionary<JobKey, TaskCompletionSource<PlainRun>> firstRuns = new();
+
+        public static Task<PlainRun> Of(JobKey job) => SourceFor(job).Task;
+
+        public static void Record(IJobExecutionContext context) => SourceFor(context.JobDetail.Key).TrySetResult(new PlainRun(
+            context.MergedJobDataMap.GetString(SchedulerConstants.ManualTrigger),
+            context.MergedJobDataMap.ContainsKey(SchedulerConstants.JobInput)));
+
+        public static void Reset() => firstRuns.Clear();
+
+        private static TaskCompletionSource<PlainRun> SourceFor(JobKey job)
+        {
+            return firstRuns.GetOrAdd(job, _ => new TaskCompletionSource<PlainRun>(TaskCreationOptions.RunContinuationsAsynchronously));
+        }
+    }
+
+    public sealed class PlainJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            PlainRuns.Record(context);
+            return default;
         }
     }
 
