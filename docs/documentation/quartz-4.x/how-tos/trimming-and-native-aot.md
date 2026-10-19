@@ -57,7 +57,7 @@ arrived in .NET 10, and many compatible libraries do not declare it. Treat the l
 
 | Package | Trimmable | `IsAotCompatible` | What proves it natively | What a trimmed publish reports against it |
 |---|---|---|---|---|
-| `Quartz` | yes | yes | `Quartz.Trimming.Canary`: a SQLite store, one over a registered `DbDataSource`, configuration binding, job data bound without `TypeConverter`, a type name refused once the switches are off | nothing |
+| `Quartz` | yes | yes | `Quartz.Trimming.Canary`: a SQLite store, one over a registered `DbDataSource`, configuration binding, job data bound without `TypeConverter`, a type name refused once the switches are off, an application type declared once for job data and a typed input | nothing |
 | `Quartz.Jobs` | yes | yes | `Quartz.Trimming.Canary`: `DirectoryScanJob` finds its listener by name | nothing |
 | `Quartz.Plugins` | yes | yes | `Quartz.Trimming.Canary`: JSON and XML schedule files, structured job logging | nothing |
 | `Quartz.Plugins.TimeZoneConverter` | yes | yes | `Quartz.Trimming.Canary`, published without ICU: a zone only the converter resolves | nothing |
@@ -262,13 +262,17 @@ services.AddQuartz(q =>
 * A type the trimmed application never registers is refused by name, not found by reflection. The message
   says which call to add.
 
-### Declare your own job-data value types
+### Declare your own job-data and input types
 
 `PublishTrimmed` (implied by `PublishAot`) sets the `System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault`
-feature switch to false. That matters only with a **persistent job store**, which writes triggers,
-calendars and `JobDataMap`s through `IObjectSerializer`.
+feature switch to false. Two serializers then need metadata for a type of your own:
 
-The default serializer's source-generated contract already covers:
+| Serializer | Writes | Used by |
+|---|---|---|
+| The store's `IObjectSerializer` | triggers, calendars, `JobDataMap`s | a persistent job store |
+| `IJobInputSerializer` | an `IJob<TInput>`'s input | every store, `RAMJobStore` included |
+
+Quartz's source-generated contract already covers:
 
 * every trigger and calendar type, `CronExpression`, and the `NameValueCollection` written under
   `useProperties`;
@@ -278,10 +282,9 @@ The default serializer's source-generated contract already covers:
 * your own trigger and calendar types, via `AddTriggerSerializer<TTrigger>` and
   `AddCalendarSerializer<TCalendar>`.
 
-A job-data value of your own type (an enum, say) has no metadata, and writing it throws
-`NotSupportedException` naming it. Generate the metadata:
+Anything else of your own, such as a job-data enum or an input record, needs generated metadata:
 
-<!-- snippet: sample_trimming_job_data_context -->
+<!-- snippet: sample_trimming_json_context -->
 ```csharp
 // A job data value type of this application's own, which no contract of Quartz's can name.
 public enum ReportFormat
@@ -290,28 +293,51 @@ public enum ReportFormat
     Pdf
 }
 
-// The metadata the registry is handed. Only a trimmed or native AOT publish needs it: with reflection
+// A typed job's input: an IJob<ReportRequest> is scheduled with UsingInput(new ReportRequest(…)).
+public sealed record ReportRequest(string Title, ReportFormat Format);
+
+// The metadata the scheduler is handed. Only a trimmed or native AOT publish needs it: with reflection
 // on, the resolver chain still ends in reflection and this changes nothing.
 [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
 [JsonSerializable(typeof(ReportFormat))]
-internal sealed partial class ReportJobDataContext : JsonSerializerContext;
+[JsonSerializable(typeof(ReportRequest))]
+internal sealed partial class ReportJsonContext : JsonSerializerContext;
 ```
 <!-- endSnippet -->
 
-and hand it to the registry:
+Hand it to the scheduler once. Both serializers read it:
 
-<!-- snippet: sample_trimming_job_data_resolver -->
+<!-- snippet: sample_trimming_json_type_info_resolver -->
 ```csharp
-services.AddQuartz(q => q.UsePersistentStore(store =>
+services.AddQuartz(q =>
 {
-    store.UseSqlite(SqliteFactory.Instance, connectionString);
-    store.UseSystemTextJsonSerializer(registry => registry.AddTypeInfoResolver(ReportJobDataContext.Default));
-}));
+    q.UsePersistentStore(store => store.UseSqlite(SqliteFactory.Instance, connectionString));
+
+    // Once, for both serializers: the store's, which writes job data, and the one that writes
+    // an IJob<TInput>'s input, which every store uses.
+    q.AddJsonTypeInfoResolver(ReportJsonContext.Default);
+});
 ```
 <!-- endSnippet -->
 
-`AddTypeInfoResolver` may be called repeatedly. Resolvers are asked in order, after Quartz's contract and
-before reflection. With reflection on it changes nothing, so configure it unconditionally.
+* Resolvers are asked after Quartz's contract and before reflection, in the order added. For several
+  contexts, call it once for each.
+* With reflection on it changes nothing, so configure it unconditionally.
+* Under `AddQuartz("name", …)` it reaches that scheduler's serializers only.
+* Job data reads a declared object back as a `Dictionary<string, string>` of its members, so give such a
+  type string members. An input comes back as its own type.
+* The store-level `store.UseSystemTextJsonSerializer(r => r.AddTypeInfoResolver(…))` still works, for job
+  data only: it does not reach inputs.
+* The HTTP API reads the container's registry instead. See
+  [System.Text.Json](../packages/system-text-json.md#making-custom-serializers-visible-outside-the-job-store).
+
+Without the metadata, the write fails, and the message names the type and `AddJsonTypeInfoResolver`:
+
+| Missing metadata for | Fails when | Exception |
+|---|---|---|
+| A job-data class or record | the job data map is written, reflection or not | `JsonSerializationException` |
+| A job-data enum | the job data map is written | `JsonSerializationException`, wrapping System.Text.Json's `NotSupportedException` |
+| An `IJob<TInput>` input | it is scheduled, or a stored one is read as the job runs | `NotSupportedException` |
 
 ::: warning Turning reflection back on is not a way round this
 `<JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>` does not
@@ -375,6 +401,9 @@ See [Feature switches](#feature-switches).
    data, the last five written as their own `ToString` writes them; a missing value for an `int?` is `null`
    and for a struct its zeroed default; a `Version` from `"1.2.3"` is refused with the message that names the property,
    both types and the switch. With the switch on, `VersionConverter` would have read it.
+10. **Application types.** A record of the canary's own, declared once with `AddJsonTypeInfoResolver` and
+    nowhere else, goes into a SQLite store as job data and comes back as its members, and as an
+    `IJob<TInput>` input comes back as itself. An input type nothing declared is refused naming the call.
 
 `src/Quartz.Trimming.Canary.Wire` does the same for the three packages that put a scheduler on a wire. One
 process serves a scheduler with `Quartz.AspNetCore` on Kestrel, drives it with `Quartz.HttpClient` over

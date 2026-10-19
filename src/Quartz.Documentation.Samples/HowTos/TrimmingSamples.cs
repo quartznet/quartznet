@@ -70,21 +70,24 @@ public static class TrimmingSamples
         #endregion
     }
 
-    public static void JobDataMetadataForATrimmedPublish(IServiceCollection services, string connectionString)
+    public static void DeclareApplicationTypesOnce(IServiceCollection services, string connectionString)
     {
-        #region sample_trimming_job_data_resolver
+        #region sample_trimming_json_type_info_resolver
 
-        services.AddQuartz(q => q.UsePersistentStore(store =>
+        services.AddQuartz(q =>
         {
-            store.UseSqlite(SqliteFactory.Instance, connectionString);
-            store.UseSystemTextJsonSerializer(registry => registry.AddTypeInfoResolver(ReportJobDataContext.Default));
-        }));
+            q.UsePersistentStore(store => store.UseSqlite(SqliteFactory.Instance, connectionString));
+
+            // Once, for both serializers: the store's, which writes job data, and the one that writes
+            // an IJob<TInput>'s input, which every store uses.
+            q.AddJsonTypeInfoResolver(ReportJsonContext.Default);
+        });
 
         #endregion
     }
 }
 
-#region sample_trimming_job_data_context
+#region sample_trimming_json_context
 
 // A job data value type of this application's own, which no contract of Quartz's can name.
 public enum ReportFormat
@@ -93,10 +96,14 @@ public enum ReportFormat
     Pdf
 }
 
-// The metadata the registry is handed. Only a trimmed or native AOT publish needs it: with reflection
+// A typed job's input: an IJob<ReportRequest> is scheduled with UsingInput(new ReportRequest(…)).
+public sealed record ReportRequest(string Title, ReportFormat Format);
+
+// The metadata the scheduler is handed. Only a trimmed or native AOT publish needs it: with reflection
 // on, the resolver chain still ends in reflection and this changes nothing.
 [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
 [JsonSerializable(typeof(ReportFormat))]
-internal sealed partial class ReportJobDataContext : JsonSerializerContext;
+[JsonSerializable(typeof(ReportRequest))]
+internal sealed partial class ReportJsonContext : JsonSerializerContext;
 
 #endregion
