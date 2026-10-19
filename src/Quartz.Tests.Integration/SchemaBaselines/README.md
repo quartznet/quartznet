@@ -54,9 +54,10 @@ Vendored verbatim from tag **`v4.3.0`**, the same files as `4.2/`.
 The Weasel tests migrate them to 4.4 and check that the apply only adds: five columns and an index on
 `QRTZ_EXECUTION_HISTORY`, and `QRTZ_JOB_STATUS`. The SQLite one is embedded by `Quartz.Tests.Unit`.
 
-`MixedVersionClusterPostgresTest` applies every migration since 4.3 over the PostgreSQL one, then runs a
-released 4.3 node beside a working-tree node on the result, both keeping their history there: the
-rolling upgrade an operator performs.
+`MixedVersionClusterPostgresTest` applies every migration through the previous minor over the PostgreSQL
+one, starts a released node of that minor on the result, runs the working tree's migrations while it is up,
+and then runs a working-tree node beside it, both keeping their history there: the rolling upgrade an
+operator performs.
 
 These are copies rather than something read out of git at run time on purpose: CI checks out shallow,
 so a `git show origin/3.x:...` in a test would fail on the very machines that run it. They are also
