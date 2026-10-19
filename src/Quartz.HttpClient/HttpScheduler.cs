@@ -68,7 +68,7 @@ namespace Quartz;
 /// listing reports such a scheduler as <see cref="SchedulerOrigin.Remote" />.
 /// </para>
 /// </remarks>
-public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler
+public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler
 {
     /// <summary>The first version whose schedule routes store a trigger paused.</summary>
     private static readonly Version FirstStoringPausedVersion = new(4, 4);
@@ -709,6 +709,46 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         }
 
         return wire.Read<BackfillResponse>(response).AsResult();
+    }
+
+    /// <summary>
+    /// The upcoming fire times in one request: the host's <c>fire-times</c> route computes them where the
+    /// trigger and its calendar are stored.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The answers are an in-process call's: <see langword="null" /> for a trigger the host does not hold, and
+    /// a missing calendar as <see cref="ObjectDoesNotExistException" />.
+    /// </para>
+    /// <para>
+    /// A host older than 4.7, or an agent that does not serve the route, answers <c>404</c> without problem
+    /// details. Its fire times are computed here instead, from the trigger and calendar it answers with. A
+    /// host or agent that refuses the route answers <c>403</c>, which is raised rather than worked around.
+    /// </para>
+    /// </remarks>
+    async ValueTask<List<DateTimeOffset>?> IUpcomingFireTimesScheduler.GetUpcomingFireTimes(
+        TriggerKey triggerKey,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        QueryStringBuilder query = new();
+        query.Add("count", count);
+
+        WireResponse response = await wire.Exchange(
+            At(SchedulerRoutes.GetTriggerFireTimes, triggerKey).WithQuery(query.ToString()),
+            cancellationToken).ConfigureAwait(false);
+
+        bool found;
+        try
+        {
+            found = wire.EnsureSuccess(response, throwOnNotFound: false);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            return await UpcomingFireTimes.Compose(this, triggerKey, count, cancellationToken).ConfigureAwait(false);
+        }
+
+        return found ? [.. wire.Read<TriggerFireTimesResponse>(response).FireTimesUtc] : null;
     }
 
     /// <inheritdoc />

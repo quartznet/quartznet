@@ -106,6 +106,7 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(SchedulerEvent))]
 [JsonSerializable(typeof(SchedulerEventKind))]
 [JsonSerializable(typeof(SchedulerHeaderDto[]))]
+[JsonSerializable(typeof(TriggerFireTimesResponse))]
 [JsonSerializable(typeof(TriggerStateDto))]
 
 // The dashboard agent's hub payloads, which carry the bodies above as bytes.

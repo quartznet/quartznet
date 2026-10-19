@@ -38,6 +38,8 @@ An application on 4.6 compiles on 4.7 unchanged.
 | `QuartzSchedulerOptions.DefaultTimeZone` | `TimeZoneInfo?`, default `null` (`TimeZoneInfo.Local`): the zone a cron, calendar-interval, daily time-interval or recurrence trigger that names none is given when it is scheduled. See [The scheduler's default time zone](tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone) |
 | `UseDefaultTimeZone(this IQuartzBuilder, TimeZoneInfo)` | Sugar over `DefaultTimeZone` |
 | `Scheduler:DefaultTimeZone`, `quartz.scheduler.defaultTimeZone` | The configuration keys: an IANA or Windows id. An id the system cannot resolve stops the scheduler starting |
+| `SchedulerFireTimesExtensions.GetUpcomingFireTimes` | Extension on `IScheduler`: a stored trigger's next 1 to 100 fire times in UTC, `null` for no such trigger. See [Upcoming fire times](tutorial/more-about-triggers.md#upcoming-fire-times) |
+| `GET …/triggers/{triggerGroup}/{triggerName}/fire-times` | HTTP API route answering `{ fireTimesUtc }`; agent operation `GetTriggerFireTimes`, allowed by default. See [Upcoming fire times](packages/http-api.md#upcoming-fire-times) |
 
 Behaviour that changed:
 

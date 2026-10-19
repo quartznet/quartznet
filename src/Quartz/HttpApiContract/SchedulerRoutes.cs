@@ -122,6 +122,11 @@ internal static class SchedulerRoutes
     public static readonly WireRoute GetTrigger = Route(nameof(GetTrigger), Get, Trigger);
     public static readonly WireRoute CheckTriggerExists = Route(nameof(CheckTriggerExists), Get, Trigger + "/exists");
     public static readonly WireRoute GetTriggerState = Route(nameof(GetTriggerState), Get, Trigger + "/state");
+
+    // From 4.7. A 4.6 host answers 404 without problem details, and HttpScheduler computes from the trigger
+    // and calendar that host answers with instead.
+    public static readonly WireRoute GetTriggerFireTimes = Route(nameof(GetTriggerFireTimes), Get, Trigger + "/fire-times");
+
     public static readonly WireRoute ResetTriggerFromErrorState = Route(nameof(ResetTriggerFromErrorState), Post, Trigger + "/reset-from-error-state", mutates: true);
     public static readonly WireRoute ResetTriggerKeysFromErrorState = Route(nameof(ResetTriggerKeysFromErrorState), Post, Triggers + "/keys/reset-from-error-state", mutates: true);
     public static readonly WireRoute PauseTrigger = Route(nameof(PauseTrigger), Post, Trigger + "/pause", mutates: true);

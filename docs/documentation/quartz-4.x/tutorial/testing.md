@@ -58,6 +58,8 @@ public void CronScheduleSkipsWeekends()
   the trigger you passed is untouched.
 * For a single step, `ITrigger.GetFireTimeAfter(DateTimeOffset?)` computes from the schedule, not from
   stored state, so it works on a trigger that was never scheduled.
+* For a trigger already scheduled, `scheduler.GetUpcomingFireTimes(triggerKey, count)` reads it and its
+  calendar for you. See [Upcoming fire times](more-about-triggers.md#upcoming-fire-times).
 
 ::: warning
 `TriggerBuilder.Create()` with no argument defaults its start time to the **wall clock**, even inside a

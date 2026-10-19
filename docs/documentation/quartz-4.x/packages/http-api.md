@@ -102,7 +102,7 @@ builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 
 ## Every endpoint
 
-Seventy-one routes in four groups.
+Seventy-two routes in four groups.
 
 - `{ApiPath}` is `/quartz-api` unless changed. `{name}` is the scheduler; every route but the first has one.
 - Every route with `{name}` is subject to [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when set.
@@ -166,7 +166,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/jobs/groups` | paged job groups; the four `name*` filters, `paused` |
 | `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused, pause }` |
 
-### Triggers — 23
+### Triggers — 24
 
 | Method | Path | Answers |
 |---|---|---|
@@ -175,6 +175,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}` | The trigger |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}/exists` | `{ exists }` |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}/state` | `{ state, pause }`; `state` is the `TriggerState` name |
+| `GET` | `…/triggers/{triggerGroup}/{triggerName}/fire-times` | `{ fireTimesUtc }`; `?count=` 1 to 100, `10` by default; [below](#upcoming-fire-times). From 4.7 |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/reset-from-error-state` | `{ applied }` |
 | `POST` | `…/triggers/keys/reset-from-error-state` | `{ triggers }` |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/pause` | `{ applied }`; optional [reason body](#a-pause-can-say-why) |
@@ -1103,6 +1104,33 @@ A success is [audited](#production-hardening) once, as `BackfillTrigger`, howeve
 same words, and a missing trigger as `ObjectDoesNotExistException`, as in process. A host older than 4.3 answers
 the route `404` without problem details; `HttpScheduler` then backfills through the routes that host has, a
 request per slot.
+
+## Upcoming fire times
+
+From 4.7. `GET …/triggers/{triggerGroup}/{triggerName}/fire-times?count=3` answers the trigger's next fire times.
+It runs [`GetUpcomingFireTimes`](../tutorial/more-about-triggers.md#upcoming-fire-times) on the host, for every
+trigger type: in the trigger's own time zone, less what its calendar excludes, up to its end time.
+
+```json
+{
+  "fireTimesUtc": [
+    "2026-10-05T03:15:00+00:00",
+    "2026-10-06T03:15:00+00:00",
+    "2026-10-08T03:15:00+00:00"
+  ]
+}
+```
+
+| Case | Answer |
+|---|---|
+| No `count` | ten times |
+| A trigger that does not fire again | an empty array |
+| No such trigger | `404` |
+| `count` outside 1 to 100, or not a number | `400` |
+| `ReadOnly` | served: a read |
+
+`GetUpcomingFireTimes` on an `HttpScheduler` is this one request. A host older than 4.7 answers the route `404`
+without problem details; `HttpScheduler` then reads the trigger and its calendar and computes the times itself.
 
 ## Overlap policies
 
