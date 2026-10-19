@@ -113,7 +113,7 @@ internal static class QuartzTypeInfoResolvers
     /// The suppressions therefore hide nothing an application is not told. An application whose job data
     /// holds a type of its own, published trimmed, gets a <c>NotSupportedException</c> naming that type
     /// on the first write rather than a silently wrong payload, and
-    /// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> is how it answers for it.
+    /// <see cref="SystemTextJsonConfigurationExtensions.AddJsonTypeInfoResolver" /> is how it answers for it.
     /// </para>
     /// </remarks>
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Guarded by IsReflectionEnabledByDefault, which a trimmed publish substitutes away along with this branch. See the remarks.")]

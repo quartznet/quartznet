@@ -227,20 +227,17 @@ internal static class QuartzServiceRegistration
                 static (provider, _) => provider.GetRequiredService<SystemTextJsonSerializerRegistry>()));
         }
 
+        // This scheduler's SystemTextJsonSerializerRegistry, with what its builder's AddJsonTypeInfoResolver
+        // was handed behind the registry's own resolvers. The converter set is built on first use.
         services.TryAddKeyed<IObjectSerializer>(key, static (provider, key) =>
-        {
-            // Construction goes through ActivatorUtilities so this scheduler's
-            // SystemTextJsonSerializerRegistry is injected. The converter set is built on first use.
-            var serializer = ActivatorUtilities.CreateInstance<SystemTextJsonObjectSerializer>(Scoped(provider, key));
-            return serializer;
-        });
+            new SystemTextJsonObjectSerializer(SchedulerSerializerRegistry(provider, key)));
 
-        // What a typed job's input is written and read with. Built the same way and from the same
-        // registry as the object serializer above, so an application that declared a payload type for
-        // one has declared it for both. It is not part of IPersistentStoreBuilder: a typed input is
-        // carried by the in-memory store too, which has no serializer of its own.
+        // What a typed job's input is written and read with. Built from the same registry as the object
+        // serializer above, so an application that declared a payload type for one has declared it for
+        // both. It is not part of IPersistentStoreBuilder: a typed input is carried by the in-memory store
+        // too, which has no serializer of its own.
         services.TryAddKeyed<IJobInputSerializer>(key, static (provider, key) =>
-            ActivatorUtilities.CreateInstance<SystemTextJsonJobInputSerializer>(Scoped(provider, key)));
+            new SystemTextJsonJobInputSerializer(SchedulerSerializerRegistry(provider, key)));
 
         services.TryAddKeyed<QuartzSchedulerResources>(key, static (provider, key) =>
         {
@@ -412,6 +409,17 @@ internal static class QuartzServiceRegistration
     private static IServiceProvider Scoped(IServiceProvider provider, object? key)
     {
         return SchedulerScopedServiceProvider.For(provider, key);
+    }
+
+    /// <summary>
+    /// The registry a scheduler's own System.Text.Json serializers read: the one the container gives
+    /// the scheduler, with the resolvers its builder was handed through
+    /// <see cref="SystemTextJsonConfigurationExtensions.AddJsonTypeInfoResolver" /> asked after its own.
+    /// </summary>
+    private static SystemTextJsonSerializerRegistry SchedulerSerializerRegistry(IServiceProvider provider, object? key)
+    {
+        SystemTextJsonSerializerRegistry registry = Scoped(provider, key).GetRequiredService<SystemTextJsonSerializerRegistry>();
+        return JsonTypeInfoResolverOptions.Apply(provider, key as string ?? Options.DefaultName, registry);
     }
 
     /// <summary>

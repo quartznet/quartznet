@@ -49,17 +49,18 @@ namespace Quartz.Serialization.SystemTextJson;
 /// </para>
 /// <para>
 /// Past those, a value is the application's own choice, and
-/// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> is how it declares one. That is
-/// the same escape hatch a trimmed publish needs, so a type an application has already answered for is
-/// a type this refuses nothing about.
+/// <see cref="SystemTextJsonConfigurationExtensions.AddJsonTypeInfoResolver" /> — or
+/// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> on the registry itself — is how
+/// it declares one. That is the same escape hatch a trimmed publish needs, so a type an application has
+/// already answered for is a type this refuses nothing about.
 /// </para>
 /// <para>
 /// The gate lives in <c>JobDataMapConverter</c>, which <c>AddQuartzConverters</c> registers for the
 /// store serializer and for the HTTP API alike — so the refusal reaches a job data map on its way into
 /// an HTTP response too, and deliberately: the client's reader is this same closed one, so a value the
 /// server could not read back is one the client cannot either. That is why the message says "Quartz's
-/// JSON format" rather than naming a database, and why the way out it names —
-/// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> — is the right one on both.
+/// JSON format" rather than naming a database, and why it names both ways out: the scheduler's builder
+/// for its serializers, the container's registry for the HTTP API.
 /// </para>
 /// </remarks>
 internal static class JobDataValues
@@ -118,7 +119,8 @@ internal static class JobDataValues
     /// because refusing has to happen before a single byte reaches the column.
     /// </remarks>
     /// <exception cref="JsonSerializationException">
-    /// The value is of a type no reader can turn back into it, and the application has not declared one.
+    /// The value is of a type no reader can turn back into it, and the application has not declared one;
+    /// or it is an enum the options have no metadata for, which only a publish without reflection meets.
     /// </exception>
     public static void Refuse(string key, object? value, JsonSerializerOptions options, SystemTextJsonSerializerRegistry registry)
     {
@@ -128,7 +130,13 @@ internal static class JobDataValues
         }
 
         Type type = value.GetType();
-        if (Accepted.Contains(type) || type.IsEnum || registry.DeclaresJobDataValueType(type, options))
+        if (type.IsEnum)
+        {
+            RequireMetadata(key, type, options);
+            return;
+        }
+
+        if (Accepted.Contains(type) || registry.DeclaresJobDataValueType(type, options))
         {
             RefuseTypeMarker(key, value);
             return;
@@ -138,8 +146,31 @@ internal static class JobDataValues
             $"Job data entry '{key}' holds a {type.FullName}, which Quartz's JSON format cannot read back. " +
             "A job data value has to be one of the types JobDataMap declares an accessor for " +
             "(string, bool, char, int, long, float, double, decimal, DateTime, DateTimeOffset, TimeSpan, Guid, DateOnly, TimeOnly or an enum), " +
-            "a Dictionary<string, string>, or a type the application declares through SystemTextJsonSerializerRegistry.AddTypeInfoResolver. " +
+            "a Dictionary<string, string>, or a type the application declares with AddJsonTypeInfoResolver on the scheduler's builder. " +
+            $"{MissingJsonMetadata.HttpApi} " +
             "Anything with structure of its own has to be serialized by the job and stored as a string.");
+    }
+
+    /// <summary>
+    /// Throws unless the options can answer for an enum, which is accepted by rule and so reaches the
+    /// writer whether or not anything describes it.
+    /// </summary>
+    /// <remarks>
+    /// With reflection on, reflection answers and this never throws. Without it, System.Text.Json would
+    /// throw from inside the writer, and the map's converter would bury that under "Failed to serialize
+    /// JobDataMap to json"; asking first lets the failure name the entry and the fix, and it still
+    /// happens before a byte reaches the column. System.Text.Json's own exception is kept inside.
+    /// </remarks>
+    private static void RequireMetadata(string key, Type type, JsonSerializerOptions options)
+    {
+        try
+        {
+            options.GetTypeInfo(type);
+        }
+        catch (NotSupportedException e)
+        {
+            throw new JsonSerializationException(MissingJsonMetadata.JobDataValue(key, type), e);
+        }
     }
 
     /// <summary>

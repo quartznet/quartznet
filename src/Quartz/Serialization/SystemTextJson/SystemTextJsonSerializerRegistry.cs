@@ -35,14 +35,22 @@ namespace Quartz.Serialization.SystemTextJson;
 /// know the type statically; anything else the application puts in a <see cref="JobDataMap" /> is what
 /// <see cref="AddTypeInfoResolver" /> is for.
 /// </para>
+/// <para>
+/// A scheduler's own serializers read this registry with whatever its builder was handed through
+/// <see cref="SystemTextJsonConfigurationExtensions.AddJsonTypeInfoResolver" /> asked after this
+/// registry's resolvers. That is the registration that reaches the job-input serializer too;
+/// <see cref="AddTypeInfoResolver" /> on a registry built in
+/// <see cref="SystemTextJsonConfigurationExtensions.UseSystemTextJsonSerializer" />'s callback reaches
+/// the store's serializer alone.
+/// </para>
 /// </remarks>
 public sealed class SystemTextJsonSerializerRegistry
 {
-    private readonly SerializerMap<ITriggerSerializer> triggerSerializers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SerializerMap<ICalendarSerializer> calendarSerializers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<Type, Func<JsonSerializerOptions, JsonConverter, JsonTypeInfo>> registeredTypeInfos = [];
+    private readonly SerializerMap<ITriggerSerializer> triggerSerializers;
+    private readonly SerializerMap<ICalendarSerializer> calendarSerializers;
+    private readonly Dictionary<Type, Func<JsonSerializerOptions, JsonConverter, JsonTypeInfo>> registeredTypeInfos;
     private readonly RegisteredTypeResolver registeredTypeResolver;
-    private readonly List<IJsonTypeInfoResolver> applicationResolvers = [];
+    private readonly List<IJsonTypeInfoResolver> applicationResolvers;
     private readonly ConcurrentDictionary<Type, bool> declaredJobDataValueTypes = new();
 
     /// <summary>
@@ -50,6 +58,10 @@ public sealed class SystemTextJsonSerializerRegistry
     /// </summary>
     public SystemTextJsonSerializerRegistry()
     {
+        triggerSerializers = new SerializerMap<ITriggerSerializer>(StringComparer.OrdinalIgnoreCase);
+        calendarSerializers = new SerializerMap<ICalendarSerializer>(StringComparer.OrdinalIgnoreCase);
+        registeredTypeInfos = [];
+        applicationResolvers = [];
         registeredTypeResolver = new RegisteredTypeResolver(registeredTypeInfos);
 
         AddTriggerSerializer<CalendarIntervalTriggerImpl>(new CalendarIntervalTriggerSerializer());
@@ -65,6 +77,34 @@ public sealed class SystemTextJsonSerializerRegistry
         AddCalendarSerializer<HolidayCalendar>(new HolidayCalendarSerializer());
         AddCalendarSerializer<MonthlyCalendar>(new MonthlyCalendarSerializer());
         AddCalendarSerializer<WeeklyCalendar>(new WeeklyCalendarSerializer());
+    }
+
+    /// <summary>
+    /// Creates one scheduler's view of <paramref name="registry" />: the same trigger and calendar
+    /// serializers, and its application resolvers followed by <paramref name="schedulerResolvers" />.
+    /// </summary>
+    /// <remarks>
+    /// The resolvers are copied rather than shared, so what one scheduler's builder was handed reaches
+    /// no other scheduler reading the same registry — the container's is read by every scheduler that
+    /// was not given one of its own, and by the HTTP API. The copy is taken as the scheduler's
+    /// serializers are built, by which time registration is over.
+    /// </remarks>
+    private SystemTextJsonSerializerRegistry(SystemTextJsonSerializerRegistry registry, IReadOnlyList<IJsonTypeInfoResolver> schedulerResolvers)
+    {
+        triggerSerializers = registry.triggerSerializers;
+        calendarSerializers = registry.calendarSerializers;
+        registeredTypeInfos = registry.registeredTypeInfos;
+        registeredTypeResolver = registry.registeredTypeResolver;
+        applicationResolvers = [.. registry.applicationResolvers, .. schedulerResolvers];
+    }
+
+    /// <summary>
+    /// This registry with <paramref name="schedulerResolvers" /> asked after its own application
+    /// resolvers, or this registry itself when there are none.
+    /// </summary>
+    internal SystemTextJsonSerializerRegistry WithResolvers(IReadOnlyList<IJsonTypeInfoResolver> schedulerResolvers)
+    {
+        return schedulerResolvers.Count == 0 ? this : new SystemTextJsonSerializerRegistry(this, schedulerResolvers);
     }
 
     /// <summary>
@@ -125,6 +165,12 @@ public sealed class SystemTextJsonSerializerRegistry
     /// Resolvers are asked in the order they were added, behind Quartz's own contract and in front of
     /// reflection. A resolver that does not know a type returns nothing and the next one is asked, so
     /// handing in a context that names a type Quartz already covers changes nothing.
+    /// </para>
+    /// <para>
+    /// On a registry built in <see cref="SystemTextJsonConfigurationExtensions.UseSystemTextJsonSerializer" />'s
+    /// callback this reaches the store's serializer and nothing else, so a typed job's input is not
+    /// covered by it. <see cref="SystemTextJsonConfigurationExtensions.AddJsonTypeInfoResolver" /> on the
+    /// scheduler's builder reaches both, and is asked after the resolvers added here.
     /// </para>
     /// </remarks>
     public SystemTextJsonSerializerRegistry AddTypeInfoResolver(IJsonTypeInfoResolver resolver)
