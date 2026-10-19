@@ -1,0 +1,104 @@
+@using Microsoft.Extensions.DependencyInjection
+@using Quartz
+@using Quartz.Dashboard.Services
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IServiceProvider Services
+
+@* The trigger's next fires as its scheduler computes them - in the trigger's own zone, less what its calendar
+   excludes, up to its end time - read through the client, so a scheduler in another process answers for
+   itself. The times show in the dashboard's zone, as the page's other times do. *@
+<div class="qz-upcoming-fires" data-testid="upcoming-fires">
+    @if (_unreadable is { } reason)
+    {
+        <p class="qz-muted" data-testid="upcoming-fires-unreadable">The upcoming fire times could not be read. @reason</p>
+    }
+    else if (_fireTimes is { Count: 0 })
+    {
+        <p class="qz-muted" data-testid="upcoming-fires-none">This trigger does not fire again.</p>
+    }
+    else if (_fireTimes is { } fireTimes)
+    {
+        <ul class="qz-list">
+            @foreach (DateTimeOffset fireTime in fireTimes)
+            {
+                <li>
+                    <span>@Scheduler.FormatInSelectedTimeZone(fireTime, "u")</span>
+                    <span class="qz-muted">(@DisplayValueHelper.FormatUntil(fireTime, _now))</span>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private ITrigger? _readFor;
+    private List<DateTimeOffset>? _fireTimes;
+    private string? _unreadable;
+    private DateTimeOffset _now;
+
+    /// <summary>
+    /// The trigger the page shows, under the key the page reads it by.
+    /// </summary>
+    [Parameter]
+    [EditorRequired]
+    public TriggerKeyDto TriggerKey { get; set; } = null!;
+
+    /// <summary>
+    /// The trigger as the page last read it. A new read - after a pause, an edit, a reschedule - reads the
+    /// fire times again.
+    /// </summary>
+    [Parameter]
+    [EditorRequired]
+    public ITrigger Trigger { get; set; } = null!;
+
+    [Parameter]
+    public int Count { get; set; } = 10;
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ReferenceEquals(Trigger, _readFor))
+        {
+            await ReadAsync(Trigger);
+        }
+    }
+
+    /// <summary>
+    /// Reads the fire times once per trigger the page reads. A source that cannot answer leaves the panel
+    /// saying so; the trigger is already on the page, and failing the page for its fire times would take
+    /// that away.
+    /// </summary>
+    private async Task ReadAsync(ITrigger trigger)
+    {
+        _readFor = trigger;
+        _fireTimes = null;
+        _unreadable = null;
+
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        List<DateTimeOffset>? fireTimes = null;
+        string? unreadable = null;
+        try
+        {
+            fireTimes = await Api.GetUpcomingFireTimes(schedulerName, TriggerKey, Count);
+        }
+        catch (Exception ex)
+        {
+            unreadable = ex.Message;
+        }
+
+        // The page may have read the trigger again while these were on their way.
+        if (ReferenceEquals(trigger, _readFor))
+        {
+            _now = Clock.GetUtcNow();
+            _fireTimes = fireTimes;
+            _unreadable = unreadable;
+        }
+    }
+}

@@ -112,6 +112,11 @@
             </tbody>
         </table>
 
+        @* Every trigger type's, computed by its scheduler and read through the client, so a scheduler reached
+           over HTTP or through an agent shows the same panel. *@
+        <h2>Upcoming fires</h2>
+        <UpcomingFires TriggerKey="@TriggerKey" Trigger="@_trigger" Count="10" />
+
         <h2>JobDataMap</h2>
         <JobDataMapEditor DataMap="@TriggerDataMap" ReadOnly="true" />
 

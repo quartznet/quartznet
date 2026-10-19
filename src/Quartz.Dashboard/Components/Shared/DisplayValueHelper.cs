@@ -64,6 +64,31 @@ internal static class DisplayValueHelper
     }
 
     /// <summary>
+    /// How long from <paramref name="now" /> until <paramref name="fireTime" />, to the largest whole unit:
+    /// <c>in 12h</c>, and <c>in under a minute</c> for anything closer, a fire time already due included.
+    /// </summary>
+    public static string FormatUntil(DateTimeOffset fireTime, DateTimeOffset now)
+    {
+        TimeSpan until = fireTime - now;
+        if (until < TimeSpan.FromMinutes(1))
+        {
+            return "in under a minute";
+        }
+
+        if (until < TimeSpan.FromHours(1))
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"in {until.Minutes}m");
+        }
+
+        if (until < TimeSpan.FromDays(1))
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"in {until.Hours}h");
+        }
+
+        return string.Create(CultureInfo.InvariantCulture, $"in {until.Days}d");
+    }
+
+    /// <summary>
     /// The outcomes a continuation waits for, in words: <c>Success</c>, <c>Failure or cancellation</c>,
     /// <c>Any outcome</c>.
     /// </summary>

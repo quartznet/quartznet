@@ -728,6 +728,44 @@ public interface IQuartzApiClient
         return ValueTask.FromException<ExecutionStatistics>(new NotSupportedException(
             "This dashboard's data source cannot count runs over time: its IQuartzApiClient does not implement QueryExecutionStatistics."));
     }
+
+    /// <summary>
+    /// The trigger's next <paramref name="count" /> fire times, in UTC and earliest first, as
+    /// <see cref="SchedulerFireTimesExtensions.GetUpcomingFireTimes" /> answers them: from its next fire time,
+    /// in its own time zone, less what its calendar excludes and up to its end time. Empty for a trigger that
+    /// does not fire again.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What every Trigger Detail page's <em>Upcoming fires</em> panel reads.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.7. The default reads the trigger through <see cref="GetTrigger" />
+    /// and the calendar it names through <see cref="GetCalendar" />, and computes from them, so an
+    /// implementation of an application's own answers truthfully without declaring it.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler holding the trigger.</param>
+    /// <param name="triggerKey">The trigger.</param>
+    /// <param name="count">How many fire times to answer at most, from 1 to 100.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="KeyNotFoundException">
+    /// No scheduler goes by <paramref name="schedulerName" />, or it holds no trigger under
+    /// <paramref name="triggerKey" />.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="count" /> is less than 1 or more than 100.</exception>
+    async ValueTask<List<DateTimeOffset>> GetUpcomingFireTimes(string schedulerName, TriggerKeyDto triggerKey, int count, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        UpcomingFireTimes.CheckCount(count);
+
+        ITrigger trigger = await GetTrigger(schedulerName, triggerKey, cancellationToken).ConfigureAwait(false);
+        ICalendar? calendar = UpcomingFireTimes.CalendarNameOf(trigger) is { } calendarName
+            ? await GetCalendar(schedulerName, calendarName, cancellationToken).ConfigureAwait(false)
+            : null;
+
+        return UpcomingFireTimes.Compute(trigger, calendar, count);
+    }
 }
 
 /// <summary>

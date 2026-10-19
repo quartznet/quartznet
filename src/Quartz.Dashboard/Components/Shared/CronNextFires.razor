@@ -1,4 +1,3 @@
-@using System.Globalization
 @using Microsoft.Extensions.DependencyInjection
 @using Quartz
 @using Quartz.Dashboard.Services
@@ -180,27 +179,5 @@
         _nextFires.AddRange(TriggerFireTimes.Compute(preview, _calendar, Count <= 0 ? 1 : Count));
     }
 
-    /// <summary>
-    /// How long until <paramref name="fireTime" />, to the largest whole unit.
-    /// </summary>
-    private string Until(DateTimeOffset fireTime)
-    {
-        TimeSpan until = fireTime - _now;
-        if (until < TimeSpan.FromMinutes(1))
-        {
-            return "in under a minute";
-        }
-
-        if (until < TimeSpan.FromHours(1))
-        {
-            return string.Create(CultureInfo.InvariantCulture, $"in {until.Minutes}m");
-        }
-
-        if (until < TimeSpan.FromDays(1))
-        {
-            return string.Create(CultureInfo.InvariantCulture, $"in {until.Hours}h");
-        }
-
-        return string.Create(CultureInfo.InvariantCulture, $"in {until.Days}d");
-    }
+    private string Until(DateTimeOffset fireTime) => DisplayValueHelper.FormatUntil(fireTime, _now);
 }

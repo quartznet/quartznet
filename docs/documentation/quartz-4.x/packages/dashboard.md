@@ -164,7 +164,8 @@ An implementation must follow the interface's two promises to render like the sh
 **Members added during 4.x arrive as default interface members**, so your implementation keeps compiling. The
 default body reports the datum as unavailable, like `CannotReport`; override it when your source can answer.
 `GetJobRunStatus`, `GetJobRunStatuses` and `QueryExecutionStatistics` (4.4) throw `NotSupportedException` by
-default, and the pages leave out what they would show.
+default, and the pages leave out what they would show. `GetUpcomingFireTimes` (4.7) computes from `GetTrigger`
+and `GetCalendar` by default.
 
 ## The pages
 
@@ -218,7 +219,7 @@ detail page.
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
 | **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete |
-| **Triggers**: state, next and previous fire times, execution group | the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
+| **Triggers**: state, next and previous fire times, execution group | from 4.7, its [upcoming fires](#upcoming-fires); the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
 | **Calendars**: names | one calendar | create, replace or delete a cron calendar |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
@@ -229,6 +230,20 @@ detail page.
 - *Reset error state* clears an `ERROR` trigger once its cause is fixed.
 - The cron reschedule editor previews the next five fires of the expression being edited, before it is saved,
   in the trigger's time zone and less what its calendar excludes.
+
+### Upcoming fires
+
+From 4.7, every trigger's page lists its next ten fire times, whatever the trigger type.
+
+- **The scheduler computes them**, in the trigger's own time zone, less what its calendar excludes, up to its
+  end time. A scheduler over HTTP or through an agent computes its own, in one request: the
+  [`fire-times` route](http-api.md#upcoming-fire-times).
+- **The times show in the dashboard's time zone**, each with how long until it (`in 12h`).
+- **A trigger that does not fire again** says so: *This trigger does not fire again.*
+- **A source that cannot answer** says so in the panel, and the rest of the page still shows. An agent whose
+  `IsOperationAllowed` refuses `GetTriggerFireTimes` is one; an agent older than 4.7 is computed from the
+  trigger and its calendar instead.
+- The cron editor's preview is separate: it shows the expression being edited, before it is saved.
 
 ### Editing a trigger
 
