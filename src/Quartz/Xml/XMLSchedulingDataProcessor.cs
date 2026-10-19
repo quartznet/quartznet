@@ -28,6 +28,7 @@ using System.Xml.Serialization;
 
 using Quartz.Core;
 using Quartz.Impl.Matchers;
+using Quartz.Impl.Triggers;
 using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
@@ -950,7 +951,7 @@ public class XMLSchedulingDataProcessor
         Log.WarnFormat("Possibly duplicately named ({0}) trigger in configuration, this can be caused by not having a fixed job key for targeted jobs", trigger.Key);
     }
 
-    private Task DoRescheduleJob(
+    private async Task DoRescheduleJob(
         IScheduler sched,
         IMutableTrigger trigger,
         ITrigger? oldTrigger,
@@ -983,7 +984,31 @@ public class XMLSchedulingDataProcessor
             operableTrigger.SetPreviousFireTimeUtc(storedPreviousFireTime);
         }
 
-        return sched.RescheduleJob(trigger.Key, trigger, cancellationToken);
+        if (trigger is not AbstractTrigger reapplied)
+        {
+            await sched.RescheduleJob(trigger.Key, trigger, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        // How many times it has fired, while its schedule is the stored one (#4128). A changed schedule is
+        // a new trigger, and starts fresh.
+        if (oldTrigger != null)
+        {
+            reapplied.CarryRunStateFrom(oldTrigger);
+        }
+
+        // A redeploy must not resume a trigger an operator paused (#4128). The store decides under its own
+        // lock, from the trigger it replaces; an application's own RescheduleJob carries no such instruction,
+        // and ends an individual pause as it always has.
+        reapplied.KeepsPauseOnReplace = true;
+        try
+        {
+            await sched.RescheduleJob(trigger.Key, trigger, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            reapplied.KeepsPauseOnReplace = false;
+        }
     }
 
     protected virtual IDictionary<JobKey, List<IMutableTrigger>> BuildTriggersByFQJobNameMap(List<ITrigger> triggers)

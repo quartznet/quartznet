@@ -464,13 +464,24 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
         return Task.CompletedTask;
     }
 
+    // storePaused: whether the trigger is placed paused whatever its groups say, which a declared trigger
+    // re-applied over a paused one asks for (#4128).
     private void StoreTriggerInternal(
         IOperableTrigger newTrigger,
-        bool replaceExisting)
+        bool replaceExisting,
+        bool storePaused = false)
     {
         lock (lockObject)
         {
             TriggerWrapper tw = new TriggerWrapper((IOperableTrigger) newTrigger.Clone());
+
+            // An instruction to the call storing it, not part of what is stored: a trigger read back and
+            // handed to an explicit replace must not keep a pause through it (#4128).
+            if (tw.Trigger is AbstractTrigger stored)
+            {
+                stored.KeepsPauseOnReplace = false;
+            }
+
             if (triggersByKey.ContainsKey(tw.TriggerKey))
             {
                 if (!replaceExisting)
@@ -506,7 +517,8 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
             // add to triggers by FQN map
             triggersByKey[tw.TriggerKey] = tw;
 
-            if (pausedTriggerGroups.Contains(newTrigger.Key.Group) ||
+            if (storePaused ||
+                pausedTriggerGroups.Contains(newTrigger.Key.Group) ||
                 (pausedJobGroups.Contains(newTrigger.JobKey.Group) && !resumedJobsInPausedGroups.Contains(newTrigger.JobKey)))
             {
                 tw.state = InternalTriggerState.Paused;
@@ -591,6 +603,12 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
     /// <summary>
     /// Replaces the trigger.
     /// </summary>
+    /// <remarks>
+    /// The replacement's state is decided afresh: paused if its trigger group or job group is paused, blocked
+    /// if its job disallows concurrent execution and is running, and waiting otherwise. So a replace resumes a
+    /// trigger that was paused on its own. A declared trigger re-applied at a start is the exception: it
+    /// keeps an individual pause (#4128).
+    /// </remarks>
     /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
     /// <param name="newTrigger">The new trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
@@ -614,6 +632,11 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                     throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
                 }
 
+                // Read before the old trigger goes: a declared trigger re-applied at a start keeps the pause
+                // the trigger it replaces has (#4128). Any other replace decides afresh.
+                bool keepPause = newTrigger is AbstractTrigger { KeepsPauseOnReplace: true }
+                                 && tw.state is InternalTriggerState.Paused or InternalTriggerState.PausedAndBlocked;
+
                 // remove from triggers by group
                 if (triggersByGroup.TryGetValue(triggerKey.Group, out var grpMap))
                 {
@@ -636,7 +659,7 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
 
                 try
                 {
-                    StoreTriggerInternal(newTrigger, replaceExisting: false);
+                    StoreTriggerInternal(newTrigger, replaceExisting: false, storePaused: keepPause);
                 }
                 catch (JobPersistenceException)
                 {
