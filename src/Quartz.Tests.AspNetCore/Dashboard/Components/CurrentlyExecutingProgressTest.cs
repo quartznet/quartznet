@@ -95,7 +95,63 @@ public class CurrentlyExecutingProgressTest
         });
     }
 
-    private static void GivenFiring(DashboardComponentContext context, int? progress, string? message)
+    /// <summary>
+    /// A firing another node was asked to stop is still running until that node's next check-in, so the row
+    /// says the request is pending rather than leaving the operator to wonder whether the click took (#4141).
+    /// </summary>
+    [Test]
+    public void AFiringAskedToStopFromAnotherNodeSaysAnInterruptIsRequested()
+    {
+        using DashboardComponentContext context = new(options => options.ReadOnly = true);
+        context.WithScheduler();
+        GivenFiring(context, progress: null, message: null, interruptRequestedUtc: TestData.Dashboard.FiredAt.AddSeconds(5));
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+
+        page.WaitForAssertion(() =>
+        {
+            IElement pending = page.Find("[data-testid=interrupt-requested]");
+            pending.TextContent.Trim().Should().Be("Interrupt requested",
+                "reading that a stop is pending is not a mutation, so a read-only dashboard shows it too");
+            pending.GetAttribute("title").Should().Contain("next check-in", "the hover says when the node acts on it");
+        });
+    }
+
+    [Test]
+    public void AFiringNobodyAskedToStopSaysNothingOfIt()
+    {
+        using DashboardComponentContext context = new();
+        context.WithScheduler();
+        GivenFiring(context, progress: null, message: null);
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+
+        page.WaitForAssertion(() =>
+        {
+            page.Markup.Should().Contain("reports.job-1", "the firing is listed");
+            page.FindAll("[data-testid=interrupt-requested]").Should().BeEmpty();
+        });
+    }
+
+    /// <summary>
+    /// A window onto an attached store offers Interrupt from 4.7: it asks the node running the firing through
+    /// the firing's row.
+    /// </summary>
+    [Test]
+    public void AWindowOffersInterrupt()
+    {
+        using DashboardComponentContext context = new();
+        context.WithScheduler(origin: SchedulerOrigin.Window, target: "db");
+        GivenFiring(context, progress: null, message: null);
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+
+        page.WaitForAssertion(() =>
+            page.FindAll("button").Should().Contain(button => button.TextContent.Trim() == "Interrupt",
+                "the window records the request on the row, which the node running the firing reads"));
+    }
+
+    private static void GivenFiring(DashboardComponentContext context, int? progress, string? message, DateTimeOffset? interruptRequestedUtc = null)
     {
         A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<FireInstanceDto>([
@@ -110,7 +166,8 @@ public class CurrentlyExecutingProgressTest
                     "batch")
                 {
                     Progress = progress,
-                    ProgressMessage = message
+                    ProgressMessage = message,
+                    InterruptRequestedUtc = interruptRequestedUtc
                 }
             ]));
     }

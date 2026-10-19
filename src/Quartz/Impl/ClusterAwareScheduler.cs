@@ -32,7 +32,18 @@ namespace Quartz.Impl;
 /// has — which is what lets a firing be routed to the node that owns it without asking every node
 /// again.
 /// </param>
-internal sealed record ClusterMember(string Target, IScheduler Scheduler, string? InstanceId);
+/// <param name="Version">
+/// The Quartz version the node last answered with, or <see langword="null" /> when it never has: what says
+/// whether it records interrupt requests for the other nodes' firings and reads the ones recorded for its own.
+/// </param>
+internal sealed record ClusterMember(string Target, IScheduler Scheduler, string? InstanceId, string? Version = null)
+{
+    /// <summary>
+    /// Whether the node records an interrupt request for a firing another node runs, and reads the requests
+    /// recorded for its own: 4.6 and later (#4071). A version that does not parse is treated as older.
+    /// </summary>
+    public bool RecordsInterruptRequests => AdoJobStore.SchedulerNodeVersion.SupportsInterruptRequests(Version);
+}
 
 /// <summary>
 /// Several targets fronting the nodes of one cluster, presented as one scheduler.
@@ -233,27 +244,43 @@ internal sealed class ClusterAwareScheduler : DelegatingScheduler, IProxySchedul
 
     /// <inheritdoc />
     /// <remarks>
-    /// Asked of every member, because the job may be running on any node; <see langword="true" /> when
-    /// any of them interrupted something.
+    /// <para>
+    /// The job may be running on any node. A 4.6 or later member interrupts its own firings and records a
+    /// request for every other node's (#4071), so one of them is asked: the preferred member first, the
+    /// next on failure (#4141). A member older than 4.6, or one whose version is not known, records nothing
+    /// for its peers and reads nothing recorded for it, so each of those is asked as well.
+    /// </para>
+    /// <para>
+    /// <see langword="true" /> when any member asked interrupted a firing or recorded a request.
+    /// </para>
     /// </remarks>
-    public override async ValueTask<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default)
+    public override ValueTask<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        List<bool> answered = await AskEach(
-            (scheduler, token) => scheduler.Interrupt(jobKey, token),
-            rethrowWhenNoneAnswered: true,
-            cancellationToken).ConfigureAwait(false);
-
-        return answered.Contains(true);
+        return AskOneRecorderAndTheRest((scheduler, token) => scheduler.Interrupt(jobKey, token), cancellationToken);
     }
 
     /// <inheritdoc />
     /// <remarks>
-    /// A firing belongs to one node. The store says which — every node sees every firing of a persistent
-    /// store — so the interruption goes to the member that answered as that node, and to every member
-    /// when no member did.
+    /// <para>
+    /// When every member is 4.6 or later, one of them is asked, as for <see cref="Interrupt" />: it interrupts
+    /// the firing when it runs it and records a request for the node that does otherwise, so the store need
+    /// not be searched for the owner first.
+    /// </para>
+    /// <para>
+    /// Otherwise the firing belongs to one node, and the store says which — every node sees every firing of
+    /// a persistent store — so the interruption goes to the member that answered as that node, and to every
+    /// member when no member did.
+    /// </para>
     /// </remarks>
     public override async ValueTask<bool> InterruptFireInstance(string fireInstanceId, CancellationToken cancellationToken = default)
     {
+        if (members.All(static member => member.RecordsInterruptRequests))
+        {
+            return await AskOneRecorderAndTheRest(
+                (scheduler, token) => scheduler.InterruptFireInstance(fireInstanceId, token),
+                cancellationToken).ConfigureAwait(false);
+        }
+
         string? owner = await OwnerOf(fireInstanceId, cancellationToken).ConfigureAwait(false);
         ClusterMember? owning = owner is null
             ? null
@@ -336,6 +363,54 @@ internal sealed class ClusterAwareScheduler : DelegatingScheduler, IProxySchedul
     }
 
     /// <summary>
+    /// Asks one member that records interrupt requests for its peers — the preferred member first, the next
+    /// in target order when one fails — and then every member that does not, which only a direct question
+    /// reaches: what an interrupt needs to reach every node once.
+    /// </summary>
+    /// <remarks>
+    /// With no member known to record requests, every member is asked, as before 4.7. A member that fails is
+    /// passed over; when none answered, the first failure is what the caller gets.
+    /// </remarks>
+    /// <returns><see langword="true" /> when any member asked answered <see langword="true" />.</returns>
+    private async ValueTask<bool> AskOneRecorderAndTheRest(
+        Func<IScheduler, CancellationToken, ValueTask<bool>> ask,
+        CancellationToken cancellationToken)
+    {
+        ClusterMember[] recorders = [.. members.Where(static member => member.RecordsInterruptRequests).OrderBy(member => ReferenceEquals(member, Preferred) ? 0 : 1)];
+        if (recorders.Length == 0)
+        {
+            return (await AskEach(ask, rethrowWhenNoneAnswered: true, cancellationToken).ConfigureAwait(false)).Contains(true);
+        }
+
+        bool? recorded = null;
+        Exception? firstFailure = null;
+        foreach (ClusterMember member in recorders)
+        {
+            try
+            {
+                recorded = await ask(member.Scheduler, cancellationToken).ConfigureAwait(false);
+                break;
+            }
+            catch (Exception failure) when (failure is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                firstFailure ??= failure;
+            }
+        }
+
+        ClusterMember[] older = [.. members.Where(static member => !member.RecordsInterruptRequests)];
+        List<bool> answered = older.Length == 0
+            ? []
+            : await AskEach(older, ask, rethrowWhenNoneAnswered: false, cancellationToken).ConfigureAwait(false);
+
+        if (recorded is null && answered.Count == 0)
+        {
+            throw new SchedulerException($"No member of cluster '{Target}' answered: {firstFailure!.Message}", firstFailure);
+        }
+
+        return recorded == true || answered.Contains(true);
+    }
+
+    /// <summary>
     /// Asks every member the same question at once and keeps the answers of those that gave one.
     /// </summary>
     /// <remarks>
@@ -350,17 +425,31 @@ internal sealed class ClusterAwareScheduler : DelegatingScheduler, IProxySchedul
     /// nodes that answered in time. Only when nothing answered at all is the cancellation the answer.
     /// </para>
     /// </remarks>
-    private async ValueTask<List<T>> AskEach<T>(
+    private ValueTask<List<T>> AskEach<T>(
         Func<IScheduler, CancellationToken, ValueTask<T>> ask,
         bool rethrowWhenNoneAnswered,
         CancellationToken cancellationToken)
     {
-        Task<T>[] asked = new Task<T>[members.Length];
-        for (int i = 0; i < members.Length; i++)
+        return AskEach(members, ask, rethrowWhenNoneAnswered, cancellationToken);
+    }
+
+    /// <inheritdoc cref="AskEach{T}(Func{IScheduler, CancellationToken, ValueTask{T}}, bool, CancellationToken)" />
+    /// <param name="asking">The members to ask.</param>
+    /// <param name="ask">The question.</param>
+    /// <param name="rethrowWhenNoneAnswered">Whether a question nobody answered throws the first failure.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask<List<T>> AskEach<T>(
+        ClusterMember[] asking,
+        Func<IScheduler, CancellationToken, ValueTask<T>> ask,
+        bool rethrowWhenNoneAnswered,
+        CancellationToken cancellationToken)
+    {
+        Task<T>[] asked = new Task<T>[asking.Length];
+        for (int i = 0; i < asking.Length; i++)
         {
             try
             {
-                asked[i] = ask(members[i].Scheduler, cancellationToken).AsTask();
+                asked[i] = ask(asking[i].Scheduler, cancellationToken).AsTask();
             }
             catch (Exception failure)
             {
@@ -370,7 +459,7 @@ internal sealed class ClusterAwareScheduler : DelegatingScheduler, IProxySchedul
             }
         }
 
-        List<T> answered = new(members.Length);
+        List<T> answered = new(asking.Length);
         Exception? firstFailure = null;
         foreach (Task<T> task in asked)
         {

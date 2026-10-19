@@ -409,7 +409,8 @@ internal sealed class FleetMonitor : IHostedLifecycleService, IDisposable
             candidate.Answer = new Answer(
                 metadata.SchedulerInstanceId,
                 metadata.JobStoreClustered && metadata.JobStorePersistent,
-                nodeIds);
+                nodeIds,
+                metadata.Version);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -499,6 +500,7 @@ internal sealed class FleetMonitor : IHostedLifecycleService, IDisposable
 
             member.Answered = true;
             member.InstanceId = answer.InstanceId;
+            member.Version = answer.Version;
 
             if (!answer.Clustered)
             {
@@ -630,6 +632,7 @@ internal sealed class FleetMonitor : IHostedLifecycleService, IDisposable
             cluster.Members[candidate.Target] = new Member(candidate.Target)
             {
                 InstanceId = candidate.Answer!.InstanceId,
+                Version = candidate.Answer.Version,
                 Nodes = candidate.Answer.Nodes,
                 Answered = true,
             };
@@ -648,13 +651,16 @@ internal sealed class FleetMonitor : IHostedLifecycleService, IDisposable
         string target = SchedulerTargets.ClusterTargetName(cluster.Members.Keys);
 
         List<ClusterMember> members = cluster.Members.Values
-            .Select(member => new ClusterMember(member.Target, byTarget[member.Target].Scheduler, member.InstanceId))
+            .Select(member => new ClusterMember(member.Target, byTarget[member.Target].Scheduler, member.InstanceId, member.Version))
             .OrderBy(member => member.Target, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         int preferred = ElectPreferred(cluster, members);
+
+        // The versions are in it, so a node rolled to a release that records interrupt requests for its
+        // peers republishes the proxy that decides whom to ask.
         string signature = target + "|" + members[preferred].Target + "|"
-            + string.Join(',', members.Select(x => x.Target + "=" + x.InstanceId));
+            + string.Join(',', members.Select(x => x.Target + "=" + x.InstanceId + "@" + x.Version));
 
         if (string.Equals(signature, cluster.Signature, StringComparison.Ordinal))
         {
@@ -825,8 +831,11 @@ internal sealed class FleetMonitor : IHostedLifecycleService, IDisposable
         public Answer? Answer { get; set; }
     }
 
-    /// <summary>What a target answered: its node, whether its store can cluster, and the nodes it sees.</summary>
-    private sealed record Answer(string InstanceId, bool Clustered, HashSet<string> Nodes);
+    /// <summary>
+    /// What a target answered: its node, whether its store can cluster, the nodes it sees, and the Quartz
+    /// version it runs.
+    /// </summary>
+    private sealed record Answer(string InstanceId, bool Clustered, HashSet<string> Nodes, string Version);
 
     /// <summary>A member of a formed cluster, and what is last known of it.</summary>
     private sealed class Member(string target)
@@ -834,6 +843,9 @@ internal sealed class FleetMonitor : IHostedLifecycleService, IDisposable
         public string Target { get; } = target;
 
         public string? InstanceId { get; set; }
+
+        /// <summary>The Quartz version the member last answered with, or <see langword="null" /> before it has.</summary>
+        public string? Version { get; set; }
 
         public HashSet<string> Nodes { get; set; } = new(StringComparer.Ordinal);
 

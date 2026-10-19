@@ -314,6 +314,7 @@ namespace Quartz.Dashboard.Services
         public string? ExecutionGroup { get; init; }
         public string FireInstanceId { get; init; }
         public System.DateTimeOffset FireTimeUtc { get; init; }
+        public System.DateTimeOffset? InterruptRequestedUtc { get; init; }
         public Quartz.Dashboard.Services.JobKeyDto? JobKey { get; init; }
         public int? Progress { get; init; }
         public string? ProgressMessage { get; init; }

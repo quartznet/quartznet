@@ -92,4 +92,24 @@ public sealed record FireInstance(
     /// <see langword="null" /> when it said nothing.
     /// </summary>
     public string? ProgressMessage { get; init; }
+
+    /// <summary>
+    /// When an interrupt of this firing was asked for from another node, or <see langword="null" /> when
+    /// none is pending.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The request <see cref="IScheduler.Interrupt(JobKey, CancellationToken)" /> and
+    /// <see cref="IScheduler.InterruptFireInstance" /> record for a firing another node of a clustered
+    /// store runs (#4071), read from <c>QRTZ_FIRED_TRIGGERS.INTERRUPT_REQUESTED_TIME</c>. The node running
+    /// the firing acts on it after its next check-in; the request stays until the firing ends, so a firing
+    /// listed with one has been asked to stop and may not have stopped yet.
+    /// </para>
+    /// <para>
+    /// Always <see langword="null" /> on a store that records no requests, the in-memory one included,
+    /// where an interrupt cancels the firing at once and nothing is left pending. A non-positional
+    /// <c>init</c> property, as <see cref="Progress" /> is.
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? InterruptRequestedUtc { get; init; }
 }

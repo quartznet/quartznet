@@ -174,6 +174,40 @@ public sealed class ClusterMergeTest
         A.CallTo(() => inner["c"].InterruptFireInstance(A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
+    /// <summary>
+    /// The members' versions reach the cluster's proxy, and a rolled node republishes it (#4141): while a
+    /// member is older than 4.6 every member is asked, and once all record requests for their peers only the
+    /// preferred one is.
+    /// </summary>
+    [Test]
+    public async Task InterruptingAJobAsksOnlyThePreferredMemberOnceEveryMemberRecordsRequests()
+    {
+        Bind("a", "n1", clustered: true, "n1", "n2");
+        Bind("b", "n2", clustered: true, "n1", "n2");
+        JobKeyDto job = new("reports", "nightly");
+
+        await monitor.StartedAsync(CancellationToken.None);
+
+        using IServiceScope scope = provider.CreateScope();
+        IQuartzApiClient client = scope.ServiceProvider.GetRequiredService<IQuartzApiClient>();
+
+        // Both members answer as 1.2.3, which records nothing for a peer, so each is asked.
+        await client.Interrupt("a+b/" + Name, job);
+        A.CallTo(() => inner["a"].Interrupt(A<JobKey>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner["b"].Interrupt(A<JobKey>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+
+        Answers("a", "n1", "4.7.0.0");
+        Answers("b", "n2", "4.7.0.0");
+        await monitor.RunRound();
+        Fake.ClearRecordedCalls(inner["a"]);
+        Fake.ClearRecordedCalls(inner["b"]);
+
+        // Every member is 4.7, so the preferred one records the request for the other's firings.
+        await client.Interrupt("a+b/" + Name, job);
+        A.CallTo(() => inner["a"].Interrupt(A<JobKey>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => inner["b"].Interrupt(A<JobKey>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
     [Test]
     public async Task TheLifecycleVerbsAreRefusedOnTheClusterAndStoreCallsLandOnThePreferredMember()
     {
@@ -346,6 +380,22 @@ public sealed class ClusterMergeTest
 
         inner[target] = scheduler;
         repository.Bind(new FakeProxyScheduler(scheduler, target));
+    }
+
+    /// <summary>
+    /// What a bound target answers from now on: its node, on a clustered store, at the given Quartz version.
+    /// </summary>
+    private void Answers(string target, string instanceId, string version)
+    {
+        A.CallTo(() => inner[target].GetMetadata(A<CancellationToken>._)).Returns(TestData.Metadata with
+        {
+            SchedulerName = Name,
+            SchedulerInstanceId = instanceId,
+            IsProxy = true,
+            JobStoreClustered = true,
+            JobStorePersistent = true,
+            Version = version
+        });
     }
 
     private static List<ClusterNode> Nodes(params string[] instanceIds)

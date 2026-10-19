@@ -1246,7 +1246,7 @@ internal static class StdAdoConstants
     /// positionally, and carries the ORDER BY that paging requires.
     /// </remarks>
     public static readonly string SqlSelectFireInstances =
-        Invariant($"SELECT {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnEntryState}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnProgress}, {AdoConstants.ColumnProgressMessage} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+        Invariant($"SELECT {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnEntryState}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnProgress}, {AdoConstants.ColumnProgressMessage}, {AdoConstants.ColumnInterruptRequestedTime} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
 
     public static readonly string SqlCountFireInstances =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");

@@ -3681,7 +3681,7 @@ internal sealed class QuartzScheduler
     /// interrupt itself, for the node running it to act on after its next check-in (#4071).
     /// </summary>
     /// <remarks>
-    /// Only on a clustered store, the one kind whose firings may run on another node. The listing is the
+    /// Only on a store that records requests, whose firings may run on another node. The listing is the
     /// store's, so it names every node's firings; the requests are recorded one at a time, and a firing that
     /// completed in between records nothing.
     /// </remarks>
@@ -3692,7 +3692,7 @@ internal sealed class QuartzScheduler
         CancellationToken cancellationToken)
     {
         IJobStore store = resources.JobStore;
-        if (!store.Clustered)
+        if (!RecordsInterruptRequests(store))
         {
             return 0;
         }
@@ -3719,6 +3719,19 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Whether <paramref name="store" /> records interrupt requests for firings on other nodes: a clustered
+    /// store, and a dashboard's store-attached window, which is no node of the cluster it reads (#4141).
+    /// </summary>
+    /// <remarks>
+    /// Asked before listing the firings, so a store shared with nobody pays nothing for an interrupt that has
+    /// no other node to reach.
+    /// </remarks>
+    private static bool RecordsInterruptRequests(IJobStore store)
+    {
+        return store.Clustered || JobStores.Unwrap(store) is Impl.AdoJobStore.AdoJobStoreBase { ClusterObserver: true };
+    }
+
+    /// <summary>
     /// Cancels the token of the one firing with the given fire instance id, when it runs on this node, and
     /// otherwise, on a clustered store, asks the node running it to.
     /// </summary>
@@ -3741,7 +3754,7 @@ internal sealed class QuartzScheduler
             || context is not IInterruptableJobExecutionContext interruptableContext)
         {
             IJobStore store = resources.JobStore;
-            return store.Clustered
+            return RecordsInterruptRequests(store)
                    && await store.RequestInterrupt(fireInstanceId, cancellationToken).ConfigureAwait(false);
         }
 
