@@ -72,6 +72,16 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
 
     private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
 
+    // Whether anything stated the misfire instruction, which an unset code and an explicit smart policy
+    // cannot say: both are 0. Not serialized: a trigger out of a blob has had its instruction decided,
+    // and OnDeserialized says so.
+    [NonSerialized]
+    private bool misfireInstructionStated;
+
+    // A blob written before triggers had a threshold of their own has no such field and deserializes to
+    // null, which is the store's.
+    private TimeSpan? misfireThreshold;
+
     private DateTimeOffset? endTimeUtc;
     private DateTimeOffset startTimeUtc;
     private string? executionGroup;
@@ -268,6 +278,13 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
         if (Continuation.Parent is { } parent)
         {
             builder.StartAfter(parent, Continuation.When);
+        }
+
+        // Only when there is one, for the same reason: the builder takes a positive threshold, and one it
+        // is never given builds the store's.
+        if (misfireThreshold is { } threshold)
+        {
+            builder.WithMisfireThreshold(threshold);
         }
 
         return builder;
@@ -485,6 +502,72 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     }
 
     /// <summary>
+    /// Gets or sets how late this trigger may fire before it counts as misfired.
+    /// <see langword="null" /> — the default — means the job store's <c>MisfireThreshold</c>.
+    /// </summary>
+    /// <remarks>
+    /// Settable here rather than on <see cref="IMutableTrigger" />, which 4.0 froze, for the reason
+    /// <see cref="Continuation" /> is. A whole number of milliseconds, because that is what a persistent
+    /// store's <c>MISFIRE_THRESHOLD</c> column holds.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The value is zero or negative, or is not a whole number of milliseconds.
+    /// </exception>
+    /// <seealso cref="ITrigger.MisfireThreshold" />
+    public TimeSpan? MisfireThreshold
+    {
+        get => misfireThreshold;
+        set
+        {
+            if (value is { } threshold)
+            {
+                RequireValidMisfireThreshold(threshold, nameof(value));
+            }
+
+            misfireThreshold = value;
+        }
+    }
+
+    /// <summary>
+    /// Refuses a misfire threshold that is not positive or not a whole number of milliseconds, with the
+    /// message every surface that takes one gives.
+    /// </summary>
+    /// <remarks>
+    /// Whole milliseconds because the persistent store keeps durations that way, and refusing a finer one
+    /// where it is given beats refusing it in a store that a trigger built for memory meets later.
+    /// </remarks>
+    internal static void RequireValidMisfireThreshold(TimeSpan threshold, string parameterName)
+    {
+        if (threshold <= TimeSpan.Zero)
+        {
+            Throw.ArgumentOutOfRangeException(parameterName, $"A misfire threshold has to be longer than zero, and {threshold:c} is not.");
+        }
+
+        if (threshold.Ticks % TimeSpan.TicksPerMillisecond != 0)
+        {
+            Throw.ArgumentOutOfRangeException(parameterName, $"A misfire threshold is a whole number of milliseconds, and {threshold:c} is not.");
+        }
+    }
+
+    /// <summary>
+    /// Whether this trigger's misfire instruction was stated, rather than left at the unset <c>0</c>
+    /// that reads the same as an explicit smart policy.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every assignment of <see cref="MisfireInstructionCode" /> states it, <c>0</c> included: a schedule
+    /// builder's <c>WithMisfireInstruction</c>, a job store reading the stored row, a serializer, a
+    /// deserialized blob. A schedule builder that was never given an instruction leaves it unstated.
+    /// </para>
+    /// <para>
+    /// The scheduler reads it when the trigger is stored: an unstated instruction takes the mapping of
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" />, which states it. So the stored code is
+    /// always one somebody chose, and a store needs nothing beside it.
+    /// </para>
+    /// </remarks>
+    internal bool MisfireInstructionStated => misfireInstructionStated;
+
+    /// <summary>
     /// Get or set the <see cref="JobDataMap" /> that is associated with the
     /// <see cref="ITrigger" />.
     /// <para>
@@ -527,8 +610,11 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// family's range.
     /// <para>
     /// If not explicitly set, the code is zero — "instruction not set" — and the scheduler applies
-    /// the family's smart policy. The named values are on the per-family enums, such as
-    /// <see cref="CronTriggerMisfireInstruction" /> and <see cref="SimpleTriggerMisfireInstruction" />.
+    /// the family's smart policy, or the mapping of
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" /> once the trigger is scheduled. Setting
+    /// it, to zero included, states it, and the scheduler's default then leaves it alone. The named
+    /// values are on the per-family enums, such as <see cref="CronTriggerMisfireInstruction" /> and
+    /// <see cref="SimpleTriggerMisfireInstruction" />.
     /// </para>
     /// </summary>
     /// <seealso cref="UpdateAfterMisfire(ICalendar?)" />
@@ -545,6 +631,7 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
                 Throw.ArgumentException("The misfire instruction code is invalid for this type of trigger.");
             }
             misfireInstruction = value;
+            misfireInstructionStated = true;
         }
     }
 
@@ -1143,6 +1230,9 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     [OnDeserialized]
     private void OnDeserialized(StreamingContext context)
     {
+        // A deserialized trigger's instruction was decided when it was written, whatever it is.
+        misfireInstructionStated = true;
+
         if (name is not null && group is not null)
         {
             key = new TriggerKey(name, group);

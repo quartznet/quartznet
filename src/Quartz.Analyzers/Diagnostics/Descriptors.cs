@@ -167,6 +167,24 @@ internal static class Descriptors
         helpLinkUri: HelpLink + "#qz0007-wildcardsecondsfield");
 
     /// <summary>
+    /// A <c>[CronTrigger]</c> or <c>[SimpleTrigger]</c> whose <c>MisfireThreshold</c> is not a
+    /// <see cref="TimeSpan" /> longer than zero in whole milliseconds.
+    /// </summary>
+    /// <remarks>
+    /// Its own id rather than <see cref="InvalidSimpleTriggerSchedule" />'s, whose title is about a simple
+    /// trigger's schedule: this is on both attributes, and is not a schedule.
+    /// </remarks>
+    internal static readonly DiagnosticDescriptor InvalidMisfireThreshold = new DiagnosticDescriptor(
+        id: "QZ0008",
+        title: "Trigger misfire threshold is invalid",
+        messageFormat: "{0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "The generator carries a declared trigger's MisfireThreshold into its registration as ticks, and the attribute's property refuses the same values. A threshold that is not a TimeSpan longer than zero in whole milliseconds is one no trigger can have, so the generator writes none for it.",
+        helpLinkUri: HelpLink + "#qz0008-invalidmisfirethreshold");
+
+    /// <summary>
     /// A <c>[QuartzJob]</c> class the generated registration could not name, or could not schedule.
     /// </summary>
     /// <remarks>

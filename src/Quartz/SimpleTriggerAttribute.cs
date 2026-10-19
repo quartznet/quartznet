@@ -20,6 +20,7 @@
 using System.Globalization;
 
 using Quartz.Impl.Triggers;
+using Quartz.Util;
 
 namespace Quartz;
 
@@ -136,10 +137,32 @@ public sealed class SimpleTriggerAttribute : Attribute
     public string? Group { get; init; }
 
     /// <summary>
-    /// What the trigger should do about a firing it missed. Defaults to
-    /// <see cref="SimpleTriggerMisfireInstruction.SmartPolicy" />.
+    /// What the trigger should do about a firing it missed. Left out, the scheduler's
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" /> decides, which is
+    /// <see cref="SimpleTriggerMisfireInstruction.SmartPolicy" /> unless configured otherwise; written, it
+    /// is stated, <see cref="SimpleTriggerMisfireInstruction.SmartPolicy" /> included, and the default
+    /// leaves it alone.
     /// </summary>
     public SimpleTriggerMisfireInstruction MisfireInstruction { get; init; }
+
+    /// <summary>
+    /// How late the trigger may fire before it counts as misfired, as a <see cref="TimeSpan" /> in its
+    /// invariant form, as the interval is — <c>"00:05:00"</c> is five minutes. Defaults to none: the job
+    /// store's own threshold.
+    /// </summary>
+    /// <remarks>
+    /// Read at build time: one that is not longer than zero in whole milliseconds is <c>QZ0008</c>.
+    /// </remarks>
+    /// <exception cref="ArgumentException">The value is not such a <see cref="TimeSpan" />.</exception>
+    public string? MisfireThreshold
+    {
+        get;
+        init
+        {
+            MisfireThresholdLiteral.Require(value, nameof(MisfireThreshold));
+            field = value;
+        }
+    }
 
     /// <summary>
     /// The trigger's priority, which decides who wins when two triggers want the same moment and

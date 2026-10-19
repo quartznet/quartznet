@@ -166,8 +166,8 @@ internal static class StdAdoConstants
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableSimpleTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnRepeatCount}, {AdoConstants.ColumnRepeatInterval}, {AdoConstants.ColumnTimesTriggered})  VALUES(@{SqlParameters.SchedulerName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.TriggerRepeatCount}, @{SqlParameters.TriggerRepeatInterval}, @{SqlParameters.TriggerTimesTriggered})");
 
     public static readonly string SqlInsertTrigger =
-        Invariant($@"INSERT INTO {TablePrefixSubst}{AdoConstants.TableTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnDescription}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnPreviousFireTime}, {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnTriggerType}, {AdoConstants.ColumnStartTime}, {AdoConstants.ColumnEndTime}, {AdoConstants.ColumnCalendarName}, {AdoConstants.ColumnMisfireInstruction}, {AdoConstants.ColumnJobDataMap}, {AdoConstants.ColumnPriority}, {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnPreferredNode}, {AdoConstants.ColumnPreferredNodeAuto}, {AdoConstants.ColumnRetryPolicy}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnContinuesTriggerName}, {AdoConstants.ColumnContinuesTriggerGroup}, {AdoConstants.ColumnContinuationCondition}, {AdoConstants.ColumnOverlapPolicy})
-                        VALUES(@{SqlParameters.SchedulerName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.TriggerJobName}, @{SqlParameters.TriggerJobGroup}, @{SqlParameters.TriggerDescription}, @{SqlParameters.TriggerNextFireTime}, @{SqlParameters.TriggerPreviousFireTime}, @{SqlParameters.TriggerState}, @{SqlParameters.TriggerType}, @{SqlParameters.TriggerStartTime}, @{SqlParameters.TriggerEndTime}, @{SqlParameters.TriggerCalendarName}, @{SqlParameters.TriggerMisfireInstruction}, @{SqlParameters.TriggerJobJobDataMap}, @{SqlParameters.TriggerPriority}, @{SqlParameters.TriggerExecutionGroup}, @{SqlParameters.TriggerPreferredNode}, @{SqlParameters.TriggerPreferredNodeAuto}, @{SqlParameters.TriggerRetryPolicy}, @{SqlParameters.TriggerRetryAttempt}, @{SqlParameters.TriggerContinuesName}, @{SqlParameters.TriggerContinuesGroup}, @{SqlParameters.TriggerContinuationCondition}, @{SqlParameters.TriggerOverlapPolicy})");
+        Invariant($@"INSERT INTO {TablePrefixSubst}{AdoConstants.TableTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnDescription}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnPreviousFireTime}, {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnTriggerType}, {AdoConstants.ColumnStartTime}, {AdoConstants.ColumnEndTime}, {AdoConstants.ColumnCalendarName}, {AdoConstants.ColumnMisfireInstruction}, {AdoConstants.ColumnJobDataMap}, {AdoConstants.ColumnPriority}, {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnPreferredNode}, {AdoConstants.ColumnPreferredNodeAuto}, {AdoConstants.ColumnRetryPolicy}, {AdoConstants.ColumnRetryAttempt}, {AdoConstants.ColumnContinuesTriggerName}, {AdoConstants.ColumnContinuesTriggerGroup}, {AdoConstants.ColumnContinuationCondition}, {AdoConstants.ColumnOverlapPolicy}, {AdoConstants.ColumnMisfireThreshold})
+                        VALUES(@{SqlParameters.SchedulerName}, @{SqlParameters.TriggerName}, @{SqlParameters.TriggerGroup}, @{SqlParameters.TriggerJobName}, @{SqlParameters.TriggerJobGroup}, @{SqlParameters.TriggerDescription}, @{SqlParameters.TriggerNextFireTime}, @{SqlParameters.TriggerPreviousFireTime}, @{SqlParameters.TriggerState}, @{SqlParameters.TriggerType}, @{SqlParameters.TriggerStartTime}, @{SqlParameters.TriggerEndTime}, @{SqlParameters.TriggerCalendarName}, @{SqlParameters.TriggerMisfireInstruction}, @{SqlParameters.TriggerJobJobDataMap}, @{SqlParameters.TriggerPriority}, @{SqlParameters.TriggerExecutionGroup}, @{SqlParameters.TriggerPreferredNode}, @{SqlParameters.TriggerPreferredNodeAuto}, @{SqlParameters.TriggerRetryPolicy}, @{SqlParameters.TriggerRetryAttempt}, @{SqlParameters.TriggerContinuesName}, @{SqlParameters.TriggerContinuesGroup}, @{SqlParameters.TriggerContinuationCondition}, @{SqlParameters.TriggerOverlapPolicy}, @{SqlParameters.TriggerMisfireThreshold})");
 
     // SELECT
 
@@ -320,21 +320,59 @@ internal static class StdAdoConstants
         Invariant($"SELECT {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup}");
 
     /// <summary>
+    /// Whether a trigger's row is misfired, for the three misfire statements: its fire time is at or
+    /// before now less its own <c>MISFIRE_THRESHOLD</c>, or less the store's where it has none (#4070).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two arms OR'd, each of which leaves <c>NEXT_FIRE_TIME</c> bare on its own side: a row with no
+    /// threshold of its own against <c>@nextFireTime</c> — now less the store's threshold, the comparison
+    /// these statements always made — and a row with one against <c>@misfireCountedFrom</c> less its
+    /// threshold in ticks. Ticks and milliseconds are the schema's contract, as
+    /// <see cref="PreferredNodeWhereClause" /> says, so the arithmetic is right on every dialect.
+    /// </para>
+    /// <para>
+    /// The second arm's comparand differs row by row, so no index can seek by it. The conjunct before
+    /// the arms is what keeps the statement a range: <c>NEXT_FIRE_TIME &lt;= @misfireScanBound</c>, which
+    /// is now, holds for every row either arm takes, because a threshold is always positive. The scan
+    /// therefore seeks <c>IDX_QRTZ_T_NFT_ST</c> up to now rather than up to now less the store's
+    /// threshold, and the arms filter what it reads: the rows due within the last threshold that are
+    /// still <c>WAITING</c>, which on a scheduler keeping up are few.
+    /// </para>
+    /// </remarks>
+    private static string MisfiredPredicate(string alias) =>
+        Invariant($"{alias}{AdoConstants.ColumnNextFireTime} <= @{SqlParameters.MisfireScanBound} AND (({alias}{AdoConstants.ColumnMisfireThreshold} IS NULL AND {alias}{AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime}) OR ({alias}{AdoConstants.ColumnMisfireThreshold} IS NOT NULL AND {alias}{AdoConstants.ColumnNextFireTime} <= @{SqlParameters.MisfireCountedFrom} - {alias}{AdoConstants.ColumnMisfireThreshold} * {TimeSpan.TicksPerMillisecond}))");
+
+    /// <summary>
+    /// The exact complement of <see cref="MisfiredPredicate" />'s two arms, for acquisition: a row with no
+    /// threshold of its own is later than <c>@noEarlierThan</c>, and one with one is later than
+    /// <c>@misfireCountedFrom</c> less it.
+    /// </summary>
+    /// <remarks>
+    /// Acquisition already ranges over <c>NEXT_FIRE_TIME &lt;= @noLaterThan</c> and reads this as a residual
+    /// beside <c>MISFIRE_INSTR</c>, so the arms change what the residual says and nothing about the plan.
+    /// A property rather than a field, so that no statement built from it depends on field order.
+    /// </remarks>
+    private static string NotMisfiredPredicate =>
+        Invariant($"(({AdoConstants.ColumnMisfireThreshold} IS NULL AND {AdoConstants.ColumnNextFireTime} > @{SqlParameters.NoEarlierThan}) OR ({AdoConstants.ColumnMisfireThreshold} IS NOT NULL AND {AdoConstants.ColumnNextFireTime} > @{SqlParameters.MisfireCountedFrom} - {AdoConstants.ColumnMisfireThreshold} * {TimeSpan.TicksPerMillisecond}))");
+
+    /// <summary>
     /// The cheap count the misfire handler peeks with before it takes the trigger lock. It has to
     /// select the same rows <see cref="SqlSelectMisfiredTriggersToRecover" /> does, or the sweep
     /// decides there is nothing to recover and skips work it would have found.
     /// </summary>
     /// <remarks>
-    /// <c>NEXT_FIRE_TIME &lt;= @nextFireTime</c> is the one rule about a misfire, spelled here in SQL:
-    /// a trigger is late once its fire time is <em>at or before</em> <c>now - MisfireThreshold</c>.
-    /// <c>RAMJobStore.ApplyMisfireNoLock</c>, <c>AdoJobStoreBase.UpdateMisfiredTrigger</c> and
-    /// <c>AdoJobStoreBase.RecoverUnblockedMisfires</c> all decline a trigger whose fire time is
-    /// strictly greater, and <see cref="SqlSelectNextTriggerToAcquire" /> takes the complement of it.
+    /// <see cref="MisfiredPredicate" /> is the one rule about a misfire, spelled here in SQL: a trigger
+    /// is late once its fire time is <em>at or before</em> now less its own threshold, or less the
+    /// store's <c>MisfireThreshold</c> where it has none. <c>RAMJobStore.ApplyMisfireNoLock</c>,
+    /// <c>AdoJobStoreBase.UpdateMisfiredTrigger</c> and <c>AdoJobStoreBase.RecoverUnblockedMisfires</c>
+    /// all decline a trigger whose fire time is strictly greater, through <c>MisfireThresholds</c>, and
+    /// <see cref="SqlSelectNextTriggerToAcquire" /> takes the complement of it.
     /// </remarks>
     public static readonly string SqlCountMisfiredTriggersInStates = CountMisfiredTriggersInStates(executionGroupClause: "");
 
     private static string CountMisfiredTriggersInStates(string executionGroupClause) =>
-        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State}{executionGroupClause}");
+        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {MisfiredPredicate(alias: "")} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State}{executionGroupClause}");
 
     /// <summary>
     /// <see cref="SqlCountMisfiredTriggersInStates" /> narrowed to the groups a node serves, which is
@@ -362,7 +400,7 @@ internal static class StdAdoConstants
     /// node serving its group — which the misfire handler logs on the transition.
     /// </remarks>
     internal static string BuildSqlCountUnservedMisfiredTriggers(ExecutionGroupClauseShape executionGroups) =>
-        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}), MIN({AdoConstants.ColumnNextFireTime}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {ExecutionGroupPredicate(executionGroups.Complement, alias: "")}");
+        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}), MIN({AdoConstants.ColumnNextFireTime}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {MisfiredPredicate(alias: "")} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {ExecutionGroupPredicate(executionGroups.Complement, alias: "")}");
 
     /// <summary>
     /// Counts the triggers pinned to this node and due by <c>@noLaterThan</c> that are <c>BLOCKED</c>
@@ -499,11 +537,12 @@ internal static class StdAdoConstants
     // IS_NONCONCURRENT, what decides whether the round may take no lock at all. Both are the row's own
     // columns and cost the statement nothing it was not already reading.
     //
-    // NEXT_FIRE_TIME > @noEarlierThan is the exact complement of the misfire predicate in
-    // SqlCountMisfiredTriggersInStates, and has to stay that way: @noEarlierThan is the very
-    // now - MisfireThreshold the sweep asks about, so a waiting trigger belongs either to acquisition
-    // or to the misfire handler and never to both. Acquiring one the store already counts as misfired
-    // would fire it late without ever applying the policy it asked for.
+    // NotMisfiredPredicate is the exact complement of MisfiredPredicate's two arms, and has to stay that
+    // way: @noEarlierThan is the very now - MisfireThreshold the sweep asks about for a row with no
+    // threshold of its own, and @misfireCountedFrom less MISFIRE_THRESHOLD is what it asks about for a row
+    // with one (#4070), so a waiting trigger belongs either to acquisition or to the misfire handler and
+    // never to both. Acquiring one the store already counts as misfired would fire it late without ever
+    // applying the policy it asked for.
     private static string SelectNextTriggerToAcquire(string exclusionClause, string executionGroupClause, SqlRowLimit rowLimit) =>
         rowLimit.Enclose(Invariant($@"SELECT{rowLimit.AfterSelect}
                 t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, jd.{AdoConstants.ColumnIsNonConcurrent}, t.{AdoConstants.ColumnExecutionGroup}, t.{AdoConstants.ColumnNextFireTime}, t.{AdoConstants.ColumnOverlapPolicy}
@@ -512,7 +551,7 @@ internal static class StdAdoConstants
               JOIN
                 {TablePrefixSubst}{AdoConstants.TableJobDetails} jd ON (jd.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND  jd.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND jd.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName})
               WHERE
-                t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NoLaterThan} AND ({AdoConstants.ColumnMisfireInstruction} = -1 OR ({AdoConstants.ColumnMisfireInstruction} <> -1 AND {AdoConstants.ColumnNextFireTime} > @{SqlParameters.NoEarlierThan}))
+                t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NoLaterThan} AND ({AdoConstants.ColumnMisfireInstruction} = -1 OR ({AdoConstants.ColumnMisfireInstruction} <> -1 AND {NotMisfiredPredicate}))
                 {PreferredNodeWhereClause}{exclusionClause}{executionGroupClause}
               ORDER BY
                 {TriggerSweepOrderBy(alias: "")}{rowLimit.AtEnd}"));
@@ -806,7 +845,8 @@ internal static class StdAdoConstants
                 t.{AdoConstants.ColumnContinuesTriggerName},
                 t.{AdoConstants.ColumnContinuesTriggerGroup},
                 t.{AdoConstants.ColumnContinuationCondition},
-                t.{AdoConstants.ColumnOverlapPolicy}";
+                t.{AdoConstants.ColumnOverlapPolicy},
+                t.{AdoConstants.ColumnMisfireThreshold}";
 
     /// <summary>
     /// FROM clause that left-joins the SIMPLE and CRON type tables onto TRIGGERS, letting the two most
@@ -840,7 +880,7 @@ internal static class StdAdoConstants
                 t.{AdoConstants.ColumnTriggerName},
                 t.{AdoConstants.ColumnTriggerGroup}{TriggerSelectFastPathFrom}
             WHERE
-                t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NextFireTime} AND t.{AdoConstants.ColumnTriggerState} = @{SqlParameters.State}{executionGroupClause}
+                t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {MisfiredPredicate(alias: "t.")} AND t.{AdoConstants.ColumnTriggerState} = @{SqlParameters.State}{executionGroupClause}
             ORDER BY {TriggerSweepOrderBy(alias: "t.")}{rowLimit.AtEnd}"));
 
     /// <inheritdoc cref="SelectMisfiredTriggersToRecover" />
@@ -1342,14 +1382,20 @@ internal static class StdAdoConstants
     private const string OverlapSetClause =
         $", {AdoConstants.ColumnOverlapPolicy} = @{SqlParameters.TriggerOverlapPolicy}";
 
+    // The misfire threshold is written unconditionally, for the reason the overlap policy is: it is part
+    // of the trigger's definition. It follows the overlap clause and precedes the optional pin in every
+    // flavour, so the binder adds its parameter in the same place whichever was picked.
+    private const string MisfireThresholdSetClause =
+        $", {AdoConstants.ColumnMisfireThreshold} = @{SqlParameters.TriggerMisfireThreshold}";
+
     public static readonly string SqlUpdateTrigger =
         Invariant($@"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnJobName} = @{SqlParameters.TriggerJobName}, {AdoConstants.ColumnJobGroup} = @{SqlParameters.TriggerJobGroup}, {AdoConstants.ColumnDescription} = @{SqlParameters.TriggerDescription}, {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime},
-                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnJobDataMap} = @{SqlParameters.TriggerJobJobDataMap}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{OverlapSetClause}
+                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnJobDataMap} = @{SqlParameters.TriggerJobJobDataMap}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{OverlapSetClause}{MisfireThresholdSetClause}
                         WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     public static readonly string SqlUpdateTriggerWithPreferredNode =
         Invariant($@"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnJobName} = @{SqlParameters.TriggerJobName}, {AdoConstants.ColumnJobGroup} = @{SqlParameters.TriggerJobGroup}, {AdoConstants.ColumnDescription} = @{SqlParameters.TriggerDescription}, {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime},
-                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnJobDataMap} = @{SqlParameters.TriggerJobJobDataMap}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{OverlapSetClause}{PreferredNodeSetClause}
+                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnJobDataMap} = @{SqlParameters.TriggerJobJobDataMap}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{OverlapSetClause}{MisfireThresholdSetClause}{PreferredNodeSetClause}
                         WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     public static readonly string SqlUpdateFiredTrigger = Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableFiredTriggers} SET {AdoConstants.ColumnInstanceName} = @{SqlParameters.InstanceName}, {AdoConstants.ColumnFiredTime} = @{SqlParameters.FiredTime}, {AdoConstants.ColumnScheduledTime} = @{SqlParameters.ScheduledTime}, {AdoConstants.ColumnEntryState} = @{SqlParameters.EntryState}, {AdoConstants.ColumnJobName} = @{SqlParameters.JobName}, {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup}, {AdoConstants.ColumnIsNonConcurrent} = @{SqlParameters.IsNonConcurrent}, {AdoConstants.ColumnRequestsRecovery} = @{SqlParameters.RequestsRecover}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.ExecutionGroup} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnEntryId} = @{SqlParameters.EntryId}");
@@ -1402,12 +1448,12 @@ internal static class StdAdoConstants
 
     public static readonly string SqlUpdateTriggerSkipData =
         Invariant($@"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnJobName} = @{SqlParameters.TriggerJobName}, {AdoConstants.ColumnJobGroup} = @{SqlParameters.TriggerJobGroup}, {AdoConstants.ColumnDescription} = @{SqlParameters.TriggerDescription}, {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime},
-                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{OverlapSetClause}
+                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{OverlapSetClause}{MisfireThresholdSetClause}
                     WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     public static readonly string SqlUpdateTriggerSkipDataWithPreferredNode =
         Invariant($@"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnJobName} = @{SqlParameters.TriggerJobName}, {AdoConstants.ColumnJobGroup} = @{SqlParameters.TriggerJobGroup}, {AdoConstants.ColumnDescription} = @{SqlParameters.TriggerDescription}, {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime},
-                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{OverlapSetClause}{PreferredNodeSetClause}
+                        {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnTriggerType} = @{SqlParameters.TriggerType}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnEndTime} = @{SqlParameters.TriggerEndTime}, {AdoConstants.ColumnCalendarName} = @{SqlParameters.TriggerCalendarName}, {AdoConstants.ColumnMisfireInstruction} = @{SqlParameters.TriggerMisfireInstruction}, {AdoConstants.ColumnPriority} = @{SqlParameters.TriggerPriority}, {AdoConstants.ColumnExecutionGroup} = @{SqlParameters.TriggerExecutionGroup}{RetrySetClause}{ContinuationSetClause}{OverlapSetClause}{MisfireThresholdSetClause}{PreferredNodeSetClause}
                     WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     // What a trigger row written in a state that is not paused forgets: the record of the pause it

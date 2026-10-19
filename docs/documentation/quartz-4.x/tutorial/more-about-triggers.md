@@ -62,8 +62,9 @@ family's schedule builder, so only its values are in scope:
 
 Every family has:
 
-* `SmartPolicy`, the default. The trigger resolves it to one of its own instructions when the misfire is
-  handled; only `SimpleTrigger` looks at anything to decide.
+* `SmartPolicy`, the default unless the scheduler's
+  [default instruction](#the-scheduler-s-default-instruction) says otherwise. The trigger resolves it to
+  one of its own instructions when the misfire is handled; only `SimpleTrigger` looks at anything to decide.
 * `IgnoreMisfires`, which fires every missed firing as fast as it can once the scheduler is back.
 
 | Trigger family | `SmartPolicy` resolves to | Which means |
@@ -79,6 +80,70 @@ Every family has:
 However many firings were missed, a resolved instruction fires **once** at most: the trigger moves
 forward and is not replayed. Only `IgnoreMisfires` replays them. To run a past range you choose, whatever
 the instruction did, see [Backfill](../how-tos/backfill.md).
+
+### A trigger's own misfire threshold
+
+A firing later than the misfire threshold is a misfire. The threshold is the store's `MisfireThreshold`
+(one minute persistent, five seconds in memory) unless the trigger has one of its own (4.6):
+
+<!-- snippet: sample_more_about_triggers_misfire_threshold -->
+```csharp
+// Behind a quota, this report may start up to fifteen minutes late and still be worth running.
+// Every other trigger keeps the store's threshold.
+ITrigger report = TriggerBuilder.Create()
+    .WithIdentity("nightly-report")
+    .ForJob("report")
+    .WithCronSchedule("0 0 2 * * ?")
+    .WithMisfireThreshold(TimeSpan.FromMinutes(15))
+    .Build();
+```
+<!-- endSnippet -->
+
+* Shorter or longer than the store's. Positive, in whole milliseconds.
+* Both stores apply it everywhere they decide a misfire: acquisition, the misfire scan, a trigger let go
+  from `BLOCKED`, a resumed trigger, a replaced calendar.
+* Set it for work that waits behind a [quota](execution-groups.md#configuring-execution-limits) or
+  [`BufferOne`](../how-tos/overlap-policy.md), instead of raising the store's threshold for every trigger.
+* Also on [`[CronTrigger]` and `[SimpleTrigger]`](declaring-jobs-with-attributes.md), the
+  [JSON schedule](../configuration/json.md), the XML file's `<misfire-threshold>`,
+  `TriggerDetailsUpdate.WithMisfireThreshold` and the dashboard's *Edit details*. `null` in an update puts
+  the trigger back on the store's.
+* **Cluster:** stored in `QRTZ_TRIGGERS.MISFIRE_THRESHOLD`. A 4.5 node ignores it and judges every trigger
+  by the store's threshold, so roll every node to 4.6 before you rely on it. See
+  [Version 4.6](../../database/schema-changes.md#version-4-6).
+
+### The scheduler's default instruction
+
+A trigger whose instruction nobody stated takes the scheduler's `DefaultMisfireHandling` when it is
+scheduled (4.6):
+
+<!-- snippet: sample_more_about_triggers_default_misfire_handling -->
+```csharp
+// A trigger nobody gave an instruction skips what it missed and waits for its next time.
+services.AddQuartz(q => q.ConfigureScheduler(options =>
+    options.DefaultMisfireHandling = Quartz.DefaultMisfireHandling.DoNothing));
+```
+<!-- endSnippet -->
+
+| `DefaultMisfireHandling` | Simple trigger | Cron, calendar interval, daily time interval, recurrence |
+|---|---|---|
+| `SmartPolicy` (default) | `SmartPolicy` | `SmartPolicy` |
+| `IgnoreMisfires` | `IgnoreMisfires` | `IgnoreMisfires` |
+| `FireAndProceed` | `FireNow` | `FireAndProceed` |
+| `DoNothing` | `NextWithRemainingCount` | `DoNothing` |
+
+* A simple trigger has no exact match for the last two. `FireNow` fires once now and re-anchors a
+  repeating trigger's remaining repeats there. `NextWithRemainingCount` counts the missed firings as
+  fired, so the series ends where it would have; a one-shot trigger that misfires never fires.
+* A trigger type of your own keeps its own smart policy.
+* **Stated wins, `SmartPolicy` included.** A `WithMisfireInstruction(…)` call, an assignment of
+  `MisfireInstructionCode`, an attribute's or the JSON schedule's `MisfireInstruction`, and a trigger read
+  from a store or deserialized all state it. Only an instruction left unset takes the default.
+* Resolved by `ScheduleJob`, `ScheduleJobs`, `ScheduleTrigger` and `RescheduleJob`, so the store holds the
+  mapped instruction. Triggers already stored keep theirs. A trigger scheduled over the HTTP API arrives
+  deserialized, so it keeps the instruction it was sent with.
+* Flat key: `quartz.scheduler.defaultMisfireHandling`. Each node applies its own, so set the same on every
+  node.
 
 ## Retry Policies
 

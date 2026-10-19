@@ -230,6 +230,7 @@ internal sealed class JobSchedulingData
 
         trigger.ContinuationCondition = Text(element, "continuation-condition");
         trigger.OverlapPolicy = Text(element, "overlap-policy");
+        trigger.MisfireThreshold = Text(element, "misfire-threshold");
         trigger.MisfireInstruction = Text(element, "misfire-instruction");
         trigger.JobDataMap = ReadJobDataMap(element);
         trigger.StartTime = Timestamp(element, "start-time");
@@ -402,6 +403,12 @@ internal abstract class TriggerDefinition
     /// <c>AllowAll</c> or <c>Default</c>, or null for <c>Default</c>.
     /// </summary>
     public string? OverlapPolicy { get; set; }
+
+    /// <summary>
+    /// The <c>misfire-threshold</c> element: a <see cref="TimeSpan" /> in its invariant form, such as
+    /// <c>00:05:00</c>, or null for the job store's own threshold.
+    /// </summary>
+    public string? MisfireThreshold { get; set; }
 
     public string? MisfireInstruction { get; set; }
 

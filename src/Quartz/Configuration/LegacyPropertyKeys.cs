@@ -86,6 +86,12 @@ internal static class LegacyPropertyKeys
     /// <see cref="QuartzSchedulerOptions.RefusedExecutionGroups" />.
     /// </summary>
     internal const string SchedulerRefusedExecutionGroups = "quartz.scheduler.refusedExecutionGroups";
+
+    /// <summary>
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" />, by member name:
+    /// <c>SmartPolicy</c>, <c>IgnoreMisfires</c>, <c>FireAndProceed</c> or <c>DoNothing</c>.
+    /// </summary>
+    internal const string SchedulerDefaultMisfireHandling = "quartz.scheduler.defaultMisfireHandling";
     internal const string SchedulerContextPrefix = "quartz.context.key";
     internal const string ThreadPoolPrefix = "quartz.threadPool";
     internal const string ThreadPoolType = "quartz.threadPool.type";
@@ -175,6 +181,7 @@ internal static class LegacyPropertyKeys
         SchedulerInterruptJobsOnShutdownWithWait,
         SchedulerServedExecutionGroups,
         SchedulerRefusedExecutionGroups,
+        SchedulerDefaultMisfireHandling,
         SchedulerContextPrefix,
         ThreadPoolPrefix,
         TimeProviderType,

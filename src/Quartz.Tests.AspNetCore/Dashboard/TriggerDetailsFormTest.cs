@@ -131,6 +131,59 @@ public sealed class TriggerDetailsFormTest
         form.Build().Errors.Should().Contain("Preferred node: 'somewhere' is not a choice.");
     }
 
+    [Test]
+    public void TheMisfireThresholdIsEditedAsATimeSpanAndClearedWithBlank()
+    {
+        TriggerDetailsForm form = TriggerDetailsForm.From(Cron());
+        form.MisfireThreshold.Should().BeEmpty("a trigger on the store's threshold shows nothing to edit");
+        form.MisfireThresholdUnavailable.Should().BeNull();
+
+        form.MisfireThreshold = "00:05:00";
+        TriggerDetailsEdit set = form.Build();
+
+        set.Errors.Should().BeEmpty();
+        set.Update!.HasMisfireThreshold.Should().BeTrue();
+        set.Update.MisfireThreshold.Should().Be(TimeSpan.FromMinutes(5));
+        set.Changes.Should().Equal("misfire threshold store's → 00:05:00");
+
+        ITrigger tolerant = TriggerBuilder.Create().WithIdentity("t").ForJob("j").WithCronSchedule("0 0 1 * * ?")
+            .WithMisfireThreshold(TimeSpan.FromMinutes(5)).Build();
+        TriggerDetailsForm clearing = TriggerDetailsForm.From(tolerant);
+        clearing.MisfireThreshold.Should().Be("00:05:00");
+        clearing.Build().Update.Should().BeNull("an unchanged threshold is not an edit");
+
+        clearing.MisfireThreshold = " ";
+        TriggerDetailsEdit cleared = clearing.Build();
+        cleared.Update!.HasMisfireThreshold.Should().BeTrue();
+        cleared.Update.MisfireThreshold.Should().BeNull("blank puts the trigger back on the store's threshold");
+        cleared.Changes.Should().Equal("misfire threshold 00:05:00 → store's");
+    }
+
+    [Test]
+    public void AThresholdThatIsNotOneIsSaidAndNotSent()
+    {
+        TriggerDetailsForm form = TriggerDetailsForm.From(Cron());
+
+        form.MisfireThreshold = "soon";
+        TriggerDetailsEdit edit = form.Build();
+
+        edit.Update.Should().BeNull();
+        edit.Errors.Should().ContainSingle().Which.Should().StartWith("Misfire threshold: 'soon' is not a misfire threshold.");
+    }
+
+    [Test]
+    public void ATriggerOutsideTriggerBaseHasItsThresholdDisabledWithTheReason()
+    {
+        ITrigger trigger = A.Fake<ITrigger>();
+        A.CallTo(() => trigger.JobDataMap).Returns(new JobDataMap());
+        TriggerDetailsForm form = TriggerDetailsForm.From(trigger);
+
+        form.MisfireThresholdUnavailable.Should().Contain("cannot carry a misfire threshold");
+        form.MisfireThreshold = "00:05:00";
+        form.Build().Update.Should().BeNull("a threshold such a trigger cannot carry is not offered, so it is not sent");
+        TriggerDetailsForm.MisfireThresholdOf(trigger).Should().Be("Store's");
+    }
+
     private static ITrigger Cron()
     {
         return TriggerBuilder.Create().WithIdentity("t").ForJob("j").WithCronSchedule("0 0 1 * * ?").Build();

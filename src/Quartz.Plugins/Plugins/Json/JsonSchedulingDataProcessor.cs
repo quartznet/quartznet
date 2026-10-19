@@ -326,6 +326,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
             if (triggerJobGroup is not null) tb.ForJob(triggerJobName, triggerJobGroup);
             else tb.ForJob(triggerJobName);
             if (continuation.Parent is { } continuationParent) tb.StartAfter(continuationParent, continuation.When);
+            if (SchedulingFileValues.ReadMisfireThreshold(NormalizeEmpty(triggerDef.MisfireThreshold), $"Trigger '{triggerName}'") is { } misfireThreshold) tb.WithMisfireThreshold(misfireThreshold);
 
             var trigger = (IMutableTrigger) tb
                 .WithDescription(triggerDef.Description?.TrimEmptyToNull())

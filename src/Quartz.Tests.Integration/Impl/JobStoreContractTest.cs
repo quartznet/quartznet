@@ -1614,6 +1614,117 @@ public abstract class JobStoreContractTest
             + "or a failover restarts the retries from the beginning");
     }
 
+    /// <summary>
+    /// A trigger's own misfire threshold, set when it is stored and changed and cleared by an update, comes
+    /// back out of every store as it went in (#4070).
+    /// </summary>
+    [Test]
+    public async Task ATriggerKeepsItsOwnMisfireThresholdAcrossAStoreRoundTrip()
+    {
+        IJobDetail job = CreateJob("tolerant", JobGroupA);
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("tolerant", TriggerGroupA)
+            .ForJob(job.Key)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .StartAt(RoundTripStart)
+            .WithMisfireThreshold(TimeSpan.FromMilliseconds(90_250))
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        await Store.ScheduleJob(job, trigger);
+
+        (await Store.GetTrigger(trigger.Key)).MisfireThreshold.Should().Be(TimeSpan.FromMilliseconds(90_250),
+            "the threshold is stored in whole milliseconds, and a millisecond lost would be another threshold");
+
+        (await Store.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithMisfireThreshold(TimeSpan.FromSeconds(5)))).Should().BeTrue();
+        (await Store.GetTrigger(trigger.Key)).MisfireThreshold.Should().Be(TimeSpan.FromSeconds(5));
+
+        (await Store.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithMisfireThreshold(null))).Should().BeTrue();
+        (await Store.GetTrigger(trigger.Key)).MisfireThreshold.Should().BeNull("an update's null puts the trigger back on the store's threshold");
+    }
+
+    /// <summary>
+    /// Acquisition and the misfire decision read each trigger's own threshold, shorter or longer than the
+    /// store's, on every dialect the statements run on (#4070).
+    /// </summary>
+    /// <remarks>
+    /// On the real clock, with the store's threshold set to a minute and every overdue time a fraction or a
+    /// multiple of it, so the margins are tens of seconds. The database store leaves a misfired trigger to
+    /// its misfire handler, which the test runs; the in-memory store applies it in the acquisition itself.
+    /// </remarks>
+    [Test]
+    public async Task AcquisitionAndTheMisfireDecisionFollowEachTriggersOwnThreshold()
+    {
+        TimeSpan storeThreshold = TimeSpan.FromMinutes(1);
+        switch (JobStores.Unwrap(Store))
+        {
+            case RAMJobStore ram:
+                ram.MisfireThreshold = storeThreshold;
+                break;
+            case Quartz.Impl.AdoJobStore.AdoJobStoreBase ado:
+                ado.MisfireThreshold = storeThreshold;
+                break;
+            default:
+                throw new InvalidOperationException("the contract covers the two shipped stores");
+        }
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        DateTimeOffset longOverdue = now - storeThreshold * 2;
+        DateTimeOffset shortOverdue = now - storeThreshold / 2;
+        TimeSpan tight = TimeSpan.FromMilliseconds(Math.Max(1, (long) (storeThreshold.TotalMilliseconds / 5)));
+
+        IOperableTrigger tolerant = await ScheduleOverdue("tolerant", longOverdue, storeThreshold * 10);
+        IOperableTrigger lateControl = await ScheduleOverdue("late-control", longOverdue, threshold: null);
+        IOperableTrigger tightOne = await ScheduleOverdue("tight", shortOverdue, tight);
+        IOperableTrigger onTimeControl = await ScheduleOverdue("on-time-control", shortOverdue, threshold: null);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddSeconds(1),
+            MaxCount = 10
+        });
+        foreach (IOperableTrigger trigger in acquired)
+        {
+            await Store.ReleaseAcquiredTrigger(trigger);
+        }
+
+        acquired.Select(x => x.Key).Should().BeEquivalentTo([tolerant.Key, onTimeControl.Key],
+            "twice the store's threshold late is inside the tolerant trigger's own, and half of it is past the tight trigger's own");
+
+        if (JobStores.Unwrap(Store) is Quartz.Impl.AdoJobStore.AdoJobStoreBase adoStore)
+        {
+            (await adoStore.RecoverMisfires(Guid.NewGuid())).ProcessedMisfiredTriggerCount.Should().Be(2,
+                "the misfire handler takes exactly what acquisition left: the late control and the tight trigger");
+        }
+
+        (await Store.GetTrigger(lateControl.Key)).NextFireTimeUtc.Should().BeAfter(longOverdue, "the store's threshold misfired it, and its policy moved it on");
+        (await Store.GetTrigger(tightOne.Key)).NextFireTimeUtc.Should().BeAfter(shortOverdue, "its own threshold misfired it, and its policy moved it on");
+        (await Store.GetTrigger(tolerant.Key)).NextFireTimeUtc.Should().Be(longOverdue, "inside its own threshold it is still owed, not misfired");
+    }
+
+    private async Task<IOperableTrigger> ScheduleOverdue(string name, DateTimeOffset overdue, TimeSpan? threshold)
+    {
+        IJobDetail job = CreateJob(name, JobGroupA);
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create()
+            .WithIdentity(name, TriggerGroupA)
+            .ForJob(job.Key)
+            .StartAt(overdue.AddHours(-2))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever());
+
+        if (threshold is { } value)
+        {
+            builder.WithMisfireThreshold(value);
+        }
+
+        IOperableTrigger trigger = (IOperableTrigger) builder.Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        // Written back by hand: a past-due schedule computes its next future slot, and an overdue trigger
+        // is what a trigger nobody got around to firing looks like.
+        trigger.NextFireTimeUtc = overdue;
+        await Store.ScheduleJob(job, trigger);
+        return trigger;
+    }
+
     [Test]
     public async Task ATriggerWithNoRetryPolicyComesBackWithoutOne()
     {

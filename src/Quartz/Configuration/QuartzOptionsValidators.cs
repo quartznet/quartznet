@@ -86,6 +86,15 @@ internal sealed class QuartzSchedulerOptionsValidator : IValidateOptions<QuartzS
 
         ExecutionGroupRouting.Validate(options.ServedExecutionGroups, options.RefusedExecutionGroups, ref failures);
 
+        // A number cast to the enum would otherwise map to nothing, and every unstated trigger would keep
+        // the smart policy without saying why.
+        if (!Enum.IsDefined(options.DefaultMisfireHandling))
+        {
+            (failures ??= []).Add(
+                $"{nameof(QuartzSchedulerOptions.DefaultMisfireHandling)} is {(int) options.DefaultMisfireHandling}, which is not one of "
+                + $"{string.Join(", ", Enum.GetNames<DefaultMisfireHandling>())}.");
+        }
+
         return Result(failures);
     }
 

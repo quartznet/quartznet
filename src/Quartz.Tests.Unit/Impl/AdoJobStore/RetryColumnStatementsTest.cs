@@ -131,11 +131,13 @@ public class RetryColumnStatementsTest
         placeholders[policyIndex].Should().Be("@" + SqlParameters.TriggerRetryPolicy);
         placeholders[attemptIndex].Should().Be("@" + SqlParameters.TriggerRetryAttempt);
 
-        columns[^2].Should().Be(AdoConstants.ColumnContinuationCondition,
+        columns[^3].Should().Be(AdoConstants.ColumnContinuationCondition,
             "columns are appended, which is what keeps every other position unchanged");
-        columns[^1].Should().Be(AdoConstants.ColumnOverlapPolicy,
-            "the overlap policy is the newest column, so it is last");
-        placeholders[^1].Should().Be("@" + SqlParameters.TriggerOverlapPolicy);
+        columns[^2].Should().Be(AdoConstants.ColumnOverlapPolicy);
+        placeholders[^2].Should().Be("@" + SqlParameters.TriggerOverlapPolicy);
+        columns[^1].Should().Be(AdoConstants.ColumnMisfireThreshold,
+            "the misfire threshold is the newest column, so it is last");
+        placeholders[^1].Should().Be("@" + SqlParameters.TriggerMisfireThreshold);
     }
 
     /// <summary>

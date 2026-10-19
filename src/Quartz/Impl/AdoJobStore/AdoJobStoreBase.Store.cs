@@ -975,15 +975,14 @@ internal abstract partial class AdoJobStoreBase
                     return false;
                 }
 
-                if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
-                    && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode
-                    && !update.HasExecutionGroup && !update.HasRetryPolicy && !update.HasOverlapPolicy)
+                if (update.ChangesNothing)
                 {
                     return true;
                 }
 
                 update.EnsureMisfireInstructionMatchesFamily(existing, triggerKey);
                 update.EnsureOverlapPolicyCanBeCarried(existing, triggerKey);
+                update.EnsureMisfireThresholdCanBeCarried(existing, triggerKey);
 
                 if (update.HasCalendarName && update.CalendarName is not null)
                 {
@@ -1142,6 +1141,12 @@ internal abstract partial class AdoJobStoreBase
             overlapping.OverlapPolicy = update.OverlapPolicy;
             overlapping.OverlapPolicyUnsettled = unsettled;
         }
+
+        if (update.HasMisfireThreshold)
+        {
+            // MISFIRE_THRESHOLD is part of the same generic UPDATE.
+            ((TriggerBase) existing).MisfireThreshold = update.MisfireThreshold;
+        }
     }
 
     /// <summary>
@@ -1162,7 +1167,7 @@ internal abstract partial class AdoJobStoreBase
         for (int attempt = 1; ; attempt++)
         {
             RowAsRead asRead = new(trigger.NextFireTimeUtc);
-            trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
+            trigger.UpdateWithNewCalendar(calendar, trigger.MisfireThreshold ?? MisfireThreshold);
 
             StoredTriggerState triggerState = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
             if (triggerState == StoredTriggerState.Deleted)

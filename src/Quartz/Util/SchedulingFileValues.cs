@@ -259,4 +259,66 @@ internal static class SchedulingFileValues
         (nameof(OverlapPolicy.CancelPrevious), OverlapPolicy.CancelPrevious),
         (nameof(OverlapPolicy.AllowAll), OverlapPolicy.AllowAll)
     ];
+
+    /// <summary>
+    /// Reads a trigger's own misfire threshold, as a <see cref="TimeSpan" /> in its invariant form —
+    /// <c>00:05:00</c> for five minutes — or nothing at all for the store's.
+    /// </summary>
+    /// <param name="value">The value the file stated, or <see langword="null" /> when it stated none.</param>
+    /// <param name="trigger">How the reader names the trigger in a diagnostic, for example <c>Trigger 'nightly'</c>.</param>
+    /// <remarks>
+    /// A file that states none puts the trigger on the store's threshold, which is also what a trigger
+    /// built with no <c>WithMisfireThreshold</c> gets, so re-reading a file clears a threshold set some
+    /// other way.
+    /// </remarks>
+    /// <exception cref="SchedulerConfigException">
+    /// The file stated something that is not a positive whole number of milliseconds. Refused as the file
+    /// is read, rather than scheduling a trigger that misfires on another threshold than it asked for.
+    /// </exception>
+    internal static TimeSpan? ReadMisfireThreshold(string? value, string trigger)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (!TryReadMisfireThreshold(value, out TimeSpan threshold))
+        {
+            throw new SchedulerConfigException($"{trigger}: '{value}' is not a misfire threshold. {MisfireThresholdForm}");
+        }
+
+        return threshold;
+    }
+
+    /// <summary>
+    /// Reads a misfire threshold in its invariant <see cref="TimeSpan" /> form.
+    /// </summary>
+    /// <returns>
+    /// <see langword="false" /> when <paramref name="value" /> is missing, is not a <see cref="TimeSpan" />,
+    /// or is not longer than zero in whole milliseconds.
+    /// </returns>
+    internal static bool TryReadMisfireThreshold(string? value, out TimeSpan threshold)
+    {
+        if (value is not null
+            && TimeSpan.TryParse(value.Trim(), System.Globalization.CultureInfo.InvariantCulture, out threshold)
+            && threshold > TimeSpan.Zero
+            && threshold.Ticks % TimeSpan.TicksPerMillisecond == 0)
+        {
+            return true;
+        }
+
+        threshold = default;
+        return false;
+    }
+
+    /// <summary>
+    /// A misfire threshold in the form <see cref="TryReadMisfireThreshold" /> reads: the
+    /// <see cref="TimeSpan" />'s invariant constant format.
+    /// </summary>
+    internal static string FormatMisfireThreshold(TimeSpan threshold)
+        => threshold.ToString("c", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>What a misfire threshold is spelled as, for a diagnostic.</summary>
+    internal const string MisfireThresholdForm =
+        "State a TimeSpan longer than zero, in whole milliseconds, the way TimeSpan does invariantly: \"00:05:00\" for five minutes.";
 }

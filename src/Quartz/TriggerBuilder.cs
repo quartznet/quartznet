@@ -125,6 +125,7 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     private RetryPolicy? retryPolicy;
     private Continuation continuation;
     private OverlapPolicy overlapPolicy;
+    private TimeSpan? misfireThreshold;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -209,11 +210,20 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
             // Unconditionally too, and for the same reason: a definition without WithOverlapPolicy
             // puts a replaced trigger back to Default.
             triggerBase.OverlapPolicy = overlapPolicy;
+
+            // And again: a definition without WithMisfireThreshold puts a replaced trigger back on the
+            // store's threshold.
+            triggerBase.MisfireThreshold = misfireThreshold;
         }
         else if (overlapPolicy != OverlapPolicy.Default)
         {
             Throw.NotSupportedException(
                 $"{trig.GetType().FullName} does not derive from TriggerBase, so it cannot carry the overlap policy {overlapPolicy}.");
+        }
+        else if (misfireThreshold is { } threshold)
+        {
+            Throw.NotSupportedException(
+                $"{trig.GetType().FullName} does not derive from TriggerBase, so it cannot carry the misfire threshold {threshold}.");
         }
 
         trig.CalendarName = calendarName;
@@ -446,6 +456,36 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
         }
 
         this.overlapPolicy = overlapPolicy;
+        return this;
+    }
+
+    /// <summary>
+    /// Set how late the trigger may fire before it counts as misfired, in place of the job store's
+    /// <c>MisfireThreshold</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Shorter or longer than the store's: a trigger whose firing is worthless after a few seconds says
+    /// so without lowering the threshold for every other trigger, and one that tolerates a long delay —
+    /// behind a quota, an execution limit or <see cref="OverlapPolicy.BufferOne" /> — says so without
+    /// raising it. A builder never given one builds a trigger on the store's threshold.
+    /// </para>
+    /// <para>
+    /// A cluster honours it only once every node is 4.6 or later; an older node applies the store's
+    /// threshold to the trigger.
+    /// </para>
+    /// </remarks>
+    /// <param name="misfireThreshold">the threshold: longer than zero, in whole milliseconds</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The threshold is zero or negative, or is not a whole number of milliseconds.
+    /// </exception>
+    /// <seealso cref="ITrigger.MisfireThreshold" />
+    public TriggerBuilder<TJob> WithMisfireThreshold(TimeSpan misfireThreshold)
+    {
+        TriggerBase.RequireValidMisfireThreshold(misfireThreshold, nameof(misfireThreshold));
+
+        this.misfireThreshold = misfireThreshold;
         return this;
     }
 
@@ -762,6 +802,8 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithRetryPolicy(RetryPolicy? retryPolicy) => WithRetryPolicy(retryPolicy);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithOverlapPolicy(OverlapPolicy overlapPolicy) => WithOverlapPolicy(overlapPolicy);
+
+    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithMisfireThreshold(TimeSpan misfireThreshold) => WithMisfireThreshold(misfireThreshold);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithCalendarName(string? calendarName) => WithCalendarName(calendarName);
 

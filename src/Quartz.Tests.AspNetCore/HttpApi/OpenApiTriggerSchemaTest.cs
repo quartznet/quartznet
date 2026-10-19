@@ -41,11 +41,13 @@ public class OpenApiTriggerSchemaTest
             .WithCalendarIntervalSchedule(builder => builder.WithInterval(42, IntervalUnit.Second))
             .Build(),
 
-        // With an overlap policy, which a trigger body carries only when it is not Default.
+        // With an overlap policy, which a trigger body carries only when it is not Default, and a misfire
+        // threshold, which it carries only when the trigger has one of its own.
         TriggerBuilder.Create()
             .WithIdentity("cron", "group")
             .WithCronSchedule("0/5 * * * * ?")
             .WithOverlapPolicy(OverlapPolicy.Skip)
+            .WithMisfireThreshold(TimeSpan.FromMinutes(5))
             .Build(),
 
         TriggerBuilder.Create()

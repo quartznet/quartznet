@@ -621,6 +621,7 @@ internal static class QuartzPropertyBridge
         MapShutdownJobInterruption(options, parser);
         parser.Names(LegacyPropertyKeys.SchedulerServedExecutionGroups, name => AddIfAbsent(options.ServedExecutionGroups, name));
         parser.Names(LegacyPropertyKeys.SchedulerRefusedExecutionGroups, name => AddIfAbsent(options.RefusedExecutionGroups, name));
+        parser.Enum<DefaultMisfireHandling>(LegacyPropertyKeys.SchedulerDefaultMisfireHandling, value => options.DefaultMisfireHandling = value);
 
         var context = parser.Group(LegacyPropertyKeys.SchedulerContextPrefix);
         foreach (var key in context.AllKeys)

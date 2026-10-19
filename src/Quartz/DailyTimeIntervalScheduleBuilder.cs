@@ -100,7 +100,9 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder, ITimePr
     private int repeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
     private TimeZoneInfo? timeZone;
 
-    private int misfireInstruction = MisfireInstruction.SmartPolicy;
+    // Null until WithMisfireInstruction is called: a builder never told what to do about a misfire
+    // leaves the trigger's instruction unstated, so the scheduler's default applies to it.
+    private int? misfireInstruction;
 
     /// <summary>
     /// Every day, <see cref="DayOfWeek.Sunday"/> through <see cref="DayOfWeek.Saturday"/>.
@@ -181,7 +183,10 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder, ITimePr
         DailyTimeIntervalTriggerImpl st = new DailyTimeIntervalTriggerImpl();
         st.RepeatInterval = interval;
         st.RepeatIntervalUnit = intervalUnit;
-        st.MisfireInstructionCode = misfireInstruction;
+        if (misfireInstruction is { } stated)
+        {
+            st.MisfireInstructionCode = stated;
+        }
         st.RepeatCount = repeatCount;
         st.timeZone = timeZone;
 
@@ -400,8 +405,12 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder, ITimePr
     /// <summary>
     /// Say what the trigger should do when it misses a firing.
     /// </summary>
-    /// <param name="instruction">the policy to apply; defaults to
-    /// <see cref="DailyTimeIntervalTriggerMisfireInstruction.SmartPolicy" />.</param>
+    /// <param name="instruction">the policy to apply. A builder never given one leaves the
+    /// instruction unstated, and the scheduler's
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" /> decides it when the trigger is
+    /// scheduled: <see cref="DailyTimeIntervalTriggerMisfireInstruction.SmartPolicy" /> unless configured otherwise.
+    /// Passing <see cref="DailyTimeIntervalTriggerMisfireInstruction.SmartPolicy" /> states it, and the default then
+    /// leaves it alone.</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
     /// <seealso cref="DailyTimeIntervalTriggerMisfireInstruction" />
     public DailyTimeIntervalScheduleBuilder WithMisfireInstruction(DailyTimeIntervalTriggerMisfireInstruction instruction)

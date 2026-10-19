@@ -1727,7 +1727,12 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="state">The trigger state to scan.</param>
-    /// <param name="misfireTime">Triggers whose next fire time is at or before this are misfired.</param>
+    /// <param name="misfireTime">
+    /// Triggers with no threshold of their own whose next fire time is at or before this are misfired: now
+    /// less the store's <c>MisfireThreshold</c>. A trigger with a <c>MISFIRE_THRESHOLD</c> of its own is
+    /// misfired once its next fire time is at or before now less that, now being the delegate's
+    /// <see cref="DriverDelegateContext.TimeProvider" /> (#4070).
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<int> CountMisfiredTriggersInState(
         ConnectionAndTransactionHolder conn,
@@ -1919,7 +1924,12 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="state">The trigger state to scan (<see cref="StoredTriggerState.Waiting" />).</param>
-    /// <param name="misfireTime">Triggers whose next fire time is at or before this are misfired.</param>
+    /// <param name="misfireTime">
+    /// Triggers with no threshold of their own whose next fire time is at or before this are misfired: now
+    /// less the store's <c>MisfireThreshold</c>. A trigger with a <c>MISFIRE_THRESHOLD</c> of its own is
+    /// misfired once its next fire time is at or before now less that, now being the delegate's
+    /// <see cref="DriverDelegateContext.TimeProvider" /> (#4070).
+    /// </param>
     /// <param name="count">Maximum number of triggers to return, or -1 for all of them.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<MisfiredTriggerBatch> SelectMisfiredTriggersToRecover(

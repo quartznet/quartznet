@@ -38,6 +38,7 @@ exception would have carried.
 | [`QZ0005`](#qz0005-invalidsimpletriggerschedule) | Error | A `[SimpleTrigger]` interval that is not a positive `TimeSpan`, or a `RepeatCount` below `-1` |
 | [`QZ0006`](#qz0006-invalidretrypolicydelay) | Error | A `[RetryPolicy]` delay that is not a `TimeSpan`, or is negative |
 | [`QZ0007`](#qz0007-wildcardsecondsfield) | Warning | A trigger's cron schedule with `*` seconds under a restricted minute or hour, which fires every second |
+| [`QZ0008`](#qz0008-invalidmisfirethreshold) | Error | A `[CronTrigger]` or `[SimpleTrigger]` `MisfireThreshold` that is not a positive `TimeSpan` in whole milliseconds |
 
 Only values the compiler already knows are checked: a string literal, a `const`, an interpolated string
 with nothing interpolated. A value built at run time, read from configuration or passed in a variable is
@@ -207,6 +208,28 @@ _ = TriggerBuilder.Create().WithCronSchedule("* */5 * ? * *").Build();
 [`CronFormat.Unix`](../cron-expressions.md#the-unix-five-field-form). Write `0-59` if every second is
 intended. **Suppress** with `dotnet_diagnostic.QZ0007.severity` in `.editorconfig`.
 
+### QZ0008 InvalidMisfireThreshold
+
+**Reports** a `[CronTrigger]` or `[SimpleTrigger]` `MisfireThreshold` (4.6) that is not an invariant
+`TimeSpan` string longer than zero in whole milliseconds. The generator writes the threshold into the
+registration as ticks, so it cannot write one it cannot read.
+
+```csharp
+[QuartzJob]
+[CronTrigger("0 0 * * * ?", MisfireThreshold = "5 minutes")] // error QZ0008: '5 minutes' is not a TimeSpan.
+public class ReportJob : IJob
+```
+
+| Written | Reported as |
+|---|---|
+| `"5 minutes"`, `""` | not a `TimeSpan` |
+| `"00:00:00"`, `"-00:05:00"` | not longer than zero |
+| `"00:00:00.0001"` | not whole milliseconds |
+
+**Fix** by spelling the threshold as `TimeSpan` does: `"00:05:00"` for five minutes. A reported threshold
+is not generated, so with the severity lowered the trigger builds on the store's threshold.
+**Suppress** with `dotnet_diagnostic.QZ0008.severity` in `.editorconfig`.
+
 ## Changing a severity, or turning it off
 
 Each diagnostic is an ordinary compiler diagnostic, so `.editorconfig` sets its severity:
@@ -250,4 +273,5 @@ work: the .NET 10 SDK still passes the assembly to the compiler.
 [Declaring Jobs with Attributes](declaring-jobs-with-attributes.md) covers the rest of the 4.2
 compile-time work: attributes that declare a job's schedule on the job class, and a source generator,
 in the same assembly, that registers them. Its diagnostics are `QZ1001` to `QZ1005`; the cron
-expression on an attribute is checked by `QZ0001` and `QZ0007` above, and the interval by `QZ0005`.
+expression on an attribute is checked by `QZ0001` and `QZ0007` above, the interval by `QZ0005`, and the
+misfire threshold by `QZ0008`.

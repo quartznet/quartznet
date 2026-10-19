@@ -12,5 +12,6 @@
   "preferredNodeAuto": false,
   "executionGroup": "imports",
   "retryPolicy": "fixed;3;00:00:30",
-  "overlapPolicy": "Skip"
+  "overlapPolicy": "Skip",
+  "misfireThreshold": "00:05:00"
 }

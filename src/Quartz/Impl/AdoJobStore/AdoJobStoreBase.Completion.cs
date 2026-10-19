@@ -935,17 +935,14 @@ internal abstract partial class AdoJobStoreBase
     {
         List<IOperableTrigger> triggers = await Delegate.SelectTriggers(conn, waiting, cancellationToken).ConfigureAwait(false);
 
-        DateTimeOffset misfireTime = timeProvider.GetUtcNow();
-        if (MisfireThreshold > TimeSpan.Zero)
-        {
-            misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
-        }
+        DateTimeOffset now = timeProvider.GetUtcNow();
 
         List<PreparedMisfire>? prepared = null;
 
         foreach (IOperableTrigger trigger in triggers)
         {
-            if (trigger.NextFireTimeUtc.GetValueOrDefault() > misfireTime)
+            // Each trigger by its own threshold where it has one (#4070).
+            if (trigger.NextFireTimeUtc.GetValueOrDefault() > MisfireThresholds.MisfireTime(now, trigger, MisfireThreshold))
             {
                 continue;
             }

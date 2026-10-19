@@ -194,6 +194,24 @@ public interface ITrigger
     OverlapPolicy OverlapPolicy => Quartz.OverlapPolicy.Default;
 
     /// <summary>
+    /// How late this trigger may fire before it counts as misfired, or <see langword="null" /> — the
+    /// default — for the job store's <c>MisfireThreshold</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A firing later than this has the trigger's misfire instruction applied instead of running late.
+    /// The value may be shorter or longer than the store's, and is always positive. Both stores read it
+    /// wherever they decide a misfire: the misfire scan, acquisition, a trigger released from
+    /// <c>BLOCKED</c>, a resumed trigger and a calendar replaced under the trigger.
+    /// </para>
+    /// <para>
+    /// A cluster honours it only once every node is 4.6 or later: an older node ignores the column and
+    /// applies the store's threshold to every trigger it handles.
+    /// </para>
+    /// </remarks>
+    TimeSpan? MisfireThreshold => null;
+
+    /// <summary>
     /// Get or set  the <see cref="ICalendar" /> with the given name with
     /// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
     /// </summary>
@@ -236,7 +254,10 @@ public interface ITrigger
     /// is generic over every family: serializers, the wire contract, logging and diagnostics.
     /// </para>
     /// <para>
-    /// The default is <c>0</c>, the smart policy: the trigger's family picks the policy for it.
+    /// The default is <c>0</c>, the smart policy: the trigger's family picks the policy for it. A
+    /// trigger whose instruction nobody stated takes the scheduler's
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" /> when it is scheduled; one stated as
+    /// <c>0</c> keeps the smart policy.
     /// </para>
     /// </remarks>
     /// <seealso cref="ISimpleTrigger.MisfireInstruction" />

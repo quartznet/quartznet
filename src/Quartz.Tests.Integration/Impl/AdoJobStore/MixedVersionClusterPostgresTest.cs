@@ -202,8 +202,14 @@ public sealed class MixedVersionClusterPostgresTest
         "SELECT job_group, job_name, run_count, last_instance_name FROM qrtzv_job_status WHERE sched_name = @schedulerName";
 
     private const string SelectTriggerColumns =
-        "SELECT trigger_state, overlap_policy, pause_reason, paused_by, paused_at, description, priority, retry_policy "
+        "SELECT trigger_state, overlap_policy, pause_reason, paused_by, paused_at, description, priority, retry_policy, misfire_threshold "
         + "FROM qrtzv_triggers WHERE sched_name = @schedulerName AND trigger_group = @group AND trigger_name = @name";
+
+    // A threshold of a trigger's own, written straight into the row a 4.5 node then fires: the store's own
+    // minute, so the working tree's handling of the trigger is what it would have been without it (#4070).
+    private const string StampMisfireThreshold =
+        "UPDATE qrtzv_triggers SET misfire_threshold = 60000 "
+        + "WHERE sched_name = @schedulerName AND trigger_group = @group AND trigger_name = @name";
 
     private const string SelectTriggerGroupPause =
         "SELECT pause_reason, paused_by, paused_at FROM qrtzv_paused_trigger_grps WHERE sched_name = @schedulerName AND trigger_group = @group";
@@ -259,6 +265,7 @@ public sealed class MixedVersionClusterPostgresTest
             StateArrangement state = await ArrangeWorkingTreeState(workingTree, due);
             await Backdate(connectionString, "held", "overlap-misfired", TimeSpan.FromMinutes(10));
             string retryPolicyAsScheduled = (await ReadTriggerColumns(connectionString, "state", "retry-none")).RetryPolicy;
+            await StampThreshold(connectionString, "state", "retry-none");
 
             (DateTimeOffset.UtcNow + TimeSpan.FromSeconds(1)).Should().BeBefore(due,
                 "both nodes have to be up and every trigger written before the work is due, or part of the upgrade "
@@ -318,6 +325,8 @@ public sealed class MixedVersionClusterPostgresTest
                 AssertContinuationsSettled(runs, columns);
                 AssertWorkingTreeColumnsSurvived(runs, columns, state, around, releasedLiveUntil);
                 AssertRetryPolicyNoneSurvivesTheReleasedNode(runs, columns, retryPolicyAsScheduled, releasedLiveUntil);
+                columns.Triggers["state.retry-none"].MisfireThreshold.Should().Be(60000,
+                    "a 4.5 node writes the trigger it fired back without naming MISFIRE_THRESHOLD, so the column it does not know is left as it was");
                 AssertTheWorkingTreeReadsThemBack(columns, triggerPause, groupPause, jobGroupPause);
                 AssertProgressSurvived(runs);
                 AssertEachRunIsInTheHistoryOnce(runs, history);
@@ -488,6 +497,18 @@ public sealed class MixedVersionClusterPostgresTest
 
         (await command.ExecuteNonQueryAsync()).Should().Be(1,
             "{0}.{1} is stored paused, and the backdating is what makes the released node's resume a misfire", group, name);
+    }
+
+    private static async Task StampThreshold(string connectionString, string group, string name)
+    {
+        await using NpgsqlConnection connection = new(connectionString);
+        await connection.OpenAsync();
+        await using NpgsqlCommand command = new(StampMisfireThreshold, connection);
+        command.Parameters.AddWithValue("schedulerName", SchedulerName);
+        command.Parameters.AddWithValue("group", group);
+        command.Parameters.AddWithValue("name", name);
+
+        (await command.ExecuteNonQueryAsync()).Should().Be(1, "{0}.{1} is stored before the work is due", group, name);
     }
 
     private static async Task WaitForTheWorkload(string connectionString, DateTimeOffset due, AroundTheState around)
@@ -1141,7 +1162,7 @@ public sealed class MixedVersionClusterPostgresTest
         if (!await reader.ReadAsync())
         {
             // Asserted on with everything else rather than here, so one gone row does not hide the rest.
-            return new TriggerColumns("<no row>", null, null, null, null, null, null, null);
+            return new TriggerColumns("<no row>", null, null, null, null, null, null, null, null);
         }
 
         return new TriggerColumns(
@@ -1152,7 +1173,8 @@ public sealed class MixedVersionClusterPostgresTest
             reader.IsDBNull(4) ? null : reader.GetInt64(4),
             reader.IsDBNull(5) ? null : reader.GetString(5),
             reader.IsDBNull(6) ? null : reader.GetInt32(6),
-            reader.IsDBNull(7) ? null : reader.GetString(7));
+            reader.IsDBNull(7) ? null : reader.GetString(7),
+            reader.IsDBNull(8) ? null : reader.GetInt64(8));
     }
 
     private static async Task<ColumnsAfter> ReadColumns(string connectionString)
@@ -1346,7 +1368,8 @@ public sealed class MixedVersionClusterPostgresTest
         long? PausedAt,
         string Description,
         int? Priority,
-        string RetryPolicy);
+        string RetryPolicy,
+        long? MisfireThreshold);
 
     private sealed record PauseColumns(string PauseReason, string PausedBy, long? PausedAt);
 

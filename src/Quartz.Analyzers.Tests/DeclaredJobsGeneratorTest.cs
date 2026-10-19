@@ -95,6 +95,7 @@ public class DeclaredJobsGeneratorTest
                 Group = "housekeeping",
                 TimeZone = "Europe/Helsinki",
                 MisfireInstruction = CronTriggerMisfireInstruction.DoNothing,
+                MisfireThreshold = "00:05:00",
                 Priority = 9,
                 Description = "every six hours, Helsinki time",
                 ExecutionGroup = "maintenance")]
@@ -107,6 +108,63 @@ public class DeclaredJobsGeneratorTest
         run.Diagnostics.Should().BeEmpty();
 
         await Verify(run.Generated!, extension: "txt").UseDirectory("Verify").UseFileName("DeclaredJobsGeneratorTest_EveryProperty");
+    }
+
+    /// <summary>
+    /// A written <c>SmartPolicy</c> is emitted, because it states the trigger's instruction; an unwritten
+    /// one is not, so the scheduler's default misfire handling decides it (#4070).
+    /// </summary>
+    [Test]
+    public void AWrittenSmartPolicyIsEmittedAndAnUnwrittenOneIsNot()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Snippet("""
+            [QuartzJob]
+            [CronTrigger("0 0 1 * * ?", Name = "stated", MisfireInstruction = CronTriggerMisfireInstruction.SmartPolicy)]
+            [CronTrigger("0 0 2 * * ?", Name = "unstated")]
+            [SimpleTrigger("00:10:00", Name = "simple-stated", MisfireInstruction = SimpleTriggerMisfireInstruction.SmartPolicy)]
+            [SimpleTrigger("00:10:00", Name = "simple-unstated")]
+            public sealed class CleanupJob : IJob
+            {
+                public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+            }
+            """));
+
+        run.Diagnostics.Should().BeEmpty();
+        run.Generated.Should().Contain("global::Quartz.CronTriggerMisfireInstruction.SmartPolicy",
+                "a written smart policy is stated, and the scheduler's default leaves a stated instruction alone")
+            .And.Contain("global::Quartz.SimpleTriggerMisfireInstruction.SmartPolicy");
+        CountOf(run.Generated!, ".WithMisfireInstruction(").Should().Be(2,
+            "only the two schedules that wrote an instruction have one emitted");
+    }
+
+    /// <summary>
+    /// A threshold QZ0008 refuses is reported and left out, so the build fails on the diagnostic rather than
+    /// on a registration that throws at start.
+    /// </summary>
+    [Test]
+    public void AThresholdNoTriggerCanHaveIsLeftOut()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DeclaredJobsGenerator>(Snippet("""
+            [QuartzJob]
+            [CronTrigger("0 0 1 * * ?", MisfireThreshold = "soon")]
+            public sealed class CleanupJob : IJob
+            {
+                public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+            }
+            """));
+
+        run.Generated.Should().NotContain("WithMisfireThreshold", "a threshold the generator cannot read is the analyzer's to report");
+    }
+
+    private static int CountOf(string text, string value)
+    {
+        int count = 0;
+        for (int index = text.IndexOf(value, StringComparison.Ordinal); index >= 0; index = text.IndexOf(value, index + value.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
     }
 
     [Test]
@@ -326,6 +384,7 @@ public class DeclaredJobsGeneratorTest
                     Group = "mornings",
                     TimeZone = "Europe/Helsinki",
                     MisfireInstruction = CronTriggerMisfireInstruction.DoNothing,
+                    MisfireThreshold = "00:05:00",
                     Priority = 9,
                     Description = "six o'clock, Helsinki time",
                     ExecutionGroup = "reports",
@@ -375,6 +434,7 @@ public class DeclaredJobsGeneratorTest
             .And.Contain(".RepeatForever()")
             .And.Contain("global::Quartz.SimpleTriggerMisfireInstruction.FireNow")
             .And.Contain("(global::Quartz.SimpleTriggerMisfireInstruction) 42")
+            .And.Contain(".WithMisfireThreshold(global::System.TimeSpan.FromTicks(3000000000))")
             .And.Contain("AddDeclaredJobsFromSnippet(",
                 "the snippet has to reach every shape of call the generator writes, or this proves less than it says");
         AssertParsedAt(run, LanguageVersion.CSharp9);

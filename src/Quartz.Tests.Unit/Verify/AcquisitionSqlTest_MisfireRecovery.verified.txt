@@ -27,6 +27,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -36,7 +37,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
 
 === StdAdoDelegate (unlimited) ===
@@ -68,6 +69,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -77,7 +79,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
 
 === SqlServerDelegate ===
@@ -109,6 +111,7 @@ SELECT TOP 20
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -118,7 +121,7 @@ SELECT TOP 20
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
 
 === SqlServerDelegate (unlimited) ===
@@ -150,6 +153,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -159,7 +163,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
 
 === PostgreSQLDelegate ===
@@ -191,6 +195,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -200,7 +205,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC LIMIT 20
 
 === PostgreSQLDelegate (unlimited) ===
@@ -232,6 +237,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -241,7 +247,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
 
 === MySQLDelegate ===
@@ -273,6 +279,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -282,7 +289,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC LIMIT 20
 
 === MySQLDelegate (unlimited) ===
@@ -314,6 +321,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -323,7 +331,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
 
 === SQLiteDelegate ===
@@ -355,6 +363,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -364,7 +373,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC LIMIT 20
 
 === SQLiteDelegate (unlimited) ===
@@ -396,6 +405,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -405,7 +415,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
 
 === OracleDelegate ===
@@ -437,6 +447,7 @@ SELECT * FROM (SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -446,7 +457,7 @@ SELECT * FROM (SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC) WHERE rownum <= 20
 
 === OracleDelegate (unlimited) ===
@@ -478,6 +489,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -487,7 +499,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
 
 === FirebirdDelegate ===
@@ -519,6 +531,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -528,7 +541,7 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC ROWS 20
 
 === FirebirdDelegate (unlimited) ===
@@ -560,6 +573,7 @@ SELECT
                 t.CONTINUES_TRIGGER_GROUP,
                 t.CONTINUATION_CONDITION,
                 t.OVERLAP_POLICY,
+                t.MISFIRE_THRESHOLD,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -569,6 +583,6 @@ SELECT
             LEFT JOIN
                 {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
             WHERE
-                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @misfireScanBound AND ((t.MISFIRE_THRESHOLD IS NULL AND t.NEXT_FIRE_TIME <= @nextFireTime) OR (t.MISFIRE_THRESHOLD IS NOT NULL AND t.NEXT_FIRE_TIME <= @misfireCountedFrom - t.MISFIRE_THRESHOLD * 10000)) AND t.TRIGGER_STATE = @state
             ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
 

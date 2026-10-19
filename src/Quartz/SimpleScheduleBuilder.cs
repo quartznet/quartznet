@@ -62,7 +62,9 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
 {
     private TimeSpan interval = TimeSpan.Zero;
     private int repeatCount;
-    private int misfireInstruction = MisfireInstruction.SmartPolicy;
+    // Null until WithMisfireInstruction is called: a builder never told what to do about a misfire
+    // leaves the trigger's instruction unstated, so the scheduler's default applies to it.
+    private int? misfireInstruction;
 
     private SimpleScheduleBuilder()
     {
@@ -88,7 +90,10 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
         SimpleTriggerImpl st = new SimpleTriggerImpl();
         st.RepeatInterval = interval;
         st.RepeatCount = repeatCount;
-        st.MisfireInstructionCode = misfireInstruction;
+        if (misfireInstruction is { } stated)
+        {
+            st.MisfireInstructionCode = stated;
+        }
 
         return st;
     }
@@ -136,8 +141,12 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
     /// <summary>
     /// Say what the trigger should do when it misses a firing.
     /// </summary>
-    /// <param name="instruction">the policy to apply; defaults to
-    /// <see cref="SimpleTriggerMisfireInstruction.SmartPolicy" />.</param>
+    /// <param name="instruction">the policy to apply. A builder never given one leaves the
+    /// instruction unstated, and the scheduler's
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" /> decides it when the trigger is
+    /// scheduled: <see cref="SimpleTriggerMisfireInstruction.SmartPolicy" /> unless configured otherwise.
+    /// Passing <see cref="SimpleTriggerMisfireInstruction.SmartPolicy" /> states it, and the default then
+    /// leaves it alone.</param>
     /// <returns>the updated SimpleScheduleBuilder</returns>
     /// <seealso cref="SimpleTriggerMisfireInstruction" />
     public SimpleScheduleBuilder WithMisfireInstruction(SimpleTriggerMisfireInstruction instruction)

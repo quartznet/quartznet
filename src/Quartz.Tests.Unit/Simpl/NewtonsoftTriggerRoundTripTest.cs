@@ -290,6 +290,44 @@ public class NewtonsoftTriggerRoundTripTest
         RoundTrip(trigger).OverlapPolicy.Should().Be(OverlapPolicy.Default);
     }
 
+    [Test]
+    public void MisfireThresholdSurvivesTheRoundTrip()
+    {
+        CronTriggerImpl trigger = new CronTriggerImpl
+        {
+            Key = new TriggerKey("tolerant", "group"),
+            JobKey = new JobKey("job", "jobGroup"),
+            CronExpressionString = "0 0 * * * ?",
+            StartTimeUtc = startTime,
+            EndTimeUtc = startTime.AddDays(1),
+            MisfireThreshold = TimeSpan.FromSeconds(42)
+        };
+
+        string payload = Encoding.UTF8.GetString(((IObjectSerializer) serializer).Serialize(trigger));
+
+        payload.Should().Contain("\"MisfireThreshold\":\"00:00:42\"", "the threshold travels as the TimeSpan's invariant form");
+        RoundTrip(trigger).MisfireThreshold.Should().Be(TimeSpan.FromSeconds(42),
+            "a stored trigger with a threshold of its own has to come back with it");
+    }
+
+    [Test]
+    public void ATriggerOnTheStoresThresholdWritesThePayloadItAlwaysDid()
+    {
+        CronTriggerImpl trigger = new CronTriggerImpl
+        {
+            Key = new TriggerKey("plain", "group"),
+            JobKey = new JobKey("job", "jobGroup"),
+            CronExpressionString = "0 0 * * * ?",
+            StartTimeUtc = startTime,
+            EndTimeUtc = startTime.AddDays(1)
+        };
+
+        string payload = Encoding.UTF8.GetString(((IObjectSerializer) serializer).Serialize(trigger));
+
+        payload.Should().NotContain("MisfireThreshold", "a trigger with no threshold of its own is written exactly as it was before triggers had one");
+        RoundTrip(trigger).MisfireThreshold.Should().BeNull();
+    }
+
     private T RoundTrip<T>(T trigger) where T : class, IOperableTrigger
     {
         byte[] bytes = ((IObjectSerializer) serializer).Serialize(trigger);

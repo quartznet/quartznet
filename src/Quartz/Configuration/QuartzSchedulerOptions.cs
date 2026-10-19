@@ -148,6 +148,27 @@ public sealed class QuartzSchedulerOptions
     public bool? RecordExceptionSpanEvents { get; set; }
 
     /// <summary>
+    /// The misfire instruction a trigger is given when nobody stated one for it. Defaults to
+    /// <see cref="Quartz.DefaultMisfireHandling.SmartPolicy" />, which is what every trigger did before
+    /// there was a default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Mapped to each trigger family's own instruction when the trigger is scheduled; the table is on
+    /// <see cref="Quartz.DefaultMisfireHandling" />. An instruction a builder, an attribute, the JSON
+    /// schedule or a stored or deserialized trigger stated — <c>SmartPolicy</c> included — is left alone.
+    /// </para>
+    /// <para>
+    /// Resolved as the trigger is stored rather than as it misfires, so it changes no trigger already in
+    /// a store, and the stored instruction is the one every node, an older one included, follows. Each
+    /// node of a cluster applies its own default to what it schedules, so set the same one on every
+    /// node. Replaces nothing: the <c>quartz.scheduler.defaultMisfireHandling</c> property key is new
+    /// with it.
+    /// </para>
+    /// </remarks>
+    public DefaultMisfireHandling DefaultMisfireHandling { get; set; }
+
+    /// <summary>
     /// Values seeded into <see cref="SchedulerContext"/> when the scheduler is created.
     /// </summary>
     /// <remarks>Replaces the <c>quartz.context.key.*</c> property keys.</remarks>

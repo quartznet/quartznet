@@ -272,6 +272,7 @@ will not gain a `<recurrence>` element; declare a recurrence rule in JSON or in 
 | `ContinuesAfter` | The trigger this one waits for, as a `Name`/`Group` pair — a [continuation](../how-tos/job-continuations.md). Omitted: fires on its own schedule |
 | `ContinuationCondition` | Which outcomes release the wait: `OnSuccess`, `OnFailure`, `OnCancellation`, `OnVeto` or `OnAnyOutcome`, joined with `\|`. Omitted: `OnSuccess` |
 | `OverlapPolicy` | What happens when a firing comes due while the last one runs: `Skip`, `BufferOne`, `CancelPrevious`, `AllowAll` or `Default` — an [overlap policy](../how-tos/overlap-policy.md). Omitted: `Default` |
+| `MisfireThreshold` | How late the trigger may fire before it misfires, as a `TimeSpan`: `"00:15:00"` — its [own threshold](../tutorial/more-about-triggers.md#a-trigger-s-own-misfire-threshold). Omitted: the store's. 4.6 |
 | `StartTime` | ISO 8601 start time (e.g., `"2024-01-01T00:00:00Z"`) |
 | `StartTimeSecondsInFuture` | Start time as seconds from now (mutually exclusive with StartTime) |
 | `EndTime` | ISO 8601 end time |

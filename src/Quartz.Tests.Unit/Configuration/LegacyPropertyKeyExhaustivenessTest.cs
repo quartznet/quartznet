@@ -123,6 +123,7 @@ public class LegacyPropertyKeyExhaustivenessTest
         "quartz.plugin.myPlugin.type",
         "quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow",
         "quartz.scheduler.batchTriggerAcquisitionMaxCount",
+        "quartz.scheduler.defaultMisfireHandling",
         "quartz.scheduler.idleWaitTime",
         "quartz.scheduler.instanceId",
         "quartz.scheduler.instanceName",

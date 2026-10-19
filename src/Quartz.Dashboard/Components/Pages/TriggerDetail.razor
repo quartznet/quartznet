@@ -84,6 +84,7 @@
                 <tr><th>Calendar</th><td>@(_trigger.CalendarName is { Length: > 0 } calendarName ? calendarName : "\u2014")</td></tr>
                 <tr><th>Preferred Node</th><td>@DisplayPreferredNode(_trigger.PreferredNode)</td></tr>
                 <tr><th>Misfire Instruction</th><td>@_misfireName</td></tr>
+                <tr><th>Misfire Threshold</th><td>@TriggerDetailsForm.MisfireThresholdOf(_trigger)</td></tr>
                 <tr><th>Schedule</th><td>@BuildScheduleDescription()</td></tr>
                 <tr><th>Next Fire</th><td>@FormatDate(_trigger.NextFireTimeUtc)</td></tr>
                 <tr><th>Previous Fire</th><td>@FormatDate(_trigger.PreviousFireTimeUtc)</td></tr>

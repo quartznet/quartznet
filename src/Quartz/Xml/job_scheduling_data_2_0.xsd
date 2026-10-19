@@ -147,17 +147,17 @@
         Common Trigger definitions.
 
         execution-group, retry-policy and preferred-node were added in Quartz.NET 4.1,
-        continues-after and continuation-condition in 4.2, and overlap-policy in 4.3. All six are
-        optional, so the schema's version stays 2.0 and its namespace stays
+        continues-after and continuation-condition in 4.2, overlap-policy in 4.3 and misfire-threshold
+        in 4.6. All seven are optional, so the schema's version stays 2.0 and its namespace stays
         http://quartznet.sourceforge.net/JobSchedulingData: a file written against 2.0 declares none of
         them and validates unchanged, and a version is what a reader has to understand rather than a
-        record of when the schema was last touched. The six elements sit between calendar-name and
+        record of when the schema was last touched. The seven elements sit between calendar-name and
         job-data-map, which is where a sequence can take new optional members without moving any
         existing one.
 
-        A continuation and an overlap policy are settings rather than kinds of trigger: any of the three
-        trigger kinds below can carry them, and they compose with that kind's schedule instead of
-        replacing it.
+        A continuation, an overlap policy and a misfire threshold are settings rather than kinds of
+        trigger: any of the three trigger kinds below can carry them, and they compose with that kind's
+        schedule instead of replacing it.
       </xs:documentation>
     </xs:annotation>
     <xs:sequence>
@@ -202,6 +202,11 @@
       <xs:element name="overlap-policy" type="xs:string" minOccurs="0">
         <xs:annotation>
           <xs:documentation>What the trigger does when one of its firings comes due while an earlier firing of it is still running: Skip, BufferOne, CancelPrevious, AllowAll or Default. Defaults to Default, which starts the firing alongside.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="misfire-threshold" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>How late the trigger may fire before it counts as misfired, as a .NET TimeSpan in its invariant form - for example 00:05:00 for five minutes. Longer than zero, in whole milliseconds. Defaults to the job store's own misfire threshold.</xs:documentation>
         </xs:annotation>
       </xs:element>
       <xs:element name="job-data-map" type="job-data-mapType" minOccurs="0" />

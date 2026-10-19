@@ -352,6 +352,12 @@ internal sealed class QuartzSchedulerResources
     public RetryPolicy? DefaultRetryPolicy { get; set; }
 
     /// <summary>
+    /// The misfire instruction a trigger whose own instruction nobody stated is given when it is
+    /// scheduled, as <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" /> set it.
+    /// </summary>
+    public DefaultMisfireHandling DefaultMisfireHandling { get; set; }
+
+    /// <summary>
     /// Which execution groups this node serves, as <see cref="QuartzSchedulerOptions.ServedExecutionGroups" />
     /// or <see cref="QuartzSchedulerOptions.RefusedExecutionGroups" /> configured it;
     /// <see langword="null" /> for a node that serves every group.

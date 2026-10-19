@@ -546,11 +546,8 @@ internal abstract partial class AdoJobStoreBase
             {
                 var trigger = (await GetTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))!;
 
-                DateTimeOffset misfireTime = timeProvider.GetUtcNow();
-                if (MisfireThreshold > TimeSpan.Zero)
-                {
-                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
-                }
+                // The trigger's own threshold where it has one (#4070).
+                DateTimeOffset misfireTime = MisfireThresholds.MisfireTime(timeProvider.GetUtcNow(), trigger, MisfireThreshold);
 
                 if (trigger.NextFireTimeUtc.GetValueOrDefault() > misfireTime)
                 {

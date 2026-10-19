@@ -152,6 +152,12 @@ internal interface Trigger
     string? OverlapPolicy { get; }
 
     /// <summary>
+    /// How late the trigger may fire before it counts as misfired, as a TimeSpan in its invariant form —
+    /// for example "00:05:00". Absent when the trigger is on the job store's own misfire threshold
+    /// </summary>
+    string? MisfireThreshold { get; }
+
+    /// <summary>
     /// Should be present when TriggerType is CalendarIntervalTrigger, CronTrigger, DailyTimeIntervalTrigger or RecurrenceTrigger
     /// </summary>
     string? TimeZone { get; }
@@ -363,4 +369,11 @@ internal interface UpdateTriggerDetailsRequest
     /// the next firing that comes due
     /// </summary>
     string? OverlapPolicy { get; }
+
+    /// <summary>
+    /// How late the trigger may fire before it counts as misfired, as a TimeSpan in its invariant form —
+    /// for example "00:05:00" — or null to put it back on the job store's own threshold. A host older
+    /// than 4.6 ignores it
+    /// </summary>
+    string? MisfireThreshold { get; }
 }

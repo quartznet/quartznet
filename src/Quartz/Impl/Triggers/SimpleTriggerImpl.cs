@@ -166,8 +166,10 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
             .WithInterval(RepeatInterval)
             .WithRepeatCount(RepeatCount);
 
+        // Only a stated instruction, so a rebuilt trigger leaves unstated what this one left unstated and
+        // takes the scheduler's default as this one would have.
         SimpleTriggerMisfireInstruction instruction = MisfireInstruction;
-        if (Enum.IsDefined(instruction))
+        if (MisfireInstructionStated && Enum.IsDefined(instruction))
         {
             sb.WithMisfireInstruction(instruction);
         }

@@ -357,8 +357,9 @@ public class RecurrenceTriggerImpl : TriggerBase, IRecurrenceTrigger
         RecurrenceScheduleBuilder sb = RecurrenceScheduleBuilder.Create(recurrenceRuleString)
             .InTimeZone(TimeZone);
 
+        // Only a stated instruction, as SimpleTriggerImpl.GetScheduleBuilder says.
         RecurrenceTriggerMisfireInstruction instruction = MisfireInstruction;
-        if (Enum.IsDefined(instruction))
+        if (MisfireInstructionStated && Enum.IsDefined(instruction))
         {
             sb.WithMisfireInstruction(instruction);
         }

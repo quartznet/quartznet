@@ -186,6 +186,7 @@ internal static class JsonSchedulingHelper
                 NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.ContinuationCondition)]),
                 $"JSON trigger '{name}'");
             OverlapPolicy overlapPolicy = SchedulingFileValues.ReadOverlapPolicy(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.OverlapPolicy)]), $"JSON trigger '{name}'");
+            TimeSpan? misfireThreshold = SchedulingFileValues.ReadMisfireThreshold(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.MisfireThreshold)]), $"JSON trigger '{name}'");
             var priorityStr = triggerSection[nameof(JsonTriggerDefinition.Priority)];
             var startTimeStr = triggerSection[nameof(JsonTriggerDefinition.StartTime)];
             var startTimeFutureStr = triggerSection[nameof(JsonTriggerDefinition.StartTimeSecondsInFuture)];
@@ -256,6 +257,11 @@ internal static class JsonSchedulingHelper
             if (continuation.Parent is { } continuationParent)
             {
                 triggerBuilder.StartAfter(continuationParent, continuation.When);
+            }
+
+            if (misfireThreshold is { } threshold)
+            {
+                triggerBuilder.WithMisfireThreshold(threshold);
             }
 
             var trigger = (IMutableTrigger) triggerBuilder

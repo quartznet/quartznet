@@ -73,8 +73,11 @@ are, but for this trigger alone. When the firing ends:
 | Within the misfire threshold | It fires now |
 | Past the misfire threshold | The trigger's misfire instruction decides. A cron trigger's default fires once, now |
 
-The misfire threshold is the store's `MisfireThreshold`: one minute for the persistent store, five seconds
-in memory. Pausing and resuming a buffered trigger keeps it held until the firing ends.
+The misfire threshold is the trigger's own, or the store's `MisfireThreshold` (one minute persistent, five
+seconds in memory). A buffered trigger whose firings run long should carry
+[a threshold of its own](../tutorial/more-about-triggers.md#a-trigger-s-own-misfire-threshold) rather than
+raise the store's for every trigger. Pausing and resuming a buffered trigger keeps it held until the firing
+ends.
 
 ## CancelPrevious
 

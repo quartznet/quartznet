@@ -14,7 +14,8 @@ public class StdAdoConstantsTest
 
         var sql = StdAdoConstants.SqlCountMisfiredTriggersInStates;
 
-        sql.Should().Be("SELECT COUNT(TRIGGER_NAME) FROM {0}TRIGGERS WHERE SCHED_NAME = @schedulerName AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME <= @nextFireTime AND TRIGGER_STATE = @state");
+        // The tick multiplier is a number formatted into the statement, which is what the culture could reach.
+        sql.Should().Be("SELECT COUNT(TRIGGER_NAME) FROM {0}TRIGGERS WHERE SCHED_NAME = @schedulerName AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME <= @misfireScanBound AND ((MISFIRE_THRESHOLD IS NULL AND NEXT_FIRE_TIME <= @nextFireTime) OR (MISFIRE_THRESHOLD IS NOT NULL AND NEXT_FIRE_TIME <= @misfireCountedFrom - MISFIRE_THRESHOLD * 10000)) AND TRIGGER_STATE = @state");
     }
 
     /// <summary>

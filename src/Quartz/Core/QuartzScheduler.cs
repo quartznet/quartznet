@@ -893,6 +893,7 @@ internal sealed class QuartzScheduler
         }
 
         AdjustSimpleTriggerStartTimeIfInPast(trig);
+        ApplyDefaultMisfireHandling(trig);
         trig.Validate();
         RefusePausedContinuation(trig, options);
         RetryPolicyResolution.EnsureReadable(jobDetail);
@@ -1083,6 +1084,7 @@ internal sealed class QuartzScheduler
 
         IOperableTrigger trig = AsOperableTrigger(trigger);
         AdjustSimpleTriggerStartTimeIfInPast(trig);
+        ApplyDefaultMisfireHandling(trig);
         trig.Validate();
 
         PrepareTriggerData(trig);
@@ -1269,6 +1271,7 @@ internal sealed class QuartzScheduler
                 trigger.JobKey = job.Key;
 
                 AdjustSimpleTriggerStartTimeIfInPast(trigger);
+                ApplyDefaultMisfireHandling(trigger);
                 trigger.Validate();
                 RefusePausedContinuation(trigger, options);
 
@@ -1446,6 +1449,7 @@ internal sealed class QuartzScheduler
 
         trigger.JobKey = oldTrigger.JobKey;
         AdjustSimpleTriggerStartTimeIfInPast(trigger);
+        ApplyDefaultMisfireHandling(trigger);
         trigger.Validate();
 
         PrepareTriggerData(trigger);
@@ -1676,6 +1680,20 @@ internal sealed class QuartzScheduler
         }
 
         return operableTrigger;
+    }
+
+    /// <summary>
+    /// Gives a trigger whose misfire instruction nobody stated the mapping of the scheduler's
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" />, before it is validated and stored.
+    /// </summary>
+    /// <remarks>
+    /// Here, as the trigger is stored, rather than as it misfires: the stored instruction is then always
+    /// one somebody chose, every node follows the same number, and a node older than 4.6 reads it as it
+    /// reads any other. The four store paths a caller schedules through all call it.
+    /// </remarks>
+    private void ApplyDefaultMisfireHandling(IOperableTrigger trigger)
+    {
+        MisfireDefaults.Apply(trigger, resources.DefaultMisfireHandling);
     }
 
     /// <summary>

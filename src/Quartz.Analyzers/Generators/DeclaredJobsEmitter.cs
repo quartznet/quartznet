@@ -336,6 +336,12 @@ internal static class DeclaredJobsEmitter
             lines.Add($"    .WithExecutionGroup({Literal(trigger.ExecutionGroup)})");
         }
 
+        // As the ticks this build read, with the attribute's value beside them, as the interval is.
+        if (trigger.MisfireThresholdTicks is { } thresholdTicks)
+        {
+            lines.Add($"    .WithMisfireThreshold({TimeSpanTypeName}.FromTicks({thresholdTicks.ToString(CultureInfo.InvariantCulture)})) // {trigger.MisfireThresholdText}");
+        }
+
         switch (trigger.Schedule)
         {
             case DeclaredCronSchedule cron:
@@ -431,14 +437,15 @@ internal static class DeclaredJobsEmitter
 
     private static void AddMisfireInstruction(List<string> lines, DeclaredTrigger trigger, string enumTypeName)
     {
-        // Zero is SmartPolicy in both families, which is what a trigger does when nothing says otherwise.
-        if (trigger.MisfireInstruction == 0)
+        // Only one the attribute wrote. An unwritten one leaves the trigger's instruction unstated, for
+        // the scheduler's default misfire handling to decide; a written SmartPolicy, zero, states it.
+        if (trigger.MisfireInstruction is not { } code)
         {
             return;
         }
 
         string instruction = trigger.MisfireInstructionName is null
-            ? $"({enumTypeName}) {trigger.MisfireInstruction.ToString(CultureInfo.InvariantCulture)}"
+            ? $"({enumTypeName}) {code.ToString(CultureInfo.InvariantCulture)}"
             : $"{enumTypeName}.{trigger.MisfireInstructionName}";
 
         lines.Add($".WithMisfireInstruction({instruction})");

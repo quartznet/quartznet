@@ -75,6 +75,7 @@ public sealed class TriggerDetailsEditorTest
         page.Find("#trigger-edit-priority").Change("7");
         page.Find("#trigger-edit-misfire").Change(((int) CronTriggerMisfireInstruction.DoNothing).ToString(System.Globalization.CultureInfo.InvariantCulture));
         page.Find("#trigger-edit-overlap").Change("Skip");
+        page.Find("#trigger-edit-misfire-threshold").Change("00:05:00");
         page.Find(".qz-trigger-editor-save").Click();
 
         page.WaitForAssertion(() => A.CallTo(() => context.Api.UpdateTriggerDetails(
@@ -85,6 +86,7 @@ public sealed class TriggerDetailsEditorTest
                     && update.HasMisfireInstruction && update.MisfireInstructionCode == (int) CronTriggerMisfireInstruction.DoNothing
                     && update.MisfireInstructionFamily == TriggerFamily.Cron
                     && update.HasOverlapPolicy && update.OverlapPolicy == OverlapPolicy.Skip
+                    && update.HasMisfireThreshold && update.MisfireThreshold == TimeSpan.FromMinutes(5)
                     && !update.HasDescription && !update.HasCalendarName && !update.HasRetryPolicy
                     && !update.HasExecutionGroup && !update.HasPreferredNode && !update.HasJobDataMap),
                 A<CancellationToken>._))
@@ -308,6 +310,9 @@ public sealed class TriggerDetailsEditorTest
         page.Find("#trigger-edit-overlap").HasAttribute("disabled").Should().BeTrue();
         page.Find("[data-testid=trigger-editor-overlap-unavailable]").TextContent.Should().Contain("does not derive from TriggerBase",
             "the store would refuse it, so it is not offered");
+        page.Find("#trigger-edit-misfire-threshold").HasAttribute("disabled").Should().BeTrue();
+        page.Find("[data-testid=trigger-editor-misfire-threshold-unavailable]").TextContent.Should().Contain("cannot carry a misfire threshold",
+            "a threshold is refused for the same reason a policy is");
     }
 
     [Test]

@@ -163,7 +163,8 @@ public sealed class MySqlWeaselSchemaTest
 
     /// <summary>
     /// 4.3 → 4.6 only adds: five columns and an index on the history table, the rollup table, the version
-    /// column on the state table, and the interrupt column on the fired-trigger table.
+    /// column on the state table, the interrupt column on the fired-trigger table, and the misfire threshold
+    /// column on the triggers table.
     /// </summary>
     [Test]
     public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnly()
@@ -181,8 +182,8 @@ public sealed class MySqlWeaselSchemaTest
             List<ISchemaObjectDelta> changed = [.. planned.Deltas.Where(x => x.Difference != SchemaPatchDifference.None)];
 
             changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
-                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update)],
-                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table and the interrupt column to the fired-trigger table: " + Describe(planned));
+                [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGERS", SchemaPatchDifference.Update)],
+                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table: " + Describe(planned));
 
             TableDelta history = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_EXECUTION_HISTORY", StringComparison.OrdinalIgnoreCase));
             history.Columns!.Missing.Select(x => x.Name).Should().BeEquivalentTo(["RESULT", "SUMMARY", "METRICS", "MANUAL", "FIRE_INSTANCE_ID", "JOB_INPUT", "JOB_INPUT_TOO_LARGE"]);
@@ -204,6 +205,12 @@ public sealed class MySqlWeaselSchemaTest
                 "the one thing 4.6 adds to a firing's row is when another node asked for it to be interrupted (#4071)");
             fired.Columns.Different.Should().BeEmpty("no column a 4.3 schema has is altered");
             fired.Columns.Extras.Should().BeEmpty();
+
+            TableDelta triggers = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_TRIGGERS", StringComparison.OrdinalIgnoreCase));
+            triggers.Columns!.Missing.Select(x => x.Name.ToUpperInvariant()).Should().Equal(["MISFIRE_THRESHOLD"],
+                "the one thing 4.6 adds to a trigger's row is its own misfire threshold (#4070)");
+            triggers.Columns.Different.Should().BeEmpty("no column a 4.3 schema has is altered");
+            triggers.Columns.Extras.Should().BeEmpty();
 
             (await weasel.ApplyAllConfiguredChangesToDatabaseAsync()).Should().Be(SchemaPatchDifference.Update);
             (await weasel.CreateMigrationAsync()).Difference.Should().Be(SchemaPatchDifference.None,

@@ -374,6 +374,97 @@ public sealed class SchedulingDataPluginTwinsTest
         json.Should().Throw<SchedulerConfigException>().WithMessage("*'Sometimes' is not an overlap policy*");
     }
 
+    /// <summary>
+    /// The two formats declare a misfire threshold in the same words, and produce the same trigger.
+    /// </summary>
+    [Test]
+    public async Task BothFormatsDeclareTheSameMisfireThreshold()
+    {
+        List<ITrigger> xml = await ReadXml($"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+              <schedule>
+                <job>
+                  <name>job1</name>
+                  <job-type>{JobType}</job-type>
+                </job>
+                <trigger>
+                  <cron>
+                    <name>tolerant</name>
+                    <job-name>job1</job-name>
+                    <misfire-threshold>00:10:00</misfire-threshold>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+                <trigger>
+                  <cron>
+                    <name>ordinary</name>
+                    <job-name>job1</job-name>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+              </schedule>
+            </job-scheduling-data>
+            """);
+
+        List<ITrigger> json = ReadJson($$"""
+            {
+              "Schedule": {
+                "Jobs": [{ "Name": "job1", "JobType": "{{JobType}}" }],
+                "Triggers": [
+                  { "Name": "tolerant", "JobName": "job1", "MisfireThreshold": "00:10:00", "Cron": { "Expression": "0 0 12 * * ?" } },
+                  { "Name": "ordinary", "JobName": "job1", "Cron": { "Expression": "0 0 12 * * ?" } }
+                ]
+              }
+            }
+            """);
+
+        MisfireThresholds(xml).Should().Equal(MisfireThresholds(json),
+            "the two formats are one feature spelled twice, and a threshold is a setting any schedule can carry");
+        MisfireThresholds(xml).Should().Equal(["tolerant: 00:10:00", "ordinary: store's"]);
+    }
+
+    [Test]
+    public async Task BothFormatsRefuseAMisfireThresholdThatIsNotOne()
+    {
+        Func<Task> xml = () => ReadXml($"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+              <schedule>
+                <job>
+                  <name>job1</name>
+                  <job-type>{JobType}</job-type>
+                </job>
+                <trigger>
+                  <cron>
+                    <name>typo</name>
+                    <job-name>job1</job-name>
+                    <misfire-threshold>soon</misfire-threshold>
+                    <cron-expression>0 0 12 * * ?</cron-expression>
+                  </cron>
+                </trigger>
+              </schedule>
+            </job-scheduling-data>
+            """);
+
+        Action json = () => ReadJson($$"""
+            {
+              "Schedule": {
+                "Jobs": [{ "Name": "job1", "JobType": "{{JobType}}" }],
+                "Triggers": [{ "Name": "typo", "JobName": "job1", "MisfireThreshold": "soon", "Cron": { "Expression": "0 0 12 * * ?" } }]
+              }
+            }
+            """);
+
+        (await xml.Should().ThrowAsync<SchedulerConfigException>()).WithMessage("*'soon' is not a misfire threshold*");
+        json.Should().Throw<SchedulerConfigException>().WithMessage("*'soon' is not a misfire threshold*");
+    }
+
+    private static List<string> MisfireThresholds(List<ITrigger> triggers)
+    {
+        return triggers.Select(x => $"{x.Key.Name}: {(x.MisfireThreshold is { } threshold ? threshold.ToString("c", System.Globalization.CultureInfo.InvariantCulture) : "store's")}").ToList();
+    }
+
     private static List<string> OverlapPolicies(List<ITrigger> triggers)
     {
         return triggers.Select(x => $"{x.Key.Name}: {x.OverlapPolicy}").ToList();

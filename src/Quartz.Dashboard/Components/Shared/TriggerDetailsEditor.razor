@@ -74,6 +74,19 @@
             }
         </div>
         <div class="qz-form-group">
+            <label class="qz-form-label" for="trigger-edit-misfire-threshold">Misfire threshold</label>
+            <input id="trigger-edit-misfire-threshold"
+                   class="qz-input qz-input-mono"
+                   placeholder="(store's)"
+                   title="How late the trigger may fire before its misfire instruction applies, as a TimeSpan: 00:05:00 is five minutes — blank is the job store's threshold"
+                   disabled="@(_form.MisfireThresholdUnavailable is not null)"
+                   @bind="_form.MisfireThreshold" />
+            @if (_form.MisfireThresholdUnavailable is { } thresholdReason)
+            {
+                <span class="qz-muted" data-testid="trigger-editor-misfire-threshold-unavailable">@thresholdReason</span>
+            }
+        </div>
+        <div class="qz-form-group">
             <label class="qz-form-label" for="trigger-edit-execution-group">Execution group</label>
             <input id="trigger-edit-execution-group" class="qz-input" placeholder="(none)" @bind="_form.ExecutionGroup" />
         </div>

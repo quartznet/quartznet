@@ -40,7 +40,9 @@ public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
     private int interval = 1;
     private IntervalUnit intervalUnit = IntervalUnit.Day;
 
-    private int misfireInstruction = MisfireInstruction.SmartPolicy;
+    // Null until WithMisfireInstruction is called: a builder never told what to do about a misfire
+    // leaves the trigger's instruction unstated, so the scheduler's default applies to it.
+    private int? misfireInstruction;
     private TimeZoneInfo? timeZone;
     private bool preserveHourOfDayAcrossDaylightSavings;
     private bool skipDayIfHourDoesNotExist;
@@ -67,7 +69,10 @@ public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
         CalendarIntervalTriggerImpl st = new CalendarIntervalTriggerImpl();
         st.RepeatInterval = interval;
         st.RepeatIntervalUnit = intervalUnit;
-        st.MisfireInstructionCode = misfireInstruction;
+        if (misfireInstruction is { } stated)
+        {
+            st.MisfireInstructionCode = stated;
+        }
         st.timeZone = timeZone;
         st.PreserveHourOfDayAcrossDaylightSavings = preserveHourOfDayAcrossDaylightSavings;
         st.SkipDayIfHourDoesNotExist = skipDayIfHourDoesNotExist;
@@ -94,8 +99,12 @@ public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
     /// <summary>
     /// Say what the trigger should do when it misses a firing.
     /// </summary>
-    /// <param name="instruction">the policy to apply; defaults to
-    /// <see cref="CalendarIntervalTriggerMisfireInstruction.SmartPolicy" />.</param>
+    /// <param name="instruction">the policy to apply. A builder never given one leaves the
+    /// instruction unstated, and the scheduler's
+    /// <see cref="QuartzSchedulerOptions.DefaultMisfireHandling" /> decides it when the trigger is
+    /// scheduled: <see cref="CalendarIntervalTriggerMisfireInstruction.SmartPolicy" /> unless configured otherwise.
+    /// Passing <see cref="CalendarIntervalTriggerMisfireInstruction.SmartPolicy" /> states it, and the default then
+    /// leaves it alone.</param>
     /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
     /// <seealso cref="CalendarIntervalTriggerMisfireInstruction" />
     public CalendarIntervalScheduleBuilder WithMisfireInstruction(CalendarIntervalTriggerMisfireInstruction instruction)
