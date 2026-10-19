@@ -50,6 +50,13 @@ internal static class ApplicationTypesCheck
 {
     private static readonly CanaryReport Report = new("quarterly", "finance@example.com");
 
+    /// <summary>
+    /// The job's and the trigger's name, and the job data key the report is stored under.
+    /// </summary>
+    private const string Name = "report";
+
+    private const string Group = "application-types";
+
     private static readonly TaskCompletionSource<(CanaryReport Input, object? JobData)> fired = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
@@ -57,7 +64,7 @@ internal static class ApplicationTypesCheck
     /// </summary>
     public static async Task<string?> Run()
     {
-        string databaseFile = StoreRoundTrip.NewDatabaseFile("application-types");
+        string databaseFile = StoreRoundTrip.NewDatabaseFile(Group);
 
         try
         {
@@ -85,23 +92,23 @@ internal static class ApplicationTypesCheck
 
             IScheduler scheduler = await container.GetRequiredService<ISchedulerFactory>().GetScheduler().ConfigureAwait(false);
 
-            JobKey jobKey = new("report", "application-types");
+            JobKey jobKey = new(Name, Group);
 
             await scheduler.ScheduleJob(
                 JobBuilder.Create<ReportJob>()
                     .WithIdentity(jobKey)
                     .StoreDurably()
-                    .UsingJobData("report", Report)
+                    .UsingJobData(Name, Report)
                     .Build(),
-                TriggerBuilder.Create<ReportJob>()
-                    .WithIdentity("report", "application-types")
+                TriggerBuilder.Create<ReportJob>(scheduler.TimeProvider)
+                    .WithIdentity(Name, Group)
                     .StartNow()
                     .UsingInput(Report)
                     .Build()).ConfigureAwait(false);
 
             await scheduler.Start().ConfigureAwait(false);
 
-            Task completed = await Task.WhenAny(fired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+            Task completed = await Task.WhenAny(fired.Task, Task.Delay(TimeSpan.FromSeconds(60), scheduler.TimeProvider)).ConfigureAwait(false);
             if (completed != fired.Task)
             {
                 await scheduler.Shutdown(waitForJobsToComplete: true).ConfigureAwait(false);
@@ -122,9 +129,9 @@ internal static class ApplicationTypesCheck
                 return $"FAIL application-types: the job read its data back as '{Describe(jobData)}' rather than the report's two members.";
             }
 
-            if (!IsReport(stored?.JobDataMap["report"]))
+            if (!IsReport(stored?.JobDataMap[Name]))
             {
-                return $"FAIL application-types: the job read back through IScheduler carried '{Describe(stored?.JobDataMap["report"])}'.";
+                return $"FAIL application-types: the job read back through IScheduler carried '{Describe(stored?.JobDataMap[Name])}'.";
             }
 
             string? refusal = CheckRefusal();
@@ -194,7 +201,7 @@ internal static class ApplicationTypesCheck
     {
         public ValueTask Execute(IJobExecutionContext context, CanaryReport input, CancellationToken cancellationToken = default)
         {
-            fired.TrySetResult((input, context.MergedJobDataMap["report"]));
+            fired.TrySetResult((input, context.MergedJobDataMap[Name]));
             return default;
         }
     }
