@@ -324,12 +324,24 @@ services.AddQuartz(q =>
   contexts, call it once for each.
 * With reflection on it changes nothing, so configure it unconditionally.
 * Under `AddQuartz("name", …)` it reaches that scheduler's serializers only.
-* Job data reads a declared object back as a `Dictionary<string, string>` of its members, so give such a
-  type string members. An input comes back as its own type.
+* Job data reads a declared object back as a `Dictionary<string, string>` of its members; see the table
+  below. An input comes back as its own type.
 * The store-level `store.UseSystemTextJsonSerializer(r => r.AddTypeInfoResolver(…))` still works, for job
   data only: it does not reach inputs.
 * The HTTP API reads the container's registry instead. See
   [System.Text.Json](../packages/system-text-json.md#making-custom-serializers-visible-outside-the-job-store).
+
+A declared job-data object reads back member by member:
+
+| Member written as | Reads back as |
+|---|---|
+| a string | the string |
+| a number or a boolean | its JSON text: `"3"`, `"true"` |
+| null | `null` |
+| an object | its JSON text |
+| a collection | refused with a `JsonSerializationException` when the map is written, naming the entry, the type and the member |
+
+A declared collection stored as the value itself is refused the same way. Neither reaches the store.
 
 Without the metadata, the write fails, and the message names the type and `AddJsonTypeInfoResolver`:
 
