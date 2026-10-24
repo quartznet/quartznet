@@ -105,7 +105,7 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.20.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.20.0" />
-    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.301" />
+    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.400" />
     <!--
       The nullable attributes, IsByRefLikeAttribute and the rest of what a netstandard2.0 compilation
       of the cron parser is missing. Source-only and PrivateAssets=all, so it reaches no nuspec — which
