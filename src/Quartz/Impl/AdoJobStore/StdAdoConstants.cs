@@ -466,6 +466,13 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectTriggerExecutionGroup =
         Invariant($"SELECT {ColumnExecutionGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
+    /// <summary>
+    /// The execution group of every trigger of one job, a row a trigger. No <c>DISTINCT</c>: the database
+    /// would fold groups its collation takes as equal, and execution groups compare ordinally.
+    /// </summary>
+    internal static readonly string SqlSelectExecutionGroupsOfJob =
+        Invariant($"SELECT {ColumnExecutionGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
+
     public static readonly string SqlUpdateTriggerExecutionGroup =
         Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnExecutionGroup} = @triggerExecutionGroup WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 

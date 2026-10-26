@@ -1250,6 +1250,26 @@ internal interface INextVersionDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Selects the one execution group every trigger of the job carries, from the triggers'
+    /// <c>EXECUTION_GROUP</c> column: <see langword="null" /> when the job has no triggers, when one of
+    /// them carries no group or another group, or when <see cref="HasExecutionGroupColumn" /> is
+    /// <see langword="false" />.
+    /// </summary>
+    /// <remarks>
+    /// What a manual firing counts against (#4092). Each value is taken as
+    /// <see cref="IDriverDelegate.SelectTrigger" /> gives it to the trigger it loads, and the values compare
+    /// ordinally rather than by the database's collation, so the answer is the one loading every trigger of
+    /// the job gave, at the cost of one statement (#4167).
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="jobKey">The job whose triggers to read.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    Task<string?> SelectSharedExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Selects the next triggers to acquire, filtering by execution group constraints.
     /// </summary>
     /// <param name="conn">The DB connection.</param>

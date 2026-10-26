@@ -310,26 +310,36 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     public string? ExecutionGroup
     {
         get => executionGroup;
-        set
+        set => executionGroup = NormalizeExecutionGroup(value);
+    }
+
+    /// <summary>
+    /// What <see cref="ExecutionGroup" /> holds once it is set to <paramref name="value" />: no group for an
+    /// empty or whitespace-only name, the name trimmed otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Also how a group read straight from a trigger's stored row is taken, so that it is the group the
+    /// trigger would carry once loaded.
+    /// </remarks>
+    /// <exception cref="ArgumentException">The name is reserved for limits configuration.</exception>
+    internal static string? NormalizeExecutionGroup(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
         {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                executionGroup = null;
-            }
-            else
-            {
-                string trimmed = value!.Trim();
-                if (trimmed == ExecutionLimits.OtherGroups
-                    || trimmed == "_"
-                    || trimmed.Equals("null", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new ArgumentException(
-                        $"Execution group name '{trimmed}' is reserved for limits configuration.",
-                        nameof(value));
-                }
-                executionGroup = trimmed;
-            }
+            return null;
         }
+
+        string trimmed = value!.Trim();
+        if (trimmed == ExecutionLimits.OtherGroups
+            || trimmed == "_"
+            || trimmed.Equals("null", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"Execution group name '{trimmed}' is reserved for limits configuration.",
+                nameof(value));
+        }
+
+        return trimmed;
     }
 
     /// <summary>

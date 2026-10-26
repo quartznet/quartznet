@@ -1174,27 +1174,24 @@ public class QuartzScheduler :
     /// The execution group every stored trigger of the job carries, so that a manual firing waits for its
     /// job's execution limit (#4092).
     /// </summary>
+    /// <remarks>
+    /// The shipped stores answer without loading the job's triggers: loading them made each manual firing
+    /// cost more with every stored trigger of the job, earlier manual firings included (#4167). A store of
+    /// another make is asked for the triggers.
+    /// </remarks>
     /// <returns>
     /// The group, or <see langword="null" /> when the job has no triggers, or one of them carries no group
     /// or another group.
     /// </returns>
     private async Task<string?> SharedExecutionGroup(JobKey jobKey, CancellationToken cancellationToken)
     {
-        IReadOnlyCollection<IOperableTrigger> triggers = await resources.JobStore.GetTriggersForJob(jobKey, cancellationToken).ConfigureAwait(false);
-
-        string? shared = null;
-        foreach (IOperableTrigger trigger in triggers)
+        if (resources.JobStore is INextVersionJobStore store)
         {
-            string? group = (trigger as INextVersionTrigger)?.ExecutionGroup;
-            if (group == null || (shared != null && !string.Equals(shared, group, StringComparison.Ordinal)))
-            {
-                return null;
-            }
-
-            shared = group;
+            return await store.GetSharedExecutionGroup(jobKey, cancellationToken).ConfigureAwait(false);
         }
 
-        return shared;
+        IReadOnlyCollection<IOperableTrigger> triggers = await resources.JobStore.GetTriggersForJob(jobKey, cancellationToken).ConfigureAwait(false);
+        return ManualFiringExecutionGroup.SharedBy(triggers);
     }
 
     /// <summary>

@@ -3650,6 +3650,42 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         }
     }
 
+    /// <inheritdoc />
+    Task<string?> INextVersionJobStore.GetSharedExecutionGroup(
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        // no locks necessary for read, as GetTriggersForJob takes none
+        return ExecuteWithoutLock(conn => GetSharedExecutionGroup(conn, jobKey, cancellationToken), cancellationToken);
+    }
+
+    /// <summary>
+    /// The one execution group every trigger of the job carries: one statement on a shipped delegate,
+    /// and every trigger of the job loaded on a delegate of another make.
+    /// </summary>
+    internal async Task<string?> GetSharedExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        if (Delegate is INextVersionDelegate nextVersion)
+        {
+            try
+            {
+                return await nextVersion.SelectSharedExecutionGroup(conn, jobKey, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't obtain the execution group of the triggers for job: " + e.Message, e);
+            }
+        }
+
+        // What every trigger of the job carries once loaded, as the shipped delegates answered it before
+        // they could say it in one statement.
+        IReadOnlyCollection<IOperableTrigger> triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
+        return Core.ManualFiringExecutionGroup.SharedBy(triggers);
+    }
+
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
