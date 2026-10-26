@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -32,9 +33,9 @@ namespace Quartz;
 /// <remarks>
 /// <para>
 /// Every one of these is a shape, not a decision: each does what the BCL member of the same name
-/// does, and none of them is on the path that decides whether an expression parses. The one
-/// exception is <c>TimeZoneInfo.TryConvertIanaIdToWindowsId</c>, which is written below to decline
-/// every id — see its own remarks.
+/// does, and none of them is on the path that decides whether an expression parses. The exceptions
+/// are <c>TimeZoneInfo</c>'s two id conversions, which are written below to decline every id — see
+/// their own remarks.
 /// </para>
 /// <para>
 /// This class is in the <c>Quartz</c> namespace because that is what puts it in scope for the linked
@@ -138,9 +139,19 @@ internal static class Polyfills
         /// zone is the run-time machine's business anyway, which is why <c>TimeZones.FindById</c> is
         /// on the list of things #3803 deliberately does not check at build time.
         /// </remarks>
-        public static bool TryConvertIanaIdToWindowsId(string ianaId, out string? windowsId)
+        public static bool TryConvertIanaIdToWindowsId(string ianaId, [NotNullWhen(true)] out string? windowsId)
         {
             windowsId = null;
+            return false;
+        }
+
+        /// <summary>
+        /// <see cref="TimeZoneInfo" />'s <c>TryConvertWindowsIdToIanaId</c>, which arrived in .NET 6
+        /// and declines every id here, for the reasons <c>TryConvertIanaIdToWindowsId</c> does.
+        /// </summary>
+        public static bool TryConvertWindowsIdToIanaId(string windowsId, [NotNullWhen(true)] out string? ianaId)
+        {
+            ianaId = null;
             return false;
         }
     }

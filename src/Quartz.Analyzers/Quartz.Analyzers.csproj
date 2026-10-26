@@ -78,7 +78,8 @@
     ParamCollectionAttribute at all.
 
     Everything these files call is linked with them, except TriggerConstants: that type is public in
-    Quartz, so Cron/TriggerConstants.cs carries the members read here instead.
+    Quartz, so Cron/TriggerConstants.cs carries the members read here instead. And TimeZoneLinks, a
+    FrozenDictionary, which Cron/TimeZoneLinks.cs replaces with an empty table.
   -->
   <ItemGroup>
     <Compile Include="../Quartz/CronExpression.cs" Link="Cron/CronExpression.cs" />

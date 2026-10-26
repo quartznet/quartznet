@@ -53,6 +53,7 @@ public class CronClosureTest
         "CronFormat.cs",
         "CronMacros.cs",
         "CronThrow.cs",
+        "TimeZoneLinks.cs",
         "TimeZones.cs",
         "UnixCronRewriter.cs",
         "ZoneClock.cs",
