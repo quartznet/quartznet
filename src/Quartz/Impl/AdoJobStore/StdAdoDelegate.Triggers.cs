@@ -97,6 +97,35 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
+    async Task<List<TriggerKey>> INextVersionDelegate.SelectMisfiredTriggersOfJobInState(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        string state,
+        DateTimeOffset ts,
+        CancellationToken cancellationToken)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggersOfJobInState));
+
+        // In the order the statement names them, for a provider that binds by position.
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "jobName", jobKey.Name);
+        AddCommandParameter(cmd, "jobGroup", jobKey.Group);
+        AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
+        AddCommandParameter(cmd, "state", state);
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        List<TriggerKey> list = new List<TriggerKey>();
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            string triggerName = rs.GetString(ColumnTriggerName)!;
+            string groupName = rs.GetString(ColumnTriggerGroup)!;
+            list.Add(new TriggerKey(triggerName, groupName));
+        }
+
+        return list;
+    }
+
+    /// <inheritdoc />
     public virtual async Task<bool> HasMisfiredTriggersInState(
         ConnectionAndTransactionHolder conn,
         string state1,

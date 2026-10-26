@@ -1179,6 +1179,27 @@ internal interface INextVersionDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Selects the keys of one job's triggers that are in <paramref name="state" /> and misfired: the
+    /// misfire handler's own predicate (<c>NEXT_FIRE_TIME &lt;= ts</c>, <c>MISFIRE_INSTR &lt;&gt; -1</c>),
+    /// limited to the job, in the misfire handler's order.
+    /// </summary>
+    /// <remarks>
+    /// A <see cref="DisallowConcurrentExecutionAttribute" /> job's completion asks this of the triggers it
+    /// has just let go of, so it reads the few that misfired rather than every trigger of the job (#4167).
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="jobKey">The job whose triggers to read.</param>
+    /// <param name="state">The state the triggers have to be in.</param>
+    /// <param name="ts">The misfire time: a trigger due at or before it has misfired.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    Task<List<TriggerKey>> SelectMisfiredTriggersOfJobInState(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        string state,
+        DateTimeOffset ts,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Performs a targeted UPDATE of only the columns that change during misfire recovery,
     /// bypassing the heavyweight <c>StoreTrigger</c> → <c>UpdateTrigger</c> path which
     /// performs many unnecessary SELECTs (existence check, pause-group checks, job retrieval,
