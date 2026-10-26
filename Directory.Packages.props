@@ -226,7 +226,7 @@
       Microsoft.Data.SqlClient name it for the same reason.
     -->
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
-    <PackageVersion Include="TimeZoneConverter" Version="7.0.0" />
+    <PackageVersion Include="TimeZoneConverter" Version="7.1.0" />
     <!--
       A range rather than a floor, and the only one in the file. The ceiling is there because 9.33.0 broke
       binary compatibility inside 9.x once already, and Weasel 10 is announced.
