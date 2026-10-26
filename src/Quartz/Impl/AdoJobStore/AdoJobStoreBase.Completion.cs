@@ -895,13 +895,19 @@ internal abstract partial class AdoJobStoreBase
     /// Applies the misfire policy of every trigger the completion above has just unblocked.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A trigger that sat BLOCKED while its job ran may well have passed a fire time meanwhile, and
     /// nothing else would notice: misfire recovery does not look at BLOCKED triggers, and by the time
-    /// this runs they are WAITING with a fire time in the past. There is no way to ask the database
-    /// which triggers just changed state, but asking for the job's triggers that are WAITING <em>now</em>
-    /// describes the same set — in one read, where the previous shape read the job's triggers, then each
-    /// trigger's state one statement at a time, then loaded again every trigger that turned out to be
-    /// waiting.
+    /// this runs they are WAITING with a fire time in the past. The job's triggers that are WAITING
+    /// <em>now</em> are the ones just let go of, and the late ones among them are what is settled.
+    /// </para>
+    /// <para>
+    /// A delegate Quartz ships is asked for the late ones only, with the misfire sweep's own predicate, so
+    /// a backlog that is on time costs one statement that returns no row. The job's waiting triggers used
+    /// to be read in full on every completion, under the lock, which made draining a backlog of N
+    /// triggers read N rows N times (#4167). Any other delegate keeps that read, so an override of it
+    /// still runs. The check in <see cref="ApplyReleasedMisfires" /> decides for both.
+    /// </para>
     /// </remarks>
     /// <param name="conn">The DB connection.</param>
     /// <param name="jobKey">The job whose triggers were just unblocked.</param>
@@ -911,6 +917,13 @@ internal abstract partial class AdoJobStoreBase
         JobKey jobKey,
         CancellationToken cancellationToken)
     {
+        if (ShippedDelegate is { } shipped)
+        {
+            List<IOperableTrigger> misfired = await shipped.SelectMisfiredTriggersOfJob(conn, jobKey, StoredTriggerState.Waiting, MisfireTime, cancellationToken).ConfigureAwait(false);
+            await ApplyReleasedMisfires(conn, misfired, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         List<TriggerKey> waiting = await Delegate.SelectTriggerKeysForJob(conn, jobKey, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
         if (waiting.Count == 0)
         {
@@ -921,9 +934,8 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Applies the misfire policy of every trigger in <paramref name="waiting" /> whose fire time went
-    /// past the misfire threshold while it was held back, and deletes the ones left with nothing to fire.
-    /// A policy that throws fails its own trigger and none of the rest.
+    /// Reads the triggers in <paramref name="waiting" /> and applies the misfire policy of the late ones,
+    /// as <see cref="ApplyReleasedMisfires" /> does.
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="waiting">Triggers just put back to <c>WAITING</c>.</param>
@@ -934,15 +946,42 @@ internal abstract partial class AdoJobStoreBase
         CancellationToken cancellationToken)
     {
         List<IOperableTrigger> triggers = await Delegate.SelectTriggers(conn, waiting, cancellationToken).ConfigureAwait(false);
+        await ApplyReleasedMisfires(conn, triggers, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Applies the misfire policy of every trigger in <paramref name="released" /> whose fire time went
+    /// past the misfire threshold while it was held back, and deletes the ones left with nothing to fire.
+    /// A policy that throws fails its own trigger and none of the rest.
+    /// </summary>
+    /// <remarks>
+    /// A trigger that ignores misfires is left as it is, late: acquisition fires it so, and the misfire
+    /// sweep and the in-memory store leave it alone too. It used to be reported misfired here and written
+    /// back unchanged.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="released">Triggers just put back to <c>WAITING</c>, as read.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask ApplyReleasedMisfires(
+        ConnectionAndTransactionHolder conn,
+        List<IOperableTrigger> released,
+        CancellationToken cancellationToken)
+    {
+        if (released.Count == 0)
+        {
+            return;
+        }
 
         DateTimeOffset now = timeProvider.GetUtcNow();
 
         List<PreparedMisfire>? prepared = null;
 
-        foreach (IOperableTrigger trigger in triggers)
+        foreach (IOperableTrigger trigger in released)
         {
-            // Each trigger by its own threshold where it has one (#4070).
-            if (trigger.NextFireTimeUtc.GetValueOrDefault() > MisfireThresholds.MisfireTime(now, trigger, MisfireThreshold))
+            // Left alone: a trigger that ignores misfires, and one not late by its own threshold where it has
+            // one (#4070). A shipped delegate's read asked both in SQL already; this check decides for every read.
+            if (trigger.MisfireInstructionCode == MisfireInstruction.IgnoreMisfirePolicy
+                || trigger.NextFireTimeUtc.GetValueOrDefault() > MisfireThresholds.MisfireTime(now, trigger, MisfireThreshold))
             {
                 continue;
             }
