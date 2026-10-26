@@ -96,6 +96,7 @@ Behaviour that changed:
 | A dashboard cluster row asked every member to interrupt a job | It asks the preferred 4.6 member, and the next if it fails, plus each member older than 4.6. With every member at 4.6, an interrupt of one firing is asked the same way, without looking up its owner | Nothing |
 | A store-attached window refused every interrupt with `NotSupportedException` | It records a request for a firing on a node with a live 4.6 or later check-in row, and refuses any other with `SchedulerException` naming the node. Currently Executing offers the button. See [What a window can and cannot do](packages/dashboard.md#what-a-window-can-and-cannot-do) | Nothing |
 | The ADO store's completion of a `[DisallowConcurrentExecution]`, `BufferOne` or `CancelPrevious` firing reported a late `IgnoreMisfirePolicy` trigger it let go of as misfired, and wrote it back | It leaves it as it is, as the misfire handler and the in-memory store do. Acquisition fires it late | Nothing, unless a trigger listener counted those misfires |
+| Without `tzdata-legacy`, as on Ubuntu 26.04, `TimeZones.FindById` threw for seven Windows ids, `FLE Standard Time` among them, and for legacy names such as `Asia/Calcutta`. `UseTimeZoneConverter` on 4.6.1 resolved them under the canonical name, `Europe/Kyiv` | They resolve without the plugin, under the id asked for, as they do with `tzdata-legacy`. A store writes that id | Nothing. A row holding the canonical name reads back |
 
 ## Upgrading from 4.5 to 4.6
 
