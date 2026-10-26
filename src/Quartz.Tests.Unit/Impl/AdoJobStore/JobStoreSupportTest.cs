@@ -923,6 +923,162 @@ public class JobStoreSupportTest
             .MustNotHaveHappened();
     }
 
+    /// <summary>
+    /// A serial job's completion asks the delegate for the job's misfired WAITING triggers by the misfire
+    /// handler's predicate, and loads only those. It used to load every trigger of the job, read each one's
+    /// state and load each waiting one again (#4167).
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteOfASerialJobReadsOnlyTheMisfiredTriggersItLetsGoOf()
+    {
+        IDriverDelegate nvDelegate = A.Fake<IDriverDelegate>(x => x.Implements<INextVersionDelegate>());
+        jobStoreSupport.DirectDelegate = nvDelegate;
+        ISchedulerSignaler signaler = A.Fake<ISchedulerSignaler>();
+        jobStoreSupport.DirectSignaler = signaler;
+
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IJobDetail job = CreateDisallowConcurrentJob();
+        IOperableTrigger completing = CreateTestTrigger("completing");
+        completing.SetNextFireTimeUtc(SystemTime.UtcNow().AddHours(1));
+        IOperableTrigger late = CreateTestTrigger("late");
+        late.SetNextFireTimeUtc(SystemTime.UtcNow().AddMinutes(-10));
+
+        A.CallTo(() => ((INextVersionDelegate) nvDelegate).SelectMisfiredTriggersOfJobInState(conn, job.Key, AdoConstants.StateWaiting, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(new List<TriggerKey> { late.Key }));
+        A.CallTo(() => nvDelegate.SelectTrigger(conn, late.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(late));
+
+        DateTimeOffset before = SystemTime.UtcNow();
+        await jobStoreSupport.CallTriggeredJobComplete(conn, completing, job, SchedulerInstruction.NoInstruction);
+        DateTimeOffset after = SystemTime.UtcNow();
+
+        A.CallTo(() => ((INextVersionDelegate) nvDelegate).SelectMisfiredTriggersOfJobInState(
+                conn,
+                job.Key,
+                AdoConstants.StateWaiting,
+                A<DateTimeOffset>.That.Matches(ts => ts >= before - jobStoreSupport.MisfireThreshold && ts <= after - jobStoreSupport.MisfireThreshold),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => ((INextVersionDelegate) nvDelegate).UpdateMisfiredTrigger(conn, late, AdoConstants.StateWaiting, A<DateTimeOffset?>.Ignored, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => signaler.NotifyTriggerListenersMisfired(late, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => nvDelegate.SelectTrigger(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => nvDelegate.SelectTriggersForJob(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+        A.CallTo(() => nvDelegate.SelectTriggerNamesForJob(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+        A.CallTo(() => nvDelegate.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A delegate that cannot ask for the misfired triggers has the job's trigger keys and their states read
+    /// instead. Each waiting one is loaded once, and held to the misfire handler's rule: late by more than
+    /// the threshold, and not ignoring misfires.
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteOfASerialJobWithAnOlderDelegateLoadsEachWaitingTriggerOnce()
+    {
+        ISchedulerSignaler signaler = A.Fake<ISchedulerSignaler>();
+        jobStoreSupport.DirectSignaler = signaler;
+
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IJobDetail job = CreateDisallowConcurrentJob();
+        IOperableTrigger completing = CreateTestTrigger("completing");
+        completing.SetNextFireTimeUtc(SystemTime.UtcNow().AddHours(1));
+
+        IOperableTrigger onTime = CreateTestTrigger("on-time");
+        onTime.SetNextFireTimeUtc(SystemTime.UtcNow().AddSeconds(-10));
+        IOperableTrigger late = CreateTestTrigger("late");
+        late.SetNextFireTimeUtc(SystemTime.UtcNow().AddMinutes(-10));
+        IOperableTrigger lateIgnoring = CreateTestTrigger("late-ignoring");
+        lateIgnoring.SetNextFireTimeUtc(SystemTime.UtcNow().AddMinutes(-10));
+        lateIgnoring.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+        TriggerKey paused = new TriggerKey("paused", "g1");
+
+        A.CallTo(() => driverDelegate.SelectTriggerNamesForJob(conn, job.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<TriggerKey>>(new[] { onTime.Key, late.Key, lateIgnoring.Key, paused }));
+        foreach (IOperableTrigger waiting in new[] { onTime, late, lateIgnoring })
+        {
+            A.CallTo(() => driverDelegate.SelectTriggerState(conn, waiting.Key, A<CancellationToken>.Ignored))
+                .Returns(Task.FromResult(AdoConstants.StateWaiting));
+            A.CallTo(() => driverDelegate.SelectTrigger(conn, waiting.Key, A<CancellationToken>.Ignored))
+                .Returns(Task.FromResult(waiting));
+        }
+
+        A.CallTo(() => driverDelegate.SelectTriggerState(conn, paused, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(AdoConstants.StatePaused));
+
+        await jobStoreSupport.CallTriggeredJobComplete(conn, completing, job, SchedulerInstruction.NoInstruction);
+
+        A.CallTo(() => driverDelegate.SelectTriggersForJob(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+        foreach (IOperableTrigger waiting in new[] { onTime, late, lateIgnoring })
+        {
+            A.CallTo(() => driverDelegate.SelectTrigger(conn, waiting.Key, A<CancellationToken>.Ignored))
+                .MustHaveHappenedOnceExactly();
+        }
+
+        A.CallTo(() => driverDelegate.SelectTrigger(A<ConnectionAndTransactionHolder>.Ignored, paused, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        // The late trigger's policy is applied the way this delegate stores a trigger.
+        A.CallTo(() => signaler.NotifyTriggerListenersMisfired(late, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => driverDelegate.TriggerExists(conn, late.Key, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        foreach (IOperableTrigger untouched in new[] { onTime, lateIgnoring })
+        {
+            A.CallTo(() => signaler.NotifyTriggerListenersMisfired(untouched, A<CancellationToken>.Ignored))
+                .MustNotHaveHappened();
+            A.CallTo(() => driverDelegate.TriggerExists(A<ConnectionAndTransactionHolder>.Ignored, untouched.Key, A<CancellationToken>.Ignored))
+                .MustNotHaveHappened();
+        }
+    }
+
+    /// <summary>
+    /// The same delegate deletes a late trigger whose policy left it no fire time, as the completion does
+    /// with the shipped ones (#1646).
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteOfASerialJobWithAnOlderDelegateDeletesATriggerItsMisfireCompleted()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IJobDetail job = CreateDisallowConcurrentJob();
+        IOperableTrigger completing = CreateTestTrigger("completing");
+        completing.SetNextFireTimeUtc(SystemTime.UtcNow().AddHours(1));
+
+        IOperableTrigger oneShot = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("one-shot", "g1")
+            .ForJob(job.Key)
+            .StartAt(SystemTime.UtcNow().AddMinutes(-10))
+            .WithSimpleSchedule(x => x.WithMisfireHandlingInstructionNextWithRemainingCount())
+            .Build();
+        oneShot.ComputeFirstFireTimeUtc(null);
+
+        A.CallTo(() => driverDelegate.SelectTriggerNamesForJob(conn, job.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<TriggerKey>>(new[] { oneShot.Key }));
+        A.CallTo(() => driverDelegate.SelectTriggerState(conn, oneShot.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(AdoConstants.StateWaiting));
+        A.CallTo(() => driverDelegate.SelectTrigger(conn, oneShot.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(oneShot));
+        A.CallTo(() => driverDelegate.SelectJobForTrigger(conn, oneShot.Key, A<ITypeLoadHelper>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IJobDetail>(null));
+
+        await jobStoreSupport.CallTriggeredJobComplete(conn, completing, job, SchedulerInstruction.NoInstruction);
+
+        A.CallTo(() => driverDelegate.InsertTrigger(conn, oneShot, AdoConstants.StateComplete, A<IJobDetail>.Ignored, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => driverDelegate.DeleteTrigger(conn, oneShot.Key, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => driverDelegate.SelectTriggerState(conn, oneShot.Key, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
     private static IOperableTrigger CreateTestTrigger(string name = "t1", string fireInstanceId = "test-fire-id")
     {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
