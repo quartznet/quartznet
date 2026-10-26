@@ -37,6 +37,10 @@ public class StdAdoConstantsTest
             "the sweep and the count it is peeked at with have to select the same rows");
         StdAdoConstants.SqlSelectMisfiredTriggersInState.Should().Contain("NEXT_FIRE_TIME <= @nextFireTime");
         StdAdoConstants.SqlSelectMisfiredTriggersInGroupInState.Should().Contain("NEXT_FIRE_TIME <= @nextFireTime");
+        StdAdoConstants.SqlSelectMisfiredTriggersOfJobInState.Should().Contain("NEXT_FIRE_TIME <= @nextFireTime",
+            "a serial job's completion has to take the triggers the misfire handler would, or a trigger it lets go of is fired late without its policy");
+        StdAdoConstants.SqlSelectMisfiredTriggersOfJobInState.Should().Contain("MISFIRE_INSTR <> -1",
+            "a trigger that ignores misfires is acquisition's, as it is for the misfire handler");
 
         StdAdoConstants.SqlSelectNextTriggerToAcquire.Should().Contain("NEXT_FIRE_TIME > @noEarlierThan",
             "acquisition takes what is not misfired, so a trigger exactly on the threshold instant is left to the misfire handler rather than fired late without its policy");
@@ -51,6 +55,7 @@ public class StdAdoConstantsTest
                      StdAdoConstants.SqlSelectMisfiredTriggers,
                      StdAdoConstants.SqlSelectMisfiredTriggersInState,
                      StdAdoConstants.SqlSelectMisfiredTriggersInGroupInState,
+                     StdAdoConstants.SqlSelectMisfiredTriggersOfJobInState,
                      StdAdoConstants.SqlSelectNextTriggerToAcquire,
                      StdAdoConstants.SqlSelectNextTriggerToAcquireWithExecutionGroup,
                      StdAdoConstants.SqlSelectNextTriggerToAcquireWithPreferredNode,

@@ -236,6 +236,18 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectMisfiredTriggersInState =
         Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnMifireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} <= @nextFireTime AND {ColumnTriggerState} = @state ORDER BY {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
 
+    /// <summary>
+    /// The misfired triggers of one job in a state: <see cref="SqlSelectMisfiredTriggersInState" />'s
+    /// predicate, limited to the job.
+    /// </summary>
+    /// <remarks>
+    /// What a <see cref="DisallowConcurrentExecutionAttribute" /> job's completion reads to find the
+    /// misfires of the triggers it lets go of, so that its cost is the triggers that misfired rather
+    /// than the job's whole backlog (#4167). Internal, so the 3.x public surface does not move.
+    /// </remarks>
+    internal static readonly string SqlSelectMisfiredTriggersOfJobInState =
+        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup AND {ColumnMifireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} <= @nextFireTime AND {ColumnTriggerState} = @state ORDER BY {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
+
     public static readonly string SqlCountMisfiredTriggersInStates =
         Invariant($"SELECT COUNT({ColumnTriggerName}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnMifireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} <= @nextFireTime AND {ColumnTriggerState} = @state1");
 

@@ -114,6 +114,31 @@ public class StdAdoDelegateSqlTest
         harness.AssertBoundParametersMatchStatement();
     }
 
+    /// <summary>
+    /// What a serial job's completion reads to find the misfires of the triggers it lets go of (#4167):
+    /// the misfire handler's predicate, limited to the job.
+    /// </summary>
+    [Test]
+    public async Task SelectMisfiredTriggersOfJobInStateShouldBindEveryParameterInTheOrderItsStatementNamesThem()
+    {
+        var harness = TestHarness.Create();
+
+        await ((INextVersionDelegate) harness.Delegate).SelectMisfiredTriggersOfJobInState(
+            harness.Connection,
+            new JobKey("job", "group"),
+            AdoConstants.StateWaiting,
+            SomeTime);
+
+        harness.Sql.Should().Be("SELECT TRIGGER_NAME, TRIGGER_GROUP FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName AND JOB_NAME = @jobName AND JOB_GROUP = @jobGroup "
+                                + "AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME <= @nextFireTime AND TRIGGER_STATE = @state ORDER BY NEXT_FIRE_TIME ASC, PRIORITY DESC");
+        harness.AssertBoundParametersMatchStatement();
+        harness.AssertBoundInTheOrderTheStatementNamesThem();
+        harness.BoundValue("jobName").Should().Be("job");
+        harness.BoundValue("jobGroup").Should().Be("group");
+        harness.BoundValue("state").Should().Be(AdoConstants.StateWaiting);
+        harness.BoundValue("nextFireTime").Should().Be(SomeTime.UtcTicks, "the misfire time is bound as every misfire query binds it");
+    }
+
     [Test]
     public async Task SelectTriggersInGroupWithEqualityMatcherShouldCompareForEquality()
     {
@@ -417,6 +442,25 @@ public class StdAdoDelegateSqlTest
 
             boundNames.Should().Equal(namesInStatement,
                 $"AdoUtil binds by name, so an unmatched name leaves a token unbound in: {Sql}");
+        }
+
+        /// <summary>
+        /// Asserts that the parameters were bound in the order the statement first names them, which is
+        /// what a provider that binds by position reads.
+        /// </summary>
+        public void AssertBoundInTheOrderTheStatementNamesThem()
+        {
+            var namesInStatement = Regex.Matches(Sql, "@([A-Za-z0-9_]+)")
+                .Cast<Match>()
+                .Select(x => x.Groups[1].Value)
+                .Distinct()
+                .ToArray();
+
+            var boundNames = parameters.Recorded
+                .Select(x => x.ParameterName.TrimStart('@'))
+                .ToArray();
+
+            boundNames.Should().Equal(namesInStatement, $"a positional provider binds in the order of: {Sql}");
         }
 
         public static TestHarness Create()
