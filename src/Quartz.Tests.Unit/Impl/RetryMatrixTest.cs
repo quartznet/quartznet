@@ -696,7 +696,7 @@ public sealed class RetryMatrixTest : MisfireThroughAStoreTestBase
     public async Task ARetryAcrossASpringForwardKeepsTheOccurrenceItWouldHavePassed(RetryTriggerShape shape)
     {
         // 02:00 on 30 March 2025 does not exist in Helsinki: the clocks go straight to 03:00.
-        TimeZoneInfo zone = TimeZones.FindById("FLE Standard Time");
+        TimeZoneInfo zone = TestTimeZones.Helsinki;
         DateTimeOffset anchor = new DateTimeOffset(2025, 3, 30, 0, 30, 0, TimeSpan.Zero) + HalfPeriod;
 
         foreach (MisfireStoreUnderTest store in await BothStores(anchor))
