@@ -3019,14 +3019,81 @@ public partial class StdAdoDelegate
             }
         }
 
-        var built = await MaterializeTriggers(conn, keys, rows, cancellationToken).ConfigureAwait(false);
+        List<IOperableTrigger> triggers = await MaterializeMisfiredTriggers(conn, keys, rows, cancellationToken).ConfigureAwait(false);
+        return new MisfiredTriggerBatch(triggers, hasMore);
+    }
+
+    /// <summary>
+    /// The misfired triggers of <paramref name="jobKey" /> in <paramref name="state" />, fully populated, read
+    /// with the misfire sweep's own predicate (#4167).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the completion of a firing of a job that disallows concurrent execution reads once it has let go
+    /// of the job's other triggers. A backlog that is on time costs one statement that returns no row, where
+    /// reading the job's waiting triggers in full cost every one of them on every completion.
+    /// </para>
+    /// <para>
+    /// Internal rather than a member of <see cref="IDriverDelegate" />, as
+    /// <see cref="CountUnservedMisfiredTriggers" /> is: the store asks it only of a delegate Quartz ships, and
+    /// any other keeps the read it always made, so an override of that read still runs. A row with no type
+    /// row is logged and left out, as the sweep's read leaves it out.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The completion's connection.</param>
+    /// <param name="jobKey">The job whose triggers were let go of.</param>
+    /// <param name="state">The state they were let go into.</param>
+    /// <param name="misfireTime">Now less the store's threshold, as the sweep is given it.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<List<IOperableTrigger>> SelectMisfiredTriggersOfJob(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        StoredTriggerState state,
+        DateTimeOffset misfireTime,
+        CancellationToken cancellationToken = default)
+    {
+        List<TriggerKey> keys = [];
+        List<TriggerRow> rows = [];
+
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectMisfiredTriggersOfJobInState)))
+        {
+            // In the order the statement names them, for providers that bind positionally.
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+            AddMisfireParameters(cmd, misfireTime);
+            AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(state));
+            AddCommandParameter(cmd, SqlParameters.JobName, jobKey.Name);
+            AddCommandParameter(cmd, SqlParameters.JobGroup, jobKey.Group);
+
+            using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            TriggerRowOrdinals? ordinals = null;
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                ordinals ??= new TriggerRowOrdinals(rs, includesKey: true);
+                keys.Add(ordinals.Value.ReadKey(rs));
+                rows.Add(await ReadTriggerRow(rs, ordinals.Value).ConfigureAwait(false));
+            }
+        }
+
+        return await MaterializeMisfiredTriggers(conn, keys, rows, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Builds the triggers of a misfire read, logging and leaving out a row whose type row is missing.
+    /// </summary>
+    private async ValueTask<List<IOperableTrigger>> MaterializeMisfiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        List<TriggerKey> keys,
+        List<TriggerRow> rows,
+        CancellationToken cancellationToken)
+    {
+        IOperableTrigger?[] built = await MaterializeTriggers(conn, keys, rows, cancellationToken).ConfigureAwait(false);
 
         List<IOperableTrigger> triggers = new(rows.Count);
-        for (var i = 0; i < built.Length; i++)
+        for (int i = 0; i < built.Length; i++)
         {
-            if (built[i] is not null)
+            if (built[i] is { } trigger)
             {
-                triggers.Add(built[i]!);
+                triggers.Add(trigger);
             }
             else
             {
@@ -3034,7 +3101,7 @@ public partial class StdAdoDelegate
             }
         }
 
-        return new MisfiredTriggerBatch(triggers, hasMore);
+        return triggers;
     }
 
     /// <inheritdoc />

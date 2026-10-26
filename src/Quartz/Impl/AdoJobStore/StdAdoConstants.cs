@@ -365,7 +365,7 @@ internal static class StdAdoConstants
     /// <see cref="MisfiredPredicate" /> is the one rule about a misfire, spelled here in SQL: a trigger
     /// is late once its fire time is <em>at or before</em> now less its own threshold, or less the
     /// store's <c>MisfireThreshold</c> where it has none. <c>RAMJobStore.ApplyMisfireNoLock</c>,
-    /// <c>AdoJobStoreBase.UpdateMisfiredTrigger</c> and <c>AdoJobStoreBase.RecoverUnblockedMisfires</c>
+    /// <c>AdoJobStoreBase.UpdateMisfiredTrigger</c> and <c>AdoJobStoreBase.ApplyReleasedMisfires</c>
     /// all decline a trigger whose fire time is strictly greater, through <c>MisfireThresholds</c>, and
     /// <see cref="SqlSelectNextTriggerToAcquire" /> takes the complement of it.
     /// </remarks>
@@ -874,17 +874,38 @@ internal static class StdAdoConstants
     /// <remarks>
     /// The dialect's row limit goes in one of the two slots, or around the whole statement; a dialect
     /// that has no way to limit rows leaves all three empty and gets the statement unchanged.
+    /// The narrowing clause is a routed node's execution-group clause, or the job equalities of
+    /// <see cref="SqlSelectMisfiredTriggersOfJobInState" />, with its leading <c>AND</c>.
     /// </remarks>
-    private static string SelectMisfiredTriggersToRecover(SqlRowLimit rowLimit, string executionGroupClause) =>
+    private static string SelectMisfiredTriggersToRecover(SqlRowLimit rowLimit, string narrowingClause) =>
         rowLimit.Enclose(Invariant($@"SELECT{rowLimit.AfterSelect} {TriggerSelectColumns},
                 t.{AdoConstants.ColumnTriggerName},
                 t.{AdoConstants.ColumnTriggerGroup}{TriggerSelectFastPathFrom}
             WHERE
-                t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {MisfiredPredicate(alias: "t.")} AND t.{AdoConstants.ColumnTriggerState} = @{SqlParameters.State}{executionGroupClause}
+                t.{AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {MisfiredPredicate(alias: "t.")} AND t.{AdoConstants.ColumnTriggerState} = @{SqlParameters.State}{narrowingClause}
             ORDER BY {TriggerSweepOrderBy(alias: "t.")}{rowLimit.AtEnd}"));
 
     /// <inheritdoc cref="SelectMisfiredTriggersToRecover" />
-    public static readonly string SqlSelectMisfiredTriggersToRecover = SelectMisfiredTriggersToRecover(SqlRowLimit.Unlimited, executionGroupClause: "");
+    public static readonly string SqlSelectMisfiredTriggersToRecover = SelectMisfiredTriggersToRecover(SqlRowLimit.Unlimited, narrowingClause: "");
+
+    /// <summary>
+    /// The misfired triggers of one job in a state, as fully populated rows: the misfire sweep's statement
+    /// narrowed to the job (#4167).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the completion of a firing of a job that disallows concurrent execution reads once it has let
+    /// go of the job's other triggers. The sweep's predicate, columns and order, so the two cannot disagree
+    /// about which row is late, including by a trigger's own threshold (#4070).
+    /// </para>
+    /// <para>
+    /// No row limit, because the completion settles every trigger it lets go of. No execution-group
+    /// clause, because the completion settles its own job's triggers whichever node serves their groups.
+    /// </para>
+    /// </remarks>
+    public static readonly string SqlSelectMisfiredTriggersOfJobInState = SelectMisfiredTriggersToRecover(
+        SqlRowLimit.Unlimited,
+        Invariant($" AND t.{AdoConstants.ColumnJobName} = @{SqlParameters.JobName} AND t.{AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup}"));
 
     /// <summary>
     /// Builds the misfire recovery statement for the dialect's row limit, which is the only thing
@@ -905,7 +926,7 @@ internal static class StdAdoConstants
         {
             return rowLimit == SqlRowLimit.Unlimited
                 ? SqlSelectMisfiredTriggersToRecover
-                : SelectMisfiredTriggersToRecover(rowLimit, executionGroupClause: "");
+                : SelectMisfiredTriggersToRecover(rowLimit, narrowingClause: "");
         }
 
         return SelectMisfiredTriggersToRecover(rowLimit, " AND " + ExecutionGroupPredicate(executionGroups, alias: "t."));

@@ -281,6 +281,25 @@ public sealed class OverlapPolicyStoreTest
         signals.Misfired.Should().BeEmpty("three seconds late is within either store's misfire threshold");
     }
 
+    /// <summary>
+    /// A buffered trigger that ignores misfires is let go with the occurrence it missed, and fires it late:
+    /// no misfire is reported, as neither store's misfire handling reports one for such a trigger (#4167).
+    /// </summary>
+    [Test]
+    public async Task ABufferedTriggerThatIgnoresMisfiresIsLetGoLateAsItIs()
+    {
+        IOperableTrigger trigger = await Schedule("trigger", OverlapPolicy.BufferOne, cron: true, ignoreMisfires: true);
+        List<IOperableTrigger> first = await Fire(trigger.Key);
+
+        clock.Advance(TimeSpan.FromHours(3) + TimeSpan.FromMinutes(5));
+        await Complete(first[0]);
+
+        signals.Misfired.Should().BeEmpty("the trigger asked for its misfires to be ignored");
+        (await store.GetTrigger(trigger.Key))!.NextFireTimeUtc.Should().Be(epoch.AddHours(1),
+            "it keeps the first occurrence it missed, which acquisition fires late as it asks");
+        (await AcquireKeys()).Should().Equal([trigger.Key]);
+    }
+
     [Test]
     public async Task ABufferedTriggerThatIsPausedAndResumedIsStillHeldWhileItsFiringRuns()
     {
@@ -589,7 +608,8 @@ public sealed class OverlapPolicyStoreTest
         bool nonConcurrent = false,
         bool cron = false,
         int repeatCount = -1,
-        bool retry = false)
+        bool retry = false,
+        bool ignoreMisfires = false)
     {
         IJobDetail job = nonConcurrent
             ? JobBuilder.Create<NonConcurrentOverlapJob>().WithIdentity(name, Group).StoreDurably().Build()
@@ -602,7 +622,14 @@ public sealed class OverlapPolicyStoreTest
             .WithOverlapPolicy(policy);
 
         builder = cron
-            ? builder.WithCronSchedule("0 0 * * * ?", x => x.InTimeZone(TimeZoneInfo.Utc))
+            ? builder.WithCronSchedule("0 0 * * * ?", x =>
+            {
+                x.InTimeZone(TimeZoneInfo.Utc);
+                if (ignoreMisfires)
+                {
+                    x.WithMisfireInstruction(CronTriggerMisfireInstruction.IgnoreMisfires);
+                }
+            })
             : builder.WithSimpleSchedule(x =>
             {
                 x.WithInterval(TimeSpan.FromHours(1));
