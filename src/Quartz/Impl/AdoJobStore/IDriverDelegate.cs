@@ -80,6 +80,9 @@ public interface IDriverDelegate
     /// table. The caller is responsible for calling <see cref="IOperableTrigger.ComputeFirstFireTimeUtc" />
     /// on each returned trigger. It is also up to the caller to insert the
     /// returned triggers to ensure that they are fired.
+    /// Each trigger's data map names the firing it replays under
+    /// <see cref="SchedulerConstants.FailedJobOriginalTriggerName" /> and the keys beside it; a replay of a
+    /// recovery trigger keeps the names that trigger's map already carries.
     /// </remarks>
     /// <param name="conn">The DB Connection</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
