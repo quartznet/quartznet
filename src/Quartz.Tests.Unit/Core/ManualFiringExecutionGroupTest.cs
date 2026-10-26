@@ -23,11 +23,15 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Threading;
 using System.Threading.Tasks;
+
+using FakeItEasy;
 
 using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
+using Quartz.Simpl;
 using Quartz.Spi;
 
 namespace Quartz.Tests.Unit.Core;
@@ -91,9 +95,12 @@ public sealed class ManualFiringExecutionGroupTest
         JobKey partly = await AddDurable(scheduler, "partly");
         await AddTrigger(scheduler, partly, "partly-1", Reports);
         await AddTrigger(scheduler, partly, "partly-2", executionGroup: null);
+        JobKey cased = await AddDurable(scheduler, "cased");
+        await AddTrigger(scheduler, cased, "cased-1", Reports);
+        await AddTrigger(scheduler, cased, "cased-2", "Reports");
         JobKey untriggered = await AddDurable(scheduler, "untriggered");
 
-        foreach (JobKey job in new[] { agreeing, mixed, partly, untriggered })
+        foreach (JobKey job in new[] { agreeing, mixed, partly, cased, untriggered })
         {
             await scheduler.TriggerJob(job);
         }
@@ -102,7 +109,39 @@ public sealed class ManualFiringExecutionGroupTest
             "every trigger of the job carries reports, so that is the job's group");
         (await GroupOfTheManualFiring(scheduler, mixed)).Should().BeNull("two groups is no one group");
         (await GroupOfTheManualFiring(scheduler, partly)).Should().BeNull("a grouped and an ungrouped trigger is no one group");
+        (await GroupOfTheManualFiring(scheduler, cased)).Should().BeNull("groups compare ordinally, as execution limits count them");
         (await GroupOfTheManualFiring(scheduler, untriggered)).Should().BeNull("no trigger says anything");
+    }
+
+    /// <summary>
+    /// A store of another make cannot say the group without loading anything, so it is asked for the job's
+    /// triggers and the group is read off them.
+    /// </summary>
+    [Test]
+    public async Task AStoreOfAnotherMakeIsAskedForTheJobsTriggers()
+    {
+        JobKey job = new JobKey("render", JobGroup);
+        IJobStore store = A.Fake<IJobStore>();
+        A.CallTo(() => store.GetTriggersForJob(job, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<IOperableTrigger>>(new[]
+            {
+                (IOperableTrigger) TriggerBuilder.Create().WithIdentity("nightly", JobGroup).ForJob(job).WithExecutionGroup(Gpu).StartNow().Build(),
+                (IOperableTrigger) TriggerBuilder.Create().WithIdentity("weekly", JobGroup).ForJob(job).WithExecutionGroup(Gpu).StartNow().Build(),
+            }));
+        List<IOperableTrigger> stored = new List<IOperableTrigger>();
+        A.CallTo(() => store.StoreTrigger(A<IOperableTrigger>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((IOperableTrigger trigger, bool _, CancellationToken _) => stored.Add(trigger))
+            .Returns(Task.CompletedTask);
+
+        string name = "manual-firing-other-store-" + Guid.NewGuid().ToString("N");
+        DirectSchedulerFactory.Instance.CreateScheduler(name, "node", new DedicatedThreadPool { ThreadCount = 1 }, store);
+        IScheduler scheduler = await DirectSchedulerFactory.Instance.GetScheduler(name);
+        schedulers.Add(scheduler);
+
+        await scheduler.TriggerJob(job);
+
+        ((AbstractTrigger) stored.Should().ContainSingle("one manual firing was stored").Subject).ExecutionGroup.Should().Be(Gpu,
+            "every trigger the store gives for the job carries gpu");
     }
 
     /// <summary>

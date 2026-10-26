@@ -722,4 +722,21 @@ internal interface INextVersionJobStore
         TimeSpan timeWindow,
         Dictionary<string, int?>? executionLimits,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The one execution group every stored trigger of the job carries, which a manual firing of the job
+    /// counts against (#4092).
+    /// </summary>
+    /// <remarks>
+    /// Asked on every <c>TriggerJob</c>, so it is answered without loading the job's triggers (#4167).
+    /// </remarks>
+    /// <param name="jobKey">The job whose triggers to read.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>
+    /// The group, or <see langword="null" /> when the job has no triggers, or one of them carries no group
+    /// or another group; groups compare ordinally.
+    /// </returns>
+    Task<string?> GetSharedExecutionGroup(
+        JobKey jobKey,
+        CancellationToken cancellationToken = default);
 }

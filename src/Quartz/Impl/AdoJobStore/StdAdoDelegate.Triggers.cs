@@ -623,6 +623,40 @@ public partial class StdAdoDelegate
             : Task.FromResult<string?>(null);
     }
 
+    /// <inheritdoc />
+    async Task<string?> INextVersionDelegate.SelectSharedExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        // Without the column no group is stored, so none is shared, and the manual firing's own row could
+        // not keep one either.
+        if (!HasExecutionGroupColumn)
+        {
+            return null;
+        }
+
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectExecutionGroupsOfJob));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "jobName", jobKey.Name);
+        AddCommandParameter(cmd, "jobGroup", jobKey.Group);
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        string? shared = null;
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            // As SelectTrigger gives the column to the trigger it loads: a blank name is no group, and a
+            // name is trimmed.
+            string? group = AbstractTrigger.NormalizeExecutionGroup(rs.IsDBNull(0) ? null : rs.GetString(0));
+            if (!Core.ManualFiringExecutionGroup.Shares(ref shared, group))
+            {
+                return null;
+            }
+        }
+
+        return shared;
+    }
+
     private async Task<string?> ReadTriggerExecutionGroup(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,

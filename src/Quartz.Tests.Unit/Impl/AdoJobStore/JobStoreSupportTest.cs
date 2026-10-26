@@ -1458,6 +1458,62 @@ public class JobStoreSupportTest
             .WithMessage("*group*");
     }
 
+    /// <summary>
+    /// A shipped delegate says the group a manual firing counts against in one statement, so the job's
+    /// triggers are not loaded to find it out (#4167).
+    /// </summary>
+    [Test]
+    public async Task TheSharedExecutionGroupIsAskedOfAShippedDelegateWithoutLoadingTheTriggers()
+    {
+        IDriverDelegate nvDelegate = A.Fake<IDriverDelegate>(x => x.Implements<INextVersionDelegate>());
+        jobStoreSupport.DirectDelegate = nvDelegate;
+        ConnectionAndTransactionHolder conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        JobKey job = new JobKey("render", "jg1");
+
+        A.CallTo(() => ((INextVersionDelegate) nvDelegate).SelectSharedExecutionGroup(conn, job, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<string>("gpu"));
+
+        string group = await jobStoreSupport.GetSharedExecutionGroup(conn, job, CancellationToken.None);
+
+        group.Should().Be("gpu", "the delegate's answer is the store's");
+        A.CallTo(() => nvDelegate.SelectTriggersForJob(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+        A.CallTo(() => nvDelegate.SelectTrigger(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A delegate of another make cannot say the group, so it is read off the job's triggers, loaded as
+    /// they were before the shipped delegates could say it.
+    /// </summary>
+    [Test]
+    public async Task TheSharedExecutionGroupIsReadOffTheLoadedTriggersWithADelegateOfAnotherMake()
+    {
+        ConnectionAndTransactionHolder conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        JobKey agreeing = new JobKey("agreeing", "jg1");
+        JobKey mixed = new JobKey("mixed", "jg1");
+
+        A.CallTo(() => driverDelegate.SelectTriggersForJob(conn, agreeing, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<IOperableTrigger>>(new[] { GroupedTrigger("a-1", agreeing, "gpu"), GroupedTrigger("a-2", agreeing, "gpu") }));
+        A.CallTo(() => driverDelegate.SelectTriggersForJob(conn, mixed, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<IOperableTrigger>>(new[] { GroupedTrigger("m-1", mixed, "gpu"), GroupedTrigger("m-2", mixed, "batch") }));
+
+        (await jobStoreSupport.GetSharedExecutionGroup(conn, agreeing, CancellationToken.None)).Should().Be("gpu",
+            "every trigger of the job carries gpu");
+        (await jobStoreSupport.GetSharedExecutionGroup(conn, mixed, CancellationToken.None)).Should().BeNull(
+            "two groups is no one group");
+    }
+
+    private static IOperableTrigger GroupedTrigger(string name, JobKey job, string executionGroup)
+    {
+        return (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(name, "g1")
+            .ForJob(job)
+            .WithExecutionGroup(executionGroup)
+            .StartNow()
+            .Build();
+    }
+
     private static RetryTestJobStoreSupport CreateRetryTestStore(int maxTransientRetries = 3)
     {
         return new RetryTestJobStoreSupport

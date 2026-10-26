@@ -1274,6 +1274,30 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
         return Array.Empty<IOperableTrigger>();
     }
 
+    /// <inheritdoc />
+    Task<string?> INextVersionJobStore.GetSharedExecutionGroup(
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        lock (lockObject)
+        {
+            // Read off the stored triggers themselves: nothing is handed out, so nothing is cloned.
+            string? shared = null;
+            if (triggersByJob.TryGetValue(jobKey, out List<TriggerWrapper>? jobList))
+            {
+                foreach (TriggerWrapper wrapper in jobList)
+                {
+                    if (!Core.ManualFiringExecutionGroup.Shares(ref shared, (wrapper.Trigger as INextVersionTrigger)?.ExecutionGroup))
+                    {
+                        return Task.FromResult<string?>(null);
+                    }
+                }
+            }
+
+            return Task.FromResult(shared);
+        }
+    }
+
     /// <summary>
     /// Gets the trigger wrappers for job.
     /// </summary>
