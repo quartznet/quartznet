@@ -37,15 +37,14 @@ public class CronTriggerTest
     /// Tests the cron trigger time zone should change when changed.
     /// </summary>
     [Test]
-    [Category("windowstimezoneid")]
     public void TestCronTriggerTimeZone_TimeZoneShouldChangeWhenChanged()
     {
-        string tzStr = "FLE Standard Time";
-        if (TimeZoneInfo.Local.Id == tzStr)
+        // Canonical IANA ids, because "FLE Standard Time" maps to Europe/Kiev, which Ubuntu 26.04 ships only in tzdata-legacy.
+        TimeZoneInfo tz = TZConvert.GetTimeZoneInfo("Europe/Helsinki");
+        if (TimeZoneInfo.Local.Equals(tz))
         {
-            tzStr = "GMT Standard Time";
+            tz = TZConvert.GetTimeZoneInfo("Europe/London");
         }
-        TimeZoneInfo tz = TZConvert.GetTimeZoneInfo(tzStr);
         CronTriggerImpl trigger = new CronTriggerImpl();
         trigger.Key = new TriggerKey("Quartz-579", TriggerKey.DefaultGroup);
         trigger.TimeZone = tz;
