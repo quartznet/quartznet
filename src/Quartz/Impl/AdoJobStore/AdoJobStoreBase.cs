@@ -37,7 +37,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal abstract partial class AdoJobStoreBase : IJobStore
+internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGroupSource
 {
     private readonly bool useProperties;
     private readonly Dictionary<string, ICalendar?> calendarCache = [];

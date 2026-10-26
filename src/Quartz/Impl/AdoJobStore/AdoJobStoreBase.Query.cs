@@ -282,6 +282,52 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <inheritdoc />
+    ValueTask<string?> ISharedExecutionGroupSource.GetSharedExecutionGroup(JobKey jobKey, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(jobKey);
+
+        // no locks necessary for read, as the listing it stands in for takes none
+        return ExecuteWithoutLock(conn => GetSharedExecutionGroup(conn, jobKey, cancellationToken), cancellationToken);
+    }
+
+    /// <summary>
+    /// The one execution group every trigger of the job carries: the group column alone through a delegate
+    /// Quartz ships (#4174), and the job's trigger headers through any other, so that its override of the
+    /// listing still runs.
+    /// </summary>
+    private ValueTask<string?> GetSharedExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        if (ShippedDelegate is { } shipped)
+        {
+            return Guarded(
+                () => shipped.SelectSharedExecutionGroup(conn, jobKey, cancellationToken),
+                $"obtain the execution group the triggers of job '{jobKey}' share");
+        }
+
+        return ListedSharedExecutionGroup(conn, jobKey, cancellationToken);
+    }
+
+    private async ValueTask<string?> ListedSharedExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        PagedResult<TriggerHeader> triggers = await QueryTriggers(
+            conn,
+            new TriggerQuery
+            {
+                Job = jobKey,
+                Take = PagedQuery.All
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return Core.ManualFiringExecutionGroup.SharedBy(triggers.Items);
+    }
+
+    /// <inheritdoc />
     public ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);

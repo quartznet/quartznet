@@ -1588,8 +1588,21 @@ internal sealed class QuartzScheduler
     /// </remarks>
     private ValueTask<string?> ResolveManualExecutionGroup(JobKey jobKey, JobDataMap? firingData, CancellationToken cancellationToken)
     {
-        IJobStore store = resources.JobStore;
-        return ManualFiringExecutionGroup.Resolve(jobKey, firingData, store.GetJob, store.QueryTriggers, cancellationToken);
+        return ManualFiringExecutionGroup.Resolve(resources.JobStore, jobKey, firingData, cancellationToken);
+    }
+
+    /// <summary>
+    /// The one execution group every stored trigger of <paramref name="jobKey" /> carries, as the store
+    /// answers it, for the extensions and plugins that resolve a manual firing's group through
+    /// <see cref="StdScheduler" /> rather than through <c>TriggerJob</c>.
+    /// </summary>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    internal ValueTask<string?> GetSharedExecutionGroup(JobKey jobKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKey);
+        ValidateState();
+
+        return ManualFiringExecutionGroup.SharedGroupOf(resources.JobStore, jobKey, cancellationToken);
     }
 
     /// <summary>

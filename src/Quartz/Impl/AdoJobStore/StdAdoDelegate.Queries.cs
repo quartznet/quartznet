@@ -456,6 +456,54 @@ public partial class StdAdoDelegate
         };
     }
 
+    /// <summary>
+    /// The one execution group every trigger of <paramref name="jobKey" /> carries, read from the
+    /// triggers' group column alone (#4174).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What a manual firing of a job whose type declares no group counts against. The job's trigger
+    /// headers answer it too, at the cost of every column of every trigger, a fired-trigger probe a row and
+    /// a sort; this reads one column, in no order, and stops at the first row that settles the answer.
+    /// Each value is taken as <see cref="ReadTriggerHeader" /> reports it, so the answer is the headers'.
+    /// </para>
+    /// <para>
+    /// One row a trigger, never <c>DISTINCT</c>: a case-insensitive collation would fold <c>Reports</c> and
+    /// <c>reports</c> into one row, where execution groups compare ordinally. Internal rather than a member
+    /// of <see cref="IDriverDelegate" />, as <see cref="SelectMisfiredTriggersOfJob" /> is: the store asks
+    /// it only of a delegate Quartz ships, and any other keeps the listing it always made.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The connection to read on.</param>
+    /// <param name="jobKey">The job whose triggers to read.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>
+    /// The group, or <see langword="null" /> when the job has no triggers, or one of them carries no group or
+    /// another group.
+    /// </returns>
+    internal async ValueTask<string?> SelectSharedExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectExecutionGroupsOfJob));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.JobName, jobKey.Name);
+        AddCommandParameter(cmd, SqlParameters.JobGroup, jobKey.Group);
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        string? shared = null;
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (!Core.ManualFiringExecutionGroup.Shares(ref shared, rs.IsDBNull(0) ? null : rs.GetString(0)))
+            {
+                return null;
+            }
+        }
+
+        return shared;
+    }
+
     /// <summary>Whether a stored trigger state is one of the two a pause leaves a trigger in.</summary>
     private static bool IsPausedState(string storedState)
     {

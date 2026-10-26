@@ -1905,6 +1905,39 @@ public sealed class RAMJobStore : IJobStore
         }));
     }
 
+    /// <inheritdoc cref="ISharedExecutionGroupSource.GetSharedExecutionGroup" />
+    /// <remarks>
+    /// <para>
+    /// Read off the job's own stored triggers under the store's lock: <see cref="QueryTriggers" /> would
+    /// visit every trigger of every group to find them, and build a header for each.
+    /// </para>
+    /// <para>
+    /// An internal member rather than an implementation of <see cref="ISharedExecutionGroupSource" />,
+    /// which this public type would carry in its public API baseline; the resolver asks for it by type.
+    /// </para>
+    /// </remarks>
+    internal ValueTask<string?> GetSharedExecutionGroup(JobKey jobKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKey);
+
+        lock (lockObject)
+        {
+            string? shared = null;
+            if (triggersByJob.TryGetValue(jobKey, out Dictionary<TriggerKey, TriggerWrapper>? jobTriggers))
+            {
+                foreach (TriggerWrapper wrapper in jobTriggers.Values)
+                {
+                    if (!Core.ManualFiringExecutionGroup.Shares(ref shared, wrapper.Trigger.ExecutionGroup))
+                    {
+                        return new ValueTask<string?>((string?) null);
+                    }
+                }
+            }
+
+            return new ValueTask<string?>(shared);
+        }
+    }
+
     private void CollectMatchingTriggersNoLock(
         Dictionary<TriggerKey, TriggerWrapper> groupMap,
         TriggerQuery query,
