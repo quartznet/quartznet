@@ -5325,35 +5325,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
 
-                // Check for misfired triggers that were just unblocked
-                // Triggers that were blocked and have now transitioned to waiting may have misfired
-                // while they were blocked. We need to handle these misfires now.
-                // Note: We retrieve all triggers and check each one's state because there's no efficient
-                // way to query only triggers that just transitioned from BLOCKED to WAITING.
-                // However, jobs with DisallowConcurrentExecution typically have few triggers.
-                var triggersForJob = await GetTriggersForJob(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
-                foreach (var trig in triggersForJob)
-                {
-                    // Only check triggers in WAITING state (those that were just unblocked)
-                    var state = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
-                    if (state.Equals(StateWaiting))
-                    {
-                        // One whose calendar throws fails alone: it stays WAITING for the misfire handler,
-                        // or is stored ERROR at the limit and kept, and this completion commits (#4006).
-                        var misfired = await UpdateMisfiredTrigger(conn, trig.Key, StateWaiting, false, cancellationToken).ConfigureAwait(false);
-                        if (misfired)
-                        {
-                            // If the trigger was misfired and has no more fire times (e.g., fire-once triggers),
-                            // it was stored as COMPLETE. We need to remove it entirely so that GetTrigger
-                            // returns null and the trigger doesn't linger in the database.
-                            var newState = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
-                            if (newState.Equals(StateComplete))
-                            {
-                                await RemoveTrigger(conn, trig.Key, cancellationToken).ConfigureAwait(false);
-                            }
-                        }
-                    }
-                }
+                // The triggers just let go of may have misfired while they were blocked (#1646).
+                await HandleMisfiresOfUnblockedTriggers(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
             }
             if (jobDetail.PersistJobDataAfterExecution)
             {
@@ -5386,6 +5359,111 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         catch (Exception e)
         {
             throw new JobPersistenceException("Couldn't delete fired trigger: " + e.Message, e);
+        }
+    }
+
+    /// <summary>
+    /// Handles the misfires of the triggers a <see cref="DisallowConcurrentExecutionAttribute" /> job's
+    /// completion has just let go of: a trigger blocked behind a long run can be late by more than the
+    /// misfire threshold by the time it is released (#1646).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only the job's misfired <c>WAITING</c> triggers are read, by the misfire handler's own predicate,
+    /// so a completion costs the same however long the job's backlog is. It used to load every trigger of
+    /// the job, read each one's state and load each waiting one again, all under <c>TRIGGER_ACCESS</c>:
+    /// about seven statements per waiting trigger, per completion (#4167).
+    /// </para>
+    /// <para>
+    /// A delegate that cannot ask for them has the job's trigger keys and each one's state read instead,
+    /// and <see cref="HandleMisfireOfUnblockedTrigger" /> holds every candidate to the same rule, so both
+    /// paths handle the same triggers.
+    /// </para>
+    /// </remarks>
+    private async Task HandleMisfiresOfUnblockedTriggers(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        // One instant for the whole completion, so the query and the check after it agree on what is late.
+        DateTimeOffset misfireTime = MisfireTime;
+
+        if (Delegate is INextVersionDelegate nextVersionDelegate)
+        {
+            List<TriggerKey> misfired = await nextVersionDelegate.SelectMisfiredTriggersOfJobInState(conn, jobKey, StateWaiting, misfireTime, cancellationToken).ConfigureAwait(false);
+            foreach (TriggerKey triggerKey in misfired)
+            {
+                await HandleMisfireOfUnblockedTrigger(conn, triggerKey, misfireTime, cancellationToken).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
+        IReadOnlyCollection<TriggerKey> triggerKeys = await Delegate.SelectTriggerNamesForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
+        foreach (TriggerKey triggerKey in triggerKeys)
+        {
+            // Only the triggers the completion let go of; a paused one accrues no misfire until it is resumed.
+            string state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            if (state.Equals(StateWaiting))
+            {
+                await HandleMisfireOfUnblockedTrigger(conn, triggerKey, misfireTime, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Applies the misfire policy of one trigger a serial job's completion let go of, when it is one the
+    /// misfire handler would take: late by more than the misfire threshold, with a policy other than
+    /// <see cref="MisfireInstruction.IgnoreMisfirePolicy" />. A policy that leaves the trigger no fire time
+    /// stores it <c>COMPLETE</c>, and it is deleted rather than left for <c>GetTrigger</c> to keep handing
+    /// back (#1646).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A late trigger that ignores misfires is fired late as it is, which is what acquisition, the misfire
+    /// handler and <c>RAMJobStore</c> do with it. It used to be reported misfired here and written back
+    /// unchanged.
+    /// </para>
+    /// <para>
+    /// A policy that throws fails that trigger alone: it stays <c>WAITING</c> for the misfire handler, or is
+    /// stored <c>ERROR</c> at the limit and kept, and the completion commits (#4006).
+    /// </para>
+    /// </remarks>
+    private async Task HandleMisfireOfUnblockedTrigger(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        DateTimeOffset misfireTime,
+        CancellationToken cancellationToken)
+    {
+        bool storedComplete;
+        try
+        {
+            IOperableTrigger? trig = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            DateTimeOffset? nextFireTime = trig?.GetNextFireTimeUtc();
+            if (trig is null
+                || !nextFireTime.HasValue
+                || nextFireTime.Value > misfireTime
+                || trig.MisfireInstruction == MisfireInstruction.IgnoreMisfirePolicy)
+            {
+                return;
+            }
+
+            MisfireOutcome outcome = Delegate is INextVersionDelegate
+                ? await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, batchCalendarCache: null, cancellationToken).ConfigureAwait(false)
+                : await DoUpdateOfMisfiredTrigger(conn, trig, forceState: false, newStateIfNotComplete: StateWaiting, recovering: false, cancellationToken).ConfigureAwait(false);
+
+            // Both paths store COMPLETE exactly when the applied policy left no fire time, so there is no
+            // state to read back.
+            storedComplete = outcome == MisfireOutcome.Applied && !trig.GetNextFireTimeUtc().HasValue;
+        }
+        catch (Exception e)
+        {
+            throw new JobPersistenceException($"Couldn't update misfired trigger '{triggerKey}': {e.Message}", e);
+        }
+
+        if (storedComplete)
+        {
+            await RemoveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
         }
     }
 
