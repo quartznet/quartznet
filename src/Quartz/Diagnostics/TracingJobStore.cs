@@ -52,7 +52,7 @@ namespace Quartz.Diagnostics;
 /// <see cref="JobStores.Unwrap" />.
 /// </para>
 /// </remarks>
-internal sealed class TracingJobStore : DelegatingJobStore
+internal sealed class TracingJobStore : DelegatingJobStore, ISharedExecutionGroupSource
 {
     private readonly ActivitySource activitySource;
     private readonly Meters meters;
@@ -708,6 +708,20 @@ internal sealed class TracingJobStore : DelegatingJobStore
         operation.Tag(ActivityTags.TriggerCount, triggers.Count);
         return Complete(operation, (InnerJobStore, triggers, cancellationToken),
             static s => s.InnerJobStore.TriggersFired(s.triggers, s.cancellationToken));
+    }
+
+    /// <summary>
+    /// Asks the store underneath, untraced, as the listing it stands in for is untraced.
+    /// </summary>
+    /// <remarks>
+    /// Every store a scheduler is built with is wrapped in this one, so without it no manual firing would
+    /// reach the store's own answer (#4174). A decorator of the application's own underneath is asked for
+    /// its listing, as <see cref="Core.ManualFiringExecutionGroup.SharedGroupOf(IJobStore, JobKey, CancellationToken)" /> asks
+    /// any store that does not answer itself.
+    /// </remarks>
+    ValueTask<string?> ISharedExecutionGroupSource.GetSharedExecutionGroup(JobKey jobKey, CancellationToken cancellationToken)
+    {
+        return Core.ManualFiringExecutionGroup.SharedGroupOf(InnerJobStore, jobKey, cancellationToken);
     }
 
     /// <summary>

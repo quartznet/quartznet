@@ -1026,6 +1026,16 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectTriggersForJobInState =
         Invariant($"{SqlSelectTriggersForJob} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State}");
 
+    /// <summary>
+    /// The execution group of every trigger of one job, a row a trigger, in no order (#4174).
+    /// </summary>
+    /// <remarks>
+    /// No <c>DISTINCT</c>: the database would fold groups its collation takes as equal, and execution groups
+    /// compare ordinally.
+    /// </remarks>
+    public static readonly string SqlSelectExecutionGroupsOfJob =
+        Invariant($"SELECT {AdoConstants.ColumnExecutionGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup}");
+
     public static readonly string SqlSelectTriggersInGroupLike =
         Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerGroup} LIKE @{SqlParameters.TriggerGroup}{SqlLikeEscapeClause}");
 

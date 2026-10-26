@@ -198,12 +198,7 @@ public static class SchedulerJobExtensions
         JobDataMap data = new() { [SchedulerConstants.JobInput] = input };
 
         // TriggerJob's order, read through the scheduler rather than its store: RunAtStartup does the same.
-        string? executionGroup = await ManualFiringExecutionGroup.Resolve(
-            jobKey,
-            data,
-            scheduler.GetJobDetail,
-            scheduler.QueryTriggers,
-            cancellationToken).ConfigureAwait(false);
+        string? executionGroup = await ManualFiringExecutionGroup.Resolve(scheduler, jobKey, data, cancellationToken).ConfigureAwait(false);
 
         SimpleTriggerImpl trigger = ManualFiring.CreateTrigger(jobKey, data, executionGroup, scheduler.TimeProvider);
 

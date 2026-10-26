@@ -26,7 +26,7 @@ namespace Quartz.Impl;
 /// a registration always knows the name it was made under.
 /// </para>
 /// </remarks>
-internal sealed class DeferredScheduler : IScheduler
+internal sealed class DeferredScheduler : IScheduler, ISharedExecutionGroupSource
 {
     private readonly ISchedulerFactory factory;
     private readonly IOptionsMonitor<QuartzSchedulerOptions> options;
@@ -507,6 +507,20 @@ internal sealed class DeferredScheduler : IScheduler
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.QueryTriggers(query, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Asks the scheduler this handle resolves to, which asks its store when it can and otherwise lists the
+    /// job's trigger headers.
+    /// </summary>
+    /// <remarks>
+    /// The <see cref="IScheduler" /> an application is injected, so it is the one a typed <c>TriggerJob</c>
+    /// usually goes through (#4174).
+    /// </remarks>
+    async ValueTask<string?> ISharedExecutionGroupSource.GetSharedExecutionGroup(JobKey jobKey, CancellationToken cancellationToken)
+    {
+        IScheduler target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await Core.ManualFiringExecutionGroup.SharedGroupOf(target, jobKey, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
