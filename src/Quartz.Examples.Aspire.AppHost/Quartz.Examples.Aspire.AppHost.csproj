@@ -47,6 +47,7 @@
       on. Drop it once an Aspire release resolves a fixed version on its own.
     -->
     <PackageReference Include="MessagePack" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
   </ItemGroup>
 
   <ItemGroup>
