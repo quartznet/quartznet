@@ -179,6 +179,42 @@ public sealed class SerialJobCompletionMisfireSqliteTest
     }
 
     /// <summary>
+    /// A serial job's only trigger, late by the time its own firing completes, is stored <c>WAITING</c> by its
+    /// misfire policy and fires again, whichever delegate the store has (#4175).
+    /// </summary>
+    /// <remarks>
+    /// A delegate that does not derive from <see cref="StdAdoDelegate" /> applies the misfire through
+    /// <c>StoreTrigger</c>. Its blocked-state check found the completing firing's own <c>FIRED_TRIGGERS</c>
+    /// row, which the completion deletes only after the misfire pass, and stored the trigger <c>BLOCKED</c>.
+    /// Only another completion of the job lets a <c>BLOCKED</c> trigger go, and this trigger was the job's
+    /// only one, so it never fired again. The shipped delegate is the control.
+    /// </remarks>
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task ALateTriggerOfASerialJobIsLetGoByItsOwnCompletionAndFires(bool foreignDelegate)
+    {
+        Node node = await CreateNode(foreignDelegate);
+        await node.StoreSerialJob();
+        await node.Schedule(FirstKey, Epoch, repeatHourly: true, misfireInstruction: MisfireInstruction.SimpleTrigger.FireNow);
+
+        TriggerFiredBundle firing = await node.AcquireAndFireOne(FirstKey);
+        (await node.StateOf(FirstKey)).Should().Be("BLOCKED", "the premise: the firing holds back its own trigger");
+
+        // The job runs two hours, past its trigger's next fire time by more than the misfire threshold.
+        now = now.AddHours(2);
+        await node.Store.TriggeredJobComplete(firing.Trigger, firing.JobDetail, SchedulerInstruction.NoInstruction);
+
+        A.CallTo(() => node.Signaler.NotifyTriggerListenersMisfired(A<ITrigger>.That.Matches(x => x.Key.Equals(FirstKey)), A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        (await node.StateOf(FirstKey)).Should().Be("WAITING",
+            "the completion let go of the job, and a trigger it stored BLOCKED would wait for another completion of a job with no other trigger");
+        (await node.Store.RetrieveTrigger(FirstKey)).GetNextFireTimeUtc().Should().Be(now, "its fire-now policy was applied");
+
+        // And it fires: the next round acquires it and its firing starts.
+        await node.AcquireAndFireOne(FirstKey);
+    }
+
+    /// <summary>
     /// A serial job with <paramref name="waitingTriggers" /> triggers due behind the one that fires, all
     /// inside the misfire threshold when the firing completes - the shape of a backlog <c>TriggerJob</c>
     /// builds up. Answers what that one completion asked of the delegate.
@@ -215,9 +251,9 @@ public sealed class SerialJobCompletionMisfireSqliteTest
         return CountingSqliteDelegate.Snapshot();
     }
 
-    private async Task<Node> CreateNode()
+    private async Task<Node> CreateNode(bool foreignDelegate = false)
     {
-        Node node = await Node.Create();
+        Node node = await Node.Create(foreignDelegate);
         nodes.Add(node);
         return node;
     }
@@ -269,7 +305,11 @@ public sealed class SerialJobCompletionMisfireSqliteTest
 
         public ISchedulerSignaler Signaler { get; }
 
-        public static async Task<Node> Create()
+        /// <param name="foreignDelegate">
+        /// Whether the store reaches the shipped delegate through a proxy that implements
+        /// <see cref="IDriverDelegate" /> alone, as a delegate of another make does.
+        /// </param>
+        public static async Task<Node> Create(bool foreignDelegate = false)
         {
             string databaseFile = Path.Combine(Path.GetTempPath(), $"quartz-serial-completion-{Guid.NewGuid():N}.db");
             string connectionString = $"Data Source={databaseFile}";
@@ -281,15 +321,13 @@ public sealed class SerialJobCompletionMisfireSqliteTest
             SystemTextJsonObjectSerializer serializer = new SystemTextJsonObjectSerializer();
             serializer.Initialize();
 
-            JobStoreTX store = new JobStoreTX
-            {
-                DataSource = dataSource,
-                TablePrefix = "QRTZ_",
-                InstanceName = SchedulerName,
-                InstanceId = "node",
-                DriverDelegateType = typeof(CountingSqliteDelegate).AssemblyQualifiedName,
-                ObjectSerializer = serializer,
-            };
+            JobStoreTX store = foreignDelegate ? new ForeignDelegateJobStore() : new JobStoreTX();
+            store.DataSource = dataSource;
+            store.TablePrefix = "QRTZ_";
+            store.InstanceName = SchedulerName;
+            store.InstanceId = "node";
+            store.DriverDelegateType = typeof(CountingSqliteDelegate).AssemblyQualifiedName;
+            store.ObjectSerializer = serializer;
 
             // Initialized and never started: nothing here is left to a scheduler thread, a misfire pass or
             // a startup recovery, each of which would move the rows these tests read.
@@ -394,6 +432,34 @@ public sealed class SerialJobCompletionMisfireSqliteTest
             }
 
             throw new FileNotFoundException($"Could not find '{relativePath}' above '{AppContext.BaseDirectory}'.");
+        }
+    }
+
+    /// <summary>
+    /// A store whose delegate is the shipped one behind a proxy that implements <see cref="IDriverDelegate" />
+    /// and nothing else: a delegate of another make, which does not derive from <see cref="StdAdoDelegate" />
+    /// and so takes the store's older paths (#4175).
+    /// </summary>
+    /// <remarks>
+    /// Not a SQLite delegate either, so the store keeps its default in-process lock rather than the SQLite
+    /// one; a test drives one store from one thread, which needs neither.
+    /// </remarks>
+    private sealed class ForeignDelegateJobStore : JobStoreTX
+    {
+        private IDriverDelegate foreign;
+
+        protected override IDriverDelegate Delegate
+        {
+            get
+            {
+                if (foreign == null)
+                {
+                    IDriverDelegate shipped = base.Delegate;
+                    foreign = A.Fake<IDriverDelegate>(options => options.Wrapping(shipped));
+                }
+
+                return foreign;
+            }
         }
     }
 

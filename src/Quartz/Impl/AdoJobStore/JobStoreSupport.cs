@@ -5484,9 +5484,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 return;
             }
 
+            // Stored without StoreTrigger's blocked-state check, which is what recovering skips and nothing
+            // else: the completion has just let go of the job, and the check would find the completing
+            // firing's own FIRED_TRIGGERS row, deleted only after this pass, and store the trigger BLOCKED
+            // with nothing left to let it go (#4175). The optimized path writes WAITING the same way.
             MisfireOutcome outcome = Delegate is INextVersionDelegate
                 ? await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, batchCalendarCache: null, cancellationToken).ConfigureAwait(false)
-                : await DoUpdateOfMisfiredTrigger(conn, trig, forceState: false, newStateIfNotComplete: StateWaiting, recovering: false, cancellationToken).ConfigureAwait(false);
+                : await DoUpdateOfMisfiredTrigger(conn, trig, forceState: false, newStateIfNotComplete: StateWaiting, recovering: true, cancellationToken).ConfigureAwait(false);
 
             // Both paths store COMPLETE exactly when the applied policy left no fire time, so there is no
             // state to read back.

@@ -1079,6 +1079,51 @@ public class JobStoreSupportTest
             .MustHaveHappenedOnceExactly();
     }
 
+    /// <summary>
+    /// The same delegate stores a late trigger it lets go of <c>WAITING</c>, although the completing
+    /// firing's own row, deleted only after the misfire pass, is still there for a blocked-state check to
+    /// find (#4175).
+    /// </summary>
+    [Test]
+    public async Task TriggeredJobCompleteOfASerialJobWithAnOlderDelegateStoresALateTriggerWaiting()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IJobDetail job = CreateDisallowConcurrentJob();
+        IOperableTrigger completing = CreateTestTrigger("completing");
+        completing.SetNextFireTimeUtc(SystemTime.UtcNow().AddHours(1));
+
+        IOperableTrigger late = CreateTestTrigger("late");
+        late.SetNextFireTimeUtc(SystemTime.UtcNow().AddMinutes(-10));
+
+        A.CallTo(() => driverDelegate.SelectTriggerNamesForJob(conn, job.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<TriggerKey>>(new[] { late.Key }));
+        A.CallTo(() => driverDelegate.SelectTriggerState(conn, late.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(AdoConstants.StateWaiting));
+        A.CallTo(() => driverDelegate.SelectTrigger(conn, late.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(late));
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, job.Key, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(job));
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecordsByJob(conn, job.Key.Name, job.Key.Group, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<FiredTriggerRecord>>(new[]
+            {
+                new FiredTriggerRecord
+                {
+                    FireInstanceId = completing.FireInstanceId,
+                    JobKey = job.Key,
+                    TriggerKey = completing.Key,
+                    FireInstanceState = AdoConstants.StateExecuting,
+                    JobDisallowsConcurrentExecution = true,
+                },
+            }));
+
+        await jobStoreSupport.CallTriggeredJobComplete(conn, completing, job, SchedulerInstruction.NoInstruction);
+
+        A.CallTo(() => driverDelegate.InsertTrigger(conn, late, AdoConstants.StateWaiting, job, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => driverDelegate.InsertTrigger(A<ConnectionAndTransactionHolder>.Ignored, A<IOperableTrigger>.Ignored, AdoConstants.StateBlocked, A<IJobDetail>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
     private static IOperableTrigger CreateTestTrigger(string name = "t1", string fireInstanceId = "test-fire-id")
     {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
