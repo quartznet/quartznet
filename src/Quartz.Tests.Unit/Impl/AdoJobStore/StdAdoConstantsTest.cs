@@ -61,6 +61,23 @@ public class StdAdoConstantsTest
     }
 
     /// <summary>
+    /// The completion of a serial job's firing reads the job's late triggers with the misfire sweep's own
+    /// statement, narrowed to the job and to nothing else, so the two cannot disagree about which row is
+    /// late (#4167).
+    /// </summary>
+    [Test]
+    public void SqlSelectMisfiredTriggersOfJobInState_ShouldBeTheMisfireSweepNarrowedToOneJob()
+    {
+        const string jobClause = " AND t.JOB_NAME = @jobName AND t.JOB_GROUP = @jobGroup";
+        string ofJob = StdAdoConstants.SqlSelectMisfiredTriggersOfJobInState;
+
+        ofJob.Should().Contain("t.TRIGGER_STATE = @state" + jobClause,
+            "the job's equalities follow the sweep's predicate, which is the order the delegate binds them in");
+        ofJob.Replace(jobClause, "", StringComparison.Ordinal).Should().Be(StdAdoConstants.SqlSelectMisfiredTriggersToRecover,
+            "the columns, the joins, the predicate and the order are the sweep's, with no row limit and no execution-group clause");
+    }
+
+    /// <summary>
     /// A waiting trigger belongs to acquisition or to the misfire handler, never to both and never to
     /// neither: the acquisition statement's <c>@noEarlierThan</c> predicate has to be the exact
     /// complement of the misfire statements' <c>@nextFireTime</c> one, since both parameters are bound
