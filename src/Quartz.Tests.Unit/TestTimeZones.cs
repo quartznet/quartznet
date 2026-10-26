@@ -27,9 +27,12 @@ namespace Quartz.Tests.Unit;
 
 /// <summary>
 /// Shared time zones and helpers for daylight saving time (DST) tests. Zones are resolved via
-/// TimeZoneConverter from Windows ids, which works on every supported OS. Each zone is chosen for a
-/// specific DST corner it exercises; tests should state their transition premise with the Assume
-/// helpers so that a changed time zone database skips the test instead of failing it.
+/// TimeZoneConverter from canonical IANA ids, which works on every supported OS: on Windows it maps
+/// the id to the Windows zone, elsewhere it reads the tz database directly. A Windows id is avoided
+/// because the IANA name behind it can be a legacy link that a distribution ships separately - on
+/// Ubuntu 26.04 "FLE Standard Time" maps to Europe/Kiev, which only tzdata-legacy carries. Each zone
+/// is chosen for a specific DST corner it exercises; tests should state their transition premise
+/// with the Assume helpers so that a changed time zone database skips the test instead of failing it.
 /// </summary>
 internal static class TestTimeZones
 {
@@ -37,13 +40,13 @@ internal static class TestTimeZones
     /// America/New_York: the classic US transition at 02:00 with a one hour delta.
     /// Spring forward 2024-03-10 (02:30 invalid), fall back 2024-11-03 (01:30 ambiguous).
     /// </summary>
-    public static TimeZoneInfo Eastern { get; } = TZConvert.GetTimeZoneInfo("Eastern Standard Time");
+    public static TimeZoneInfo Eastern { get; } = TZConvert.GetTimeZoneInfo("America/New_York");
 
     /// <summary>
     /// Europe/Warsaw: EU transition at 02:00/03:00 local with a one hour delta.
     /// Spring forward 2018-03-25 (02:30 invalid), fall back 2018-10-28 (02:30 ambiguous).
     /// </summary>
-    public static TimeZoneInfo CentralEuropean { get; } = TZConvert.GetTimeZoneInfo("Central European Standard Time");
+    public static TimeZoneInfo CentralEuropean { get; } = TZConvert.GetTimeZoneInfo("Europe/Warsaw");
 
     /// <summary>
     /// Europe/Helsinki: EET/EEST, +02:00 in winter and +03:00 in summer, with the EU transition at
@@ -52,12 +55,9 @@ internal static class TestTimeZones
     /// 2024-03-31, fall back 2024-10-27.
     /// </summary>
     /// <remarks>
-    /// Windows names the whole EET/EEST group "FLE Standard Time", which resolves to Europe/Kyiv on
-    /// a system carrying IANA data. Helsinki and Kyiv share the EU rules, so the transitions
-    /// asserted against this zone are the same instants either way - and the Assume helpers say so
-    /// out loud, so a zone database that ever disagreed would skip the test rather than fail it.
+    /// On Windows this is "FLE Standard Time", the zone Windows names the whole EET/EEST group.
     /// </remarks>
-    public static TimeZoneInfo Helsinki { get; } = TZConvert.GetTimeZoneInfo("FLE Standard Time");
+    public static TimeZoneInfo Helsinki { get; } = TZConvert.GetTimeZoneInfo("Europe/Helsinki");
 
     /// <summary>
     /// America/Santiago: southern hemisphere and the transition happens at midnight, so on
@@ -65,13 +65,13 @@ internal static class TestTimeZones
     /// fall-back day the repeated hour crosses backwards over the date boundary
     /// (Saturday 2019-04-06 23:30 is ambiguous).
     /// </summary>
-    public static TimeZoneInfo Santiago { get; } = TZConvert.GetTimeZoneInfo("Pacific SA Standard Time");
+    public static TimeZoneInfo Santiago { get; } = TZConvert.GetTimeZoneInfo("America/Santiago");
 
     /// <summary>
     /// Australia/Sydney: southern hemisphere with the usual 02:00/03:00 transitions.
     /// Fall back 2024-04-07 (02:30 ambiguous), spring forward 2024-10-06 (02:30 invalid).
     /// </summary>
-    public static TimeZoneInfo Sydney { get; } = TZConvert.GetTimeZoneInfo("AUS Eastern Standard Time");
+    public static TimeZoneInfo Sydney { get; } = TZConvert.GetTimeZoneInfo("Australia/Sydney");
 
     /// <summary>
     /// Australia/Lord_Howe: DST delta is only 30 minutes (+10:30 to +11:00), which catches any
@@ -79,7 +79,7 @@ internal static class TestTimeZones
     /// fall back 2019-04-07 (01:45 ambiguous). May be missing from old OS installations, in which
     /// case tests using it are ignored.
     /// </summary>
-    public static TimeZoneInfo LordHowe => GetOrIgnore("Lord Howe Standard Time");
+    public static TimeZoneInfo LordHowe => GetOrIgnore("Australia/Lord_Howe");
 
     /// <summary>
     /// Asia/Amman: historically the spring-forward gap started at midnight, so the transition
@@ -87,17 +87,17 @@ internal static class TestTimeZones
     /// day repeated (2017-10-27, 00:30 ambiguous). Jordan abolished DST in 2022, so this history is
     /// frozen. May be missing from old OS installations, in which case tests using it are ignored.
     /// </summary>
-    public static TimeZoneInfo Amman => GetOrIgnore("Jordan Standard Time");
+    public static TimeZoneInfo Amman => GetOrIgnore("Asia/Amman");
 
-    private static TimeZoneInfo GetOrIgnore(string windowsId)
+    private static TimeZoneInfo GetOrIgnore(string ianaId)
     {
         try
         {
-            return TZConvert.GetTimeZoneInfo(windowsId);
+            return TZConvert.GetTimeZoneInfo(ianaId);
         }
         catch (TimeZoneNotFoundException)
         {
-            NUnit.Framework.Assert.Ignore($"time zone {windowsId} is not available on this system");
+            NUnit.Framework.Assert.Ignore($"time zone {ianaId} is not available on this system");
             throw; // unreachable, Assert.Ignore throws
         }
     }
