@@ -34,7 +34,7 @@ namespace Quartz.Impl;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed class StdScheduler : IScheduler
+internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
 {
     internal readonly QuartzScheduler scheduler;
 
@@ -597,6 +597,14 @@ internal sealed class StdScheduler : IScheduler
     public ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
     {
         return scheduler.QueryTriggers(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />, which asks its store.
+    /// </summary>
+    ValueTask<string?> ISharedExecutionGroupSource.GetSharedExecutionGroup(JobKey jobKey, CancellationToken cancellationToken)
+    {
+        return scheduler.GetSharedExecutionGroup(jobKey, cancellationToken);
     }
 
     /// <summary>

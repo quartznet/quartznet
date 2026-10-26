@@ -85,12 +85,7 @@ internal sealed class StartupRunPlugin : ISchedulerPlugin
 
         // The job type's group, else the one its triggers share. Read before this start's trigger is
         // stored, so that it does not count itself.
-        string? executionGroup = await ManualFiringExecutionGroup.Resolve(
-            jobKey,
-            firingData: null,
-            target.GetJobDetail,
-            target.QueryTriggers,
-            cancellationToken).ConfigureAwait(false);
+        string? executionGroup = await ManualFiringExecutionGroup.Resolve(target, jobKey, firingData: null, cancellationToken).ConfigureAwait(false);
 
         ITrigger trigger = CreateTrigger(jobKey, instanceId, clustered, target.TimeProvider, executionGroup);
 
