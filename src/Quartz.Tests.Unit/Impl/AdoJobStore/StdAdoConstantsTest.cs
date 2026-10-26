@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 
 using Quartz.Impl.AdoJobStore;
@@ -128,14 +129,32 @@ public class StdAdoConstantsTest
     }
 
     /// <summary>
+    /// The helper reads <c>SELECT</c> and <c>FROM</c> as keywords, not as text: a column whose name
+    /// contains either is a column.
+    /// </summary>
+    [Test]
+    public void SelectedColumnsReadsTheKeywordsAsTokens()
+    {
+        SelectedColumns("SELECT t.FIRED_FROM, FROM_NODE, SELECTED FROM {0}TRIGGERS t WHERE t.X = @x")
+            .Should().Equal(["t.FIRED_FROM", "FROM_NODE", "SELECTED"],
+                "a column named around FROM or SELECT would otherwise end or start the list in the middle of its name");
+    }
+
+    /// <summary>
     /// Returns the selected column expressions, in order, of a single-SELECT statement.
     /// </summary>
+    /// <remarks>
+    /// The list runs from the <c>SELECT</c> keyword to the first <c>FROM</c> keyword, each matched as a
+    /// whole word, so a column like <c>FIRED_FROM</c> does not end it.
+    /// </remarks>
     private static string[] SelectedColumns(string sql)
     {
-        var start = sql.IndexOf("SELECT", StringComparison.Ordinal) + "SELECT".Length;
-        var end = sql.IndexOf("FROM", StringComparison.Ordinal);
+        Match select = Regex.Match(sql, @"\bSELECT\b", RegexOptions.CultureInvariant);
+        Match from = Regex.Match(sql[(select.Index + select.Length)..], @"\bFROM\b", RegexOptions.CultureInvariant);
+        select.Success.Should().BeTrue("the statement is a SELECT");
+        from.Success.Should().BeTrue("the statement selects from a table");
 
-        return sql.Substring(start, end - start)
+        return sql.Substring(select.Index + select.Length, from.Index)
             .Split(',')
             .Select(x => x.Trim())
             .ToArray();

@@ -244,9 +244,13 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// <summary>
     /// Clones this instance.
     /// </summary>
+    /// <remarks>
+    /// Through <see cref="TriggerBase.Clone" />, which gives the copy a job data map of its own: a clone that
+    /// shared this one's would see every write to it.
+    /// </remarks>
     public override ITrigger Clone()
     {
-        CronTriggerImpl copy = (CronTriggerImpl) MemberwiseClone();
+        CronTriggerImpl copy = (CronTriggerImpl) base.Clone();
         if (cronEx is not null)
         {
             // CronExpression is immutable, so the copy shares this instance; assigning through the
