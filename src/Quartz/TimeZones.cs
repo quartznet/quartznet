@@ -19,6 +19,9 @@
 
 #endregion
 
+using System.Collections.Concurrent;
+using System.Runtime.Serialization;
+
 namespace Quartz;
 
 /// <summary>
@@ -83,6 +86,13 @@ public static class TimeZones
     /// </summary>
     private static readonly bool isRunningOnMono = Type.GetType("Mono.Runtime") is not null;
 
+    /// <summary>
+    /// The zones found through <see cref="TimeZoneLinks" />, by the id they were asked for. Only an id
+    /// whose own name, Windows mapping or alias is a legacy link lands here, so this stays small. Each
+    /// later lookup of the id answers from here and skips the system lookup, which throws for it.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, TimeZoneInfo> zonesFoundThroughLinks = new(StringComparer.Ordinal);
+
     private static readonly Lock resolverLock = new();
 
     /// <summary>
@@ -92,8 +102,9 @@ public static class TimeZones
     private static ResolverRegistration[] resolvers = [];
 
     /// <summary>
-    /// Registers a last-resort resolver, consulted when a time zone id is neither a system id nor one
-    /// of the aliases above. Disposing the returned registration removes the resolver again.
+    /// Registers a last-resort resolver, consulted when a time zone id is neither a system id, one of
+    /// the aliases above, nor a tzdata legacy link. Disposing the returned registration removes the
+    /// resolver again.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -397,11 +408,28 @@ public static class TimeZones
     /// <param name="id">System id of the time zone.</param>
     public static TimeZoneInfo FindById(string id)
     {
+        return FindByIdUsing(id, TimeZoneInfo.FindSystemTimeZoneById, zonesFoundThroughLinks);
+    }
+
+    /// <summary>
+    /// <see cref="FindById" /> over the given system lookup and cache, so that a test can stand in for
+    /// a system without <c>tzdata-legacy</c>, which a Windows machine cannot be.
+    /// </summary>
+    internal static TimeZoneInfo FindByIdUsing(
+        string id,
+        Func<string, TimeZoneInfo> findSystemTimeZoneById,
+        ConcurrentDictionary<string, TimeZoneInfo> foundThroughLinks)
+    {
+        if (foundThroughLinks.TryGetValue(id, out TimeZoneInfo? foundThroughLink))
+        {
+            return foundThroughLink;
+        }
+
         TimeZoneInfo? info = null;
         string? attemptedAlias = null;
         try
         {
-            info = TimeZoneInfo.FindSystemTimeZoneById(id);
+            info = findSystemTimeZoneById(id);
         }
         catch (TimeZoneNotFoundException ex)
         {
@@ -409,7 +437,7 @@ public static class TimeZones
             {
                 try
                 {
-                    info = TimeZoneInfo.FindSystemTimeZoneById(aliasedId);
+                    info = findSystemTimeZoneById(aliasedId);
                 }
                 catch
                 {
@@ -429,11 +457,20 @@ public static class TimeZones
             {
                 try
                 {
-                    info = TimeZoneInfo.FindSystemTimeZoneById(windowsId);
+                    info = findSystemTimeZoneById(windowsId);
                 }
                 catch (TimeZoneNotFoundException)
                 {
-                    // the converted id is not present on this system either; continue with the resolvers
+                    // the converted id is not present on this system either; continue with the links
+                }
+            }
+
+            if (info is null)
+            {
+                info = FindThroughLink(id, aliasedId, findSystemTimeZoneById);
+                if (info is not null)
+                {
+                    info = foundThroughLinks.GetOrAdd(id, info);
                 }
             }
 
@@ -467,6 +504,77 @@ public static class TimeZones
         }
 
         return info;
+    }
+
+    /// <summary>
+    /// The zone a tzdata legacy link names, found under the link's canonical name and handed back under
+    /// <paramref name="id" />; or <see langword="null" /> when no link applies, or the system lacks the
+    /// canonical zone too.
+    /// </summary>
+    /// <remarks>
+    /// The link is <paramref name="id" /> itself, the IANA name CLDR gives it as a Windows id, or the same
+    /// for its alias. The zone keeps <paramref name="id" />, because that is what a job store writes to
+    /// <c>TIME_ZONE_ID</c> and what a system with <c>tzdata-legacy</c> answers with, so every node of a
+    /// cluster writes the same id for the zone.
+    /// </remarks>
+    private static TimeZoneInfo? FindThroughLink(string id, string? aliasedId, Func<string, TimeZoneInfo> findSystemTimeZoneById)
+    {
+        string? canonicalId = CanonicalIdOf(id) ?? (aliasedId is null ? null : CanonicalIdOf(aliasedId));
+        if (canonicalId is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return WithId(findSystemTimeZoneById(canonicalId), id);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The canonical name behind <paramref name="id" />: its own, when it is a legacy link, or that of the
+    /// legacy link CLDR maps it to as a Windows id. <see langword="null" /> for any other id.
+    /// </summary>
+    private static string? CanonicalIdOf(string id)
+    {
+        if (TimeZoneLinks.CanonicalIds.TryGetValue(id, out string? canonicalId))
+        {
+            return canonicalId;
+        }
+
+        if (TimeZoneInfo.TryConvertWindowsIdToIanaId(id, out string? ianaId)
+            && TimeZoneLinks.CanonicalIds.TryGetValue(ianaId, out canonicalId))
+        {
+            return canonicalId;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// <paramref name="zone" /> under another id, computing exactly as it does.
+    /// </summary>
+    /// <remarks>
+    /// The rules come through the zone's <see cref="ISerializable" /> contract, which hands over the ones
+    /// the zone computes with. <see cref="TimeZoneInfo.GetAdjustmentRules" /> rewrites a tzdata zone's
+    /// rules as yearly ones instead, and <see cref="TimeZoneInfo.CreateCustomTimeZone(string, TimeSpan, string, string, string, TimeZoneInfo.AdjustmentRule[])" />
+    /// refuses those as overlapping for most zones, <c>Asia/Kolkata</c> among them.
+    /// </remarks>
+    private static TimeZoneInfo WithId(TimeZoneInfo zone, string id)
+    {
+        // No formatter is involved: the info only carries the zone's own fields across, as it does for
+        // DataContractSerializer, which reads the same contract.
+#pragma warning disable SYSLIB0050
+        SerializationInfo fields = new SerializationInfo(typeof(TimeZoneInfo), new FormatterConverter());
+        ((ISerializable) zone).GetObjectData(fields, default);
+#pragma warning restore SYSLIB0050
+        TimeZoneInfo.AdjustmentRule[]? rules = (TimeZoneInfo.AdjustmentRule[]?) fields.GetValue("AdjustmentRules", typeof(TimeZoneInfo.AdjustmentRule[]));
+
+        return TimeZoneInfo.CreateCustomTimeZone(id, zone.BaseUtcOffset, zone.DisplayName, zone.StandardName, zone.DaylightName, rules);
     }
 
     /// <summary>
