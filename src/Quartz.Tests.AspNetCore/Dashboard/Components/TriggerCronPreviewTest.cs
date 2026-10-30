@@ -192,6 +192,27 @@ public sealed class TriggerCronPreviewTest
         });
     }
 
+    /// <summary>
+    /// https://github.com/quartznet/quartznet/issues/4188
+    /// </summary>
+    [Test]
+    public async Task SavingAnEditedExpressionThatDoesNotParseSaysSoAndLeavesThePageAndTheTriggerAlone()
+    {
+        await Schedule(Cron("0 0 12 * * ?", TimeZoneInfo.Utc));
+        IRenderedComponent<TriggerDetail> page = Render();
+        page.Find("#trigger-cron-expression").Change("0/15 * * * *");
+
+        page.FindAll("button").Single(button => button.TextContent.Trim() == "Save schedule").Click();
+
+        context.Services.GetRequiredService<ToastService>().Messages.Should().ContainSingle(toast => toast.Level == ToastLevel.Error)
+            .Which.Message.Should().StartWith("Invalid cron expression: ",
+                "the preview already says why the expression is wrong, and a save should say the same rather than that the trigger could not be parsed");
+        page.FindAll("#trigger-cron-expression").Should().ContainSingle("the page is still there to correct the expression on");
+        page.FindAll(".qz-page > .qz-error-alert").Should().BeEmpty("a mistyped expression is not a reason to replace the page with an error and a Retry");
+        ICronTrigger stored = (ICronTrigger) (await scheduler.GetTrigger(NightlyTrigger))!;
+        stored.CronExpressionString.Should().Be("0 0 12 * * ?");
+    }
+
     [Test]
     public async Task ATriggerThatHasEndedHasNoUpcomingFires()
     {
