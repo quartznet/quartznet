@@ -252,6 +252,18 @@
             return;
         }
 
+        try
+        {
+            CronExpression.ValidateExpression(cronExpression);
+        }
+        catch (FormatException ex)
+        {
+            // Said the way the preview says it. Left to the scheduler, it comes back as a trigger that
+            // cannot be parsed, which replaces the page.
+            Toasts.Error("Invalid cron expression: " + ex.Message);
+            return;
+        }
+
         RescheduleRequest request = new(newTrigger);
         _ = await ExecuteMutatingActionAsync(
             () => Api.RescheduleJob(schedulerName, Group, Name, request),
