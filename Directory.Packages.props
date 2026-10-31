@@ -279,6 +279,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.305" />
+    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.318" />
   </ItemGroup>
 </Project>
