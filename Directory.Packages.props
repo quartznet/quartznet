@@ -83,7 +83,7 @@
       what keeps that true, and it is also why this stays current rather than joining the floors below:
       nothing inherits it.
     -->
-    <PackageVersion Include="Microsoft.Data.SQLite" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Data.SQLite" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.11.0" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
@@ -105,7 +105,7 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.20.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.20.1" />
-    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.301" />
+    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.400" />
     <!--
       The nullable attributes, IsByRefLikeAttribute and the rest of what a netstandard2.0 compilation
       of the cron parser is missing. Source-only and PrivateAssets=all, so it reaches no nuspec — which
