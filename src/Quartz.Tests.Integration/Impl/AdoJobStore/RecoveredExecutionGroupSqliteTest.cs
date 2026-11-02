@@ -183,6 +183,51 @@ public sealed class RecoveredExecutionGroupSqliteTest
     }
 
     /// <summary>
+    /// The cluster half of <see cref="StartupRecoveryOfAReplayKeepsTheFiringItReplays" />: a node that dies
+    /// while it runs the replay cluster recovery made has that replay replayed in turn, and the new recovery
+    /// trigger still names the first firing rather than the spent replay.
+    /// </summary>
+    /// <remarks>
+    /// Each dead node fires and never checks in, so the next node's first check-in recovers it as orphaned.
+    /// 3.x cluster recovery writes no scheduled-fire-time marker, so the fire time is the one compared.
+    /// </remarks>
+    [Test]
+    public async Task ClusterRecoveryOfAReplayKeepsTheFiringItReplays()
+    {
+        InstallSchema(withExecutionGroup: true);
+        await LeaveAFiringBehind(await BuildNode("node-a"), Gpu);
+        await RecoverTheDeadNode(await BuildNode("node-b"));
+
+        // node-c runs the replay and dies in it, as node-a died in the firing.
+        TriggerFiredBundle firstReplay = await FireWhatIsDue(await BuildNode("node-c"));
+        firstReplay.Trigger.Key.Group.Should().Be(SchedulerConstants.DefaultRecoveryGroup, "the premise: the dead node's firing is replayed");
+        firstReplay.Trigger.JobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerName).Should().Be(TriggerKey.Name,
+            "the premise: the first replay names the firing it replays");
+        (await ReadColumn("SELECT TRIGGER_NAME FROM QRTZ_FIRED_TRIGGERS WHERE REQUESTS_RECOVERY = 1")).Should().Equal(new[] { firstReplay.Trigger.Key.Name },
+            "the premise: the replay's row is left behind and asks to be recovered");
+
+        NodeStore survivor = await BuildNode("node-d");
+        await RecoverTheDeadNode(survivor);
+
+        IReadOnlyCollection<TriggerKey> recoveries = await survivor.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultRecoveryGroup));
+        TriggerKey secondReplayKey = recoveries.Should().ContainSingle("the replay that never completed is replayed, and the spent one removed").Subject;
+        secondReplayKey.Should().NotBe(firstReplay.Trigger.Key);
+        (await RecoveryTriggerExecutionGroups()).Should().Equal(new[] { Gpu },
+            "the second replay is limited as the original firing was, through the first replay's row");
+
+        TriggerFiredBundle secondReplay = await FireWhatIsDue(survivor);
+        secondReplay.Trigger.Key.Should().Be(secondReplayKey);
+
+        using JobExecutionContextImpl context = new JobExecutionContextImpl(A.Fake<IScheduler>(), secondReplay, new NoOpJob());
+        context.Recovering.Should().BeTrue("the premise: the job runs as a recovery");
+        context.RecoveringTriggerKey.Should().Be(TriggerKey,
+            "the second replay stands for the same firing as the first, not for the first replay");
+        context.MergedJobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerFiretime).Should().Be(
+            firstReplay.Trigger.JobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerFiretime),
+            "and the time the original firing fired, which the first replay carried");
+    }
+
+    /// <summary>
     /// What keeping the group is for: a recovered <c>gpu</c> firing waits for a <c>gpu</c> slot rather
     /// than running beside the live job that holds it.
     /// </summary>
