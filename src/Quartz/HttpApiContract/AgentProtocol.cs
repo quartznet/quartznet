@@ -68,7 +68,10 @@ internal static class AgentProtocol
     /// <summary>A client-to-server stream of <see cref="SchedulerEvent" />, open while watched.</summary>
     public const string Events = "Events";
 
-    /// <summary>A graceful shutdown: the hub keeps the target listed as shut down until it is forgotten.</summary>
+    /// <summary>
+    /// A graceful shutdown: the hub keeps the target listed as shut down until it is forgotten. Invoked
+    /// rather than sent, so the agent stops its connection only after the hub has answered.
+    /// </summary>
     public const string Unregister = "Unregister";
 
     // --- Hub to agent ----------------------------------------------------------------------------------
