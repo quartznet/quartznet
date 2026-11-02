@@ -91,7 +91,6 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.CrashDump" Version="2.5.1" />
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.1" />
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.1" />
-    <PackageVersion Include="MySqlConnector" Version="2.6.2" />
     <PackageVersion Include="NCrontab" Version="3.4.0" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="6.2.2" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.7.1" />
@@ -201,6 +200,14 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <!--
+      Named by Quartz.Weasel.MySQL, which talks to MySQL through it: Weasel.MySql 9.39.0 declares
+      MySqlConnector 2.4.0, under GHSA-473q-m89c-ghf8, and a direct reference patches a consumer's graph as
+      well as ours. 2.6.1 is the version that fixed it. The reference keeps its floor here when Weasel.MySql
+      floors a fixed one, since Quartz.Weasel.MySQL calls the driver itself. The tests and the benchmark run
+      on it too: one central version per id.
+    -->
+    <PackageVersion Include="MySqlConnector" Version="2.6.1" />
     <!--
       13.0.2 rather than 13.0.1, which is where the advisory-free 13.x line starts: TimeOnly and
       DateOnly are reflected over member by member before it, so a job data map holding a TimeOnly
