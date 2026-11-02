@@ -15,9 +15,8 @@
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
     <!--
-      Off for the reason Quartz.Weasel.csproj gives. Here it also keeps the driver floor Weasel's: pinned,
-      MySqlConnector would enter this nuspec at the version the tests use rather than the one
-      Weasel.MySql declares.
+      Off for the reason Quartz.Weasel.csproj gives. The driver is named below instead, at the floor
+      Directory.Packages.props sets for it, because the one Weasel.MySql declares is vulnerable.
     -->
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
@@ -32,6 +31,8 @@
 
   <ItemGroup>
     <PackageReference Include="Weasel.MySql" />
+    <!-- Raises the vulnerable driver Weasel.MySql brings. Directory.Packages.props says why. -->
+    <PackageReference Include="MySqlConnector" />
   </ItemGroup>
 
 </Project>
