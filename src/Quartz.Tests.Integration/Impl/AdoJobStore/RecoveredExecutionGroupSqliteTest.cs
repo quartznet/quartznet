@@ -29,6 +29,7 @@ using FakeItEasy;
 
 using Microsoft.Data.Sqlite;
 
+using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
@@ -126,6 +127,62 @@ public sealed class RecoveredExecutionGroupSqliteTest
     }
 
     /// <summary>
+    /// A node killed again while it runs the replay its startup made replays that replay on its next start,
+    /// and the new recovery trigger still names the first firing. Named after the replay instead, the job's
+    /// <see cref="IJobExecutionContext.RecoveringTriggerKey" /> named the spent recovery trigger, which the
+    /// same start removes, rather than the trigger whose firing it stands in for.
+    /// </summary>
+    /// <remarks>
+    /// The execution group does not depend on the markers on 3.x: it is read from the replayed trigger's
+    /// row, and the first recovery trigger was stored with the original's.
+    /// </remarks>
+    [Test]
+    public async Task StartupRecoveryOfAReplayKeepsTheFiringItReplays()
+    {
+        InstallSchema(withExecutionGroup: true);
+        NodeStore killed = await BuildNode("one");
+        await LeaveAFiringBehind(killed, Gpu);
+        await killed.Shutdown();
+        stores.Remove(killed);
+
+        NodeStore killedAgain = await BuildNode("one");
+        await killedAgain.SchedulerStarted();
+        TriggerFiredBundle firstReplay = await FireWhatIsDue(killedAgain);
+        firstReplay.Trigger.Key.Group.Should().Be(SchedulerConstants.DefaultRecoveryGroup, "the premise: the first start replays the firing");
+        firstReplay.Trigger.JobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerName).Should().Be(TriggerKey.Name,
+            "the premise: the first replay names the firing it replays");
+
+        // No completion again: the node dies in the replay.
+        (await ReadColumn("SELECT TRIGGER_NAME FROM QRTZ_FIRED_TRIGGERS WHERE REQUESTS_RECOVERY = 1")).Should().Equal(new[] { firstReplay.Trigger.Key.Name },
+            "the premise: the replay's row is left behind and asks to be recovered");
+        await killedAgain.Shutdown();
+        stores.Remove(killedAgain);
+
+        NodeStore restarted = await BuildNode("one");
+        await restarted.SchedulerStarted();
+
+        IReadOnlyCollection<TriggerKey> recoveries = await restarted.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultRecoveryGroup));
+        TriggerKey secondReplayKey = recoveries.Should().ContainSingle("the replay that never completed is replayed, and the spent one removed").Subject;
+        secondReplayKey.Should().NotBe(firstReplay.Trigger.Key);
+        (await RecoveryTriggerExecutionGroups()).Should().Equal(new[] { Gpu },
+            "the second replay is limited as the original firing was, through the first replay's row");
+
+        TriggerFiredBundle secondReplay = await FireWhatIsDue(restarted);
+        secondReplay.Trigger.Key.Should().Be(secondReplayKey);
+
+        using JobExecutionContextImpl context = new JobExecutionContextImpl(A.Fake<IScheduler>(), secondReplay, new NoOpJob());
+        context.Recovering.Should().BeTrue("the premise: the job runs as a recovery");
+        context.RecoveringTriggerKey.Should().Be(TriggerKey,
+            "the second replay stands for the same firing as the first, not for the first replay");
+        context.MergedJobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerFiretime).Should().Be(
+            firstReplay.Trigger.JobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerFiretime),
+            "and the time the original firing fired, which the first replay carried");
+        context.MergedJobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime).Should().Be(
+            firstReplay.Trigger.JobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime),
+            "and the time it was scheduled for");
+    }
+
+    /// <summary>
     /// What keeping the group is for: a recovered <c>gpu</c> firing waits for a <c>gpu</c> slot rather
     /// than running beside the live job that holds it.
     /// </summary>
@@ -211,6 +268,18 @@ public sealed class RecoveredExecutionGroupSqliteTest
     {
         survivor.Clustered = true;
         (await survivor.DoCheckin(Guid.NewGuid())).Should().BeTrue("the premise: the first check-in finds the dead node's row and recovers it");
+    }
+
+    /// <summary>
+    /// Acquires and fires the one trigger that is due through the store, whatever its key.
+    /// </summary>
+    private static async Task<TriggerFiredBundle> FireWhatIsDue(JobStoreTX store)
+    {
+        IReadOnlyCollection<IOperableTrigger> acquired = await store.AcquireNextTriggers(DateTimeOffset.UtcNow.AddMinutes(1), 1, TimeSpan.Zero);
+        acquired.Should().ContainSingle();
+
+        IReadOnlyCollection<TriggerFiredResult> fired = await store.TriggersFired(acquired);
+        return fired.Should().ContainSingle().Which.TriggerFiredBundle;
     }
 
     private static Task<IReadOnlyCollection<IOperableTrigger>> AcquireWithGpuSlots(NodeStore store, int slots)
