@@ -6792,9 +6792,9 @@ shows the rest: from 4.6, none.
 * A **persistent job store** publishes trimmed and native AOT when it reaches its driver without naming
   one: `UseSqlServer(SqlClientFactory.Instance, connectionString)`, or a registered `DbDataSource`. The
   default System.Text.Json serializer has a source-generated contract for every blob a store writes, and
-  custom trigger and calendar types are handled by their registry. The one gap is a job-data value of your
-  own type: register its metadata with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver`; see
-  [Publishing Trimmed and Native AOT](how-tos/trimming-and-native-aot.md).
+  custom trigger and calendar types are handled by their registry. The one gap is a job-data value or an
+  `IJob<TInput>` input of your own type: declare its metadata with `q.AddJsonTypeInfoResolver(…)`; see
+  [Declare your own job-data and input types](how-tos/trimming-and-native-aot.md#declare-your-own-job-data-and-input-types).
 
 **`Quartz` declares `IsAotCompatible`**, which 3.x does not: a native AOT publish reports no `IL3050`
 against it. Binding the `Quartz` configuration section is source-generated, so configuring from

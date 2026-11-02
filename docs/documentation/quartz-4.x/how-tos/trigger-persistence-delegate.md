@@ -193,7 +193,7 @@ s.UseSystemTextJsonSerializer(registry =>
 - `Quartz.Serialization.Newtonsoft` uses the same names (`NewtonsoftJsonSerializerRegistry.AddTriggerSerializer<T>(…)`
   through `UseNewtonsoftJsonSerializer(…)`), so a custom trigger ports by changing the registration.
 - Job data differs: declare your own value type inside a `JobDataMap` with `AddJobDataValueType<T>()` for
-  Newtonsoft and `AddTypeInfoResolver(…)` for System.Text.Json. Both refuse an undeclared type at *write*
+  Newtonsoft and `q.AddJsonTypeInfoResolver(…)` for System.Text.Json. Both refuse an undeclared type at *write*
   time, naming the method.
 
 ::: warning
