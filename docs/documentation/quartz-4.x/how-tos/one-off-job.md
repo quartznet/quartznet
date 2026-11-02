@@ -195,7 +195,8 @@ public async ValueTask RunNow(IScheduler scheduler, ILogger logger, SendInvoice 
 * The input is stored as `UsingInput` stores it, by the scheduler's `IJobInputSerializer`.
 * Find the run with the key: `ExecutionHistoryQuery.Trigger` in the
   [history](job-outcomes.md#read-one-firing-s-outcome), or `FireInstanceQuery.TriggerName` while it runs.
-* Trimmed or native AOT: declare the input type with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver`.
+* Trimmed or native AOT: declare the input type with `q.AddJsonTypeInfoResolver(…)`; see
+  [Declare your own job-data and input types](trimming-and-native-aot.md#declare-your-own-job-data-and-input-types).
 * Over `HttpScheduler`, pass a string. A structured input is refused before it is sent, because the wire
   carries it as a job data value. Serialize it to the JSON the host's serializer reads.
 * `TriggerJob(jobKey, token)` fires the job with no input, as `TriggerJob(jobKey, cancellationToken: token)` does.

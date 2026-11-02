@@ -50,8 +50,8 @@ into, and the failure would arrive at run time when a job fires.
 
 Publish trimmed or native AOT with the System.Text.Json serializer instead, which is built into the
 `Quartz` package and is the default. It carries a source-generated contract for everything a job store
-writes, and `SystemTextJsonSerializerRegistry.AddTypeInfoResolver` is where an application's own job data
-value types are declared.
+writes, and `q.AddJsonTypeInfoResolver(…)` is where an application's own job data value and job input
+types are declared.
 
 ## Documentation
 
