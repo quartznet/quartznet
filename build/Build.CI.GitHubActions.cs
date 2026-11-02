@@ -11,8 +11,8 @@ using Quartz.Build;
 // Every test workflow skips a change that touches documentation only: the pages under docs/ and
 // apidoc/ (which the docs workflow builds and checks), the npm files that build them, and the
 // markdown no test reads. Markdown a test does read is left out of that list on purpose: AGENTS.md,
-// CLAUDE.md and .github/copilot-instructions.md (AgentInstructionsTest), the packaged
-// src/*/README.md files (PackageReadmeTest) and the analyzer release files. The list is spelled three
+// CLAUDE.md, .github/copilot-instructions.md, maintainers/ and .claude/agents/ (AgentInstructionsTest),
+// the packaged src/*/README.md files (PackageReadmeTest) and the analyzer release files. The list is spelled three
 // times below and once in the hand-written sonar.yml; keep the four the same.
 [GitHubActions(
     "pr-tests-unit",

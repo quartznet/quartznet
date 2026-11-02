@@ -100,3 +100,8 @@ docs/.vuepress/.temp
 BenchmarkDotNet.Artifacts
 
 *.received.*
+
+# Claude Code: the subagent definitions are shared (maintainers/agent-tooling.md); everything else under
+# .claude/ is one machine's: local settings, agent worktrees, scratch files.
+/.claude/*
+!/.claude/agents/
