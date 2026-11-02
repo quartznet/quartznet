@@ -111,8 +111,8 @@ public static class SchedulerJobExtensions
     /// </para>
     /// <para>
     /// Trimmed or native AOT: declare <typeparamref name="TInput" /> with
-    /// <see cref="Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry.AddTypeInfoResolver" />,
-    /// as for <c>UsingInput</c>. Nothing here reflects.
+    /// <see cref="SystemTextJsonConfigurationExtensions.AddJsonTypeInfoResolver" />, as for <c>UsingInput</c>;
+    /// the store serializer's own registry does not reach the input serializer. Nothing here reflects.
     /// </para>
     /// <para>
     /// Over <c>HttpScheduler</c> the input crosses the wire as a job data value, before any input
