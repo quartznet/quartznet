@@ -51,7 +51,7 @@
       ask for the package builds and then fails at startup with a missing FSharp.Core. Only
       Quartz.Examples.FSharp references it. Keep it on the version the pinned SDK carries.
     -->
-    <PackageVersion Include="FSharp.Core" Version="10.1.402" />
+    <PackageVersion Include="FSharp.Core" Version="10.1.403" />
     <!--
       A test project's reference, not a GlobalPackageReference any more. Under Microsoft.Testing.Platform
       the reporter registers itself through the entry point the build generates, which names its type and
