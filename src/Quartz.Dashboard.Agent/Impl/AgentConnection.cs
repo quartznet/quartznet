@@ -195,8 +195,14 @@ internal sealed class AgentConnection : IAsyncDisposable
 
     /// <summary>
     /// Tells the dashboard this scheduler is shutting down, so it is listed as such rather than as
-    /// unreachable, and waits at most a few seconds for the word to get through.
+    /// unreachable, and waits at most a few seconds for the dashboard to say it has heard.
     /// </summary>
+    /// <remarks>
+    /// An invocation, not a send, because the caller stops the connection next. A send returns once the
+    /// message is in the client's outgoing pipe. Stopping the connection then cancels the transport's read
+    /// of that pipe, and the transport drops whatever it had not read. The hub answers an invocation only
+    /// after its method has run, so the goodbye has been handled before the connection stops (#4176).
+    /// </remarks>
     public async ValueTask SayGoodbye(CancellationToken cancellationToken = default)
     {
         HubConnection? hub = connection;
@@ -209,7 +215,7 @@ internal sealed class AgentConnection : IAsyncDisposable
         {
             using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(5));
-            await hub.SendAsync(AgentProtocol.Unregister, timeout.Token).ConfigureAwait(false);
+            await hub.InvokeAsync(AgentProtocol.Unregister, timeout.Token).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {

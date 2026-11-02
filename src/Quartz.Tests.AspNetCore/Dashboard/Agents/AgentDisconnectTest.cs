@@ -1,10 +1,13 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
+using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
 using Quartz.Tests.AspNetCore.Support;
 
+using AgentProtocol = Quartz.HttpApiContract.AgentProtocol;
 using AgentRequest = Quartz.HttpApiContract.AgentRequest;
 using SchedulerEvent = Quartz.HttpApiContract.SchedulerEvent;
 
@@ -145,5 +148,76 @@ public sealed class AgentDisconnectTest
         SchedulerHeaderDto gone = (await dashboard.Client.GetSchedulers()).Should().ContainSingle(x => x.Key == key).Subject;
         gone.Status.Should().Be(SchedulerStatus.Shutdown, "a goodbye is a fact, where a dropped connection is a question");
         dashboard.Logs.WithEventId(9114).Should().BeEmpty("a goodbye is not a disconnect to report");
+    }
+
+    /// <summary>
+    /// The goodbye is heard before the connection goes (#4176). A message the SignalR client has only
+    /// queued is not yet sent, and stopping the connection cancels the transport's read of its outgoing
+    /// pipe, which drops whatever it had not read. So the agent waits for the hub's answer to
+    /// <see cref="AgentProtocol.Unregister" /> and only then stops the connection.
+    /// </summary>
+    /// <remarks>
+    /// The hub holds the goodbye until the test releases it. An agent that only queues its goodbye has
+    /// nothing to wait for and finishes shutting down while the hub still holds it. An agent that waits for
+    /// the answer cannot finish until the hold is lifted, or until its own five-second limit runs out.
+    /// The one-second window is shorter than that limit.
+    /// </remarks>
+    [TestCase(false, TestName = "AShutdownLetsTheConnectionGoOnlyOnceTheHubHasHeardTheGoodbye(long polling)")]
+    [TestCase(true, TestName = "AShutdownLetsTheConnectionGoOnlyOnceTheHubHasHeardTheGoodbye(WebSockets)")]
+    public async Task AShutdownLetsTheConnectionGoOnlyOnceTheHubHasHeardTheGoodbye(bool kestrel)
+    {
+        HeldGoodbye goodbye = new();
+        await using AgentDashboard dashboard = await AgentDashboard.Start(
+            configureServices: services => services.Configure<HubOptions<DashboardAgentHub>>(hub => hub.AddFilter(goodbye)),
+            kestrel: kestrel);
+        AgentWorker worker = await dashboard.StartAgent("w1");
+
+        Task running = worker.Scheduler.Shutdown(waitForJobsToComplete: false).AsTask();
+        Func<Task> shutdown = () => running;
+        Func<Task> arrival = () => goodbye.Arrived;
+
+        try
+        {
+            await arrival.Should().CompleteWithinAsync(TimeSpan.FromSeconds(10), "the agent says goodbye while its connection is up");
+            await shutdown.Should().NotCompleteWithinAsync(TimeSpan.FromSeconds(1),
+                "the agent stops its connection only once the hub has answered the goodbye, and the hub is still holding it");
+        }
+        finally
+        {
+            // Whatever the assertions said, so that the dashboard's own shutdown does not wait on a hub
+            // invocation nobody will release.
+            goodbye.Release();
+        }
+
+        await shutdown.Should().CompleteWithinAsync(TimeSpan.FromSeconds(10), "the hub answered the goodbye once it was released");
+        dashboard.Registry.Find("w1")!.Unregistered.Should().BeTrue("the hub had handled the goodbye before the shutdown returned");
+
+        await Eventually.Until(() => dashboard.Registry.Find("w1") is { ConnectionId: null });
+        dashboard.Logs.WithEventId(9114).Should().BeEmpty("the connection went after the goodbye, so it is not a disconnect to report");
+    }
+
+    /// <summary>
+    /// Holds the agent hub's <see cref="AgentProtocol.Unregister" /> until released, and records when one
+    /// arrives.
+    /// </summary>
+    private sealed class HeldGoodbye : IHubFilter
+    {
+        private readonly TaskCompletionSource arrived = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Arrived => arrived.Task;
+
+        public void Release() => released.TrySetResult();
+
+        public async ValueTask<object?> InvokeMethodAsync(HubInvocationContext invocationContext, Func<HubInvocationContext, ValueTask<object?>> next)
+        {
+            if (string.Equals(invocationContext.HubMethodName, AgentProtocol.Unregister, StringComparison.Ordinal))
+            {
+                arrived.TrySetResult();
+                await released.Task;
+            }
+
+            return await next(invocationContext);
+        }
     }
 }
