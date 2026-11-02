@@ -267,11 +267,8 @@ public partial class StdAdoDelegate
             // load job data map and transfer information
             JobDataMap jd = await SelectTriggerJobDataMap(conn, key, cancellationToken).ConfigureAwait(false);
 
-            // A replay of a replay keeps the original firing's markers: the recovery trigger's own key names
-            // a spent trigger this recovery removes, not the firing the job stands in for.
-            bool replaysARecovery = key.Group == SchedulerConstants.DefaultRecoveryGroup
-                                    && jd.ContainsKey(SchedulerConstants.FailedJobOriginalTriggerName);
-            if (!replaysARecovery)
+            // A replay of a replay keeps the original firing's markers, as cluster recovery's does.
+            if (!RecoveryMarkers.ReplaysARecovery(key, jd))
             {
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, key.Name);
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, key.Group);

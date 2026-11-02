@@ -6018,9 +6018,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                                 rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
                                 rcvryTrig.Priority = ftRec.Priority;
                                 JobDataMap jd = await Delegate.SelectTriggerJobDataMap(conn, tKey, cancellationToken).ConfigureAwait(false);
-                                jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, tKey.Name);
-                                jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, tKey.Group);
-                                jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture));
+
+                                // A replay of a replay keeps the original firing's markers, as startup
+                                // recovery's does.
+                                if (!RecoveryMarkers.ReplaysARecovery(tKey, jd))
+                                {
+                                    jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, tKey.Name);
+                                    jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, tKey.Group);
+                                    jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture));
+                                }
+
                                 rcvryTrig.JobDataMap = jd;
 
                                 // The replay is limited as the firing it stands in for was (#4081). 3.x
