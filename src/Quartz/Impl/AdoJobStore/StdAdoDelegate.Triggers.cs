@@ -266,10 +266,19 @@ public partial class StdAdoDelegate
 
             // load job data map and transfer information
             JobDataMap jd = await SelectTriggerJobDataMap(conn, key, cancellationToken).ConfigureAwait(false);
-            jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, key.Name);
-            jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, key.Group);
-            jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture)!);
-            jd.Put(SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime, Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)!);
+
+            // A replay of a replay keeps the original firing's markers: the recovery trigger's own key names
+            // a spent trigger this recovery removes, not the firing the job stands in for.
+            bool replaysARecovery = key.Group == SchedulerConstants.DefaultRecoveryGroup
+                                    && jd.ContainsKey(SchedulerConstants.FailedJobOriginalTriggerName);
+            if (!replaysARecovery)
+            {
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, key.Name);
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, key.Group);
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture)!);
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime, Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)!);
+            }
+
             trigger.JobDataMap = jd;
 
             // The replay is limited as the firing it stands in for was (#4081). 3.x writes no group to

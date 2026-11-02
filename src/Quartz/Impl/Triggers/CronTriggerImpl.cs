@@ -392,10 +392,14 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <summary>
     /// Clones this instance.
     /// </summary>
+    /// <remarks>
+    /// Through <see cref="AbstractTrigger.Clone" />, which gives the copy a job data map of its own: a clone that
+    /// shared this one's would see every write to it.
+    /// </remarks>
     /// <returns></returns>
     public override ITrigger Clone()
     {
-        CronTriggerImpl copy = (CronTriggerImpl) MemberwiseClone();
+        CronTriggerImpl copy = (CronTriggerImpl) base.Clone();
         if (cronEx != null)
         {
             copy.CronExpression = (CronExpression) cronEx.Clone();
