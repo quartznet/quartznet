@@ -470,8 +470,9 @@ dashboard. From 4.4, a pause given a reason carries it in the message as `reason
 - A scheduler this browser session never listed shows no origin.
 
 **Every entry is also logged** at `Information` through the application's `ILogger`: event `9100` on success,
-`9101` on failure, each naming the visitor, action, target and scheduler, ending with `(origin …, node …)`. This
-copy survives a restart. Connections opening and closing are logged at `Debug` (`9102`, `9103`). See
+`9101` on failure, each naming the visitor, action, target and scheduler, ending with `(origin …, node …)`. An
+action an [operator role](#operator-roles) refused is *Refused* on the page and event `9118` at `Warning`, with
+the role it needed. This copy survives a restart. Connections opening and closing are logged at `Debug` (`9102`, `9103`). See
 [Log Events](../log-events.md).
 
 The visitor is `ClaimsPrincipal.Identity.Name`, or `(anonymous)` when nothing authenticated, which is every entry
@@ -1253,8 +1254,9 @@ See [Fronting a scheduler on another machine](#fronting-a-scheduler-on-another-m
   with the wrong scheduler name is refused;
 - the live-events hub refuses to join a refused scheduler's group.
 
-The three settings compose: `AuthorizationPolicy` decides who is in, `SchedulerAuthorizationPolicy` which
-schedulers they see, `ReadOnly` what anyone may change. `QuartzHttpApiOptions.SchedulerAuthorizationPolicy` uses
+The settings compose: `AuthorizationPolicy` decides who is in, `SchedulerAuthorizationPolicy` which schedulers
+they see, [`OperationAuthorizationPolicy`](#operator-roles) what they may do there, and `ReadOnly` bounds what
+anyone may change. `QuartzHttpApiOptions.SchedulerAuthorizationPolicy` uses
 the same resource, so one `AuthorizationHandler<TRequirement, SchedulerResource>` serves the dashboard and the
 HTTP API. Worked example: [Multi-tenancy](../multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler).
 
@@ -1274,6 +1276,70 @@ ones.
 
 Unset, the behaviour is as in earlier releases: whoever passes `AuthorizationPolicy` sees every scheduler.
 
+### Operator roles
+
+From 4.8, `OperationAuthorizationPolicy` offers each visitor the controls of their operator role. Name a policy
+built with `RequireSchedulerRoles`:
+
+<!-- snippet: sample_dashboard_operator_roles -->
+```csharp
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("Operations", policy => policy.RequireAuthenticatedUser())
+    .AddPolicy("QuartzOperators", policy => policy.RequireSchedulerRoles(roles =>
+    {
+        roles.Viewers.Add("ops-readonly");
+        roles.Operators.Add("ops-oncall");
+        roles.Administrators.Add("ops-admin");
+    }));
+
+builder.Services.AddQuartzDashboard(options =>
+{
+    // Who reaches the dashboard at all
+    options.AuthorizationPolicy = "Operations";
+
+    // What each of them may do once they are in
+    options.OperationAuthorizationPolicy = "QuartzOperators";
+});
+```
+<!-- endSnippet -->
+
+| Control | Operation | Role |
+|---|---|---|
+| Every page, the scheduler picker, the live events | a read | `View` |
+| Start, Standby | `Start`, `Standby` | `Operate` |
+| Pause all, Resume all | `PauseAll`, `ResumeAll` | `Operate` |
+| Pause, Resume, on a job, a trigger, a group or a selection | `PauseJob`, `ResumeJob`, `PauseTrigger`, `ResumeTrigger`, `PauseJobKeys`, `PauseTriggerKeys`, `ResumeTriggerKeys` | `Operate` |
+| Trigger now, Trigger group, Run again | `TriggerJob` | `Operate` |
+| Interrupt | `InterruptJob`, `InterruptJobInstance` | `Operate` |
+| Reset error state | `ResetTriggerFromErrorState` | `Operate` |
+| Backfill | `BackfillTrigger` | `Operate` |
+| Trigger with overrides, Run again with the run's input | `TriggerJob` with job data | `Administer` |
+| Edit details | `UpdateTriggerDetails` | `Administer` |
+| Save schedule | `RescheduleJob` | `Administer` |
+| Unschedule, Unschedule selected | `UnscheduleJob`, `UnscheduleJobs` | `Administer` |
+| Delete a job | `DeleteJob` | `Administer` |
+| Create or replace a calendar, Delete a calendar | `AddCalendar`, `DeleteCalendar` | `Administer` |
+| Shutdown | `Shutdown` | `Administer` |
+
+- The roles and operations are the HTTP API's; its [Operator roles](http-api.md#operator-roles) lists every one.
+  Each role includes the ones below it. One policy can serve both surfaces.
+- A page renders only the controls the visitor's role allows, asked once per scheduler for the circuit. A visitor
+  in no role sees no scheduler: the picker leaves it out, its pages draw the *not authorized* frame, and the
+  live-events hub refuses its group.
+- **Every call through the dashboard's own `IQuartzApiClient` is checked**, like `ReadOnly`, before anything
+  reaches the scheduler. A refused call raises `UnauthorizedAccessException`; the page shows a toast, the
+  [Action Log](#action-log) records the action as *Refused*, and the application's log has event `9118`.
+- `ReadOnly` stays the ceiling: an administrator of a read-only dashboard reads.
+- A visitor's rights on a scheduler are the lower of their role and the scheduler's own bound. An agent's
+  [`MaxAccess`](dashboard-agent.md#what-the-agent-accepts) hides what the agent would refuse. An
+  HTTP target applies its own `OperationAuthorizationPolicy` to the dashboard's credential, and its `403` is a
+  toast.
+- The visitor's identity is not forwarded: an agent or an HTTP target sees the dashboard, not the visitor.
+- The dashboard asks seeing a scheduler as `SchedulerResource(name) { Access = View }`, with no `Operation`, and
+  each change with the operation's name and level.
+
+Unset, every visitor may do everything `ReadOnly` allows, as in earlier releases.
+
 ### Read-only mode
 
 `ReadOnly = true` hides every mutating control: pause, resume, trigger-now, trigger-with-overrides, reschedule,
@@ -1281,9 +1347,9 @@ edit details, reset-from-error-state, unschedule, interrupt, delete, the listing
 create and replace, and the scheduler's start, stand-by, pause-all, resume-all and shutdown. Every listing, filter,
 detail page and live view remains.
 
-- It is one setting per process, not per scheduler or per operation. For different powers, run two dashboards: a
-  read-only one for observers and a write-enabled one behind an operators-only policy.
-  `SchedulerAuthorizationPolicy` limits *which schedulers* each shows, not what may be done to them.
+- It is one setting per process, not per scheduler or per visitor. For different powers per visitor, use
+  [operator roles](#operator-roles), under which `ReadOnly` is the ceiling. `SchedulerAuthorizationPolicy` limits
+  *which schedulers* each visitor sees.
 - It does not affect the HTTP API, which is mapped and authorized separately. A read-only dashboard over an API
   anyone may post to is read-only in appearance only.
   [`QuartzHttpApiOptions.ReadOnly`](http-api.md#serving-reads-only) refuses every mutating API route, and binds a
@@ -1343,15 +1409,15 @@ the UI, hub and API are enforced consistently.
 ### Deployment guidance for multi-scheduler and clustered setups
 
 - **Clustered ADO.NET job stores:** dashboard actions are scheduler operations that can affect the cluster;
-  restrict write access to trusted operator roles.
+  restrict them with [operator roles](#operator-roles).
 - **Many local schedulers in one host:** the picker lists every registered scheduler; use clear,
   environment-specific names. For tenants, `SchedulerAuthorizationPolicy` keeps them apart; see
   [Multi-tenancy](../multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler).
 - **Reverse proxy and Blazor Server:** enable WebSocket/SignalR forwarding, and sticky sessions where your hosting
   stack requires them. The circuit connects to `/_blazor` (or `{DashboardPath}/_blazor` with a custom
   `DashboardPath`).
-- **Split operator experiences:** a read-only dashboard (`ReadOnly = true`) for observers and a separate
-  write-enabled one for operators.
+- **Split operator experiences:** one dashboard with [operator roles](#operator-roles) for viewers, operators
+  and administrators, or a read-only dashboard (`ReadOnly = true`) beside a write-enabled one.
 - **Operational retention:** the built-in history store is per-process and in-memory, bounded by
   `HistoryRetention` and `HistoryMaxEntriesPerScheduler`, so each cluster node keeps its own. Rows name their
   node, so a shared `IDashboardHistoryStore` gives one page over the whole fleet. Use external retention or
@@ -1359,13 +1425,14 @@ the UI, hub and API are enforced consistently.
 
 ### What authorization does not narrow
 
-Both limits are by design, stay in 4.x, and match the [HTTP API](http-api.md#production-hardening)'s.
+Both limits match the [HTTP API](http-api.md#production-hardening)'s.
 
-- **A visitor who passes is trusted with everything the dashboard shows.** The only narrowings are `ReadOnly`
-  (process-wide) and `SchedulerAuthorizationPolicy` (which schedulers). Within a scheduler a writer may trigger,
-  pause, reschedule, unschedule, interrupt, delete and shut down, and any visitor may read every job's data map
-  and every exception message in the history. There are no per-operation permissions. Authorize the dashboard as
-  you would a shell on the machine.
+- **A visitor who passes is trusted with everything their role allows, and every role reads everything.** The
+  narrowings are `ReadOnly` (process-wide), `SchedulerAuthorizationPolicy` (which schedulers) and
+  [`OperationAuthorizationPolicy`](#operator-roles) (which operations). Without the last, a visitor who may write
+  may trigger, pause, reschedule, unschedule, interrupt, delete and shut down. Any visitor who may view reads every
+  job's data map and every exception message in the history. Authorize the dashboard as you would a shell on the
+  machine.
 - **There is no rate limiting.** ASP.NET Core's rate limiter middleware applies as to any endpoint; Quartz
   configures none.
 
@@ -1482,9 +1549,10 @@ shell without `ASPNETCORE_ENVIRONMENT`.
   [`UsePersistentStore(store => store.UseExecutionHistory())`](../tutorial/job-stores.md#execution-history-in-the-database)
   makes every node write to `QRTZ_EXECUTION_HISTORY` and `QRTZ_MISFIRE_HISTORY`. A scheduler on the in-memory job
   store has no database for history; see [Execution history and misfires](#execution-history-and-misfires).
-- **Read-only is one setting per process**, not per scheduler or per operation: "acme may look, globex may act"
-  and "this tenant may pause but not delete" cannot be expressed. Which *schedulers* a visitor sees can; see
-  [One scheduler at a time](#one-scheduler-at-a-time).
+- **Read-only is one setting per process.** What each visitor may do is their [operator role](#operator-roles),
+  and which schedulers they see is [One scheduler at a time](#one-scheduler-at-a-time). "acme may look, globex
+  may act" needs an `OperationAuthorizationPolicy` handler of your own, which reads both the scheduler and the
+  operation from `SchedulerResource`.
 - **The misfire tile and Cluster page show what the store can answer**: a dash for no misfire feed, one node for a
   store with no check-in state. Neither is a count of zero.
 - **Typed editors are narrow**: cron calendars, cron trigger reschedules, job-data overrides and, from 4.3, a

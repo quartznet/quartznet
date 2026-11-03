@@ -998,10 +998,11 @@ covers the same list for both 3.x and 4.x.
   is a job middleware you register, counted per node: see
   [Rate limiting](tutorial/execution-groups.md#rate-limiting). Often "at most four at once" is the real
   requirement, and Quartz can enforce that.
-- **No per-operation policy.** A tenant can be held to its own scheduler on both surfaces, but what it may
-  *do* there is one process-wide setting, the dashboard's `ReadOnly` flag. "acme may look, globex may
-  act" or "may pause but not delete" is not expressible. An operation requirement could later join the
-  `SchedulerResource` policy without a new option; it is not built.
+- **Operator roles are per caller, not per tenant.** From 4.8 an `OperationAuthorizationPolicy` gives each
+  caller a role — view, operate or administer — on both surfaces, so "may pause but not delete" is a role;
+  see [Operator roles](packages/http-api.md#operator-roles). `RequireSchedulerRoles` grants a role on every
+  scheduler the caller sees. "acme may look, globex may act" is a handler of your own, which reads the
+  scheduler and the operation from the same `SchedulerResource`.
 - **A scheduler is never restarted in place.** `GetScheduler()` throws rather than reviving a shut-down
   thread pool and job store, because the container owns their lifetimes. `Standby()` / `Start()` pause
   and resume; [`ISchedulerRuntime.Restart`](#restarting-a-scheduler) builds new parts from the recipe.

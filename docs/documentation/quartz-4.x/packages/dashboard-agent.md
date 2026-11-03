@@ -77,13 +77,15 @@ side configures — tokens, rotation, liveness, the hub's authorization — is i
 | `ReadOnly` | `false` | Refuse every operation that changes something |
 | `IsJobTypeAllowed` | `null`: every type refused | Which job types a request may name; see [What the agent accepts](#what-the-agent-accepts) |
 | `IsOperationAllowed` | `null`: every operation | Which operations the agent accepts, by route name (`Shutdown`, `PauseJob`, `ScheduleJob`, …) |
+| `MaxAccess` | `Administer` | The most the dashboard may do, as an operator role: `View`, `Operate` or `Administer` (4.8) |
 | `HeartbeatInterval` | 15 s | How often the agent says it is alive; the dashboard's own interval replaces it at registration |
 | `MaxConcurrentOperations` | 4 | How many of the dashboard's requests run at once; the rest queue |
 | `MaxPageSize` | 1000 | The most items one listing returns; `0` for no limit |
 | `ConfigureConnection` | — | The SignalR client's `HttpConnectionOptions`: a proxy, a client certificate, the transports |
 
 Validated at scheduler start: `Endpoint` absolute, a token or a provider, `HeartbeatInterval` positive,
-`MaxConcurrentOperations` at least one, `MaxPageSize` not negative, `Target` without `/` or `+`.
+`MaxConcurrentOperations` at least one, `MaxPageSize` not negative, `Target` without `/` or `+`, `MaxAccess` one of
+the three levels.
 
 `UseDashboardAgent` also calls `AddQuartzExecutionHistory()`, so a worker with an agent records what it ran in
 memory, as a worker serving the HTTP API does. The dashboard's History page reads it through the connection.
@@ -145,9 +147,19 @@ the dashboard sends can widen them; the dashboard's own `ReadOnly` hides its but
 | `IsJobTypeAllowed` | storing a job *by type name* whose name the predicate rejects: add-job, schedule-job with a job, schedule-jobs | **every job type** |
 | `ReadOnly` | every operation that changes something | nothing |
 | `IsOperationAllowed` | every operation whose route name the predicate rejects | nothing |
+| `MaxAccess` | every operation whose [operator role](http-api.md#operator-roles) is above it: `Operate` refuses adding, scheduling, rescheduling, editing and deleting, the execution limits, clearing, shutting down and triggering with job data; `View` refuses every change | nothing (`Administer`) |
 
+- They are checked in the order `IsOperationAllowed`, `MaxAccess`, `ReadOnly`, before the scheduler is looked up;
+  `IsJobTypeAllowed` is checked where a job type name becomes a job.
+- `MaxAccess = Operate` is a dashboard that may keep the worker running — start, stand-by, pause, resume, trigger
+  without job data, interrupt, backfill — and may not change what it holds. Triggering a job with a non-empty
+  job-data map needs `Administer`: a stored `NativeJob` runs the command its job data names.
+- The registration carries `MaxAccess` (4.8), and the dashboard hides the controls the agent would refuse: a
+  visitor's rights on the scheduler are the lower of their [operator role](dashboard.md#operator-roles) and this.
+  An agent older than 4.8 is taken as `Administer`.
 - A refusal is `403` with problem details. The dashboard shows it as the refusal it is; the refusal of an unset
-  `IsJobTypeAllowed` names the option as the remedy. The agent logs every refusal (`9304`).
+  `IsJobTypeAllowed` names the option as the remedy, and a `MaxAccess` refusal names the level. The agent logs
+  every refusal (`9304`).
 - With `IsJobTypeAllowed` unset, everything else works: triggering, pausing, rescheduling and deleting a job the
   scheduler already holds, and scheduling a trigger for one.
 - The predicate sees the job type name as the request wrote it, and nothing resolves it first. One type has more
@@ -171,6 +183,10 @@ builder.AddQuartz(q =>
         // Or keep writes and refuse by route name — the operation ids the HTTP API publishes.
         agent.IsOperationAllowed = operation => operation is not ("Shutdown" or "Clear" or "DeleteJobs");
 
+        // Or by operator role: Operate keeps the worker running (pause, resume, trigger without
+        // job data, interrupt) and refuses everything that changes what it holds.
+        agent.MaxAccess = SchedulerAccess.Operate;
+
         // The job types the agent will store, matched on the name as the request wrote it.
         agent.IsJobTypeAllowed = name => name.StartsWith("Acme.Jobs.", StringComparison.Ordinal);
     });
@@ -183,7 +199,7 @@ builder.AddQuartz(q =>
 | | |
 |---|---|
 | Connection | One outbound SignalR connection to `Endpoint`, over the transports the client negotiates (WebSockets first). Opened when the scheduler starts, closed when it shuts down |
-| Registration | The agent registers its target, scheduler name, instance id, Quartz version and the operations it serves. A target held by a live agent of another instance is refused; the agent retries every 30 s. The same instance reconnecting takes its own entry over |
+| Registration | The agent registers its target, scheduler name, instance id, Quartz version, the operations it serves and its `MaxAccess`. A target held by a live agent of another instance is refused; the agent retries every 30 s. The same instance reconnecting takes its own entry over |
 | Heartbeat | Every `HeartbeatInterval` as the dashboard set it at registration. Three missed in a row and the dashboard lists the scheduler as `Unknown` with when it was last heard; the next heartbeat restores it |
 | Operations | Each page read and each action is one request down the connection, answered with the HTTP API's status and body. The dashboard cancels one that takes longer than its `OperationTimeout` (30 s) on both sides, queued or running. Four requests per worker may wait their turn; one more is answered `503` at once |
 | Page size | An answer larger than the dashboard's `MaxMessageBytes` (4 MiB) is refused by the agent with `413`, telling the page to lower `take`; the connection stays up |
@@ -204,7 +220,7 @@ Under the category `Quartz.Dashboard.Agent`; the dashboard's side is `9111`–`9
 | 9301 | Warning | The dashboard is unreachable; retrying |
 | 9302 | Warning | The dashboard refused the registration |
 | 9303 | Information | The dashboard closed the connection; reconnecting |
-| 9304 | Warning | An operation was refused: read-only, operation list, job type, page size |
+| 9304 | Warning | An operation was refused: read-only, operation list, `MaxAccess`, job type, page size |
 | 9305 | Error | An operation failed |
 
 Each is in [Log Events](../log-events.md).
@@ -215,7 +231,8 @@ Each is in [Log Events](../log-events.md).
   every operation the agent accepts. The agent's token or credential authenticates the dashboard to the agent as
   much as the reverse.
 - **The agent's narrowings are the only ones that hold** against a dashboard that has been taken over:
-  `ReadOnly`, `IsOperationAllowed`, `IsJobTypeAllowed`.
+  `ReadOnly`, `IsOperationAllowed`, `MaxAccess`, `IsJobTypeAllowed`. The dashboard's operator roles bind its
+  visitors, not the dashboard: the agent sees the dashboard, never the visitor.
 - **Tokens are shared secrets.** Keep them in a secret store, rotate them through the dashboard's
   [two slots](dashboard.md#fronting-a-scheduler-on-another-machine), and treat the dashboard host as the trust
   anchor of the fleet.

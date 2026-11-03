@@ -1229,6 +1229,7 @@ every node and client, then schedule continuations.
 | `MaxPageSize` | `1000` | Most items one paged request returns; `0` is unbounded; see [Listing endpoints are paged](#listing-endpoints-are-paged) |
 | `ReadOnly` | `false` | Refuses every mutating route with `403`; see [Serving reads only](#serving-reads-only) |
 | `SchedulerAuthorizationPolicy` | none | Policy for every route naming a scheduler, evaluated against it; see [Authorizing per scheduler](#authorizing-per-scheduler) |
+| `OperationAuthorizationPolicy` | none | Policy for every operation, at the operator role it needs; see [Operator roles](#operator-roles) |
 | `IsJobTypeAllowed` | none | Predicate over a request's job type *name*; refused is `403`; see [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) |
 | `EventStreamHeartbeatInterval` | `00:00:15` | Idle time before the [event stream](#the-event-stream) sends a `Heartbeat` |
 
@@ -1273,6 +1274,59 @@ scheduler. Otherwise, set `SchedulerAuthorizationPolicy`. Each request is then e
 - Setting it without authorization services in the container fails at startup.
 - It authorizes and never authenticates: an anonymous caller gets whatever the policy says (a `403` if refused).
   Keep `RequireAuthorization()` on the mapped group to challenge with a `401` first.
+
+### Operator roles
+
+From 4.8, `OperationAuthorizationPolicy` holds every route to the operator role it needs. Each request is
+evaluated as `AuthorizeAsync(user, new SchedulerResource(name) { Operation = …, Access = … }, policy)`.
+`RequireSchedulerRoles` builds the policy from the application's own roles:
+
+<!-- snippet: sample_httpapi_operator_roles -->
+```csharp
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("QuartzOperators", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireSchedulerRoles(roles =>
+        {
+            // The application's own roles, as ClaimsPrincipal.IsInRole reads them
+            roles.Viewers.Add("ops-readonly");
+            roles.Operators.Add("ops-oncall");
+            roles.Administrators.Add("ops-admin");
+
+            // Optional: move an operation that changes something to the other level
+            roles.Operations["AddCalendar"] = SchedulerAccess.Operate;
+        }));
+
+builder.Services.AddQuartzHttpApi(options => options.OperationAuthorizationPolicy = "QuartzOperators");
+```
+<!-- endSnippet -->
+
+| Role | Operations |
+|---|---|
+| `View` | Every `GET`, and the three reads that take a body of keys: `FetchJobs`, `FetchTriggers`, `FetchJobRunStatuses` |
+| `Operate` | `Start`, `Standby`, `PauseAll`, `ResumeAll`, `PauseJob`, `PauseJobs`, `PauseJobKeys`, `ResumeJob`, `ResumeJobs`, `ResumeJobKeys`, `PauseTrigger`, `PauseTriggers`, `PauseTriggerKeys`, `ResumeTrigger`, `ResumeTriggers`, `ResumeTriggerKeys`, `ResetTriggerFromErrorState`, `ResetTriggerKeysFromErrorState`, `InterruptJob`, `InterruptJobInstance`, `BackfillTrigger`, and `TriggerJob` without job data |
+| `Administer` | `Shutdown`, `Clear`, `SetExecutionLimits`, `ClearExecutionLimits`, `AddJob`, `DeleteJob`, `DeleteJobs`, `DeleteJobsByGroup`, `ScheduleJob`, `ScheduleJobs`, `UnscheduleJob`, `UnscheduleJobs`, `UnscheduleJobsByGroup`, `RescheduleJob`, `UpdateTriggerDetails`, `AddCalendar`, `DeleteCalendar`, and `TriggerJob` with job data |
+
+- Each role includes the ones below it. A caller in none of them may do nothing, reads included.
+- The names are the endpoints' names, which the OpenAPI document publishes as operation ids.
+- **`TriggerJob` with a non-empty job-data map needs `Administer`**: a stored `NativeJob` reads the command it
+  runs from its job data. It is asked once the body is read, and no override lowers it. So neither a viewer nor
+  an operator can name a job type or supply job data.
+- A refusal is `403` with problem details: *Not authorized for DeleteJob on scheduler reporting: it needs
+  Administer*, without `Quartz-ExceptionType`. It is decided after `SchedulerAuthorizationPolicy` and before
+  `ReadOnly` and the handler, so no body is read and no scheduler looked up. Each is logged as event `9009` at
+  `Warning`, with the user.
+- `GET {ApiPath}/schedulers` lists the schedulers the caller may view.
+- `SchedulerRoles.Operations` moves an operation that changes something to `Operate` or `Administer`. A name the
+  API does not publish, a read, or `View` is refused when the policy is built.
+- The policies compose: `SchedulerAuthorizationPolicy` decides which schedulers a caller reaches, this one what
+  they may do there, and `ReadOnly` bounds everybody.
+- A handler of your own is an `AuthorizationHandler<TRequirement, SchedulerResource>` reading
+  `SchedulerResource.Operation` and `SchedulerResource.Access`. The [dashboard](dashboard.md#operator-roles) asks
+  its own `OperationAuthorizationPolicy` with the same resource, so one policy serves both.
+- Setting it without authorization services in the container fails at startup. It authorizes and never
+  authenticates: add `RequireAuthenticatedUser()` to the policy, or `RequireAuthorization()` on the mapping, to
+  challenge an anonymous caller with a `401`.
 
 ### Narrowing which job types may be named
 
@@ -1366,16 +1420,17 @@ AOT host answers them without it. A native canary runs the server and the client
   [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named).
 - Keep `IncludeStackTraceInProblemDetails` off in production: it returns the stack trace *and* a `500`'s real
   message.
-- Restrict mutating operations (schedule, delete, pause/resume, shutdown) to trusted operator roles. Quartz has
-  no per-operation permissions: **a caller who passes authorization is trusted with the whole API**, including
-  every job's data map. `SchedulerAuthorizationPolicy` limits *which schedulers*, `IsJobTypeAllowed` *which job
-  types*; anything finer belongs in the policy or a gateway.
+- Give each caller the least operator role it needs with `OperationAuthorizationPolicy`: a viewer reads, an
+  operator pauses, resumes, triggers and interrupts, and only an administrator adds, deletes, reschedules, shuts
+  down or triggers with job data; see [Operator roles](#operator-roles). Without it, **a caller who passes
+  authorization is trusted with the whole API**, including every job's data map. `SchedulerAuthorizationPolicy`
+  limits *which schedulers*, `IsJobTypeAllowed` *which job types*.
 - **Every successful mutation is logged** at `Information` as event `9007`:
   `"Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"`.
   - `{User}` is `HttpContext.User.Identity.Name`, or `(anonymous)`; authenticate the API for it to mean anything.
   - `{Operation}` is the endpoint's name; `{Route}` is the request path, which spells the target key.
-  - One line per request, after the handler, for `2xx` answers only. A refusal is `9005`; a failure is `9003` or
-    `9004`.
+  - One line per request, after the handler, for `2xx` answers only. A refusal is `9005`, or `9009` for a
+    caller's role; a failure is `9003` or `9004`.
   - It is this process's log. API actions are not in the [dashboard](dashboard.md#action-log)'s Action Log, and
     dashboard actions are not here. All events: [Log Events](../log-events.md).
 - Set `ReadOnly` where nothing should write through the API, such as a process that only feeds a dashboard,

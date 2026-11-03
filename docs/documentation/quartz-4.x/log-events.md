@@ -400,6 +400,7 @@ matching on its text is not.
 | 9006 | Debug | `Quartz.AspNetCore` | `"Api request abandoned by the caller: {Url}"` |
 | 9007 | Information | `Quartz.AspNetCore` | `"Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"` |
 | 9008 | Debug | `Quartz.AspNetCore` | `"NotSupportedException thrown"` |
+| 9009 | Warning | `Quartz.AspNetCore` | `"Api user {User} was refused {Operation} on scheduler {SchedulerName}: it needs {Access}"` |
 | 9100 | Information | `Quartz.Dashboard` | `"Dashboard user {User} performed {Action} on {Target} of scheduler {SchedulerName}: {Outcome} (origin {Origin}, node {Node})"` |
 | 9101 | Information | `Quartz.Dashboard` | `"Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason} (origin {Origin}, node {Node})"` |
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |
@@ -418,6 +419,7 @@ matching on its text is not.
 | 9115 | Information | `Quartz.Dashboard` | `"Agent {Target} forgotten after {ForgetAfter} without reconnecting"` |
 | 9116 | Warning | `Quartz.Dashboard` | `"Agent {Target} missed {Missed} heartbeats; scheduler {SchedulerName} is reported Unknown"` |
 | 9117 | Error | `Quartz.Dashboard` | `"The agent liveness sweep failed; the next one runs in {Interval}"` |
+| 9118 | Warning | `Quartz.Dashboard` | `"Dashboard user {User} was refused {Action} on {Target} of scheduler {SchedulerName}: it needs {Access} (origin {Origin}, node {Node})"` |
 | 9200 | Warning | `Quartz.HttpClient` | `"Skipped live events of kind {Kind} from scheduler {SchedulerName}: this version of Quartz.HttpClient does not know the kind. Upgrade the client to receive them."` |
 | 9201 | Warning | `Quartz.HttpClient` | `"Skipped a live event of kind {Kind} from scheduler {SchedulerName} that could not be read."` |
 | 9202 | Warning | `Quartz.HttpClient` | `"Left a {Item} out of a listing from scheduler {SchedulerName}: its {EnumType} is {Name}, which this version of Quartz.HttpClient does not know. Upgrade the client to list it."` |

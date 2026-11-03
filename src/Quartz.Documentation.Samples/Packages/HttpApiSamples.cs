@@ -63,6 +63,29 @@ public static class HttpApiSamples
         #endregion
     }
 
+    public static void OperatorRoles(WebApplicationBuilder builder)
+    {
+        #region sample_httpapi_operator_roles
+
+        builder.Services.AddAuthorizationBuilder()
+            .AddPolicy("QuartzOperators", policy => policy
+                .RequireAuthenticatedUser()
+                .RequireSchedulerRoles(roles =>
+                {
+                    // The application's own roles, as ClaimsPrincipal.IsInRole reads them
+                    roles.Viewers.Add("ops-readonly");
+                    roles.Operators.Add("ops-oncall");
+                    roles.Administrators.Add("ops-admin");
+
+                    // Optional: move an operation that changes something to the other level
+                    roles.Operations["AddCalendar"] = SchedulerAccess.Operate;
+                }));
+
+        builder.Services.AddQuartzHttpApi(options => options.OperationAuthorizationPolicy = "QuartzOperators");
+
+        #endregion
+    }
+
     public static async ValueTask ClientAgainstTheApi(System.Net.Http.HttpClient httpClient)
     {
         #region sample_httpapi_client
