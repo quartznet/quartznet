@@ -178,8 +178,11 @@ A few things worth knowing:
   down so a sample reads like a documentation page rather than like library code, but it is built with
   the same `TreatWarningsAsErrors` as everything else.
 * Some blocks are deliberately left as plain fences: those calling a package this repository does not
-  reference, and the `BinaryFormatter` migration sample, which would drag in an unsupported
-  compatibility package. Adding a NuGet dependency purely to compile a sample is not worth it.
+  reference, AppHost code, whose generated `Projects` class exists only inside an Aspire AppHost project
+  (`src/Quartz.Examples.Aspire.AppHost` compiles the same calls), and the `BinaryFormatter` migration
+  sample, which would drag in an unsupported compatibility package. Adding a NuGet dependency purely to
+  compile a sample is not worth it. A plain fence says why in an HTML comment above it, beginning
+  `Not a compiled sample`.
 * A plain fence that a compiled example *does* back says where it came from. Two pages are in that
   position: the Wolverine how-to, because the samples project may not reference `WolverineFx`, and
   the migration guide's "Upgrading an F# project", because the samples project is C# and cannot hold
