@@ -25,8 +25,25 @@ namespace Quartz.Tests.AspNetCore.Dashboard;
 /// </remarks>
 public class HubMethodAttributeTest
 {
-    [TestCase(typeof(DashboardAgentHub))]
-    [TestCase(typeof(QuartzDashboardHub))]
+    /// <summary>
+    /// Every hub the dashboard assembly declares, found rather than listed, so a hub added later is held to
+    /// the same rule.
+    /// </summary>
+    private static IEnumerable<Type> DashboardHubs()
+    {
+        return typeof(QuartzDashboardHub).Assembly.GetTypes()
+            .Where(x => x is { IsClass: true, IsAbstract: false } && typeof(Hub).IsAssignableFrom(x))
+            .OrderBy(x => x.FullName, StringComparer.Ordinal);
+    }
+
+    [Test]
+    public void TheScanFindsBothHubs()
+    {
+        DashboardHubs().Should().Contain([typeof(DashboardAgentHub), typeof(QuartzDashboardHub)],
+            "a scan that finds nothing would pass the rule vacuously");
+    }
+
+    [TestCaseSource(nameof(DashboardHubs))]
     public void NoHubMethodCarriesAnAttribute(Type hub)
     {
         List<MethodInfo> methods = HubMethods(hub);
