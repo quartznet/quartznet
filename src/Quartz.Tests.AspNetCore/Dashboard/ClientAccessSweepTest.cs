@@ -90,6 +90,57 @@ public class ClientAccessSweepTest
         Operations.Should().OnlyContain(operation => operation.Route.Mutates);
     }
 
+    /// <summary>
+    /// Every method <see cref="IQuartzApiClient" /> has is either on the list of reads below or in the
+    /// sweep, so a mutating member added later cannot be left out unnoticed.
+    /// </summary>
+    [Test]
+    public void EveryClientMemberThatIsNotAReadIsInTheSweep()
+    {
+        HashSet<string> reads =
+        [
+            "CountMisfires",
+            "GetCalendar",
+            "GetCalendarNames",
+            "GetExecution",
+            "GetExecutionLimits",
+            "GetJobDetail",
+            "GetJobGroupPause",
+            "GetJobRunStatus",
+            "GetJobRunStatuses",
+            "GetScheduler",
+            "GetSchedulers",
+            "GetTrigger",
+            "GetTriggerPause",
+            "GetTriggerState",
+            "GetTriggersOfJob",
+            "GetUpcomingFireTimes",
+            "QueryClusterNodes",
+            "QueryExecutionStatistics",
+            "QueryExecutions",
+            "QueryFireInstances",
+            "QueryJobGroups",
+            "QueryJobs",
+            "QueryMisfires",
+            "QueryTriggerGroups",
+            "QueryTriggers",
+        ];
+
+        HashSet<string> swept = Operations.Select(operation => operation.Member.Split(',')[0]).ToHashSet();
+
+        string[] unaccountedFor = typeof(IQuartzApiClient)
+            .GetMethods()
+            .Where(method => !method.IsSpecialName)
+            .Select(method => method.Name)
+            .Distinct()
+            .Where(name => !reads.Contains(name) && !swept.Contains(name))
+            .Order()
+            .ToArray();
+
+        unaccountedFor.Should().BeEmpty(
+            "a new mutating client member must go through ResolveAllowed and be added to the sweep; a member that only reads is added to the list of reads in this test");
+    }
+
     [TestCase(null)]
     [TestCase(SchedulerAccess.View)]
     [TestCase(SchedulerAccess.Operate)]
@@ -137,13 +188,14 @@ public class ClientAccessSweepTest
 
     /// <summary>
     /// <see cref="QuartzDashboardOptions.ReadOnly" /> stays the ceiling, refused as before 4.8 with the same
-    /// exception, ahead of the role: an administrator of a read-only dashboard reads.
+    /// exception, ahead of the role. The visitor holds View, a role that would be refused the delete: the
+    /// read-only refusal, not the role's, is what comes back.
     /// </summary>
     [Test]
     public async Task ReadOnlyIsRefusedFirstAndAsBefore()
     {
         IScheduler scheduler = FakeScheduler();
-        InProcessQuartzApiClient client = ClientFor(scheduler, SchedulerAccess.Administer, Policy, readOnly: true);
+        InProcessQuartzApiClient client = ClientFor(scheduler, SchedulerAccess.View, Policy, readOnly: true);
 
         Func<Task> delete = async () => await client.DeleteJob(SchedulerName, Job);
 
@@ -175,6 +227,28 @@ public class ClientAccessSweepTest
         Func<Task> read = async () => await client.GetScheduler(SchedulerName);
 
         await read.Should().ThrowAsync<UnauthorizedAccessException>().WithMessage("Not authorized for scheduler 'acme'.");
+    }
+
+    /// <summary>
+    /// A circuit's visitor can change after the dashboard has answered once — signed out, a role removed —
+    /// and enforcement asks the policy afresh, so the earlier "allowed" does not let the next call through.
+    /// </summary>
+    [TestCase(SchedulerAccess.View)]
+    [TestCase(null)]
+    public async Task AChangedVisitorIsRefusedAfterAnEarlierAnswerWasAllowed(SchedulerAccess? laterRole)
+    {
+        IScheduler scheduler = FakeScheduler();
+        TestAuthenticationStateProvider visitor = new();
+        InProcessQuartzApiClient client = ClientFor(scheduler, SchedulerAccess.Administer, Policy, visitor: visitor);
+
+        await client.DeleteJob(SchedulerName, Job);
+        ReachedTheScheduler(scheduler).Should().Be("DeleteJob");
+
+        visitor.User = laterRole is null ? new ClaimsPrincipal(new ClaimsIdentity()) : Principal(laterRole);
+
+        Func<Task> delete = async () => await client.DeleteJob(SchedulerName, Job);
+
+        await delete.Should().ThrowAsync<UnauthorizedAccessException>();
     }
 
     private static async Task<bool> IsRefused(Func<InProcessQuartzApiClient, Task> call, InProcessQuartzApiClient client)
@@ -216,7 +290,7 @@ public class ClientAccessSweepTest
         return scheduler;
     }
 
-    private static InProcessQuartzApiClient ClientFor(IScheduler scheduler, SchedulerAccess? role, string? policy, bool readOnly = false)
+    private static InProcessQuartzApiClient ClientFor(IScheduler scheduler, SchedulerAccess? role, string? policy, bool readOnly = false, TestAuthenticationStateProvider? visitor = null)
     {
         SchedulerRepository repository = new();
         repository.Bind(scheduler);
@@ -237,7 +311,8 @@ public class ClientAccessSweepTest
         }));
         IAuthorizationService authorizationService = services.BuildServiceProvider().GetRequiredService<IAuthorizationService>();
 
-        TestAuthenticationStateProvider visitor = new() { User = Principal(role) };
+        visitor ??= new TestAuthenticationStateProvider();
+        visitor.User = Principal(role);
 
         return new InProcessQuartzApiClient(
             repository,
