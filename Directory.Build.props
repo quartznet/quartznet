@@ -111,7 +111,7 @@
     file because NUnit3TestAdapter's targets read EnableNUnitRunner as they are imported, before
     Directory.Build.targets. A new test project joins this list, or it builds without NUnit.
   -->
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Quartz.Tests.Unit' or '$(MSBuildProjectName)' == 'Quartz.Tests.AspNetCore' or '$(MSBuildProjectName)' == 'Quartz.Tests.Integration' or '$(MSBuildProjectName)' == 'Quartz.Tests.Interceptors' or '$(MSBuildProjectName)' == 'Quartz.Analyzers.Tests'">
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Quartz.Tests.Unit' or '$(MSBuildProjectName)' == 'Quartz.Tests.AspNetCore' or '$(MSBuildProjectName)' == 'Quartz.Tests.Aspire' or '$(MSBuildProjectName)' == 'Quartz.Tests.Integration' or '$(MSBuildProjectName)' == 'Quartz.Tests.Interceptors' or '$(MSBuildProjectName)' == 'Quartz.Analyzers.Tests'">
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 

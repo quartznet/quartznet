@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The tests of Quartz.Aspire.Hosting: the resource's application model, its public API baseline, and the
+    contract between it and the two programs it configures. It is a project of its own because it is the
+    only one that references Aspire.Hosting, whose graph asks for framework extensions above the floors that
+    Quartz.Tests.Unit names directly, and because the contract test needs the AppHost side, the dashboard
+    host and the agent in one place.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SonarQubeExclude>true</SonarQubeExclude>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="AwesomeAssertions" />
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Rendered as the other two baselines are, by the annotator the three projects share. -->
+    <Compile Include="..\Quartz.Tests.Unit\PublicApiRendering.cs" Link="PublicApiRendering.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="AwesomeAssertions.Analyzers" />
+    <PackageReference Include="PublicApiGenerator" />
+    <PackageReference Include="Verify.NUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz.Aspire.Hosting\Quartz.Aspire.Hosting.csproj" />
+    <!-- The two readers of what the resource writes, for the contract test. -->
+    <ProjectReference Include="..\Quartz.Dashboard.Host\Quartz.Dashboard.Host.csproj" />
+    <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
+</Project>

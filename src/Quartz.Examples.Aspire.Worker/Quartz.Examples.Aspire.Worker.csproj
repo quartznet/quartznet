@@ -16,6 +16,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Aspire\Quartz.Aspire.csproj" />
+    <!-- UseDashboardAgent(), which dials the scheduler out to the AppHost's Quartz dashboard. -->
+    <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
   </ItemGroup>
 
   <ItemGroup>

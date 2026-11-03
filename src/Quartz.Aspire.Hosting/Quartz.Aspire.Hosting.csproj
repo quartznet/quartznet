@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Aspire hosting integration (#3775): an AppHost resource that runs the dashboard host's container
+    image, ghcr.io/quartznet/quartz-dashboard, and the WithReference that turns a worker into one of its
+    agents. It references Aspire.Hosting and nothing of Quartz: what it hands the dashboard and the workers
+    is environment variables, and those keys are the whole contract between the three. Quartz.Tests.Aspire
+    holds it to them by feeding what this writes into the host's own reading of its settings and the
+    agent's.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Aspire.Hosting</RootNamespace>
+    <Title>Quartz.NET Aspire Hosting Integration</Title>
+    <Description>Quartz.NET Aspire hosting integration - adds the Quartz.NET dashboard to an Aspire AppHost as a container resource, attaches it to the job store databases, and dials the workers in as agents; $(Description)</Description>
+    <PackageTags>$(PackageTags);aspire;aspire-integration;aspire-hosting;dashboard</PackageTags>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!--
+      Aspire's hosting packages are not trimmed - an AppHost is an orchestrator that runs on a developer's
+      machine or in a pipeline - and nothing here is reflection, so the statement is the default's.
+    -->
+    <!--
+      Off for the reason Quartz.Dashboard.Agent gives: Aspire.Hosting 13.4.5 asks for 10.0.8 of the framework
+      extensions floored at 10.0.0 in Directory.Packages.props, and pinning them would be NU1109. Off, the
+      nuspec says Aspire.Hosting and MessagePack, and a consumer resolves the rest through Aspire.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting" />
+    <!-- GHSA-qhrr-8q5h-9q3h: Aspire.Hosting resolves MessagePack 2.5.302 through StreamJsonRpc. -->
+    <PackageReference Include="MessagePack" />
+  </ItemGroup>
+
+</Project>

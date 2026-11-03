@@ -21,12 +21,22 @@ IResourceBuilder<PostgresServerResource> postgres = builder.AddPostgres("postgre
 // ConnectionStrings:quartz.
 IResourceBuilder<PostgresDatabaseResource> quartzDb = postgres.AddDatabase("quartz");
 
+// The Quartz.NET dashboard, from Quartz.Aspire.Hosting: the ghcr.io/quartznet/quartz-dashboard image at the
+// package's own version. Its URL in the Aspire dashboard signs the browser in as an administrator, with a
+// token the AppHost generates and keeps in its user secrets.
+IResourceBuilder<QuartzDashboardResource> dashboard = builder.AddQuartzDashboard("quartz-dashboard");
+
 // WithHttpHealthCheck needs the resource to have an http or https endpoint, and throws at AppHost
 // build time when it does not. The worker's http endpoint comes from its launch profile, which is
 // why that project has a Properties/launchSettings.json and the other examples' workers do not.
+//
+// WithReference(dashboard) makes the worker one of the dashboard's agents: it sets
+// Quartz__DashboardAgent__Endpoint, Token and Target, which the worker's UseDashboardAgent() reads. The
+// worker dials out, so it waits for nothing; it keeps retrying until the dashboard answers.
 builder.AddProject<Projects.Quartz_Examples_Aspire_Worker>("worker")
     .WithReference(quartzDb)
     .WaitFor(quartzDb)
+    .WithReference(dashboard)
     .WithHttpHealthCheck("/health");
 
 builder.Build().Run();

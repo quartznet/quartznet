@@ -32,6 +32,7 @@
   <Folder Name="/Tests/">
     <Project Path="src/Quartz.Analyzers.Tests/Quartz.Analyzers.Tests.csproj" />
     <Project Path="src/Quartz.Tests.AspNetCore/Quartz.Tests.AspNetCore.csproj" />
+    <Project Path="src/Quartz.Tests.Aspire/Quartz.Tests.Aspire.csproj" />
     <Project Path="src/Quartz.Tests.AspNetCore.Host/Quartz.Tests.AspNetCore.Host.csproj" />
     <Project Path="src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj" />
     <Project Path="src/Quartz.Tests.Integration.MixedVersionNode/Quartz.Tests.Integration.MixedVersionNode.csproj" />
@@ -57,6 +58,7 @@
   </Folder>
   <Project Path="src/Quartz.Analyzers/Quartz.Analyzers.csproj" />
   <Project Path="src/Quartz.Aspire/Quartz.Aspire.csproj" />
+  <Project Path="src/Quartz.Aspire.Hosting/Quartz.Aspire.Hosting.csproj" />
   <Project Path="src/Quartz.AspNetCore/Quartz.AspNetCore.csproj" />
   <Project Path="src/Quartz.Dashboard.Agent/Quartz.Dashboard.Agent.csproj" />
   <Project Path="src/Quartz.Dashboard.Host/Quartz.Dashboard.Host.csproj" />
