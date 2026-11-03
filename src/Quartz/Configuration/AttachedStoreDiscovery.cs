@@ -70,6 +70,12 @@ internal sealed class AttachedStoreDiscovery : IHostedService, IAsyncDisposable
     private readonly ILogger<AttachedStoreDiscovery> logger;
     private readonly List<ITimer> timers = [];
 
+    // A host started with Run or RunAsync stops itself once its stopping token fires, so a second stop
+    // from elsewhere (an application's own StopAsync, a test host's dispose) runs this service's StopAsync
+    // at the same time (#4229); the timers are read and changed under this.
+    private readonly Lock gate = new();
+    private bool stopRequested;
+
     private readonly CancellationTokenSource stopping = new();
 
     private bool disposed;
@@ -107,7 +113,7 @@ internal sealed class AttachedStoreDiscovery : IHostedService, IAsyncDisposable
             if (descriptor.RediscoveryInterval is { } interval && interval > TimeSpan.Zero)
             {
                 AttachedStore watched = store;
-                timers.Add(timeProvider.CreateTimer(
+                ITimer timer = timeProvider.CreateTimer(
                     state =>
                     {
                         // Started and not awaited: a timer callback returns void, and every failure the
@@ -116,24 +122,49 @@ internal sealed class AttachedStoreDiscovery : IHostedService, IAsyncDisposable
                     },
                     state: null,
                     interval,
-                    interval));
+                    interval);
+
+                bool kept;
+                lock (gate)
+                {
+                    // A stop that began while this round ran has already taken the timers; one added now
+                    // would outlive it.
+                    kept = !stopRequested;
+                    if (kept)
+                    {
+                        timers.Add(timer);
+                    }
+                }
+
+                if (!kept)
+                {
+                    timer.Dispose();
+                }
             }
         }
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
+        ITimer[] stopped;
+        lock (gate)
+        {
+            stopRequested = true;
+            stopped = [.. timers];
+            timers.Clear();
+        }
+
+        // Outside the lock: cancelling runs the callbacks registered on the token where it is called.
         if (!stopping.IsCancellationRequested)
         {
             stopping.Cancel();
         }
 
-        foreach (ITimer timer in timers)
+        foreach (ITimer timer in stopped)
         {
             timer.Dispose();
         }
 
-        timers.Clear();
         return Task.CompletedTask;
     }
 
