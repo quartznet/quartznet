@@ -44,8 +44,10 @@ code, and use AwesomeAssertions for anything new.
 ## Coverage
 
 SonarCloud's new-code condition — 80 % of new lines — reads only what `dotnet fallout Compile UnitTest
---coverage` collects: `Quartz.Tests.Unit`, `Quartz.Tests.AspNetCore`, `Quartz.Analyzers.Tests` and
-`Quartz.Tests.Interceptors` (`build/Build.cs`, `UnitTest`). `Quartz.Tests.Integration` never feeds it, so
+--coverage` collects: `Quartz.Tests.Unit`, `Quartz.Tests.AspNetCore`, `Quartz.Analyzers.Tests`,
+`Quartz.Tests.Interceptors` and `Quartz.Tests.Aspire` (`build/Build.cs`, `UnitTest`). The dashboard host is
+tested over `WebApplicationFactory` in `Quartz.Tests.AspNetCore`; `Quartz.Aspire.Hosting` only in
+`Quartz.Tests.Aspire`, the one project that references `Aspire.Hosting`. `Quartz.Tests.Integration` never feeds it, so
 product code only an integration test reaches counts as uncovered.
 
 | Code | Unit-level test |
@@ -63,5 +65,8 @@ Per-file figures for a pull request: `https://sonarcloud.io/api/measures/compone
   `src/Quartz.Benchmark` uses: triggers, `TriggerHeader`, scheduler internals, serialization shapes.
 - **`dotnet fallout PublishTrimmed PublishAot`** is where an `IL2xxx` or `IL3xxx` shows up; see
   [architecture.md](architecture.md), "Trimming and AOT".
+- **`dotnet fallout ContainerSmoke`** builds the dashboard host's image into a local Linux Docker engine, runs
+  it and removes it. Run it when a change touches `src/Quartz.Dashboard.Host` or its csproj; it skips, with a
+  warning, where no Linux engine answers.
 - **`dotnet fallout WolverineSmoke ExamplesSmoke`** start the Wolverine sample and the examples out of
   process, and fail when an effect they assert does not arrive.

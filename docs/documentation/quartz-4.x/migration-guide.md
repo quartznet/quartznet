@@ -46,6 +46,14 @@ An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorization
 | `DashboardAgentOptions.MaxAccess` | `SchedulerAccess`, default `Administer`: the most the agent lets the dashboard do, checked after `IsOperationAllowed` and before `ReadOnly`. See [What the agent accepts](packages/dashboard-agent.md#what-the-agent-accepts) |
 | Log events `9009`, `9118` | An operation refused for a caller's role: on the HTTP API, and on the dashboard in place of `9101`. See [Log Events](log-events.md) |
 | Dashboard Action Log: *Refused* | An action refused for the visitor's role, beside *Complete* and *Error* |
+| `DashboardAgentConfigurationExtensions.UseDashboardAgent(this IQuartzBuilder)` | No callback: the agent is configured from `Quartz:DashboardAgent`, or a named scheduler's `Quartz:Schedulers:{name}:DashboardAgent`. See [From configuration](packages/dashboard-agent.md#from-configuration) |
+| Package `Quartz.Dashboard.Host` | The dashboard as the `quartz-dashboard` tool and the `ghcr.io/quartznet/quartz-dashboard` image, configured from `Quartz:Dashboard` alone. No public API. See [Dashboard Host](packages/dashboard-host.md) |
+| Package `Quartz.Aspire.Hosting` | `AddQuartzDashboard`, `WithAttachedStore`, `WithReference(dashboard)`, `QuartzDashboardResource` and `QuartzAttachedStoreSettings`, in the `Aspire.Hosting` namespaces. See [Aspire Hosting](packages/aspire-hosting.md) |
+| Log events `9400`–`9409` | The dashboard host's start, its refusals to start, `Unsecured` mode and sign-ins. See [Log Events](log-events.md) |
+
+| Changed | What to check |
+|---|---|
+| `UseDashboardAgent(configure)` | Reads `Quartz:DashboardAgent` from the container's configuration first, then runs the callback. An application with no such section, or one that sets the same options in the callback, is unaffected |
 
 ## Upgrading from 4.6 to 4.7
 

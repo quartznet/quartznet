@@ -67,6 +67,39 @@ public static class DashboardAgentSamples
         #endregion
     }
 
+    public static void FromConfiguration(string[] args)
+    {
+        #region sample_dashboard_agent_from_configuration
+
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+        builder.AddQuartz(q =>
+        {
+            // Endpoint, Token and Target come from Quartz:DashboardAgent - an Aspire AppHost's
+            // WithReference(dashboard) sets them as Quartz__DashboardAgent__* environment variables.
+            q.UseDashboardAgent();
+        });
+
+        builder.AddQuartzHostedService();
+
+        #endregion
+    }
+
+    public static void FromConfigurationWithCode(HostApplicationBuilder builder)
+    {
+        #region sample_dashboard_agent_configuration_and_code
+
+        builder.AddQuartz(q =>
+        {
+            // Configuration is read first; what the callback sets wins. The delegates have no
+            // spelling in a settings file, so they are written here.
+            q.UseDashboardAgent(agent =>
+                agent.IsJobTypeAllowed = name => name.StartsWith("Acme.Jobs.", StringComparison.Ordinal));
+        });
+
+        #endregion
+    }
+
     public static void Narrowed(HostApplicationBuilder builder)
     {
         #region sample_dashboard_agent_narrowed

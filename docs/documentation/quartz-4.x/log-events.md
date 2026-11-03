@@ -430,6 +430,16 @@ matching on its text is not.
 | 9303 | Information | `Quartz.Dashboard.Agent` | `"Connection to {Endpoint} closed: {Reason}; reconnecting"` |
 | 9304 | Warning | `Quartz.Dashboard.Agent` | `"Operation {Operation} refused: {Reason}"` |
 | 9305 | Error | `Quartz.Dashboard.Agent` | `"Operation {Operation} failed"` |
+| 9400 | Information | `Quartz.Dashboard.Host` | `"Dashboard host started at {DashboardPath}: authentication {Mode}, {HttpTargets} HTTP target(s), {StoreTargets} attached store(s), accepting agents: {AcceptsAgents}"` |
+| 9401 | Warning | `Quartz.Dashboard.Host` | `"Authentication is Unsecured: every visitor is signed in, without a credential, at {Access}. Use Token or OpenIdConnect anywhere a visitor is not already trusted"` |
+| 9402 | Critical | `Quartz.Dashboard.Host` | `"The dashboard host refuses to start: {Problem}"` |
+| 9403 | Information | `Quartz.Dashboard.Host` | `"A visitor signed in as {Role} through {Via}"` |
+| 9404 | Warning | `Quartz.Dashboard.Host` | `"A sign-in through {Via} was refused: the token matched no role"` |
+| 9405 | Warning | `Quartz.Dashboard.Host` | `"A token in the address was refused: Quartz:Dashboard:Authentication:AllowTokenInUrl is not set"` |
+| 9406 | Information | `Quartz.Dashboard.Host` | `"A visitor signed out"` |
+| 9407 | Information | `Quartz.Dashboard.Host` | `"HTTP target {Target} reaches scheduler {SchedulerName} at {Address}"` |
+| 9408 | Information | `Quartz.Dashboard.Host` | `"Store-attached target {Target} reads a {Provider} database with the {Serializer} serializer"` |
+| 9409 | Information | `Quartz.Dashboard.Host` | `"Accepting agents at {HubPath}. Run one instance of the host while it accepts agents"` |
 | 10000 | Information | `Quartz.Weasel` | `"Applied the schema changes scheduler '{SchedulerName}' needs to {Database} ({Difference})"` |
 | 10001 | Debug | `Quartz.Weasel` | `"The schema of scheduler '{SchedulerName}' in {Database} already matches the model"` |
 | 10002 | Information | `Quartz.Weasel` | `"Not applying the schema of scheduler '{SchedulerName}' at startup, because AutoCreate is {AutoCreate}; the store still validates it"` |

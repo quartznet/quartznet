@@ -45,3 +45,7 @@ source stays identical.
   GITHUB_REPOSITORY=quartznet/quartznet GITHUB_TOKEN=$(gh auth token) dotnet fallout Pack
   DraftRelease`, then delete the draft; a local tag is stamped `-dev` instead and `--skip` skips a
   target's dependencies, not the target.
+- **The same tag publishes the dashboard image.** `publish-container.yml`, hand-written, runs
+  `PublishContainer` and attests the digest: `X.Y.Z`, plus `X.Y`, `X` and `latest` only when the release is the
+  newest of its line (read from the tags), and a prerelease under its exact version. A patch on an older line
+  never moves `latest`. Nothing is published from a branch.

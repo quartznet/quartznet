@@ -122,3 +122,6 @@ Every setting, the provider-inference table and the connection ladder in full:
 
 The AppHost beside this worker, the health probe, the schema and the dashboard:
 <https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/aspire.html>
+
+The Quartz.NET dashboard as an AppHost resource is
+[Quartz.Aspire.Hosting](https://www.nuget.org/packages/Quartz.Aspire.Hosting).

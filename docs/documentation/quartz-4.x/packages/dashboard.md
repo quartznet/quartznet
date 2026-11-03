@@ -5,6 +5,12 @@ title: Dashboard
 [Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) is a Blazor dashboard for Quartz.NET. It runs
 inside your ASP.NET Core application and renders the schedulers registered in that application.
 
+::: tip No web application to host it in?
+From 4.8 the dashboard also ships as a program of its own, configured from settings alone: the `quartz-dashboard`
+tool and the `ghcr.io/quartznet/quartz-dashboard` image. See [Dashboard Host](dashboard-host.md), and
+[Aspire Hosting](aspire-hosting.md) to run it from an Aspire AppHost.
+:::
+
 ## Features
 
 Fourteen pages, listed under [The pages](#the-pages).

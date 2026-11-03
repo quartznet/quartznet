@@ -35,6 +35,10 @@ builder.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
+`UseDashboardAgent()` with no callback takes `Endpoint`, `Token` and `Target` from `Quartz:DashboardAgent` in
+configuration, which is what an Aspire AppHost's `WithReference(dashboard)` writes; the callback overload reads
+the same section first.
+
 `Target` is the first half of the scheduler's key on the dashboard, `worker-1/QuartzScheduler`; it defaults to
 the machine name. The token goes as an `Authorization: Bearer` header, never in the URL. The agent
 reconnects for as long as the scheduler runs, and a dashboard that is down when the worker starts is
