@@ -3,6 +3,7 @@ using System.Net;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -163,6 +164,7 @@ public class DashboardEndpointsTest
         // the dashboard path; the root-level asset endpoint stays for backwards compatibility
         patterns.Should().Contain("/ops/scheduler/_framework/blazor.web.js");
         patterns.Should().Contain("/ops/scheduler/_framework/opaque-redirect");
+        patterns.Should().Contain("/ops/scheduler/_framework/{**file}");
         patterns.Should().Contain("/ops/scheduler/_content/Quartz.Dashboard/{**path}");
         patterns.Should().Contain("_content/Quartz.Dashboard/{**path}");
     }
@@ -194,6 +196,8 @@ public class DashboardEndpointsTest
             .Metadata.GetMetadata<IAuthorizeData>()!.Policy.Should().Be("dashboard-policy");
         endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_framework/opaque-redirect")
             .Metadata.GetMetadata<IAuthorizeData>()!.Policy.Should().Be("dashboard-policy");
+        endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_framework/{**file}")
+            .Metadata.GetMetadata<IAuthorizeData>()!.Policy.Should().Be("dashboard-policy");
         endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_content/Quartz.Dashboard/{**path}")
             .Metadata.GetMetadata<IAuthorizeData>()!.Policy.Should().Be("dashboard-policy");
     }
@@ -218,6 +222,8 @@ public class DashboardEndpointsTest
         endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_framework/blazor.web.js")
             .Metadata.GetMetadata<IAllowAnonymous>().Should().NotBeNull();
         endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_framework/opaque-redirect")
+            .Metadata.GetMetadata<IAllowAnonymous>().Should().NotBeNull();
+        endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_framework/{**file}")
             .Metadata.GetMetadata<IAllowAnonymous>().Should().NotBeNull();
         endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_content/Quartz.Dashboard/{**path}")
             .Metadata.GetMetadata<IAllowAnonymous>().Should().NotBeNull();
@@ -560,6 +566,77 @@ public class DashboardEndpointsTest
             // surface as a test error rather than passing vacuously
             using HttpResponseMessage response = await client.GetAsync("/my-api/quartz/_framework/opaque-redirect");
             response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
+        }
+        finally
+        {
+            await app.StopAsync();
+        }
+    }
+
+    /// <summary>
+    /// The dashboard-rooted base sends every relative framework request under the dashboard path, not only
+    /// <c>blazor.web.js</c> and <c>opaque-redirect</c>. A host built in Debug with the .NET 11 SDK lists a
+    /// hot-reload initializer module among the page's Blazor initializers, and a 404 on it stops
+    /// <c>Blazor.start</c> (#4224).
+    /// </summary>
+    [Test]
+    public async Task CustomDashboardPathShouldForwardAnyFrameworkFileToTheHostsRootEndpoint()
+    {
+        const string Initializer = "Microsoft.NET.Sdk.BlazorWeb.DotNetWatch.abc123.lib.module.js";
+        await using WebApplication app = CreateApp(options => options.DashboardPath = "/my-api/quartz");
+        app.MapQuartzDashboard().AllowAnonymous();
+
+        // As MapStaticAssets registers them: a literal route per file, with or without the leading slash
+        app.MapGet("/_framework/" + Initializer, () => Results.Text("export function beforeWebStart() { }", "text/javascript")).AllowAnonymous();
+        app.MapGet("_framework/Microsoft.NET.Sdk.BlazorWeb.DotNetWatch.BrowserTools.js", () => Results.Text("// tools", "text/javascript")).AllowAnonymous();
+
+        await app.StartAsync();
+        try
+        {
+            using HttpClient client = app.GetTestClient();
+
+            using HttpResponseMessage initializer = await client.GetAsync("/my-api/quartz/_framework/" + Initializer);
+            initializer.StatusCode.Should().Be(HttpStatusCode.OK);
+            (await initializer.Content.ReadAsStringAsync()).Should().Contain("beforeWebStart");
+
+            using HttpResponseMessage sibling = await client.GetAsync("/my-api/quartz/_framework/Microsoft.NET.Sdk.BlazorWeb.DotNetWatch.BrowserTools.js");
+            sibling.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            using HttpResponseMessage missing = await client.GetAsync("/my-api/quartz/_framework/nothing-serves-this.js");
+            missing.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+            using HttpResponseMessage climbing = await client.GetAsync("/my-api/quartz/_framework/..%2F..%2Fappsettings.json");
+            climbing.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        }
+        finally
+        {
+            await app.StopAsync();
+        }
+    }
+
+    /// <summary>
+    /// A host that serves static web assets through <c>UseStaticFiles</c> rather than
+    /// <c>MapStaticAssets</c> has no endpoint for a framework file, and the web root has it.
+    /// </summary>
+    [Test]
+    public async Task CustomDashboardPathShouldServeFrameworkFilesFromTheWebRoot()
+    {
+        const string Initializer = "_framework/Microsoft.NET.Sdk.BlazorWeb.DotNetWatch.abc123.lib.module.js";
+        await using WebApplication app = CreateApp(
+            options => options.DashboardPath = "/my-api/quartz",
+            builder => builder.Environment.WebRootFileProvider = new TestFileProvider(new Dictionary<string, byte[]>
+            {
+                [Initializer] = "export function beforeWebStart() { }"u8.ToArray(),
+            }));
+        app.MapQuartzDashboard().AllowAnonymous();
+        await app.StartAsync();
+        try
+        {
+            using HttpClient client = app.GetTestClient();
+
+            using HttpResponseMessage response = await client.GetAsync("/my-api/quartz/" + Initializer);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.Content.Headers.ContentType!.MediaType.Should().Be("text/javascript");
         }
         finally
         {
