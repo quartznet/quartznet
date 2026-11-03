@@ -42,7 +42,8 @@ dialled again until it answers.
 
 The agent refuses every job type until `IsJobTypeAllowed` says which it accepts, because the connection
 crosses a trust boundary and a job type is a string the dashboard sends. `ReadOnly` refuses every
-mutation and `IsOperationAllowed` refuses by route name; all three are decided in the worker's process,
+mutation, `IsOperationAllowed` refuses by route name, and `MaxAccess` by operator role (`Operate` keeps
+the worker running and refuses changes to what it holds); all four are decided in the worker's process,
 and nothing the dashboard sends can widen them.
 
 ## Documentation

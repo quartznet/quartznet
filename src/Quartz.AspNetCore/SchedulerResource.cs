@@ -60,16 +60,17 @@ public sealed record SchedulerResource(string SchedulerName)
     /// the caller may see the scheduler. Added in 4.8.
     /// </summary>
     /// <remarks>
-    /// Set on the resource an <c>OperationAuthorizationPolicy</c> is evaluated against, never on the one
-    /// the <c>SchedulerAuthorizationPolicy</c> is, so a handler written for the second before 4.8 is asked
-    /// the same question it always was.
+    /// Never set on the resource a <c>SchedulerAuthorizationPolicy</c> is evaluated against, so a handler
+    /// written for that policy before 4.8 is asked the same question it always was. An
+    /// <c>OperationAuthorizationPolicy</c> is asked with it set, except for the dashboard's question whether
+    /// a visitor may see a scheduler at all, which carries <see cref="Access" /> <c>View</c> and no operation.
     /// </remarks>
     public string? Operation { get; init; }
 
     /// <summary>
-    /// The operator role <see cref="Operation" /> needs — <see cref="SchedulerAccess.Administer" /> for a
-    /// trigger-now that carries job data — or <see langword="null" /> beside a null
-    /// <see cref="Operation" />. Added in 4.8.
+    /// The operator role the call needs — <see cref="SchedulerAccess.Administer" /> for a trigger-now that
+    /// carries job data — or <see langword="null" /> on the resource a <c>SchedulerAuthorizationPolicy</c> is
+    /// evaluated against. Added in 4.8.
     /// </summary>
     /// <remarks>
     /// The level the HTTP API's route table gives the operation, decided by the surface that asks, so a

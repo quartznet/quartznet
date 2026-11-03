@@ -25,19 +25,26 @@ Use GitHub's private vulnerability reporting:
 These four come up regularly. Each is a deliberate design decision, documented where it applies, and a
 report of one will be closed with a link back to this section — so please save your time and ours.
 
-- **An authorized caller of the HTTP API or the dashboard is trusted fully — including with code
-  execution on the host.** Quartz has no per-operation permission model: whoever passes the authorization
-  you configured can schedule, trigger, pause, delete and shut down every scheduler they can see, and can
-  read every job's data map. A job's type is a string the request carries; Quartz will only construct a
-  type that implements `IJob`, but `NativeJob` implements `IJob` and starts the executable its job data
-  names, so an authorized caller scheduling it is the API working as designed. `Quartz.Plugins` depends
-  on `Quartz.Jobs`, so that type can be on the probing path of an application whose project file never
-  names it. A job stored by one node is likewise resolved and constructed on **every** node that reads
-  it, which is what a clustered scheduler is for. Five narrowings are on offer, and no more:
-  `QuartzDashboardOptions.ReadOnly`, the two `SchedulerAuthorizationPolicy` settings, and — from 4.1 —
-  `QuartzHttpApiOptions.ReadOnly`, which refuses every mutating route of the HTTP API whoever asks, and
-  `QuartzHttpApiOptions.IsJobTypeAllowed` and its dashboard twin, a predicate over the job type *name* a
-  request carries, which is what turns "any `IJob` on the probing path" into a list an operator wrote.
+- **An authorized caller of the HTTP API or the dashboard is trusted with everything their role
+  allows — and an administrator, or any caller where no role is configured, with code execution on
+  the host.** Whoever passes the authorization you configured can, unless an operator role says
+  otherwise, schedule, trigger, pause, delete and shut down every scheduler they can see, and every
+  caller who may view can read every job's data map. A job's type is a string the request carries;
+  Quartz will only construct a type that implements `IJob`, but `NativeJob` implements `IJob` and starts
+  the executable its job data names, so an authorized caller scheduling it is the API working as
+  designed. `Quartz.Plugins` depends on `Quartz.Jobs`, so that type can be on the probing path of an
+  application whose project file never names it. A job stored by one node is likewise resolved and
+  constructed on **every** node that reads it, which is what a clustered scheduler is for. These
+  narrowings are on offer, and no more: `QuartzDashboardOptions.ReadOnly`, the two
+  `SchedulerAuthorizationPolicy` settings, and — from 4.1 — `QuartzHttpApiOptions.ReadOnly`, which
+  refuses every mutating route of the HTTP API whoever asks, and `QuartzHttpApiOptions.IsJobTypeAllowed`
+  and its dashboard twin, a predicate over the job type *name* a request carries, which is what turns
+  "any `IJob` on the probing path" into a list an operator wrote; and — from 4.8 — the two
+  `OperationAuthorizationPolicy` settings, which give each caller an operator role: a viewer reads, an
+  operator pauses, resumes, triggers without job data and interrupts, and only an administrator adds,
+  schedules, deletes, shuts down or triggers with job data, so neither of the first two can name a job
+  type or supply the data a `NativeJob` runs. A role is per caller, not per scheduler, and the
+  dashboard's visitor is not forwarded to an agent or an HTTP target, which see the dashboard.
   Authorize these surfaces the way you would authorize a shell —
   [HTTP API](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/http-api.html#production-hardening),
   [dashboard](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard.html#production-hardening).
@@ -48,8 +55,9 @@ report of one will be closed with a link back to this section — so please save
   store a job by type name until `DashboardAgentOptions.IsJobTypeAllowed` says which types it takes,
   precisely because `NativeJob` can be on the probing path. The narrowings are the agent's own and
   are the only ones that hold against a compromised dashboard: `DashboardAgentOptions.ReadOnly`,
-  `IsJobTypeAllowed`, `IsOperationAllowed`. The dashboard's `ReadOnly` hides buttons; it does not
-  bind an agent. Tokens are shared secrets with two slots for rotation; keep them in a secret store,
+  `IsJobTypeAllowed`, `IsOperationAllowed` and — from 4.8 — `MaxAccess`, the operator role the agent
+  grants the dashboard. The dashboard's `ReadOnly` and its operator roles hide buttons and bind its
+  visitors; they do not bind an agent. Tokens are shared secrets with two slots for rotation; keep them in a secret store,
   and treat the dashboard host as the trust anchor of the fleet —
   [dashboard agent](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard-agent.html#trust-model).
 - **There is no rate limiting on any Quartz surface**, by design. ASP.NET Core's own rate limiter

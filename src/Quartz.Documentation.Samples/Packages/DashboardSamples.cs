@@ -255,6 +255,31 @@ public static class DashboardSamples
         #endregion
     }
 
+    public static void OperatorRoles(WebApplicationBuilder builder)
+    {
+        #region sample_dashboard_operator_roles
+
+        builder.Services.AddAuthorizationBuilder()
+            .AddPolicy("Operations", policy => policy.RequireAuthenticatedUser())
+            .AddPolicy("QuartzOperators", policy => policy.RequireSchedulerRoles(roles =>
+            {
+                roles.Viewers.Add("ops-readonly");
+                roles.Operators.Add("ops-oncall");
+                roles.Administrators.Add("ops-admin");
+            }));
+
+        builder.Services.AddQuartzDashboard(options =>
+        {
+            // Who reaches the dashboard at all
+            options.AuthorizationPolicy = "Operations";
+
+            // What each of them may do once they are in
+            options.OperationAuthorizationPolicy = "QuartzOperators";
+        });
+
+        #endregion
+    }
+
     public static void AcceptAgents(WebApplicationBuilder builder)
     {
         #region sample_dashboard_accept_agents

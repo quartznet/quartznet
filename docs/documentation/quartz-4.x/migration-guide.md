@@ -18,7 +18,8 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.6 | [Upgrading from 4.6 to 4.7](#upgrading-from-4-6-to-4-7). It has a database migration |
+| From 4.7 | [Upgrading from 4.7 to 4.8](#upgrading-from-4-7-to-4-8) |
+| From 4.6 | [Upgrading from 4.6 to 4.7](#upgrading-from-4-6-to-4-7). It has a database migration. Then 4.7 to 4.8 |
 | From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). It has a database migration. Then 4.6 to 4.7 |
 | From 4.4 | [Upgrading from 4.4 to 4.5](#upgrading-from-4-4-to-4-5). No database migration. Then 4.5 to 4.6 |
 | From 4.3 | [Upgrading from 4.3 to 4.4](#upgrading-from-4-3-to-4-4). Its database migration is optional. Then 4.4 to 4.5 |
@@ -28,6 +29,23 @@ If you are a new user starting with the latest version, you don't need to follow
 | Nothing: you are starting a new project | The [quick start](quick-start.md), then [the tutorial](tutorial/) |
 
 The compiler finds most of the 3.x → 4.0 work.
+
+## Upgrading from 4.7 to 4.8
+
+An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorizationPolicy` set and the default
+`MaxAccess`, the HTTP API, the dashboard and the dashboard agent allow and refuse exactly what they did.
+
+| Added | What it is |
+|---|---|
+| `SchedulerAccess` | Enum `View`, `Operate`, `Administer`: the operator role an operation needs. See [Operator roles](packages/http-api.md#operator-roles) |
+| `SchedulerResource.Operation`, `SchedulerResource.Access` | `string?` and `SchedulerAccess?`, `init`: the operation an operation policy is asked about and the role it needs. Both `null` on the resource a `SchedulerAuthorizationPolicy` is asked with |
+| `QuartzHttpApiOptions.OperationAuthorizationPolicy` | `string?`, default none: every route is held to the role it needs, `TriggerJob` with job data to `Administer`, and the listing to `View`. A refusal is `403`. See [Operator roles](packages/http-api.md#operator-roles) |
+| `QuartzDashboardOptions.OperationAuthorizationPolicy` | `string?`, default none: the dashboard offers and allows what the visitor's role does, under `ReadOnly`. See [Operator roles](packages/dashboard.md#operator-roles) |
+| `SchedulerRoles` | `Viewers`, `Operators`, `Administrators` (`List<string>`) and `Operations` (`Dictionary<string, SchedulerAccess>`, per-operation overrides) |
+| `SchedulerRolesAuthorizationExtensions.RequireSchedulerRoles(this AuthorizationPolicyBuilder, Action<SchedulerRoles>)` | Builds an operation policy from the application's roles. The requirement is its own handler |
+| `DashboardAgentOptions.MaxAccess` | `SchedulerAccess`, default `Administer`: the most the agent lets the dashboard do, checked after `IsOperationAllowed` and before `ReadOnly`. See [What the agent accepts](packages/dashboard-agent.md#what-the-agent-accepts) |
+| Log events `9009`, `9118` | An operation refused for a caller's role: on the HTTP API, and on the dashboard in place of `9101`. See [Log Events](log-events.md) |
+| Dashboard Action Log: *Refused* | An action refused for the visitor's role, beside *Complete* and *Error* |
 
 ## Upgrading from 4.6 to 4.7
 

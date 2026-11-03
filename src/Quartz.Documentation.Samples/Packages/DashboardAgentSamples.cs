@@ -84,6 +84,10 @@ public static class DashboardAgentSamples
                 // Or keep writes and refuse by route name — the operation ids the HTTP API publishes.
                 agent.IsOperationAllowed = operation => operation is not ("Shutdown" or "Clear" or "DeleteJobs");
 
+                // Or by operator role: Operate keeps the worker running (pause, resume, trigger without
+                // job data, interrupt) and refuses everything that changes what it holds.
+                agent.MaxAccess = SchedulerAccess.Operate;
+
                 // The job types the agent will store, matched on the name as the request wrote it.
                 agent.IsJobTypeAllowed = name => name.StartsWith("Acme.Jobs.", StringComparison.Ordinal);
             });
