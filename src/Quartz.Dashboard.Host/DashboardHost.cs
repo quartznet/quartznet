@@ -70,7 +70,22 @@ internal static class DashboardHost
 
         // A request's address is logged at Information by the hosting layer, and an address can carry a token
         // (?t=, or a mistyped one). Held at Warning whatever the configuration says: the host never logs a token.
-        builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
+        // A rule that names a provider outranks one that does not, so a rule with no provider would lose to
+        // Logging:Console:LogLevel:Default=Information. A rule for every provider the configuration names, and for
+        // none, comes after the configured ones, and the last rule that matches decides among equals.
+        builder.Services.PostConfigure<LoggerFilterOptions>(options =>
+        {
+            string?[] providers = [.. options.Rules.Select(rule => rule.ProviderName).Distinct(StringComparer.Ordinal)];
+            if (!providers.Contains(null))
+            {
+                providers = [.. providers, null];
+            }
+
+            foreach (string? provider in providers)
+            {
+                options.Rules.Add(new LoggerFilterRule(provider, "Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning, filter: null));
+            }
+        });
 
         DashboardHostPlan plan = DashboardHostPlan.Read(builder.Configuration);
         string dashboardPath = DashboardPath(plan.Settings.DashboardPath);

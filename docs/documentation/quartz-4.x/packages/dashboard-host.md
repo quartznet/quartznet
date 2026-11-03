@@ -69,7 +69,7 @@ code 1, as it does for any other mistake in its settings.
   `Roles:Operations:AddCalendar=Operate`. A name the HTTP API does not publish refuses the start.
 
 The host never logs a token: the hosting layer's request lines, which carry the address and its query, are held
-at `Warning` whatever `Logging` says.
+at `Warning` whatever `Logging` says, per-provider settings such as `Logging:Console:LogLevel` included.
 
 ## Targets
 

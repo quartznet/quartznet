@@ -210,6 +210,10 @@ public sealed class DashboardHostSignInTest
             ["Logging:LogLevel:Default"] = "Trace",
             ["Logging:LogLevel:Microsoft.AspNetCore"] = "Trace",
             ["Logging:LogLevel:Microsoft.AspNetCore.Hosting.Diagnostics"] = "Trace",
+            // A rule that names a provider outranks one that does not, so this is the setting that would let
+            // the request line through if the host's hold were a rule with no provider.
+            [$"Logging:{typeof(RecordingLoggerProvider).FullName}:LogLevel:Default"] = "Trace",
+            [$"Logging:{typeof(RecordingLoggerProvider).FullName}:LogLevel:Microsoft.AspNetCore.Hosting.Diagnostics"] = "Trace",
         });
         using HttpClient browser = host.Browser();
 
