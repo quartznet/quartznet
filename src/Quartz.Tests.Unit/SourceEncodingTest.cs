@@ -23,9 +23,12 @@ public class SourceEncodingTest
 
     /// <summary>
     /// Verify writes its snapshots with a byte-order mark. They are its output rather than ours, so
-    /// stripping one only means the next regeneration puts it back and this test fights the tool.
+    /// stripping one only means the next regeneration puts it back and this test fights the tool. So is
+    /// the <c>.received.</c> file a failed snapshot leaves beside one, which git ignores: without the
+    /// exemption, a snapshot test failing in one test project fails this test too when it runs later in
+    /// the same checkout, as a runtime leg that runs every project does.
     /// </summary>
-    private const string SnapshotMarker = ".verified.";
+    private static readonly string[] SnapshotMarkers = [".verified.", ".received."];
 
     [Test]
     public void NoFileUnderSourceStartsWithAByteOrderMark()
@@ -49,7 +52,7 @@ public class SourceEncodingTest
             + Environment.NewLine
             + "Save the file as \"UTF-8\" rather than \"UTF-8 with signature\"; from Python write it with "
             + "encoding=\"utf-8\", never utf-8-sig; from PowerShell with -Encoding utf8NoBOM. Files named "
-            + $"*{SnapshotMarker}* are exempt, because Verify writes the mark and would put it straight back");
+            + $"{string.Join(" or ", SnapshotMarkers.Select(x => $"*{x}*"))} are exempt, because Verify writes the mark and would put it straight back");
     }
 
     private static bool StartsWithByteOrderMark(FileInfo file)
@@ -66,7 +69,7 @@ public class SourceEncodingTest
     {
         foreach (FileInfo file in directory.EnumerateFiles())
         {
-            if (!file.Name.Contains(SnapshotMarker, StringComparison.Ordinal))
+            if (!SnapshotMarkers.Any(x => file.Name.Contains(x, StringComparison.Ordinal)))
             {
                 yield return file;
             }
