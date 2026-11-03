@@ -15,13 +15,28 @@ namespace Quartz
         public bool IncludeStackTraceInProblemDetails { get; set; }
         public System.Func<string, bool>? IsJobTypeAllowed { get; set; }
         public int MaxPageSize { get; set; }
+        public string? OperationAuthorizationPolicy { get; set; }
         public bool ReadOnly { get; set; }
         public string? SchedulerAuthorizationPolicy { get; set; }
     }
     public sealed record SchedulerResource : System.IEquatable<Quartz.SchedulerResource>
     {
         public SchedulerResource(string SchedulerName) { }
+        public Quartz.SchedulerAccess? Access { get; init; }
+        public string? Operation { get; init; }
         public string SchedulerName { get; init; }
         public string? Target { get; init; }
+    }
+    public sealed class SchedulerRoles
+    {
+        public SchedulerRoles() { }
+        public System.Collections.Generic.List<string> Administrators { get; }
+        public System.Collections.Generic.Dictionary<string, Quartz.SchedulerAccess> Operations { get; }
+        public System.Collections.Generic.List<string> Operators { get; }
+        public System.Collections.Generic.List<string> Viewers { get; }
+    }
+    public static class SchedulerRolesAuthorizationExtensions
+    {
+        public static Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder RequireSchedulerRoles(this Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder builder, System.Action<Quartz.SchedulerRoles> configure) { }
     }
 }

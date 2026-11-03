@@ -40,6 +40,18 @@ internal sealed class TestSchedulerAuthorizationService : IAuthorizationService
         throw new NotSupportedException("The dashboard evaluates a named policy, never a bare requirement set.");
     }
 
+    /// <summary>
+    /// The operator role the visitor holds under the operation policy, or <see langword="null" /> for none:
+    /// what <c>RequireSchedulerRoles</c> would answer, without a principal and a role claim to read it from.
+    /// </summary>
+    public SchedulerAccess? Role { get; set; }
+
+    /// <summary>
+    /// The policy name the operation policy is configured under, which is how a question is told from the
+    /// scheduler policy's: the dashboard asks both about the same <see cref="SchedulerResource" /> shape.
+    /// </summary>
+    public const string OperationPolicyName = "QuartzOperators";
+
     public async Task<AuthorizationResult> AuthorizeAsync(ClaimsPrincipal user, object? resource, string policyName)
     {
         Asked.Add((policyName, resource));
@@ -49,7 +61,9 @@ internal sealed class TestSchedulerAuthorizationService : IAuthorizationService
             await Task.Yield();
         }
 
-        bool succeeded = resource is SchedulerResource scheduler && Allowed.Contains(scheduler.SchedulerName);
+        bool succeeded = policyName == OperationPolicyName
+            ? resource is SchedulerResource { Access: { } access } && Role >= access
+            : resource is SchedulerResource scheduler && Allowed.Contains(scheduler.SchedulerName);
         return succeeded ? AuthorizationResult.Success() : AuthorizationResult.Failed();
     }
 }

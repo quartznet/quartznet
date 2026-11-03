@@ -110,7 +110,8 @@ internal static class SchedulerEndpoints
     /// <para>
     /// This route names no scheduler, so the endpoint filter has nothing to check and the listing filters
     /// itself: with <see cref="QuartzHttpApiOptions.SchedulerAuthorizationPolicy" /> set, a caller is told
-    /// about the schedulers they may act on and no others.
+    /// about the schedulers they may act on and no others, and with
+    /// <see cref="QuartzHttpApiOptions.OperationAuthorizationPolicy" /> set, about the ones they may view.
     /// </para>
     /// </remarks>
     [ProducesResponseType(typeof(SchedulerHeaderDto[]), StatusCodes.Status200OK)]
@@ -122,13 +123,30 @@ internal static class SchedulerEndpoints
         CancellationToken cancellationToken = default)
     {
         string? policyName = apiOptions.Value.SchedulerAuthorizationPolicy;
+        string? operationPolicyName = apiOptions.Value.OperationAuthorizationPolicy;
 
         SchedulerHeaderDto[] result = await SchedulerOperations.GetAllSchedulers(
             schedulerRegistry,
-            (name, token) => SchedulerAuthorization.IsAuthorized(httpContext, policyName, name, token),
+            (name, token) => IsListed(httpContext, policyName, operationPolicyName, name, token),
             cancellationToken).ConfigureAwait(false);
 
         return endpointHelper.JsonResponse(result);
+    }
+
+    /// <summary>
+    /// Whether the listing names <paramref name="schedulerName" /> to this caller: one they may see, and
+    /// may view under the operation policy when there is one.
+    /// </summary>
+    private static async ValueTask<bool> IsListed(
+        HttpContext httpContext,
+        string? policyName,
+        string? operationPolicyName,
+        string schedulerName,
+        CancellationToken cancellationToken)
+    {
+        return await SchedulerAuthorization.IsAuthorized(httpContext, policyName, schedulerName, cancellationToken).ConfigureAwait(false)
+               && await OperationAuthorization.IsAllowed(
+                   httpContext, operationPolicyName, schedulerName, SchedulerRoutes.GetAllSchedulers, SchedulerAccess.View, cancellationToken).ConfigureAwait(false);
     }
 
     [ProducesResponseType(typeof(SchedulerDto), StatusCodes.Status200OK)]

@@ -6,6 +6,7 @@
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
@@ -29,7 +30,7 @@
     else
     {
         <h2>@CalendarName</h2>
-        @if (!IsReadOnly)
+        @if (CanDelete)
         {
             <div class="qz-actions qz-group-actions">
                 <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete calendar</button>
@@ -67,7 +68,11 @@
     [Parameter]
     public string CalendarName { get; set; } = string.Empty;
 
-    private bool IsReadOnly => Options.Value.ReadOnly;
+    /// <summary>
+    /// Whether the visitor may delete the calendar: never while the dashboard is read-only, and only at
+    /// their role's level under an operation policy.
+    /// </summary>
+    private bool CanDelete => Authorization.Allows(Scheduler.ActiveSchedulerName, Quartz.HttpApiContract.SchedulerRoutes.DeleteCalendar);
 
     protected override async Task OnInitializedAsync()
     {
@@ -102,6 +107,7 @@
                 return;
             }
 
+            await Authorization.LoadOperations(schedulerName);
             _calendar = await Api.GetCalendar(schedulerName, CalendarName);
             BuildPropertyRows(_calendar);
         }
@@ -135,7 +141,7 @@
     private async Task ConfirmDeleteAsync()
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        if (!CanDelete || string.IsNullOrWhiteSpace(schedulerName))
         {
             _showDeleteConfirm = false;
             return;
@@ -159,7 +165,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, "DeleteCalendar", CalendarName, succeeded: false, ex.Message);
+            ActionLog.Failed(schedulerName, "DeleteCalendar", CalendarName, ex);
             Toasts.Error(ex.Message);
             _showDeleteConfirm = false;
         }

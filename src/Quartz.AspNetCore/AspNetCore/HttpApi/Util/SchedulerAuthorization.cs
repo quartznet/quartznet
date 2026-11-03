@@ -57,7 +57,7 @@ internal static class SchedulerAuthorization
         });
     }
 
-    private static bool NamesAScheduler(RoutePattern pattern)
+    internal static bool NamesAScheduler(RoutePattern pattern)
     {
         return pattern.Parameters.Any(parameter => string.Equals(parameter.Name, SchedulerNameRouteValue, StringComparison.Ordinal));
     }

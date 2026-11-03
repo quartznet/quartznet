@@ -34,3 +34,5 @@
     "Agent {Target} missed {Missed} heartbeats; scheduler {SchedulerName} is reported Unknown"
 9117  Error  DashboardLog.AgentSweepFailed
     "The agent liveness sweep failed; the next one runs in {Interval}"
+9118  Warning  DashboardLog.ActionRefused
+    "Dashboard user {User} was refused {Action} on {Target} of scheduler {SchedulerName}: it needs {Access} (origin {Origin}, node {Node})"

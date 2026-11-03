@@ -251,6 +251,17 @@ internal sealed class DashboardComponentContext : BunitContext
     public const string SchedulerPolicyName = "SchedulerOwner";
 
     /// <summary>
+    /// Configures <see cref="QuartzDashboardOptions.OperationAuthorizationPolicy" /> and gives the visitor
+    /// <paramref name="role" /> under it — or no role at all.
+    /// </summary>
+    public DashboardComponentContext WithOperatorRole(SchedulerAccess? role)
+    {
+        Options.OperationAuthorizationPolicy = TestSchedulerAuthorizationService.OperationPolicyName;
+        AuthorizationService.Role = role;
+        return this;
+    }
+
+    /// <summary>
     /// Points the pages at a scheduler that exists and is running, which is what all but the
     /// no-scheduler-selected tests want.
     /// </summary>

@@ -39,6 +39,7 @@ namespace Quartz
         public int HistoryMaxEntriesPerScheduler { get; set; }
         public System.TimeSpan HistoryRetention { get; set; }
         public System.Func<string, bool>? IsJobTypeAllowed { get; set; }
+        public string? OperationAuthorizationPolicy { get; set; }
         public bool ReadOnly { get; set; }
         public string? SchedulerAuthorizationPolicy { get; set; }
         public Quartz.QuartzDashboardOptions AcceptAgents(System.Action<Quartz.DashboardAgentHubOptions>? configure = null) { }

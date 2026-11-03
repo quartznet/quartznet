@@ -179,6 +179,18 @@ public static class QuartzAspNetCoreConfigurationExtensions
             .Union(triggerEndpoints)
             .ToArray();
 
+        // Before the per-scheduler rule, because a convention wraps the ones added before it: the
+        // scheduler is checked first, so a caller who may not see it learns nothing about what they may
+        // do there, and then the operation, before ReadOnly and the handler.
+        bool authorizedPerOperation = !string.IsNullOrWhiteSpace(options.OperationAuthorizationPolicy);
+        if (authorizedPerOperation)
+        {
+            foreach (RouteHandlerBuilder endpoint in allEndpoints)
+            {
+                endpoint.RequireOperationAuthorization(options.OperationAuthorizationPolicy!);
+            }
+        }
+
         bool authorizedPerScheduler = !string.IsNullOrWhiteSpace(options.SchedulerAuthorizationPolicy);
         if (authorizedPerScheduler)
         {
@@ -197,7 +209,7 @@ public static class QuartzAspNetCoreConfigurationExtensions
         // Says "Quartz mapped this" on every route, which is what QuartzEndpointAuthorizationGuard reads
         // at startup. Added through the returned builder rather than to each group, so a route added to
         // any of the four later carries it by being one of them.
-        QuartzEndpointMarker marker = new(HttpApiSurface, HttpApiRemedies, authorizedPerScheduler);
+        QuartzEndpointMarker marker = new(HttpApiSurface, HttpApiRemedies, authorizedPerScheduler || authorizedPerOperation);
         conventionBuilder.Add(endpointBuilder => endpointBuilder.Metadata.Add(marker));
 
         return conventionBuilder;
@@ -208,6 +220,7 @@ public static class QuartzAspNetCoreConfigurationExtensions
     private const string HttpApiRemedies = """
           - app.MapQuartzHttpApi().RequireAuthorization() authorizes the whole API;
           - services.AddQuartzHttpApi(options => options.SchedulerAuthorizationPolicy = "...") authorizes each scheduler on its own;
+          - services.AddQuartzHttpApi(options => options.OperationAuthorizationPolicy = "...") authorizes each operation by operator role;
           - app.MapQuartzHttpApi().AllowAnonymous() serves it to anyone, deliberately.
         """;
 }

@@ -269,7 +269,11 @@
         catch (Exception ex)
         {
             _errors = [ex.Message];
-            ActionLog.Record(schedulerName, "BackfillTrigger", Target, succeeded: false, ex.Message + "; asked for " + range);
+            ActionLog.Failed(schedulerName, "BackfillTrigger", Target, ex, detail: "asked for " + range);
+            if (ex is OperationRefusedException)
+            {
+                Toasts.Error(ex.Message);
+            }
         }
         finally
         {

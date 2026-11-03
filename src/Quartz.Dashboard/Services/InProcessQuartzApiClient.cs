@@ -22,6 +22,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
 using Quartz.Extensibility;
+using Quartz.HttpApiContract;
 using Quartz.Impl;
 using Quartz.Util;
 
@@ -40,6 +41,12 @@ namespace Quartz.Dashboard.Services;
 /// through, so a page that reads the wrong scheduler — however its name got there — is refused rather
 /// than trusted. Before rc.1 the policy was enforced by the page frame alone, and a page already on
 /// screen re-read for whatever the browser put in the picker.
+/// </para>
+/// <para>
+/// <see cref="QuartzDashboardOptions.OperationAuthorizationPolicy" /> is enforced here for the same
+/// reason: each member that changes something names the HTTP API route it is, and is asked at that
+/// route's level before the scheduler is called, so a page that hides a button is not what makes the
+/// refusal hold.
 /// </para>
 /// </remarks>
 internal sealed class InProcessQuartzApiClient : IQuartzApiClient
@@ -148,29 +155,25 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     public async ValueTask Start(string schedulerName, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveNodeLocal(schedulerName, "start a scheduler", cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveNodeLocal(schedulerName, SchedulerRoutes.Start, "start a scheduler", cancellationToken).ConfigureAwait(false);
         await scheduler.Start(cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask Standby(string schedulerName, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveNodeLocal(schedulerName, "stand a scheduler down", cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveNodeLocal(schedulerName, SchedulerRoutes.Standby, "stand a scheduler down", cancellationToken).ConfigureAwait(false);
         await scheduler.Standby(cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask Shutdown(string schedulerName, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveNodeLocal(schedulerName, "shut a scheduler down", cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveNodeLocal(schedulerName, SchedulerRoutes.Shutdown, "shut a scheduler down", cancellationToken).ConfigureAwait(false);
         await scheduler.Shutdown(cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask PauseAll(string schedulerName, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseAll, cancellationToken).ConfigureAwait(false);
         await scheduler.PauseAll(cancellationToken).ConfigureAwait(false);
     }
 
@@ -186,15 +189,13 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             return;
         }
 
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseAll, cancellationToken).ConfigureAwait(false);
         await scheduler.PauseAllWith(details, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask ResumeAll(string schedulerName, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.ResumeAll, cancellationToken).ConfigureAwait(false);
         await scheduler.ResumeAll(cancellationToken).ConfigureAwait(false);
     }
 
@@ -406,8 +407,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     public async ValueTask<bool> PauseJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseJob, cancellationToken).ConfigureAwait(false);
         return await scheduler.PauseJob(AsJobKey(key), cancellationToken).ConfigureAwait(false);
     }
 
@@ -421,8 +421,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             return await PauseJob(schedulerName, key, cancellationToken).ConfigureAwait(false);
         }
 
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseJob, cancellationToken).ConfigureAwait(false);
         return await scheduler.PauseJobWith(AsJobKey(key), details, cancellationToken).ConfigureAwait(false);
     }
 
@@ -434,15 +433,18 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     public async ValueTask<bool> ResumeJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.ResumeJob, cancellationToken).ConfigureAwait(false);
         return await scheduler.ResumeJob(AsJobKey(key), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <remarks>
+    /// Operate without job data and Administer with it, under an operation policy: a stored
+    /// <c>NativeJob</c> runs the command its job data names.
+    /// </remarks>
     public async ValueTask TriggerJob(string schedulerName, JobKeyDto key, JobDataMap? jobDataMap = null, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(
+            schedulerName, SchedulerRoutes.TriggerJob, cancellationToken, carriesJobData: SchedulerRoutes.CarriesJobData(jobDataMap)).ConfigureAwait(false);
         await scheduler.TriggerJob(AsJobKey(key), jobDataMap, cancellationToken).ConfigureAwait(false);
     }
 
@@ -453,8 +455,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// </remarks>
     public async ValueTask<bool> Interrupt(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.InterruptJob, cancellationToken).ConfigureAwait(false);
         return await scheduler.Interrupt(AsJobKey(key), cancellationToken).ConfigureAwait(false);
     }
 
@@ -463,23 +464,20 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// </remarks>
     public async ValueTask<bool> InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.InterruptJobInstance, cancellationToken).ConfigureAwait(false);
         return await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<bool> DeleteJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.DeleteJob, cancellationToken).ConfigureAwait(false);
         return await scheduler.DeleteJob(AsJobKey(key), cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask AddJob(string schedulerName, AddJobRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.AddJob, cancellationToken).ConfigureAwait(false);
         IJobDetail jobDetail = BuildJobDetail(request.Job);
         AddJobOptions options = new()
         {
@@ -602,8 +600,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     public async ValueTask<bool> PauseTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseTrigger, cancellationToken).ConfigureAwait(false);
         return await scheduler.PauseTrigger(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
     }
 
@@ -617,8 +614,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             return await PauseTrigger(schedulerName, key, cancellationToken).ConfigureAwait(false);
         }
 
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseTrigger, cancellationToken).ConfigureAwait(false);
         return await scheduler.PauseTriggerWith(AsTriggerKey(key), details, cancellationToken).ConfigureAwait(false);
     }
 
@@ -630,15 +626,13 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     public async ValueTask<bool> ResumeTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.ResumeTrigger, cancellationToken).ConfigureAwait(false);
         return await scheduler.ResumeTrigger(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<bool> ResetTriggerFromErrorState(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.ResetTriggerFromErrorState, cancellationToken).ConfigureAwait(false);
         return await scheduler.ResetTriggerFromErrorState(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
     }
 
@@ -650,8 +644,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         ArgumentNullException.ThrowIfNull(update);
         TriggerKey triggerKey = AsTriggerKey(key);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.UpdateTriggerDetails, cancellationToken).ConfigureAwait(false);
         return await scheduler.UpdateTriggerDetails(triggerKey, update, cancellationToken).ConfigureAwait(false);
     }
 
@@ -662,8 +655,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask<List<TriggerKeyDto>> PauseTriggers(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, CancellationToken cancellationToken = default)
     {
         TriggerKey[] keys = AsTriggerKeys(triggerKeys);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseTriggerKeys, cancellationToken).ConfigureAwait(false);
         return AsTriggerKeyDtos(await scheduler.PauseTriggers(keys, cancellationToken).ConfigureAwait(false));
     }
 
@@ -680,8 +672,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         }
 
         TriggerKey[] keys = AsTriggerKeys(triggerKeys);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseTriggerKeys, cancellationToken).ConfigureAwait(false);
         return AsTriggerKeyDtos(await scheduler.PauseTriggersWith(keys, details, cancellationToken).ConfigureAwait(false));
     }
 
@@ -692,8 +683,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask<List<JobKeyDto>> PauseJobsWith(string schedulerName, IReadOnlyCollection<JobKeyDto> jobKeys, PauseDetails? details, CancellationToken cancellationToken = default)
     {
         JobKey[] keys = AsJobKeys(jobKeys);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseJobKeys, cancellationToken).ConfigureAwait(false);
         List<JobKey> paused = PauseDetails.SaysNothing(details)
             ? await scheduler.PauseJobs(keys, cancellationToken).ConfigureAwait(false)
             : await scheduler.PauseJobsWith(keys, details, cancellationToken).ConfigureAwait(false);
@@ -704,8 +694,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask<List<TriggerKeyDto>> ResumeTriggers(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, CancellationToken cancellationToken = default)
     {
         TriggerKey[] keys = AsTriggerKeys(triggerKeys);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.ResumeTriggerKeys, cancellationToken).ConfigureAwait(false);
         return AsTriggerKeyDtos(await scheduler.ResumeTriggers(keys, cancellationToken).ConfigureAwait(false));
     }
 
@@ -713,8 +702,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask<List<TriggerKeyDto>> UnscheduleJobs(string schedulerName, IReadOnlyCollection<TriggerKeyDto> triggerKeys, CancellationToken cancellationToken = default)
     {
         TriggerKey[] keys = AsTriggerKeys(triggerKeys);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.UnscheduleJobs, cancellationToken).ConfigureAwait(false);
         return AsTriggerKeyDtos(await scheduler.UnscheduleJobs(keys, cancellationToken).ConfigureAwait(false));
     }
 
@@ -732,16 +720,14 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         CancellationToken cancellationToken = default)
     {
         TriggerKey key = AsTriggerKey(triggerKey);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.BackfillTrigger, cancellationToken).ConfigureAwait(false);
         return await scheduler.Backfill(key, from, until, options, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.ScheduleJob, cancellationToken).ConfigureAwait(false);
         ScheduleJobOptions options = request.Paused is { } paused
             ? new ScheduleJobOptions { Paused = true, PauseReason = paused.Reason, PauseRequestedBy = paused.RequestedBy }
             : default;
@@ -758,16 +744,14 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     public async ValueTask<bool> UnscheduleJob(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.UnscheduleJob, cancellationToken).ConfigureAwait(false);
         return await scheduler.UnscheduleJob(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask RescheduleJob(string schedulerName, TriggerKeyDto key, RescheduleRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.RescheduleJob, cancellationToken).ConfigureAwait(false);
         await RescheduleTrigger(scheduler, AsTriggerKey(key), request.NewTrigger, cancellationToken).ConfigureAwait(false);
     }
 
@@ -805,8 +789,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask AddCalendar(string schedulerName, AddCalendarRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.AddCalendar, cancellationToken).ConfigureAwait(false);
         await scheduler.AddCalendar(
             request.CalendarName,
             request.Calendar,
@@ -816,8 +799,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     public async ValueTask<bool> DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.DeleteCalendar, cancellationToken).ConfigureAwait(false);
         return await scheduler.DeleteCalendar(calendarName, cancellationToken).ConfigureAwait(false);
     }
 
@@ -1176,15 +1158,40 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     }
 
     /// <summary>
-    /// Resolves a key for a verb that belongs to one process — start, stand-by, shutdown — refusing a
-    /// window and a cluster, neither of which is one.
+    /// Resolves a key for a verb that belongs to one process — start, stand-by, shutdown — once the call
+    /// is allowed, refusing a window and a cluster, neither of which is one.
     /// </summary>
-    private async ValueTask<IScheduler> ResolveNodeLocal(string schedulerName, string what, CancellationToken cancellationToken)
+    private async ValueTask<IScheduler> ResolveNodeLocal(string schedulerName, WireRoute route, string what, CancellationToken cancellationToken)
     {
-        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        SchedulerResolution resolved = await ResolveFor(schedulerName, route, carriesJobData: false, cancellationToken).ConfigureAwait(false);
         EnsureNotAWindow(resolved, what);
         EnsureNotACluster(resolved, what);
         return resolved.Scheduler;
+    }
+
+    /// <summary>
+    /// The scheduler a call that changes something is made on, once the call is allowed. Every mutating
+    /// member of this client goes through here.
+    /// </summary>
+    private async ValueTask<IScheduler> ResolveAllowed(string schedulerName, WireRoute route, CancellationToken cancellationToken, bool carriesJobData = false)
+    {
+        SchedulerResolution resolved = await ResolveFor(schedulerName, route, carriesJobData, cancellationToken).ConfigureAwait(false);
+        return resolved.Scheduler;
+    }
+
+    /// <summary>
+    /// Refuses a call that changes something, in order: <see cref="QuartzDashboardOptions.ReadOnly" />,
+    /// which asks nothing, before the key is resolved, as it always was; the scheduler policy as the key is
+    /// resolved; then <see cref="QuartzDashboardOptions.OperationAuthorizationPolicy" /> at the level
+    /// <paramref name="route" /> needs. All before anything reaches the scheduler, so a refused call is
+    /// never sent to a scheduler in another process.
+    /// </summary>
+    private async ValueTask<SchedulerResolution> ResolveFor(string schedulerName, WireRoute route, bool carriesJobData, CancellationToken cancellationToken)
+    {
+        EnsureWritable();
+        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        await authorization.EnsureAllowed(resolved.Ref, route, carriesJobData, cancellationToken).ConfigureAwait(false);
+        return resolved;
     }
 
     /// <summary>
@@ -1206,6 +1213,10 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         }
     }
 
+    /// <summary>
+    /// The ceiling: <see cref="QuartzDashboardOptions.ReadOnly" /> refuses every change, whatever the
+    /// visitor's role.
+    /// </summary>
     private void EnsureWritable()
     {
         if (options.Value.ReadOnly)

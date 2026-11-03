@@ -124,4 +124,15 @@ internal static partial class DashboardLog
 
     [LoggerMessage(EventId = 9117, Level = LogLevel.Error, Message = "The agent liveness sweep failed; the next one runs in {Interval}")]
     public static partial void AgentSweepFailed(this ILogger logger, TimeSpan interval, Exception exception);
+
+    /// <remarks>
+    /// <para>
+    /// The sibling of <c>9101</c> for an action the visitor's role did not allow under
+    /// <c>QuartzDashboardOptions.OperationAuthorizationPolicy</c>, written instead of it, with the operator
+    /// role the action needed. Warning, as the HTTP API's <c>9009</c> is: an operator who gave out roles
+    /// wants to see who reached for more than theirs. Nothing reached the scheduler. Added in 4.8.
+    /// </para>
+    /// </remarks>
+    [LoggerMessage(EventId = 9118, Level = LogLevel.Warning, Message = "Dashboard user {User} was refused {Action} on {Target} of scheduler {SchedulerName}: it needs {Access} (origin {Origin}, node {Node})")]
+    public static partial void ActionRefused(this ILogger logger, string user, string action, string target, string schedulerName, SchedulerAccess access, string origin, string node);
 }

@@ -4,9 +4,12 @@
 @using Quartz.Configuration
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@using Routes = Quartz.HttpApiContract.SchedulerRoutes
+@using WireRoute = Quartz.HttpApiContract.WireRoute
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
@@ -71,7 +74,7 @@
                 @if (_isCluster)
                 {
                     <th>Target</th>
-                    @if (!IsReadOnly)
+                    @if (HasNodeActions)
                     {
                         <th>Actions</th>
                     }
@@ -135,16 +138,28 @@
                                     <span class="qz-muted">&#8212;</span>
                                 }
                             </td>
-                            @if (!IsReadOnly)
+                            @if (HasNodeActions)
                             {
                                 <td>
                                     @if (memberKey is not null)
                                     {
                                         <div class="qz-actions">
-                                            <button type="button" class="qz-button" @onclick="() => StartNodeAsync(memberKey)">Start</button>
-                                            <button type="button" class="qz-button" @onclick="() => StandbyNodeAsync(memberKey)">Standby</button>
-                                            <button type="button" class="qz-button qz-button-danger" @onclick="() => ShutdownNodeAsync(memberKey)">Shutdown</button>
-                                            <button type="button" class="qz-button" disabled="@(ExecutingOn(node.InstanceId) == 0)" @onclick="() => InterruptNodeAsync(memberKey, node.InstanceId)">Interrupt</button>
+                                            @if (Can(memberKey, Routes.Start))
+                                            {
+                                                <button type="button" class="qz-button" @onclick="() => StartNodeAsync(memberKey)">Start</button>
+                                            }
+                                            @if (Can(memberKey, Routes.Standby))
+                                            {
+                                                <button type="button" class="qz-button" @onclick="() => StandbyNodeAsync(memberKey)">Standby</button>
+                                            }
+                                            @if (Can(memberKey, Routes.Shutdown))
+                                            {
+                                                <button type="button" class="qz-button qz-button-danger" @onclick="() => ShutdownNodeAsync(memberKey)">Shutdown</button>
+                                            }
+                                            @if (Can(memberKey, Routes.InterruptJobInstance))
+                                            {
+                                                <button type="button" class="qz-button" disabled="@(ExecutingOn(node.InstanceId) == 0)" @onclick="() => InterruptNodeAsync(memberKey, node.InstanceId)">Interrupt</button>
+                                            }
                                         </div>
                                     }
                                     else
@@ -230,7 +245,22 @@
 
     private bool IsReadOnly => Options.Value.ReadOnly;
 
-    private int ColumnCount => 7 + (_isCluster ? 1 : 0) + (_isCluster && !IsReadOnly ? 1 : 0);
+    /// <summary>
+    /// Whether the visitor may call <paramref name="route" /> on a member, through that member's own key:
+    /// never while the dashboard is read-only, and only at their role's level under an operation policy.
+    /// </summary>
+    private bool Can(string memberKey, WireRoute route) => Authorization.Allows(memberKey, route);
+
+    /// <summary>
+    /// Whether the Actions column has anything in it: some member offers the visitor one of its four.
+    /// Without an operation policy this is what <c>!IsReadOnly</c> always was.
+    /// </summary>
+    private bool HasNodeActions => !IsReadOnly
+        && (!Authorization.OperationsAuthorized
+            || _memberByNode.Values.Any(member => Can(member, Routes.Start) || Can(member, Routes.Standby)
+                || Can(member, Routes.Shutdown) || Can(member, Routes.InterruptJobInstance)));
+
+    private int ColumnCount => 7 + (_isCluster ? 1 : 0) + (_isCluster && HasNodeActions ? 1 : 0);
 
     /// <summary>
     /// What a node serves, in a phrase: nothing for a node nobody answered for, <c>all</c> for one that
@@ -355,6 +385,13 @@
                 if (header is { IsCluster: true })
                 {
                     await ResolveMembersAsync(header);
+
+                    // What the visitor's role allows on each member, which is what a node's buttons act
+                    // through: asked once per member, so the buttons render from an answer.
+                    foreach (string member in _memberByNode.Values.Distinct(StringComparer.OrdinalIgnoreCase))
+                    {
+                        await Authorization.LoadOperations(member);
+                    }
                 }
             }
         }
@@ -539,7 +576,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(memberKey, actionName, memberKey, succeeded: false, ex.Message, nodeLocal: true);
+            ActionLog.Failed(memberKey, actionName, memberKey, ex, nodeLocal: true);
             Toasts.Error(ex.Message);
         }
 

@@ -69,6 +69,21 @@ internal sealed class MutationAudit
     }
 
     /// <summary>
+    /// Records that <paramref name="context" />'s caller was refused <paramref name="operation" /> on
+    /// <paramref name="schedulerName" /> by the operation policy, which said it needs <paramref name="access" />.
+    /// </summary>
+    /// <remarks>
+    /// Here beside <see cref="Record" /> because it is the other half of the same trail: who did what, and
+    /// who reached for what their role does not allow.
+    /// </remarks>
+    public void Refused(HttpContext context, string operation, string schedulerName, SchedulerAccess access)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        logger.OperationRefused(UserName(context), operation, schedulerName, access);
+    }
+
+    /// <summary>
     /// Who made the request, or <c>(anonymous)</c> where nothing authenticated.
     /// </summary>
     /// <remarks>

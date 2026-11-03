@@ -6,6 +6,7 @@
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
 @inject IOptions<QuartzDashboardOptions> Options
@@ -142,13 +143,11 @@
     private CancellationTokenSource? _refreshLoopCancellation;
     private DateTimeOffset? _lastUpdatedAt;
 
-    private bool IsReadOnly => Options.Value.ReadOnly;
-
     /// <summary>
     /// Whether the column is offered. A window onto an attached store offers it too, from 4.7: it asks the
     /// node running the firing through the firing's row, and says so when that node never reads one.
     /// </summary>
-    private bool ShowInterrupt => !IsReadOnly;
+    private bool ShowInterrupt => Authorization.Allows(Scheduler.ActiveSchedulerName, Quartz.HttpApiContract.SchedulerRoutes.InterruptJobInstance);
     private int TableColumnCount => ShowInterrupt ? 9 : 8;
 
     protected override async Task OnInitializedAsync()
@@ -229,6 +228,9 @@
 
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {
+                // Once per scheduler, so the Interrupt column renders from what the visitor's role allows.
+                await Authorization.LoadOperations(schedulerName);
+
                 PagedResult<FireInstanceDto> page = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery());
                 _fireInstances.AddRange(page.Items);
                 _hasMore = page.HasMore;
@@ -249,7 +251,7 @@
 
     private async Task InterruptAsync(string fireInstanceId)
     {
-        if (IsReadOnly || string.IsNullOrWhiteSpace(Scheduler.ActiveSchedulerName))
+        if (!ShowInterrupt || string.IsNullOrWhiteSpace(Scheduler.ActiveSchedulerName))
         {
             return;
         }
@@ -283,13 +285,19 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(
+            ActionLog.Failed(
                 Scheduler.ActiveSchedulerName,
                 "InterruptFireInstance",
                 fireInstanceId,
-                succeeded: false,
-                ex.Message,
+                ex,
                 nodeLocal: true);
+
+            // A refusal for the visitor's role is said where every other page says it, as a toast: the
+            // button was offered when the page last asked, and the answer has changed since.
+            if (ex is OperationRefusedException)
+            {
+                Toasts.Error(ex.Message);
+            }
         }
     }
 

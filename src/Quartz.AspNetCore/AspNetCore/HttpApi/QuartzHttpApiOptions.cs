@@ -143,6 +143,35 @@ public sealed class QuartzHttpApiOptions
     public string? SchedulerAuthorizationPolicy { get; set; }
 
     /// <summary>
+    /// The authorization policy every operation is held to, evaluated against a
+    /// <see cref="SchedulerResource" /> carrying the scheduler's name, the operation's name and the
+    /// operator role it needs. Null — the default — leaves the API as it was: whoever reaches a route may
+    /// call it. Added in 4.8.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Name a policy built with <c>RequireSchedulerRoles(…)</c> and each route needs the role the route
+    /// table gives it: <see cref="SchedulerAccess.View" /> for every read,
+    /// <see cref="SchedulerAccess.Operate" /> for pausing, resuming, triggering and interrupting,
+    /// <see cref="SchedulerAccess.Administer" /> for adding, deleting, rescheduling and shutting down. A
+    /// refusal is <c>403</c> with problem details naming the operation and the level, logged as event
+    /// <c>9009</c>.
+    /// </para>
+    /// <para>
+    /// The check runs after <see cref="SchedulerAuthorizationPolicy" />'s, before <see cref="ReadOnly" />'s
+    /// and before the handler, so no body is read for a refused call. <c>trigger</c> is asked again at
+    /// <see cref="SchedulerAccess.Administer" /> once its body is read and carries job data. The scheduler
+    /// listing is filtered to the schedulers the caller may view.
+    /// </para>
+    /// <para>
+    /// The two policies compose: <see cref="SchedulerAuthorizationPolicy" /> decides which schedulers a
+    /// caller may reach, this one what they may do there, and <see cref="ReadOnly" /> stays the ceiling
+    /// for everybody.
+    /// </para>
+    /// </remarks>
+    public string? OperationAuthorizationPolicy { get; set; }
+
+    /// <summary>
     /// Which job types a request may name. Null — the default — allows every one, which is what every
     /// earlier release did.
     /// </summary>
@@ -272,6 +301,14 @@ internal sealed class QuartzHttpApiOptionsValidator : IValidateOptions<QuartzHtt
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(QuartzHttpApiOptions.SchedulerAuthorizationPolicy)} is '{options.SchedulerAuthorizationPolicy}', "
+                + "but the container has no authorization services to evaluate it with - call services.AddAuthorization() and register that policy.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.OperationAuthorizationPolicy)
+            && registrations?.IsService(typeof(IAuthorizationService)) == false)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(QuartzHttpApiOptions.OperationAuthorizationPolicy)} is '{options.OperationAuthorizationPolicy}', "
                 + "but the container has no authorization services to evaluate it with - call services.AddAuthorization() and register that policy.");
         }
 
