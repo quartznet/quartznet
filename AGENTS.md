@@ -46,7 +46,7 @@ row names before writing code there. Where the two differ, the document wins.
 - **SDK**: .NET 10 SDK (see `global.json`), with `rollForward: latestMinor`.
 - **License headers** — source files include Apache 2.0 license region at the top.
 - **UTF-8 without a byte-order mark** — everything under `src/`, whatever its extension;
-  `SourceEncodingTest` fails a file that starts with one, and `*.verified.*` snapshots are the exemption.
+  `SourceEncodingTest` fails a file that starts with one; Verify's `*.verified.*` and `*.received.*` files are the exemption.
   A script that writes a source file uses Python's `encoding="utf-8"` — never `utf-8-sig` — or
   PowerShell's `-Encoding utf8NoBOM`.
 
