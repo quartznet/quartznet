@@ -150,12 +150,20 @@ partial class Build : FalloutBuild
             // framework on all of them. `dotnet test --framework X` against a project that does not
             // target X exits 0 having run nothing, so a single shared value silently skipped whole
             // projects instead of failing loudly. net4x needs the .NET Framework runtime, so it is
-            // the one framework that cannot run off Windows, and the one a runtime leg leaves out: a
-            // .NET Framework host never rolls forward onto .NET.
+            // the one framework that cannot run off Windows.
+            //
+            // A runtime leg runs the net10.0 builds alone, which leaves out Quartz.Tests.AspNetCore
+            // (net8.0 only). A net8.0 Blazor host rolled forward to 11 finds no blazor.web.js, which
+            // from .NET 10 on ships as a static web asset rather than embedded in
+            // Microsoft.AspNetCore.Components.Endpoints, and bunit's net8.0 build references
+            // IJSUnmarshalledRuntime, which 11 removed. Every net8.0 Blazor application meets both on
+            // 11, so they say nothing about Quartz.
             var testRuns = testProjects
                 .Select(x => Solution.GetAllProjects(x).First())
                 .SelectMany(project => project.GetTargetFrameworks()
-                    .Where(framework => (IsRunningOnWindows && UnitTestRuntime is null) || !framework.StartsWith("net4", StringComparison.Ordinal))
+                    .Where(framework => UnitTestRuntime is null
+                        ? IsRunningOnWindows || !framework.StartsWith("net4", StringComparison.Ordinal)
+                        : framework == "net10.0")
                     .Select(framework => (Project: project, Framework: framework)))
                 .OrderBy(x => x.Project.Name).ThenBy(x => x.Framework)
                 .ToArray();

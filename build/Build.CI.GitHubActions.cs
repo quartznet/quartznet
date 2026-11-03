@@ -24,8 +24,8 @@ using Quartz.Build;
 // .NET 11 users of 3.x run its net8.0, net9.0 and net10.0 assemblies on the 11 runtime, and nothing above
 // does (#4211). This leg builds with the SDK global.json names and runs the unit tests with every test host
 // rolled forward to the newest runtime installed, which UnitTestRuntime requires to be 11; ConfigureSteps
-// installs it. Ubuntu alone, so net472 is not part of it, and on the same branches and paths as
-// pr-tests-unit: the whole job is about five minutes.
+// installs it. The net10.0 test builds alone (UnitTest says why), on ubuntu alone, and on the same branches
+// and paths as pr-tests-unit: the whole job is about five minutes.
 [GitHubActions(
     "pr-tests-unit-net11",
     GitHubActionsImage.UbuntuLatest,
