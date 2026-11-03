@@ -258,7 +258,8 @@ public partial class Build
             $"{image} with no Quartz:Dashboard:Authentication:Mode was still running after {ContainerStartTimeout.TotalSeconds:F0}s; it must refuse to start");
 
         string logs = string.Join(Environment.NewLine, started.Output.Select(x => x.Text));
-        Assert.True(started.ExitCode != 0, $"{image} with no authentication mode exited 0; it must refuse to start.{Environment.NewLine}{logs}");
+        // Exactly 1, the refusal's own exit code: a crash (139) or a kill is not a refusal.
+        Assert.True(started.ExitCode == 1, $"{image} with no authentication mode exited {started.ExitCode}; it must refuse to start with exit code 1.{Environment.NewLine}{logs}");
         Assert.True(logs.Contains("[9402]", StringComparison.Ordinal) && logs.Contains("Authentication:Mode is required", StringComparison.Ordinal),
             $"{image} refused to start without saying why as event 9402:{Environment.NewLine}{logs}");
 

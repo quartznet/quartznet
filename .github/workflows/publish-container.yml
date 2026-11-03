@@ -39,6 +39,7 @@ jobs:
           # Every tag, so PublishContainer can tell whether this release is the newest of its line before it
           # moves X.Y, X or latest.
           fetch-depth: 0
+          persist-credentials: false
       - name: 'Setup: .NET SDK'
         uses: actions/setup-dotnet@v6
         with:
