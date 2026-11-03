@@ -58,6 +58,8 @@ public class ZoneOffsetTableTest
             return;
         }
 
+        PrereleaseRuntimeIssues.IgnoreLordHoweOnPrereleaseNet11(zoneId);
+
         List<ZoneOffsetTable.Segment> segments = [];
         for (int year = FirstYear - FirstYear % ZoneOffsetTable.WindowYears; year <= LastYear; year += ZoneOffsetTable.WindowYears)
         {

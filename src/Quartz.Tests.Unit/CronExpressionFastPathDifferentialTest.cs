@@ -110,6 +110,8 @@ public class CronExpressionFastPathDifferentialTest
             return;
         }
 
+        PrereleaseRuntimeIssues.IgnoreLordHoweOnPrereleaseNet11(zoneId);
+
         List<DateTimeOffset> transitions = FindTransitions(zone);
 
         Random random = new Random(20260919);
