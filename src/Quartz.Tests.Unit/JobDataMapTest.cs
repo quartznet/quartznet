@@ -405,6 +405,31 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         map.Get<decimal>("int").Should().Be(9m);
     }
 
+    /// <summary>
+    /// A double or a float in the map - an untyped JSON number, scheduling data, the HTTP API, or
+    /// <c>Put("amount", 12.34)</c> - reads back as the decimal it was written as. .NET 11 converts the
+    /// binary value exactly, so it would otherwise come back as 12.339999999999999857891452848 (#4210).
+    /// </summary>
+    [Test]
+    public void Get_ReadsADoubleOrAFloatBackAsTheDecimalItWasWrittenAs()
+    {
+        JobDataMap map = new JobDataMap
+        {
+            { "double", 12.34d },
+            { "sum", 0.1d + 0.2d },
+            { "float", 14.1f },
+            { "huge", 1e30d },
+        };
+
+        map.Get<decimal>("double").Should().Be(12.34m);
+        map.Get<decimal>("sum").Should().Be(0.3m);
+        map.Get<decimal>("float").Should().Be(14.1m);
+
+        map.TryGet("double", out decimal value).Should().BeTrue();
+        value.Should().Be(12.34m);
+        map.TryGet("huge", out value).Should().BeFalse("a double outside decimal's range still does not convert");
+    }
+
     [Test]
     public void TryGet_ReportsADecimalFailureInsteadOfThrowing()
     {

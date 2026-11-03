@@ -66,6 +66,20 @@ public sealed class SharedServiceForwardingTest
     };
 
     /// <summary>
+    /// <see cref="excused" /> for a type the test cannot name: one only the .NET 11 runtime has, which
+    /// a net10.0 build compiles against neither.
+    /// </summary>
+    private static readonly Dictionary<string, string> excusedByName = new()
+    {
+        ["Microsoft.Extensions.Options.IAsyncStartupValidator"] = StartupValidation,
+        ["Microsoft.Extensions.Options.StartupValidator"] = StartupValidation,
+    };
+
+    private const string StartupValidation =
+        "what ValidateOnStart registers on .NET 11, beside IStartupValidator, and excused for the same "
+        + "reason: a host runs it, and a generation is never run by one";
+
+    /// <summary>
     /// The other direction: a service a generation is handed that the shared registration deliberately
     /// does not make, and why.
     /// </summary>
@@ -150,13 +164,17 @@ public sealed class SharedServiceForwardingTest
             "an excuse without a reason is a service somebody classified in a hurry, and the next reader "
             + "has no way to tell whether it was thought about");
 
+        excusedByName.Should().OnlyContain(x => !string.IsNullOrWhiteSpace(x.Value));
+
         forwardedWithoutRegistration.Should().OnlyContain(x => !string.IsNullOrWhiteSpace(x.Value),
             "and the same for the other direction, where the reason is the whole of the classification");
     }
 
     private static bool IsClassified(Type serviceType)
     {
-        if (SchedulerGeneration.ForwardedServiceTypes.Contains(serviceType) || excused.ContainsKey(serviceType))
+        if (SchedulerGeneration.ForwardedServiceTypes.Contains(serviceType)
+            || excused.ContainsKey(serviceType)
+            || excusedByName.ContainsKey(serviceType.FullName ?? ""))
         {
             return true;
         }

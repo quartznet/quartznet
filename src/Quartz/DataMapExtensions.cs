@@ -22,6 +22,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
+using Quartz.Util;
+
 namespace Quartz;
 
 /// <summary>
@@ -674,7 +676,7 @@ public static class DataMapExtensions
 
         try
         {
-            value = Convert.ToDecimal(obj, CultureInfo.InvariantCulture);
+            value = FloatingPointDecimals.ToDecimal(obj);
             return true;
         }
         catch
