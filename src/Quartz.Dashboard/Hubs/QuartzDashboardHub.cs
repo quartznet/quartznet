@@ -83,8 +83,19 @@ internal sealed class QuartzDashboardHub : Hub<IQuartzDashboardHubClient>
     /// and the check above has already run, so nothing is subscribed to on behalf of a caller who may not
     /// see it.
     /// </para>
+    /// <para>
+    /// Not <see langword="async" /> itself: ASP.NET Core 11 holds a hub method that carries any attribute,
+    /// the state machine attribute included, to the host's <c>FallbackPolicy</c> whatever the hub's
+    /// endpoint says (dotnet/aspnetcore#69624), which an anonymous dashboard under a fail-closed policy
+    /// would fail. <see cref="DashboardAgentHub" /> says more.
+    /// </para>
     /// </remarks>
-    public async Task JoinScheduler(string schedulerName)
+    public Task JoinScheduler(string schedulerName)
+    {
+        return Join(schedulerName);
+    }
+
+    private async Task Join(string schedulerName)
     {
         ClaimsPrincipal user = Context.User ?? Anonymous;
         if (!await authorization.IsAuthorized(user, schedulerName, Context.ConnectionAborted).ConfigureAwait(false))
