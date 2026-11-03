@@ -20,11 +20,12 @@
 #endregion
 
 using System.Collections.Frozen;
-using System.Security.Claims;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+
+using Quartz.HttpApiContract;
 
 namespace Quartz.Dashboard.Host;
 
@@ -325,36 +326,11 @@ internal sealed class DashboardHostPlan
     /// In <c>Unsecured</c> mode nobody signs in, so an operation the route table keeps at
     /// <c>Administer</c> may not be lowered: the anonymous visitor at <c>Operate</c> would then perform it.
     /// </summary>
-    /// <remarks>
-    /// The route table is internal to Quartz, so the question is put to the policy the host builds: whether a
-    /// visitor in the operator role, with no overrides, is let through to the operation. A visitor who is not
-    /// has met the route's own level, <c>Administer</c>.
-    /// </remarks>
     private void CheckUnsecuredOperations()
     {
-        List<KeyValuePair<string, SchedulerAccess>> lowered = [.. Settings.Roles.Operations.Where(x => x.Value < SchedulerAccess.Administer)];
-        if (lowered.Count == 0)
+        foreach ((string operation, SchedulerAccess access) in Settings.Roles.Operations)
         {
-            return;
-        }
-
-        AuthorizationPolicy table = new AuthorizationPolicyBuilder()
-            .RequireAuthenticatedUser()
-            .RequireSchedulerRoles(roles => roles.Operators.Add(OperatorRole))
-            .Build();
-
-        using ServiceProvider services = new ServiceCollection().AddLogging().AddAuthorization().BuildServiceProvider();
-        IAuthorizationService authorization = services.GetRequiredService<IAuthorizationService>();
-        ClaimsPrincipal @operator = new(new ClaimsIdentity([new Claim(ClaimTypes.Role, OperatorRole)], authenticationType: "route-table"));
-
-        foreach ((string operation, SchedulerAccess access) in lowered)
-        {
-            AuthorizationResult result = authorization
-                .AuthorizeAsync(@operator, new SchedulerResource("route-table") { Operation = operation }, table)
-                .GetAwaiter()
-                .GetResult();
-
-            if (!result.Succeeded)
+            if (access < SchedulerAccess.Administer && SchedulerRoutes.Find(operation) is { Access: SchedulerAccess.Administer })
             {
                 Problems.Add(
                     $"Quartz:Dashboard:Roles:Operations:{operation} is {access}, which lowers an Administer operation, and Mode is Unsecured: "
