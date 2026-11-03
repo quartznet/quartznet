@@ -20,8 +20,11 @@
 #endregion
 
 using System.Collections.Frozen;
+using System.Security.Claims;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Quartz.Dashboard.Host;
 
@@ -297,7 +300,7 @@ internal sealed class DashboardHostPlan
         {
             // The same check RequireSchedulerRoles makes when the policy is built, made here so a misspelt
             // operation is a refusal to start rather than a failure on the first request.
-            new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder().RequireSchedulerRoles(roles =>
+            new AuthorizationPolicyBuilder().RequireSchedulerRoles(roles =>
             {
                 roles.Viewers.Add(ViewerRole);
                 foreach ((string operation, SchedulerAccess access) in Settings.Roles.Operations)
@@ -309,6 +312,54 @@ internal sealed class DashboardHostPlan
         catch (ArgumentException e)
         {
             Problems.Add($"Quartz:Dashboard:Roles:Operations: {e.Message}");
+            return;
+        }
+
+        if (Mode == HostAuthenticationMode.Unsecured)
+        {
+            CheckUnsecuredOperations();
+        }
+    }
+
+    /// <summary>
+    /// In <c>Unsecured</c> mode nobody signs in, so an operation the route table keeps at
+    /// <c>Administer</c> may not be lowered: the anonymous visitor at <c>Operate</c> would then perform it.
+    /// </summary>
+    /// <remarks>
+    /// The route table is internal to Quartz, so the question is put to the policy the host builds: whether a
+    /// visitor in the operator role, with no overrides, is let through to the operation. A visitor who is not
+    /// has met the route's own level, <c>Administer</c>.
+    /// </remarks>
+    private void CheckUnsecuredOperations()
+    {
+        List<KeyValuePair<string, SchedulerAccess>> lowered = [.. Settings.Roles.Operations.Where(x => x.Value < SchedulerAccess.Administer)];
+        if (lowered.Count == 0)
+        {
+            return;
+        }
+
+        AuthorizationPolicy table = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .RequireSchedulerRoles(roles => roles.Operators.Add(OperatorRole))
+            .Build();
+
+        using ServiceProvider services = new ServiceCollection().AddLogging().AddAuthorization().BuildServiceProvider();
+        IAuthorizationService authorization = services.GetRequiredService<IAuthorizationService>();
+        ClaimsPrincipal @operator = new(new ClaimsIdentity([new Claim(ClaimTypes.Role, OperatorRole)], authenticationType: "route-table"));
+
+        foreach ((string operation, SchedulerAccess access) in lowered)
+        {
+            AuthorizationResult result = authorization
+                .AuthorizeAsync(@operator, new SchedulerResource("route-table") { Operation = operation }, table)
+                .GetAwaiter()
+                .GetResult();
+
+            if (!result.Succeeded)
+            {
+                Problems.Add(
+                    $"Quartz:Dashboard:Roles:Operations:{operation} is {access}, which lowers an Administer operation, and Mode is Unsecured: "
+                    + "an anonymous visitor may never be given an Administer operation. Raise operations to Administer here; do not lower them.");
+            }
         }
     }
 

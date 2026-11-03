@@ -66,7 +66,10 @@ code 1, as it does for any other mistake in its settings.
 - **`Unsecured` mode** logs warning `9401` at every start. Use it on a network where every visitor is already
   trusted.
 - **`Roles:Operations:<operation>`** moves an operation to `Operate` or `Administer` in every mode:
-  `Roles:Operations:AddCalendar=Operate`. A name the HTTP API does not publish refuses the start.
+  `Roles:Operations:AddCalendar=Operate`. A name the HTTP API does not publish refuses the start. In `Unsecured`
+  mode the host also refuses to start when an entry lowers an operation that is `Administer` by default
+  (`AddJob`, `DeleteJob`, `Shutdown`) to `Operate`: an anonymous visitor is never given an Administer operation.
+  Raising an operation to `Administer` stays allowed.
 
 The host never logs a token: the hosting layer's request lines, which carry the address and its query, are held
 at `Warning` whatever `Logging` says, per-provider settings such as `Logging:Console:LogLevel` included.

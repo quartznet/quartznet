@@ -60,6 +60,43 @@ public sealed class DashboardHostStartupTest
         host.Logs.WithEventId(9402).Should().Contain(x => x.Message.Contains(problem, StringComparison.Ordinal));
     }
 
+    [TestCase("AddJob")]
+    [TestCase("DeleteJob")]
+    [TestCase("Shutdown")]
+    public async Task UnsecuredModeRefusesToLowerAnAdministerOperationToOperate(string operation)
+    {
+        await using HostUnderTest host = HostUnderTest.Create(new Dictionary<string, string?>
+        {
+            ["Quartz:Dashboard:Authentication:Mode"] = "Unsecured",
+            ["Quartz:Dashboard:Authentication:UnsecuredAccess"] = "Operate",
+            [$"Quartz:Dashboard:Roles:Operations:{operation}"] = "Operate",
+        });
+
+        Action start = () => host.Browser();
+
+        start.Should().Throw<InvalidOperationException>();
+        host.Logs.WithEventId(9402).Should().ContainSingle().Which.Message.Should().Contain(
+            $"Quartz:Dashboard:Roles:Operations:{operation} is Operate")
+            .And.Contain("an anonymous visitor may never be given an Administer operation");
+    }
+
+    [Test]
+    public async Task UnsecuredModeStartsWithOperationsRaisedToAdministerOrLoweredWithinTheirOwnLevel()
+    {
+        await using HostUnderTest host = HostUnderTest.Create(new Dictionary<string, string?>
+        {
+            ["Quartz:Dashboard:Authentication:Mode"] = "Unsecured",
+            ["Quartz:Dashboard:Authentication:UnsecuredAccess"] = "Operate",
+            ["Quartz:Dashboard:Roles:Operations:PauseJob"] = "Administer",
+            ["Quartz:Dashboard:Roles:Operations:AddCalendar"] = "Administer",
+            ["Quartz:Dashboard:Roles:Operations:InterruptJob"] = "Operate",
+        });
+
+        using HttpClient browser = host.Browser();
+
+        host.Logs.WithEventId(9402).Should().BeEmpty();
+    }
+
     [Test]
     public async Task ATargetThatIsBothAnHttpTargetAndAStoreIsRefused()
     {
