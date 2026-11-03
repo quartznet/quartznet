@@ -66,7 +66,8 @@ partial class Build
     /// #4210 and #4224 were both found by hand.
     /// </para>
     /// <para>
-    /// The consumer is <c>build/net11-consumer</c>, copied to a directory outside the repository so that no
+    /// The consumer is <c>build/net11-consumer</c>, copied to a directory of the run's own outside the
+    /// repository, removed when the run passes and kept, its path logged, when it fails, so that no
     /// <c>global.json</c>, <c>Directory.Build.props</c>, <c>Directory.Packages.props</c> or
     /// <c>NuGet.config</c> of the repository's reaches it; it gets a <c>global.json</c> naming the .NET 11 SDK,
     /// a <c>NuGet.config</c> naming the packages this build made and nuget.org, and a packages folder of its
@@ -94,93 +95,114 @@ partial class Build
         .Executes(() =>
         {
             // The temporary directory, which on a runner and on a developer's machine is outside every
-            // repository; asserted, because inside this one the repository's global.json would win. Short,
-            // too: a native link on Windows fails on a path over MAX_PATH, and the packages folder is in it.
-            AbsolutePath root = (AbsolutePath) Path.GetTempPath() / "quartz-net11";
+            // repository; asserted, because inside this one the repository's global.json would win. One of
+            // its own for each run, so that two runs on one machine never share it. Short, too: a native
+            // link on Windows fails on a path over MAX_PATH, and the packages folder is in it.
+            AbsolutePath root = (AbsolutePath) Path.GetTempPath() / $"quartz-net11-{Guid.NewGuid().ToString("N")[..8]}";
             Assert.True(!root.ToString().StartsWith(RootDirectory.ToString(), StringComparison.OrdinalIgnoreCase),
                 $"The net11.0 consumer has to be built outside the repository, and {root} is inside it.");
 
-            root.CreateOrCleanDirectory();
-            foreach (AbsolutePath project in Net11ConsumerSources.GetDirectories())
+            try
             {
-                project.Copy(root / project.Name);
+                RunNet11Consumer(root);
+            }
+            catch
+            {
+                // Kept for whoever reads the failure: the consumer's build output, its packages and the
+                // canaries' publishes are what a failure is diagnosed from.
+                Log.Error("The net11.0 consumer failed; its directory is kept at {Root}", root);
+                throw;
             }
 
-            (root / "global.json").WriteAllText(
-                $$"""
-                {
-                  "sdk": {
-                    "version": "{{Net11SdkFloor}}",
-                    "rollForward": "latestFeature",
-                    "allowPrerelease": true
-                  }
-                }
-                """);
-
-            (root / "NuGet.config").WriteAllText(
-                $"""
-                <?xml version="1.0" encoding="utf-8"?>
-                <configuration>
-                  <packageSources>
-                    <clear />
-                    <add key="quartz" value="{System.Security.SecurityElement.Escape(((IPack) this).PackagesDirectory)}" />
-                    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-                  </packageSources>
-                </configuration>
-                """);
-
-            foreach (AbsolutePath package in ((IPack) this).PackagesDirectory.GlobFiles($"Quartz*.{FullVersion}.nupkg"))
-            {
-                AssertTheStaticWebAssetsArePacked(package);
-            }
-
-            Dictionary<string, string> environment = Net11ConsumerEnvironment(root);
-
-            string sdk = ProcessTasks.StartProcess(DotNetPath, "--version", root, environment, logOutput: false)
-                .AssertZeroExitCode()
-                .Output.Select(x => x.Text.Trim()).First(x => x.Length > 0);
-            Assert.True(sdk.StartsWith($"{Net11}.", StringComparison.Ordinal),
-                $"The net11.0 consumer resolved .NET SDK {sdk} from {root / "global.json"}, which needs a .NET {Net11} SDK of {Net11SdkFloor} or later.");
-            Log.Information("The net11.0 consumer builds with .NET SDK {Sdk} from the {Version} packages", sdk, FullVersion);
-
-            AbsolutePath consumer = root / "Quartz.Net11Consumer";
-            DotNetBuild(s => s
-                .SetProjectFile(consumer / "Quartz.Net11Consumer.csproj")
-                .SetConfiguration(Configuration.Debug)
-                .SetProperty("QuartzVersion", FullVersion)
-                .AddProcessAdditionalArguments(DisableBuildServers)
-                .SetProcessWorkingDirectory(root)
-                .SetProcessEnvironmentVariables(environment));
-
-            AbsolutePath assembly = consumer / "bin" / "Debug" / $"net{Net11}.0" / "Quartz.Net11Consumer.dll";
-            Assert.FileExists(assembly);
-
-            string url = $"http://127.0.0.1:{FreeLoopbackPort()}";
-            RunUntilItSays(
-                "Quartz.Net11Consumer",
-                assembly,
-                // From the project directory, as 'dotnet run' runs it: a Debug build's static web assets
-                // are served from the packages through the manifest the SDK leaves beside the project.
-                consumer,
-                new Dictionary<string, string>(StringComparer.Ordinal)
-                {
-                    ["ASPNETCORE_ENVIRONMENT"] = "Development",
-                    ["ASPNETCORE_URLS"] = url,
-                },
-                [
-                    "Application started",
-                    $"Net11Consumer: running on .NET {Net11}.",
-                    "Net11Consumer: JobDataMap.Get<decimal> read 12.34d back as 12.34",
-                    "Net11Consumer: job no-op ran",
-                ],
-                () => UnansweredInitializers(url, Net11ConsumerDashboardPath));
-
-            foreach (string canary in TrimCanaries)
-            {
-                PublishAndRunNet11Canary(root, environment, canary, "trimmed", aot: false);
-                PublishAndRunNet11Canary(root, environment, canary, "native AOT", aot: true);
-            }
+            root.DeleteDirectory();
         });
+
+    /// <summary>
+    /// <see cref="Net11ConsumerSmoke" />'s work, in a directory of its own at <paramref name="root" />.
+    /// </summary>
+    void RunNet11Consumer(AbsolutePath root)
+    {
+        root.CreateOrCleanDirectory();
+        foreach (AbsolutePath project in Net11ConsumerSources.GetDirectories())
+        {
+            project.Copy(root / project.Name);
+        }
+
+        (root / "global.json").WriteAllText(
+            $$"""
+            {
+              "sdk": {
+                "version": "{{Net11SdkFloor}}",
+                "rollForward": "latestFeature",
+                "allowPrerelease": true
+              }
+            }
+            """);
+
+        (root / "NuGet.config").WriteAllText(
+            $"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <configuration>
+              <packageSources>
+                <clear />
+                <add key="quartz" value="{System.Security.SecurityElement.Escape(((IPack) this).PackagesDirectory)}" />
+                <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+              </packageSources>
+            </configuration>
+            """);
+
+        foreach (AbsolutePath package in ((IPack) this).PackagesDirectory.GlobFiles($"Quartz*.{FullVersion}.nupkg"))
+        {
+            AssertTheStaticWebAssetsArePacked(package);
+        }
+
+        Dictionary<string, string> environment = Net11ConsumerEnvironment(root);
+
+        string sdk = ProcessTasks.StartProcess(DotNetPath, "--version", root, environment, logOutput: false)
+            .AssertZeroExitCode()
+            .Output.Select(x => x.Text.Trim()).First(x => x.Length > 0);
+        Assert.True(sdk.StartsWith($"{Net11}.", StringComparison.Ordinal),
+            $"The net11.0 consumer resolved .NET SDK {sdk} from {root / "global.json"}, which needs a .NET {Net11} SDK of {Net11SdkFloor} or later.");
+        Log.Information("The net11.0 consumer builds with .NET SDK {Sdk} from the {Version} packages", sdk, FullVersion);
+
+        AbsolutePath consumer = root / "Quartz.Net11Consumer";
+        DotNetBuild(s => s
+            .SetProjectFile(consumer / "Quartz.Net11Consumer.csproj")
+            .SetConfiguration(Configuration.Debug)
+            .SetProperty("QuartzVersion", FullVersion)
+            .AddProcessAdditionalArguments(DisableBuildServers)
+            .SetProcessWorkingDirectory(root)
+            .SetProcessEnvironmentVariables(environment));
+
+        AbsolutePath assembly = consumer / "bin" / "Debug" / $"net{Net11}.0" / "Quartz.Net11Consumer.dll";
+        Assert.FileExists(assembly);
+
+        string url = $"http://127.0.0.1:{FreeLoopbackPort()}";
+        RunUntilItSays(
+            "Quartz.Net11Consumer",
+            assembly,
+            // From the project directory, as 'dotnet run' runs it: a Debug build's static web assets
+            // are served from the packages through the manifest the SDK leaves beside the project.
+            consumer,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["ASPNETCORE_ENVIRONMENT"] = "Development",
+                ["ASPNETCORE_URLS"] = url,
+            },
+            [
+                "Application started",
+                $"Net11Consumer: running on .NET {Net11}.",
+                "Net11Consumer: JobDataMap.Get<decimal> read 12.34d back as 12.34",
+                "Net11Consumer: job no-op ran",
+            ],
+            () => UnansweredInitializers(url, Net11ConsumerDashboardPath));
+
+        foreach (string canary in TrimCanaries)
+        {
+            PublishAndRunNet11Canary(root, environment, canary, "trimmed", aot: false);
+            PublishAndRunNet11Canary(root, environment, canary, "native AOT", aot: true);
+        }
+    }
 
     /// <summary>
     /// The version <c>Directory.Packages.props</c> pins for <paramref name="id" />, which the consumer's
