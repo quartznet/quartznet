@@ -45,7 +45,7 @@ internal sealed class DashboardAgentOptionsValidator : IValidateOptions<Dashboar
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(DashboardAgentOptions.Endpoint)} is required and must be an absolute URI naming the dashboard's agent hub, "
-                + "such as https://ops.example.com/quartz/agents.");
+                + "such as https://ops.example.com/quartz/agents. Set it in code or as Quartz:DashboardAgent:Endpoint in configuration.");
         }
 
         if (string.IsNullOrWhiteSpace(options.Token) && options.AccessTokenProvider is null)
