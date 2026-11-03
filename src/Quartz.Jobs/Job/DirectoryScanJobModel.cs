@@ -160,7 +160,7 @@ internal sealed class DirectoryScanJobModel
         if (explicitDirProviderName != null)
         {
             schedCtxt.TryGetValue(explicitDirProviderName, out var temp);
-            IDirectoryProvider explicitProvider = (IDirectoryProvider)temp;
+            IDirectoryProvider? explicitProvider = (IDirectoryProvider?) temp;
             directoryProvider = explicitProvider ?? throw new JobExecutionException("IDirectoryProvider named '" +
                                                                                     explicitDirProviderName + "' not found in SchedulerContext");
         }
@@ -183,7 +183,7 @@ internal sealed class DirectoryScanJobModel
         if (serviceProvider != null)
         {
             Type? listenerType = null;
-            if (!listenerTypeCache.TryGetValue(listenerName, out Type cachedType))
+            if (!listenerTypeCache.TryGetValue(listenerName, out Type? cachedType))
             {
                 listenerType = ResolveListenerType(listenerName);
                 if (listenerType != null)
