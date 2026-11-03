@@ -18,6 +18,8 @@
     "stderr>{Line}"
 7203  Error  NativeJobLog.StreamConsumptionFailed
     "Error consuming {Type} stream of spawned process."
+7204  Information  NativeJobLog.OutputStillHeldOpen
+    "The process exited with code {ExitCode}, but {DrainTimeout} later a process it started still holds its output open. The job completes, and that process's lines keep being logged."
 7300  Warning  SendMailJobLog.CredentialsReadFromJobData
     "SMTP credentials are being read from job data ('{UserNameKey}' / '{PasswordKey}'), which a persistent job store writes to the database and replicates to every node in the cluster. Register an ICredentialsByHost with the container instead."
 7301  Information  SendMailJobLog.SendingMessage
