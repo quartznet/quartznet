@@ -3,6 +3,7 @@ namespace Quartz
 {
     public static class DashboardAgentConfigurationExtensions
     {
+        public static Quartz.IQuartzBuilder UseDashboardAgent(this Quartz.IQuartzBuilder builder) { }
         public static Quartz.IQuartzBuilder UseDashboardAgent(this Quartz.IQuartzBuilder builder, System.Action<Quartz.DashboardAgentOptions> configure) { }
     }
     public sealed class DashboardAgentOptions

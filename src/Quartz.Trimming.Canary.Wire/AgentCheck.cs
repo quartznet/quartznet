@@ -26,6 +26,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.HttpApiContract;
@@ -138,9 +139,24 @@ internal static class AgentCheck
     /// a dashboard may name registered the way the trimming how-to says, and the agent plugin dialling
     /// out with the hub's token.
     /// </summary>
+    /// <remarks>
+    /// Where to dial, with what token and under which target come from configuration, as an Aspire
+    /// AppHost's <c>WithReference(dashboard)</c> writes them: <c>Quartz:DashboardAgent:*</c>, read by the
+    /// code the binding generator wrote. The registration step asserts the target the hub heard, so a
+    /// binding that read nothing fails there.
+    /// </remarks>
     private static ServiceProvider BuildAgent(Uri hubUri)
     {
         ServiceCollection services = new();
+
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["Quartz:DashboardAgent:Endpoint"] = hubUri.ToString(),
+                ["Quartz:DashboardAgent:Token"] = AgentCanaryHub.Token,
+                ["Quartz:DashboardAgent:Target"] = Target,
+            })
+            .Build());
 
         services.AddQuartz(quartz =>
         {
@@ -156,12 +172,10 @@ internal static class AgentCheck
 
             quartz.UseDashboardAgent(options =>
             {
-                options.Endpoint = hubUri;
-                options.Token = AgentCanaryHub.Token;
-                options.Target = Target;
-
-                // An agent refuses every job type until told which it accepts, and every operation until
-                // told which it refuses. Both decisions are the agent's and are made in its own process.
+                // The endpoint, the token and the target are configuration's. What is left here has no
+                // spelling in a settings file: an agent refuses every job type until told which it
+                // accepts, and every operation until told which it refuses. Both decisions are the
+                // agent's and are made in its own process.
                 options.IsJobTypeAllowed = static name => name.StartsWith("Quartz.Trimming.Canary.Wire.", StringComparison.Ordinal);
                 options.IsOperationAllowed = static name => !string.Equals(name, SchedulerRoutes.Shutdown.Name, StringComparison.Ordinal);
             });

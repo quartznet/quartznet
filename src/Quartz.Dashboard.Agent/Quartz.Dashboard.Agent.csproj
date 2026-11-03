@@ -48,6 +48,14 @@
       consumer inherits Quartz's floors through Quartz.
     -->
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+    <!--
+      UseDashboardAgent reads Quartz:DashboardAgent, and the compiler writes that binding rather than the
+      reflection binder, for the reason Quartz.csproj gives: ConfigurationBinder.Bind says both
+      RequiresUnreferencedCode and RequiresDynamicCode, and the generator intercepts the call sites of the
+      project it is enabled in. Quartz.Trimming.Canary.Wire dials its agent from configuration, trimmed and
+      native, which is what proves it.
+    -->
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
 
   <ItemGroup>
@@ -60,6 +68,8 @@
       generic host takes no web framework to be shown on a dashboard.
     -->
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+    <!-- Named for the binding generator it carries, which a transitive reference does not bring. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
   </ItemGroup>
 
   <ItemGroup>
