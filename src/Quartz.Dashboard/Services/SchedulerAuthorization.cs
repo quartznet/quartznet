@@ -46,10 +46,13 @@ namespace Quartz.Dashboard.Services;
 /// </para>
 /// <para>
 /// Seeing a scheduler means passing both policies: the scheduler policy for it, and the operation policy at
-/// <see cref="SchedulerAccess.View" />. The operation policy's answers are kept for the circuit's life,
-/// because a page decides which controls to render synchronously and a circuit's visitor does not change;
-/// <see cref="LoadOperations" /> asks every operation of a scheduler once, and <see cref="Allows" /> reads
-/// the answers.
+/// <see cref="SchedulerAccess.View" />. The operation policy's answers are kept for the circuit's life, for
+/// rendering only: a page decides which controls to render synchronously, so
+/// <see cref="LoadOperations" /> asks every operation of a scheduler once and <see cref="Allows" /> reads
+/// the answers. Enforcement never reads them. Every call that changes something, and every check that a
+/// scheduler may be seen, asks the policy afresh, as 4.7's <c>SchedulerAuthorizationPolicy</c> did, because
+/// the visitor of a circuit can change — signed out, a role removed — and a kept "allowed" would outlive
+/// it. A fresh answer is written back, so the rendered controls catch up.
 /// </para>
 /// </remarks>
 internal sealed class SchedulerAuthorization
@@ -201,7 +204,7 @@ internal sealed class SchedulerAuthorization
                 }
             }
 
-            return await IsAllowed(user, resource, operation: null, SchedulerAccess.View).ConfigureAwait(false);
+            return await IsAllowed(user, resource, operation: null, SchedulerAccess.View, reuseAnswer: false).ConfigureAwait(false);
         }
     }
 
@@ -224,11 +227,11 @@ internal sealed class SchedulerAuthorization
             if (route.Mutates)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await IsAllowed(state.User, resource, route.Name, route.Access).ConfigureAwait(false);
+                await IsAllowed(state.User, resource, route.Name, route.Access, reuseAnswer: true).ConfigureAwait(false);
             }
         }
 
-        await IsAllowed(state.User, resource, SchedulerRoutes.TriggerJob.Name, SchedulerRoutes.RequiredAccess(SchedulerRoutes.TriggerJob, carriesJobData: true))
+        await IsAllowed(state.User, resource, SchedulerRoutes.TriggerJob.Name, SchedulerRoutes.RequiredAccess(SchedulerRoutes.TriggerJob, carriesJobData: true), reuseAnswer: true)
             .ConfigureAwait(false);
     }
 
@@ -295,7 +298,7 @@ internal sealed class SchedulerAuthorization
         SchedulerResource resource = new(identity.SchedulerName) { Target = identity.Target };
         AuthenticationState state = await authenticationStateProvider.GetAuthenticationStateAsync().ConfigureAwait(false);
 
-        if (!await IsAllowed(state.User, resource, route.Name, required).ConfigureAwait(false))
+        if (!await IsAllowed(state.User, resource, route.Name, required, reuseAnswer: false).ConfigureAwait(false))
         {
             bool raisedByData = required > route.Access;
             throw new OperationRefusedException(route.Name + (raisedByData ? " with job data" : ""), identity.Key, required);
@@ -315,10 +318,19 @@ internal sealed class SchedulerAuthorization
     }
 
     /// <summary>
-    /// The operation policy's answer for one question, asked once per circuit, or <see langword="true" />
-    /// with no policy configured.
+    /// The operation policy's answer for one question, or <see langword="true" /> with no policy configured.
     /// </summary>
-    private async ValueTask<bool> IsAllowed(ClaimsPrincipal user, SchedulerResource resource, string? operation, SchedulerAccess access)
+    /// <param name="user">The visitor to ask about.</param>
+    /// <param name="resource">The scheduler.</param>
+    /// <param name="operation">The operation, or <see langword="null" /> for seeing the scheduler at all.</param>
+    /// <param name="access">The level the operation needs.</param>
+    /// <param name="reuseAnswer">
+    /// <see langword="true" /> reads the circuit's kept answer and fills it on a miss: for rendering, which
+    /// cannot wait for a policy. <see langword="false" /> asks the policy every time and writes the fresh
+    /// answer back so rendered controls catch up: for enforcement, because the key of a kept answer has no
+    /// visitor in it, and a visitor who has changed since would be let through on the old one.
+    /// </param>
+    private async ValueTask<bool> IsAllowed(ClaimsPrincipal user, SchedulerResource resource, string? operation, SchedulerAccess access, bool reuseAnswer)
     {
         string? policyName = options.Value.OperationAuthorizationPolicy;
         if (string.IsNullOrWhiteSpace(policyName))
@@ -327,7 +339,7 @@ internal sealed class SchedulerAuthorization
         }
 
         OperationQuestion question = new(resource.SchedulerName, resource.Target, operation, access);
-        if (operationAnswers.TryGetValue(question, out bool known))
+        if (reuseAnswer && operationAnswers.TryGetValue(question, out bool known))
         {
             return known;
         }
