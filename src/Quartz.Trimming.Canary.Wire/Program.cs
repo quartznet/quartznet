@@ -90,7 +90,7 @@ internal static class Program
         }
 
         Console.WriteLine(passed
-            ? "Quartz.Trimming.Canary.Wire: a scheduler served by Quartz.AspNetCore is scheduled, read, paused, resumed, triggered, watched and asked for its history through Quartz.HttpClient, which also reads a newer host's names; and a second scheduler dials out through Quartz.Dashboard.Agent, registers, heartbeats, is read, scheduled, triggered and watched down the tunnel, refuses what it was told to, and says goodbye."
+            ? "Quartz.Trimming.Canary.Wire: a scheduler served by Quartz.AspNetCore under an operation policy is scheduled, read, paused, resumed, triggered, watched and asked for its history through Quartz.HttpClient, which also reads a newer host's names, and refuses a viewer a change; and a second scheduler dials out through Quartz.Dashboard.Agent, registers, heartbeats, is read, scheduled, triggered and watched down the tunnel, refuses what it was told to, and says goodbye."
             : "Quartz.Trimming.Canary.Wire: a step failed.");
 
         return passed ? 0 : 1;
@@ -118,6 +118,9 @@ internal static class Program
         await using ConfiguredAsyncDisposable newerHostDisposal = newerHost.ConfigureAwait(false);
 
         bool passed = await WireCheck.Run(client, newerHost, cancellationToken).ConfigureAwait(false);
+
+        // Every request above passed the operation policy as an administrator; these ask as a viewer.
+        passed &= await OperatorRoles.Check(apiAddress, cancellationToken).ConfigureAwait(false);
 
         // The agent half runs whether or not the HTTP half passed: its failure, if it has one, is a
         // different package's, and a run that stopped at the first would say nothing about the second.
@@ -166,7 +169,14 @@ internal static class Program
         // request follows StartAsync at once, and would otherwise race the scheduler it asks about.
         builder.Services.AddQuartzHostedService(options => options.AwaitApplicationStarted = false);
 
-        builder.Services.AddQuartzHttpApi(options => options.IncludeStackTraceInProblemDetails = true);
+        // Every route held to the operator roles, so the policy, its requirement and the route filter that
+        // asks it run in the trimmed and native publish: the client's requests are an administrator's.
+        OperatorRoles.Add(builder.Services);
+        builder.Services.AddQuartzHttpApi(options =>
+        {
+            options.IncludeStackTraceInProblemDetails = true;
+            options.OperationAuthorizationPolicy = OperatorRoles.Policy;
+        });
 
         // The dashboard's half of the agent protocol, as far as the canary speaks it. The hub's payloads are
         // the contract's records, written and read through its generated metadata, which is the one way a
@@ -177,8 +187,11 @@ internal static class Program
 
         WebApplication app = builder.Build();
 
+        // Who the caller is, for the operation policy: the role the request names, or an administrator.
+        app.UseAuthentication();
+
         // The API refuses to start without an authorization decision, and this is one: the only caller is
-        // this process, over loopback.
+        // this process, over loopback, and the operation policy holds each route to its role.
         app.MapQuartzHttpApi().AllowAnonymous();
 
         NewerHost.Map(app);
