@@ -74,6 +74,11 @@
       transitively. The 2.x line, because StreamJsonRpc is built against it.
     -->
     <PackageVersion Include="MessagePack" Version="2.5.307" />
+    <!--
+      Quartz.Dashboard.Host's sign-in through an identity provider. Current rather than a floor: the host is
+      a tool and a container image, which carry this inside them rather than asking a consumer for it.
+    -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.14" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
     <!--
