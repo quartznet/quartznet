@@ -120,8 +120,6 @@ internal static class SchedulerAuthorization
     /// </remarks>
     private static IResult Forbidden(string schedulerName)
     {
-        return Results.Problem(
-            detail: $"Not authorized for scheduler {schedulerName}",
-            statusCode: StatusCodes.Status403Forbidden);
+        return ContractProblem.Problem($"Not authorized for scheduler {schedulerName}", StatusCodes.Status403Forbidden);
     }
 }

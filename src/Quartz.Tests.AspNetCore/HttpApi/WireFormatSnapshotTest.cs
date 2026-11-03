@@ -7,6 +7,7 @@ using AwesomeAssertions.Execution;
 using FakeItEasy;
 
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
@@ -756,6 +757,36 @@ public class WireFormatSnapshotTest : WebApiTest
 
         string body = await response.Content.ReadAsStringAsync();
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden, $"a read-only API refuses a mutation, body was {body}");
+        await VerifyBody(body);
+    }
+
+    /// <summary>
+    /// What a status read answers when the history store behind it keeps no such thing: a <c>501</c>
+    /// naming <see cref="NotSupportedException" />, which a client raises again as that.
+    /// </summary>
+    /// <remarks>
+    /// Its own host, with a store that refuses the read in fixed words: the shipped store keeps a status,
+    /// and the words of a store that does not name its type.
+    /// </remarks>
+    [Test]
+    public async Task NotServedProblemDetailsBody()
+    {
+        IExecutionHistoryStore rowsOnly = A.Fake<IExecutionHistoryStore>();
+        A.CallTo(() => rowsOnly.QueryJobRunStatuses(A<JobRunStatusQuery>._, A<CancellationToken>._))
+            .Throws(new NotSupportedException("The history store keeps no per-job run status."));
+
+        TestContentRoot.Apply();
+        await using WebApplicationFactory<Program> root = new();
+        await using WebApplicationFactory<Program> host = root.WithWebHostBuilder(builder => builder.ConfigureTestServices(
+            services => services.AddSingleton(rowsOnly)));
+
+        using HttpClient httpClient = host.CreateClient();
+        host.Services.GetRequiredService<ISchedulerRepository>().Bind(FakeScheduler);
+
+        using HttpResponseMessage response = await httpClient.GetAsync($"{SchedulerUrl}/history/job-status");
+
+        string body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.NotImplemented, $"what serves the read keeps no status, body was {body}");
         await VerifyBody(body);
     }
 

@@ -1,0 +1,7 @@
+﻿{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.6.2",
+  "title": "Not Implemented",
+  "status": 501,
+  "detail": "The history store keeps no per-job run status.",
+  "Quartz-ExceptionType": "NotSupportedException"
+}
