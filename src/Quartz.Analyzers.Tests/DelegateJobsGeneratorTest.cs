@@ -304,6 +304,31 @@ public class DelegateJobsGeneratorTest
         Regex.Matches(run.Generated!, "InterceptsLocation\\(1, ").Count.Should().Be(2);
     }
 
+    /// <summary>
+    /// A call that does not bind, with no <c>AddDeclaredJobs()</c> anywhere near it to blame, is one the
+    /// build will refuse too, and nothing is generated for it.
+    /// </summary>
+    [Test]
+    public void ACallThatDoesNotBindIsLeftAlone()
+    {
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DelegateJobsGenerator>(
+            Snippet("""
+                public static class Registration
+                {
+                    public static void Register(IQuartzBuilder q)
+                    {
+                        q.NoSuchMember().ScheduleJob("unbound", () => { }, trigger => trigger.StartNow());
+                    }
+                }
+                """),
+            toleratedErrors: ["CS1061"],
+            features: interceptorsEnabled,
+            besides: [new DeclaredJobsGenerator()]);
+
+        run.Diagnostics.Should().BeEmpty();
+        run.Generated.Should().BeNull("the call names no method a generator writes, so reading it again would bind it no better");
+    }
+
     [Test]
     public void TheInterceptorNamesTheCallItReplaces()
     {
