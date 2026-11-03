@@ -264,6 +264,9 @@ internal static class HostAuthentication
             // Not a 302: a strict cookie set on a navigation that started on another site is not sent on a
             // redirect that continues it, and the visitor would land on this form again. A page that moves
             // itself on is a navigation of this site's own. Either way the token leaves the address bar.
+            // This page's own address carries the token, so it says no-referrer as a header as well as in the
+            // page: the header holds from the first byte, whatever the browser makes of the tag.
+            context.Response.Headers["Referrer-Policy"] = "no-referrer";
             return Results.Content(RedirectPage(returnUrl), "text/html; charset=utf-8");
         }).AllowAnonymous().DisableAntiforgery();
 
@@ -313,14 +316,17 @@ internal static class HostAuthentication
 
     /// <summary>
     /// The address to go on to after signing in: one on this site, or the dashboard. Anything else — an
-    /// absolute URL, a protocol-relative one, a backslash a browser reads as a slash — is an open redirect.
+    /// absolute URL, a protocol-relative one, a backslash a browser reads as a slash, a control character a
+    /// browser drops from an address (<c>/&lt;TAB&gt;/evil.example/</c> is read as <c>//evil.example/</c>) — is an
+    /// open redirect.
     /// </summary>
     internal static string LocalReturnUrl(string? candidate, string fallback)
     {
         if (string.IsNullOrEmpty(candidate)
             || candidate[0] != '/'
             || (candidate.Length > 1 && (candidate[1] == '/' || candidate[1] == '\\'))
-            || candidate.Contains('\\', StringComparison.Ordinal))
+            || candidate.Contains('\\', StringComparison.Ordinal)
+            || candidate.Any(static c => c < ' ' || c == '\u007F'))
         {
             return fallback;
         }
