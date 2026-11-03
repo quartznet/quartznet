@@ -32,8 +32,10 @@ using Quartz.Build;
     // main through a pull request, so this is where a broken benchmark or a broken example is caught
     // while somebody is still looking; the push and release legs are budgeted for building, testing and
     // packing and have nothing to do with any of them. ExamplesSmoke runs the two applications PublishTrimmed only ever published,
-    // on all three images, because a host that refuses to start does so per platform.
-    InvokedTargets = [nameof(VerifyMigrations), nameof(VerifySchema), nameof(ICompile.Compile), nameof(UnitTest), nameof(BenchmarkSmoke), nameof(WolverineSmoke), nameof(ExamplesSmoke), nameof(PublishTrimmed), nameof(PublishAot)],
+    // on all three images, because a host that refuses to start does so per platform. ContainerSmoke builds the
+    // dashboard host's image and runs it; only ubuntu-latest has a Linux container engine, so the other two legs
+    // skip it.
+    InvokedTargets = [nameof(VerifyMigrations), nameof(VerifySchema), nameof(ICompile.Compile), nameof(UnitTest), nameof(BenchmarkSmoke), nameof(WolverineSmoke), nameof(ExamplesSmoke), nameof(ContainerSmoke), nameof(PublishTrimmed), nameof(PublishAot)],
     CacheKeyFiles = [],
     // Generating native code is minutes rather than seconds, and it happens after everything else here.
     // Twenty-five since the HTTP API canary joined the trimmed one (#3965): windows-latest ran the whole

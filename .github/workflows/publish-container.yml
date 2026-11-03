@@ -1,0 +1,61 @@
+# Hand-written rather than generated from build/Build.CI.GitHubActions.cs: the build provenance attestation
+# this ends with needs 'attestations: write', a permission Fallout's generator cannot express, and it reads
+# the image digest PublishContainer writes as a step output, which a generated step has no id for.
+#
+# Publishes ghcr.io/quartznet/quartz-dashboard from a release tag and from nothing else (#3775): a stable
+# version as X.Y.Z, and X.Y, X and latest when it is the newest of its line; a prerelease as its exact
+# version only. Nothing is published from a branch. publish.yml, which pushes the packages, keeps its own
+# permissions; this workflow never sees a nuget.org key.
+#
+# Prerequisites outside this repository, which nothing here can assert:
+#
+#   - the package ghcr.io/quartznet/quartz-dashboard, public, with this repository given write access
+#     under its "Manage Actions access" (the first push creates it private and owned by the organization);
+#   - the organization allowing public packages, and GitHub Actions to create them.
+name: publish-container
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+  # The attestation's storage record, which actions/attest creates for an organization's image pushed to a
+  # registry.
+  artifact-metadata: write
+
+jobs:
+  ubuntu-latest:
+    name: ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Every tag, so PublishContainer can tell whether this release is the newest of its line before it
+          # moves X.Y, X or latest.
+          fetch-depth: 0
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
+      # The SDK's container tooling and the attestation both read Docker's credential store.
+      - name: 'Login: ghcr.io'
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 'Run: PublishContainer'
+        id: publish
+        run: dotnet fallout PublishContainer
+      - name: 'Attest: build provenance'
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/quartznet/quartz-dashboard
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true

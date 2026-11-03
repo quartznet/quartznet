@@ -10,11 +10,11 @@ updates:
   # hand-written docs workflows sat three majors behind on actions/checkout while the generated ones
   # moved on.
   #
-  # Eleven of the fourteen workflows are generated from build/Build.CI.GitHubActions.cs and carry the
-  # action versions Fallout writes, so a bump Dependabot proposes for one of those is not a bump to
-  # keep: the next 'fallout --generate-configuration' run puts the old version straight back. Move
-  # Fallout instead, and let the generator write the new versions. The three hand-written workflows -
-  # docs.yml, docs-pr.yml and sonar.yml - are the ones this ecosystem is for.
+  # Every workflow but four is generated from build/Build.CI.GitHubActions.cs and carries the action
+  # versions Fallout writes, so a bump Dependabot proposes for one of those is not a bump to keep: the
+  # next 'fallout --generate-configuration' run puts the old version straight back. Move Fallout instead,
+  # and let the generator write the new versions. The four hand-written workflows - docs.yml,
+  # docs-pr.yml, sonar.yml and publish-container.yml - are the ones this ecosystem is for.
   #
   # One group, because an action bump is a one-line change and fourteen separate pull requests for the
   # same major would be fourteen reviews of the same decision.
@@ -93,6 +93,12 @@ updates:
         versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Options.ConfigurationExtensions"
         versions: [">= 10.0.1, < 11.0.0"]
+      # Quartz.Aspire.Hosting's floor, and the MessagePack it names to patch Aspire.Hosting's graph. The
+      # example's Aspire packages move on $(AspireVersion) through the aspire group; this row does not.
+      - dependency-name: "Aspire.Hosting"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "MessagePack"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "MySqlConnector"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "Newtonsoft.Json"

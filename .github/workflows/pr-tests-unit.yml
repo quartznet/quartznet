@@ -54,8 +54,8 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, WolverineSmoke, ExamplesSmoke, PublishTrimmed, PublishAot'
-        run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke WolverineSmoke ExamplesSmoke PublishTrimmed PublishAot
+      - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, WolverineSmoke, ExamplesSmoke, ContainerSmoke, PublishTrimmed, PublishAot'
+        run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke WolverineSmoke ExamplesSmoke ContainerSmoke PublishTrimmed PublishAot
       - name: 'Publish: test results'
         uses: actions/upload-artifact@v7
         with:
@@ -78,8 +78,8 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, WolverineSmoke, ExamplesSmoke, PublishTrimmed, PublishAot'
-        run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke WolverineSmoke ExamplesSmoke PublishTrimmed PublishAot
+      - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, WolverineSmoke, ExamplesSmoke, ContainerSmoke, PublishTrimmed, PublishAot'
+        run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke WolverineSmoke ExamplesSmoke ContainerSmoke PublishTrimmed PublishAot
       - name: 'Publish: test results'
         uses: actions/upload-artifact@v7
         with:
@@ -100,8 +100,8 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, WolverineSmoke, ExamplesSmoke, PublishTrimmed, PublishAot'
-        run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke WolverineSmoke ExamplesSmoke PublishTrimmed PublishAot
+      - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, WolverineSmoke, ExamplesSmoke, ContainerSmoke, PublishTrimmed, PublishAot'
+        run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke WolverineSmoke ExamplesSmoke ContainerSmoke PublishTrimmed PublishAot
       - name: 'Publish: test results'
         uses: actions/upload-artifact@v7
         with:
