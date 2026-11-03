@@ -57,9 +57,9 @@ using Quartz.Build;
 // UnitTest goes before Pack in any one invocation, and the other order would pack in a second invocation,
 // which rebuilds the solution under a version of its own.
 //
-// Ubuntu alone, and only for a change to what is built: about fourteen minutes of a runner, of which the
-// unit tests are five and the consumer's trimmed and native publishes three. The other two legs' platforms
-// differ from 10 to 11 far less than what this leg exists to catch.
+// Ubuntu alone, and only for a change to what is built: about eleven minutes of a runner, of which the unit
+// tests are five and the consumer, with both canaries published trimmed and native, about three. The other
+// two legs' platforms differ from 10 to 11 far less than what this leg exists to catch.
 [GitHubActions(
     "pr-tests-unit-net11",
     GitHubActionsImage.UbuntuLatest,
