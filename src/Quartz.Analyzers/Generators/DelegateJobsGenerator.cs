@@ -21,6 +21,7 @@
 
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 using Microsoft.CodeAnalysis;
@@ -52,6 +53,11 @@ namespace Quartz.Analyzers;
 /// cannot read the file-local types the interceptor is declared with, and every call in a project that
 /// has not enabled <see cref="InterceptorsNamespace" />, where the compiler would refuse the interceptor.
 /// </para>
+/// <para>
+/// A call written beside <c>AddDeclaredJobs()</c> is read against the registration
+/// <see cref="DeclaredJobsGenerator" /> is about to write, which this generator cannot see written: without
+/// it the call can bind wrongly or not at all, though the build binds it (#4234).
+/// </para>
 /// </remarks>
 [Generator(LanguageNames.CSharp)]
 public sealed class DelegateJobsGenerator : IIncrementalGenerator
@@ -81,6 +87,11 @@ public sealed class DelegateJobsGenerator : IIncrementalGenerator
     private const string TriggerConfigurator = "global::System.Action<global::Quartz.ITriggerConfigurator<global::Quartz.IJob>>";
 
     private const string TriggerConfiguratorWithServices = "global::System.Action<global::System.IServiceProvider, global::Quartz.ITriggerConfigurator<global::Quartz.IJob>>";
+
+    /// <summary>
+    /// Each compilation a run has needed <see cref="WithDeclaredJobs" /> for, with that compilation.
+    /// </summary>
+    private static readonly ConditionalWeakTable<Compilation, Compilation> withDeclaredJobs = new();
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -162,7 +173,14 @@ public sealed class DelegateJobsGenerator : IIncrementalGenerator
         InvocationExpressionSyntax invocation = (InvocationExpressionSyntax) context.Node;
         SemanticModel model = context.SemanticModel;
 
-        if (model.GetOperation(invocation, cancellationToken) is not IInvocationOperation operation)
+        IOperation? bound = model.GetOperation(invocation, cancellationToken);
+        if (bound is not IInvocationOperation && NamesDeclaredJobs(invocation, cancellationToken))
+        {
+            model = WithDeclaredJobs(model.Compilation, invocation.SyntaxTree).GetSemanticModel(invocation.SyntaxTree);
+            bound = model.GetOperation(invocation, cancellationToken);
+        }
+
+        if (bound is not IInvocationOperation operation)
         {
             return null;
         }
@@ -230,6 +248,63 @@ public sealed class DelegateJobsGenerator : IIncrementalGenerator
                 invocation.SyntaxTree.FilePath,
                 name.SpanStart,
                 DisplayLocation(name)));
+    }
+
+    /// <summary>
+    /// Whether the member a call is written in names <c>AddDeclaredJobs</c>, or this assembly's
+    /// <c>AddDeclaredJobsFrom…</c>: the methods <see cref="DeclaredJobsGenerator" /> writes, which no
+    /// generator's compilation has, so a call to one is an error there that the build will not have.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An error is enough to bind a call beside it wrongly. A lambda whose body does not compile cannot
+    /// be converted to any delegate type, so the <c>AddQuartz(q =&gt; …)</c> it is handed to binds to no
+    /// overload, and the compiler binds the lambda for its error recovery with the delegate type whose
+    /// binding reported the fewest diagnostics, warnings counted. <c>AddQuartz</c> has two:
+    /// <c>Action&lt;IQuartzBuilder&gt;</c> on <c>IServiceCollection</c>, and
+    /// <c>Action&lt;QuartzHealthCheckOptions&gt;</c> on <c>IHealthChecksBuilder</c>, whose binding has an
+    /// error for every call on <c>q</c>. A <c>net11.0</c> application gives the first a CS1701 warning
+    /// for every Quartz member its body reaches whose signature names a <c>net10.0</c> type, since
+    /// <c>Quartz.dll</c> was compiled against <c>System.Runtime</c> 10 and the application against 11, so
+    /// a store's configuration beside <c>AddDeclaredJobs()</c> made <c>q</c> a
+    /// <c>QuartzHealthCheckOptions</c> and every call on it invalid (#4234).
+    /// </para>
+    /// <para>
+    /// The same error left a call chained onto <c>AddDeclaredJobs()</c> unbound on every runtime: its
+    /// receiver had no type.
+    /// </para>
+    /// </remarks>
+    private static bool NamesDeclaredJobs(InvocationExpressionSyntax invocation, CancellationToken cancellationToken)
+    {
+        SyntaxNode scope = invocation.FirstAncestorOrSelf<MemberDeclarationSyntax>() ?? invocation.SyntaxTree.GetRoot(cancellationToken);
+
+        foreach (SyntaxToken token in scope.DescendantTokens())
+        {
+            if (token.IsKind(SyntaxKind.IdentifierToken)
+                && token.ValueText.StartsWith(RegistrationName.OrdinaryMethodName, System.StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The compilation as the build will compile it, as far as a delegate job's call can tell: with the
+    /// registration <see cref="DeclaredJobsGenerator" /> writes declared, bodies and all left out.
+    /// </summary>
+    /// <remarks>
+    /// The declaration is the one <see cref="DeclaredJobsEmitter" /> writes for no jobs, named as
+    /// <see cref="DeclaredJobsGenerator.NameRegistration" /> names it, so the call binds here exactly as it
+    /// will bind in the build. One per compilation, however many calls need it; it is only built for a call
+    /// that did not bind without it.
+    /// </remarks>
+    private static Compilation WithDeclaredJobs(Compilation compilation, SyntaxTree tree)
+    {
+        return withDeclaredJobs.GetValue(compilation, x => x.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+            DeclaredJobsEmitter.Emit([], DeclaredJobsGenerator.NameRegistration(x)),
+            (CSharpParseOptions) tree.Options)));
     }
 
     /// <summary>

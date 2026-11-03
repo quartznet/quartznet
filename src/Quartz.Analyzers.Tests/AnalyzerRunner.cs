@@ -139,6 +139,10 @@ internal static class AnalyzerRunner
     /// <param name="features">
     /// The compiler's <c>/features</c>, which is where a project's <c>InterceptorsNamespaces</c> arrives.
     /// </param>
+    /// <param name="besides">
+    /// Generators run in the same pass, as a build runs every generator a package carries: each reads the
+    /// snippet alone, and none sees what another writes.
+    /// </param>
     internal static GeneratorRun RunGenerator<TGenerator>(
         string source,
         string assemblyName = DefaultAssemblyName,
@@ -146,14 +150,15 @@ internal static class AnalyzerRunner
         IReadOnlyCollection<string>? toleratedErrors = null,
         LanguageVersion languageVersion = LanguageVersion.Latest,
         IReadOnlyCollection<string>? withoutReferences = null,
-        IReadOnlyDictionary<string, string>? features = null)
+        IReadOnlyDictionary<string, string>? features = null,
+        IEnumerable<IIncrementalGenerator>? besides = null)
         where TGenerator : IIncrementalGenerator, new()
     {
         CSharpParseOptions parseOptions = new CSharpParseOptions(languageVersion).WithFeatures(features ?? new Dictionary<string, string>());
         CSharpCompilation compilation = Compile(source, assemblyName, references, parseOptions, withoutReferences);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            generators: [new TGenerator().AsSourceGenerator()],
+            generators: [new TGenerator().AsSourceGenerator(), .. (besides ?? []).Select(x => x.AsSourceGenerator())],
             parseOptions: parseOptions);
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out Compilation output, out ImmutableArray<Diagnostic> diagnostics);
