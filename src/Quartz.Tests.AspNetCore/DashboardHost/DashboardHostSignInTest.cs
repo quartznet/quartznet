@@ -142,6 +142,21 @@ public sealed class DashboardHostSignInTest
         }
     }
 
+    [TestCase("/\t/evil.example/")]
+    [TestCase("/\n/evil.example/")]
+    [TestCase("/\r/evil.example/")]
+    [TestCase("/\u007F/evil.example/")]
+    public async Task AReturnAddressWithAControlCharacterIsNotFollowed(string elsewhere)
+    {
+        await using HostUnderTest host = HostUnderTest.WithTokens();
+        using HttpClient browser = host.Browser();
+
+        // A browser drops a tab or a line break from an address, so '/<TAB>/evil.example/' is '//evil.example/'.
+        HttpResponseMessage response = await HostUnderTest.SignIn(browser, HostUnderTest.ViewerToken, elsewhere);
+
+        response.Headers.Location!.OriginalString.Should().Be("/quartz");
+    }
+
     [Test]
     public async Task ATokenInTheAddressIsRefusedUnlessAllowed()
     {
@@ -172,6 +187,7 @@ public sealed class DashboardHostSignInTest
         page.Should().Contain("<meta http-equiv=\"refresh\" content=\"0;url=/quartz/jobs\">",
             "the browser moves on to an address without the token, as a navigation of this site's own");
         page.Should().NotContain(HostUnderTest.AdministratorToken);
+        response.Headers.GetValues("Referrer-Policy").Should().ContainSingle().Which.Should().Be("no-referrer");
         HostUnderTest.SignInCookie(response).Should().NotBeNull();
 
         (await browser.GetAsync("/quartz")).StatusCode.Should().Be(HttpStatusCode.OK);
