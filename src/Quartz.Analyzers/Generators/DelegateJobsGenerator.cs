@@ -296,9 +296,11 @@ public sealed class DelegateJobsGenerator : IIncrementalGenerator
     /// </summary>
     /// <remarks>
     /// The declaration is the one <see cref="DeclaredJobsEmitter" /> writes for no jobs, named as
-    /// <see cref="DeclaredJobsGenerator.NameRegistration" /> names it, so the call binds here exactly as it
-    /// will bind in the build. One per compilation, however many calls need it; it is only built for a call
-    /// that did not bind without it.
+    /// <see cref="DeclaredJobsGenerator.NameRegistration" /> names it, so the call binds here as it will
+    /// bind in a build that has a valid <c>[QuartzJob]</c>. A build with none gets no registration at all
+    /// and already fails with CS1061 on <c>AddDeclaredJobs()</c>; this stand-in can then add a second
+    /// diagnostic to that error, but never makes it compile. One per compilation, however many calls need
+    /// it; it is only built for a call that did not bind without it.
     /// </remarks>
     private static Compilation WithDeclaredJobs(Compilation compilation, SyntaxTree tree)
     {
