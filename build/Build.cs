@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
@@ -43,6 +44,9 @@ partial class Build : FalloutBuild, ICompile, IPack
 
     [Parameter("IANA time zone the unit test hosts run in, handed to them as TZ. Linux and macOS only: .NET on Windows ignores TZ")]
     readonly string UnitTestTimeZone;
+
+    [Parameter("Major version of a newer .NET runtime the unit test hosts roll forward to, such as 11, while the build stays on the SDK global.json names. The run fails unless every host reports that runtime")]
+    readonly int? UnitTestRuntime;
 
     [GitRepository] readonly GitRepository GitRepository;
 
@@ -476,7 +480,14 @@ partial class Build : FalloutBuild, ICompile, IPack
                 Log.Information("Unit tests run with TZ={TimeZone}", UnitTestTimeZone);
             }
 
-            RunTests(testRuns, resultsDirectory, timeZone: UnitTestTimeZone, applicationArguments: run =>
+            if (UnitTestRuntime is { } runtime)
+            {
+                // Before the run rather than only after it: a runner without the runtime installed fails
+                // here in seconds, not after a whole suite has passed on the wrong one.
+                AssertTheTestHostsRollForwardTo(runtime, testRuns[0]);
+            }
+
+            IReadOnlyList<Output> output = RunTests(testRuns, resultsDirectory, timeZone: UnitTestTimeZone, rollForward: UnitTestRuntime is not null, applicationArguments: run =>
             [
                 // A test that hangs has to name itself: HangDump kills a host in which no test has
                 // finished for UnitTestHangTimeout, fails the run, and writes <host>_<pid>_hang.log
@@ -494,7 +505,124 @@ partial class Build : FalloutBuild, ICompile, IPack
                 // .github/workflows/sonar.yml. What it instruments is set in testconfig.json.
                 .. Coverage ? ["--coverlet", "--coverlet-output-format", "opencover", "--coverlet-file-prefix", run.Project.Name] : Array.Empty<string>(),
             ]);
+
+            if (UnitTestRuntime is { } major)
+            {
+                AssertTheTestHostsRanOn(major, testRuns, output);
+            }
         });
+
+    /// <summary>
+    /// What a test host is handed to run on the newest runtime installed rather than the one it was built
+    /// for: <see cref="UnitTestRuntime" />'s leg.
+    /// </summary>
+    /// <remarks>
+    /// <c>LatestMajor</c> rather than <c>Major</c>, which rolls forward only when the runtime the host was
+    /// built for is missing, and on that leg it is installed beside the newer one. The prerelease switch is
+    /// what lets a release candidate be chosen at all.
+    /// </remarks>
+    static readonly IReadOnlyDictionary<string, string> RollForwardVariables = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["DOTNET_ROLL_FORWARD"] = "LatestMajor",
+        ["DOTNET_ROLL_FORWARD_TO_PRERELEASE"] = "1",
+    };
+
+    /// <summary>
+    /// The line <c>dotnet test</c> writes as it starts each test application, naming the runtime the
+    /// application reported to it, which is not the framework it was built for: a <c>net10.0</c> build that
+    /// rolled forward says <c>net11.0</c>.
+    /// </summary>
+    static readonly Regex TestHostStarted = new(@"^Running tests from (?<module>.+) \((?<runtime>[^|()]+)\|(?<architecture>[^|()]+)\)$", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    /// <summary>
+    /// Asks the first test application, with the leg's variables, which runtime it starts on, logs it, and
+    /// fails unless it is <paramref name="major" />.
+    /// </summary>
+    /// <remarks>
+    /// Microsoft.Testing.Platform's <c>--info</c> starts the application, says where it is running and exits,
+    /// which is the whole version — <c>11.0.0-rc.3.26522.148</c> — where <c>dotnet test</c> later says only
+    /// <c>net11.0</c>.
+    /// </remarks>
+    void AssertTheTestHostsRollForwardTo(int major, (Project Project, string Framework) run)
+    {
+        AbsolutePath assembly = TestAssembly(run);
+        Assert.FileExists(assembly);
+
+        Dictionary<string, string> environment = new(EnvironmentInfo.Variables);
+        foreach (KeyValuePair<string, string> variable in RollForwardVariables)
+        {
+            environment[variable.Key] = variable.Value;
+        }
+
+        IReadOnlyCollection<Output> output = ProcessTasks.StartProcess(
+                DotNetPath,
+                $"exec {assembly.ToString().DoubleQuoteIfNeeded()} --info",
+                environmentVariables: environment,
+                logOutput: false)
+            .AssertZeroExitCode()
+            .Output;
+
+        Match description = output
+            .Select(x => Regex.Match(x.Text, @"Runtime information: (?<rid>\S+) - \.NET (?<version>\S+)", RegexOptions.None, TimeSpan.FromSeconds(5)))
+            .FirstOrDefault(x => x.Success);
+
+        Assert.True(description is not null,
+            $"{assembly.Name} --info did not say which runtime it runs on, so nothing can tell whether the unit tests will run on .NET {major}:"
+            + Environment.NewLine + string.Join(Environment.NewLine, output.Select(x => x.Text).Take(20)));
+
+        string version = description.Groups["version"].Value;
+        Assert.True(version.StartsWith($"{major}.", StringComparison.Ordinal),
+            $"With {string.Join(" and ", RollForwardVariables.Select(x => $"{x.Key}={x.Value}"))}, {assembly.Name} starts on .NET {version} rather than .NET {major}: "
+            + $"the .NET {major} runtime is not installed beside the one the tests were built for.");
+
+        Log.Information("The unit test hosts roll forward to .NET {Version} ({Rid})", version, description.Groups["rid"].Value);
+    }
+
+    /// <summary>
+    /// Fails unless every test application <c>dotnet test</c> started reported .NET <paramref name="major" />,
+    /// and one did for each of <paramref name="testRuns" />.
+    /// </summary>
+    /// <remarks>
+    /// The check that the leg ran what it says it ran. Without it, a runtime that went missing from the
+    /// runner, or variables that stopped reaching the hosts, would turn the leg into a second run on the
+    /// runtime the other legs already cover, and it would still pass.
+    /// </remarks>
+    static void AssertTheTestHostsRanOn(int major, (Project Project, string Framework)[] testRuns, IReadOnlyList<Output> output)
+    {
+        string expected = $"net{major}.0";
+
+        List<(string Module, string Runtime)> hosts = output
+            .Select(x => TestHostStarted.Match(x.Text.Trim()))
+            .Where(x => x.Success)
+            .Select(x => (Module: x.Groups["module"].Value, Runtime: x.Groups["runtime"].Value))
+            .Distinct()
+            .ToList();
+
+        foreach ((string module, string runtime) in hosts)
+        {
+            Log.Information("{Module} ran on {Runtime}", Path.GetFileName(module), runtime);
+        }
+
+        List<string> elsewhere = hosts.Where(x => x.Runtime != expected).Select(x => $"{x.Module} ran on {x.Runtime}").ToList();
+        Assert.True(elsewhere.Count == 0,
+            $"Every unit test host was to run on {expected}, and these did not:" + Environment.NewLine + string.Join(Environment.NewLine, elsewhere));
+
+        Assert.True(hosts.Count == testRuns.Length,
+            $"dotnet test said where {hosts.Count} test application(s) ran, and {testRuns.Length} were started, so the runtime of the rest is unknown. "
+            + "Its 'Running tests from <module> (<runtime>|<architecture>)' line is what this check reads.");
+    }
+
+    /// <summary>
+    /// Where <c>UseArtifactsOutput</c> in <c>Directory.Build.props</c> puts a test project's build for one
+    /// of its frameworks: the framework is in the directory name only when the project has more than one.
+    /// </summary>
+    AbsolutePath TestAssembly((Project Project, string Framework) run)
+    {
+        string configuration = ((ICompile) this).Configuration.ToString().ToLowerInvariant();
+        string pivot = run.Project.GetTargetFrameworks().Count > 1 ? $"{configuration}_{run.Framework}" : configuration;
+
+        return ArtifactsDirectory / "bin" / run.Project.Name / pivot / $"{run.Project.Name}.dll";
+    }
 
     /// <summary>
     /// Runs test projects in the Microsoft.Testing.Platform mode of <c>dotnet test</c>, which
@@ -517,16 +645,28 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// A <paramref name="timeZone" /> reaches the test hosts as <c>TZ</c> and nothing else in the build,
     /// so the targets that run after the tests in the same job keep the machine's zone.
     /// </para>
+    /// <para>
+    /// <paramref name="rollForward" /> hands <see cref="RollForwardVariables" /> to the test applications
+    /// through <c>dotnet test -e</c>, which sets them on those processes alone. Set on <c>dotnet test</c>
+    /// itself they would roll the SDK forward too, and the leg would no longer be the pinned SDK running
+    /// tests on a newer runtime.
+    /// </para>
     /// </remarks>
-    void RunTests(
+    /// <returns>What every run wrote, in order.</returns>
+    IReadOnlyList<Output> RunTests(
         (Project Project, string Framework)[] testRuns,
         AbsolutePath resultsDirectory,
         Func<(Project Project, string Framework), string[]> applicationArguments,
-        string timeZone = null)
+        string timeZone = null,
+        bool rollForward = false)
     {
         var configuration = ((ICompile) this).Configuration;
 
-        DotNetTest(s => s
+        string[] environment = rollForward
+            ? [.. RollForwardVariables.SelectMany(x => new[] { "-e", $"{x.Key}={x.Value}" })]
+            : [];
+
+        return DotNetTest(s => s
             .EnableNoRestore()
             .EnableNoBuild()
             .SetConfiguration(configuration)
@@ -538,11 +678,14 @@ partial class Build : FalloutBuild, ICompile, IPack
                 .SetProcessAdditionalArguments(
                 [
                     "--project", run.Project.Path.ToString().DoubleQuoteIfNeeded(),
+                    .. environment,
                     "--",
                     "--report-trx", "--report-trx-filename", $"{run.Project.Name}.{run.Framework}.trx",
                     .. GitHubActions.Instance is not null ? ["--report-github"] : Array.Empty<string>(),
                     .. applicationArguments(run).Select(x => x.DoubleQuoteIfNeeded()),
-                ])));
+                ])))
+            .SelectMany(x => x.Output)
+            .ToList();
     }
 
     /// <summary>
@@ -753,17 +896,43 @@ partial class Build : FalloutBuild, ICompile, IPack
         AbsolutePath assembly = ArtifactsDirectory / "bin" / projectName / configuration.ToString().ToLowerInvariant() / $"{projectName}.dll";
         Assert.FileExists(assembly);
 
-        ProcessStartInfo startInfo = new()
-        {
-            FileName = DotNetPath,
+        RunUntilItSays(
+            projectName,
+            assembly,
             // The content root a host takes when it is not told one, which is where the example's
             // appsettings.json and its XML schedule were copied to. A web example is run from its project
             // directory instead, as 'dotnet run' runs it: static web assets resolve differently from there,
             // and the dashboard's framework script answered from the build output while 'dotnet run'
             // served a 404.
-            WorkingDirectory = answers is null
+            answers is null
                 ? assembly.Parent
                 : ((IHasSolution) this).Solution.AllProjects.First(x => x.Name == projectName).Directory,
+            environment,
+            markers,
+            answers is { } probe ? () => Unanswered(probe.BaseAddress, probe.Paths) : null);
+    }
+
+    /// <summary>
+    /// Starts an application's <paramref name="assembly" />, waits for every line it was started to
+    /// produce, asks <paramref name="probe" /> what it does not answer, and stops it. A non-zero exit,
+    /// an exit at all, a line that never arrives or anything unanswered fails the target.
+    /// </summary>
+    /// <param name="probe">
+    /// For a web application, what it fails to answer once every marker has arrived, each with what it
+    /// answered instead; <see langword="null" /> for one that serves nothing.
+    /// </param>
+    void RunUntilItSays(
+        string projectName,
+        AbsolutePath assembly,
+        AbsolutePath workingDirectory,
+        IReadOnlyDictionary<string, string> environment,
+        IReadOnlyList<string> markers,
+        Func<List<string>> probe = null)
+    {
+        ProcessStartInfo startInfo = new()
+        {
+            FileName = DotNetPath,
+            WorkingDirectory = workingDirectory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -841,17 +1010,25 @@ partial class Build : FalloutBuild, ICompile, IPack
                 + $"instead of running, and never said {Quoted(missing)}.{Tail(output)}");
         }
 
-        // Asked while the application is still running, and only once it has said everything, so a path
-        // that does not answer is the application's fault rather than a request that arrived too early.
-        List<string> unanswered = missing.Length == 0 && answers is { } probe ? Unanswered(probe.BaseAddress, probe.Paths) : [];
-
-        // A kill rather than Ctrl+C: on Windows a console control event goes to a process group rather
-        // than to one process, so sending one would stop this build too. What a graceful shutdown does is
-        // the hosted service's business and the unit suite's; what this target asks is whether the
-        // application starts and works at all.
-        if (!process.HasExited)
+        List<string> unanswered;
+        try
         {
-            process.Kill(entireProcessTree: true);
+            // Asked while the application is still running, and only once it has said everything, so a
+            // path that does not answer is the application's fault rather than a request that arrived too
+            // early.
+            unanswered = missing.Length == 0 && probe is not null ? probe() : [];
+        }
+        finally
+        {
+            // A kill rather than Ctrl+C: on Windows a console control event goes to a process group rather
+            // than to one process, so sending one would stop this build too. What a graceful shutdown does
+            // is the hosted service's business and the unit suite's; what this target asks is whether the
+            // application starts and works at all. In a finally, so that a probe that throws leaves no web
+            // server listening on the runner.
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
         }
 
         process.WaitForExit();

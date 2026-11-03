@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    src/Quartz.Trimming.Canary.Wire as a net11.0 application over the packages this build packed, built by
+    the .NET 11 SDK and published trimmed and natively by Net11ConsumerSmoke (build/Build.Net11.cs). The
+    sources are the canary's own, compiled from the repository; this file is its csproj with
+    PackageReferences in place of ProjectReferences, and that csproj says why each setting is there. A
+    setting added there belongs here too.
+
+    What a package consumer gets without asking is left to the packages: Quartz.nupkg's analyzers, and the
+    buildTransitive Quartz.targets that sets Quartz's feature switches under PublishTrimmed, which the
+    repository's csproj has to import by path.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <ILLinkTreatWarningsAsErrors>false</ILLinkTreatWarningsAsErrors>
+    <IlcTreatWarningsAsErrors>false</IlcTreatWarningsAsErrors>
+    <!--
+      The repository's name and key, because Quartz names this assembly in InternalsVisibleTo by both.
+      QuartzRepositoryRoot is handed in by Net11ConsumerSmoke.
+    -->
+    <AssemblyName>Quartz.Trimming.Canary.Wire</AssemblyName>
+    <RootNamespace>Quartz.Trimming.Canary.Wire</RootNamespace>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(QuartzRepositoryRoot)/quartz.net.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(QuartzRepositoryRoot)/src/Quartz.Trimming.Canary.Wire/**/*.cs" />
+    <Compile Include="$(QuartzRepositoryRoot)/src/Quartz.Trimming.Canary/TrimWitness.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <RuntimeHostConfigurationOption Include="Microsoft.AspNetCore.SignalR.Hub.IsCustomAwaitableSupported" Value="false" Trim="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- QuartzVersion is the version this build packed, handed in by Net11ConsumerSmoke. -->
+    <PackageReference Include="Quartz.AspNetCore" Version="$(QuartzVersion)" />
+    <PackageReference Include="Quartz.Dashboard.Agent" Version="$(QuartzVersion)" />
+    <PackageReference Include="Quartz.HttpClient" Version="$(QuartzVersion)" />
+  </ItemGroup>
+
+</Project>

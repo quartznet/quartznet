@@ -17,6 +17,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!--
+      The net11.0 consumer Net11ConsumerSmoke copies out of the repository and builds with the .NET 11 SDK
+      (Build.Net11.cs). Its sources are an application's, not this project's.
+    -->
+    <Compile Remove="net11-consumer/**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Fallout.Components" Version="10.4.0" />
 
     <!--
