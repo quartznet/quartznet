@@ -20,6 +20,8 @@
 using System.Globalization;
 using System.Text;
 
+using Quartz.HttpApiContract;
+
 namespace Quartz.Dashboard.Services;
 
 /// <summary>
@@ -182,9 +184,35 @@ internal static class RunAgainInput
     }
 
     /// <summary>
+    /// Why a run that carried input is not run again for a visitor who may trigger the job but not with
+    /// job data: what an execution's page says in place of the button, and the History page's toast.
+    /// </summary>
+    /// <remarks>
+    /// The pages never offer to run it without the input instead: the job would do something other than
+    /// what the failed run was asked to do, and nothing on the button would say so.
+    /// </remarks>
+    public static string InputNeedsAccess
+        => $"Running it again with its input needs {SchedulerRoutes.RequiredAccess(SchedulerRoutes.TriggerJob, carriesJobData: true)}.";
+
+    /// <summary>
+    /// What the History page says when it read a row's input on demand and did not send it, because the
+    /// visitor may not trigger a job with data.
+    /// </summary>
+    /// <param name="target">The job's key, as the pages write it.</param>
+    public static string NotRunForInput(string target)
+    {
+        return "The job " + target + " was not run. " + InputNeedsAccess;
+    }
+
+    /// <summary>
     /// What the History page's button says it will do, before the row's input has been read.
     /// </summary>
-    public static string Hint(DashboardHistoryEntry listed)
+    /// <param name="listed">The row as the listing carried it.</param>
+    /// <param name="mayPassInput">
+    /// Whether the visitor may trigger a job with data. A visitor who may not is offered the button only on a
+    /// row the listing does not say carried input, and is told here that a run that did is not run again.
+    /// </param>
+    public static string Hint(DashboardHistoryEntry listed, bool mayPassInput)
     {
         ArgumentNullException.ThrowIfNull(listed);
 
@@ -193,8 +221,13 @@ internal static class RunAgainInput
             return "Fires the job again without input: the run's input was too large for the history to keep";
         }
 
-        return listed.Input is not null
-            ? "Fires the job again with the original input"
-            : "Fires the job again, with the run's input when the history recorded one";
+        if (listed.Input is not null)
+        {
+            return "Fires the job again with the original input";
+        }
+
+        return mayPassInput
+            ? "Fires the job again, with the run's input when the history recorded one"
+            : "Fires the job again when the history recorded no input for the run. " + InputNeedsAccess;
     }
 }

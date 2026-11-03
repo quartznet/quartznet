@@ -49,6 +49,17 @@ public class SharedComponentsTest
         host.FindAll(".qz-toast").Should().BeEmpty();
     }
 
+    [Test]
+    public void AWarningToastLooksLikeNeitherAFailureNorASuccess()
+    {
+        IRenderedComponent<ToastHost> host = context.Render<ToastHost>();
+
+        host.InvokeAsync(() => context.Toasts.Warning("nothing was sent")).Wait();
+
+        host.Find(".qz-toast").ClassList.Should().Contain("qz-toast-warning",
+            "the page declined to send something, which is neither a failure nor a success");
+    }
+
     [TestCase(0, "1s ago")]
     [TestCase(45, "45s ago")]
     [TestCase(90, "1m ago")]

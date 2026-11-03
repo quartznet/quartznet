@@ -1337,6 +1337,15 @@ builder.Services.AddQuartzDashboard(options =>
 - A page renders only the controls the visitor's role allows, asked once per scheduler for the circuit. A visitor
   in no role sees no scheduler: the picker leaves it out, its pages draw the *not authorized* frame, and the
   live-events hub refuses its group.
+- Run again of a run that carried input needs `Administer`. An operator is never offered to run it without the
+  input instead:
+
+  | Where | What an operator sees |
+  |---|---|
+  | Execution page | *Running it again with its input needs Administer.* in place of Run again |
+  | History row whose listing carries the input | No Run again |
+  | History row whose input is read on press | A warning toast with the same reason. Nothing is sent, so the Action Log has no entry |
+
 - **Every call through the dashboard's own `IQuartzApiClient` is checked**, like `ReadOnly`, before anything
   reaches the scheduler. A refused call raises `UnauthorizedAccessException`; the page shows a toast, the
   [Action Log](#action-log) records the action as *Refused*, and the application's log has event `9118`.

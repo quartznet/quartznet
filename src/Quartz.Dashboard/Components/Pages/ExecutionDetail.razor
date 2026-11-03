@@ -27,6 +27,12 @@
                     title="@(_jobGone ? RunAgainInput.JobGone(Target(_entry)) : null)"
                     @onclick="RunAgainAsync">Run again @RunAgainInput.Label(_entry)</button>
         }
+        else if (WithholdsRunAgainForInput(_entry))
+        {
+            @* Never Run again without the input instead: the job would do something other than what the
+               failed run was asked to do. *@
+            <span class="qz-muted" data-testid="execution-run-again-withheld">@RunAgainInput.InputNeedsAccess</span>
+        }
     </div>
 
     @if (_isLoading)
@@ -229,13 +235,33 @@
     /// </summary>
     private bool OffersRunAgain([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] DashboardHistoryEntry? entry)
     {
-        return entry is not null
-               && !entry.Succeeded
-               && !entry.RetryScheduled
+        return FailedFinally(entry)
                && Authorization.Allows(
                    Scheduler.ActiveSchedulerName,
                    Quartz.HttpApiContract.SchedulerRoutes.TriggerJob,
                    Quartz.HttpApiContract.SchedulerRoutes.CarriesJobData(RunAgainInput.DataFor(entry)));
+    }
+
+    /// <summary>
+    /// Whether <em>Run again</em> is withheld for the run's input alone: a final failure that carried input,
+    /// and a visitor who may trigger the job but not with job data. The page says so in the button's place.
+    /// A visitor who may not trigger it at all is told nothing, as every other control they cannot use is.
+    /// </summary>
+    private bool WithholdsRunAgainForInput([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] DashboardHistoryEntry? entry)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        return FailedFinally(entry)
+               && entry.Input is not null
+               && Authorization.Allows(schedulerName, Quartz.HttpApiContract.SchedulerRoutes.TriggerJob)
+               && !Authorization.Allows(schedulerName, Quartz.HttpApiContract.SchedulerRoutes.TriggerJob, carriesJobData: true);
+    }
+
+    /// <summary>
+    /// A run that did not succeed and that the trigger is not retrying: the only one there is to run again.
+    /// </summary>
+    private static bool FailedFinally([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] DashboardHistoryEntry? entry)
+    {
+        return entry is not null && !entry.Succeeded && !entry.RetryScheduled;
     }
 
     private static string Target(DashboardHistoryEntry entry) => DisplayValueHelper.FormatKey(entry.JobGroup, entry.JobName);
