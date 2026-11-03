@@ -239,6 +239,71 @@ public class DelegateJobsGeneratorTest
             "a call is intercepted by the name that denotes the method, however the call reaches it");
     }
 
+    /// <summary>
+    /// A call beside <c>AddDeclaredJobs()</c>, or chained onto it, is intercepted, though no generator's
+    /// compilation has the method the other generator writes (#4234).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Without it, the lambda handed to <c>AddQuartz</c> does not compile, so it binds to no overload, and
+    /// the compiler's error recovery binds it with whichever of the overloads' delegate types reported the
+    /// fewest diagnostics, warnings counted. <c>Action&lt;QuartzHealthCheckOptions&gt;</c> reports one
+    /// error for each call on <c>q</c>; <c>Action&lt;IQuartzBuilder&gt;</c> reports one for
+    /// <c>AddDeclaredJobs()</c>, and every warning the rest of the body has.
+    /// </para>
+    /// <para>
+    /// A <c>net11.0</c> build is where the warnings came from: a CS1701 at every Quartz member whose
+    /// signature names a <c>net10.0</c> type, which a store's configuration reaches several of. Not the
+    /// language version — C# 14 failed in a <c>net11.0</c> build and C# 15 passed in a <c>net10.0</c> one.
+    /// This process has no <c>net11.0</c> reference assemblies, so the warnings here are
+    /// <see cref="ObsoleteAttribute" />'s, which are reported in the same place and counted the same way.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public void ACallBesideAddDeclaredJobsIsInterceptedWhateverIsReportedBesideIt()
+    {
+        GeneratorRun run = Intercept(Snippet("""
+            [QuartzJob(Name = "declared")]
+            public sealed class DeclaredJob : IJob
+            {
+                public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+            }
+
+            public static class StoreExtensions
+            {
+                [Obsolete("A warning at every call, as a net11.0 build has a CS1701 at every Quartz member that names a net10.0 type.")]
+                public static IPersistentStoreBuilder Legacy(this IPersistentStoreBuilder store) => store;
+            }
+
+            public static class Registration
+            {
+                public static void Register(IServiceCollection services)
+                {
+                    services.AddQuartz(q =>
+                    {
+                        q.UsePersistentStore(store =>
+                        {
+                            store.Legacy();
+                            store.Legacy();
+                            store.Legacy();
+                        });
+
+                        q.AddDeclaredJobs();
+                        q.ScheduleJob("beside", (IJobExecutionContext context, CancellationToken token) => Task.CompletedTask, trigger => trigger.StartNow());
+                    });
+
+                    services.AddQuartz("chained", q => q.AddDeclaredJobs().AddJob("chained", (Repository repository) => repository.Purge(CancellationToken.None)));
+                }
+            }
+            """), besides: [new DeclaredJobsGenerator()]);
+
+        run.Output.GetDiagnostics().Where(x => x.Id == "CS0618").Should().HaveCount(3,
+            "the warnings are what tipped the compiler's error recovery, so the snippet has to have them");
+        run.Generated.Should().Contain("ScheduleJob0(").And.Contain("AddJob0(",
+            "both calls bind in the build, the first beside AddDeclaredJobs() and the second on what it returns");
+        Regex.Matches(run.Generated!, "InterceptsLocation\\(1, ").Count.Should().Be(2);
+    }
+
     [Test]
     public void TheInterceptorNamesTheCallItReplaces()
     {
@@ -491,9 +556,9 @@ public class DelegateJobsGeneratorTest
             "the generated code resolved the service, handed the firing and its token, and called the handler with no reflection on the way");
     }
 
-    private static GeneratorRun Intercept(string source, LanguageVersion languageVersion = LanguageVersion.Latest)
+    private static GeneratorRun Intercept(string source, LanguageVersion languageVersion = LanguageVersion.Latest, IEnumerable<IIncrementalGenerator>? besides = null)
     {
-        GeneratorRun run = AnalyzerRunner.RunGenerator<DelegateJobsGenerator>(source, languageVersion: languageVersion, features: interceptorsEnabled);
+        GeneratorRun run = AnalyzerRunner.RunGenerator<DelegateJobsGenerator>(source, languageVersion: languageVersion, features: interceptorsEnabled, besides: besides);
 
         run.Diagnostics.Should().BeEmpty("the generator reports nothing: a call it cannot bind is bound by reflection instead");
         if (run.Generated is not null)

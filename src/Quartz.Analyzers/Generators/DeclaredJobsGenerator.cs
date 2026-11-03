@@ -157,8 +157,12 @@ public sealed class DeclaredJobsGenerator : IIncrementalGenerator
     /// A renamed class is never what another assembly looks for here, so a chain of grants renames
     /// each assembly at most once, and only the ones that can see an ordinary name.
     /// </para>
+    /// <para>
+    /// <see cref="DelegateJobsGenerator" /> asks too: it binds a call beside <c>AddDeclaredJobs()</c>
+    /// against the names this file is about to declare, which no generator can see being declared.
+    /// </para>
     /// </remarks>
-    private static RegistrationName NameRegistration(Compilation compilation)
+    internal static RegistrationName NameRegistration(Compilation compilation)
     {
         string? visible = null;
 
