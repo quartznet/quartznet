@@ -3,6 +3,10 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
 using Quartz.HttpApiContract;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -88,6 +92,40 @@ public sealed class ProblemDetailsFactoryTest
     public void TheServerFaultTitleIsTheOneAspNetCore10Wrote()
     {
         ProblemDetailsFactory.Defaults(500).Should().Be(("https://tools.ietf.org/html/rfc9110#section-15.6.1", "An error occurred while processing your request."));
+    }
+
+    /// <summary>
+    /// Every status the running ASP.NET Core has a type for, the table has with the same type and title, and
+    /// every status it has none for, the table leaves alone; a <c>500</c>'s title is the one exception, and
+    /// it is ASP.NET Core 10's on every runtime.
+    /// </summary>
+    /// <remarks>
+    /// Asked of the framework itself, through the result <c>Results.Problem</c> builds when it is given a
+    /// status alone, so that the .NET 11 leg says so when a later ASP.NET Core changes another entry.
+    /// </remarks>
+    [Test]
+    public void TheTableIsTheOneAspNetCoreWrites()
+    {
+        List<string> different = [];
+
+        for (int status = 400; status < 600; status++)
+        {
+            ProblemDetails framework = ((ProblemHttpResult) Results.Problem(statusCode: status)).ProblemDetails;
+            (string? type, string? title) = ProblemDetailsFactory.Defaults(status);
+
+            string? expectedTitle = framework.Type is null ? null : framework.Title;
+            if (status == 500)
+            {
+                expectedTitle = "An error occurred while processing your request.";
+            }
+
+            if (type != framework.Type || title != expectedTitle)
+            {
+                different.Add($"{status}: the table has ({type}, {title}) and ASP.NET Core {Environment.Version} ({framework.Type}, {framework.Title})");
+            }
+        }
+
+        different.Should().BeEmpty("one failure is one body whichever carrier writes it, and the agent's carrier writes from the table alone");
     }
 
     [Test]
