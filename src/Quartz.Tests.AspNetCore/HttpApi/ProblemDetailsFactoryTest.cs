@@ -32,6 +32,8 @@ public sealed class ProblemDetailsFactoryTest
             .SetName("a request refused as malformed");
         yield return new TestCaseData(ForbiddenException.ForReadOnlyApi(), "ReadOnlyRefusalProblemDetailsBody")
             .SetName("a read-only refusal");
+        yield return new TestCaseData(new NotServedException(new NotSupportedException("The history store keeps no per-job run status.")), "NotServedProblemDetailsBody")
+            .SetName("a read the store does not serve");
     }
 
     [TestCaseSource(nameof(Snapshots))]
@@ -53,14 +55,39 @@ public sealed class ProblemDetailsFactoryTest
         return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourceFile)!, "..", "Verify", $"WireFormatSnapshotTest_{snapshot}.verified.json"));
     }
 
+    /// <summary>
+    /// The agent's own <c>413</c>, a page too large for its channel, is written as ASP.NET Core 10 writes a
+    /// <c>413</c>.
+    /// </summary>
     [Test]
-    public void AStatusWithNoRfcTitleIsWrittenWithoutOne()
+    public void AStatusTheAgentAloneAnswersHasTheTablesTypeAndTitle()
     {
         ProblemDetailsDto problem = ProblemDetailsFactory.Create(HttpStatusCode.RequestEntityTooLarge, "too big");
         string written = JsonSerializer.Serialize(problem, HttpApiJsonContext.Default.ProblemDetailsDto);
 
-        written.Should().Be("""{"status":413,"detail":"too big"}""",
-            "ASP.NET Core leaves type and title out of a body for a status its defaults table does not name, and so does the factory");
+        written.Should().Be("""{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.14","title":"Content Too Large","status":413,"detail":"too big"}""",
+            "the table is ASP.NET Core 10's, which names a 413");
+    }
+
+    [Test]
+    public void AStatusOutsideTheTableIsWrittenWithoutATypeOrTitle()
+    {
+        ProblemDetailsDto problem = ProblemDetailsFactory.Create(HttpStatusCode.TooManyRequests, "slow down");
+        string written = JsonSerializer.Serialize(problem, HttpApiJsonContext.Default.ProblemDetailsDto);
+
+        written.Should().Be("""{"status":429,"detail":"slow down"}""",
+            "no carrier of the contract answers one, so the factory guesses nothing for it");
+    }
+
+    /// <summary>
+    /// The table the HTTP API now hands <c>Results.Problem</c> as well, so its <c>500</c> keeps the title
+    /// ASP.NET Core 10 wrote: 11 writes <c>Internal Server Error</c> when it is asked to choose
+    /// (dotnet/aspnetcore#65590).
+    /// </summary>
+    [Test]
+    public void TheServerFaultTitleIsTheOneAspNetCore10Wrote()
+    {
+        ProblemDetailsFactory.Defaults(500).Should().Be(("https://tools.ietf.org/html/rfc9110#section-15.6.1", "An error occurred while processing your request."));
     }
 
     [Test]
