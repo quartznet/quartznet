@@ -255,6 +255,7 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             assetEndpoints.Add(MapDashboardStaticAssets(builder, pathPrefix: dashboardPath));
             assetEndpoints.Add(MapDashboardFrameworkScript(builder, dashboardPath));
             assetEndpoints.Add(MapDashboardOpaqueRedirect(builder, dashboardPath));
+            assetEndpoints.Add(MapDashboardFrameworkFiles(builder, dashboardPath));
         }
 
         if (!string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
@@ -514,6 +515,54 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
             }
+        }).ExcludeFromDescription();
+    }
+
+    /// <summary>
+    /// Every other file of the Blazor framework tree under the dashboard path, forwarded to what the host
+    /// serves at <c>/_framework/{file}</c>.
+    /// </summary>
+    /// <remarks>
+    /// The dashboard-rooted <c>&lt;base href&gt;</c> sends every relative <c>_framework</c> request under the
+    /// dashboard path, not only the two that have endpoints of their own above, which keep them by route
+    /// precedence. A host built in Debug with the .NET 11 SDK lists a hot-reload JS initializer,
+    /// <c>_framework/Microsoft.NET.Sdk.BlazorWeb.DotNetWatch.&lt;hash&gt;.lib.module.js</c>, among the page's
+    /// Blazor initializers, and the initializer imports its siblings relative to itself. A failed import
+    /// stops <c>Blazor.start</c>, so the circuit never started (#4224). Forwarding whatever the host serves
+    /// covers that and any later framework file without naming them. Only an endpoint whose route is that
+    /// exact path, or a file in the web root under <c>_framework</c>, is ever served.
+    /// </remarks>
+    private static RouteHandlerBuilder MapDashboardFrameworkFiles(IEndpointRouteBuilder builder, string dashboardPath)
+    {
+        return builder.MapMethods(dashboardPath + "/_framework/{**file}", GetAndHeadMethods, async (HttpContext context, string file) =>
+        {
+            if (file.Contains("..", StringComparison.Ordinal))
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            if (await TryForwardToRootEndpointAsync(context, "/_framework/" + file).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            // A host that serves static web assets with UseStaticFiles rather than MapStaticAssets has no
+            // endpoint for them, and its web root has the file
+            IWebHostEnvironment env = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
+            IFileInfo fileInfo = env.WebRootFileProvider.GetFileInfo("_framework/" + file);
+            if (!fileInfo.Exists || fileInfo.IsDirectory)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            if (!ContentTypeProvider.TryGetContentType(file, out string? contentType))
+            {
+                contentType = "application/octet-stream";
+            }
+
+            await WriteFileAsync(context, fileInfo, contentType, etagCacheKey: fileInfo.PhysicalPath).ConfigureAwait(false);
         }).ExcludeFromDescription();
     }
 
