@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Fallout.Common.CI.GitHubActions;
+using Fallout.Common.CI.GitHubActions.Configuration;
 
 using Quartz.Build;
 
@@ -19,6 +20,25 @@ using Quartz.Build;
     CacheKeyFiles = [],
     ConcurrencyCancelInProgress = true,
     ReadPermissions = [GitHubActionsPermissions.Contents]),
+]
+// .NET 11 users of 3.x run its net8.0, net9.0 and net10.0 assemblies on the 11 runtime, and nothing above
+// does (#4211). This leg builds with the SDK global.json names and runs the unit tests with every test host
+// rolled forward to the newest runtime installed, which UnitTestRuntime requires to be 11; ConfigureSteps
+// installs it. Ubuntu alone, so net472 is not part of it, and on the same branches and paths as
+// pr-tests-unit: the whole job is about five minutes.
+[GitHubActions(
+    "pr-tests-unit-net11",
+    GitHubActionsImage.UbuntuLatest,
+    OnPullRequestBranches = ["main", "v4", "3.x"],
+    OnPullRequestIncludePaths = ["**/*"],
+    OnPullRequestExcludePaths = ["docs/**/*", "package.json", "readme.md"],
+    PublishArtifacts = false,
+    InvokedTargets = [nameof(Compile), nameof(UnitTest)],
+    CacheKeyFiles = [],
+    TimeoutMinutes = 20,
+    ConcurrencyCancelInProgress = true,
+    ReadPermissions = [GitHubActionsPermissions.Contents],
+    Env = ["UnitTestRuntime: 11"])
 ]
 [DatabaseIntegrationGitHubActions("pr-integration-basic", "basic")]
 [DatabaseIntegrationGitHubActions("pr-integration-postgres", "postgres")]
@@ -68,7 +88,34 @@ using Quartz.Build;
     // Contents is write here, so it is not repeated as a read: a permission key can only appear once.
     WritePermissions = [GitHubActionsPermissions.IdToken, GitHubActionsPermissions.Contents])
 ]
-public partial class Build;
+public partial class Build : IConfigureGitHubActions
+{
+    /// <summary>
+    /// Installs the .NET 11 SDK, which carries the runtime, on the leg that runs the unit tests on it.
+    /// </summary>
+    public void ConfigureSteps(GitHubActionsStepPipeline pipeline)
+    {
+        if (pipeline.WorkflowName != "pr-tests-unit-net11")
+        {
+            return;
+        }
+
+        pipeline.Insert(GitHubActionsStepPosition.PreRun, new GitHubActionsCustomStep
+        {
+            Name = "Setup: .NET 11 SDK",
+            // Beside the SDK global.json names, which the generated step after this one installs and the
+            // build keeps using: global.json takes no part in choosing a runtime. Preview quality until
+            // 11.0.0 ships, then drop dotnet-quality for the release. The release the generator pins for
+            // its own setup-dotnet step.
+            Uses = "actions/setup-dotnet@v6",
+            With =
+            {
+                ["dotnet-version"] = "11.0.x",
+                ["dotnet-quality"] = "preview"
+            }
+        });
+    }
+}
 
 namespace Quartz.Build
 {
