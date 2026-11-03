@@ -649,7 +649,8 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// <paramref name="rollForward" /> hands <see cref="RollForwardVariables" /> to the test applications
     /// through <c>dotnet test -e</c>, which sets them on those processes alone. Set on <c>dotnet test</c>
     /// itself they would roll the SDK forward too, and the leg would no longer be the pinned SDK running
-    /// tests on a newer runtime.
+    /// tests on a newer runtime. Every project then runs even when one fails: each failure is a finding
+    /// about the newer runtime, and one run should report all of them.
     /// </para>
     /// </remarks>
     /// <returns>What every run wrote, in order.</returns>
@@ -683,7 +684,8 @@ partial class Build : FalloutBuild, ICompile, IPack
                     "--report-trx", "--report-trx-filename", $"{run.Project.Name}.{run.Framework}.trx",
                     .. GitHubActions.Instance is not null ? ["--report-github"] : Array.Empty<string>(),
                     .. applicationArguments(run).Select(x => x.DoubleQuoteIfNeeded()),
-                ])))
+                ])),
+                completeOnFailure: rollForward)
             .SelectMany(x => x.Output)
             .ToList();
     }
