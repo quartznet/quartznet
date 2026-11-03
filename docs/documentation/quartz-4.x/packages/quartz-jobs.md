@@ -164,7 +164,7 @@ await scheduler.ScheduleJob(job, trigger);
 
 | Platform | What runs |
 |---|---|
-| Windows | `cmd.exe /C <Command> <Parameters>` |
+| Windows | `cmd.exe /C <Command> <Parameters>`, with `cmd.exe` from the system directory, not from `PATH` |
 | Linux | `/bin/sh -c "<Command> <Parameters>"`: the two are one script, so the shell parses quotes and pipes |
 | Elsewhere | `<Command>` itself, with `<Parameters>` as its arguments |
 

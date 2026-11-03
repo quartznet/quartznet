@@ -213,8 +213,9 @@ public class NativeJob : IJob
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                // cmd.exe parses its own command line, so it is handed one string.
-                proc.StartInfo.FileName = "cmd.exe";
+                // cmd.exe parses its own command line, so it is handed one string. It is the system's
+                // own, never one that PATH or the working directory would find first.
+                proc.StartInfo.FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe");
                 proc.StartInfo.Arguments = ("/C " + command + " " + parameters).Trim();
                 logger.AboutToRun(proc.StartInfo.FileName, proc.StartInfo.Arguments);
             }
