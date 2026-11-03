@@ -18,9 +18,9 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 <!-- endSnippet -->
 
 Documented against **Aspire 13.5**. Settings, the provider table and the connection ladder are on the
-[Aspire Integration](../packages/aspire.md) reference page. There is no *hosting* integration (no
-`Aspire.Hosting.Quartz` package, no `AddQuartz` AppHost resource): `Quartz.Aspire` only needs a named
-connection string, from anywhere.
+[Aspire Integration](../packages/aspire.md) reference page. The scheduler needs no AppHost resource:
+`Quartz.Aspire` only needs a named connection string, from anywhere. The Quartz.NET dashboard does have one, in
+[`Quartz.Aspire.Hosting`](../packages/aspire-hosting.md) (4.8); see [The Quartz dashboard](#the-quartz-dashboard).
 
 ## What the package subscribes for you
 
@@ -442,6 +442,53 @@ firing logs; see [A log scope per firing](../tutorial/job-execution-middleware.m
 
 Full tables: [Observability](../packages/opentelemetry-integration.md).
 
+## The Quartz dashboard
+
+The Aspire dashboard shows telemetry; the Quartz dashboard shows and drives the schedulers. From 4.8 the AppHost
+runs it with [`Quartz.Aspire.Hosting`](../packages/aspire-hosting.md):
+
+```shell
+dotnet add AppHost package Quartz.Aspire.Hosting
+dotnet add Orders.Worker package Quartz.Dashboard.Agent
+```
+
+<!-- Not a compiled sample: the generated Projects class comes from the AppHost project. The same calls are
+     compiled in src/Quartz.Examples.Aspire.AppHost. -->
+
+```csharp
+var dashboard = builder.AddQuartzDashboard("quartz-dashboard");
+
+builder.AddProject<Projects.Orders_Worker>("orders")
+    .WithReference(quartzDb)
+    .WaitFor(quartzDb)
+    .WithReference(dashboard);
+```
+
+The worker adds one line, which reads the endpoint, token and name `WithReference(dashboard)` sets:
+
+<!-- snippet: sample_dashboard_agent_from_configuration -->
+```csharp
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+builder.AddQuartz(q =>
+{
+    // Endpoint, Token and Target come from Quartz:DashboardAgent - an Aspire AppHost's
+    // WithReference(dashboard) sets them as Quartz__DashboardAgent__* environment variables.
+    q.UseDashboardAgent();
+});
+
+builder.AddQuartzHostedService();
+```
+<!-- endSnippet -->
+
+* **The dashboard's URL signs you in.** Open it from the Aspire dashboard's resource list: it carries a generated
+  administrator token, kept in the AppHost's user secrets.
+* **The worker dials out**, so nothing waits for the dashboard and the worker opens no port.
+* **Or read the database instead**: `.WithAttachedStore(quartzDb)` on the dashboard shows every scheduler in it,
+  with nothing added to the workers. Use one or the other for a scheduler, or it is listed twice.
+* **One dashboard replica**, and a worker with replicas is shown one replica at a time; see
+  [the limitations](../packages/aspire-hosting.md#limitations).
+
 ## What Aspire does not do for you
 
 * **Clustering.** `WithReplicas(2)` starts two workers, not a cluster. Add `UseClustering()`. Each replica
@@ -465,5 +512,6 @@ is the version without Aspire. `AddQuartzPersistentStore` works anywhere a `Conn
 
 * [Aspire Integration](../packages/aspire.md) — every setting, the provider-inference table, and the
   connection ladder in full
+* [Aspire Hosting](../packages/aspire-hosting.md) — the Quartz dashboard as an AppHost resource
 * [Observability](../packages/opentelemetry-integration.md) — the spans, instruments and attributes
 * [Operations](../operations.md) — the health check outside Aspire, and what it does and does not assert

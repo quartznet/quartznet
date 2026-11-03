@@ -90,6 +90,59 @@ the three levels.
 `UseDashboardAgent` also calls `AddQuartzExecutionHistory()`, so a worker with an agent records what it ran in
 memory, as a worker serving the HTTP API does. The dashboard's History page reads it through the connection.
 
+### From configuration
+
+From 4.8, both overloads read `Quartz:DashboardAgent` from the container's `IConfiguration`. The overload with no
+callback reads nothing else:
+
+<!-- snippet: sample_dashboard_agent_from_configuration -->
+```csharp
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+builder.AddQuartz(q =>
+{
+    // Endpoint, Token and Target come from Quartz:DashboardAgent - an Aspire AppHost's
+    // WithReference(dashboard) sets them as Quartz__DashboardAgent__* environment variables.
+    q.UseDashboardAgent();
+});
+
+builder.AddQuartzHostedService();
+```
+<!-- endSnippet -->
+
+```json
+{
+  "Quartz": {
+    "DashboardAgent": {
+      "Endpoint": "https://ops.example.com/quartz/agents",
+      "Token": "…",
+      "Target": "worker-1"
+    }
+  }
+}
+```
+
+- **Keys:** `Endpoint`, `Token`, `Target`, `ReadOnly`, `MaxAccess`, `HeartbeatInterval`, `MaxConcurrentOperations`,
+  `MaxPageSize`. The delegates (`IsJobTypeAllowed`, `IsOperationAllowed`, `AccessTokenProvider`,
+  `ConfigureConnection`) are code only.
+- **A named scheduler** reads `Quartz:Schedulers:{name}:DashboardAgent` when it exists, and `Quartz:DashboardAgent`
+  otherwise.
+- **Code wins.** The callback overload applies the section first, then the callback:
+
+<!-- snippet: sample_dashboard_agent_configuration_and_code -->
+```csharp
+builder.AddQuartz(q =>
+{
+    // Configuration is read first; what the callback sets wins. The delegates have no
+    // spelling in a settings file, so they are written here.
+    q.UseDashboardAgent(agent =>
+        agent.IsJobTypeAllowed = name => name.StartsWith("Acme.Jobs.", StringComparison.Ordinal));
+});
+```
+<!-- endSnippet -->
+
+An Aspire AppHost writes these keys with `WithReference(dashboard)`; see [Aspire Hosting](aspire-hosting.md).
+
 ### Authenticating with the host's credential
 
 A token is a shared secret. Where the host authenticates machines itself — a managed identity, an OIDC client

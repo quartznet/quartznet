@@ -26,6 +26,7 @@ The call:
 The recipe (the AppHost, the dashboard, and each step written out by hand) is
 [Running Quartz under Aspire](../how-tos/aspire.md). Every store setting is in
 [Job Stores](../tutorial/job-stores.md) and the [Configuration Reference](../configuration/reference.md#persistent-job-store).
+The Quartz.NET dashboard as an AppHost resource is the hosting integration, [Aspire Hosting](aspire-hosting.md).
 
 ::: tip
 Quartz 4.0 or later required. Documented against **Aspire 13.5**.
@@ -289,9 +290,9 @@ Named schedulers and how their parts are keyed: [Multiple Schedulers](multiple-s
 
 ## What this package deliberately does not do
 
-- **No `Quartz.Aspire.Hosting`.** A hosting integration adds AppHost resources (an `AddQuartz()` resource, a
-  `WithQuartzDashboard()`). Quartz runs *inside* an existing project resource, so there is nothing to
-  orchestrate; the AppHost already declares the database and passes it on.
+- **No AppHost resource.** Quartz runs *inside* an existing project resource, so there is nothing to orchestrate;
+  the AppHost already declares the database and passes it on. The one AppHost resource Quartz has is the
+  dashboard, in its own package: [Aspire Hosting](aspire-hosting.md) (4.8).
 - **No `AddKeyedQuartzPersistentStore`.** A second database goes to a second, named scheduler, selected with
   `SchedulerName`. Aspire's guidance makes a keyed form "consider, if applicable", not a requirement.
 - **No health-check status codes.** `HealthCheckOptions.ResultStatusCodes` is an ASP.NET Core type and the

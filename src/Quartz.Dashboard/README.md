@@ -69,6 +69,10 @@ A scheduler in **another** process is rendered and driven all the same: register
 `AddQuartzHttpClient` and it joins the listing beside the local ones, history included. Live Logs is the
 one page that has nothing to show over HTTP, and it says so.
 
+With no web application to host it in, run the dashboard on its own: the
+[Quartz.Dashboard.Host](https://www.nuget.org/packages/Quartz.Dashboard.Host) tool, `quartz-dashboard`, or the
+`ghcr.io/quartznet/quartz-dashboard` image, both configured from settings alone.
+
 ## Documentation
 
 The full guide covers custom paths and reverse proxies, authorization, integrating into an existing

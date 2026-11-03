@@ -40,6 +40,15 @@ internals behind them.
   `ConfigureAllQuartzSchedulers`, so it is order-independent with `AddQuartz`. Its hand-written
   `ConfigurationSchema.json` is held to `QuartzAspireSettings` by a test, because Aspire's generator for
   that file has never shipped.
+- `Quartz.Dashboard.Host` — the dashboard as a program (4.8): the `quartz-dashboard` tool and the
+  `ghcr.io/quartznet/quartz-dashboard` image, one project. Internal `Program`, no public API; its contract is
+  the `Quartz:Dashboard` keys. It refuses to start on any mistake in them, logging `9402`, never logs a token,
+  and is not trimmable (Blazor Server).
+- `Quartz.Aspire.Hosting` — the AppHost resource that runs that image. It references `Aspire.Hosting` and
+  **nothing of Quartz**: the environment variables it writes are the contract, and `Quartz.Tests.Aspire`
+  feeds them to the host's own reader and the agent's.
+- `UseDashboardAgent` reads `Quartz:DashboardAgent` (a named scheduler's own section first) through the
+  binding generator, before any callback.
 
 The container constructs the scheduler; there is no reflective instantiation from type-name strings, and
 there is no properties-based `StdSchedulerFactory` any more. Legacy flat `quartz.*` keys are translated
