@@ -46,6 +46,33 @@ using Quartz.Build;
     ConcurrencyCancelInProgress = true,
     ReadPermissions = [GitHubActionsPermissions.Contents]
 )]
+// Every .NET 11 user runs Quartz's net10.0 assemblies on the 11 runtime, and gets them as packages in a
+// net11.0 application, and nothing above does either (#4211). This leg builds and packs with the SDK
+// global.json names, then builds and runs a net11.0 application from the packages with the .NET 11 SDK
+// (Net11ConsumerSmoke). ConfigureSteps installs that SDK, which carries the runtime, gives the leg the time
+// zone pr-tests-unit's ubuntu job has, and adds the step that runs the unit tests on what this one compiled,
+// with every test host rolled forward to the newest runtime installed, which UnitTestRuntime requires to be
+// 11. Two steps, and the second runs whatever the first said: a test that fails and an application that fails
+// are separate findings about the newer runtime, and one run should report both. In this order because
+// UnitTest goes before Pack in any one invocation, and the other order would pack in a second invocation,
+// which rebuilds the solution under a version of its own.
+//
+// Ubuntu alone, and only for a change to what is built: about fourteen minutes of a runner, of which the
+// unit tests are five and the consumer's trimmed and native publishes three. The other two legs' platforms
+// differ from 10 to 11 far less than what this leg exists to catch.
+[GitHubActions(
+    "pr-tests-unit-net11",
+    GitHubActionsImage.UbuntuLatest,
+    OnPullRequestBranches = ["main", "3.x"],
+    OnPullRequestIncludePaths = ["src/**/*", "build/**/*", "Directory.Build.props", "Directory.Build.targets", "Directory.Packages.props", "global.json", "NuGet.config", ".github/workflows/pr-tests-unit-net11.yml"],
+    PublishArtifacts = false,
+    InvokedTargets = [nameof(ICompile.Compile), nameof(IPack.Pack), nameof(Net11ConsumerSmoke)],
+    CacheKeyFiles = [],
+    TimeoutMinutes = 30,
+    ConcurrencyCancelInProgress = true,
+    ReadPermissions = [GitHubActionsPermissions.Contents],
+    Env = ["UnitTestRuntime: 11"]
+)]
 [DatabaseIntegrationGitHubActions("pr-integration-basic", "basic")]
 [DatabaseIntegrationGitHubActions("pr-integration-postgres", "postgres")]
 [DatabaseIntegrationGitHubActions("pr-integration-sqlserver", "sqlserver")]
@@ -127,7 +154,10 @@ public partial class Build : IConfigureGitHubActions
     /// </summary>
     public void ConfigureSteps(GitHubActionsStepPipeline pipeline)
     {
-        bool runsUnitTests = pipeline.BuiltInSteps
+        // The .NET 11 leg runs its unit tests from a step of its own, added below.
+        bool runtimeLeg = pipeline.WorkflowName == "pr-tests-unit-net11";
+
+        bool runsUnitTests = runtimeLeg || pipeline.BuiltInSteps
             .OfType<GitHubActionsRunStep>()
             .Any(step => step.InvokedTargets.Contains(nameof(UnitTest)));
 
@@ -137,7 +167,8 @@ public partial class Build : IConfigureGitHubActions
         }
 
         // Windows and macOS stay in UTC, so this leg runs the tests behind it, with DST, to catch zone assumptions.
-        if (pipeline.WorkflowName == "pr-tests-unit" && pipeline.Image == GitHubActionsImage.UbuntuLatest)
+        // The .NET 11 leg too: a conversion the 11 runtime changed shows up in a zone with DST or not at all.
+        if ((pipeline.WorkflowName == "pr-tests-unit" || runtimeLeg) && pipeline.Image == GitHubActionsImage.UbuntuLatest)
         {
             pipeline.Insert(GitHubActionsStepPosition.PreRun, new GitHubActionsCustomStep
             {
@@ -145,6 +176,34 @@ public partial class Build : IConfigureGitHubActions
                 // A parameter rather than TZ itself, so that only the test hosts see it: PublishTrimmed,
                 // PublishAot and the smoke targets run in this job too, and keep the runner's zone.
                 Run = ["echo \"UnitTestTimeZone=America/Chicago\" >> \"$GITHUB_ENV\""]
+            });
+        }
+
+        if (runtimeLeg)
+        {
+            pipeline.Insert(GitHubActionsStepPosition.PreRun, new GitHubActionsCustomStep
+            {
+                Name = "Setup: .NET 11 SDK",
+                // Beside the SDK global.json names, which the generated step after this one installs and the
+                // repository's build keeps using: global.json takes no part in choosing a runtime, and the
+                // consumer the leg builds has a global.json of its own. Preview quality until 11.0.0 ships,
+                // then drop dotnet-quality for the release. The release the generator pins for its own
+                // setup-dotnet step, spelled out for the reason 'Publish: test results' gives.
+                Uses = "actions/setup-dotnet@v6",
+                With =
+                {
+                    ["dotnet-version"] = "11.0.x",
+                    ["dotnet-quality"] = "preview"
+                }
+            });
+
+            pipeline.Insert(GitHubActionsStepPosition.PostRun, new GitHubActionsCustomStep
+            {
+                Name = $"Run: {nameof(UnitTest)}",
+                // After the consumer whether it passed or not, on what the step before compiled: --skip
+                // leaves out every target not named, Restore and Compile among them.
+                If = "${{ !cancelled() }}",
+                Run = [$"dotnet fallout {nameof(UnitTest)} --skip"]
             });
         }
 

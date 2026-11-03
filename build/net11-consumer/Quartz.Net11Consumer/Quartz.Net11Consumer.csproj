@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    A net11.0 application that consumes Quartz the way a .NET 11 user does: from the packages this build
+    packed, restored by the .NET 11 SDK, with no ProjectReference and nothing from the repository's
+    Directory.Build.props, Directory.Packages.props or global.json. Net11ConsumerSmoke in
+    build/Build.Net11.cs copies it out of the repository, builds it in Debug and runs it; the program says
+    what it checks.
+
+    Debug on purpose: from 11.0, the SDK gives a Debug-built Blazor Web host a hot-reload JS initializer
+    that a Release build does not have, and a dashboard at a custom path once answered it with a 404 (#4224).
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <!--
+      No .razor file of its own, so without this the SDK leaves _framework/blazor.web.js out of the static
+      web assets and the dashboard never starts its circuit: "API-only projects" in the dashboard docs.
+    -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- QuartzVersion is the version this build packed, handed in by Net11ConsumerSmoke. -->
+    <PackageReference Include="Quartz" Version="$(QuartzVersion)" />
+    <PackageReference Include="Quartz.Dashboard" Version="$(QuartzVersion)" />
+    <PackageReference Include="Quartz.Jobs" Version="$(QuartzVersion)" />
+  </ItemGroup>
+
+</Project>

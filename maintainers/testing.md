@@ -70,3 +70,10 @@ Per-file figures for a pull request: `https://sonarcloud.io/api/measures/compone
   warning, where no Linux engine answers.
 - **`dotnet fallout WolverineSmoke ExamplesSmoke`** start the Wolverine sample and the examples out of
   process, and fail when an effect they assert does not arrive.
+- **`pr-tests-unit-net11`** is the .NET 11 leg (#4211), on ubuntu and only for changes to `src/`, `build/`
+  and the root build files. `dotnet fallout UnitTest --unit-test-runtime 11` rolls every test host forward
+  to the newest runtime installed and fails unless each one reports .NET 11. `dotnet fallout Pack
+  Net11ConsumerSmoke` builds `build/net11-consumer` with the .NET 11 SDK outside the repository, from the
+  packed packages: a Debug web application with the dashboard at a custom path, then the wire canary
+  trimmed and native. Both need the .NET 11 SDK installed; the native publish on Windows needs `vswhere`
+  on `PATH`, as `PublishAot` does.

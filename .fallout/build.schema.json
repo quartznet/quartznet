@@ -37,6 +37,7 @@
         "GenerateMigrations",
         "GenerateSchema",
         "IntegrationTest",
+        "Net11ConsumerSmoke",
         "Pack",
         "PackZip",
         "Publish",
@@ -169,6 +170,14 @@
         "Solution": {
           "type": "string",
           "description": "Path to a solution file that is automatically loaded"
+        },
+        "UnitTestRuntime": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32",
+          "description": "Major version of a newer .NET runtime the unit test hosts roll forward to, such as 11, while the build stays on the SDK global.json names. The run fails unless every host reports that runtime"
         },
         "UnitTestTimeZone": {
           "type": "string",
