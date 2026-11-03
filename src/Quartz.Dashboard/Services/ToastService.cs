@@ -23,6 +23,7 @@ internal enum ToastLevel
 {
     Info,
     Success,
+    Warning,
     Error
 }
 
@@ -55,6 +56,14 @@ internal sealed class ToastService
     public void Success(string message)
     {
         Add(message, ToastLevel.Success);
+    }
+
+    /// <summary>
+    /// Something the page declined to do, and why: nothing was sent, so nothing failed.
+    /// </summary>
+    public void Warning(string message)
+    {
+        Add(message, ToastLevel.Warning);
     }
 
     public void Error(string message)

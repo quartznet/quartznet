@@ -711,6 +711,133 @@ public class HistoryPageTest
             "an empty column reads as a rendering fault rather than as a policy");
     }
 
+    /// <summary>
+    /// Run again passes the run's input back, and triggering a job with job data is Administer. A row the
+    /// listing says carried input is not offered to an operator; a row it says nothing of keeps its button,
+    /// whose title says a run with input is not run again.
+    /// </summary>
+    [Test]
+    public void AnOperatorIsNotOfferedRunAgainOfARowTheListingSaysCarriedInput()
+    {
+        context.WithOperatorRole(SchedulerAccess.Operate);
+        GivenHistory(
+            Failed(retryAttempt: 1, retryScheduled: false) with { JobName = "with-input", EntryId = "entry-1", Input = "\"listed\"" },
+            Failed(retryAttempt: 1, retryScheduled: false) with { JobName = "unknown-input", EntryId = "entry-2" },
+            Failed(retryAttempt: 1, retryScheduled: false) with { JobName = "too-large", EntryId = "entry-3", InputTooLarge = true });
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=history-job]").Should().HaveCount(3));
+        page.FindAll("[data-testid=history-job]")
+            .Select(cell => (cell.QuerySelector(".qz-history-key-name")!.TextContent, cell.ParentElement!.QuerySelector("[data-testid=history-run-again]") is not null))
+            .Should().Equal(
+                [("with-input", false), ("unknown-input", true), ("too-large", true)],
+                "only the run the listing says carried input needs Administer to run again; a run whose input was "
+                + "too large to keep is fired without one, at Operate");
+        page.TextOfAll("th").Should().Contain("Actions", "an operator may run again the rows that carried no input");
+        page.FindAll("[data-testid=history-run-again]")[0].GetAttribute("title").Should().Be(
+            "Fires the job again when the history recorded no input for the run. Running it again with its input needs Administer.");
+    }
+
+    /// <summary>
+    /// A listing that leaves the input out keeps the button, and Run again reads the row. When the run carried
+    /// input, an operator's press sends nothing, with the input or without it: the toast says why, and the
+    /// Action Log has no refused entry, because nothing reached the scheduler for a rule to refuse.
+    /// </summary>
+    [Test]
+    public void AnOperatorsRunAgainOfARunThatCarriedInputSendsNothingAndSaysWhy()
+    {
+        context.WithOperatorRole(SchedulerAccess.Operate);
+        DashboardHistoryEntry listed = Failed(retryAttempt: 1, retryScheduled: false) with { EntryId = "entry-1" };
+        GivenHistory(listed);
+        A.CallTo(() => context.Api.GetExecution(TestData.SchedulerName, "entry-1", A<CancellationToken>._))
+            .Returns(listed with { Input = "{\"invoiceId\":42}" });
+        GivenTheClientRefusesJobDataBelowAdminister();
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.WaitForAssertion(() => page.FindAll("[data-testid=history-run-again]").Should().ContainSingle());
+        page.Find("[data-testid=history-run-again]").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            ToastMessage toast = context.Toasts.Messages.Should().ContainSingle().Which;
+            toast.Message.Should().Be("The job DummyGroup.DummyJob was not run. Running it again with its input needs Administer.");
+            toast.Level.Should().Be(ToastLevel.Warning, "the page declined to send anything, so nothing failed");
+        });
+
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<JobKeyDto>._, A<JobDataMap?>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        context.ActionLog.GetLatest().Should().BeEmpty("nothing was sent, so nothing was refused");
+        page.FindAll(".qz-error-alert").Should().BeEmpty("the listing is still good");
+    }
+
+    /// <summary>
+    /// A run that carried no input, or one whose input was too large to keep, is fired without input at
+    /// Operate, as it always was.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AnOperatorRunsAgainARunWithoutInput(bool inputTooLarge)
+    {
+        context.WithOperatorRole(SchedulerAccess.Operate);
+        DashboardHistoryEntry listed = Failed(retryAttempt: 1, retryScheduled: false) with { EntryId = "entry-1", InputTooLarge = inputTooLarge };
+        GivenHistory(listed);
+        A.CallTo(() => context.Api.GetExecution(TestData.SchedulerName, "entry-1", A<CancellationToken>._))
+            .Returns(listed);
+        GivenTheClientRefusesJobDataBelowAdminister();
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.WaitForAssertion(() => page.FindAll("[data-testid=history-run-again]").Should().ContainSingle());
+        page.Find("[data-testid=history-run-again]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName, A<JobKeyDto>._, null, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+
+        context.ActionLog.GetLatest().Should().ContainSingle()
+            .Which.Should().Match<DashboardActionLogEntry>(entry => entry.Action == "TriggerJob" && entry.Succeeded);
+    }
+
+    /// <summary>
+    /// An administrator, and a dashboard with no operation policy, run a run again with its input, whether
+    /// the listing carried it or it was read on demand.
+    /// </summary>
+    /// <param name="role">The visitor's role, or <see langword="null" /> for a dashboard with no operation policy.</param>
+    /// <param name="listingCarriesInput">Whether the listing carries the input, or leaves it to be read.</param>
+    [TestCase(SchedulerAccess.Administer, true)]
+    [TestCase(SchedulerAccess.Administer, false)]
+    [TestCase(null, true)]
+    [TestCase(null, false)]
+    public void RunAgainPassesTheInputBackForAnAdministratorOrWithoutARolePolicy(SchedulerAccess? role, bool listingCarriesInput)
+    {
+        const string input = "{\"invoiceId\":42}";
+        if (role is { } access)
+        {
+            context.WithOperatorRole(access);
+        }
+
+        DashboardHistoryEntry listed = Failed(retryAttempt: 1, retryScheduled: false) with { EntryId = "entry-1" };
+        GivenHistory(listingCarriesInput ? listed with { Input = input } : listed);
+        A.CallTo(() => context.Api.GetExecution(TestData.SchedulerName, "entry-1", A<CancellationToken>._))
+            .Returns(listed with { Input = input });
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.WaitForAssertion(() => page.FindAll("[data-testid=history-run-again]").Should().ContainSingle());
+        page.Find("[data-testid=history-run-again]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName,
+                A<JobKeyDto>._,
+                A<JobDataMap?>.That.Matches(data => data != null && data.GetString(SchedulerConstants.JobInput) == input),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+
+        context.ActionLog.GetLatest().Should().ContainSingle()
+            .Which.Should().Match<DashboardActionLogEntry>(entry => entry.Action == "TriggerJobWithData" && entry.Succeeded);
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Triggered job DummyGroup.DummyJob with the original input.");
+    }
+
     [Test]
     public void TheOutcomeFilterAsksTheStoreForTheOccurrencesThatGaveUp()
     {
@@ -1022,6 +1149,21 @@ public class HistoryPageTest
     private void GivenHistory(params DashboardHistoryEntry[] entries)
     {
         GivenHistory(entries.Length, entries);
+    }
+
+    /// <summary>
+    /// The data source refuses a trigger that carries job data, as the dashboard's own client does for a
+    /// visitor below Administer: what an operator who pressed Run again on a run with input met before the
+    /// page knew to decline.
+    /// </summary>
+    private void GivenTheClientRefusesJobDataBelowAdminister()
+    {
+        A.CallTo(() => context.Api.TriggerJob(
+                A<string>._,
+                A<JobKeyDto>._,
+                A<JobDataMap?>.That.Matches(data => data != null && data.Count > 0),
+                A<CancellationToken>._))
+            .Throws(new OperationRefusedException("TriggerJob with job data", TestData.SchedulerName, SchedulerAccess.Administer));
     }
 
     private void GivenHistory(int totalCount, params DashboardHistoryEntry[] entries)

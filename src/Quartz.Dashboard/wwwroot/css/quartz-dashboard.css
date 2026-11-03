@@ -1971,6 +1971,10 @@ body{
     border-left-color: var(--qz-color-success);
 }
 
+.qz-toast-warning {
+    border-left-color: var(--qz-color-warning);
+}
+
 .qz-toast-error {
     border-left-color: var(--qz-color-danger);
 }

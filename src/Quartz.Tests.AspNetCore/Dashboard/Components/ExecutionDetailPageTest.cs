@@ -286,6 +286,101 @@ public class ExecutionDetailPageTest
             "the trigger already has another attempt coming, and a button here would add a second one");
     }
 
+    /// <summary>
+    /// Triggering a job with job data is Administer, so an operator is not offered Run again of a run that
+    /// carried input, and is told why in its place. Running it without the input is not offered instead: the
+    /// job would do something other than what the failed run was asked to do.
+    /// </summary>
+    [Test]
+    public void AnOperatorIsToldThatRunningARunWithInputAgainNeedsAdminister()
+    {
+        context.WithOperatorRole(SchedulerAccess.Operate);
+        GivenExecution(Entry() with { Succeeded = false, ExceptionMessage = "the mail server refused", Input = "{\"invoiceId\":42}" });
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=execution-run-again-withheld]").TextContent.Should().Be(
+            "Running it again with its input needs Administer."));
+        page.FindAll("[data-testid=execution-run-again]").Should().BeEmpty(
+            "neither with the input, which the scheduler would refuse, nor without it, which would change what the job does");
+        page.Find("[data-testid=execution-input]").TextContent.Should().Be("{\"invoiceId\":42}", "reading the input is View");
+    }
+
+    /// <summary>
+    /// A run that carried no input, or one whose input was too large to keep, is run again without input at
+    /// Operate, as it always was, and says nothing of Administer.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AnOperatorRunsAgainARunWithoutInput(bool inputTooLarge)
+    {
+        context.WithOperatorRole(SchedulerAccess.Operate);
+        GivenExecution(Entry() with { Succeeded = false, InputTooLarge = inputTooLarge });
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=execution-run-again]").TextContent.Should().Be("Run again without input"));
+        page.FindAll("[data-testid=execution-run-again-withheld]").Should().BeEmpty();
+
+        page.Find("[data-testid=execution-run-again]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName, A<JobKeyDto>._, null, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+        context.ActionLog.GetLatest().Should().ContainSingle()
+            .Which.Should().Match<DashboardActionLogEntry>(entry => entry.Action == "TriggerJob" && entry.Succeeded);
+    }
+
+    /// <summary>
+    /// An administrator, and a dashboard with no operation policy, run a run with input again with its input.
+    /// </summary>
+    /// <param name="role">The visitor's role, or <see langword="null" /> for a dashboard with no operation policy.</param>
+    [TestCase(SchedulerAccess.Administer)]
+    [TestCase(null)]
+    public void RunAgainCarriesTheInputForAnAdministratorOrWithoutARolePolicy(SchedulerAccess? role)
+    {
+        const string input = "{\"invoiceId\":42}";
+        if (role is { } access)
+        {
+            context.WithOperatorRole(access);
+        }
+
+        GivenExecution(Entry() with { Succeeded = false, Input = input });
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=execution-run-again]").TextContent.Should().Be("Run again with the original input"));
+        page.FindAll("[data-testid=execution-run-again-withheld]").Should().BeEmpty();
+
+        page.Find("[data-testid=execution-run-again]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.TriggerJob(
+                TestData.SchedulerName,
+                A<JobKeyDto>._,
+                A<JobDataMap?>.That.Matches(data => data != null && data.GetString(SchedulerConstants.JobInput) == input),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+        context.ActionLog.GetLatest().Should().ContainSingle()
+            .Which.Should().Match<DashboardActionLogEntry>(entry => entry.Action == "TriggerJobWithData" && entry.Succeeded);
+    }
+
+    /// <summary>
+    /// A viewer may trigger nothing, so the page offers no Run again and says nothing of what it would need,
+    /// as it says nothing of any other control a viewer cannot use.
+    /// </summary>
+    [Test]
+    public void AViewerIsOfferedNoRunAgainAndToldNothingOfIt()
+    {
+        context.WithOperatorRole(SchedulerAccess.View);
+        GivenExecution(Entry() with { Succeeded = false, Input = "{}" });
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=execution-input]").TextContent.Should().Be("{}"));
+        page.FindAll("[data-testid=execution-run-again]").Should().BeEmpty();
+        page.FindAll("[data-testid=execution-run-again-withheld]").Should().BeEmpty();
+    }
+
     [Test]
     public void AnExecutionThatIsGoneIsSaidToBeGone()
     {

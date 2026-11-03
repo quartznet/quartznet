@@ -246,13 +246,15 @@
                         {
                             <td class="qz-col-actions">
                                 @* Only on a final failure. A row the trigger is going to retry already
-                                   has another attempt coming, and a button here would add a second one. *@
-                                @if (FailedFinally(entry))
+                                   has another attempt coming, and a button here would add a second one.
+                                   A row the listing says carried input is not offered to a visitor who
+                                   may not pass it back. *@
+                                @if (OffersRunAgain(entry))
                                 {
                                     <button type="button"
                                             class="qz-button qz-button-primary"
                                             data-testid="history-run-again"
-                                            title="@RunAgainInput.Hint(entry)"
+                                            title="@RunAgainInput.Hint(entry, MayPassInput)"
                                             @onclick="() => RunAgainAsync(entry)">Run again</button>
                                 }
                             </td>
@@ -514,11 +516,27 @@
     private bool HasOutcomeFilter => string.Equals(_appliedOutcomeFilter, FailedFinallyFilter, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Whether <em>Run again</em> is offered: triggering a job now, which an operation policy asks at
-    /// Operate. A run whose recorded input is replayed carries job data, which it asks again at
-    /// Administer when the button is pressed: the listing does not carry the input to decide it here.
+    /// Whether the page has a <em>Run again</em> column: triggering a job now, which an operation policy
+    /// asks at Operate. A run whose recorded input is replayed carries job data, which it asks at
+    /// Administer: <see cref="MayPassInput" />.
     /// </summary>
     private bool CanRunAgain => Authorization.Allows(Scheduler.ActiveSchedulerName, Quartz.HttpApiContract.SchedulerRoutes.TriggerJob);
+
+    /// <summary>
+    /// Whether the visitor may trigger a job with job data, which is what Run again of a run with input does.
+    /// </summary>
+    private bool MayPassInput => Authorization.Allows(Scheduler.ActiveSchedulerName, Quartz.HttpApiContract.SchedulerRoutes.TriggerJob, carriesJobData: true);
+
+    /// <summary>
+    /// Whether a row offers <em>Run again</em>: a final failure, and a visitor who may pass back the input
+    /// when the listing says the run carried one.
+    /// </summary>
+    /// <remarks>
+    /// A listing may leave the input out, as the persistent store's and the HTTP API's do. Such a row keeps
+    /// its button, and <see cref="RunAgainAsync" /> decides once it has read the input. A row whose input was
+    /// too large to record has none to pass, and is fired without it at Operate.
+    /// </remarks>
+    private bool OffersRunAgain(DashboardHistoryEntry entry) => FailedFinally(entry) && (entry.Input is null || MayPassInput);
 
     protected override Task OnInitializedAsync()
     {
@@ -1105,6 +1123,11 @@
     /// the dashboard is read-only. The input is read on demand, from the row's own entry, because a
     /// listing leaves it out; a row without one fires the job with no map, as before, because inventing
     /// one would fire the job with data it was never given. The toast says which it was.
+    /// <para>
+    /// An input read on demand for a visitor who may not trigger a job with data is not sent, and the job
+    /// is not fired without it either: the toast says why, and the Action Log has no entry, because nothing
+    /// reached the scheduler for a rule to refuse.
+    /// </para>
     /// </remarks>
     private async Task RunAgainAsync(DashboardHistoryEntry entry)
     {
@@ -1122,6 +1145,12 @@
         {
             DashboardHistoryEntry recorded = await RunAgainInput.Read(Api, schedulerName, entry);
             JobDataMap? input = RunAgainInput.DataFor(recorded);
+            if (input is not null && !MayPassInput)
+            {
+                Toasts.Warning(RunAgainInput.NotRunForInput(target));
+                return;
+            }
+
             action = input is null ? "TriggerJob" : "TriggerJobWithData";
 
             await Api.TriggerJob(schedulerName, job, input);
