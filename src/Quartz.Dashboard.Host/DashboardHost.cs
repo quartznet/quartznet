@@ -172,7 +172,7 @@ internal static class DashboardHost
         return trimmed.Length == 0 ? "/quartz" : "/" + trimmed;
     }
 
-    private static void ConfigureStore(IPersistentStoreBuilder store, StoreTargetPlan target)
+    internal static void ConfigureStore(IPersistentStoreBuilder store, StoreTargetPlan target)
     {
         // The drivers' own factories rather than their type names: nothing is resolved by name, and the
         // provider is the dialect the store speaks.

@@ -23,7 +23,9 @@ public sealed class DashboardHostStartupTest
 
         Action start = () => host.Browser();
 
-        start.Should().Throw<InvalidOperationException>().WithMessage("*Authentication:Mode is required*");
+        // Program.Main ends a refused start with exit code 1 rather than an unhandled exception, so the factory
+        // meets the refusal as the host it was handed being gone. What says why is the log, as in a container.
+        start.Should().Throw<InvalidOperationException>();
         RecordedLogEntry refusal = host.Logs.WithEventId(9402).Should().ContainSingle().Subject;
         refusal.Level.Should().Be(LogLevel.Critical);
         refusal.Message.Should().Contain("Quartz:Dashboard:Authentication:Mode is required");
@@ -41,6 +43,13 @@ public sealed class DashboardHostStartupTest
     [TestCase("Quartz:Dashboard:Targets:orders:ConnectionString", "Endpoint=nowhere", "cannot tell which database")]
     [TestCase("Quartz:Dashboard:Targets:orders:ConnectionStringName", "missing", "ConnectionStrings:missing is not set")]
     [TestCase("Quartz:Dashboard:Targets:orders:Serializer", "Xml", "can be SystemTextJson, the default, or Newtonsoft")]
+    [TestCase("Quartz:Dashboard:Targets:orders:Timeout", "-00:00:01", "Timeout must be positive")]
+    [TestCase("Quartz:Dashboard:Targets:orders:RediscoveryInterval", "-00:00:01", "RediscoveryInterval cannot be negative")]
+    [TestCase("Quartz:Dashboard:Targets:orders:ExecutionHistory", "true", "needs a ConnectionString or a ConnectionStringName")]
+    [TestCase("Quartz:Dashboard:Agents:Tokens:Primary", "   ", "is blank")]
+    [TestCase("Quartz:Dashboard:Authentication:UnsecuredAccess", "Operate", "applies to Unsecured mode only")]
+    [TestCase("Quartz:Dashboard:ReadOnly", "perhaps", "could not be read")]
+    [TestCase("Quartz:Dashboard:Targets:orders:Port", "5000", "says nothing")]
     public async Task AMistakeInTheSettingsIsARefusalToStartNamingIt(string key, string value, string problem)
     {
         await using HostUnderTest host = HostUnderTest.WithTokens(new Dictionary<string, string?> { [key] = value });
@@ -82,6 +91,66 @@ public sealed class DashboardHostStartupTest
         start.Should().Throw<InvalidOperationException>();
         host.Logs.WithEventId(9402).Should().ContainSingle()
             .Which.Message.Should().Contain("OpenIdConnect mode needs Quartz:Dashboard:Roles:Viewers, :Operators or :Administrators");
+    }
+
+    [Test]
+    public async Task OpenIdConnectNamesEveryMistakeAtOnce()
+    {
+        await using HostUnderTest host = HostUnderTest.Create(new Dictionary<string, string?>
+        {
+            ["Quartz:Dashboard:Authentication:Mode"] = "openidconnect",
+            ["Quartz:Dashboard:Authentication:Authority"] = "not a uri",
+            ["Quartz:Dashboard:Authentication:Tokens:Viewer"] = HostUnderTest.ViewerToken,
+            ["Quartz:Dashboard:Authentication:AllowTokenInUrl"] = "true",
+            ["Quartz:Dashboard:Roles:Viewers:0"] = " ",
+        });
+
+        Action start = () => host.Browser();
+
+        start.Should().Throw<InvalidOperationException>();
+        host.Logs.WithEventId(9402).Select(x => x.Message).Should().Contain(
+        [
+            "The dashboard host refuses to start: Quartz:Dashboard:Authentication:Tokens are set, but Mode is OpenIdConnect: tokens sign visitors in only in Token mode.",
+            "The dashboard host refuses to start: Quartz:Dashboard:Authentication:AllowTokenInUrl is set, but Mode is OpenIdConnect: it applies to Token mode only.",
+            "The dashboard host refuses to start: Quartz:Dashboard:Authentication:Authority is 'not a uri', which is not an absolute URI.",
+            "The dashboard host refuses to start: OpenIdConnect mode needs Quartz:Dashboard:Authentication:ClientId.",
+            "The dashboard host refuses to start: Quartz:Dashboard:Roles:Viewers holds a blank role, which no user is in.",
+        ]);
+
+        await using HostUnderTest missing = HostUnderTest.Create(new Dictionary<string, string?>
+        {
+            ["Quartz:Dashboard:Authentication:Mode"] = "OpenIdConnect",
+            ["Quartz:Dashboard:Roles:Viewers:0"] = "readers",
+        });
+
+        Action startWithoutAuthority = () => missing.Browser();
+        startWithoutAuthority.Should().Throw<InvalidOperationException>();
+        missing.Logs.WithEventId(9402).Should().Contain(x => x.Message.Contains("needs Quartz:Dashboard:Authentication:Authority", StringComparison.Ordinal));
+    }
+
+    [Test]
+    public async Task TelemetryAndPersistedKeysAreTurnedOnBySettings()
+    {
+        DirectoryInfo keys = Directory.CreateTempSubdirectory("quartz-dashboard-keys-");
+        try
+        {
+            await using HostUnderTest host = HostUnderTest.WithTokens(new Dictionary<string, string?>
+            {
+                ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://127.0.0.1:4317",
+                ["Quartz:Dashboard:DataProtection:KeysPath"] = keys.FullName,
+            });
+            using HttpClient browser = host.Browser();
+
+            host.Services.GetService<OpenTelemetry.Metrics.MeterProvider>().Should().NotBeNull("an OTLP endpoint turns the export on");
+            host.Services.GetService<OpenTelemetry.Trace.TracerProvider>().Should().NotBeNull();
+
+            (await HostUnderTest.SignIn(browser, HostUnderTest.ViewerToken)).StatusCode.Should().Be(HttpStatusCode.Redirect);
+            keys.EnumerateFiles("key-*.xml").Should().NotBeEmpty("the cookie's key is kept where the setting says, so a sign-in survives a restart");
+        }
+        finally
+        {
+            keys.Delete(recursive: true);
+        }
     }
 
     [Test]

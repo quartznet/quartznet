@@ -35,7 +35,7 @@ internal sealed class Program
     {
     }
 
-    public static void Main(string[] args)
+    public static int Main(string[] args)
     {
         // The dashboard's assets are published beside the host, which for the tool is not where it was
         // started from: the web root is the host's own, and the content root - where appsettings.json is
@@ -53,6 +53,17 @@ internal sealed class Program
 
         app.UseDashboardHost(plan);
 
-        app.Run();
+        try
+        {
+            app.Run();
+        }
+        catch (DashboardHostRefusedException)
+        {
+            // Said already, as event 9402 per problem. An exit code rather than an unhandled exception: in a
+            // container the runtime's abort on one reads as a crash.
+            return 1;
+        }
+
+        return 0;
     }
 }
