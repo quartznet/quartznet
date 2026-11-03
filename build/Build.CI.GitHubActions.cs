@@ -64,7 +64,9 @@ using Quartz.Build;
     "pr-tests-unit-net11",
     GitHubActionsImage.UbuntuLatest,
     OnPullRequestBranches = ["main", "3.x"],
-    OnPullRequestIncludePaths = ["src/**/*", "build/**/*", "Directory.Build.props", "Directory.Build.targets", "Directory.Packages.props", "global.json", "NuGet.config", ".github/workflows/pr-tests-unit-net11.yml"],
+    // database/ because the unit tests and the canary embed tables_sqlite.sql; testconfig.json and the tool
+    // manifest because the test hosts and dotnet fallout read them.
+    OnPullRequestIncludePaths = ["src/**/*", "build/**/*", "database/**/*", "Directory.Build.props", "Directory.Build.targets", "Directory.Packages.props", "global.json", "NuGet.config", "testconfig.json", ".config/dotnet-tools.json", ".github/workflows/pr-tests-unit-net11.yml"],
     PublishArtifacts = false,
     InvokedTargets = [nameof(ICompile.Compile), nameof(IPack.Pack), nameof(Net11ConsumerSmoke)],
     CacheKeyFiles = [],

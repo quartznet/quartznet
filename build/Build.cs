@@ -653,7 +653,10 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// about the newer runtime, and one run should report all of them.
     /// </para>
     /// </remarks>
-    /// <returns>What every run wrote, in order.</returns>
+    /// <returns>
+    /// What every run wrote. Each run's lines are in the order it wrote them; the runs themselves are in no
+    /// particular order, since Fallout collects them in a <c>ConcurrentBag</c>.
+    /// </returns>
     IReadOnlyList<Output> RunTests(
         (Project Project, string Framework)[] testRuns,
         AbsolutePath resultsDirectory,

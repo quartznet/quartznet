@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Globalization;
 using System.Runtime.InteropServices;
 
 using Quartz;
@@ -79,13 +80,16 @@ public sealed class DecimalJob(IHostApplicationLifetime lifetime) : IJob
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         decimal read = context.MergedJobDataMap.Get<decimal>(Key);
+
+        // Invariant, because Net11ConsumerSmoke matches these lines as text, and a machine that writes
+        // 12,34 would never print the one it waits for.
         if (read == 12.34m)
         {
-            Console.WriteLine($"Net11Consumer: JobDataMap.Get<decimal> read {Written}d back as {read}");
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Net11Consumer: JobDataMap.Get<decimal> read {Written}d back as {read}"));
         }
         else
         {
-            Console.WriteLine($"Net11Consumer: JobDataMap.Get<decimal> read {Written}d back as {read}, not 12.34 (#4210)");
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Net11Consumer: JobDataMap.Get<decimal> read {Written}d back as {read}, not 12.34 (#4210)"));
             Environment.ExitCode = 1;
             lifetime.StopApplication();
         }

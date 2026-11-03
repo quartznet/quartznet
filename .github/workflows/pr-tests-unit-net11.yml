@@ -24,11 +24,14 @@ on:
     paths:
       - 'src/**/*'
       - 'build/**/*'
+      - 'database/**/*'
       - 'Directory.Build.props'
       - 'Directory.Build.targets'
       - 'Directory.Packages.props'
       - 'global.json'
       - 'NuGet.config'
+      - 'testconfig.json'
+      - '.config/dotnet-tools.json'
       - '.github/workflows/pr-tests-unit-net11.yml'
 
 env:
