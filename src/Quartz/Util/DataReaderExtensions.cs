@@ -55,9 +55,13 @@ internal static class DataReaderExtensions
     /// <summary>
     /// Returns decimal from given column name.
     /// </summary>
+    /// <remarks>
+    /// A driver that hands a <c>NUMERIC</c> column back as a double, as SQLite's does, has the double
+    /// rounded the way it was before .NET 11 (<see cref="FloatingPointDecimals" />).
+    /// </remarks>
     public static decimal GetDecimal(this IDataReader reader, string columnName)
     {
         object columnValue = reader[columnName];
-        return Convert.ToDecimal(columnValue, CultureInfo.InvariantCulture);
+        return FloatingPointDecimals.ToDecimal(columnValue);
     }
 }
