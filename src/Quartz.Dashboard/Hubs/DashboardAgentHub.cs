@@ -43,6 +43,13 @@ namespace Quartz.Dashboard.Hubs;
 /// connection with no header, or one carrying a token the dashboard does not hold, is aborted before any
 /// method can run, and the refusal is logged.
 /// </para>
+/// <para>
+/// No hub method carries an attribute, and none is <see langword="async" />, whose state machine attribute
+/// counts: ASP.NET Core 11 holds a hub method that carries any attribute to the host's
+/// <c>FallbackPolicy</c>, whatever the hub's endpoint says, so under a fail-closed policy every agent was
+/// refused its <c>Register</c> (#4234, dotnet/aspnetcore#69624). A method that awaits hands the awaiting to
+/// a private one.
+/// </para>
 /// </remarks>
 internal sealed class DashboardAgentHub : Hub
 {
@@ -101,13 +108,18 @@ internal sealed class DashboardAgentHub : Hub
     /// The first call on every connection. The connection that held the target before, when the same
     /// instance took it over, is told to close.
     /// </summary>
-    public async Task<AgentRegistered> Register(AgentRegistration registration)
+    public Task<AgentRegistered> Register(AgentRegistration registration)
     {
         EnsureAuthenticated();
         ArgumentNullException.ThrowIfNull(registration);
 
         AgentRegistered answer = registry.Register(Context.ConnectionId, registration, out string? superseded);
 
+        return Registered(answer, superseded);
+    }
+
+    private async Task<AgentRegistered> Registered(AgentRegistered answer, string? superseded)
+    {
         if (superseded is not null)
         {
             await Clients.Client(superseded).SendAsync(AgentProtocol.Close, "superseded", Context.ConnectionAborted).ConfigureAwait(false);
@@ -139,11 +151,16 @@ internal sealed class DashboardAgentHub : Hub
     /// <summary>
     /// The agent's event stream, open while the dashboard watches its scheduler.
     /// </summary>
-    public async Task Events(IAsyncEnumerable<SchedulerEvent> events)
+    public Task Events(IAsyncEnumerable<SchedulerEvent> events)
     {
         EnsureAuthenticated();
         ArgumentNullException.ThrowIfNull(events);
 
+        return Push(events);
+    }
+
+    private async Task Push(IAsyncEnumerable<SchedulerEvent> events)
+    {
         await foreach (SchedulerEvent schedulerEvent in events.WithCancellation(Context.ConnectionAborted).ConfigureAwait(false))
         {
             registry.Push(Context.ConnectionId, schedulerEvent);
