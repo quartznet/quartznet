@@ -51,7 +51,7 @@ internal sealed class HostStartupGuard(DashboardHostPlan plan, string dashboardP
                 logger.RefusedToStart(problem);
             }
 
-            throw new InvalidOperationException(
+            throw new DashboardHostRefusedException(
                 "The dashboard host refuses to start:" + Environment.NewLine
                 + string.Join(Environment.NewLine, plan.Problems.Select(x => "  - " + x)));
         }
@@ -92,3 +92,10 @@ internal sealed class HostStartupGuard(DashboardHostPlan plan, string dashboardP
         return builder.Uri.AbsoluteUri;
     }
 }
+
+/// <summary>
+/// The host's configuration cannot be served. Every reason has been logged as event 9402 by the time this
+/// is thrown, so <see cref="Program" /> ends the process with exit code 1 rather than as an unhandled
+/// exception, whose abort a container reports as a crash.
+/// </summary>
+internal sealed class DashboardHostRefusedException(string message) : InvalidOperationException(message);
