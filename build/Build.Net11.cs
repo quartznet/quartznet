@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 using Fallout.Common;
 using Fallout.Common.IO;
@@ -53,7 +54,7 @@ partial class Build
 
     /// <summary>
     /// Builds a <c>net11.0</c> application against the packages <see cref="IPack.Pack" /> made, with the
-    /// .NET 11 SDK, runs it, and publishes the wire canary from the same packages trimmed and natively.
+    /// .NET 11 SDK, runs it, and publishes both trim canaries from the same packages trimmed and natively.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -79,13 +80,12 @@ partial class Build
     /// initializer among them, has to answer under the dashboard's path (#4224).
     /// </para>
     /// <para>
-    /// <c>Quartz.Trimming.Canary.Wire</c> is then published from the same packages as a <c>net11.0</c>
+    /// Each of <see cref="TrimCanaries" /> is then published from the same packages as a <c>net11.0</c>
     /// application, trimmed and natively, and run, exactly as <see cref="PublishTrimmed" /> and
-    /// <see cref="PublishAot" /> run it from the repository; its report is held to the same rule. The wire
-    /// canary alone, for now: <c>Quartz.Trimming.Canary</c> built the same way fails its own store check,
-    /// because on <c>net11.0</c> the source generator writes no interceptor for its delegate job and the job
-    /// is bound by reflection. That is a finding about the generator, and the canary joins this target once
-    /// it is fixed.
+    /// <see cref="PublishAot" /> run it from the repository; its report is held to the same rule. Built
+    /// this way, <c>Quartz.Trimming.Canary</c> is also where the source generator meets the C# 15 compiler
+    /// of a <c>net11.0</c> project, and its store check is what says the delegate job was bound at compile
+    /// time.
     /// </para>
     /// </remarks>
     Target Net11ConsumerSmoke => _ => _
@@ -175,9 +175,28 @@ partial class Build
                 ],
                 () => UnansweredInitializers(url, Net11ConsumerDashboardPath));
 
-            PublishAndRunNet11Canary(root, environment, "trimmed", aot: false);
-            PublishAndRunNet11Canary(root, environment, "native AOT", aot: true);
+            foreach (string canary in TrimCanaries)
+            {
+                PublishAndRunNet11Canary(root, environment, canary, "trimmed", aot: false);
+                PublishAndRunNet11Canary(root, environment, canary, "native AOT", aot: true);
+            }
         });
+
+    /// <summary>
+    /// The version <c>Directory.Packages.props</c> pins for <paramref name="id" />, which the consumer's
+    /// copy of a canary references outright, as the repository's copy does through central package
+    /// management.
+    /// </summary>
+    string PinnedPackageVersion(string id)
+    {
+        string version = XDocument.Load(RootDirectory / "Directory.Packages.props")
+            .Descendants("PackageVersion")
+            .FirstOrDefault(x => string.Equals((string) x.Attribute("Include"), id, StringComparison.OrdinalIgnoreCase))
+            ?.Attribute("Version")?.Value;
+
+        Assert.True(!string.IsNullOrEmpty(version), $"Directory.Packages.props pins no version of {id}.");
+        return version;
+    }
 
     /// <summary>
     /// The environment every process the consumer's SDK runs is given: this build's own, less any MSBuild
@@ -248,13 +267,12 @@ partial class Build
     }
 
     /// <summary>
-    /// Publishes the consumer's copy of the wire canary for the runner's own RID, holds what the publish
-    /// reported to <see cref="AssertOnlyTheTrimWitness" />, and starts it. A non-zero exit fails the leg.
+    /// Publishes the consumer's copy of a canary for the runner's own RID, holds what the publish reported
+    /// to <see cref="AssertOnlyTheTrimWitness" />, and starts it. A non-zero exit fails the leg.
     /// </summary>
-    void PublishAndRunNet11Canary(AbsolutePath root, Dictionary<string, string> environment, string kind, bool aot)
+    void PublishAndRunNet11Canary(AbsolutePath root, Dictionary<string, string> environment, string project, string kind, bool aot)
     {
-        const string project = "Quartz.Trimming.Canary.Wire";
-        AbsolutePath output = root / "publish" / (aot ? "aot" : "trimmed");
+        AbsolutePath output = root / "publish" / project / (aot ? "aot" : "trimmed");
 
         IReadOnlyCollection<Output> publish = DotNetPublish(s => s
             .SetProject(root / project / $"{project}.csproj")
@@ -263,6 +281,7 @@ partial class Build
             .SetOutput(output)
             .SetProperty("QuartzVersion", FullVersion)
             .SetProperty("QuartzRepositoryRoot", RootDirectory)
+            .SetProperty("MicrosoftDataSqliteVersion", PinnedPackageVersion("Microsoft.Data.SQLite"))
             .When(aot, _ => _.SetProperty("PublishAot", true))
             .AddProcessAdditionalArguments(DisableBuildServers)
             .SetProcessWorkingDirectory(root)

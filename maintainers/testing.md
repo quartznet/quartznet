@@ -74,6 +74,6 @@ Per-file figures for a pull request: `https://sonarcloud.io/api/measures/compone
   and the root build files. `dotnet fallout UnitTest --unit-test-runtime 11` rolls every test host forward
   to the newest runtime installed and fails unless each one reports .NET 11. `dotnet fallout Pack
   Net11ConsumerSmoke` builds `build/net11-consumer` with the .NET 11 SDK outside the repository, from the
-  packed packages: a Debug web application with the dashboard at a custom path, then the wire canary
+  packed packages: a Debug web application with the dashboard at a custom path, then both trim canaries
   trimmed and native. Both need the .NET 11 SDK installed; the native publish on Windows needs `vswhere`
   on `PATH`, as `PublishAot` does.
