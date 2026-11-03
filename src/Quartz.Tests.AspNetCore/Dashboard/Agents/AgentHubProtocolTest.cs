@@ -77,6 +77,36 @@ public sealed class AgentHubProtocolTest
         closes.Should().Equal(["superseded"], "the old connection is told why it is being dropped");
     }
 
+    /// <summary>
+    /// An agent older than 4.8 sends no <c>MaxAccess</c>, and says nothing about a ceiling because it has
+    /// none: the dashboard reads that as Administer, on a first registration and on a redeploy that takes
+    /// the row over from one that had narrowed it.
+    /// </summary>
+    [Test]
+    public async Task ARegistrationWithoutMaxAccessIsAdministerOnRegisterAndOnRefresh()
+    {
+        await using AgentDashboard dashboard = await AgentDashboard.Start();
+        await using HubConnection old = dashboard.RawConnection();
+        await old.StartAsync();
+
+        AgentRegistration fromA47Agent = Registration("w1", "node-1", "4.7.0");
+        fromA47Agent.MaxAccess.Should().BeNull("a 4.7 agent has no such field to send");
+
+        (await old.InvokeAsync<AgentRegistered>(AgentProtocol.Register, fromA47Agent)).Accepted.Should().BeTrue();
+        dashboard.Registry.Find("w1")!.MaxAccess.Should().Be(SchedulerAccess.Administer, "no ceiling was announced");
+
+        await using HubConnection narrowed = dashboard.RawConnection();
+        await narrowed.StartAsync();
+        (await narrowed.InvokeAsync<AgentRegistered>(AgentProtocol.Register, fromA47Agent with { MaxAccess = SchedulerAccess.View })).Accepted.Should().BeTrue();
+        dashboard.Registry.Find("w1")!.MaxAccess.Should().Be(SchedulerAccess.View, "the new registration narrowed it");
+
+        await using HubConnection redeployed = dashboard.RawConnection();
+        await redeployed.StartAsync();
+        (await redeployed.InvokeAsync<AgentRegistered>(AgentProtocol.Register, fromA47Agent)).Accepted.Should().BeTrue();
+
+        dashboard.Registry.Find("w1")!.MaxAccess.Should().Be(SchedulerAccess.Administer, "the refreshed registration announced none");
+    }
+
     private static AgentRegistration Registration(string target, string instanceId, string version = "4.5.0")
     {
         return new AgentRegistration
