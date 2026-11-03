@@ -54,4 +54,7 @@ internal static partial class NativeJobLog
 
     [LoggerMessage(EventId = 7203, Level = LogLevel.Error, Message = "Error consuming {Type} stream of spawned process.")]
     public static partial void StreamConsumptionFailed(this ILogger logger, string type, Exception exception);
+
+    [LoggerMessage(EventId = 7204, Level = LogLevel.Information, Message = "The process exited with code {ExitCode}, but {DrainTimeout} later a process it started still holds its output open. The job completes, and that process's lines keep being logged.")]
+    public static partial void OutputStillHeldOpen(this ILogger logger, int exitCode, TimeSpan drainTimeout);
 }

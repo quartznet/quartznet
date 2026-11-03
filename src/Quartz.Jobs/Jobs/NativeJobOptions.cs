@@ -45,15 +45,18 @@ public sealed record NativeJobOptions
 
     /// <summary>
     /// Whether the job waits for the process to exit before it completes, which is also what makes
-    /// the exit code available as <see cref="IJobExecutionContext.Result" />. Defaults to
-    /// <see langword="true" />.
+    /// the exit code available as <see cref="IJobExecutionContext.Result" />. Cancelling a job that
+    /// waits kills the process and its descendants; one that does not wait leaves the process running.
+    /// Defaults to <see langword="true" />.
     /// </summary>
     public bool WaitForProcess { get; init; } = true;
 
     /// <summary>
     /// Whether the spawned process's <c>stdout</c> and <c>stderr</c> are read and logged. A process
     /// that writes more output than its pipe holds blocks until someone reads it, so leave this on
-    /// for anything chatty. Defaults to <see langword="false" />.
+    /// for anything chatty. With <see cref="WaitForProcess" /> on, all of it is logged before the job
+    /// completes, unless a process it left running keeps the streams open more than five seconds after
+    /// it exits. Defaults to <see langword="false" />.
     /// </summary>
     public bool ConsumeStreams { get; init; }
 

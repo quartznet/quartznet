@@ -377,6 +377,7 @@ matching on its text is not.
 | 7201 | Information | `Quartz.Jobs` | `"stdout>{Line}"` |
 | 7202 | Warning | `Quartz.Jobs` | `"stderr>{Line}"` |
 | 7203 | Error | `Quartz.Jobs` | `"Error consuming {Type} stream of spawned process."` |
+| 7204 | Information | `Quartz.Jobs` | `"The process exited with code {ExitCode}, but {DrainTimeout} later a process it started still holds its output open. The job completes, and that process's lines keep being logged."` |
 | 7300 | Warning | `Quartz.Jobs` | `"SMTP credentials are being read from job data ('{UserNameKey}' / '{PasswordKey}'), which a persistent job store writes to the database and replicates to every node in the cluster. Register an ICredentialsByHost with the container instead."` |
 | 7301 | Information | `Quartz.Jobs` | `"Sending message {MailMessage}"` |
 | 8000 | Debug | `Quartz.Extensions.Redis` | `"Lock '{LockName}' is desired by: {RequestorId}"` |
