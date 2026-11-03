@@ -643,10 +643,14 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         }
 
         var daylightChange = TimeZone.CurrentTimeZone.GetDaylightChanges(2012);
-        DateTimeOffset before = daylightChange.Start.ToUniversalTime().AddMinutes(-5); // keep outside the potentially undefined interval
+        // Both local times go through DateTimeOffset, not DateTime.ToUniversalTime(). The change starts
+        // inside the spring-forward gap, and on .NET 11 RC3 ToUniversalTime() of a time in the gap adds
+        // the standard offset instead of subtracting it (dotnet/runtime#134846, fixed for GA by
+        // dotnet/runtime#135071). DateTimeOffset applies the standard offset on every runtime.
+        DateTimeOffset before = new DateTimeOffset(daylightChange.Start).AddMinutes(-5); // keep outside the potentially undefined interval
         DateTimeOffset? after = expression.GetNextValidTimeAfter(before);
         Assert.IsTrue(after.HasValue);
-        DateTimeOffset expected = daylightChange.Start.Add(daylightChange.Delta).AddMinutes(15).ToUniversalTime();
+        DateTimeOffset expected = new DateTimeOffset(daylightChange.Start.Add(daylightChange.Delta).AddMinutes(15));
         Assert.AreEqual(expected, after.Value);
     }
 
