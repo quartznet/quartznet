@@ -81,6 +81,19 @@ public sealed class QuartzHttpApiAuthorizationGuardTest
     }
 
     [Test]
+    public async Task AnApiWithAnOperationPolicyStarts()
+    {
+        // The operation policy is a filter over the route too, so it says so the same way.
+        await using WebApplication app = CreateApi(
+            configureBuilder: builder => builder.Services.AddQuartzHttpApi(
+                options => options.OperationAuthorizationPolicy = "operator-roles"));
+        app.MapQuartzHttpApi();
+
+        await app.StartAsync();
+        await app.StopAsync();
+    }
+
+    [Test]
     public async Task AnApiAuthorizedOnTheGroupAboveItStarts()
     {
         // Metadata applied to a parent group flows into each endpoint's metadata, so a grouped map is

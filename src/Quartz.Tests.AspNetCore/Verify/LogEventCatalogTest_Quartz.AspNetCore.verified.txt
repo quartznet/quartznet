@@ -16,3 +16,5 @@
     "Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"
 9008  Debug  HttpApiLog.NotServed
     "NotSupportedException thrown"
+9009  Warning  HttpApiLog.OperationRefused
+    "Api user {User} was refused {Operation} on scheduler {SchedulerName}: it needs {Access}"

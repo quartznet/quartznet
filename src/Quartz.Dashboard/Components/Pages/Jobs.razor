@@ -3,9 +3,12 @@
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@using Routes = Quartz.HttpApiContract.SchedulerRoutes
+@using WireRoute = Quartz.HttpApiContract.WireRoute
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject ToastService Toasts
 @inject NavigationManager Navigation
@@ -41,12 +44,21 @@
                     <StateIndicator State="@GetGroupState(group.Key)" />
                     <PauseNote Pause="@_groupPauses.GetValueOrDefault(group.Key)" />
                 </div>
-                @if (!IsReadOnly)
+                @if (CanPause || CanResume || CanTrigger)
                 {
                     <div class="qz-actions qz-group-actions">
-                        <button type="button" class="qz-button" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
-                        <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
-                        <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerGroup(group.Key)">Trigger group</button>
+                        @if (CanPause)
+                        {
+                            <button type="button" class="qz-button" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
+                        }
+                        @if (CanResume)
+                        {
+                            <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
+                        }
+                        @if (CanTrigger)
+                        {
+                            <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerGroup(group.Key)">Trigger group</button>
+                        }
                     </div>
                 }
                 <table class="qz-table qz-entity-table qz-jobs-table">
@@ -60,7 +72,7 @@
                                 <th class="qz-col-run qz-col-last-success">Last success</th>
                                 <th class="qz-col-failing">Failing</th>
                             }
-                            @if (!IsReadOnly)
+                            @if (HasRowActions)
                             {
                                 <th class="qz-col-actions">Actions</th>
                             }
@@ -118,14 +130,26 @@
                                         }
                                     </td>
                                 }
-                                @if (!IsReadOnly)
+                                @if (HasRowActions)
                                 {
                                     <td class="qz-col-actions">
                                         <div class="qz-actions" @onclick:stopPropagation="true">
-                                            <button type="button" class="qz-button" @onclick="() => PromptPauseJob(jobGroup, jobName)">Pause</button>
-                                            <button type="button" class="qz-button" @onclick="() => ResumeJob(jobGroup, jobName)">Resume</button>
-                                            <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerJob(jobGroup, jobName)">Trigger now</button>
-                                            <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptDelete(jobGroup, jobName)">Delete</button>
+                                            @if (CanPause)
+                                            {
+                                                <button type="button" class="qz-button" @onclick="() => PromptPauseJob(jobGroup, jobName)">Pause</button>
+                                            }
+                                            @if (CanResume)
+                                            {
+                                                <button type="button" class="qz-button" @onclick="() => ResumeJob(jobGroup, jobName)">Resume</button>
+                                            }
+                                            @if (CanTrigger)
+                                            {
+                                                <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerJob(jobGroup, jobName)">Trigger now</button>
+                                            }
+                                            @if (CanDelete)
+                                            {
+                                                <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptDelete(jobGroup, jobName)">Delete</button>
+                                            }
                                         </div>
                                     </td>
                                 }
@@ -203,6 +227,22 @@
 
     private bool IsReadOnly => Options.Value.ReadOnly;
 
+    /// <summary>
+    /// Whether the visitor may call <paramref name="route" /> on the active scheduler: never while the
+    /// dashboard is read-only, and only at their role's level under an operation policy.
+    /// </summary>
+    private bool Can(WireRoute route) => Authorization.Allows(Scheduler.ActiveSchedulerName, route);
+
+    private bool CanPause => Can(Routes.PauseJob);
+
+    private bool CanResume => Can(Routes.ResumeJob);
+
+    private bool CanTrigger => Can(Routes.TriggerJob);
+
+    private bool CanDelete => Can(Routes.DeleteJob);
+
+    private bool HasRowActions => CanPause || CanResume || CanTrigger || CanDelete;
+
     private bool HasFilters => _filter.Length > 0 || _nameFilter.Length > 0;
 
     private IEnumerable<IGrouping<string, JobKeyDto>> GroupedJobs => _jobs.GroupBy(job => job.Group);
@@ -269,6 +309,10 @@
             {
                 return;
             }
+
+            // What the visitor's role allows here, asked once per scheduler, so the controls below render
+            // from an answer rather than offering what would be refused.
+            await Authorization.LoadOperations(schedulerName);
 
             string? groupFilter = string.IsNullOrWhiteSpace(_filter) ? null : _filter;
             PagedResult<JobKeyDto> page = await Api.QueryJobs(schedulerName, PageQuery(groupFilter, _currentPage));
@@ -476,7 +520,7 @@
 
     private async Task PauseJob(string group, string name, string? reason)
     {
-        if (IsReadOnly)
+        if (!CanPause)
         {
             return;
         }
@@ -493,7 +537,7 @@
 
     private async Task ResumeJob(string group, string name)
     {
-        if (IsReadOnly)
+        if (!CanResume)
         {
             return;
         }
@@ -508,7 +552,7 @@
 
     private async Task TriggerJob(string group, string name)
     {
-        if (IsReadOnly)
+        if (!CanTrigger)
         {
             return;
         }
@@ -556,7 +600,7 @@
 
     private async Task ConfirmDeleteAsync()
     {
-        if (IsReadOnly || string.IsNullOrWhiteSpace(_pendingDeleteGroup) || string.IsNullOrWhiteSpace(_pendingDeleteName))
+        if (!CanDelete || string.IsNullOrWhiteSpace(_pendingDeleteGroup) || string.IsNullOrWhiteSpace(_pendingDeleteName))
         {
             _showDeleteConfirm = false;
             return;
@@ -599,7 +643,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, target, succeeded: false, ex.Message);
+            ActionLog.Failed(schedulerName, actionName, target, ex);
             Toasts.Error(ex.Message);
         }
     }
@@ -635,7 +679,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, target, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
+            ActionLog.Failed(schedulerName, actionName, target, ex, note);
             Toasts.Error(ex.Message);
         }
     }
@@ -714,7 +758,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionVerb + "JobGroup", group, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
+            ActionLog.Failed(schedulerName, actionVerb + "JobGroup", group, ex, note);
             Toasts.Error(ex.Message);
         }
     }

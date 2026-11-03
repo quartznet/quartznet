@@ -27,9 +27,10 @@
 
             // "overdue" is a cluster node that has missed a check-in: not a fault yet, but not healthy
             // either, which is the same amber the paused states wear.
-            // A cancelled run was stopped rather than broken: amber, as a pause is.
+            // A cancelled run was stopped rather than broken: amber, as a pause is. So is an action refused
+            // for the visitor's role: a rule said no, and nothing failed.
             if (normalized.Contains("pause") || normalized.Contains("standby") || normalized.Contains("blocked")
-                || normalized.Contains("overdue") || normalized.Contains("cancel"))
+                || normalized.Contains("overdue") || normalized.Contains("cancel") || normalized.Contains("refused"))
             {
                 return "paused";
             }

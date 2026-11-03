@@ -51,6 +51,23 @@ public class SchedulerAuthorizationOptionsTest
             "an API that configured no per-scheduler policy asks nothing of the container");
     }
 
+    /// <summary>
+    /// An operation policy with nothing to evaluate it is refused at startup for the same reason.
+    /// </summary>
+    [Test]
+    public async Task AnOperationPolicyWithNoAuthorizationServicesToEvaluateItIsRefusedAtStartup()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddQuartz();
+        builder.Services.AddQuartzHttpApi(options => options.OperationAuthorizationPolicy = "QuartzOperators");
+        await using WebApplication app = builder.Build();
+
+        Action act = () => _ = app.Services.GetRequiredService<IOptions<QuartzHttpApiOptions>>().Value;
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("OperationAuthorizationPolicy is 'QuartzOperators'*AddAuthorization*");
+    }
+
     private static WebApplication CreateApp(
         bool authorization,
         string? policyName = TenantAuthenticationExtensions.SchedulerOwnerPolicy)

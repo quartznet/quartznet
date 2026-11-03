@@ -87,6 +87,12 @@ internal sealed class DashboardAgentOptionsValidator : IValidateOptions<Dashboar
             return ValidateOptionsResult.Fail($"{nameof(DashboardAgentOptions.Target)}: {problem}");
         }
 
+        if (options.MaxAccess is not (SchedulerAccess.View or SchedulerAccess.Operate or SchedulerAccess.Administer))
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(DashboardAgentOptions.MaxAccess)} must be View, Operate or Administer, was {(int) options.MaxAccess}.");
+        }
+
         return ValidateOptionsResult.Success;
     }
 }

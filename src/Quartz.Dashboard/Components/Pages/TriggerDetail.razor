@@ -3,9 +3,12 @@
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@using Routes = Quartz.HttpApiContract.SchedulerRoutes
+@using WireRoute = Quartz.HttpApiContract.WireRoute
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject NavigationManager Navigation
 @inject ToastService Toasts
@@ -35,39 +38,57 @@
             <a class="qz-details-link" href="@GetHistoryPathForTrigger(Group, Name)">View execution history</a>
         </div>
 
-        @if (!IsReadOnly)
+        @if (CanPause || CanResume || CanReset || CanEdit || CanBackfill || CanUnschedule)
         {
             <div class="qz-actions">
-                <button type="button" class="qz-button" @onclick="PromptPause">Pause</button>
-                <button type="button" class="qz-button" @onclick="ResumeAsync">Resume</button>
-                <button type="button" class="qz-button" @onclick="ResetFromErrorAsync">Reset error state</button>
-                <button type="button"
-                        class="qz-button qz-trigger-edit"
-                        disabled="@(_editing || _editUnavailable is not null)"
-                        title="@_editUnavailable"
-                        @onclick="StartEditing">Edit details</button>
-                <button type="button"
-                        class="qz-button qz-trigger-backfill"
-                        disabled="@(_backfillUnavailable is not null)"
-                        title="@_backfillUnavailable"
-                        @onclick="PromptBackfill">Backfill…</button>
-                <button type="button" class="qz-button qz-button-danger" @onclick="PromptUnschedule">Unschedule</button>
+                @if (CanPause)
+                {
+                    <button type="button" class="qz-button" @onclick="PromptPause">Pause</button>
+                }
+                @if (CanResume)
+                {
+                    <button type="button" class="qz-button" @onclick="ResumeAsync">Resume</button>
+                }
+                @if (CanReset)
+                {
+                    <button type="button" class="qz-button" @onclick="ResetFromErrorAsync">Reset error state</button>
+                }
+                @if (CanEdit)
+                {
+                    <button type="button"
+                            class="qz-button qz-trigger-edit"
+                            disabled="@(_editing || _editUnavailable is not null)"
+                            title="@_editUnavailable"
+                            @onclick="StartEditing">Edit details</button>
+                }
+                @if (CanBackfill)
+                {
+                    <button type="button"
+                            class="qz-button qz-trigger-backfill"
+                            disabled="@(_backfillUnavailable is not null)"
+                            title="@_backfillUnavailable"
+                            @onclick="PromptBackfill">Backfill…</button>
+                }
+                @if (CanUnschedule)
+                {
+                    <button type="button" class="qz-button qz-button-danger" @onclick="PromptUnschedule">Unschedule</button>
+                }
             </div>
 
-            @if (_editUnavailable is { } editUnavailable)
+            @if (CanEdit && _editUnavailable is { } editUnavailable)
             {
                 @* Said where the button is rather than in a toast that fades: the data source cannot edit
                    a trigger in place, which stays true for as long as the page is open. *@
                 <p class="qz-muted" data-testid="trigger-editor-unavailable">@editUnavailable</p>
             }
 
-            @if (_backfillUnavailable is { } backfillUnavailable)
+            @if (CanBackfill && _backfillUnavailable is { } backfillUnavailable)
             {
                 <p class="qz-muted" data-testid="trigger-backfill-unavailable">@backfillUnavailable</p>
             }
         }
 
-        @if (_editing && !IsReadOnly)
+        @if (_editing && CanEdit)
         {
             <TriggerDetailsEditor Trigger="@_trigger"
                                   OnSaved="OnDetailsSavedAsync"
@@ -124,7 +145,7 @@
         <h2>JobDataMap</h2>
         <JobDataMapEditor DataMap="@TriggerDataMap" ReadOnly="true" />
 
-        @if (!IsReadOnly && !string.IsNullOrWhiteSpace(_cronExpression))
+        @if (CanReschedule && !string.IsNullOrWhiteSpace(_cronExpression))
         {
             <section class="qz-section">
                 <h2>Edit cron schedule</h2>
@@ -141,7 +162,7 @@
 
         @* The editor's expression, once it is not the saved one: the saved schedule is Upcoming fires above, and
            read-only mode has no editor to preview. *@
-        @if (!IsReadOnly && !string.IsNullOrWhiteSpace(_cronExpression) && IsPreviewingAnEdit)
+        @if (CanReschedule && !string.IsNullOrWhiteSpace(_cronExpression) && IsPreviewingAnEdit)
         {
             <h2>Upcoming cron fires</h2>
             <p class="qz-muted" data-testid="cron-preview-unsaved">Of the edited expression, which is not saved yet.</p>
@@ -162,7 +183,7 @@
              OnConfirm="PauseAsync"
              OnCancel="CancelPauseAsync" />
 
-@if (_trigger is not null && !IsReadOnly)
+@if (_trigger is not null && CanBackfill)
 {
     <BackfillDialog Trigger="@_trigger"
                     IsOpen="@_showBackfill"
@@ -212,6 +233,26 @@
 
     private bool IsReadOnly => Options.Value.ReadOnly;
 
+    /// <summary>
+    /// Whether the visitor may call <paramref name="route" /> on the active scheduler: never while the
+    /// dashboard is read-only, and only at their role's level under an operation policy.
+    /// </summary>
+    private bool Can(WireRoute route) => Authorization.Allows(Scheduler.ActiveSchedulerName, route);
+
+    private bool CanPause => Can(Routes.PauseTrigger);
+
+    private bool CanResume => Can(Routes.ResumeTrigger);
+
+    private bool CanReset => Can(Routes.ResetTriggerFromErrorState);
+
+    private bool CanEdit => Can(Routes.UpdateTriggerDetails);
+
+    private bool CanBackfill => Can(Routes.BackfillTrigger);
+
+    private bool CanUnschedule => Can(Routes.UnscheduleJob);
+
+    private bool CanReschedule => Can(Routes.RescheduleJob);
+
     private TriggerKeyDto TriggerKey => new(Group, Name);
 
     private JobDataMap? TriggerDataMap => _trigger?.JobDataMap;
@@ -259,6 +300,8 @@
                 _pause = null;
                 return;
             }
+
+            await Authorization.LoadOperations(schedulerName);
 
             _trigger = await Api.GetTrigger(schedulerName, TriggerKey);
             _triggerState = await Api.GetTriggerState(schedulerName, TriggerKey);
@@ -361,7 +404,7 @@
     private async Task RescheduleCronAsync()
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        if (!CanReschedule || string.IsNullOrWhiteSpace(schedulerName))
         {
             return;
         }
@@ -420,7 +463,7 @@
 
     private void StartEditing()
     {
-        if (IsReadOnly || _trigger is null)
+        if (!CanEdit || _trigger is null)
         {
             return;
         }
@@ -520,7 +563,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, target, succeeded: false, ex.Message);
+            ActionLog.Failed(schedulerName, actionName, target, ex);
             Toasts.Error(ex.Message);
             return false;
         }
@@ -558,7 +601,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, target, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
+            ActionLog.Failed(schedulerName, actionName, target, ex, note);
             Toasts.Error(ex.Message);
             return false;
         }

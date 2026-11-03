@@ -63,7 +63,7 @@
                                 <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on node @(entry.SchedulerInstanceId ?? "(unknown)")</div>
                             }
                         </td>
-                        <td><StateIndicator State="@(entry.Succeeded ? "Complete" : "Error")" /></td>
+                        <td><StateIndicator State="@(entry.Refused ? "Refused" : entry.Succeeded ? "Complete" : "Error")" /></td>
                         <td>@(entry.Message ?? string.Empty)</td>
                     </tr>
                 }

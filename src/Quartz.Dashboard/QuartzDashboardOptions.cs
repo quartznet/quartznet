@@ -181,9 +181,10 @@ public sealed class QuartzDashboardOptions
     /// <para>
     /// Set it and the scheduler picker offers only the schedulers the visitor passes for, a page opened on
     /// one they do not says so without reading anything, and the live-events hub refuses to subscribe them
-    /// to it. The two policies compose: <see cref="AuthorizationPolicy" /> decides who reaches the
-    /// dashboard at all, this one decides which schedulers they see once they are in, and
-    /// <see cref="ReadOnly" /> still decides what anyone may change.
+    /// to it. The policies compose: <see cref="AuthorizationPolicy" /> decides who reaches the
+    /// dashboard at all, this one decides which schedulers they see once they are in,
+    /// <see cref="OperationAuthorizationPolicy" /> what they may do there, and <see cref="ReadOnly" /> still
+    /// bounds what anyone may change.
     /// </para>
     /// <para>
     /// It is the same policy and the same resource the HTTP API's
@@ -194,12 +195,42 @@ public sealed class QuartzDashboardOptions
     public string? SchedulerAuthorizationPolicy { get; set; }
 
     /// <summary>
+    /// The authorization policy each operation is held to, evaluated against a
+    /// <see cref="SchedulerResource" /> carrying the scheduler, the operation and the operator role it
+    /// needs. Null — the default — leaves the dashboard as it was: whoever reaches a scheduler may do
+    /// everything <see cref="ReadOnly" /> allows. Added in 4.8.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Name a policy built with <c>RequireSchedulerRoles(…)</c> and a visitor sees the controls their role
+    /// allows and no others: a viewer reads, an operator also pauses, resumes, triggers and interrupts, an
+    /// administrator also adds, edits, deletes and shuts down. The operations are the HTTP API's, at the
+    /// levels its route table gives them, and triggering a job with job data needs
+    /// <see cref="SchedulerAccess.Administer" />.
+    /// </para>
+    /// <para>
+    /// Enforced by the client, as <see cref="ReadOnly" /> is, before anything reaches the scheduler: a
+    /// refused call raises <see cref="UnauthorizedAccessException" />, which the page shows as a toast and
+    /// the Action Log records as refused, and the application's log as event <c>9118</c>. Reads need
+    /// <see cref="SchedulerAccess.View" />, asked with a null <see cref="SchedulerResource.Operation" />: the
+    /// picker lists the schedulers a visitor may view, and the live-events hub refuses the others.
+    /// </para>
+    /// <para>
+    /// <see cref="ReadOnly" /> stays the ceiling. A scheduler behind an agent is further bounded by the
+    /// agent's own <c>MaxAccess</c>, and one behind an HTTP target by the target's own policy, which sees the
+    /// dashboard's credential rather than the visitor's.
+    /// </para>
+    /// </remarks>
+    public string? OperationAuthorizationPolicy { get; set; }
+
+    /// <summary>
     /// Hides every mutating action — pause, resume, trigger now, reschedule, unschedule, delete — so the
     /// dashboard is a view of the schedulers rather than a way to drive them.
     /// </summary>
     /// <remarks>
     /// Enforced by the client rather than by the pages alone: a mutation refused here is refused
-    /// wherever it is called from, so hiding a button is not what makes it safe.
+    /// wherever it is called from, so hiding a button is not what makes it safe. It is the ceiling over
+    /// <see cref="OperationAuthorizationPolicy" />: an administrator of a read-only dashboard reads.
     /// </remarks>
     public bool ReadOnly { get; set; }
 

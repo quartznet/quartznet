@@ -267,7 +267,11 @@
         catch (Exception ex)
         {
             _refusal = ex.Message;
-            ActionLog.Record(schedulerName, "UpdateTriggerDetails", target, succeeded: false, ex.Message + "; asked for " + summary);
+            ActionLog.Failed(schedulerName, "UpdateTriggerDetails", target, ex, detail: "asked for " + summary);
+            if (ex is OperationRefusedException)
+            {
+                Toasts.Error(ex.Message);
+            }
         }
         finally
         {

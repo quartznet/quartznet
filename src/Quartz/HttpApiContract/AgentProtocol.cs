@@ -90,7 +90,7 @@ internal static class AgentProtocol
 
     /// <summary>
     /// Teaches <paramref name="options" /> how the protocol's payloads are written, which both ends have to
-    /// agree on: the two enums a payload carries as their names, and the contract's generated metadata
+    /// agree on: the three enums a payload carries as their names, and the contract's generated metadata
     /// in front of whatever resolver the options already had.
     /// </summary>
     /// <remarks>
@@ -115,6 +115,7 @@ internal static class AgentProtocol
 
         AddConverterOnce<JsonStringEnumConverter<SchedulerStatus>>(options);
         AddConverterOnce<JsonStringEnumConverter<SchedulerEventKind>>(options);
+        AddConverterOnce<JsonStringEnumConverter<SchedulerAccess>>(options);
 
         if (!options.TypeInfoResolverChain.Contains(HttpApiJsonContext.Default))
         {
@@ -159,6 +160,13 @@ internal sealed record AgentRegistration
     public required string[] Routes { get; init; }
 
     public bool ReadOnly { get; init; }
+
+    /// <summary>
+    /// The most the agent lets the dashboard do, so the dashboard can hide what the agent would refuse:
+    /// a visitor's rights on this scheduler are the lower of their role and this. Absent from an agent
+    /// older than 4.8, which accepts everything its other narrowings allow.
+    /// </summary>
+    public SchedulerAccess? MaxAccess { get; init; }
 
     public TimeSpan HeartbeatInterval { get; init; }
 }

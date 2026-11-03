@@ -339,18 +339,32 @@ internal static class JobEndpoints
             scheduler => SchedulerOperations.ResumeJobKeys(scheduler, request, cancellationToken));
     }
 
+    /// <summary>
+    /// Fires a stored job now, with the job data the body carries.
+    /// </summary>
+    /// <remarks>
+    /// The route needs <see cref="SchedulerAccess.Operate" />, which the operation policy has already
+    /// asked; a body that carries job data is asked again at <see cref="SchedulerAccess.Administer" /> here,
+    /// once it is read, because a stored <c>NativeJob</c> runs the command its job data names.
+    /// </remarks>
     [ProducesResponseType(StatusCodes.Status200OK)]
-    private static Task<IResult> TriggerJob(
+    private static async Task<IResult> TriggerJob(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
+        HttpContext httpContext,
         string schedulerName,
         string jobGroup,
         string jobName,
         TriggerJobRequest? request = null,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
-            scheduler => SchedulerOperations.TriggerJob(scheduler, new JobKey(jobName, jobGroup), request, cancellationToken));
+        if (await OperationAuthorization.RefuseJobData(httpContext, schedulerName, request?.JobData, cancellationToken).ConfigureAwait(false) is { } refusal)
+        {
+            return refusal;
+        }
+
+        return await EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+            scheduler => SchedulerOperations.TriggerJob(scheduler, new JobKey(jobName, jobGroup), request, cancellationToken)).ConfigureAwait(false);
     }
 
     [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]

@@ -446,6 +446,7 @@ internal sealed class AgentConnection : IAsyncDisposable
                 QuartzVersion = metadata.Version,
                 Routes = AgentCarrier.RouteNames,
                 ReadOnly = options.ReadOnly,
+                MaxAccess = options.MaxAccess,
                 HeartbeatInterval = options.HeartbeatInterval,
             };
 

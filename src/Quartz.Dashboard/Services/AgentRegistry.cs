@@ -62,6 +62,12 @@ internal sealed class AgentEntry
 
     public bool ReadOnly { get; private set; }
 
+    /// <summary>
+    /// The most the agent lets the dashboard do, as its registration said: <see cref="SchedulerAccess.Administer" />
+    /// for an agent older than 4.8, which says nothing about it.
+    /// </summary>
+    public SchedulerAccess MaxAccess { get; set; } = SchedulerAccess.Administer;
+
     /// <summary>The connection the agent is on, or <see langword="null" /> while it is disconnected.</summary>
     public string? ConnectionId { get; set; }
 
@@ -88,13 +94,14 @@ internal sealed class AgentEntry
     public bool Serves(WireRoute route) => Routes.Contains(route.Name);
 
     /// <summary>
-    /// Takes a fresh registration from the same instance over: its routes, its read-only flag and the
-    /// Quartz it runs may have changed with a redeploy.
+    /// Takes a fresh registration from the same instance over: its routes, its read-only flag, its
+    /// <see cref="MaxAccess" /> and the Quartz it runs may have changed with a redeploy.
     /// </summary>
-    public void Refresh(HashSet<string> routes, bool readOnly, string quartzVersion)
+    public void Refresh(HashSet<string> routes, bool readOnly, SchedulerAccess? maxAccess, string quartzVersion)
     {
         Routes = routes;
         ReadOnly = readOnly;
+        MaxAccess = maxAccess ?? SchedulerAccess.Administer;
         QuartzVersion = quartzVersion;
     }
 
@@ -289,6 +296,7 @@ internal sealed class AgentRegistry
             {
                 ConnectionId = connectionId,
                 LastSeenUtc = now,
+                MaxAccess = registration.MaxAccess ?? SchedulerAccess.Administer,
             };
 
             if (Bind(entry) is { } refusal)
@@ -348,7 +356,7 @@ internal sealed class AgentRegistry
         existing.OfflineSinceUtc = null;
         existing.Unregistered = false;
         existing.OverdueLogged = false;
-        existing.Refresh(routes, registration.ReadOnly, registration.QuartzVersion ?? existing.QuartzVersion);
+        existing.Refresh(routes, registration.ReadOnly, registration.MaxAccess, registration.QuartzVersion ?? existing.QuartzVersion);
         byConnection[connectionId] = existing;
 
         logger.AgentRegistered(existing.Target, existing.SchedulerName, existing.SchedulerInstanceId, existing.QuartzVersion);

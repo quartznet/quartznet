@@ -7,6 +7,7 @@
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject NavigationManager Navigation
 @inject ToastService Toasts
@@ -34,13 +35,25 @@
             <KeyBadge GroupName="@Group" ItemName="@Name" />
             <PauseNote Pause="@_groupPause" />
             <a class="qz-details-link" href="@GetHistoryPathForJob(Group, Name)">View execution history</a>
-            @if (!IsReadOnly)
+            @if (CanPause || CanResume || CanTrigger || CanDelete)
             {
                 <div class="qz-actions">
-                    <button type="button" class="qz-button" @onclick="PromptPause">Pause</button>
-                    <button type="button" class="qz-button" @onclick="ResumeAsync">Resume</button>
-                    <button type="button" class="qz-button qz-button-primary" @onclick="TriggerAsync">Trigger now</button>
-                    <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete</button>
+                    @if (CanPause)
+                    {
+                        <button type="button" class="qz-button" @onclick="PromptPause">Pause</button>
+                    }
+                    @if (CanResume)
+                    {
+                        <button type="button" class="qz-button" @onclick="ResumeAsync">Resume</button>
+                    }
+                    @if (CanTrigger)
+                    {
+                        <button type="button" class="qz-button qz-button-primary" @onclick="TriggerAsync">Trigger now</button>
+                    }
+                    @if (CanDelete)
+                    {
+                        <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete</button>
+                    }
                 </div>
             }
         </div>
@@ -149,7 +162,7 @@
 
         <h2>JobDataMap</h2>
         <JobDataMapEditor DataMap="@JobDataMap" ReadOnly="true" />
-        @if (!IsReadOnly)
+        @if (CanTriggerWithData)
         {
             <h2>Trigger with JobDataMap overrides</h2>
             <p class="qz-muted">Provide optional override values that will be merged for this trigger run.</p>
@@ -256,6 +269,27 @@
 
     private bool IsReadOnly => Options.Value.ReadOnly;
 
+    /// <summary>
+    /// Whether the visitor may call <paramref name="route" /> on the active scheduler: never while the
+    /// dashboard is read-only, and only at their role's level under an operation policy.
+    /// </summary>
+    private bool Can(Quartz.HttpApiContract.WireRoute route, bool carriesJobData = false)
+        => Authorization.Allows(Scheduler.ActiveSchedulerName, route, carriesJobData);
+
+    private bool CanPause => Can(Quartz.HttpApiContract.SchedulerRoutes.PauseJob);
+
+    private bool CanResume => Can(Quartz.HttpApiContract.SchedulerRoutes.ResumeJob);
+
+    private bool CanTrigger => Can(Quartz.HttpApiContract.SchedulerRoutes.TriggerJob);
+
+    /// <summary>
+    /// Triggering with job data, which an operation policy asks at Administer: a stored <c>NativeJob</c>
+    /// runs the command its job data names.
+    /// </summary>
+    private bool CanTriggerWithData => Can(Quartz.HttpApiContract.SchedulerRoutes.TriggerJob, carriesJobData: true);
+
+    private bool CanDelete => Can(Quartz.HttpApiContract.SchedulerRoutes.DeleteJob);
+
     private JobKeyDto JobKey => new(Group, Name);
 
     private JobDataMap? JobDataMap => _job?.JobDataMap;
@@ -296,6 +330,8 @@
             {
                 return;
             }
+
+            await Authorization.LoadOperations(schedulerName);
 
             _job = await Api.GetJobDetail(schedulerName, JobKey);
             _triggerDataMap = CloneJobDataMap(JobDataMap);
@@ -497,7 +533,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, target, succeeded: false, ex.Message);
+            ActionLog.Failed(schedulerName, actionName, target, ex);
             Toasts.Error(ex.Message);
             return false;
         }
@@ -535,7 +571,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, target, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
+            ActionLog.Failed(schedulerName, actionName, target, ex, note);
             Toasts.Error(ex.Message);
             return false;
         }

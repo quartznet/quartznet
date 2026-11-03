@@ -51,6 +51,9 @@ internal static class EndpointConventionBuilderExtensions
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .WithName(route.Name)
             .WithDisplayName(displayName)
+            // The route itself, for the conventions applied once every endpoint is built: the operation
+            // policy reads the level the route needs off it rather than out of a second table.
+            .WithMetadata(route)
             .Add(endpoint =>
             {
                 var requestDelegateToWrap = endpoint.RequestDelegate;

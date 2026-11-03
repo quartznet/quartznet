@@ -113,6 +113,54 @@ internal sealed class DashboardActionLog
         }
     }
 
+    /// <summary>
+    /// Records an action that did not happen: refused for the visitor's role when
+    /// <paramref name="exception" /> says so, and failed otherwise, with <paramref name="note" /> before the
+    /// exception's message and <paramref name="detail" /> after it.
+    /// </summary>
+    /// <remarks>
+    /// A refusal is entered as refused rather than failed, and logged as <c>9118</c> instead of <c>9101</c>:
+    /// nothing went wrong, a rule the operator configured said no, and nothing reached the scheduler.
+    /// </remarks>
+    public void Failed(
+        string schedulerName,
+        string action,
+        string target,
+        Exception exception,
+        string? note = null,
+        bool nodeLocal = false,
+        string? detail = null)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        string? message = MessageOf(note, exception.Message, detail);
+        if (exception is not OperationRefusedException refusal)
+        {
+            Record(schedulerName, action, target, succeeded: false, message, nodeLocal);
+            return;
+        }
+
+        SchedulerHeaderDto? header = schedulerState.Find(schedulerName);
+        string user = UserName();
+
+        store.Record(new DashboardActionLogEntry(
+            Timestamp: DateTimeOffset.UtcNow,
+            SchedulerName: schedulerName,
+            Action: action,
+            Target: target,
+            Succeeded: false,
+            Message: message)
+        {
+            Origin = header?.Origin,
+            SchedulerInstanceId = header?.SchedulerInstanceId,
+            NodeLocal = nodeLocal,
+            User = user,
+            Refused = true
+        });
+
+        logger.ActionRefused(user, action, target, schedulerName, refusal.Required, header?.Origin.ToString() ?? Unknown, header?.SchedulerInstanceId ?? Unknown);
+    }
+
     /// <inheritdoc cref="DashboardActionLogService.GetLatest" />
     public IReadOnlyList<DashboardActionLogEntry> GetLatest(int maxCount = 25) => store.GetLatest(maxCount);
 

@@ -68,7 +68,8 @@ internal static partial class DashboardAgentLog
 
     /// <remarks>
     /// Warning: the dashboard asked for something the agent's own configuration refuses — read-only, an
-    /// operation outside the allow-list, a job type outside it, or an answer too large for the channel.
+    /// operation outside the allow-list, one above <c>MaxAccess</c> (from 4.8), a job type outside the
+    /// allow-list, or an answer too large for the channel.
     /// An operator who narrowed the agent wants to see what was turned away.
     /// </remarks>
     [LoggerMessage(EventId = 9304, Level = LogLevel.Warning, Message = "Operation {Operation} refused: {Reason}")]

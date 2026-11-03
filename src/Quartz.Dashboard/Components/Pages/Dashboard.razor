@@ -4,6 +4,8 @@
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@using Routes = Quartz.HttpApiContract.SchedulerRoutes
+@using WireRoute = Quartz.HttpApiContract.WireRoute
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
@@ -67,17 +69,29 @@
             </p>
         }
 
-        @if (!IsReadOnly)
+        @if (Can(Routes.Start) || Can(Routes.Standby) || Can(Routes.PauseAll) || Can(Routes.ResumeAll) || Can(Routes.Shutdown))
         {
             <div class="qz-actions qz-scheduler-controls">
                 @if (!_isWindow && !_isCluster)
                 {
-                    <button type="button" class="qz-button qz-button-primary" @onclick="StartSchedulerAsync">Start</button>
-                    <button type="button" class="qz-button" @onclick="StandbySchedulerAsync">Standby</button>
+                    @if (Can(Routes.Start))
+                    {
+                        <button type="button" class="qz-button qz-button-primary" @onclick="StartSchedulerAsync">Start</button>
+                    }
+                    @if (Can(Routes.Standby))
+                    {
+                        <button type="button" class="qz-button" @onclick="StandbySchedulerAsync">Standby</button>
+                    }
                 }
-                <button type="button" class="qz-button" @onclick="PromptPauseAll">Pause all</button>
-                <button type="button" class="qz-button" @onclick="ResumeAllAsync">Resume all</button>
-                @if (!_isWindow && !_isCluster)
+                @if (Can(Routes.PauseAll))
+                {
+                    <button type="button" class="qz-button" @onclick="PromptPauseAll">Pause all</button>
+                }
+                @if (Can(Routes.ResumeAll))
+                {
+                    <button type="button" class="qz-button" @onclick="ResumeAllAsync">Resume all</button>
+                }
+                @if (!_isWindow && !_isCluster && Can(Routes.Shutdown))
                 {
                     <button type="button" class="qz-button qz-button-danger" @onclick="PromptShutdown">Shutdown</button>
                 }
@@ -257,6 +271,12 @@
     private bool IsReadOnly => Options.Value.ReadOnly;
 
     /// <summary>
+    /// Whether the visitor may call <paramref name="route" /> on the active scheduler: never while the
+    /// dashboard is read-only, and only at their role's level under an operation policy.
+    /// </summary>
+    private bool Can(WireRoute route) => Authorization.Allows(Scheduler.ActiveSchedulerName, route);
+
+    /// <summary>
     /// The node count, with the number that are not <see cref="ClusterNodeState.Alive" /> beside it
     /// when there are any — a cluster of four is only news when one of them has stopped checking in.
     /// </summary>
@@ -334,6 +354,10 @@
         try
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
+
+            // What the visitor's role allows here, asked once per scheduler, so the controls render from
+            // an answer rather than offering what would be refused.
+            await Authorization.LoadOperations(schedulerName);
 
             SchedulerHeaderDto? header = Scheduler.Find(schedulerName);
             _isWindow = header?.IsWindow == true;
@@ -613,7 +637,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message), nodeLocal);
+            ActionLog.Failed(schedulerName, actionName, schedulerName, ex, note, nodeLocal);
             Toasts.Error(ex.Message);
         }
     }

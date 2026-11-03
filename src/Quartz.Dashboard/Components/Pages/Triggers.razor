@@ -4,9 +4,12 @@
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@using Routes = Quartz.HttpApiContract.SchedulerRoutes
+@using WireRoute = Quartz.HttpApiContract.WireRoute
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject ToastService Toasts
 @inject NavigationManager Navigation
@@ -89,13 +92,22 @@
         }
     </div>
 
-    @if (!IsReadOnly && _selected.Count > 0)
+    @if (CanSelect && _selected.Count > 0)
     {
         <div class="qz-actions qz-group-actions qz-bulk-actions" data-testid="trigger-bulk-actions">
             <span class="qz-bulk-count">@_selected.Count selected</span>
-            <button type="button" class="qz-button qz-bulk-pause" @onclick="PromptPauseSelection">Pause selected</button>
-            <button type="button" class="qz-button qz-bulk-resume" @onclick="ResumeSelectionAsync">Resume selected</button>
-            <button type="button" class="qz-button qz-button-danger qz-bulk-unschedule" @onclick="PromptUnscheduleSelection">Unschedule selected</button>
+            @if (Can(Routes.PauseTriggerKeys))
+            {
+                <button type="button" class="qz-button qz-bulk-pause" @onclick="PromptPauseSelection">Pause selected</button>
+            }
+            @if (Can(Routes.ResumeTriggerKeys))
+            {
+                <button type="button" class="qz-button qz-bulk-resume" @onclick="ResumeSelectionAsync">Resume selected</button>
+            }
+            @if (Can(Routes.UnscheduleJobs))
+            {
+                <button type="button" class="qz-button qz-button-danger qz-bulk-unschedule" @onclick="PromptUnscheduleSelection">Unschedule selected</button>
+            }
             <button type="button" class="qz-button qz-bulk-clear" @onclick="ClearSelection">Clear selection</button>
         </div>
     }
@@ -137,17 +149,23 @@
         {
             <section class="qz-section">
                 <h2>@group.Key</h2>
-                @if (!IsReadOnly)
+                @if (CanPause || CanResume)
                 {
                     <div class="qz-actions qz-group-actions">
-                        <button type="button" class="qz-button" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
-                        <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
+                        @if (CanPause)
+                        {
+                            <button type="button" class="qz-button" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
+                        }
+                        @if (CanResume)
+                        {
+                            <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
+                        }
                     </div>
                 }
                 <table class="qz-table qz-entity-table">
                     <thead>
                         <tr>
-                            @if (!IsReadOnly)
+                            @if (CanSelect)
                             {
                                 List<TriggerHeaderDto> groupRows = group.ToList();
                                 <th class="qz-col-select">
@@ -162,7 +180,7 @@
                             <th class="qz-col-state">State</th>
                             <th>Execution Group</th>
                             <th class="qz-col-details">Details</th>
-                            @if (!IsReadOnly)
+                            @if (HasRowActions)
                             {
                                 <th class="qz-col-actions">Actions</th>
                             }
@@ -179,7 +197,7 @@
                                 role="link"
                                 @onclick="() => NavigateToTrigger(triggerGroup, triggerName)"
                                 @onkeydown="args => OnTriggerRowKeyDown(args, triggerGroup, triggerName)">
-                                @if (!IsReadOnly)
+                                @if (CanSelect)
                                 {
                                     <td class="qz-col-select" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
                                         <input type="checkbox"
@@ -215,13 +233,22 @@
                                 <td class="qz-col-details">
                                     <a class="qz-details-link" href="@GetTriggerPath(triggerGroup, triggerName)" @onclick:stopPropagation="true">View details</a>
                                 </td>
-                                @if (!IsReadOnly)
+                                @if (HasRowActions)
                                 {
                                     <td class="qz-col-actions">
                                         <div class="qz-actions" @onclick:stopPropagation="true">
-                                            <button type="button" class="qz-button" @onclick="() => PromptPauseTrigger(triggerGroup, triggerName)">Pause</button>
-                                            <button type="button" class="qz-button" @onclick="() => ResumeTrigger(triggerGroup, triggerName)">Resume</button>
-                                            <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptUnschedule(triggerGroup, triggerName)">Unschedule</button>
+                                            @if (CanPause)
+                                            {
+                                                <button type="button" class="qz-button" @onclick="() => PromptPauseTrigger(triggerGroup, triggerName)">Pause</button>
+                                            }
+                                            @if (CanResume)
+                                            {
+                                                <button type="button" class="qz-button" @onclick="() => ResumeTrigger(triggerGroup, triggerName)">Resume</button>
+                                            }
+                                            @if (CanUnschedule)
+                                            {
+                                                <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptUnschedule(triggerGroup, triggerName)">Unschedule</button>
+                                            }
                                         </div>
                                     </td>
                                 }
@@ -358,6 +385,25 @@
     private bool IsReadOnly => Options.Value.ReadOnly;
 
     /// <summary>
+    /// Whether the visitor may call <paramref name="route" /> on the active scheduler: never while the
+    /// dashboard is read-only, and only at their role's level under an operation policy.
+    /// </summary>
+    private bool Can(WireRoute route) => Authorization.Allows(Scheduler.ActiveSchedulerName, route);
+
+    private bool CanPause => Can(Routes.PauseTrigger);
+
+    private bool CanResume => Can(Routes.ResumeTrigger);
+
+    private bool CanUnschedule => Can(Routes.UnscheduleJob);
+
+    private bool HasRowActions => CanPause || CanResume || CanUnschedule;
+
+    /// <summary>
+    /// Whether rows can be selected: some bulk action is the visitor's to take.
+    /// </summary>
+    private bool CanSelect => Can(Routes.PauseTriggerKeys) || Can(Routes.ResumeTriggerKeys) || Can(Routes.UnscheduleJobs);
+
+    /// <summary>
     /// Whether the active filter is a state the buttons cannot show as selected, which is what arriving
     /// from a link is: the row offers all, error, executing and awaiting, and the histogram links to
     /// five states.
@@ -449,6 +495,7 @@
                 return;
             }
 
+            await Authorization.LoadOperations(schedulerName);
             await LoadCalendarNamesAsync(schedulerName);
 
             PagedResult<TriggerHeaderDto> page;
@@ -978,7 +1025,7 @@
         string batch = DashboardActionLog.MessageOf("one of " + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected", note)!;
 
         HashSet<TriggerKeyDto> applied;
-        string? failure = null;
+        Exception? failure = null;
         try
         {
             applied = [.. await operation(schedulerName, keys)];
@@ -988,7 +1035,7 @@
             // The key-set call is one request and one store transaction, so a refusal is the whole
             // batch's: nothing it names was applied.
             applied = [];
-            failure = ex.Message;
+            failure = ex;
         }
 
         List<(TriggerKeyDto Key, string Reason)> misses = [];
@@ -1001,8 +1048,8 @@
             }
             else if (failure is not null)
             {
-                misses.Add((key, failure));
-                ActionLog.Record(schedulerName, actionName, target, succeeded: false, batch + "; " + failure);
+                misses.Add((key, failure.Message));
+                ActionLog.Failed(schedulerName, actionName, target, failure, batch);
             }
             else
             {
@@ -1066,7 +1113,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
+            ActionLog.Failed(Scheduler.ActiveSchedulerName, actionName, target, ex, note);
             Toasts.Error(ex.Message);
         }
     }
@@ -1130,7 +1177,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, actionVerb + "TriggerGroup", group, succeeded: false, DashboardActionLog.MessageOf(note, ex.Message));
+            ActionLog.Failed(schedulerName, actionVerb + "TriggerGroup", group, ex, note);
             Toasts.Error(ex.Message);
         }
     }

@@ -7,6 +7,7 @@
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject NavigationManager Navigation
 @inject ToastService Toasts
@@ -190,7 +191,7 @@
                     <th class="qz-col-result">Result</th>
                     <th class="qz-col-summary">Summary</th>
                     <th class="qz-col-error">Error</th>
-                    @if (!IsReadOnly)
+                    @if (CanRunAgain)
                     {
                         <th class="qz-col-actions">Actions</th>
                     }
@@ -241,7 +242,7 @@
                                 <span class="qz-history-clamp" title="@error">@error</span>
                             }
                         </td>
-                        @if (!IsReadOnly)
+                        @if (CanRunAgain)
                         {
                             <td class="qz-col-actions">
                                 @* Only on a final failure. A row the trigger is going to retry already
@@ -512,7 +513,12 @@
 
     private bool HasOutcomeFilter => string.Equals(_appliedOutcomeFilter, FailedFinallyFilter, StringComparison.OrdinalIgnoreCase);
 
-    private bool IsReadOnly => Options.Value.ReadOnly;
+    /// <summary>
+    /// Whether <em>Run again</em> is offered: triggering a job now, which an operation policy asks at
+    /// Operate. A run whose recorded input is replayed carries job data, which it asks again at
+    /// Administer when the button is pressed: the listing does not carry the input to decide it here.
+    /// </summary>
+    private bool CanRunAgain => Authorization.Allows(Scheduler.ActiveSchedulerName, Quartz.HttpApiContract.SchedulerRoutes.TriggerJob);
 
     protected override Task OnInitializedAsync()
     {
@@ -626,6 +632,7 @@
                 return;
             }
 
+            await Authorization.LoadOperations(schedulerName);
             await LoadClusterNodesAsync(schedulerName);
 
             DateTimeOffset now = Clock.GetUtcNow();
@@ -1102,7 +1109,7 @@
     private async Task RunAgainAsync(DashboardHistoryEntry entry)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        if (!CanRunAgain || string.IsNullOrWhiteSpace(schedulerName))
         {
             return;
         }
@@ -1129,7 +1136,7 @@
             bool jobGone = await RunAgainInput.FailedForAJobGone(Api, schedulerName, job, ex);
             string message = jobGone ? RunAgainInput.JobGone(target) : ex.Message;
             _error = message;
-            ActionLog.Record(schedulerName, action, target, succeeded: false, ex.Message);
+            ActionLog.Failed(schedulerName, action, target, ex);
             Toasts.Error(message);
         }
     }

@@ -44,7 +44,7 @@ internal sealed class WireRoute
     private readonly string[] segments;
     private readonly bool[] isParameter;
 
-    public WireRoute(string name, string method, string template, bool mutates = false)
+    public WireRoute(string name, string method, string template, bool mutates = false, SchedulerAccess access = SchedulerAccess.View)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(method);
@@ -54,6 +54,7 @@ internal sealed class WireRoute
         Method = method;
         Template = template;
         Mutates = mutates;
+        Access = access;
 
         segments = template.Split('/');
         isParameter = new bool[segments.Length];
@@ -104,6 +105,19 @@ internal sealed class WireRoute
     /// holds the two markings to each other. Added in 4.5.
     /// </remarks>
     public bool Mutates { get; }
+
+    /// <summary>
+    /// The operator role a call of this route needs: <see cref="SchedulerAccess.View" /> for every read,
+    /// and <see cref="SchedulerAccess.Operate" /> or <see cref="SchedulerAccess.Administer" /> for every
+    /// route that <see cref="Mutates" />.
+    /// </summary>
+    /// <remarks>
+    /// Stated beside <see cref="Mutates" /> rather than derived from it, so a mutating route added later
+    /// with no level says View, which <c>RouteAccessTableTest</c> fails: every change is classified by
+    /// somebody who decided it. <see cref="SchedulerRoutes.RequiredAccess" /> is what a carrier asks, since
+    /// one route needs more with job data. Added in 4.8.
+    /// </remarks>
+    public SchedulerAccess Access { get; }
 
     /// <summary>
     /// A request to this route with the template's parameters filled in, in order.

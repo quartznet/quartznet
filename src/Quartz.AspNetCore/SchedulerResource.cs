@@ -38,6 +38,11 @@ namespace Quartz;
 /// <see cref="SchedulerName" /> with the target in <see cref="Target" />, so a handler written against
 /// the name keeps matching it, and one that cares which process the name was found in reads the target.
 /// </para>
+/// <para>
+/// From 4.8 the same resource carries <see cref="Operation" /> and <see cref="Access" /> to an
+/// <c>OperationAuthorizationPolicy</c>, which decides what the caller may do rather than which schedulers
+/// they may see.
+/// </para>
 /// </remarks>
 /// <param name="SchedulerName">The scheduler the request is about.</param>
 public sealed record SchedulerResource(string SchedulerName)
@@ -48,6 +53,30 @@ public sealed record SchedulerResource(string SchedulerName)
     /// one registered without a target. Added in 4.5.
     /// </summary>
     public string? Target { get; init; }
+
+    /// <summary>
+    /// The operation asked for, by the name the HTTP API publishes as its operation id — <c>PauseJob</c>,
+    /// <c>Shutdown</c>, <c>GetJobDetails</c> — or <see langword="null" /> when the question is only whether
+    /// the caller may see the scheduler. Added in 4.8.
+    /// </summary>
+    /// <remarks>
+    /// Set on the resource an <c>OperationAuthorizationPolicy</c> is evaluated against, never on the one
+    /// the <c>SchedulerAuthorizationPolicy</c> is, so a handler written for the second before 4.8 is asked
+    /// the same question it always was.
+    /// </remarks>
+    public string? Operation { get; init; }
+
+    /// <summary>
+    /// The operator role <see cref="Operation" /> needs — <see cref="SchedulerAccess.Administer" /> for a
+    /// trigger-now that carries job data — or <see langword="null" /> beside a null
+    /// <see cref="Operation" />. Added in 4.8.
+    /// </summary>
+    /// <remarks>
+    /// The level the HTTP API's route table gives the operation, decided by the surface that asks, so a
+    /// handler compares roles with it rather than keeping a table of its own.
+    /// <c>RequireSchedulerRoles</c> is the handler Quartz ships.
+    /// </remarks>
+    public SchedulerAccess? Access { get; init; }
 
     /// <summary>
     /// The resource for a key: the scheduler's name and the target it is reached through, when it is.

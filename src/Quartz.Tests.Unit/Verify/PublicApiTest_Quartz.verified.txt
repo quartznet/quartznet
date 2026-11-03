@@ -1834,6 +1834,12 @@ namespace Quartz
         public Quartz.ScheduleOutcome Outcome { get; init; }
         public Quartz.TriggerKey TriggerKey { get; init; }
     }
+    public enum SchedulerAccess
+    {
+        View = 0,
+        Operate = 1,
+        Administer = 2,
+    }
     public readonly record struct SchedulerAddOptions : System.IEquatable<Quartz.SchedulerAddOptions>
     {
         public Microsoft.Extensions.Configuration.IConfiguration? Configuration { get; init; }

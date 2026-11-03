@@ -29,7 +29,7 @@ public class QuartzDashboardHubAuthorizationTest
     [Test]
     public async Task AConnectionMayJoinTheGroupOfASchedulerItPassesFor()
     {
-        Joining joining = CreateHub(policyName: SchedulerPolicyName, allowed: "acme");
+        Joining joining = CreateHub(policyName: SchedulerPolicyName, allowed: ["acme"]);
 
         await joining.Hub.JoinScheduler("acme");
 
@@ -45,7 +45,7 @@ public class QuartzDashboardHubAuthorizationTest
     [Test]
     public async Task AConnectionIsRefusedTheGroupOfASchedulerItDoesNotPassFor()
     {
-        Joining joining = CreateHub(policyName: SchedulerPolicyName, allowed: "acme");
+        Joining joining = CreateHub(policyName: SchedulerPolicyName, allowed: ["acme"]);
 
         Func<Task> join = () => joining.Hub.JoinScheduler("globex");
 
@@ -72,6 +72,33 @@ public class QuartzDashboardHubAuthorizationTest
     }
 
     /// <summary>
+    /// Under an operation policy, joining a scheduler's group is viewing it: a connection in no role is
+    /// refused, and one at View joins.
+    /// </summary>
+    [TestCase(null, false)]
+    [TestCase(SchedulerAccess.View, true)]
+    public async Task UnderAnOperationPolicyJoiningNeedsView(SchedulerAccess? role, bool joins)
+    {
+        Joining joining = CreateHub(policyName: null, allowed: [], operationPolicy: TestSchedulerAuthorizationService.OperationPolicyName);
+        joining.Authorization.Role = role;
+
+        Func<Task> join = () => joining.Hub.JoinScheduler("acme");
+
+        if (joins)
+        {
+            await join.Should().NotThrowAsync();
+        }
+        else
+        {
+            await join.Should().ThrowAsync<HubException>().WithMessage("*acme*");
+        }
+
+        joining.Authorization.Asked.Should().Equal(
+            [(TestSchedulerAuthorizationService.OperationPolicyName, new SchedulerResource("acme") { Access = SchedulerAccess.View })],
+            "seeing a scheduler is the operation policy at View, with no operation named");
+    }
+
+    /// <summary>
     /// What a join is asserted against: the hub, the groups it manages, the policy it asked, and the stream
     /// the join starts forwarding from.
     /// </summary>
@@ -81,7 +108,7 @@ public class QuartzDashboardHubAuthorizationTest
         TestSchedulerAuthorizationService Authorization,
         FakeSchedulerEventSource Events);
 
-    private static Joining CreateHub(string? policyName, params string[] allowed)
+    private static Joining CreateHub(string? policyName, string[] allowed, string? operationPolicy = null)
     {
         TestSchedulerAuthorizationService authorizationService = new();
         foreach (string schedulerName in allowed)
@@ -90,7 +117,7 @@ public class QuartzDashboardHubAuthorizationTest
         }
 
         SchedulerAuthorization authorization = new(
-            Options.Create(new QuartzDashboardOptions { SchedulerAuthorizationPolicy = policyName }),
+            Options.Create(new QuartzDashboardOptions { SchedulerAuthorizationPolicy = policyName, OperationAuthorizationPolicy = operationPolicy }),
             authorizationService,
             new TestAuthenticationStateProvider());
 

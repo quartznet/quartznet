@@ -47,8 +47,9 @@ namespace Quartz.Impl;
 /// </para>
 /// <para>
 /// The refusals are the agent's and are made in its process, which is what makes them hold against a
-/// dashboard that has been taken over: <see cref="DashboardAgentOptions.ReadOnly" /> before any body is
-/// read, <see cref="DashboardAgentOptions.IsOperationAllowed" /> by route name, and
+/// dashboard that has been taken over: <see cref="DashboardAgentOptions.IsOperationAllowed" /> by route
+/// name, <see cref="DashboardAgentOptions.MaxAccess" /> by the route's operator role, and
+/// <see cref="DashboardAgentOptions.ReadOnly" />, all before any scheduler is looked up, and
 /// <see cref="DashboardAgentOptions.IsJobTypeAllowed" /> — unset meaning every job type is refused —
 /// where a job type name becomes a job. A page larger than the hub's message cap is refused here too,
 /// rather than sent and dropped by the channel.
@@ -145,7 +146,7 @@ internal sealed class AgentCarrier
 
         try
         {
-            Refuse(route, values);
+            Refuse(route, values, request.Body);
 
             Call call = new(this, route, values, AgentQuery.Parse(request.Path), request.Body, cancellationToken);
             Payload payload = await handler(call).ConfigureAwait(false);
@@ -180,14 +181,30 @@ internal sealed class AgentCarrier
     }
 
     /// <summary>
-    /// The refusals decided by the route and the options alone, before a body is read or a scheduler
-    /// looked up — and the one scheduler this agent has, which every route has to name.
+    /// The refusals decided by the route and the options alone, before a scheduler is looked up — and the
+    /// one scheduler this agent has, which every route has to name.
     /// </summary>
-    private void Refuse(WireRoute route, Dictionary<string, string> values)
+    /// <remarks>
+    /// In the order the options are documented in: the allow-list, then <see cref="DashboardAgentOptions.MaxAccess" />,
+    /// then read-only. No body is read, except a trigger-now's while <see cref="DashboardAgentOptions.MaxAccess" />
+    /// is below <see cref="SchedulerAccess.Administer" />: whether it carries job data is what decides the
+    /// level it needs.
+    /// </remarks>
+    private void Refuse(WireRoute route, Dictionary<string, string> values, byte[]? body)
     {
         if (options.IsOperationAllowed is { } allowed && !allowed(route.Name))
         {
             throw new ForbiddenException($"The agent does not accept {route.Name}.");
+        }
+
+        if (options.MaxAccess < SchedulerAccess.Administer)
+        {
+            bool carriesJobData = CarriesJobData(route, body);
+            SchedulerAccess required = SchedulerRoutes.RequiredAccess(route, carriesJobData);
+            if (required > options.MaxAccess)
+            {
+                throw new ForbiddenException(MaxAccessDetail(route.Name + (carriesJobData ? " with job data" : ""), required, options.MaxAccess));
+            }
         }
 
         if (route.Mutates && options.ReadOnly)
@@ -199,6 +216,38 @@ internal sealed class AgentCarrier
             && !string.Equals(schedulerName, scheduler.SchedulerName, StringComparison.OrdinalIgnoreCase))
         {
             throw NotFoundException.ForScheduler(schedulerName);
+        }
+    }
+
+    /// <summary>
+    /// What a refusal for <see cref="DashboardAgentOptions.MaxAccess" /> says: the operation, what it needs,
+    /// and what the agent allows, so the dashboard's toast names the setting to change.
+    /// </summary>
+    internal static string MaxAccessDetail(string operation, SchedulerAccess required, SchedulerAccess maxAccess)
+    {
+        return $"The agent accepts at most {maxAccess} ({nameof(DashboardAgentOptions)}.{nameof(DashboardAgentOptions.MaxAccess)}), "
+               + $"and {operation} needs {required}.";
+    }
+
+    /// <summary>
+    /// Whether a request of <paramref name="route" /> carries job data: only a trigger-now can, in its
+    /// optional body.
+    /// </summary>
+    private bool CarriesJobData(WireRoute route, byte[]? body)
+    {
+        if (!ReferenceEquals(route, SchedulerRoutes.TriggerJob) || body is null || body.Length == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            TriggerJobRequest? request = JsonSerializer.Deserialize(body, Format<TriggerJobRequest>());
+            return SchedulerRoutes.CarriesJobData(request?.JobData);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidRequestException($"Failed to read parameter \"{nameof(TriggerJobRequest)}\" from the request body as JSON.", exception);
         }
     }
 

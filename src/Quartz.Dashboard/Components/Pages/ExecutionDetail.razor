@@ -6,6 +6,7 @@
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
@@ -157,6 +158,8 @@
                 return;
             }
 
+            await Authorization.LoadOperations(schedulerName);
+
             _entry = await Api.GetExecution(schedulerName, EntryId);
             _metrics = RunResultDisplay.Metrics(_entry?.MetricsJson);
 
@@ -190,7 +193,7 @@
     private async Task RunAgainAsync()
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (_entry is not { } run || Options.Value.ReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        if (_entry is not { } run || !OffersRunAgain(run) || string.IsNullOrWhiteSpace(schedulerName))
         {
             return;
         }
@@ -211,7 +214,7 @@
         {
             // The job may have gone since the page was loaded; then the button is disabled from here on.
             _jobGone = await RunAgainInput.FailedForAJobGone(Api, schedulerName, job, ex);
-            ActionLog.Record(schedulerName, action, target, succeeded: false, ex.Message);
+            ActionLog.Failed(schedulerName, action, target, ex);
             Toasts.Error(_jobGone ? RunAgainInput.JobGone(target) : ex.Message);
         }
         finally
@@ -221,11 +224,18 @@
     }
 
     /// <summary>
-    /// Whether the page offers <em>Run again</em>: a final failure, on a dashboard that may change things.
+    /// Whether the page offers <em>Run again</em>: a final failure, which the visitor may trigger — with its
+    /// recorded input, which an operation policy asks at Administer, or without, at Operate.
     /// </summary>
     private bool OffersRunAgain([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] DashboardHistoryEntry? entry)
     {
-        return entry is not null && !Options.Value.ReadOnly && !entry.Succeeded && !entry.RetryScheduled;
+        return entry is not null
+               && !entry.Succeeded
+               && !entry.RetryScheduled
+               && Authorization.Allows(
+                   Scheduler.ActiveSchedulerName,
+                   Quartz.HttpApiContract.SchedulerRoutes.TriggerJob,
+                   Quartz.HttpApiContract.SchedulerRoutes.CarriesJobData(RunAgainInput.DataFor(entry)));
     }
 
     private static string Target(DashboardHistoryEntry entry) => DisplayValueHelper.FormatKey(entry.JobGroup, entry.JobName);

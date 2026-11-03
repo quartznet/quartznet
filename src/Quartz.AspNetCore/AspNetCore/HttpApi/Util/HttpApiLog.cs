@@ -33,12 +33,12 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// <c>LogEventCatalogTest</c> in <c>Quartz.Tests.AspNetCore</c> makes a change to one a reviewed diff.
 /// </para>
 /// <para>
-/// Seven of the nine are raised while turning an exception into the problem details a request is answered
+/// Seven of the ten are raised while turning an exception into the problem details a request is answered
 /// with, and the level says who has to act: a request the caller got wrong, or one for something the
 /// server does not keep, is Debug, a scheduler or a configured rule that refused is Warning, and anything
 /// else is a server fault at Error. One answers no request at all — there is nobody left to answer. One is
 /// the only one a request that went right raises, and the only one at Information: it is the record of
-/// who changed what.
+/// who changed what. The last is its sibling for a caller whose role did not allow the operation.
 /// </para>
 /// </remarks>
 internal static partial class HttpApiLog
@@ -111,4 +111,19 @@ internal static partial class HttpApiLog
     /// </remarks>
     [LoggerMessage(EventId = 9008, Level = LogLevel.Debug, Message = "NotSupportedException thrown")]
     public static partial void NotServed(this ILogger logger, Exception exception);
+
+    /// <remarks>
+    /// <para>
+    /// Warning, and it names the user, as <c>9007</c> does for what a user did: an operator who gave out
+    /// roles wants to see who reached for more than theirs. The operation is the endpoint's name, with
+    /// <c>with job data</c> after a trigger-now refused for the data it carried, and the access is the
+    /// role it needed. Added in 4.8, with <c>QuartzHttpApiOptions.OperationAuthorizationPolicy</c>.
+    /// </para>
+    /// <para>
+    /// Not raised for <c>QuartzHttpApiOptions.ReadOnly</c> or a refused job type, which are <c>9005</c>:
+    /// those refuse everybody, and this refuses one caller.
+    /// </para>
+    /// </remarks>
+    [LoggerMessage(EventId = 9009, Level = LogLevel.Warning, Message = "Api user {User} was refused {Operation} on scheduler {SchedulerName}: it needs {Access}")]
+    public static partial void OperationRefused(this ILogger logger, string user, string operation, string schedulerName, SchedulerAccess access);
 }

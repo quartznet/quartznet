@@ -61,6 +61,12 @@ internal sealed record DashboardActionLogEntry(
     /// recorded without one.
     /// </summary>
     public string? User { get; init; }
+
+    /// <summary>
+    /// Whether the action was refused for the visitor's role rather than tried and failed: nothing reached
+    /// the scheduler. Always beside a false <see cref="Succeeded" />. Added in 4.8.
+    /// </summary>
+    public bool Refused { get; init; }
 }
 
 internal sealed class DashboardActionLogService

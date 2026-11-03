@@ -47,6 +47,9 @@ internal static class SchedulerRoutes
     private const string Post = "POST";
     private const string Delete = "DELETE";
 
+    private const SchedulerAccess Operate = SchedulerAccess.Operate;
+    private const SchedulerAccess Administer = SchedulerAccess.Administer;
+
     private const string Scheduler = "schedulers/{schedulerName}";
     private const string Job = Jobs + "/{jobGroup}/{jobName}";
     private const string Jobs = Scheduler + "/jobs";
@@ -65,12 +68,12 @@ internal static class SchedulerRoutes
     public static readonly WireRoute GetAllSchedulers = Route(nameof(GetAllSchedulers), Get, "schedulers");
     public static readonly WireRoute GetSchedulerDetails = Route(nameof(GetSchedulerDetails), Get, Scheduler);
     public static readonly WireRoute GetSchedulerContext = Route(nameof(GetSchedulerContext), Get, Scheduler + "/context");
-    public static readonly WireRoute Start = Route(nameof(Start), Post, Scheduler + "/start", mutates: true);
-    public static readonly WireRoute Standby = Route(nameof(Standby), Post, Scheduler + "/standby", mutates: true);
-    public static readonly WireRoute Shutdown = Route(nameof(Shutdown), Post, Scheduler + "/shutdown", mutates: true);
-    public static readonly WireRoute Clear = Route(nameof(Clear), Post, Scheduler + "/clear", mutates: true);
-    public static readonly WireRoute PauseAll = Route(nameof(PauseAll), Post, Scheduler + "/pause-all", mutates: true);
-    public static readonly WireRoute ResumeAll = Route(nameof(ResumeAll), Post, Scheduler + "/resume-all", mutates: true);
+    public static readonly WireRoute Start = Route(nameof(Start), Post, Scheduler + "/start", mutates: true, Operate);
+    public static readonly WireRoute Standby = Route(nameof(Standby), Post, Scheduler + "/standby", mutates: true, Operate);
+    public static readonly WireRoute Shutdown = Route(nameof(Shutdown), Post, Scheduler + "/shutdown", mutates: true, Administer);
+    public static readonly WireRoute Clear = Route(nameof(Clear), Post, Scheduler + "/clear", mutates: true, Administer);
+    public static readonly WireRoute PauseAll = Route(nameof(PauseAll), Post, Scheduler + "/pause-all", mutates: true, Operate);
+    public static readonly WireRoute ResumeAll = Route(nameof(ResumeAll), Post, Scheduler + "/resume-all", mutates: true, Operate);
     public static readonly WireRoute GetClusterNodes = Route(nameof(GetClusterNodes), Get, Scheduler + "/nodes");
     public static readonly WireRoute StreamEvents = Route(nameof(StreamEvents), Get, Scheduler + "/events");
     public static readonly WireRoute QueryExecutionHistory = Route(nameof(QueryExecutionHistory), Get, History + "/executions");
@@ -88,8 +91,8 @@ internal static class SchedulerRoutes
     // the host's version first and does not ask one.
     public static readonly WireRoute QueryExecutionStatistics = Route(nameof(QueryExecutionStatistics), Get, History + "/statistics");
     public static readonly WireRoute GetExecutionLimits = Route(nameof(GetExecutionLimits), Get, Scheduler + "/execution-limits");
-    public static readonly WireRoute SetExecutionLimits = Route(nameof(SetExecutionLimits), Post, Scheduler + "/execution-limits", mutates: true);
-    public static readonly WireRoute ClearExecutionLimits = Route(nameof(ClearExecutionLimits), Delete, Scheduler + "/execution-limits", mutates: true);
+    public static readonly WireRoute SetExecutionLimits = Route(nameof(SetExecutionLimits), Post, Scheduler + "/execution-limits", mutates: true, Administer);
+    public static readonly WireRoute ClearExecutionLimits = Route(nameof(ClearExecutionLimits), Delete, Scheduler + "/execution-limits", mutates: true, Administer);
 
     // --- Jobs ------------------------------------------------------------------------------------------
 
@@ -99,19 +102,21 @@ internal static class SchedulerRoutes
     public static readonly WireRoute CheckJobExists = Route(nameof(CheckJobExists), Get, Job + "/exists");
     public static readonly WireRoute GetJobTriggers = Route(nameof(GetJobTriggers), Get, Job + "/triggers");
     public static readonly WireRoute QueryFireInstances = Route(nameof(QueryFireInstances), Get, Jobs + "/fire-instances");
-    public static readonly WireRoute PauseJob = Route(nameof(PauseJob), Post, Job + "/pause", mutates: true);
-    public static readonly WireRoute PauseJobs = Route(nameof(PauseJobs), Post, Jobs + "/pause", mutates: true);
-    public static readonly WireRoute PauseJobKeys = Route(nameof(PauseJobKeys), Post, Jobs + "/keys/pause", mutates: true);
-    public static readonly WireRoute ResumeJob = Route(nameof(ResumeJob), Post, Job + "/resume", mutates: true);
-    public static readonly WireRoute ResumeJobs = Route(nameof(ResumeJobs), Post, Jobs + "/resume", mutates: true);
-    public static readonly WireRoute ResumeJobKeys = Route(nameof(ResumeJobKeys), Post, Jobs + "/keys/resume", mutates: true);
-    public static readonly WireRoute TriggerJob = Route(nameof(TriggerJob), Post, Job + "/trigger", mutates: true);
-    public static readonly WireRoute InterruptJob = Route(nameof(InterruptJob), Post, Job + "/interrupt", mutates: true);
-    public static readonly WireRoute InterruptJobInstance = Route(nameof(InterruptJobInstance), Post, Jobs + "/interrupt/{fireInstanceId}", mutates: true);
-    public static readonly WireRoute DeleteJob = Route(nameof(DeleteJob), Delete, Job, mutates: true);
-    public static readonly WireRoute DeleteJobs = Route(nameof(DeleteJobs), Post, Jobs + "/delete", mutates: true);
-    public static readonly WireRoute DeleteJobsByGroup = Route(nameof(DeleteJobsByGroup), Post, Jobs + "/delete-by-group", mutates: true);
-    public static readonly WireRoute AddJob = Route(nameof(AddJob), Post, Jobs, mutates: true);
+    public static readonly WireRoute PauseJob = Route(nameof(PauseJob), Post, Job + "/pause", mutates: true, Operate);
+    public static readonly WireRoute PauseJobs = Route(nameof(PauseJobs), Post, Jobs + "/pause", mutates: true, Operate);
+    public static readonly WireRoute PauseJobKeys = Route(nameof(PauseJobKeys), Post, Jobs + "/keys/pause", mutates: true, Operate);
+    public static readonly WireRoute ResumeJob = Route(nameof(ResumeJob), Post, Job + "/resume", mutates: true, Operate);
+    public static readonly WireRoute ResumeJobs = Route(nameof(ResumeJobs), Post, Jobs + "/resume", mutates: true, Operate);
+    public static readonly WireRoute ResumeJobKeys = Route(nameof(ResumeJobKeys), Post, Jobs + "/keys/resume", mutates: true, Operate);
+
+    // Operate without job data, Administer with it: RequiredAccess says which.
+    public static readonly WireRoute TriggerJob = Route(nameof(TriggerJob), Post, Job + "/trigger", mutates: true, Operate);
+    public static readonly WireRoute InterruptJob = Route(nameof(InterruptJob), Post, Job + "/interrupt", mutates: true, Operate);
+    public static readonly WireRoute InterruptJobInstance = Route(nameof(InterruptJobInstance), Post, Jobs + "/interrupt/{fireInstanceId}", mutates: true, Operate);
+    public static readonly WireRoute DeleteJob = Route(nameof(DeleteJob), Delete, Job, mutates: true, Administer);
+    public static readonly WireRoute DeleteJobs = Route(nameof(DeleteJobs), Post, Jobs + "/delete", mutates: true, Administer);
+    public static readonly WireRoute DeleteJobsByGroup = Route(nameof(DeleteJobsByGroup), Post, Jobs + "/delete-by-group", mutates: true, Administer);
+    public static readonly WireRoute AddJob = Route(nameof(AddJob), Post, Jobs, mutates: true, Administer);
     public static readonly WireRoute QueryJobGroups = Route(nameof(QueryJobGroups), Get, Jobs + "/groups");
     public static readonly WireRoute IsJobGroupPaused = Route(nameof(IsJobGroupPaused), Get, Jobs + "/groups/{jobGroup}/paused");
 
@@ -127,37 +132,70 @@ internal static class SchedulerRoutes
     // and calendar that host answers with instead.
     public static readonly WireRoute GetTriggerFireTimes = Route(nameof(GetTriggerFireTimes), Get, Trigger + "/fire-times");
 
-    public static readonly WireRoute ResetTriggerFromErrorState = Route(nameof(ResetTriggerFromErrorState), Post, Trigger + "/reset-from-error-state", mutates: true);
-    public static readonly WireRoute ResetTriggerKeysFromErrorState = Route(nameof(ResetTriggerKeysFromErrorState), Post, Triggers + "/keys/reset-from-error-state", mutates: true);
-    public static readonly WireRoute PauseTrigger = Route(nameof(PauseTrigger), Post, Trigger + "/pause", mutates: true);
-    public static readonly WireRoute PauseTriggers = Route(nameof(PauseTriggers), Post, Triggers + "/pause", mutates: true);
-    public static readonly WireRoute PauseTriggerKeys = Route(nameof(PauseTriggerKeys), Post, Triggers + "/keys/pause", mutates: true);
-    public static readonly WireRoute ResumeTrigger = Route(nameof(ResumeTrigger), Post, Trigger + "/resume", mutates: true);
-    public static readonly WireRoute ResumeTriggers = Route(nameof(ResumeTriggers), Post, Triggers + "/resume", mutates: true);
-    public static readonly WireRoute ResumeTriggerKeys = Route(nameof(ResumeTriggerKeys), Post, Triggers + "/keys/resume", mutates: true);
+    public static readonly WireRoute ResetTriggerFromErrorState = Route(nameof(ResetTriggerFromErrorState), Post, Trigger + "/reset-from-error-state", mutates: true, Operate);
+    public static readonly WireRoute ResetTriggerKeysFromErrorState = Route(nameof(ResetTriggerKeysFromErrorState), Post, Triggers + "/keys/reset-from-error-state", mutates: true, Operate);
+    public static readonly WireRoute PauseTrigger = Route(nameof(PauseTrigger), Post, Trigger + "/pause", mutates: true, Operate);
+    public static readonly WireRoute PauseTriggers = Route(nameof(PauseTriggers), Post, Triggers + "/pause", mutates: true, Operate);
+    public static readonly WireRoute PauseTriggerKeys = Route(nameof(PauseTriggerKeys), Post, Triggers + "/keys/pause", mutates: true, Operate);
+    public static readonly WireRoute ResumeTrigger = Route(nameof(ResumeTrigger), Post, Trigger + "/resume", mutates: true, Operate);
+    public static readonly WireRoute ResumeTriggers = Route(nameof(ResumeTriggers), Post, Triggers + "/resume", mutates: true, Operate);
+    public static readonly WireRoute ResumeTriggerKeys = Route(nameof(ResumeTriggerKeys), Post, Triggers + "/keys/resume", mutates: true, Operate);
     public static readonly WireRoute QueryTriggerGroups = Route(nameof(QueryTriggerGroups), Get, Triggers + "/groups");
     public static readonly WireRoute IsTriggerGroupPaused = Route(nameof(IsTriggerGroupPaused), Get, Triggers + "/groups/{triggerGroup}/paused");
-    public static readonly WireRoute ScheduleJob = Route(nameof(ScheduleJob), Post, Triggers + "/schedule", mutates: true);
-    public static readonly WireRoute ScheduleJobs = Route(nameof(ScheduleJobs), Post, Triggers + "/schedule-multiple", mutates: true);
-    public static readonly WireRoute UnscheduleJob = Route(nameof(UnscheduleJob), Post, Trigger + "/unschedule", mutates: true);
-    public static readonly WireRoute UnscheduleJobs = Route(nameof(UnscheduleJobs), Post, Triggers + "/unschedule", mutates: true);
-    public static readonly WireRoute UnscheduleJobsByGroup = Route(nameof(UnscheduleJobsByGroup), Post, Triggers + "/unschedule-by-group", mutates: true);
-    public static readonly WireRoute RescheduleJob = Route(nameof(RescheduleJob), Post, Trigger + "/reschedule", mutates: true);
-    public static readonly WireRoute UpdateTriggerDetails = Route(nameof(UpdateTriggerDetails), Post, Trigger + "/update-details", mutates: true);
-    public static readonly WireRoute BackfillTrigger = Route(nameof(BackfillTrigger), Post, Trigger + "/backfill", mutates: true);
+    public static readonly WireRoute ScheduleJob = Route(nameof(ScheduleJob), Post, Triggers + "/schedule", mutates: true, Administer);
+    public static readonly WireRoute ScheduleJobs = Route(nameof(ScheduleJobs), Post, Triggers + "/schedule-multiple", mutates: true, Administer);
+    public static readonly WireRoute UnscheduleJob = Route(nameof(UnscheduleJob), Post, Trigger + "/unschedule", mutates: true, Administer);
+    public static readonly WireRoute UnscheduleJobs = Route(nameof(UnscheduleJobs), Post, Triggers + "/unschedule", mutates: true, Administer);
+    public static readonly WireRoute UnscheduleJobsByGroup = Route(nameof(UnscheduleJobsByGroup), Post, Triggers + "/unschedule-by-group", mutates: true, Administer);
+    public static readonly WireRoute RescheduleJob = Route(nameof(RescheduleJob), Post, Trigger + "/reschedule", mutates: true, Administer);
+    public static readonly WireRoute UpdateTriggerDetails = Route(nameof(UpdateTriggerDetails), Post, Trigger + "/update-details", mutates: true, Administer);
+    public static readonly WireRoute BackfillTrigger = Route(nameof(BackfillTrigger), Post, Trigger + "/backfill", mutates: true, Operate);
 
     // --- Calendars -------------------------------------------------------------------------------------
 
     public static readonly WireRoute QueryCalendarNames = Route(nameof(QueryCalendarNames), Get, Calendars);
     public static readonly WireRoute GetCalendar = Route(nameof(GetCalendar), Get, Calendar);
     public static readonly WireRoute CheckCalendarExists = Route(nameof(CheckCalendarExists), Get, Calendar + "/exists");
-    public static readonly WireRoute AddCalendar = Route(nameof(AddCalendar), Post, Calendars, mutates: true);
-    public static readonly WireRoute DeleteCalendar = Route(nameof(DeleteCalendar), Delete, Calendar, mutates: true);
+    public static readonly WireRoute AddCalendar = Route(nameof(AddCalendar), Post, Calendars, mutates: true, Administer);
+    public static readonly WireRoute DeleteCalendar = Route(nameof(DeleteCalendar), Delete, Calendar, mutates: true, Administer);
 
     /// <summary>
     /// Every route, in the order the table declares them.
     /// </summary>
     public static readonly ReadOnlyCollection<WireRoute> All = routes.AsReadOnly();
+
+    private static readonly Dictionary<string, WireRoute> byName = routes.ToDictionary(route => route.Name, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The route of that name, ignoring case, or <see langword="null" /> when the table has none.
+    /// </summary>
+    public static WireRoute? Find(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        return byName.GetValueOrDefault(name);
+    }
+
+    /// <summary>
+    /// The operator role a call of <paramref name="route" /> needs: its <see cref="WireRoute.Access" />,
+    /// except that <see cref="TriggerJob" /> with a non-empty job-data map needs
+    /// <see cref="SchedulerAccess.Administer" />.
+    /// </summary>
+    /// <remarks>
+    /// A stored <c>NativeJob</c> reads the command it runs from its job data, so supplying job data is
+    /// naming what runs, which only an administrator may do. Every carrier asks this rather than reading
+    /// <see cref="WireRoute.Access" />, so the rule is stated once.
+    /// </remarks>
+    public static SchedulerAccess RequiredAccess(WireRoute route, bool carriesJobData)
+    {
+        ArgumentNullException.ThrowIfNull(route);
+        return carriesJobData && ReferenceEquals(route, TriggerJob) ? SchedulerAccess.Administer : route.Access;
+    }
+
+    /// <summary>
+    /// Whether a trigger-now request carries job data: a map with at least one entry. An empty map is the
+    /// same request as none.
+    /// </summary>
+    public static bool CarriesJobData(JobDataMap? jobData) => jobData is { Count: > 0 };
 
     /// <summary>
     /// The route a method and a path are a call of, with the values its parameters took, or
@@ -193,9 +231,13 @@ internal static class SchedulerRoutes
     /// Whether a call changes something: every route that is not a <c>GET</c>, except the three bulk
     /// fetches, which take a body of keys and read.
     /// </param>
-    private static WireRoute Route(string name, string method, string template, bool mutates = false)
+    /// <param name="access">
+    /// The operator role a call needs: View for a read, and Operate or Administer for a route that mutates,
+    /// stated by whoever adds it.
+    /// </param>
+    private static WireRoute Route(string name, string method, string template, bool mutates = false, SchedulerAccess access = SchedulerAccess.View)
     {
-        WireRoute route = new(name, method, template, mutates);
+        WireRoute route = new(name, method, template, mutates, access);
         routes.Add(route);
         return route;
     }

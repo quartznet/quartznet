@@ -36,8 +36,8 @@ namespace Quartz;
 /// </para>
 /// <para>
 /// The connection crosses a trust boundary by design, and the narrowings here are the only ones that hold
-/// against a dashboard that has been taken over: <see cref="ReadOnly" />, <see cref="IsOperationAllowed" />
-/// and <see cref="IsJobTypeAllowed" /> are the agent's own decisions, made in the worker's process, and
+/// against a dashboard that has been taken over: <see cref="ReadOnly" />, <see cref="IsOperationAllowed" />,
+/// <see cref="MaxAccess" /> and <see cref="IsJobTypeAllowed" /> are the agent's own decisions, made in the worker's process, and
 /// nothing the dashboard sends can widen them. The dashboard's own <c>ReadOnly</c> hides its buttons; it
 /// does not bind an agent.
 /// </para>
@@ -113,6 +113,28 @@ public sealed class DashboardAgentOptions
     /// — the default — accepts every one. A refused operation is <c>403</c>.
     /// </summary>
     public Func<string, bool>? IsOperationAllowed { get; set; }
+
+    /// <summary>
+    /// The most the agent lets the dashboard do: <see cref="SchedulerAccess.Administer" /> by default,
+    /// which accepts everything the other narrowings allow. A request that needs more is <c>403</c>.
+    /// Added in 4.8.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The levels are the operator roles' — <see cref="SchedulerAccess.View" /> for reads,
+    /// <see cref="SchedulerAccess.Operate" /> for pausing, resuming, triggering, interrupting and the
+    /// like, <see cref="SchedulerAccess.Administer" /> for adding, deleting, rescheduling and shutting
+    /// down — and the HTTP API's documentation lists which operation needs which. Triggering a job with
+    /// job data needs <see cref="SchedulerAccess.Administer" />. <see cref="SchedulerAccess.Operate" /> is
+    /// a dashboard that may keep the worker running and may not change what it holds.
+    /// </para>
+    /// <para>
+    /// Checked after <see cref="IsOperationAllowed" /> and before <see cref="ReadOnly" />, in the worker's
+    /// process. The registration tells the dashboard, which hides the controls this refuses: a visitor's
+    /// rights on this scheduler are the lower of their dashboard role and this.
+    /// </para>
+    /// </remarks>
+    public SchedulerAccess MaxAccess { get; set; } = SchedulerAccess.Administer;
 
     /// <summary>
     /// How often the agent tells the dashboard it is alive. Fifteen seconds by default; the dashboard may

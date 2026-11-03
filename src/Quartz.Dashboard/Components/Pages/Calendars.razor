@@ -6,6 +6,7 @@
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
@@ -13,7 +14,7 @@
 <div class="qz-page">
     <h1>Calendars</h1>
 
-    @if (!IsReadOnly)
+    @if (CanAdd)
     {
         <section class="qz-section">
             <h2>Create or replace cron calendar</h2>
@@ -67,7 +68,7 @@
                     <div class="qz-list-item-main">
                         <a href="@GetCalendarPath(calendarName)">@calendarName</a>
                     </div>
-                    @if (!IsReadOnly)
+                    @if (CanDelete)
                     {
                         <div class="qz-list-item-actions">
                             <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptDelete(calendarName)">Delete</button>
@@ -97,7 +98,14 @@
     private bool _replaceCalendar = true;
     private bool _updateTriggers;
 
-    private bool IsReadOnly => Options.Value.ReadOnly;
+    /// <summary>
+    /// Whether the visitor may add or replace a calendar on the active scheduler: never while the dashboard
+    /// is read-only, and only at their role's level under an operation policy.
+    /// </summary>
+    private bool CanAdd => Authorization.Allows(Scheduler.ActiveSchedulerName, Quartz.HttpApiContract.SchedulerRoutes.AddCalendar);
+
+    /// <inheritdoc cref="CanAdd" />
+    private bool CanDelete => Authorization.Allows(Scheduler.ActiveSchedulerName, Quartz.HttpApiContract.SchedulerRoutes.DeleteCalendar);
 
     protected override async Task OnInitializedAsync()
     {
@@ -122,6 +130,8 @@
             string? schedulerName = Scheduler.ActiveSchedulerName;
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {
+                await Authorization.LoadOperations(schedulerName);
+
                 IReadOnlyList<string> names = await Api.GetCalendarNames(schedulerName);
                 _calendarNames.AddRange(names);
             }
@@ -144,7 +154,7 @@
     private async Task CreateOrUpdateCalendarAsync()
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        if (!CanAdd || string.IsNullOrWhiteSpace(schedulerName))
         {
             return;
         }
@@ -184,12 +194,11 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(
+            ActionLog.Failed(
                 schedulerName,
                 _replaceCalendar ? "UpsertCalendar" : "CreateCalendar",
                 calendarName,
-                succeeded: false,
-                ex.Message);
+                ex);
             Toasts.Error(ex.Message);
         }
     }
@@ -213,7 +222,7 @@
     private async Task ConfirmDeleteAsync()
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName) || string.IsNullOrWhiteSpace(_pendingCalendarName))
+        if (!CanDelete || string.IsNullOrWhiteSpace(schedulerName) || string.IsNullOrWhiteSpace(_pendingCalendarName))
         {
             _showDeleteConfirm = false;
             return;
@@ -238,7 +247,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            ActionLog.Record(schedulerName, "DeleteCalendar", _pendingCalendarName, succeeded: false, ex.Message);
+            ActionLog.Failed(schedulerName, "DeleteCalendar", _pendingCalendarName, ex);
             Toasts.Error(ex.Message);
             _showDeleteConfirm = false;
         }
