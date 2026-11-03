@@ -109,6 +109,6 @@ internal sealed class ExceptionHandler
             extensions.Add(HttpApiConstants.ProblemDetailsStackTrace, exception.StackTrace);
         }
 
-        return Results.Problem(detail: detail, statusCode: statusCode, extensions: extensions);
+        return ContractProblem.Problem(detail, statusCode, extensions);
     }
 }
