@@ -71,8 +71,7 @@ public sealed class NativeJobStreamLoggingTest
     }
 
     /// <summary>
-    /// Runs the job and waits for the event the caller is after, because the stream consumers relay from
-    /// a thread each and the job does not join them before it returns.
+    /// Runs the job without awaiting it, and waits for the event the caller is after.
     /// </summary>
     private static List<LogEntry> RunAndCapture(NativeJobOptions options, int eventId)
     {

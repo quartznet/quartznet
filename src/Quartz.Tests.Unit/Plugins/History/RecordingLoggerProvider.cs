@@ -10,7 +10,7 @@ namespace Quartz.Tests.Unit.Plugin.History;
 /// </summary>
 /// <remarks>
 /// The recording is a concurrent queue rather than a list because not every caller logs from one
-/// thread — <c>NativeJob</c> relays a spawned process's two output streams from a thread each — and a
+/// thread — <c>NativeJob</c> relays a spawned process's two output streams concurrently — and a
 /// test helper that corrupts itself under the thing it is watching is worse than no helper.
 /// </remarks>
 internal sealed class RecordingLoggerProvider : ILoggerProvider
