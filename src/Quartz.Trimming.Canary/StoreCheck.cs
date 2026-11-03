@@ -197,6 +197,11 @@ internal static class StoreCheck
 
             IScheduler scheduler = await container.GetRequiredService<ISchedulerFactory>().GetScheduler().ConfigureAwait(false);
 
+            // Shut down on every return, a failure's as well as the pass below: an ADO.NET store's misfire
+            // handler runs on a foreground thread unless UseBackgroundThreads says otherwise, so a scheduler
+            // left running kept the process alive after Main returned, and a failed canary never exited (#4234).
+            await using ConfiguredAsyncDisposable shutdown = new SchedulerShutdown(scheduler).ConfigureAwait(false);
+
             JobKey jobKey = new("canary", "store");
             TriggerKey triggerKey = new("canary", "store");
 
@@ -374,6 +379,15 @@ internal static class StoreCheck
         {
             StoreRoundTrip.DeleteDatabase(databaseFile);
         }
+    }
+
+    /// <summary>
+    /// Shuts the scheduler down when the check is done with it, however it is done. A second shutdown,
+    /// after the one the passing path makes itself, does nothing.
+    /// </summary>
+    private sealed class SchedulerShutdown(IScheduler scheduler) : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync() => scheduler.Shutdown(waitForJobsToComplete: true);
     }
 
     /// <summary>
