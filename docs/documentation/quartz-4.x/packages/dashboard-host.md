@@ -44,7 +44,8 @@ Open `/quartz` and sign in with the token. Every key below is under `Quartz:Dash
 
 ## Authentication
 
-`Authentication:Mode` is required. **Without it the host refuses to start**, logging event `9402`.
+`Authentication:Mode` is required. **Without it the host refuses to start**: it logs event `9402` and exits with
+code 1, as it does for any other mistake in its settings.
 
 | Mode | Who signs in | Settings |
 |---|---|---|
