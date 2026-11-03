@@ -317,7 +317,14 @@ public class PackageDependencyTest
         .OrderBy(x => x.Key, StringComparer.Ordinal)
         .Select(x => new TestCaseData(x.Key, x.Value).SetArgDisplayNames(x.Key));
 
+    /// <remarks>
+    /// A tool is left out: its nuspec names no dependency, because the package carries the assemblies
+    /// themselves, so what it resolves is what it runs on rather than a floor anybody inherits.
+    /// <c>Quartz.Dashboard.Host</c> takes the current drivers and the current sign-in packages for that
+    /// reason.
+    /// </remarks>
     public static IEnumerable<TestCaseData> ShippedMicrosoftReferences() => ShippedProjects.Find()
+        .Where(project => !ShippedProjects.IsTool(project))
         .SelectMany(project => PackageReferences(project)
             .Where(IsMicrosoft)
             .Select(package => new TestCaseData(project.Directory!.Name, package)

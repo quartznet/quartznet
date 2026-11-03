@@ -42,6 +42,7 @@ public class LogCallSiteTest
         "src/Quartz.AspNetCore",
         "src/Quartz.Dashboard",
         "src/Quartz.Dashboard.Agent",
+        "src/Quartz.Dashboard.Host",
         "src/Quartz.Extensions.Redis",
         "src/Quartz.HttpClient",
         "src/Quartz.Jobs",

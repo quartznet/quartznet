@@ -1,0 +1,20 @@
+﻿9400  Information  DashboardHostLog.Started
+    "Dashboard host started at {DashboardPath}: authentication {Mode}, {HttpTargets} HTTP target(s), {StoreTargets} attached store(s), accepting agents: {AcceptsAgents}"
+9401  Warning  DashboardHostLog.Unsecured
+    "Authentication is Unsecured: every visitor is signed in, without a credential, at {Access}. Use Token or OpenIdConnect anywhere a visitor is not already trusted"
+9402  Critical  DashboardHostLog.RefusedToStart
+    "The dashboard host refuses to start: {Problem}"
+9403  Information  DashboardHostLog.SignedIn
+    "A visitor signed in as {Role} through {Via}"
+9404  Warning  DashboardHostLog.SignInRefused
+    "A sign-in through {Via} was refused: the token matched no role"
+9405  Warning  DashboardHostLog.TokenInUrlRefused
+    "A token in the address was refused: Quartz:Dashboard:Authentication:AllowTokenInUrl is not set"
+9406  Information  DashboardHostLog.SignedOut
+    "A visitor signed out"
+9407  Information  DashboardHostLog.HttpTarget
+    "HTTP target {Target} reaches scheduler {SchedulerName} at {Address}"
+9408  Information  DashboardHostLog.StoreTarget
+    "Store-attached target {Target} reads a {Provider} database with the {Serializer} serializer"
+9409  Information  DashboardHostLog.AcceptingAgents
+    "Accepting agents at {HubPath}. Run one instance of the host while it accepts agents"

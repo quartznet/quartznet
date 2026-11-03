@@ -56,6 +56,15 @@ internal static class ShippedProjects
         .Descendants("QuartzShimPackage")
         .Any(x => string.Equals(x.Value.Trim(), "true", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Whether a project packs as a <c>dotnet tool</c>: <c>Quartz.Dashboard.Host</c>, whose package carries
+    /// its dependencies inside it rather than naming them, so no version it resolves is a floor a consumer
+    /// inherits.
+    /// </summary>
+    public static bool IsTool(FileInfo project) => XDocument.Load(project.FullName)
+        .Descendants("PackAsTool")
+        .Any(x => string.Equals(x.Value.Trim(), "true", StringComparison.OrdinalIgnoreCase));
+
     private static bool IsOptedOut(FileInfo project) => XDocument.Load(project.FullName)
         .Descendants("IsPackable")
         .Any(x => string.Equals(x.Value.Trim(), "false", StringComparison.OrdinalIgnoreCase));

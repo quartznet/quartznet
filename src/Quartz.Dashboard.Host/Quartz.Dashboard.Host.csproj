@@ -1,0 +1,105 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    The standalone dashboard: Quartz.Dashboard in a process of its own, configured from Quartz:Dashboard
+    and nothing else (#3775). One project, two distributions: this package is the `dotnet tool`
+    quartz-dashboard, and `dotnet fallout PublishContainer` publishes the same project as the image
+    ghcr.io/quartznet/quartz-dashboard. Quartz.Aspire.Hosting runs that image.
+
+    Program is internal and nothing here is public: the contract is the configuration keys, which
+    docs/documentation/quartz-4.x/packages/dashboard-host.md lists and Quartz.Tests.Aspire holds the
+    Aspire resource to.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Quartz.Dashboard.Host</RootNamespace>
+    <Title>Quartz.NET Dashboard Host</Title>
+    <Description>Quartz.NET dashboard host - the dashboard as a dotnet tool, configured entirely from Quartz:Dashboard settings: HTTP targets, attached stores, agents and sign-in by token or OpenID Connect; $(Description)</Description>
+    <PackageTags>$(PackageTags);dashboard;tool;blazor;monitoring;fleet</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>quartz-dashboard</ToolCommandName>
+    <!-- Framework-dependent: run on whatever .NET the machine has, from 10 up. -->
+    <RollForward>Major</RollForward>
+    <!--
+      Not trimmable, for Quartz.Dashboard's reason: Blazor Server binds its components by reflection.
+      The tool and the image are framework-dependent publishes, so nothing is trimmed.
+    -->
+    <IsTrimmable>false</IsTrimmable>
+    <!--
+      The dashboard's pages are Blazor and this project has no .razor file of its own, so without this the
+      SDK leaves _framework/blazor.web.js out of the static web assets and the circuit never starts.
+    -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+    <!--
+      Binding is the compiler's, as in Quartz and Quartz.Aspire: the host is not trimmed, but the
+      generated binder is the one the rest of Quartz reads configuration with, and it names a key it
+      cannot bind at compile time rather than skipping it.
+    -->
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <!--
+      A tool carries its dependencies inside its package and its nuspec names none, so there is no floor
+      here for a consumer to inherit; and the drivers ask for framework extensions above the floors in
+      Directory.Packages.props. Off, the host resolves what its packages ask for.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!--
+    The container image, for `dotnet fallout PublishContainer` and ContainerSmoke. The registry, the
+    tags and the architectures are the build's: a release publishes linux-x64 and linux-arm64 as one
+    index, and ContainerSmoke builds the runner's own architecture into the local daemon.
+
+    noble-chiseled-extra rather than plain chiseled: the extra variant carries ICU and tzdata, which a
+    dashboard showing cron schedules in their own time zones needs. Chiseled images run as the non-root
+    app user and have no shell, so the health check is the orchestrator's: GET /healthz.
+  -->
+  <PropertyGroup>
+    <ContainerRepository>quartznet/quartz-dashboard</ContainerRepository>
+    <ContainerFamily>noble-chiseled-extra</ContainerFamily>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ContainerPort Include="8080" Type="tcp" />
+    <ContainerLabel Include="org.opencontainers.image.title" Value="Quartz.NET Dashboard" />
+    <ContainerLabel Include="org.opencontainers.image.description" Value="The Quartz.NET dashboard, configured from Quartz__Dashboard__* environment variables" />
+    <ContainerLabel Include="org.opencontainers.image.source" Value="https://github.com/quartznet/quartznet" />
+    <ContainerLabel Include="org.opencontainers.image.licenses" Value="Apache-2.0" />
+    <ContainerLabel Include="org.opencontainers.image.documentation" Value="https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard-host.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The connection-string reading Quartz.Aspire does, so a store-attached target with no Provider is
+      recognised by the same rules and refused by the same message.
+    -->
+    <Compile Include="..\Quartz.Aspire\ConnectionStringProviderInference.cs" Link="ConnectionStringProviderInference.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
+    <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The six drivers Quartz describes, so an attached store can be any of the six databases. -->
+    <PackageReference Include="FirebirdSql.Data.FirebirdClient" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Data.SQLite" />
+    <PackageReference Include="MySqlConnector" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <!-- GHSA-2fmv-rv2c-59x7 and GHSA-846f-f764-76mx: the Oracle and SQL Server drivers bring a vulnerable copy. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
+  </ItemGroup>
+
+</Project>
