@@ -174,9 +174,7 @@ internal static class OperationAuthorization
     /// </remarks>
     internal static IResult Forbidden(string operation, string schedulerName, SchedulerAccess access)
     {
-        return Results.Problem(
-            detail: Detail(operation, schedulerName, access),
-            statusCode: StatusCodes.Status403Forbidden);
+        return ContractProblem.Problem(Detail(operation, schedulerName, access), StatusCodes.Status403Forbidden);
     }
 
     internal static string Detail(string operation, string schedulerName, SchedulerAccess access)

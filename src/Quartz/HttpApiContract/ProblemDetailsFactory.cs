@@ -174,10 +174,21 @@ internal static class ProblemDetailsFactory
     }
 
     /// <summary>
-    /// The <c>type</c> and <c>title</c> ASP.NET Core writes for a status, which is what keeps the two
-    /// carriers' bodies one body: its <c>ProblemDetailsDefaults</c> table, for the statuses this
-    /// contract answers.
+    /// The <c>type</c> and <c>title</c> every carrier writes for a status, which is what keeps their bodies
+    /// one body: ASP.NET Core 10's <c>ProblemDetailsDefaults</c> table, whole.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The HTTP API hands both to <c>Results.Problem</c> rather than letting ASP.NET Core choose, so the
+    /// wire does not move with the runtime the host happens to run on: ASP.NET Core 11 titles a <c>500</c>
+    /// <c>Internal Server Error</c> (dotnet/aspnetcore#65590), and this keeps the title 10 wrote (#4234).
+    /// </para>
+    /// <para>
+    /// Whole, because the carriers answer statuses beyond the common ones: a <c>501</c> for a read the
+    /// history store does not serve, and the agent's <c>413</c> for a page too large for its channel. A status
+    /// outside the table gets neither member here; the HTTP API leaves it to ASP.NET Core.
+    /// </para>
+    /// </remarks>
     internal static (string? Type, string? Title) Defaults(int status)
     {
         return status switch
@@ -188,16 +199,26 @@ internal static class ProblemDetailsFactory
             404 => ("https://tools.ietf.org/html/rfc9110#section-15.5.5", "Not Found"),
             405 => ("https://tools.ietf.org/html/rfc9110#section-15.5.6", "Method Not Allowed"),
             406 => ("https://tools.ietf.org/html/rfc9110#section-15.5.7", "Not Acceptable"),
+            407 => ("https://tools.ietf.org/html/rfc9110#section-15.5.8", "Proxy Authentication Required"),
             408 => ("https://tools.ietf.org/html/rfc9110#section-15.5.9", "Request Timeout"),
             409 => ("https://tools.ietf.org/html/rfc9110#section-15.5.10", "Conflict"),
+            410 => ("https://tools.ietf.org/html/rfc9110#section-15.5.11", "Gone"),
+            411 => ("https://tools.ietf.org/html/rfc9110#section-15.5.12", "Length Required"),
             412 => ("https://tools.ietf.org/html/rfc9110#section-15.5.13", "Precondition Failed"),
+            413 => ("https://tools.ietf.org/html/rfc9110#section-15.5.14", "Content Too Large"),
+            414 => ("https://tools.ietf.org/html/rfc9110#section-15.5.15", "URI Too Long"),
             415 => ("https://tools.ietf.org/html/rfc9110#section-15.5.16", "Unsupported Media Type"),
+            416 => ("https://tools.ietf.org/html/rfc9110#section-15.5.17", "Range Not Satisfiable"),
+            417 => ("https://tools.ietf.org/html/rfc9110#section-15.5.18", "Expectation Failed"),
+            421 => ("https://tools.ietf.org/html/rfc9110#section-15.5.20", "Misdirected Request"),
             422 => ("https://tools.ietf.org/html/rfc4918#section-11.2", "Unprocessable Entity"),
             426 => ("https://tools.ietf.org/html/rfc9110#section-15.5.22", "Upgrade Required"),
             500 => ("https://tools.ietf.org/html/rfc9110#section-15.6.1", "An error occurred while processing your request."),
+            501 => ("https://tools.ietf.org/html/rfc9110#section-15.6.2", "Not Implemented"),
             502 => ("https://tools.ietf.org/html/rfc9110#section-15.6.3", "Bad Gateway"),
             503 => ("https://tools.ietf.org/html/rfc9110#section-15.6.4", "Service Unavailable"),
             504 => ("https://tools.ietf.org/html/rfc9110#section-15.6.5", "Gateway Timeout"),
+            505 => ("https://tools.ietf.org/html/rfc9110#section-15.6.6", "HTTP Version Not Supported"),
             _ => (null, null),
         };
     }
