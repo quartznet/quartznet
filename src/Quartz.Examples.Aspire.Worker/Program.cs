@@ -22,10 +22,19 @@ builder.AddNpgsqlDataSource("quartz");
 // schema; settings.ProvisionSchema says which without asking the environment.
 builder.AddQuartzPersistentStore("quartz");
 
-builder.AddQuartz(q => q.ScheduleJob<HeartbeatJob>(trigger => trigger
-    .WithIdentity("heartbeat")
-    .StartNow()
-    .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())));
+builder.AddQuartz(q =>
+{
+    q.ScheduleJob<HeartbeatJob>(trigger => trigger
+        .WithIdentity("heartbeat")
+        .StartNow()
+        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever()));
+
+    // Dials this scheduler out to the Quartz dashboard the AppHost added, as an agent. Where it is, the
+    // token and the name to register under arrive as Quartz__DashboardAgent__* from the AppHost's
+    // WithReference(dashboard). The agent accepts no job type by name until told which: the dashboard can
+    // pause, resume and trigger the heartbeat, and cannot add a job of a type it names.
+    q.UseDashboardAgent();
+});
 
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 

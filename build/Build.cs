@@ -455,8 +455,10 @@ partial class Build : FalloutBuild, ICompile, IPack
             // this target runs, and SonarCloud's new-code condition reads nothing else. An analyzer
             // tested somewhere the coverage run cannot see is an analyzer with no coverage at all.
             // Quartz.Tests.Interceptors is here for the same reason: it is the only project whose
-            // delegate jobs run through the bindings the generator writes.
-            var testRuns = GetTestRuns("Quartz.Tests.Unit", "Quartz.Tests.AspNetCore", "Quartz.Analyzers.Tests", "Quartz.Tests.Interceptors");
+            // delegate jobs run through the bindings the generator writes. So is Quartz.Tests.Aspire, the
+            // only project that references Aspire.Hosting and so the only one Quartz.Aspire.Hosting is
+            // covered from.
+            var testRuns = GetTestRuns("Quartz.Tests.Unit", "Quartz.Tests.AspNetCore", "Quartz.Analyzers.Tests", "Quartz.Tests.Interceptors", "Quartz.Tests.Aspire");
 
             foreach (var (project, framework) in testRuns)
             {

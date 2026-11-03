@@ -8,9 +8,10 @@ namespace Quartz.Tests.Unit;
 /// Snapshots the public API surface of the shipped assemblies this project can reference.
 /// </summary>
 /// <remarks>
-/// <c>Quartz.AspNetCore</c> and <c>Quartz.Dashboard</c> are covered by the test of the same name in
-/// <c>Quartz.Tests.AspNetCore</c>, which is where their dependencies already live. Between the two,
-/// every packable project has a baseline — add one here or there when a new package is added, which
+/// <c>Quartz.AspNetCore</c>, <c>Quartz.Dashboard</c> and <c>Quartz.Dashboard.Host</c> are covered by the test
+/// of the same name in <c>Quartz.Tests.AspNetCore</c>, and <c>Quartz.Aspire.Hosting</c> by the one in
+/// <c>Quartz.Tests.Aspire</c>, which is where their dependencies already live. Between the three, every
+/// packable project has a baseline — add one in one of them when a new package is added, which
 /// <see cref="EveryShippedPackageHasAPublicApiBaseline" /> holds you to.
 /// </remarks>
 /// <remarks>
@@ -93,7 +94,7 @@ public class PublicApiTest
     }
 
     /// <summary>
-    /// Every project that produces a package has a baseline, in one of the two <c>Verify</c>
+    /// Every project that produces a package has a baseline, in one of the three <c>Verify</c>
     /// directories that hold them.
     /// </summary>
     /// <remarks>
@@ -113,12 +114,14 @@ public class PublicApiTest
         [
             Path.Combine(root.FullName, "src", "Quartz.Tests.Unit", "Verify", $"PublicApiTest_{packageName}.verified.txt"),
             Path.Combine(root.FullName, "src", "Quartz.Tests.AspNetCore", "Verify", $"PublicApiTest_{packageName}.verified.txt"),
+            Path.Combine(root.FullName, "src", "Quartz.Tests.Aspire", "Verify", $"PublicApiTest_{packageName}.verified.txt"),
         ];
 
         candidates.Where(File.Exists).Should().ContainSingle(
             $"{packageName} ships to nuget.org, so its public surface is snapshotted — add the assembly to "
             + "the list in PublicApiTest (or in the test of the same name in Quartz.Tests.AspNetCore, where "
-            + "the ASP.NET Core dependencies live) and accept the baseline it writes");
+            + "the ASP.NET Core dependencies live, or in Quartz.Tests.Aspire, where Aspire.Hosting does) and "
+            + "accept the baseline it writes");
     }
 
     /// <remarks>

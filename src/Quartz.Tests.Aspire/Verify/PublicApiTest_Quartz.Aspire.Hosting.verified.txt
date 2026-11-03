@@ -1,0 +1,31 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Aspire.Hosting.ApplicationModel
+{
+    public sealed class QuartzAttachedStoreSettings
+    {
+        public QuartzAttachedStoreSettings() { }
+        public bool ExecutionHistory { get; set; }
+        public string? Provider { get; set; }
+        public System.TimeSpan? RediscoveryInterval { get; set; }
+        public string? Serializer { get; set; }
+        public string? TablePrefix { get; set; }
+    }
+    public sealed class QuartzDashboardResource : Aspire.Hosting.ApplicationModel.ContainerResource
+    {
+        public const string HttpEndpointName = "http";
+        public QuartzDashboardResource(string name, Aspire.Hosting.ApplicationModel.ParameterResource adminToken, Aspire.Hosting.ApplicationModel.ParameterResource agentToken) { }
+        public Aspire.Hosting.ApplicationModel.ParameterResource AdminToken { get; }
+        public Aspire.Hosting.ApplicationModel.ParameterResource AgentToken { get; }
+        public Aspire.Hosting.ApplicationModel.EndpointReference PrimaryEndpoint { get; }
+    }
+}
+namespace Aspire.Hosting
+{
+    public static class QuartzDashboardResourceBuilderExtensions
+    {
+        public static Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.QuartzDashboardResource> AddQuartzDashboard(this Aspire.Hosting.IDistributedApplicationBuilder builder, [Aspire.Hosting.ApplicationModel.ResourceName] string name, int? port = default, Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ParameterResource>? adminToken = null, Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ParameterResource>? agentToken = null) { }
+        public static Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.QuartzDashboardResource> WithAttachedStore(this Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.QuartzDashboardResource> builder, Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.IResourceWithConnectionString> database, string? target = null, System.Action<Aspire.Hosting.ApplicationModel.QuartzAttachedStoreSettings>? configure = null) { }
+        public static Aspire.Hosting.ApplicationModel.IResourceBuilder<TDestination> WithReference<TDestination>(this Aspire.Hosting.ApplicationModel.IResourceBuilder<TDestination> builder, Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.QuartzDashboardResource> dashboard, string? schedulerName = null)
+            where TDestination : Aspire.Hosting.ApplicationModel.IResourceWithEnvironment { }
+    }
+}

@@ -52,6 +52,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Examples.Aspire.Worker\Quartz.Examples.Aspire.Worker.csproj" />
+    <!--
+      The dashboard resource. A library rather than a service, so it is no project resource: without
+      IsAspireProjectResource="false" the SDK would generate a Projects.Quartz_Aspire_Hosting for it.
+    -->
+    <ProjectReference Include="..\Quartz.Aspire.Hosting\Quartz.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
 </Project>

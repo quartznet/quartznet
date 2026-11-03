@@ -69,12 +69,6 @@
     <PackageVersion Include="Marten" Version="9.45.0" />
     <PackageVersion Include="MELT" Version="1.1.0" />
     <!--
-      Named only so that Quartz.Examples.Aspire.AppHost can ask for it: Aspire.Hosting 13.6.1 resolves 2.5.302
-      through StreamJsonRpc, which GHSA-qhrr-8q5h-9q3h covers, and a project that ships nothing does not pin
-      transitively. The 2.x line, because StreamJsonRpc is built against it.
-    -->
-    <PackageVersion Include="MessagePack" Version="2.5.307" />
-    <!--
       Quartz.Dashboard.Host's sign-in through an identity provider. Current rather than a floor: the host is
       a tool and a container image, which carry this inside them rather than asking a consumer for it.
     -->
@@ -184,6 +178,22 @@
     that names this comment.
   -->
   <ItemGroup Label="Dependency floors">
+    <!--
+      Quartz.Aspire.Hosting's one dependency, and the only Aspire id that is a floor: the example's Aspire
+      packages above stay on $(AspireVersion). 13.4.5 is the floor #3775 ruled on, and it compiles the
+      resource; nothing in the GitHub advisory database names Aspire.Hosting itself. What its graph brings is
+      MessagePack, below.
+    -->
+    <PackageVersion Include="Aspire.Hosting" Version="13.4.5" />
+    <!--
+      Named by Quartz.Aspire.Hosting, and by Quartz.Examples.Aspire.AppHost, because Aspire.Hosting resolves
+      MessagePack 2.5.302 through StreamJsonRpc - every Aspire.Hosting up to 13.6.4 does - and
+      GHSA-qhrr-8q5h-9q3h covers every 2.x below 2.5.303. A direct reference patches a consumer's graph as well
+      as ours. 2.5.307 rather than 2.5.303, the lowest fixed release, because #3775 ruled it; the 2.x line,
+      because StreamJsonRpc is built against it. Drop it when an Aspire.Hosting floor resolves a fixed version
+      on its own.
+    -->
+    <PackageVersion Include="MessagePack" Version="2.5.307" />
     <!--
       The SignalR client Quartz.Dashboard.Agent dials a dashboard with, and nothing of the server: the
       package brings Microsoft.AspNetCore.Http.Connections.Client and the JSON hub protocol, none of which
