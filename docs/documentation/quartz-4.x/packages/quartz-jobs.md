@@ -162,9 +162,22 @@ await scheduler.ScheduleJob(job, trigger);
 | `ConsumeStreams` | `consumeStreams` | `false` |
 | `WorkingDirectory` | `workingDirectory` | the scheduler's |
 
+| Platform | What runs |
+|---|---|
+| Windows | `cmd.exe /C <Command> <Parameters>` |
+| Linux | `/bin/sh -c "<Command> <Parameters>"`: the two are one script, so the shell parses quotes and pipes |
+| Elsewhere | `<Command>` itself, with `<Parameters>` as its arguments |
+
 - With `WaitForProcess` on, the process exit code is the job execution result in the `IJobExecutionContext`.
+  Cancelling the job, by an interrupt or a shutdown that interrupts running jobs, kills the process and its
+  descendants, and the job ends with `OperationCanceledException`.
+- With `WaitForProcess` off, the job completes once the process has started, and the process keeps running
+  whatever happens to the job.
 - Turn `ConsumeStreams` on for a process with a lot of output: one that fills its pipe blocks until the output
-  is read.
+  is read. Each line is logged, stdout as event `7201` and stderr as `7202` (see [Log Events](../log-events.md)).
+  With `WaitForProcess` on, all of it is logged before the job completes, unless a process it left running,
+  such as `myserver &`, keeps the streams open more than 5 seconds after it exits. The job then completes
+  (event `7204`), and that process's lines keep being logged.
 
 ::: danger Referencing this package changes what an open scheduling endpoint means
 The [HTTP API](http-api.md) and the [dashboard](dashboard.md) schedule a job whose type is a **string from the
