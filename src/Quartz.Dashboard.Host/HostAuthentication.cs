@@ -342,6 +342,7 @@ internal static class HostAuthentication
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <meta name="referrer" content="no-referrer">
+            <link rel="icon" href="data:,">
             <title>Sign in - Quartz.NET Dashboard</title>
             <style>
             body { font-family: system-ui, sans-serif; background: #f5f6f8; display: flex; min-height: 100vh; align-items: center; justify-content: center; margin: 0; }
