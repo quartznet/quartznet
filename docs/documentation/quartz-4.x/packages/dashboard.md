@@ -1213,6 +1213,11 @@ Without a policy, the dashboard adds no authorization. Startup refuses the mappi
 - The static asset endpoint (`_content/Quartz.Dashboard/*`) and the Blazor circuit (`/_blazor`) explicitly allow
   anonymous access, so they keep working under a fail-closed `FallbackPolicy`. They are public package content,
   not what the startup check is about.
+  - **Known issue on .NET 11:** a dashboard mapped with `AllowAnonymous()` under a fail-closed `FallbackPolicy`
+    does not start its circuit for an unauthenticated user. ASP.NET Core 11 holds `StartCircuit`, an `async`
+    method of Blazor's own hub, to the `FallbackPolicy` whatever the endpoint allows
+    ([dotnet/aspnetcore#69624](https://github.com/dotnet/aspnetcore/issues/69624)). Until that is fixed, an
+    anonymous dashboard on .NET 11 needs a host without a fail-closed `FallbackPolicy`.
 - The **pages** and the **SignalR hub** have no authorization metadata of their own; the host's policies govern
   them. Under a fail-closed `FallbackPolicy`, an unauthenticated request to `/quartz` redirects to login and
   authenticated users get the dashboard. To expose it to unauthenticated users, do not apply a fail-closed
