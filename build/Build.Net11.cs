@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -128,6 +129,11 @@ partial class Build
                 </configuration>
                 """);
 
+            foreach (AbsolutePath package in ((IPack) this).PackagesDirectory.GlobFiles($"Quartz*.{FullVersion}.nupkg"))
+            {
+                AssertTheStaticWebAssetsArePacked(package);
+            }
+
             Dictionary<string, string> environment = Net11ConsumerEnvironment(root);
 
             string sdk = ProcessTasks.StartProcess(DotNetPath, "--version", root, environment, logOutput: false)
@@ -198,6 +204,47 @@ partial class Build
         environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
 
         return environment;
+    }
+
+    /// <summary>
+    /// Fails when a package's <c>build/Microsoft.AspNetCore.StaticWebAssets.props</c> names a file under
+    /// <c>staticwebassets/</c> that the package does not carry.
+    /// </summary>
+    /// <remarks>
+    /// A consumer's build stops on such a package with an error that names the missing file and nothing
+    /// else, so this says what the package carries instead. The <c>Quartz.Dashboard</c> package packed on
+    /// ubuntu-latest named a scoped CSS bundle it did not carry (#4211).
+    /// </remarks>
+    static void AssertTheStaticWebAssetsArePacked(AbsolutePath package)
+    {
+        using ZipArchive archive = ZipFile.OpenRead(package);
+
+        ZipArchiveEntry props = archive.GetEntry("build/Microsoft.AspNetCore.StaticWebAssets.props");
+        if (props is null)
+        {
+            return;
+        }
+
+        string text;
+        using (StreamReader reader = new(props.Open()))
+        {
+            text = reader.ReadToEnd();
+        }
+
+        string[] carried = [.. archive.Entries.Select(x => x.FullName).Where(x => x.StartsWith("staticwebassets/", StringComparison.Ordinal)).Order(StringComparer.Ordinal)];
+        // Each asset's path, as GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\<file>') spells it;
+        // the ContentRoot that ends in the directory itself is not one.
+        string[] named = [.. Regex.Matches(text, @"\.\.[\\/]staticwebassets[\\/](?<file>[^'<>]+)'", RegexOptions.None, TimeSpan.FromSeconds(5))
+            .Select(x => "staticwebassets/" + x.Groups["file"].Value.Replace('\\', '/'))
+            .Distinct(StringComparer.Ordinal)];
+        string[] missing = [.. named.Where(x => !carried.Contains(x, StringComparer.Ordinal))];
+
+        Assert.True(missing.Length == 0,
+            $"{package.Name} names static web assets it does not carry, so no application can build against it:"
+            + Environment.NewLine + string.Join(Environment.NewLine, missing)
+            + Environment.NewLine + "It carries:" + Environment.NewLine + string.Join(Environment.NewLine, carried));
+
+        Log.Information("{Package} carries every one of its {Count} static web assets", package.Name, named.Length);
     }
 
     /// <summary>
