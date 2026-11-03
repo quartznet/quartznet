@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    src/Quartz.Trimming.Canary as a net11.0 application over the packages this build packed, built by the
+    .NET 11 SDK and published trimmed and natively by Net11ConsumerSmoke (build/Build.Net11.cs). The
+    sources and the schema are the canary's own, compiled from the repository; this file is its csproj
+    with PackageReferences in place of ProjectReferences, and that csproj says why each setting is there.
+    A setting added there belongs here too.
+
+    What a package consumer gets without asking is left to the packages: the generator in Quartz.nupkg's
+    analyzers, which writes the canary's AddDeclaredJobs and its delegate job's interceptor, and the
+    buildTransitive Quartz.targets that sets Quartz's feature switches under PublishTrimmed. The
+    repository's csproj names both by path.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ILLinkTreatWarningsAsErrors>false</ILLinkTreatWarningsAsErrors>
+    <IlcTreatWarningsAsErrors>false</IlcTreatWarningsAsErrors>
+    <!--
+      The repository's name and key, because Quartz names this assembly in InternalsVisibleTo by both.
+      QuartzRepositoryRoot is handed in by Net11ConsumerSmoke.
+    -->
+    <AssemblyName>Quartz.Trimming.Canary</AssemblyName>
+    <RootNamespace>Quartz.Trimming.Canary</RootNamespace>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(QuartzRepositoryRoot)/quartz.net.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(QuartzRepositoryRoot)/src/Quartz.Trimming.Canary/**/*.cs" />
+    <EmbeddedResource Include="$(QuartzRepositoryRoot)/database/tables/tables_sqlite.sql" LogicalName="tables_sqlite.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      QuartzVersion is the version this build packed, and MicrosoftDataSqliteVersion the one
+      Directory.Packages.props pins for the repository's canary; Net11ConsumerSmoke hands in both.
+    -->
+    <PackageReference Include="Microsoft.Data.SQLite" Version="$(MicrosoftDataSqliteVersion)" />
+    <PackageReference Include="Quartz" Version="$(QuartzVersion)" />
+    <PackageReference Include="Quartz.Jobs" Version="$(QuartzVersion)" />
+    <PackageReference Include="Quartz.Plugins" Version="$(QuartzVersion)" />
+    <PackageReference Include="Quartz.Plugins.TimeZoneConverter" Version="$(QuartzVersion)" />
+    <PackageReference Include="Quartz.Weasel.SQLite" Version="$(QuartzVersion)" />
+  </ItemGroup>
+
+</Project>
