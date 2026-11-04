@@ -1,0 +1,1423 @@
+@page "/quartz/timeline"
+@using System.Globalization
+@using System.Text.Json
+@using Microsoft.Extensions.Options
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Services
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
+
+<div class="qz-page">
+    <div class="qz-page-header">
+        <h1>Timeline</h1>
+        <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Live · 1s</span>
+    </div>
+
+    @if (_isLoading && !_chromeReady)
+    {
+        <LoadingSpinner />
+    }
+    else if (_historyUnavailable)
+    {
+        <p class="qz-muted" data-testid="timeline-history-unavailable">
+            This scheduler runs in another process and its Quartz HTTP API does not serve execution
+            history. Upgrade that host to see finished runs on the timeline.
+        </p>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else
+    {
+        <div class="qz-timeline"
+             data-testid="timeline-gantt"
+             style="@MinuteGridStyle">
+            <div class="qz-timeline-toolbar">
+                <div class="qz-timeline-toolbar-group" role="group" aria-label="Time window">
+                    <button type="button"
+                            class="qz-button qz-timeline-icon-btn"
+                            data-testid="timeline-zoom-out"
+                            title="Widen window"
+                            disabled="@(!CanZoomOut)"
+                            @onclick="ZoomOutAsync">−</button>
+                    <select class="qz-select qz-timeline-window-select"
+                            data-testid="timeline-window"
+                            value="@_window.Key"
+                            @onchange="OnWindowChanged"
+                            aria-label="Time window">
+                        @foreach (TimelineWindow window in TimelineWindow.Offered)
+                        {
+                            <option value="@window.Key">@window.ShortLabel</option>
+                        }
+                    </select>
+                    <button type="button"
+                            class="qz-button qz-timeline-icon-btn"
+                            data-testid="timeline-zoom-in"
+                            title="Narrow window"
+                            disabled="@(!CanZoomIn)"
+                            @onclick="ZoomInAsync">+</button>
+                </div>
+
+                <select class="qz-select qz-timeline-toolbar-select"
+                        data-testid="timeline-group"
+                        value="@_groupFilter"
+                        @onchange="OnGroupChanged"
+                        aria-label="Job group">
+                    <option value="">All groups</option>
+                    @foreach (string group in _groupOptions)
+                    {
+                        <option value="@group">@group</option>
+                    }
+                </select>
+
+                <select class="qz-select qz-timeline-toolbar-select"
+                        data-testid="timeline-page-size"
+                        value="@_pageSize.ToString(CultureInfo.InvariantCulture)"
+                        @onchange="OnPageSizeChanged"
+                        aria-label="Rows per page">
+                    @foreach (int size in PageSizes)
+                    {
+                        <option value="@size.ToString(CultureInfo.InvariantCulture)">@size / page</option>
+                    }
+                </select>
+
+                <span class="qz-timeline-toolbar-spacer"></span>
+
+                <span class="qz-timeline-toolbar-meta qz-muted">
+                    @_pageRows.Count/@_filteredRows.Count · @_barCount runs
+                    · @FormatInstant(_windowStart)–@FormatInstant(_axisEnd)
+                    @if (_panOffset > TimeSpan.Zero)
+                    {
+                        <text> · −@FormatPanOffset(_panOffset)</text>
+                    }
+                </span>
+            </div>
+
+            <div class="qz-timeline-axis">
+                <div class="qz-timeline-axis-label">
+                    <div class="qz-timeline-pan-controls" role="group" aria-label="Pan">
+                        <button type="button"
+                                class="qz-button qz-timeline-icon-btn"
+                                data-testid="timeline-pan-older"
+                                title="Older"
+                                @onclick="PanOlderAsync">◀</button>
+                        <button type="button"
+                                class="qz-button qz-timeline-icon-btn"
+                                data-testid="timeline-pan-newer"
+                                title="Newer"
+                                disabled="@(!CanPanNewer)"
+                                @onclick="PanNewerAsync">▶</button>
+                    </div>
+                </div>
+                <div @ref="_axisTrack"
+                     class="qz-timeline-axis-track @(_isPanning ? "qz-timeline-axis-track-panning" : null)"
+                     data-testid="timeline-axis-track"
+                     title="Drag to pan"
+                     @onpointerdown="OnAxisPointerDown"
+                     @onpointermove="OnAxisPointerMove"
+                     @onpointerup="OnAxisPointerUp"
+                     @onpointercancel="OnAxisPointerUp"
+                     @onpointerleave="OnAxisPointerUp">
+                    @foreach (TimelineTick tick in _ticks)
+                    {
+                        <span class="qz-timeline-tick" style="left: @Pct(tick.Fraction);">@tick.Label</span>
+                    }
+                    @if (_panOffset <= TimeSpan.Zero && _axisEnd > _windowEnd)
+                    {
+                        <span class="qz-timeline-now" style="left: @Pct(NowFraction());" title="Now"></span>
+                    }
+                    else if (_panOffset <= TimeSpan.Zero)
+                    {
+                        <span class="qz-timeline-now" style="left: 100%;" title="Now"></span>
+                    }
+                </div>
+            </div>
+
+            @if (_allRows.Count == 0)
+            {
+                <p class="qz-timeline-empty qz-muted">No activity in this window. Widen (+) or pan ◀.</p>
+            }
+            else if (_filteredRows.Count == 0)
+            {
+                <p class="qz-timeline-empty qz-muted">No jobs in group "@_groupFilter".</p>
+            }
+            else
+            {
+                @foreach (TimelineSection section in _sections)
+                {
+                    string groupName = section.JobGroup;
+                    int groupJobCount = section.Rows.Count;
+                    bool collapsed = _collapsedGroups.Contains(groupName);
+                    <div class="qz-timeline-section" data-testid="timeline-section">
+                        <button type="button"
+                                class="qz-timeline-section-header"
+                                data-testid="timeline-section-toggle"
+                                aria-expanded="@(!collapsed)"
+                                @onclick="() => ToggleGroupAsync(groupName)">
+                            <span class="qz-timeline-section-chevron" aria-hidden="true">@(collapsed ? "▸" : "▾")</span>
+                            <span class="qz-timeline-section-name">@groupName</span>
+                            <span class="qz-muted">@groupJobCount</span>
+                        </button>
+
+                        @if (!collapsed)
+                        {
+                            @foreach (TimelineRow row in section.Rows)
+                            {
+                                <div class="qz-timeline-row qz-timeline-row-job">
+                                    <div class="qz-timeline-row-label" title="@row.Key">
+                                        <a class="qz-timeline-row-name qz-timeline-entity-link"
+                                           href="@JobPath(row.JobGroup, row.JobName)">@row.JobName</a>
+                                    </div>
+                                    <div class="qz-timeline-row-track" aria-hidden="true"></div>
+                                </div>
+
+                                @foreach (TimelineTriggerRow trigger in row.Triggers)
+                                {
+                                    string schedule = TriggerScheduleText(trigger);
+                                    string times = BuildTriggerTimes(trigger);
+                                    <div class="@TriggerRowClass(trigger)" data-testid="timeline-trigger-row">
+                                        <div class="qz-timeline-row-label qz-timeline-row-label-stack"
+                                             title="@trigger.Key · @schedule · @times">
+                                            <div class="qz-timeline-row-label-primary">
+                                                <a class="qz-timeline-row-trigger-name qz-timeline-entity-link"
+                                                   href="@TriggerPath(trigger.Group, trigger.Name)">@trigger.Name</a>
+                                                @if (trigger.State is not null)
+                                                {
+                                                    <StateIndicator State="@trigger.State.ToString()" ShowLabel="true" />
+                                                }
+                                            </div>
+                                            <div class="qz-timeline-row-meta qz-muted">
+                                                <div class="qz-timeline-row-meta-line">@schedule</div>
+                                                <div class="qz-timeline-row-meta-line">@times</div>
+                                            </div>
+                                        </div>
+                                        <div class="qz-timeline-row-track">
+                                            @foreach (TimelineBar bar in trigger.Bars)
+                                            {
+                                                string style = $"left: {Pct(bar.Left)}; width: {Pct(bar.Width)};";
+                                                if (bar.EntryId is { Length: > 0 } entryId)
+                                                {
+                                                    <a class="qz-timeline-bar-hit"
+                                                       style="@style"
+                                                       href="@ExecutionPath(entryId)"
+                                                       title="@bar.Title">
+                                                        <span class="qz-timeline-bar @bar.CssClass"></span>
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <span class="qz-timeline-bar-hit"
+                                                          style="@style"
+                                                          title="@bar.Title">
+                                                        <span class="qz-timeline-bar @bar.CssClass"></span>
+                                                    </span>
+                                                }
+                                            }
+                                            @foreach (TimelineMark mark in trigger.Marks)
+                                            {
+                                                <span class="qz-timeline-upcoming"
+                                                      style="left: @Pct(mark.Left);"
+                                                      title="@mark.Title"></span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="qz-timeline-legend" aria-label="Legend">
+            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-bar-succeeded"></span> Succeeded</span>
+            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-bar-skipped"></span> Skipped</span>
+            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-bar-failed"></span> Failed</span>
+            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-bar-cancelled"></span> Cancelled</span>
+            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-bar-executing"></span> Executing</span>
+            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-upcoming-swatch"></span> Upcoming</span>
+            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-tint-paused"></span> Paused</span>
+            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-tint-error"></span> Error</span>
+            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-tint-executing"></span> Trigger executing</span>
+        </div>
+
+        <Pagination TotalItems="@_filteredRows.Count"
+                    PageSize="@_pageSize"
+                    CurrentPage="@_page"
+                    OnPageChanged="OnPageChangedAsync" />
+    }
+</div>
+
+@code {
+    private static readonly int[] PageSizes = [10, 25, 50, 100];
+    private const int DefaultPageSize = 25;
+    private const string CollapsedPrefsKey = "qz-timeline-collapsed";
+    /// <summary>Floor for a zero-duration run as a fraction of the track (~2px on a ~800px track).</summary>
+    private const double MinBarPixelFraction = 0.0025;
+
+    /// <summary>Visual gap between neighbouring bars in one row.</summary>
+    private const double BarGapFraction = 0.002;
+
+    private const int UpcomingFireCount = 8;
+
+    private readonly List<TimelineRow> _allRows = [];
+    private readonly List<TimelineRow> _filteredRows = [];
+    private readonly List<TimelineRow> _pageRows = [];
+    private readonly List<TimelineSection> _sections = [];
+    private readonly List<string> _groupOptions = [];
+    private readonly List<TimelineTick> _ticks = [];
+    private readonly HashSet<string> _collapsedGroups = new(StringComparer.OrdinalIgnoreCase);
+
+    private TimelineWindow _window = TimelineWindow.Last15Minutes;
+    private bool _windowFromQuery;
+    private string _groupFilter = string.Empty;
+    private TimeSpan _panOffset;
+    private DateTimeOffset _windowStart;
+    private DateTimeOffset _windowEnd;
+    /// <summary>Right edge of the drawn axis; may include a short look-ahead past now for upcoming marks.</summary>
+    private DateTimeOffset _axisEnd;
+    private int _page = 1;
+    private int _pageSize = DefaultPageSize;
+    private int _totalPages = 1;
+    private int _barCount;
+    private bool _isLoading = true;
+    private bool _chromeReady;
+    private bool _loadingInProgress;
+    private bool _historyUnavailable;
+    private bool _historyTruncated;
+    private bool _collapsedPrefsLoaded;
+    private bool _pendingUrlSync;
+    private string? _error;
+    private PeriodicTimer? _refreshTimer;
+    private CancellationTokenSource? _refreshLoopCancellation;
+
+    private ElementReference _axisTrack;
+    private bool _isPanning;
+    private double _panPointerStartX;
+    private TimeSpan _panOffsetAtPointerDown;
+    private double _axisTrackWidthPx;
+
+    private readonly int _historyTake = 500;
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "window")]
+    public string? WindowQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "group")]
+    public string? GroupQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "page")]
+    public int? PageQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "pageSize")]
+    public int? PageSizeQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "pan")]
+    public int? PanQuery { get; set; }
+
+    private bool CanZoomIn => TimelineWindow.IndexOf(_window) > 0;
+    private bool CanZoomOut => TimelineWindow.IndexOf(_window) < TimelineWindow.Offered.Length - 1;
+    private bool CanPanNewer => _panOffset > TimeSpan.Zero;
+
+    protected override void OnInitialized()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        _refreshLoopCancellation = new CancellationTokenSource();
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _ = RunRefreshLoopAsync(_refreshLoopCancellation.Token);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _windowFromQuery = !string.IsNullOrWhiteSpace(WindowQuery);
+        _window = _windowFromQuery ? TimelineWindow.Parse(WindowQuery) : TimelineWindow.Last15Minutes;
+        _groupFilter = (GroupQuery ?? string.Empty).Trim();
+        _pageSize = NormalizePageSize(PageSizeQuery);
+        _page = Math.Max(1, PageQuery ?? 1);
+        _panOffset = NormalizePan(PanQuery);
+        await EnsureCollapsedPrefsLoadedAsync();
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        _page = 1;
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        if (_refreshTimer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            while (await _refreshTimer.WaitForNextTickAsync(cancellationToken))
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadDataAsync();
+                        StateHasChanged();
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (InvalidOperationException)
+                {
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private Task OnWindowChanged(ChangeEventArgs args)
+    {
+        return NavigateAsync(TimelineWindow.Parse(args.Value?.ToString()), _groupFilter, 1, _pageSize, TimeSpan.Zero);
+    }
+
+    private Task ZoomInAsync()
+    {
+        TimelineWindow? next = TimelineWindow.ZoomIn(_window);
+        return next is null ? Task.CompletedTask : NavigateAsync(next, _groupFilter, _page, _pageSize, TimeSpan.Zero);
+    }
+
+    private Task ZoomOutAsync()
+    {
+        TimelineWindow? next = TimelineWindow.ZoomOut(_window);
+        return next is null ? Task.CompletedTask : NavigateAsync(next, _groupFilter, _page, _pageSize, TimeSpan.Zero);
+    }
+
+    private Task PanOlderAsync()
+    {
+        return NavigateAsync(_window, _groupFilter, _page, _pageSize, _panOffset + PanStep(_window));
+    }
+
+    private Task PanNewerAsync()
+    {
+        TimeSpan next = _panOffset - PanStep(_window);
+        if (next < TimeSpan.Zero)
+        {
+            next = TimeSpan.Zero;
+        }
+
+        return NavigateAsync(_window, _groupFilter, _page, _pageSize, next);
+    }
+
+    private Task OnGroupChanged(ChangeEventArgs args)
+    {
+        return NavigateAsync(_window, args.Value?.ToString() ?? string.Empty, 1, _pageSize, _panOffset);
+    }
+
+    private Task OnPageSizeChanged(ChangeEventArgs args)
+    {
+        int size = NormalizePageSize(ParseInt(args.Value?.ToString()));
+        return NavigateAsync(_window, _groupFilter, 1, size, _panOffset);
+    }
+
+    private Task OnPageChangedAsync(int page)
+    {
+        return NavigateAsync(_window, _groupFilter, page, _pageSize, _panOffset);
+    }
+
+    private async Task OnAxisPointerDown(PointerEventArgs args)
+    {
+        _isPanning = true;
+        _panPointerStartX = args.ClientX;
+        _panOffsetAtPointerDown = _panOffset;
+        _axisTrackWidthPx = await MeasureAxisWidthAsync();
+    }
+
+    private void OnAxisPointerMove(PointerEventArgs args)
+    {
+        if (!_isPanning || _axisTrackWidthPx <= 1)
+        {
+            return;
+        }
+
+        double deltaFraction = (_panPointerStartX - args.ClientX) / _axisTrackWidthPx;
+        TimeSpan delta = TimeSpan.FromTicks((long) (_window.Span.Ticks * deltaFraction));
+        TimeSpan next = _panOffsetAtPointerDown + delta;
+        if (next < TimeSpan.Zero)
+        {
+            next = TimeSpan.Zero;
+        }
+
+        if (next == _panOffset)
+        {
+            return;
+        }
+
+        _panOffset = next;
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        SetWindowBounds(now);
+        RebuildTicks();
+    }
+
+    private Task OnAxisPointerUp(PointerEventArgs args)
+    {
+        if (!_isPanning)
+        {
+            return Task.CompletedTask;
+        }
+
+        _isPanning = false;
+        return NavigateAsync(_window, _groupFilter, _page, _pageSize, _panOffset);
+    }
+
+    private async Task<double> MeasureAxisWidthAsync()
+    {
+        try
+        {
+            double width = await JsRuntime.InvokeAsync<double>("quartzDashboardDom.width", _axisTrack);
+            return width > 1 ? width : 600;
+        }
+        catch (JSException)
+        {
+            return 600;
+        }
+        catch (InvalidOperationException)
+        {
+            return 600;
+        }
+    }
+
+    private async Task NavigateAsync(TimelineWindow window, string groupFilter, int page, int pageSize, TimeSpan panOffset)
+    {
+        if (panOffset < TimeSpan.Zero)
+        {
+            panOffset = TimeSpan.Zero;
+        }
+
+        string path = BuildTimelinePath(window, groupFilter, page, pageSize, panOffset);
+        string current = (DashboardLink.ToBaseRelative(Navigation.Uri, Navigation.BaseUri) ?? string.Empty).TrimStart('/');
+        if (PathsEqual(path.TrimStart('/'), current))
+        {
+            _window = window;
+            _windowFromQuery = true;
+            _groupFilter = groupFilter.Trim();
+            _pageSize = pageSize;
+            _page = Math.Max(1, page);
+            _panOffset = panOffset;
+            await LoadDataAsync();
+            return;
+        }
+
+        Navigation.NavigateTo(path, replace: true);
+    }
+
+    private string BuildTimelinePath(TimelineWindow window, string groupFilter, int page, int pageSize, TimeSpan panOffset)
+    {
+        List<string> query =
+        [
+            "window=" + Uri.EscapeDataString(window.Key)
+        ];
+
+        if (!string.IsNullOrWhiteSpace(groupFilter))
+        {
+            query.Add("group=" + Uri.EscapeDataString(groupFilter.Trim()));
+        }
+
+        int panMinutes = (int) Math.Round(panOffset.TotalMinutes);
+        if (panMinutes > 0)
+        {
+            query.Add("pan=" + panMinutes.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (page > 1)
+        {
+            query.Add("page=" + page.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (pageSize != DefaultPageSize)
+        {
+            query.Add("pageSize=" + pageSize.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return DashboardLink.To(Options.Value, "timeline?" + string.Join("&", query));
+    }
+
+    private static bool PathsEqual(string left, string right)
+    {
+        int leftQueryIndex = left.IndexOf('?');
+        int rightQueryIndex = right.IndexOf('?');
+        ReadOnlySpan<char> leftPath = leftQueryIndex >= 0 ? left.AsSpan(0, leftQueryIndex) : left.AsSpan();
+        ReadOnlySpan<char> rightPath = rightQueryIndex >= 0 ? right.AsSpan(0, rightQueryIndex) : right.AsSpan();
+        ReadOnlySpan<char> leftQuery = leftQueryIndex >= 0 ? left.AsSpan(leftQueryIndex) : default;
+        ReadOnlySpan<char> rightQuery = rightQueryIndex >= 0 ? right.AsSpan(rightQueryIndex) : default;
+
+        return leftPath.Equals(rightPath, StringComparison.OrdinalIgnoreCase)
+            && leftQuery.SequenceEqual(rightQuery);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (_loadingInProgress)
+        {
+            return;
+        }
+
+        _loadingInProgress = true;
+        _error = null;
+        _historyUnavailable = false;
+        _historyTruncated = false;
+
+        try
+        {
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (string.IsNullOrWhiteSpace(schedulerName))
+            {
+                ClearRows();
+                RebuildTicks();
+                return;
+            }
+
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            if (!_windowFromQuery)
+            {
+                _window = await AutoPickWindowAsync(schedulerName, now);
+                _windowFromQuery = true;
+                _panOffset = TimeSpan.Zero;
+                _pendingUrlSync = true;
+            }
+
+            SetWindowBounds(now);
+            await PopulateAsync(schedulerName, now);
+            _chromeReady = true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ClearRows();
+            _chromeReady = true;
+        }
+        finally
+        {
+            _isLoading = false;
+            _loadingInProgress = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_pendingUrlSync)
+        {
+            return;
+        }
+
+        _pendingUrlSync = false;
+        string path = BuildTimelinePath(_window, _groupFilter, _page, _pageSize, _panOffset);
+        string current = (DashboardLink.ToBaseRelative(Navigation.Uri, Navigation.BaseUri) ?? string.Empty).TrimStart('/');
+        if (!PathsEqual(path.TrimStart('/'), current))
+        {
+            Navigation.NavigateTo(path, replace: true);
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task<TimelineWindow> AutoPickWindowAsync(string schedulerName, DateTimeOffset now)
+    {
+        List<DashboardHistoryEntry> history = [];
+        try
+        {
+            PagedResult<DashboardHistoryEntry> page = await Api.QueryExecutions(new DashboardHistoryQuery
+            {
+                SchedulerName = schedulerName,
+                FiredFrom = now - TimelineWindow.LastWeek.Span,
+                FiredBefore = now,
+                Skip = 0,
+                Take = _historyTake,
+                IncludeTotalCount = false
+            });
+            history.AddRange(page.Items);
+        }
+        catch (NotSupportedException)
+        {
+            _historyUnavailable = true;
+            return TimelineWindow.Last15Minutes;
+        }
+
+        List<FireInstanceDto> executing = [];
+        try
+        {
+            PagedResult<FireInstanceDto> fires = await Api.QueryFireInstances(
+                schedulerName,
+                new DashboardFireInstanceQuery { Take = 200 });
+            executing.AddRange(fires.Items);
+        }
+        catch (Exception)
+        {
+        }
+
+        foreach (TimelineWindow candidate in TimelineWindow.Offered)
+        {
+            DateTimeOffset start = now - candidate.Span;
+            if (HasActivity(history, executing, start, now))
+            {
+                return candidate;
+            }
+        }
+
+        return TimelineWindow.Last15Minutes;
+    }
+
+    private static bool HasActivity(
+        List<DashboardHistoryEntry> history,
+        List<FireInstanceDto> executing,
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd)
+    {
+        foreach (DashboardHistoryEntry entry in history)
+        {
+            DateTimeOffset end = entry.FiredAtUtc + (entry.Duration > TimeSpan.Zero ? entry.Duration : TimeSpan.FromMilliseconds(1));
+            if (end > windowStart && entry.FiredAtUtc < windowEnd)
+            {
+                return true;
+            }
+        }
+
+        foreach (FireInstanceDto fire in executing)
+        {
+            if (fire.JobKey is null)
+            {
+                continue;
+            }
+
+            if (fire.FireTimeUtc < windowEnd && windowEnd > windowStart)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private async Task PopulateAsync(string schedulerName, DateTimeOffset now)
+    {
+        double spanTicks = Math.Max(1, (_axisEnd - _windowStart).Ticks);
+
+        List<DashboardHistoryEntry> history = [];
+        try
+        {
+            PagedResult<DashboardHistoryEntry> page = await Api.QueryExecutions(new DashboardHistoryQuery
+            {
+                SchedulerName = schedulerName,
+                FiredFrom = _windowStart,
+                FiredBefore = _windowEnd,
+                Skip = 0,
+                Take = _historyTake,
+                IncludeTotalCount = true
+            });
+            history.AddRange(page.Items);
+            int total = page.TotalCount ?? page.Items.Count;
+            _historyTruncated = total > page.Items.Count || page.HasMore;
+        }
+        catch (NotSupportedException)
+        {
+            _historyUnavailable = true;
+            ClearRows();
+            RebuildTicks();
+            return;
+        }
+
+        List<FireInstanceDto> executing = [];
+        try
+        {
+            PagedResult<FireInstanceDto> fires = await Api.QueryFireInstances(
+                schedulerName,
+                new DashboardFireInstanceQuery { Take = 200 });
+            executing.AddRange(fires.Items);
+        }
+        catch (Exception)
+        {
+        }
+
+        Dictionary<string, TimelineRowBuilder> builders = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (DashboardHistoryEntry entry in history)
+        {
+            DateTimeOffset start = entry.FiredAtUtc;
+            DateTimeOffset end = entry.FiredAtUtc + (entry.Duration > TimeSpan.Zero ? entry.Duration : TimeSpan.FromMilliseconds(1));
+            if (end <= _windowStart || start >= _windowEnd)
+            {
+                continue;
+            }
+
+            TimelineRowBuilder builder = GetOrAdd(builders, entry.JobGroup, entry.JobName);
+            AddBarForTrigger(
+                builder,
+                entry.TriggerGroup,
+                entry.TriggerName,
+                CreateBar(
+                    start,
+                    end,
+                    spanTicks,
+                    BarClass(entry.EffectiveResult),
+                    BuildHistoryTitle(entry),
+                    entry.EntryId));
+        }
+
+        foreach (FireInstanceDto fire in executing)
+        {
+            if (fire.JobKey is null)
+            {
+                continue;
+            }
+
+            DateTimeOffset start = fire.FireTimeUtc;
+            DateTimeOffset barEnd = now < _windowEnd ? now : _windowEnd;
+            if (barEnd <= _windowStart || start >= _windowEnd)
+            {
+                continue;
+            }
+
+            TimelineRowBuilder builder = GetOrAdd(builders, fire.JobKey.Group, fire.JobKey.Name);
+            AddBarForTrigger(
+                builder,
+                fire.TriggerKey.Group,
+                fire.TriggerKey.Name,
+                CreateBar(
+                    start,
+                    barEnd,
+                    spanTicks,
+                    "qz-timeline-bar-executing",
+                    BuildExecutingTitle(fire),
+                    entryId: null));
+        }
+
+        HashSet<string> executingTriggers = new(StringComparer.OrdinalIgnoreCase);
+        foreach (FireInstanceDto fire in executing)
+        {
+            executingTriggers.Add(TriggerLookupKey(fire.TriggerKey.Group, fire.TriggerKey.Name));
+        }
+
+        _allRows.Clear();
+        foreach (TimelineRowBuilder builder in builders.Values.OrderBy(static b => b.JobGroup, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(static b => b.JobName, StringComparer.OrdinalIgnoreCase))
+        {
+            _allRows.Add(new TimelineRow(builder.Key, builder.JobGroup, builder.JobName, builder.BarsByTrigger, []));
+        }
+
+        RebuildDerivedViews();
+        await LoadTriggersForPageAsync(schedulerName, executingTriggers);
+        RebuildTicks();
+    }
+
+    private void RebuildDerivedViews()
+    {
+        _groupOptions.Clear();
+        _groupOptions.AddRange(_allRows.Select(static r => r.JobGroup).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(static g => g, StringComparer.OrdinalIgnoreCase));
+
+        _filteredRows.Clear();
+        if (string.IsNullOrWhiteSpace(_groupFilter))
+        {
+            _filteredRows.AddRange(_allRows);
+        }
+        else
+        {
+            foreach (TimelineRow row in _allRows)
+            {
+                if (string.Equals(row.JobGroup, _groupFilter, StringComparison.OrdinalIgnoreCase))
+                {
+                    _filteredRows.Add(row);
+                }
+            }
+        }
+
+        _totalPages = Math.Max(1, (int) Math.Ceiling(_filteredRows.Count / (double) _pageSize));
+        if (_page > _totalPages)
+        {
+            _page = _totalPages;
+        }
+
+        _pageRows.Clear();
+        int skip = Math.Max(0, (_page - 1) * _pageSize);
+        _pageRows.AddRange(_filteredRows.Skip(skip).Take(_pageSize));
+
+        _sections.Clear();
+        foreach (IGrouping<string, TimelineRow> group in _pageRows.GroupBy(static r => r.JobGroup, StringComparer.OrdinalIgnoreCase))
+        {
+            _sections.Add(new TimelineSection(group.Key, group.ToList()));
+        }
+
+        _barCount = 0;
+    }
+
+    private async Task LoadTriggersForPageAsync(string schedulerName, HashSet<string> executingTriggers)
+    {
+        double spanTicks = Math.Max(1, (_axisEnd - _windowStart).Ticks);
+
+        foreach (TimelineRow row in _pageRows)
+        {
+            row.Triggers.Clear();
+            Dictionary<string, PendingTriggerBars> pending = new(row.BarsByTrigger, StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                List<TriggerHeaderDto> triggers = await Api.GetTriggersOfJob(
+                    schedulerName,
+                    new JobKeyDto(row.JobGroup, row.JobName));
+
+                foreach (TriggerHeaderDto header in triggers.OrderBy(static t => t.Group, StringComparer.OrdinalIgnoreCase)
+                             .ThenBy(static t => t.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    List<TimelineMark> marks = [];
+                    try
+                    {
+                        List<DateTimeOffset> fires = await Api.GetUpcomingFireTimes(
+                            schedulerName,
+                            new TriggerKeyDto(header.Group, header.Name),
+                            UpcomingFireCount);
+
+                        foreach (DateTimeOffset fire in fires)
+                        {
+                            if (fire < _windowStart || fire > _axisEnd)
+                            {
+                                continue;
+                            }
+
+                            marks.Add(new TimelineMark(
+                                Clamp01((fire - _windowStart).Ticks / spanTicks),
+                                "Upcoming · " + FormatInstant(fire) + " · " + DisplayValueHelper.FormatKey(header.Group, header.Name)));
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // Trigger row still useful without marks.
+                    }
+
+                    string triggerKey = TriggerLookupKey(header.Group, header.Name);
+                    bool isExecuting = header.State == TriggerState.Executing
+                                       || executingTriggers.Contains(triggerKey);
+
+                    List<TimelineBar> bars = TakePendingBars(pending, triggerKey);
+
+                    row.Triggers.Add(new TimelineTriggerRow(
+                        header.Group,
+                        header.Name,
+                        header.State,
+                        header.ScheduleSummary,
+                        header.NextFireTimeUtc,
+                        header.PreviousFireTimeUtc,
+                        header.StartTimeUtc,
+                        header.EndTimeUtc,
+                        isExecuting,
+                        bars,
+                        marks));
+                }
+            }
+            catch (Exception)
+            {
+                // Job may have been deleted since the history row was written; still show orphan bars.
+            }
+
+            foreach (PendingTriggerBars orphan in pending.Values
+                         .OrderBy(static p => p.Group, StringComparer.OrdinalIgnoreCase)
+                         .ThenBy(static p => p.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                string triggerKey = TriggerLookupKey(orphan.Group, orphan.Name);
+                FinalizeTriggerBars(orphan.Bars);
+                row.Triggers.Add(new TimelineTriggerRow(
+                    orphan.Group,
+                    orphan.Name,
+                    State: null,
+                    ScheduleSummary: null,
+                    NextFireTimeUtc: null,
+                    PreviousFireTimeUtc: null,
+                    StartTimeUtc: null,
+                    EndTimeUtc: null,
+                    IsExecuting: executingTriggers.Contains(triggerKey),
+                    Bars: orphan.Bars,
+                    Marks: []));
+            }
+        }
+
+        _barCount = _filteredRows.Sum(static r => r.Triggers.Sum(static t => t.Bars.Count));
+    }
+
+    private static List<TimelineBar> TakePendingBars(Dictionary<string, PendingTriggerBars> pending, string triggerKey)
+    {
+        if (!pending.Remove(triggerKey, out PendingTriggerBars? bucket))
+        {
+            return [];
+        }
+
+        FinalizeTriggerBars(bucket.Bars);
+        return bucket.Bars;
+    }
+
+    private static void FinalizeTriggerBars(List<TimelineBar> bars)
+    {
+        bars.Sort(static (a, b) => a.Left.CompareTo(b.Left));
+        ApplyBarGaps(bars);
+    }
+
+    private static void AddBarForTrigger(TimelineRowBuilder builder, string triggerGroup, string triggerName, TimelineBar bar)
+    {
+        string key = TriggerLookupKey(triggerGroup, triggerName);
+        if (!builder.BarsByTrigger.TryGetValue(key, out PendingTriggerBars? bucket))
+        {
+            bucket = new PendingTriggerBars(triggerGroup, triggerName, []);
+            builder.BarsByTrigger[key] = bucket;
+        }
+
+        bucket.Bars.Add(bar);
+    }
+
+    private static string TriggerLookupKey(string group, string name) => group + "." + name;
+
+    private void SetWindowBounds(DateTimeOffset now)
+    {
+        _windowEnd = now - _panOffset;
+        _windowStart = _windowEnd - _window.Span;
+        // When live (pan == 0), leave a short look-ahead so upcoming fires are visible past "now".
+        _axisEnd = _panOffset <= TimeSpan.Zero
+            ? now + LookAhead(_window)
+            : _windowEnd;
+    }
+
+    private static TimeSpan LookAhead(TimelineWindow window)
+    {
+        long quarter = window.Span.Ticks / 4;
+        long capped = TimeSpan.FromHours(1).Ticks;
+        return TimeSpan.FromTicks(Math.Min(quarter, capped));
+    }
+
+    private TimelineBar CreateBar(DateTimeOffset start, DateTimeOffset end, double spanTicks, string cssClass, string title, string? entryId)
+    {
+        double left = Clamp01((start - _windowStart).Ticks / spanTicks);
+        double right = Clamp01((end - _windowStart).Ticks / spanTicks);
+        double width = right - left;
+        if (width < MinBarPixelFraction)
+        {
+            width = MinBarPixelFraction;
+        }
+
+        if (left + width > 1.0)
+        {
+            width = 1.0 - left;
+        }
+
+        return new TimelineBar(left, width, cssClass, title, entryId);
+    }
+
+    /// <summary>
+    /// Shortens bars that would touch or overlap the next one so neighbouring runs stay visually separate.
+    /// </summary>
+    private static void ApplyBarGaps(List<TimelineBar> bars)
+    {
+        for (int i = 0; i < bars.Count - 1; i++)
+        {
+            TimelineBar current = bars[i];
+            TimelineBar next = bars[i + 1];
+            double maxRight = next.Left - BarGapFraction;
+            double maxWidth = maxRight - current.Left;
+            if (current.Width <= maxWidth)
+            {
+                continue;
+            }
+
+            double width = maxWidth;
+            if (width < MinBarPixelFraction)
+            {
+                // Keep a hairline if there is any room before the next bar; otherwise accept a tiny overlap.
+                width = next.Left > current.Left ? Math.Max(next.Left - current.Left - BarGapFraction, MinBarPixelFraction * 0.5) : MinBarPixelFraction * 0.5;
+                if (width <= 0)
+                {
+                    width = MinBarPixelFraction * 0.5;
+                }
+            }
+
+            bars[i] = current with { Width = width };
+        }
+    }
+
+    private void ClearRows()
+    {
+        _allRows.Clear();
+        _filteredRows.Clear();
+        _pageRows.Clear();
+        _sections.Clear();
+        _groupOptions.Clear();
+        _ticks.Clear();
+        _barCount = 0;
+        _totalPages = 1;
+    }
+
+    private void RebuildTicks()
+    {
+        _ticks.Clear();
+        if (_windowStart == default || _axisEnd == default)
+        {
+            SetWindowBounds(DateTimeOffset.UtcNow);
+        }
+
+        long axisTicks = Math.Max(1, (_axisEnd - _windowStart).Ticks);
+        int divisions = _window.TickCount;
+        for (int i = 0; i <= divisions; i++)
+        {
+            double fraction = (double) i / divisions;
+            DateTimeOffset instant = _windowStart + TimeSpan.FromTicks((long) (axisTicks * fraction));
+            _ticks.Add(new TimelineTick(fraction, Scheduler.FormatInSelectedTimeZone(instant, _window.TickFormat)));
+        }
+    }
+
+    /// <summary>
+    /// CSS vars so trigger tracks paint one vertical rule per clock minute across the drawn axis.
+    /// </summary>
+    private string MinuteGridStyle
+    {
+        get
+        {
+            double axisMs = Math.Max(1, (_axisEnd - _windowStart).TotalMilliseconds);
+            double minutePct = TimeSpan.FromMinutes(1).TotalMilliseconds / axisMs * 100.0;
+
+            DateTimeOffset truncated = new(
+                _windowStart.Year,
+                _windowStart.Month,
+                _windowStart.Day,
+                _windowStart.Hour,
+                _windowStart.Minute,
+                0,
+                _windowStart.Offset);
+            DateTimeOffset firstMinute = truncated <= _windowStart ? truncated.AddMinutes(1) : truncated;
+            double offsetPct = firstMinute >= _axisEnd
+                ? 0
+                : (firstMinute - _windowStart).TotalMilliseconds / axisMs * 100.0;
+
+            return "--qz-timeline-minute-pct: "
+                   + minutePct.ToString("0.####", CultureInfo.InvariantCulture) + "%; "
+                   + "--qz-timeline-minute-offset: "
+                   + offsetPct.ToString("0.####", CultureInfo.InvariantCulture) + "%;";
+        }
+    }
+
+    private async Task EnsureCollapsedPrefsLoadedAsync()
+    {
+        if (_collapsedPrefsLoaded)
+        {
+            return;
+        }
+
+        _collapsedPrefsLoaded = true;
+        try
+        {
+            string? raw = await JsRuntime.InvokeAsync<string?>("quartzDashboardPrefs.get", new object?[] { CollapsedPrefsKey });
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return;
+            }
+
+            string[]? groups = JsonSerializer.Deserialize<string[]>(raw);
+            if (groups is null)
+            {
+                return;
+            }
+
+            _collapsedGroups.Clear();
+            foreach (string group in groups)
+            {
+                if (!string.IsNullOrWhiteSpace(group))
+                {
+                    _collapsedGroups.Add(group);
+                }
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        catch (JSException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+            _collapsedPrefsLoaded = false;
+        }
+    }
+
+    private async Task ToggleGroupAsync(string jobGroup)
+    {
+        if (!_collapsedGroups.Add(jobGroup))
+        {
+            _collapsedGroups.Remove(jobGroup);
+        }
+
+        try
+        {
+            string payload = JsonSerializer.Serialize(_collapsedGroups.OrderBy(static g => g, StringComparer.OrdinalIgnoreCase).ToArray());
+            await JsRuntime.InvokeVoidAsync("quartzDashboardPrefs.set", new object?[] { CollapsedPrefsKey, payload });
+        }
+        catch (JSException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    private static TimelineRowBuilder GetOrAdd(Dictionary<string, TimelineRowBuilder> builders, string group, string name)
+    {
+        string key = group + "." + name;
+        if (!builders.TryGetValue(key, out TimelineRowBuilder? builder))
+        {
+            builder = new TimelineRowBuilder(key, group, name);
+            builders[key] = builder;
+        }
+
+        return builder;
+    }
+
+    private static string BarClass(JobRunResult result) => result switch
+    {
+        JobRunResult.Succeeded => "qz-timeline-bar-succeeded",
+        JobRunResult.Skipped => "qz-timeline-bar-skipped",
+        JobRunResult.Cancelled => "qz-timeline-bar-cancelled",
+        _ => "qz-timeline-bar-failed"
+    };
+
+    private string BuildHistoryTitle(DashboardHistoryEntry entry)
+    {
+        string result = RunResultDisplay.Label(entry);
+        string start = FormatInstant(entry.FiredAtUtc);
+        string duration = DisplayValueHelper.FormatDuration(entry.Duration);
+        string trigger = DisplayValueHelper.FormatKey(entry.TriggerGroup, entry.TriggerName);
+        return $"{result} · {start} · {duration} · {trigger}";
+    }
+
+    private string BuildExecutingTitle(FireInstanceDto fire)
+    {
+        string start = FormatInstant(fire.FireTimeUtc);
+        string trigger = DisplayValueHelper.FormatKey(fire.TriggerKey.Group, fire.TriggerKey.Name);
+        string progress = fire.Progress is int percent ? $" · {percent}%" : string.Empty;
+        return $"Executing · since {start} · {trigger}{progress}";
+    }
+
+    private string FormatInstant(DateTimeOffset instant) => Scheduler.FormatInSelectedTimeZone(instant, "HH:mm");
+
+    private string FormatOptionalInstant(DateTimeOffset? instant) =>
+        instant is { } value ? Scheduler.FormatInSelectedTimeZone(value, "MMM d HH:mm") : "—";
+
+    private static string TriggerScheduleText(TimelineTriggerRow trigger) =>
+        string.IsNullOrWhiteSpace(trigger.ScheduleSummary) ? "—" : trigger.ScheduleSummary!;
+
+    private string BuildTriggerTimes(TimelineTriggerRow trigger) =>
+        "next " + FormatOptionalInstant(trigger.NextFireTimeUtc)
+        + " · prev " + FormatOptionalInstant(trigger.PreviousFireTimeUtc)
+        + " · start " + FormatOptionalInstant(trigger.StartTimeUtc)
+        + " · end " + FormatOptionalInstant(trigger.EndTimeUtc);
+
+    private static string TriggerRowClass(TimelineTriggerRow trigger)
+    {
+        string tint = trigger.IsExecuting
+            ? "qz-timeline-row-state-executing"
+            : trigger.State switch
+            {
+                TriggerState.Paused => "qz-timeline-row-state-paused",
+                TriggerState.Error => "qz-timeline-row-state-error",
+                TriggerState.Blocked => "qz-timeline-row-state-blocked",
+                TriggerState.Complete => "qz-timeline-row-state-complete",
+                TriggerState.Awaiting => "qz-timeline-row-state-awaiting",
+                TriggerState.Executing => "qz-timeline-row-state-executing",
+                _ => string.Empty
+            };
+
+        return string.IsNullOrEmpty(tint)
+            ? "qz-timeline-row qz-timeline-row-trigger"
+            : "qz-timeline-row qz-timeline-row-trigger " + tint;
+    }
+
+    private static string FormatPanOffset(TimeSpan offset)
+    {
+        if (offset.TotalDays >= 1)
+        {
+            return offset.TotalDays.ToString("0.#", CultureInfo.InvariantCulture) + "d";
+        }
+
+        if (offset.TotalHours >= 1)
+        {
+            return offset.TotalHours.ToString("0.#", CultureInfo.InvariantCulture) + "h";
+        }
+
+        return ((int) Math.Round(offset.TotalMinutes)).ToString(CultureInfo.InvariantCulture) + "m";
+    }
+
+    private string ExecutionPath(string entryId) => DashboardLink.To(Options.Value, "history/" + Uri.EscapeDataString(entryId));
+
+    private string JobPath(string group, string name) =>
+        DashboardLink.To(Options.Value, "jobs/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
+
+    private string TriggerPath(string group, string name) =>
+        DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
+
+    private double NowFraction()
+    {
+        long axisTicks = Math.Max(1, (_axisEnd - _windowStart).Ticks);
+        return Clamp01((_windowEnd - _windowStart).Ticks / (double) axisTicks);
+    }
+
+    private static string Pct(double fraction) =>
+        (Math.Clamp(fraction, 0, 1) * 100).ToString("0.###", CultureInfo.InvariantCulture) + "%";
+
+    private static double Clamp01(double value) => Math.Clamp(value, 0, 1);
+
+    private static TimeSpan PanStep(TimelineWindow window) => TimeSpan.FromTicks(window.Span.Ticks / 4);
+
+    private static TimeSpan NormalizePan(int? panMinutes)
+    {
+        if (panMinutes is int minutes && minutes > 0)
+        {
+            return TimeSpan.FromMinutes(minutes);
+        }
+
+        return TimeSpan.Zero;
+    }
+
+    private static int NormalizePageSize(int? value)
+    {
+        if (value is int size && PageSizes.Contains(size))
+        {
+            return size;
+        }
+
+        return DefaultPageSize;
+    }
+
+    private static int? ParseInt(string? value)
+    {
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) ? parsed : null;
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _refreshLoopCancellation?.Cancel();
+        _refreshLoopCancellation?.Dispose();
+        _refreshTimer?.Dispose();
+    }
+
+    private sealed record TimelineWindow(string Key, string Label, string ShortLabel, TimeSpan Span, int TickCount, string TickFormat)
+    {
+        public static readonly TimelineWindow Last15Minutes = new("15m", "Last 15 minutes", "15 min", TimeSpan.FromMinutes(15), 5, "HH:mm");
+        public static readonly TimelineWindow Last30Minutes = new("30m", "Last 30 minutes", "30 min", TimeSpan.FromMinutes(30), 6, "HH:mm");
+        public static readonly TimelineWindow LastHour = new("1h", "Last hour", "1 hour", TimeSpan.FromHours(1), 6, "HH:mm");
+        public static readonly TimelineWindow LastSixHours = new("6h", "Last 6 hours", "6 hours", TimeSpan.FromHours(6), 6, "HH:mm");
+        public static readonly TimelineWindow LastDay = new("24h", "Last 24 hours", "24 hours", TimeSpan.FromHours(24), 8, "HH:mm");
+        public static readonly TimelineWindow LastWeek = new("7d", "Last 7 days", "7 days", TimeSpan.FromDays(7), 7, "MM-dd");
+
+        public static readonly TimelineWindow[] Offered =
+        [
+            Last15Minutes,
+            Last30Minutes,
+            LastHour,
+            LastSixHours,
+            LastDay,
+            LastWeek
+        ];
+
+        public static int IndexOf(TimelineWindow window)
+        {
+            for (int i = 0; i < Offered.Length; i++)
+            {
+                if (string.Equals(Offered[i].Key, window.Key, StringComparison.OrdinalIgnoreCase))
+                {
+                    return i;
+                }
+            }
+
+            return 0;
+        }
+
+        public static TimelineWindow? ZoomIn(TimelineWindow window)
+        {
+            int index = IndexOf(window);
+            return index > 0 ? Offered[index - 1] : null;
+        }
+
+        public static TimelineWindow? ZoomOut(TimelineWindow window)
+        {
+            int index = IndexOf(window);
+            return index >= 0 && index < Offered.Length - 1 ? Offered[index + 1] : null;
+        }
+
+        public static TimelineWindow Parse(string? key)
+        {
+            string trimmed = key?.Trim() ?? string.Empty;
+            foreach (TimelineWindow window in Offered)
+            {
+                if (string.Equals(window.Key, trimmed, StringComparison.OrdinalIgnoreCase))
+                {
+                    return window;
+                }
+            }
+
+            return Last15Minutes;
+        }
+    }
+
+    private sealed record TimelineTick(double Fraction, string Label);
+
+    private sealed record TimelineBar(double Left, double Width, string CssClass, string Title, string? EntryId);
+
+    private sealed record TimelineMark(double Left, string Title);
+
+    private sealed record TimelineTriggerRow(
+        string Group,
+        string Name,
+        TriggerState? State,
+        string? ScheduleSummary,
+        DateTimeOffset? NextFireTimeUtc,
+        DateTimeOffset? PreviousFireTimeUtc,
+        DateTimeOffset? StartTimeUtc,
+        DateTimeOffset? EndTimeUtc,
+        bool IsExecuting,
+        List<TimelineBar> Bars,
+        List<TimelineMark> Marks)
+    {
+        public string Key => Group + "." + Name;
+    }
+
+    private sealed record TimelineRow(
+        string Key,
+        string JobGroup,
+        string JobName,
+        Dictionary<string, PendingTriggerBars> BarsByTrigger,
+        List<TimelineTriggerRow> Triggers);
+
+    private sealed record TimelineSection(string JobGroup, List<TimelineRow> Rows);
+
+    private sealed record PendingTriggerBars(string Group, string Name, List<TimelineBar> Bars);
+
+    private sealed class TimelineRowBuilder(string key, string jobGroup, string jobName)
+    {
+        public string Key { get; } = key;
+        public string JobGroup { get; } = jobGroup;
+        public string JobName { get; } = jobName;
+        public Dictionary<string, PendingTriggerBars> BarsByTrigger { get; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+}

@@ -67,4 +67,14 @@ export function afterWebStarted() {
             document.cookie = encodedKey + "=" + encodedValue + "; path=" + basePath + "; max-age=31536000; samesite=lax";
         }
     };
+
+    window.quartzDashboardDom = window.quartzDashboardDom || {
+        width: function (element) {
+            if (!element || typeof element.getBoundingClientRect !== "function") {
+                return 0;
+            }
+
+            return element.getBoundingClientRect().width;
+        }
+    };
 }
