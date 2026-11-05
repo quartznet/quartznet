@@ -567,11 +567,13 @@ store's own transaction.
 | Question | Answer |
 |---|---|
 | Which calls ask | Every `IScheduler` member that reads or writes the store: scheduling, unscheduling, rescheduling, adding, deleting and triggering jobs, pausing and resuming, every get, query and exists, the calendar members, `Clear` |
-| Which do not | `Start`, `StartDelayed`, `Standby`, `Shutdown`, the status and metadata members, `Context`, `ListenerManager`, `Interrupt` |
+| Which do not | `Start`, `StartDelayed`, `Standby`, `Shutdown`, the status and metadata members, `Context`, `ListenerManager`, the execution-limit members, `Interrupt`, `InterruptFireInstance` |
+| Why the interrupts do not | They write the store on a clustered or observer store, and stay exempt: an interrupt request must not roll back with your transaction |
 | Whose calls | Every caller of the scheduler: your code, a job through `context.Scheduler`, listeners, the HTTP API and the dashboard |
 | Never asked | The scheduler's own work: acquiring, firing and completing triggers, misfire handling, cluster check-in, recovery. It keeps its own connections |
 | Already enlisted | An explicit `EnlistTransaction` on the flow wins. The source is not asked |
-| Thread | The caller's, before the call's first `await`. Thread-static state is still readable |
+| Thread | The caller's, before the call's first `await`, so thread-static state is still readable. Through the container's `IScheduler` that holds once the scheduler is built. The hosted service builds it at host start; otherwise `await ISchedulerFactory.GetScheduler()` at startup. A source that reads an `AsyncLocal` or `Transaction.Current` is unaffected |
+| Starting | Start the scheduler outside the unit of work. The refusal of `Start` inside an enlistment cannot see a source's enlistment, because it ends with each call, so a `Start` inside a unit of work that has written through the source waits on the lock your transaction holds |
 | Disposal | The scheduler disposes what is returned as the call ends, also when it fails or is cancelled |
 | Errors | An exception from the source, or a refusal by `EnlistTransaction`, reaches the caller unchanged before any store work. A failed dispose reaches the caller after a call that succeeded, and never replaces the exception of one that failed |
 | Needs | `AcceptEnlistedTransactions`. A source without it fails when the scheduler is built |
