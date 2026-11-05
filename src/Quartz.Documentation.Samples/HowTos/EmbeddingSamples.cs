@@ -287,6 +287,101 @@ public static class EmbeddingSamples
 
     #endregion
 
+    public static void EnlistmentSource(IServiceCollection services, string connectionString)
+    {
+        #region sample_embedding_enlistment_source
+
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseSqlServer(connectionString);
+            store.ConfigureStore(options =>
+            {
+                options.AcceptEnlistedTransactions = true;
+
+                // Called on the caller's thread as each call that reads or writes the store begins, so
+                // whatever the application keeps in a thread-static is still there to read.
+                options.EnlistmentSource = scheduler =>
+                    ApplicationUnitOfWork.Current is { } unit ? scheduler.EnlistTransaction(unit.Transaction) : null;
+            });
+        }));
+
+        #endregion
+    }
+
+    public static void EnlistmentSourceEndingAfterTheCommit(IServiceCollection services, string connectionString)
+    {
+        #region sample_embedding_enlistment_source_after_commit
+
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseSqlServer(connectionString);
+            store.ConfigureStore(options =>
+            {
+                options.AcceptEnlistedTransactions = true;
+                options.EnlistmentSource = scheduler =>
+                {
+                    if (ApplicationUnitOfWork.Current is not { } unit)
+                    {
+                        return null;
+                    }
+
+                    // The scheduler disposes what this returns as the call ends, before the commit. Ending
+                    // the enlistment is what signals the scheduler, so this one waits for the commit.
+                    return unit.EndAfterCompletion(scheduler.EnlistTransaction(unit.Transaction));
+                };
+            });
+        }));
+
+        #endregion
+    }
+
+    /// <summary>
+    /// Stands for the application's own unit of work: a transaction bound to the current thread, and a
+    /// way to run something once it has completed.
+    /// </summary>
+    public sealed class ApplicationUnitOfWork(DbTransaction transaction)
+    {
+        private readonly List<IDisposable> ending = [];
+
+        [ThreadStatic]
+        private static ApplicationUnitOfWork? current;
+
+        public static ApplicationUnitOfWork? Current
+        {
+            get => current;
+            set => current = value;
+        }
+
+        public DbTransaction Transaction { get; } = transaction;
+
+        /// <summary>
+        /// Returns a scope that ends nothing when disposed, and ends <paramref name="enlistment" /> when
+        /// the unit of work completes.
+        /// </summary>
+        public IDisposable EndAfterCompletion(IDisposable enlistment)
+        {
+            ending.Add(enlistment);
+            return new NothingToEnd();
+        }
+
+        public void Complete()
+        {
+            foreach (IDisposable enlistment in ending)
+            {
+                enlistment.Dispose();
+            }
+
+            ending.Clear();
+        }
+
+        private sealed class NothingToEnd : IDisposable
+        {
+            public void Dispose()
+            {
+            }
+        }
+    }
+
     public static void TraceContextOff(IServiceCollection services)
     {
         #region sample_embedding_trace_context_off

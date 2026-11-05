@@ -535,6 +535,81 @@ the same scope as the calls it covers; set inside an `async` helper it does not 
 
 See [Joining an existing transaction](../tutorial/job-stores.md#joining-an-existing-transaction).
 
+### Enlisting without each caller asking
+
+If your library owns the transaction manager, let the scheduler ask for the transaction. No caller enlists,
+and a job's `context.Scheduler` calls take part too. Set `EnlistmentSource` beside
+`AcceptEnlistedTransactions`:
+
+<!-- snippet: sample_embedding_enlistment_source -->
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseSqlServer(connectionString);
+    store.ConfigureStore(options =>
+    {
+        options.AcceptEnlistedTransactions = true;
+
+        // Called on the caller's thread as each call that reads or writes the store begins, so
+        // whatever the application keeps in a thread-static is still there to read.
+        options.EnlistmentSource = scheduler =>
+            ApplicationUnitOfWork.Current is { } unit ? scheduler.EnlistTransaction(unit.Transaction) : null;
+    });
+}));
+```
+<!-- endSnippet -->
+
+`ApplicationUnitOfWork` stands for wherever your library keeps its current transaction. The delegate calls
+`EnlistTransaction` or `EnlistConnection` on the scheduler it is given and returns what they return. It
+returns `null` when there is nothing to enlist, and the call uses the store's own transaction.
+
+| Question | Answer |
+|---|---|
+| Which calls ask | Every `IScheduler` member that reads or writes the store: scheduling, unscheduling, rescheduling, adding, deleting and triggering jobs, pausing and resuming, every get, query and exists, the calendar members, `Clear` |
+| Which do not | `Start`, `StartDelayed`, `Standby`, `Shutdown`, the status and metadata members, `Context`, `ListenerManager`, `Interrupt` |
+| Whose calls | Every caller of the scheduler: your code, a job through `context.Scheduler`, listeners, the HTTP API and the dashboard |
+| Never asked | The scheduler's own work: acquiring, firing and completing triggers, misfire handling, cluster check-in, recovery. It keeps its own connections |
+| Already enlisted | An explicit `EnlistTransaction` on the flow wins. The source is not asked |
+| Thread | The caller's, before the call's first `await`. Thread-static state is still readable |
+| Disposal | The scheduler disposes what is returned as the call ends, also when it fails or is cancelled |
+| Errors | An exception from the source, or a refusal by `EnlistTransaction`, reaches the caller unchanged before any store work. A failed dispose reaches the caller after a call that succeeded, and never replaces the exception of one that failed |
+| Needs | `AcceptEnlistedTransactions`. A source without it fails when the scheduler is built |
+| Key | None. It is an object, so it has no `quartz.*` key |
+
+Ending a `DbTransaction` enlistment raises the scheduling signal the call deferred. The scheduler ends what
+the source returns as the call ends, which is before your commit, so a trigger due soon can wait up to
+`IdleWaitTime` to be seen. To signal after the commit, return a scope that ends nothing and end the
+enlistment when your transaction completes:
+
+<!-- snippet: sample_embedding_enlistment_source_after_commit -->
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseSqlServer(connectionString);
+    store.ConfigureStore(options =>
+    {
+        options.AcceptEnlistedTransactions = true;
+        options.EnlistmentSource = scheduler =>
+        {
+            if (ApplicationUnitOfWork.Current is not { } unit)
+            {
+                return null;
+            }
+
+            // The scheduler disposes what this returns as the call ends, before the commit. Ending
+            // the enlistment is what signals the scheduler, so this one waits for the commit.
+            return unit.EndAfterCompletion(scheduler.EnlistTransaction(unit.Transaction));
+        };
+    });
+}));
+```
+<!-- endSnippet -->
+
+Under a `TransactionScope`, `EnlistConnection` signals after the commit by itself.
+
+Await calls one at a time inside one transaction. The source is synchronous because it has to run before the
+first `await`.
+
 ## Shipping a package that multi-targets
 
 Quartz 4 targets only `net10.0`. To serve `net8.0` and `net9.0` consumers, use a conditional
