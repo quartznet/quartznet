@@ -322,9 +322,9 @@ public sealed class AdoJobStoreOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The delegate is handed the scheduler. To take part it calls
-    /// <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" /> or
-    /// <see cref="SchedulerEnlistmentExtensions.EnlistConnection" /> on it, and returns the
+    /// The delegate is handed an <see cref="EnlistmentSourceContext" />, which carries the scheduler. To take
+    /// part it calls <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" /> or
+    /// <see cref="SchedulerEnlistmentExtensions.EnlistConnection" /> on that scheduler, and returns the
     /// <see cref="IDisposable" /> that ends the enlistment. It returns <see langword="null" /> when there
     /// is nothing to enlist, and the call then uses the store's own transaction. The scheduler disposes
     /// what is returned when the call completes, including when it fails or is cancelled.
@@ -371,7 +371,7 @@ public sealed class AdoJobStoreOptions
     /// fails when the scheduler is built. It is an object, so it has no <c>quartz.*</c> key.
     /// </para>
     /// </remarks>
-    public Func<IScheduler, IDisposable?>? EnlistmentSource { get; set; }
+    public Func<EnlistmentSourceContext, IDisposable?>? EnlistmentSource { get; set; }
 
     /// <summary>
     /// Whether the misfire handler double-checks the lock before doing work.

@@ -32,7 +32,7 @@ namespace Quartz
         public string DataSource { get; set; }
         public System.TimeSpan DbRetryInterval { get; set; }
         public bool DoubleCheckLockMisfireHandler { get; set; }
-        public System.Func<Quartz.IScheduler, System.IDisposable?>? EnlistmentSource { get; set; }
+        public System.Func<Quartz.EnlistmentSourceContext, System.IDisposable?>? EnlistmentSource { get; set; }
         public bool ExecutionHistory { get; set; }
         public System.Func<System.Exception, bool>? IsTransient { get; set; }
         public bool LockFreeFiringRounds { get; set; }
@@ -375,6 +375,11 @@ namespace Quartz
     public sealed class DisallowConcurrentExecutionAttribute : System.Attribute
     {
         public DisallowConcurrentExecutionAttribute() { }
+    }
+    public sealed class EnlistmentSourceContext
+    {
+        public EnlistmentSourceContext() { }
+        public required Quartz.IScheduler Scheduler { get; init; }
     }
     public sealed class EverythingMatcher<TKey> : Quartz.IMatcher<TKey>
         where TKey : Quartz.Key<TKey>

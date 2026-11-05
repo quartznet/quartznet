@@ -75,7 +75,7 @@ public class ConfigurationBindingIsSourceGeneratedTest
             + "file can describe: the answer depends on the exception's type, its error number and its "
             + "inner exceptions, and the member says so",
         ["Quartz.AdoJobStoreOptions.EnlistmentSource"] =
-            "a Func<IScheduler, IDisposable?> enlists the transaction an application's own code holds, which "
+            "a Func<EnlistmentSourceContext, IDisposable?> enlists the transaction an application's own code holds, which "
             + "no configuration file can describe: it is called on the caller's thread, where the embedder's "
             + "state is, and the member says so"
     };

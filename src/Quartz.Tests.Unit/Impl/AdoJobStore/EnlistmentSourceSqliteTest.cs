@@ -150,6 +150,18 @@ public sealed class EnlistmentSourceSqliteTest
     }
 
     [Test]
+    public async Task TheContextCarriesTheSchedulerTheCallWasMadeOn()
+    {
+        Source source = new();
+        IScheduler scheduler = await GetScheduler(source);
+
+        await scheduler.Exists(jobKey);
+
+        source.LastScheduler.Should().BeSameAs(scheduler,
+            "the source enlists on the scheduler it is handed, and that is the one the call was made on");
+    }
+
+    [Test]
     public async Task ASourceThatReturnsNullRunsTheCallInTheStoresOwnTransaction()
     {
         Source source = new();
@@ -822,10 +834,16 @@ public sealed class EnlistmentSourceSqliteTest
 
         internal int Calls => Volatile.Read(ref calls);
 
-        internal IDisposable? Enlist(IScheduler scheduler)
+        /// <summary>
+        /// The scheduler the last call carried in its context.
+        /// </summary>
+        internal IScheduler? LastScheduler { get; private set; }
+
+        internal IDisposable? Enlist(EnlistmentSourceContext context)
         {
             Interlocked.Increment(ref calls);
-            return Behaviour(scheduler);
+            LastScheduler = context.Scheduler;
+            return Behaviour(context.Scheduler);
         }
     }
 
