@@ -136,6 +136,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
         LockFreeFiringRounds = options.LockFreeFiringRounds;
         TransactionIsolationLevel = options.TransactionIsolationLevel;
         AcceptEnlistedTransactions = options.AcceptEnlistedTransactions;
+        EnlistmentSource = options.EnlistmentSource;
         DoubleCheckLockMisfireHandler = options.DoubleCheckLockMisfireHandler;
         UseBackgroundThreads = options.UseBackgroundThreads;
         SchemaProvisioning = options.SchemaProvisioning;
@@ -347,6 +348,17 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
     /// </para>
     /// </remarks>
     internal bool AcceptEnlistedTransactions { get; }
+
+    /// <summary>
+    /// What decides, as a scheduler call begins, whether it runs in a transaction the application owns,
+    /// or <see langword="null" /> when nothing does.
+    /// </summary>
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.EnlistmentSource" />. The store never calls it: the
+    /// scheduler reads it once, as it is built, and consults it from <see cref="StdScheduler" /> - the one
+    /// place every caller's scheduler call passes through and the scheduler's own work does not.
+    /// </remarks>
+    internal Func<IScheduler, IDisposable?>? EnlistmentSource { get; }
 
     /// <summary>
     /// Whether or not to obtain locks when inserting new jobs/triggers.

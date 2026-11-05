@@ -21,6 +21,7 @@
 
 using Quartz.Core;
 using Quartz.Extensibility;
+using Quartz.Impl.AdoJobStore;
 using Quartz.Util;
 
 namespace Quartz.Impl;
@@ -34,7 +35,7 @@ namespace Quartz.Impl;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
+internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSource
 {
     internal readonly QuartzScheduler scheduler;
 
@@ -45,6 +46,11 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     public StdScheduler(QuartzScheduler scheduler)
     {
         this.scheduler = scheduler;
+
+        // Read once, here, so a scheduler with nothing to consult pays one null check per call. Through
+        // the decorators every store is wrapped in, as with every question about what the store is.
+        enlistingStore = JobStores.Unwrap(scheduler.resources.JobStore) as AdoJobStoreBase;
+        enlistmentSource = enlistingStore?.EnlistmentSource;
     }
 
     /// <summary>
@@ -125,7 +131,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
     {
-        return scheduler.QueryFireInstances(query, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.QueryFireInstances(query, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.QueryFireInstances(state, ct), query, cancellationToken);
     }
 
     /// <summary>
@@ -133,7 +141,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
     {
-        return scheduler.QueryClusterNodes(cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.QueryClusterNodes(cancellationToken)
+            : WithEnlistment(static (qs, _, ct) => qs.QueryClusterNodes(ct), default(NoState), cancellationToken);
     }
 
     /// <summary>
@@ -141,7 +151,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask Clear(CancellationToken cancellationToken = default)
     {
-        return scheduler.Clear(cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.Clear(cancellationToken)
+            : WithEnlistment(static (qs, _, ct) => qs.Clear(ct), default(NoState), cancellationToken);
     }
 
     /// <summary>
@@ -204,7 +216,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ScheduleJob(jobDetail, trigger, options, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ScheduleJob(jobDetail, trigger, options, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.ScheduleJob(s.jobDetail, s.trigger, s.options, ct), (jobDetail, trigger, options), cancellationToken);
     }
 
     /// <summary>
@@ -215,7 +229,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ScheduleJob(trigger, options, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ScheduleJob(trigger, options, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.ScheduleJob(s.trigger, s.options, ct), (trigger, options), cancellationToken);
     }
 
     /// <summary>
@@ -226,7 +242,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         TriggerConflict onConflict,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ScheduleTrigger(trigger, onConflict, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ScheduleTrigger(trigger, onConflict, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.ScheduleTrigger(s.trigger, s.onConflict, ct), (trigger, onConflict), cancellationToken);
     }
 
     /// <summary>
@@ -237,21 +255,27 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         AddJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.AddJob(jobDetail, options, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.AddJob(jobDetail, options, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.AddJob(s.jobDetail, s.options, ct), (jobDetail, options), cancellationToken);
     }
 
     public ValueTask<List<JobKey>> DeleteJobs(
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.DeleteJobs(jobKeys, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.DeleteJobs(jobKeys, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.DeleteJobs(state, ct), jobKeys, cancellationToken);
     }
 
     public ValueTask<List<JobKey>> DeleteJobs(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.DeleteJobs(matcher, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.DeleteJobs(matcher, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.DeleteJobs(state, ct), matcher, cancellationToken);
     }
 
     public ValueTask ScheduleJobs(
@@ -259,7 +283,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ScheduleJobs(triggersAndJobs, options, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ScheduleJobs(triggersAndJobs, options, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.ScheduleJobs(s.triggersAndJobs, s.options, ct), (triggersAndJobs, options), cancellationToken);
     }
 
     public ValueTask ScheduleJob(
@@ -268,21 +294,27 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ScheduleJob(jobDetail, triggersForJob, options, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ScheduleJob(jobDetail, triggersForJob, options, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.ScheduleJob(s.jobDetail, s.triggersForJob, s.options, ct), (jobDetail, triggersForJob, options), cancellationToken);
     }
 
     public ValueTask<List<TriggerKey>> UnscheduleJobs(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.UnscheduleJobs(triggerKeys, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.UnscheduleJobs(triggerKeys, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.UnscheduleJobs(state, ct), triggerKeys, cancellationToken);
     }
 
     public ValueTask<List<TriggerKey>> UnscheduleJobs(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.UnscheduleJobs(matcher, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.UnscheduleJobs(matcher, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.UnscheduleJobs(state, ct), matcher, cancellationToken);
     }
 
     /// <summary>
@@ -292,7 +324,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.DeleteJob(jobKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.DeleteJob(jobKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.DeleteJob(state, ct), jobKey, cancellationToken);
     }
 
     /// <summary>
@@ -302,7 +336,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.UnscheduleJob(triggerKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.UnscheduleJob(triggerKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.UnscheduleJob(state, ct), triggerKey, cancellationToken);
     }
 
     /// <summary>
@@ -313,7 +349,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         ITrigger newTrigger,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.RescheduleJob(triggerKey, newTrigger, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.RescheduleJob(triggerKey, newTrigger, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.RescheduleJob(s.triggerKey, s.newTrigger, ct), (triggerKey, newTrigger), cancellationToken);
     }
 
     /// <summary>
@@ -324,7 +362,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         TriggerDetailsUpdate update,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.UpdateTriggerDetails(triggerKey, update, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.UpdateTriggerDetails(triggerKey, update, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.UpdateTriggerDetails(s.triggerKey, s.update, ct), (triggerKey, update), cancellationToken);
     }
 
     /// <summary>
@@ -354,7 +394,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         JobDataMap? data = null,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.TriggerJob(jobKey, data, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.TriggerJob(jobKey, data, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.TriggerJob(s.jobKey, s.data, ct), (jobKey, data), cancellationToken);
     }
 
     /// <summary>
@@ -364,7 +406,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.Exists(jobKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.Exists(jobKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.Exists(state, ct), jobKey, cancellationToken);
     }
 
     /// <summary>
@@ -374,7 +418,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.Exists(triggerKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.Exists(triggerKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.Exists(state, ct), triggerKey, cancellationToken);
     }
 
     /// <summary>
@@ -384,7 +430,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.Exists(calendarName, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.Exists(calendarName, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.Exists(state, ct), calendarName, cancellationToken);
     }
 
     /// <summary>
@@ -394,7 +442,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseTrigger(triggerKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseTrigger(triggerKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.PauseTrigger(state, ct), triggerKey, cancellationToken);
     }
 
     /// <summary>
@@ -404,67 +454,89 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseTriggerGroups(matcher, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseTriggerGroups(matcher, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.PauseTriggerGroups(state, ct), matcher, cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<bool> PauseTriggerWith(TriggerKey triggerKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseTriggerWith(triggerKey, details, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseTriggerWith(triggerKey, details, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.PauseTriggerWith(s.triggerKey, s.details, ct), (triggerKey, details), cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<bool> PauseJobWith(JobKey jobKey, PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseJobWith(jobKey, details, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseJobWith(jobKey, details, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.PauseJobWith(s.jobKey, s.details, ct), (jobKey, details), cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<List<string>> PauseTriggerGroupsWith(GroupMatcher<TriggerKey> matcher, PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseTriggerGroupsWith(matcher, details, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseTriggerGroupsWith(matcher, details, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.PauseTriggerGroupsWith(s.matcher, s.details, ct), (matcher, details), cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<List<string>> PauseJobGroupsWith(GroupMatcher<JobKey> matcher, PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseJobGroupsWith(matcher, details, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseJobGroupsWith(matcher, details, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.PauseJobGroupsWith(s.matcher, s.details, ct), (matcher, details), cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask PauseAllWith(PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseAllWith(details, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseAllWith(details, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.PauseAllWith(state, ct), details, cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<List<TriggerKey>> PauseTriggersWith(IReadOnlyCollection<TriggerKey> triggerKeys, PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseTriggersWith(triggerKeys, details, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseTriggersWith(triggerKeys, details, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.PauseTriggersWith(s.triggerKeys, s.details, ct), (triggerKeys, details), cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<List<JobKey>> PauseJobsWith(IReadOnlyCollection<JobKey> jobKeys, PauseDetails? details, CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseJobsWith(jobKeys, details, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseJobsWith(jobKeys, details, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.PauseJobsWith(s.jobKeys, s.details, ct), (jobKeys, details), cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<PauseInfo?> GetTriggerPause(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetTriggerPause(triggerKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.GetTriggerPause(triggerKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.GetTriggerPause(state, ct), triggerKey, cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<PauseInfo?> GetTriggerGroupPause(string groupName, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetTriggerGroupPause(groupName, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.GetTriggerGroupPause(groupName, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.GetTriggerGroupPause(state, ct), groupName, cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<PauseInfo?> GetJobGroupPause(string groupName, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetJobGroupPause(groupName, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.GetJobGroupPause(groupName, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.GetJobGroupPause(state, ct), groupName, cancellationToken);
     }
 
     /// <summary>
@@ -474,7 +546,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseTriggers(triggerKeys, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseTriggers(triggerKeys, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.PauseTriggers(state, ct), triggerKeys, cancellationToken);
     }
 
     /// <summary>
@@ -484,7 +558,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseJob(jobKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseJob(jobKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.PauseJob(state, ct), jobKey, cancellationToken);
     }
 
     /// <summary>
@@ -494,7 +570,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseJobGroups(matcher, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseJobGroups(matcher, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.PauseJobGroups(state, ct), matcher, cancellationToken);
     }
 
     /// <summary>
@@ -504,7 +582,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseJobs(jobKeys, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseJobs(jobKeys, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.PauseJobs(state, ct), jobKeys, cancellationToken);
     }
 
     /// <summary>
@@ -514,7 +594,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeTrigger(triggerKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ResumeTrigger(triggerKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.ResumeTrigger(state, ct), triggerKey, cancellationToken);
     }
 
     /// <summary>
@@ -524,7 +606,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeTriggerGroups(matcher, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ResumeTriggerGroups(matcher, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.ResumeTriggerGroups(state, ct), matcher, cancellationToken);
     }
 
     /// <summary>
@@ -534,7 +618,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeTriggers(triggerKeys, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ResumeTriggers(triggerKeys, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.ResumeTriggers(state, ct), triggerKeys, cancellationToken);
     }
 
     /// <summary>
@@ -544,7 +630,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeJob(jobKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ResumeJob(jobKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.ResumeJob(state, ct), jobKey, cancellationToken);
     }
 
     /// <summary>
@@ -554,7 +642,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeJobGroups(matcher, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ResumeJobGroups(matcher, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.ResumeJobGroups(state, ct), matcher, cancellationToken);
     }
 
     /// <summary>
@@ -564,7 +654,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeJobs(jobKeys, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ResumeJobs(jobKeys, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.ResumeJobs(state, ct), jobKeys, cancellationToken);
     }
 
     /// <summary>
@@ -572,7 +664,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseAll(cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.PauseAll(cancellationToken)
+            : WithEnlistment(static (qs, _, ct) => qs.PauseAll(ct), default(NoState), cancellationToken);
     }
 
     /// <summary>
@@ -580,7 +674,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeAll(cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ResumeAll(cancellationToken)
+            : WithEnlistment(static (qs, _, ct) => qs.ResumeAll(ct), default(NoState), cancellationToken);
     }
 
     /// <summary>
@@ -588,7 +684,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
-        return scheduler.QueryJobs(query, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.QueryJobs(query, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.QueryJobs(state, ct), query, cancellationToken);
     }
 
     /// <summary>
@@ -596,7 +694,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
     {
-        return scheduler.QueryTriggers(query, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.QueryTriggers(query, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.QueryTriggers(state, ct), query, cancellationToken);
     }
 
     /// <summary>
@@ -604,7 +704,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     ValueTask<string?> ISharedExecutionGroupSource.GetSharedExecutionGroup(JobKey jobKey, CancellationToken cancellationToken)
     {
-        return scheduler.GetSharedExecutionGroup(jobKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.GetSharedExecutionGroup(jobKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.GetSharedExecutionGroup(state, ct), jobKey, cancellationToken);
     }
 
     /// <summary>
@@ -612,7 +714,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
     {
-        return scheduler.QueryJobGroups(query, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.QueryJobGroups(query, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.QueryJobGroups(state, ct), query, cancellationToken);
     }
 
     /// <summary>
@@ -620,7 +724,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
     {
-        return scheduler.QueryTriggerGroups(query, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.QueryTriggerGroups(query, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.QueryTriggerGroups(state, ct), query, cancellationToken);
     }
 
     /// <summary>
@@ -628,7 +734,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
     {
-        return scheduler.QueryCalendarNames(query, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.QueryCalendarNames(query, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.QueryCalendarNames(state, ct), query, cancellationToken);
     }
 
     /// <summary>
@@ -636,7 +744,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetJobDetails(jobKeys, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.GetJobDetails(jobKeys, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.GetJobDetails(state, ct), jobKeys, cancellationToken);
     }
 
     /// <summary>
@@ -644,7 +754,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<List<ITrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetTriggers(triggerKeys, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.GetTriggers(triggerKeys, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.GetTriggers(state, ct), triggerKeys, cancellationToken);
     }
 
     /// <summary>
@@ -654,7 +766,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.GetJobDetail(jobKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.GetJobDetail(jobKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.GetJobDetail(state, ct), jobKey, cancellationToken);
     }
 
     /// <summary>
@@ -662,7 +776,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetTrigger(triggerKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.GetTrigger(triggerKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.GetTrigger(state, ct), triggerKey, cancellationToken);
     }
 
     /// <summary>
@@ -672,7 +788,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.GetTriggerState(triggerKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.GetTriggerState(triggerKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.GetTriggerState(state, ct), triggerKey, cancellationToken);
     }
 
     /// <summary>
@@ -680,7 +798,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.ResetTriggerFromErrorState(state, ct), triggerKey, cancellationToken);
     }
 
     /// <summary>
@@ -690,7 +810,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ResetTriggersFromErrorState(triggerKeys, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.ResetTriggersFromErrorState(triggerKeys, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.ResetTriggersFromErrorState(state, ct), triggerKeys, cancellationToken);
     }
 
     /// <summary>
@@ -702,7 +824,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         AddCalendarOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.AddCalendar(calendarName, calendar, options, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.AddCalendar(calendarName, calendar, options, cancellationToken)
+            : WithEnlistment(static (qs, s, ct) => qs.AddCalendar(s.calendarName, s.calendar, s.options, ct), (calendarName, calendar, options), cancellationToken);
     }
 
     /// <summary>
@@ -712,7 +836,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.DeleteCalendar(calendarName, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.DeleteCalendar(calendarName, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.DeleteCalendar(state, ct), calendarName, cancellationToken);
     }
 
     /// <summary>
@@ -720,7 +846,9 @@ internal sealed class StdScheduler : IScheduler, ISharedExecutionGroupSource
     /// </summary>
     public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetCalendar(calendarName, cancellationToken);
+        return enlistmentSource is null
+            ? scheduler.GetCalendar(calendarName, cancellationToken)
+            : WithEnlistment(static (qs, state, ct) => qs.GetCalendar(state, ct), calendarName, cancellationToken);
     }
 
     /// <inheritdoc />

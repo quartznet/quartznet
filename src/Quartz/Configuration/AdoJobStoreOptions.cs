@@ -316,6 +316,64 @@ public sealed class AdoJobStoreOptions
     public bool AcceptEnlistedTransactions { get; set; }
 
     /// <summary>
+    /// Decides, as each scheduler call that reads or writes the job store begins, whether that call runs
+    /// inside a transaction the application owns, so that no caller has to enlist it. Code only; left
+    /// unset, every call keeps using the store's own transaction.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The delegate is handed the scheduler. To take part it calls
+    /// <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" /> or
+    /// <see cref="SchedulerEnlistmentExtensions.EnlistConnection" /> on it, and returns the
+    /// <see cref="IDisposable" /> that ends the enlistment. It returns <see langword="null" /> when there
+    /// is nothing to enlist, and the call then uses the store's own transaction. The scheduler disposes
+    /// what is returned when the call completes, including when it fails or is cancelled.
+    /// </para>
+    /// <para>
+    /// It runs synchronously, on the caller's thread, before the call's first <c>await</c>. That is the
+    /// point of it: state an embedding framework keeps in a thread-static, such as the transaction it
+    /// bound to the current thread, is still readable there, and is not after a <c>ConfigureAwait(false)</c>
+    /// continuation. It is therefore synchronous by design, and quick: it must not block or call the
+    /// scheduler.
+    /// </para>
+    /// <para>
+    /// It is consulted by every <see cref="IScheduler" /> member that reads or writes the store - scheduling,
+    /// unscheduling, rescheduling, adding, deleting and triggering jobs, pausing and resuming, every get,
+    /// query and exists, the calendar members and <see cref="IScheduler.Clear" /> - and by none of
+    /// <see cref="IScheduler.Start" />, <see cref="IScheduler.StartDelayed" />, <see cref="IScheduler.Standby" />,
+    /// <see cref="IScheduler.Shutdown" />, the status and metadata members, <see cref="IScheduler.Context" />,
+    /// <see cref="IScheduler.ListenerManager" /> and <see cref="IScheduler.Interrupt" />. Every caller is
+    /// consulted alike: the application, a job through <see cref="IJobExecutionContext.Scheduler" />, a
+    /// listener, the HTTP API and the dashboard.
+    /// </para>
+    /// <para>
+    /// It is not consulted when the flow already holds an enlistment for this scheduler: an explicit
+    /// <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" /> wins. Nor is it ever offered the
+    /// scheduler's own work - acquiring, firing and completing triggers, misfire handling, cluster
+    /// check-in and recovery - which keeps using connections of the store's own.
+    /// </para>
+    /// <para>
+    /// An enlistment made here is the same enlistment, and meets the same refusals: a provider other than
+    /// the store's, SQLite with an ambient transaction, and a store that is not a persistent ADO.NET store.
+    /// They throw from inside the delegate, and the exception reaches the caller unchanged before any store
+    /// work. An exception from disposing what it returned reaches the caller after a call that succeeded,
+    /// and never replaces the exception of one that failed.
+    /// </para>
+    /// <para>
+    /// Disposing an enlistment of a <see cref="DbTransaction" /> raises the scheduling signal the call
+    /// deferred, so a scope disposed as the call ends signals before the application has committed, and a
+    /// trigger due soon may wait up to <see cref="QuartzSchedulerOptions.IdleWaitTime" /> to be seen. To
+    /// signal after the commit, return a disposable that disposes the enlistment when the transaction
+    /// completes instead. Calls inside one transaction have to be awaited one at a time.
+    /// </para>
+    /// <para>
+    /// Requires <see cref="AcceptEnlistedTransactions" />: a store configured with this and without that
+    /// fails when the scheduler is built. It is an object, so it has no <c>quartz.*</c> key.
+    /// </para>
+    /// </remarks>
+    public Func<IScheduler, IDisposable?>? EnlistmentSource { get; set; }
+
+    /// <summary>
     /// Whether the misfire handler double-checks the lock before doing work.
     /// </summary>
     public bool DoubleCheckLockMisfireHandler { get; set; } = true;
