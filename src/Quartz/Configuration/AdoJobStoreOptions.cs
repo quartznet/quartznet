@@ -337,14 +337,27 @@ public sealed class AdoJobStoreOptions
     /// scheduler.
     /// </para>
     /// <para>
+    /// Through the container's <see cref="IScheduler" /> that holds once the scheduler is built: until then
+    /// each call first awaits the build, and the source runs on whichever thread that await resumes on, where
+    /// a thread-static is not to be found. The hosted service builds every scheduler when the host starts;
+    /// otherwise await <see cref="ISchedulerFactory.GetScheduler" /> at startup. A source that reads an
+    /// <see cref="AsyncLocal{T}" /> or <see cref="System.Transactions.Transaction.Current" /> is not affected.
+    /// </para>
+    /// <para>
     /// It is consulted by every <see cref="IScheduler" /> member that reads or writes the store - scheduling,
     /// unscheduling, rescheduling, adding, deleting and triggering jobs, pausing and resuming, every get,
     /// query and exists, the calendar members and <see cref="IScheduler.Clear" /> - and by none of
     /// <see cref="IScheduler.Start" />, <see cref="IScheduler.StartDelayed" />, <see cref="IScheduler.Standby" />,
     /// <see cref="IScheduler.Shutdown" />, the status and metadata members, <see cref="IScheduler.Context" />,
-    /// <see cref="IScheduler.ListenerManager" /> and <see cref="IScheduler.Interrupt" />. Every caller is
-    /// consulted alike: the application, a job through <see cref="IJobExecutionContext.Scheduler" />, a
-    /// listener, the HTTP API and the dashboard.
+    /// <see cref="IScheduler.ListenerManager" />, the execution-limit members and the two interrupts. Every
+    /// caller is consulted alike: the application, a job through <see cref="IJobExecutionContext.Scheduler" />,
+    /// a listener, the HTTP API and the dashboard.
+    /// </para>
+    /// <para>
+    /// <see cref="IScheduler.Interrupt" /> and <see cref="IScheduler.InterruptFireInstance" /> are exempt
+    /// although on a clustered or observer store they do write: an interrupt request is recorded for a firing
+    /// on another node. It is the scheduler's own signal to a running job, and it must not roll back with the
+    /// application's transaction.
     /// </para>
     /// <para>
     /// It is not consulted when the flow already holds an enlistment for this scheduler: an explicit
@@ -365,6 +378,12 @@ public sealed class AdoJobStoreOptions
     /// trigger due soon may wait up to <see cref="QuartzSchedulerOptions.IdleWaitTime" /> to be seen. To
     /// signal after the commit, return a disposable that disposes the enlistment when the transaction
     /// completes instead. Calls inside one transaction have to be awaited one at a time.
+    /// </para>
+    /// <para>
+    /// Start the scheduler outside the application's unit of work. The refusal of a start inside an enlistment
+    /// cannot see an enlistment a source made, because that ends with each call, so a
+    /// <see cref="IScheduler.Start" /> inside a unit of work that has already written through the source waits
+    /// on the <c>TRIGGER_ACCESS</c> lock the application holds, and the application cannot commit while it waits.
     /// </para>
     /// <para>
     /// Requires <see cref="AcceptEnlistedTransactions" />: a store configured with this and without that
