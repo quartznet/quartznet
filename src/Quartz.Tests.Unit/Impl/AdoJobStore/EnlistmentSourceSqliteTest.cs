@@ -266,10 +266,16 @@ public sealed class EnlistmentSourceSqliteTest
     }
 
     /// <summary>
-    /// The members that touch no store: they start, stop, describe or interrupt, and the scheduler
-    /// never asks the source about them.
+    /// The members the scheduler never asks the source about: the ones that start, stop or describe it, and
+    /// the two interrupts.
     /// </summary>
-    private static readonly HashSet<string> membersThatTouchNoStore =
+    /// <remarks>
+    /// Most touch no store. <see cref="IScheduler.Interrupt" /> and <see cref="IScheduler.InterruptFireInstance" />
+    /// do, on a clustered or observer store, where a request is recorded for a firing on another node. They
+    /// are exempt on purpose: an interrupt request is the scheduler's own signal to a running job, and it
+    /// must not roll back with the application's transaction.
+    /// </remarks>
+    private static readonly HashSet<string> membersTheSourceIsNeverAskedAbout =
     [
         nameof(IScheduler.Start),
         nameof(IScheduler.StartDelayed),
@@ -329,19 +335,19 @@ public sealed class EnlistmentSourceSqliteTest
             .GroupBy(entry => entry.Name)
             .ToDictionary(group => group.Key, group => group.Count());
 
-        foreach (string name in membersThatTouchNoStore)
+        foreach (string name in membersTheSourceIsNeverAskedAbout)
         {
             overloads.Should().ContainKey(name, "a member that does not exist cannot be exempt");
             listed.Should().NotContainKey(name, "a member is either asked about or exempt");
         }
 
         Dictionary<string, int> expected = overloads
-            .Where(pair => !membersThatTouchNoStore.Contains(pair.Key))
+            .Where(pair => !membersTheSourceIsNeverAskedAbout.Contains(pair.Key))
             .ToDictionary(pair => pair.Key, pair => pair.Value);
 
         listed.Should().BeEquivalentTo(
             expected,
-            "an IScheduler member added later either reads or writes the store, and is asked about, or says it does not");
+            "an IScheduler member added later either reads or writes the store and asks, or is named as one the source is never asked about");
     }
 
     /// <summary>
@@ -468,12 +474,11 @@ public sealed class EnlistmentSourceSqliteTest
         DbTransaction? boundWhenAsked = null;
 
         Source source = new();
-        source.Behaviour = scheduler =>
+        source.Behaviour = EnlistTheThreadBoundTransaction((thread, bound) =>
         {
-            threadOfTheSource = Environment.CurrentManagedThreadId;
-            boundWhenAsked = threadBoundTransaction;
-            return boundWhenAsked is null ? null : scheduler.EnlistTransaction(boundWhenAsked);
-        };
+            threadOfTheSource = thread;
+            boundWhenAsked = bound;
+        });
 
         IScheduler scheduler = await GetScheduler(source);
         await BeginUnitOfWork();
@@ -493,6 +498,50 @@ public sealed class EnlistmentSourceSqliteTest
         await EndUnitOfWork(commit: false);
 
         CountRows(CountJobsSql).Should().Be(0, "and the enlistment it made took the call into the transaction");
+    }
+
+    /// <summary>
+    /// Through the container's own <see cref="IScheduler" /> the guarantee holds once the scheduler is built.
+    /// Until then each call first awaits the build, so the facade - and the source with it - runs on whichever
+    /// thread that await resumes on; the hosted service builds every scheduler when the host starts.
+    /// </summary>
+    [Test]
+    public async Task ThroughTheContainersSchedulerTheSourceIsCalledOnTheCallersThreadOnceItIsBuilt()
+    {
+        int? threadOfTheSource = null;
+        DbTransaction? boundWhenAsked = null;
+
+        Source source = new();
+        source.Behaviour = EnlistTheThreadBoundTransaction((thread, bound) =>
+        {
+            threadOfTheSource = thread;
+            boundWhenAsked = bound;
+        });
+
+        IScheduler built = await GetScheduler(source);
+        IScheduler fromTheContainer = container!.GetRequiredService<IScheduler>();
+        fromTheContainer.Should().NotBeSameAs(built, "the container hands out a handle that resolves the scheduler, not the scheduler");
+
+        await BeginUnitOfWork();
+
+        // The first call resolves the built scheduler, and a second takes the handle's fast path.
+        for (int call = 1; call <= 2; call++)
+        {
+            threadOfTheSource = null;
+            boundWhenAsked = null;
+
+            int callerThread = Environment.CurrentManagedThreadId;
+            threadBoundTransaction = applicationTransaction;
+            ValueTask<bool> pending = fromTheContainer.Exists(jobKey);
+            threadBoundTransaction = null;
+
+            threadOfTheSource.Should().Be(callerThread, $"call {call} reached the source before its first await");
+            boundWhenAsked.Should().BeSameAs(applicationTransaction, $"so call {call} could read the thread-static");
+
+            await pending;
+        }
+
+        await EndUnitOfWork(commit: false);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -572,7 +621,13 @@ public sealed class EnlistmentSourceSqliteTest
     /// - the source keeps it alive, as one that ends it after the commit does - so nothing but the call
     /// giving the context back can hide it from the next one.
     /// </summary>
+    /// <remarks>
+    /// The call under test is the only enlisted call on the flow, and it is awaited here and not inside a
+    /// lambda: an <c>async</c> lambda restores its caller's execution context when it returns, which would
+    /// hide exactly the leak this looks for.
+    /// </remarks>
     [TestCase("a call that succeeds")]
+    [TestCase("a call that answers with nothing")]
     [TestCase("a call that fails")]
     [TestCase("a call that is cancelled")]
     public async Task AFlowThatMadeAnEnlistedCallIsNotEnlistedAfterIt(string howTheCallEnds)
@@ -581,32 +636,55 @@ public sealed class EnlistmentSourceSqliteTest
         source.Behaviour = DeferScopeUntilTheTestEnds;
         IScheduler scheduler = await GetScheduler(source);
 
+        if (howTheCallEnds == "a call that fails")
+        {
+            // What the call under test fails on. There is no unit of work yet, so the source answers null and
+            // the store commits it itself.
+            await scheduler.ScheduleJob(CreateJob(), CreateTrigger());
+        }
+
         await BeginUnitOfWork();
-        await scheduler.ScheduleJob(CreateJob(), CreateTrigger());
-        AmbientConnection.Get(SchedulerName).Should().BeNull("the first call returned, and with it the context it enlisted in");
 
         using CancellationTokenSource cancelled = new();
-        Func<Task> second = howTheCallEnds switch
-        {
-            "a call that fails" => async () => await scheduler.ScheduleJob(CreateJob(), CreateTrigger()),
-            "a call that is cancelled" => async () =>
-            {
-                await cancelled.CancelAsync();
-                await scheduler.Exists(jobKey, cancelled.Token);
-            },
-            _ => async () => await scheduler.Exists(jobKey),
-        };
+        Exception? outcome = null;
 
         try
         {
-            await second();
+            if (howTheCallEnds == "a call that is cancelled")
+            {
+                await cancelled.CancelAsync();
+                await scheduler.Exists(jobKey, cancelled.Token);
+            }
+            else if (howTheCallEnds == "a call that answers with nothing")
+            {
+                await scheduler.AddJob(CreateJob());
+            }
+            else
+            {
+                await scheduler.ScheduleJob(CreateJob(), CreateTrigger());
+            }
         }
-        catch (Exception)
+        catch (Exception exception)
         {
-            // Failing or being cancelled is the point of the second call.
+            outcome = exception;
         }
 
-        AmbientConnection.Get(SchedulerName).Should().BeNull($"{howTheCallEnds} gave the caller's context back too");
+        deferredScopes.Should().ContainSingle("the call under test was the one call that enlisted");
+
+        switch (howTheCallEnds)
+        {
+            case "a call that fails":
+                outcome.Should().BeOfType<ObjectAlreadyExistsException>();
+                break;
+            case "a call that is cancelled":
+                outcome.Should().BeAssignableTo<OperationCanceledException>();
+                break;
+            default:
+                outcome.Should().BeNull();
+                break;
+        }
+
+        AmbientConnection.Get(SchedulerName).Should().BeNull($"{howTheCallEnds} gave the caller's context back");
 
         int before = source.Calls;
         await scheduler.Exists(jobKey);
@@ -694,6 +772,20 @@ public sealed class EnlistmentSourceSqliteTest
     // ---------------------------------------------------------------------------------------------
     // What the tests share
     // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// What an embedder with a thread-static transaction does: reads the transaction bound to the thread it
+    /// is called on, and enlists it. Says which thread that was, and what it found there.
+    /// </summary>
+    private static Func<IScheduler, IDisposable?> EnlistTheThreadBoundTransaction(Action<int, DbTransaction?> asked)
+    {
+        return scheduler =>
+        {
+            DbTransaction? bound = threadBoundTransaction;
+            asked(Environment.CurrentManagedThreadId, bound);
+            return bound is null ? null : scheduler.EnlistTransaction(bound);
+        };
+    }
 
     private IDisposable? EnlistApplicationTransaction(IScheduler scheduler)
     {

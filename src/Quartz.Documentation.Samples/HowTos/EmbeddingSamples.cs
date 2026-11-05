@@ -364,6 +364,10 @@ public static class EmbeddingSamples
             return new NothingToEnd();
         }
 
+        /// <summary>
+        /// Called when the unit of work completes, committed or rolled back. Ending the enlistment on
+        /// rollback signals the scheduler too, and it finds nothing new to act on.
+        /// </summary>
         public void Complete()
         {
             foreach (IDisposable enlistment in ending)
