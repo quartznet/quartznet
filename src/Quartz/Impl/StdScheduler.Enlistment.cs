@@ -55,7 +55,7 @@ internal sealed partial class StdScheduler
     /// <summary>
     /// What the members branch on: <see langword="null" /> costs one check and nothing else.
     /// </summary>
-    private readonly Func<IScheduler, IDisposable?>? enlistmentSource;
+    private readonly Func<EnlistmentSourceContext, IDisposable?>? enlistmentSource;
 
     /// <summary>
     /// The state of a call that has no arguments to carry.
@@ -131,9 +131,9 @@ internal sealed partial class StdScheduler
     /// <remarks>
     /// An explicit <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" /> is the caller saying
     /// which transaction this is, and a source second-guessing it would be a second opinion about a
-    /// question that has been answered. The source is handed this facade, which is what
-    /// <see cref="SchedulerEnlistmentExtensions" /> resolves a scheduler to, so every refusal those
-    /// methods make applies to what it enlists.
+    /// question that has been answered. The context is built here and nowhere else, so a scheduler with no
+    /// source builds none. It carries this facade, which is what <see cref="SchedulerEnlistmentExtensions" />
+    /// resolves a scheduler to, so every refusal those methods make applies to what the source enlists.
     /// </remarks>
     private IDisposable? Consult()
     {
@@ -142,7 +142,7 @@ internal sealed partial class StdScheduler
             return null;
         }
 
-        return enlistmentSource!(this);
+        return enlistmentSource!(new EnlistmentSourceContext { Scheduler = this });
     }
 
     /// <summary>

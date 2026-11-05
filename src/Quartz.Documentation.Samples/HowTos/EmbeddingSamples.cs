@@ -300,8 +300,8 @@ public static class EmbeddingSamples
 
                 // Called on the caller's thread as each call that reads or writes the store begins, so
                 // whatever the application keeps in a thread-static is still there to read.
-                options.EnlistmentSource = scheduler =>
-                    ApplicationUnitOfWork.Current is { } unit ? scheduler.EnlistTransaction(unit.Transaction) : null;
+                options.EnlistmentSource = context =>
+                    ApplicationUnitOfWork.Current is { } unit ? context.Scheduler.EnlistTransaction(unit.Transaction) : null;
             });
         }));
 
@@ -318,7 +318,7 @@ public static class EmbeddingSamples
             store.ConfigureStore(options =>
             {
                 options.AcceptEnlistedTransactions = true;
-                options.EnlistmentSource = scheduler =>
+                options.EnlistmentSource = context =>
                 {
                     if (ApplicationUnitOfWork.Current is not { } unit)
                     {
@@ -327,7 +327,7 @@ public static class EmbeddingSamples
 
                     // The scheduler disposes what this returns as the call ends, before the commit. Ending
                     // the enlistment is what signals the scheduler, so this one waits for the commit.
-                    return unit.EndAfterCompletion(scheduler.EnlistTransaction(unit.Transaction));
+                    return unit.EndAfterCompletion(context.Scheduler.EnlistTransaction(unit.Transaction));
                 };
             });
         }));

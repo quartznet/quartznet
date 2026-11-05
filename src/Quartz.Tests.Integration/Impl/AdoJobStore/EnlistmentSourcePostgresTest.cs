@@ -281,7 +281,7 @@ public sealed class EnlistmentSourcePostgresTest
                 store.ConfigureStore(options =>
                 {
                     options.AcceptEnlistedTransactions = true;
-                    options.EnlistmentSource = source;
+                    options.EnlistmentSource = context => source(context.Scheduler);
                 });
             });
         });

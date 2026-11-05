@@ -358,7 +358,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
     /// scheduler reads it once, as it is built, and consults it from <see cref="StdScheduler" /> - the one
     /// place every caller's scheduler call passes through and the scheduler's own work does not.
     /// </remarks>
-    internal Func<IScheduler, IDisposable?>? EnlistmentSource { get; }
+    internal Func<EnlistmentSourceContext, IDisposable?>? EnlistmentSource { get; }
 
     /// <summary>
     /// Whether or not to obtain locks when inserting new jobs/triggers.

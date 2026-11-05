@@ -552,16 +552,17 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 
         // Called on the caller's thread as each call that reads or writes the store begins, so
         // whatever the application keeps in a thread-static is still there to read.
-        options.EnlistmentSource = scheduler =>
-            ApplicationUnitOfWork.Current is { } unit ? scheduler.EnlistTransaction(unit.Transaction) : null;
+        options.EnlistmentSource = context =>
+            ApplicationUnitOfWork.Current is { } unit ? context.Scheduler.EnlistTransaction(unit.Transaction) : null;
     });
 }));
 ```
 <!-- endSnippet -->
 
-`ApplicationUnitOfWork` stands for wherever your library keeps its current transaction. The delegate calls
-`EnlistTransaction` or `EnlistConnection` on the scheduler it is given and returns what they return. It
-returns `null` when there is nothing to enlist, and the call uses the store's own transaction.
+`ApplicationUnitOfWork` stands for wherever your library keeps its current transaction. The delegate is handed
+an `EnlistmentSourceContext`. It calls `EnlistTransaction` or `EnlistConnection` on the context's `Scheduler`
+and returns what they return. It returns `null` when there is nothing to enlist, and the call uses the
+store's own transaction.
 
 | Question | Answer |
 |---|---|
@@ -589,7 +590,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
     store.ConfigureStore(options =>
     {
         options.AcceptEnlistedTransactions = true;
-        options.EnlistmentSource = scheduler =>
+        options.EnlistmentSource = context =>
         {
             if (ApplicationUnitOfWork.Current is not { } unit)
             {
@@ -598,7 +599,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 
             // The scheduler disposes what this returns as the call ends, before the commit. Ending
             // the enlistment is what signals the scheduler, so this one waits for the commit.
-            return unit.EndAfterCompletion(scheduler.EnlistTransaction(unit.Transaction));
+            return unit.EndAfterCompletion(context.Scheduler.EnlistTransaction(unit.Transaction));
         };
     });
 }));
