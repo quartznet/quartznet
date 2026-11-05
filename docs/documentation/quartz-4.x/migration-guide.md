@@ -50,6 +50,7 @@ An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorization
 | Package `Quartz.Dashboard.Host` | The dashboard as the `quartz-dashboard` tool and the `ghcr.io/quartznet/quartz-dashboard` image, configured from `Quartz:Dashboard` alone. No public API. See [Dashboard Host](packages/dashboard-host.md) |
 | Package `Quartz.Aspire.Hosting` | `AddQuartzDashboard`, `WithAttachedStore`, `WithReference(dashboard)`, `QuartzDashboardResource` and `QuartzAttachedStoreSettings`, in the `Aspire.Hosting` namespaces. See [Aspire Hosting](packages/aspire-hosting.md) |
 | Log events `9400`–`9409` | The dashboard host's start, its refusals to start, `Unsecured` mode and sign-ins. See [Log Events](log-events.md) |
+| `AdoJobStoreOptions.EnlistmentSource` | `Func<IScheduler, IDisposable?>?`, default `null`: asked as each `IScheduler` call that reads or writes the store begins, to enlist the application's transaction for it. Needs `AcceptEnlistedTransactions`; code only, with no `quartz.*` key. See [Enlisting without each caller asking](how-tos/embedding-quartz-in-a-library.md#enlisting-without-each-caller-asking) |
 
 | Changed | What to check |
 |---|---|

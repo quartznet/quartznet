@@ -560,6 +560,9 @@ scope.Complete();
 Sharing one connection also keeps the transaction from being promoted to a distributed one, which is
 unavailable outside Windows and unsupported by providers such as Npgsql.
 
+To enlist without every caller doing it, set `EnlistmentSource`. See
+[Enlisting without each caller asking](../how-tos/embedding-quartz-in-a-library.md#enlisting-without-each-caller-asking).
+
 Before you enable this:
 
 * The enlistment flows with the current asynchronous context. Establish it in the same scope as the
