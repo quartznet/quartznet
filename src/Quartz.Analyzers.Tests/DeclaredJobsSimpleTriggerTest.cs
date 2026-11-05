@@ -403,7 +403,9 @@ public class DeclaredJobsSimpleTriggerTest
             await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
         }
 
-        DateTimeOffset[] times = [.. fired];
+        // The job allows concurrent execution, so on a slow runner two firings can run at once and enqueue out
+        // of order. The scheduled times are what the trigger promises, so compare them in time order.
+        DateTimeOffset[] times = [.. fired.Order()];
         times.Should().HaveCount(3, "RepeatCount = 2 is the first firing and two repeats, after which the trigger completes");
         times.Zip(times.Skip(1), (earlier, later) => later - earlier).Should().AllSatisfy(x =>
             x.Should().Be(TimeSpan.FromMilliseconds(200), "each firing is scheduled one declared interval after the last"));
