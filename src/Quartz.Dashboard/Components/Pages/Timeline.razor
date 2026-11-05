@@ -4,14 +4,19 @@
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@using Routes = Quartz.HttpApiContract.SchedulerRoutes
+@using WireRoute = Quartz.HttpApiContract.WireRoute
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject NavigationManager Navigation
 @inject IJSRuntime JsRuntime
+@inject ToastService Toasts
+@inject DashboardActionLog ActionLog
 
-<div class="qz-page">
+<div class="qz-page qz-page-timeline">
     <div class="qz-page-header">
         <h1>Timeline</h1>
         <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Live · 1s</span>
@@ -34,117 +39,140 @@
     }
     else
     {
-        <div class="qz-timeline"
-             data-testid="timeline-gantt"
-             style="@MinuteGridStyle">
-            <div class="qz-timeline-toolbar">
-                <div class="qz-timeline-toolbar-group" role="group" aria-label="Time window">
-                    <button type="button"
-                            class="qz-button qz-timeline-icon-btn"
-                            data-testid="timeline-zoom-out"
-                            title="Widen window"
-                            disabled="@(!CanZoomOut)"
-                            @onclick="ZoomOutAsync">−</button>
-                    <select class="qz-select qz-timeline-window-select"
+        <div class="qz-live-filters" data-testid="timeline-controls">
+            <div class="qz-live-filter-grid">
+                <div class="qz-form-group">
+                    <label class="qz-form-label" for="timeline-window">Window</label>
+                    <select id="timeline-window"
+                            class="qz-select"
                             data-testid="timeline-window"
                             value="@_window.Key"
-                            @onchange="OnWindowChanged"
-                            aria-label="Time window">
+                            @onchange="OnWindowChanged">
                         @foreach (TimelineWindow window in TimelineWindow.Offered)
                         {
                             <option value="@window.Key">@window.ShortLabel</option>
                         }
                     </select>
-                    <button type="button"
-                            class="qz-button qz-timeline-icon-btn"
-                            data-testid="timeline-zoom-in"
-                            title="Narrow window"
-                            disabled="@(!CanZoomIn)"
-                            @onclick="ZoomInAsync">+</button>
                 </div>
-
-                <select class="qz-select qz-timeline-toolbar-select"
-                        data-testid="timeline-group"
-                        value="@_groupFilter"
-                        @onchange="OnGroupChanged"
-                        aria-label="Job group">
-                    <option value="">All groups</option>
-                    @foreach (string group in _groupOptions)
-                    {
-                        <option value="@group">@group</option>
-                    }
-                </select>
-
-                <select class="qz-select qz-timeline-toolbar-select"
-                        data-testid="timeline-page-size"
-                        value="@_pageSize.ToString(CultureInfo.InvariantCulture)"
-                        @onchange="OnPageSizeChanged"
-                        aria-label="Rows per page">
-                    @foreach (int size in PageSizes)
-                    {
-                        <option value="@size.ToString(CultureInfo.InvariantCulture)">@size / page</option>
-                    }
-                </select>
-
-                <span class="qz-timeline-toolbar-spacer"></span>
-
-                <span class="qz-timeline-toolbar-meta qz-muted">
-                    @_pageRows.Count/@_filteredRows.Count · @_barCount runs
-                    · @FormatInstant(_windowStart)–@FormatInstant(_axisEnd)
-                    @if (_panOffset > TimeSpan.Zero)
-                    {
-                        <text> · −@FormatPanOffset(_panOffset)</text>
-                    }
-                </span>
-            </div>
-
-            <div class="qz-timeline-axis">
-                <div class="qz-timeline-axis-label">
-                    <div class="qz-timeline-pan-controls" role="group" aria-label="Pan">
+                <div class="qz-form-group">
+                    <label class="qz-form-label" for="timeline-group">Job group</label>
+                    <select id="timeline-group"
+                            class="qz-select"
+                            data-testid="timeline-group"
+                            value="@_groupFilter"
+                            @onchange="OnGroupChanged">
+                        <option value="">All groups</option>
+                        @foreach (string group in _groupOptions)
+                        {
+                            <option value="@group">@group</option>
+                        }
+                    </select>
+                </div>
+                <div class="qz-form-group">
+                    <label class="qz-form-label" for="timeline-page-size">Rows</label>
+                    <select id="timeline-page-size"
+                            class="qz-select"
+                            data-testid="timeline-page-size"
+                            value="@_pageSize.ToString(CultureInfo.InvariantCulture)"
+                            @onchange="OnPageSizeChanged">
+                        @foreach (int size in PageSizes)
+                        {
+                            <option value="@size.ToString(CultureInfo.InvariantCulture)">@size / page</option>
+                        }
+                    </select>
+                </div>
+                <div class="qz-form-group">
+                    <label class="qz-form-label" for="timeline-name">Name</label>
+                    <input id="timeline-name"
+                           class="qz-input"
+                           type="search"
+                           data-testid="timeline-name"
+                           placeholder="contains"
+                           value="@_nameFilter"
+                           @oninput="OnNameInput" />
+                </div>
+                <div class="qz-form-group qz-timeline-pan">
+                    <div class="qz-actions">
                         <button type="button"
-                                class="qz-button qz-timeline-icon-btn"
+                                class="qz-button"
                                 data-testid="timeline-pan-older"
-                                title="Older"
-                                @onclick="PanOlderAsync">◀</button>
+                                @onclick="PanOlderAsync">Older</button>
                         <button type="button"
-                                class="qz-button qz-timeline-icon-btn"
+                                class="qz-button"
                                 data-testid="timeline-pan-newer"
-                                title="Newer"
                                 disabled="@(!CanPanNewer)"
-                                @onclick="PanNewerAsync">▶</button>
+                                @onclick="PanNewerAsync">Newer</button>
                     </div>
                 </div>
-                <div @ref="_axisTrack"
-                     class="qz-timeline-axis-track @(_isPanning ? "qz-timeline-axis-track-panning" : null)"
-                     data-testid="timeline-axis-track"
-                     title="Drag to pan"
-                     @onpointerdown="OnAxisPointerDown"
-                     @onpointermove="OnAxisPointerMove"
-                     @onpointerup="OnAxisPointerUp"
-                     @onpointercancel="OnAxisPointerUp"
-                     @onpointerleave="OnAxisPointerUp">
-                    @foreach (TimelineTick tick in _ticks)
-                    {
-                        <span class="qz-timeline-tick" style="left: @Pct(tick.Fraction);">@tick.Label</span>
-                    }
-                    @if (_panOffset <= TimeSpan.Zero && _axisEnd > _windowEnd)
-                    {
-                        <span class="qz-timeline-now" style="left: @Pct(NowFraction());" title="Now"></span>
-                    }
-                    else if (_panOffset <= TimeSpan.Zero)
-                    {
-                        <span class="qz-timeline-now" style="left: 100%;" title="Now"></span>
-                    }
+            </div>
+            <p class="qz-muted">
+                @_pageRows.Count/@_filteredRows.Count · @_barCount runs
+                · @FormatInstant(_windowStart)–@FormatInstant(_axisEnd)
+                @if (_panOffset > TimeSpan.Zero)
+                {
+                    <text> · −@FormatPanOffset(_panOffset)</text>
+                }
+            </p>
+        </div>
+
+        <div class="qz-timeline"
+             data-testid="timeline-gantt"
+             style="@MinuteGridStyle">
+            <div class="qz-timeline-sticky">
+                <div class="qz-timeline-axis">
+                    <div @ref="_axisTrack"
+                         class="qz-timeline-axis-track @(_isPanning ? "qz-timeline-axis-track-panning" : null)"
+                         data-testid="timeline-axis-track"
+                         title="Drag to pan"
+                         @onpointerdown="OnAxisPointerDown"
+                         @onpointermove="OnAxisPointerMove"
+                         @onpointerup="OnAxisPointerUp"
+                         @onpointercancel="OnAxisPointerUp"
+                         @onpointerleave="OnAxisPointerUp">
+                        @for (int tickIndex = 0; tickIndex < _ticks.Count; tickIndex++)
+                        {
+                            TimelineTick tick = _ticks[tickIndex];
+                            string tickClass = tickIndex == 0
+                                ? "qz-timeline-tick qz-timeline-tick-start"
+                                : tickIndex == _ticks.Count - 1
+                                    ? "qz-timeline-tick qz-timeline-tick-end"
+                                    : "qz-timeline-tick";
+                            <span class="@tickClass" style="left: @Pct(tick.Fraction);">@tick.Label</span>
+                        }
+                        @if (_panOffset <= TimeSpan.Zero && _axisEnd > _windowEnd)
+                        {
+                            <span class="qz-timeline-now" style="left: @Pct(NowFraction());" title="Now"></span>
+                        }
+                        else if (_panOffset <= TimeSpan.Zero)
+                        {
+                            <span class="qz-timeline-now" style="left: 100%;" title="Now"></span>
+                        }
+                    </div>
                 </div>
+                @if (_filteredRows.Count > 0)
+                {
+                    <div class="qz-timeline-columns qz-timeline-column-head">
+                        <span></span>
+                        <span>Schedule</span>
+                        <span>Start</span>
+                        <span>Prev</span>
+                        <span>Next</span>
+                        <span>End</span>
+                    </div>
+                }
             </div>
 
             @if (_allRows.Count == 0)
             {
-                <p class="qz-timeline-empty qz-muted">No activity in this window. Widen (+) or pan ◀.</p>
+                <p class="qz-timeline-empty qz-muted">No activity in this window. Choose a wider window or pan ◀.</p>
+            }
+            else if (_groupRows.Count == 0)
+            {
+                <p class="qz-timeline-empty qz-muted">No jobs in group "@_groupFilter".</p>
             }
             else if (_filteredRows.Count == 0)
             {
-                <p class="qz-timeline-empty qz-muted">No jobs in group "@_groupFilter".</p>
+                <p class="qz-timeline-empty qz-muted">No jobs or triggers match "@_nameFilter".</p>
             }
             else
             {
@@ -168,63 +196,115 @@
                         {
                             @foreach (TimelineRow row in section.Rows)
                             {
-                                <div class="qz-timeline-row qz-timeline-row-job">
-                                    <div class="qz-timeline-row-label" title="@row.Key">
-                                        <a class="qz-timeline-row-name qz-timeline-entity-link"
-                                           href="@JobPath(row.JobGroup, row.JobName)">@row.JobName</a>
-                                    </div>
-                                    <div class="qz-timeline-row-track" aria-hidden="true"></div>
+                                <div class="qz-timeline-job">
+                                    <a class="qz-timeline-row-name qz-timeline-entity-link"
+                                       href="@JobPath(row.JobGroup, row.JobName)"
+                                       title="@row.Key">@row.JobName</a>
                                 </div>
 
-                                @foreach (TimelineTriggerRow trigger in row.Triggers)
+                                @foreach (TimelineTriggerRow trigger in VisibleTriggers(row))
                                 {
                                     string schedule = TriggerScheduleText(trigger);
-                                    string times = BuildTriggerTimes(trigger);
-                                    <div class="@TriggerRowClass(trigger)" data-testid="timeline-trigger-row">
-                                        <div class="qz-timeline-row-label qz-timeline-row-label-stack"
-                                             title="@trigger.Key · @schedule · @times">
-                                            <div class="qz-timeline-row-label-primary">
-                                                <a class="qz-timeline-row-trigger-name qz-timeline-entity-link"
-                                                   href="@TriggerPath(trigger.Group, trigger.Name)">@trigger.Name</a>
+                                    <div class="qz-timeline-trigger" data-testid="timeline-trigger-row">
+                                        <div class="qz-timeline-columns qz-timeline-trigger-fields">
+                                            <div class="qz-timeline-field qz-timeline-field-name">
                                                 @if (trigger.State is not null)
                                                 {
-                                                    <StateIndicator State="@trigger.State.ToString()" ShowLabel="true" />
+                                                    <StateIndicator State="@trigger.State.ToString()" ShowLabel="false" />
+                                                }
+                                                <a class="qz-timeline-row-trigger-name qz-timeline-entity-link"
+                                                   href="@TriggerPath(trigger.Group, trigger.Name)"
+                                                   title="@trigger.Key">@trigger.Name</a>
+                                                @if (HasTriggerActions(trigger))
+                                                {
+                                                    bool menuOpen = IsMenuOpen(row, trigger);
+                                                    <div class="qz-timeline-actions @(menuOpen ? "qz-timeline-actions-open" : null)">
+                                                        <button type="button"
+                                                                class="qz-timeline-actions-btn"
+                                                                title="Trigger actions"
+                                                                aria-label="Trigger actions"
+                                                                aria-expanded="@menuOpen"
+                                                                @onclick="() => ToggleTriggerMenu(row, trigger)"
+                                                                @onclick:stopPropagation="true">
+                                                            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                                                                <circle cx="8" cy="3.2" r="1.55" />
+                                                                <circle cx="8" cy="8" r="1.55" />
+                                                                <circle cx="8" cy="12.8" r="1.55" />
+                                                            </svg>
+                                                        </button>
+                                                        @if (menuOpen)
+                                                        {
+                                                            <div class="qz-timeline-actions-menu" @onclick:stopPropagation="true">
+                                                                @if (Can(Routes.TriggerJob))
+                                                                {
+                                                                    <button type="button" @onclick="() => RunNowAsync(row, trigger)">Run now</button>
+                                                                }
+                                                                @if (trigger.State == TriggerState.Paused && Can(Routes.ResumeTrigger))
+                                                                {
+                                                                    <button type="button" @onclick="() => ResumeTriggerAsync(row, trigger)">Resume</button>
+                                                                }
+                                                                else if (trigger.State != TriggerState.Paused && Can(Routes.PauseTrigger))
+                                                                {
+                                                                    <button type="button" @onclick="() => PromptPause(row, trigger)">Pause</button>
+                                                                }
+                                                                @if (trigger.State == TriggerState.Error && Can(Routes.ResetTriggerFromErrorState))
+                                                                {
+                                                                    <button type="button" @onclick="() => ResetTriggerAsync(row, trigger)">Reset error</button>
+                                                                }
+                                                                @if (Can(Routes.UnscheduleJob))
+                                                                {
+                                                                    <button type="button" class="qz-timeline-actions-danger" @onclick="() => PromptUnschedule(row, trigger)">Unschedule</button>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </div>
                                                 }
                                             </div>
-                                            <div class="qz-timeline-row-meta qz-muted">
-                                                <div class="qz-timeline-row-meta-line">@schedule</div>
-                                                <div class="qz-timeline-row-meta-line">@times</div>
+                                            <div class="qz-timeline-field">
+                                                <span class="qz-timeline-meta-value">@schedule</span>
+                                            </div>
+                                            <div class="qz-timeline-field">
+                                                <span class="qz-timeline-meta-value">@FormatOptionalInstant(trigger.StartTimeUtc)</span>
+                                            </div>
+                                            <div class="qz-timeline-field">
+                                                <span class="qz-timeline-meta-value">@FormatOptionalInstant(trigger.PreviousFireTimeUtc)</span>
+                                            </div>
+                                            <div class="qz-timeline-field">
+                                                <span class="qz-timeline-meta-value">@FormatOptionalInstant(trigger.NextFireTimeUtc)</span>
+                                            </div>
+                                            <div class="qz-timeline-field">
+                                                <span class="qz-timeline-meta-value">@FormatOptionalInstant(trigger.EndTimeUtc)</span>
                                             </div>
                                         </div>
-                                        <div class="qz-timeline-row-track">
-                                            @foreach (TimelineBar bar in trigger.Bars)
-                                            {
-                                                string style = $"left: {Pct(bar.Left)}; width: {Pct(bar.Width)};";
-                                                if (bar.EntryId is { Length: > 0 } entryId)
+                                        <div class="qz-timeline-trigger-track @TriggerTintClass(trigger)">
+                                                @foreach (TimelineBar bar in trigger.Bars)
                                                 {
-                                                    <a class="qz-timeline-bar-hit"
-                                                       style="@style"
-                                                       href="@ExecutionPath(entryId)"
-                                                       title="@bar.Title">
-                                                        <span class="qz-timeline-bar @bar.CssClass"></span>
-                                                    </a>
+                                                    string style = $"left: {Pct(bar.Left)}; width: {Pct(bar.Width)};";
+                                                    if (bar.EntryId is { Length: > 0 } entryId)
+                                                    {
+                                                        <a class="qz-timeline-bar-hit"
+                                                           style="@style"
+                                                           href="@ExecutionPath(entryId)"
+                                                           title="@bar.Title">
+                                                            <span class="qz-timeline-bar @bar.CssClass"></span>
+                                                        </a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="qz-timeline-bar-hit"
+                                                              style="@style"
+                                                              title="@bar.Title">
+                                                            <span class="qz-timeline-bar @bar.CssClass"></span>
+                                                        </span>
+                                                    }
                                                 }
-                                                else
+                                                @foreach (TimelineMark mark in trigger.Marks)
                                                 {
-                                                    <span class="qz-timeline-bar-hit"
-                                                          style="@style"
-                                                          title="@bar.Title">
-                                                        <span class="qz-timeline-bar @bar.CssClass"></span>
-                                                    </span>
+                                                    <span class="qz-timeline-upcoming"
+                                                          style="left: @Pct(mark.Left);"
+                                                          title="@mark.Title"></span>
                                                 }
-                                            }
-                                            @foreach (TimelineMark mark in trigger.Marks)
-                                            {
-                                                <span class="qz-timeline-upcoming"
-                                                      style="left: @Pct(mark.Left);"
-                                                      title="@mark.Title"></span>
-                                            }
-                                        </div>
+                                            </div>
                                     </div>
                                 }
                             }
@@ -234,24 +314,29 @@
             }
         </div>
 
-        <div class="qz-timeline-legend" aria-label="Legend">
-            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-bar-succeeded"></span> Succeeded</span>
-            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-bar-skipped"></span> Skipped</span>
-            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-bar-failed"></span> Failed</span>
-            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-bar-cancelled"></span> Cancelled</span>
-            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-bar-executing"></span> Executing</span>
-            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-upcoming-swatch"></span> Upcoming</span>
-            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-tint-paused"></span> Paused</span>
-            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-tint-error"></span> Error</span>
-            <span class="qz-timeline-legend-item"><span class="qz-timeline-swatch qz-timeline-tint-executing"></span> Trigger executing</span>
-        </div>
-
         <Pagination TotalItems="@_filteredRows.Count"
                     PageSize="@_pageSize"
                     CurrentPage="@_page"
                     OnPageChanged="OnPageChangedAsync" />
     }
 </div>
+
+@if (_menuTarget is not null)
+{
+    <button type="button" class="qz-timeline-menu-backdrop" aria-label="Close actions" @onclick="CloseTriggerMenu"></button>
+}
+
+<PauseDialog IsOpen="@_showPausePrompt"
+             Title="Pause trigger"
+             Message="@(_actionTarget is null ? string.Empty : $"Pause {DisplayValueHelper.FormatKey(_actionTarget.TriggerGroup, _actionTarget.TriggerName)}?")"
+             OnConfirm="PauseTriggerAsync"
+             OnCancel="CancelPauseAsync" />
+
+<ConfirmDialog IsOpen="@_showUnscheduleConfirm"
+               Title="Unschedule trigger"
+               Message="@(_actionTarget is null ? string.Empty : $"Unschedule {DisplayValueHelper.FormatKey(_actionTarget.TriggerGroup, _actionTarget.TriggerName)}? This cannot be undone.")"
+               OnConfirm="UnscheduleTriggerAsync"
+               OnCancel="CancelUnscheduleAsync" />
 
 @code {
     private static readonly int[] PageSizes = [10, 25, 50, 100];
@@ -266,6 +351,7 @@
     private const int UpcomingFireCount = 8;
 
     private readonly List<TimelineRow> _allRows = [];
+    private readonly List<TimelineRow> _groupRows = [];
     private readonly List<TimelineRow> _filteredRows = [];
     private readonly List<TimelineRow> _pageRows = [];
     private readonly List<TimelineSection> _sections = [];
@@ -276,6 +362,11 @@
     private TimelineWindow _window = TimelineWindow.Last15Minutes;
     private bool _windowFromQuery;
     private string _groupFilter = string.Empty;
+    private string _nameFilter = string.Empty;
+    private TriggerActionTarget? _menuTarget;
+    private TriggerActionTarget? _actionTarget;
+    private bool _showPausePrompt;
+    private bool _showUnscheduleConfirm;
     private TimeSpan _panOffset;
     private DateTimeOffset _windowStart;
     private DateTimeOffset _windowEnd;
@@ -324,8 +415,6 @@
     [SupplyParameterFromQuery(Name = "pan")]
     public int? PanQuery { get; set; }
 
-    private bool CanZoomIn => TimelineWindow.IndexOf(_window) > 0;
-    private bool CanZoomOut => TimelineWindow.IndexOf(_window) < TimelineWindow.Offered.Length - 1;
     private bool CanPanNewer => _panOffset > TimeSpan.Zero;
 
     protected override void OnInitialized()
@@ -400,18 +489,6 @@
         return NavigateAsync(TimelineWindow.Parse(args.Value?.ToString()), _groupFilter, 1, _pageSize, TimeSpan.Zero);
     }
 
-    private Task ZoomInAsync()
-    {
-        TimelineWindow? next = TimelineWindow.ZoomIn(_window);
-        return next is null ? Task.CompletedTask : NavigateAsync(next, _groupFilter, _page, _pageSize, TimeSpan.Zero);
-    }
-
-    private Task ZoomOutAsync()
-    {
-        TimelineWindow? next = TimelineWindow.ZoomOut(_window);
-        return next is null ? Task.CompletedTask : NavigateAsync(next, _groupFilter, _page, _pageSize, TimeSpan.Zero);
-    }
-
     private Task PanOlderAsync()
     {
         return NavigateAsync(_window, _groupFilter, _page, _pageSize, _panOffset + PanStep(_window));
@@ -437,6 +514,13 @@
     {
         int size = NormalizePageSize(ParseInt(args.Value?.ToString()));
         return NavigateAsync(_window, _groupFilter, 1, size, _panOffset);
+    }
+
+    private async Task OnNameInput(ChangeEventArgs args)
+    {
+        _nameFilter = args.Value?.ToString() ?? string.Empty;
+        _page = 1;
+        await RefreshNameFilterAsync();
     }
 
     private Task OnPageChangedAsync(int page)
@@ -595,6 +679,8 @@
                 RebuildTicks();
                 return;
             }
+
+            await Authorization.LoadOperations(schedulerName);
 
             DateTimeOffset now = DateTimeOffset.UtcNow;
 
@@ -824,20 +910,21 @@
             _allRows.Add(new TimelineRow(builder.Key, builder.JobGroup, builder.JobName, builder.BarsByTrigger, []));
         }
 
-        RebuildDerivedViews();
+        RebuildDerivedViews(HasNameFilter);
         await LoadTriggersForPageAsync(schedulerName, executingTriggers);
+        FinalizeRows();
         RebuildTicks();
     }
 
-    private void RebuildDerivedViews()
+    private void RebuildDerivedViews(bool loadTriggersForNameSearch)
     {
         _groupOptions.Clear();
         _groupOptions.AddRange(_allRows.Select(static r => r.JobGroup).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(static g => g, StringComparer.OrdinalIgnoreCase));
 
-        _filteredRows.Clear();
+        _groupRows.Clear();
         if (string.IsNullOrWhiteSpace(_groupFilter))
         {
-            _filteredRows.AddRange(_allRows);
+            _groupRows.AddRange(_allRows);
         }
         else
         {
@@ -845,10 +932,112 @@
             {
                 if (string.Equals(row.JobGroup, _groupFilter, StringComparison.OrdinalIgnoreCase))
                 {
-                    _filteredRows.Add(row);
+                    _groupRows.Add(row);
                 }
             }
         }
+
+        _pageRows.Clear();
+        if (HasNameFilter && loadTriggersForNameSearch)
+        {
+            _pageRows.AddRange(_groupRows);
+            return;
+        }
+
+        Paginate(_groupRows);
+    }
+
+    private void FinalizeRows()
+    {
+        if (!HasNameFilter)
+        {
+            Paginate(_groupRows);
+            return;
+        }
+
+        List<TimelineRow> matched = [];
+        foreach (TimelineRow row in _groupRows)
+        {
+            if (RowMatchesName(row))
+            {
+                matched.Add(row);
+            }
+        }
+
+        Paginate(matched);
+    }
+
+    private async Task RefreshNameFilterAsync()
+    {
+        if (HasNameFilter)
+        {
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (!string.IsNullOrWhiteSpace(schedulerName))
+            {
+                List<TimelineRow> pending = _groupRows.Where(static row => !row.TriggersLoaded).ToList();
+                if (pending.Count > 0)
+                {
+                    HashSet<string> executingTriggers = [];
+                    foreach (TimelineRow row in _groupRows)
+                    {
+                        foreach (TimelineTriggerRow trigger in row.Triggers)
+                        {
+                            if (trigger.IsExecuting)
+                            {
+                                executingTriggers.Add(TriggerLookupKey(trigger.Group, trigger.Name));
+                            }
+                        }
+                    }
+
+                    List<TimelineRow> previousPage = _pageRows.ToList();
+                    _pageRows.Clear();
+                    _pageRows.AddRange(pending);
+                    await LoadTriggersForPageAsync(schedulerName, executingTriggers);
+                    _pageRows.Clear();
+                    _pageRows.AddRange(previousPage);
+                }
+            }
+        }
+
+        FinalizeRows();
+    }
+
+    private bool HasNameFilter => !string.IsNullOrWhiteSpace(_nameFilter);
+
+    private bool RowMatchesName(TimelineRow row)
+    {
+        string query = _nameFilter.Trim();
+        if (row.JobName.Contains(query, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        foreach (TimelineTriggerRow trigger in row.Triggers)
+        {
+            if (trigger.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private IEnumerable<TimelineTriggerRow> VisibleTriggers(TimelineRow row)
+    {
+        if (!HasNameFilter || row.JobName.Contains(_nameFilter.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return row.Triggers;
+        }
+
+        string query = _nameFilter.Trim();
+        return row.Triggers.Where(trigger => trigger.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void Paginate(List<TimelineRow> source)
+    {
+        _filteredRows.Clear();
+        _filteredRows.AddRange(source);
 
         _totalPages = Math.Max(1, (int) Math.Ceiling(_filteredRows.Count / (double) _pageSize));
         if (_page > _totalPages)
@@ -866,7 +1055,7 @@
             _sections.Add(new TimelineSection(group.Key, group.ToList()));
         }
 
-        _barCount = 0;
+        _barCount = _pageRows.Sum(row => VisibleTriggers(row).Sum(static t => t.Bars.Count));
     }
 
     private async Task LoadTriggersForPageAsync(string schedulerName, HashSet<string> executingTriggers)
@@ -956,9 +1145,9 @@
                     Bars: orphan.Bars,
                     Marks: []));
             }
-        }
 
-        _barCount = _filteredRows.Sum(static r => r.Triggers.Sum(static t => t.Bars.Count));
+            row.TriggersLoaded = true;
+        }
     }
 
     private static List<TimelineBar> TakePendingBars(Dictionary<string, PendingTriggerBars> pending, string triggerKey)
@@ -1061,6 +1250,7 @@
     private void ClearRows()
     {
         _allRows.Clear();
+        _groupRows.Clear();
         _filteredRows.Clear();
         _pageRows.Clear();
         _sections.Clear();
@@ -1226,13 +1416,7 @@
     private static string TriggerScheduleText(TimelineTriggerRow trigger) =>
         string.IsNullOrWhiteSpace(trigger.ScheduleSummary) ? "—" : trigger.ScheduleSummary!;
 
-    private string BuildTriggerTimes(TimelineTriggerRow trigger) =>
-        "next " + FormatOptionalInstant(trigger.NextFireTimeUtc)
-        + " · prev " + FormatOptionalInstant(trigger.PreviousFireTimeUtc)
-        + " · start " + FormatOptionalInstant(trigger.StartTimeUtc)
-        + " · end " + FormatOptionalInstant(trigger.EndTimeUtc);
-
-    private static string TriggerRowClass(TimelineTriggerRow trigger)
+    private static string TriggerTintClass(TimelineTriggerRow trigger)
     {
         string tint = trigger.IsExecuting
             ? "qz-timeline-row-state-executing"
@@ -1247,9 +1431,7 @@
                 _ => string.Empty
             };
 
-        return string.IsNullOrEmpty(tint)
-            ? "qz-timeline-row qz-timeline-row-trigger"
-            : "qz-timeline-row qz-timeline-row-trigger " + tint;
+        return tint;
     }
 
     private static string FormatPanOffset(TimeSpan offset)
@@ -1323,6 +1505,7 @@
 
     private sealed record TimelineWindow(string Key, string Label, string ShortLabel, TimeSpan Span, int TickCount, string TickFormat)
     {
+        public static readonly TimelineWindow Last10Minutes = new("10m", "Last 10 minutes", "10 min", TimeSpan.FromMinutes(10), 5, "HH:mm");
         public static readonly TimelineWindow Last15Minutes = new("15m", "Last 15 minutes", "15 min", TimeSpan.FromMinutes(15), 5, "HH:mm");
         public static readonly TimelineWindow Last30Minutes = new("30m", "Last 30 minutes", "30 min", TimeSpan.FromMinutes(30), 6, "HH:mm");
         public static readonly TimelineWindow LastHour = new("1h", "Last hour", "1 hour", TimeSpan.FromHours(1), 6, "HH:mm");
@@ -1332,6 +1515,7 @@
 
         public static readonly TimelineWindow[] Offered =
         [
+            Last10Minutes,
             Last15Minutes,
             Last30Minutes,
             LastHour,
@@ -1339,31 +1523,6 @@
             LastDay,
             LastWeek
         ];
-
-        public static int IndexOf(TimelineWindow window)
-        {
-            for (int i = 0; i < Offered.Length; i++)
-            {
-                if (string.Equals(Offered[i].Key, window.Key, StringComparison.OrdinalIgnoreCase))
-                {
-                    return i;
-                }
-            }
-
-            return 0;
-        }
-
-        public static TimelineWindow? ZoomIn(TimelineWindow window)
-        {
-            int index = IndexOf(window);
-            return index > 0 ? Offered[index - 1] : null;
-        }
-
-        public static TimelineWindow? ZoomOut(TimelineWindow window)
-        {
-            int index = IndexOf(window);
-            return index >= 0 && index < Offered.Length - 1 ? Offered[index + 1] : null;
-        }
 
         public static TimelineWindow Parse(string? key)
         {
@@ -1407,7 +1566,213 @@
         string JobGroup,
         string JobName,
         Dictionary<string, PendingTriggerBars> BarsByTrigger,
-        List<TimelineTriggerRow> Triggers);
+        List<TimelineTriggerRow> Triggers)
+    {
+        public bool TriggersLoaded { get; set; }
+    }
+
+    private bool Can(WireRoute route) => Authorization.Allows(Scheduler.ActiveSchedulerName, route);
+
+    private bool HasTriggerActions(TimelineTriggerRow trigger)
+    {
+        return Can(Routes.TriggerJob)
+            || Can(Routes.UnscheduleJob)
+            || (trigger.State == TriggerState.Paused ? Can(Routes.ResumeTrigger) : Can(Routes.PauseTrigger))
+            || (trigger.State == TriggerState.Error && Can(Routes.ResetTriggerFromErrorState));
+    }
+
+    private bool IsMenuOpen(TimelineRow row, TimelineTriggerRow trigger)
+    {
+        return _menuTarget is not null && SameTrigger(_menuTarget, row, trigger);
+    }
+
+    private void ToggleTriggerMenu(TimelineRow row, TimelineTriggerRow trigger)
+    {
+        _menuTarget = IsMenuOpen(row, trigger) ? null : TriggerActionTarget.From(row, trigger);
+    }
+
+    private void CloseTriggerMenu()
+    {
+        _menuTarget = null;
+    }
+
+    private void PromptPause(TimelineRow row, TimelineTriggerRow trigger)
+    {
+        _menuTarget = null;
+        _actionTarget = TriggerActionTarget.From(row, trigger);
+        _showPausePrompt = true;
+    }
+
+    private Task CancelPauseAsync()
+    {
+        _showPausePrompt = false;
+        return Task.CompletedTask;
+    }
+
+    private Task PauseTriggerAsync(string? reason)
+    {
+        TriggerActionTarget? target = _actionTarget;
+        _showPausePrompt = false;
+        if (target is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        PauseDetails details = ActionLog.PauseDetailsFor(reason);
+        return MutateAsync(
+            () => Api.PauseTriggerWith(Scheduler.ActiveSchedulerName!, target.Key, details),
+            "Paused trigger " + target.Label + ".",
+            "Trigger " + target.Label + " was not paused - it no longer exists.",
+            "PauseTrigger",
+            target.Label,
+            DashboardActionLog.PauseNote(details));
+    }
+
+    private Task ResumeTriggerAsync(TimelineRow row, TimelineTriggerRow trigger)
+    {
+        TriggerActionTarget target = TriggerActionTarget.From(row, trigger);
+        _menuTarget = null;
+        return MutateAsync(
+            () => Api.ResumeTrigger(Scheduler.ActiveSchedulerName!, target.Key),
+            "Resumed trigger " + target.Label + ".",
+            "Trigger " + target.Label + " was not resumed - it no longer exists or was not paused.",
+            "ResumeTrigger",
+            target.Label);
+    }
+
+    private Task ResetTriggerAsync(TimelineRow row, TimelineTriggerRow trigger)
+    {
+        TriggerActionTarget target = TriggerActionTarget.From(row, trigger);
+        _menuTarget = null;
+        return MutateAsync(
+            () => Api.ResetTriggerFromErrorState(Scheduler.ActiveSchedulerName!, target.Key),
+            "Reset error state for trigger " + target.Label + ".",
+            "Trigger " + target.Label + " was not reset - it no longer exists or is not in the error state.",
+            "ResetTriggerFromErrorState",
+            target.Label);
+    }
+
+    private Task RunNowAsync(TimelineRow row, TimelineTriggerRow trigger)
+    {
+        TriggerActionTarget target = TriggerActionTarget.From(row, trigger);
+        _menuTarget = null;
+        return MutateAsync(
+            () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(target.JobGroup, target.JobName)),
+            "Triggered job " + DisplayValueHelper.FormatKey(target.JobGroup, target.JobName) + ".",
+            "TriggerJob",
+            DisplayValueHelper.FormatKey(target.JobGroup, target.JobName));
+    }
+
+    private void PromptUnschedule(TimelineRow row, TimelineTriggerRow trigger)
+    {
+        _menuTarget = null;
+        _actionTarget = TriggerActionTarget.From(row, trigger);
+        _showUnscheduleConfirm = true;
+    }
+
+    private Task CancelUnscheduleAsync()
+    {
+        _showUnscheduleConfirm = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task UnscheduleTriggerAsync()
+    {
+        TriggerActionTarget? target = _actionTarget;
+        _showUnscheduleConfirm = false;
+        if (target is null)
+        {
+            return;
+        }
+
+        await MutateAsync(
+            () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, target.Key),
+            "Unscheduled trigger " + target.Label + ".",
+            "Trigger " + target.Label + " was not unscheduled - it no longer exists.",
+            "UnscheduleTrigger",
+            target.Label);
+    }
+
+    private async Task MutateAsync(
+        Func<ValueTask<bool>> operation,
+        string successMessage,
+        string noOpMessage,
+        string actionName,
+        string target,
+        string? note = null)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (Options.Value.ReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            bool changed = await operation();
+            if (changed)
+            {
+                ActionLog.Record(schedulerName, actionName, target, succeeded: true, message: note);
+                Toasts.Success(successMessage);
+                await LoadDataAsync();
+            }
+            else
+            {
+                Toasts.Error(noOpMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            ActionLog.Failed(schedulerName, actionName, target, ex);
+            Toasts.Error(ex.Message);
+        }
+    }
+
+    private async Task MutateAsync(
+        Func<ValueTask> operation,
+        string successMessage,
+        string actionName,
+        string target)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (Options.Value.ReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            await operation();
+            ActionLog.Record(schedulerName, actionName, target, succeeded: true);
+            Toasts.Success(successMessage);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ActionLog.Failed(schedulerName, actionName, target, ex);
+            Toasts.Error(ex.Message);
+        }
+    }
+
+    private static bool SameTrigger(TriggerActionTarget target, TimelineRow row, TimelineTriggerRow trigger)
+    {
+        return string.Equals(target.JobGroup, row.JobGroup, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(target.JobName, row.JobName, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(target.TriggerGroup, trigger.Group, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(target.TriggerName, trigger.Name, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed record TriggerActionTarget(string JobGroup, string JobName, string TriggerGroup, string TriggerName)
+    {
+        public TriggerKeyDto Key => new(TriggerGroup, TriggerName);
+
+        public string Label => DisplayValueHelper.FormatKey(TriggerGroup, TriggerName);
+
+        public static TriggerActionTarget From(TimelineRow row, TimelineTriggerRow trigger)
+        {
+            return new(row.JobGroup, row.JobName, trigger.Group, trigger.Name);
+        }
+    }
 
     private sealed record TimelineSection(string JobGroup, List<TimelineRow> Rows);
 
