@@ -32,6 +32,7 @@ namespace Quartz
         public string DataSource { get; set; }
         public System.TimeSpan DbRetryInterval { get; set; }
         public bool DoubleCheckLockMisfireHandler { get; set; }
+        public System.Func<Quartz.IScheduler, System.IDisposable?>? EnlistmentSource { get; set; }
         public bool ExecutionHistory { get; set; }
         public System.Func<System.Exception, bool>? IsTransient { get; set; }
         public bool LockFreeFiringRounds { get; set; }

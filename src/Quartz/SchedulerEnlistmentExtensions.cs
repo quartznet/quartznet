@@ -57,6 +57,11 @@ namespace Quartz;
 /// they are only released once that transaction completes. Keep enlisted transactions short: a long
 /// running one blocks trigger acquisition, the misfire handler and cluster check-in.
 /// </para>
+/// <para>
+/// An application whose transaction manager can be asked for the current transaction need not wrap each
+/// call: <see cref="AdoJobStoreOptions.EnlistmentSource" /> is called as each scheduler call that reads or
+/// writes the store begins, and enlists with these methods on the application's behalf.
+/// </para>
 /// <example>
 /// <code>
 /// await using var tx = await dbContext.Database.BeginTransactionAsync();

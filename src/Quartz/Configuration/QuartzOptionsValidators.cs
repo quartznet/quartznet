@@ -602,6 +602,18 @@ internal sealed class AdoJobStoreOptionsValidator : IValidateOptions<AdoJobStore
             (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MaxConsecutiveFireFailures)} must not be negative; 0 never stores a failing trigger ERROR.");
         }
 
+        // Refused rather than switched on for the caller: accepting enlisted transactions changes how the
+        // store locks, and an option that quietly turned another on would be a second surprise in a
+        // configuration that only asked for the first.
+        if (options.EnlistmentSource is not null && !options.AcceptEnlistedTransactions)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AdoJobStoreOptions.EnlistmentSource)} is set but {nameof(AdoJobStoreOptions.AcceptEnlistedTransactions)} is off, "
+                + "so the store would ignore every enlistment the source made and scheduling would commit on its own. "
+                + $"Set {nameof(AdoJobStoreOptions.AcceptEnlistedTransactions)} to true: "
+                + "Configure(o => o.AcceptEnlistedTransactions = true), or 'quartz.jobStore.acceptEnlistedTransactions'.");
+        }
+
         return QuartzSchedulerOptionsValidator.Result(failures);
     }
 }
