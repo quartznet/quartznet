@@ -1,0 +1,26 @@
+/* Timeline page chrome. The content padding stays in quartz-dashboard.css: that element is outside this component. */
+.qz-page-timeline {
+    gap: var(--qz-space-sm);
+}
+
+.qz-page-timeline > .qz-page-header {
+    margin-bottom: 0;
+}
+
+.qz-page-timeline > .qz-page-header h1 {
+    margin: 0;
+}
+
+.qz-timeline-live {
+    font-size: var(--qz-font-size-xs);
+}
+
+.qz-timeline-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: default;
+}

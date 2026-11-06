@@ -1,0 +1,106 @@
+@namespace Quartz.Dashboard.Components.Pages
+@inject IJSRuntime JsRuntime
+
+@* The time axis and the rows under it. Dragging the axis reports a new pan; the page decides whether to keep it. *@
+<div class="qz-timeline"
+     data-testid="timeline-gantt"
+     style="@Page.Bounds.MinuteGridStyle">
+    <div class="qz-timeline-sticky">
+        <div class="qz-timeline-axis">
+            <div @ref="_axisTrack"
+                 class="qz-timeline-axis-track @(_isPanning ? "qz-timeline-axis-track-panning" : null)"
+                 data-testid="timeline-axis-track"
+                 title="Drag to pan"
+                 @onpointerdown="OnAxisPointerDown"
+                 @onpointermove="OnAxisPointerMove"
+                 @onpointerup="OnAxisPointerUp"
+                 @onpointercancel="OnAxisPointerUp"
+                 @onpointerleave="OnAxisPointerUp">
+                @for (int tickIndex = 0; tickIndex < Page.Ticks.Count; tickIndex++)
+                {
+                    TimelineTick tick = Page.Ticks[tickIndex];
+                    string tickClass = tickIndex == 0
+                        ? "qz-timeline-tick qz-timeline-tick-start"
+                        : tickIndex == Page.Ticks.Count - 1
+                            ? "qz-timeline-tick qz-timeline-tick-end"
+                            : "qz-timeline-tick";
+                    <span class="@tickClass" style="left: @Timeline.Pct(tick.Fraction);">@tick.Label</span>
+                }
+                @if (Page.PanOffset <= TimeSpan.Zero && Page.Bounds.AxisEnd > Page.Bounds.End)
+                {
+                    <span class="qz-timeline-now" style="left: @Timeline.Pct(Page.Bounds.NowFraction);" title="Now"></span>
+                }
+                else if (Page.PanOffset <= TimeSpan.Zero)
+                {
+                    <span class="qz-timeline-now" style="left: 100%;" title="Now"></span>
+                }
+            </div>
+        </div>
+        @if (Page.FilteredRowCount > 0)
+        {
+            <div class="qz-timeline-columns qz-timeline-column-head">
+                <span></span>
+                <span>Schedule</span>
+                <span>Start</span>
+                <span>Prev</span>
+                <span>Next</span>
+                <span>End</span>
+            </div>
+        }
+    </div>
+
+    @if (Page.AllRowCount == 0)
+    {
+        <p class="qz-timeline-empty qz-muted">No activity in this window. Choose a wider window or pan ◀.</p>
+    }
+    else if (Page.GroupRowCount == 0)
+    {
+        <p class="qz-timeline-empty qz-muted">No jobs in group "@Page.GroupFilter".</p>
+    }
+    else if (Page.FilteredRowCount == 0)
+    {
+        <p class="qz-timeline-empty qz-muted">No jobs or triggers match "@Page.NameFilter".</p>
+    }
+    else
+    {
+        @foreach (TimelineSection section in Page.Sections)
+        {
+            string groupName = section.JobGroup;
+            bool collapsed = _collapsedGroups.Contains(groupName);
+            <div class="qz-timeline-section" data-testid="timeline-section">
+                <button type="button"
+                        class="qz-timeline-section-header"
+                        data-testid="timeline-section-toggle"
+                        aria-expanded="@(!collapsed)"
+                        @onclick="() => ToggleGroupAsync(groupName)">
+                    <span class="qz-timeline-section-chevron" aria-hidden="true">@(collapsed ? "▸" : "▾")</span>
+                    <span class="qz-timeline-section-name">@groupName</span>
+                    <span class="qz-muted">@section.Rows.Count</span>
+                </button>
+
+                @if (!collapsed)
+                {
+                    @foreach (TimelineRow row in section.Rows)
+                    {
+                        <div class="qz-timeline-job">
+                            <a class="qz-timeline-row-name qz-timeline-entity-link"
+                               href="@Page.JobPath(row.JobGroup, row.JobName)"
+                               title="@row.Key">@row.JobName</a>
+                        </div>
+
+                        @foreach (TimelineTriggerRow trigger in Page.VisibleTriggers(row))
+                        {
+                            <TimelineTrigger @key="trigger.Key"
+                                             Page="Page"
+                                             ViewRevision="ViewRevision"
+                                             JobGroup="@row.JobGroup"
+                                             JobName="@row.JobName"
+                                             TriggerGroup="@trigger.Group"
+                                             TriggerName="@trigger.Name" />
+                        }
+                    }
+                }
+            </div>
+        }
+    }
+</div>

@@ -1,0 +1,111 @@
+@namespace Quartz.Dashboard.Components.Pages
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Services
+@inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
+
+@* One trigger: its state and schedule, the action menu, and the runs drawn on its track. *@
+@if (_row is not null && _trigger is not null)
+{
+    TimelineTriggerMenu menu = MenuFor(_trigger);
+    bool menuOpen = Page.IsMenuOpen(_row, _trigger);
+    <div class="qz-timeline-trigger" data-testid="timeline-trigger-row">
+        <div class="qz-timeline-columns qz-timeline-trigger-fields">
+            <div class="qz-timeline-field qz-timeline-field-name">
+                @if (_trigger.State is not null)
+                {
+                    <StateIndicator State="@_trigger.State.ToString()" ShowLabel="false" />
+                }
+                <a class="qz-timeline-row-trigger-name qz-timeline-entity-link"
+                   href="@Page.TriggerPath(_trigger.Group, _trigger.Name)"
+                   title="@_trigger.Key">@_trigger.Name</a>
+                @if (menu.Any)
+                {
+                    <div class="qz-timeline-actions @(menuOpen ? "qz-timeline-actions-open" : null)">
+                        <button type="button"
+                                class="qz-timeline-actions-btn"
+                                title="Trigger actions"
+                                aria-label="Trigger actions"
+                                aria-expanded="@menuOpen"
+                                @onclick="ToggleMenu"
+                                @onclick:stopPropagation="true">
+                            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                                <path d="M3.2 5.4 8 10.2 12.8 5.4 11.5 4.2 8 7.8 4.5 4.2Z" />
+                            </svg>
+                        </button>
+                        @if (menuOpen)
+                        {
+                            <div class="qz-timeline-actions-menu" @onclick:stopPropagation="true">
+                                @if (menu.Run)
+                                {
+                                    <button type="button" @onclick="Run">Run now</button>
+                                }
+                                @if (menu.Resume)
+                                {
+                                    <button type="button" @onclick="Resume">Resume</button>
+                                }
+                                else if (menu.Pause)
+                                {
+                                    <button type="button" @onclick="Pause">Pause</button>
+                                }
+                                @if (menu.Reset)
+                                {
+                                    <button type="button" @onclick="Reset">Reset error</button>
+                                }
+                                @if (menu.Unschedule)
+                                {
+                                    <button type="button" class="qz-timeline-actions-danger" @onclick="Unschedule">Unschedule</button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="qz-timeline-field">
+                <span class="qz-timeline-meta-value">@Schedule</span>
+            </div>
+            <div class="qz-timeline-field">
+                <span class="qz-timeline-meta-value">@FormatOptionalInstant(_trigger.StartTimeUtc)</span>
+            </div>
+            <div class="qz-timeline-field">
+                <span class="qz-timeline-meta-value">@FormatOptionalInstant(_trigger.PreviousFireTimeUtc)</span>
+            </div>
+            <div class="qz-timeline-field">
+                <span class="qz-timeline-meta-value">@FormatOptionalInstant(_trigger.NextFireTimeUtc)</span>
+            </div>
+            <div class="qz-timeline-field">
+                <span class="qz-timeline-meta-value">@FormatOptionalInstant(_trigger.EndTimeUtc)</span>
+            </div>
+        </div>
+        <div class="qz-timeline-trigger-track @TintClass">
+            @foreach (TimelineBar bar in _trigger.Bars)
+            {
+                string style = $"left: {Timeline.Pct(bar.Left)}; width: {Timeline.Pct(bar.Width)};";
+                if (bar.EntryId is { Length: > 0 } entryId)
+                {
+                    <a class="qz-timeline-bar-hit"
+                       style="@style"
+                       href="@Page.ExecutionPath(entryId)"
+                       title="@bar.Title">
+                        <span class="qz-timeline-bar @bar.CssClass"></span>
+                    </a>
+                }
+                else
+                {
+                    <span class="qz-timeline-bar-hit"
+                          style="@style"
+                          title="@bar.Title">
+                        <span class="qz-timeline-bar @bar.CssClass"></span>
+                    </span>
+                }
+            }
+            @foreach (TimelineMark mark in _trigger.Marks)
+            {
+                <span class="qz-timeline-upcoming"
+                      style="left: @Timeline.Pct(mark.Left);"
+                      title="@mark.Title"></span>
+            }
+        </div>
+    </div>
+}
