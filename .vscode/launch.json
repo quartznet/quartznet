@@ -2,6 +2,24 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Dashboard demo",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build dashboard demo",
+            "program": "${workspaceFolder}/artifacts/bin/Quartz.Examples.Dashboard/debug/Quartz.Examples.Dashboard.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/Quartz.Examples.Dashboard",
+            "stopAtEntry": false,
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+                "uriFormat": "%s/quartz/timeline"
+            }
+        },
+        {
             "name": "Examples",
             "type": "coreclr",
             "request": "launch",

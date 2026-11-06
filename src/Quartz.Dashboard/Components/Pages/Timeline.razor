@@ -226,10 +226,8 @@
                                                                 aria-expanded="@menuOpen"
                                                                 @onclick="() => ToggleTriggerMenu(row, trigger)"
                                                                 @onclick:stopPropagation="true">
-                                                            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-                                                                <circle cx="8" cy="3.2" r="1.55" />
-                                                                <circle cx="8" cy="8" r="1.55" />
-                                                                <circle cx="8" cy="12.8" r="1.55" />
+                                                            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                                                                <path d="M3.2 5.4 8 10.2 12.8 5.4 11.5 4.2 8 7.8 4.5 4.2Z" />
                                                             </svg>
                                                         </button>
                                                         @if (menuOpen)

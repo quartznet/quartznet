@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SignAssembly>false</SignAssembly>
+    <!-- This host has no .razor files, but the dashboard needs the Blazor framework assets. -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
+  </ItemGroup>
+
+</Project>

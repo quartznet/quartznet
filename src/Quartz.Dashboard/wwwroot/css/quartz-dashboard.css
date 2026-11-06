@@ -95,6 +95,14 @@
     --qz-sidebar-width: 240px;
     --qz-sidebar-collapsed-width: 56px;
     --qz-header-height: 56px;
+
+    --qz-timeline-time-bg: color-mix(in srgb, #bae6fd 22%, var(--qz-color-surface));
+    --qz-timeline-time-edge: color-mix(in srgb, #7dd3fc 18%, var(--qz-color-border));
+    --qz-timeline-time-tick: color-mix(in srgb, #0284c7 32%, var(--qz-color-text-secondary));
+    --qz-timeline-badge-group: color-mix(in srgb, #c2410c 80%, var(--qz-color-text));
+    --qz-timeline-badge-job: color-mix(in srgb, #0e7490 82%, var(--qz-color-text));
+    --qz-timeline-badge-job-hover: color-mix(in srgb, #155e75 85%, var(--qz-color-text));
+    --qz-timeline-badge-trigger: var(--qz-color-text-secondary);
 }
 
 /* --- Dark mode --- */
@@ -139,6 +147,14 @@
             0 2px 4px -2px rgba(0, 0, 0, 0.3);
         --qz-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4),
             0 4px 6px -4px rgba(0, 0, 0, 0.3);
+
+        --qz-timeline-time-bg: color-mix(in srgb, #38bdf8 15%, var(--qz-color-surface));
+        --qz-timeline-time-edge: color-mix(in srgb, #38bdf8 20%, var(--qz-color-border));
+        --qz-timeline-time-tick: color-mix(in srgb, #7dd3fc 55%, var(--qz-color-text-secondary));
+        --qz-timeline-badge-group: #fdba74;
+        --qz-timeline-badge-job: #67e8f9;
+        --qz-timeline-badge-job-hover: #a5f3fc;
+        --qz-timeline-badge-trigger: #e2e8f0;
     }
 }
 
@@ -187,6 +203,14 @@ body{
         0 2px 4px -2px rgba(0, 0, 0, 0.1);
     --qz-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
         0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+    --qz-timeline-time-bg: color-mix(in srgb, #bae6fd 22%, var(--qz-color-surface));
+    --qz-timeline-time-edge: color-mix(in srgb, #7dd3fc 18%, var(--qz-color-border));
+    --qz-timeline-time-tick: color-mix(in srgb, #0284c7 32%, var(--qz-color-text-secondary));
+    --qz-timeline-badge-group: color-mix(in srgb, #c2410c 80%, var(--qz-color-text));
+    --qz-timeline-badge-job: color-mix(in srgb, #0e7490 82%, var(--qz-color-text));
+    --qz-timeline-badge-job-hover: color-mix(in srgb, #155e75 85%, var(--qz-color-text));
+    --qz-timeline-badge-trigger: var(--qz-color-text-secondary);
 }
 
 .qz-dashboard[data-theme="dark"] {
@@ -229,6 +253,14 @@ body{
         0 2px 4px -2px rgba(0, 0, 0, 0.3);
     --qz-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4),
         0 4px 6px -4px rgba(0, 0, 0, 0.3);
+
+    --qz-timeline-time-bg: color-mix(in srgb, #38bdf8 15%, var(--qz-color-surface));
+    --qz-timeline-time-edge: color-mix(in srgb, #38bdf8 20%, var(--qz-color-border));
+    --qz-timeline-time-tick: color-mix(in srgb, #7dd3fc 55%, var(--qz-color-text-secondary));
+    --qz-timeline-badge-group: #fdba74;
+    --qz-timeline-badge-job: #67e8f9;
+    --qz-timeline-badge-job-hover: #a5f3fc;
+    --qz-timeline-badge-trigger: #e2e8f0;
 }
 
 /* ==========================================================================
@@ -2808,6 +2840,47 @@ body{
     background: var(--qz-color-surface-alt);
 }
 
+.qz-page-timeline .qz-live-filters {
+    margin-bottom: var(--qz-space-sm);
+    padding: 0.9rem 0.85rem 0.7rem;
+    background: var(--qz-color-surface);
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+}
+
+.qz-page-timeline .qz-live-filter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.85rem 0.75rem;
+}
+
+.qz-page-timeline .qz-live-filter-grid .qz-form-group {
+    flex: 0 1 11rem;
+    margin-bottom: 0;
+    gap: 0;
+}
+
+.qz-page-timeline .qz-live-filter-grid .qz-form-group:not(.qz-timeline-pan) {
+    position: relative;
+    margin-top: 0.35rem;
+}
+
+.qz-page-timeline .qz-live-filter-grid .qz-form-label {
+    position: absolute;
+    top: -0.42rem;
+    left: 0.5rem;
+    z-index: 1;
+    padding: 0 0.28rem;
+    background: var(--qz-color-surface);
+    font-size: 0.62rem;
+    font-weight: var(--qz-font-weight-semibold);
+    letter-spacing: 0.07em;
+    line-height: 1;
+    text-transform: uppercase;
+    color: var(--qz-color-primary);
+}
+
 .qz-page-timeline .qz-live-filters .qz-muted {
     font-variant-numeric: tabular-nums;
 }
@@ -2815,9 +2888,16 @@ body{
 .qz-page-timeline .qz-live-filter-grid .qz-select,
 .qz-page-timeline .qz-live-filter-grid .qz-input {
     width: 100%;
+    background: var(--qz-color-bg);
+}
+
+.qz-page-timeline .qz-live-filter-grid .qz-form-group:has(#timeline-name) {
+    flex: 1 1 14rem;
+    max-width: 18rem;
 }
 
 .qz-timeline-pan {
+    flex: 0 0 auto;
     justify-content: flex-end;
 }
 
@@ -2855,12 +2935,26 @@ body{
 }
 
 .qz-timeline-section-name {
+    display: inline-flex;
+    align-items: center;
+    max-width: min(18rem, 70%);
+    padding: 0.08rem 0.45rem;
+    border: 1px solid color-mix(in srgb, #ea580c 50%, var(--qz-color-border));
+    border-radius: 999px;
+    background: color-mix(in srgb, #ea580c 28%, var(--qz-color-surface));
+    color: var(--qz-timeline-badge-group);
     font-family: var(--qz-font-mono);
+    font-size: var(--qz-font-size-xs);
+    font-weight: var(--qz-font-weight-semibold);
+    line-height: 1.45;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .qz-timeline-axis {
-    border-bottom: 1px solid var(--qz-color-border);
-    background: var(--qz-color-surface-alt);
+    border-bottom: 1px solid var(--qz-timeline-time-edge);
+    background: var(--qz-timeline-time-bg);
     overflow: hidden;
 }
 
@@ -2904,8 +2998,24 @@ body{
 }
 
 .qz-timeline-job .qz-timeline-row-name {
-    font-size: var(--qz-font-size-base);
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    max-width: min(24rem, 100%);
+    padding: 0.1rem 0.5rem;
+    border: 1px solid color-mix(in srgb, #0891b2 50%, var(--qz-color-border));
+    border-radius: 999px;
+    background: color-mix(in srgb, #0891b2 26%, var(--qz-color-surface));
+    color: var(--qz-timeline-badge-job);
+    font-size: var(--qz-font-size-sm);
     font-weight: var(--qz-font-weight-semibold);
+    line-height: 1.4;
+}
+
+.qz-timeline-job .qz-timeline-row-name:hover {
+    background: color-mix(in srgb, #0891b2 38%, var(--qz-color-surface));
+    color: var(--qz-timeline-badge-job-hover);
+    text-decoration: none;
 }
 
 .qz-timeline-trigger {
@@ -2921,7 +3031,7 @@ body{
     height: 1.85rem;
     border-top: 1px solid var(--qz-color-border);
     border-bottom: 1px solid var(--qz-color-border);
-    background-color: var(--qz-color-bg);
+    background-color: var(--qz-timeline-time-bg);
     background-image: linear-gradient(
         to right,
         var(--qz-color-border) 0,
@@ -2962,14 +3072,14 @@ body{
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 1.15rem;
+    height: 1.15rem;
     min-height: 0;
     padding: 0;
-    border: 1px solid var(--qz-color-border);
-    border-radius: var(--qz-radius-md);
-    background: var(--qz-color-surface);
-    color: var(--qz-color-text);
+    border: none;
+    border-radius: var(--qz-radius-sm);
+    background: transparent;
+    color: var(--qz-color-text-muted);
     box-shadow: none;
     cursor: pointer;
     line-height: 0;
@@ -3085,10 +3195,26 @@ body{
 }
 
 .qz-timeline-row-trigger-name {
-    font-family: var(--qz-font-mono);
-    font-weight: var(--qz-font-weight-normal);
-    color: var(--qz-color-text-secondary);
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
     min-width: 0;
+    padding: 0.06rem 0.42rem;
+    border: 1px solid color-mix(in srgb, var(--qz-color-secondary) 42%, var(--qz-color-border));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--qz-color-secondary) 16%, var(--qz-color-surface));
+    color: var(--qz-timeline-badge-trigger);
+    font-family: var(--qz-font-mono);
+    font-size: var(--qz-font-size-xs);
+    font-weight: var(--qz-font-weight-medium);
+    line-height: 1.4;
+}
+
+.qz-timeline-field-name .qz-timeline-row-trigger-name:hover {
+    background: color-mix(in srgb, var(--qz-color-secondary) 26%, var(--qz-color-surface));
+    color: var(--qz-color-text);
+    text-decoration: none;
 }
 
 .qz-timeline-row-trigger {
@@ -3199,7 +3325,7 @@ body{
     font-size: var(--qz-font-size-xs);
     font-weight: var(--qz-font-weight-semibold);
     letter-spacing: 0.03em;
-    color: var(--qz-color-text-secondary);
+    color: var(--qz-timeline-time-tick);
     white-space: nowrap;
     pointer-events: none;
 }
