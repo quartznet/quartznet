@@ -15,7 +15,7 @@
     <h1>Execution</h1>
 
     <div class="qz-row">
-        <a class="qz-details-link" href="@DashboardLink.To(Options.Value, "history")">Back to execution history</a>
+        <a class="qz-details-link" data-testid="execution-back" href="@BackHref">@BackLabel</a>
         @* Only on a final failure, as on the history page; the label says whether the run's input goes with it.
            A job no longer stored cannot be fired, so the button is disabled and its title says why. *@
         @if (OffersRunAgain(_entry))
@@ -130,6 +130,92 @@
 
     [Parameter]
     public string EntryId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Who opened this run. <c>timeline</c>, <c>job</c> and <c>trigger</c> send Back there; anything else,
+    /// including none, keeps the history listing.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "from")]
+    public string? From { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "window")]
+    public string? WindowQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "group")]
+    public string? GroupQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "page")]
+    public int? PageQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "pageSize")]
+    public int? PageSizeQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "pan")]
+    public int? PanQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "jobGroup")]
+    public string? JobGroupQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "jobName")]
+    public string? JobNameQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "triggerGroup")]
+    public string? TriggerGroupQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "triggerName")]
+    public string? TriggerNameQuery { get; set; }
+
+    private string BackLabel => BackTarget switch
+    {
+        "timeline" => "Back to timeline",
+        "job" => "Back to job",
+        "trigger" => "Back to trigger",
+        _ => "Back to execution history"
+    };
+
+    private string BackHref => BackTarget switch
+    {
+        "timeline" => DashboardLink.Timeline(Options.Value, WindowQuery, GroupQuery, PageQuery, PageSizeQuery, PanQuery),
+        "job" => DashboardLink.To(Options.Value, "jobs/" + Uri.EscapeDataString(JobGroupQuery!) + "/" + Uri.EscapeDataString(JobNameQuery!)),
+        "trigger" => DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(TriggerGroupQuery!) + "/" + Uri.EscapeDataString(TriggerNameQuery!)),
+        _ => DashboardLink.To(Options.Value, "history")
+    };
+
+    /// <summary>The origin Back can honour, or <see langword="null"/> when the query does not name one completely.</summary>
+    private string? BackTarget
+    {
+        get
+        {
+            if (IsFrom("timeline"))
+            {
+                return "timeline";
+            }
+
+            if (IsFrom("job") && !string.IsNullOrWhiteSpace(JobGroupQuery) && !string.IsNullOrWhiteSpace(JobNameQuery))
+            {
+                return "job";
+            }
+
+            if (IsFrom("trigger") && !string.IsNullOrWhiteSpace(TriggerGroupQuery) && !string.IsNullOrWhiteSpace(TriggerNameQuery))
+            {
+                return "trigger";
+            }
+
+            return null;
+        }
+    }
+
+    private bool IsFrom(string origin) => string.Equals(From, origin, StringComparison.OrdinalIgnoreCase);
 
     protected override void OnInitialized()
     {

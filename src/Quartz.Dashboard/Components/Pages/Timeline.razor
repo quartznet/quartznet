@@ -1447,13 +1447,26 @@
         return ((int) Math.Round(offset.TotalMinutes)).ToString(CultureInfo.InvariantCulture) + "m";
     }
 
-    private string ExecutionPath(string entryId) => DashboardLink.To(Options.Value, "history/" + Uri.EscapeDataString(entryId));
+    private string ExecutionPath(string entryId) =>
+        WithTimelineOrigin(DashboardLink.To(Options.Value, "history/" + Uri.EscapeDataString(entryId)));
 
     private string JobPath(string group, string name) =>
-        DashboardLink.To(Options.Value, "jobs/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
+        WithTimelineOrigin(DashboardLink.To(Options.Value, "jobs/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name)));
 
     private string TriggerPath(string group, string name) =>
-        DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
+        WithTimelineOrigin(DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name)));
+
+    /// <summary>
+    /// Appends the Timeline view the visitor is looking at, so the page they open can link back to it.
+    /// </summary>
+    private string WithTimelineOrigin(string path)
+    {
+        string timeline = BuildTimelinePath(_window, _groupFilter, _page, _pageSize, _panOffset);
+        int queryIndex = timeline.IndexOf('?');
+        string timelineQuery = queryIndex >= 0 ? timeline[(queryIndex + 1)..] : string.Empty;
+        string origin = path + "?from=timeline";
+        return timelineQuery.Length == 0 ? origin : origin + "&" + timelineQuery;
+    }
 
     private double NowFraction()
     {

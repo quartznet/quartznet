@@ -16,6 +16,12 @@
 
 <div class="qz-page">
     <h1>Job Detail</h1>
+    @if (ReturnedFromTimeline)
+    {
+        <div class="qz-row">
+            <a class="qz-details-link" data-testid="detail-back" href="@TimelineBackHref">Back to timeline</a>
+        </div>
+    }
 
     @if (_isLoading)
     {
@@ -267,6 +273,35 @@
     [Parameter]
     public string Name { get; set; } = string.Empty;
 
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "from")]
+    public string? From { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "window")]
+    public string? WindowQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "group")]
+    public string? GroupQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "page")]
+    public int? PageQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "pageSize")]
+    public int? PageSizeQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "pan")]
+    public int? PanQuery { get; set; }
+
+    private bool ReturnedFromTimeline => string.Equals(From, "timeline", StringComparison.OrdinalIgnoreCase);
+
+    private string TimelineBackHref =>
+        DashboardLink.Timeline(Options.Value, WindowQuery, GroupQuery, PageQuery, PageSizeQuery, PanQuery);
+
     private bool IsReadOnly => Options.Value.ReadOnly;
 
     /// <summary>
@@ -423,7 +458,11 @@
 
     private string GetExecutionPath(string entryId)
     {
-        return DashboardLink.To(Options.Value, "history/" + Uri.EscapeDataString(entryId));
+        return DashboardLink.To(
+            Options.Value,
+            "history/" + Uri.EscapeDataString(entryId)
+            + "?from=job&jobGroup=" + Uri.EscapeDataString(Group)
+            + "&jobName=" + Uri.EscapeDataString(Name));
     }
 
     private void PromptPause()

@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Globalization;
+
 namespace Quartz.Dashboard.Components;
 
 /// <summary>
@@ -26,6 +28,48 @@ namespace Quartz.Dashboard.Components;
 /// </summary>
 internal static class DashboardLink
 {
+    /// <summary>
+    /// The Timeline, with whichever of its view parameters were carried here, so Back restores the window
+    /// the visitor left rather than the default one.
+    /// </summary>
+    internal static string Timeline(
+        QuartzDashboardOptions options,
+        string? window,
+        string? group,
+        int? page,
+        int? pageSize,
+        int? panMinutes)
+    {
+        List<string> query = [];
+        if (!string.IsNullOrWhiteSpace(window))
+        {
+            query.Add("window=" + Uri.EscapeDataString(window));
+        }
+
+        if (!string.IsNullOrWhiteSpace(group))
+        {
+            query.Add("group=" + Uri.EscapeDataString(group));
+        }
+
+        if (panMinutes is int pan && pan > 0)
+        {
+            query.Add("pan=" + pan.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (page is int pageNumber && pageNumber > 1)
+        {
+            query.Add("page=" + pageNumber.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (pageSize is int size && size > 0)
+        {
+            query.Add("pageSize=" + size.ToString(CultureInfo.InvariantCulture));
+        }
+
+        string subPath = query.Count == 0 ? "timeline" : "timeline?" + string.Join('&', query);
+        return To(options, subPath);
+    }
+
     internal static string To(QuartzDashboardOptions options, string subPath)
     {
         if (options.HasCustomDashboardPath)
