@@ -118,8 +118,10 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
         _blockingTaskQueue = new BlockingCollection<Task>();
 
         // Create all of the threads
-        _threads = new Thread[threadCount];
-        for (int i = 0; i < threadCount; i++)
+        // Zero requests the default CPU-based concurrency. Create that many workers,
+        // not zero workers, or every queued task remains pending forever.
+        _threads = new Thread[_concurrencyLevel];
+        for (int i = 0; i < _threads.Length; i++)
         {
             _threads[i] = new Thread(() => ThreadBasedDispatchLoop())
             {
