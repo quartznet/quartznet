@@ -53,6 +53,25 @@ partial class Build
     const string DisableBuildServers = "--disable-build-servers";
 
     /// <summary>
+    /// Validates the packages that Pack just produced, before any preview or release push.
+    /// A package whose static-web-assets props names a missing file must never be published.
+    /// </summary>
+    Target VerifyPackedStaticWebAssets => _ => _
+        .TriggeredBy<IPack>()
+        .Before(Publish)
+        .Before(Net11ConsumerSmoke)
+        .Executes(() =>
+        {
+            AbsolutePath[] packages = [.. ((IPack) this).PackagesDirectory.GlobFiles($"Quartz*.{FullVersion}.nupkg")];
+            Assert.NotEmpty(packages, $"Pack produced no Quartz {FullVersion} NuGet packages to verify.");
+
+            foreach (AbsolutePath package in packages)
+            {
+                AssertTheStaticWebAssetsArePacked(package);
+            }
+        });
+
+    /// <summary>
     /// Builds a <c>net11.0</c> application against the packages <see cref="IPack.Pack" /> made, with the
     /// .NET 11 SDK, runs it, and publishes both trim canaries from the same packages trimmed and natively.
     /// </summary>
@@ -150,11 +169,6 @@ partial class Build
               </packageSources>
             </configuration>
             """);
-
-        foreach (AbsolutePath package in ((IPack) this).PackagesDirectory.GlobFiles($"Quartz*.{FullVersion}.nupkg"))
-        {
-            AssertTheStaticWebAssetsArePacked(package);
-        }
 
         Dictionary<string, string> environment = Net11ConsumerEnvironment(root);
 
