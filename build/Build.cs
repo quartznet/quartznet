@@ -1230,10 +1230,10 @@ partial class Build : FalloutBuild, ICompile, IPack
         .SetVersionPrefix(VersionPrefix)
         .SetVersionSuffix(VersionSuffix)
         .SetContinuousIntegrationBuild(IsContinuousIntegrationBuild)
-        // The dashboard host's dotnet-tool Pack invokes Publish, which resolves the
-        // dashboard's static assets while the dashboard package is being assembled.
-        // Concurrent solution Pack nodes can race over those shared intermediates
-        // and produce a package whose static-web-assets props name absent files (#4236).
+        // Dashboard.Host's PackAsTool publish also requests Dashboard's
+        // GetCopyToPublishDirectoryItems. In concurrent Pack nodes, that invokes
+        // _CleanupReferencedProjectItemGroups after Dashboard has added its static
+        // assets to Content but before NuGet collects package files (#4236).
         // Keep Compile parallel; serialize only the packaging graph.
         .AddProcessAdditionalArguments("--maxcpucount:1");
 
