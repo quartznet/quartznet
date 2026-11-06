@@ -1229,7 +1229,13 @@ partial class Build : FalloutBuild, ICompile, IPack
         .SetFileVersion(VersionPrefix)
         .SetVersionPrefix(VersionPrefix)
         .SetVersionSuffix(VersionSuffix)
-        .SetContinuousIntegrationBuild(IsContinuousIntegrationBuild);
+        .SetContinuousIntegrationBuild(IsContinuousIntegrationBuild)
+        // The dashboard host's dotnet-tool Pack invokes Publish, which resolves the
+        // dashboard's static assets while the dashboard package is being assembled.
+        // Concurrent solution Pack nodes can race over those shared intermediates
+        // and produce a package whose static-web-assets props name absent files (#4236).
+        // Keep Compile parallel; serialize only the packaging graph.
+        .AddProcessAdditionalArguments("--maxcpucount:1");
 
     Target PackZip => _ => _
         .TriggeredBy<IPack>()
