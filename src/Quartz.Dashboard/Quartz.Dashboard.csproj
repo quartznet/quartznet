@@ -51,4 +51,12 @@
     <SupportedPlatform Include="browser" />
   </ItemGroup>
 
+  <!-- Keep the SDK's publish-reference cleanup ahead of packing static assets.  -->
+  <!-- Dashboard.Host's tool Pack calls Dashboard GetCopyToPublishDirectoryItems. -->
+  <!-- In parallel solution Pack it can otherwise remove assets after they were -->
+  <!-- added to Content but before NuGet _GetPackageFiles (#4236).             -->
+  <Target Name="_QuartzDashboardCleanupBeforePack"
+          BeforeTargets="IncludeStaticWebAssetsPackItems"
+          DependsOnTargets="_CleanupReferencedProjectItemGroups" />
+
 </Project>

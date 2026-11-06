@@ -1229,13 +1229,7 @@ partial class Build : FalloutBuild, ICompile, IPack
         .SetFileVersion(VersionPrefix)
         .SetVersionPrefix(VersionPrefix)
         .SetVersionSuffix(VersionSuffix)
-        .SetContinuousIntegrationBuild(IsContinuousIntegrationBuild)
-        // Dashboard.Host's PackAsTool publish also requests Dashboard's
-        // GetCopyToPublishDirectoryItems. In concurrent Pack nodes, that invokes
-        // _CleanupReferencedProjectItemGroups after Dashboard has added its static
-        // assets to Content but before NuGet collects package files (#4236).
-        // Keep Compile parallel; serialize only the packaging graph.
-        .AddProcessAdditionalArguments("--maxcpucount:1");
+        .SetContinuousIntegrationBuild(IsContinuousIntegrationBuild);
 
     Target PackZip => _ => _
         .TriggeredBy<IPack>()
