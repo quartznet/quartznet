@@ -49,6 +49,7 @@
         "VerifyDocsLogEvents",
         "VerifyDocsSnippets",
         "VerifyMigrations",
+        "VerifyPackedStaticWebAssets",
         "VerifySchema",
         "WolverineSmoke"
       ]

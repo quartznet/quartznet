@@ -53,6 +53,42 @@ partial class Build
     const string DisableBuildServers = "--disable-build-servers";
 
     /// <summary>
+    /// Validates the packages that Pack just produced, before any preview or release push.
+    /// A package whose static-web-assets props names a missing file must never be published.
+    /// </summary>
+    Target VerifyPackedStaticWebAssets => _ => _
+        .TriggeredBy<IPack>()
+        .Before(Publish)
+        .Before(Net11ConsumerSmoke)
+        .Executes(() =>
+        {
+            AbsolutePath[] packages = [.. ((IPack) this).PackagesDirectory.GlobFiles($"Quartz*.{FullVersion}.nupkg")];
+            Assert.NotEmpty(packages, $"Pack produced no Quartz {FullVersion} NuGet packages to verify.");
+
+            // Dashboard and Host must each have a static-web-assets manifest. Other Quartz
+            // packages legitimately have no such assets, so checking only the references
+            // found in an existing manifest would silently accept a missing package or props.
+            AbsolutePath[] required =
+            [
+                ((IPack) this).PackagesDirectory / $"Quartz.Dashboard.{FullVersion}.nupkg",
+                ((IPack) this).PackagesDirectory / $"Quartz.Dashboard.Host.{FullVersion}.nupkg"
+            ];
+            foreach (AbsolutePath package in required)
+            {
+                Assert.True(File.Exists(package), $"Pack did not produce required {package.Name}.");
+                AssertTheStaticWebAssetsArePacked(package, requireStaticAssets: true);
+            }
+
+            foreach (AbsolutePath package in packages)
+            {
+                if (!required.Contains(package))
+                {
+                    AssertTheStaticWebAssetsArePacked(package);
+                }
+            }
+        });
+
+    /// <summary>
     /// Builds a <c>net11.0</c> application against the packages <see cref="IPack.Pack" /> made, with the
     /// .NET 11 SDK, runs it, and publishes both trim canaries from the same packages trimmed and natively.
     /// </summary>
@@ -150,11 +186,6 @@ partial class Build
               </packageSources>
             </configuration>
             """);
-
-        foreach (AbsolutePath package in ((IPack) this).PackagesDirectory.GlobFiles($"Quartz*.{FullVersion}.nupkg"))
-        {
-            AssertTheStaticWebAssetsArePacked(package);
-        }
 
         Dictionary<string, string> environment = Net11ConsumerEnvironment(root);
 
@@ -256,13 +287,15 @@ partial class Build
     /// else, so this says what the package carries instead. The <c>Quartz.Dashboard</c> package packed on
     /// ubuntu-latest named a scoped CSS bundle it did not carry (#4211).
     /// </remarks>
-    static void AssertTheStaticWebAssetsArePacked(AbsolutePath package)
+    static void AssertTheStaticWebAssetsArePacked(AbsolutePath package, bool requireStaticAssets = false)
     {
         using ZipArchive archive = ZipFile.OpenRead(package);
 
         ZipArchiveEntry props = archive.GetEntry("build/Microsoft.AspNetCore.StaticWebAssets.props");
         if (props is null)
         {
+            Assert.True(!requireStaticAssets,
+                $"{package.Name} must contain build/Microsoft.AspNetCore.StaticWebAssets.props.");
             return;
         }
 
@@ -278,6 +311,11 @@ partial class Build
         string[] named = [.. Regex.Matches(text, @"\.\.[\\/]staticwebassets[\\/](?<file>[^'<>]+)'", RegexOptions.None, TimeSpan.FromSeconds(5))
             .Select(x => "staticwebassets/" + x.Groups["file"].Value.Replace('\\', '/'))
             .Distinct(StringComparer.Ordinal)];
+        if (requireStaticAssets)
+        {
+            Assert.NotEmpty(named, $"{package.Name} has a static-web-assets props file but names no assets.");
+        }
+
         string[] missing = [.. named.Where(x => !carried.Contains(x, StringComparer.Ordinal))];
 
         Assert.True(missing.Length == 0,
