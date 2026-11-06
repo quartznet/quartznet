@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "Quartz.Examples.Dashboard": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "quartz/timeline",
+      "applicationUrl": "http://localhost:5088",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

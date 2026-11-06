@@ -16,6 +16,7 @@
 
 <div class="qz-page">
     <h1>Job Detail</h1>
+    <OriginBackLink />
 
     @if (_isLoading)
     {
@@ -423,7 +424,11 @@
 
     private string GetExecutionPath(string entryId)
     {
-        return DashboardLink.To(Options.Value, "history/" + Uri.EscapeDataString(entryId));
+        return DashboardLink.To(
+            Options.Value,
+            "history/" + Uri.EscapeDataString(entryId)
+            + "?from=job&jobGroup=" + Uri.EscapeDataString(Group)
+            + "&jobName=" + Uri.EscapeDataString(Name));
     }
 
     private void PromptPause()

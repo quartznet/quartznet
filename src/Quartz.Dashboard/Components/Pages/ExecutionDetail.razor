@@ -15,7 +15,7 @@
     <h1>Execution</h1>
 
     <div class="qz-row">
-        <a class="qz-details-link" href="@DashboardLink.To(Options.Value, "history")">Back to execution history</a>
+        <OriginBackLink FallbackToHistory="true" InRow="false" TestId="execution-back" />
         @* Only on a final failure, as on the history page; the label says whether the run's input goes with it.
            A job no longer stored cannot be fired, so the button is disabled and its title says why. *@
         @if (OffersRunAgain(_entry))

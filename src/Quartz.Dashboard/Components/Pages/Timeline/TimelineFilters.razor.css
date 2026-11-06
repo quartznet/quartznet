@@ -1,0 +1,61 @@
+/* Timeline filter overrides. The shared .qz-live-filters rules stay in quartz-dashboard.css. */
+.qz-live-filters {
+    margin-bottom: var(--qz-space-sm);
+    padding: 0.9rem 0.85rem 0.7rem;
+    background: var(--qz-color-surface);
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+}
+
+.qz-live-filter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.85rem 0.75rem;
+}
+
+.qz-live-filter-grid .qz-form-group {
+    flex: 0 1 11rem;
+    margin-bottom: 0;
+    gap: 0;
+}
+
+.qz-live-filter-grid .qz-form-group:not(.qz-timeline-pan) {
+    position: relative;
+    margin-top: 0.35rem;
+}
+
+.qz-live-filter-grid .qz-form-label {
+    position: absolute;
+    top: -0.42rem;
+    left: 0.5rem;
+    z-index: 1;
+    padding: 0 0.28rem;
+    background: var(--qz-color-surface);
+    font-size: 0.62rem;
+    font-weight: var(--qz-font-weight-semibold);
+    letter-spacing: 0.07em;
+    line-height: 1;
+    text-transform: uppercase;
+    color: var(--qz-color-primary);
+}
+
+.qz-live-filters .qz-muted {
+    font-variant-numeric: tabular-nums;
+}
+
+.qz-live-filter-grid .qz-select,
+.qz-live-filter-grid .qz-input {
+    width: 100%;
+    background: var(--qz-color-bg);
+}
+
+.qz-live-filter-grid .qz-form-group:has(#timeline-name) {
+    flex: 1 1 14rem;
+    max-width: 18rem;
+}
+
+.qz-timeline-pan {
+    flex: 0 0 auto;
+    justify-content: flex-end;
+}

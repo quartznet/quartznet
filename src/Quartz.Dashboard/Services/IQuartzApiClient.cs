@@ -1191,6 +1191,28 @@ public sealed record TriggerHeaderDto(
     /// its pause recorded nothing. An <c>init</c> property for the reason <see cref="ContinuesAfter" /> is one.
     /// </summary>
     public PauseInfo? Pause { get; init; }
+
+    /// <summary>
+    /// When the trigger's schedule comes into effect. Set from the loaded trigger or from
+    /// <see cref="TriggerHeader.StartTimeUtc" /> on a listing that does not load triggers.
+    /// </summary>
+    public DateTimeOffset? StartTimeUtc { get; init; }
+
+    /// <summary>
+    /// When the trigger's schedule ends, or <see langword="null" /> when it is unbounded.
+    /// </summary>
+    public DateTimeOffset? EndTimeUtc { get; init; }
+
+    /// <summary>
+    /// The next time the trigger will fire, or <see langword="null" /> when there is none (paused,
+    /// complete, or never scheduled).
+    /// </summary>
+    public DateTimeOffset? NextFireTimeUtc { get; init; }
+
+    /// <summary>
+    /// The previous time the trigger fired, or <see langword="null" /> when it has not fired yet.
+    /// </summary>
+    public DateTimeOffset? PreviousFireTimeUtc { get; init; }
 }
 
 /// <remarks>

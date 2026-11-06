@@ -1,0 +1,81 @@
+@namespace Quartz.Dashboard.Components.Pages
+@using System.Globalization
+@using Quartz.Dashboard.Services
+@inject SchedulerState Scheduler
+
+@* The controls above the chart. The page owns the values and writes them into the address; this only draws them. *@
+<div class="qz-live-filters" data-testid="timeline-controls">
+    <div class="qz-live-filter-grid">
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="timeline-window">Window</label>
+            <select id="timeline-window"
+                    class="qz-select"
+                    data-testid="timeline-window"
+                    value="@Page.Window.Key"
+                    @onchange="OnWindowChangedAsync">
+                @foreach (TimelineWindow window in TimelineWindow.Offered)
+                {
+                    <option value="@window.Key">@window.ShortLabel</option>
+                }
+            </select>
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="timeline-group">Job group</label>
+            <select id="timeline-group"
+                    class="qz-select"
+                    data-testid="timeline-group"
+                    value="@Page.GroupFilter"
+                    @onchange="OnGroupChangedAsync">
+                <option value="">All groups</option>
+                @foreach (string group in Page.GroupOptions)
+                {
+                    <option value="@group">@group</option>
+                }
+            </select>
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="timeline-page-size">Rows</label>
+            <select id="timeline-page-size"
+                    class="qz-select"
+                    data-testid="timeline-page-size"
+                    value="@Page.PageSize.ToString(CultureInfo.InvariantCulture)"
+                    @onchange="OnPageSizeChangedAsync">
+                @foreach (int size in Timeline.PageSizes)
+                {
+                    <option value="@size.ToString(CultureInfo.InvariantCulture)">@size / page</option>
+                }
+            </select>
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="timeline-name">Name</label>
+            <input id="timeline-name"
+                   class="qz-input"
+                   type="search"
+                   data-testid="timeline-name"
+                   placeholder="contains"
+                   value="@Page.NameFilter"
+                   @oninput="OnNameInputAsync" />
+        </div>
+        <div class="qz-form-group qz-timeline-pan">
+            <div class="qz-actions">
+                <button type="button"
+                        class="qz-button"
+                        data-testid="timeline-pan-older"
+                        @onclick="PanOlderAsync">Older</button>
+                <button type="button"
+                        class="qz-button"
+                        data-testid="timeline-pan-newer"
+                        disabled="@(!Page.CanPanNewer)"
+                        @onclick="PanNewerAsync">Newer</button>
+            </div>
+        </div>
+    </div>
+    <p class="qz-muted">
+        @Page.ShownCount/@Page.MatchCount · @Page.BarCount runs
+        · @FormatInstant(Page.Bounds.Start)–@FormatInstant(Page.Bounds.AxisEnd)
+        @if (Page.PanOffset > TimeSpan.Zero)
+        {
+            <text> · −@FormatPanOffset(Page.PanOffset)</text>
+        }
+    </p>
+</div>

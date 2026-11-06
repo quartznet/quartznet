@@ -4,6 +4,21 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "build dashboard demo",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "src/Quartz.Examples.Dashboard/Quartz.Examples.Dashboard.csproj",
+                "--configuration",
+                "Debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
             "label": "build",
             "type": "process",
             "command": "dotnet",

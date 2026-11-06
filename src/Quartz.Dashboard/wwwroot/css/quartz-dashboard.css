@@ -95,6 +95,14 @@
     --qz-sidebar-width: 240px;
     --qz-sidebar-collapsed-width: 56px;
     --qz-header-height: 56px;
+
+    --qz-timeline-time-bg: color-mix(in srgb, #bae6fd 22%, var(--qz-color-surface));
+    --qz-timeline-time-edge: color-mix(in srgb, #7dd3fc 18%, var(--qz-color-border));
+    --qz-timeline-time-tick: color-mix(in srgb, #0284c7 32%, var(--qz-color-text-secondary));
+    --qz-timeline-badge-group: color-mix(in srgb, #c2410c 80%, var(--qz-color-text));
+    --qz-timeline-badge-job: color-mix(in srgb, #0e7490 82%, var(--qz-color-text));
+    --qz-timeline-badge-job-hover: color-mix(in srgb, #155e75 85%, var(--qz-color-text));
+    --qz-timeline-badge-trigger: var(--qz-color-text-secondary);
 }
 
 /* --- Dark mode --- */
@@ -139,6 +147,14 @@
             0 2px 4px -2px rgba(0, 0, 0, 0.3);
         --qz-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4),
             0 4px 6px -4px rgba(0, 0, 0, 0.3);
+
+        --qz-timeline-time-bg: color-mix(in srgb, #38bdf8 15%, var(--qz-color-surface));
+        --qz-timeline-time-edge: color-mix(in srgb, #38bdf8 20%, var(--qz-color-border));
+        --qz-timeline-time-tick: color-mix(in srgb, #7dd3fc 55%, var(--qz-color-text-secondary));
+        --qz-timeline-badge-group: #fdba74;
+        --qz-timeline-badge-job: #67e8f9;
+        --qz-timeline-badge-job-hover: #a5f3fc;
+        --qz-timeline-badge-trigger: #e2e8f0;
     }
 }
 
@@ -187,6 +203,14 @@ body{
         0 2px 4px -2px rgba(0, 0, 0, 0.1);
     --qz-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
         0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+    --qz-timeline-time-bg: color-mix(in srgb, #bae6fd 22%, var(--qz-color-surface));
+    --qz-timeline-time-edge: color-mix(in srgb, #7dd3fc 18%, var(--qz-color-border));
+    --qz-timeline-time-tick: color-mix(in srgb, #0284c7 32%, var(--qz-color-text-secondary));
+    --qz-timeline-badge-group: color-mix(in srgb, #c2410c 80%, var(--qz-color-text));
+    --qz-timeline-badge-job: color-mix(in srgb, #0e7490 82%, var(--qz-color-text));
+    --qz-timeline-badge-job-hover: color-mix(in srgb, #155e75 85%, var(--qz-color-text));
+    --qz-timeline-badge-trigger: var(--qz-color-text-secondary);
 }
 
 .qz-dashboard[data-theme="dark"] {
@@ -229,6 +253,14 @@ body{
         0 2px 4px -2px rgba(0, 0, 0, 0.3);
     --qz-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4),
         0 4px 6px -4px rgba(0, 0, 0, 0.3);
+
+    --qz-timeline-time-bg: color-mix(in srgb, #38bdf8 15%, var(--qz-color-surface));
+    --qz-timeline-time-edge: color-mix(in srgb, #38bdf8 20%, var(--qz-color-border));
+    --qz-timeline-time-tick: color-mix(in srgb, #7dd3fc 55%, var(--qz-color-text-secondary));
+    --qz-timeline-badge-group: #fdba74;
+    --qz-timeline-badge-job: #67e8f9;
+    --qz-timeline-badge-job-hover: #a5f3fc;
+    --qz-timeline-badge-trigger: #e2e8f0;
 }
 
 /* ==========================================================================
@@ -524,6 +556,11 @@ body{
     justify-content: space-between;
     margin-bottom: var(--qz-space-lg);
 }
+
+.qz-content:has(.qz-page-timeline) {
+    padding-top: var(--qz-space-sm);
+}
+
 
 .qz-page-title {
     font-size: var(--qz-font-size-xl);
@@ -2735,7 +2772,7 @@ body{
 }
 
 /* ==========================================================================
-   26. RESPONSIVE (1024px+ breakpoint)
+   27. RESPONSIVE (1024px+ breakpoint)
    ========================================================================== */
 
 @media (max-width: 1024px) {

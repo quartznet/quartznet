@@ -341,7 +341,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             {
                 ContinuesAfter = AsTriggerKeyDto(continuation.Parent),
                 ContinuationCondition = continuation.IsNone ? null : continuation.When,
-                Pause = pauses.GetValueOrDefault(trigger.Key)
+                Pause = pauses.GetValueOrDefault(trigger.Key),
+                StartTimeUtc = trigger.StartTimeUtc,
+                EndTimeUtc = trigger.EndTimeUtc,
+                NextFireTimeUtc = trigger.NextFireTimeUtc,
+                PreviousFireTimeUtc = trigger.PreviousFireTimeUtc
             });
         }
 
@@ -536,7 +540,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 // can say why each row is there without loading a trigger per row.
                 ContinuesAfter = AsTriggerKeyDto(trigger.ContinuesAfter),
                 ContinuationCondition = trigger.ContinuationCondition,
-                Pause = trigger.Pause
+                Pause = trigger.Pause,
+                StartTimeUtc = trigger.StartTimeUtc,
+                EndTimeUtc = trigger.EndTimeUtc,
+                NextFireTimeUtc = trigger.NextFireTimeUtc,
+                PreviousFireTimeUtc = trigger.PreviousFireTimeUtc
             });
         }
 

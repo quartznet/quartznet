@@ -1,0 +1,310 @@
+/* One trigger row: schedule, action menu and the runs on its track. */
+.qz-timeline-columns {
+    display: grid;
+    grid-template-columns: minmax(8rem, 1.1fr) repeat(5, minmax(0, 1fr));
+    gap: 0;
+    align-items: stretch;
+    padding: 0;
+}
+
+.qz-timeline-columns > * {
+    min-width: 0;
+    padding: 0.4rem 0.55rem;
+    border-left: 1px solid var(--qz-color-border);
+    border-right: 1px solid var(--qz-color-border);
+}
+
+.qz-timeline-columns > * + * {
+    margin-left: -1px;
+}
+
+.qz-timeline-trigger {
+    background: var(--qz-color-surface);
+}
+
+.qz-timeline-trigger-fields {
+    background: var(--qz-color-surface);
+}
+
+.qz-timeline-trigger-track {
+    position: relative;
+    height: 1.85rem;
+    border-top: 1px solid var(--qz-color-border);
+    border-bottom: 1px solid var(--qz-color-border);
+    background-color: var(--qz-timeline-time-bg);
+    background-image: linear-gradient(
+        to right,
+        var(--qz-color-border) 0,
+        var(--qz-color-border) 1px,
+        transparent 1px,
+        transparent 100%
+    );
+    background-size: var(--qz-timeline-minute-pct, 6.25%) 100%;
+    background-position: var(--qz-timeline-minute-offset, 0%) 0;
+    background-repeat: repeat-x;
+}
+
+.qz-timeline-field {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.qz-timeline-field-name {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--qz-space-xs);
+    overflow: visible;
+}
+
+.qz-timeline-actions {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.qz-timeline-actions-open {
+    z-index: 6;
+}
+
+.qz-timeline-actions-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: var(--qz-radius-sm);
+    background: transparent;
+    color: var(--qz-color-text-muted);
+    box-shadow: none;
+    cursor: pointer;
+    line-height: 0;
+}
+
+.qz-timeline-actions-btn svg {
+    fill: currentColor;
+}
+
+.qz-timeline-actions-btn:hover,
+.qz-timeline-actions-open .qz-timeline-actions-btn {
+    background: var(--qz-color-surface-hover);
+    border-color: var(--qz-color-border-strong);
+    color: var(--qz-color-text);
+    transform: none;
+    box-shadow: none;
+}
+
+.qz-timeline-actions-menu {
+    position: absolute;
+    top: calc(100% + 0.2rem);
+    right: 0;
+    z-index: 6;
+    min-width: 9rem;
+    display: flex;
+    flex-direction: column;
+    padding: 0.25rem;
+    background: var(--qz-color-surface);
+    border: 1px solid var(--qz-color-border-strong);
+    border-radius: var(--qz-radius-md);
+    box-shadow: var(--qz-shadow-md);
+}
+
+.qz-timeline-actions-menu button {
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: var(--qz-radius-sm);
+    padding: 0.35rem 0.5rem;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+}
+
+.qz-timeline-actions-menu button:hover {
+    background: var(--qz-color-surface-alt);
+}
+
+.qz-timeline-actions-danger {
+    color: var(--qz-color-danger);
+}
+
+.qz-timeline-field-name ::deep .qz-state-indicator {
+    flex-shrink: 0;
+}
+
+.qz-timeline-field-name ::deep .qz-state-dot {
+    width: 9px;
+    height: 9px;
+}
+
+.qz-timeline-meta-value {
+    margin: 0;
+    font-size: 0.65rem;
+    line-height: 1.3;
+    color: var(--qz-color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.qz-timeline-row-trigger-name {
+    font-size: var(--qz-font-size-xs);
+    font-weight: var(--qz-font-weight-medium);
+    color: var(--qz-color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.qz-timeline-entity-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.qz-timeline-entity-link:hover {
+    color: var(--qz-color-primary);
+    text-decoration: underline;
+}
+
+.qz-timeline-row-trigger-name {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0.06rem 0.42rem;
+    border: 1px solid color-mix(in srgb, var(--qz-color-secondary) 42%, var(--qz-color-border));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--qz-color-secondary) 16%, var(--qz-color-surface));
+    color: var(--qz-timeline-badge-trigger);
+    font-family: var(--qz-font-mono);
+    font-size: var(--qz-font-size-xs);
+    font-weight: var(--qz-font-weight-medium);
+    line-height: 1.4;
+}
+
+.qz-timeline-field-name .qz-timeline-row-trigger-name:hover {
+    background: color-mix(in srgb, var(--qz-color-secondary) 26%, var(--qz-color-surface));
+    color: var(--qz-color-text);
+    text-decoration: none;
+}
+
+.qz-timeline-row-state-paused.qz-timeline-trigger-track {
+    background-color: var(--qz-color-warning-bg);
+}
+
+.qz-timeline-row-state-error.qz-timeline-trigger-track {
+    background-color: var(--qz-color-danger-bg);
+}
+
+.qz-timeline-row-state-blocked.qz-timeline-trigger-track {
+    background-color: var(--qz-color-warning-bg);
+}
+
+.qz-timeline-row-state-complete.qz-timeline-trigger-track {
+    background-color: var(--qz-color-surface-alt);
+}
+
+.qz-timeline-row-state-awaiting.qz-timeline-trigger-track {
+    background-color: var(--qz-color-awaiting-bg);
+}
+
+.qz-timeline-row-state-executing.qz-timeline-trigger-track {
+    background-color: var(--qz-color-executing-bg);
+}
+
+.qz-timeline-upcoming {
+    position: absolute;
+    top: 0.2rem;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 7px solid var(--qz-color-secondary);
+    transform: translateX(-50%);
+    pointer-events: auto;
+}
+
+.qz-timeline-bar-hit {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    display: block;
+    text-decoration: none;
+    z-index: 1;
+}
+
+/* Invisible hit padding — keeps short strokes easy to click without widening the colour. */
+.qz-timeline-bar-hit::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -4px;
+    right: -4px;
+}
+
+.qz-timeline-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0.25rem;
+    height: calc(var(--qz-timeline-row-height) - 0.5rem);
+    border-radius: 2px;
+    min-width: 2px;
+    box-sizing: border-box;
+    display: block;
+    pointer-events: none;
+}
+
+.qz-timeline-bar-hit:hover {
+    z-index: 2;
+}
+
+.qz-timeline-bar-hit:hover .qz-timeline-bar {
+    filter: brightness(1.08);
+    outline: 1px solid var(--qz-color-text);
+    outline-offset: 1px;
+}
+
+.qz-timeline-bar-succeeded {
+    background: var(--qz-color-success);
+}
+
+.qz-timeline-bar-skipped {
+    background: var(--qz-color-info);
+}
+
+.qz-timeline-bar-failed {
+    background: var(--qz-color-danger);
+}
+
+.qz-timeline-bar-cancelled {
+    background: var(--qz-color-warning);
+}
+
+.qz-timeline-bar-executing {
+    background: var(--qz-color-executing);
+    background-image: linear-gradient(
+        135deg,
+        var(--qz-color-executing) 25%,
+        transparent 25%,
+        transparent 50%,
+        var(--qz-color-executing) 50%,
+        var(--qz-color-executing) 75%,
+        transparent 75%,
+        transparent
+    );
+    background-size: 8px 8px;
+    border: 1px solid var(--qz-color-executing);
+    animation: qz-timeline-executing 1s linear infinite;
+}
+
+@keyframes qz-timeline-executing {
+    from { background-position: 0 0; }
+    to { background-position: 8px 0; }
