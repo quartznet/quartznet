@@ -40,6 +40,21 @@ public sealed class QueuedTaskSchedulerTest
         new(threadCount: 1, threadName: "QueuedTaskSchedulerTest", useForegroundThreads: false);
 
     [Test]
+    public async Task ZeroThreadCountUsesProcessorCountAndExecutesWork()
+    {
+        using QueuedTaskScheduler scheduler = new(threadCount: 0);
+        scheduler.MaximumConcurrencyLevel.Should().Be(Environment.ProcessorCount);
+
+        Task<int> result = Task.Factory.StartNew(
+            () => 42,
+            CancellationToken.None,
+            TaskCreationOptions.None,
+            scheduler);
+
+        (await result.WaitAsync(TimeSpan.FromSeconds(2))).Should().Be(42);
+    }
+
+    [Test]
     public void DisposingTwiceIsADisposalAndThenNothing()
     {
         QueuedTaskScheduler scheduler = Scheduler();
