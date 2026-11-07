@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Fallout.Components" Version="10.4.0" />
+    <PackageReference Include="Fallout.Components" Version="10.5.0" />
 
     <!--
       The engine behind the DocsSnippets targets. The library, not the mdsnippets command line tool:
