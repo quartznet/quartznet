@@ -363,6 +363,31 @@ public sealed class AmbientConnectionTest
         }
     }
 
+    /// <summary>
+    /// Npgsql's transaction answers being asked for its connection once disposed — by the application's
+    /// <c>await using</c>, or by its own connector breaking — with an <see cref="ObjectDisposedException" />,
+    /// which used to escape in place of the refusal (#4255).
+    /// </summary>
+    [Test]
+    public async Task UsingAnEnlistmentAfterTheDriverDisposedItsTransaction_IsRefused()
+    {
+        var applicationConnection = new RecordingDbConnection();
+        applicationConnection.Open();
+        DbTransaction applicationTransaction = applicationConnection.BeginTransaction();
+
+        var jobStore = CreateJobStore(acceptEnlistedTransactions: true, out _);
+
+        using (CreateScheduler().EnlistTransaction(applicationTransaction))
+        {
+            applicationTransaction.Dispose();
+
+            Func<Task> afterDispose = async () => await jobStore.CallGetConnection();
+
+            await afterDispose.Should().ThrowAsync<JobPersistenceException>()
+                .WithMessage("*already been committed or rolled back*");
+        }
+    }
+
     [Test]
     public async Task SchedulerOwnedWorkInsideAnAmbientScope_StaysOutOfIt()
     {
@@ -423,6 +448,40 @@ public sealed class AmbientConnectionTest
         Action enlist = () => CreateScheduler().EnlistTransaction(orphaned);
 
         enlist.Should().Throw<ArgumentException>().WithParameterName("transaction");
+    }
+
+    [Test]
+    public void EnlistTransaction_RejectsATransactionTheDriverHasDisposed()
+    {
+        var applicationConnection = new RecordingDbConnection();
+        applicationConnection.Open();
+        DbTransaction disposed = applicationConnection.BeginTransaction();
+        disposed.Dispose();
+
+        Action enlist = () => CreateScheduler().EnlistTransaction(disposed);
+
+        enlist.Should().Throw<ArgumentException>()
+            .WithParameterName("transaction")
+            .WithMessage("*committed, rolled back or disposed*");
+    }
+
+    /// <summary>
+    /// Refused as a transaction that has ended, which it is, rather than as one of a different
+    /// connection, which it is not.
+    /// </summary>
+    [Test]
+    public void EnlistConnection_RejectsATransactionTheDriverHasDisposed()
+    {
+        var applicationConnection = new RecordingDbConnection();
+        applicationConnection.Open();
+        DbTransaction disposed = applicationConnection.BeginTransaction();
+        disposed.Dispose();
+
+        Action enlist = () => CreateScheduler().EnlistConnection(applicationConnection, disposed);
+
+        enlist.Should().Throw<ArgumentException>()
+            .WithParameterName("transaction")
+            .WithMessage("*committed, rolled back or disposed*");
     }
 
     [Test]
@@ -646,6 +705,7 @@ public sealed class AmbientConnectionTest
     {
         private readonly IsolationLevel isolationLevel;
         private DbConnection? connection;
+        private bool disposed;
 
         internal RecordingDbTransaction(DbConnection connection, IsolationLevel isolationLevel)
         {
@@ -654,14 +714,20 @@ public sealed class AmbientConnectionTest
         }
 
         // ADO.NET providers drop the connection reference once the transaction completes, which is how
-        // a completed transaction is recognised.
-        protected override DbConnection? DbConnection => connection;
+        // a completed transaction is recognised. A disposed one throws instead, as Npgsql's does.
+        protected override DbConnection? DbConnection => disposed ? throw new ObjectDisposedException("NpgsqlTransaction") : connection;
 
         public override IsolationLevel IsolationLevel => isolationLevel;
 
         public override void Commit() => connection = null;
 
         public override void Rollback() => connection = null;
+
+        protected override void Dispose(bool disposing)
+        {
+            disposed = true;
+            base.Dispose(disposing);
+        }
     }
 
     private sealed class OrphanedDbTransaction : DbTransaction

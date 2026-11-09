@@ -69,8 +69,9 @@ internal abstract partial class AdoJobStoreBase
         // The enlisted transaction may have finished while its scope was still open - the application
         // committed or rolled back, or its TransactionScope ended. Carrying on would run this
         // operation in autocommit, where a half-finished write can no longer be rolled back, so refuse
-        // rather than quietly drop the transactional guarantee the caller asked for.
-        if (enlisted.Transaction is not null && enlisted.Transaction.Connection is null)
+        // rather than quietly drop the transactional guarantee the caller asked for. A transaction the
+        // application or the driver has disposed is one of those too.
+        if (enlisted.Transaction is not null && enlisted.Transaction.ConnectionUnlessDisposed() is null)
         {
             Throw.JobPersistenceException(
                 $"The transaction enlisted for scheduler '{InstanceName}' has already been committed or rolled back, "

@@ -30,7 +30,8 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <summary>
 /// An <see cref="IDbProvider" /> over a real one that records every statement and batch the store sends,
-/// and can stand in a <see cref="DbBatch" /> for a driver that has none.
+/// can stand in a <see cref="DbBatch" /> for a driver that has none, and can fail a commit as a driver
+/// whose connection broke fails it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -74,6 +75,20 @@ internal sealed class CountingDbProvider : IDbProvider
         return BeforeCommand is { } hook && connection is not null ? hook(sql, connection, transaction) : Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Runs in place of the next asynchronous commit, once, with the transaction being committed: what a
+    /// commit that fails looks like — whether the driver's own commit got through first or not — is the
+    /// test's to say.
+    /// </summary>
+    public Func<CountingTransaction, CancellationToken, Task>? NextCommit { get; set; }
+
+    internal Func<CountingTransaction, CancellationToken, Task>? TakeNextCommit()
+    {
+        Func<CountingTransaction, CancellationToken, Task>? commit = NextCommit;
+        NextCommit = null;
+        return commit;
+    }
+
     public DbCommand CreateCommand() => new CountingCommand(inner.CreateCommand(), this, connection: null);
 
     public DbConnection CreateConnection() => new CountingConnection(inner.CreateConnection(), this);
@@ -110,6 +125,8 @@ internal sealed class CountingConnection : DbConnection
     }
 
     public DbConnection Inner { get; }
+
+    internal CountingDbProvider Provider => provider;
 
     /// <summary>The driver's transaction the connection last began, for a command to run inside.</summary>
     public DbTransaction? InnerTransaction { get; private set; }
@@ -186,11 +203,23 @@ internal sealed class CountingTransaction : DbTransaction
 
     public DbTransaction Inner { get; }
 
-    protected override DbConnection? DbConnection => connection;
+    private bool disposedByDriver;
+
+    /// <summary>
+    /// Disposes the transaction the way Npgsql does when its connector breaks: nothing is rolled back,
+    /// and reading <see cref="DbTransaction.Connection" /> throws from then on.
+    /// </summary>
+    public void DisposeAsNpgsqlDoes() => disposedByDriver = true;
+
+    protected override DbConnection? DbConnection => disposedByDriver ? throw new ObjectDisposedException("NpgsqlTransaction") : connection;
     public override IsolationLevel IsolationLevel => Inner.IsolationLevel;
 
     public override void Commit() => Inner.Commit();
-    public override Task CommitAsync(CancellationToken cancellationToken = default) => Inner.CommitAsync(cancellationToken);
+
+    public override Task CommitAsync(CancellationToken cancellationToken = default)
+    {
+        return connection.Provider.TakeNextCommit() is { } commit ? commit(this, cancellationToken) : Inner.CommitAsync(cancellationToken);
+    }
     public override void Rollback() => Inner.Rollback();
     public override Task RollbackAsync(CancellationToken cancellationToken = default) => Inner.RollbackAsync(cancellationToken);
 
