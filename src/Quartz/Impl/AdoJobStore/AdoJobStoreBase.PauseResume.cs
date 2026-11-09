@@ -706,28 +706,51 @@ internal abstract partial class AdoJobStoreBase
         return await Guarded(
             async () =>
             {
-                var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Job = jobKey }, cancellationToken).ConfigureAwait(false);
-
-                if (firedTriggers.Count > 0)
-                {
-                    // The row's own state is deliberately not consulted. A fired-trigger row of a job
-                    // that disallows concurrent execution means that job is reserved or running
-                    // somewhere, whichever state the row is in, and that is the whole of what blocks a
-                    // sibling. A row left behind by a node that died is not this predicate's business
-                    // either: ClusterRecover deletes it and unblocks the job, and
-                    // RecoverStaleAcquiredTriggers does the same for a stale reservation of this node's
-                    // own. Reading the state here would only let a sibling through while a row that is
-                    // about to be cleaned up says the job is still busy.
-                    FiredTriggerRecord firedTrigger = firedTriggers[0];
-                    if (firedTrigger.JobDisallowsConcurrentExecution)
-                    {
-                        return StoredTriggerState.Paused == currentState ? StoredTriggerState.PausedBlocked : StoredTriggerState.Blocked;
-                    }
-                }
-
-                return currentState;
+                List<FiredTriggerRecord> firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Job = jobKey }, cancellationToken).ConfigureAwait(false);
+                return BlockedState(firedTriggers, currentState, excludedFireInstanceId: null);
             },
             "determine if trigger should be in a blocked state '" + jobKey + "'").ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The answer <see cref="CheckBlockedState" /> gives, from a job's fired rows that have already been
+    /// read, leaving out the row of <paramref name="excludedFireInstanceId" /> when one is named.
+    /// </summary>
+    /// <remarks>
+    /// The release reads the job's fired rows before it deletes its own, and leaves that one out here.
+    /// </remarks>
+    /// <param name="firedTriggers">The job's fired rows.</param>
+    /// <param name="currentState">The state the trigger would otherwise be in: <c>WAITING</c> or <c>PAUSED</c>.</param>
+    /// <param name="excludedFireInstanceId">The firing whose row does not count, or <see langword="null" />.</param>
+    private static StoredTriggerState BlockedState(
+        List<FiredTriggerRecord> firedTriggers,
+        StoredTriggerState currentState,
+        string? excludedFireInstanceId)
+    {
+        foreach (FiredTriggerRecord firedTrigger in firedTriggers)
+        {
+            if (firedTrigger.FireInstanceId == excludedFireInstanceId)
+            {
+                continue;
+            }
+
+            // The first row that counts decides, as it always has. The row's own state is deliberately
+            // not consulted. A fired-trigger row of a job that disallows concurrent execution means that
+            // job is reserved or running somewhere, whichever state the row is in, and that is the whole
+            // of what blocks a sibling. A row left behind by a node that died is not this predicate's
+            // business either: ClusterRecover deletes it and unblocks the job, and
+            // RecoverStaleAcquiredTriggers does the same for a stale reservation of this node's own.
+            // Reading the state here would only let a sibling through while a row that is about to be
+            // cleaned up says the job is still busy.
+            if (firedTrigger.JobDisallowsConcurrentExecution)
+            {
+                return StoredTriggerState.Paused == currentState ? StoredTriggerState.PausedBlocked : StoredTriggerState.Blocked;
+            }
+
+            return currentState;
+        }
+
+        return currentState;
     }
 
     /// <summary>

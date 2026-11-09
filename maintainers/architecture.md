@@ -8,7 +8,7 @@ and wins where the two differ.
 
 ## Scheduler Thread
 
-`QuartzSchedulerThread` is the core scheduling loop. `JobRunShell` wraps job execution, handling exceptions and trigger completion. After `TriggersFired`, always use `TriggeredJobComplete` (not `ReleaseAcquiredTrigger`) to clean up — `ReleaseAcquiredTrigger` doesn't unblock sibling triggers for `[DisallowConcurrentExecution]` jobs.
+`QuartzSchedulerThread` is the core scheduling loop. `JobRunShell` wraps job execution, handling exceptions and trigger completion. After `TriggersFired`, always use `TriggeredJobComplete` (not `ReleaseAcquiredTrigger`) to clean up. `ReleaseAcquiredTrigger` gives back a reservation and does not complete a firing: a spent trigger stays `COMPLETE` and no job data is written. It lets go of a `[DisallowConcurrentExecution]` job's other triggers only when it finds that the fire it is releasing committed and no other firing of the job is executing, which is the ADO.NET store's answer to a commit it could not confirm (#4259).
 
 ## Hosting & DI
 
