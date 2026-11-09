@@ -9,8 +9,8 @@
 @inject IServiceProvider Services
 
 @* The next fires of Expression as Trigger would have them once rescheduled to it: computed on the trigger a save
-   would post, read back the way the API client reads it, so in the trigger's own time zone, from its start or now,
-   whichever is later, until its end, and less what its calendar excludes. The times show in the dashboard's zone,
+   would post, read back the way the API client reads it, so in the trigger's own time zone, from its start or the
+   whole second after now, whichever is later, until its end, and less what its calendar excludes. The times show in the dashboard's zone,
    as the page's other times do. *@
 <div class="qz-cron-next-fires">
     @if (_error is { } error)
@@ -162,7 +162,7 @@
             return;
         }
 
-        if (Trigger is not JsonElement trigger || !TriggerPayloadBuilder.TryWithCronExpression(trigger, expression, out JsonElement payload))
+        if (Trigger is not JsonElement trigger || !TriggerPayloadBuilder.TryWithCronExpression(trigger, expression, _now, out JsonElement payload))
         {
             _unsupported = true;
             return;
@@ -187,16 +187,13 @@
             return;
         }
 
+        // The payload has already moved a start that has passed to the whole second after now, as a save
+        // does, so the two agree (#4187). A start still behind now is one the payload left alone because the
+        // trigger ends before then, and such a trigger has no fire left.
         _timeZoneId = cron.TimeZone.Id;
-        if (operable.EndTimeUtc < _now)
+        if (operable.EndTimeUtc < _now || operable.StartTimeUtc < _now)
         {
             return;
-        }
-
-        // A trigger whose start has passed fires next after now, not at the first fire after its start.
-        if (operable.StartTimeUtc < _now)
-        {
-            operable.StartTimeUtc = _now;
         }
 
         operable.SetNextFireTimeUtc(null);
