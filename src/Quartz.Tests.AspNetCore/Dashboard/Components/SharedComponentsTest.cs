@@ -195,6 +195,43 @@ public class SharedComponentsTest
     }
 
     [Test]
+    public void CollapsingTheSidebarNarrowsTheRailAndRemembersIt()
+    {
+        IRenderedComponent<DashboardLayout> layout = context.Render<DashboardLayout>(parameters => parameters
+            .Add(x => x.Body, builder => builder.AddMarkupContent(0, "<p>the page</p>")));
+
+        layout.Find(".qz-layout").ClassList.Should().NotContain("qz-sidebar-collapsed");
+        layout.Find(".qz-sidebar-toggle").GetAttribute("aria-expanded").Should().Be("true");
+
+        layout.Find(".qz-sidebar-toggle").Click();
+
+        layout.WaitForAssertion(() =>
+        {
+            layout.Find(".qz-layout").ClassList.Should().Contain("qz-sidebar-collapsed");
+            layout.Find(".qz-sidebar-toggle").GetAttribute("aria-expanded").Should().Be("false");
+            context.JSInterop.VerifyInvoke("quartzDashboardPrefs.set")
+                .Arguments.Should().Equal(["qz_sidebar_collapsed", "1"],
+                    "the rail width has to survive the next page load");
+        });
+    }
+
+    [Test]
+    public void AStoredCollapsedPreferenceRestoresTheNarrowRail()
+    {
+        context.JSInterop.Setup<string?>("quartzDashboardPrefs.get", "qz_sidebar_collapsed").SetResult("1");
+
+        IRenderedComponent<DashboardLayout> layout = context.Render<DashboardLayout>(parameters => parameters
+            .Add(x => x.Body, builder => builder.AddMarkupContent(0, "<p>the page</p>")));
+
+        layout.WaitForAssertion(() =>
+        {
+            layout.Find(".qz-layout").ClassList.Should().Contain("qz-sidebar-collapsed",
+                "a remembered collapse has to come back after the preference is read");
+            layout.Find(".qz-sidebar-toggle").GetAttribute("aria-expanded").Should().Be("false");
+        });
+    }
+
+    [Test]
     public void ChoosingATimeZoneRefreshesEveryTimestampOnThePage()
     {
         // The fixture pins the zone to UTC, so any other installed zone is a change.
