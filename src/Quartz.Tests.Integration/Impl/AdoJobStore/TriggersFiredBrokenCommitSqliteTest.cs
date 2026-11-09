@@ -155,8 +155,8 @@ public sealed class TriggersFiredBrokenCommitSqliteTest
 
     /// <summary>
     /// The commit never reached the database. What reaches the scheduler thread is the commit's own
-    /// failure, a <see cref="SchedulerException" />, which is what it answers by releasing the batch;
-    /// and the reservation is still there for that release.
+    /// failure, a <see cref="SchedulerException" />, which it reports to the scheduler listeners before it
+    /// releases the batch; and the reservation is still there for that release.
     /// </summary>
     [Test]
     public async Task ACommitThatFailedWithTheConnectionIsReportedAsThePersistenceFailureItWas()
@@ -173,7 +173,7 @@ public sealed class TriggersFiredBrokenCommitSqliteTest
         Func<Task> fire = () => WithPatience(store.TriggersFired(new[] { acquired }));
 
         (await fire.Should().ThrowAsync<JobPersistenceException>(
-                "the scheduler thread releases the batch on a SchedulerException; anything else it only logs"))
+                "the scheduler thread tells its listeners of a SchedulerException; anything else it only logs before releasing the batch"))
             .WithInnerExceptionExactly<InvalidOperationException>()
             .WithMessage("The connection broke before the COMMIT reached the server.");
 
