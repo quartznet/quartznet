@@ -77,6 +77,54 @@ public class DbLockHandlerEndedTransactionTest
         provider.CommandsExecuted.Should().Be(1, "MaxRetry is 3, and none of the other two attempts has a transaction to run in");
     }
 
+    /// <summary>
+    /// Npgsql ends a transaction by disposing it when its connector breaks, and its
+    /// <see cref="DbTransaction.Connection" /> then throws instead of answering. The check that stops the
+    /// retry used to throw that <see cref="ObjectDisposedException" /> from inside the handler's catch,
+    /// in place of the lock failure (#4255).
+    /// </summary>
+    [Test]
+    public async Task AnUpdateRowLockHandlerReportsTheLockFailureWhenTheDriverHasDisposedTheTransaction()
+    {
+        using FakeConnection connection = new();
+        EndableTransaction transaction = new(connection);
+        ConflictingDbProvider provider = new(transaction.DisposeAsNpgsqlDoes);
+
+        UpdateRowLockHandler lockHandler = new(provider);
+        lockHandler.Initialize(Context(new FakeTimeProvider()));
+        using ConnectionAndTransactionHolder holder = new(connection, transaction);
+
+        Func<Task> act = () => lockHandler.AcquireLock(Guid.NewGuid(), holder, SchedulerLock.TriggerAccess).AsTask().WaitAsync(Patience);
+
+        (await act.Should().ThrowAsync<LockException>(
+                "a disposed transaction has ended as surely as a detached one, and the store retries the operation on a fresh one"))
+            .WithInnerException<InvalidOperationException>()
+            .WithMessage(WriteConflict, "the failure the statement met is the cause, not the disposal the check ran into");
+
+        provider.CommandsExecuted.Should().Be(1);
+    }
+
+    /// <inheritdoc cref="AnUpdateRowLockHandlerReportsTheLockFailureWhenTheDriverHasDisposedTheTransaction" />
+    [Test]
+    public async Task ASelectForUpdateLockHandlerReportsTheLockFailureWhenTheDriverHasDisposedTheTransaction()
+    {
+        using FakeConnection connection = new();
+        EndableTransaction transaction = new(connection);
+        ConflictingDbProvider provider = new(transaction.DisposeAsNpgsqlDoes);
+
+        SelectForUpdateLockHandler lockHandler = new(provider);
+        lockHandler.Initialize(Context(new FakeTimeProvider()));
+        using ConnectionAndTransactionHolder holder = new(connection, transaction);
+
+        Func<Task> act = () => lockHandler.AcquireLock(Guid.NewGuid(), holder, SchedulerLock.TriggerAccess).AsTask().WaitAsync(Patience);
+
+        (await act.Should().ThrowAsync<LockException>())
+            .WithInnerException<InvalidOperationException>()
+            .WithMessage(WriteConflict);
+
+        provider.CommandsExecuted.Should().Be(1);
+    }
+
     [Test]
     public async Task AFailureThatLeavesTheTransactionAliveIsStillRetried()
     {
@@ -109,16 +157,20 @@ public class DbLockHandlerEndedTransactionTest
     };
 
     /// <summary>
-    /// A transaction the database can end from its side, which a driver reports the way SqlClient does:
-    /// the transaction object stays, and its connection is gone.
+    /// A transaction the database can end from its side, which a driver reports the way SqlClient does —
+    /// the transaction object stays, and its connection is gone — or the way Npgsql does, by disposing
+    /// the transaction so that reading its connection throws.
     /// </summary>
     private sealed class EndableTransaction(DbConnection connection) : DbTransaction
     {
         private DbConnection? connection = connection;
+        private bool disposedByDriver;
 
         public void End() => connection = null;
 
-        protected override DbConnection? DbConnection => connection;
+        public void DisposeAsNpgsqlDoes() => disposedByDriver = true;
+
+        protected override DbConnection? DbConnection => disposedByDriver ? throw new ObjectDisposedException("NpgsqlTransaction") : connection;
 
         public override IsolationLevel IsolationLevel => IsolationLevel.ReadCommitted;
 
