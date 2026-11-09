@@ -12,9 +12,9 @@
 </HeadContent>
 
 <div class="qz-dashboard" data-theme="@SchedulerState.SelectedTheme">
-    <div class="qz-layout">
-        <aside class="qz-sidebar" role="navigation" aria-label="Dashboard navigation">
-            <NavMenu />
+    <div class="qz-layout @(_sidebarCollapsed ? "qz-sidebar-collapsed" : null)">
+        <aside class="qz-sidebar" id="qz-sidebar" role="navigation" aria-label="Dashboard navigation">
+            <NavMenu Collapsed="_sidebarCollapsed" CollapsedChanged="OnSidebarCollapsedChanged" />
         </aside>
 
         <div class="qz-main">
@@ -80,6 +80,7 @@
 @code {
     private const string themePreferenceKey = "qz_theme";
     private const string timeZonePreferenceKey = "qz_tz";
+    private const string sidebarCollapsedPreferenceKey = "qz_sidebar_collapsed";
 
     /// <summary>
     /// What the frame knows about the visitor's right to the scheduler the dashboard is currently about.
@@ -93,6 +94,7 @@
     }
 
     private SchedulerAccess _access = SchedulerAccess.Unknown;
+    private bool _sidebarCollapsed;
 
     private readonly IReadOnlyList<TimeZoneInfo> _timeZones = TimeZoneInfo
         .GetSystemTimeZones()
@@ -152,9 +154,11 @@
         {
             string previousTheme = SchedulerState.SelectedTheme;
             string previousTimeZoneId = SchedulerState.SelectedTimeZoneId;
+            bool previousSidebarCollapsed = _sidebarCollapsed;
 
             string? storedTheme = await JsRuntime.InvokeAsync<string?>("quartzDashboardPrefs.get", new object?[] { themePreferenceKey });
             string? storedTimeZoneId = await JsRuntime.InvokeAsync<string?>("quartzDashboardPrefs.get", new object?[] { timeZonePreferenceKey });
+            string? storedSidebarCollapsed = await JsRuntime.InvokeAsync<string?>("quartzDashboardPrefs.get", new object?[] { sidebarCollapsedPreferenceKey });
 
             if (!string.IsNullOrWhiteSpace(storedTheme))
             {
@@ -166,14 +170,20 @@
                 SchedulerState.SelectedTimeZoneId = storedTimeZoneId;
             }
 
+            if (!string.IsNullOrWhiteSpace(storedSidebarCollapsed))
+            {
+                _sidebarCollapsed = IsTruthyPreference(storedSidebarCollapsed);
+            }
+
             bool timeZoneChanged = !string.Equals(previousTimeZoneId, SchedulerState.SelectedTimeZoneId, StringComparison.Ordinal);
             bool themeChanged = !string.Equals(previousTheme, SchedulerState.SelectedTheme, StringComparison.Ordinal);
+            bool sidebarChanged = previousSidebarCollapsed != _sidebarCollapsed;
             if (timeZoneChanged)
             {
                 SchedulerState.NotifyChanged();
             }
 
-            if (timeZoneChanged || themeChanged)
+            if (timeZoneChanged || themeChanged || sidebarChanged)
             {
                 await InvokeAsync(StateHasChanged);
             }
@@ -192,6 +202,23 @@
         {
             return false;
         }
+    }
+
+    private async Task OnSidebarCollapsedChanged(bool collapsed)
+    {
+        if (_sidebarCollapsed == collapsed)
+        {
+            return;
+        }
+
+        _sidebarCollapsed = collapsed;
+        await PersistPreferenceAsync(sidebarCollapsedPreferenceKey, collapsed ? "1" : "0");
+    }
+
+    private static bool IsTruthyPreference(string value)
+    {
+        return string.Equals(value, "1", StringComparison.Ordinal)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task OnTimeZoneChanged(ChangeEventArgs args)
