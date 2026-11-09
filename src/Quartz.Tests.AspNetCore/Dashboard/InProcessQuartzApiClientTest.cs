@@ -105,7 +105,7 @@ public class InProcessQuartzApiClientTest
 
             // exactly what TriggerDetail.razor does: read the trigger, then edit its cron expression
             TriggerDetailDto detail = await client.GetTrigger(scheduler.SchedulerName, triggerKey.Group, triggerKey.Name);
-            TriggerPayloadBuilder.TryWithCronExpression(detail.Value, "0 0 2 * * ?", out JsonElement newTrigger)
+            TriggerPayloadBuilder.TryWithCronExpression(detail.Value, "0 0 2 * * ?", DateTimeOffset.UtcNow, out JsonElement newTrigger)
                 .Should().BeTrue();
 
             await client.RescheduleJob(scheduler.SchedulerName, triggerKey.Group, triggerKey.Name, new RescheduleRequest(newTrigger));

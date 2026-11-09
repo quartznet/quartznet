@@ -38,13 +38,24 @@ internal static class TriggerPayloadBuilder
     private const string TriggerTypeProperty = "triggerType";
     private const string CronExpressionProperty = "cronExpressionString";
     private const string NextFireTimeProperty = "nextFireTimeUtc";
+    private const string StartTimeProperty = "startTimeUtc";
+    private const string EndTimeProperty = "endTimeUtc";
 
     /// <summary>
     /// Produces <paramref name="trigger"/> with its cron expression replaced by
-    /// <paramref name="cronExpression"/>, or <see langword="false"/> when the trigger cannot be sent
-    /// back to the scheduler at all.
+    /// <paramref name="cronExpression"/> and a start that has passed moved to the whole second after
+    /// <paramref name="now"/>, or <see langword="false"/> when the trigger cannot be sent back to the
+    /// scheduler at all.
     /// </summary>
-    public static bool TryWithCronExpression(JsonElement trigger, string cronExpression, out JsonElement payload)
+    /// <remarks>
+    /// <c>RescheduleJob</c> computes the first fire as the first match after the trigger's start, less a
+    /// second. The start is when the trigger was first scheduled, so kept as it is it gives a first fire in
+    /// the past, which the scheduler treats as a misfire: the trigger skips its regular fires and then runs
+    /// once off its schedule (#4187). The start moves to the whole second after now rather than to now, which
+    /// can land on the current second, one the trigger may just have fired in. A start still ahead stays as
+    /// it is, and so does the start of a trigger that ends before then, since a start after the end is refused.
+    /// </remarks>
+    public static bool TryWithCronExpression(JsonElement trigger, string cronExpression, DateTimeOffset now, out JsonElement payload)
     {
         if (trigger.ValueKind != JsonValueKind.Object || !HasProperty(trigger, TriggerTypeProperty))
         {
@@ -55,6 +66,8 @@ internal static class TriggerPayloadBuilder
             payload = default;
             return false;
         }
+
+        DateTimeOffset? movedStart = MovedStart(trigger, now);
 
         ArrayBufferWriter<byte> buffer = new();
         using (Utf8JsonWriter writer = new(buffer))
@@ -67,6 +80,10 @@ internal static class TriggerPayloadBuilder
                 {
                     writer.WriteString(property.Name, cronExpression);
                     cronWritten = true;
+                }
+                else if (movedStart is { } start && Matches(property.Name, StartTimeProperty))
+                {
+                    writer.WriteString(property.Name, start);
                 }
                 else if (Matches(property.Name, NextFireTimeProperty))
                 {
@@ -92,6 +109,40 @@ internal static class TriggerPayloadBuilder
         using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
         payload = document.RootElement.Clone();
         return true;
+    }
+
+    /// <summary>
+    /// The start a reschedule at <paramref name="now"/> should give <paramref name="trigger"/>, or
+    /// <see langword="null"/> to keep the one it has.
+    /// </summary>
+    private static DateTimeOffset? MovedStart(JsonElement trigger, DateTimeOffset now)
+    {
+        DateTimeOffset next = new DateTimeOffset(now.UtcTicks - now.UtcTicks % TimeSpan.TicksPerSecond, TimeSpan.Zero).AddSeconds(1);
+        if (!TryGetTime(trigger, StartTimeProperty, out DateTimeOffset start) || start >= next)
+        {
+            return null;
+        }
+
+        if (TryGetTime(trigger, EndTimeProperty, out DateTimeOffset end) && end < next)
+        {
+            return null;
+        }
+
+        return next;
+    }
+
+    private static bool TryGetTime(JsonElement element, string name, out DateTimeOffset time)
+    {
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (Matches(property.Name, name) && property.Value.ValueKind == JsonValueKind.String)
+            {
+                return property.Value.TryGetDateTimeOffset(out time);
+            }
+        }
+
+        time = default;
+        return false;
     }
 
     private static bool HasProperty(JsonElement element, string name)

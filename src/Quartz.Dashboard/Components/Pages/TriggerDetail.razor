@@ -1,6 +1,7 @@
 @page "/quartz/triggers/{Group}/{Name}"
 @using System.Globalization
 @using System.Text.Json
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -11,6 +12,7 @@
 @inject NavigationManager Navigation
 @inject ToastService Toasts
 @inject DashboardActionLogService ActionLog
+@inject IServiceProvider Services
 
 <div class="qz-page">
     <h1>Trigger Detail</h1>
@@ -103,6 +105,11 @@
     private bool _showUnscheduleConfirm;
     private string? _cronExpression;
     private string _editedCronExpression = string.Empty;
+
+    /// <summary>
+    /// The clock a save moves a start that has passed by, which is the one the preview reads.
+    /// </summary>
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
 
     [Parameter]
     public string Group { get; set; } = string.Empty;
@@ -246,7 +253,7 @@
         }
 
         if (_trigger is not JsonElement triggerJson
-            || !TriggerPayloadBuilder.TryWithCronExpression(triggerJson, cronExpression, out JsonElement newTrigger))
+            || !TriggerPayloadBuilder.TryWithCronExpression(triggerJson, cronExpression, Clock.GetUtcNow(), out JsonElement newTrigger))
         {
             Toasts.Error("This trigger cannot be rescheduled from the dashboard.");
             return;

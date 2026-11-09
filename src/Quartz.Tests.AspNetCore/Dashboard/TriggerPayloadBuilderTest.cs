@@ -12,10 +12,19 @@ public class TriggerPayloadBuilderTest
     };
 
     /// <summary>
+    /// A quarter of a second into 12:00:00 on 1 June 2025, which is after the sample trigger's start.
+    /// </summary>
+    private static readonly DateTimeOffset Now = new(2025, 6, 1, 12, 0, 0, 250, TimeSpan.Zero);
+
+    /// <summary>
     /// The shape the Quartz converters write and the dashboard's API client hands the detail page.
     /// Every property is present; the unset ones are JSON null.
     /// </summary>
-    private static JsonElement SerializedTrigger(object? description = null, object? calendarName = null)
+    private static JsonElement SerializedTrigger(
+        object? description = null,
+        object? calendarName = null,
+        DateTimeOffset? startTimeUtc = null,
+        DateTimeOffset? endTimeUtc = null)
     {
         return JsonSerializer.SerializeToElement(new
         {
@@ -26,8 +35,8 @@ public class TriggerPayloadBuilderTest
             calendarName,
             jobDataMap = new Dictionary<string, object?> { ["colour"] = "green" },
             misfireInstruction = 0,
-            startTimeUtc = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            endTimeUtc = (DateTimeOffset?) null,
+            startTimeUtc = startTimeUtc ?? new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            endTimeUtc,
             priority = 5,
             nextFireTimeUtc = new DateTimeOffset(2025, 1, 2, 1, 0, 0, TimeSpan.Zero),
             previousFireTimeUtc = (DateTimeOffset?) null,
@@ -42,7 +51,7 @@ public class TriggerPayloadBuilderTest
     [Test(Description = "https://github.com/quartznet/quartznet/issues/3294")]
     public void TryWithCronExpressionLeavesTextTheTriggerDoesNotHaveAsNull()
     {
-        TriggerPayloadBuilder.TryWithCronExpression(SerializedTrigger(), "0 0 2 * * ?", out JsonElement payload)
+        TriggerPayloadBuilder.TryWithCronExpression(SerializedTrigger(), "0 0 2 * * ?", Now, out JsonElement payload)
             .Should().BeTrue();
 
         payload.GetProperty("calendarName").ValueKind.Should().Be(JsonValueKind.Null,
@@ -56,6 +65,7 @@ public class TriggerPayloadBuilderTest
         TriggerPayloadBuilder.TryWithCronExpression(
             SerializedTrigger(description: "nightly import", calendarName: "holidays"),
             "0 0 2 * * ?",
+            Now,
             out JsonElement payload).Should().BeTrue();
 
         payload.GetProperty("cronExpressionString").GetString().Should().Be("0 0 2 * * ?",
@@ -76,7 +86,7 @@ public class TriggerPayloadBuilderTest
     [Test]
     public void TryWithCronExpressionClearsTheStoredNextFireTime()
     {
-        TriggerPayloadBuilder.TryWithCronExpression(SerializedTrigger(), "0 0 2 * * ?", out JsonElement payload)
+        TriggerPayloadBuilder.TryWithCronExpression(SerializedTrigger(), "0 0 2 * * ?", Now, out JsonElement payload)
             .Should().BeTrue();
 
         payload.GetProperty("nextFireTimeUtc").ValueKind.Should().Be(JsonValueKind.Null,
@@ -90,15 +100,79 @@ public class TriggerPayloadBuilderTest
         {
             TriggerType = "CronTrigger",
             CalendarName = (string?) null,
+            StartTimeUtc = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
             NextFireTimeUtc = new DateTimeOffset(2025, 1, 2, 1, 0, 0, TimeSpan.Zero),
             CronExpressionString = "0 0 1 * * ?"
         });
 
-        TriggerPayloadBuilder.TryWithCronExpression(trigger, "0 0 2 * * ?", out JsonElement payload)
+        TriggerPayloadBuilder.TryWithCronExpression(trigger, "0 0 2 * * ?", Now, out JsonElement payload)
             .Should().BeTrue();
 
         payload.GetProperty("CronExpressionString").GetString().Should().Be("0 0 2 * * ?");
         payload.GetProperty("NextFireTimeUtc").ValueKind.Should().Be(JsonValueKind.Null);
+        payload.GetProperty("StartTimeUtc").GetDateTimeOffset().Should().Be(new DateTimeOffset(2025, 6, 1, 12, 0, 1, TimeSpan.Zero));
+    }
+
+    /// <summary>
+    /// https://github.com/quartznet/quartznet/issues/4187
+    /// </summary>
+    [Test]
+    public void TryWithCronExpressionMovesAStartThatHasPassedToTheWholeSecondAfterNow()
+    {
+        TriggerPayloadBuilder.TryWithCronExpression(SerializedTrigger(), "0/15 * * * * ?", Now, out JsonElement payload)
+            .Should().BeTrue();
+
+        payload.GetProperty("startTimeUtc").GetDateTimeOffset().Should().Be(new DateTimeOffset(2025, 6, 1, 12, 0, 1, TimeSpan.Zero),
+            "RescheduleJob fires a trigger first at its first match after its start, so a start long past gives a fire in the past, which the scheduler treats as a misfire");
+    }
+
+    [Test]
+    public void TryWithCronExpressionMovesAStartThatHasPassedBeyondTheCurrentSecondWhenNowIsOnTheSecond()
+    {
+        DateTimeOffset onTheSecond = new(2025, 6, 1, 12, 0, 0, TimeSpan.Zero);
+
+        TriggerPayloadBuilder.TryWithCronExpression(SerializedTrigger(), "0/15 * * * * ?", onTheSecond, out JsonElement payload)
+            .Should().BeTrue();
+
+        payload.GetProperty("startTimeUtc").GetDateTimeOffset().Should().Be(onTheSecond.AddSeconds(1),
+            "the first fire is the first match after the start less a second, so a start of now is a fire in the current second, which the trigger may just have fired in");
+    }
+
+    [Test]
+    public void TryWithCronExpressionKeepsAStartStillAhead()
+    {
+        DateTimeOffset start = new(2025, 7, 1, 0, 0, 0, TimeSpan.Zero);
+
+        TriggerPayloadBuilder.TryWithCronExpression(SerializedTrigger(startTimeUtc: start), "0 0 2 * * ?", Now, out JsonElement payload)
+            .Should().BeTrue();
+
+        payload.GetProperty("startTimeUtc").GetDateTimeOffset().Should().Be(start, "a trigger does not fire before its start time");
+    }
+
+    [Test]
+    public void TryWithCronExpressionKeepsTheStartOfATriggerThatHasEnded()
+    {
+        TriggerPayloadBuilder.TryWithCronExpression(
+            SerializedTrigger(endTimeUtc: new DateTimeOffset(2025, 5, 1, 0, 0, 0, TimeSpan.Zero)),
+            "0 0 2 * * ?",
+            Now,
+            out JsonElement payload).Should().BeTrue();
+
+        payload.GetProperty("startTimeUtc").GetDateTimeOffset().Should().Be(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            "a start after the end is refused, and a trigger that has ended has no fire for a later start to give it");
+    }
+
+    [Test]
+    public void TryWithCronExpressionKeepsTheStartOfATriggerThatEndsBeforeTheNextWholeSecond()
+    {
+        TriggerPayloadBuilder.TryWithCronExpression(
+            SerializedTrigger(endTimeUtc: Now.AddMilliseconds(500)),
+            "0 0 2 * * ?",
+            Now,
+            out JsonElement payload).Should().BeTrue();
+
+        payload.GetProperty("startTimeUtc").GetDateTimeOffset().Should().Be(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            "the whole second after now is after the trigger's end, and a start after the end is refused");
     }
 
     [Test]
@@ -113,7 +187,7 @@ public class TriggerPayloadBuilderTest
             cronExpressionString = "0 0 1 * * ?"
         }, serializerOptions);
 
-        TriggerPayloadBuilder.TryWithCronExpression(reflected, "0 0 2 * * ?", out JsonElement payload)
+        TriggerPayloadBuilder.TryWithCronExpression(reflected, "0 0 2 * * ?", Now, out JsonElement payload)
             .Should().BeFalse();
         payload.ValueKind.Should().Be(JsonValueKind.Undefined);
     }

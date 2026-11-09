@@ -226,6 +226,53 @@ public sealed class TriggerCronPreviewTest
         FireTimes(page).Should().BeEmpty();
     }
 
+    /// <summary>
+    /// https://github.com/quartznet/quartznet/issues/4187: the trigger started in August, so the first match
+    /// after its start is long past. The clock is a quarter of a second into 14:23:00, a time the expression
+    /// matches and which is already behind it.
+    /// </summary>
+    [Test]
+    public async Task ATriggerThatStartedLongAgoPreviewsFromTheWholeSecondAfterNow()
+    {
+        clock.UtcNow = new DateTimeOffset(2026, 10, 5, 14, 23, 0, 250, TimeSpan.Zero);
+        await Schedule(Cron("0/15 * * * * ?", TimeZoneInfo.Utc));
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => FireTimes(page).Should().Equal(
+            [
+                "2026-10-05 14:23:15 +00:00",
+                "2026-10-05 14:23:30 +00:00",
+                "2026-10-05 14:23:45 +00:00",
+                "2026-10-05 14:24:00 +00:00",
+                "2026-10-05 14:24:15 +00:00",
+            ],
+            "14:23:00 is behind the clock and is a second the trigger may just have fired in, and a save fires it first at 14:23:15"));
+    }
+
+    /// <summary>
+    /// https://github.com/quartznet/quartznet/issues/4187: Save schedule kept the trigger's August start, so
+    /// the scheduler computed its next fire from August, treated the trigger as misfired and ran it once off
+    /// its schedule. The expression is saved unchanged, which did the same.
+    /// </summary>
+    [Test]
+    public async Task SavingTheScheduleOfATriggerThatStartedLongAgoFiresItNextAfterNow()
+    {
+        clock.UtcNow = new DateTimeOffset(2026, 10, 5, 14, 23, 0, 250, TimeSpan.Zero);
+        await Schedule(Cron("0/15 * * * * ?", TimeZoneInfo.Utc));
+        IRenderedComponent<TriggerDetail> page = Render();
+        page.WaitForAssertion(() => FireTimes(page).Should().NotBeEmpty());
+
+        page.FindAll("button").Single(button => button.TextContent.Trim() == "Save schedule").Click();
+
+        page.WaitForAssertion(() => context.Services.GetRequiredService<ToastService>().Messages
+            .Should().ContainSingle(toast => toast.Level == ToastLevel.Success));
+        ITrigger stored = (await scheduler.GetTrigger(NightlyTrigger))!;
+        stored.GetNextFireTimeUtc().Should().Be(new DateTimeOffset(2026, 10, 5, 14, 23, 15, TimeSpan.Zero),
+            "the first fire after the August start is in the past, which the scheduler treats as a misfire, and the preview lists 14:23:15 first");
+        stored.StartTimeUtc.Should().Be(new DateTimeOffset(2026, 10, 5, 14, 23, 1, TimeSpan.Zero));
+    }
+
     [Test]
     public async Task ATriggerThatStartsLaterPreviewsFromItsStart()
     {
