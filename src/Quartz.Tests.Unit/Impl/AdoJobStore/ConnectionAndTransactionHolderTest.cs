@@ -45,6 +45,46 @@ public sealed class ConnectionAndTransactionHolderTest
         await holder.Rollback(transientError: false);
     }
 
+    /// <summary>
+    /// Npgsql reports a transaction its broken connector has disposed by throwing from
+    /// <see cref="DbTransaction.Connection" /> rather than answering <see langword="null" />, which
+    /// made the zombie check itself throw. The store's rollback after a failed commit then raised an
+    /// <see cref="ObjectDisposedException" /> in place of the commit's own failure (#4255).
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Rollback_WhenTheDriverHasDisposedTheTransaction_SkipsRollbackWithoutError(bool transientError)
+    {
+        DbConnection connection = A.Fake<DbConnection>();
+        DisposedDbTransaction transaction = new DisposedDbTransaction();
+
+        ConnectionAndTransactionHolder holder = new ConnectionAndTransactionHolder(connection, transaction);
+
+        Func<Task> rollback = async () => await holder.Rollback(transientError);
+
+        await rollback.Should().NotThrowAsync(
+            "a disposed transaction has ended, so there is nothing to roll back, and the failure the caller is handling is the one to report");
+        transaction.RollbackCalled.Should().BeFalse("the transaction is gone, and the database has aborted it");
+        holder.IsTransactionZombied.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Commit_WhenTheDriverHasDisposedTheTransaction_ReportsItDisconnected()
+    {
+        DbConnection connection = A.Fake<DbConnection>();
+        DisposedDbTransaction transaction = new DisposedDbTransaction();
+
+        ConnectionAndTransactionHolder holder = new ConnectionAndTransactionHolder(connection, transaction);
+
+        Func<Task> commit = async () => await holder.Commit(openNewTransaction: false);
+
+        // Exactly, because ObjectDisposedException is an InvalidOperationException too.
+        (await commit.Should().ThrowAsync<JobPersistenceException>())
+            .WithInnerExceptionExactly<InvalidOperationException>()
+            .WithMessage("Transaction not connected, or was disconnected");
+        transaction.CommitCalled.Should().BeFalse();
+    }
+
     [Test]
     public async Task BorrowedHolder_LeavesTheApplicationsTransactionAlone()
     {
@@ -154,5 +194,34 @@ public sealed class ConnectionAndTransactionHolderTest
         {
             RollbackCalled = true;
         }
+    }
+
+    /// <summary>
+    /// A transaction as Npgsql leaves it once its connector has broken: disposed, so that every member,
+    /// <see cref="DbTransaction.Connection" /> included, throws <see cref="ObjectDisposedException" />.
+    /// </summary>
+    private sealed class DisposedDbTransaction : DbTransaction
+    {
+        public bool RollbackCalled { get; private set; }
+
+        public bool CommitCalled { get; private set; }
+
+        protected override DbConnection DbConnection => throw Disposed();
+
+        public override IsolationLevel IsolationLevel => throw Disposed();
+
+        public override void Commit()
+        {
+            CommitCalled = true;
+            throw Disposed();
+        }
+
+        public override void Rollback()
+        {
+            RollbackCalled = true;
+            throw Disposed();
+        }
+
+        private static ObjectDisposedException Disposed() => new ObjectDisposedException("NpgsqlTransaction");
     }
 }

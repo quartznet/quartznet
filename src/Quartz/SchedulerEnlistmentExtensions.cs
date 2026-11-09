@@ -94,10 +94,7 @@ public static class SchedulerEnlistmentExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
         ArgumentNullException.ThrowIfNull(transaction);
 
-        var connection = transaction.Connection
-                         ?? throw new ArgumentException(
-                             "The transaction is not associated with a connection, it has already been committed, rolled back or disposed.",
-                             nameof(transaction));
+        DbConnection connection = transaction.ConnectionUnlessDisposed() ?? throw TransactionHasEnded(nameof(transaction));
 
         var schedulerName = ResolveSchedulerName(scheduler, connection);
 
@@ -138,15 +135,22 @@ public static class SchedulerEnlistmentExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
         ArgumentNullException.ThrowIfNull(connection);
 
-        // A transaction from some other connection governs nothing here: providers take the
-        // connection's own transaction and ignore the one on the command, so every statement would
-        // commit on the spot while the caller believes rolling that transaction back undoes them.
-        if (transaction is not null && !ReferenceEquals(transaction.Connection, connection))
+        if (transaction is not null)
         {
-            throw new ArgumentException(
-                "The transaction belongs to a different connection, so it would not govern anything the job store does on "
-                + "this one. Pass the transaction that was begun on this connection.",
-                nameof(transaction));
+            // Said as what it is: one that has ended has no connection to compare, and calling it one of
+            // a different connection would send the caller looking for the wrong mistake.
+            DbConnection owner = transaction.ConnectionUnlessDisposed() ?? throw TransactionHasEnded(nameof(transaction));
+
+            // A transaction from some other connection governs nothing here: providers take the
+            // connection's own transaction and ignore the one on the command, so every statement would
+            // commit on the spot while the caller believes rolling that transaction back undoes them.
+            if (!ReferenceEquals(owner, connection))
+            {
+                throw new ArgumentException(
+                    "The transaction belongs to a different connection, so it would not govern anything the job store does on "
+                    + "this one. Pass the transaction that was begun on this connection.",
+                    nameof(transaction));
+            }
         }
 
         // With neither a transaction of its own nor an ambient one to enlist in, every statement the
@@ -172,6 +176,18 @@ public static class SchedulerEnlistmentExtensions
         // The ambient transaction is remembered so a later operation can tell that the scope has since
         // ended, instead of quietly running with no transaction at all.
         return AmbientConnection.Enlist(schedulerName, connection, transaction, ambient);
+    }
+
+    /// <summary>
+    /// The refusal of a transaction that has already ended: its driver has detached it from its
+    /// connection, as a commit or a rollback does, or disposed it, which Npgsql reports by throwing from
+    /// <see cref="DbTransaction.Connection" /> (#4255).
+    /// </summary>
+    private static ArgumentException TransactionHasEnded(string paramName)
+    {
+        return new ArgumentException(
+            "The transaction is not associated with a connection, it has already been committed, rolled back or disposed.",
+            paramName);
     }
 
     /// <summary>

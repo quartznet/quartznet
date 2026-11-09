@@ -141,11 +141,15 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
     /// <summary>
     /// Whether the database has ended this unit of work's transaction from its side — as it does to a
     /// deadlock victim, or to the loser of a write conflict on a memory-optimized table — which the driver
-    /// reports by detaching the transaction from its connection. Nothing can be committed or rolled back
-    /// in it any more, and SQL Server runs a command still bound to it outside any transaction rather
-    /// than refusing it.
+    /// reports by detaching the transaction from its connection, or by disposing it as Npgsql does when
+    /// its connector breaks. Nothing can be committed or rolled back in it any more, and SQL Server runs
+    /// a command still bound to it outside any transaction rather than refusing it.
     /// </summary>
-    internal bool IsTransactionZombied => transaction is not null && transaction.Connection is null;
+    /// <remarks>
+    /// Never throws: it is asked inside the handlers of the failure that ended the transaction, and an
+    /// exception of its own there would replace that failure (#4255).
+    /// </remarks>
+    internal bool IsTransactionZombied => transaction is not null && transaction.ConnectionUnlessDisposed() is null;
 
     /// <summary>
     /// Puts this unit of work's connection and transaction on a command, so that it takes part in it.
@@ -377,7 +381,8 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
             {
                 // Transaction lost its connection - nothing to rollback, the database
                 // will have already aborted it. This commonly happens with transient
-                // connectivity issues (see https://github.com/quartznet/quartznet/issues/2290)
+                // connectivity issues (see https://github.com/quartznet/quartznet/issues/2290),
+                // and Npgsql reports it by disposing the transaction (#4255).
                 logger.RollbackSkippedTransactionDisconnected();
                 return;
             }
