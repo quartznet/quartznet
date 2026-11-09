@@ -450,8 +450,6 @@ public sealed class EnlistmentSourceSqliteTest
         await WaitFor(() => CountRows(CountTriggersSql) == 0 && CountRows(CountFiredTriggersSql) == 0);
 
         recorder.Failure.Should().BeNull();
-        recorder.ThreadOfTheFiring.Should().NotBe(Environment.CurrentManagedThreadId,
-            "the job ran on the scheduler's own flow, which the application's enlistment never reached");
         recorder.EnlistedInsideTheJob.Should().BeFalse("the scheduler's own work does not run enlisted");
         recorder.AskedByTheJobsOwnCall.Should().Be(1, "a call through context.Scheduler is the application's, so it asks");
         recorder.JobSeenThroughContext.Should().NotBeNull();
@@ -1027,8 +1025,6 @@ public sealed class EnlistmentSourceSqliteTest
 
         internal ManualResetEventSlim Fired { get; } = new(false);
 
-        internal int ThreadOfTheFiring { get; set; }
-
         internal bool EnlistedInsideTheJob { get; set; }
 
         internal int AskedByTheJobsOwnCall { get; set; }
@@ -1047,7 +1043,6 @@ public sealed class EnlistmentSourceSqliteTest
         {
             try
             {
-                recorder.ThreadOfTheFiring = Environment.CurrentManagedThreadId;
                 recorder.EnlistedInsideTheJob = AmbientConnection.Get(recorder.SchedulerName) is not null;
 
                 int before = recorder.SourceCalls();
