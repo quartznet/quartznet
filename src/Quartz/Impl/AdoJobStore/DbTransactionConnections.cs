@@ -34,12 +34,15 @@ internal static class DbTransactionConnections
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Drivers say that a transaction has ended in one of two ways. SqlClient, MySqlConnector and
-    /// Microsoft.Data.Sqlite detach it, and <see cref="DbTransaction.Connection" /> reads
-    /// <see langword="null" />. Npgsql disposes it when its connector breaks — a command timeout, a
+    /// Drivers say that a transaction has ended in one of two ways. SqlClient, MySqlConnector,
+    /// Microsoft.Data.Sqlite, Oracle and Firebird detach it, and <see cref="DbTransaction.Connection" />
+    /// reads <see langword="null" />. Npgsql disposes it when its connector breaks — a command timeout, a
     /// backend the server terminated — and from then on its getter throws
     /// <see cref="ObjectDisposedException" /> instead of answering (#4255). A disposed transaction has
-    /// ended whoever disposed it, so the two mean the same here.
+    /// ended whoever disposed it, so the two mean the same here. Npgsql does not detach a transaction
+    /// that commits or rolls back, though: it answers its connection until the transaction is disposed,
+    /// so one that has completed but is still undisposed is not seen as ended here, and Npgsql refuses a
+    /// command on it with its own message.
     /// </para>
     /// <para>
     /// Only <see cref="ObjectDisposedException" /> is caught: it is the one answer that says the
