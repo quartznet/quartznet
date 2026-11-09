@@ -562,11 +562,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         // The enlisted transaction may have finished while its scope was still open - the application
         // committed or rolled back, or its TransactionScope ended. Carrying on would run this
         // operation in autocommit, where a half-finished write can no longer be rolled back, so refuse
-        // rather than quietly drop the transactional guarantee the caller asked for.
-        if (enlisted.Transaction != null && enlisted.Transaction.Connection == null)
+        // rather than quietly drop the transactional guarantee the caller asked for. A transaction the
+        // application or the driver has disposed is one of those too.
+        if (enlisted.Transaction != null && enlisted.Transaction.ConnectionUnlessDisposed() == null)
         {
             throw new JobPersistenceException(
-                $"The transaction enlisted for scheduler '{InstanceName}' has already been committed or rolled back, "
+                $"The transaction enlisted for scheduler '{InstanceName}' has already been committed, rolled back or disposed, "
                 + "so this operation would run with no transaction at all. Dispose the enlistment scope once the "
                 + "transaction completes, and enlist a new one for any further scheduling.");
         }

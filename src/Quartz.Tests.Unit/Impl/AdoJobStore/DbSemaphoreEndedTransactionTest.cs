@@ -75,6 +75,45 @@ public class DbSemaphoreEndedTransactionTest
         provider.CommandsExecuted.Should().Be(1, "MaxRetry is 3, and none of the other attempts has a transaction to run in");
     }
 
+    /// <summary>
+    /// Npgsql ends a transaction by disposing it when its connector breaks, and its
+    /// <see cref="DbTransaction.Connection" /> then throws instead of answering. The check that stops the
+    /// retry used to throw that <see cref="ObjectDisposedException" /> from inside the semaphore's catch,
+    /// in place of the lock failure (#4255).
+    /// </summary>
+    [Test]
+    public async Task AnUpdateLockRowSemaphoreReportsTheLockFailureWhenTheDriverHasDisposedTheTransaction()
+    {
+        using FakeConnection connection = new FakeConnection();
+        EndableTransaction transaction = new EndableTransaction(connection);
+        ConflictingDbProvider provider = new ConflictingDbProvider(transaction.DisposeAsNpgsqlDoes);
+        UpdateLockRowSemaphore semaphore = new UpdateLockRowSemaphore(provider) { SchedName = "TESTSCHED" };
+
+        await ShouldReportTheConflict(semaphore, connection, transaction,
+            "a disposed transaction has ended as surely as a detached one, and the store retries the operation on a fresh one");
+
+        provider.CommandsExecuted.Should().Be(1);
+    }
+
+    /// <inheritdoc cref="AnUpdateLockRowSemaphoreReportsTheLockFailureWhenTheDriverHasDisposedTheTransaction" />
+    [Test]
+    public async Task AStdRowLockSemaphoreReportsTheLockFailureWhenTheDriverHasDisposedTheTransaction()
+    {
+        using FakeConnection connection = new FakeConnection();
+        EndableTransaction transaction = new EndableTransaction(connection);
+        ConflictingDbProvider provider = new ConflictingDbProvider(transaction.DisposeAsNpgsqlDoes);
+        StdRowLockSemaphore semaphore = new StdRowLockSemaphore(provider)
+        {
+            SchedName = "TESTSCHED",
+            RetryPeriod = TimeSpan.FromMilliseconds(10),
+        };
+
+        await ShouldReportTheConflict(semaphore, connection, transaction,
+            "the failure the statement met is the cause, not the disposal the check ran into");
+
+        provider.CommandsExecuted.Should().Be(1);
+    }
+
     [Test]
     public async Task AFailureThatLeavesTheTransactionAliveIsStillRetried()
     {
@@ -118,12 +157,14 @@ public class DbSemaphoreEndedTransactionTest
     }
 
     /// <summary>
-    /// A transaction the database can end from its side, which a driver reports the way SqlClient does:
-    /// the transaction object stays, and its connection is gone.
+    /// A transaction the database can end from its side, which a driver reports the way SqlClient does —
+    /// the transaction object stays, and its connection is gone — or the way Npgsql does, by disposing
+    /// the transaction so that reading its connection throws.
     /// </summary>
     private sealed class EndableTransaction : DbTransaction
     {
         private DbConnection connection;
+        private bool disposedByDriver;
 
         public EndableTransaction(DbConnection connection)
         {
@@ -132,7 +173,9 @@ public class DbSemaphoreEndedTransactionTest
 
         public void End() => connection = null;
 
-        protected override DbConnection DbConnection => connection;
+        public void DisposeAsNpgsqlDoes() => disposedByDriver = true;
+
+        protected override DbConnection DbConnection => disposedByDriver ? throw new ObjectDisposedException("NpgsqlTransaction") : connection;
 
         public override IsolationLevel IsolationLevel => IsolationLevel.ReadCommitted;
 
