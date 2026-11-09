@@ -109,9 +109,7 @@ public sealed class SchedulerLoopClockTest
         IScheduler scheduler = await factory.GetScheduler();
 
         await scheduler.Start();
-        await scheduler.Standby();
-
-        await ShouldArrive(clock.Armed(PauseCheck),
+        await StandbyAndWaitForThePauseWait(scheduler, clock,
             "a paused loop sleeps between looks at its pause flag, and the sleep is a timer on the scheduler's clock");
         int looks = clock.CountArmed(PauseCheck);
 
@@ -170,8 +168,7 @@ public sealed class SchedulerLoopClockTest
                     "the loop holds the trigger and waits for its fire time");
                 break;
             default:
-                await scheduler.Standby();
-                await ShouldArrive(clock.Armed(PauseCheck), "a scheduler in standby parks in its pause wait");
+                await StandbyAndWaitForThePauseWait(scheduler, clock, "a scheduler in standby parks in its pause wait");
                 break;
         }
 
@@ -200,8 +197,7 @@ public sealed class SchedulerLoopClockTest
         scheduler.ListenerManager.AddTriggerListener(misfired);
 
         await scheduler.Start();
-        await scheduler.Standby();
-        await ShouldArrive(clock.Armed(PauseCheck), "a scheduler in standby parks in its pause wait");
+        await StandbyAndWaitForThePauseWait(scheduler, clock, "a scheduler in standby parks in its pause wait");
         await scheduler.ScheduleJob(Job("missed"), Trigger(clock, "missed", start.AddSeconds(10)));
 
         // The store's misfire threshold, and so its scan interval: one minute unless configured.
@@ -302,8 +298,7 @@ public sealed class SchedulerLoopClockTest
         QuartzSchedulerThread loop = LoopOf(scheduler);
 
         await scheduler.Start();
-        await scheduler.Standby();
-        await ShouldArrive(clock.Armed(PauseCheck), "a scheduler in standby parks in its pause wait");
+        await StandbyAndWaitForThePauseWait(scheduler, clock, "a scheduler in standby parks in its pause wait");
         long wakes = loop.SchedulingWakes;
 
         await scheduler.ScheduleJob(Job("while-paused"), Trigger(clock, "while-paused", start.AddHours(1)));
@@ -376,6 +371,22 @@ public sealed class SchedulerLoopClockTest
     }
 
     private static bool PauseCheck(TimerArming arming) => arming.DueTime == pauseCheck;
+
+    /// <summary>
+    /// Puts <paramref name="scheduler" /> in standby and waits until its loop has parked in the pause wait.
+    /// </summary>
+    /// <remarks>
+    /// A scheduler is created paused, so its loop arms a pause check before it ever starts, and
+    /// <see cref="ArmingRecordingTimeProvider.Armed" /> counts the armings already recorded. Waiting for
+    /// any pause check would therefore return at once, before the standby has reached the loop, which
+    /// may still be in its idle wait with a next look published. This waits for the next one.
+    /// </remarks>
+    private static async Task StandbyAndWaitForThePauseWait(IScheduler scheduler, ArmingRecordingTimeProvider clock, string because)
+    {
+        int armed = clock.CountArmed(PauseCheck);
+        await scheduler.Standby();
+        await ShouldArrive(clock.Armed(PauseCheck, armed + 1), because);
+    }
 
     private static async Task ShouldArrive(Task arrival, string because)
     {
