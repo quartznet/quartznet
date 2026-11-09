@@ -179,6 +179,72 @@ public sealed class TriggersFiredBrokenCommitSqliteTest
     }
 
     /// <summary>
+    /// The commit reached the database and the connection broke on the way back, and the store's check of
+    /// whether the fire landed read the rows as they were before it (#4259). The check runs under a lock its
+    /// requestor already holds, so the database lock is not taken again, and a commit still in flight on the
+    /// server is not yet visible to it. The scheduler thread is told the fire failed and releases the batch.
+    /// The fire had moved the serial job's other trigger to <c>BLOCKED</c>, or to <c>PAUSED_BLOCKED</c> if
+    /// it was paused. No completion comes for a firing nobody runs, so the release has to let go of it.
+    /// </summary>
+    [TestCase(false, AdoConstants.StateBlocked, AdoConstants.StateWaiting)]
+    [TestCase(true, AdoConstants.StatePausedBlocked, AdoConstants.StatePaused)]
+    public async Task ACommitThatLandedUnseenIsReleasedAndLetsGoOfTheSerialJobsOtherTrigger(bool siblingPaused, string held, string released)
+    {
+        (IOperableTrigger acquired, TriggerKey sibling) = await GivenAnAcquiredTriggerOfASerialJob();
+        if (siblingPaused)
+        {
+            await store.PauseTrigger(sibling);
+        }
+
+        bool checkReadsTheRowsAsTheyWere = false;
+        bool checkAnsweredFromBefore = false;
+        provider.NextCommit = async (transaction, cancellationToken) =>
+        {
+            await transaction.Inner.CommitAsync(cancellationToken);
+            transaction.DisposeAsNpgsqlDoes();
+            checkReadsTheRowsAsTheyWere = true;
+            throw new InvalidOperationException("The connection broke after the COMMIT reached the server.");
+        };
+
+        // The check's read of this node's fired rows, answered from before the fire: inside the check's own
+        // transaction the row is put back to ACQUIRED, and that transaction is rolled back rather than committed,
+        // so the check sees what a read racing the in-flight commit would see and writes nothing.
+        string checkRead = Sql(StdAdoConstants.SqlSelectFiredTriggers + StdAdoConstants.SqlFiredTriggerInstancePredicate);
+        provider.BeforeCommand = async (sql, connection, transaction) =>
+        {
+            if (!checkReadsTheRowsAsTheyWere || sql != checkRead)
+            {
+                return;
+            }
+
+            checkReadsTheRowsAsTheyWere = false;
+            checkAnsweredFromBefore = true;
+
+            await using SqliteCommand command = (SqliteCommand) connection.CreateCommand();
+            command.Transaction = (SqliteTransaction?) transaction;
+            command.CommandText = "UPDATE QRTZ_FIRED_TRIGGERS SET STATE = 'ACQUIRED' WHERE ENTRY_ID = @entry";
+            command.Parameters.AddWithValue("@entry", acquired.FireInstanceId);
+            await command.ExecuteNonQueryAsync();
+
+            provider.NextCommit = (checkTransaction, cancellationToken) => checkTransaction.Inner.RollbackAsync(cancellationToken);
+        };
+
+        Func<Task> fire = () => store.TriggersFired([acquired]).AsTask().WaitAsync(patience);
+
+        await fire.Should().ThrowAsync<JobPersistenceException>(
+            "the check found no sign of the fire, so the store reports the commit's failure, and the scheduler thread releases the batch");
+        checkAnsweredFromBefore.Should().BeTrue("the premise: the check read the rows as they were before the fire");
+        (await FiredStates()).Should().Equal([AdoConstants.StateExecuting], "the premise: the fire landed all the same");
+        (await StoredState(sibling)).Should().Be(held, "the premise: the fire that landed holds the serial job's other trigger back");
+
+        await store.ReleaseAcquiredTrigger(acquired).AsTask().WaitAsync(patience);
+
+        (await FiredStates()).Should().BeEmpty("the release deletes the fired row of a firing nobody runs");
+        (await StoredState(sibling)).Should().Be(released,
+            "nothing else of the job is executing and no completion is coming, so the release lets go of the job's other trigger");
+    }
+
+    /// <summary>
     /// Stores a job that disallows concurrent execution with a trigger due now and one due in an hour,
     /// and acquires the first, as the scheduler thread does before it asks for the fire.
     /// </summary>
@@ -245,6 +311,8 @@ public sealed class TriggersFiredBrokenCommitSqliteTest
 
         return states;
     }
+
+    private static string Sql(string constant) => AdoJobStoreUtil.ReplaceTablePrefixCached(constant, AdoConstants.DefaultTablePrefix);
 
     private static string LoadSqliteTableScript()
     {
