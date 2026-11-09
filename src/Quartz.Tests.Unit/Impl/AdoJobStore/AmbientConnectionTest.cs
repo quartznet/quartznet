@@ -359,7 +359,7 @@ public sealed class AmbientConnectionTest
             // Carrying on would attach a completed transaction, or - worse - run in autocommit where a
             // half-finished write can no longer be rolled back.
             await afterCommit.Should().ThrowAsync<JobPersistenceException>()
-                .WithMessage("*already been committed or rolled back*");
+                .WithMessage("*already been committed, rolled back or disposed*");
         }
     }
 
@@ -384,7 +384,7 @@ public sealed class AmbientConnectionTest
             Func<Task> afterDispose = async () => await jobStore.CallGetConnection();
 
             await afterDispose.Should().ThrowAsync<JobPersistenceException>()
-                .WithMessage("*already been committed or rolled back*");
+                .WithMessage("*already been committed, rolled back or disposed*");
         }
     }
 

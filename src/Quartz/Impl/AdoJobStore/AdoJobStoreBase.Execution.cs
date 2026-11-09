@@ -74,7 +74,7 @@ internal abstract partial class AdoJobStoreBase
         if (enlisted.Transaction is not null && enlisted.Transaction.ConnectionUnlessDisposed() is null)
         {
             Throw.JobPersistenceException(
-                $"The transaction enlisted for scheduler '{InstanceName}' has already been committed or rolled back, "
+                $"The transaction enlisted for scheduler '{InstanceName}' has already been committed, rolled back or disposed, "
                 + "so this operation would run with no transaction at all. Dispose the enlistment scope once the "
                 + "transaction completes, and enlist a new one for any further scheduling.");
         }
