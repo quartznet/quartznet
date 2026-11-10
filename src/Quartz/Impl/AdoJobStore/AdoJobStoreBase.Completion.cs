@@ -196,7 +196,14 @@ internal abstract partial class AdoJobStoreBase
         // (#3863). CompletionTakesLock says which completions still need the lock, and the transaction
         // itself asks for it when it finds continuations to settle. Anything that stops the lock-free
         // attempt falls through to the locked path below, which is the retry-forever path it always was.
-        bool completed = !CompletionTakesLock(context)
+        //
+        // Not once the store has shut down (#4260). A firing that outlived the scheduler's wait at
+        // shutdown completes after that, and the locked path refuses such a completion before a
+        // statement: its fired-trigger row stays, and recovery runs the job again, as event 1006 warns.
+        // The lock-free attempt does not read the flag, and without this check it committed such a
+        // completion, deleting the row that recovery reads.
+        bool completed = !shutdown
+                         && !CompletionTakesLock(context)
                          && await TryCompleteWithoutLock(context, cancellationToken).ConfigureAwait(false);
 
         if (!completed)
@@ -260,6 +267,11 @@ internal abstract partial class AdoJobStoreBase
     /// A firing with continuations awaiting it is not on this list because the completion cannot know
     /// from what it holds: the lock-free transaction's first statement asks, and escalates when the
     /// answer is not empty.
+    /// </para>
+    /// <para>
+    /// None of this is asked once the store has shut down: <see cref="FiringComplete" /> sends every
+    /// completion to the locked path then, which refuses it and leaves the fired-trigger row for
+    /// recovery (#4260).
     /// </para>
     /// </remarks>
     private bool CompletionTakesLock(TriggeredJobCompleteContext context)

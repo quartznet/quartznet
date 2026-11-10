@@ -219,6 +219,26 @@ public sealed class LockFreeCompletionTest
             "the failure is reported, with its exception, because the locked rerun may not fail the same way and it would otherwise go unrecorded");
     }
 
+    /// <summary>
+    /// A completion that arrives after the store has shut down is refused as the locked path refuses one,
+    /// before a statement, even where it would take no lock while the store is up (#4260).
+    /// </summary>
+    [Test]
+    public async Task ACompletionAfterTheStoreShutDownIsRefusedBeforeAnyStatement()
+    {
+        Harness harness = Harness.Create();
+        IJobDetail job = Job(durable: true);
+        IOperableTrigger firing = Spent(job);
+        harness.RowIsSpent(firing, job);
+        await harness.Store.Shutdown();
+
+        Func<Task> act = async () => await harness.Store.FiringComplete(Context(firing, job, SchedulerInstruction.DeleteTrigger));
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("JobStore is shutdown*",
+            "a spent one-off of a durable job completes without the lock while the store is up, and not at all once it has shut down");
+        harness.Calls.Should().BeEmpty("the fired-trigger row is left for recovery, so nothing is read or written");
+    }
+
     private static (IJobDetail Job, IOperableTrigger Firing) Fired(IJobDetail job, Func<IJobDetail, IOperableTrigger> trigger)
     {
         return (job, trigger(job));
