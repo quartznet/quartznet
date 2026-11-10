@@ -1208,6 +1208,11 @@ internal abstract partial class AdoJobStoreBase
     /// Asked when an attempt's commit reported a failure: whether the attempt landed anyway, which it did
     /// when any row it wrote for the triggers it acquired is there.
     /// </summary>
+    /// <remarks>
+    /// The attempt's claim wrote the row of every trigger it acquired, so the check waits on the first of
+    /// them before it reads (<see cref="SettleCommitBeingChecked" />). A round's fired rows are inserted,
+    /// and nothing waits on an insert that has not committed, so the row it waits on is the trigger's.
+    /// </remarks>
     private ValueTask<bool> ValidateAcquiredAndFired(
         ConnectionAndTransactionHolder conn,
         FireOnAcquireAttempt attempt,
@@ -1216,6 +1221,14 @@ internal abstract partial class AdoJobStoreBase
         return Guarded(
             async () =>
             {
+                IOperableTrigger? claimed = attempt.Due.Count > 0 ? attempt.Due[0]
+                    : attempt.Pending.Count > 0 ? attempt.Pending[0]
+                    : null;
+                if (claimed is not null)
+                {
+                    await SettleCommitBeingChecked(conn, claimed.Key, cancellationToken).ConfigureAwait(false);
+                }
+
                 List<FiredTriggerRecord> records = await Delegate
                     .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken)
                     .ConfigureAwait(false);

@@ -42,12 +42,16 @@ internal abstract partial class AdoJobStoreBase
     /// for its whole idle wait behind it (#3926).
     /// </para>
     /// <para>
-    /// The scheduler also releases a fire whose commit landed although it was told the commit failed.
-    /// That fire moved the other triggers of a job that disallows concurrent execution to
-    /// <c>BLOCKED</c> and <c>PAUSED_BLOCKED</c>, and no completion will come for a firing the scheduler
-    /// never dispatched. So when no other firing of the job is executing, the release lets go of the
-    /// job's other triggers too, as a completion would. Without that they stayed held until the job
-    /// next completed, or for good when the released trigger had no fire time left (#4259).
+    /// The scheduler can also release a fire whose commit landed although it was told the commit failed.
+    /// The store's check after a failed commit first writes a trigger row of the commit, which waits for
+    /// a commit still in flight to settle, so such a fire is normally found and dispatched. This release
+    /// is the fallback for one the check still missed: a delegate that does not derive from
+    /// <see cref="StdAdoDelegate" /> checks by reading alone. That fire moved the other triggers of a job
+    /// that disallows concurrent execution to <c>BLOCKED</c> and <c>PAUSED_BLOCKED</c>, and no completion
+    /// will come for a firing the scheduler never dispatched. So when no other firing of the job is
+    /// executing, the release lets go of the job's other triggers too, as a completion would. Without
+    /// that they stayed held until the job next completed, or for good when the released trigger had no
+    /// fire time left (#4259).
     /// </para>
     /// </remarks>
     public async ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
@@ -83,9 +87,10 @@ internal abstract partial class AdoJobStoreBase
     /// <para>
     /// The same read says whether a fire wrote this row. A reservation's row names no job, so the read
     /// by job finds it only once a fire has written it <c>EXECUTING</c>: the fire committed, and the
-    /// scheduler is releasing it because it could not tell (#4259). For a job that disallows concurrent
-    /// execution that fire moved the job's other triggers to <c>BLOCKED</c> and <c>PAUSED_BLOCKED</c>,
-    /// and the scheduler never dispatched the firing, so no completion will let go of them. With no
+    /// scheduler is releasing it because the commit check missed it (#4259). That is the fallback: the
+    /// check waits for a commit in flight first. For a job that disallows concurrent execution that
+    /// fire moved the job's other triggers to <c>BLOCKED</c> and <c>PAUSED_BLOCKED</c>, and the
+    /// scheduler never dispatched the firing, so no completion will let go of them. With no
     /// other firing of the job executing, the release does what that completion would have done with
     /// them: <c>BLOCKED</c> to <c>WAITING</c>, <c>PAUSED_BLOCKED</c> to <c>PAUSED</c>, and the misfire
     /// policy of any that went late while held. The job's data is left alone, since the job never ran.
