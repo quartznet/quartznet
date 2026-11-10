@@ -82,7 +82,12 @@ instance left behind:
   fires as soon as the scheduler can run it and carries the original trigger's job data.
 - Otherwise the row is deleted and that occurrence is lost.
 
-Recovery re-runs only executions that were interrupted by a process dying or a machine going away.
+Recovery re-runs only executions whose firing never completed:
+
+- the process died or the machine went away;
+- the job was still running when shutdown stopped waiting for it (event 1006). Its late completion
+  is refused once the store has shut down, so the row stays.
+
 It is not a retry: a job that threw has completed its firing.
 
 A trigger that was acquired but never fired is not recovered. The fired-trigger row is inserted at
