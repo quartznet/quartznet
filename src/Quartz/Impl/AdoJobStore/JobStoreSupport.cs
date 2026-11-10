@@ -4660,12 +4660,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// for its whole idle wait behind it (#3926).
     /// </para>
     /// <para>
-    /// The scheduler also releases a fire whose commit landed although it was told the commit failed.
-    /// That fire moved the other triggers of a job that disallows concurrent execution to
-    /// <c>BLOCKED</c> and <c>PAUSED_BLOCKED</c>, and no completion will come for a firing the scheduler
-    /// never dispatched. So when no other firing of the job is executing, the release lets go of the
-    /// job's other triggers too, as a completion would. Without that they stayed held until the job
-    /// next completed, or for good when the released trigger had no fire time left (#4259).
+    /// The scheduler can also release a fire whose commit landed although it was told the commit failed.
+    /// The store's check after a failed commit first writes a trigger row of the commit, which waits for
+    /// a commit still in flight to settle, so such a fire is normally found and dispatched. This release
+    /// is the fallback for one the check still missed: a delegate that does not derive from
+    /// <see cref="StdAdoDelegate" /> checks by reading alone. That fire moved the other triggers of a job
+    /// that disallows concurrent execution to <c>BLOCKED</c> and <c>PAUSED_BLOCKED</c>, and no completion
+    /// will come for a firing the scheduler never dispatched. So when no other firing of the job is
+    /// executing, the release lets go of the job's other triggers too, as a completion would. Without
+    /// that they stayed held until the job next completed, or for good when the released trigger had no
+    /// fire time left (#4259).
     /// </para>
     /// </remarks>
     public Task ReleaseAcquiredTrigger(
@@ -4760,13 +4764,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// <para>
     /// The job's fired rows are read before this one is deleted, and say whether a fire wrote it. A
     /// reservation's row names no job, so the read by job finds it only once a fire has written it
-    /// <c>EXECUTING</c>: the fire committed, and the scheduler is releasing it because it could not tell
-    /// (#4259). For a job that disallows concurrent execution that fire moved the job's other triggers to
-    /// <c>BLOCKED</c> and <c>PAUSED_BLOCKED</c>, and the scheduler never dispatched the firing, so no
-    /// completion will let go of them. With no other firing of the job executing, the release does what
-    /// that completion would have done with them: <c>BLOCKED</c> to <c>WAITING</c>, <c>PAUSED_BLOCKED</c>
-    /// to <c>PAUSED</c>, and the misfire policy of any that went late while held. The job's data is left
-    /// alone, since the job never ran. The occurrence is lost, because the fire moved the trigger past it.
+    /// <c>EXECUTING</c>: the fire committed, and the scheduler is releasing it because the commit check
+    /// missed it (#4259). That is the fallback: the check waits for a commit in flight first. For a job
+    /// that disallows concurrent execution that fire moved the job's other triggers to <c>BLOCKED</c> and
+    /// <c>PAUSED_BLOCKED</c>, and the scheduler never dispatched the firing, so no completion will let go
+    /// of them. With no other firing of the job executing, the release does what that completion would
+    /// have done with them: <c>BLOCKED</c> to <c>WAITING</c>, <c>PAUSED_BLOCKED</c> to <c>PAUSED</c>, and
+    /// the misfire policy of any that went late while held. The job's data is left alone, since the job
+    /// never ran. The occurrence is lost, because the fire moved the trigger past it.
     /// </para>
     /// <para>
     /// A row a fire wrote names the job, so the blocked-state check the release asked first counted it.
@@ -5134,6 +5139,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// Asked when an attempt's commit reported a failure: whether the fires landed anyway, which is the
     /// case when any fired row this attempt reported fired is <c>EXECUTING</c>.
     /// </summary>
+    /// <remarks>
+    /// The first fire the attempt reported wrote its trigger's row, so the check waits on that row before
+    /// it reads (<see cref="SettleCommitBeingChecked" />).
+    /// </remarks>
     private async Task<bool> ValidateFired(
         ConnectionAndTransactionHolder conn,
         List<TriggerFiredResult> result,
@@ -5141,6 +5150,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     {
         try
         {
+            foreach (TriggerFiredResult tr in result)
+            {
+                if (tr.TriggerFiredBundle is { } fired)
+                {
+                    await SettleCommitBeingChecked(conn, fired.Trigger.Key, cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+            }
+
             var acquired = await Delegate
                 .SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken)
                 .ConfigureAwait(false);
@@ -5168,6 +5186,32 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         {
             throw new JobPersistenceException("error validating trigger acquisition", e);
         }
+    }
+
+    /// <summary>
+    /// The first statement of a check after a failed commit: waits until the commit being checked has
+    /// landed or rolled back, by writing a trigger row that commit wrote (#4259).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A commit can still be settling on the database when the client hears that it failed. A read does
+    /// not see it until then, so a check that only read answered "it did not land" for a commit that did.
+    /// The fire was then released and its occurrence lost, and a job that disallows concurrent execution
+    /// had its other triggers left <c>BLOCKED</c> unless the release could see the commit.
+    /// </para>
+    /// <para>
+    /// A write waits on the row lock that commit holds, so the read after it gets the true answer. Asked of
+    /// any delegate derived from <see cref="StdAdoDelegate" />, Quartz's or not. Any other delegate's check
+    /// reads alone, as before. A healthy commit asks nothing, so this costs one statement after a failed
+    /// commit and nothing else.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The check's unit of work.</param>
+    /// <param name="triggerKey">A trigger whose row the commit being checked wrote.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private Task SettleCommitBeingChecked(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        return Delegate is StdAdoDelegate std ? std.SettleTriggerRow(conn, triggerKey, cancellationToken) : Task.CompletedTask;
     }
 
     protected virtual async Task<TriggerFiredBundle?> TriggerFired(
