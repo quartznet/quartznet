@@ -85,8 +85,9 @@ instance left behind:
 Recovery re-runs only executions whose firing never completed:
 
 - the process died or the machine went away;
-- the job was still running when shutdown stopped waiting for it (event 1006). Its late completion
-  is refused once the store has shut down, so the row stays.
+- the job was still running when shutdown stopped waiting for it, or did not wait (on 4.x, event
+  1006 or 1020). Its late completion is refused once the store has shut down, so the row stays.
+  On 4.3 to 4.7, a job that allows concurrent execution completed anyway and lost its row (#4260).
 
 It is not a retry: a job that threw has completed its firing.
 
