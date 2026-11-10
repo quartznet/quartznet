@@ -160,7 +160,7 @@ Jobs and triggers are created via `JobBuilder` and `TriggerBuilder` with schedul
 
 ### Trigger state management
 
-After `TriggersFired`, always use `TriggeredJobComplete` (not `ReleaseAcquiredTrigger`) to clean up trigger state. `ReleaseAcquiredTrigger` gives back a reservation; it does not complete a firing. A spent trigger stays `COMPLETE`, and no job data is written. It lets go of a `[DisallowConcurrentExecution]` job's other triggers in one case only: the fire it releases committed, and no other firing of the job is executing. That is the ADO.NET store's answer to a commit it could not confirm (#4259).
+After `TriggersFired`, always use `TriggeredJobComplete` (not `ReleaseAcquiredTrigger`) to clean up trigger state. `ReleaseAcquiredTrigger` gives back a reservation; it does not complete a firing. A spent trigger stays `COMPLETE`, and no job data is written. It lets go of a `[DisallowConcurrentExecution]` job's other triggers in one case only: the fire it releases committed, and no other firing of the job is executing. That is the ADO.NET store's fallback for a commit it could not confirm (#4259). The commit check comes first. It writes a trigger row of the commit it is checking, so a commit still in flight settles before the check reads.
 
 ### Property-based configuration and `StdSchedulerFactory`
 
