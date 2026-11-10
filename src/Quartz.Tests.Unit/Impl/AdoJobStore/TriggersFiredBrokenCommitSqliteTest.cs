@@ -29,9 +29,9 @@ using Quartz.Impl.AdoJobStore.Common;
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <summary>
-/// A batch fire whose commit fails because the connection broke, as Npgsql reports it: the commit
-/// throws, and the driver has disposed the transaction, so that asking it for its connection throws as
-/// well (#4255).
+/// A batch fire, or a fire-on-acquire round, whose commit fails because the connection broke, as Npgsql
+/// reports it: the commit throws, and the driver has disposed the transaction, so that asking it for its
+/// connection throws as well (#4255).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -41,6 +41,12 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// of the commit's failure. The store never asked whether the fire had landed anyway, and the scheduler
 /// thread met an exception that is not a <see cref="SchedulerException" />, so it told no scheduler
 /// listener.
+/// </para>
+/// <para>
+/// The store's check of whether the commit landed can race the commit itself, which may still be settling
+/// on the server (#4259). SQLite settles a commit before it returns, so these tests stand in for the race:
+/// the check's read of the fired rows is answered from before the fire, inside the check's own transaction,
+/// which is then rolled back. <see cref="CheckSees" /> says until when.
 /// </para>
 /// <para>
 /// Driven against the store on a clock the test owns, initialized but never started, with the SQLite
@@ -133,13 +139,36 @@ public sealed class TriggersFiredBrokenCommitSqliteTest
         (await StoredState(sibling)).Should().Be(AdoConstants.StateBlocked,
             "the premise: the fire that landed holds the serial job's other trigger back");
 
-        await store.FiringComplete(new TriggeredJobCompleteContext
-        {
-            Trigger = bundle!.Trigger,
-            JobDetail = bundle.JobDetail,
-            Instruction = SchedulerInstruction.NoInstruction,
-            Outcome = ExecutionOutcome.Succeeded,
-        }).AsTask().WaitAsync(patience);
+        await Complete(bundle!);
+
+        (await FiredStates()).Should().BeEmpty();
+        (await StoredState(sibling)).Should().Be(AdoConstants.StateWaiting, "the firing's end lets go of the job's other triggers");
+    }
+
+    /// <summary>
+    /// The commit reached the database and was still settling there when the store checked whether it had
+    /// landed (#4259). The check's first statement writes the trigger row the fire wrote, which waits until
+    /// the commit has settled, so the read after it finds the fire. The firing goes ahead, so the occurrence
+    /// is kept, and its end lets go of the serial job's other trigger. A check that only read would have
+    /// answered from before the fire: the store threw, and the scheduler released the occurrence.
+    /// </summary>
+    [Test]
+    public async Task ACommitStillInFlightWhenCheckedIsWaitedForAndTheFiringGoesAhead()
+    {
+        (IOperableTrigger acquired, TriggerKey sibling) = await GivenAnAcquiredTriggerOfASerialJob();
+        CommitCheck check = LandTheNextCommitButReportItFailed(CheckSees.OnceSettled, PutTheFiredRowBackToAcquired);
+
+        List<TriggerFiredResult> fired = await store.TriggersFired([acquired]).AsTask().WaitAsync(patience);
+
+        TriggerFiredBundle? bundle = fired.Should().ContainSingle().Subject.TriggerFiredBundle;
+        bundle.Should().NotBeNull("the fire landed, so the firing runs rather than its occurrence being released");
+        check.Settled.Should().BeTrue("the check's first statement waits on the trigger row the fire wrote");
+        check.AnsweredFromBefore.Should().BeFalse("the check read once the commit had settled");
+        (await FiredStates()).Should().Equal([AdoConstants.StateExecuting]);
+        (await StoredState(sibling)).Should().Be(AdoConstants.StateBlocked,
+            "the premise: the fire that landed holds the serial job's other trigger back");
+
+        await Complete(bundle!);
 
         (await FiredStates()).Should().BeEmpty();
         (await StoredState(sibling)).Should().Be(AdoConstants.StateWaiting, "the firing's end lets go of the job's other triggers");
@@ -180,11 +209,12 @@ public sealed class TriggersFiredBrokenCommitSqliteTest
 
     /// <summary>
     /// The commit reached the database and the connection broke on the way back, and the store's check of
-    /// whether the fire landed read the rows as they were before it (#4259). The check runs under a lock its
-    /// requestor already holds, so the database lock is not taken again, and a commit still in flight on the
-    /// server is not yet visible to it. The scheduler thread is told the fire failed and releases the batch.
-    /// The fire had moved the serial job's other trigger to <c>BLOCKED</c>, or to <c>PAUSED_BLOCKED</c> if
-    /// it was paused. No completion comes for a firing nobody runs, so the release has to let go of it.
+    /// whether the fire landed read the rows as they were before it, even after its first statement had
+    /// waited on the trigger row (#4259). That is the fallback: a delegate that does not derive from
+    /// <see cref="StdAdoDelegate" /> has no such statement, and a check is only as good as the database's
+    /// row locks. The scheduler thread is told the fire failed and releases the batch. The fire had moved
+    /// the serial job's other trigger to <c>BLOCKED</c>, or to <c>PAUSED_BLOCKED</c> if it was paused. No
+    /// completion comes for a firing nobody runs, so the release has to let go of it.
     /// </summary>
     [TestCase(false, AdoConstants.StateBlocked, AdoConstants.StateWaiting)]
     [TestCase(true, AdoConstants.StatePausedBlocked, AdoConstants.StatePaused)]
@@ -196,44 +226,13 @@ public sealed class TriggersFiredBrokenCommitSqliteTest
             await store.PauseTrigger(sibling);
         }
 
-        bool checkReadsTheRowsAsTheyWere = false;
-        bool checkAnsweredFromBefore = false;
-        provider.NextCommit = async (transaction, cancellationToken) =>
-        {
-            await transaction.Inner.CommitAsync(cancellationToken);
-            transaction.DisposeAsNpgsqlDoes();
-            checkReadsTheRowsAsTheyWere = true;
-            throw new InvalidOperationException("The connection broke after the COMMIT reached the server.");
-        };
-
-        // The check's read of this node's fired rows, answered from before the fire: inside the check's own
-        // transaction the row is put back to ACQUIRED, and that transaction is rolled back rather than committed,
-        // so the check sees what a read racing the in-flight commit would see and writes nothing.
-        string checkRead = Sql(StdAdoConstants.SqlSelectFiredTriggers + StdAdoConstants.SqlFiredTriggerInstancePredicate);
-        provider.BeforeCommand = async (sql, connection, transaction) =>
-        {
-            if (!checkReadsTheRowsAsTheyWere || sql != checkRead)
-            {
-                return;
-            }
-
-            checkReadsTheRowsAsTheyWere = false;
-            checkAnsweredFromBefore = true;
-
-            await using SqliteCommand command = (SqliteCommand) connection.CreateCommand();
-            command.Transaction = (SqliteTransaction?) transaction;
-            command.CommandText = "UPDATE QRTZ_FIRED_TRIGGERS SET STATE = 'ACQUIRED' WHERE ENTRY_ID = @entry";
-            command.Parameters.AddWithValue("@entry", acquired.FireInstanceId);
-            await command.ExecuteNonQueryAsync();
-
-            provider.NextCommit = (checkTransaction, cancellationToken) => checkTransaction.Inner.RollbackAsync(cancellationToken);
-        };
+        CommitCheck check = LandTheNextCommitButReportItFailed(CheckSees.Never, PutTheFiredRowBackToAcquired);
 
         Func<Task> fire = () => store.TriggersFired([acquired]).AsTask().WaitAsync(patience);
 
         await fire.Should().ThrowAsync<JobPersistenceException>(
             "the check found no sign of the fire, so the store reports the commit's failure, and the scheduler thread releases the batch");
-        checkAnsweredFromBefore.Should().BeTrue("the premise: the check read the rows as they were before the fire");
+        check.AnsweredFromBefore.Should().BeTrue("the premise: the check read the rows as they were before the fire");
         (await FiredStates()).Should().Equal([AdoConstants.StateExecuting], "the premise: the fire landed all the same");
         (await StoredState(sibling)).Should().Be(held, "the premise: the fire that landed holds the serial job's other trigger back");
 
@@ -245,10 +244,177 @@ public sealed class TriggersFiredBrokenCommitSqliteTest
     }
 
     /// <summary>
+    /// A fire-on-acquire round whose commit was still settling when the store checked whether it had landed
+    /// (#4259). The round inserted its fired row <c>EXECUTING</c>, and nothing waits on an insert that has
+    /// not committed, so the check's first statement writes the row of the trigger the round claimed. The
+    /// round's firing is handed over and runs, and its end lets go of the serial job's other trigger. A check
+    /// that only read found no row: the round threw, nothing released it, and its <c>EXECUTING</c> row and
+    /// the <c>BLOCKED</c> trigger stayed until the node restarted.
+    /// </summary>
+    [Test]
+    public async Task AFireOnAcquireRoundStillInFlightHandsItsFiringsOver()
+    {
+        (TriggerKey due, TriggerKey sibling) = await GivenASerialJobDueNow();
+        CommitCheck check = LandTheNextCommitButReportItFailed(CheckSees.OnceSettled, TakeTheFiredRowAway);
+
+        TriggerAcquisitionResult round = await AcquireAndFireDue().AsTask().WaitAsync(patience);
+
+        TriggerFiredBundle? bundle = round.Fired.Should().ContainSingle().Subject.TriggerFiredBundle;
+        bundle.Should().NotBeNull("the round landed, so its firing runs rather than being left behind");
+        bundle!.Trigger.Key.Should().Be(due);
+        check.Settled.Should().BeTrue("the check's first statement waits on the trigger row the round claimed");
+        check.AnsweredFromBefore.Should().BeFalse("the check read once the commit had settled");
+        (await FiredStates()).Should().Equal([AdoConstants.StateExecuting]);
+        (await StoredState(sibling)).Should().Be(AdoConstants.StateBlocked,
+            "the premise: the round that landed holds the serial job's other trigger back");
+
+        await Complete(bundle);
+
+        (await FiredStates()).Should().BeEmpty("the firing's end deletes its row");
+        (await StoredState(sibling)).Should().Be(AdoConstants.StateWaiting, "the firing's end lets go of the job's other triggers");
+    }
+
+    /// <summary>
+    /// A fire-on-acquire round whose commit never reached the database. The check waits on nothing and
+    /// finds nothing, so the round reports the commit's failure, and nothing of it is left behind.
+    /// </summary>
+    [Test]
+    public async Task AFireOnAcquireRoundThatDidNotLandLeavesNothingExecuting()
+    {
+        (TriggerKey due, TriggerKey sibling) = await GivenASerialJobDueNow();
+        provider.NextCommit = async (transaction, cancellationToken) =>
+        {
+            await transaction.Inner.RollbackAsync(cancellationToken);
+            transaction.DisposeAsNpgsqlDoes();
+            throw new InvalidOperationException("The connection broke before the COMMIT reached the server.");
+        };
+
+        Func<Task> round = () => AcquireAndFireDue().AsTask().WaitAsync(patience);
+
+        await round.Should().ThrowAsync<JobPersistenceException>("nothing of the round landed, so there is no firing to hand over");
+        (await FiredStates()).Should().BeEmpty("nothing of the round committed");
+        (await StoredState(due)).Should().Be(AdoConstants.StateWaiting, "the claim was rolled back, for the next round to take");
+        (await StoredState(sibling)).Should().Be(AdoConstants.StateWaiting);
+    }
+
+    /// <summary>
+    /// How the store's check after a failed commit sees a commit that did land.
+    /// </summary>
+    private enum CheckSees
+    {
+        /// <summary>
+        /// The commit is still settling when the check starts: the check's reads of the fired rows are
+        /// answered from before it until a statement of the check has waited on a row it wrote.
+        /// </summary>
+        OnceSettled,
+
+        /// <summary>The check's first read of the fired rows is answered from before the commit, whatever came first.</summary>
+        Never,
+    }
+
+    /// <summary>What the store's check after the failed commit did.</summary>
+    private sealed class CommitCheck
+    {
+        /// <summary>Whether the check has yet to see the commit: from the failed commit until it has.</summary>
+        public bool Pending { get; set; }
+
+        /// <summary>Whether the check issued the statement that waits for the commit to settle.</summary>
+        public bool Settled { get; set; }
+
+        /// <summary>Whether a read of the check's was answered from before the commit.</summary>
+        public bool AnsweredFromBefore { get; set; }
+    }
+
+    /// <summary>Inside the check's transaction: the fired row as it was before the fire of an acquired trigger.</summary>
+    private const string PutTheFiredRowBackToAcquired = "UPDATE QRTZ_FIRED_TRIGGERS SET STATE = 'ACQUIRED'";
+
+    /// <summary>Inside the check's transaction: no fired row, as before a fire-on-acquire round inserted it.</summary>
+    private const string TakeTheFiredRowAway = "DELETE FROM QRTZ_FIRED_TRIGGERS";
+
+    /// <summary>
+    /// Has the next commit land and then fail, as a connection that broke on the way back fails it, and the
+    /// store's check of whether it landed see it as <paramref name="sees" /> says.
+    /// </summary>
+    /// <param name="sees">Until when the check's reads are answered from before the commit.</param>
+    /// <param name="concealment">
+    /// The statement that answers a read from before the commit. It runs inside the check's transaction, which
+    /// is then rolled back rather than committed, so the check sees what a read racing the commit would see,
+    /// and writes nothing.
+    /// </param>
+    private CommitCheck LandTheNextCommitButReportItFailed(CheckSees sees, string concealment)
+    {
+        CommitCheck check = new();
+        provider.NextCommit = async (transaction, cancellationToken) =>
+        {
+            await transaction.Inner.CommitAsync(cancellationToken);
+            transaction.DisposeAsNpgsqlDoes();
+            check.Pending = true;
+            throw new InvalidOperationException("The connection broke after the COMMIT reached the server.");
+        };
+
+        string settle = Sql(StdAdoDelegate.SqlSettleTriggerRow);
+        string checkRead = Sql(StdAdoConstants.SqlSelectFiredTriggers + StdAdoConstants.SqlFiredTriggerInstancePredicate);
+        provider.BeforeCommand = async (sql, connection, transaction) =>
+        {
+            if (!check.Pending)
+            {
+                return;
+            }
+
+            if (sql == settle)
+            {
+                check.Settled = true;
+                if (sees == CheckSees.OnceSettled)
+                {
+                    check.Pending = false;
+                }
+
+                return;
+            }
+
+            if (sql != checkRead)
+            {
+                return;
+            }
+
+            check.Pending = false;
+            check.AnsweredFromBefore = true;
+
+            await using SqliteCommand command = (SqliteCommand) connection.CreateCommand();
+            command.Transaction = (SqliteTransaction?) transaction;
+            command.CommandText = concealment;
+            await command.ExecuteNonQueryAsync();
+
+            provider.NextCommit = (checkTransaction, cancellationToken) => checkTransaction.Inner.RollbackAsync(cancellationToken);
+        };
+
+        return check;
+    }
+
+    /// <summary>
     /// Stores a job that disallows concurrent execution with a trigger due now and one due in an hour,
     /// and acquires the first, as the scheduler thread does before it asks for the fire.
     /// </summary>
     private async Task<(IOperableTrigger Acquired, TriggerKey Sibling)> GivenAnAcquiredTriggerOfASerialJob()
+    {
+        (TriggerKey due, TriggerKey sibling) = await GivenASerialJobDueNow();
+
+        List<IOperableTrigger> acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = clock.GetUtcNow().AddSeconds(1),
+            MaxCount = 1,
+            TimeWindow = TimeSpan.Zero,
+        });
+
+        IOperableTrigger trigger = acquired.Should().ContainSingle().Subject;
+        trigger.Key.Should().Be(due, "the trigger under test is the one due now");
+        return (trigger, sibling);
+    }
+
+    /// <summary>
+    /// Stores a job that disallows concurrent execution with a trigger due now and one due in an hour.
+    /// </summary>
+    private async Task<(TriggerKey Due, TriggerKey Sibling)> GivenASerialJobDueNow()
     {
         IJobDetail job = JobBuilder.Create<SerialJobUnderTest>().WithIdentity("serial", Group).StoreDurably().Build();
         DateTimeOffset now = clock.GetUtcNow();
@@ -259,16 +425,30 @@ public sealed class TriggersFiredBrokenCommitSqliteTest
             new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> { [job] = [due, later] },
             ScheduleJobOptions.Replacing);
 
-        List<IOperableTrigger> acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        return (due.Key, later.Key);
+    }
+
+    /// <summary>A round as the scheduler thread asks for one: what is due now, fired as it is acquired.</summary>
+    private ValueTask<TriggerAcquisitionResult> AcquireAndFireDue()
+    {
+        return store.AcquireNextTriggersAndFireDue(new TriggerAcquisitionRequest
         {
-            NoLaterThan = now.AddSeconds(1),
+            NoLaterThan = clock.GetUtcNow().AddSeconds(1),
             MaxCount = 1,
             TimeWindow = TimeSpan.Zero,
         });
+    }
 
-        IOperableTrigger trigger = acquired.Should().ContainSingle().Subject;
-        trigger.Key.Should().Be(due.Key, "the trigger under test is the one due now");
-        return (trigger, later.Key);
+    /// <summary>Ends a firing as the scheduler does once its job has run.</summary>
+    private Task Complete(TriggerFiredBundle bundle)
+    {
+        return store.FiringComplete(new TriggeredJobCompleteContext
+        {
+            Trigger = bundle.Trigger,
+            JobDetail = bundle.JobDetail,
+            Instruction = SchedulerInstruction.NoInstruction,
+            Outcome = ExecutionOutcome.Succeeded,
+        }).AsTask().WaitAsync(patience);
     }
 
     private IOperableTrigger OneShot(string name, IJobDetail job, DateTimeOffset startAt)

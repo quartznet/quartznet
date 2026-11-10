@@ -1200,6 +1200,10 @@ internal abstract partial class AdoJobStoreBase
     /// Asked when an attempt's commit reported a failure: whether the fires landed anyway, which is the
     /// case when any fired row this attempt reported fired is <c>EXECUTING</c>.
     /// </summary>
+    /// <remarks>
+    /// The first fire the attempt reported wrote its trigger's row, so the check waits on that row before
+    /// it reads (<see cref="SettleCommitBeingChecked" />).
+    /// </remarks>
     private ValueTask<bool> ValidateFired(
         ConnectionAndTransactionHolder conn,
         List<TriggerFiredResult> result,
@@ -1208,6 +1212,15 @@ internal abstract partial class AdoJobStoreBase
         return Guarded(
             async () =>
             {
+                foreach (TriggerFiredResult tr in result)
+                {
+                    if (tr.TriggerFiredBundle is { } fired)
+                    {
+                        await SettleCommitBeingChecked(conn, fired.Trigger.Key, cancellationToken).ConfigureAwait(false);
+                        break;
+                    }
+                }
+
                 var acquired = await Delegate
                     .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken)
                     .ConfigureAwait(false);
@@ -1232,6 +1245,33 @@ internal abstract partial class AdoJobStoreBase
                 return false;
             },
             "validate trigger acquisition");
+    }
+
+    /// <summary>
+    /// The first statement of a check after a failed commit: waits until the commit being checked has
+    /// landed or rolled back, by writing a trigger row that commit wrote (#4259).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A commit can still be settling on the database when the client hears that it failed. A read does
+    /// not see it until then, so a check that only read answered "it did not land" for a commit that did.
+    /// The fire was then released and its occurrence lost. A fire-on-acquire round was worse off: nothing
+    /// released it, and its <c>EXECUTING</c> rows and the serial job's <c>BLOCKED</c> triggers stayed until
+    /// the node restarted.
+    /// </para>
+    /// <para>
+    /// A write waits on the row lock that commit holds, so the read after it gets the true answer. Asked of
+    /// any delegate derived from <see cref="StdAdoDelegate" />, Quartz's or not. Any other delegate's check
+    /// reads alone, as before. A healthy commit asks nothing, so this costs one statement after a failed
+    /// commit and nothing else.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The check's unit of work.</param>
+    /// <param name="triggerKey">A trigger whose row the commit being checked wrote.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private ValueTask SettleCommitBeingChecked(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        return Delegate is StdAdoDelegate std ? std.SettleTriggerRow(conn, triggerKey, cancellationToken) : default;
     }
 
     protected async ValueTask<TriggerFiredBundle?> TriggerFired(
