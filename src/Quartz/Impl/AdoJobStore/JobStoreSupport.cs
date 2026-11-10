@@ -4650,6 +4650,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// (reserved).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The trigger goes back to <c>WAITING</c> — unless its job disallows concurrent execution and is
     /// executing somewhere in the cluster, in which case it goes to, or stays, <c>BLOCKED</c>, and the
     /// completion of that execution is what lets go of it. A reservation another node's fire found
@@ -4657,6 +4658,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// <c>WAITING</c> undid that, and the row then sat first in the acquisition order while every node
     /// skipped it as executing — a node acquiring one trigger at a time read nothing else and idled
     /// for its whole idle wait behind it (#3926).
+    /// </para>
+    /// <para>
+    /// The scheduler also releases a fire whose commit landed although it was told the commit failed.
+    /// That fire moved the other triggers of a job that disallows concurrent execution to
+    /// <c>BLOCKED</c> and <c>PAUSED_BLOCKED</c>, and no completion will come for a firing the scheduler
+    /// never dispatched. So when no other firing of the job is executing, the release lets go of the
+    /// job's other triggers too, as a completion would. Without that they stayed held until the job
+    /// next completed, or for good when the released trigger had no fire time left (#4259).
+    /// </para>
     /// </remarks>
     public Task ReleaseAcquiredTrigger(
         IOperableTrigger trigger,
@@ -4695,12 +4705,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// job's state says it belongs.
     /// </summary>
     /// <remarks>
-    /// The fired row goes first, so that the question asked next — is this job executing? — is about
-    /// other firings and never about the reservation being released. The row stays <c>BLOCKED</c>, or
-    /// becomes it, only while a fired row of a job that disallows concurrent execution says the job is
-    /// running: that execution's completion releases the job's triggers, and cluster recovery does
-    /// when the node running it dies. A <c>BLOCKED</c> row with no such execution behind it is one
-    /// nothing else would ever let go of, so it goes back to <c>WAITING</c> as it always has.
+    /// <para>
+    /// The question asked first — is this job executing? — is about other firings and never about the
+    /// reservation being released: acquisition writes the reservation's fired row with no job, so the
+    /// job's fired rows do not include it. The row stays <c>BLOCKED</c>, or becomes it, only while a
+    /// fired row of a job that disallows concurrent execution says the job is running: that execution's
+    /// completion releases the job's triggers, and cluster recovery does when the node running it dies.
+    /// A <c>BLOCKED</c> row with no such execution behind it is one nothing else would ever let go of,
+    /// so it goes back to <c>WAITING</c> as it always has.
+    /// </para>
+    /// <para>
+    /// A trigger still <c>ACQUIRED</c> is a reservation given back unfired — a sooner trigger, standby,
+    /// shutdown — and its release makes the four statements it always has. One that is not
+    /// <c>ACQUIRED</c> any more was paused, deleted or blocked since it was acquired, or fired by a commit
+    /// that landed although the scheduler was told it failed (#4259), and
+    /// <see cref="ReleaseTriggerNoLongerAcquired" /> tells which before the fired row goes.
+    /// </para>
     /// </remarks>
     private async Task ReleaseAcquiredTrigger(
         ConnectionAndTransactionHolder conn,
@@ -4711,10 +4731,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     {
         try
         {
-            await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false);
-
             string released = await CheckBlockedState(conn, jobKey, StateWaiting, cancellationToken).ConfigureAwait(false);
-            await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, released, StateAcquired, cancellationToken).ConfigureAwait(false);
+            int reserved = await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, released, StateAcquired, cancellationToken).ConfigureAwait(false);
+            if (reserved <= 0)
+            {
+                await ReleaseTriggerNoLongerAcquired(conn, triggerKey, jobKey, fireInstanceId, askedWithTheRow: released, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false);
 
             if (StateWaiting.Equals(released))
             {
@@ -4725,6 +4750,88 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         {
             throw new JobPersistenceException("Couldn't release acquired trigger: " + e.Message, e);
         }
+    }
+
+    /// <summary>
+    /// The release of a reservation whose trigger is no longer <c>ACQUIRED</c>: deletes its fired-trigger
+    /// row, and lets go of what a fire that wrote that row held back.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The job's fired rows are read before this one is deleted, and say whether a fire wrote it. A
+    /// reservation's row names no job, so the read by job finds it only once a fire has written it
+    /// <c>EXECUTING</c>: the fire committed, and the scheduler is releasing it because it could not tell
+    /// (#4259). For a job that disallows concurrent execution that fire moved the job's other triggers to
+    /// <c>BLOCKED</c> and <c>PAUSED_BLOCKED</c>, and the scheduler never dispatched the firing, so no
+    /// completion will let go of them. With no other firing of the job executing, the release does what
+    /// that completion would have done with them: <c>BLOCKED</c> to <c>WAITING</c>, <c>PAUSED_BLOCKED</c>
+    /// to <c>PAUSED</c>, and the misfire policy of any that went late while held. The job's data is left
+    /// alone, since the job never ran. The occurrence is lost, because the fire moved the trigger past it.
+    /// </para>
+    /// <para>
+    /// A row a fire wrote names the job, so the blocked-state check the release asked first counted it.
+    /// It is asked again once the row is gone, so that its answer is about other firings, as it is for a
+    /// reservation.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The release's unit of work.</param>
+    /// <param name="triggerKey">The trigger being released.</param>
+    /// <param name="jobKey">The trigger's job.</param>
+    /// <param name="fireInstanceId">The reservation's fired-trigger row.</param>
+    /// <param name="askedWithTheRow">The blocked-state check's answer, asked with the row still there.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async Task ReleaseTriggerNoLongerAcquired(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        JobKey jobKey,
+        string fireInstanceId,
+        string askedWithTheRow,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyCollection<FiredTriggerRecord> firings = await Delegate.SelectFiredTriggerRecordsByJob(conn, jobKey.Name, jobKey.Group, cancellationToken).ConfigureAwait(false);
+        FiredTriggerRecord? fired = FiredRow(firings, fireInstanceId);
+
+        await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false);
+
+        string released = fired != null
+            ? await CheckBlockedState(conn, jobKey, StateWaiting, cancellationToken).ConfigureAwait(false)
+            : askedWithTheRow;
+
+        if (!StateWaiting.Equals(released))
+        {
+            return;
+        }
+
+        if (fired != null && fired.JobDisallowsConcurrentExecution && StateExecuting.Equals(fired.FireInstanceState))
+        {
+            // The released trigger is one of the job's own, so these transitions let go of it as well.
+            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobKey, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+            conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
+
+            await HandleMisfiresOfUnblockedTriggers(conn, jobKey, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// <paramref name="fireInstanceId" />'s row among a job's fired rows, or <see langword="null" /> when it
+    /// is not one of them: a reservation's row names no job.
+    /// </summary>
+    private static FiredTriggerRecord? FiredRow(IReadOnlyCollection<FiredTriggerRecord> firings, string fireInstanceId)
+    {
+        foreach (FiredTriggerRecord firing in firings)
+        {
+            if (firing.FireInstanceId == fireInstanceId)
+            {
+                return firing;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
