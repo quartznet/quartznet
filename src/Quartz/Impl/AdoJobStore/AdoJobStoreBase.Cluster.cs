@@ -900,14 +900,25 @@ internal abstract partial class AdoJobStoreBase
 
     /// <summary>
     /// Stores the trigger that runs again the execution one fired-trigger row records: once, at the time
-    /// the execution fired, in <see cref="SchedulerConstants.DefaultRecoveryGroup" />, with the original
-    /// trigger's data map and the markers that say which firing it stands in for.
+    /// the execution was scheduled for, in <see cref="SchedulerConstants.DefaultRecoveryGroup" />, with the
+    /// original trigger's data map and the markers that say which firing it stands in for.
     /// </summary>
     /// <remarks>
     /// <para>
     /// Shared by cluster recovery and by a firing a shutdown hands back (#4014), so a job reads a
     /// recovery the same way whichever produced it. Any version of Quartz fires the trigger: it is an
     /// ordinary simple trigger, and only its group makes the firing <see cref="IJobExecutionContext.Recovering" />.
+    /// </para>
+    /// <para>
+    /// Built as the recovery a node runs over its own rows at startup builds its trigger: it starts at the
+    /// row's scheduled time and ignores the misfire policy. The replay's
+    /// <see cref="IJobExecutionContext.ScheduledFireTimeUtc" /> is therefore the original's to the tick, as
+    /// <see cref="IJobExecutionContext.RecoveringTriggerKey" /> says it is, and however long ago the original
+    /// fired, the next acquisition takes the replay: no misfire pass waits for it and no
+    /// <see cref="ITriggerListener.TriggerMisfired" /> announces a firing nobody missed. Before 4.8 it started
+    /// at the time the execution fired and fired now on a misfire, so a long job's replay was a misfire. Every
+    /// version acquires a trigger that ignores the misfire policy whatever its next fire time, as it acquires
+    /// startup recovery's.
     /// </para>
     /// <para>
     /// A firing that was itself a recovery already stands in for an earlier one, and its data map says
@@ -956,9 +967,9 @@ internal abstract partial class AdoJobStoreBase
         SimpleTriggerImpl recoveryTrigger = new SimpleTriggerImpl(timeProvider)
         {
             Key = recoveryKey,
-            StartTimeUtc = firedTrigger.FireTimestamp,
+            StartTimeUtc = firedTrigger.ScheduleTimestamp,
             JobKey = jobKey,
-            MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow,
+            MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy,
             Priority = firedTrigger.Priority,
             ExecutionGroup = firedTrigger.ExecutionGroup
         };

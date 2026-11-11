@@ -2459,8 +2459,10 @@ public class AdoJobStoreBaseTest
         bool requestsRecovery = false,
         int priority = 5,
         DateTimeOffset firedAt = default,
-        string instanceId = DeadInstanceId)
+        string instanceId = DeadInstanceId,
+        DateTimeOffset scheduledAt = default)
     {
+        DateTimeOffset fireTimestamp = firedAt == default ? ClusterNow - TimeSpan.FromMinutes(1) : firedAt;
         return new FiredTriggerRecord
         {
             FireInstanceId = fireInstanceId,
@@ -2471,7 +2473,8 @@ public class AdoJobStoreBaseTest
             JobDisallowsConcurrentExecution = disallowsConcurrentExecution,
             JobRequestsRecovery = requestsRecovery,
             Priority = priority,
-            FireTimestamp = firedAt == default ? ClusterNow - TimeSpan.FromMinutes(1) : firedAt,
+            FireTimestamp = fireTimestamp,
+            ScheduleTimestamp = scheduledAt == default ? fireTimestamp : scheduledAt,
         };
     }
 
@@ -3343,9 +3346,10 @@ public class AdoJobStoreBaseTest
         TriggerKey original = new("t-original", "tg");
         JobKey jobKey = new("recoverable", "jg");
         DateTimeOffset firedAt = ClusterNow - TimeSpan.FromMinutes(3);
+        DateTimeOffset scheduledAt = firedAt - TimeSpan.FromSeconds(2);
 
         GivenFiredTriggersForInstance(DeadInstanceId,
-            FiredTrigger("fi-executing", StoredTriggerState.Executing, original, jobKey, requestsRecovery: true, priority: 17, firedAt: firedAt));
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, original, jobKey, requestsRecovery: true, priority: 17, firedAt: firedAt, scheduledAt: scheduledAt));
 
         A.CallTo(() => driverDelegate.JobExists(conn, jobKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
@@ -3380,9 +3384,10 @@ public class AdoJobStoreBaseTest
             "the recovery trigger names the node it is recovering, and the numbering keeps sibling recoveries of one node apart");
         recovery.JobKey.Should().Be(jobKey);
         recovery.Priority.Should().Be(17, "the recovered firing keeps the priority the dying one had");
-        recovery.MisfireInstructionCode.Should().Be(MisfireInstruction.SimpleTrigger.FireNow,
-            "the recovery trigger's start time is already in the past, so it must fire now rather than be discarded as misfired");
-        recovery.StartTimeUtc.Should().Be(firedAt, "recovery resumes from the moment the original firing started");
+        recovery.MisfireInstructionCode.Should().Be(MisfireInstruction.IgnoreMisfirePolicy,
+            "the recovery trigger's start time is already in the past, and running it is not a misfire, as startup recovery's is not");
+        recovery.StartTimeUtc.Should().Be(scheduledAt,
+            "the replay is scheduled for the time the original firing was, as startup recovery's is, so it reports that time");
         recovery.NextFireTimeUtc.Should().NotBeNull("the first fire time is computed before the trigger is stored, or it would never be picked up");
 
         recovery.JobDataMap.Should().ContainKey(SchedulerConstants.FailedJobOriginalTriggerName)
