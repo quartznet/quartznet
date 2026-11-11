@@ -13,7 +13,7 @@ tool and the `ghcr.io/quartznet/quartz-dashboard` image. See [Dashboard Host](da
 
 ## Features
 
-Fourteen pages, listed under [The pages](#the-pages).
+Fifteen pages, listed under [The pages](#the-pages).
 
 - **Reads the schedulers in its own container**, through the container's `IQuartzApiClient`: usually the
   schedulers this process runs, with nothing to configure. A scheduler in *another* process is registered with
@@ -188,6 +188,7 @@ picker, so switching schedulers keeps you on the same page.
 | Schedulers | `/quartz/schedulers` |
 | Cluster | `/quartz/cluster` |
 | Execution History, and one execution | `/quartz/history`, `/quartz/history/{EntryId}` |
+| Timeline | `/quartz/timeline` |
 | Live Logs | `/quartz/live` |
 | Action Log | `/quartz/actions` |
 
@@ -436,6 +437,44 @@ time, duration, result, summary, whether it was run by hand, attempt, what it th
 table of its metrics, and the lines it logged when the scheduler
 [captures them](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines). It only reads, so read-only
 mode leaves it unchanged.
+
+### Timeline
+
+`/quartz/timeline` plots completed and currently executing runs on a time axis. Rows exist only for jobs that
+ran in the selected window; each job shows one track per trigger (with bars and upcoming-fire markers).
+
+**Window and pan.** The window runs from 10 minutes to 7 days. The page opens on the window that shows the
+most recent activity. **Older** / **Newer** shift the visible range; a panned view appends a `pan=` offset
+(seconds) to the URL.
+
+**Filters.** Job group, rows per page, window, and pan are query parameters. The name filter is not in the
+URL. It matches job names locally. Trigger names use one `QueryTriggers` with `NameContains`, capped at 500
+results. When the cap is hit, some trigger-name matches may be absent; job-name matching still runs over all
+visible rows.
+
+**Jobs refresh / Triggers refresh.** Two independent refresh intervals, stored per browser in localStorage,
+control how often the page reloads:
+
+| Control | What it reloads | Default | Storage key | Options |
+|---|---|---|---|---|
+| Jobs refresh | Bars, headers, and upcoming marks | `30s` | `qz-timeline-jobs-refresh` | `30s`, `1 min`, `5 min`, `Off` |
+| Triggers refresh | Bars and live executing; headers when a fire ends | `5s` | `qz-timeline-triggers-refresh` | `5s`, `10s`, `30s`, `1 min`, `5 min`, `Off` |
+
+**Off** disables that loop; navigation, group/page/window/pan changes, and a trigger action still reload
+both. The header badge reflects the Triggers refresh interval. When history returns more than 500 runs for
+the window, the page says **latest 500 runs**.
+
+**Trigger actions.** Each trigger's row carries an action menu — **Run now**, **Pause**, **Resume**,
+**Reset error**, **Unschedule** — following the same authorization rules as the Triggers listing. A pause
+asks for an optional reason. Orphan bars from deleted triggers do not offer Pause, Unschedule, or Run now.
+
+**Back.** Opening a job, trigger, or execution from the Timeline appends `from=timeline` and the current
+window, group, pan, page, and pageSize. The Back link on those pages restores that view. A job or trigger
+page opened from the Jobs or Triggers listing has no Timeline Back link (and no Back link at all unless
+another `from=` was set). An execution page without `from=` falls back to History.
+
+**Remote scheduler without history.** If the scheduler runs in another process and its HTTP API does not
+serve execution history, the page shows only that message — no trigger headers or upcoming fires.
 
 ### Live Logs
 

@@ -1,0 +1,27 @@
+@namespace Quartz.Dashboard.Components.Pages
+@using Quartz.Dashboard.Models
+
+@if (Section is not null)
+{
+    <div class="qz-timeline-section" data-testid="timeline-section">
+        <button type="button"
+                class="qz-timeline-section-header"
+                data-testid="timeline-section-toggle"
+                aria-expanded="@(!Collapsed)"
+                @onclick="OnGroupToggledAsync">
+            <span class="qz-timeline-section-chevron" aria-hidden="true">@(Collapsed ? "▸" : "▾")</span>
+            <span class="qz-timeline-section-name">@Section.JobGroup</span>
+            <span class="qz-muted">@Section.Rows.Count</span>
+        </button>
+
+        @if (!Collapsed)
+        {
+            @foreach (TimelineRow row in Section.Rows)
+            {
+                <CascadingValue @key="row.Key" Value="row" IsFixed="true">
+                    <TimelineJobRow Page="Page" />
+                </CascadingValue>
+            }
+        }
+    </div>
+}

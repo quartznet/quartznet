@@ -44,6 +44,22 @@ public class TriggerDetailPageTest
     }
 
     [Test]
+    public void AVisitFromTheTimelineReturnsToThatTimeline()
+    {
+        context.Navigate("/quartz/triggers/CronTriggerGroup/CronTriggerKey?from=timeline&window=1h&group=housekeeping&pan=15");
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() =>
+        {
+            AngleSharp.Dom.IElement link = page.Find("[data-testid=detail-back]");
+            link.TextContent.Should().Be("Back to timeline");
+            link.GetAttribute("href").Should().EndWith("timeline?window=1h&group=housekeeping&pan=15",
+                "the timeline's window, group and pan travel with the link so Back restores the view");
+        });
+    }
+
+    [Test]
     public void ACronTriggerOffersItsExpressionForEditing()
     {
         GivenTrigger(CronTrigger("0/25 * * * * ?"));

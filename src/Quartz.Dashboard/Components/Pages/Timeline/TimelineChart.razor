@@ -1,0 +1,71 @@
+@namespace Quartz.Dashboard.Components.Pages
+@using Quartz.Dashboard.Models
+@using Quartz.Dashboard.Services.Timeline
+@inject IJSRuntime JsRuntime
+
+@* The time axis and the rows under it. Axis pan runs in JS (preview locally, commit once). *@
+<div @ref="_timelineRoot"
+     class="qz-timeline"
+     data-testid="timeline-gantt"
+     style="@State.Bounds.MinuteGridStyle">
+    <div class="qz-timeline-sticky">
+        <div class="qz-timeline-axis">
+            <div @ref="_axisTrack"
+                 class="qz-timeline-axis-track"
+                 data-testid="timeline-axis-track"
+                 title="Drag to pan">
+                @for (int tickIndex = 0; tickIndex < State.Ticks.Count; tickIndex++)
+                {
+                    TimelineTick tick = State.Ticks[tickIndex];
+                    string tickClass = tickIndex == 0
+                        ? "qz-timeline-tick qz-timeline-tick-start"
+                        : tickIndex == State.Ticks.Count - 1
+                            ? "qz-timeline-tick qz-timeline-tick-end"
+                            : "qz-timeline-tick";
+                    <span class="@tickClass" style="left: @TimelineService.FormatPercent(tick.Fraction);">@tick.Label</span>
+                }
+                @if (State.PanOffset <= TimeSpan.Zero && State.Bounds.AxisEnd > State.Bounds.End)
+                {
+                    <span class="qz-timeline-now" style="left: @TimelineService.FormatPercent(State.Bounds.NowFraction);" title="Now"></span>
+                }
+                else if (State.PanOffset <= TimeSpan.Zero)
+                {
+                    <span class="qz-timeline-now" style="left: 100%;" title="Now"></span>
+                }
+            </div>
+        </div>
+        @if (State.FilteredRowCount > 0)
+        {
+            <div class="qz-timeline-columns qz-timeline-column-head">
+                <span></span>
+                <span>Schedule</span>
+                <span>Start</span>
+                <span>Prev</span>
+                <span>Next</span>
+                <span>End</span>
+            </div>
+        }
+    </div>
+
+    @if (State.AllRowCount == 0)
+    {
+        <p class="qz-timeline-empty qz-muted">No activity in this window. Choose a wider window or pan ◀.</p>
+    }
+    else if (State.GroupRowCount == 0)
+    {
+        <p class="qz-timeline-empty qz-muted">No jobs in group "@State.GroupFilter".</p>
+    }
+    else if (State.FilteredRowCount == 0)
+    {
+        <p class="qz-timeline-empty qz-muted">No jobs or triggers match "@State.NameFilter".</p>
+    }
+    else
+    {
+        @foreach (TimelineSection section in State.Sections)
+        {
+            <CascadingValue @key="section.JobGroup" Value="section" IsFixed="true">
+                <TimelineJobGroup Page="Page" />
+            </CascadingValue>
+        }
+    }
+</div>
