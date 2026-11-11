@@ -22,9 +22,9 @@
       machine or in a pipeline - and nothing here is reflection, so the statement is the default's.
     -->
     <!--
-      Off for the reason Quartz.Dashboard.Agent gives: Aspire.Hosting 13.4.5 asks for 10.0.8 of the framework
+      Off for the reason Quartz.Dashboard.Agent gives: Aspire.Hosting 13.6.5 asks for 10.0.14 of the framework
       extensions floored at 10.0.0 in Directory.Packages.props, and pinning them would be NU1109. Off, the
-      nuspec says Aspire.Hosting and MessagePack, and a consumer resolves the rest through Aspire.
+      nuspec says Aspire.Hosting, and a consumer resolves the rest through Aspire.
     -->
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
@@ -35,8 +35,6 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting" />
-    <!-- GHSA-qhrr-8q5h-9q3h: Aspire.Hosting resolves MessagePack 2.5.302 through StreamJsonRpc. -->
-    <PackageReference Include="MessagePack" />
   </ItemGroup>
 
 </Project>
