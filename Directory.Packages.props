@@ -12,7 +12,7 @@
       Note also that `aspire update` does not work in a repository using central package management
       (microsoft/aspire#15476); move these by hand, or let the `aspire` dependabot group do it.
     -->
-    <AspireVersion>13.6.4</AspireVersion>
+    <AspireVersion>13.6.5</AspireVersion>
     <!--
       The compiler Quartz.Analyzers is written against, and therefore the oldest host that can load it.
       4.12.0 is the .NET 9 SDK's Roslyn and Visual Studio 17.12's, which is as old as a host that can
@@ -180,20 +180,11 @@
   <ItemGroup Label="Dependency floors">
     <!--
       Quartz.Aspire.Hosting's one dependency, and the only Aspire id that is a floor: the example's Aspire
-      packages above stay on $(AspireVersion). 13.4.5 is the floor #3775 ruled on, and it compiles the
-      resource; nothing in the GitHub advisory database names Aspire.Hosting itself. What its graph brings is
-      MessagePack, below.
+      packages above stay on $(AspireVersion). 13.6.5 is the lowest release outside GHSA-f7vh-h5g3-7jrh,
+      which covers every Aspire.Hosting below it. It also resolves MessagePack 2.5.307 on its own, past
+      GHSA-qhrr-8q5h-9q3h, so neither project names MessagePack any more.
     -->
-    <PackageVersion Include="Aspire.Hosting" Version="13.4.5" />
-    <!--
-      Named by Quartz.Aspire.Hosting, and by Quartz.Examples.Aspire.AppHost, because Aspire.Hosting resolves
-      MessagePack 2.5.302 through StreamJsonRpc - every Aspire.Hosting up to 13.6.4 does - and
-      GHSA-qhrr-8q5h-9q3h covers every 2.x below 2.5.303. A direct reference patches a consumer's graph as well
-      as ours. 2.5.307 rather than 2.5.303, the lowest fixed release, because #3775 ruled it; the 2.x line,
-      because StreamJsonRpc is built against it. Drop it when an Aspire.Hosting floor resolves a fixed version
-      on its own.
-    -->
-    <PackageVersion Include="MessagePack" Version="2.5.307" />
+    <PackageVersion Include="Aspire.Hosting" Version="13.6.5" />
     <!--
       The SignalR client Quartz.Dashboard.Agent dials a dashboard with, and nothing of the server: the
       package brings Microsoft.AspNetCore.Http.Connections.Client and the JSON hub protocol, none of which

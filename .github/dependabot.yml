@@ -93,11 +93,9 @@ updates:
         versions: [">= 10.0.1, < 11.0.0"]
       - dependency-name: "Microsoft.Extensions.Options.ConfigurationExtensions"
         versions: [">= 10.0.1, < 11.0.0"]
-      # Quartz.Aspire.Hosting's floor, and the MessagePack it names to patch Aspire.Hosting's graph. The
+      # Quartz.Aspire.Hosting's floor. The
       # example's Aspire packages move on $(AspireVersion) through the aspire group; this row does not.
       - dependency-name: "Aspire.Hosting"
-        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
-      - dependency-name: "MessagePack"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "MySqlConnector"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
