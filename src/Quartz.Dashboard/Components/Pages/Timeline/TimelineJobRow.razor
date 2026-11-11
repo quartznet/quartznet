@@ -1,0 +1,18 @@
+@namespace Quartz.Dashboard.Components.Pages
+@using Quartz.Dashboard.Models
+
+@if (Row is not null)
+{
+    <div class="qz-timeline-job">
+        <a class="qz-timeline-row-name qz-timeline-entity-link"
+           href="@Page.JobPath(Row.JobGroup, Row.JobName)"
+           title="@(Row.JobGroup + '.' + Row.JobName)">@Row.JobName</a>
+    </div>
+
+    @foreach (TimelineTriggerRow trigger in State.VisibleTriggers(Row))
+    {
+        <CascadingValue @key="@(new TimelineEntityKey(trigger.Group, trigger.Name))" Value="trigger" IsFixed="true">
+            <TimelineTrigger Page="Page" />
+        </CascadingValue>
+    }
+}

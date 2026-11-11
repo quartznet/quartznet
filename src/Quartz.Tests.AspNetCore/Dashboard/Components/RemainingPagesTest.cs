@@ -383,7 +383,7 @@ public class RemainingPagesTest
         IRenderedComponent<NavMenu> menu = context.Render<NavMenu>();
 
         menu.FindAll("a").Select(link => link.GetAttribute("href")).Should()
-            .Equal(["quartz", "quartz/jobs", "quartz/triggers", "quartz/calendars", "quartz/executing", "quartz/schedulers", "quartz/cluster", "quartz/history", "quartz/live", "quartz/actions"],
+            .Equal(["quartz", "quartz/jobs", "quartz/triggers", "quartz/calendars", "quartz/executing", "quartz/schedulers", "quartz/cluster", "quartz/history", "quartz/timeline", "quartz/live", "quartz/actions"],
                 "the links are base-relative, so they survive an application path base as well as a "
                 + "custom dashboard path");
     }
@@ -421,6 +421,46 @@ public class RemainingPagesTest
         }
 
         return active;
+    }
+
+    [Test]
+    public void AnUnknownFromOnJobDetailShowsNoBackLink()
+    {
+        context.Navigate("/quartz/jobs/reports/job-1?from=something-unknown");
+        GivenJob();
+
+        IRenderedComponent<JobDetail> page = RenderJobDetail();
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll("[data-testid=detail-back]").Should().BeEmpty(
+                "a job detail opened with an unrecognised from= shows no Back link, because there is "
+                + "no safe page to return to");
+        });
+    }
+
+    [Test]
+    public void AnUnknownFromOnTriggerDetailShowsNoBackLink()
+    {
+        context.Navigate("/quartz/triggers/nightly/trigger-1?from=something-unknown");
+        A.CallTo(() => context.Api.GetTrigger(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(TriggerBuilder.Create()
+                .WithIdentity("trigger-1", "nightly")
+                .ForJob("job-1", "reports")
+                .WithCronSchedule("0/30 * * * * ?")
+                .Build());
+        A.CallTo(() => context.Api.GetTriggerState(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(TriggerState.Normal);
+
+        IRenderedComponent<TriggerDetail> page = context.Render<TriggerDetail>(parameters => parameters
+            .Add(x => x.Group, "nightly")
+            .Add(x => x.Name, "trigger-1"));
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll("[data-testid=detail-back]").Should().BeEmpty(
+                "a trigger detail opened with an unrecognised from= shows no Back link");
+        });
     }
 
     private void GivenJob()

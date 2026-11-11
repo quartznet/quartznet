@@ -52,6 +52,7 @@ An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorization
 | Log events `9400`–`9409` | The dashboard host's start, its refusals to start, `Unsecured` mode and sign-ins. See [Log Events](log-events.md) |
 | `AdoJobStoreOptions.EnlistmentSource` | `Func<EnlistmentSourceContext, IDisposable?>?`, default `null`: asked as each `IScheduler` call that reads or writes the store begins, to enlist the application's transaction for it. Needs `AcceptEnlistedTransactions`; code only, with no `quartz.*` key. See [Enlisting without each caller asking](how-tos/embedding-quartz-in-a-library.md#enlisting-without-each-caller-asking) |
 | `EnlistmentSourceContext` | `sealed class` with `required IScheduler Scheduler { get; init; }`: what an `EnlistmentSource` is handed. A later datum is a property |
+| `TriggerHeaderDto.StartTimeUtc`, `EndTimeUtc`, `NextFireTimeUtc`, `PreviousFireTimeUtc` | `Quartz.Dashboard`, `init`: the trigger's schedule bounds and fire times on a listing row. See [Timeline](packages/dashboard.md#timeline) |
 
 | Changed | What to check |
 |---|---|

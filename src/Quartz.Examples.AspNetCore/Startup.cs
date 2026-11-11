@@ -185,6 +185,17 @@ public class Startup
                 jobConfigurator => jobConfigurator.WithIdentity("slowJob")
             );
 
+            // one intentional failure every 30s so the Timeline and History pages show a failed run
+            q.ScheduleJob<DemoFailingJob>(
+                triggerConfigurator => triggerConfigurator
+                    .WithIdentity("demoFailingJobTrigger", "demo")
+                    .StartNow()
+                    .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(30)).RepeatForever()),
+                jobConfigurator => jobConfigurator
+                    .WithIdentity("demoFailingJob", "demo")
+                    .WithDescription("Intentional failure to demonstrate error history on the timeline")
+            );
+
             // async disposable dependencies
             q.ScheduleJob<AsyncDisposableJob>(
                 triggerConfigurator => triggerConfigurator

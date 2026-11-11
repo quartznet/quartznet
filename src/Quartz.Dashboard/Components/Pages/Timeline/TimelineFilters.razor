@@ -1,0 +1,111 @@
+@namespace Quartz.Dashboard.Components.Pages
+@using System.Globalization
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Models
+@using Quartz.Dashboard.Services
+@using Quartz.Dashboard.Services.Timeline
+@inject SchedulerState Scheduler
+
+@* The controls above the chart. The page owns the values and writes them into the address; this only draws them. *@
+<div class="qz-live-filters" data-testid="timeline-controls">
+    <div class="qz-live-filter-grid">
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="timeline-window">Window</label>
+            <select id="timeline-window"
+                    class="qz-select"
+                    data-testid="timeline-window"
+                    value="@State.Window.Key"
+                    @onchange="OnWindowChangedAsync">
+                @foreach (TimelineWindow window in TimelineWindow.Offered)
+                {
+                    <option value="@window.Key">@window.ShortLabel</option>
+                }
+            </select>
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="timeline-group">Job group</label>
+            <select id="timeline-group"
+                    class="qz-select"
+                    data-testid="timeline-group"
+                    value="@State.GroupFilter"
+                    @onchange="OnGroupChangedAsync">
+                <option value="">All groups</option>
+                @foreach (string group in State.GroupOptions)
+                {
+                    <option value="@group">@group</option>
+                }
+            </select>
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="timeline-page-size">Rows</label>
+            <select id="timeline-page-size"
+                    class="qz-select"
+                    data-testid="timeline-page-size"
+                    value="@State.PageSize.ToString(CultureInfo.InvariantCulture)"
+                    @onchange="OnPageSizeChangedAsync">
+                @foreach (int size in TimelineService.PageSizes)
+                {
+                    <option value="@size.ToString(CultureInfo.InvariantCulture)">@size / page</option>
+                }
+            </select>
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="timeline-name">Name</label>
+            <SearchFilter Id="timeline-name"
+                          Placeholder="contains"
+                          Value="@State.NameFilter"
+                          OnFilterChanged="OnNameFilterChangedAsync" />
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="timeline-jobs-refresh">Jobs refresh</label>
+            <select id="timeline-jobs-refresh"
+                    class="qz-select"
+                    data-testid="timeline-jobs-refresh"
+                    value="@Page.JobsRefreshKey"
+                    @onchange="OnJobsRefreshChangedAsync">
+                @foreach ((string key, string label, _) in TimelineService.JobsRefreshOptions)
+                {
+                    <option value="@key">@label</option>
+                }
+            </select>
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="timeline-triggers-refresh">Triggers refresh</label>
+            <select id="timeline-triggers-refresh"
+                    class="qz-select"
+                    data-testid="timeline-triggers-refresh"
+                    value="@Page.TriggersRefreshKey"
+                    @onchange="OnTriggersRefreshChangedAsync">
+                @foreach ((string key, string label, _) in TimelineService.TriggersRefreshOptions)
+                {
+                    <option value="@key">@label</option>
+                }
+            </select>
+        </div>
+        <div class="qz-form-group qz-timeline-pan">
+            <div class="qz-actions">
+                <button type="button"
+                        class="qz-button"
+                        data-testid="timeline-pan-older"
+                        @onclick="OnPanOlderClickedAsync">Older</button>
+                <button type="button"
+                        class="qz-button"
+                        data-testid="timeline-pan-newer"
+                        disabled="@(!State.CanPanNewer)"
+                        @onclick="OnPanNewerClickedAsync">Newer</button>
+            </div>
+        </div>
+    </div>
+    <p class="qz-muted">
+        @State.ShownCount/@State.FilteredRowCount · @State.BarCount runs
+        · @FormatBound(State.Bounds.Start)–@FormatBound(State.Bounds.AxisEnd)
+        @if (State.PanOffset > TimeSpan.Zero)
+        {
+            <text> · −@FormatPanOffset(State.PanOffset)</text>
+        }
+        @if (State.HistoryHasMore)
+        {
+            <text> · latest @TimelineService.DefaultHistoryTake runs</text>
+        }
+    </p>
+</div>

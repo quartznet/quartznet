@@ -1,0 +1,120 @@
+@namespace Quartz.Dashboard.Components.Pages
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Models
+@using Quartz.Dashboard.Services
+@using Quartz.Dashboard.Services.Timeline
+@inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
+
+@* One trigger: its state and schedule, the action menu, and the runs drawn on its track. *@
+@if (Row is not null && Trigger is not null)
+{
+    TimelineTriggerMenu menu = MenuFor(Trigger);
+    bool menuOpen = Page.IsMenuOpen(Row, Trigger);
+    <div class="qz-timeline-trigger" data-testid="timeline-trigger-row">
+        <div class="qz-timeline-columns qz-timeline-trigger-fields">
+            <div class="qz-timeline-field qz-timeline-field-name">
+                @if (Trigger.IsExecuting || Trigger.State is not null)
+                {
+                    @* Live fires set IsExecuting before GetTriggersOfJob reports Executing (Run now). *@
+                    <StateIndicator State="@(Trigger.IsExecuting ? nameof(TriggerState.Executing) : Trigger.State!.ToString())" ShowLabel="false" />
+                }
+                <a class="qz-timeline-row-trigger-name qz-timeline-entity-link"
+                   href="@Page.TriggerPath(Trigger.Group, Trigger.Name)"
+                   title="@(Trigger.Group + '.' + Trigger.Name)">@Trigger.Name</a>
+                @if (menu.Any)
+                {
+                    <div class="qz-timeline-actions @(menuOpen ? "qz-timeline-actions-open" : null)">
+                        <button type="button"
+                                class="qz-timeline-actions-btn"
+                                title="Trigger actions"
+                                aria-label="Trigger actions"
+                                aria-expanded="@menuOpen"
+                                @onclick="OnMenuToggled"
+                                @onclick:stopPropagation="true">
+                            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                                <path d="M3.2 5.4 8 10.2 12.8 5.4 11.5 4.2 8 7.8 4.5 4.2Z" />
+                            </svg>
+                        </button>
+                        @if (menuOpen)
+                        {
+                            <div class="qz-timeline-actions-menu" @onclick:stopPropagation="true">
+                                @if (menu.Run)
+                                {
+                                    <button type="button" @onclick="OnRunClickedAsync">Run now</button>
+                                }
+                                @if (menu.Resume)
+                                {
+                                    <button type="button" @onclick="OnResumeClickedAsync">Resume</button>
+                                }
+                                else if (menu.Pause)
+                                {
+                                    <button type="button" @onclick="OnPauseClicked">Pause</button>
+                                }
+                                @if (menu.Reset)
+                                {
+                                    <button type="button" @onclick="OnResetClickedAsync">Reset error</button>
+                                }
+                                @if (menu.Unschedule)
+                                {
+                                    <button type="button" class="qz-timeline-actions-danger" @onclick="OnUnscheduleClicked">Unschedule</button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="qz-timeline-field">
+                <span class="qz-timeline-meta-value">@Schedule</span>
+            </div>
+            <div class="qz-timeline-field">
+                <span class="qz-timeline-meta-value">@FormatOptionalInstant(Trigger.StartTimeUtc)</span>
+            </div>
+            <div class="qz-timeline-field">
+                <span class="qz-timeline-meta-value">@FormatOptionalInstant(Trigger.PreviousFireTimeUtc)</span>
+            </div>
+            <div class="qz-timeline-field">
+                <span class="qz-timeline-meta-value">@FormatOptionalInstant(Trigger.NextFireTimeUtc)</span>
+            </div>
+            <div class="qz-timeline-field">
+                <span class="qz-timeline-meta-value">@FormatOptionalInstant(Trigger.EndTimeUtc)</span>
+            </div>
+        </div>
+        <div class="qz-timeline-trigger-track @TintClass">
+            @foreach (TimelineBar bar in Trigger.Bars)
+            {
+                string style = $"left: {TimelineService.FormatPercent(bar.Left)}; width: {TimelineService.FormatPercent(bar.Width)};";
+                if (bar.EntryId is { Length: > 0 } entryId)
+                {
+                    <a class="qz-timeline-bar-hit"
+                       style="@style"
+                       href="@Page.ExecutionPath(entryId)"
+                       title="@bar.Title"
+                       data-testid="timeline-bar-link">
+                        <span class="qz-timeline-bar @bar.CssClass"></span>
+                    </a>
+                }
+                else
+                {
+                    <span class="qz-timeline-bar-hit"
+                          style="@style"
+                          title="@bar.Title">
+                        <span class="qz-timeline-bar @bar.CssClass"></span>
+                    </span>
+                }
+            }
+            @foreach (TimelineMark mark in Trigger.Marks)
+            {
+                @* Only upcoming marks: strictly after now (Bounds.End) and within the axis. *@
+                if (mark.Instant <= State.Bounds.End || mark.Instant > State.Bounds.AxisEnd)
+                {
+                    continue;
+                }
+
+                <span class="qz-timeline-upcoming"
+                      style="left: @TimelineService.FormatPercent(TimelineService.ComputeFraction(State.Bounds, mark.Instant));"
+                      title="@mark.Title"></span>
+            }
+        </div>
+    </div>
+}

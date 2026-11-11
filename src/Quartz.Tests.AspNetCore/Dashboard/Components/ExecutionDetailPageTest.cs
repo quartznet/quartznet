@@ -459,6 +459,73 @@ public class ExecutionDetailPageTest
     }
 
     [Test]
+    public void BackReturnsToTheHistoryListing()
+    {
+        GivenExecution(Entry());
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            IElement link = page.Find("[data-testid=execution-back]");
+            link.TextContent.Should().Be("Back to execution history");
+            link.GetAttribute("href").Should().EndWith("history");
+        });
+    }
+
+    [Test]
+    public void AVisitFromTheTimelineReturnsToThatTimeline()
+    {
+        GivenExecution(Entry());
+        context.Navigate("/quartz/history/entry-1?from=timeline&window=1h&group=housekeeping&pan=15");
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            IElement link = page.Find("[data-testid=execution-back]");
+            link.TextContent.Should().Be("Back to timeline",
+                "the run was opened from the timeline, so Back names that page");
+            link.GetAttribute("href").Should().EndWith("timeline?window=1h&group=housekeeping&pan=15",
+                "the timeline's window, group and pan travel with the link so Back restores the view");
+        });
+    }
+
+    [Test]
+    public void AVisitFromAJobReturnsToThatJob()
+    {
+        GivenExecution(Entry());
+        context.Navigate("/quartz/history/entry-1?from=job&jobGroup=billing&jobName=release-stale");
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            IElement link = page.Find("[data-testid=execution-back]");
+            link.TextContent.Should().Be("Back to job",
+                "the run was opened from the job, so Back names that page");
+            link.GetAttribute("href").Should().EndWith("jobs/billing/release-stale");
+        });
+    }
+
+    [Test]
+    public void AnUnknownFromFallsBackToExecutionHistory()
+    {
+        GivenExecution(Entry());
+        context.Navigate("/quartz/history/entry-1?from=something-unknown");
+
+        IRenderedComponent<ExecutionDetail> page = Render("entry-1");
+
+        page.WaitForAssertion(() =>
+        {
+            IElement link = page.Find("[data-testid=execution-back]");
+            link.TextContent.Should().Be("Back to execution history",
+                "an unrecognised from= value is treated as no origin, so the page falls back to the history listing");
+            link.GetAttribute("href").Should().EndWith("history");
+        });
+    }
+
+    [Test]
     public async Task TheDefaultSingleReadPicksTheRowOutOfTheListing()
     {
         IQuartzApiClient client = A.Fake<IQuartzApiClient>(options => options.CallsBaseMethods());

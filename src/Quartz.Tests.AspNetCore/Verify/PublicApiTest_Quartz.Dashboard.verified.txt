@@ -472,11 +472,15 @@ namespace Quartz.Dashboard.Services
         public TriggerHeaderDto(string Group, string Name, string? TriggerType, string? ScheduleSummary, Quartz.TriggerState? State, string? ExecutionGroup) { }
         public Quartz.ContinuationCondition? ContinuationCondition { get; init; }
         public Quartz.Dashboard.Services.TriggerKeyDto? ContinuesAfter { get; init; }
+        public System.DateTimeOffset? EndTimeUtc { get; init; }
         public string? ExecutionGroup { get; init; }
         public string Group { get; init; }
         public string Name { get; init; }
+        public System.DateTimeOffset? NextFireTimeUtc { get; init; }
         public Quartz.PauseInfo? Pause { get; init; }
+        public System.DateTimeOffset? PreviousFireTimeUtc { get; init; }
         public string? ScheduleSummary { get; init; }
+        public System.DateTimeOffset? StartTimeUtc { get; init; }
         public Quartz.TriggerState? State { get; init; }
         public string? TriggerType { get; init; }
     }

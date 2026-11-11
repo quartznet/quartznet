@@ -1,0 +1,113 @@
+@using System.Globalization
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.Extensions.Options
+@using Microsoft.Extensions.Primitives
+@using Quartz
+@using Quartz.Dashboard.Components
+@inject NavigationManager Navigation
+@inject IOptions<QuartzDashboardOptions> Options
+
+@if (Href is not null)
+{
+    @if (InRow)
+    {
+        <div class="qz-row">
+            <a class="qz-details-link" data-testid="@TestId" href="@Href">@Label</a>
+        </div>
+    }
+    else
+    {
+        <a class="qz-details-link" data-testid="@TestId" href="@Href">@Label</a>
+    }
+}
+
+@code {
+    /// <summary>
+    /// When the query names no page to return to, link to the history listing. The execution page always
+    /// offers a way back; a job or trigger page only does when it was opened from somewhere.
+    /// </summary>
+    [Parameter]
+    public bool FallbackToHistory { get; set; }
+
+    /// <summary>Wrap the link in the detail-page row. The execution page already has that row.</summary>
+    [Parameter]
+    public bool InRow { get; set; } = true;
+
+    [Parameter]
+    public string TestId { get; set; } = "detail-back";
+
+    private string? Href { get; set; }
+
+    private string? Label { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        Dictionary<string, StringValues> query = QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
+        string? from = Value(query, "from");
+        string? target = Target(from, query);
+        if (target == "timeline")
+        {
+            Label = "Back to timeline";
+            Href = DashboardLink.Timeline(
+                Options.Value,
+                Value(query, "window"),
+                Value(query, "group"),
+                Int(query, "page"),
+                Int(query, "pageSize"),
+                Int(query, "pan"));
+            return;
+        }
+
+        if (target == "job")
+        {
+            Label = "Back to job";
+            Href = DashboardLink.To(
+                Options.Value,
+                "jobs/" + Uri.EscapeDataString(Value(query, "jobGroup")!) + "/" + Uri.EscapeDataString(Value(query, "jobName")!));
+            return;
+        }
+
+        if (FallbackToHistory)
+        {
+            Label = "Back to execution history";
+            Href = DashboardLink.To(Options.Value, "history");
+            return;
+        }
+
+        Label = null;
+        Href = null;
+    }
+
+    private static string? Target(string? from, Dictionary<string, StringValues> query)
+    {
+        if (Is(from, "timeline"))
+        {
+            return "timeline";
+        }
+
+        if (Is(from, "job") && Has(query, "jobGroup") && Has(query, "jobName"))
+        {
+            return "job";
+        }
+
+        return null;
+    }
+
+    private static bool Is(string? from, string origin) => string.Equals(from, origin, StringComparison.OrdinalIgnoreCase);
+
+    private static bool Has(Dictionary<string, StringValues> query, string key)
+    {
+        return !string.IsNullOrWhiteSpace(Value(query, key));
+    }
+
+    private static string? Value(Dictionary<string, StringValues> query, string key)
+    {
+        return query.TryGetValue(key, out StringValues values) ? values.ToString() : null;
+    }
+
+    private static int? Int(Dictionary<string, StringValues> query, string key)
+    {
+        string? text = Value(query, key);
+        return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) ? parsed : null;
+    }
+}

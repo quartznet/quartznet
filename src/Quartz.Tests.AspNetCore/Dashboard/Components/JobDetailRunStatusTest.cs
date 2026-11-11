@@ -66,8 +66,9 @@ public class JobDetailRunStatusTest
         page.WaitForAssertion(() =>
         {
             page.Find(".qz-job-status-last-run .qz-state-label").TextContent.Should().Be("Failed");
-            page.Find(".qz-job-status-last-run a").GetAttribute("href").Should().EndWith("history/entry-9",
-                "the last run opens its own execution page, log and all, while the history keeps it");
+            page.Find(".qz-job-status-last-run a").GetAttribute("href").Should().EndWith(
+                "history/entry-9?from=job&jobGroup=billing&jobName=release-stale",
+                "the last run opens its own execution page, and Back returns to this job");
             page.Find(".qz-job-status-last-success").TextContent.Should().Be("2029-12-31 12:00:00 +00:00");
             page.Find(".qz-job-status-last-failure").TextContent.Should().Contain("the upstream system is down");
             page.Find(".qz-job-status-failing").TextContent.Trim().Should().Be("failing ×2");
@@ -99,6 +100,22 @@ public class JobDetailRunStatusTest
             page.FindAll("[data-testid=job-run-status-none]").Should().BeEmpty(
                 "a source that cannot say must not be read as a job that never ran");
             page.TextOfAll("h2").Should().NotContain("Runs");
+        });
+    }
+
+    [Test]
+    public void AVisitFromTheTimelineReturnsToThatTimeline()
+    {
+        context.Navigate("/quartz/jobs/billing/release-stale?from=timeline&window=1h&group=housekeeping&pan=15");
+
+        IRenderedComponent<JobDetail> page = Render();
+
+        page.WaitForAssertion(() =>
+        {
+            AngleSharp.Dom.IElement link = page.Find("[data-testid=detail-back]");
+            link.TextContent.Should().Be("Back to timeline");
+            link.GetAttribute("href").Should().EndWith("timeline?window=1h&group=housekeeping&pan=15",
+                "the timeline's window, group and pan travel with the link so Back restores the view");
         });
     }
 

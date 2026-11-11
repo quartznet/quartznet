@@ -469,6 +469,44 @@ public class InProcessQuartzApiClientTest
     }
 
     [Test]
+    public async Task GetTriggersOfJobMapsScheduleBoundsAndFireTimes()
+    {
+        IScheduler scheduler = await CreateScheduler("TriggerFireTimesMapping");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            DateTimeOffset start = TimeProvider.System.GetUtcNow().AddMinutes(-5);
+            DateTimeOffset end = TimeProvider.System.GetUtcNow().AddHours(1);
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("simple", "group1")
+                .ForJob(jobKey)
+                .StartAt(start)
+                .EndAt(end)
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(30)).RepeatForever())
+                .Build();
+            await scheduler.ScheduleJob(JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build(), trigger);
+            await scheduler.Start();
+            ITrigger stored = await Eventually.Value(
+                async () => (await scheduler.GetTrigger(trigger.Key))!,
+                static t => t.PreviousFireTimeUtc is not null);
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            TriggerHeaderDto header = (await client.GetTriggersOfJob(
+                scheduler.SchedulerName,
+                new JobKeyDto(jobKey.Group, jobKey.Name))).Should().ContainSingle().Subject;
+
+            header.StartTimeUtc.Should().NotBeNull("StartTimeUtc is always set").And.Be(stored.StartTimeUtc);
+            header.EndTimeUtc.Should().NotBeNull("EndTimeUtc was given to the trigger").And.Be(stored.EndTimeUtc);
+            header.NextFireTimeUtc.Should().NotBeNull("the trigger repeats and fires every 30 s").And.Be(stored.NextFireTimeUtc);
+            header.PreviousFireTimeUtc.Should().NotBeNull("the first fire left a previous fire time").And.Be(stored.PreviousFireTimeUtc);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
     public async Task GetJobsPagesServerSideAndCountsExactly()
     {
         // #3008 - the jobs page fetched every key and paged in the browser

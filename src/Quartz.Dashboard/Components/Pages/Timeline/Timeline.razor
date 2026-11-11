@@ -1,0 +1,65 @@
+@page "/quartz/timeline"
+@namespace Quartz.Dashboard.Components.Pages
+@using Microsoft.Extensions.Options
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Services
+@using Quartz.Dashboard.Services.Timeline
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
+@inject IOptions<QuartzDashboardOptions> Options
+@inject NavigationManager Navigation
+@inject ToastService Toasts
+@inject DashboardActionLog ActionLog
+@inject IJSRuntime JsRuntime
+
+<div class="qz-page qz-page-timeline">
+    <div class="qz-page-header">
+        <h1>Timeline</h1>
+        <span class="qz-muted qz-timeline-live">@TriggersLiveBadge</span>
+    </div>
+
+    @if (State.IsLoading && !State.ChromeReady)
+    {
+        <LoadingSpinner />
+    }
+    else if (State.HistoryUnavailable)
+    {
+        <p class="qz-muted" data-testid="timeline-history-unavailable">
+            This scheduler runs in another process and its Quartz HTTP API does not serve execution
+            history. Upgrade that host to see finished runs on the timeline.
+        </p>
+    }
+    else if (!string.IsNullOrWhiteSpace(State.Error))
+    {
+        <ErrorAlert Message="@State.Error" OnRetry="LoadTimelineAsync" />
+    }
+    else
+    {
+        <TimelineFilters Page="this" />
+        <TimelineChart Page="this" />
+
+        <Pagination TotalItems="@State.FilteredRowCount"
+                    PageSize="@State.PageSize"
+                    CurrentPage="@State.CurrentPage"
+                    OnPageChanged="OnPageChangedAsync" />
+    }
+</div>
+
+@if (_menuTarget is not null)
+{
+    <button type="button" class="qz-timeline-menu-backdrop" aria-label="Close actions" @onclick="OnMenuBackdropClicked"></button>
+}
+
+<PauseDialog IsOpen="@_showPausePrompt"
+             Title="Pause trigger"
+             Message="@(_actionTarget is null ? string.Empty : $"Pause {DisplayValueHelper.FormatKey(_actionTarget.TriggerGroup, _actionTarget.TriggerName)}?")"
+             OnConfirm="PauseTriggerAsync"
+             OnCancel="CancelPauseAsync" />
+
+<ConfirmDialog IsOpen="@_showUnscheduleConfirm"
+               Title="Unschedule trigger"
+               Message="@(_actionTarget is null ? string.Empty : $"Unschedule {DisplayValueHelper.FormatKey(_actionTarget.TriggerGroup, _actionTarget.TriggerName)}? This cannot be undone.")"
+               OnConfirm="UnscheduleTriggerAsync"
+               OnCancel="CancelUnscheduleAsync" />
