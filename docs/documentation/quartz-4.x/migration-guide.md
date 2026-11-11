@@ -57,6 +57,7 @@ An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorization
 | Changed | What to check |
 |---|---|
 | `UseDashboardAgent(configure)` | Reads `Quartz:DashboardAgent` from the container's configuration first, then runs the callback. An application with no such section, or one that sets the same options in the callback, is unaffected |
+| A firing recovered by cluster recovery or a shutdown hand-back | Scheduled as startup recovery schedules one: at the original's scheduled time, which it reports as `ScheduledFireTimeUtc`, and never as a misfire. It runs on the next acquisition, with no `TriggerMisfired` and no misfire history row. A job that read `ScheduledFireTimeUtc` there as the original's fire time reads `SchedulerConstants.FailedJobOriginalTriggerFireTime` instead |
 
 ## Upgrading from 4.6 to 4.7
 
