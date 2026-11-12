@@ -52,7 +52,8 @@ updates:
       # inherits", says the whole of why: 4.0.0 floored six framework extensions at whatever
       # Dependabot had most recently proposed, and an application pinning one of them a patch lower
       # could not restore at all (#3717). A weekly minor or patch here is exactly the change that
-      # caused that, so it is not offered; a major still is, because a major is a decision.
+      # caused that, so it is not offered. A major is not offered either: 4.x targets net10.0 and keeps
+      # these floors on 10.0.0, and moving them to 11 is a decision for Quartz 5 (#4278).
       #
       # Raise one of these by hand, for a security advisory, to the version that fixed it.
       # PackageDependencyTest fails a Microsoft.* floor that is not x.0.0, unless it records the
@@ -69,30 +70,29 @@ updates:
       # The Microsoft.* floors are ignored by range. A version entry is read as a Dependabot requirement,
       # not as a NuGet wildcard, and "10.x" matched no version above 10.0.0, so the 10.0.12 patch of
       # Microsoft.Extensions.Logging.Abstractions came through as a direct proposal (#3851). The range
-      # holds every 10.x above the floor. 11.0.0 is still proposed; accepting it means moving the range
-      # up a major.
+      # holds every version above the floor, 11.0.0 included.
       - dependency-name: "Microsoft.AspNetCore.SignalR.Client"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.Configuration.Binder"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.DependencyInjection"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.Diagnostics.HealthChecks"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.Hosting"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.Hosting.Abstractions"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.Http"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.Logging"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.Logging.Abstractions"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.Logging.Console"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.Options.ConfigurationExtensions"
-        versions: [">= 10.0.1, < 11.0.0"]
+        versions: [">= 10.0.1"]
       # Quartz.Aspire.Hosting's floor. The
       # example's Aspire packages move on $(AspireVersion) through the aspire group; this row does not.
       - dependency-name: "Aspire.Hosting"
