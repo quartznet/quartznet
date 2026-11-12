@@ -43,7 +43,7 @@
       7.9.0 too. Remove once Fallout brings a NuGet.Packaging new enough to pull this in itself
       (Fallout-build/Fallout#638).
     -->
-    <PackageReference Include="NuGet.Frameworks" Version="7.9.0" />
+    <PackageReference Include="NuGet.Frameworks" Version="8.0.0" />
     <PackageReference Include="Semver" Version="3.0.0" />
 
     <!--
