@@ -213,7 +213,7 @@
       floors a fixed one, since Quartz.Weasel.MySQL calls the driver itself. The tests and the benchmark run
       on it too: one central version per id.
     -->
-    <PackageVersion Include="MySqlConnector" Version="2.6.1" />
+    <PackageVersion Include="MySqlConnector" Version="3.0.0" />
     <!--
       13.0.2 rather than 13.0.1, which is where the advisory-free 13.x line starts: TimeOnly and
       DateOnly are reflected over member by member before it, so a job data map holding a TimeOnly
