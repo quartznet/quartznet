@@ -37,47 +37,33 @@ namespace Quartz.Dashboard.Components.Shared;
 /// gap rather than a squeezed-out column. Past <see cref="MaxSlots" /> slots only the buckets that hold a run
 /// are drawn, side by side.
 /// </para>
+/// <para>
+/// Across, a coordinate is a percentage of the plot's width, so the time axis stretches with the page. Down, it
+/// is CSS pixels from the plot's top, so a plot is as tall at any width, and the labels, bars and dots drawn
+/// over it stay the size they were designed at.
+/// </para>
 /// </remarks>
 internal sealed class RunStatisticsLayout
 {
-    /// <summary>Every panel's width, in the SVG's own units.</summary>
-    public const double Width = 960;
-
-    /// <summary>Where the plots start, leaving room for the value axis's labels.</summary>
-    public const double PlotLeft = 64;
-
-    /// <summary>Where the plots end, leaving room for the last time label.</summary>
-    public const double PlotRight = Width - 28;
-
-    /// <summary>The runs panel's height, plot and margins.</summary>
-    public const double RunsHeight = 168;
-
-    /// <summary>The durations panel's height, plot, margins and the time axis beneath.</summary>
-    public const double DurationsHeight = 140;
-
-    /// <summary>Above each plot, for the top tick's label.</summary>
-    public const double PlotTop = 18;
-
-    /// <summary>The runs plot's height.</summary>
+    /// <summary>The runs plot's height, in CSS pixels.</summary>
     public const double RunsPlotHeight = 140;
 
-    /// <summary>The durations plot's height.</summary>
+    /// <summary>The durations plot's height, in CSS pixels.</summary>
     public const double DurationsPlotHeight = 92;
 
     /// <summary>The most slots drawn one per bucket size; past it, only the buckets that hold a run.</summary>
     public const int MaxSlots = 400;
 
-    /// <summary>The thickest a column is drawn, however wide its slot.</summary>
-    private const double MaxBarWidth = 24;
+    /// <summary>The whole plot's width, as a percentage.</summary>
+    private const double PlotWidth = 100;
 
-    /// <summary>The surface showing between two results of one column.</summary>
+    /// <summary>The surface showing between two results of one column, in CSS pixels.</summary>
     private const double SegmentGap = 2;
 
-    /// <summary>The shortest a result that happened is drawn, so one failure among thousands still shows.</summary>
+    /// <summary>
+    /// The shortest a result that happened is drawn, in CSS pixels, so one failure among thousands still shows.
+    /// </summary>
     private const double MinSegmentHeight = 2;
-
-    /// <summary>The rounding of a column's data end.</summary>
-    private const double CornerRadius = 4;
 
     /// <summary>The steps an axis's top is rounded up to, times a power of ten.</summary>
     private static readonly long[] NiceMultiples = [1, 2, 4, 6, 8, 10];
@@ -95,7 +81,7 @@ internal sealed class RunStatisticsLayout
     /// <summary>Every slot of the axis, one per bucket size whether or not it holds a run.</summary>
     public int SlotCount { get; private set; }
 
-    /// <summary>How wide one slot is.</summary>
+    /// <summary>How wide one slot is, as a percentage of the plot's width.</summary>
     public double SlotWidth { get; private set; }
 
     /// <summary>The labelled values of the runs axis, from zero up.</summary>
@@ -153,7 +139,7 @@ internal sealed class RunStatisticsLayout
         long slots = lastIndex - firstIndex + 1;
         bool dense = slots <= MaxSlots;
         layout.SlotCount = dense ? (int) slots : buckets.Count;
-        layout.SlotWidth = (PlotRight - PlotLeft) / layout.SlotCount;
+        layout.SlotWidth = PlotWidth / layout.SlotCount;
 
         layout.MostRuns = buckets.Max(static bucket => bucket.RunCount);
         layout.HighestP95 = buckets.Max(static bucket => bucket.P95Duration);
@@ -164,13 +150,11 @@ internal sealed class RunStatisticsLayout
         AddTicks(layout.RunTicks, runsTop, RunsPlotHeight, static value => value.ToString("N0", CultureInfo.InvariantCulture));
         AddTicks(layout.DurationTicks, durationTop, DurationsPlotHeight, static value => value == 0 ? "0" : DisplayValueHelper.FormatDuration(TimeSpan.FromMilliseconds(value)));
 
-        double barWidth = Math.Min(MaxBarWidth, Math.Max(1, layout.SlotWidth * 0.62));
-
         for (int i = 0; i < buckets.Count; i++)
         {
             ExecutionStatisticsBucket bucket = buckets[i];
             int slot = dense ? (int) (bucket.StartUtc.UtcTicks / size - firstIndex) : i;
-            double slotLeft = PlotLeft + slot * layout.SlotWidth;
+            double slotLeft = slot * layout.SlotWidth;
             double centre = slotLeft + layout.SlotWidth / 2;
 
             layout.Columns.Add(new Column(
@@ -178,7 +162,7 @@ internal sealed class RunStatisticsLayout
                 slot,
                 slotLeft,
                 centre,
-                Segments(bucket, centre - barWidth / 2, barWidth, runsTop),
+                Segments(bucket, runsTop),
                 DurationY(bucket.P50Duration, durationTop),
                 DurationY(bucket.P95Duration, durationTop)));
         }
@@ -193,7 +177,7 @@ internal sealed class RunStatisticsLayout
                 ? new DateTimeOffset((firstIndex + slot) * size, TimeSpan.Zero)
                 : buckets[slot].StartUtc;
 
-            layout.TimeTicks.Add(new TimeTick(PlotLeft + slot * layout.SlotWidth + layout.SlotWidth / 2, at));
+            layout.TimeTicks.Add(new TimeTick(slot * layout.SlotWidth + layout.SlotWidth / 2, at));
         }
 
         return layout;
@@ -227,36 +211,34 @@ internal sealed class RunStatisticsLayout
         return 10 * magnitude;
     }
 
-    /// <summary>Formats a coordinate the way an SVG attribute takes it.</summary>
+    /// <summary>Formats a coordinate the way an SVG attribute or a CSS length takes it.</summary>
     public static string Number(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
 
     private static void AddTicks(List<Tick> ticks, long top, double plotHeight, Func<long, string> label)
     {
-        double baseline = PlotTop + plotHeight;
-        ticks.Add(new Tick(baseline, label(0)));
+        ticks.Add(new Tick(plotHeight, label(0)));
         if (top % 2 == 0)
         {
-            ticks.Add(new Tick(baseline - plotHeight / 2, label(top / 2)));
+            ticks.Add(new Tick(plotHeight / 2, label(top / 2)));
         }
 
-        ticks.Add(new Tick(PlotTop, label(top)));
+        ticks.Add(new Tick(0, label(top)));
     }
 
     private static double DurationY(TimeSpan duration, long topMilliseconds)
     {
         double fraction = Math.Min(1, duration.TotalMilliseconds / topMilliseconds);
-        return PlotTop + DurationsPlotHeight - fraction * DurationsPlotHeight;
+        return DurationsPlotHeight - fraction * DurationsPlotHeight;
     }
 
     /// <summary>
     /// A column's results from the baseline up, each at least <see cref="MinSegmentHeight" /> tall, with the
-    /// surface showing between two of them and the top one's data end rounded.
+    /// surface showing between two of them.
     /// </summary>
-    private static List<Segment> Segments(ExecutionStatisticsBucket bucket, double left, double width, long runsTop)
+    private static List<Segment> Segments(ExecutionStatisticsBucket bucket, long runsTop)
     {
         List<Segment> segments = [];
-        double baseline = PlotTop + RunsPlotHeight;
-        double bottom = baseline;
+        double bottom = RunsPlotHeight;
 
         foreach (JobRunResult result in StackOrder)
         {
@@ -267,36 +249,19 @@ internal sealed class RunStatisticsLayout
             }
 
             double height = Math.Max(MinSegmentHeight, count / (double) runsTop * RunsPlotHeight);
-            segments.Add(new Segment(result, count, bottom - height, bottom));
+            Segment segment = new(result, count, bottom - height, bottom);
+
+            // The gap is taken from the segment above it, never from the baseline.
+            if (segments.Count > 0 && height > SegmentGap + 1)
+            {
+                segment = segment with { Bottom = bottom - SegmentGap };
+            }
+
+            segments.Add(segment);
             bottom -= height;
         }
 
-        List<Segment> drawn = new(segments.Count);
-        for (int i = 0; i < segments.Count; i++)
-        {
-            Segment segment = segments[i];
-
-            // The gap is taken from the segment above it, never from the baseline.
-            double lower = i > 0 && segment.Bottom - segment.Top > SegmentGap + 1 ? segment.Bottom - SegmentGap : segment.Bottom;
-            double radius = i == segments.Count - 1 ? Math.Min(CornerRadius, Math.Min(width / 2, lower - segment.Top)) : 0;
-
-            drawn.Add(segment with { Bottom = lower, Path = RoundedTop(left, segment.Top, width, lower, radius) });
-        }
-
-        return drawn;
-    }
-
-    private static string RoundedTop(double left, double top, double width, double bottom, double radius)
-    {
-        double right = left + width;
-        if (radius <= 0)
-        {
-            return string.Create(CultureInfo.InvariantCulture,
-                $"M{Number(left)},{Number(bottom)}V{Number(top)}H{Number(right)}V{Number(bottom)}Z");
-        }
-
-        return string.Create(CultureInfo.InvariantCulture,
-            $"M{Number(left)},{Number(bottom)}V{Number(top + radius)}Q{Number(left)},{Number(top)} {Number(left + radius)},{Number(top)}H{Number(right - radius)}Q{Number(right)},{Number(top)} {Number(right)},{Number(top + radius)}V{Number(bottom)}Z");
+        return segments;
     }
 
     /// <summary>
@@ -333,7 +298,10 @@ internal sealed class RunStatisticsLayout
         return path.ToString();
     }
 
-    /// <summary>One bucket's column and its points on the duration lines.</summary>
+    /// <summary>
+    /// One bucket's column and its points on the duration lines: across as percentages of the plot's width,
+    /// down as CSS pixels from its top.
+    /// </summary>
     internal sealed record Column(
         ExecutionStatisticsBucket Bucket,
         int Slot,
@@ -343,16 +311,16 @@ internal sealed class RunStatisticsLayout
         double P50Y,
         double P95Y);
 
-    /// <summary>One result's share of a column.</summary>
+    /// <summary>One result's share of a column, in CSS pixels from the plot's top.</summary>
     internal sealed record Segment(JobRunResult Result, long Count, double Top, double Bottom)
     {
-        public string Path { get; init; } = string.Empty;
+        public double Height => Bottom - Top;
     }
 
-    /// <summary>A labelled value on a panel's axis.</summary>
+    /// <summary>A labelled value on a panel's axis, in CSS pixels from the plot's top.</summary>
     internal sealed record Tick(double Y, string Label);
 
-    /// <summary>A labelled instant on the time axis, at its slot's centre.</summary>
+    /// <summary>A labelled instant on the time axis, at its slot's centre, as a percentage of the plot's width.</summary>
     internal sealed record TimeTick(double X, DateTimeOffset At);
 
     /// <summary>A point a line has no neighbour to join to.</summary>

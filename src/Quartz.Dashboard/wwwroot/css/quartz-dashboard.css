@@ -1841,6 +1841,7 @@ body{
 /* The run chart: runs per bucket stacked by result, and the two duration lines beneath on an axis of their
    own. Every colour is a token, so it follows the theme; the results wear the colours their state dots do. */
 .qz-run-chart {
+    container-type: inline-size;
     margin: var(--qz-space-md) 0;
     padding: var(--qz-space-md);
     background-color: var(--qz-color-surface);
@@ -1897,37 +1898,106 @@ body{
     border-top: 2px solid;
 }
 
-.qz-run-chart-svg {
-    display: block;
-    width: 100%;
-    height: auto;
-    overflow: visible;
+/* A panel keeps its height at any width: the plot's height is set in pixels by the component, the gutters
+   here hold the value labels on the left, the last time label on the right and the time axis beneath. Only
+   the plot stretches, so a wide page widens the time axis and nothing else. The labels are sized in rem,
+   like the rest of the dashboard, so the gutters that hold them are too: a larger browser font grows both. */
+.qz-run-chart-panel {
+    position: relative;
+    padding: 1.25rem 1.75rem 0.75rem 4rem;
+}
+
+.qz-run-chart-panel-durations {
+    padding-bottom: 1.875rem;
+}
+
+.qz-run-chart-plot {
+    position: relative;
 }
 
 .qz-run-chart-panel-label {
-    fill: var(--qz-color-text-secondary);
-    font-size: 11px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: var(--qz-color-text-secondary);
+    font-size: var(--qz-font-size-xs);
     font-weight: var(--qz-font-weight-semibold);
+    line-height: 1;
 }
 
 .qz-run-chart-tick {
-    fill: var(--qz-color-text-secondary);
-    font-size: 11px;
+    position: absolute;
+    color: var(--qz-color-text-secondary);
+    font-size: var(--qz-font-size-xs);
     font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.qz-run-chart-value {
+    right: calc(100% + 0.5rem);
+    transform: translateY(-50%);
+}
+
+.qz-run-chart-times {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+}
+
+.qz-run-chart-time {
+    top: 0.5rem;
+    transform: translateX(-50%);
+}
+
+/* Narrow, every other time label gives way, rather than overlapping its neighbours. In rem, so a larger
+   browser font, and with it wider labels, gives way sooner. */
+@container (max-width: 35rem) {
+    .qz-run-chart-time:nth-child(even) {
+        display: none;
+    }
 }
 
 .qz-run-chart-grid {
-    stroke: var(--qz-color-border);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px solid var(--qz-color-border);
 }
 
-.qz-run-chart-hit {
-    fill: transparent;
+/* A bucket's slot: the whole height of the plot, so hovering anywhere over it shows its figures. */
+.qz-run-chart-bucket {
+    position: absolute;
+    top: 0;
+    bottom: 0;
 }
 
-.qz-run-chart-bucket:hover .qz-run-chart-hit {
-    fill: var(--qz-color-surface-hover);
+.qz-run-chart-bucket:hover {
+    background-color: var(--qz-color-surface-hover);
+}
+
+/* A column is most of its slot, but never thinner than a pixel or wider than 24, however few slots a wide
+   page has. */
+.qz-run-chart-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: clamp(1px, 62%, 24px);
+    transform: translateX(-50%);
+}
+
+.qz-run-chart-segment {
+    position: absolute;
+    left: 0;
+    right: 0;
+}
+
+/* The segments stack from the baseline up, so the last is the column's data end. */
+.qz-run-chart-segment:last-child {
+    border-radius: 4px 4px 0 0;
 }
 
 .qz-run-succeeded {
@@ -1950,11 +2020,22 @@ body{
     background-color: var(--qz-color-danger);
 }
 
+/* The duration lines stretch with the plot, but their strokes stay two pixels wide. */
+.qz-run-chart-lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+}
+
 .qz-run-chart-line {
     fill: none;
     stroke-width: 2;
     stroke-linejoin: round;
     stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
 }
 
 .qz-run-chart-p50 {
@@ -1965,17 +2046,23 @@ body{
     stroke: var(--qz-chart-p95);
 }
 
+/* A point with no neighbour to join, round at any width because it is HTML, not a stretched circle. */
 .qz-run-chart-dot {
-    stroke: var(--qz-color-surface);
-    stroke-width: 2;
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--qz-color-surface);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
 }
 
 .qz-run-chart-p50-dot {
-    fill: var(--qz-chart-p50);
+    background-color: var(--qz-chart-p50);
 }
 
 .qz-run-chart-p95-dot {
-    fill: var(--qz-chart-p95);
+    background-color: var(--qz-chart-p95);
 }
 
 .qz-run-chart-key-p50 {

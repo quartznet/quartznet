@@ -4,9 +4,11 @@
 @inject SchedulerState Scheduler
 
 @* Runs per bucket stacked by result, and beneath them the median and 95th percentile durations on an axis
-   of their own: two measures, two scales, one time axis. Plain SVG coloured by the theme's tokens, with the
-   same figures in a table for a reader who does not hover. RunStatisticsLayout works out every coordinate.
-   An SVG <text> is written through SvgText, because Razor reads a literal <text> tag as its own. *@
+   of their own: two measures, two scales, one time axis. RunStatisticsLayout works out every coordinate:
+   across as a percentage of the plot's width, down in CSS pixels, so a plot stretches with the page but keeps
+   its height. The labels, bars and dots are HTML at the page's font size; only the duration lines are an SVG,
+   stretched across with strokes that do not scale. The same figures are in a table for a reader who does not
+   hover. No script lays any of it out, so a prerendered chart is the finished one. *@
 @if (Statistics is not null)
 {
     <section class="qz-run-chart" data-testid="run-statistics" aria-labelledby="@HeadingId">
@@ -34,85 +36,98 @@
                 <li><span class="qz-run-chart-line-key qz-run-chart-key-p95" aria-hidden="true"></span>95th percentile duration</li>
             </ul>
 
-            <svg class="qz-run-chart-svg"
-                 viewBox="0 0 @N(RunStatisticsLayout.Width) @N(RunStatisticsLayout.RunsHeight)"
+            <div class="qz-run-chart-panel"
                  role="img"
                  aria-labelledby="@(HeadingId + "-runs-title " + HeadingId + "-runs-desc")"
                  data-testid="run-statistics-runs">
-                <title id="@(HeadingId + "-runs-title")">Runs per @BucketWord(), by result</title>
-                <desc id="@(HeadingId + "-runs-desc")">@RunsDescription()</desc>
-                @SvgText("qz-run-chart-panel-label", 0, 10, "start", "Runs")
-                @foreach (RunStatisticsLayout.Tick tick in _layout.RunTicks)
-                {
-                    <line class="qz-run-chart-grid" x1="@N(RunStatisticsLayout.PlotLeft)" x2="@N(RunStatisticsLayout.PlotRight)" y1="@N(tick.Y)" y2="@N(tick.Y)" />
-                    @SvgText("qz-run-chart-tick", RunStatisticsLayout.PlotLeft - 8, tick.Y + 4, "end", tick.Label)
-                }
-                @foreach (RunStatisticsLayout.Column column in _layout.Columns)
-                {
-                    ExecutionStatisticsBucket bucket = column.Bucket;
-                    <g class="qz-run-chart-bucket"
-                       data-testid="run-statistics-bucket"
-                       data-start="@bucket.StartUtc.ToString("O", CultureInfo.InvariantCulture)"
-                       data-runs="@bucket.RunCount"
-                       data-succeeded="@bucket.SucceededCount"
-                       data-skipped="@bucket.SkippedCount"
-                       data-cancelled="@bucket.CancelledCount"
-                       data-failed="@bucket.FailedCount">
-                        <title>@Tooltip(bucket)</title>
-                        <rect class="qz-run-chart-hit" x="@N(column.SlotLeft)" y="@N(RunStatisticsLayout.PlotTop)" width="@N(_layout.SlotWidth)" height="@N(RunStatisticsLayout.RunsPlotHeight)" />
-                        @foreach (RunStatisticsLayout.Segment segment in column.Segments)
-                        {
-                            <path class="qz-run-chart-segment @ResultClass(segment.Result)"
-                                  data-testid="run-statistics-segment"
-                                  data-result="@segment.Result"
-                                  data-count="@segment.Count"
-                                  d="@segment.Path" />
-                        }
-                    </g>
-                }
-            </svg>
+                <span class="qz-sr-only" id="@(HeadingId + "-runs-title")">Runs per @BucketWord(), by result</span>
+                <span class="qz-sr-only" id="@(HeadingId + "-runs-desc")">@RunsDescription()</span>
+                <span class="qz-run-chart-panel-label" data-testid="run-statistics-label">Runs</span>
+                <div class="qz-run-chart-plot" style="height: @Px(RunStatisticsLayout.RunsPlotHeight)">
+                    @foreach (RunStatisticsLayout.Tick tick in _layout.RunTicks)
+                    {
+                        <span class="qz-run-chart-grid" style="top: @Px(tick.Y)"></span>
+                        <span class="qz-run-chart-tick qz-run-chart-value" data-testid="run-statistics-label" style="top: @Px(tick.Y)">@tick.Label</span>
+                    }
+                    @foreach (RunStatisticsLayout.Column column in _layout.Columns)
+                    {
+                        ExecutionStatisticsBucket bucket = column.Bucket;
+                        <div class="qz-run-chart-bucket"
+                             data-testid="run-statistics-bucket"
+                             data-start="@bucket.StartUtc.ToString("O", CultureInfo.InvariantCulture)"
+                             data-runs="@bucket.RunCount"
+                             data-succeeded="@bucket.SucceededCount"
+                             data-skipped="@bucket.SkippedCount"
+                             data-cancelled="@bucket.CancelledCount"
+                             data-failed="@bucket.FailedCount"
+                             title="@Tooltip(bucket)"
+                             style="left: @Percent(column.SlotLeft); width: @Percent(_layout.SlotWidth)">
+                            <div class="qz-run-chart-bar">
+                                @foreach (RunStatisticsLayout.Segment segment in column.Segments)
+                                {
+                                    <div class="qz-run-chart-segment @ResultClass(segment.Result)"
+                                         data-testid="run-statistics-segment"
+                                         data-result="@segment.Result"
+                                         data-count="@segment.Count"
+                                         style="top: @Px(segment.Top); height: @Px(segment.Height)"></div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
 
-            <svg class="qz-run-chart-svg"
-                 viewBox="0 0 @N(RunStatisticsLayout.Width) @N(RunStatisticsLayout.DurationsHeight)"
+            <div class="qz-run-chart-panel qz-run-chart-panel-durations"
                  role="img"
                  aria-labelledby="@(HeadingId + "-durations-title " + HeadingId + "-durations-desc")"
                  data-testid="run-statistics-durations">
-                <title id="@(HeadingId + "-durations-title")">Median and 95th percentile duration per @BucketWord()</title>
-                <desc id="@(HeadingId + "-durations-desc")">@DurationsDescription()</desc>
-                @SvgText("qz-run-chart-panel-label", 0, 10, "start", "Duration")
-                @foreach (RunStatisticsLayout.Tick tick in _layout.DurationTicks)
-                {
-                    <line class="qz-run-chart-grid" x1="@N(RunStatisticsLayout.PlotLeft)" x2="@N(RunStatisticsLayout.PlotRight)" y1="@N(tick.Y)" y2="@N(tick.Y)" />
-                    @SvgText("qz-run-chart-tick", RunStatisticsLayout.PlotLeft - 8, tick.Y + 4, "end", tick.Label)
-                }
-                @foreach (RunStatisticsLayout.Column column in _layout.Columns)
-                {
-                    <g class="qz-run-chart-bucket" data-testid="run-statistics-duration-bucket">
-                        <title>@Tooltip(column.Bucket)</title>
-                        <rect class="qz-run-chart-hit" x="@N(column.SlotLeft)" y="@N(RunStatisticsLayout.PlotTop)" width="@N(_layout.SlotWidth)" height="@N(RunStatisticsLayout.DurationsPlotHeight)" />
-                    </g>
-                }
-                @if (_layout.P95Path.Length > 0)
-                {
-                    <path class="qz-run-chart-line qz-run-chart-p95" data-testid="run-statistics-p95" d="@_layout.P95Path" />
-                }
-                @foreach (RunStatisticsLayout.Point dot in _layout.P95Dots)
-                {
-                    <circle class="qz-run-chart-dot qz-run-chart-p95-dot" data-testid="run-statistics-p95" cx="@N(dot.X)" cy="@N(dot.Y)" r="4" />
-                }
-                @if (_layout.P50Path.Length > 0)
-                {
-                    <path class="qz-run-chart-line qz-run-chart-p50" data-testid="run-statistics-p50" d="@_layout.P50Path" />
-                }
-                @foreach (RunStatisticsLayout.Point dot in _layout.P50Dots)
-                {
-                    <circle class="qz-run-chart-dot qz-run-chart-p50-dot" data-testid="run-statistics-p50" cx="@N(dot.X)" cy="@N(dot.Y)" r="4" />
-                }
-                @foreach (RunStatisticsLayout.TimeTick tick in _layout.TimeTicks)
-                {
-                    @SvgText("qz-run-chart-tick", tick.X, RunStatisticsLayout.PlotTop + RunStatisticsLayout.DurationsPlotHeight + 18, "middle", AxisLabel(tick.At))
-                }
-            </svg>
+                <span class="qz-sr-only" id="@(HeadingId + "-durations-title")">Median and 95th percentile duration per @BucketWord()</span>
+                <span class="qz-sr-only" id="@(HeadingId + "-durations-desc")">@DurationsDescription()</span>
+                <span class="qz-run-chart-panel-label" data-testid="run-statistics-label">Duration</span>
+                <div class="qz-run-chart-plot" style="height: @Px(RunStatisticsLayout.DurationsPlotHeight)">
+                    @foreach (RunStatisticsLayout.Tick tick in _layout.DurationTicks)
+                    {
+                        <span class="qz-run-chart-grid" style="top: @Px(tick.Y)"></span>
+                        <span class="qz-run-chart-tick qz-run-chart-value" data-testid="run-statistics-label" style="top: @Px(tick.Y)">@tick.Label</span>
+                    }
+                    @foreach (RunStatisticsLayout.Column column in _layout.Columns)
+                    {
+                        <div class="qz-run-chart-bucket"
+                             data-testid="run-statistics-duration-bucket"
+                             title="@Tooltip(column.Bucket)"
+                             style="left: @Percent(column.SlotLeft); width: @Percent(_layout.SlotWidth)"></div>
+                    }
+                    <svg class="qz-run-chart-lines"
+                         viewBox="0 0 100 @N(RunStatisticsLayout.DurationsPlotHeight)"
+                         preserveAspectRatio="none"
+                         aria-hidden="true"
+                         focusable="false"
+                         data-testid="run-statistics-lines">
+                        @if (_layout.P95Path.Length > 0)
+                        {
+                            <path class="qz-run-chart-line qz-run-chart-p95" data-testid="run-statistics-p95" d="@_layout.P95Path" />
+                        }
+                        @if (_layout.P50Path.Length > 0)
+                        {
+                            <path class="qz-run-chart-line qz-run-chart-p50" data-testid="run-statistics-p50" d="@_layout.P50Path" />
+                        }
+                    </svg>
+                    @foreach (RunStatisticsLayout.Point dot in _layout.P95Dots)
+                    {
+                        <span class="qz-run-chart-dot qz-run-chart-p95-dot" data-testid="run-statistics-p95" style="left: @Percent(dot.X); top: @Px(dot.Y)"></span>
+                    }
+                    @foreach (RunStatisticsLayout.Point dot in _layout.P50Dots)
+                    {
+                        <span class="qz-run-chart-dot qz-run-chart-p50-dot" data-testid="run-statistics-p50" style="left: @Percent(dot.X); top: @Px(dot.Y)"></span>
+                    }
+                    <div class="qz-run-chart-times">
+                        @foreach (RunStatisticsLayout.TimeTick tick in _layout.TimeTicks)
+                        {
+                            <span class="qz-run-chart-tick qz-run-chart-time" data-testid="run-statistics-label" style="left: @Percent(tick.X)">@AxisLabel(tick.At)</span>
+                        }
+                    </div>
+                </div>
+            </div>
 
             <details class="qz-run-chart-details">
                 <summary>Show as a table</summary>
@@ -205,21 +220,15 @@
 
     private static string N(double value) => RunStatisticsLayout.Number(value);
 
+    /// <summary>A coordinate across the plot, as a CSS length.</summary>
+    private static string Percent(double value) => N(value) + "%";
+
+    /// <summary>A coordinate down the plot, as a CSS length.</summary>
+    private static string Px(double value) => N(value) + "px";
+
     private static string Count(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
     private static string ResultClass(JobRunResult result) => "qz-run-" + (Enum.GetName(result) ?? "unknown").ToLowerInvariant();
-
-    /// <summary>An SVG <c>text</c> element, which Razor would otherwise read as its own <c>&lt;text&gt;</c> tag.</summary>
-    private static RenderFragment SvgText(string cssClass, double x, double y, string anchor, string content) => builder =>
-    {
-        builder.OpenElement(0, "text");
-        builder.AddAttribute(1, "class", cssClass);
-        builder.AddAttribute(2, "x", N(x));
-        builder.AddAttribute(3, "y", N(y));
-        builder.AddAttribute(4, "text-anchor", anchor);
-        builder.AddContent(5, content);
-        builder.CloseElement();
-    };
 
     private long Total(Func<ExecutionStatisticsBucket, long> count) => Statistics!.Buckets.Sum(count);
 
