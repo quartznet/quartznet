@@ -436,7 +436,7 @@ public class HistoryPageTest
             "the actions are what the layout exists to keep");
     }
 
-    private static string DashboardStylesheet()
+    internal static string DashboardStylesheet()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
         while (directory is not null)

@@ -58,17 +58,20 @@ public class RunStatisticsChartTest
             .Should().Equal(["Failed", "Succeeded"], "a column stacks failures from the baseline up, and leaves out a result with no run");
         buckets[1].QuerySelectorAll("[data-testid=run-statistics-segment]").Select(segment => segment.GetAttribute("data-result"))
             .Should().Equal(["Cancelled", "Skipped", "Succeeded"]);
-        buckets[0].QuerySelector("title")!.TextContent.Should().Be(
+        buckets[0].GetAttribute("title").Should().Be(
             "2026-10-05 11:00 · 42 runs: 40 succeeded, 2 failed · median 120 ms, 95th percentile 450 ms, longest 900 ms",
             "a hover leads with the values");
 
-        chart.Find("[data-testid=run-statistics-runs]").GetAttribute("role").Should().Be("img");
-        chart.Find("[data-testid=run-statistics-runs] desc").TextContent.Should().StartWith("61 runs from 2026-10-05 11:00: 53 succeeded, 5 skipped, 1 cancelled, 2 failed.");
-        chart.Find("[data-testid=run-statistics-durations] desc").TextContent.Should().Contain("The 95th percentile was highest, 450 ms");
+        IElement runs = chart.Find("[data-testid=run-statistics-runs]");
+        runs.GetAttribute("role").Should().Be("img");
+        runs.GetAttribute("aria-labelledby").Should().Be("run-statistics-runs-title run-statistics-runs-desc");
+        chart.Find("#run-statistics-runs-title").TextContent.Should().Be("Runs per hour, by result");
+        chart.Find("#run-statistics-runs-desc").TextContent.Should().StartWith("61 runs from 2026-10-05 11:00: 53 succeeded, 5 skipped, 1 cancelled, 2 failed.");
+        chart.Find("#run-statistics-durations-desc").TextContent.Should().Contain("The 95th percentile was highest, 450 ms");
 
         chart.FindAll("path[data-testid=run-statistics-p95]").Should().ContainSingle(
             "11:00 and 12:00 are neighbours and are joined by a line");
-        chart.FindAll("circle[data-testid=run-statistics-p95]").Should().ContainSingle(
+        chart.FindAll("span.qz-run-chart-dot[data-testid=run-statistics-p95]").Should().ContainSingle(
             "13:00 holds no run, so 14:00 stands alone as a dot rather than being joined across the gap");
 
         chart.FindAll("[data-testid=run-statistics-table] tbody tr").Should().HaveCount(3, "every bucket is in the table too");
@@ -85,7 +88,67 @@ public class RunStatisticsChartTest
             .Add(x => x.Scope, "last hour"));
 
         chart.Find("[data-testid=run-statistics-empty]").TextContent.Should().Be("No runs recorded (last hour).");
-        chart.FindAll("svg").Should().BeEmpty();
+        chart.FindAll("[data-testid=run-statistics-runs], [data-testid=run-statistics-durations], svg").Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// The labels are HTML at the page's font size, the plots are as tall in pixels at any width, and only the
+    /// time axis is laid out in percentages, so a wide page widens the chart without enlarging it (#4282).
+    /// </summary>
+    [Test]
+    public void TheLabelsAreHtmlAndThePlotsKeepTheirHeightAtAnyWidth()
+    {
+        IRenderedComponent<RunStatisticsChart> chart = context.Render<RunStatisticsChart>(parameters => parameters
+            .Add(x => x.Statistics, Hourly(
+                Bucket(TwoOClock.AddHours(-3), succeeded: 40, failed: 2, p50: 120, p95: 450, max: 900),
+                Bucket(TwoOClock.AddHours(-2), succeeded: 10, skipped: 5, cancelled: 1, p50: 80, p95: 200, max: 210),
+                Bucket(TwoOClock, succeeded: 3, p50: 100, p95: 100, max: 100)))
+            .Add(x => x.From, TwoOClock.AddHours(-3))
+            .Add(x => x.Before, TwoOClock.AddMinutes(23))
+            .Add(x => x.Scope, "last 24 hours"));
+
+        IReadOnlyList<IElement> labels = chart.FindAll("[data-testid=run-statistics-label]");
+        labels.Select(label => label.TextContent).Should().Equal(
+            ["Runs", "0", "30", "60", "Duration", "0", "300 ms", "600 ms", "11:00", "12:00", "13:00", "14:00"]);
+        labels.Should().OnlyContain(label => label.Closest("svg") == null,
+            "a label inside a stretched SVG would stretch with it, so every one is HTML");
+        chart.FindAll("svg text, svg circle").Should().BeEmpty("text and circles would distort when the plot stretches");
+
+        IElement lines = chart.Find("svg");
+        lines.GetAttribute("data-testid").Should().Be("run-statistics-lines", "the duration lines are the only SVG");
+        lines.GetAttribute("preserveAspectRatio").Should().Be("none", "the lines stretch across with the time axis");
+
+        chart.FindAll(".qz-run-chart-plot").Select(plot => plot.GetAttribute("style")).Should().Equal(
+            ["height: 140px", "height: 92px"], "a plot's height is in pixels, not a share of its width");
+
+        IReadOnlyList<IElement> buckets = chart.FindAll("[data-testid=run-statistics-bucket]");
+        buckets.Select(bucket => bucket.GetAttribute("style")).Should().Equal(
+            ["left: 0%; width: 25%", "left: 25%; width: 25%", "left: 75%; width: 25%"],
+            "11:00 to 14:00 is four slots across, and 13:00 is left empty");
+        buckets[0].QuerySelectorAll("[data-testid=run-statistics-segment]").Select(segment => segment.GetAttribute("style")).Should().Equal(
+            ["top: 135.33px; height: 4.67px", "top: 42px; height: 91.33px"],
+            "two failures of a 60-run axis are 4.67 of 140 pixels, and two pixels of the column show between the results");
+
+        chart.Find("span.qz-run-chart-dot[data-testid=run-statistics-p95]").GetAttribute("style").Should().Be(
+            "left: 87.5%; top: 76.67px", "14:00's 100 ms is a sixth of the way up a 600 ms axis, at the centre of the fourth slot");
+    }
+
+    /// <summary>
+    /// The stylesheet caps a column in pixels, since a cap in the plot's own units would grow with the page,
+    /// and keeps the duration lines two pixels wide however far the plot stretches.
+    /// </summary>
+    [Test]
+    public void AColumnIsCappedInPixelsAndTheLinesDoNotThickenWithThePlot()
+    {
+        string css = File.ReadAllText(HistoryPageTest.DashboardStylesheet());
+
+        css.Should().MatchRegex(@"\.qz-run-chart-bar \{[^}]*width: clamp\(1px, 62%, 24px\);",
+            "with three buckets on a 3,000-pixel plot a share of the slot alone would be a column 600 pixels wide");
+        css.Should().MatchRegex(@"\.qz-run-chart-line \{[^}]*vector-effect: non-scaling-stroke;");
+        css.Should().MatchRegex(@"\.qz-run-chart-tick \{[^}]*font-size: var\(--qz-font-size-xs\);",
+            "the labels are the dashboard's rem size, the Timeline's, and follow the browser's font setting");
+        css.Should().NotMatchRegex(@"\.qz-run-chart[^{]*\{[^}]*font-size: \d+px",
+            "a pixel size would ignore the browser's font setting");
     }
 
     [Test]
