@@ -42,6 +42,7 @@
     -->
     <PackageReference Include="FSharp.Core" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
   </ItemGroup>
 

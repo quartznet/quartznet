@@ -23,6 +23,7 @@
       entry for "Quartz" would also pin every transitive resolution of that id, and 3.20.0 must reach
       exactly this project and nothing else.
     -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Quartz" VersionOverride="3.20.0" />
     <PackageReference Include="Quartz.Serialization.Json" VersionOverride="3.20.0" />
     <PackageReference Include="Quartz.Serialization.SystemTextJson" VersionOverride="3.20.0" />

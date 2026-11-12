@@ -16,6 +16,7 @@
       transitively: left to that package it resolves 4.3.0, whose assembly fails this fully trimmed
       publish with IL2104. The central version is trim-clean.
     -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Sinks.Console" />
