@@ -76,8 +76,8 @@
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.15" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
     <!--
-      The stable 10.x line. It spent a while on 11.0.0-preview.* - it was moved there while .NET 10 was
-      itself in preview and Dependabot kept it walking that line - which no shipped package took,
+      The current stable line, 11.x since #4277. It once spent a while on 11.0.0-preview.*, while .NET 10
+      was itself in preview and Dependabot kept it walking that line, which no shipped package took,
       because only the tests, the examples and the trim canary reference it. PackageDependencyTest is
       what keeps that true, and it is also why this stays current rather than joining the floors below:
       nothing inherits it.
@@ -172,8 +172,8 @@
     its own. A floor is therefore a demand made by every shipped package rather than only by the one that
     wrote the reference, which is what makes lowering them worth the trouble.
 
-    .github/dependabot.yml carries an ignore entry for each of these ids so a weekly minor or patch is
-    not offered, and PackageDependencyTest fails a Microsoft.* floor that is not x.0.0 or the fixed
+    .github/dependabot.yml carries an ignore entry for each of these ids so no newer version, minor, patch
+    or major, is offered, and PackageDependencyTest fails a Microsoft.* floor that is not x.0.0 or the fixed
     version of an advisory it records, so a bump that gets past both still has to argue with a unit test
     that names this comment.
   -->
