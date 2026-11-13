@@ -84,6 +84,58 @@ public sealed class NightlyExportJob : IJob
 ```
 <!-- endSnippet -->
 
+## Which occurrence a firing serves
+
+`context.GetOccurrence()` says which occurrence a firing serves and why it runs, so a consumer that
+deduplicates per occurrence can derive a stable key. From 4.8.
+
+| `Origin` | When | `OccurrenceUtc` |
+|---|---|---|
+| `Backfill` | `GetBackfillSlot()` is not `null` | the slot |
+| `Manual` | `TriggerJob` asked for the run | when the run was asked for |
+| `Schedule` | otherwise | the fire time the schedule named |
+
+* `OccurrenceUtc` and `Origin` are the same on every retry and on a recovery. `RetryAttempt` and `Recovering`
+  say which attempt it is.
+* A misfire catch-up is `Schedule`, with the missed time. A late `FireTimeUtc` shows how late it ran.
+* A backfill of a trigger `TriggerJob` stored carries both marks, and is a `Backfill`.
+* Two backfills of one slot share `OccurrenceUtc` and `context.Trigger.Key`: a backfill names its trigger
+  after the slot. `ScheduledFireTimeUtc`, when each backfill started its firing, tells them apart, and is
+  the same on that backfill's retries.
+* A recovery of a retry or a catch-up serves the time that attempt was due, with `RetryAttempt` `0`
+  ([#4272](https://github.com/quartznet/quartznet/issues/4272)).
+* Quartz formats no key. The format is yours:
+
+<!-- snippet: sample_firing_occurrence_key -->
+```csharp
+public sealed class PublishSettlementJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        FiringOccurrence occurrence = context.GetOccurrence();
+
+        // The schedule: this trigger, or on a recovery the trigger it stands in for.
+        TriggerKey schedule = context.RecoveringTriggerKey ?? context.Trigger.Key;
+
+        // One key per occurrence: the same on its retries and on its recovery.
+        string key = occurrence.Origin switch
+        {
+            FiringOrigin.Schedule => $"{schedule}:{occurrence.OccurrenceUtc:O}",
+            FiringOrigin.Manual => $"{schedule}:manual:{occurrence.OccurrenceUtc:O}",
+
+            // Two backfills of one slot share the slot and the trigger key: when each started tells them apart.
+            FiringOrigin.Backfill => $"{schedule}:backfill:{occurrence.OccurrenceUtc:O}:{context.ScheduledFireTimeUtc:O}",
+            _ => throw new UnreachableException()
+        };
+
+        return Publish(key, cancellationToken);
+    }
+
+    private static ValueTask Publish(string deduplicationKey, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+}
+```
+<!-- endSnippet -->
+
 ## Options
 
 | `BackfillOptions` | Default | |

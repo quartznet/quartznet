@@ -186,7 +186,7 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
                 Result = run.Result,
                 Summary = TextCut.ToFit(run.Summary, JobRunReport.MaxSummaryLength),
                 MetricsJson = ExecutionMetricsWriter.Write(run.Metrics, Logger, context.JobDetail.Key),
-                Manual = IsManual(context.Trigger),
+                Manual = ManualFiring.IsMarked(context.Trigger),
                 FireInstanceId = context.FireInstanceId,
 
                 // Both are the scheduler's own reading of the firing that has just ended, published on
@@ -309,25 +309,6 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// The key of one history row: unique without coordination, and nothing a reader parses.
     /// </summary>
     internal static string NewEntryId() => Guid.NewGuid().ToString("N");
-
-    /// <summary>
-    /// Whether the firing trigger carries <see cref="SchedulerConstants.ManualTrigger" />, which
-    /// <c>TriggerJob</c> writes as <c>"true"</c>.
-    /// </summary>
-    internal static bool IsManual(ITrigger trigger)
-    {
-        if (!trigger.JobDataMap.TryGetValue(SchedulerConstants.ManualTrigger, out object? value))
-        {
-            return false;
-        }
-
-        return value switch
-        {
-            bool flag => flag,
-            string text => bool.TryParse(text, out bool parsed) && parsed,
-            _ => false
-        };
-    }
 
     /// <summary>
     /// What a row keeps of the run's input: the string stored under <see cref="SchedulerConstants.JobInput" />

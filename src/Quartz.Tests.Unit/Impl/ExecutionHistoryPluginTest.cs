@@ -33,6 +33,7 @@ using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 
+using Quartz.Core;
 using Quartz.Extensibility;
 using Quartz.Impl;
 
@@ -375,15 +376,40 @@ public sealed class ExecutionHistoryPluginTest
         (await store.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = scheduler.SchedulerName })).Items.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// The recorder's manual flag and the firing's <see cref="FiringOrigin" /> are one reading of the mark
+    /// (#4246): a run asked for with <c>TriggerJob</c> is both, and a scheduled one is neither.
+    /// </summary>
+    [Test]
+    public async Task AManualRunIsRecordedAsManualAndItsOccurrenceSaysSoToo()
+    {
+        await using ServiceProvider container = BuildContainer();
+        IScheduler scheduler = await Start(container);
+
+        await RunNow<RecordingJob>(scheduler, "asked-for");
+
+        IJobDetail scheduled = JobBuilder.Create<RecordingJob>().WithIdentity("on-schedule", "plugin").Build();
+        await scheduler.ScheduleJob(scheduled, TriggerBuilder.Create().ForJob(scheduled).StartNow().Build());
+
+        List<ExecutionHistoryEntry> rows = await Rows(container, scheduler.SchedulerName, 2);
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        rows.Single(row => row.JobName == "asked-for").Manual.Should().BeTrue("TriggerJob marks the trigger, and the recorder reads the mark");
+        RecordingJob.Origins["asked-for"].Should().Be(FiringOrigin.Manual, "the job reads the same mark the recorder does");
+
+        rows.Single(row => row.JobName == "on-schedule").Manual.Should().BeFalse("a trigger the application scheduled carries no mark");
+        RecordingJob.Origins["on-schedule"].Should().Be(FiringOrigin.Schedule);
+    }
+
     [Test]
     public void AManualMarkIsReadAsATrueFlag()
     {
-        ExecutionHistoryPlugin.IsManual(TriggerWith(null)).Should().BeFalse();
-        ExecutionHistoryPlugin.IsManual(TriggerWith("true")).Should().BeTrue();
-        ExecutionHistoryPlugin.IsManual(TriggerWith("True")).Should().BeTrue();
-        ExecutionHistoryPlugin.IsManual(TriggerWith(true)).Should().BeTrue("a serializer that typed the value keeps it a mark");
-        ExecutionHistoryPlugin.IsManual(TriggerWith("false")).Should().BeFalse();
-        ExecutionHistoryPlugin.IsManual(TriggerWith(1)).Should().BeFalse("only a flag is a mark");
+        ManualFiring.IsMarked(TriggerWith(null)).Should().BeFalse();
+        ManualFiring.IsMarked(TriggerWith("true")).Should().BeTrue();
+        ManualFiring.IsMarked(TriggerWith("True")).Should().BeTrue();
+        ManualFiring.IsMarked(TriggerWith(true)).Should().BeTrue("a serializer that typed the value keeps it a mark");
+        ManualFiring.IsMarked(TriggerWith("false")).Should().BeFalse();
+        ManualFiring.IsMarked(TriggerWith(1)).Should().BeFalse("only a flag is a mark");
 
         static ITrigger TriggerWith(object? value)
         {
@@ -711,10 +737,13 @@ public sealed class ExecutionHistoryPluginTest
 
         public static ConcurrentDictionary<string, string?> ManualMarks { get; } = new();
 
+        public static ConcurrentDictionary<string, FiringOrigin> Origins { get; } = new();
+
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             FireInstanceIds[context.JobDetail.Key.Name] = context.FireInstanceId;
             ManualMarks[context.JobDetail.Key.Name] = context.MergedJobDataMap.GetString(SchedulerConstants.ManualTrigger);
+            Origins[context.JobDetail.Key.Name] = context.GetOccurrence().Origin;
             return default;
         }
     }

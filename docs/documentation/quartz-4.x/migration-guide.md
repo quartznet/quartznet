@@ -53,6 +53,9 @@ An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorization
 | `AdoJobStoreOptions.EnlistmentSource` | `Func<EnlistmentSourceContext, IDisposable?>?`, default `null`: asked as each `IScheduler` call that reads or writes the store begins, to enlist the application's transaction for it. Needs `AcceptEnlistedTransactions`; code only, with no `quartz.*` key. See [Enlisting without each caller asking](how-tos/embedding-quartz-in-a-library.md#enlisting-without-each-caller-asking) |
 | `EnlistmentSourceContext` | `sealed class` with `required IScheduler Scheduler { get; init; }`: what an `EnlistmentSource` is handed. A later datum is a property |
 | `TriggerHeaderDto.StartTimeUtc`, `EndTimeUtc`, `NextFireTimeUtc`, `PreviousFireTimeUtc` | `Quartz.Dashboard`, `init`: the trigger's schedule bounds and fire times on a listing row. See [Timeline](packages/dashboard.md#timeline) |
+| `JobExecutionContextOccurrenceExtensions.GetOccurrence(this IJobExecutionContext)` | The occurrence a firing serves and why it runs, the same on its retries and on its recovery. See [Which occurrence a firing serves](how-tos/backfill.md#which-occurrence-a-firing-serves) |
+| `FiringOccurrence` | `readonly record struct (DateTimeOffset OccurrenceUtc, FiringOrigin Origin)`, with `init` `RetryAttempt` and `Recovering`: what `GetOccurrence()` answers |
+| `FiringOrigin` | Enum `Schedule`, `Manual`, `Backfill`: why a firing runs. `Schedule` is `0` |
 
 | Changed | What to check |
 |---|---|

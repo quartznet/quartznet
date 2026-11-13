@@ -123,7 +123,8 @@ public static class SchedulerConstants
     /// <remarks>
     /// Written onto the trigger's map, so it persists in every store and reads through
     /// <see cref="IJobExecutionContext.MergedJobDataMap" />. The execution history reads it into
-    /// <see cref="ExecutionHistoryEntry.Manual" />.
+    /// <see cref="ExecutionHistoryEntry.Manual" />, and
+    /// <see cref="JobExecutionContextOccurrenceExtensions.GetOccurrence" /> into <see cref="FiringOrigin.Manual" />.
     /// </remarks>
     public const string ManualTrigger = "QRTZ_MANUAL_TRIGGER";
 
