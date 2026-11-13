@@ -120,7 +120,10 @@
 
     @if (!_isLoading && string.IsNullOrWhiteSpace(_error) && !_historyUnavailable && _filterUnsupported is null)
     {
-        <p class="qz-muted">Page @_page / @_totalPages · Showing @_entries.Count row(s) · Total @_totalCount row(s)</p>
+        @if (!PageSummaryAboveTable)
+        {
+            @PageSummary
+        }
         <p class="qz-muted">@BuildFilterSummary()</p>
     }
 
@@ -157,7 +160,8 @@
         @if (_statistics is { } windowed)
         {
             @* Over every run the filters and the window match, read with the chart: the page's own rows are a
-               page, not the history. *@
+               page, not the history. They are read less often than the rows, so they say when. *@
+            <p class="qz-muted" data-testid="history-statistics-read-at">Statistics read at @Scheduler.FormatInSelectedTimeZone(windowed.Before, "HH:mm:ss") · re-read every @StatisticsRefreshInterval.TotalSeconds.ToString(CultureInfo.InvariantCulture) s</p>
             <div class="qz-grid qz-grid-4" data-testid="history-window-stats">
                 <StatCard Title="@WindowStatTitle("Runs")" Value="@WindowRunCount(windowed).ToString("N0", CultureInfo.InvariantCulture)" Icon="▦" Color="info" />
                 <StatCard Title="@WindowStatTitle("Success rate")" Value="@WindowSuccessRate(windowed)" Icon="✔" Color="success" />
@@ -166,6 +170,9 @@
             </div>
 
             <RunStatisticsChart Statistics="@windowed.Statistics" From="@windowed.From" Before="@windowed.Before" Scope="@windowed.Window.Scope" />
+
+            @* The rows' own count, over the table it counts rather than over the cards and the chart. *@
+            @PageSummary
         }
         else
         {
@@ -511,6 +518,15 @@
 
     private bool HasWindow => !ReferenceEquals(_appliedWindow, RunStatisticsWindow.All);
 
+    /// <summary>
+    /// Whether the page's row count sits over the table rather than at the top: when the window's cards and
+    /// chart are between them. Over the page's own cards, or with no table, the top is where it belongs.
+    /// </summary>
+    private bool PageSummaryAboveTable => _statistics is not null && _totalCount > 0;
+
+    private RenderFragment PageSummary =>
+        @<p class="qz-muted" data-testid="history-page-summary">Page @_page / @_totalPages · Showing @_entries.Count row(s) · Total @_totalCount row(s)</p>;
+
     private bool HasNodeFilter => !string.IsNullOrWhiteSpace(_appliedNodeFilter);
 
     private bool HasOutcomeFilter => string.Equals(_appliedOutcomeFilter, FailedFinallyFilter, StringComparison.OrdinalIgnoreCase);
@@ -542,7 +558,7 @@
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
         _refreshLoopCancellation = new CancellationTokenSource();
-        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1), Clock);
         _ = RunRefreshLoopAsync(_refreshLoopCancellation.Token);
         return Task.CompletedTask;
     }
