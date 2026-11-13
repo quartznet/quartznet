@@ -91,7 +91,7 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.3" />
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.3" />
     <PackageVersion Include="NCrontab" Version="3.4.0" />
-    <PackageVersion Include="NLog.Extensions.Logging" Version="6.2.2" />
+    <PackageVersion Include="NLog.Extensions.Logging" Version="6.3.0" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.8.0" />
     <PackageVersion Include="NUnit" Version="5.0.0" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.15.0" />
