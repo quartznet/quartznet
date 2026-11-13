@@ -21,6 +21,9 @@
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+
+using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz.HttpApiContract;
 
@@ -104,9 +107,15 @@ internal static class AgentProtocol
     /// <see cref="SchedulerEvent" /> — the generated metadata rather than reflection, so the agent survives
     /// trimming — and nothing about their shape: the metadata takes its naming policy and enum spelling
     /// from the options, as the wire-format tests pin. SignalR has one JSON protocol per application, so
-    /// on the dashboard this reaches the browser hub's payloads too, which name none of those types; a
-    /// per-hub protocol would need an <c>IHubProtocol</c> of its own, which is not worth a resolver that
+    /// on the dashboard this reaches the browser hub's payloads too, and the host application's own hubs;
+    /// a per-hub protocol would need an <c>IHubProtocol</c> of its own, which is not worth a resolver that
     /// changes nothing.
+    /// </para>
+    /// <para>
+    /// For it to change nothing, options that carried no resolver of their own must keep the reflection
+    /// they fell back to: that fallback lasts only while the chain is empty, so it is named behind the
+    /// contract, as <c>QuartzTypeInfoResolvers.UseQuartzContract</c> does for the HTTP wire format. A
+    /// resolver the application already chose stays the one behind the contract.
     /// </para>
     /// </remarks>
     public static void ConfigureHubPayloads(JsonSerializerOptions options)
@@ -117,10 +126,22 @@ internal static class AgentProtocol
         AddConverterOnce<JsonStringEnumConverter<SchedulerEventKind>>(options);
         AddConverterOnce<JsonStringEnumConverter<SchedulerAccess>>(options);
 
-        if (!options.TypeInfoResolverChain.Contains(HttpApiJsonContext.Default))
+        IList<IJsonTypeInfoResolver> chain = options.TypeInfoResolverChain;
+        if (chain.Contains(HttpApiJsonContext.Default))
         {
-            options.TypeInfoResolverChain.Insert(0, HttpApiJsonContext.Default);
+            return;
         }
+
+        if (chain.Count == 0)
+        {
+            DefaultJsonTypeInfoResolver? reflection = QuartzTypeInfoResolvers.Reflection();
+            if (reflection is not null)
+            {
+                chain.Add(reflection);
+            }
+        }
+
+        chain.Insert(0, HttpApiJsonContext.Default);
     }
 
     /// <summary>
