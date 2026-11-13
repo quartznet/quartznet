@@ -268,6 +268,78 @@ public class RunStatisticsChartTest
             "with nothing to count the window with, the cards are over the rows on the page and say so");
     }
 
+    /// <summary>
+    /// The rows are read every second and the statistics every 30, so the cards and the chart say when they were
+    /// read, in the zone the reader chose, and that time moves only when they are read again.
+    /// </summary>
+    [Test]
+    public void TheHistoryPageSaysWhenItReadItsStatisticsAndChangesThatOnlyOnAReRead()
+    {
+        GivenOneListedRow();
+        A.CallTo(() => context.Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._))
+            .Returns(Hourly(Bucket(TwoOClock, succeeded: 3, p50: 100, p95: 200, max: 250)));
+        context.SchedulerState.SelectedTimeZoneId = "Asia/Kathmandu";
+
+        // One window, so one statistics read is one call.
+        context.Navigate("/quartz/history?window=24h");
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=history-statistics-read-at]").TextContent.Should().Be(
+            "Statistics read at 20:08:00 · re-read every 30 s", "14:23 UTC is 20:08 in Kathmandu, five hours and 45 minutes ahead"));
+        A.CallTo(() => context.Api.QueryExecutions(A<DashboardHistoryQuery>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => context.Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.QueryExecutions(A<DashboardHistoryQuery>._, A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly());
+        A.CallTo(() => context.Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        page.Find("[data-testid=history-statistics-read-at]").TextContent.Should().Contain("20:08:00",
+            "the rows were read again a second later, and the statistics were not");
+
+        context.Clock.Advance(TimeSpan.FromSeconds(29));
+
+        page.WaitForAssertion(() => page.Find("[data-testid=history-statistics-read-at]").TextContent.Should().Contain("20:08:30",
+            "30 seconds after the last read, the statistics are read again and say so"));
+        A.CallTo(() => context.Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._)).MustHaveHappenedTwiceExactly();
+    }
+
+    /// <summary>
+    /// The page's row count is over the table it counts: under the window's cards and chart, which count
+    /// something else, and over the page's own cards, which count the same rows.
+    /// </summary>
+    [Test]
+    public void TheRowCountIsOverTheTableWhenTheWindowsFiguresAreBetween()
+    {
+        GivenOneListedRow();
+        A.CallTo(() => context.Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._))
+            .Returns(Hourly(Bucket(TwoOClock, succeeded: 1, p50: 100, p95: 100, max: 100)));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=run-statistics]").Should().ContainSingle());
+        page.FindAll("[data-testid=history-page-summary]").Should().ContainSingle();
+        string markup = page.Markup;
+        markup.IndexOf("data-testid=\"history-page-summary\"", StringComparison.Ordinal).Should()
+            .BeGreaterThan(markup.IndexOf("data-testid=\"run-statistics\"", StringComparison.Ordinal), "the chart counts the window, not the rows")
+            .And.BeLessThan(markup.IndexOf("qz-history-table", StringComparison.Ordinal), "the line counts the table under it");
+        page.Find("[data-testid=history-page-summary]").TextContent.Should().Be("Page 1 / 1 · Showing 1 row(s) · Total 1 row(s)");
+    }
+
+    [Test]
+    public void TheRowCountStaysOverThePagesOwnCards()
+    {
+        GivenOneListedRow();
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.FindAll("[data-testid=history-statistics-read-at]").Should().BeEmpty("cards over the page are read with the rows");
+        page.FindAll("[data-testid=history-page-summary]").Should().ContainSingle();
+        string markup = page.Markup;
+        markup.IndexOf("data-testid=\"history-page-summary\"", StringComparison.Ordinal).Should()
+            .BeLessThan(markup.IndexOf("Success rate (page)", StringComparison.Ordinal), "the cards count the same rows as the line");
+    }
+
     [Test]
     public void TheJobDetailPageChartsThatJobAndItsWindow()
     {

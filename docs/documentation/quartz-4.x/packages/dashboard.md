@@ -1158,6 +1158,8 @@ From 4.4, the History page charts what its filters list, and the Job Detail page
   time zone.
 - Counts and durations are two panels over one time axis, never one chart with two scales.
 - The History page reads the statistics when a filter changes and every 30 seconds; the rows refresh every second.
+  Above the cards it says when it last read them, in the selected time zone, so the cards and the chart can lag
+  the rows without seeming to contradict them. The page's row count sits over the table, under the chart.
 - An empty stretch is a gap. A store that stopped counting at its row limit says so under the chart.
 - A source that cannot count (an `IQuartzApiClient` of your own, a scheduler in another process whose host is older
   than 4.4) leaves the chart out.
