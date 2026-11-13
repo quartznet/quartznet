@@ -86,6 +86,8 @@ constants on `Quartz.Diagnostics.ActivityTags`:
 | `quartz.execution.group` | job spans, when the trigger names an execution group |
 | `quartz.fire.instance.id` | job spans |
 | `quartz.job.result` | `Quartz.Job.Execute`: `succeeded`, `failed`, `cancelled` or `skipped`, from 4.4 |
+| `quartz.trigger.scheduled_fire_time` | `Quartz.Job.Execute`, from 4.8: `ScheduledFireTimeUtc` in ISO 8601 round-trip form, UTC. Absent when the firing has none |
+| `quartz.firing.origin` | `Quartz.Job.Execute`, from 4.8: `schedule`, `manual` or `backfill`, from [`GetOccurrence()`](../how-tos/backfill.md#which-occurrence-a-firing-serves) |
 | `quartz.job.name`, `quartz.job.group` | store spans about one job |
 | `quartz.jobstore.batch.size` | `Quartz.JobStore.AcquireNextTriggers`: triggers requested |
 | `quartz.jobstore.trigger.count` | `Quartz.JobStore.AcquireNextTriggers` (returned) and `.TriggersFired` (fired) |
@@ -161,7 +163,7 @@ into its next firing.
 
 ## Metrics
 
-Eleven instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
+Twelve instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
 `quartz.scheduler.id`**: the name identifies the scheduler, the id its node in a cluster.
 
 Each instrument name is a `const string` on `QuartzInstrumentation.Instruments`; for example
@@ -171,6 +173,7 @@ constants equal to what the meter emits and snapshot the name, kind, unit and de
 | Instrument | Type | Unit | Extra attributes | Measures |
 |---|---|---|---|---|
 | `quartz.job.execution.duration` | `Histogram<double>` | `s` | `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group`, `quartz.job.name`, `quartz.execution.group`¹, `quartz.job.result`³, `error.type`² | Job duration; **count** = executions |
+| `quartz.job.execution.start_delay` | `Histogram<double>` | `s` | the same identity attributes, `quartz.execution.group`¹, `quartz.firing.origin`⁶ | How late the job started against when its attempt was due, from 4.8; never negative |
 | `quartz.job.execution.active` | `UpDownCounter<long>` | `{job}` | the same identity attributes, `quartz.execution.group`¹ | Jobs running now |
 | `quartz.trigger.misfire` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Firings not made on time |
 | `quartz.trigger.retry` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Retries scheduled after a job failed |
@@ -191,6 +194,9 @@ lower-cased, as the execution history records it. Constant: `ActivityTags.JobRes
 store has no such attribute, so its series keep their shape.
 ⁵ Only on a round that took the lock: why. The values are the table in
 [Lock-free firing rounds](../operations.md#lock-free-firing-rounds). Constant: `ActivityTags.JobStoreLockReason`.
+⁶ Always. `schedule`, `manual` or `backfill`: why the firing ran, as
+[`GetOccurrence()`](../how-tos/backfill.md#which-occurrence-a-firing-serves) answers. Constant:
+`ActivityTags.FiringOrigin`.
 
 - `quartz.trigger.retry` counts retries scheduled, not attempts configured: an unused policy adds nothing.
 - `quartz.trigger.retries_exhausted` counts once per occurrence that gave up, never per attempt. It has the same
@@ -210,7 +216,7 @@ event 3716 in [Log Events](../log-events.md); the case is
 [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone).
 
 The two cluster instruments and the lock-wait histogram come from the ADO.NET store, the only clustered one. The
-other eight work with any store.
+other nine work with any store.
 
 ### Reading the numbers
 
@@ -227,16 +233,53 @@ other eight work with any store.
 - `error.type` is the OpenTelemetry convention. Neither it nor `quartz.job.result` is on
   `quartz.job.execution.active`: an up-down counter's increment and decrement need identical attributes, and
   the result is not known at start.
+- `quartz.job.execution.start_delay` ends as the job starts, after the listeners and the job's construction. It
+  shows the idle wait and acquisition rounds, a full thread pool or execution group, lock waits on a clustered
+  store, and slow job construction. One sample per firing:
+
+  | Firing | Measured from |
+  |---|---|
+  | On schedule | its fire time |
+  | A retry | the retry's own due time. `ScheduledFireTimeUtc` stays on the occurrence and would count the backoff |
+  | A misfire catch-up | the time its misfire policy gave it. `quartz.trigger.misfire` counts the misfire |
+  | A backfill | the time the backfill scheduled it for, not its slot |
+  | A manual run | when it was asked for, so near zero |
+  | A recovery | when the recovered attempt was due, so the downtime is in it |
+  | A refire (`RefireImmediately`) | not measured again |
+  | Started before it was due, under `BatchTriggerAcquisitionFireAheadTimeWindow` | recorded as `0` |
+
+- The due time is the one the store records on the fired-trigger row. A store of your own does not supply it,
+  and its firings are measured from `ScheduledFireTimeUtc`.
 
 ::: warning Cardinality
 `quartz.job.name` and `quartz.trigger.name` are per job and per trigger, and `quartz.scheduler.id` is per node,
 so a backend can get a series per node per trigger. Unless you need them, drop the name attributes in a view;
-the group attributes are usually the ones to keep. `quartz.job.result` has four values.
+the group attributes are usually the ones to keep. `quartz.job.result` has four values, `quartz.firing.origin`
+three.
 :::
 
 The meter is created from the container's `IMeterFactory` when there is one. `AddMetrics()`, and so every
 generic-host application, registers it. This keeps measurements of two schedulers, or two hosts in one test
 process, apart.
+
+### Alerting on late starts
+
+A trigger whose p95 start delay stays above 30 seconds:
+
+```promql
+# scheduled firings only: a manual run starts at once, and a large backfill queues by design
+histogram_quantile(0.95,
+  sum by (le, quartz_trigger_group, quartz_trigger_name) (
+    rate(quartz_job_execution_start_delay_bucket{quartz_firing_origin="schedule"}[10m])
+  )
+) > 30
+```
+
+- Keep the threshold below the store's misfire threshold: 1 minute on the ADO.NET store, 5 seconds in memory. A
+  trigger acquired later than that misfires, and `quartz.trigger.misfire` counts it instead.
+- OpenTelemetry's default buckets are `0, 5, 10, 25, …` and put every start under five seconds in one bucket. For
+  finer percentiles, set explicit boundaries for the instrument in a view.
+- Some exporters add the unit to the series name: `quartz_job_execution_start_delay_seconds_bucket`.
 
 ## OpenTelemetry.Instrumentation.Quartz
 
@@ -277,7 +320,7 @@ Replace it with the two calls at the top of this page, `AddSource(QuartzInstrume
 - Lost: the package's `QuartzInstrumentationOptions.TracedOperations` filter. Subscribing directly records both
   `Quartz.Job.Execute` and `Quartz.Job.Veto`; drop one with an OpenTelemetry
   [processor or sampler](https://opentelemetry.io/docs/languages/dotnet/).
-- Gained: everything 4.0 added, including the store spans and all eleven instruments.
+- Gained: everything 4.x added, including the store spans and all twelve instruments.
 
 ## Older packages
 

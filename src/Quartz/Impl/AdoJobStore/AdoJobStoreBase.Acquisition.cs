@@ -1594,6 +1594,8 @@ internal abstract partial class AdoJobStoreBase
             Recovering = trigger.Key.Group == SchedulerConstants.DefaultRecoveryGroup,
             FireTimeUtc = timeProvider.GetUtcNow(),
             ScheduledFireTimeUtc = scheduledFireTime ?? trigger.PreviousFireTimeUtc,
+            // The time the fired-trigger row records, which a retry's and a catch-up's own due time is.
+            DueTimeUtc = scheduledFireTimeUtc,
             PreviousFireTimeUtc = prevFireTime,
             NextFireTimeUtc = trigger.NextFireTimeUtc,
             SupersededFireInstanceIds = superseded is { Count: > 0 } ? superseded : null,

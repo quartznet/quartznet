@@ -86,6 +86,28 @@ public static class ActivityTags
     /// </remarks>
     public const string JobResult = "quartz.job.result";
 
+    /// <summary>
+    /// Why a firing ran: <c>schedule</c>, <c>manual</c> or <c>backfill</c>, the
+    /// <see cref="Quartz.FiringOrigin" /> that <see cref="JobExecutionContextOccurrenceExtensions.GetOccurrence" />
+    /// answers, in lower case.
+    /// </summary>
+    /// <remarks>
+    /// On <c>quartz.job.execution.start_delay</c>, where a manual run's delay is near zero by construction and a
+    /// filter on this leaves it out, and on the <c>Quartz.Job.Execute</c> span. A value outside the enum is
+    /// <c>_OTHER</c>.
+    /// </remarks>
+    public const string FiringOrigin = "quartz.firing.origin";
+
+    /// <summary>
+    /// <see cref="IJobExecutionContext.ScheduledFireTimeUtc" />, in UTC, in ISO 8601's round-trip form.
+    /// </summary>
+    /// <remarks>
+    /// On the <c>Quartz.Job.Execute</c> span, and absent when the firing has no scheduled fire time. It is the
+    /// occurrence's time, the same on each retry of it; a backfill's is the time the backfill scheduled it for,
+    /// not its slot.
+    /// </remarks>
+    public const string ScheduledFireTime = "quartz.trigger.scheduled_fire_time";
+
     // Job store operation tags
     /// <summary>
     /// How many triggers a store operation was asked for, or handed back.

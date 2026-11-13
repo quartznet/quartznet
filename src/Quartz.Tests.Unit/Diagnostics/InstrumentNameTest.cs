@@ -131,6 +131,7 @@ public sealed class InstrumentNameTest
             [
                 "quartz.job.execution.active",
                 "quartz.job.execution.duration",
+                "quartz.job.execution.start_delay",
                 "quartz.trigger.misfire",
                 "quartz.trigger.retry",
                 "quartz.trigger.retries_exhausted",

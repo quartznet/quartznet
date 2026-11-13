@@ -110,6 +110,20 @@ public sealed class MeterCatalogueTest
     }
 
     /// <summary>
+    /// The values <c>quartz.firing.origin</c> can take on <c>quartz.job.execution.start_delay</c> and the
+    /// execution's span: <see cref="FiringOrigin" />'s members in lower case, and nothing a caller can widen.
+    /// </summary>
+    [Test]
+    public void TheFiringOriginAttributeHasOneLowerCaseValuePerFiringOrigin()
+    {
+        Enum.GetValues<FiringOrigin>().Select(Meters.FiringOriginTag).Should().Equal(["schedule", "manual", "backfill"],
+            "the values are FiringOrigin's members in lower case, which is how the documentation names them");
+
+        Meters.FiringOriginTag((FiringOrigin) 42).Should().Be("_OTHER",
+            "a number outside the enum must not become a series of its own");
+    }
+
+    /// <summary>
     /// The instrument's kind as a reader of the documentation would write it — <c>Histogram&lt;double&gt;</c>
     /// rather than the runtime's <c>Histogram`1[System.Double]</c>.
     /// </summary>

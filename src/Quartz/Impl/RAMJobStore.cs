@@ -3830,7 +3830,8 @@ public sealed class RAMJobStore : IJobStore
             timeTriggers.Remove(tw);
 
             // The fire time this firing is for, read while it is still the trigger's next one —
-            // the execution listing reports it, and Triggered() is about to move it on.
+            // the execution listing reports it, the start-delay histogram measures from it, and
+            // Triggered() is about to move it on.
             firingScheduledTime = trigger.NextFireTimeUtc;
 
             // call triggered on our copy, and the scheduler's copy. A trigger carrying a retry
@@ -3872,6 +3873,7 @@ public sealed class RAMJobStore : IJobStore
             Recovering = false,
             FireTimeUtc = timeProvider.GetUtcNow(),
             ScheduledFireTimeUtc = scheduledFireTime ?? trigger.PreviousFireTimeUtc,
+            DueTimeUtc = firingScheduledTime,
             PreviousFireTimeUtc = prevFireTime,
             NextFireTimeUtc = trigger.NextFireTimeUtc,
             SupersededFireInstanceIds = superseded,

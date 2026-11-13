@@ -42,6 +42,7 @@ internal sealed class Meters : IDisposable
 
     private readonly UpDownCounter<long> jobExecuteInProgress;
     private readonly Histogram<double> jobExecuteDuration;
+    private readonly Histogram<double> jobExecuteStartDelay;
     private readonly Counter<long> triggerMisfires;
     private readonly Counter<long> triggerRetries;
     private readonly Counter<long> triggerRetriesExhausted;
@@ -70,6 +71,12 @@ internal sealed class Meters : IDisposable
         // a duration is in seconds, so recording milliseconds piled every execution longer than ten
         // seconds into the last bucket, next to every other duration series in the application.
         jobExecuteDuration = meter.CreateHistogram<double>(QuartzInstrumentation.Instruments.JobExecutionDuration, "s", "Elapsed time spent executing a job");
+
+        // How late the job started against the time its attempt was due (#4242): the idle wait, an
+        // acquisition round, a full thread pool or execution group, a lock wait and the job's construction,
+        // all before the duration above begins. A misfire catch-up is due when its misfire policy said, so
+        // what it missed is the misfire counter's to report, not this.
+        jobExecuteStartDelay = meter.CreateHistogram<double>(QuartzInstrumentation.Instruments.JobExecutionStartDelay, "s", "Time from when a firing was due to when its job started");
 
         // A misfire is a fire that was owed and did not happen on time, which is the number an operator
         // wants an alert on. Counted once per trigger the scheduler is told misfired, wherever the store
@@ -422,11 +429,25 @@ internal sealed class Meters : IDisposable
         });
     }
 
-    public Instrumentation StartJobExecute(IJobExecutionContext context)
+    /// <summary>
+    /// Records the start of a job's run: one more running, and how late the firing's first run started.
+    /// </summary>
+    /// <param name="context">The firing.</param>
+    /// <param name="dueTimeUtc">
+    /// When this attempt was due, as the store fired it: <see cref="Extensibility.TriggerFiredBundle.DueTimeUtc" />.
+    /// <see langword="null" /> from a store that does not say, and then the start delay is measured from
+    /// <see cref="IJobExecutionContext.ScheduledFireTimeUtc" />.
+    /// </param>
+    /// <param name="timeProvider">The clock the firing is timed by, read only when the start delay is recorded.</param>
+    public Instrumentation StartJobExecute(IJobExecutionContext context, DateTimeOffset? dueTimeUtc, TimeProvider timeProvider)
     {
-        // Nothing is subscribed to either instrument, so the whole tag list is work for a measurement no
-        // one will read. Both are asked: an application is free to configure a view that keeps one.
-        if (!jobExecuteDuration.Enabled && !jobExecuteInProgress.Enabled)
+        // A firing's first run only. A refire runs the same firing again at once, and measured from the same
+        // due time it would report the run before it as lateness.
+        bool recordStartDelay = jobExecuteStartDelay.Enabled && context.RefireCount == 0;
+
+        // Nothing is subscribed to any of the three instruments, so the whole tag list is work for a
+        // measurement no one will read. Each is asked: an application is free to configure a view that keeps one.
+        if (!jobExecuteDuration.Enabled && !jobExecuteInProgress.Enabled && !recordStartDelay)
         {
             return default;
         }
@@ -454,9 +475,42 @@ internal sealed class Meters : IDisposable
             tagList.Add(ActivityTags.ExecutionGroup, executionGroup);
         }
 
+        if (recordStartDelay)
+        {
+            RecordStartDelay(tagList, context, dueTimeUtc, timeProvider);
+        }
+
         jobExecuteInProgress.Add(1, tagList);
 
         return new Instrumentation(this, tagList);
+    }
+
+    /// <summary>
+    /// How late a firing's job started: from when its attempt was due until now, never below zero.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The attempt's due time rather than the occurrence's, so a retry reports how late the retry started and
+    /// not its backoff, and a backfill how late it started against the time the backfill scheduled it for,
+    /// not how long ago its slot was. A manual run is due when it was asked for.
+    /// </para>
+    /// <para>
+    /// Zero for a firing that started before it was due, which is what
+    /// <c>BatchTriggerAcquisitionFireAheadTimeWindow</c> lets the loop do: it was not late, and a negative
+    /// sample would pull every percentile of the histogram down.
+    /// </para>
+    /// </remarks>
+    /// <param name="tags">The identity tags, by value: the origin added here stays off the running count's.</param>
+    /// <param name="context">The firing.</param>
+    /// <param name="dueTimeUtc">When this attempt was due, or <see langword="null" /> when the store did not say.</param>
+    /// <param name="timeProvider">The clock the firing is timed by.</param>
+    private void RecordStartDelay(TagList tags, IJobExecutionContext context, DateTimeOffset? dueTimeUtc, TimeProvider timeProvider)
+    {
+        DateTimeOffset due = dueTimeUtc ?? context.ScheduledFireTimeUtc ?? context.FireTimeUtc;
+        TimeSpan delay = timeProvider.GetUtcNow() - due;
+
+        tags.Add(ActivityTags.FiringOrigin, FiringOriginTag(context.GetOccurrence().Origin));
+        jobExecuteStartDelay.Record(delay > TimeSpan.Zero ? delay.TotalSeconds : 0, tags);
     }
 
     /// <summary>
@@ -508,6 +562,18 @@ internal sealed class Meters : IDisposable
         JobRunResult.Failed => "failed",
         JobRunResult.Cancelled => "cancelled",
         JobRunResult.Skipped => "skipped",
+        _ => "_OTHER"
+    };
+
+    /// <summary>
+    /// The value of <see cref="ActivityTags.FiringOrigin" />: the <see cref="FiringOrigin" /> member's name in
+    /// lower case, or <c>_OTHER</c> for a value outside the enum, by <see cref="JobResultTag" />'s rule.
+    /// </summary>
+    internal static string FiringOriginTag(FiringOrigin origin) => origin switch
+    {
+        FiringOrigin.Schedule => "schedule",
+        FiringOrigin.Manual => "manual",
+        FiringOrigin.Backfill => "backfill",
         _ => "_OTHER"
     };
 }
