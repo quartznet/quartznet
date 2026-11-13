@@ -526,7 +526,8 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
     /// The dashboard-rooted <c>&lt;base href&gt;</c> sends every relative <c>_framework</c> request under the
     /// dashboard path, not only the two that have endpoints of their own above, which keep them by route
     /// precedence. A host built in Debug with the .NET 11 SDK lists a hot-reload JS initializer,
-    /// <c>_framework/Microsoft.NET.Sdk.BlazorWeb.DotNetWatch.&lt;hash&gt;.lib.module.js</c>, among the page's
+    /// <c>_framework/Microsoft.NET.Sdk.BlazorWeb.HotReload.&lt;hash&gt;.lib.module.js</c> (<c>DotNetWatch</c>
+    /// before 11.0.100), among the page's
     /// Blazor initializers, and the initializer imports its siblings relative to itself. A failed import
     /// stops <c>Blazor.start</c>, so the circuit never started (#4224). Forwarding whatever the host serves
     /// covers that and any later framework file without naming them. Only an endpoint whose route is that
