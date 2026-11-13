@@ -365,8 +365,9 @@ partial class Build
     /// A module that fails to import stops <c>Blazor.start</c>, and the page renders and never becomes
     /// interactive, which no log line shows. With a custom path the base is the dashboard's, so a module the
     /// framework serves only at the root is what #4224 was: the .NET 11 SDK's hot-reload initializer,
-    /// <c>_framework/Microsoft.NET.Sdk.BlazorWeb.DotNetWatch.&lt;hash&gt;.lib.module.js</c>, which a Debug
-    /// build lists and a Release build does not.
+    /// <c>_framework/Microsoft.NET.Sdk.BlazorWeb.HotReload.&lt;hash&gt;.lib.module.js</c> (named
+    /// <c>…BlazorWeb.DotNetWatch.…</c> up to the release candidates), which a Debug build lists and a Release
+    /// build does not.
     /// </para>
     /// <para>
     /// That initializer has to be among the modules: a page without it is not the shape the check is for,
@@ -416,7 +417,9 @@ partial class Build
 
         Log.Information("The dashboard's page lists Blazor-Web-Initializers {Modules} under <base href=\"{Base}\">", modules, baseHref.Groups["href"].Value);
 
-        if (!modules.Any(x => x.Contains("DotNetWatch", StringComparison.Ordinal)))
+        // The SDK's own initializer, whatever it is called: DotNetWatch in the 11 previews and release
+        // candidates, HotReload from 11.0.100.
+        if (!modules.Any(x => x.Contains("Microsoft.NET.Sdk.BlazorWeb.", StringComparison.Ordinal)))
         {
             return [$"the dashboard's page {dashboardPath} lists no hot-reload initializer among its Blazor-Web-Initializers ({string.Join(", ", modules)}), "
                 + "which a Debug build with the .NET 11 SDK has, so whether it loads under the dashboard's path (#4224) was not checked"];
