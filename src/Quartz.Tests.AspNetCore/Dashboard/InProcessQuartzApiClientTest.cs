@@ -593,10 +593,11 @@ public class InProcessQuartzApiClientTest
     }
 
     [Test]
-    public async Task GetJobTriggersPopulatesTypeAndScheduleSummary()
+    public async Task GetJobTriggersPopulatesTypeDescriptionAndExpression()
     {
         // regression test for #3130 - the associated triggers table now shows each trigger's type
-        // and a schedule summary, so SimpleSchedule triggers are no longer indistinguishable.
+        // and its schedule, so SimpleSchedule triggers are no longer indistinguishable. From 4.8 (#4243)
+        // the schedule is in words, and the expression it is written in rides beside it.
         IScheduler scheduler = await CreateScheduler("GetJobTriggersTest");
         try
         {
@@ -616,9 +617,11 @@ public class InProcessQuartzApiClientTest
             headers.Should().HaveCount(2);
             TriggerHeaderDto simple = headers.Single(h => h.Name == "simple");
             simple.TriggerType.Should().Be("Simple");
-            simple.ScheduleSummary.Should().Contain("Every").And.Contain("time(s)");
+            simple.ScheduleDescription.Should().Be("Every 30 seconds, 3 times");
+            simple.ScheduleSummary.Should().BeNull("a simple trigger is built from numbers, not written in an expression");
             TriggerHeaderDto cron = headers.Single(h => h.Name == "cron");
             cron.TriggerType.Should().Be("Cron");
+            cron.ScheduleDescription.Should().StartWith("Every day at 01:00 (");
             cron.ScheduleSummary.Should().Be("0 0 1 * * ?");
 
             headers.Should().AllSatisfy(
@@ -635,6 +638,71 @@ public class InProcessQuartzApiClientTest
         {
             await scheduler.Shutdown(waitForJobsToComplete: false);
         }
+    }
+
+    /// <summary>
+    /// The trigger listing says each row's schedule in words, which it used to leave out because it does not
+    /// load the triggers (#4243). It reads the page's triggers in one go to say it.
+    /// </summary>
+    [Test]
+    public async Task QueryTriggersDescribesEachRowOfThePage()
+    {
+        IScheduler scheduler = await CreateScheduler("QueryTriggersDescribed");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build());
+            await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("cron", "group1").ForJob(jobKey)
+                .WithCronSchedule("0 0 7 ? * MON-FRI", x => x.InTimeZone(TimeZoneInfo.Utc)).Build());
+            await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("simple", "group1").ForJob(jobKey)
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(30)).RepeatForever()).Build());
+            await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("recurrence", "group1").ForJob(jobKey)
+                .WithSchedule(RecurrenceScheduleBuilder.Create("FREQ=MONTHLY;BYDAY=2TU").InTimeZone(TimeZoneInfo.Utc)).Build());
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            PagedResult<TriggerHeaderDto> page = await client.QueryTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 10 });
+
+            page.Items.Select(x => (x.Name, x.ScheduleDescription, x.ScheduleSummary)).Should().BeEquivalentTo(
+            [
+                ("cron", "Every weekday at 07:00 (UTC)", "0 0 7 ? * MON-FRI"),
+                ("recurrence", "Monthly on the second Tuesday (UTC)", "FREQ=MONTHLY;BYDAY=2TU"),
+                ("simple", "Every 30 seconds", (string?) null)
+            ]);
+            page.Items.Should().AllSatisfy(x => x.TriggerType.Should().BeNull("the listing still names no kind it could disagree with the job's table about"));
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// A page whose triggers cannot be read back — a stored trigger of a type this process cannot load — is
+    /// listed as it was before 4.8, without descriptions, rather than failing the page.
+    /// </summary>
+    [Test]
+    public async Task QueryTriggersListsAPageWhoseTriggersCannotBeReadWithoutDescriptions()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("unreadable");
+        A.CallTo(() => scheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._)).Returns(new PagedResult<TriggerHeader>(
+            [
+                new TriggerHeader(new TriggerKey("t1", "g"), new JobKey("j", "g"), Description: null, "CUSTOM", TriggerState.Normal,
+                    DateTimeOffset.UnixEpoch, EndTimeUtc: null, NextFireTimeUtc: null, PreviousFireTimeUtc: null, CalendarName: null,
+                    Priority: 5, ExecutionGroup: null, RetryPolicy: null, RetryAttempt: 0)
+            ],
+            HasMore: false,
+            TotalCount: 1));
+        A.CallTo(() => scheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Throws(new JobPersistenceException("Couldn't retrieve triggers: type CustomTrigger could not be loaded"));
+
+        InProcessQuartzApiClient client = CreateClient(scheduler);
+        PagedResult<TriggerHeaderDto> page = await client.QueryTriggers("unreadable", new DashboardTriggerQuery { Take = 10 });
+
+        TriggerHeaderDto row = page.Items.Should().ContainSingle().Subject;
+        row.Name.Should().Be("t1");
+        row.ScheduleDescription.Should().BeNull();
+        row.ScheduleSummary.Should().BeNull();
     }
 
     [Test]

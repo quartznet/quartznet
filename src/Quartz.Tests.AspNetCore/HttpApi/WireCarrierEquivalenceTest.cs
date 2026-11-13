@@ -549,6 +549,7 @@ public sealed class WireCarrierEquivalenceTest
         ["GetTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTrigger], s => s.GetTrigger(names.Trigger).AsTask()),
         ["GetTriggerState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTriggerState], s => s.GetTriggerState(names.Trigger).AsTask()),
         ["GetUpcomingFireTimes(TriggerKey, Int32, CancellationToken)"] = new([SchedulerRoutes.GetTriggerFireTimes], s => ((IUpcomingFireTimesScheduler) s).GetUpcomingFireTimes(names.Trigger, 10).AsTask()),
+        ["QueryDescribedTriggers(TriggerQuery, CancellationToken)"] = new([SchedulerRoutes.QueryTriggers], s => ((IScheduleDescribingScheduler) s).QueryDescribedTriggers(new TriggerQuery { Job = names.Job }).AsTask()),
         ["ResetTriggerFromErrorState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerFromErrorState], s => s.ResetTriggerFromErrorState(names.Trigger).AsTask()),
         ["ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerKeysFromErrorState], s => s.ResetTriggersFromErrorState([names.Trigger]).AsTask()),
         ["Exists(JobKey, CancellationToken)"] = new([SchedulerRoutes.CheckJobExists], s => s.Exists(names.Job).AsTask()),
@@ -599,12 +600,13 @@ public sealed class WireCarrierEquivalenceTest
     /// <summary>
     /// The members <see cref="HttpScheduler" /> implements itself, named as the contract declares them: every
     /// one of <see cref="IScheduler" />'s it does not leave to a default body, and
-    /// <see cref="IBackfillingScheduler.Backfill" /> and <see cref="IUpcomingFireTimesScheduler.GetUpcomingFireTimes" />, the
-    /// internal contracts the backfill and fire-times extensions send to it.
+    /// <see cref="IBackfillingScheduler.Backfill" />, <see cref="IUpcomingFireTimesScheduler.GetUpcomingFireTimes" /> and
+    /// <see cref="IScheduleDescribingScheduler.QueryDescribedTriggers" />, the internal contracts the backfill and
+    /// fire-times extensions and the described trigger listing send to it.
     /// </summary>
     private static IEnumerable<MethodInfo> ImplementedMembers()
     {
-        foreach (Type contract in (Type[]) [typeof(IScheduler), typeof(IBackfillingScheduler), typeof(IUpcomingFireTimesScheduler)])
+        foreach (Type contract in (Type[]) [typeof(IScheduler), typeof(IBackfillingScheduler), typeof(IUpcomingFireTimesScheduler), typeof(IScheduleDescribingScheduler)])
         {
             InterfaceMapping map = typeof(HttpScheduler).GetInterfaceMap(contract);
             for (int i = 0; i < map.TargetMethods.Length; i++)

@@ -68,7 +68,7 @@ namespace Quartz;
 /// listing reports such a scheduler as <see cref="SchedulerOrigin.Remote" />.
 /// </para>
 /// </remarks>
-public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler
+public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler
 {
     /// <summary>The first version whose schedule routes store a trigger paused.</summary>
     private static readonly Version FirstStoringPausedVersion = new(4, 4);
@@ -1159,6 +1159,32 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        PagedResultDto<TriggerHeaderDto> result = await SendQueryTriggers(query, cancellationToken).ConfigureAwait(false);
+        return WholeAnswer(query, new PagedResult<TriggerHeader>(result.Items.Select(x => x.AsTriggerHeader()).ToList(), result.HasMore, result.TotalCount));
+    }
+
+    /// <summary>
+    /// The listing <see cref="QueryTriggers" /> reads, with the schedule descriptions its host put on each row.
+    /// </summary>
+    /// <remarks>
+    /// The same one request. A host older than 4.8, or an agent that is, sends no descriptions, and its rows come
+    /// back without them rather than being read again here.
+    /// </remarks>
+    async ValueTask<PagedResult<DescribedTriggerHeader>> IScheduleDescribingScheduler.QueryDescribedTriggers(
+        TriggerQuery query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        PagedResultDto<TriggerHeaderDto> result = await SendQueryTriggers(query, cancellationToken).ConfigureAwait(false);
+        List<DescribedTriggerHeader> rows = result.Items
+            .Select(x => new DescribedTriggerHeader(x.AsTriggerHeader(), x.ScheduleDescription, x.ScheduleExpression))
+            .ToList();
+        return WholeAnswer(query, new PagedResult<DescribedTriggerHeader>(rows, result.HasMore, result.TotalCount));
+    }
+
+    private ValueTask<PagedResultDto<TriggerHeaderDto>> SendQueryTriggers(TriggerQuery query, CancellationToken cancellationToken)
+    {
         QueryStringBuilder parameters = new();
         parameters.AddPaging(query);
         parameters.AddGroupMatcher(query.Group);
@@ -1186,11 +1212,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
             parameters.Add("nextFireTimeBefore", nextFireTimeBefore.ToString("O", CultureInfo.InvariantCulture));
         }
 
-        PagedResultDto<TriggerHeaderDto> result = await wire
-            .SendAndRead<PagedResultDto<TriggerHeaderDto>>(At(SchedulerRoutes.QueryTriggers).WithQuery(parameters.ToString()), cancellationToken)
-            .ConfigureAwait(false);
-
-        return WholeAnswer(query, new PagedResult<TriggerHeader>(result.Items.Select(x => x.AsTriggerHeader()).ToList(), result.HasMore, result.TotalCount));
+        return wire.SendAndRead<PagedResultDto<TriggerHeaderDto>>(At(SchedulerRoutes.QueryTriggers).WithQuery(parameters.ToString()), cancellationToken);
     }
 
     /// <inheritdoc />

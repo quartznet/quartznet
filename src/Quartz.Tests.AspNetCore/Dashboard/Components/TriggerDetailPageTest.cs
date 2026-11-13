@@ -59,6 +59,48 @@ public class TriggerDetailPageTest
         });
     }
 
+    /// <summary>
+    /// The page says the schedule in words, as the listing does, and keeps the expression beside it (#4243).
+    /// </summary>
+    [Test]
+    public void TheScheduleIsInWordsWithTheExpressionBesideIt()
+    {
+        GivenTrigger(TriggerBuilder.Create()
+            .WithIdentity(TriggerName, TriggerGroup)
+            .ForJob("CronJobKey", "CronJobGroup")
+            .WithCronSchedule("0 0 7 ? * MON-FRI", x => x.InTimeZone(TimeZoneInfo.Utc))
+            .Build());
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=trigger-schedule] .qz-schedule-description").TextContent.Should().Be("Every weekday at 07:00 (UTC)");
+            page.Find("[data-testid=trigger-schedule] .qz-schedule-expression").TextContent.Should().Be("0 0 7 ? * MON-FRI");
+        });
+    }
+
+    /// <summary>
+    /// A shape the describer shows as written is not written twice.
+    /// </summary>
+    [Test]
+    public void AnExpressionWithNoWordsOfItsOwnIsShownOnce()
+    {
+        GivenTrigger(TriggerBuilder.Create()
+            .WithIdentity(TriggerName, TriggerGroup)
+            .ForJob("CronJobKey", "CronJobGroup")
+            .WithCronSchedule("0 0-5 9-17 * * ?", x => x.InTimeZone(TimeZoneInfo.Utc))
+            .Build());
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=trigger-schedule] .qz-schedule-description").TextContent.Should().Be("0 0-5 9-17 * * ? (UTC)");
+            page.FindAll("[data-testid=trigger-schedule] .qz-schedule-expression").Should().BeEmpty();
+        });
+    }
+
     [Test]
     public void ACronTriggerOffersItsExpressionForEditing()
     {
@@ -187,7 +229,7 @@ public class TriggerDetailPageTest
 
         page.WaitForAssertion(() => page.Markup.Should().Contain("<th>Interval</th><td>Measured from completion</td>",
             "whether the next run waits for this one to end is part of what the trigger is"));
-        page.Markup.Should().Contain("Every 00:05:00, repeat forever, measured from completion", "and the schedule's summary says so too");
+        page.Markup.Should().Contain("5 minutes after each run completes", "and the schedule in words says so too");
     }
 
     [Test]
@@ -199,8 +241,8 @@ public class TriggerDetailPageTest
 
         page.Markup.Should().NotContain("Edit cron schedule",
             "there is no cron expression to edit, and a simple trigger's interval is not one");
-        page.Markup.Should().Contain("Every 120.02:30:59.9990000",
-            "the schedule is summarised in the trigger's own terms instead");
+        page.Markup.Should().Contain("Every 10377059999 milliseconds, 1001 times",
+            "the schedule is said in the trigger's own terms instead: an interval of 120 days and change, to the millisecond");
     }
 
     [Test]

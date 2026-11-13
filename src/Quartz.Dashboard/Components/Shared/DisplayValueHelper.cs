@@ -103,6 +103,31 @@ internal static class DisplayValueHelper
     }
 
     /// <summary>
+    /// How long before <paramref name="now" /> <paramref name="time" /> was, to the largest whole unit:
+    /// <c>12h ago</c>, and <c>under a minute ago</c> for anything closer, a time still ahead included.
+    /// </summary>
+    public static string FormatSince(DateTimeOffset time, DateTimeOffset now)
+    {
+        TimeSpan since = now - time;
+        if (since < TimeSpan.FromMinutes(1))
+        {
+            return "under a minute ago";
+        }
+
+        if (since < TimeSpan.FromHours(1))
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"{since.Minutes}m ago");
+        }
+
+        if (since < TimeSpan.FromDays(1))
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"{since.Hours}h ago");
+        }
+
+        return string.Create(CultureInfo.InvariantCulture, $"{since.Days}d ago");
+    }
+
+    /// <summary>
     /// The outcomes a continuation waits for, in words: <c>Success</c>, <c>Failure or cancellation</c>,
     /// <c>Any outcome</c>.
     /// </summary>

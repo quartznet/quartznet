@@ -40,8 +40,9 @@ public sealed class AgentMessageSizeTest
         dashboard.Registry.Find("w1")!.ConnectionId.Should().NotBeNull("the refusal travelled the channel the page would have broken");
         worker.Logs.WithEventId(9304).Should().ContainSingle();
 
-        PagedResult<TriggerHeaderDto> smallPage = await dashboard.Client.QueryTriggers(worker.Key, new DashboardTriggerQuery { Take = 100 });
-        smallPage.Items.Should().HaveCount(100, "a page that fits is answered");
+        // Eighty rather than a hundred since 4.8, whose rows carry their schedule in words and its expression.
+        PagedResult<TriggerHeaderDto> smallPage = await dashboard.Client.QueryTriggers(worker.Key, new DashboardTriggerQuery { Take = 80 });
+        smallPage.Items.Should().HaveCount(80, "a page that fits is answered");
         smallPage.HasMore.Should().BeTrue();
     }
 }

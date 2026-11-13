@@ -483,6 +483,7 @@ namespace Quartz.Dashboard.Services
         public System.DateTimeOffset? NextFireTimeUtc { get; init; }
         public Quartz.PauseInfo? Pause { get; init; }
         public System.DateTimeOffset? PreviousFireTimeUtc { get; init; }
+        public string? ScheduleDescription { get; init; }
         public string? ScheduleSummary { get; init; }
         public System.DateTimeOffset? StartTimeUtc { get; init; }
         public Quartz.TriggerState? State { get; init; }

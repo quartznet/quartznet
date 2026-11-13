@@ -175,3 +175,23 @@ deduplicates per occurrence. Decided in 4.8:
   on all three recovery paths. The in-memory store has no recovery. A recovered retry or catch-up serves
   the time that attempt was due: #4272.
 - **Not on 3.x.**
+
+## A trigger's schedule in words (#4243)
+
+`trigger.DescribeSchedule()` says a trigger's schedule in English, in its time zone:
+`Every weekday at 07:00 (America/Chicago)`. Decided in 4.8:
+
+- **Public, because tools outside the dashboard need it.** A Wolverine adapter feeding CritterWatch, and any
+  page that lists Quartz schedules, would otherwise rebuild it, and CritterWatch can only phrase cron.
+- **One extension, `TriggerScheduleDescriptionExtensions.DescribeSchedule(this ITrigger)`.** Not a member of
+  `ITrigger` or of each trigger interface, so no interface grows and every hand-written trigger keeps
+  compiling. It answers `null` for a kind it does not know.
+- **Our own describer, English only.** CronExpressionDescriptor phrases cron only; the other four kinds and
+  Quartz's cron extensions (`L`, `W`, `#`, the year field) must read the same way. A shape it cannot phrase is
+  the expression itself, never a guess.
+- **For display, not parseable.** The wording may change in any release. The XML docs and the page say so.
+- **The listing describes its page where the triggers are stored.** Core `TriggerHeader` and the header
+  query are unchanged. The HTTP API and the agent read the page's triggers in one batch and send
+  `scheduleDescription` and `scheduleExpression` on each row; `HttpScheduler` hands them on through the
+  internal `IScheduleDescribingScheduler`, which `DelegatingScheduler` forwards. A host older than 4.8 sends
+  neither, and the dashboard shows a dash.

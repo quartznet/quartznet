@@ -25,7 +25,9 @@
         "reason": "nightly load delayed",
         "requestedBy": "ops@example.com",
         "pausedAtUtc": "2031-06-17T10:00:00+00:00"
-      }
+      },
+      "scheduleDescription": "Every 25 seconds from second 0 to second 50 of every minute (UTC), excluding calendar 'SomeCalendar'",
+      "scheduleExpression": "0/25 * * * * ?"
     },
     {
       "name": "AwaitingTriggerKey",
@@ -48,7 +50,9 @@
       "continuesAfterTriggerGroup": "CronTriggerGroup",
       "continuationCondition": "OnFailure, OnCancellation",
       "overlapPolicy": "Default",
-      "pause": null
+      "pause": null,
+      "scheduleDescription": null,
+      "scheduleExpression": null
     }
   ],
   "hasMore": false,

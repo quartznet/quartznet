@@ -20,6 +20,7 @@
 #endregion
 
 using Quartz.Extensibility;
+using Quartz.Impl;
 
 namespace Quartz.HttpApiContract;
 
@@ -668,7 +669,9 @@ internal static class SchedulerOperations
             NextFireTimeBefore = nextFireTimeBefore
         });
 
-        PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(query, cancellationToken).ConfigureAwait(false);
+        // Each row's schedule in words, from the page's triggers read in one go: a listing consumer gets the
+        // text without reading every trigger back itself, and a scheduler proxied here passes its own along.
+        PagedResult<DescribedTriggerHeader> page = await DescribedTriggerListing.Query(scheduler, query, cancellationToken).ConfigureAwait(false);
         return new PagedResultDto<TriggerHeaderDto>(page.Items.Select(TriggerHeaderDto.Create).ToArray(), page.HasMore, page.TotalCount);
     }
 
