@@ -19,6 +19,7 @@
 
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 
 using FakeItEasy;
 
@@ -30,6 +31,7 @@ using Quartz.Core;
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
 using Quartz.Impl;
+using Quartz.Impl.AdoJobStore;
 using Quartz.Tests.Impl;
 
 namespace Quartz.Tests.Unit.Diagnostics;
@@ -196,6 +198,81 @@ public sealed class StartDelayTest : MisfireThroughAStoreTestBase
         }
     }
 
+    /// <summary>
+    /// A catch-up is due when its misfire policy said, which for <c>FireNow</c> is the misfire pass that found
+    /// it. How much it missed is <c>quartz.trigger.misfire</c>'s to report. A backfill's trigger misfires with
+    /// <c>FireNow</c> too, and is measured the same way.
+    /// </summary>
+    [TestCase(FiringOrigin.Schedule)]
+    [TestCase(FiringOrigin.Backfill)]
+    public async Task AMisfireCatchUpIsMeasuredFromTheTimeItsMisfirePolicyGaveIt(FiringOrigin origin)
+    {
+        foreach (MisfireStoreUnderTest store in await BothStores(Anchor()))
+        {
+            using Harness harness = new(store);
+            DateTimeOffset missed = store.Clock.GetUtcNow();
+            IOperableTrigger hourly = await StoreHourly<NoOpJob>(
+                store,
+                origin == FiringOrigin.Backfill ? missed.AddHours(1) : missed,
+                startUtc: origin == FiringOrigin.Backfill ? missed.AddDays(-1) : null);
+
+            TriggerKey key = hourly.Key;
+            if (origin == FiringOrigin.Backfill)
+            {
+                BackfillResult backfill = await harness.Scheduler.Backfill(hourly.Key, missed.AddHours(-2), missed.AddHours(-1));
+                key = backfill.ScheduledTriggers.Should().ContainSingle().Which;
+            }
+
+            // Ten minutes late, far past the one-minute threshold: the misfire pass moves the firing to now, and
+            // the job starts two seconds after that.
+            store.Clock.Advance(TimeSpan.FromMinutes(10));
+            await store.Sweep(store.Clock.GetUtcNow().AddMinutes(-1));
+            store.Clock.Advance(TimeSpan.FromSeconds(2));
+
+            TriggerFiredBundle bundle = await Fire(store, key);
+            bundle.ScheduledFireTimeUtc.Should().Be(missed, "{0}: the premise: the catch-up keeps the time it missed", store.Name);
+            await harness.Run(bundle);
+
+            CollectedMeasurement<double> measurement = harness.StartDelays().Should().ContainSingle().Subject;
+            measurement.Value.Should().Be(2,
+                "{0}: the catch-up was due when the misfire pass rescheduled it; from the time it missed it would read 602", store.Name);
+            measurement.Tags.Should().Contain(OriginTag, origin == FiringOrigin.Backfill ? "backfill" : "schedule");
+        }
+    }
+
+    /// <summary>
+    /// A recovery runs again a firing a stopped node left behind, and is due when that firing was: the
+    /// recovery trigger starts at the fired-trigger row's scheduled time and ignores the misfire policy. So
+    /// the outage is in its delay, and its trigger's group says what it is.
+    /// </summary>
+    [Test]
+    public async Task ARecoveryIsMeasuredFromWhenTheFiringItRunsAgainWasDue()
+    {
+        MisfireStoreUnderTest store = await SqliteStore(Anchor());
+        using Harness harness = new(store);
+        DateTimeOffset due = store.Clock.GetUtcNow();
+        IOperableTrigger trigger = await StoreHourly<NoOpJob>(store, due, requestRecovery: true);
+
+        // Fired and never run: the node stopped with the firing in flight, and starts again ten minutes later.
+        await Fire(store, trigger.Key);
+        store.Clock.Advance(TimeSpan.FromMinutes(10));
+        await RecoverAtStartup(store);
+
+        IOperableTrigger recovery = (await store.Store.GetTriggersForJob(trigger.JobKey))
+            .Should().ContainSingle(x => x.Key.Group == SchedulerConstants.DefaultRecoveryGroup, "the premise: startup recovery stored a recovery trigger")
+            .Subject;
+
+        store.Clock.Advance(TimeSpan.FromSeconds(2));
+        TriggerFiredBundle bundle = await Fire(store, recovery.Key);
+        bundle.Recovering.Should().BeTrue("the premise: this firing is the recovery");
+        await harness.Run(bundle);
+
+        CollectedMeasurement<double> measurement = harness.StartDelays().Should().ContainSingle().Subject;
+        measurement.Value.Should().Be(602, "the recovered firing was due ten minutes and two seconds before the recovery ran it");
+        measurement.Tags.Should().Contain("quartz.trigger.group", SchedulerConstants.DefaultRecoveryGroup,
+            "a recovery's trigger is in RECOVERING_JOBS, which is how an alert leaves the outage out");
+    }
+
     [Test]
     public async Task TheExecuteSpanCarriesTheScheduledFireTimeAndTheOrigin()
     {
@@ -269,21 +346,39 @@ public sealed class StartDelayTest : MisfireThroughAStoreTestBase
         MisfireStoreUnderTest store,
         DateTimeOffset dueUtc,
         RetryPolicy retryPolicy = null,
-        DateTimeOffset? startUtc = null) where TJob : IJob
+        DateTimeOffset? startUtc = null,
+        bool requestRecovery = false) where TJob : IJob
     {
         string id = Guid.NewGuid().ToString("N");
         JobKey jobKey = new("job-" + id, Group);
-        IJobDetail job = JobBuilder.Create<TJob>().WithIdentity(jobKey).Build();
+        IJobDetail job = JobBuilder.Create<TJob>().WithIdentity(jobKey).RequestRecovery(requestRecovery).Build();
 
+        // FireNow on a misfire, the catch-up a recurring schedule makes, and what a backfill's trigger has.
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(store.Clock)
             .WithIdentity("trigger-" + id, Group)
             .ForJob(jobKey)
             .StartAt(startUtc ?? dueUtc)
-            .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever().WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow))
             .WithRetryPolicy(retryPolicy)
             .Build();
 
         return await Store(store, job, trigger, dueUtc);
+    }
+
+    /// <summary>
+    /// Runs the recovery a node runs over its own fired-trigger rows when it starts, without starting it.
+    /// </summary>
+    /// <remarks>
+    /// <c>SchedulerStarted()</c> would also start the misfire handler's loop, which these tests keep out.
+    /// </remarks>
+    private static ValueTask RecoverAtStartup(MisfireStoreUnderTest store)
+    {
+        MethodInfo recoverJobs = typeof(AdoJobStoreBase).GetMethod(
+            "RecoverJobs",
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            [typeof(CancellationToken)]);
+
+        return (ValueTask) recoverJobs.Invoke(store.Store, [CancellationToken.None]);
     }
 
     /// <summary>

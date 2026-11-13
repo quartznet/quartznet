@@ -19,8 +19,13 @@
 
 #endregion
 
+using System.Diagnostics;
+
 using FakeItEasy;
 
+using Microsoft.Extensions.Diagnostics.Metrics.Testing;
+
+using Quartz.Diagnostics;
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
@@ -105,6 +110,50 @@ public class EmptyJobDataMapTest
         context.MergedJobDataMap.Count.Should().Be(0);
         job.JobDataMapOrNull.Should().BeNull("the merged map is built from what the two sides hold, not from maps it makes them create");
         trigger.JobDataMapOrNull.Should().BeNull("the same, for the trigger copy");
+    }
+
+    /// <summary>
+    /// Telemetry asks every firing why it ran, for <c>quartz.firing.origin</c>, and the answer is read from the
+    /// trigger's own map: the backfill slot and the manual mark (#4242).
+    /// </summary>
+    [Test]
+    public void TracingAndMeasuringAFiringCreatesNoMapOnTheTrigger()
+    {
+        (JobDetailImpl job, SimpleTriggerImpl trigger) = Firing();
+        string fireInstanceId = Guid.NewGuid().ToString("N");
+        trigger.FireInstanceId = fireInstanceId;
+        using JobExecutionContextImpl context = new(A.Fake<IScheduler>(), Bundle(job, trigger), A.Fake<IJob>());
+
+        using Meters meters = new(meterFactory: null);
+        using MetricCollector<double> startDelays = new(meters.Meter, QuartzInstrumentation.Instruments.JobExecutionStartDelay);
+
+        Activity span = null;
+        using ActivityListener listener = new()
+        {
+            ShouldListenTo = source => source.Name == QuartzInstrumentation.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity =>
+            {
+                if (activity.GetTagItem(ActivityTags.FireInstanceId) as string == fireInstanceId)
+                {
+                    span = activity;
+                }
+            }
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        StartedActivity started = QuartzActivitySource.StartJobExecute(context, TimeProvider.System);
+        meters.StartJobExecute(context, dueTimeUtc: null, TimeProvider.System);
+        started.Stop();
+
+        startDelays.GetMeasurementSnapshot().Should().ContainSingle()
+            .Which.Tags.Should().Contain(ActivityTags.FiringOrigin, "schedule", "the premise: the measurement asked why the firing ran");
+        span.Should().NotBeNull();
+        span.GetTagItem(ActivityTags.FiringOrigin).Should().Be("schedule", "the premise: so did the span");
+
+        trigger.JobDataMapOrNull.Should().BeNull(
+            "a trigger with no data has no map, and asking it for a mark it cannot carry must not create one on every firing");
+        job.JobDataMapOrNull.Should().BeNull();
     }
 
     private static (JobDetailImpl Job, SimpleTriggerImpl Trigger) Firing()

@@ -233,7 +233,8 @@ other nine work with any store.
 - `error.type` is the OpenTelemetry convention. Neither it nor `quartz.job.result` is on
   `quartz.job.execution.active`: an up-down counter's increment and decrement need identical attributes, and
   the result is not known at start.
-- `quartz.job.execution.start_delay` ends as the job starts, after the listeners and the job's construction. It
+- `quartz.job.execution.start_delay` ends just before the scheduler calls the job's middleware, or the job when
+  there is none. The trigger and job listeners and the job's construction are in it; the middleware is not. It
   shows the idle wait and acquisition rounds, a full thread pool or execution group, lock waits on a clustered
   store, and slow job construction. One sample per firing:
 
@@ -241,15 +242,15 @@ other nine work with any store.
   |---|---|
   | On schedule | its fire time |
   | A retry | the retry's own due time. `ScheduledFireTimeUtc` stays on the occurrence and would count the backoff |
-  | A misfire catch-up | the time its misfire policy gave it. `quartz.trigger.misfire` counts the misfire |
+  | A misfire catch-up | the time its misfire policy gave it, a backfill's included (`FireNow`). `quartz.trigger.misfire` counts the misfire |
   | A backfill | the time the backfill scheduled it for, not its slot |
   | A manual run | when it was asked for, so near zero |
-  | A recovery | when the recovered attempt was due, so the downtime is in it |
+  | A recovery | when the firing it runs again was due, so the outage is in it. Its trigger group is `RECOVERING_JOBS` |
   | A refire (`RefireImmediately`) | not measured again |
   | Started before it was due, under `BatchTriggerAcquisitionFireAheadTimeWindow` | recorded as `0` |
 
-- The due time is the one the store records on the fired-trigger row. A store of your own does not supply it,
-  and its firings are measured from `ScheduledFireTimeUtc`.
+- The due time is the trigger's next fire time as the store fired it. Both shipped stores report it. A store of
+  your own does not, and its firings are measured from `ScheduledFireTimeUtc`.
 
 ::: warning Cardinality
 `quartz.job.name` and `quartz.trigger.name` are per job and per trigger, and `quartz.scheduler.id` is per node,
@@ -270,11 +271,12 @@ A trigger whose p95 start delay stays above 30 seconds:
 # scheduled firings only: a manual run starts at once, and a large backfill queues by design
 histogram_quantile(0.95,
   sum by (le, quartz_trigger_group, quartz_trigger_name) (
-    rate(quartz_job_execution_start_delay_bucket{quartz_firing_origin="schedule"}[10m])
+    rate(quartz_job_execution_start_delay_bucket{quartz_firing_origin="schedule", quartz_trigger_group!="RECOVERING_JOBS"}[10m])
   )
 ) > 30
 ```
 
+- Recoveries run in the `RECOVERING_JOBS` trigger group and include the outage, so the query leaves them out.
 - Keep the threshold below the store's misfire threshold: 1 minute on the ADO.NET store, 5 seconds in memory. A
   trigger acquired later than that misfires, and `quartz.trigger.misfire` counts it instead.
 - OpenTelemetry's default buckets are `0, 5, 10, 25, …` and put every start under five seconds in one bucket. For

@@ -273,8 +273,8 @@ internal sealed class JobRunShell
                     StartedActivity activity = QuartzActivitySource.StartJobExecute(context, timeProvider);
 
                     // The execution's instruments start here, the start delay among them. It runs from when the
-                    // store says this attempt was due until the job is called, so everything that held the
-                    // firing back is in it.
+                    // store says this attempt was due until the middleware, or the job, is called, so everything
+                    // that held the firing back is in it.
                     Instrumentation instrumentation = qs.resources.Meters.StartJobExecute(context, firedTriggerBundle.DueTimeUtc, timeProvider);
 
                     // Execute the job, through this scheduler's middleware when it has any. Inside the

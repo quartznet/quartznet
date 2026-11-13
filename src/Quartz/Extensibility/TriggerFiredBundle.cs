@@ -77,7 +77,8 @@ public sealed record TriggerFiredBundle
     /// <para>
     /// Not <see cref="ScheduledFireTimeUtc" />, which names the occurrence: a retry is due at its own time and
     /// a misfire catch-up at the time its misfire policy gave it, and both keep the occurrence's
-    /// <see cref="ScheduledFireTimeUtc" />. It is the time the fired-trigger row records as scheduled.
+    /// <see cref="ScheduledFireTimeUtc" />. It is the scheduled time the persistent store's fired-trigger row
+    /// records and the in-memory store's list of executing firings reports.
     /// </para>
     /// <para>
     /// Internal: only the two stores Quartz ships set it, so a store of somebody else's needs no new member to

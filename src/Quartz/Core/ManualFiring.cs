@@ -23,6 +23,7 @@ using System.Globalization;
 
 using Quartz.Extensibility;
 using Quartz.Impl.Triggers;
+using Quartz.Util;
 
 namespace Quartz.Core;
 
@@ -111,11 +112,13 @@ internal static class ManualFiring
     /// <remarks>
     /// The one reading of the mark: the execution history's <see cref="ExecutionHistoryEntry.Manual" />
     /// and <see cref="JobExecutionContextOccurrenceExtensions.GetOccurrence" /> both ask here. A serializer
-    /// that typed the value as a <see cref="bool" /> keeps it a mark; any other value is not one.
+    /// that typed the value as a <see cref="bool" /> keeps it a mark; any other value is not one. Read
+    /// without creating a map on a trigger that has none, since telemetry asks of every firing (#3802).
     /// </remarks>
     internal static bool IsMarked(ITrigger trigger)
     {
-        if (!trigger.JobDataMap.TryGetValue(SchedulerConstants.ManualTrigger, out object? value))
+        if (JobDataMaps.OrNull(trigger) is not { } map
+            || !map.TryGetValue(SchedulerConstants.ManualTrigger, out object? value))
         {
             return false;
         }
