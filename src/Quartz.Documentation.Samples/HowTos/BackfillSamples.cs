@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Quartz.Documentation.Samples.HowTos;
 
 /// <summary>
@@ -35,6 +37,36 @@ public static class BackfillSamples
         }
 
         private static ValueTask Export(DateTimeOffset night, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+    }
+
+    #endregion
+
+    #region sample_firing_occurrence_key
+
+    public sealed class PublishSettlementJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            FiringOccurrence occurrence = context.GetOccurrence();
+
+            // The schedule: this trigger, or on a recovery the trigger it stands in for.
+            TriggerKey schedule = context.RecoveringTriggerKey ?? context.Trigger.Key;
+
+            // One key per occurrence: the same on its retries and on its recovery.
+            string key = occurrence.Origin switch
+            {
+                FiringOrigin.Schedule => $"{schedule}:{occurrence.OccurrenceUtc:O}",
+                FiringOrigin.Manual => $"{schedule}:manual:{occurrence.OccurrenceUtc:O}",
+
+                // Two backfills of one slot share the slot and the trigger key: when each started tells them apart.
+                FiringOrigin.Backfill => $"{schedule}:backfill:{occurrence.OccurrenceUtc:O}:{context.ScheduledFireTimeUtc:O}",
+                _ => throw new UnreachableException()
+            };
+
+            return Publish(key, cancellationToken);
+        }
+
+        private static ValueTask Publish(string deduplicationKey, CancellationToken cancellationToken) => ValueTask.CompletedTask;
     }
 
     #endregion

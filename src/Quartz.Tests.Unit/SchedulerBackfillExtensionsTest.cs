@@ -453,6 +453,87 @@ public sealed class SchedulerBackfillExtensionsTest
         result.Scheduled.Should().Be(3);
     }
 
+    /// <summary>
+    /// Each backfilled firing serves its slot, as a backfill, rather than the time the backfill started it
+    /// (#4246).
+    /// </summary>
+    [TestCase(StoreKind.InMemory)]
+    [TestCase(StoreKind.Sqlite)]
+    public async Task EachBackfilledFiringServesItsSlotAsABackfill(StoreKind store)
+    {
+        SerialJob.Reset(expected: 3);
+        IScheduler scheduler = await Scheduler(store);
+        await scheduler.ScheduleJob(JobBuilder.Create<SerialJob>().WithIdentity(jobKey).Build(), Hourly());
+        await scheduler.Backfill(hourlyKey, day, day.AddHours(3));
+
+        // Only the backfilled firings run: the original's missed hours are its misfire instruction's business.
+        await scheduler.PauseTriggers([hourlyKey]);
+        await scheduler.Start();
+        await SerialJob.Done.Task.WaitAsync(deadline);
+
+        SerialJob.Firings.Select(firing => firing.Occurrence).Should().BeEquivalentTo(
+            [
+                new FiringOccurrence(day, FiringOrigin.Backfill),
+                new FiringOccurrence(day.AddHours(1), FiringOrigin.Backfill),
+                new FiringOccurrence(day.AddHours(2), FiringOrigin.Backfill)
+            ],
+            "each firing serves the slot it stands in for");
+        SerialJob.Firings.Select(firing => firing.ScheduledFireTimeUtc).Should().AllBeEquivalentTo(now,
+            "the premise: every one of them was started now, which is not the slot");
+    }
+
+    /// <summary>
+    /// A slot backfilled again once its first backfill has fired gets a trigger under the same key, and its
+    /// firing serves the same occurrence. What tells the two apart is when each backfill started its firing.
+    /// </summary>
+    [Test]
+    public async Task TwoBackfillsOfOneSlotServeTheSameOccurrenceUnderTheSameTriggerKey()
+    {
+        SqliteTestDatabase database = new("backfill");
+        databases.Add(database);
+        string instanceName = $"backfill-{Guid.NewGuid():N}";
+
+        BackfilledFiring first = await BackfillTheFirstHourAndRunIt(database, instanceName);
+        clock.Advance(TimeSpan.FromMinutes(1));
+        BackfilledFiring second = await BackfillTheFirstHourAndRunIt(database, instanceName);
+
+        second.Occurrence.Should().Be(first.Occurrence).And.Be(new FiringOccurrence(day, FiringOrigin.Backfill));
+        second.TriggerKey.Should().Be(first.TriggerKey,
+            "a backfill names its trigger after the slot, and the first one's has fired and gone");
+        first.ScheduledFireTimeUtc.Should().Be(now);
+        second.ScheduledFireTimeUtc.Should().Be(now.AddMinutes(1), "each backfill starts its firing when it runs");
+    }
+
+    /// <summary>
+    /// A backfill copies the trigger's data, so a backfill of the trigger <c>TriggerJob</c> stored carries its
+    /// manual mark as well as the slot. The backfill wins: the firing stands in for the slot (#4246).
+    /// </summary>
+    [Test]
+    public async Task ABackfillOfAManualRunIsABackfill()
+    {
+        SerialJob.Reset(expected: 2);
+        IScheduler scheduler = await Scheduler();
+        await scheduler.AddJob(JobBuilder.Create<SerialJob>().WithIdentity(jobKey).StoreDurably().Build());
+        await scheduler.TriggerJob(jobKey);
+        TriggerKey manualKey = (await scheduler.GetTriggersOfJob(jobKey)).Should().ContainSingle().Which.Key;
+
+        // A minute on, the manual run's one fire time is behind the clock. The scheduler is not started, so it
+        // has not fired, and the trigger is still there to backfill.
+        clock.Advance(TimeSpan.FromMinutes(1));
+        BackfillResult result = await scheduler.Backfill(manualKey, now.AddMinutes(-1), now.AddMinutes(1));
+        result.FirstSlot.Should().Be(now, "the premise: the manual trigger's slot is when it was asked for");
+
+        await scheduler.Start();
+        await SerialJob.Done.Task.WaitAsync(deadline);
+
+        SerialJob.Firings.Select(firing => firing.Occurrence).Should().BeEquivalentTo(
+            [
+                new FiringOccurrence(now, FiringOrigin.Manual),
+                new FiringOccurrence(now, FiringOrigin.Backfill)
+            ],
+            "the manual run is manual, and its backfill is a backfill though it carries the manual mark too");
+    }
+
     [Test]
     public void TheSlotReaderAnswersTheSlotOnlyForABackfilledFiring()
     {
@@ -544,10 +625,34 @@ public sealed class SchedulerBackfillExtensionsTest
         backfilled.Should().BeEmpty("a refusal is decided before anything is written");
     }
 
-    private async Task<IScheduler> Scheduler(StoreKind store = StoreKind.InMemory)
+    /// <summary>
+    /// Backfills the hourly trigger's first hour of <c>day</c> on a scheduler over <paramref name="database" />,
+    /// runs the one firing, and shuts the scheduler down once it has completed.
+    /// </summary>
+    private async Task<BackfilledFiring> BackfillTheFirstHourAndRunIt(SqliteTestDatabase database, string instanceName)
     {
-        SqliteTestDatabase? database = null;
-        if (store == StoreKind.Sqlite)
+        SerialJob.Reset(expected: 1);
+        IScheduler scheduler = await Scheduler(StoreKind.Sqlite, database, instanceName);
+        if (await scheduler.GetTrigger(hourlyKey) is null)
+        {
+            await scheduler.ScheduleJob(Job(), Hourly());
+            await scheduler.PauseTriggers([hourlyKey]);
+        }
+
+        BackfillResult result = await scheduler.Backfill(hourlyKey, day, day.AddHours(1));
+        result.Scheduled.Should().Be(1, "the premise: no trigger for the slot is stored, so it is scheduled");
+
+        await scheduler.Start();
+        await SerialJob.Done.Task.WaitAsync(deadline);
+
+        // Waits for the completion, which is what deletes the one-shot trigger.
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+        return SerialJob.Firings.Should().ContainSingle().Subject;
+    }
+
+    private async Task<IScheduler> Scheduler(StoreKind store = StoreKind.InMemory, SqliteTestDatabase? database = null, string? instanceName = null)
+    {
+        if (store == StoreKind.Sqlite && database is null)
         {
             database = new SqliteTestDatabase("backfill");
             databases.Add(database);
@@ -557,7 +662,7 @@ public sealed class SchedulerBackfillExtensionsTest
             .Create(q =>
             {
                 q.UseTimeProvider(clock);
-                q.ConfigureScheduler(options => options.InstanceName = $"backfill-{Guid.NewGuid():N}");
+                q.ConfigureScheduler(options => options.InstanceName = instanceName ?? $"backfill-{Guid.NewGuid():N}");
 
                 if (database is not null)
                 {
@@ -597,6 +702,9 @@ public sealed class SchedulerBackfillExtensionsTest
             .Build();
     }
 
+    /// <summary>What a firing of <see cref="SerialJob" /> read about itself.</summary>
+    private sealed record BackfilledFiring(FiringOccurrence Occurrence, TriggerKey TriggerKey, DateTimeOffset? ScheduledFireTimeUtc);
+
     [DisallowConcurrentExecution]
     private sealed class SerialJob : IJob
     {
@@ -608,6 +716,8 @@ public sealed class SchedulerBackfillExtensionsTest
 
         public static ConcurrentQueue<DateTimeOffset?> Slots { get; private set; } = new();
 
+        public static ConcurrentQueue<BackfilledFiring> Firings { get; private set; } = new();
+
         public static int MaxRunning => Volatile.Read(ref maxRunning);
 
         public static void Reset(int expected)
@@ -616,6 +726,7 @@ public sealed class SchedulerBackfillExtensionsTest
             maxRunning = 0;
             SerialJob.expected = expected;
             Slots = new ConcurrentQueue<DateTimeOffset?>();
+            Firings = new ConcurrentQueue<BackfilledFiring>();
             Done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
@@ -629,6 +740,7 @@ public sealed class SchedulerBackfillExtensionsTest
 
             // Long enough that a second firing started beside this one would be seen running.
             await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken);
+            Firings.Enqueue(new BackfilledFiring(context.GetOccurrence(), context.Trigger.Key, context.ScheduledFireTimeUtc));
             Slots.Enqueue(context.GetBackfillSlot());
             Interlocked.Decrement(ref running);
 

@@ -145,3 +145,33 @@ Extension policy, not taste. `how-tos/extending-quartz.md` is the reader-facing 
 - **`MON/2` is 4.1's `2/2`**, and `MON-FRI/2` is `2-6/2`: a textual day-of-week takes a step, in lockstep
   with the numeric form. 4.0 refused it because 3.x read it as a fortnight; that silent change of meaning
   is a documented hazard, not a reason to reopen this.
+
+## A firing's occurrence (#4246)
+
+`context.GetOccurrence()` names the occurrence a firing serves and why it runs, for a consumer that
+deduplicates per occurrence. Decided in 4.8:
+
+- **An extension returning a struct, not interface members.** On `IJobExecutionContext` it would be a
+  default interface member that every hand-written context, test double and adapter inherits, and it adds
+  nothing a context lacks: it reads the trigger's data, `ScheduledFireTimeUtc`, `RetryAttempt` and
+  `Recovering`, as `GetBackfillSlot` and `GetInput` read theirs. A `readonly record struct`, because the
+  answer is a value: compared, used as a key, never `null`, and grown by `init` properties.
+- **The names.** An occurrence is one of the fire times a schedule calls for, as `RetryAttempt`'s docs
+  already say; `FiringOccurrence` is the one a firing serves, and `FiringOrigin` why the firing runs.
+  `GetOccurrence` sits beside `GetBackfillSlot` and `GetInput`. `FiringOrigin` has no `None`: every firing
+  has an origin, so `Schedule` is `0`.
+- **Backfill wins over manual.** A backfill copies its trigger's data, so a backfill of a stored `TriggerJob`
+  trigger carries both marks. It stands in for the slot.
+- **No misfire flag.** It would need the store's internal misfire marker on the context. A catch-up is
+  `Schedule` with the missed time as its occurrence, which is what deduplication needs, and a late
+  `FireTimeUtc` shows the lateness.
+- **Quartz formats no key.** Each consumer owns its format; Wolverine's is Wolverine's.
+- **No backfill trigger key on the struct.** Two backfills of one slot share `OccurrenceUtc`, and
+  `Trigger.Key` as well, because a backfill names its trigger after the slot. `ScheduledFireTimeUtc`, when
+  each backfill started its firing and the same on its retries, tells them apart. The XML docs and
+  `how-tos/backfill.md` say so.
+- **The marks survive retries and recovery.** Both live on the trigger's data, which a retry keeps and every
+  recovery path copies: `FiringOccurrenceThroughAStoreTest` on both stores, `FiringOccurrenceRecoverySqliteTest`
+  on all three recovery paths. The in-memory store has no recovery. A recovered retry or catch-up serves
+  the time that attempt was due: #4272.
+- **Not on 3.x.**

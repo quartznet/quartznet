@@ -157,6 +157,110 @@ public sealed class RetryExecutionTest
             + "called for - which is what leaving PreviousFireTimeUtc alone buys");
     }
 
+    /// <summary>
+    /// Fails the first <c>failures</c> times it is asked, under the job type's own retry policy, and records
+    /// which occurrence each attempt served.
+    /// </summary>
+    [RetryPolicy(3, "00:00:00.300")]
+    private sealed class OccurrenceJob : IJob
+    {
+        internal static readonly ConcurrentQueue<FiringOccurrence> Attempts = new();
+        internal static readonly SemaphoreSlim Succeeded = new(0);
+        internal static int RemainingFailures;
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            Attempts.Enqueue(context.GetOccurrence());
+
+            if (Interlocked.Decrement(ref RemainingFailures) >= 0)
+            {
+                throw new InvalidOperationException("not this time");
+            }
+
+            Succeeded.Release();
+            return default;
+        }
+    }
+
+    /// <summary>
+    /// Every attempt at an occurrence serves that occurrence and keeps its origin: a scheduled firing, a
+    /// <c>TriggerJob</c> run and a backfill each fail twice and are retried on the job type's policy (#4246).
+    /// </summary>
+    [TestCase(FiringOrigin.Schedule)]
+    [TestCase(FiringOrigin.Manual)]
+    [TestCase(FiringOrigin.Backfill)]
+    public async Task EveryAttemptServesTheSameOccurrenceAndKeepsItsOrigin(FiringOrigin origin)
+    {
+        OccurrenceJob.Attempts.Clear();
+        OccurrenceJob.RemainingFailures = 2;
+
+        string id = Guid.NewGuid().ToString("N");
+        JobKey jobKey = new($"occurrence-{id}", "retries");
+        TriggerKey nightlyKey = new($"nightly-{id}", "retries");
+        DateTimeOffset slot = new DateTimeOffset(TimeProvider.System.GetUtcNow().UtcDateTime.Date, TimeSpan.Zero).AddDays(-2);
+
+        ServiceCollection services = new();
+        services.AddQuartz(quartz =>
+        {
+            quartz.ConfigureScheduler(options => options.InstanceName = $"retry-occurrence-{id}");
+            quartz.AddJob<OccurrenceJob>(job => job.WithIdentity(jobKey).StoreDurably());
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        try
+        {
+            await scheduler.Start();
+
+            switch (origin)
+            {
+                case FiringOrigin.Schedule:
+                    await scheduler.ScheduleJob(TriggerBuilder.Create()
+                        .ForJob(jobKey)
+                        .WithIdentity($"trigger-{id}", "retries")
+                        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).WithRepeatCount(0))
+                        .StartNow()
+                        .Build());
+                    break;
+
+                case FiringOrigin.Manual:
+                    await scheduler.TriggerJob(jobKey);
+                    break;
+
+                default:
+                    // A nightly trigger whose missed nights its misfire instruction does nothing about: the
+                    // one firing is the backfill of the night before last.
+                    await scheduler.ScheduleJob(TriggerBuilder.Create()
+                        .ForJob(jobKey)
+                        .WithIdentity(nightlyKey)
+                        .StartAt(slot)
+                        .WithCronSchedule("0 0 0 * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc).WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing))
+                        .Build());
+                    (await scheduler.Backfill(nightlyKey, slot, slot.AddDays(1))).Scheduled.Should().Be(1);
+                    break;
+            }
+
+            (await OccurrenceJob.Succeeded.WaitAsync(TimeSpan.FromSeconds(30)))
+                .Should().BeTrue("the job should have failed twice, been retried twice, and then succeeded");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+
+        FiringOccurrence[] attempts = [.. OccurrenceJob.Attempts];
+
+        attempts.Select(x => x.RetryAttempt).Should().Equal([0, 1, 2], "one first attempt and two retries");
+        FiringOccurrence occurrence = attempts.Select(x => x with { RetryAttempt = 0 }).Distinct().Should().ContainSingle(
+            "every attempt serves the one occurrence, for the one reason, whatever the clock said when it ran").Subject;
+        occurrence.Origin.Should().Be(origin);
+        if (origin == FiringOrigin.Backfill)
+        {
+            occurrence.OccurrenceUtc.Should().Be(slot, "a backfill's retries stand in for its slot too");
+        }
+    }
+
     [Test]
     public async Task EachScheduledRetryIsCounted()
     {

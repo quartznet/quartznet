@@ -106,6 +106,29 @@ internal static class ManualFiring
     }
 
     /// <summary>
+    /// Whether the firing trigger carries the mark <see cref="Mark" /> writes as <c>"true"</c>.
+    /// </summary>
+    /// <remarks>
+    /// The one reading of the mark: the execution history's <see cref="ExecutionHistoryEntry.Manual" />
+    /// and <see cref="JobExecutionContextOccurrenceExtensions.GetOccurrence" /> both ask here. A serializer
+    /// that typed the value as a <see cref="bool" /> keeps it a mark; any other value is not one.
+    /// </remarks>
+    internal static bool IsMarked(ITrigger trigger)
+    {
+        if (!trigger.JobDataMap.TryGetValue(SchedulerConstants.ManualTrigger, out object? value))
+        {
+            return false;
+        }
+
+        return value switch
+        {
+            bool flag => flag,
+            string text => bool.TryParse(text, out bool parsed) && parsed,
+            _ => false
+        };
+    }
+
+    /// <summary>
     /// A random number, positive or negative.
     /// </summary>
     private static long NextLong()

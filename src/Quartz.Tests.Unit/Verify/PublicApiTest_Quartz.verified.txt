@@ -588,6 +588,20 @@ namespace Quartz
         Acquired = 0,
         Executing = 1,
     }
+    public readonly record struct FiringOccurrence : System.IEquatable<Quartz.FiringOccurrence>
+    {
+        public FiringOccurrence(System.DateTimeOffset OccurrenceUtc, Quartz.FiringOrigin Origin) { }
+        public System.DateTimeOffset OccurrenceUtc { get; init; }
+        public Quartz.FiringOrigin Origin { get; init; }
+        public bool Recovering { get; init; }
+        public int RetryAttempt { get; init; }
+    }
+    public enum FiringOrigin
+    {
+        Schedule = 0,
+        Manual = 1,
+        Backfill = 2,
+    }
     public sealed class GroupMatcher<TKey> : Quartz.StringMatcher<TKey>
         where TKey : Quartz.Key<TKey>
     {
@@ -1152,6 +1166,10 @@ namespace Quartz
     {
         public static TInput? GetInput<TInput>(this Quartz.IJobExecutionContext context) { }
         public static bool TryGetInput<TInput>(this Quartz.IJobExecutionContext context, out TInput? input) { }
+    }
+    public static class JobExecutionContextOccurrenceExtensions
+    {
+        public static Quartz.FiringOccurrence GetOccurrence(this Quartz.IJobExecutionContext context) { }
     }
     public delegate System.Threading.Tasks.ValueTask JobExecutionDelegate(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken);
     public sealed class JobExecutionException : Quartz.SchedulerException
