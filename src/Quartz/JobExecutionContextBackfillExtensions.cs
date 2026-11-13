@@ -19,6 +19,8 @@
 
 #endregion
 
+using Quartz.Util;
+
 namespace Quartz;
 
 /// <summary>
@@ -46,7 +48,9 @@ public static class JobExecutionContextBackfillExtensions
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        return context.Trigger.JobDataMap.TryGetDateTimeOffset(SchedulerConstants.BackfillOriginalFireTime, out DateTimeOffset slot)
+        // Without creating a map on a trigger that has none: telemetry asks this of every firing (#3802).
+        return JobDataMaps.OrNull(context.Trigger) is { } map
+               && map.TryGetDateTimeOffset(SchedulerConstants.BackfillOriginalFireTime, out DateTimeOffset slot)
             ? slot
             : null;
     }
