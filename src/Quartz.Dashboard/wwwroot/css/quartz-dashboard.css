@@ -2976,8 +2976,9 @@ body{
     cursor: default;
 }
 
-/* Timeline filter overrides. The shared .qz-live-filters rules stay in quartz-dashboard.css. */
-.qz-live-filters {
+/* Timeline filter overrides. The shared .qz-live-filters rules are in section 20, and every page that uses
+   those classes keeps them: each rule here is under the Timeline page's own class. */
+.qz-page-timeline .qz-live-filters {
     margin-bottom: var(--qz-space-sm);
     padding: 0.9rem 0.85rem 0.7rem;
     background: var(--qz-color-surface);
@@ -2985,50 +2986,53 @@ body{
     border-radius: var(--qz-radius-md);
 }
 
-.qz-live-filter-grid {
+.qz-page-timeline .qz-live-filter-grid {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 0.85rem 0.75rem;
 }
 
-.qz-live-filter-grid .qz-form-group {
+.qz-page-timeline .qz-live-filter-grid .qz-form-group {
     flex: 0 1 11rem;
     margin-bottom: 0;
     gap: 0;
 }
 
-.qz-live-filter-grid .qz-form-group:not(.qz-timeline-pan) {
+.qz-page-timeline .qz-live-filter-grid .qz-form-group:not(.qz-timeline-pan) {
     position: relative;
-    margin-top: 0.35rem;
+    margin-top: 0.4rem;
 }
 
-.qz-live-filter-grid .qz-form-label {
+/* A label on its field's top border, centred on the line. Its background is the panel's colour above the
+   line and the field's below it, so it breaks the border without cutting into the field. */
+.qz-page-timeline .qz-live-filter-grid .qz-form-label {
     position: absolute;
-    top: -0.42rem;
+    top: 0;
     left: 0.5rem;
     z-index: 1;
     padding: 0 0.28rem;
-    background: var(--qz-color-surface);
-    font-size: 0.62rem;
+    background: linear-gradient(to bottom, var(--qz-color-surface) 50%, var(--qz-color-bg) 50%);
+    font-size: var(--qz-font-size-xs);
     font-weight: var(--qz-font-weight-semibold);
     letter-spacing: 0.07em;
     line-height: 1;
     text-transform: uppercase;
     color: var(--qz-color-primary);
+    transform: translateY(-50%);
 }
 
-.qz-live-filters .qz-muted {
+.qz-page-timeline .qz-live-filters .qz-muted {
     font-variant-numeric: tabular-nums;
 }
 
-.qz-live-filter-grid .qz-select,
-.qz-live-filter-grid .qz-input {
+.qz-page-timeline .qz-live-filter-grid .qz-select,
+.qz-page-timeline .qz-live-filter-grid .qz-input {
     width: 100%;
     background: var(--qz-color-bg);
 }
 
-.qz-live-filter-grid .qz-form-group:has(#timeline-name) {
+.qz-page-timeline .qz-live-filter-grid .qz-form-group:has(#timeline-name) {
     flex: 1 1 14rem;
     max-width: 18rem;
 }

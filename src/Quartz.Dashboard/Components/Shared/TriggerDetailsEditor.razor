@@ -130,7 +130,8 @@
         @if (_form.OffersMeasureIntervalFromCompletion)
         {
             <div class="qz-form-group">
-                <label class="qz-form-label qz-live-filter-item"
+                @* A checkbox's own label, as Calendars and Live Logs draw theirs: not a field label. *@
+                <label class="qz-live-filter-item"
                        for="trigger-edit-measure-from-completion"
                        title="Measure the interval from the previous run's completion rather than its scheduled time: the trigger never overlaps itself, and its overlap policy is not asked. Every node must be 4.7 or later">
                     <input id="trigger-edit-measure-from-completion" type="checkbox" @bind="_form.MeasureIntervalFromCompletion" />

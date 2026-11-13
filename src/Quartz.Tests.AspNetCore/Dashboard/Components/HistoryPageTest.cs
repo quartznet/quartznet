@@ -436,6 +436,28 @@ public class HistoryPageTest
             "the actions are what the layout exists to keep");
     }
 
+    /// <summary>
+    /// The filter classes History shares with Triggers, Live Logs, Calendars and the trigger editor are styled
+    /// once; the Timeline's floating labels are under its own page class, so its Results checkboxes keep a
+    /// plain label (#4303).
+    /// </summary>
+    [Test]
+    public void TheTimelinesFloatingLabelsStayOnTheTimeline()
+    {
+        string css = File.ReadAllText(DashboardStylesheet());
+
+        List<string> selectors = Regex.Matches(css, @"(?m)^([^\s/*@}][^{]*)\{")
+            .Select(match => Regex.Replace(match.Groups[1].Value, @"\s+", " ").Trim())
+            .Where(selector => selector.Contains(".qz-live-filter", StringComparison.Ordinal))
+            .ToList();
+
+        selectors.Where(selector => !selector.StartsWith(".qz-page-timeline ", StringComparison.Ordinal)).Should().Equal(
+            [".qz-live-filters", ".qz-live-filter-grid", ".qz-live-filter-item"],
+            "only the shared definitions may style the filter classes on every page");
+        css.Should().MatchRegex(@"\.qz-page-timeline \.qz-live-filter-grid \.qz-form-label \{[^}]*position: absolute;",
+            "the Timeline keeps its labels on the border");
+    }
+
     internal static string DashboardStylesheet()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
