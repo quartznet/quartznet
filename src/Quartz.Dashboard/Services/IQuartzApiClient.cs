@@ -1323,8 +1323,15 @@ public sealed record TriggerKeyDto(string Group, string Name);
 /// One row of a trigger listing: enough to show the trigger without loading it.
 /// </summary>
 /// <remarks>
-/// <see cref="ScheduleSummary" /> is null on the listings that do not load the triggers themselves,
-/// and <see cref="State" /> is null when the listing could not pair the header with a state.
+/// <para>
+/// <see cref="ScheduleSummary" /> is the text the schedule is written in: a cron trigger's expression and a
+/// recurrence trigger's rule. It is null for the kinds built from numbers, and on a row whose host did not
+/// send one. Before 4.8 it summarised a simple trigger too; that is <see cref="ScheduleDescription" /> now.
+/// </para>
+/// <para>
+/// <see cref="TriggerType" /> is null on <see cref="IQuartzApiClient.QueryTriggers" />, which does not load
+/// the triggers, and <see cref="State" /> is null when the listing could not pair the header with a state.
+/// </para>
 /// </remarks>
 public sealed record TriggerHeaderDto(
     string Group,
@@ -1381,6 +1388,16 @@ public sealed record TriggerHeaderDto(
     /// The previous time the trigger fired, or <see langword="null" /> when it has not fired yet.
     /// </summary>
     public DateTimeOffset? PreviousFireTimeUtc { get; init; }
+
+    /// <summary>
+    /// The trigger's schedule in words, as <see cref="TriggerScheduleDescriptionExtensions.DescribeSchedule" />
+    /// says it: <c>Every weekday at 07:00 (America/Chicago)</c>. For display only; do not parse it.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="null" /> for a trigger kind that is not described, for a trigger the listing could not
+    /// read, and on a listing from a scheduler, HTTP API or agent older than 4.8, which sends none.
+    /// </remarks>
+    public string? ScheduleDescription { get; init; }
 }
 
 /// <remarks>

@@ -196,7 +196,6 @@
                         string triggerGroup = trigger.Group;
                         string triggerName = trigger.Name;
                         string triggerType = trigger.TriggerType ?? string.Empty;
-                        string triggerSchedule = trigger.ScheduleSummary ?? string.Empty;
                         string triggerState = trigger.State?.ToString() ?? "Unknown";
                         <tr>
                             <td>
@@ -205,7 +204,7 @@
                                 </a>
                             </td>
                             <td>@(triggerType is { Length: > 0 } ? triggerType : "—")</td>
-                            <td>@(triggerSchedule is { Length: > 0 } ? triggerSchedule : "—")</td>
+                            <td class="qz-col-schedule"><ScheduleCell Trigger="@trigger" /></td>
                             <td>
                                 <StateIndicator State="@triggerState" />
                                 <PauseNote Pause="@trigger.Pause" />

@@ -167,7 +167,7 @@
                         }
                     </div>
                 }
-                <table class="qz-table qz-entity-table">
+                <table class="qz-table qz-entity-table qz-triggers-table">
                     <thead>
                         <tr>
                             @if (CanSelect)
@@ -182,8 +182,11 @@
                                 </th>
                             }
                             <th class="qz-col-key">Trigger</th>
+                            <th class="qz-col-schedule">Schedule</th>
+                            <th class="qz-col-fire qz-col-next-fire">Next fire</th>
+                            <th class="qz-col-fire qz-col-previous-fire">Previous fire</th>
                             <th class="qz-col-state">State</th>
-                            <th>Execution Group</th>
+                            <th class="qz-col-execution-group">Execution Group</th>
                             <th class="qz-col-details">Details</th>
                             @if (HasRowActions)
                             {
@@ -221,11 +224,14 @@
                                         </div>
                                     }
                                 </td>
+                                <td class="qz-col-schedule"><ScheduleCell Trigger="@trigger" /></td>
+                                <td class="qz-col-fire qz-col-next-fire"><FireTimeCell Time="@trigger.NextFireTimeUtc" Now="@_lastUpdatedAt.GetValueOrDefault()" Upcoming="true" /></td>
+                                <td class="qz-col-fire qz-col-previous-fire"><FireTimeCell Time="@trigger.PreviousFireTimeUtc" Now="@_lastUpdatedAt.GetValueOrDefault()" /></td>
                                 <td class="qz-col-state">
                                     <StateIndicator State="@(trigger.State?.ToString())" />
                                     <PauseNote Pause="@trigger.Pause" />
                                 </td>
-                                <td>
+                                <td class="qz-col-execution-group">
                                     @if (!string.IsNullOrEmpty(trigger.ExecutionGroup))
                                     {
                                         <span class="qz-badge">@trigger.ExecutionGroup</span>
@@ -324,7 +330,8 @@
     private BulkResult? _bulkResult;
 
     /// <summary>
-    /// When the listing on screen was read, or <see langword="null" /> while it holds nothing read.
+    /// When the listing on screen was read, or <see langword="null" /> while it holds nothing read. Each
+    /// row's "in 3m" and "3m ago" count from it, so a stale listing's rows still agree with its time.
     /// </summary>
     private DateTimeOffset? _lastUpdatedAt;
 

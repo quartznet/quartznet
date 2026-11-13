@@ -1641,6 +1641,72 @@ body{
     }
 }
 
+/* The Triggers listing adds a schedule and two fire times to the key, state, execution group and actions.
+   The key and the schedule share what the fixed columns leave; the schedule wraps between words, a fire time
+   wraps between its date, its time and how far off it is, and the actions take two rows until there is room
+   for one. */
+.qz-triggers-table th.qz-col-schedule,
+.qz-triggers-table td.qz-col-schedule {
+    font-size: var(--qz-font-size-sm);
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.qz-triggers-table th.qz-col-fire,
+.qz-triggers-table td.qz-col-fire {
+    width: 132px;
+    padding-left: var(--qz-space-sm);
+    padding-right: var(--qz-space-sm);
+    font-size: var(--qz-font-size-sm);
+    white-space: normal;
+}
+
+.qz-triggers-table th.qz-col-state,
+.qz-triggers-table td.qz-col-state {
+    width: 140px;
+}
+
+.qz-triggers-table th.qz-col-execution-group,
+.qz-triggers-table td.qz-col-execution-group {
+    width: 112px;
+}
+
+.qz-triggers-table th.qz-col-details,
+.qz-triggers-table td.qz-col-details {
+    width: 104px;
+}
+
+.qz-triggers-table th.qz-col-actions,
+.qz-triggers-table td.qz-col-actions {
+    width: 220px;
+    white-space: normal;
+}
+
+.qz-fire-time {
+    display: inline-flex;
+    flex-wrap: wrap;
+    column-gap: var(--qz-space-xs);
+}
+
+@media (min-width: 1600px) {
+    .qz-triggers-table th.qz-col-actions,
+    .qz-triggers-table td.qz-col-actions {
+        width: 340px;
+    }
+}
+
+/* Narrower than that, the previous fire gives its width to the key; the trigger's own page shows it. */
+@media (max-width: 1439px) {
+    .qz-triggers-table .qz-col-previous-fire {
+        display: none;
+    }
+}
+
+/* A trigger's page shows the expression beside the schedule in words. */
+.qz-schedule-expression {
+    margin-left: var(--qz-space-sm);
+}
+
 /* A run's result beside its time, and where it ran: kept apart, each piece moving to a line of its own
    before any of them wraps, and wrapping only between words - so a narrow column never runs one into the
    next. */

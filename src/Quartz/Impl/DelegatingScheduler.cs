@@ -10,7 +10,7 @@ namespace Quartz.Impl;
 /// Every member is <c>virtual</c>, and a member added to <see cref="IScheduler" /> lands here as one
 /// more forwarder — which is what keeps a decorator in somebody else's codebase compiling.
 /// </remarks>
-public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler
+public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler
 {
     private readonly IScheduler scheduler;
 
@@ -553,6 +553,24 @@ public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingF
         return EndsIn<IUpcomingFireTimesScheduler>()
             ? ((IUpcomingFireTimesScheduler) scheduler).GetUpcomingFireTimes(triggerKey, count, cancellationToken)
             : UpcomingFireTimes.Compose(this, triggerKey, count, cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists the triggers with their schedules described where they are stored, when the scheduler this
+    /// wrapping ends in can, and otherwise describes them over this decorator.
+    /// </summary>
+    /// <remarks>
+    /// Forwarded for the reason <see cref="IBackfillingScheduler.Backfill" /> is, and decided the same way, so a
+    /// cluster's wrapped <c>HttpScheduler</c> sends its one listing request rather than a second one that reads
+    /// every trigger of the page back.
+    /// </remarks>
+    ValueTask<PagedResult<DescribedTriggerHeader>> IScheduleDescribingScheduler.QueryDescribedTriggers(
+        TriggerQuery query,
+        CancellationToken cancellationToken)
+    {
+        return EndsIn<IScheduleDescribingScheduler>()
+            ? ((IScheduleDescribingScheduler) scheduler).QueryDescribedTriggers(query, cancellationToken)
+            : DescribedTriggerListing.Compose(this, query, cancellationToken);
     }
 
     /// <summary>

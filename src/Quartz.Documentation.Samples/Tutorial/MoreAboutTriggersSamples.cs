@@ -148,4 +148,22 @@ public static class MoreAboutTriggersSamples
 
         #endregion
     }
+
+    public static string? DescribingASchedule()
+    {
+        #region sample_more_about_triggers_describe_schedule
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("weekday-report")
+            .ForJob("report")
+            .WithCronSchedule("0 0 7 ? * MON-FRI", x => x.InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("America/Chicago")))
+            .Build();
+
+        // "Every weekday at 07:00 (America/Chicago)": for a person to read, never to parse.
+        string? schedule = trigger.DescribeSchedule();
+
+        #endregion
+
+        return schedule;
+    }
 }

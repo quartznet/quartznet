@@ -237,7 +237,7 @@ detail page.
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
 | **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete |
-| **Triggers**: state, next and previous fire times, execution group | from 4.7, its [upcoming fires](#upcoming-fires); the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
+| **Triggers**: from 4.8, [the schedule in words, and next and previous fire](#the-schedule-and-fire-times); state, execution group | from 4.7, its [upcoming fires](#upcoming-fires); from 4.8, the schedule in words beside its expression; the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
 | **Calendars**: names | one calendar | create, replace or delete a cron calendar |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
@@ -253,6 +253,25 @@ detail page.
 - The cron reschedule editor previews the next five fires of the expression being edited, before it is saved,
   in the trigger's time zone and less what its calendar excludes. The preview shows only while the edited
   expression differs from the saved one.
+
+### The schedule and fire times
+
+From 4.8, the Triggers listing shows each trigger's schedule in words, in the trigger's own time zone:
+*Every weekday at 07:00 (America/Chicago)*. The text is
+[`DescribeSchedule`](../tutorial/more-about-triggers.md#describing-a-schedule)'s.
+
+| Column | Shows |
+|---|---|
+| Schedule | The schedule in words. Hover for the cron expression or recurrence rule. A shape it cannot phrase shows the expression itself |
+| Next fire | The time in the dashboard's time zone, and how far off it is: `in 3m`. A time already passed, as a paused trigger's is, says `due 2h ago` |
+| Previous fire | The time in the dashboard's time zone, and how long ago: `2h ago`. Hidden below 1440 px; the trigger's page shows it |
+
+- **The scheduler describes the page.** It reads the page's triggers in one batch. A scheduler over HTTP or through
+  an agent describes its own and sends the text on the [listing](http-api.md#listing-endpoints-are-paged), in the
+  same request.
+- **A scheduler, HTTP API or agent older than 4.8** sends no description, and the column shows `—`.
+- The trigger's page and the job's table of triggers show the same text. The trigger's page keeps the expression
+  beside it.
 
 ### Upcoming fires
 

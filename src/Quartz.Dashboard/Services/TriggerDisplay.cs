@@ -20,10 +20,11 @@
 namespace Quartz.Dashboard.Services;
 
 /// <summary>
-/// How the dashboard names a trigger's kind and summarises its schedule.
+/// How the dashboard names a trigger's kind.
 /// </summary>
 /// <remarks>
-/// One place, so that the listing and the detail page cannot describe the same trigger differently.
+/// One place, so that the listing and the detail page cannot name the same trigger differently. The schedule
+/// is <see cref="TriggerScheduleDescriptionExtensions.DescribeSchedule" />'s, for the same reason.
 /// </remarks>
 internal static class TriggerDisplay
 {
@@ -37,24 +38,8 @@ internal static class TriggerDisplay
             ISimpleTrigger => "Simple",
             ICalendarIntervalTrigger => "Calendar interval",
             IDailyTimeIntervalTrigger => "Daily time interval",
+            IRecurrenceTrigger => "Recurrence",
             _ => trigger.GetType().Name
         };
-    }
-
-    public static string? ScheduleSummary(ITrigger trigger)
-    {
-        ArgumentNullException.ThrowIfNull(trigger);
-
-        switch (trigger)
-        {
-            case ICronTrigger cron:
-                return cron.CronExpressionString;
-            case ISimpleTrigger simple:
-                string summary = "Every " + simple.RepeatInterval;
-                summary += simple.RepeatCount < 0 ? ", repeat forever" : ", " + simple.RepeatCount + " time(s)";
-                return simple.MeasureIntervalFromCompletion ? summary + ", measured from completion" : summary;
-            default:
-                return null;
-        }
     }
 }

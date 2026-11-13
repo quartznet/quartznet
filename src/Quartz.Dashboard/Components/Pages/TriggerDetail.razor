@@ -107,7 +107,16 @@
                 <tr><th>Preferred Node</th><td>@DisplayPreferredNode(_trigger.PreferredNode)</td></tr>
                 <tr><th>Misfire Instruction</th><td>@_misfireName</td></tr>
                 <tr><th>Misfire Threshold</th><td>@TriggerDetailsForm.MisfireThresholdOf(_trigger)</td></tr>
-                <tr><th>Schedule</th><td>@BuildScheduleDescription()</td></tr>
+                <tr>
+                    <th>Schedule</th>
+                    <td data-testid="trigger-schedule">
+                        <span class="qz-schedule-description">@BuildScheduleDescription()</span>
+                        @if (ScheduleExpressionBeside() is { } scheduleExpression)
+                        {
+                            <span class="qz-table-cell-mono qz-muted qz-schedule-expression">@scheduleExpression</span>
+                        }
+                    </td>
+                </tr>
                 <tr><th>Next Fire</th><td>@FormatDate(_trigger.NextFireTimeUtc)</td></tr>
                 <tr><th>Previous Fire</th><td>@FormatDate(_trigger.PreviousFireTimeUtc)</td></tr>
                 <tr><th>Retry Policy</th><td>@(_trigger.RetryPolicy is { } retryPolicy ? retryPolicy.ToStoredString() : "—")</td></tr>
@@ -336,7 +345,22 @@
             return string.Empty;
         }
 
-        return TriggerDisplay.ScheduleSummary(_trigger) ?? TriggerDisplay.TypeName(_trigger);
+        return _trigger.DescribeSchedule() ?? TriggerDisplay.TypeName(_trigger);
+    }
+
+    /// <summary>
+    /// The expression the schedule is written in, to show beside its description, or <see langword="null" />
+    /// when it has none or the description already is the expression: a shape with no sentence of its own.
+    /// </summary>
+    private string? ScheduleExpressionBeside()
+    {
+        if (_trigger is null || Quartz.Impl.Triggers.ScheduleDescriber.Expression(_trigger) is not { Length: > 0 } expression)
+        {
+            return null;
+        }
+
+        string? description = _trigger.DescribeSchedule();
+        return description is not null && description.StartsWith(expression.Trim(), StringComparison.Ordinal) ? null : expression;
     }
 
     private string FormatDate(DateTimeOffset? value)

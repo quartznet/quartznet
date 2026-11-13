@@ -21,6 +21,8 @@
 
 // ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract - Can be null when received from Web API
 
+using Quartz.Impl;
+
 namespace Quartz.HttpApiContract;
 
 internal sealed record PagedResultDto<T>(T[] Items, bool HasMore, int? TotalCount);
@@ -77,6 +79,11 @@ internal sealed record JobHeaderDto(
 /// trigger say the same thing about the same trigger, so they may not say it in different words. The
 /// condition goes out as its names — <c>"OnFailure, OnCancellation"</c> — rather than as the integer the
 /// column holds, for the reason every other enum on this wire does.
+/// <para>
+/// From 4.8, <see cref="ScheduleDescription" /> is the trigger's schedule in words, for display only, and
+/// <see cref="ScheduleExpression" /> the cron expression or recurrence rule it is written in. The host reads the
+/// page's triggers to fill them, and a host older than 4.8 sends neither.
+/// </para>
 /// </remarks>
 internal sealed record TriggerHeaderDto(
     string Name,
@@ -99,8 +106,21 @@ internal sealed record TriggerHeaderDto(
     string? ContinuesAfterTriggerGroup = null,
     ContinuationCondition? ContinuationCondition = null,
     OverlapPolicy OverlapPolicy = OverlapPolicy.Default,
-    PauseDto? Pause = null)
+    PauseDto? Pause = null,
+    string? ScheduleDescription = null,
+    string? ScheduleExpression = null)
 {
+    public static TriggerHeaderDto Create(DescribedTriggerHeader row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+
+        return Create(row.Header) with
+        {
+            ScheduleDescription = row.ScheduleDescription,
+            ScheduleExpression = row.ScheduleExpression
+        };
+    }
+
     public static TriggerHeaderDto Create(TriggerHeader header)
     {
         ArgumentNullException.ThrowIfNull(header);

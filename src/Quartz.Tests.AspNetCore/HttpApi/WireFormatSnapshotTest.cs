@@ -138,6 +138,11 @@ public class WireFormatSnapshotTest : WebApiTest
                 HasMore: false,
                 TotalCount: null));
 
+        // From 4.8 each row carries its schedule in words and the expression it is written in, from the page's
+        // triggers read in one go; a row whose trigger was not read carries neither, as nulls.
+        A.CallTo(() => FakeScheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<ITrigger> { TestData.Wire.CronTrigger });
+
         string body = await Get($"{SchedulerUrl}/triggers");
         await VerifyBody(body);
     }

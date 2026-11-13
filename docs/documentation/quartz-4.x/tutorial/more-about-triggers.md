@@ -397,3 +397,41 @@ List<DateTimeOffset>? fireTimes = await scheduler.GetUpcomingFireTimes(new Trigg
 * On an `HttpScheduler` it is one request; the host computes the times. See
   [Upcoming fire times](../packages/http-api.md#upcoming-fire-times) in the HTTP API.
 * For a trigger you have not scheduled, use [`TriggerFireTimes`](testing.md#level-0-schedules-with-no-scheduler).
+
+## Describing a schedule
+
+From 4.8, `DescribeSchedule()` says a trigger's schedule in English, in the trigger's own time zone:
+
+<!-- snippet: sample_more_about_triggers_describe_schedule -->
+```csharp
+ITrigger trigger = TriggerBuilder.Create()
+    .WithIdentity("weekday-report")
+    .ForJob("report")
+    .WithCronSchedule("0 0 7 ? * MON-FRI", x => x.InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("America/Chicago")))
+    .Build();
+
+// "Every weekday at 07:00 (America/Chicago)": for a person to read, never to parse.
+string? schedule = trigger.DescribeSchedule();
+```
+<!-- endSnippet -->
+
+**For display only.** The wording may change in any release: do not parse it, compare it or store it. Read the
+trigger's own members for the schedule.
+
+| Trigger | Example |
+|---|---|
+| Cron | `Every weekday at 07:00 (America/Chicago)`, `At 12:00 on the last day of every month (UTC)` |
+| Simple | `Every 5 minutes, 3 times`, `30 seconds after each run completes`, `Once`. No time zone |
+| Calendar interval | `Every 2 months (UTC)` |
+| Daily time interval | `Every 15 minutes from 09:00 to 17:00, Monday to Friday (UTC)` |
+| Recurrence | `Monthly on the second Tuesday (UTC)` |
+
+* Cron covers seconds, ranges, steps, lists, names, `L`, `LW`, `W`, `#`, the year field and
+  [`CronFormat.Unix`](../cron-expressions.md#the-unix-five-field-form). A shape it cannot phrase is the expression itself:
+  `0 0-5 9-17 * * ? (UTC)`. So is a recurrence rule with `BYSETPOS`, `BYWEEKNO` or `BYYEARDAY`.
+* A trigger with a calendar adds `, excluding calendar 'holidays'`.
+* The time of day of a calendar-interval or recurrence trigger comes from its start time, which the text leaves out.
+* It answers `null` for a trigger kind it does not know, such as an `ITrigger` of your own.
+* The [dashboard](../packages/dashboard.md#the-schedule-and-fire-times) shows this text, and the
+  [HTTP API](../packages/http-api.md#listing-endpoints-are-paged)'s trigger listing carries it as
+  `scheduleDescription`.

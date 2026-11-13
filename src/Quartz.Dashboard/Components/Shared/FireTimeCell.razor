@@ -1,0 +1,49 @@
+@using Quartz.Dashboard.Services
+@inject SchedulerState Scheduler
+
+@* A listing row's next or previous fire time, in the dashboard's time zone, with how far it is from the moment
+   the page was read: "in 3m" ahead of it, "3m ago" behind it. A next fire time already passed - a paused or
+   misfired trigger's - says how overdue it is rather than "in under a minute". *@
+@if (Time is { } time)
+{
+    <span class="qz-fire-time">
+        <span>@Scheduler.FormatInSelectedTimeZone(time)</span>
+        <span class="qz-muted qz-fire-time-relative">@Relative(time)</span>
+    </span>
+}
+else
+{
+    <span class="qz-muted">&#8212;</span>
+}
+
+@code {
+    /// <summary>
+    /// The fire time, or <see langword="null" /> for none: a trigger that does not fire again, or has not fired yet.
+    /// </summary>
+    [Parameter]
+    public DateTimeOffset? Time { get; set; }
+
+    /// <summary>
+    /// When the page read the listing, which the relative time counts from.
+    /// </summary>
+    [Parameter]
+    public DateTimeOffset Now { get; set; }
+
+    /// <summary>
+    /// Whether this is the next fire time rather than the previous one.
+    /// </summary>
+    [Parameter]
+    public bool Upcoming { get; set; }
+
+    private string Relative(DateTimeOffset time)
+    {
+        if (!Upcoming)
+        {
+            return DisplayValueHelper.FormatSince(time, Now);
+        }
+
+        return time < Now - TimeSpan.FromMinutes(1)
+            ? "due " + DisplayValueHelper.FormatSince(time, Now)
+            : DisplayValueHelper.FormatUntil(time, Now);
+    }
+}

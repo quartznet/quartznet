@@ -1,0 +1,21 @@
+@using Quartz.Dashboard.Services
+
+@* A trigger's schedule in words, with the expression it is written in on hover. A row from a scheduler, HTTP API
+   or agent older than 4.8 carries no words, and the cell is a dash. *@
+@if (Trigger.ScheduleDescription is { Length: > 0 } description)
+{
+    <span class="qz-schedule" title="@Trigger.ScheduleSummary">@description</span>
+}
+else
+{
+    <span class="qz-muted qz-schedule-missing" title="This scheduler did not describe the schedule">&#8212;</span>
+}
+
+@code {
+    /// <summary>
+    /// The listing row whose schedule this is.
+    /// </summary>
+    [Parameter]
+    [EditorRequired]
+    public TriggerHeaderDto Trigger { get; set; } = null!;
+}

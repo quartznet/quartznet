@@ -24,6 +24,7 @@ using Quartz.Configuration;
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Util;
 
 namespace Quartz.Dashboard.Services;
@@ -335,7 +336,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 Group: trigger.Key.Group,
                 Name: trigger.Key.Name,
                 TriggerType: TriggerDisplay.TypeName(trigger),
-                ScheduleSummary: TriggerDisplay.ScheduleSummary(trigger),
+                ScheduleSummary: ScheduleDescriber.Expression(trigger),
                 State: states.TryGetValue(trigger.Key, out TriggerState state) ? state : null,
                 ExecutionGroup: trigger.ExecutionGroup)
             {
@@ -345,7 +346,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 StartTimeUtc = trigger.StartTimeUtc,
                 EndTimeUtc = trigger.EndTimeUtc,
                 NextFireTimeUtc = trigger.NextFireTimeUtc,
-                PreviousFireTimeUtc = trigger.PreviousFireTimeUtc
+                PreviousFireTimeUtc = trigger.PreviousFireTimeUtc,
+                ScheduleDescription = trigger.DescribeSchedule()
             });
         }
 
@@ -515,24 +517,25 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             IncludeTotalCount = true
         };
 
-        PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers(storeQuery, cancellationToken).ConfigureAwait(false);
+        // Described where the triggers are stored: a scheduler of this process reads the page's triggers in
+        // one go, and one over HTTP or through an agent sends the descriptions its host put on the rows.
+        PagedResult<DescribedTriggerHeader> triggers = await DescribedTriggerListing.Query(scheduler, storeQuery, cancellationToken).ConfigureAwait(false);
 
         if (query.NextFireTimeBefore is { } before)
         {
-            EnsureNextFireTimeFilterWasApplied(triggers, before);
+            EnsureNextFireTimeFilterWasApplied(triggers.Items.Select(static x => x.Header), before);
         }
 
         List<TriggerHeaderDto> items = new(triggers.Items.Count);
-        foreach (TriggerHeader trigger in triggers.Items)
+        foreach ((TriggerHeader trigger, string? scheduleDescription, string? scheduleExpression) in triggers.Items)
         {
-            // The trigger listing does not load the triggers, so it has no schedule to summarise and
-            // no kind to name: the store's own trigger-type discriminator is not the display name the
+            // No kind to name: the store's own trigger-type discriminator is not the display name the
             // associated-triggers table shows, and the two must not disagree.
             items.Add(new TriggerHeaderDto(
                 Group: trigger.Key.Group,
                 Name: trigger.Key.Name,
                 TriggerType: null,
-                ScheduleSummary: null,
+                ScheduleSummary: scheduleExpression,
                 State: trigger.State,
                 ExecutionGroup: trigger.ExecutionGroup)
             {
@@ -544,7 +547,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 StartTimeUtc = trigger.StartTimeUtc,
                 EndTimeUtc = trigger.EndTimeUtc,
                 NextFireTimeUtc = trigger.NextFireTimeUtc,
-                PreviousFireTimeUtc = trigger.PreviousFireTimeUtc
+                PreviousFireTimeUtc = trigger.PreviousFireTimeUtc,
+                ScheduleDescription = scheduleDescription
             });
         }
 
@@ -560,9 +564,9 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// carries the next fire time the store compared, so a row the filter excludes is proof of that, not a
     /// guess, and the page is told the filter is unavailable instead of being shown the rows.
     /// </remarks>
-    private static void EnsureNextFireTimeFilterWasApplied(PagedResult<TriggerHeader> page, DateTimeOffset before)
+    private static void EnsureNextFireTimeFilterWasApplied(IEnumerable<TriggerHeader> page, DateTimeOffset before)
     {
-        foreach (TriggerHeader header in page.Items)
+        foreach (TriggerHeader header in page)
         {
             if (header.NextFireTimeUtc is not { } nextFireTime || nextFireTime >= before)
             {

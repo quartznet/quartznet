@@ -42,6 +42,71 @@ public class TriggersPageTest
             "the state comes off the listing itself rather than from a call per trigger");
     }
 
+    /// <summary>
+    /// Each row says when its trigger fires, in words and in its own zone, with the expression it is written in
+    /// on hover (#4243).
+    /// </summary>
+    [Test]
+    public void EachRowShowsItsScheduleInWordsWithItsExpressionOnHover()
+    {
+        GivenTriggers([
+            TestData.Dashboard.TriggerHeaders("nightly", 1)[0] with
+            {
+                ScheduleSummary = "0 0 7 ? * MON-FRI",
+                ScheduleDescription = "Every weekday at 07:00 (America/Chicago)"
+            }
+        ]);
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("th").Select(th => th.TextContent.Trim()).Should().ContainInOrder("Trigger", "Schedule", "Next fire", "Previous fire", "State");
+        IElement schedule = page.Find("td.qz-col-schedule .qz-schedule");
+        schedule.TextContent.Should().Be("Every weekday at 07:00 (America/Chicago)");
+        schedule.GetAttribute("title").Should().Be("0 0 7 ? * MON-FRI", "the expression the words were made from is a hover away");
+    }
+
+    /// <summary>
+    /// A scheduler, HTTP API or agent older than 4.8 lists its triggers without descriptions.
+    /// </summary>
+    [Test]
+    public void ARowWithNoDescriptionShowsADash()
+    {
+        GivenTriggers([TestData.Dashboard.TriggerHeaders("nightly", 1)[0] with { ScheduleSummary = null, ScheduleDescription = null }]);
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find("td.qz-col-schedule").TextContent.Trim().Should().Be("—");
+        page.FindAll("td.qz-col-schedule .qz-schedule").Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// The fire times show in the dashboard's zone, each with how far it is from when the page was read: the
+    /// clock reads 14:23 UTC, which is 09:23 in Chicago.
+    /// </summary>
+    [Test]
+    public void TheFireTimesShowInTheDashboardsZoneWithHowFarOffTheyAre()
+    {
+        context.SchedulerState.SelectedTimeZoneId = "America/Chicago";
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenTriggers([
+            TestData.Dashboard.TriggerHeaders("nightly", 1)[0] with
+            {
+                NextFireTimeUtc = now.AddMinutes(3),
+                PreviousFireTimeUtc = now.AddHours(-2)
+            },
+            TestData.Dashboard.TriggerHeaders("nightly", 1, firstIndex: 2)[0] with { NextFireTimeUtc = now.AddDays(-1) }
+        ]);
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("td.qz-col-next-fire").Select(Text).Should().Equal(
+            "2026-10-05 09:26:00 -05:00 in 3m",
+            "2026-10-04 09:23:00 -05:00 due 1d ago");
+        page.FindAll("td.qz-col-previous-fire").Select(Text).Should().Equal(
+            "2026-10-05 07:23:00 -05:00 2h ago",
+            "—");
+    }
+
     [Test]
     public void ThePagerAsksForTheSliceThePageNumberNames()
     {
@@ -105,6 +170,38 @@ public class TriggersPageTest
             page.FindAll(".qz-error-alert").Should().BeEmpty("a page with a listing to show is not a page that failed to load");
             page.Find("[data-testid=stale-marker]").GetAttribute("title").Should().Be(
                 "The last refresh failed: the store is not answering");
+        });
+    }
+
+    /// <summary>
+    /// A stale listing's fire times still count from when it was read, the time the page shows beside it, not
+    /// from the refresh that failed.
+    /// </summary>
+    [Test]
+    public void AStaleListingsFireTimesCountFromWhenItWasRead()
+    {
+        DateTimeOffset readAt = context.Clock.GetUtcNow();
+        GivenTriggers([
+            TestData.Dashboard.TriggerHeaders("nightly", 1)[0] with
+            {
+                NextFireTimeUtc = readAt.AddMinutes(3),
+                PreviousFireTimeUtc = readAt.AddHours(-2)
+            }
+        ]);
+        A.CallTo(() => context.Api.ResumeTrigger(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._)).Returns(true);
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        context.Clock.Advance(TimeSpan.FromMinutes(10));
+        A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
+            .Throws(new InvalidOperationException("the store is not answering"));
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Resume").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll("[data-testid=stale-marker]").Should().ContainSingle();
+            page.Find("td.qz-col-next-fire .qz-fire-time-relative").TextContent.Should().Be("in 3m",
+                "the row is the one read ten minutes ago, and says what it said then");
+            page.Find("td.qz-col-previous-fire .qz-fire-time-relative").TextContent.Should().Be("2h ago");
         });
     }
 
@@ -718,6 +815,14 @@ public class TriggersPageTest
     private static void Select(IRenderedComponent<Triggers> page, string key)
     {
         page.Find("input.qz-select-trigger[aria-label='Select " + key + "']").Change(true);
+    }
+
+    /// <summary>
+    /// A cell's text with its whitespace collapsed, as a reader sees it.
+    /// </summary>
+    private static string Text(IElement cell)
+    {
+        return string.Join(' ', cell.TextContent.Split((char[]?) null, StringSplitOptions.RemoveEmptyEntries));
     }
 
     private void GivenTriggers(IReadOnlyList<TriggerHeaderDto> triggers)
