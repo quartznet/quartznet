@@ -199,6 +199,25 @@ public sealed class TriggerDetailsEditorTest
             .MustHaveHappenedOnceExactly());
     }
 
+    /// <summary>
+    /// The checkbox's label is a checkbox label like those on Calendars and Live Logs, not a field label, so a
+    /// field-label style such as the Timeline's floating one never turns it into a heading (#4303).
+    /// </summary>
+    [Test]
+    public void TheMeasureFromCompletionCheckboxIsLabelledLikeTheOtherCheckboxes()
+    {
+        GivenTrigger(TriggerBuilder.Create()
+            .WithIdentity(TriggerName, TriggerGroup)
+            .ForJob("export", "reports")
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever())
+            .Build());
+        IRenderedComponent<TriggerDetail> page = OpenEditor();
+
+        IElement label = page.Find("label[for=trigger-edit-measure-from-completion]");
+        label.ClassList.Should().Contain("qz-live-filter-item");
+        label.ClassList.Should().NotContain("qz-form-label");
+    }
+
     [Test]
     public void ACronTriggerIsNotOfferedMeasuringFromCompletion()
     {
