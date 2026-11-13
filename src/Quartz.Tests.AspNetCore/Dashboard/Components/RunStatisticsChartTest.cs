@@ -285,7 +285,8 @@ public class RunStatisticsChartTest
         IRenderedComponent<History> page = context.Render<History>();
 
         page.WaitForAssertion(() => page.Find("[data-testid=history-statistics-read-at]").TextContent.Should().Be(
-            "Statistics read at 20:08:00 · re-read every 30 s", "14:23 UTC is 20:08 in Kathmandu, five hours and 45 minutes ahead"));
+            "Statistics read at 20:08:00 · read again every 30 s and when a filter changes",
+            "14:23 UTC is 20:08 in Kathmandu, five hours and 45 minutes ahead"));
         A.CallTo(() => context.Api.QueryExecutions(A<DashboardHistoryQuery>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
         A.CallTo(() => context.Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
 
@@ -302,6 +303,40 @@ public class RunStatisticsChartTest
         page.WaitForAssertion(() => page.Find("[data-testid=history-statistics-read-at]").TextContent.Should().Contain("20:08:30",
             "30 seconds after the last read, the statistics are read again and say so"));
         A.CallTo(() => context.Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._)).MustHaveHappenedTwiceExactly();
+    }
+
+    /// <summary>
+    /// A filter changes what the statistics count, so the page reads them at once rather than at the next 30
+    /// seconds, and the time says so.
+    /// </summary>
+    [Test]
+    public void AFilterChangeReadsTheStatisticsAtOnceAndTheTimeSaysSo()
+    {
+        GivenOneListedRow();
+        A.CallTo(() => context.Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._))
+            .Returns(Hourly(Bucket(TwoOClock, succeeded: 3, p50: 100, p95: 200, max: 250)));
+
+        context.Navigate("/quartz/history?window=24h");
+        IRenderedComponent<History> page = context.Render<History>();
+        page.WaitForAssertion(() => page.Find("[data-testid=history-statistics-read-at]").TextContent.Should().Contain("14:23:00"));
+
+        // One tick: the rows are read again and the statistics, a second old, are kept.
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.QueryExecutions(A<DashboardHistoryQuery>._, A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly());
+        A.CallTo(() => context.Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+
+        page.Find("[data-testid=history-window-filter]").Change("7d");
+
+        page.WaitForAssertion(() =>
+        {
+            A.CallTo(() => context.Api.QueryExecutionStatistics(
+                    A<ExecutionStatisticsQuery>.That.Matches(query => query.BucketSize == TimeSpan.FromHours(6)),
+                    A<CancellationToken>._))
+                .MustHaveHappenedOnceExactly();
+            page.Find("[data-testid=history-statistics-read-at]").TextContent.Should().Contain("14:23:01",
+                "a second into the 30, the new window is read at once");
+        });
     }
 
     /// <summary>

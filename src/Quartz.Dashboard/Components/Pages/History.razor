@@ -161,7 +161,7 @@
         {
             @* Over every run the filters and the window match, read with the chart: the page's own rows are a
                page, not the history. They are read less often than the rows, so they say when. *@
-            <p class="qz-muted" data-testid="history-statistics-read-at">Statistics read at @Scheduler.FormatInSelectedTimeZone(windowed.Before, "HH:mm:ss") · re-read every @StatisticsRefreshInterval.TotalSeconds.ToString(CultureInfo.InvariantCulture) s</p>
+            <p class="qz-muted" data-testid="history-statistics-read-at">Statistics read at @Scheduler.FormatInSelectedTimeZone(windowed.Before, "HH:mm:ss") · read again every @StatisticsRefreshInterval.TotalSeconds.ToString(CultureInfo.InvariantCulture) s and when a filter changes</p>
             <div class="qz-grid qz-grid-4" data-testid="history-window-stats">
                 <StatCard Title="@WindowStatTitle("Runs")" Value="@WindowRunCount(windowed).ToString("N0", CultureInfo.InvariantCulture)" Icon="▦" Color="info" />
                 <StatCard Title="@WindowStatTitle("Success rate")" Value="@WindowSuccessRate(windowed)" Icon="✔" Color="success" />
