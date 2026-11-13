@@ -70,6 +70,23 @@ public sealed record TriggerFiredBundle
     public required DateTimeOffset? ScheduledFireTimeUtc { get; init; }
 
     /// <summary>
+    /// The UTC time this attempt was due: the fire time the trigger was acquired for, read before the fire
+    /// moved it on. What <c>quartz.job.execution.start_delay</c> measures from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Not <see cref="ScheduledFireTimeUtc" />, which names the occurrence: a retry is due at its own time and
+    /// a misfire catch-up at the time its misfire policy gave it, and both keep the occurrence's
+    /// <see cref="ScheduledFireTimeUtc" />. It is the time the fired-trigger row records as scheduled.
+    /// </para>
+    /// <para>
+    /// Internal: only the two stores Quartz ships set it, so a store of somebody else's needs no new member to
+    /// keep building bundles. Without it the histogram measures from <see cref="ScheduledFireTimeUtc" />.
+    /// </para>
+    /// </remarks>
+    internal DateTimeOffset? DueTimeUtc { get; init; }
+
+    /// <summary>
     /// The trigger's previous UTC fire time, before this fire.
     /// </summary>
     public required DateTimeOffset? PreviousFireTimeUtc { get; init; }

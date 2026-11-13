@@ -56,6 +56,9 @@ An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorization
 | `JobExecutionContextOccurrenceExtensions.GetOccurrence(this IJobExecutionContext)` | The occurrence a firing serves and why it runs, the same on its retries and on its recovery. See [Which occurrence a firing serves](how-tos/backfill.md#which-occurrence-a-firing-serves) |
 | `FiringOccurrence` | `readonly record struct (DateTimeOffset OccurrenceUtc, FiringOrigin Origin)`, with `init` `RetryAttempt` and `Recovering`: what `GetOccurrence()` answers |
 | `FiringOrigin` | Enum `Schedule`, `Manual`, `Backfill`: why a firing runs. `Schedule` is `0` |
+| `QuartzInstrumentation.Instruments.JobExecutionStartDelay` | `quartz.job.execution.start_delay`, a `Histogram<double>` in `s`: how late the job started against when its attempt was due, never negative. The twelfth instrument. See [Reading the numbers](packages/opentelemetry-integration.md#reading-the-numbers) |
+| `ActivityTags.FiringOrigin` | `"quartz.firing.origin"`: `schedule`, `manual` or `backfill`, on the start delay and the `Quartz.Job.Execute` span |
+| `ActivityTags.ScheduledFireTime` | `"quartz.trigger.scheduled_fire_time"`: `ScheduledFireTimeUtc`, ISO 8601 round-trip in UTC, on the `Quartz.Job.Execute` span |
 
 | Changed | What to check |
 |---|---|

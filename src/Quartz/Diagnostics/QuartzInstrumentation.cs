@@ -65,6 +65,9 @@ public static class QuartzInstrumentation
         /// <summary>How long a job took — a histogram, seconds. Its count is the number of executions and its <c>error.type</c> subset the number of failures.</summary>
         public const string JobExecutionDuration = "quartz.job.execution.duration";
 
+        /// <summary>How late a firing's job started against the time its attempt was due — a histogram, seconds, never negative.</summary>
+        public const string JobExecutionStartDelay = "quartz.job.execution.start_delay";
+
         /// <summary>Trigger misfires the scheduler was notified of — a counter, <c>{trigger}</c>.</summary>
         public const string TriggerMisfire = "quartz.trigger.misfire";
 

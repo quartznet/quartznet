@@ -2409,6 +2409,7 @@ namespace Quartz.Diagnostics
         public const string BatchSize = "quartz.jobstore.batch.size";
         public const string ExecutionGroup = "quartz.execution.group";
         public const string FireInstanceId = "quartz.fire.instance.id";
+        public const string FiringOrigin = "quartz.firing.origin";
         public const string JobGroup = "quartz.job.group";
         public const string JobName = "quartz.job.name";
         public const string JobResult = "quartz.job.result";
@@ -2417,6 +2418,7 @@ namespace Quartz.Diagnostics
         public const string JobStoreOperation = "quartz.jobstore.operation";
         public const string JobType = "quartz.job.type";
         public const string RecoveredInstanceId = "quartz.cluster.recovered.instance.id";
+        public const string ScheduledFireTime = "quartz.trigger.scheduled_fire_time";
         public const string SchedulerId = "quartz.scheduler.id";
         public const string SchedulerName = "quartz.scheduler.name";
         public const string TriggerCount = "quartz.jobstore.trigger.count";
@@ -2486,6 +2488,7 @@ namespace Quartz.Diagnostics
             public const string ClusterRecoveryTrigger = "quartz.cluster.recovery.trigger";
             public const string JobExecutionActive = "quartz.job.execution.active";
             public const string JobExecutionDuration = "quartz.job.execution.duration";
+            public const string JobExecutionStartDelay = "quartz.job.execution.start_delay";
             public const string JobStoreLockWaitDuration = "quartz.jobstore.lock.wait.duration";
             public const string JobStoreOperationDuration = "quartz.jobstore.operation.duration";
             public const string TriggerAcquired = "quartz.trigger.acquired";

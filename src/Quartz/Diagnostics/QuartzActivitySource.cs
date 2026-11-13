@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 
 using Quartz.Impl;
 
@@ -18,7 +19,7 @@ internal static class QuartzActivitySource
     /// </remarks>
     public static StartedActivity StartJobExecute(JobExecutionContextImpl context, TimeProvider timeProvider)
     {
-        return StartFiring(OperationName.Job.Execute, context, timeProvider);
+        return StartFiring(OperationName.Job.Execute, context, timeProvider, execution: true);
     }
 
     /// <summary>
@@ -30,7 +31,7 @@ internal static class QuartzActivitySource
     /// </remarks>
     public static StartedActivity StartJobVeto(JobExecutionContextImpl context)
     {
-        return StartFiring(OperationName.Job.Veto, context, timeProvider: null);
+        return StartFiring(OperationName.Job.Veto, context, timeProvider: null, execution: false);
     }
 
     /// <summary>
@@ -55,7 +56,7 @@ internal static class QuartzActivitySource
     /// so the ambient activity is cleared around the call and put back afterwards.
     /// </para>
     /// </remarks>
-    private static StartedActivity StartFiring(string operationName, JobExecutionContextImpl context, TimeProvider? timeProvider)
+    private static StartedActivity StartFiring(string operationName, JobExecutionContextImpl context, TimeProvider? timeProvider, bool execution)
     {
         // Asked first so that nothing below — not the data-map lookup the link needs, not the array it
         // travels in — is paid for by a scheduler nobody is tracing.
@@ -84,6 +85,11 @@ internal static class QuartzActivitySource
         }
 
         activity.EnrichFrom(context);
+
+        if (execution)
+        {
+            activity.EnrichWithOccurrence(context);
+        }
 
         Activity? ambient = Activity.Current;
         Activity.Current = null;
@@ -157,6 +163,30 @@ internal static class QuartzActivitySource
         {
             activity.AddTag(ActivityTags.ExecutionGroup, executionGroup);
         }
+    }
+
+    /// <summary>
+    /// Adds what an execution's span says about the occurrence it serves: its scheduled fire time and why it
+    /// ran (#4242).
+    /// </summary>
+    /// <remarks>
+    /// Only on a span that is recorded, because the fire time is formatted into a string. The fire time is the
+    /// occurrence's, as <see cref="IJobExecutionContext.ScheduledFireTimeUtc" /> is; the start-delay histogram
+    /// measures from the attempt's own due time, which on a retry is later.
+    /// </remarks>
+    private static void EnrichWithOccurrence(this Activity activity, JobExecutionContextImpl context)
+    {
+        if (!activity.IsAllDataRequested)
+        {
+            return;
+        }
+
+        if (context.ScheduledFireTimeUtc is { } scheduledFireTime)
+        {
+            activity.AddTag(ActivityTags.ScheduledFireTime, scheduledFireTime.UtcDateTime.ToString("O", CultureInfo.InvariantCulture));
+        }
+
+        activity.AddTag(ActivityTags.FiringOrigin, Meters.FiringOriginTag(context.GetOccurrence().Origin));
     }
 }
 

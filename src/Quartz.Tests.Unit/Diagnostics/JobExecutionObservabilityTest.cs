@@ -53,6 +53,7 @@ public sealed class JobExecutionObservabilityTest
 {
     private const string ExecuteActive = "quartz.job.execution.active";
     private const string ExecuteDuration = "quartz.job.execution.duration";
+    private const string ExecuteStartDelay = "quartz.job.execution.start_delay";
 
     // Instrument and attribute names are spelled out here rather than read from Quartz, because the wire
     // name is the contract an exporter and a dashboard are written against: reading them from the same
@@ -147,10 +148,11 @@ public sealed class JobExecutionObservabilityTest
         published.Select(m => m.Meter).Should().AllBe(QuartzInstrumentation.MeterName,
             "the meter name is the contract: it is what an exporter is told to subscribe to");
 
-        published.Select(m => m.Instrument).Distinct().Should().BeEquivalentTo([ExecuteActive, ExecuteDuration],
-            "an execution is two instruments and no more — the histogram's own count is how many executions "
-            + "there were, and its error.type-tagged subset is how many failed, so the counters that used to "
-            + "report those two numbers were extra writes per fire for something the exporter already had");
+        published.Select(m => m.Instrument).Distinct().Should().BeEquivalentTo([ExecuteActive, ExecuteDuration, ExecuteStartDelay],
+            "an execution is three instruments and no more — the duration histogram's own count is how many "
+            + "executions there were, and its error.type-tagged subset is how many failed, so the counters that "
+            + "used to report those two numbers were extra writes per fire for something the exporter already "
+            + "had; the start delay is the one thing the other two cannot say");
 
         RecordedMeasurement duration = published.Should().ContainSingle(m => m.Instrument == ExecuteDuration).Subject;
         duration.Value.Should().BeGreaterThanOrEqualTo(0).And.BeLessThan(30);
@@ -191,6 +193,13 @@ public sealed class JobExecutionObservabilityTest
         duration.Tags.Should().HaveCount(7,
             "the duration adds the one thing only the end of a run knows, its result, and nothing else");
         duration.Tags.Should().Contain(new KeyValuePair<string, object>(JobResultTag, "succeeded"));
+
+        RecordedMeasurement startDelay = published.Should().ContainSingle(m => m.Instrument == ExecuteStartDelay).Subject;
+        startDelay.Unit.Should().Be("s");
+        startDelay.Value.Should().BeGreaterThanOrEqualTo(0);
+        startDelay.Tags.Should().HaveCount(7,
+            "the start delay adds why the firing ran, and nothing about how it ended, which is not known yet");
+        startDelay.Tags.Should().Contain(new KeyValuePair<string, object>("quartz.firing.origin", "schedule"));
     }
 
     /// <summary>
@@ -241,6 +250,8 @@ public sealed class JobExecutionObservabilityTest
         ActivityTags.JobName.Should().Be(JobNameTag);
         ActivityTags.ExecutionGroup.Should().Be(ExecutionGroupTag);
         ActivityTags.JobResult.Should().Be(JobResultTag);
+        ActivityTags.FiringOrigin.Should().Be("quartz.firing.origin");
+        ActivityTags.ScheduledFireTime.Should().Be("quartz.trigger.scheduled_fire_time");
         ActivityTags.TriggerCount.Should().Be("quartz.jobstore.trigger.count");
         ActivityTags.BatchSize.Should().Be("quartz.jobstore.batch.size");
         ActivityTags.JobStoreOperation.Should().Be("quartz.jobstore.operation");
