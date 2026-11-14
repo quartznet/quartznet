@@ -146,6 +146,36 @@ public class DashboardActionLogTest
             .Contain("origin (unknown)").And.Contain("node (unknown)");
     }
 
+    /// <summary>
+    /// The latest entries for one scheduler are its own, however busy another scheduler was since.
+    /// </summary>
+    /// <remarks>
+    /// The bound of 250 is still shared: entries older than the latest 250 are gone, whichever scheduler
+    /// they were for.
+    /// </remarks>
+    [TestCase(10)]
+    [TestCase(100)]
+    public void OneSchedulersLatestAreFilteredBeforeTheyAreCounted(int maxCount)
+    {
+        DashboardActionLogService store = new();
+        for (int index = 0; index < 3; index++)
+        {
+            store.Record(new DashboardActionLogEntry(DateTimeOffset.UnixEpoch, "acme", "PauseJob", "acme.job-" + index, true, null));
+        }
+
+        for (int index = 0; index < maxCount + 5; index++)
+        {
+            store.Record(new DashboardActionLogEntry(DateTimeOffset.UnixEpoch, "globex", "PauseJob", "globex.job-" + index, true, null));
+        }
+
+        store.GetLatest("ACME", maxCount).Select(entry => entry.Target).Should().Equal(
+            ["acme.job-2", "acme.job-1", "acme.job-0"],
+            "the newer entries for another scheduler are not this one's, and the name matches whatever its case");
+        store.GetLatest("globex", maxCount).Should().HaveCount(maxCount);
+        store.GetLatest(schedulerName: null, maxCount).Should().HaveCount(maxCount)
+            .And.OnlyContain(entry => entry.SchedulerName == "globex", "no scheduler named is every scheduler, newest first");
+    }
+
     private const string Node = "acme-node-1";
 
     private static DashboardActionLog Create(

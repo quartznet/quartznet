@@ -64,6 +64,20 @@ internal static class DisplayValueHelper
     }
 
     /// <summary>
+    /// A duration as a clock, <c>hh:mm:ss</c>, with its days in front from a day up:
+    /// <c>1.02:00:00</c> for 26 hours.
+    /// </summary>
+    /// <remarks>
+    /// The format <c>hh\:mm\:ss</c> alone writes the hours component, so a 26-hour run read as
+    /// <c>02:00:00</c>.
+    /// </remarks>
+    public static string FormatClock(TimeSpan duration)
+    {
+        string format = duration.Duration() < TimeSpan.FromDays(1) ? @"hh\:mm\:ss" : @"d\.hh\:mm\:ss";
+        return duration.ToString(format, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
     /// How long from <paramref name="now" /> until <paramref name="fireTime" />, to the largest whole unit:
     /// <c>in 12h</c>, and <c>in under a minute</c> for anything closer, a fire time already due included.
     /// </summary>
