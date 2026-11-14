@@ -161,8 +161,11 @@ internal sealed class DashboardActionLog
         logger.ActionRefused(user, action, target, schedulerName, refusal.Required, header?.Origin.ToString() ?? Unknown, header?.SchedulerInstanceId ?? Unknown);
     }
 
-    /// <inheritdoc cref="DashboardActionLogService.GetLatest" />
+    /// <inheritdoc cref="DashboardActionLogService.GetLatest(int)" />
     public IReadOnlyList<DashboardActionLogEntry> GetLatest(int maxCount = 25) => store.GetLatest(maxCount);
+
+    /// <inheritdoc cref="DashboardActionLogService.GetLatest(string?, int)" />
+    public IReadOnlyList<DashboardActionLogEntry> GetLatest(string? schedulerName, int maxCount) => store.GetLatest(schedulerName, maxCount);
 
     /// <summary>
     /// Who the circuit belongs to, or a placeholder when nothing has said.

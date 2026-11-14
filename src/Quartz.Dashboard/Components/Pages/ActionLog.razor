@@ -1,6 +1,7 @@
 @page "/quartz/actions"
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@implements IDisposable
 @inject DashboardActionLog ActionLogs
 @inject SchedulerState Scheduler
 
@@ -90,19 +91,7 @@
     private void RefreshEntries()
     {
         _entries.Clear();
-
-        string? schedulerName = Scheduler.ActiveSchedulerName;
-        IReadOnlyList<DashboardActionLogEntry> latestEntries = ActionLogs.GetLatest(100);
-        foreach (DashboardActionLogEntry entry in latestEntries)
-        {
-            if (!string.IsNullOrWhiteSpace(schedulerName) &&
-                !string.Equals(entry.SchedulerName, schedulerName, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            _entries.Add(entry);
-        }
+        _entries.AddRange(ActionLogs.GetLatest(Scheduler.ActiveSchedulerName, 100));
     }
 
     public void Dispose()

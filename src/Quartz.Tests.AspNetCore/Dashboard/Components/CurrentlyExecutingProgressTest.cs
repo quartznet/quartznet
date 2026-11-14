@@ -151,7 +151,28 @@ public class CurrentlyExecutingProgressTest
                 "the window records the request on the row, which the node running the firing reads"));
     }
 
-    private static void GivenFiring(DashboardComponentContext context, int? progress, string? message, DateTimeOffset? interruptRequestedUtc = null)
+    /// <summary>
+    /// A run of a day or more shows its days, rather than its run time less whole days.
+    /// </summary>
+    [Test]
+    public void ARunOfMoreThanADayShowsItsDays()
+    {
+        using DashboardComponentContext context = new();
+        context.WithScheduler();
+        GivenFiring(context, progress: null, message: null, fireTimeUtc: DateTimeOffset.UtcNow.AddHours(-26));
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+
+        page.WaitForAssertion(() => page.Markup.Should().Contain("1.02:00:0",
+            "a job that has run for 26 hours has not run for 2"));
+    }
+
+    private static void GivenFiring(
+        DashboardComponentContext context,
+        int? progress,
+        string? message,
+        DateTimeOffset? interruptRequestedUtc = null,
+        DateTimeOffset? fireTimeUtc = null)
     {
         A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<FireInstanceDto>([
@@ -161,8 +182,8 @@ public class CurrentlyExecutingProgressTest
                     new JobKeyDto("reports", "job-1"),
                     "node-b",
                     FireInstanceState.Executing,
-                    TestData.Dashboard.FiredAt,
-                    TestData.Dashboard.FiredAt,
+                    fireTimeUtc ?? TestData.Dashboard.FiredAt,
+                    fireTimeUtc ?? TestData.Dashboard.FiredAt,
                     "batch")
                 {
                     Progress = progress,

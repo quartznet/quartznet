@@ -643,6 +643,24 @@ public class TriggersPageTest
     }
 
     [Test]
+    public void ChangingPageClearsTheSelection()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 30));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        Select(page, "nightly.trigger-1");
+        page.WaitForElement(".qz-bulk-count");
+
+        page.FindAll(".qz-pagination button").Single(button => button.TextContent.Trim() == "Next").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll("input.qz-select-trigger[aria-label='Select nightly.trigger-26']").Should().ContainSingle("page 2 is shown");
+            page.FindAll(".qz-bulk-count").Should().BeEmpty(
+                "a bulk action on rows the page no longer shows would be a surprise");
+        });
+    }
+
+    [Test]
     public void ReadOnlyModeOffersNoSelection()
     {
         context.Options.ReadOnly = true;

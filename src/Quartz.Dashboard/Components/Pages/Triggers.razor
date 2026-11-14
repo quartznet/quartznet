@@ -564,9 +564,13 @@
         }
     }
 
+    /// <remarks>
+    /// The selection is cleared for the reason <see cref="ApplyAsync" /> gives.
+    /// </remarks>
     private Task OnPageChangedAsync(int page)
     {
         _currentPage = page;
+        _selected.Clear();
         return LoadDataAsync();
     }
 
@@ -595,8 +599,9 @@
     /// </summary>
     /// <remarks>
     /// Applied before the address is written, so the parameters the router hands back for that address
-    /// are the ones already applied and read nothing twice. A selection is cleared: the rows it named may
-    /// not be on the narrowed listing, and a bulk action on rows nobody can see would be a surprise.
+    /// are the ones already applied and read nothing twice. A selection is cleared, here and on a change of
+    /// page: the rows it named may not be on the listing now shown, and a bulk action must not touch rows
+    /// nobody can see.
     /// </remarks>
     private Task ApplyAsync(TriggerFilters filters)
     {
