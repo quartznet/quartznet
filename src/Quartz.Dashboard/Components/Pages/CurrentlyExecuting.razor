@@ -326,7 +326,7 @@
             runTime = TimeSpan.Zero;
         }
 
-        return runTime.ToString(@"hh\:mm\:ss");
+        return DisplayValueHelper.FormatClock(runTime);
     }
 
     private string FormatLastUpdated(DateTimeOffset? lastUpdatedAt)

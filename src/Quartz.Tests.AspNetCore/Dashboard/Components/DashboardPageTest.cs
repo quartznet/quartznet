@@ -183,6 +183,30 @@ public class DashboardPageTest
             "the log is process-wide, and an action taken against another scheduler is not this page's history");
     }
 
+    /// <summary>
+    /// Recent admin actions are the active scheduler's latest ten, however many actions another scheduler
+    /// took since.
+    /// </summary>
+    /// <remarks>
+    /// Taking the process-wide latest ten and then keeping the active scheduler's showed nothing once
+    /// another scheduler had been busier.
+    /// </remarks>
+    [Test]
+    public void RecentActionsFindTheActiveSchedulersActionsBehindABusierScheduler()
+    {
+        context.ActionLog.Record(TestData.SchedulerName, "PauseJob", "reports.job-1", succeeded: true);
+        for (int index = 0; index < 10; index++)
+        {
+            context.ActionLog.Record("other", "PauseJob", "elsewhere.job-" + index, succeeded: true);
+        }
+
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+
+        page.Markup.Should().Contain("reports.job-1",
+            "ten newer actions on another scheduler are not this scheduler's recent actions");
+        page.Markup.Should().NotContain("elsewhere.job-");
+    }
+
     [Test]
     public void WithNoSchedulerSelectedThePageShowsZerosRatherThanFailing()
     {

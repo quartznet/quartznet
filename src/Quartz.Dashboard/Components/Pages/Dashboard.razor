@@ -667,16 +667,7 @@
     private void RefreshRecentActions(string schedulerName)
     {
         _recentActions.Clear();
-        IReadOnlyList<DashboardActionLogEntry> entries = ActionLog.GetLatest(10);
-        foreach (DashboardActionLogEntry entry in entries)
-        {
-            if (!string.Equals(entry.SchedulerName, schedulerName, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            _recentActions.Add(entry);
-        }
+        _recentActions.AddRange(ActionLog.GetLatest(schedulerName, 10));
     }
 
     public void Dispose()

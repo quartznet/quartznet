@@ -595,7 +595,7 @@
 
     private static string FormatInterval(TimeSpan? interval)
     {
-        return interval.HasValue ? interval.Value.ToString(@"hh\:mm\:ss") : "—";
+        return interval.HasValue ? DisplayValueHelper.FormatClock(interval.Value) : "—";
     }
 
     private string FormatLastUpdated(DateTimeOffset? lastUpdatedAt)

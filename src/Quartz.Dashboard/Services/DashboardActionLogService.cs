@@ -97,12 +97,26 @@ internal sealed class DashboardActionLogService
         }
     }
 
-    public IReadOnlyList<DashboardActionLogEntry> GetLatest(int maxCount = 25)
+    public IReadOnlyList<DashboardActionLogEntry> GetLatest(int maxCount = 25) => GetLatest(schedulerName: null, maxCount);
+
+    /// <summary>
+    /// The latest <paramref name="maxCount" /> entries for <paramref name="schedulerName" />, newest first;
+    /// every scheduler's when it is <see langword="null" /> or blank.
+    /// </summary>
+    /// <remarks>
+    /// Filtered before the count is taken. The log is one list for every scheduler in the process, so taking
+    /// the latest entries first left a page with few or none once another scheduler had been busier.
+    /// </remarks>
+    public IReadOnlyList<DashboardActionLogEntry> GetLatest(string? schedulerName, int maxCount)
     {
         int safeMaxCount = Math.Clamp(maxCount, 1, maxEntries);
+        bool everyScheduler = string.IsNullOrWhiteSpace(schedulerName);
         lock (syncRoot)
         {
-            return entries.Take(safeMaxCount).ToList();
+            return entries
+                .Where(entry => everyScheduler || string.Equals(entry.SchedulerName, schedulerName, StringComparison.OrdinalIgnoreCase))
+                .Take(safeMaxCount)
+                .ToList();
         }
     }
 }
