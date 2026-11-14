@@ -83,7 +83,7 @@
       nothing inherits it.
     -->
     <PackageVersion Include="Microsoft.Data.SQLite" Version="11.0.0" />
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.2" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="11.0.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
