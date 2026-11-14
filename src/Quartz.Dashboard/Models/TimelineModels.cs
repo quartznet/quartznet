@@ -129,6 +129,12 @@ internal sealed record TimelineRow(
     List<TimelineTriggerRow> Triggers)
 {
     public bool TriggersLoaded { get; set; }
+
+    /// <summary>
+    /// The scheduler no longer holds this job; the row is history bars only (checked when hydrate
+    /// finds no live triggers).
+    /// </summary>
+    public bool JobMissing { get; set; }
 }
 
 internal sealed record TimelineSection(string JobGroup, List<TimelineRow> Rows);
@@ -149,10 +155,168 @@ internal sealed class TimelineRowBuilder(TimelineEntityKey key, string jobGroup,
 /// <summary>One trigger on the chart, so a menu action knows which row it belongs to.</summary>
 internal sealed record TimelineTriggerRef(TimelineRow Row, TimelineTriggerRow Trigger);
 
+/// <summary>One job row on the chart, so a menu action knows which job it belongs to.</summary>
+internal sealed record TimelineJobRef(TimelineRow Row);
+
+/// <summary>
+/// Job-level status for the square mark (distinct from circular trigger dots): missing, paused when
+/// every live trigger is paused, executing when any is firing, otherwise normal when live triggers exist.
+/// </summary>
+internal enum TimelineJobStatus
+{
+    None,
+    Missing,
+    Paused,
+    Normal,
+    Executing,
+    Error,
+}
+
+internal static class TimelineJobStatusResolver
+{
+    public static TimelineJobStatus Resolve(TimelineRow row)
+    {
+        if (row.JobMissing)
+        {
+            return TimelineJobStatus.Missing;
+        }
+
+        if (!row.TriggersLoaded)
+        {
+            return TimelineJobStatus.None;
+        }
+
+        bool hasLive = false;
+        bool anyScheduled = false;
+        bool anyPaused = false;
+        bool anyExecuting = false;
+        bool anyError = false;
+        foreach (TimelineTriggerRow trigger in row.Triggers)
+        {
+            if (trigger.IsExecuting || trigger.State == TriggerState.Executing)
+            {
+                hasLive = true;
+                anyExecuting = true;
+                continue;
+            }
+
+            if (trigger.State is null)
+            {
+                continue;
+            }
+
+            hasLive = true;
+            switch (trigger.State)
+            {
+                case TriggerState.Normal:
+                    anyScheduled = true;
+                    break;
+                case TriggerState.Paused:
+                    anyPaused = true;
+                    break;
+                case TriggerState.Error:
+                case TriggerState.Blocked:
+                    anyError = true;
+                    break;
+                // Complete / None: still live headers, but not scheduled and not paused.
+            }
+        }
+
+        if (!hasLive)
+        {
+            return TimelineJobStatus.None;
+        }
+
+        if (anyExecuting)
+        {
+            return TimelineJobStatus.Executing;
+        }
+
+        if (anyError)
+        {
+            return TimelineJobStatus.Error;
+        }
+
+        if (anyScheduled)
+        {
+            return TimelineJobStatus.Normal;
+        }
+
+        return anyPaused ? TimelineJobStatus.Paused : TimelineJobStatus.None;
+    }
+
+    public static string Title(TimelineJobStatus status) => status switch
+    {
+        TimelineJobStatus.Missing => "Deleted — history only",
+        TimelineJobStatus.Paused => "Paused",
+        TimelineJobStatus.Normal => "Normal",
+        TimelineJobStatus.Executing => "Executing",
+        TimelineJobStatus.Error => "Error",
+        _ => string.Empty,
+    };
+
+    public static string CssModifier(TimelineJobStatus status) => status switch
+    {
+        TimelineJobStatus.Missing => "missing",
+        TimelineJobStatus.Paused => "paused",
+        TimelineJobStatus.Normal => "normal",
+        TimelineJobStatus.Executing => "executing",
+        TimelineJobStatus.Error => "error",
+        _ => string.Empty,
+    };
+}
+
 /// <summary>Which trigger commands the visitor may use. The row draws a menu only when <see cref="Any"/> is set.</summary>
 internal sealed record TimelineTriggerMenu(bool Run, bool Pause, bool Resume, bool Reset, bool Unschedule)
 {
     public bool Any => Run || Pause || Resume || Reset || Unschedule;
+}
+
+/// <summary>Which job commands the visitor may use. Pause XOR Resume follows live trigger states on the row.</summary>
+internal sealed record TimelineJobMenu(bool Run, bool Pause, bool Resume, bool Delete)
+{
+    public bool Any => Run || Pause || Resume || Delete;
+
+    /// <summary>
+    /// Builds the menu: none when the job is missing; Pause when any live trigger is not paused,
+    /// Resume when every live trigger is paused, neither when the row has only orphan bars.
+    /// Run/Delete follow authorization alone for jobs that still exist.
+    /// </summary>
+    public static TimelineJobMenu For(
+        IEnumerable<TimelineTriggerRow> triggers,
+        bool canRun,
+        bool canPause,
+        bool canResume,
+        bool canDelete,
+        bool jobMissing = false)
+    {
+        if (jobMissing)
+        {
+            return new TimelineJobMenu(Run: false, Pause: false, Resume: false, Delete: false);
+        }
+
+        // Pause / Resume only follow Normal and Paused: Error / Blocked / Complete are not "unpaused
+        // schedule" and must not flip the menu to Pause.
+        bool hasPauseable = false;
+        bool anyUnpaused = false;
+        foreach (TimelineTriggerRow trigger in triggers)
+        {
+            if (trigger.State is not (TriggerState.Normal or TriggerState.Paused or TriggerState.Executing))
+            {
+                continue;
+            }
+
+            hasPauseable = true;
+            if (trigger.State != TriggerState.Paused)
+            {
+                anyUnpaused = true;
+            }
+        }
+
+        bool pause = canPause && hasPauseable && anyUnpaused;
+        bool resume = canResume && hasPauseable && !anyUnpaused;
+        return new TimelineJobMenu(canRun, pause, resume, canDelete);
+    }
 }
 
 /// <summary>What <see cref="Services.Timeline.TimelineService"/> returns after assembling rows from the API.</summary>

@@ -232,11 +232,150 @@ public class TimelineServiceTest
             static instant => instant.ToString("HH:mm")).ConfigureAwait(false);
 
         row.TriggersLoaded.Should().BeTrue();
+        row.JobMissing.Should().BeFalse();
         row.Triggers.Should().ContainSingle();
         TimelineTriggerRow trigger = row.Triggers[0];
         trigger.Bars.Should().ContainSingle();
         trigger.Marks.Should().ContainSingle();
         trigger.NextFireTimeUtc.Should().Be(Noon.AddMinutes(5));
+        A.CallTo(() => api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task HydrateMarksJobMissingWhenTheJobNoLongerExists()
+    {
+        IQuartzApiClient api = A.Fake<IQuartzApiClient>();
+        TimelineService service = new(api);
+
+        TimelineBounds bounds = TimelineService.CreateBounds(TimelineWindow.LastHour, TimeSpan.Zero, Noon);
+        Dictionary<TimelineEntityKey, TimelineRowBuilder> builders = new();
+        TimelineRowBuilder builder = TimelineService.GetOrAddRowBuilder(builders, "demo", "gone-job");
+        TimelineBar bar = TimelineService.CreateBar(
+            bounds,
+            Noon.AddMinutes(-10),
+            Noon.AddMinutes(-8),
+            "qz-timeline-bar-succeeded",
+            "ok",
+            "entry-1");
+        TimelineService.AddBarForTrigger(builder, "demo", "gone-trigger", bar);
+        TimelineRow row = new(builder.Key, builder.JobGroup, builder.JobName, builder.BarsByTrigger, []);
+
+        A.CallTo(() => api.GetTriggersOfJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Returns([]);
+        A.CallTo(() => api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Throws(new KeyNotFoundException("gone"));
+
+        await service.HydrateTriggersForRowsAsync(
+            "Default",
+            bounds,
+            [row],
+            [],
+            static instant => instant.ToString("HH:mm")).ConfigureAwait(false);
+
+        row.TriggersLoaded.Should().BeTrue();
+        row.JobMissing.Should().BeTrue();
+        row.Triggers.Should().ContainSingle()
+            .Which.State.Should().BeNull("history bars become orphan trigger rows");
+    }
+
+    [Test]
+    public async Task HydrateDoesNotMarkADurableJobMissingWhenItHasNoTriggers()
+    {
+        IQuartzApiClient api = A.Fake<IQuartzApiClient>();
+        TimelineService service = new(api);
+
+        TimelineBounds bounds = TimelineService.CreateBounds(TimelineWindow.LastHour, TimeSpan.Zero, Noon);
+        Dictionary<TimelineEntityKey, TimelineRowBuilder> builders = new();
+        TimelineRowBuilder builder = TimelineService.GetOrAddRowBuilder(builders, "demo", "durable-job");
+        TimelineBar bar = TimelineService.CreateBar(
+            bounds,
+            Noon.AddMinutes(-10),
+            Noon.AddMinutes(-8),
+            "qz-timeline-bar-succeeded",
+            "ok",
+            "entry-1");
+        TimelineService.AddBarForTrigger(builder, "demo", "old-trigger", bar);
+        TimelineRow row = new(builder.Key, builder.JobGroup, builder.JobName, builder.BarsByTrigger, []);
+
+        A.CallTo(() => api.GetTriggersOfJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Returns([]);
+        A.CallTo(() => api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Returns(new JobDetailDto(
+                Name: "durable-job",
+                Group: "demo",
+                JobType: "Demo.Job",
+                Description: null,
+                Durable: true,
+                RequestsRecovery: false,
+                ConcurrentExecutionDisallowed: null,
+                PersistJobDataAfterExecution: null,
+                JobDataMap: new JobDataMap()));
+
+        await service.HydrateTriggersForRowsAsync(
+            "Default",
+            bounds,
+            [row],
+            [],
+            static instant => instant.ToString("HH:mm")).ConfigureAwait(false);
+
+        row.JobMissing.Should().BeFalse(
+            "a durable job with every trigger unscheduled still exists in the scheduler");
+        row.Triggers.Should().ContainSingle().Which.State.Should().BeNull();
+    }
+
+    [Test]
+    public async Task AFailedTriggersReadDoesNotClearJobMissing()
+    {
+        IQuartzApiClient api = A.Fake<IQuartzApiClient>();
+        TimelineService service = new(api);
+
+        TimelineBounds bounds = TimelineService.CreateBounds(TimelineWindow.LastHour, TimeSpan.Zero, Noon);
+        TimelineRow row = new(new TimelineEntityKey("demo", "gone-job"), "demo", "gone-job", [], [])
+        {
+            JobMissing = true
+        };
+
+        A.CallTo(() => api.GetTriggersOfJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Throws(new InvalidOperationException("store down"));
+
+        await service.RefreshTriggerHeadersForRowsAsync(
+            "Default",
+            [row],
+            [],
+            Noon).ConfigureAwait(false);
+
+        row.JobMissing.Should().BeTrue(
+            "a transport failure must not pretend the deleted job came back");
+        A.CallTo(() => api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task HeaderRefreshSkipsGetJobDetailWhenTheJobIsAlreadyMissing()
+    {
+        IQuartzApiClient api = A.Fake<IQuartzApiClient>();
+        TimelineService service = new(api);
+
+        TimelineRow row = new(new TimelineEntityKey("demo", "gone-job"), "demo", "gone-job", [], [])
+        {
+            JobMissing = true,
+            TriggersLoaded = true
+        };
+
+        A.CallTo(() => api.GetTriggersOfJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Returns([]);
+
+        await service.RefreshTriggerHeadersForRowsAsync(
+            "Default",
+            [row],
+            [],
+            Noon).ConfigureAwait(false);
+
+        row.JobMissing.Should().BeTrue(
+            "once Missing, header refresh must not re-hit GetJobDetail every Triggers tick");
+        A.CallTo(() => api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
     }
 
     [Test]

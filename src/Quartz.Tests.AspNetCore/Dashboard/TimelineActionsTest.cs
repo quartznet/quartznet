@@ -93,6 +93,67 @@ public class TimelineActionsTest
     }
 
     [Test]
+    public async Task PauseJobReloadsWhenTheApiReportsAChange()
+    {
+        IQuartzApiClient api = A.Fake<IQuartzApiClient>();
+        ToastService toasts = new();
+        int reloads = 0;
+        TimelineActions actions = new(
+            api,
+            toasts,
+            CreateActionLog(new DashboardActionLogService()),
+            new QuartzDashboardOptions { ReadOnly = false },
+            () =>
+            {
+                reloads++;
+                return Task.CompletedTask;
+            });
+
+        A.CallTo(() => api.PauseJobWith(A<string>._, A<JobKeyDto>._, A<PauseDetails?>._, A<CancellationToken>._))
+            .Returns(true);
+
+        await actions.PauseJobAsync("Default", "demo", "job", new PauseDetails { Reason = "maintenance" }).ConfigureAwait(false);
+
+        reloads.Should().Be(1);
+        toasts.Messages.Should().ContainSingle(m => m.Level == ToastLevel.Success);
+        A.CallTo(() => api.PauseJobWith(
+                "Default",
+                A<JobKeyDto>.That.Matches(key => key.Group == "demo" && key.Name == "job"),
+                A<PauseDetails?>._,
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task DeleteJobReloadsWhenTheApiReportsAChange()
+    {
+        IQuartzApiClient api = A.Fake<IQuartzApiClient>();
+        int reloads = 0;
+        TimelineActions actions = new(
+            api,
+            new ToastService(),
+            CreateActionLog(new DashboardActionLogService()),
+            new QuartzDashboardOptions { ReadOnly = false },
+            () =>
+            {
+                reloads++;
+                return Task.CompletedTask;
+            });
+
+        A.CallTo(() => api.DeleteJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Returns(true);
+
+        await actions.DeleteJobAsync("Default", "demo", "job").ConfigureAwait(false);
+
+        reloads.Should().Be(1);
+        A.CallTo(() => api.DeleteJob(
+                "Default",
+                A<JobKeyDto>.That.Matches(key => key.Group == "demo" && key.Name == "job"),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
     public async Task ApiFailureIsLoggedAndToasted()
     {
         IQuartzApiClient api = A.Fake<IQuartzApiClient>();

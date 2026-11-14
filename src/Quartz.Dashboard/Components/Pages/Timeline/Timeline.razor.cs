@@ -26,6 +26,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
+using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Models;
 using Quartz.Dashboard.Services;
 using Quartz.Dashboard.Services.Timeline;
@@ -38,11 +39,16 @@ public partial class Timeline
     private const string TriggersRefreshStorageKey = "qz-timeline-triggers-refresh";
 
     internal const string CollapsedGroupsStorageKey = "qz-timeline-collapsed";
+    internal const string CollapsedJobsStorageKey = "qz-timeline-collapsed-jobs";
 
     private TriggerActionTarget? _menuTarget;
+    private TimelineJobRef? _jobMenuTarget;
     private TriggerActionTarget? _actionTarget;
+    private TimelineJobRef? _jobActionTarget;
     private bool _showPausePrompt;
+    private bool _pauseJob;
     private bool _showUnscheduleConfirm;
+    private bool _showDeleteJobConfirm;
     private PeriodicTimer? _refreshTimer;
     private CancellationTokenSource? _refreshLoopCancellation;
     private string _jobsRefreshKey = TimelineService.DefaultJobsRefreshKey;
@@ -153,6 +159,19 @@ public partial class Timeline
     {
         await State.SetGroupCollapsedAsync(
             jobGroup,
+            collapsed,
+            Scheduler.ActiveSchedulerName,
+            FormatInstant,
+            FormatTick).ConfigureAwait(true);
+        _collapsedPrefsReady = true;
+        await PersistCollapsedPreferencesAsync().ConfigureAwait(true);
+        StateHasChanged();
+    }
+
+    internal async Task OnJobCollapsedChangedAsync(TimelineEntityKey jobKey, bool collapsed)
+    {
+        await State.SetJobCollapsedAsync(
+            jobKey,
             collapsed,
             Scheduler.ActiveSchedulerName,
             FormatInstant,
@@ -274,16 +293,43 @@ public partial class Timeline
     internal bool IsMenuOpen(TimelineRow row, TimelineTriggerRow trigger) =>
         _menuTarget is not null && SameTrigger(_menuTarget, row, trigger);
 
+    internal bool IsJobMenuOpen(TimelineRow row) =>
+        _jobMenuTarget is not null
+        && string.Equals(_jobMenuTarget.Row.JobGroup, row.JobGroup, StringComparison.Ordinal)
+        && string.Equals(_jobMenuTarget.Row.JobName, row.JobName, StringComparison.Ordinal);
+
     internal void ToggleTriggerMenu(TimelineTriggerRef target)
     {
+        _jobMenuTarget = null;
         _menuTarget = IsMenuOpen(target.Row, target.Trigger) ? null : TriggerActionTarget.From(target.Row, target.Trigger);
+        StateHasChanged();
+    }
+
+    internal void ToggleJobMenu(TimelineJobRef target)
+    {
+        _menuTarget = null;
+        _jobMenuTarget = IsJobMenuOpen(target.Row) ? null : target;
         StateHasChanged();
     }
 
     internal void PromptPause(TimelineTriggerRef target)
     {
         _menuTarget = null;
+        _jobMenuTarget = null;
         _actionTarget = TriggerActionTarget.From(target.Row, target.Trigger);
+        _jobActionTarget = null;
+        _pauseJob = false;
+        _showPausePrompt = true;
+        StateHasChanged();
+    }
+
+    internal void PromptPauseJob(TimelineJobRef target)
+    {
+        _menuTarget = null;
+        _jobMenuTarget = null;
+        _actionTarget = null;
+        _jobActionTarget = target;
+        _pauseJob = true;
         _showPausePrompt = true;
         StateHasChanged();
     }
@@ -291,6 +337,7 @@ public partial class Timeline
     internal async Task ResumeTriggerAsync(TimelineTriggerRef target)
     {
         _menuTarget = null;
+        _jobMenuTarget = null;
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (!string.IsNullOrWhiteSpace(schedulerName))
         {
@@ -300,9 +347,23 @@ public partial class Timeline
         StateHasChanged();
     }
 
+    internal async Task ResumeJobAsync(TimelineJobRef target)
+    {
+        _menuTarget = null;
+        _jobMenuTarget = null;
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (!string.IsNullOrWhiteSpace(schedulerName))
+        {
+            await Actions.ResumeJobAsync(schedulerName, target.Row.JobGroup, target.Row.JobName).ConfigureAwait(true);
+        }
+
+        StateHasChanged();
+    }
+
     internal async Task ResetTriggerAsync(TimelineTriggerRef target)
     {
         _menuTarget = null;
+        _jobMenuTarget = null;
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (!string.IsNullOrWhiteSpace(schedulerName))
         {
@@ -315,6 +376,7 @@ public partial class Timeline
     internal async Task RunNowAsync(TimelineTriggerRef target)
     {
         _menuTarget = null;
+        _jobMenuTarget = null;
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (!string.IsNullOrWhiteSpace(schedulerName))
         {
@@ -327,11 +389,35 @@ public partial class Timeline
         StateHasChanged();
     }
 
+    internal async Task RunJobNowAsync(TimelineJobRef target)
+    {
+        _menuTarget = null;
+        _jobMenuTarget = null;
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (!string.IsNullOrWhiteSpace(schedulerName))
+        {
+            await Actions.RunNowAsync(schedulerName, target.Row.JobGroup, target.Row.JobName).ConfigureAwait(true);
+            await RefreshTriggersAsync().ConfigureAwait(true);
+        }
+
+        StateHasChanged();
+    }
+
     internal void PromptUnschedule(TimelineTriggerRef target)
     {
         _menuTarget = null;
+        _jobMenuTarget = null;
         _actionTarget = TriggerActionTarget.From(target.Row, target.Trigger);
         _showUnscheduleConfirm = true;
+        StateHasChanged();
+    }
+
+    internal void PromptDeleteJob(TimelineJobRef target)
+    {
+        _menuTarget = null;
+        _jobMenuTarget = null;
+        _jobActionTarget = target;
+        _showDeleteJobConfirm = true;
         StateHasChanged();
     }
 
@@ -340,9 +426,12 @@ public partial class Timeline
         // Drop A's rows and menus before LoadOperations / the new load await: ActiveSchedulerName
         // is already B, so a Run now (or tick) in that gap must not still see A's keys.
         _menuTarget = null;
+        _jobMenuTarget = null;
         _actionTarget = null;
+        _jobActionTarget = null;
         _showPausePrompt = false;
         _showUnscheduleConfirm = false;
+        _showDeleteJobConfirm = false;
         State.ResetPage();
         State.ClearRows();
         await LoadTimelineAsync().ConfigureAwait(true);
@@ -352,7 +441,11 @@ public partial class Timeline
     private Task OnPageChangedAsync(int page) =>
         NavigateAsync(State.Window, State.GroupFilter, page, State.PageSize, State.PanOffset);
 
-    private void OnMenuBackdropClicked() => _menuTarget = null;
+    private void OnMenuBackdropClicked()
+    {
+        _menuTarget = null;
+        _jobMenuTarget = null;
+    }
 
     private Task CancelPauseAsync()
     {
@@ -366,15 +459,32 @@ public partial class Timeline
         return Task.CompletedTask;
     }
 
-    private async Task PauseTriggerAsync(string? reason)
+    private Task CancelDeleteJobAsync()
     {
-        TriggerActionTarget? target = _actionTarget;
+        _showDeleteJobConfirm = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task PauseConfirmedAsync(string? reason)
+    {
+        bool pauseJob = _pauseJob;
+        TriggerActionTarget? triggerTarget = _actionTarget;
+        TimelineJobRef? jobTarget = _jobActionTarget;
         _showPausePrompt = false;
         string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (target is not null && !string.IsNullOrWhiteSpace(schedulerName))
+        if (!string.IsNullOrWhiteSpace(schedulerName))
         {
             PauseDetails details = ActionLog.PauseDetailsFor(reason);
-            await Actions.PauseTriggerAsync(schedulerName, target.TriggerGroup, target.TriggerName, details).ConfigureAwait(true);
+            if (pauseJob && jobTarget is not null)
+            {
+                await Actions.PauseJobAsync(schedulerName, jobTarget.Row.JobGroup, jobTarget.Row.JobName, details)
+                    .ConfigureAwait(true);
+            }
+            else if (triggerTarget is not null)
+            {
+                await Actions.PauseTriggerAsync(schedulerName, triggerTarget.TriggerGroup, triggerTarget.TriggerName, details)
+                    .ConfigureAwait(true);
+            }
         }
 
         StateHasChanged();
@@ -392,6 +502,44 @@ public partial class Timeline
 
         StateHasChanged();
     }
+
+    private async Task DeleteJobAsync()
+    {
+        TimelineJobRef? target = _jobActionTarget;
+        _showDeleteJobConfirm = false;
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (target is not null && !string.IsNullOrWhiteSpace(schedulerName))
+        {
+            await Actions.DeleteJobAsync(schedulerName, target.Row.JobGroup, target.Row.JobName).ConfigureAwait(true);
+        }
+
+        StateHasChanged();
+    }
+
+    private string PauseDialogTitle => _pauseJob ? "Pause job" : "Pause trigger";
+
+    private string PauseDialogMessage
+    {
+        get
+        {
+            if (_pauseJob && _jobActionTarget is { } job)
+            {
+                return $"Pause {DisplayValueHelper.FormatKey(job.Row.JobGroup, job.Row.JobName)}?";
+            }
+
+            if (_actionTarget is { } trigger)
+            {
+                return $"Pause {DisplayValueHelper.FormatKey(trigger.TriggerGroup, trigger.TriggerName)}?";
+            }
+
+            return string.Empty;
+        }
+    }
+
+    private string DeleteJobDialogMessage =>
+        _jobActionTarget is { } job
+            ? $"Delete {DisplayValueHelper.FormatKey(job.Row.JobGroup, job.Row.JobName)}? This removes the job and its triggers and cannot be undone."
+            : string.Empty;
 
     private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
     {
@@ -480,7 +628,9 @@ public partial class Timeline
         {
             try
             {
-                State.ApplyCollapsedPreferences(runtime.Invoke<string?>("quartzDashboardPrefs.get", CollapsedGroupsStorageKey));
+                string? rawGroups = runtime.Invoke<string?>("quartzDashboardPrefs.get", CollapsedGroupsStorageKey);
+                string? rawJobs = runtime.Invoke<string?>("quartzDashboardPrefs.get", CollapsedJobsStorageKey);
+                State.ApplyCollapsedPreferences(rawGroups, rawJobs);
                 _collapsedPrefsReady = true;
                 return;
             }
@@ -496,8 +646,9 @@ public partial class Timeline
 
         try
         {
-            string? raw = await JsRuntime.InvokeAsync<string?>("quartzDashboardPrefs.get", new object?[] { CollapsedGroupsStorageKey }).ConfigureAwait(true);
-            State.ApplyCollapsedPreferences(raw);
+            string? rawGroups = await JsRuntime.InvokeAsync<string?>("quartzDashboardPrefs.get", new object?[] { CollapsedGroupsStorageKey }).ConfigureAwait(true);
+            string? rawJobs = await JsRuntime.InvokeAsync<string?>("quartzDashboardPrefs.get", new object?[] { CollapsedJobsStorageKey }).ConfigureAwait(true);
+            State.ApplyCollapsedPreferences(rawGroups, rawJobs);
             _collapsedPrefsReady = true;
         }
         catch (JSException)
@@ -513,9 +664,11 @@ public partial class Timeline
     {
         try
         {
-            string payload = JsonSerializer.Serialize(
+            string groupsPayload = JsonSerializer.Serialize(
                 State.CollapsedGroups.OrderBy(static group => group, StringComparer.OrdinalIgnoreCase).ToArray());
-            await JsRuntime.InvokeVoidAsync("quartzDashboardPrefs.set", new object?[] { CollapsedGroupsStorageKey, payload }).ConfigureAwait(true);
+            string jobsPayload = TimelineState.FormatCollapsedJobs(State.CollapsedJobs);
+            await JsRuntime.InvokeVoidAsync("quartzDashboardPrefs.set", new object?[] { CollapsedGroupsStorageKey, groupsPayload }).ConfigureAwait(true);
+            await JsRuntime.InvokeVoidAsync("quartzDashboardPrefs.set", new object?[] { CollapsedJobsStorageKey, jobsPayload }).ConfigureAwait(true);
         }
         catch (JSException)
         {

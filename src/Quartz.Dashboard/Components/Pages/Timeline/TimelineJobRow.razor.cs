@@ -36,4 +36,50 @@ public partial class TimelineJobRow
     private TimelineRow? Row { get; set; }
 
     private TimelineState State => Page.State;
+
+    private TimelineJobRef? Target => Row is null ? null : new TimelineJobRef(Row);
+
+    private TimelineJobMenu MenuFor(TimelineRow row) =>
+        TimelineJobMenu.For(
+            row.Triggers,
+            Can(Quartz.HttpApiContract.SchedulerRoutes.TriggerJob),
+            Can(Quartz.HttpApiContract.SchedulerRoutes.PauseJob),
+            Can(Quartz.HttpApiContract.SchedulerRoutes.ResumeJob),
+            Can(Quartz.HttpApiContract.SchedulerRoutes.DeleteJob),
+            row.JobMissing);
+
+    private bool Can(Quartz.HttpApiContract.WireRoute route) => Authorization.Allows(Scheduler.ActiveSchedulerName, route);
+
+    private Task OnJobToggledAsync() =>
+        Row is null
+            ? Task.CompletedTask
+            : Page.OnJobCollapsedChangedAsync(Row.Key, !State.IsJobCollapsed(Row.Key));
+
+    private void OnMenuToggled()
+    {
+        if (Target is { } target)
+        {
+            Page.ToggleJobMenu(target);
+        }
+    }
+
+    private Task OnRunClickedAsync() => Target is { } target ? Page.RunJobNowAsync(target) : Task.CompletedTask;
+
+    private Task OnResumeClickedAsync() => Target is { } target ? Page.ResumeJobAsync(target) : Task.CompletedTask;
+
+    private void OnPauseClicked()
+    {
+        if (Target is { } target)
+        {
+            Page.PromptPauseJob(target);
+        }
+    }
+
+    private void OnDeleteClicked()
+    {
+        if (Target is { } target)
+        {
+            Page.PromptDeleteJob(target);
+        }
+    }
 }

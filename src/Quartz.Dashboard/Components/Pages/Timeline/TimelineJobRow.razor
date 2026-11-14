@@ -1,18 +1,97 @@
 @namespace Quartz.Dashboard.Components.Pages
 @using Quartz.Dashboard.Models
+@using Quartz.Dashboard.Services
+@inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 
 @if (Row is not null)
 {
-    <div class="qz-timeline-job">
-        <a class="qz-timeline-row-name qz-timeline-entity-link"
-           href="@Page.JobPath(Row.JobGroup, Row.JobName)"
-           title="@(Row.JobGroup + '.' + Row.JobName)">@Row.JobName</a>
+    TimelineJobMenu menu = MenuFor(Row);
+    bool menuOpen = Page.IsJobMenuOpen(Row);
+    bool collapsed = State.IsJobCollapsed(Row.Key);
+    TimelineJobStatus jobStatus = TimelineJobStatusResolver.Resolve(Row);
+    string? jobStatusTitle = jobStatus == TimelineJobStatus.None ? null : TimelineJobStatusResolver.Title(jobStatus);
+    string? jobStatusCss = jobStatus == TimelineJobStatus.None ? null : TimelineJobStatusResolver.CssModifier(jobStatus);
+    <div class="qz-timeline-job @(Row.JobMissing ? "qz-timeline-job-missing" : null)" data-testid="timeline-job-row">
+        <div class="qz-timeline-job-heading">
+            <button type="button"
+                    class="qz-timeline-job-toggle"
+                    data-testid="timeline-job-toggle"
+                    aria-expanded="@(collapsed ? "false" : "true")"
+                    aria-label="@(collapsed ? "Expand job" : "Collapse job")"
+                    @onclick="OnJobToggledAsync">
+                <span class="qz-timeline-section-chevron" aria-hidden="true">@(collapsed ? "▸" : "▾")</span>
+            </button>
+            @if (jobStatus != TimelineJobStatus.None)
+            {
+                <span class="qz-timeline-job-status qz-timeline-job-status-@jobStatusCss"
+                      data-testid="timeline-job-status"
+                      data-status="@jobStatusCss"
+                      role="img"
+                      title="@jobStatusTitle"
+                      aria-label="@jobStatusTitle">
+                    <span class="qz-timeline-job-status-mark" aria-hidden="true"></span>
+                </span>
+            }
+            @if (Row.JobMissing)
+            {
+                <span class="qz-timeline-row-name qz-timeline-job-missing-name"
+                      title="@(Row.JobGroup + '.' + Row.JobName)">@Row.JobName</span>
+            }
+            else
+            {
+                <a class="qz-timeline-row-name qz-timeline-entity-link"
+                   href="@Page.JobPath(Row.JobGroup, Row.JobName)"
+                   title="@(Row.JobGroup + '.' + Row.JobName)">@Row.JobName</a>
+            }
+            @if (menu.Any)
+            {
+                <div class="qz-timeline-actions @(menuOpen ? "qz-timeline-actions-open" : null)">
+                    <button type="button"
+                            class="qz-timeline-actions-btn"
+                            data-testid="timeline-job-actions"
+                            title="Job actions"
+                            aria-label="Job actions"
+                            aria-expanded="@(menuOpen ? "true" : "false")"
+                            @onclick="OnMenuToggled"
+                            @onclick:stopPropagation="true">
+                        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                            <path d="M3.2 5.4 8 10.2 12.8 5.4 11.5 4.2 8 7.8 4.5 4.2Z" />
+                        </svg>
+                    </button>
+                    @if (menuOpen)
+                    {
+                        <div class="qz-timeline-actions-menu" @onclick:stopPropagation="true">
+                            @if (menu.Run)
+                            {
+                                <button type="button" @onclick="OnRunClickedAsync">Trigger now</button>
+                            }
+                            @if (menu.Resume)
+                            {
+                                <button type="button" @onclick="OnResumeClickedAsync">Resume</button>
+                            }
+                            else if (menu.Pause)
+                            {
+                                <button type="button" @onclick="OnPauseClicked">Pause</button>
+                            }
+                            @if (menu.Delete)
+                            {
+                                <button type="button" class="qz-timeline-actions-danger" @onclick="OnDeleteClicked">Delete</button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
     </div>
 
-    @foreach (TimelineTriggerRow trigger in State.VisibleTriggers(Row))
+    @if (!collapsed)
     {
-        <CascadingValue @key="@(new TimelineEntityKey(trigger.Group, trigger.Name))" Value="trigger" IsFixed="true">
-            <TimelineTrigger Page="Page" />
-        </CascadingValue>
+        @foreach (TimelineTriggerRow trigger in State.VisibleTriggers(Row))
+        {
+            <CascadingValue @key="@(new TimelineEntityKey(trigger.Group, trigger.Name))" Value="trigger" IsFixed="true">
+                <TimelineTrigger Page="Page" />
+            </CascadingValue>
+        }
     }
 }
