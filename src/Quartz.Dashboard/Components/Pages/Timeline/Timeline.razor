@@ -47,15 +47,15 @@
     }
 </div>
 
-@if (_menuTarget is not null)
+@if (_menuTarget is not null || _jobMenuTarget is not null)
 {
     <button type="button" class="qz-timeline-menu-backdrop" aria-label="Close actions" @onclick="OnMenuBackdropClicked"></button>
 }
 
 <PauseDialog IsOpen="@_showPausePrompt"
-             Title="Pause trigger"
-             Message="@(_actionTarget is null ? string.Empty : $"Pause {DisplayValueHelper.FormatKey(_actionTarget.TriggerGroup, _actionTarget.TriggerName)}?")"
-             OnConfirm="PauseTriggerAsync"
+             Title="@PauseDialogTitle"
+             Message="@PauseDialogMessage"
+             OnConfirm="PauseConfirmedAsync"
              OnCancel="CancelPauseAsync" />
 
 <ConfirmDialog IsOpen="@_showUnscheduleConfirm"
@@ -63,3 +63,9 @@
                Message="@(_actionTarget is null ? string.Empty : $"Unschedule {DisplayValueHelper.FormatKey(_actionTarget.TriggerGroup, _actionTarget.TriggerName)}? This cannot be undone.")"
                OnConfirm="UnscheduleTriggerAsync"
                OnCancel="CancelUnscheduleAsync" />
+
+<ConfirmDialog IsOpen="@_showDeleteJobConfirm"
+               Title="Delete job"
+               Message="@DeleteJobDialogMessage"
+               OnConfirm="DeleteJobAsync"
+               OnCancel="CancelDeleteJobAsync" />

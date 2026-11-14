@@ -3088,10 +3088,13 @@ body{
 .qz-timeline-column-head > span {
     display: flex;
     align-items: center;
+    overflow: hidden;
     font-size: var(--qz-font-size-xs);
     font-weight: var(--qz-font-weight-semibold);
     letter-spacing: 0.03em;
     text-transform: uppercase;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--qz-color-text-secondary);
     background: var(--qz-color-surface-alt);
 }
@@ -3158,6 +3161,79 @@ body{
     background: var(--qz-color-surface-alt);
     border-top: 2px solid var(--qz-color-border-strong);
     border-bottom: 1px solid var(--qz-color-border);
+}
+
+.qz-timeline-job-heading {
+    display: flex;
+    align-items: center;
+    gap: var(--qz-space-xs);
+    min-width: 0;
+}
+
+.qz-timeline-job-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--qz-radius-sm);
+    background: transparent;
+    color: var(--qz-color-text-muted);
+    cursor: pointer;
+    line-height: 0;
+}
+
+.qz-timeline-job-toggle:hover {
+    background: var(--qz-color-surface-hover);
+    color: var(--qz-color-text);
+}
+
+/*
+ * Job-level status mark: a square (trigger state dots are circles) so the visitor can tell which
+ * entity the status belongs to. Colours match the circular state dots.
+ */
+.qz-timeline-job-status {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    line-height: 0;
+}
+
+.qz-timeline-job-status-mark {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.qz-timeline-job-status-missing .qz-timeline-job-status-mark,
+.qz-timeline-job-status-error .qz-timeline-job-status-mark {
+    background-color: var(--qz-color-danger);
+    box-shadow: 0 0 0 3px var(--qz-color-danger-bg);
+}
+
+.qz-timeline-job-status-paused .qz-timeline-job-status-mark {
+    background-color: var(--qz-color-warning);
+    box-shadow: 0 0 0 3px var(--qz-color-warning-bg);
+}
+
+.qz-timeline-job-status-normal .qz-timeline-job-status-mark {
+    background-color: var(--qz-color-success);
+    box-shadow: 0 0 0 3px var(--qz-color-success-bg);
+}
+
+.qz-timeline-job-status-executing .qz-timeline-job-status-mark {
+    background-color: var(--qz-color-executing);
+    box-shadow: 0 0 0 3px var(--qz-color-executing-bg);
+}
+
+.qz-timeline-job-missing .qz-timeline-job-missing-name {
+    color: var(--qz-color-text-muted);
+    opacity: 0.85;
 }
 
 .qz-timeline-job .qz-timeline-row-name {
@@ -3490,14 +3566,14 @@ body{
     z-index: 1;
 }
 
-/* Invisible hit padding — keeps short strokes easy to click without widening the colour. */
+/* Vertical hit padding only — horizontal ±px made neighbouring 1h bars steal each other's clicks. */
 .qz-timeline-bar-hit::before {
     content: "";
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: -4px;
-    right: -4px;
+    top: -2px;
+    bottom: -2px;
+    left: 0;
+    right: 0;
 }
 
 .qz-timeline-bar {
@@ -3559,4 +3635,21 @@ body{
 @keyframes qz-timeline-executing {
     from { background-position: 0 0; }
     to { background-position: 8px 0; }
+}
+
+/* Phone-width timeline meta: drop uppercase so labels truncate as words, not SCH/STA/…. */
+@media (max-width: 480px) {
+    .qz-timeline-columns {
+        grid-template-columns: minmax(5.5rem, 1.1fr) repeat(5, minmax(0, 1fr));
+    }
+
+    .qz-timeline-columns > * {
+        padding: 0.35rem 0.3rem;
+    }
+
+    .qz-timeline-column-head > span {
+        letter-spacing: normal;
+        text-transform: none;
+    }
+}
 

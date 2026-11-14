@@ -322,6 +322,7 @@ internal sealed class TimelineService
             // empty across an await — a renderer seeing it empty mid-hydrate would drop the row.
             Dictionary<TimelineEntityKey, PendingTriggerBars> pending = new(row.BarsByTrigger);
             List<TimelineTriggerRow> built = [];
+            bool triggersOfJobAnswered = false;
 
             try
             {
@@ -329,6 +330,7 @@ internal sealed class TimelineService
                     schedulerName,
                     new JobKeyDto(row.JobGroup, row.JobName),
                     cancellationToken).ConfigureAwait(true);
+                triggersOfJobAnswered = true;
 
                 foreach (TriggerHeaderDto header in triggers
                              .OrderBy(static t => t.Group, StringComparer.Ordinal)
@@ -385,11 +387,19 @@ internal sealed class TimelineService
                 // Keep history bars for the job when trigger headers cannot be loaded.
             }
 
+            bool jobMissing = await ResolveJobMissingAfterTriggersAsync(
+                schedulerName,
+                row,
+                built.Count,
+                triggersOfJobAnswered,
+                cancellationToken).ConfigureAwait(true);
+
             AppendOrphanTriggerRowsToList(built, pending, executingTriggerKeys);
             // Atomically replace after all awaits so the live list is never transiently empty.
             row.Triggers.Clear();
             row.Triggers.AddRange(built);
             row.TriggersLoaded = true;
+            row.JobMissing = jobMissing;
         }
     }
 
@@ -415,6 +425,7 @@ internal sealed class TimelineService
 
             Dictionary<TimelineEntityKey, PendingTriggerBars> pending = new(row.BarsByTrigger);
             List<TimelineTriggerRow> built = [];
+            bool triggersOfJobAnswered = false;
 
             try
             {
@@ -422,6 +433,7 @@ internal sealed class TimelineService
                     schedulerName,
                     new JobKeyDto(row.JobGroup, row.JobName),
                     cancellationToken).ConfigureAwait(true);
+                triggersOfJobAnswered = true;
 
                 foreach (TriggerHeaderDto header in triggers
                              .OrderBy(static t => t.Group, StringComparer.Ordinal)
@@ -462,11 +474,78 @@ internal sealed class TimelineService
                 // Keep history bars when headers cannot be refreshed.
             }
 
+            bool jobMissing = await ResolveJobMissingAfterTriggersAsync(
+                schedulerName,
+                row,
+                built.Count,
+                triggersOfJobAnswered,
+                cancellationToken).ConfigureAwait(true);
+
             AppendOrphanTriggerRowsToList(built, pending, executingTriggerKeys);
             // Atomically replace after all awaits.
             row.Triggers.Clear();
             row.Triggers.AddRange(built);
             row.TriggersLoaded = true;
+            row.JobMissing = jobMissing;
+        }
+    }
+
+    /// <summary>
+    /// After <c>GetTriggersOfJob</c>, decides whether the job is gone. Live headers clear the flag.
+    /// A failed triggers read keeps the previous flag (do not claim Missing from a transport error).
+    /// An empty answer re-checks existence unless the row is already Missing (skip the extra
+    /// <c>GetJobDetail</c> on every header refresh until a Jobs reload).
+    /// </summary>
+    private async Task<bool> ResolveJobMissingAfterTriggersAsync(
+        string schedulerName,
+        TimelineRow row,
+        int liveTriggerCount,
+        bool triggersOfJobAnswered,
+        CancellationToken cancellationToken)
+    {
+        if (liveTriggerCount > 0)
+        {
+            return false;
+        }
+
+        if (!triggersOfJobAnswered)
+        {
+            return row.JobMissing;
+        }
+
+        if (row.JobMissing)
+        {
+            return true;
+        }
+
+        return await IsJobMissingAsync(schedulerName, row, cancellationToken).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// When hydrate found no live triggers, asks whether the job itself is gone. A durable job with
+    /// every trigger unscheduled still exists and must not be marked missing.
+    /// </summary>
+    private async Task<bool> IsJobMissingAsync(
+        string schedulerName,
+        TimelineRow row,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _ = await _api.GetJobDetail(
+                schedulerName,
+                new JobKeyDto(row.JobGroup, row.JobName),
+                cancellationToken).ConfigureAwait(true);
+            return false;
+        }
+        catch (KeyNotFoundException)
+        {
+            return true;
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Existence is unknown; keep the row without claiming the job is gone.
+            return false;
         }
     }
 
@@ -534,6 +613,7 @@ internal sealed class TimelineService
 
             AppendOrphanTriggerRowsToList(row.Triggers, pending, executingTriggerKeys);
             row.TriggersLoaded = true;
+            row.JobMissing = previousRow.JobMissing;
         }
     }
 

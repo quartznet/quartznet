@@ -285,6 +285,70 @@ public class TimelineStateTest
     }
 
     [Test]
+    public async Task StaleTriggersHeaderRefreshDoesNotRememberDueNextAfterSwitch()
+    {
+        // A Triggers tick in flight across a switch must not write A's keys into the due-next map
+        // after ClearRows: B with the same key and past next would otherwise skip its first re-read.
+        IQuartzApiClient api = A.Fake<IQuartzApiClient>();
+        FakeTimeProvider clock = new(Noon);
+        TimelineState state = CreateLoadedState(api, withExecutingFire: false, clock);
+        // Keep history in-window after the clock advances past NextFireTimeUtc.
+        state.ApplyQuery("1h", groupQuery: null, pageQuery: null, pageSizeQuery: null, panSecondsQuery: null);
+
+        TriggerHeaderDto header = new(
+            Group: "demo",
+            Name: "demo-trigger",
+            TriggerType: "simple",
+            ScheduleSummary: "every 30s",
+            State: TriggerState.Normal,
+            ExecutionGroup: null)
+        {
+            NextFireTimeUtc = Noon.AddMinutes(5)
+        };
+
+        TaskCompletionSource headerEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource headerRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        int getTriggersCount = 0;
+
+        A.CallTo(() => api.GetTriggersOfJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, JobKeyDto __, CancellationToken _) =>
+            {
+                int n = Interlocked.Increment(ref getTriggersCount);
+                if (n == 2)
+                {
+                    headerEntered.TrySetResult();
+                    return new ValueTask<List<TriggerHeaderDto>>(
+                        headerRelease.Task.ContinueWith(
+                            completed =>
+                            {
+                                completed.GetAwaiter().GetResult();
+                                return new List<TriggerHeaderDto> { header };
+                            },
+                            TaskScheduler.Default));
+                }
+
+                return new ValueTask<List<TriggerHeaderDto>>([header]);
+            });
+
+        await state.LoadTimelineAsync("A", FormatInstant, FormatTick).ConfigureAwait(false);
+        clock.Advance(TimeSpan.FromMinutes(6));
+
+        Task triggersTick = state.RefreshTriggersAsync("A", FormatInstant, FormatTick);
+        await headerEntered.Task.ConfigureAwait(false);
+
+        state.ClearRows();
+        await state.LoadTimelineAsync("B", FormatInstant, FormatTick).ConfigureAwait(false);
+        headerRelease.SetResult();
+        await triggersTick.ConfigureAwait(false);
+
+        Fake.ClearRecordedCalls(api);
+        await state.RefreshTriggersAsync("B", FormatInstant, FormatTick).ConfigureAwait(false);
+
+        A.CallTo(() => api.GetTriggersOfJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
     public async Task TriggersTickDoesNotSkipHydrationForCollapsedGroups()
     {
         IQuartzApiClient api = A.Fake<IQuartzApiClient>();
@@ -317,6 +381,40 @@ public class TimelineStateTest
             .Which.Rows.Should().ContainSingle()
             .Which.Triggers.Should().ContainSingle()
             .Which.Marks.Should().NotBeEmpty();
+    }
+
+    [Test]
+    public async Task ACollapsedJobOutsideTheLoadedRowsStaysCollapsed()
+    {
+        IQuartzApiClient api = A.Fake<IQuartzApiClient>();
+        TimelineState state = CreateLoadedState(api, withExecutingFire: false);
+        TimelineEntityKey elsewhere = new("other", "job-with-no-runs-in-this-window");
+        state.ApplyCollapsedPreferences(rawGroups: null, rawJobs: """[["other","job-with-no-runs-in-this-window"]]""");
+
+        await state.LoadTimelineAsync("Default", FormatInstant, FormatTick).ConfigureAwait(false);
+
+        state.IsJobCollapsed(elsewhere).Should().BeTrue(
+            "the rows hold only the jobs with runs in this window on this scheduler, so a narrower window or another scheduler must not cost a job its preference");
+    }
+
+    [Test]
+    public async Task CollapsedJobsStillHydrateSoTheStatusSquareHasData()
+    {
+        IQuartzApiClient api = A.Fake<IQuartzApiClient>();
+        TimelineState state = CreateLoadedState(api, withExecutingFire: false);
+        TimelineEntityKey jobKey = new("demo", "demo-job");
+        state.ApplyCollapsedPreferences(rawGroups: null, rawJobs: """[["demo","demo-job"]]""");
+
+        await state.LoadTimelineAsync("Default", FormatInstant, FormatTick).ConfigureAwait(false);
+
+        state.IsJobCollapsed(jobKey).Should().BeTrue();
+        TimelineRow row = state.Sections.Should().ContainSingle()
+            .Which.Rows.Should().ContainSingle().Subject;
+        row.TriggersLoaded.Should().BeTrue(
+            "the collapsed heading still needs trigger state for the job status square");
+        row.Triggers.Should().ContainSingle();
+        A.CallTo(() => api.GetTriggersOfJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
     }
 
     private static TimelineState CreateLoadedState(

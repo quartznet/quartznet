@@ -129,6 +129,162 @@ public class TimelinePageTest
         });
     }
 
+    [Test]
+    public void TriggerActionsButtonExposesTrueFalseAriaExpanded()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenHistory(now.AddMinutes(-10));
+        GivenTriggersOfJob("demo", "demo-job", CreateTrigger("demo", "demo-trigger", nextFire: now.AddMinutes(5)));
+
+        IRenderedComponent<Timeline> page = context.Render<Timeline>();
+        page.WaitForAssertion(() => page.Find("[data-testid=timeline-trigger-actions]").Should().NotBeNull());
+
+        IElement button = page.Find("[data-testid=timeline-trigger-actions]");
+        button.GetAttribute("aria-expanded").Should().Be("false");
+
+        button.Click();
+
+        page.WaitForAssertion(() =>
+            page.Find("[data-testid=timeline-trigger-actions]").GetAttribute("aria-expanded").Should().Be("true",
+                "ARIA expanded must be the strings true/false, not an empty attribute"));
+    }
+
+    [Test]
+    public void JobRowToggleCollapsesTriggerTracks()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenHistory(now.AddMinutes(-10));
+        GivenTriggersOfJob(
+            "demo",
+            "demo-job",
+            CreateTrigger("demo", "demo-trigger", nextFire: now.AddMinutes(5), state: TriggerState.Normal));
+
+        IRenderedComponent<Timeline> page = context.Render<Timeline>();
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=timeline-job-toggle]").GetAttribute("aria-expanded").Should().Be("true");
+            page.FindAll("[data-testid=timeline-trigger-row]").Should().NotBeEmpty();
+        });
+
+        page.Find("[data-testid=timeline-job-toggle]").Click();
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=timeline-job-toggle]").GetAttribute("aria-expanded").Should().Be("false");
+            page.FindAll("[data-testid=timeline-trigger-row]").Should().BeEmpty();
+        });
+    }
+
+    [Test]
+    public void AMissingJobShowsAStatusMarkWithoutActionsOrJobLink()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenHistory(now.AddMinutes(-10));
+        GivenTriggersOfJob("demo", "demo-job");
+        A.CallTo(() => context.Api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Throws(new KeyNotFoundException("gone"));
+
+        IRenderedComponent<Timeline> page = context.Render<Timeline>();
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=timeline-job-status][data-status=missing]").Should().NotBeNull();
+            page.FindAll("[data-testid=timeline-job-actions]").Should().BeEmpty();
+            page.FindAll(".qz-timeline-job a.qz-timeline-entity-link").Should().BeEmpty();
+            page.FindAll("[data-testid=timeline-trigger-row]").Should().NotBeEmpty(
+                "history bars remain as orphan trigger tracks");
+        });
+    }
+
+    [Test]
+    public void AFullyPausedJobShowsAPausedStatusMark()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenHistory(now.AddMinutes(-10));
+        GivenTriggersOfJob(
+            "demo",
+            "demo-job",
+            CreateTrigger("demo", "demo-trigger", nextFire: now.AddMinutes(5), state: TriggerState.Paused));
+
+        IRenderedComponent<Timeline> page = context.Render<Timeline>();
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=timeline-job-status][data-status=paused]").Should().NotBeNull();
+            page.FindAll("[data-testid=timeline-job-actions]").Should().NotBeEmpty();
+        });
+    }
+
+    [Test]
+    public void JobActionsMenuOffersPauseWhenALiveTriggerIsNotPaused()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenHistory(now.AddMinutes(-10));
+        GivenTriggersOfJob(
+            "demo",
+            "demo-job",
+            CreateTrigger("demo", "demo-trigger", nextFire: now.AddMinutes(5), state: TriggerState.Normal));
+
+        IRenderedComponent<Timeline> page = context.Render<Timeline>();
+        page.WaitForAssertion(() => page.Find("[data-testid=timeline-job-actions]").Should().NotBeNull());
+
+        page.Find("[data-testid=timeline-job-actions]").Click();
+        page.WaitForAssertion(() =>
+        {
+            IElement menu = page.Find(".qz-timeline-job .qz-timeline-actions-menu");
+            menu.TextContent.Should().Contain("Pause");
+            menu.TextContent.Should().NotContain("Resume");
+            menu.TextContent.Should().Contain("Trigger now");
+            menu.TextContent.Should().Contain("Delete");
+        });
+    }
+
+    [Test]
+    public void JobActionsMenuOffersResumeWhenEveryLiveTriggerIsPaused()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenHistory(now.AddMinutes(-10));
+        GivenTriggersOfJob(
+            "demo",
+            "demo-job",
+            CreateTrigger("demo", "demo-trigger", nextFire: now.AddMinutes(5), state: TriggerState.Paused));
+
+        IRenderedComponent<Timeline> page = context.Render<Timeline>();
+        page.WaitForAssertion(() => page.Find("[data-testid=timeline-job-actions]").Should().NotBeNull());
+
+        page.Find("[data-testid=timeline-job-actions]").Click();
+        page.WaitForAssertion(() =>
+        {
+            IElement menu = page.Find(".qz-timeline-job .qz-timeline-actions-menu");
+            menu.TextContent.Should().Contain("Resume");
+            menu.TextContent.Should().NotContain("Pause");
+        });
+    }
+
+    [TestCase(SchedulerAccess.Operate, true)]
+    [TestCase(SchedulerAccess.View, false)]
+    public void JobActionsButtonFollowsAuthorization(SchedulerAccess role, bool actionsVisible)
+    {
+        context.WithOperatorRole(role);
+
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenHistory(now.AddMinutes(-10));
+        GivenTriggersOfJob(
+            "demo",
+            "demo-job",
+            CreateTrigger("demo", "demo-trigger", nextFire: now.AddMinutes(5), state: TriggerState.Normal));
+
+        IRenderedComponent<Timeline> page = context.Render<Timeline>();
+        page.WaitForAssertion(() =>
+        {
+            if (actionsVisible)
+            {
+                page.FindAll("[data-testid=timeline-job-actions]").Should().NotBeEmpty();
+            }
+            else
+            {
+                page.FindAll("[data-testid=timeline-job-actions]").Should().BeEmpty();
+            }
+        });
+    }
+
     [TestCase(SchedulerAccess.Operate, true)]
     [TestCase(SchedulerAccess.View, false)]
     public void ARefusedOperationHidesItsMenuItem(SchedulerAccess role, bool actionsVisible)

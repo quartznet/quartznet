@@ -44,6 +44,7 @@ internal sealed class TimelineState
     private readonly List<string> _groupOptions = [];
     private readonly List<TimelineTick> _ticks = [];
     private readonly HashSet<string> _collapsedGroups = new(StringComparer.Ordinal);
+    private readonly HashSet<TimelineEntityKey> _collapsedJobs = [];
     private readonly HashSet<TimelineEntityKey> _nameMatchedTriggerKeys = new();
     private readonly TimelineService _service;
     private readonly TimeProvider _timeProvider;
@@ -126,7 +127,11 @@ internal sealed class TimelineState
 
     public bool IsGroupCollapsed(string jobGroup) => _collapsedGroups.Contains(jobGroup);
 
+    public bool IsJobCollapsed(TimelineEntityKey jobKey) => _collapsedJobs.Contains(jobKey);
+
     public IReadOnlyCollection<string> CollapsedGroups => _collapsedGroups;
+
+    public IReadOnlyCollection<TimelineEntityKey> CollapsedJobs => _collapsedJobs;
 
     public static HashSet<string> ParseCollapsedGroups(string? raw)
     {
@@ -160,7 +165,52 @@ internal sealed class TimelineState
     }
 
     /// <summary>
-    /// Rows that should hit GetTriggersOfJob / upcoming fires: expanded groups on the current page.
+    /// Prefs payload for collapsed jobs: a JSON array of <c>[group, name]</c> pairs.
+    /// </summary>
+    public static HashSet<TimelineEntityKey> ParseCollapsedJobs(string? raw)
+    {
+        HashSet<TimelineEntityKey> collapsed = [];
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return collapsed;
+        }
+
+        try
+        {
+            string[][]? pairs = JsonSerializer.Deserialize<string[][]>(raw);
+            if (pairs is null)
+            {
+                return collapsed;
+            }
+
+            foreach (string[] pair in pairs)
+            {
+                if (pair.Length >= 2
+                    && !string.IsNullOrWhiteSpace(pair[0])
+                    && !string.IsNullOrWhiteSpace(pair[1]))
+                {
+                    collapsed.Add(new TimelineEntityKey(pair[0], pair[1]));
+                }
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return collapsed;
+    }
+
+    public static string FormatCollapsedJobs(IEnumerable<TimelineEntityKey> jobs) =>
+        JsonSerializer.Serialize(
+            jobs
+                .OrderBy(static key => key.Group, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static key => key.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(static key => new[] { key.Group, key.Name })
+                .ToArray());
+
+    /// <summary>
+    /// Rows that should hit GetTriggersOfJob / upcoming fires: jobs in expanded groups on the page.
+    /// Collapsed jobs stay selected — their heading is still visible and needs the status square.
     /// </summary>
     public static List<TimelineRow> SelectRowsForTriggerHydration(
         IReadOnlyList<TimelineRow> rows,
@@ -286,12 +336,18 @@ internal sealed class TimelineState
         _panOffset = TimelineService.ClampPanOffset(panOffset);
     }
 
-    public void ApplyCollapsedPreferences(string? raw)
+    public void ApplyCollapsedPreferences(string? rawGroups, string? rawJobs = null)
     {
         _collapsedGroups.Clear();
-        foreach (string group in ParseCollapsedGroups(raw))
+        foreach (string group in ParseCollapsedGroups(rawGroups))
         {
             _collapsedGroups.Add(group);
+        }
+
+        _collapsedJobs.Clear();
+        foreach (TimelineEntityKey job in ParseCollapsedJobs(rawJobs))
+        {
+            _collapsedJobs.Add(job);
         }
     }
 
@@ -326,6 +382,28 @@ internal sealed class TimelineState
 
         _collapsedGroups.Remove(jobGroup);
         await HydrateExpandedGroupAsync(jobGroup, schedulerName, formatInstant, formatTick).ConfigureAwait(true);
+    }
+
+    public async Task SetJobCollapsedAsync(
+        TimelineEntityKey jobKey,
+        bool collapsed,
+        string? schedulerName,
+        Func<DateTimeOffset, string> formatInstant,
+        Func<DateTimeOffset, string, string> formatTick)
+    {
+        if (string.IsNullOrWhiteSpace(jobKey.Group) || string.IsNullOrWhiteSpace(jobKey.Name))
+        {
+            return;
+        }
+
+        if (collapsed)
+        {
+            _collapsedJobs.Add(jobKey);
+            return;
+        }
+
+        _collapsedJobs.Remove(jobKey);
+        await HydrateExpandedJobAsync(jobKey, schedulerName, formatInstant, formatTick).ConfigureAwait(true);
     }
 
     public IEnumerable<TimelineTriggerRow> VisibleTriggers(TimelineRow row)
@@ -636,6 +714,12 @@ internal sealed class TimelineState
                     headerRefreshRows,
                     snapshot.ExecutingTriggerKeys,
                     now).ConfigureAwait(true);
+                if (IsStaleSchedulerLoad(schedulerName))
+                {
+                    // Switch during header refresh: do not remember A's due nexts after ClearRows.
+                    return;
+                }
+
                 RememberDueHeaderRefreshNextFireTimes(headerRefreshRows, now);
             }
 
@@ -690,20 +774,16 @@ internal sealed class TimelineState
         Func<DateTimeOffset, string> formatInstant,
         Func<DateTimeOffset, string, string> formatTick)
     {
-        if (string.IsNullOrWhiteSpace(schedulerName) || _loadingInProgress)
+        if (string.IsNullOrWhiteSpace(schedulerName))
         {
-            if (_loadingInProgress)
-            {
-                _reloadQueued = ReloadKind.Full;
-            }
-
             return;
         }
 
         List<TimelineRow> pending = [];
         foreach (TimelineRow row in _pageRows)
         {
-            if (!string.Equals(row.JobGroup, jobGroup, StringComparison.Ordinal) || row.TriggersLoaded)
+            if (!string.Equals(row.JobGroup, jobGroup, StringComparison.Ordinal)
+                || row.TriggersLoaded)
             {
                 continue;
             }
@@ -716,6 +796,58 @@ internal sealed class TimelineState
             return;
         }
 
+        if (_loadingInProgress)
+        {
+            // Something still needs hydrate; wait for the in-flight load rather than no-op.
+            _reloadQueued = ReloadKind.Full;
+            return;
+        }
+
+        await HydratePendingRowsAsync(schedulerName, pending, formatInstant, formatTick).ConfigureAwait(true);
+    }
+
+    private async Task HydrateExpandedJobAsync(
+        TimelineEntityKey jobKey,
+        string? schedulerName,
+        Func<DateTimeOffset, string> formatInstant,
+        Func<DateTimeOffset, string, string> formatTick)
+    {
+        if (string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        List<TimelineRow> pending = [];
+        foreach (TimelineRow row in _pageRows)
+        {
+            if (row.Key != jobKey || row.TriggersLoaded)
+            {
+                continue;
+            }
+
+            pending.Add(row);
+        }
+
+        if (pending.Count == 0)
+        {
+            return;
+        }
+
+        if (_loadingInProgress)
+        {
+            _reloadQueued = ReloadKind.Full;
+            return;
+        }
+
+        await HydratePendingRowsAsync(schedulerName, pending, formatInstant, formatTick).ConfigureAwait(true);
+    }
+
+    private async Task HydratePendingRowsAsync(
+        string schedulerName,
+        List<TimelineRow> pending,
+        Func<DateTimeOffset, string> formatInstant,
+        Func<DateTimeOffset, string, string> formatTick)
+    {
         _loadingInProgress = true;
         _requestedSchedulerName = schedulerName;
         try

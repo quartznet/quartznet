@@ -464,9 +464,22 @@ control how often the page reloads:
 both. The header badge reflects the Triggers refresh interval. When history returns more than 500 runs for
 the window, the page says **latest 500 runs**.
 
-**Trigger actions.** Each trigger's row carries an action menu — **Run now**, **Pause**, **Resume**,
-**Reset error**, **Unschedule** — following the same authorization rules as the Triggers listing. A pause
-asks for an optional reason. Orphan bars from deleted triggers do not offer Pause, Unschedule, or Run now.
+**Collapse.** Job groups and individual job rows collapse; the browser remembers both in localStorage
+(`qz-timeline-collapsed`, `qz-timeline-collapsed-jobs`). Collapsed jobs hide their trigger tracks until
+expanded again; the job heading and its status square stay visible.
+
+**Job and trigger actions.** Each job row carries an action menu — **Trigger now**, **Pause** or
+**Resume**, **Delete** — matching the Jobs listing. Pause appears when any live trigger on the row is
+not paused; Resume when every live trigger is paused; neither when the row has only orphan bars. Each
+trigger's row carries **Run now**, **Pause**, **Resume**, **Reset error**, **Unschedule**, following the
+same authorization rules as the Triggers listing. A pause asks for an optional reason. Orphan bars from
+deleted triggers do not offer Pause, Unschedule, or Run now.
+
+**Job status.** Each job row carries a square status mark (trigger rows use circles): green when any
+live trigger is scheduled (Normal), amber when every pauseable trigger is paused, violet when any is
+executing, red when any is in Error/Blocked or when the job itself is gone. A deleted job that still
+has runs in the window stays with the Missing red square, no job link, and no job actions — history
+bars only until they age out of the window.
 
 **Back.** Opening a job, trigger, or execution from the Timeline appends `from=timeline` and the current
 window, group, pan, page, and pageSize. The Back link on those pages restores that view. A job or trigger

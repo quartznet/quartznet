@@ -22,7 +22,7 @@ using Quartz.Dashboard.Components.Shared;
 namespace Quartz.Dashboard.Services.Timeline;
 
 /// <summary>
-/// Trigger mutations for the Timeline page: API call, toast, action log, then reload.
+/// Job and trigger mutations for the Timeline page: API call, toast, action log, then reload.
 /// </summary>
 internal sealed class TimelineActions
 {
@@ -108,6 +108,46 @@ internal sealed class TimelineActions
             "Unscheduled trigger " + label + ".",
             "Trigger " + label + " was not unscheduled - it no longer exists.",
             "UnscheduleTrigger",
+            label);
+    }
+
+    public Task PauseJobAsync(string schedulerName, string jobGroup, string jobName, PauseDetails details)
+    {
+        JobKeyDto key = new(jobGroup, jobName);
+        string label = DisplayValueHelper.FormatKey(jobGroup, jobName);
+        return ExecuteBoolMutationAsync(
+            schedulerName,
+            () => _api.PauseJobWith(schedulerName, key, details),
+            "Paused job " + label + ".",
+            "Job " + label + " was not paused - it no longer exists.",
+            "PauseJob",
+            label,
+            DashboardActionLog.PauseNote(details));
+    }
+
+    public Task ResumeJobAsync(string schedulerName, string jobGroup, string jobName)
+    {
+        JobKeyDto key = new(jobGroup, jobName);
+        string label = DisplayValueHelper.FormatKey(jobGroup, jobName);
+        return ExecuteBoolMutationAsync(
+            schedulerName,
+            () => _api.ResumeJob(schedulerName, key),
+            "Resumed job " + label + ".",
+            "Job " + label + " was not resumed - it no longer exists or was not paused.",
+            "ResumeJob",
+            label);
+    }
+
+    public Task DeleteJobAsync(string schedulerName, string jobGroup, string jobName)
+    {
+        JobKeyDto key = new(jobGroup, jobName);
+        string label = DisplayValueHelper.FormatKey(jobGroup, jobName);
+        return ExecuteBoolMutationAsync(
+            schedulerName,
+            () => _api.DeleteJob(schedulerName, key),
+            "Deleted job " + label + ".",
+            "Job " + label + " was not deleted - it no longer exists.",
+            "DeleteJob",
             label);
     }
 

@@ -140,10 +140,42 @@ public class TimelineLayoutTest
             new(new TimelineEntityKey("alpha", "job"), "alpha", "job", new Dictionary<TimelineEntityKey, PendingTriggerBars>(), []),
             new(new TimelineEntityKey("beta", "job"), "beta", "job", new Dictionary<TimelineEntityKey, PendingTriggerBars>(), []),
         ];
-        HashSet<string> collapsed = new(StringComparer.Ordinal) { "beta" };
+        HashSet<string> collapsedGroups = new(StringComparer.Ordinal) { "beta" };
 
-        TimelineState.SelectRowsForTriggerHydration(rows, collapsed)
+        TimelineState.SelectRowsForTriggerHydration(rows, collapsedGroups)
             .Should().ContainSingle().Which.JobGroup.Should().Be("alpha");
+    }
+
+    [Test]
+    public void TriggerHydrationIncludesCollapsedJobs()
+    {
+        // Collapsed job headings stay on screen and need the status square, so hydrate them.
+        TimelineEntityKey collapsedKey = new("alpha", "hidden");
+        List<TimelineRow> rows =
+        [
+            new(new TimelineEntityKey("alpha", "visible"), "alpha", "visible", new Dictionary<TimelineEntityKey, PendingTriggerBars>(), []),
+            new(collapsedKey, "alpha", "hidden", new Dictionary<TimelineEntityKey, PendingTriggerBars>(), []),
+        ];
+
+        TimelineState.SelectRowsForTriggerHydration(
+                rows,
+                collapsedGroups: new HashSet<string>(StringComparer.Ordinal))
+            .Should().HaveCount(2);
+    }
+
+    [Test]
+    public void CollapsedJobsPrefsRoundTripAsGroupNamePairs()
+    {
+        TimelineEntityKey a = new("demo", "job-a");
+        TimelineEntityKey b = new("other", "job-b");
+
+        string payload = TimelineState.FormatCollapsedJobs([b, a]);
+        TimelineState.ParseCollapsedJobs(payload)
+            .Should().BeEquivalentTo([a, b]);
+
+        TimelineState.ParseCollapsedJobs("""[["demo","job-a"],["bad"]]""")
+            .Should().ContainSingle().Which.Should().Be(a);
+        TimelineState.ParseCollapsedJobs("not-json").Should().BeEmpty();
     }
 
     [Test]
@@ -219,13 +251,13 @@ public class TimelineLayoutTest
             TriggersLoaded = true
         };
 
-        HashSet<string> collapsed = new(StringComparer.Ordinal) { "beta" };
+        HashSet<string> collapsedGroups = new(StringComparer.Ordinal) { "beta" };
         HashSet<TimelineEntityKey> previous = [leaving, staying];
         HashSet<TimelineEntityKey> current = [staying];
 
         TimelineState.SelectRowsNeedingTriggerHeaderRefresh(
                 [expandedLeaving, collapsedLeaving, expandedStaying],
-                collapsed,
+                collapsedGroups,
                 previous,
                 current,
                 lastDueHeaderRefreshNextFireTimes: new Dictionary<TimelineEntityKey, DateTimeOffset>(),
@@ -279,6 +311,78 @@ public class TimelineLayoutTest
                 "a due NextFireTimeUtc already re-read must not select the row again until it changes");
     }
 
+    [Test]
+    public void JobMenuOffersPauseXorResumeFromLiveTriggerStates()
+    {
+        TimelineTriggerRow normal = CreateTriggerRow("demo", "a", TriggerState.Normal, Noon.AddMinutes(5));
+        TimelineTriggerRow paused = CreateTriggerRow("demo", "b", TriggerState.Paused, Noon.AddMinutes(5));
+        TimelineTriggerRow orphan = CreateTriggerRow("demo", "c", state: null, Noon.AddMinutes(5));
+
+        TimelineJobMenu.For([normal], canRun: true, canPause: true, canResume: true, canDelete: true)
+            .Should().BeEquivalentTo(new TimelineJobMenu(Run: true, Pause: true, Resume: false, Delete: true));
+
+        TimelineJobMenu.For([paused], canRun: true, canPause: true, canResume: true, canDelete: true)
+            .Should().BeEquivalentTo(new TimelineJobMenu(Run: true, Pause: false, Resume: true, Delete: true));
+
+        TimelineJobMenu.For([normal, paused], canRun: true, canPause: true, canResume: true, canDelete: true)
+            .Should().BeEquivalentTo(new TimelineJobMenu(Run: true, Pause: true, Resume: false, Delete: true),
+                "a mixed row pauses the remaining live triggers rather than offering Resume");
+
+        TimelineJobMenu.For([orphan], canRun: true, canPause: true, canResume: true, canDelete: true)
+            .Should().BeEquivalentTo(new TimelineJobMenu(Run: true, Pause: false, Resume: false, Delete: true),
+                "orphan bars alone do not offer Pause or Resume");
+
+        TimelineJobMenu.For(
+                [CreateTriggerRow("demo", "err", TriggerState.Error, Noon.AddMinutes(5))],
+                canRun: true,
+                canPause: true,
+                canResume: true,
+                canDelete: true)
+            .Should().BeEquivalentTo(new TimelineJobMenu(Run: true, Pause: false, Resume: false, Delete: true),
+                "Error alone is not Pause XOR Resume");
+
+        TimelineJobMenu.For([orphan], canRun: true, canPause: true, canResume: true, canDelete: true, jobMissing: true)
+            .Should().BeEquivalentTo(new TimelineJobMenu(Run: false, Pause: false, Resume: false, Delete: false),
+                "a missing job is history-only: no job actions");
+    }
+
+    [Test]
+    public void JobStatusSquareFollowsLiveTriggerAggregate()
+    {
+        TimelineTriggerRow normal = CreateTriggerRow("demo", "a", TriggerState.Normal, Noon.AddMinutes(5));
+        TimelineTriggerRow paused = CreateTriggerRow("demo", "b", TriggerState.Paused, Noon.AddMinutes(5));
+        TimelineTriggerRow executing = CreateTriggerRow("demo", "c", TriggerState.Executing, Noon.AddMinutes(5));
+        TimelineTriggerRow orphan = CreateTriggerRow("demo", "d", state: null, Noon.AddMinutes(5));
+
+        TimelineJobStatusResolver.Resolve(RowWith([normal])).Should().Be(TimelineJobStatus.Normal);
+        TimelineJobStatusResolver.Resolve(RowWith([paused])).Should().Be(TimelineJobStatus.Paused);
+        TimelineJobStatusResolver.Resolve(RowWith([normal, paused])).Should().Be(TimelineJobStatus.Normal,
+            "any scheduled live trigger keeps the job Normal");
+        TimelineJobStatusResolver.Resolve(RowWith([paused, executing])).Should().Be(TimelineJobStatus.Executing);
+        TimelineJobStatusResolver.Resolve(RowWith([orphan])).Should().Be(TimelineJobStatus.None,
+            "orphan bars alone do not invent a job status");
+        TimelineJobStatusResolver.Resolve(RowWith([CreateTriggerRow("demo", "err", TriggerState.Error, Noon)]))
+            .Should().Be(TimelineJobStatus.Error);
+
+        TimelineRow missing = RowWith([orphan]);
+        missing.JobMissing = true;
+        TimelineJobStatusResolver.Resolve(missing).Should().Be(TimelineJobStatus.Missing);
+    }
+
+    private static TimelineRow RowWith(IReadOnlyList<TimelineTriggerRow> triggers)
+    {
+        TimelineRow row = new(
+            new TimelineEntityKey("demo", "job"),
+            "demo",
+            "job",
+            [],
+            triggers.ToList())
+        {
+            TriggersLoaded = true
+        };
+        return row;
+    }
+
     private static TimelineRow CreateHydratedRow(
         string jobGroup,
         string jobName,
@@ -292,24 +396,29 @@ public class TimelineLayoutTest
             jobGroup,
             jobName,
             [],
-            [
-                new TimelineTriggerRow(
-                    triggerGroup,
-                    triggerName,
-                    state,
-                    "every 30s",
-                    nextFire,
-                    null,
-                    null,
-                    null,
-                    IsExecuting: false,
-                    Bars: [],
-                    Marks: [])
-            ])
+            [CreateTriggerRow(triggerGroup, triggerName, state, nextFire)])
         {
             TriggersLoaded = true
         };
     }
+
+    private static TimelineTriggerRow CreateTriggerRow(
+        string triggerGroup,
+        string triggerName,
+        TriggerState? state,
+        DateTimeOffset? nextFire) =>
+        new(
+            triggerGroup,
+            triggerName,
+            state,
+            "every 30s",
+            nextFire,
+            null,
+            null,
+            null,
+            IsExecuting: false,
+            Bars: [],
+            Marks: []);
 
     [Test]
     public void ApplyPreviousTriggersKeepsMetadataWhenRowInstancesAreShared()

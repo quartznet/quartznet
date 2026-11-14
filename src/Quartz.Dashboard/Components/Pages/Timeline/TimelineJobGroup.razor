@@ -7,7 +7,7 @@
         <button type="button"
                 class="qz-timeline-section-header"
                 data-testid="timeline-section-toggle"
-                aria-expanded="@(!Collapsed)"
+                aria-expanded="@(Collapsed ? "false" : "true")"
                 @onclick="OnGroupToggledAsync">
             <span class="qz-timeline-section-chevron" aria-hidden="true">@(Collapsed ? "▸" : "▾")</span>
             <span class="qz-timeline-section-name">@Section.JobGroup</span>

@@ -27,9 +27,10 @@
                     <div class="qz-timeline-actions @(menuOpen ? "qz-timeline-actions-open" : null)">
                         <button type="button"
                                 class="qz-timeline-actions-btn"
+                                data-testid="timeline-trigger-actions"
                                 title="Trigger actions"
                                 aria-label="Trigger actions"
-                                aria-expanded="@menuOpen"
+                                aria-expanded="@(menuOpen ? "true" : "false")"
                                 @onclick="OnMenuToggled"
                                 @onclick:stopPropagation="true">
                             <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
