@@ -39,6 +39,8 @@ Fifteen pages, listed under [The pages](#the-pages).
   anyone may change anything. See [Production hardening](#production-hardening).
 - **A time zone picker and a theme toggle** in the header. Absolute times render in the picked zone; ages such
   as a last check-in or last fire are also shown relative.
+- **A collapsible sidebar.** Its toggle folds it to an icon rail. The choice is kept per browser in
+  `qz_sidebar_collapsed`, beside the theme and time zone.
 
 ## Installation
 
@@ -175,7 +177,7 @@ and `GetCalendar` by default.
 
 ## The pages
 
-All fourteen are under `{DashboardPath}` (`/quartz` by default) and render the scheduler selected in the header's
+All fifteen are under `{DashboardPath}` (`/quartz` by default) and render the scheduler selected in the header's
 picker, so switching schedulers keeps you on the same page.
 
 | Page | Route |
@@ -1618,6 +1620,9 @@ shell without `ASPNETCORE_ENVIRONMENT`.
   Action Log keeps 250 from this process's dashboard. Neither survives a restart or is lossless; use
   [metrics](opentelemetry-integration.md) for anything you need to go back to. The `ILogger` copy of Action Log
   entries does survive.
+- **The Timeline reads at most 500 runs, and its name filter at most 500 triggers.** A window with more runs
+  shows the latest 500 and says so. The name filter's trigger-name matches stop at 500, so some may be
+  missing; its job-name matches are not capped. See [Timeline](#timeline).
 - **History is in-memory and per-process by default**, so a dashboard attached to a cluster shows an empty
   History page. On a persistent store,
   [`UsePersistentStore(store => store.UseExecutionHistory())`](../tutorial/job-stores.md#execution-history-in-the-database)
