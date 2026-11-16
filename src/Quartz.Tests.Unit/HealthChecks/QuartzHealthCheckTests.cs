@@ -335,11 +335,11 @@ public class QuartzHealthCheckTests
     }
 
     /// <summary>
-    /// A dashboard agent's scheduler is bound in the repository under the name it runs as, but it is a
-    /// scheduler of another process, so the check does not report on it as a tenant of this one (#4322).
+    /// A name only a proxy holds is still reported on: that is how a check on an
+    /// <c>AddQuartzHttpClient</c> scheduler, which has no factory, reaches it.
     /// </summary>
     [Test]
-    public async Task AHealthCheckForANameOnlyAProxyHoldsDoesNotReportOnTheProxy()
+    public async Task AHealthCheckForANameOnlyAProxyHoldsReportsOnTheProxy()
     {
         ServiceCollection services = new();
         services.AddLogging();
@@ -348,17 +348,57 @@ public class QuartzHealthCheckTests
 
         await using ServiceProvider provider = services.BuildServiceProvider();
 
-        IScheduler inner = A.Fake<IScheduler>();
-        A.CallTo(() => inner.SchedulerName).Returns("acme");
-        A.CallTo(() => inner.Status).Returns(SchedulerStatus.Running);
+        IScheduler inner = ProxiedScheduler("acme", SchedulerStatus.Running);
         provider.GetRequiredService<Quartz.Extensibility.ISchedulerRepository>().Bind(new ProxyScheduler(inner, "worker-1"));
 
         HealthReportEntry result = await Run(provider, "quartz-scheduler-acme");
 
-        result.Status.Should().Be(HealthStatus.Unhealthy);
-        result.Description.Should().Contain("added at runtime under that name",
-            "an agent's scheduler is not a scheduler this process runs, so the name holds nothing to report on");
-        A.CallTo(() => inner.Status).MustNotHaveHappened();
+        result.Description.Should().NotContain("added at runtime under that name");
+        A.CallTo(() => inner.Status).MustHaveHappened();
+    }
+
+    /// <summary>
+    /// A tenant of this process wins over a proxy bound under its name before it, a dashboard agent's
+    /// included (#4322). A restart is how a tenant comes to be bound after an agent that connected while
+    /// its first generation was running.
+    /// </summary>
+    [Test]
+    public async Task AHealthCheckPrefersARuntimeTenantOverAProxyBoundBeforeIt()
+    {
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartz("core", q => q.UseInMemoryStore());
+        services.AddHealthChecks().AddQuartz("acme");
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        ISchedulerRuntime runtime = provider.GetRequiredService<ISchedulerRuntime>();
+        await runtime.Add("acme", q => q.UseInMemoryStore());
+
+        IScheduler inner = ProxiedScheduler("acme", SchedulerStatus.Shutdown);
+        provider.GetRequiredService<Quartz.Extensibility.ISchedulerRepository>().Bind(new ProxyScheduler(inner, "worker-1"));
+
+        IScheduler tenant = await runtime.Restart("acme");
+
+        try
+        {
+            HealthReportEntry result = await Run(provider, "quartz-scheduler-acme");
+
+            result.Status.Should().Be(HealthStatus.Healthy, "the check reports on the tenant this process runs, not on the agent bound before it");
+            A.CallTo(() => inner.Status).MustNotHaveHappened();
+        }
+        finally
+        {
+            await tenant.Shutdown();
+        }
+    }
+
+    private static IScheduler ProxiedScheduler(string name, SchedulerStatus status)
+    {
+        IScheduler inner = A.Fake<IScheduler>();
+        A.CallTo(() => inner.SchedulerName).Returns(name);
+        A.CallTo(() => inner.Status).Returns(status);
+        return inner;
     }
 
     private sealed class ProxyScheduler : Quartz.Impl.DelegatingScheduler, Quartz.Impl.IProxyScheduler

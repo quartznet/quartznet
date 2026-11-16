@@ -164,7 +164,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             // back would send everything this container schedules to another process, decided by which of
             // the two happened to be bound first (#4322). The factory's own scheduler binds beside them,
             // since a proxy is bound under its target.
-            var existing = schedulerRepository.LookupLocal(options.InstanceName);
+            IScheduler? existing = schedulerRepository.LookupLocal(options.InstanceName);
             if (existing is not null)
             {
                 ThrowIfShutdown(existing.Status is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown, options.InstanceName);
