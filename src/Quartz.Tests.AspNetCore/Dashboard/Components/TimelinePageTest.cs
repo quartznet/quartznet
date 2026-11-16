@@ -150,6 +150,33 @@ public class TimelinePageTest
     }
 
     [Test]
+    public void TriggerActionsMenuFlipsUpWhenThereIsNoRoomBelow()
+    {
+        context.JSInterop
+            .Setup<bool>(invocation => invocation.Identifier == "quartzDashboardDom.actionsMenuOpensUp")
+            .SetResult(true);
+
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenHistory(now.AddMinutes(-10));
+        GivenTriggersOfJob("demo", "demo-job", CreateTrigger("demo", "demo-trigger", nextFire: now.AddMinutes(5)));
+
+        IRenderedComponent<Timeline> page = context.Render<Timeline>();
+        page.WaitForAssertion(() => page.Find("[data-testid=timeline-trigger-actions]").Should().NotBeNull());
+
+        page.Find("[data-testid=timeline-trigger-actions]").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            context.JSInterop.Invocations
+                .Should().Contain(invocation => invocation.Identifier == "quartzDashboardDom.actionsMenuOpensUp",
+                    "opening the menu asks the page whether to flip it");
+            IElement actions = page.Find(".qz-timeline-actions-open");
+            actions.ClassList.Should().Contain("qz-timeline-actions-up",
+                "the last-row menu must open above the chevron when the page measured no room below");
+        });
+    }
+
+    [Test]
     public void ColumnHeadsCarryShortLabelsForNarrowLayout()
     {
         DateTimeOffset now = context.Clock.GetUtcNow();

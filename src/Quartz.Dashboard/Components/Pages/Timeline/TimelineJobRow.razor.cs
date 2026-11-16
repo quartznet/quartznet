@@ -29,6 +29,8 @@ namespace Quartz.Dashboard.Components.Pages;
 
 public partial class TimelineJobRow
 {
+    private ElementReference _actionsButton;
+
     [Parameter]
     public Timeline Page { get; set; } = null!;
 
@@ -55,13 +57,10 @@ public partial class TimelineJobRow
             ? Task.CompletedTask
             : Page.OnJobCollapsedChangedAsync(Row.Key, !State.IsJobCollapsed(Row.Key));
 
-    private void OnMenuToggled()
-    {
-        if (Target is { } target)
-        {
-            Page.ToggleJobMenu(target);
-        }
-    }
+    private Task OnMenuToggledAsync() =>
+        Target is { } target
+            ? Page.ToggleJobMenuAsync(target, _actionsButton)
+            : Task.CompletedTask;
 
     private Task OnRunClickedAsync() => Target is { } target ? Page.RunJobNowAsync(target) : Task.CompletedTask;
 

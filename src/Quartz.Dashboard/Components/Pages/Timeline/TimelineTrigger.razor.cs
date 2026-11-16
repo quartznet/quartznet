@@ -29,6 +29,8 @@ namespace Quartz.Dashboard.Components.Pages;
 
 public partial class TimelineTrigger
 {
+    private ElementReference _actionsButton;
+
     [Parameter]
     public Timeline Page { get; set; } = null!;
 
@@ -91,13 +93,10 @@ public partial class TimelineTrigger
 
     private bool Can(Quartz.HttpApiContract.WireRoute route) => Authorization.Allows(Scheduler.ActiveSchedulerName, route);
 
-    private void OnMenuToggled()
-    {
-        if (Target is { } target)
-        {
-            Page.ToggleTriggerMenu(target);
-        }
-    }
+    private Task OnMenuToggledAsync() =>
+        Target is { } target
+            ? Page.ToggleTriggerMenuAsync(target, _actionsButton)
+            : Task.CompletedTask;
 
     private Task OnRunClickedAsync() => Target is { } target ? Page.RunNowAsync(target) : Task.CompletedTask;
 

@@ -497,16 +497,19 @@ body{
    6. MAIN CONTENT
    ========================================================================== */
 
+/* overflow-x: clip clips without a scroll container, so position:sticky (Timeline axis) can pin to the window.
+   overflow-x: hidden here used to make .qz-main a scroll container and kill sticky. */
 .qz-main {
     display: flex;
     flex-direction: column;
-    overflow-x: hidden;
+    overflow-x: clip;
 }
 
+/* No overflow-y: the window scrolls. overflow-y: auto here never scrolled (no bounded height) but
+   still made a scroll container that prevented sticky from pinning. */
 .qz-content {
     flex: 1;
     padding: var(--qz-space-lg);
-    overflow-y: auto;
 }
 
 .qz-page {
@@ -3437,6 +3440,12 @@ body{
     border: 1px solid var(--qz-color-border-strong);
     border-radius: var(--qz-radius-md);
     box-shadow: var(--qz-shadow-md);
+}
+
+/* Opens above the chevron when the page measured no room below (last rows). */
+.qz-timeline-actions-up .qz-timeline-actions-menu {
+    top: auto;
+    bottom: calc(100% + 0.2rem);
 }
 
 .qz-timeline-actions-menu button {
