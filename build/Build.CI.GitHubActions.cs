@@ -46,13 +46,15 @@ using Quartz.Build;
     ConcurrencyCancelInProgress = true,
     ReadPermissions = [GitHubActionsPermissions.Contents]
 )]
-// Every .NET 11 user runs Quartz's net10.0 assemblies on the 11 runtime, and gets them as packages in a
-// net11.0 application, and nothing above does either (#4211). This leg builds and packs with the SDK
+// Every .NET 11 user runs Quartz's packages on the 11 runtime, Quartz's own net11.0 asset (#4341) and the
+// others' net10.0 ones, and gets them as packages in a net11.0 application. Nothing above does either (#4211). This leg builds and packs with the SDK
 // global.json names, then builds and runs a net11.0 application from the packages with the .NET 11 SDK
 // (Net11ConsumerSmoke). ConfigureSteps installs that SDK, which carries the runtime, gives the leg the time
-// zone pr-tests-unit's ubuntu job has, and adds the step that runs the unit tests on what this one compiled,
-// with every test host rolled forward to the newest runtime installed, which UnitTestRuntime requires to be
-// 11. Two steps, and the second runs whatever the first said: a test that fails and an application that fails
+// zone pr-tests-unit's ubuntu job has, and adds the step that runs the unit tests on what this one compiled.
+// UnitTestRuntime is in the leg's environment, so MSBuild sees it too: Compile builds Quartz.Tests.Unit for
+// net11.0, which loads Quartz's net11.0 asset, compiled with runtime async (#4341), and the other test projects
+// stay net10.0 and roll forward to the newest runtime installed, which UnitTestRuntime requires to be 11.
+// Two steps, and the second runs whatever the first said: a test that fails and an application that fails
 // are separate findings about the newer runtime, and one run should report both. In this order because
 // UnitTest goes before Pack in any one invocation, and the other order would pack in a second invocation,
 // which rebuilds the solution under a version of its own.

@@ -122,7 +122,7 @@ public sealed class SystemTextJsonJobInputSerializer : IJobInputSerializer
         JsonSerializerOptions current = Options;
         RequireMetadata(current, input.GetType());
 
-        JsonTypeInfo typeInfo = current.GetTypeInfo(typeof(object));
+        JsonTypeInfo typeInfo = current.GetTypeInfo<object>();
         return JsonSerializer.Serialize(input, typeInfo);
     }
 

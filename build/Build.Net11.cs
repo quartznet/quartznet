@@ -94,7 +94,8 @@ partial class Build
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Every .NET 11 user runs Quartz's <c>net10.0</c> assemblies on the 11 runtime, and gets them the way
+    /// Every .NET 11 user runs Quartz's packages on the 11 runtime, <c>Quartz</c>'s own <c>net11.0</c> asset,
+    /// compiled with runtime async (#4341), and the other packages' <c>net10.0</c> ones. They get them the way
     /// this target does: as packages, restored by the .NET 11 SDK into a <c>net11.0</c> application. NuGet
     /// then prunes the <c>Microsoft.Extensions.*</c> packages the 11 shared framework carries, ASP.NET Core
     /// 11 hosts the dashboard's Razor class library, and the SDK adds what it adds to a Debug build. None of
@@ -119,7 +120,9 @@ partial class Build
     /// <para>
     /// Each of <see cref="TrimCanaries" /> is then published from the same packages as a <c>net11.0</c>
     /// application, trimmed and natively, and run, exactly as <see cref="PublishTrimmed" /> and
-    /// <see cref="PublishAot" /> run it from the repository; its report is held to the same rule. Built
+    /// <see cref="PublishAot" /> run it from the repository; its report is held to the same rule. These are
+    /// the trimmed and native publishes of <c>Quartz</c>'s <c>net11.0</c> asset, which the repository's own
+    /// <c>net10.0</c> canaries never load. Built
     /// this way, <c>Quartz.Trimming.Canary</c> is also where the source generator meets the C# 15 compiler
     /// of a <c>net11.0</c> project, and its store check is what says the delegate job was bound at compile
     /// time.

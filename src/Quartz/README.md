@@ -12,6 +12,10 @@ dotnet add package Quartz
 That is everything a scheduler needs: dependency injection, hosting, the scheduler health check and
 System.Text.Json serialization are part of this package, where Quartz 3 shipped them separately.
 
+The package carries a `net10.0` assembly and a `net11.0` one compiled with runtime async, where the .NET 11
+runtime suspends and resumes Quartz's async methods without compiler state machines. Both have the same API,
+and NuGet picks the one your application targets.
+
 Three things Quartz deliberately does not bring. The host below is Microsoft's — a project that has no
 `Microsoft.Extensions.Hosting` reference yet (a plain `console` one; the `worker` and `web` templates
 already have it) adds `dotnet add package Microsoft.Extensions.Hosting`. Quartz writes log events and

@@ -102,7 +102,7 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     /// </remarks>
     public byte[] Serialize<T>(T obj) where T : class
     {
-        JsonTypeInfo typeInfo = Options.GetTypeInfo(typeof(object));
+        JsonTypeInfo typeInfo = Options.GetTypeInfo<object>();
         return JsonSerializer.SerializeToUtf8Bytes(obj, typeInfo);
     }
 
@@ -114,7 +114,7 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     {
         try
         {
-            JsonTypeInfo<T> typeInfo = (JsonTypeInfo<T>) Options.GetTypeInfo(typeof(T));
+            JsonTypeInfo<T> typeInfo = Options.GetTypeInfo<T>();
             return JsonSerializer.Deserialize(data, typeInfo);
         }
         // Quartz's exception comes from Quartz's own converters; System.Text.Json's comes from the

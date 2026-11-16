@@ -2,7 +2,14 @@
 
   <PropertyGroup>
     <AssemblyTitle>Quartz.NET</AssemblyTitle>
-    <TargetFramework>net10.0</TargetFramework>
+    <!--
+      The one shipped project with two targets (#4341). net11.0 is the same source compiled with runtime
+      async, below; every other package stays net10.0 and runs on .NET 11 through this asset, which a
+      net11.0 application gets as NuGet's nearest match. Both expose one public surface:
+      PublicApiTest_Quartz.verified.txt holds each of them to it, and RuntimeAsyncTest says which of the
+      two a test run loaded.
+    -->
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <Title>Quartz.NET</Title>
     <Description>Quartz.NET job scheduler - cron, calendar and interval triggers, clustering over a persistent job store, and Microsoft.Extensions hosting, logging, options and dependency injection throughout. The core package: everything else builds on this one.</Description>
     <PackageTags>$(PackageTags);cron;clustering;background-jobs;hosted-service</PackageTags>
@@ -88,6 +95,17 @@
       the generator skips without a reader of its own fails it.
     -->
     <NoWarn>$(NoWarn);SYSLIB1100;SYSLIB1101</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    Runtime async (#4341): the runtime suspends and resumes an async method itself, and the compiler
+    writes no state machine for it, which is less work per await on the fire path. .NET 11 supports it,
+    and it is opt-in per assembly and only for net11.0 code, so net10.0 keeps the compiler's state
+    machines. RuntimeAsyncTest reads JobRunShell.Run out of whichever asset a test run loaded and fails
+    if this stops reaching it.
+  -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net11.0'">
+    <Features>$(Features);runtime-async=on</Features>
   </PropertyGroup>
 
   <ItemGroup>

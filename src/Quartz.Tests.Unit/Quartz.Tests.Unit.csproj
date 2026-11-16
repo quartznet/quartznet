@@ -2,9 +2,23 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!--
+      On the .NET 11 leg the tests are built for net11.0, so that they load Quartz's net11.0 asset, compiled
+      with runtime async, and not the net10.0 one rolled forward (#4341). The leg sets UnitTestRuntime in its
+      environment, and MSBuild reads an environment variable as a property; build/Build.cs puts a value given
+      as dotnet fallout's parameter there too. RuntimeAsyncTest fails if the asset loaded is not the one this
+      framework should get. Every other run, and every other test project, stays on net10.0.
+    -->
+    <TargetFramework Condition="'$(UnitTestRuntime)' != ''">net$(UnitTestRuntime).0</TargetFramework>
     <IsPackable>false</IsPackable>
     <Nullable>disable</Nullable>
-    <NoWarn>CS0618</NoWarn>
+    <!--
+      SYSLIB0066 is the net11.0 build's: .NET 11 obsoletes IStartupValidator, which the tests resolve to run
+      the validation a host runs in Build(). Its replacement, IAsyncStartupValidator, is not in net10.0's
+      Microsoft.Extensions.Options. On .NET 11 one StartupValidator implements both, and Validate() runs the
+      same validators, so each of those tests means the same on both frameworks.
+    -->
+    <NoWarn>CS0618;SYSLIB0066</NoWarn>
     <SonarQubeExclude>true</SonarQubeExclude>
 
     <!-- Microsoft.Extensions.TimeProvider.Testing 8.6.0 doesn't support net472 and has not been tested with it... -->

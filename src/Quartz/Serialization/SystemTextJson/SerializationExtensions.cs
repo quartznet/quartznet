@@ -316,7 +316,7 @@ internal static class Utf8JsonWriterExtensions
 
         writer.WriteStartObject();
 
-        JsonTypeInfo valueTypeInfo = options.GetTypeInfo(typeof(object));
+        JsonTypeInfo valueTypeInfo = options.GetTypeInfo<object>();
         foreach (var pair in jobDataMap)
         {
             writer.WritePropertyName(pair.Key);
