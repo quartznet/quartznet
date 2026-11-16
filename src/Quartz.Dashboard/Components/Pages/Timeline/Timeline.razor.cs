@@ -54,8 +54,6 @@ public partial class Timeline : ComponentBase
     private bool _pauseJob;
     private bool _showUnscheduleConfirm;
     private bool _showDeleteJobConfirm;
-    private PeriodicTimer? _refreshTimer;
-    private CancellationTokenSource? _refreshLoopCancellation;
     private string _jobsRefreshKey = TimelineService.DefaultJobsRefreshKey;
     private string _triggersRefreshKey = TimelineService.DefaultTriggersRefreshKey;
     private TimeSpan? _jobsRefreshInterval = TimeSpan.FromSeconds(30);
@@ -112,9 +110,6 @@ public partial class Timeline : ComponentBase
     protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
-        _refreshLoopCancellation = new CancellationTokenSource();
-        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1), Clock);
-        _ = RunRefreshLoopAsync(_refreshLoopCancellation.Token);
     }
 
     protected override async Task OnParametersSetAsync()
@@ -154,9 +149,6 @@ public partial class Timeline : ComponentBase
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
-        _refreshLoopCancellation?.Cancel();
-        _refreshLoopCancellation?.Dispose();
-        _refreshTimer?.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -591,60 +583,41 @@ public partial class Timeline : ComponentBase
             ? $"Delete {DisplayValueHelper.FormatKey(job.Row.JobGroup, job.Row.JobName)}? This removes the job and its triggers and cannot be undone."
             : string.Empty;
 
-    private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// One second of the Jobs and Triggers refresh intervals, and the read of whichever is due.
+    /// <see cref="AutoRefresh" /> stops the ticks while the tab is hidden.
+    /// </summary>
+    private async Task TickAsync()
     {
-        if (_refreshTimer is null)
-        {
-            return;
-        }
+        _elapsedSinceJobsRefresh = AdvanceElapsed(_elapsedSinceJobsRefresh);
+        _elapsedSinceTriggersRefresh = AdvanceElapsed(_elapsedSinceTriggersRefresh);
 
-        try
-        {
-            while (await _refreshTimer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(true))
-            {
-                try
-                {
-                    await InvokeAsync(async () =>
-                    {
-                        _elapsedSinceJobsRefresh = AdvanceElapsed(_elapsedSinceJobsRefresh);
-                        _elapsedSinceTriggersRefresh = AdvanceElapsed(_elapsedSinceTriggersRefresh);
+        bool jobsDue = _jobsRefreshInterval is TimeSpan jobsInterval
+            && _elapsedSinceJobsRefresh >= jobsInterval;
+        bool triggersDue = _triggersRefreshInterval is TimeSpan triggersInterval
+            && _elapsedSinceTriggersRefresh >= triggersInterval;
 
-                        bool jobsDue = _jobsRefreshInterval is TimeSpan jobsInterval
-                            && _elapsedSinceJobsRefresh >= jobsInterval;
-                        bool triggersDue = _triggersRefreshInterval is TimeSpan triggersInterval
-                            && _elapsedSinceTriggersRefresh >= triggersInterval;
+        if (jobsDue)
+        {
+            await LoadTimelineAsync().ConfigureAwait(true);
+            StateHasChanged();
+        }
+        else if (triggersDue)
+        {
+            await RefreshTriggersAsync().ConfigureAwait(true);
+            StateHasChanged();
+        }
+    }
 
-                        if (jobsDue)
-                        {
-                            await LoadTimelineAsync().ConfigureAwait(true);
-                            StateHasChanged();
-                        }
-                        else if (triggersDue)
-                        {
-                            await RefreshTriggersAsync().ConfigureAwait(true);
-                            StateHasChanged();
-                        }
-                    }).ConfigureAwait(true);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (ObjectDisposedException)
-                {
-                    break;
-                }
-                catch (InvalidOperationException)
-                {
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (ObjectDisposedException)
-        {
-        }
+    /// <summary>
+    /// The tab is shown again: whichever refresh is on reads now rather than when its interval next comes
+    /// round. A refresh set to Off still reads nothing.
+    /// </summary>
+    private Task ResumeAsync()
+    {
+        _elapsedSinceJobsRefresh = TimeSpan.FromDays(1);
+        _elapsedSinceTriggersRefresh = TimeSpan.FromDays(1);
+        return TickAsync();
     }
 
     private async Task LoadRefreshPreferencesAsync()

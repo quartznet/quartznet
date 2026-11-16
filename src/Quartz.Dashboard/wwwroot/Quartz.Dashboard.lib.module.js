@@ -68,6 +68,48 @@ export function afterWebStarted() {
         }
     };
 
+    window.quartzDashboardVisibility = window.quartzDashboardVisibility || (function () {
+        const observers = new Map();
+        let lastId = 0;
+
+        return {
+            /**
+             * Tells a polling page (AutoRefresh.OnVisibilityChanged) when its tab is hidden and when it is shown,
+             * so its timer stops while nobody can see it. A tab that is hidden already is reported at once.
+             * Answers the id unobserve takes; 0 is never one.
+             */
+            observe: function (dotNetRef) {
+                if (!dotNetRef) {
+                    return 0;
+                }
+
+                const id = ++lastId;
+                const notify = function () {
+                    dotNetRef.invokeMethodAsync("OnVisibilityChanged", document.visibilityState !== "hidden")
+                        .catch(function () { });
+                };
+
+                observers.set(id, notify);
+                document.addEventListener("visibilitychange", notify);
+                if (document.visibilityState === "hidden") {
+                    notify();
+                }
+
+                return id;
+            },
+
+            unobserve: function (id) {
+                const notify = observers.get(id);
+                if (!notify) {
+                    return;
+                }
+
+                document.removeEventListener("visibilitychange", notify);
+                observers.delete(id);
+            }
+        };
+    })();
+
     window.quartzDashboardDom = window.quartzDashboardDom || {
         /**
          * Axis pan without Blazor pointermove traffic: preview locally, commit once on pointerup.

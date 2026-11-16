@@ -15,6 +15,10 @@
 @inject DashboardActionLog ActionLog
 
 <div class="qz-page">
+    @* Every tick is a database read on a persistent store, so this is deliberately slower than the
+       one-second cadence of the executing-jobs page: a cluster's membership changes on the scale of
+       its check-in interval, not of a job's duration. *@
+    <AutoRefresh Every="TimeSpan.FromSeconds(5)" Refresh="RefreshAsync" />
     <div class="qz-page-header">
         <h1>Cluster</h1>
         <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Auto-refreshes every 5s</span>
@@ -192,8 +196,6 @@
     private bool _firingCountsArePartial;
     private int _firingsCounted;
     private string? _error;
-    private PeriodicTimer? _refreshTimer;
-    private CancellationTokenSource? _refreshLoopCancellation;
     private DateTimeOffset? _lastUpdatedAt;
 
     /// <summary>
@@ -291,12 +293,6 @@
     protected override async Task OnInitializedAsync()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
-        _refreshLoopCancellation = new CancellationTokenSource();
-        // Every tick is a database read on a persistent store, so this is deliberately slower than the
-        // one-second cadence of the executing-jobs page: a cluster's membership changes on the scale of
-        // its check-in interval, not of a job's duration.
-        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
-        _ = RunRefreshLoopAsync(_refreshLoopCancellation.Token);
         await LoadDataAsync();
     }
 
@@ -306,48 +302,13 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// The five-second read, which <see cref="AutoRefresh" /> holds back while the tab is hidden.
+    /// </summary>
+    private async Task RefreshAsync()
     {
-        if (_refreshTimer is null)
-        {
-            return;
-        }
-
-        try
-        {
-            while (await _refreshTimer.WaitForNextTickAsync(cancellationToken))
-            {
-                try
-                {
-                    await InvokeAsync(async () =>
-                    {
-                        await LoadDataAsync();
-                        StateHasChanged();
-                    });
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (ObjectDisposedException)
-                {
-                    break;
-                }
-                catch (InvalidOperationException)
-                {
-                }
-                catch (Exception ex)
-                {
-                    _error = ex.Message;
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (ObjectDisposedException)
-        {
-        }
+        await LoadDataAsync();
+        StateHasChanged();
     }
 
     private async Task LoadDataAsync()
@@ -601,9 +562,6 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
-        _refreshLoopCancellation?.Cancel();
-        _refreshLoopCancellation?.Dispose();
-        _refreshTimer?.Dispose();
     }
 
     /// <summary>

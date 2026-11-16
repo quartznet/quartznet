@@ -7,7 +7,10 @@ using Bunit;
 
 using FakeItEasy;
 
+using Microsoft.JSInterop;
+
 using Quartz.Dashboard.Components.Pages;
+using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Services;
 using Quartz.Tests.AspNetCore.Support;
 
@@ -381,6 +384,35 @@ public class HistoryPageTest
             page.FindAll("[data-testid=stale-marker]").Should().BeEmpty("the next refresh that answers clears the mark");
             page.FindAll("[data-testid=history-job]").Should().HaveCount(3);
         });
+    }
+
+    /// <summary>
+    /// A hidden tab stops the once-a-second read, and showing it again reads once and starts the timer again.
+    /// </summary>
+    /// <remarks>
+    /// The page read every second for as long as it was open, in a tab nobody was looking at too. The hook is
+    /// driven the way the browser drives it: through the reference the page handed the script.
+    /// </remarks>
+    [Test]
+    public async Task AHiddenTabStopsTheReadsAndShowingItReadsOnce()
+    {
+        GivenHistory(Entry(100));
+        IRenderedComponent<History> page = context.Render<History>();
+        page.WaitForAssertion(() => HistoryReads().Should().Be(1));
+        DotNetObjectReference<AutoRefresh> tab = VisibilityHook();
+
+        await page.InvokeAsync(() => tab.Value.OnVisibilityChanged(visible: false));
+        context.Clock.Advance(TimeSpan.FromSeconds(5));
+
+        // A tick the clock made due is queued on the renderer before this, so it has run once this has.
+        await page.InvokeAsync(() => { });
+        HistoryReads().Should().Be(1, "nothing reads while the tab is hidden");
+
+        await page.InvokeAsync(() => tab.Value.OnVisibilityChanged(visible: true));
+        HistoryReads().Should().Be(2, "showing the tab reads once, at once");
+
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+        page.WaitForAssertion(() => HistoryReads().Should().Be(3, "and the timer runs again"));
     }
 
     [Test]
@@ -1208,6 +1240,23 @@ public class HistoryPageTest
     private void GivenHistory(params DashboardHistoryEntry[] entries)
     {
         GivenHistory(entries.Length, entries);
+    }
+
+    /// <summary>How many times the page has asked for a page of executions.</summary>
+    private int HistoryReads()
+    {
+        return Fake.GetCalls(context.Api).Count(call => call.Method.Name == nameof(IQuartzApiClient.QueryExecutions));
+    }
+
+    /// <summary>
+    /// The reference the page's <see cref="AutoRefresh" /> handed the script, which the browser calls when the
+    /// tab is hidden or shown.
+    /// </summary>
+    private DotNetObjectReference<AutoRefresh> VisibilityHook()
+    {
+        JSRuntimeInvocation observe = context.JSInterop.Invocations["quartzDashboardVisibility.observe"]
+            .Should().ContainSingle("the page has one timer, and it asks to be told about the tab once").Subject;
+        return observe.Arguments[0].Should().BeOfType<DotNetObjectReference<AutoRefresh>>().Subject;
     }
 
     /// <summary>
