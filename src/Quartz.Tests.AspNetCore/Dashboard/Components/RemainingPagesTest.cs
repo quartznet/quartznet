@@ -271,6 +271,31 @@ public class RemainingPagesTest
     }
 
     /// <summary>
+    /// An interrupt that failed says so in a toast, as a failed action on every other page does.
+    /// </summary>
+    /// <remarks>
+    /// Only a refusal for the visitor's role used to raise one. Any other failure set an error on the page,
+    /// which the refresh a second later cleared, so the reader was never told.
+    /// </remarks>
+    [Test]
+    public void AnInterruptThatFailedRaisesAToast()
+    {
+        GivenRunningFiring(interrupted: true);
+        A.CallTo(() => context.Api.InterruptFireInstance(A<string>._, "fire-1", A<CancellationToken>._))
+            .Throws(new SchedulerException("the target is unreachable"));
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Interrupt").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            context.Toasts.Messages.Should().ContainSingle()
+                .Which.Message.Should().Be("the target is unreachable");
+            page.FindAll(".qz-error-alert").Should().BeEmpty("the toast is the report, and the listing is still true");
+        });
+    }
+
+    /// <summary>
     /// A firing that is running, and what interrupting it answers.
     /// </summary>
     private void GivenRunningFiring(bool interrupted)
