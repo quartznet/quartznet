@@ -85,6 +85,12 @@ internal sealed class TimelineState
         _cancellationToken = cancellationToken;
     }
 
+    /// <summary>
+    /// The page's token, as it was handed over while the page was there: a struct, so it still answers after the
+    /// page has disposed the source behind it.
+    /// </summary>
+    public CancellationToken CancellationToken => _cancellationToken;
+
     public bool CanPanNewer => _panOffset > TimeSpan.Zero;
 
     public TimelineWindow Window => _window;

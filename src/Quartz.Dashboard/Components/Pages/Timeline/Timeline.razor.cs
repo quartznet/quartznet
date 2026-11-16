@@ -768,7 +768,9 @@ public partial class Timeline : ComponentBase
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (!string.IsNullOrWhiteSpace(schedulerName))
         {
-            await Authorization.LoadOperations(schedulerName, _cancellation.Token).ConfigureAwait(true);
+            // The token the state took when the page made it: this runs after the callers' own awaits, and the
+            // page's source is disposed when it leaves.
+            await Authorization.LoadOperations(schedulerName, State.CancellationToken).ConfigureAwait(true);
         }
 
         await State.LoadTimelineAsync(schedulerName, FormatInstant, FormatTick).ConfigureAwait(true);

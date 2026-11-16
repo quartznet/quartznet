@@ -392,7 +392,7 @@
             }
 
             await LoadStatusAsync(schedulerName, cancellationToken);
-            await LoadStatisticsAsync(schedulerName);
+            await LoadStatisticsAsync(schedulerName, cancellationToken);
             _lastUpdatedAt = Clock.GetUtcNow();
             _staleReason = null;
         }
@@ -490,7 +490,12 @@
     /// as the status panel is; so is it after any other failure, because the rest of the page does not depend
     /// on it.
     /// </remarks>
-    private async Task LoadStatisticsAsync(string schedulerName)
+    /// <param name="schedulerName">The scheduler the page is about.</param>
+    /// <param name="cancellationToken">
+    /// The page's token, taken before the read that asks for this began: the source behind it is disposed with
+    /// the page, so reading it again after an await could throw.
+    /// </param>
+    private async Task LoadStatisticsAsync(string schedulerName, CancellationToken cancellationToken)
     {
         try
         {
@@ -498,9 +503,9 @@
                 Api,
                 new ExecutionStatisticsQuery { SchedulerName = schedulerName, Job = new Quartz.JobKey(Name, Group) },
                 Clock.GetUtcNow(),
-                _cancellation.Token);
+                cancellationToken);
         }
-        catch (Exception) when (!_cancellation.IsCancellationRequested)
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
             _statistics = null;
         }
@@ -512,7 +517,7 @@
 
         if (Scheduler.ActiveSchedulerName is { Length: > 0 } schedulerName)
         {
-            await LoadStatisticsAsync(schedulerName);
+            await LoadStatisticsAsync(schedulerName, _cancellation.Token);
         }
     }
 

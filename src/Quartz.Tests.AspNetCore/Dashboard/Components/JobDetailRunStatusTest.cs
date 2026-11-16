@@ -88,6 +88,37 @@ public class JobDetailRunStatusTest
             page.Find("[data-testid=job-run-status-none]").TextContent.Should().Contain("No run of this job has been recorded"));
     }
 
+    /// <summary>
+    /// A read that carries on after the reader left hands the chart's read the page's cancelled token.
+    /// </summary>
+    /// <remarks>
+    /// The chart's read took the token from the page's source once the status had answered, and by then the
+    /// page had disposed that source: the read threw <see cref="ObjectDisposedException" /> instead of being
+    /// cancelled, and the page swallowed it.
+    /// </remarks>
+    [Test]
+    public async Task TheChartsReadAfterTheReaderLeftIsHandedTheCancelledToken()
+    {
+        TaskCompletionSource<JobRunStatus?> status = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        A.CallTo(() => context.Api.GetJobRunStatus(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .ReturnsLazily(() => new ValueTask<JobRunStatus?>(status.Task));
+        CancellationToken? chart = null;
+        A.CallTo(() => context.Api.QueryExecutionStatistics(A<ExecutionStatisticsQuery>._, A<CancellationToken>._))
+            .ReturnsLazily((ExecutionStatisticsQuery _, CancellationToken cancellationToken) =>
+            {
+                chart ??= cancellationToken;
+                return ValueTask.FromCanceled<ExecutionStatistics>(cancellationToken);
+            });
+        Render();
+
+        await context.DisposeComponentsAsync();
+        status.SetResult(null);
+
+        SpinWait.SpinUntil(() => chart is not null, TimeSpan.FromSeconds(10)).Should().BeTrue(
+            "the read goes on to the chart once the status answers");
+        chart!.Value.IsCancellationRequested.Should().BeTrue("the reader has left, and the chart's read is told so");
+    }
+
     [Test]
     public void ASourceThatKeepsNoStatusLeavesThePanelOut()
     {
