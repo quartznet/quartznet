@@ -33,7 +33,11 @@ using Quartz.Dashboard.Services.Timeline;
 
 namespace Quartz.Dashboard.Components.Pages;
 
-public partial class Timeline
+// ComponentBase is named here as well as by the Razor source generator's half of the class: the
+// overrides below need it, and docfx compiles this file with a Roslyn older than the one the .NET SDK's
+// generator is built against, so the generated half never exists there (build/Build.Docs.cs,
+// ToleratedDocfxWarning).
+public partial class Timeline : ComponentBase
 {
     private const string JobsRefreshStorageKey = "qz-timeline-jobs-refresh";
     private const string TriggersRefreshStorageKey = "qz-timeline-triggers-refresh";

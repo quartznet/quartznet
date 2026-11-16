@@ -83,6 +83,10 @@ public partial class Build
     /// <c>.razor</c> file — which <c>apidoc/filterConfig.yml</c> excludes anyway, for the same reason
     /// <c>PublicApiTest</c> keeps them out of the <c>Quartz.Dashboard</c> baseline: they are the
     /// dashboard's UI, not API anyone calls. Everything else in the assembly is documented normally.
+    /// It is what happens with the .NET 11 SDK, whose generator is built against Roslyn 5.12 while docfx
+    /// 2.81.0 carries 5.11 at most (dotnet/docfx#11171). A code-behind <c>.razor.cs</c> that overrides a
+    /// <c>ComponentBase</c> member therefore names <c>ComponentBase</c> itself, because the half of the
+    /// class that would otherwise supply it is never generated here.
     /// </remarks>
     static readonly Regex ToleratedDocfxWarning =
         new(@"warning: FailedToLoadAnalyzer: .*Microsoft\.CodeAnalysis\.Razor\.Compiler", RegexOptions.None, TimeSpan.FromSeconds(5));
