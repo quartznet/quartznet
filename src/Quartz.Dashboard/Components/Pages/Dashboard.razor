@@ -326,7 +326,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: false, ex.Message);
             Toasts.Error(ex.Message);
         }

@@ -1,0 +1,61 @@
+using Bunit;
+
+using FakeItEasy;
+
+using Quartz.Dashboard.Components.Pages;
+using Quartz.Dashboard.Services;
+
+namespace Quartz.Tests.AspNetCore.Dashboard.Components;
+
+/// <summary>
+/// The Jobs page: what a failed action and a failed reload leave on it, and what a second click sends.
+/// </summary>
+public class JobsPageTest
+{
+    private DashboardComponentContext context = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        context = new DashboardComponentContext();
+    }
+
+    [TearDown]
+    public async Task TearDown()
+    {
+        await context.DisposeAsync();
+    }
+
+    /// <summary>
+    /// A failed action leaves the page it was taken from as it was: the toast and the Action Log say why.
+    /// </summary>
+    /// <remarks>
+    /// The listing was read and is still true; only the pause failed. Replacing it with the error and its
+    /// Retry button took away the page the reader was acting on, to repeat what the toast already said.
+    /// </remarks>
+    [Test]
+    public void AFailedPauseLeavesTheListingAndRaisesAToast()
+    {
+        GivenJobs(DashboardComponentContext.JobKeys("reports", 2));
+        A.CallTo(() => context.Api.PauseJob(A<string>._, A<string>._, A<string>._))
+            .Throws(new InvalidOperationException("the store is not answering"));
+
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Pause").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            context.Toasts.Messages.Should().ContainSingle()
+                .Which.Message.Should().Be("the store is not answering");
+            page.TextOfAll(".qz-key-badge-value").Should().Equal(["reports.job-1", "reports.job-2"],
+                "the listing was read and is still true; only the pause failed");
+            page.FindAll(".qz-error-alert").Should().BeEmpty("the toast is the report, not an error in place of the page");
+        });
+    }
+
+    private void GivenJobs(IReadOnlyList<JobKeyDto> jobs)
+    {
+        A.CallTo(() => context.Api.GetJobKeys(A<string>._, A<string?>._)).Returns([.. jobs]);
+    }
+}

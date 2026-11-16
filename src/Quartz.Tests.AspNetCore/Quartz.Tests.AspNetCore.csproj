@@ -19,8 +19,10 @@
     <PackageReference Include="AwesomeAssertions" Version="9.5.0" />
     <PackageReference Include="AwesomeAssertions.Analyzers" Version="9.0.8" />
     <PackageReference Include="bunit" Version="2.11.3" />
+    <PackageReference Include="FakeItEasy" Version="9.0.1" />
     <PackageReference Include="GitHubActionsTestLogger" Version="2.4.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.8" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="8.10.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
     <PackageReference Include="NUnit" Version="4.5.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="6.2.0" />

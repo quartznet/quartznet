@@ -191,7 +191,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Record(
                 schedulerName,
                 _replaceCalendar ? "UpsertCalendar" : "CreateCalendar",
@@ -237,7 +236,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Record(schedulerName, "DeleteCalendar", _pendingCalendarName, succeeded: false, ex.Message);
             Toasts.Error(ex.Message);
             _showDeleteConfirm = false;
