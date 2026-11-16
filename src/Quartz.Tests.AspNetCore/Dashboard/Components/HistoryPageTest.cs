@@ -9,6 +9,7 @@ using FakeItEasy;
 
 using Microsoft.JSInterop;
 
+using Quartz.Dashboard.Components.Layout;
 using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Services;
@@ -442,6 +443,41 @@ public class HistoryPageTest
 
         read.IsCancellationRequested.Should().BeTrue("a read whose answer nobody will see is stopped");
         answer.SetCanceled(read);
+    }
+
+    /// <summary>
+    /// Choosing a time zone draws the rows again in it, on the page the reader is on, and reads nothing.
+    /// </summary>
+    /// <remarks>
+    /// The zone picker raised the scheduler-changed event, so every page read everything again and History went
+    /// back to page 1, though only the formatting had changed.
+    /// </remarks>
+    [Test]
+    public void AZoneChangeKeepsThePageAndReadsNothing()
+    {
+        GivenHistory(60, Entry(100));
+        context.Navigate("/quartz/history?page=3");
+        IRenderedComponent<DashboardLayout> layout = context.Render<DashboardLayout>(parameters => parameters
+            .Add(x => x.Body, builder =>
+            {
+                builder.OpenComponent<History>(0);
+                builder.CloseComponent();
+            }));
+        layout.WaitForAssertion(() => layout.Find("[data-testid=history-page-summary]").TextContent.Should().StartWith("Page 3 / 3"));
+        int reads = HistoryReads();
+
+        // A zone nine hours from the UTC the fixture pins, with no daylight saving to move it.
+        TimeZoneInfo zone = TimeZoneInfo.GetSystemTimeZones()
+            .First(candidate => candidate.BaseUtcOffset == TimeSpan.FromHours(9) && !candidate.SupportsDaylightSavingTime);
+        layout.Find("#qz-timezone-select").Change(zone.Id);
+
+        layout.WaitForAssertion(() =>
+        {
+            layout.Find(".qz-history-fired").TextContent.Should().Contain("+09:00", "the rows are drawn again in the zone chosen");
+            layout.Find("[data-testid=history-page-summary]").TextContent.Should().StartWith("Page 3 / 3",
+                "only the formatting changed, so the reader stays on the page they were reading");
+        });
+        HistoryReads().Should().Be(reads, "nothing about the scheduler changed, so nothing is read again");
     }
 
     [Test]

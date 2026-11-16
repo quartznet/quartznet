@@ -116,6 +116,7 @@ public partial class Timeline : ComponentBase
     protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        Scheduler.OnDisplayChanged += OnDisplayChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -155,6 +156,7 @@ public partial class Timeline : ComponentBase
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        Scheduler.OnDisplayChanged -= OnDisplayChanged;
         _cancellation.Cancel();
         _cancellation.Dispose();
         GC.SuppressFinalize(this);
@@ -486,6 +488,19 @@ public partial class Timeline : ComponentBase
         State.ClearRows();
         await LoadTimelineAsync().ConfigureAwait(true);
         await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// The time zone changed: the axis is labelled again in it and the page drawn again, on the window and
+    /// page it is on. Nothing is read; the bars' tooltips take the zone at the next refresh.
+    /// </summary>
+    private void OnDisplayChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(() =>
+        {
+            State.RelabelAxis(FormatTick);
+            StateHasChanged();
+        });
     }
 
     private Task OnPageChangedAsync(int page) =>

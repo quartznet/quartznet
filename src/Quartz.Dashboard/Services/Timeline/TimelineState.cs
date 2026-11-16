@@ -492,6 +492,15 @@ internal sealed class TimelineState
     public void ResetPage() => _page = 1;
 
     /// <summary>
+    /// Writes the axis labels again, for a change to how times are shown. Reads nothing.
+    /// </summary>
+    /// <remarks>
+    /// A bar's and an upcoming mark's tooltip are written when they are read, so they take the new zone at
+    /// the next refresh that reads them.
+    /// </remarks>
+    public void RelabelAxis(Func<DateTimeOffset, string, string> formatTick) => RebuildAxisTicks(formatTick);
+
+    /// <summary>
     /// Drops loaded rows immediately. A scheduler switch calls this before the new load so the
     /// previous scheduler's keys cannot stay on screen (or in menus) under the new name.
     /// </summary>

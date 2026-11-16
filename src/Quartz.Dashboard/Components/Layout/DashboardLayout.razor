@@ -232,7 +232,8 @@
             bool sidebarChanged = previousSidebarCollapsed != _sidebarCollapsed;
             if (timeZoneChanged)
             {
-                SchedulerState.NotifyChanged();
+                // Only how times are shown changed: the page draws again and reads nothing.
+                SchedulerState.NotifyDisplayChanged();
             }
 
             if (timeZoneChanged || themeChanged || sidebarChanged)
@@ -282,7 +283,9 @@
             SchedulerState.SelectedTimeZoneId = selectedTimeZoneId;
             if (!string.Equals(previousTimeZoneId, SchedulerState.SelectedTimeZoneId, StringComparison.Ordinal))
             {
-                SchedulerState.NotifyChanged();
+                // Only how times are shown changed: the page draws again and reads nothing, so History keeps
+                // its page and no page reads its scheduler again.
+                SchedulerState.NotifyDisplayChanged();
                 await PersistPreferenceAsync(timeZonePreferenceKey, SchedulerState.SelectedTimeZoneId);
             }
         }

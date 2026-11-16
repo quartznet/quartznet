@@ -69,6 +69,12 @@ internal sealed class SchedulerState
     public event EventHandler? OnSchedulerChanged;
 
     /// <summary>
+    /// Raised when how the dashboard shows times has changed, and nothing about the scheduler has: the time
+    /// zone. A page draws again from what it read and reads nothing, so it keeps its page and its filters.
+    /// </summary>
+    public event EventHandler? OnDisplayChanged;
+
+    /// <summary>
     /// The key the browser remembered from the last visit, or <see langword="null" /> when it remembered
     /// none. Applied once the first listing says whether it is still there: a cookie is the browser's
     /// word, and the listing is what decides which keys this visitor may be pointed at.
@@ -262,6 +268,14 @@ internal sealed class SchedulerState
     public void NotifyChanged()
     {
         OnSchedulerChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Raises <see cref="OnDisplayChanged" />, for a change to how times are shown.
+    /// </summary>
+    public void NotifyDisplayChanged()
+    {
+        OnDisplayChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private TimeZoneInfo ResolveSelectedTimeZone()

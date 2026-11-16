@@ -267,16 +267,20 @@ public class SharedComponentsTest
         string otherZoneId = TimeZoneInfo.GetSystemTimeZones()
             .First(zone => !string.Equals(zone.Id, TimeZoneInfo.Utc.Id, StringComparison.Ordinal))
             .Id;
-        int notifications = 0;
-        context.SchedulerState.OnSchedulerChanged += (_, _) => notifications++;
+        int displayChanges = 0;
+        int schedulerChanges = 0;
+        context.SchedulerState.OnDisplayChanged += (_, _) => displayChanges++;
+        context.SchedulerState.OnSchedulerChanged += (_, _) => schedulerChanges++;
         IRenderedComponent<DashboardLayout> layout = context.Render<DashboardLayout>(parameters => parameters
             .Add(x => x.Body, builder => builder.AddMarkupContent(0, "<p>the page</p>")));
 
         layout.Find("#qz-timezone-select").Change(otherZoneId);
 
         context.SchedulerState.SelectedTimeZoneId.Should().Be(otherZoneId);
-        notifications.Should().Be(1,
+        displayChanges.Should().Be(1,
             "every page formats its timestamps in the selected zone, and none of them re-renders on its own");
+        schedulerChanges.Should().Be(0,
+            "only the formatting changed: a page told the scheduler changed reads everything again and starts over");
     }
 
     [Test]
