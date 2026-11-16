@@ -9,6 +9,7 @@ using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
+using BenchmarkDotNet.Toolchains.InProcess.Emit;
 using BenchmarkDotNet.Toolchains.InProcess.NoEmit;
 
 namespace Quartz.Benchmark;
@@ -34,12 +35,13 @@ internal static class Program
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Three of them loop one workload in this process with the harness out of the way, which is what a
-    /// sampling profiler wants to attach to: no process per case, no pilot deciding how many invocations
-    /// an iteration gets, and no measurement machinery in the stacks. They measure nothing themselves —
-    /// <c>ultra</c> or an EventPipe session does that from outside, and
-    /// <c>README.md</c> says how. The fourth measures something BenchmarkDotNet's model cannot express,
-    /// because the interval it reports begins on one thread and ends on another.
+    /// The <c>--profile-*</c> runs loop one workload in this process with the harness out of the way, which
+    /// is what a sampling profiler wants to attach to: no process per case, no pilot deciding how many
+    /// invocations an iteration gets, and no measurement machinery in the stacks. They measure nothing
+    /// themselves — <c>ultra</c> or an EventPipe session does that from outside, and <c>README.md</c> says
+    /// how. The others measure something BenchmarkDotNet's model cannot express: an interval that begins
+    /// on one thread and ends on another, the statements a drain sends, the frames under a job, or which
+    /// Quartz asset the process loaded.
     /// </para>
     /// <para>
     /// They are development tools and are outside every build target. Nothing in CI runs them, and the
@@ -58,8 +60,14 @@ internal static class Program
             "Schedules into a started scheduler for about 20 seconds, clearing the store every 50,000. Attach a profiler to this for ScheduleJob.",
             ProfileSchedule),
         ("--latency",
-            "Schedules one job for now on an idle scheduler, 200 times, and prints the schedule-to-execute percentiles and where they go.",
+            "Schedules one job for now on an idle scheduler, 200 times, and prints the schedule-to-execute percentiles and where they go. RAMJobStore, then PostgreSQL when QUARTZ_BENCHMARK_POSTGRES is set.",
             LatencyProbe.Run),
+        ("--stack-depth",
+            "Counts the frames on the stack at IJob.Execute over 2,000 firings of the fire-throughput workload. RAMJobStore, then PostgreSQL when QUARTZ_BENCHMARK_POSTGRES is set.",
+            StackDepthProbe.Run),
+        ("--runtime-info",
+            "Prints the runtime, the Quartz asset this build loads and whether its fire path is compiled with runtime async.",
+            RuntimeInfo.Run),
         ("--one-off-census",
             "Drains one-off firings against PostgreSQL and prints the commits, the statements and every statement by name. Needs QUARTZ_BENCHMARK_POSTGRES and pg_stat_statements; QUARTZ_CENSUS_DIALECT=sqlserver runs it against QUARTZ_BENCHMARK_SQLSERVER instead.",
             OneOffCensus.Run),
@@ -105,7 +113,7 @@ internal static class Program
         {
             summaries =
             [
-                .. BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(switcherArguments, smoke ? SmokeConfig() : null)
+                .. BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(switcherArguments, smoke ? SmokeConfig() : InProcessConfig())
             ];
         }
         catch (Exception exception)
@@ -161,6 +169,36 @@ internal static class Program
             .AddFilter(new SimpleFilter(benchmark => !benchmark.Descriptor.Categories.Any(
                 category => BenchmarkCategories.ExcludedFromSmokeRun.Contains(category, StringComparer.OrdinalIgnoreCase))))
             .WithOptions(ConfigOptions.DisableLogFile);
+    }
+
+    /// <summary>
+    /// <c>QUARTZ_BENCHMARK_IN_PROCESS=true</c> runs every job in this process, a job a benchmark declares
+    /// with an attribute included, so that what is measured is the runtime and the <c>Quartz.dll</c> this
+    /// process loaded (#4214).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// BenchmarkDotNet's own process per case is built from <c>Quartz.Benchmark.csproj</c> and the source
+    /// beside it, for the framework of the runtime it detects. That cannot be one leg of a comparison
+    /// between Quartz's two assets on one runtime, or between one asset on two runtimes. A build of this
+    /// project, run as it is, can: <c>RuntimeInfo</c> says what it loads. <c>--inProcess</c> is not enough
+    /// on its own: it adds a job of its own rather than changing the jobs the attributes declare, so
+    /// <see cref="FireThroughputPostgresBenchmark" />'s <c>[SimpleJob]</c> would still be built and run in a
+    /// process of its own. The toolchain is applied as a mutator instead, which BenchmarkDotNet merges into
+    /// every job.
+    /// </para>
+    /// <para>
+    /// Unset, or anything else, is BenchmarkDotNet's default, a process per case.
+    /// </para>
+    /// </remarks>
+    private static IConfig? InProcessConfig()
+    {
+        if (!string.Equals(Environment.GetEnvironmentVariable("QUARTZ_BENCHMARK_IN_PROCESS"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return DefaultConfig.Instance.AddJob(Job.Default.WithToolchain(InProcessEmitToolchain.Instance).AsMutator());
     }
 
     /// <summary>

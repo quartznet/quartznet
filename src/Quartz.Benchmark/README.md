@@ -27,6 +27,25 @@ list, which is the property that makes the target worth having; see `Program.cs`
 Release is not optional. BenchmarkDotNet refuses a non-optimized assembly, and a smoke run of one
 would prove nothing.
 
+### Comparing runtimes and Quartz assets
+
+`Quartz` ships a `net10.0` asset and a `net11.0` one compiled with runtime async, and this project is
+`net10.0`. `-p:BenchmarkRuntime=11` builds it for `net11.0`, which loads the `net11.0` asset. A
+`net10.0` build run with `DOTNET_ROLL_FORWARD=LatestMajor` is the `net10.0` asset on .NET 11. Copy each
+build's `bin/Release/<framework>/` folder somewhere of its own, because the next build overwrites it.
+Then check what each copy loads with `--runtime-info`:
+
+```shell
+dotnet build -c Release src/Quartz.Benchmark/Quartz.Benchmark.csproj -p:BenchmarkRuntime=11
+src/Quartz.Benchmark/bin/Release/net11.0/Quartz.Benchmark.exe --runtime-info
+```
+
+BenchmarkDotNet's own process per case can't be one of these legs. It is built from this project's
+source, for the framework of the runtime it detects. `QUARTZ_BENCHMARK_IN_PROCESS=true` runs every job in
+the process that was started, including a job a benchmark declares with `[SimpleJob]`, so the
+measurement is of that process's runtime and `Quartz.dll`. `--inProcess` alone adds a job of its own and
+leaves an attribute's job out of process.
+
 ### Round-trip latency
 
 Every database benchmark runs against a container over loopback, where a round trip is tens of
@@ -57,7 +76,9 @@ reachable as plain runs of this assembly, with the harness out of the way. `--he
 | `--profile-fire` | `FireThroughputBenchmark`'s workload at `MaxConcurrency` 10 on `RAMJobStore`, for ~25 s |
 | `--profile-cron` | `CronExpressionComparisonBenchmark.Next100`, for ~20 s |
 | `--profile-schedule` | `ScheduleJobBenchmark`'s simple arm, clearing the store every 50,000, for ~20 s |
-| `--latency` | The schedule-to-execute probe: one job scheduled for now on an idle scheduler, 200 times |
+| `--latency` | The schedule-to-execute probe: one job scheduled for now on an idle scheduler, 200 times. `RAMJobStore`, then PostgreSQL when `QUARTZ_BENCHMARK_POSTGRES` is set |
+| `--stack-depth` | The frames on the stack at `IJob.Execute`, over 2,000 firings of `FireThroughputBenchmark`'s workload. `RAMJobStore`, then PostgreSQL when `QUARTZ_BENCHMARK_POSTGRES` is set |
+| `--runtime-info` | The runtime, the `Quartz.dll` this build loads, and whether its async methods are runtime async or compiler state machines |
 | `--one-off-census` | A drain of one-off firings against PostgreSQL, with the commits and every statement counted at the database. `QUARTZ_CENSUS_EXECUTION_HISTORY=true` adds `UseExecutionHistory()`; `QUARTZ_CENSUS_HISTORY_WRITE_BEHIND=true` beside it writes that history behind, flushed once a second; `QUARTZ_CENSUS_DIALECT=sqlserver` runs it against `QUARTZ_BENCHMARK_SQLSERVER`, counting the database's `Transactions/sec` and `sys.dm_exec_query_stats` |
 
 Each is a whole run and takes no other arguments, as `--smoke` does. Each prints what it got through
