@@ -18,7 +18,7 @@
     <div class="qz-page-header">
         <h1>Cluster</h1>
         <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Auto-refreshes every 5s</span>
-        <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Last updated: @FormatLastUpdated(_lastUpdatedAt)</span>
+        <LastUpdated At="@_lastUpdatedAt" />
     </div>
 
     @if (_isLoading)
@@ -596,11 +596,6 @@
     private static string FormatInterval(TimeSpan? interval)
     {
         return interval.HasValue ? DisplayValueHelper.FormatClock(interval.Value) : "—";
-    }
-
-    private string FormatLastUpdated(DateTimeOffset? lastUpdatedAt)
-    {
-        return Scheduler.FormatInSelectedTimeZone(lastUpdatedAt, "HH:mm:ss");
     }
 
     public void Dispose()
