@@ -401,7 +401,7 @@ public class JobsPageTest
     /// another tab, stayed out of sight until the browser was reloaded.
     /// </remarks>
     [Test]
-    public void TheRefreshButtonReadsTheListingAndTheHeaderStatusAgain()
+    public async Task TheRefreshButtonReadsTheListingAndTheHeaderStatusAgain()
     {
         GivenJobs(TestData.Dashboard.JobKeys("reports", 1));
         IRenderedComponent<DashboardLayout> layout = context.Render<DashboardLayout>(parameters => parameters
@@ -415,6 +415,9 @@ public class JobsPageTest
         GivenJobs(TestData.Dashboard.JobKeys("reports", 2));
         context.WithScheduler(status: SchedulerStatus.Standby);
         context.Clock.Advance(TimeSpan.FromMinutes(5));
+
+        // A tick the clock made due is queued on the renderer before this, so it has run once this has.
+        await layout.InvokeAsync(() => { });
         layout.TextOfAll(".qz-key-badge-value").Should().Equal(["reports.job-1"], "the page reads nothing on a timer");
 
         layout.Find("[data-testid=refresh]").Click();
