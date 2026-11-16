@@ -264,7 +264,7 @@ From 4.8, the Triggers listing shows each trigger's schedule in words, in the tr
 |---|---|
 | Schedule | The schedule in words. Hover for the cron expression or recurrence rule. A shape it cannot phrase shows the expression itself |
 | Next fire | The time in the dashboard's time zone, and how far off it is: `in 3m`. A time already passed, as a paused trigger's is, says `due 2h ago` |
-| Previous fire | The time in the dashboard's time zone, and how long ago: `2h ago`. Hidden below 1440 px; the trigger's page shows it |
+| Previous fire | The time in the dashboard's time zone, and how long ago: `2h ago` |
 
 - **The scheduler describes the page.** It reads the page's triggers in one batch. A scheduler over HTTP or through
   an agent describes its own and sends the text on the [listing](http-api.md#listing-endpoints-are-paged), in the
@@ -272,6 +272,15 @@ From 4.8, the Triggers listing shows each trigger's schedule in words, in the tr
 - **A scheduler, HTTP API or agent older than 4.8** sends no description, and the column shows `—`.
 - The trigger's page and the job's table of triggers show the same text. The trigger's page keeps the expression
   beside it.
+
+A narrower listing gives way in steps, by its own width rather than the window's. A 1440 px window with the sidebar
+open gives the listing about 1120 px. The trigger's page shows everything a step hides.
+
+| Listing narrower than | Change |
+|---|---|
+| 1300 px | Execution group and Details are hidden |
+| 1080 px | Previous fire is hidden |
+| 920 px | The schedule moves under the trigger's key; below 748 px the table scrolls inside its card |
 
 ### Upcoming fires
 

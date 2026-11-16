@@ -167,6 +167,9 @@
                         }
                     </div>
                 }
+                @* The listing's own scroll container, whose width the columns answer to: a narrow card hides the
+                   lower-priority columns and then scrolls the table inside itself, never the page. *@
+                <div class="qz-triggers-listing" data-testid="triggers-listing">
                 <table class="qz-table qz-entity-table qz-triggers-table">
                     <thead>
                         <tr>
@@ -223,6 +226,8 @@
                                             after @DisplayValueHelper.FormatKey(parent.Group, parent.Name)
                                         </div>
                                     }
+                                    @* Shown in place of the Schedule column on a listing too narrow for both. *@
+                                    <div class="qz-schedule-inline"><ScheduleCell Trigger="@trigger" /></div>
                                 </td>
                                 <td class="qz-col-schedule"><ScheduleCell Trigger="@trigger" /></td>
                                 <td class="qz-col-fire qz-col-next-fire"><FireTimeCell Time="@trigger.NextFireTimeUtc" Now="@_lastUpdatedAt.GetValueOrDefault()" Upcoming="true" /></td>
@@ -267,6 +272,7 @@
                         }
                     </tbody>
                 </table>
+                </div>
             </section>
         }
 
