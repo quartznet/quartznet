@@ -65,7 +65,10 @@ internal sealed class MutationAudit
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        logger.MutationPerformed(UserName(context), Operation(context), SchedulerName(context), context.Request.Path.ToString());
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.MutationPerformed(UserName(context), Operation(context), SchedulerName(context), context.Request.Path.ToString());
+        }
     }
 
     /// <summary>

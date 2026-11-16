@@ -61,6 +61,12 @@ internal sealed class HostStartupGuard(DashboardHostPlan plan, string dashboardP
             logger.Unsecured(plan.UnsecuredAccess);
         }
 
+        // The rest is the Information-level account of what the host serves.
+        if (!logger.IsEnabled(LogLevel.Information))
+        {
+            return Task.CompletedTask;
+        }
+
         foreach (HttpTargetPlan target in plan.HttpTargets)
         {
             logger.HttpTarget(target.Name, target.SchedulerName, Address(target.BaseAddress));

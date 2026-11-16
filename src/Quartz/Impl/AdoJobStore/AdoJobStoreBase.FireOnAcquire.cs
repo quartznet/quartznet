@@ -22,6 +22,8 @@
 using System.Data.Common;
 using System.Diagnostics;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -138,7 +140,7 @@ internal abstract partial class AdoJobStoreBase
                 {
                     Logger.RoundRolledBackForLock(needsLock.TriggerKey);
                 }
-                else
+                else if (Logger.IsEnabled(LogLevel.Debug))
                 {
                     Logger.RoundEscalatedToLock(needsLock.Reason.Describe(), needsLock.TriggerKey);
                 }

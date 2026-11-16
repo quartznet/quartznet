@@ -273,7 +273,10 @@ public class SendMailJob : IJob
     /// </summary>
     protected virtual async ValueTask Send(MailInfo mailInfo, CancellationToken cancellationToken = default)
     {
-        logger.SendingMessage(GetMessageDescription(mailInfo.MailMessage));
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.SendingMessage(GetMessageDescription(mailInfo.MailMessage));
+        }
 
         using (var client = new SmtpClient(mailInfo.SmtpHost))
         {
