@@ -1,4 +1,5 @@
 @page "/quartz/history"
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
 @implements IDisposable
@@ -6,9 +7,13 @@
 @inject SchedulerState Scheduler
 @inject IOptions<QuartzDashboardOptions> Options
 @inject NavigationManager Navigation
+@inject IServiceProvider Services
 
 <div class="qz-page">
-    <h1>Execution History</h1>
+    <div class="qz-page-header">
+        <h1>Execution History</h1>
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" />
+    </div>
 
     <div class="qz-live-filters">
         <div class="qz-live-filter-grid">
@@ -129,6 +134,21 @@
     private CancellationTokenSource? _refreshLoopCancellation;
     private bool _loadingInProgress;
 
+    /// <summary>
+    /// When the rows on screen were read, or <see langword="null" /> while the page holds nothing read.
+    /// </summary>
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// Why the last refresh failed while there were rows to keep, or <see langword="null" />.
+    /// </summary>
+    private string? _staleReason;
+
+    /// <summary>
+    /// The clock the refresh ticks on and the page says it read at, so a test can say when a second has passed.
+    /// </summary>
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
     [Parameter]
     [SupplyParameterFromQuery(Name = "job")]
     public string? JobFilterQuery { get; set; }
@@ -149,7 +169,7 @@
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
         _refreshLoopCancellation = new CancellationTokenSource();
-        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1), Clock);
         _ = RunRefreshLoopAsync(_refreshLoopCancellation.Token);
         return Task.CompletedTask;
     }
@@ -172,6 +192,9 @@
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
         _page = 1;
+
+        // Another scheduler's rows are not ones to keep: a read of this one that fails has nothing to show.
+        ClearRows();
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -216,6 +239,11 @@
         }
     }
 
+    /// <remarks>
+    /// The rows on screen are replaced when the new ones arrive rather than emptied before the read, so a
+    /// refresh that fails keeps them, marked stale beside the time they were read, and the next one that
+    /// answers replaces them. Only a page with nothing read to show has the error in its place.
+    /// </remarks>
     private async Task LoadDataAsync()
     {
         if (_loadingInProgress)
@@ -227,19 +255,13 @@
         _isLoading = true;
         _historyUnavailable = false;
         _error = null;
-        _entries.Clear();
-        _totalCount = 0;
-        _totalPages = 1;
-        _pageSuccessCount = 0;
-        _pageFailureCount = 0;
-        _pageAverageDurationMs = 0;
-        _pageP95DurationMs = 0;
 
         try
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
             if (string.IsNullOrWhiteSpace(schedulerName))
             {
+                ClearRows();
                 return;
             }
 
@@ -247,29 +269,43 @@
             JobHistoryPageDto? page = await Api.GetHistory(query);
             if (page is null)
             {
+                ClearRows();
                 _historyUnavailable = true;
                 return;
             }
 
             System.Text.Json.JsonElement payload = page.Value;
-            _page = Math.Max(1, GetInt(payload, "page", "Page"));
-            _currentPageSize = Math.Max(1, GetInt(payload, "pageSize", "PageSize"));
-            _totalCount = GetInt(payload, "totalCount", "TotalCount");
-            _totalPages = Math.Max(1, (int) Math.Ceiling((double) _totalCount / _currentPageSize));
+            int pageNumber = Math.Max(1, GetInt(payload, "page", "Page"));
+            int pageSize = Math.Max(1, GetInt(payload, "pageSize", "PageSize"));
+            int totalCount = GetInt(payload, "totalCount", "TotalCount");
 
+            List<object> rows = [];
             object? entries = DisplayValueHelper.GetObject(payload, "entries", "Entries");
             if (entries is System.Text.Json.JsonElement entriesElement && entriesElement.ValueKind == System.Text.Json.JsonValueKind.Array)
             {
                 foreach (System.Text.Json.JsonElement item in entriesElement.EnumerateArray())
                 {
-                    _entries.Add(item.Clone());
+                    rows.Add(item.Clone());
                 }
             }
 
+            ClearRows();
+            _page = pageNumber;
+            _currentPageSize = pageSize;
+            _totalCount = totalCount;
+            _totalPages = Math.Max(1, (int) Math.Ceiling((double) _totalCount / _currentPageSize));
+            _entries.AddRange(rows);
+            _lastUpdatedAt = Clock.GetUtcNow();
+
             ComputeAnalytics();
+        }
+        catch (Exception ex) when (_lastUpdatedAt is not null)
+        {
+            _staleReason = ex.Message;
         }
         catch (Exception ex)
         {
+            ClearRows();
             _error = ex.Message;
         }
         finally
@@ -277,6 +313,22 @@
             _isLoading = false;
             _loadingInProgress = false;
         }
+    }
+
+    /// <summary>
+    /// Empties the rows, for a read that has none to show.
+    /// </summary>
+    private void ClearRows()
+    {
+        _entries.Clear();
+        _totalCount = 0;
+        _totalPages = 1;
+        _pageSuccessCount = 0;
+        _pageFailureCount = 0;
+        _pageAverageDurationMs = 0;
+        _pageP95DurationMs = 0;
+        _lastUpdatedAt = null;
+        _staleReason = null;
     }
 
     private async Task OnPageChangedAsync(int page)

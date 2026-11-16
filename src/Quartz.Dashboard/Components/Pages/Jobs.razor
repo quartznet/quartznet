@@ -1,4 +1,5 @@
 @page "/quartz/jobs"
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -9,9 +10,13 @@
 @inject ToastService Toasts
 @inject NavigationManager Navigation
 @inject DashboardActionLogService ActionLog
+@inject IServiceProvider Services
 
 <div class="qz-page">
-    <h1>Jobs</h1>
+    <div class="qz-page-header">
+        <h1>Jobs</h1>
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" />
+    </div>
 
     <SearchFilter OnFilterChanged="OnFilterChangedAsync" />
 
@@ -117,7 +122,20 @@
     private string? _pendingDeleteName;
     private string _pendingDeleteKey = string.Empty;
 
+    /// <summary>
+    /// When the listing on screen was read, or <see langword="null" /> while it holds nothing read.
+    /// </summary>
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// Why the last read failed while there was a listing to keep, or <see langword="null" />.
+    /// </summary>
+    private string? _staleReason;
+
     private bool IsReadOnly => Options.Value.ReadOnly;
+
+    /// <summary>The clock the page says it read the listing at.</summary>
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
 
     private IEnumerable<IGrouping<string, object>> GroupedJobs =>
         _pagedJobs.GroupBy(job => DisplayValueHelper.GetString(job, "Group", "Key.Group"));
@@ -130,10 +148,17 @@
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        // Another scheduler's listing is not one to keep: a read of this one that fails has nothing to show.
+        ClearListing();
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
 
+    /// <remarks>
+    /// The listing on screen is replaced when the new one arrives rather than emptied before the read, so a
+    /// read that fails keeps it, marked stale beside the time it was read. Only a page with nothing read to
+    /// show has the error in its place.
+    /// </remarks>
     private async Task LoadDataAsync()
     {
         _isLoading = true;
@@ -141,44 +166,69 @@
 
         try
         {
-            _allJobs.Clear();
-            _groupStates.Clear();
             string? schedulerName = Scheduler.ActiveSchedulerName;
-            if (!string.IsNullOrWhiteSpace(schedulerName))
+            if (string.IsNullOrWhiteSpace(schedulerName))
             {
-                IReadOnlyList<object> jobs = DisplayValueHelper.ToObjectList(await Api.GetJobKeys(schedulerName));
-                _allJobs.AddRange(jobs);
+                ClearListing();
+                return;
+            }
 
-                HashSet<string> groups = new(StringComparer.OrdinalIgnoreCase);
-                foreach (object job in _allJobs)
-                {
-                    string jobGroup = DisplayValueHelper.GetString(job, "Group", "Key.Group");
-                    if (!string.IsNullOrWhiteSpace(jobGroup))
-                    {
-                        groups.Add(jobGroup);
-                    }
-                }
+            IReadOnlyList<object> jobs = DisplayValueHelper.ToObjectList(await Api.GetJobKeys(schedulerName));
 
-                foreach (string group in groups)
+            HashSet<string> groups = new(StringComparer.OrdinalIgnoreCase);
+            foreach (object job in jobs)
+            {
+                string jobGroup = DisplayValueHelper.GetString(job, "Group", "Key.Group");
+                if (!string.IsNullOrWhiteSpace(jobGroup))
                 {
-                    bool isPaused = await Api.IsJobGroupPaused(schedulerName, group);
-                    _groupStates[group] = isPaused ? "Paused" : "Normal";
+                    groups.Add(jobGroup);
                 }
             }
 
+            Dictionary<string, string> groupStates = new(StringComparer.OrdinalIgnoreCase);
+            foreach (string group in groups)
+            {
+                bool isPaused = await Api.IsJobGroupPaused(schedulerName, group);
+                groupStates[group] = isPaused ? "Paused" : "Normal";
+            }
+
+            _allJobs.Clear();
+            _allJobs.AddRange(jobs);
+            _groupStates.Clear();
+            foreach (KeyValuePair<string, string> groupState in groupStates)
+            {
+                _groupStates[groupState.Key] = groupState.Value;
+            }
+
             ApplyFilterAndPaging();
+            _lastUpdatedAt = Clock.GetUtcNow();
+            _staleReason = null;
+        }
+        catch (Exception ex) when (_lastUpdatedAt is not null)
+        {
+            _staleReason = ex.Message;
         }
         catch (Exception ex)
         {
+            ClearListing();
             _error = ex.Message;
-            _filteredJobs.Clear();
-            _pagedJobs.Clear();
-            _groupStates.Clear();
         }
         finally
         {
             _isLoading = false;
         }
+    }
+
+    /// <summary>
+    /// Empties the listing, for a scheduler of which there is nothing read to keep showing.
+    /// </summary>
+    private void ClearListing()
+    {
+        _allJobs.Clear();
+        _groupStates.Clear();
+        ApplyFilterAndPaging();
+        _lastUpdatedAt = null;
+        _staleReason = null;
     }
 
     private void ApplyFilterAndPaging()

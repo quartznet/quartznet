@@ -1,4 +1,5 @@
 @page "/quartz"
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
 @implements IDisposable
@@ -7,9 +8,13 @@
 @inject IOptions<QuartzDashboardOptions> Options
 @inject ToastService Toasts
 @inject DashboardActionLogService ActionLog
+@inject IServiceProvider Services
 
 <div class="qz-page">
-    <h1>Quartz Dashboard</h1>
+    <div class="qz-page-header">
+        <h1>Quartz Dashboard</h1>
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" />
+    </div>
 
     @if (_isLoading)
     {
@@ -89,6 +94,19 @@
     private bool _isLoading = true;
     private bool _isRefreshingExecuting;
     private string? _error;
+
+    /// <summary>
+    /// When the page last read everything it shows, or <see langword="null" /> before it has. Only the count
+    /// of what is executing is read again every second, so this moves on a full read alone.
+    /// </summary>
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// Why the last read of what is executing failed, or <see langword="null" />. The page keeps what it
+    /// shows, and the next read that answers clears this.
+    /// </summary>
+    private string? _staleReason;
+
     private string _schedulerStatus = "Unknown";
     private int _totalJobs;
     private int _totalTriggers;
@@ -100,11 +118,16 @@
     private CancellationTokenSource? _executingRefreshCancellation;
     private bool IsReadOnly => Options.Value.ReadOnly;
 
+    /// <summary>
+    /// The clock the refresh ticks on and the page says it read at, so a test can say when a second has passed.
+    /// </summary>
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
     protected override async Task OnInitializedAsync()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
         _executingRefreshCancellation = new CancellationTokenSource();
-        _executingRefreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _executingRefreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1), Clock);
         _ = RunExecutingRefreshLoopAsync(_executingRefreshCancellation.Token);
         await LoadDataAsync();
     }
@@ -131,6 +154,7 @@
                 _totalTriggers = 0;
                 _currentlyExecuting = 0;
                 _recentActions.Clear();
+                MarkRead();
                 return;
             }
 
@@ -159,6 +183,7 @@
             }
 
             RefreshRecentActions(schedulerName);
+            MarkRead();
         }
         catch (Exception ex)
         {
@@ -168,6 +193,16 @@
         {
             _isLoading = false;
         }
+    }
+
+    /// <summary>
+    /// Notes a read of the whole page that answered: the time beside <em>Last updated</em> moves, and a
+    /// stale mark goes.
+    /// </summary>
+    private void MarkRead()
+    {
+        _lastUpdatedAt = Clock.GetUtcNow();
+        _staleReason = null;
     }
 
     private async Task RunExecutingRefreshLoopAsync(CancellationToken cancellationToken)
@@ -233,10 +268,13 @@
 
             IReadOnlyList<object> executing = DisplayValueHelper.ToObjectList(await Api.GetCurrentlyExecutingJobs(schedulerName));
             _currentlyExecuting = executing.Count;
+            _staleReason = null;
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            // A refresh that failed: the page keeps what it shows and says it is stale, rather than giving
+            // the whole of it up to an error until Retry is pressed.
+            _staleReason = ex.Message;
         }
         finally
         {
