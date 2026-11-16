@@ -36,8 +36,9 @@ requests.
 
 ## Building
 
-* You need the .NET 10 SDK. `global.json` asks for 10.0.100 and rolls forward to the latest 10.0.x you
-  have installed.
+* You need the .NET 11 SDK and the .NET 10 runtime. `global.json` asks for SDK 11.0.100 and rolls forward
+  to the latest 11.x you have installed; every project still targets `net10.0`, so the tests and the build
+  itself run on .NET 10.
 * Build the code by running `build.cmd` (Windows) or `./build.sh` (Linux, macOS). The scripts restore the
   [Fallout](https://fallout.build/) CLI from `.config/dotnet-tools.json` and hand it the arguments, so
   there is nothing to install globally.

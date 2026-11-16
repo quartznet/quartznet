@@ -43,7 +43,8 @@ row names before writing code there. Where the two differ, the document wins.
 - **Single target** — everything targets `net10.0`. `Quartz.Analyzers` is the one exception: an analyzer
   runs inside the compiler host, so it is `netstandard2.0`, links the cron parser's sources rather than
   referencing `Quartz.dll`, and ships inside `Quartz.nupkg` under `analyzers/dotnet/cs`.
-- **SDK**: .NET 10 SDK (see `global.json`), with `rollForward: latestMinor`.
+- **SDK**: .NET 11 SDK (see `global.json`), with `rollForward: latestMinor`. The test hosts and the build
+  project are `net10.0` applications, so the .NET 10 runtime has to be installed beside it.
 - **License headers** — source files include Apache 2.0 license region at the top.
 - **UTF-8 without a byte-order mark** — everything under `src/`, whatever its extension;
   `SourceEncodingTest` fails a file that starts with one; Verify's `*.verified.*` and `*.received.*` files are the exemption.
