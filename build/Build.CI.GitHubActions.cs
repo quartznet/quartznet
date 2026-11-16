@@ -186,16 +186,15 @@ public partial class Build : IConfigureGitHubActions
             pipeline.Insert(GitHubActionsStepPosition.PreRun, new GitHubActionsCustomStep
             {
                 Name = "Setup: .NET 11 SDK",
-                // Beside the SDK global.json names, which the generated step after this one installs and the
-                // repository's build keeps using: global.json takes no part in choosing a runtime, and the
-                // consumer the leg builds has a global.json of its own. Preview quality until 11.0.0 ships,
-                // then drop dotnet-quality for the release. The release the generator pins for its own
-                // setup-dotnet step, spelled out for the reason 'Publish: test results' gives.
+                // The leg's own, whatever SDK global.json names: today the generated step after this one
+                // installs the same release, and when global.json moves past 11 this leg still runs on 11.
+                // global.json takes no part in choosing a runtime, and the consumer the leg builds has a
+                // global.json of its own. The release the generator pins for its own setup-dotnet step,
+                // spelled out for the reason 'Publish: test results' gives.
                 Uses = "actions/setup-dotnet@v6",
                 With =
                 {
-                    ["dotnet-version"] = "11.0.x",
-                    ["dotnet-quality"] = "preview"
+                    ["dotnet-version"] = "11.0.x"
                 }
             });
 

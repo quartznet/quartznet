@@ -56,7 +56,6 @@ jobs:
       - name: 'Setup: .NET 11 SDK'
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-quality: preview
           dotnet-version: 11.0.x
       - name: 'Setup: .NET SDK'
         uses: actions/setup-dotnet@v6

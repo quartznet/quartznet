@@ -31,10 +31,10 @@ partial class Build
     const int Net11 = 11;
 
     /// <summary>
-    /// The lowest SDK the consumer's <c>global.json</c> accepts. A prerelease floor, so that a release
-    /// candidate satisfies it until 11.0 ships and the released SDK after.
+    /// The lowest SDK the consumer's <c>global.json</c> accepts: the first released .NET 11 SDK, so that no
+    /// preview or release candidate builds it.
     /// </summary>
-    const string Net11SdkFloor = "11.0.100-rc.1";
+    const string Net11SdkFloor = "11.0.100";
 
     /// <summary>
     /// Where the consumer's dashboard is mounted: a custom path, the shape #4224 broke.
@@ -170,7 +170,7 @@ partial class Build
               "sdk": {
                 "version": "{{Net11SdkFloor}}",
                 "rollForward": "latestFeature",
-                "allowPrerelease": true
+                "allowPrerelease": false
               }
             }
             """);
