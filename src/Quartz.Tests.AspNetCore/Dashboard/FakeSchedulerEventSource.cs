@@ -46,17 +46,17 @@ internal sealed class FakeSchedulerEventSource : ISchedulerEventSource
         string schedulerName,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        lock (subscribed)
+        if (Failure is { } failure)
         {
-            subscribed.Add(schedulerName);
+            Record(schedulerName);
+            throw failure;
         }
 
-        if (Failure is not null)
-        {
-            throw Failure;
-        }
-
+        // The stream exists before the subscription is recorded. A test that sees the subscription in
+        // Subscribed and ends or fails the stream at once must reach this one, not find no stream and
+        // leave the subscriber waiting forever.
         Channel<SchedulerEvent> stream = Stream(schedulerName);
+        Record(schedulerName);
 
         // Cancellation completes the enumeration rather than raising, which is what the contract says and
         // what the broker and the HTTP reader both do.
@@ -95,6 +95,14 @@ internal sealed class FakeSchedulerEventSource : ISchedulerEventSource
         if (streams.TryRemove(schedulerName, out Channel<SchedulerEvent>? stream))
         {
             stream.Writer.TryComplete(failure);
+        }
+    }
+
+    private void Record(string schedulerName)
+    {
+        lock (subscribed)
+        {
+            subscribed.Add(schedulerName);
         }
     }
 
