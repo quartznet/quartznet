@@ -1,0 +1,186 @@
+@using Microsoft.Extensions.DependencyInjection
+@implements IAsyncDisposable
+@inject Microsoft.JSInterop.IJSRuntime JsRuntime
+@inject IServiceProvider Services
+
+@* Calls a page's Refresh every Every while its browser tab is visible. The timer stops while the tab is hidden,
+   and the page is refreshed once when the tab is shown again. Renders nothing.
+
+   The browser reports the tab through quartzDashboardVisibility in Quartz.Dashboard.lib.module.js, which listens
+   for visibilitychange once this has rendered. Until it says otherwise the tab counts as visible, so a page with
+   no browser behind it refreshes on its timer. *@
+
+@code {
+    /// <summary>The running timer's, or <see langword="null" /> while the tab is hidden.</summary>
+    private CancellationTokenSource? _timer;
+
+    private Microsoft.JSInterop.DotNetObjectReference<AutoRefresh>? _self;
+
+    /// <summary>What the browser registered this as, or 0 while it has registered nothing.</summary>
+    private int _observer;
+
+    private bool _hidden;
+    private bool _disposed;
+
+    /// <summary>How long the timer waits between two refreshes.</summary>
+    [Parameter]
+    [EditorRequired]
+    public TimeSpan Every { get; set; }
+
+    /// <summary>
+    /// The page's refresh, which reads and renders, on the renderer's dispatcher.
+    /// </summary>
+    /// <remarks>
+    /// A delegate rather than an <see cref="EventCallback" />: an event callback renders the page before its task
+    /// completes as well as after, and a refresh renders once, when it has read.
+    /// </remarks>
+    [Parameter]
+    [EditorRequired]
+    public Func<Task> Refresh { get; set; } = null!;
+
+    /// <summary>
+    /// What runs once when the tab is shown again, or <see langword="null" /> for <see cref="Refresh" />. A page
+    /// whose refresh reads only when its own interval is due passes one that reads now.
+    /// </summary>
+    [Parameter]
+    public Func<Task>? Resume { get; set; }
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    protected override void OnInitialized()
+    {
+        Start();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _self = Microsoft.JSInterop.DotNetObjectReference.Create(this);
+        try
+        {
+            int observer = await JsRuntime.InvokeAsync<int>("quartzDashboardVisibility.observe", _self);
+            if (_disposed)
+            {
+                // The page left while the browser was registering this.
+                await UnobserveAsync(observer);
+                return;
+            }
+
+            _observer = observer;
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            // The script did not run, and the timer runs as if the tab were visible.
+        }
+        catch (Microsoft.JSInterop.JSDisconnectedException)
+        {
+            // The circuit is going, and the page with it.
+        }
+        catch (InvalidOperationException)
+        {
+            // Rendered where there is no browser, as a prerender is.
+        }
+    }
+
+    /// <summary>
+    /// Called by the browser when the tab is hidden or shown.
+    /// </summary>
+    [Microsoft.JSInterop.JSInvokable]
+    public async Task OnVisibilityChanged(bool visible)
+    {
+        if (_disposed || _hidden == !visible)
+        {
+            return;
+        }
+
+        _hidden = !visible;
+        if (_hidden)
+        {
+            Stop();
+            return;
+        }
+
+        Start();
+        await InvokeAsync(Resume ?? Refresh);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Stop();
+        await UnobserveAsync(_observer);
+        _observer = 0;
+        _self?.Dispose();
+        _self = null;
+    }
+
+    private async Task UnobserveAsync(int observer)
+    {
+        if (observer == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("quartzDashboardVisibility.unobserve", observer);
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            // The listener goes with the document.
+        }
+        catch (Microsoft.JSInterop.JSDisconnectedException)
+        {
+            // The listener goes with the document.
+        }
+        catch (InvalidOperationException)
+        {
+            // No browser to tell.
+        }
+    }
+
+    private void Start()
+    {
+        CancellationTokenSource timer = new();
+        _timer = timer;
+        _ = TickAsync(timer.Token);
+    }
+
+    private void Stop()
+    {
+        _timer?.Cancel();
+        _timer?.Dispose();
+        _timer = null;
+    }
+
+    private async Task TickAsync(CancellationToken cancellationToken)
+    {
+        using PeriodicTimer ticks = new(Every, Clock);
+        try
+        {
+            while (await ticks.WaitForNextTickAsync(cancellationToken))
+            {
+                try
+                {
+                    await InvokeAsync(Refresh);
+                }
+                catch (InvalidOperationException)
+                {
+                    // One refresh the renderer would not take; the next tick asks again.
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Stopped: the tab was hidden, or the page left.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The renderer went with the page.
+        }
+    }
+}

@@ -15,6 +15,8 @@
 @inject IJSRuntime JsRuntime
 
 <div class="qz-page qz-page-timeline">
+    @* Ticks every second and reads when the Jobs or Triggers refresh chosen below is due. *@
+    <AutoRefresh Every="TimeSpan.FromSeconds(1)" Refresh="TickAsync" Resume="ResumeAsync" />
     <div class="qz-page-header">
         <h1>Timeline</h1>
         <span class="qz-muted qz-timeline-live">@TriggersLiveBadge</span>

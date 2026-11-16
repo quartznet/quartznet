@@ -3,11 +3,13 @@
 @using Quartz.Dashboard.Services
 @using Quartz.Extensibility
 @using Microsoft.Extensions.DependencyInjection
-@implements IDisposable
 @inject IQuartzApiClient Api
 @inject IServiceProvider Services
 
 <section class="qz-section">
+    @* Slower than the overview's executing count, for the reason the Cluster page is slower: every
+       tick is two reads of a persistent store, and a limit changes on the scale of a deployment. *@
+    <AutoRefresh Every="TimeSpan.FromSeconds(5)" Refresh="RefreshAsync" />
     <h2>Execution groups</h2>
 
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -164,8 +166,6 @@
     private int _firingsCounted;
     private bool _hasLoaded;
     private string? _loadedSchedulerName;
-    private PeriodicTimer? _refreshTimer;
-    private CancellationTokenSource? _refreshLoopCancellation;
 
     /// <summary>
     /// Which execution groups the node serves, rebuilt from the two lists the scheduler reports, or
@@ -229,15 +229,6 @@
         }
     }
 
-    protected override void OnInitialized()
-    {
-        _refreshLoopCancellation = new CancellationTokenSource();
-        // Slower than the overview's executing count, for the reason the Cluster page is slower: every
-        // tick is two reads of a persistent store, and a limit changes on the scale of a deployment.
-        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
-        _ = RunRefreshLoopAsync(_refreshLoopCancellation.Token);
-    }
-
     /// <remarks>
     /// Guarded on the scheduler rather than reloading on every parameter set: the overview re-renders
     /// once a second to keep its executing count current, and each of those renders would otherwise be
@@ -268,48 +259,13 @@
 
     private string[]? _loadedRefused;
 
-    private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// The five-second read, which <see cref="AutoRefresh" /> holds back while the tab is hidden.
+    /// </summary>
+    private async Task RefreshAsync()
     {
-        if (_refreshTimer is null)
-        {
-            return;
-        }
-
-        try
-        {
-            while (await _refreshTimer.WaitForNextTickAsync(cancellationToken))
-            {
-                try
-                {
-                    await InvokeAsync(async () =>
-                    {
-                        await LoadDataAsync();
-                        StateHasChanged();
-                    });
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (ObjectDisposedException)
-                {
-                    break;
-                }
-                catch (InvalidOperationException)
-                {
-                }
-                catch (Exception ex)
-                {
-                    _error = ex.Message;
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (ObjectDisposedException)
-        {
-        }
+        await LoadDataAsync();
+        StateHasChanged();
     }
 
     private async Task LoadDataAsync()
@@ -600,13 +556,6 @@
     private static string OverdueOf(GroupRow row)
     {
         return row.IsRule ? "—" : row.Overdue.ToString(CultureInfo.InvariantCulture);
-    }
-
-    public void Dispose()
-    {
-        _refreshLoopCancellation?.Cancel();
-        _refreshLoopCancellation?.Dispose();
-        _refreshTimer?.Dispose();
     }
 
     /// <summary>
