@@ -102,4 +102,21 @@
     <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
+  <!--
+    The static web assets go back into the package after the tool's own publish has taken them out. From
+    the .NET 11 SDK on, NuGet packs a single-targeted project in the instance it built, where the .NET 10
+    SDK used one of its own per framework. A tool package publishes as it packs, and the publish's
+    _CleanupReferencedProjectItemGroups removes every static web asset from Content, which now includes
+    the staticwebassets/ files IncludeStaticWebAssetsPackItems added for the package a moment before. The
+    package then named three assets in build/Microsoft.AspNetCore.StaticWebAssets.props and carried none,
+    and VerifyPackedStaticWebAssets refused it. On the .NET 10 SDK nothing was taken out, and this puts
+    back what is already there.
+  -->
+  <Target Name="_QuartzRestoreStaticWebAssetsPackItems" BeforeTargets="_GetPackageFiles" Condition="'@(_StaticWebAssetsFilesToPack)' != ''">
+    <ItemGroup>
+      <Content Remove="@(_StaticWebAssetsFilesToPack)" />
+      <Content Include="@(_StaticWebAssetsFilesToPack)" Pack="true" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+    </ItemGroup>
+  </Target>
+
 </Project>
