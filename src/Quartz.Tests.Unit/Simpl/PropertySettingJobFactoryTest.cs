@@ -143,6 +143,23 @@ public class PropertySettingJobFactoryTest
         });
     }
 
+    /// <summary>
+    /// In the Turkish culture 'i' upper-cases to the dotted 'İ', so a key like "intValue" must be
+    /// capitalised with the invariant culture to find IntValue.
+    /// </summary>
+    [Test]
+    [SetCulture("tr-TR")]
+    public void AKeyStartingWithLowerCaseIFindsItsPropertyInTheTurkishCulture()
+    {
+        JobDataMap jobDataMap = new JobDataMap();
+        jobDataMap["intValue"] = 1;
+
+        TestObject myObject = new TestObject();
+        factory.SetObjectProperties(myObject, jobDataMap);
+
+        Assert.That(myObject.IntValue, Is.EqualTo(1));
+    }
+
     [Test]
     public void TestSetObjectPropsUnknownProperty()
     {

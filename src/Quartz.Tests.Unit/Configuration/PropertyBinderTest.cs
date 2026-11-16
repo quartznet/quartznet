@@ -89,6 +89,19 @@ public class PropertyBinderTest
             + "interface search is the only thing that can find it");
     }
 
+    [Test]
+    [SetCulture("tr-TR")]
+    public void ALowerCaseNameStartingWithIFindsItsPropertyInTheTurkishCulture()
+    {
+        InstanceComponent component = new InstanceComponent();
+
+        PropertyBinder.SetObjectProperties(component, new NameValueCollection { ["instanceId"] = "node1" });
+
+        component.InstanceId.Should().Be("node1",
+            "'i' upper-cases to the dotted 'İ' in the Turkish culture, so the first letter has to be "
+            + "capitalised with the invariant culture to reach InstanceId");
+    }
+
     /// <summary>
     /// The binding flags include <see cref="BindingFlags.NonPublic" /> on purpose: a shipped component's
     /// settings are public on its options type and internal on the component, and the flat
@@ -175,5 +188,10 @@ public class PropertyBinderTest
         string INamedComponent.InstanceName { get; set; }
 
         public string ObservedInstanceName => ((INamedComponent) this).InstanceName;
+    }
+
+    private sealed class InstanceComponent
+    {
+        public string InstanceId { get; set; }
     }
 }

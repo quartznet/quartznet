@@ -290,7 +290,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
         string propName = name;
         if (!char.IsUpper(name[0]))
         {
-            var c = char.ToUpper(name[0]);
+            var c = char.ToUpperInvariant(name[0]);
             propName = c + name.Substring(1);
         }
 

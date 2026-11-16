@@ -108,7 +108,7 @@ internal static class PropertyBinder
         var pi = propertyResolutionCache.GetOrAdd((target.GetType(), propertyName), static tuple =>
         {
             string name = char.IsLower(tuple.PropertyName[0])
-                ? char.ToUpper(tuple.PropertyName[0]) + tuple.PropertyName.Substring(1)
+                ? char.ToUpperInvariant(tuple.PropertyName[0]) + tuple.PropertyName.Substring(1)
                 : tuple.PropertyName;
 
             Type t = tuple.ObjectType;

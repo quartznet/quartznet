@@ -107,7 +107,7 @@ internal static class JobDataExpression
     {
         // Exactly what PropertySettingJobFactory.SetObjectProperty does to a key before looking it up.
         var name = property.Name;
-        var lookupName = char.IsUpper(name[0]) ? name : char.ToUpper(name[0]) + name.Substring(1);
+        var lookupName = char.IsUpper(name[0]) ? name : char.ToUpperInvariant(name[0]) + name.Substring(1);
 
         PropertyInfo? found;
         try
