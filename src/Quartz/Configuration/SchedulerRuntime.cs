@@ -1094,7 +1094,9 @@ internal sealed class SchedulerRuntime : ISchedulerRuntime, IAsyncDisposable, ID
             // runtime holds no generation of its own under it. Any other reading of it would be somebody
             // else's scheduler wearing the same name — one bound by hand, one AddQuartzHttpClient bound —
             // and this is not the place to notice that, nor is it something to shut down on the way past.
-            if (unit.Live is not null || !unit.FromContainer || repository.Lookup(unit.Name) is not { } registered)
+            // A proxy bound under the name, a dashboard agent's included, is skipped for the same reason:
+            // the incumbent is the scheduler the container built, wherever it sits in the list (#4322).
+            if (unit.Live is not null || !unit.FromContainer || repository.LookupLocal(unit.Name) is not { } registered)
             {
                 // A generation of ours that was never created, a registration nothing has built, or one
                 // something has already shut down. All of them mean the same thing here: nothing to stop.

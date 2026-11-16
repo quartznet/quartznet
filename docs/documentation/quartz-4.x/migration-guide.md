@@ -65,6 +65,7 @@ An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorization
 |---|---|
 | `UseDashboardAgent(configure)` | Reads `Quartz:DashboardAgent` from the container's configuration first, then runs the callback. An application with no such section, or one that sets the same options in the callback, is unaffected |
 | A firing recovered by cluster recovery or a shutdown hand-back | Scheduled as startup recovery schedules one: at the original's scheduled time, which it reports as `ScheduledFireTimeUtc`, and never as a misfire. It runs on the next acquisition, with no `TriggerMisfired` and no misfire history row. A job that read `ScheduledFireTimeUtc` there as the original's fire time reads `SchedulerConstants.FailedJobOriginalTriggerFireTime` instead |
+| `ISchedulerFactory.GetScheduler()` beside a proxy of the same name | Returns the container's own scheduler, building and binding it beside a dashboard agent, an `AddQuartzHttpClient` registration or a cluster view bound under the configured name. It used to return that proxy when the proxy was bound first, and then never built its own. `LookupScheduler(name)` for a name this container registers, `ISchedulerRuntime.Restart` and the health check skip such a proxy the same way. To reach an agent's scheduler on purpose, use `ISchedulerRepository.Lookup(name, target)` |
 
 ## Upgrading from 4.6 to 4.7
 

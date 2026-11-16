@@ -97,9 +97,11 @@ internal sealed class QuartzHealthCheck : IHealthCheck
         // scheduler this container is running. It is in the repository, which is where everything else
         // that reads across both kinds looks, so the check does too. A health check is registered at
         // build time, when a tenant that has not been added yet has no name for anybody to write, so
-        // AddQuartz("acme") on the health-checks builder is how a check waits for one.
+        // AddQuartz("acme") on the health-checks builder is how a check waits for one. A proxy bound
+        // under the name — a dashboard agent, an AddQuartzHttpClient registration — fronts a scheduler of
+        // another process, so it is not a tenant of this one and is not reported on here (#4322).
         if (target.SchedulerName is not null
-            && serviceProvider.GetService<Extensibility.ISchedulerRepository>()?.Lookup(target.SchedulerName) is { } tenant)
+            && serviceProvider.GetService<Extensibility.ISchedulerRepository>()?.LookupLocal(target.SchedulerName) is { } tenant)
         {
             // Unless it is a window onto an attached store, which is in the repository for the same
             // reason every other scheduler is and is emphatically not a scheduler of this process. It is
