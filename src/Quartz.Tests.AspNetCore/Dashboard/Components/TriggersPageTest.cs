@@ -80,6 +80,34 @@ public class TriggersPageTest
                 "which filter is applied has to be visible, or the listing looks like the whole truth");
     }
 
+    /// <summary>
+    /// A read that fails once the listing has been read keeps it, marked stale beside the time it was read,
+    /// rather than putting the error in its place.
+    /// </summary>
+    [Test]
+    public void AFailedReloadKeepsTheListingAndMarksItStale()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        A.CallTo(() => context.Api.ResumeTrigger(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._)).Returns(true);
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        // The resume answers; the read of the listing after it does not.
+        A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
+            .Throws(new InvalidOperationException("the store is not answering"));
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Resume").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            context.Toasts.Messages.Should().ContainSingle()
+                .Which.Message.Should().Be("Resumed trigger nightly.trigger-1.");
+            page.TextOfAll(".qz-key-badge-value").Should().Equal(["nightly.trigger-1", "nightly.trigger-2"],
+                "the listing stays until a new one arrives");
+            page.FindAll(".qz-error-alert").Should().BeEmpty("a page with a listing to show is not a page that failed to load");
+            page.Find("[data-testid=stale-marker]").GetAttribute("title").Should().Be(
+                "The last refresh failed: the store is not answering");
+        });
+    }
+
     [Test]
     public void ChangingTheStateFilterReturnsToTheFirstPage()
     {
