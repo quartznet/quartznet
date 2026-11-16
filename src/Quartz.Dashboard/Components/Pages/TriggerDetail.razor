@@ -522,13 +522,20 @@
 
     private async Task UnscheduleAsync()
     {
+        // Closed before the call rather than after it, as the Timeline's dialogs are, so a second click on
+        // Confirm sends nothing: one that reaches the page before the dialog is drawn closed finds it shut.
+        if (!_showUnscheduleConfirm)
+        {
+            return;
+        }
+
+        _showUnscheduleConfirm = false;
         bool unscheduled = await ExecuteMutatingActionAsync(
             () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, TriggerKey),
             "Unscheduled trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not unscheduled - it no longer exists.",
             actionName: "UnscheduleTrigger",
             target: DisplayValueHelper.FormatKey(Group, Name));
-        _showUnscheduleConfirm = false;
         if (unscheduled)
         {
             Navigation.NavigateTo(DashboardLink.To(Options.Value, "triggers"));

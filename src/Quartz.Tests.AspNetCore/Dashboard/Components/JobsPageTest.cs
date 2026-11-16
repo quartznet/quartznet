@@ -7,6 +7,7 @@ using Bunit;
 using FakeItEasy;
 
 using Quartz.Dashboard.Components.Pages;
+using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Services;
 using Quartz.Impl;
 using Quartz.Tests.AspNetCore.Support;
@@ -206,6 +207,68 @@ public class JobsPageTest
             .Which.Target.Should().Be("reports.job-1");
         context.Toasts.Messages.Should().ContainSingle()
             .Which.Message.Should().Be("Deleted job reports.job-1.");
+    }
+
+    /// <summary>
+    /// The confirm dialog closes as soon as it is confirmed, before the call returns, so a second click on
+    /// Confirm sends nothing.
+    /// </summary>
+    /// <remarks>
+    /// It stayed open with Confirm live until the call returned, so a second click deleted again and logged a
+    /// second entry. The second click is sent as the dialog's own confirmation: over a slow connection, a
+    /// double click's second event reaches the page before the browser has drawn the dialog closed.
+    /// </remarks>
+    [Test]
+    public async Task ASecondConfirmSendsNothing()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 1));
+        TaskCompletionSource<bool> deleting = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        A.CallTo(() => context.Api.DeleteJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Returns(new ValueTask<bool>(deleting.Task));
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        Button(page, "Delete").Click();
+        page.WaitForElement(".qz-confirm-dialog button.qz-button-danger").Click();
+        Task secondClick = page.InvokeAsync(() => page.FindComponent<ConfirmDialog>().Instance.OnConfirm.InvokeAsync());
+
+        page.WaitForAssertion(() =>
+        {
+            A.CallTo(() => context.Api.DeleteJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+                .MustHaveHappenedOnceExactly();
+            page.FindAll(".qz-confirm-dialog").Should().BeEmpty("the dialog closes as soon as it is confirmed, while the call is out");
+        });
+
+        deleting.SetResult(true);
+        await secondClick;
+
+        page.WaitForAssertion(() => context.ActionLog.GetLatest(10).Should().ContainSingle(
+            "one delete was sent, so one is recorded"));
+    }
+
+    /// <summary>
+    /// <em>Trigger now</em> and <em>Trigger group</em> are disabled while their request is out, so a double
+    /// click fires the job, or every job in the group, once.
+    /// </summary>
+    [TestCase("Trigger now")]
+    [TestCase("Trigger group")]
+    public void ATriggerButtonIsDisabledWhileItsRequestIsOut(string label)
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 1));
+        TaskCompletionSource triggering = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<JobKeyDto>._, A<JobDataMap?>._, A<CancellationToken>._))
+            .Returns(new ValueTask(triggering.Task));
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        Button(page, label).Click();
+
+        page.WaitForAssertion(() => Button(page, label).HasAttribute("disabled").Should().BeTrue(
+            "its request is still out, and a second click would fire again"));
+
+        triggering.SetResult();
+
+        page.WaitForAssertion(() => Button(page, label).HasAttribute("disabled").Should().BeFalse("the request has answered"));
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<JobKeyDto>._, A<JobDataMap?>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -452,6 +515,11 @@ public class JobsPageTest
         page.TextOfAll("th").Should().NotContain(["Last run", "Last success", "Failing"],
             "a column of dashes would say the jobs never ran, which nobody said");
         page.TextOfAll(".qz-key-badge-value").Should().HaveCount(2, "the listing itself is unaffected");
+    }
+
+    private static IElement Button(IRenderedComponent<Jobs> page, string label)
+    {
+        return page.FindAll("button").First(button => button.TextContent.Trim() == label);
     }
 
     private void GivenJobs(IReadOnlyList<JobKeyDto> jobs)

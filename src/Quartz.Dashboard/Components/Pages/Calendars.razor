@@ -220,34 +220,40 @@
 
     private async Task ConfirmDeleteAsync()
     {
-        string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (!CanDelete || string.IsNullOrWhiteSpace(schedulerName) || string.IsNullOrWhiteSpace(_pendingCalendarName))
+        // Closed before the call rather than after it, as the Timeline's dialogs are, so a second click on
+        // Confirm sends nothing: one that reaches the page before the dialog is drawn closed finds it shut.
+        if (!_showDeleteConfirm)
         {
-            _showDeleteConfirm = false;
+            return;
+        }
+
+        _showDeleteConfirm = false;
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        string calendarName = _pendingCalendarName;
+        if (!CanDelete || string.IsNullOrWhiteSpace(schedulerName) || string.IsNullOrWhiteSpace(calendarName))
+        {
             return;
         }
 
         try
         {
-            bool deleted = await Api.DeleteCalendar(schedulerName, _pendingCalendarName);
-            ActionLog.Record(schedulerName, "DeleteCalendar", _pendingCalendarName, succeeded: deleted);
+            bool deleted = await Api.DeleteCalendar(schedulerName, calendarName);
+            ActionLog.Record(schedulerName, "DeleteCalendar", calendarName, succeeded: deleted);
             if (deleted)
             {
-                Toasts.Success("Deleted calendar " + _pendingCalendarName + ".");
+                Toasts.Success("Deleted calendar " + calendarName + ".");
             }
             else
             {
-                Toasts.Info("Calendar " + _pendingCalendarName + " was not deleted - it no longer exists.");
+                Toasts.Info("Calendar " + calendarName + " was not deleted - it no longer exists.");
             }
 
-            _showDeleteConfirm = false;
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
-            ActionLog.Failed(schedulerName, "DeleteCalendar", _pendingCalendarName, ex);
+            ActionLog.Failed(schedulerName, "DeleteCalendar", calendarName, ex);
             Toasts.Error(ex.Message);
-            _showDeleteConfirm = false;
         }
     }
 
