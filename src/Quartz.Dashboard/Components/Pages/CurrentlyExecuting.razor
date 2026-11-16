@@ -11,7 +11,7 @@
     <div class="qz-page-header">
         <h1>Currently Executing</h1>
         <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Auto-refreshes every 1s</span>
-        <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Last updated: @FormatLastUpdated(_lastUpdatedAt)</span>
+        <LastUpdated At="@_lastUpdatedAt" />
     </div>
 
     @if (_isLoading)
@@ -220,11 +220,6 @@
         }
 
         return DisplayValueHelper.FormatClock(runTime);
-    }
-
-    private string FormatLastUpdated(DateTimeOffset? lastUpdatedAt)
-    {
-        return Scheduler.FormatInSelectedTimeZone(lastUpdatedAt, "HH:mm:ss");
     }
 
     public void Dispose()

@@ -1,0 +1,30 @@
+@using Quartz.Dashboard.Services
+@inject SchedulerState Scheduler
+
+@* When a page last read what it shows, in the header's time zone, and beside it, while a refresh is
+   failing, a mark that says the page is showing that earlier read rather than the scheduler's state now.
+   The reason is in the title: a refresh raises no toast, and the page is still the one the reader was on. *@
+<span class="qz-last-updated">
+    <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Last updated: @Scheduler.FormatInSelectedTimeZone(At, "HH:mm:ss")</span>
+    @if (!string.IsNullOrWhiteSpace(StaleReason))
+    {
+        <span class="qz-state-indicator qz-state-paused"
+              data-testid="stale-marker"
+              title="@("The last refresh failed: " + StaleReason)"><span class="qz-state-dot"></span>Stale</span>
+    }
+</span>
+
+@code {
+    /// <summary>
+    /// When the page last read what it shows, or <see langword="null" /> before its first read answered.
+    /// </summary>
+    [Parameter]
+    public DateTimeOffset? At { get; set; }
+
+    /// <summary>
+    /// Why the page's last refresh failed, or <see langword="null" /> while its refreshes answer. The page
+    /// keeps what it read at <see cref="At" />, and the next refresh that answers clears this.
+    /// </summary>
+    [Parameter]
+    public string? StaleReason { get; set; }
+}
