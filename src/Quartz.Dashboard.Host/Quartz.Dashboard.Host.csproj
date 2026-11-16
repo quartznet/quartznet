@@ -110,7 +110,7 @@
     the staticwebassets/ files IncludeStaticWebAssetsPackItems added for the package a moment before. The
     package then named three assets in build/Microsoft.AspNetCore.StaticWebAssets.props and carried none,
     and VerifyPackedStaticWebAssets refused it. On the .NET 10 SDK nothing was taken out, and this puts
-    back what is already there.
+    back what is already there. This target goes once the SDK has the fix for dotnet/sdk#57154.
   -->
   <Target Name="_QuartzRestoreStaticWebAssetsPackItems" BeforeTargets="_GetPackageFiles" Condition="'@(_StaticWebAssetsFilesToPack)' != ''">
     <ItemGroup>

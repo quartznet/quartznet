@@ -30,8 +30,9 @@ namespace Quartz.Tests.Unit;
 internal static class RuntimeIssues
 {
     /// <summary>
-    /// Whether this runtime has TZ-YEAR-1: exactly .NET 11.0.0, on a platform that reads the zone from
-    /// TZif files. Windows reads it from the registry, and its 11.0.0 runs the Lord_Howe cases clean.
+    /// Whether this runtime has TZ-YEAR-1, dotnet/runtime#137673: exactly .NET 11.0.0, on a platform that
+    /// reads the zone from TZif files. Windows reads it from the registry, and its 11.0.0 runs the
+    /// Lord_Howe cases clean.
     /// </summary>
     /// <remarks>
     /// <see cref="RuntimeInformation.FrameworkDescription" /> is <c>.NET 11.0.0</c> on the release and
@@ -55,7 +56,7 @@ internal static class RuntimeIssues
         if (HasTzYear1 && string.Equals(zoneId, "Australia/Lord_Howe", StringComparison.Ordinal))
         {
             Assert.Ignore("On .NET 11.0.0 outside Windows, TimeZoneInfo gives Australia/Lord_Howe an offset of +10:30 at "
-                + "2037-12-31T13:00Z, where +11:00 is expected: TZ-YEAR-1, https://github.com/dotnet/runtime/issues/134839.");
+                + "2037-12-31T13:00Z, where +11:00 is expected: TZ-YEAR-1, https://github.com/dotnet/runtime/issues/137673.");
         }
     }
 }
