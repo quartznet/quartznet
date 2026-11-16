@@ -6,8 +6,8 @@
     "Dashboard connection {ConnectionId} opened for user {User}"
 9103  Debug  DashboardLog.HubDisconnected
     "Dashboard connection {ConnectionId} closed for user {User}"
-9104  Warning  DashboardLog.HubForwardingStopped
-    "Forwarding scheduler {SchedulerName} events to the dashboard hub stopped"
+9104  Warning  DashboardLog.HubForwardingFailed
+    "Forwarding scheduler {SchedulerName} events to the dashboard hub failed; it subscribes again while the dashboard lists the scheduler"
 9105  Information  DashboardLog.ClusterFormed
     "Cluster {Target} formed for scheduler {SchedulerName} from targets {Members}"
 9106  Information  DashboardLog.ClusterChanged

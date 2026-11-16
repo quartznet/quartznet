@@ -81,7 +81,8 @@ internal sealed class QuartzDashboardHub : Hub<IQuartzDashboardHubClient>
     /// The join is also what starts the forwarding. Quartz builds a scheduler's events only while
     /// something is subscribed to them, so a hub nobody has connected to costs its schedulers nothing —
     /// and the check above has already run, so nothing is subscribed to on behalf of a caller who may not
-    /// see it.
+    /// see it. A name the dashboard does not list joins its group but starts nothing, so the names a
+    /// client sends cannot grow what the forwarder holds; <see cref="DashboardHubForwarder" /> says more.
     /// </para>
     /// <para>
     /// Not <see langword="async" /> itself: ASP.NET Core 11 holds a hub method that carries any attribute,
