@@ -46,6 +46,31 @@ public sealed class TriggerDetailsEditorTest
         context.Dispose();
     }
 
+    /// <summary>
+    /// The page's Refresh button is disabled while the editor is open.
+    /// </summary>
+    /// <remarks>
+    /// A refresh hands the editor the trigger as read again, and a new trigger starts its form over, so what was
+    /// being typed would be lost.
+    /// </remarks>
+    [Test]
+    public void RefreshIsDisabledWhileTheEditorIsOpen()
+    {
+        GivenTrigger(CronTrigger());
+        IRenderedComponent<TriggerDetail> page = Render();
+        page.WaitForAssertion(() => page.Find("[data-testid=refresh]").HasAttribute("disabled").Should().BeFalse(
+            "with no editor open, the page reads again when asked"));
+
+        page.FindAll("button").Single(button => button.TextContent.Trim() == "Edit details").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll("[data-testid=trigger-editor]").Should().ContainSingle();
+            page.Find("[data-testid=refresh]").HasAttribute("disabled").Should().BeTrue(
+                "a refresh would start the open editor's form over");
+        });
+    }
+
     [Test]
     public void TheEditorStartsFromWhatTheTriggerHolds()
     {
