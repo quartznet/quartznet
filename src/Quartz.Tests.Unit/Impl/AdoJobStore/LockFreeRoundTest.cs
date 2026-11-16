@@ -104,6 +104,23 @@ public sealed class LockFreeRoundTest
                 new ValueTask<List<StoredTriggerHeader>>(
                     keys.Select(key => new StoredTriggerHeader(key, jobKey, StoredTriggerState.Acquired, FireTime, AdoConstants.TriggerTypeSimple)).ToList()));
 
+        // A reservation the store writes is one it reads back, as from a database: the fire of a round that
+        // fires apart fires only the triggers this node's reservations still hold (#4323).
+        List<FiredTriggerRecord> reservations = [];
+        A.CallTo(() => driverDelegate.InsertFiredTriggers(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyList<IOperableTrigger>>._, StoredTriggerState.Acquired, A<IJobDetail>._, A<CancellationToken>._))
+            .Invokes((ConnectionAndTransactionHolder _, IReadOnlyList<IOperableTrigger> reserved, StoredTriggerState _, IJobDetail _, CancellationToken _) =>
+                reservations.AddRange(reserved.Select(trigger => new FiredTriggerRecord
+                {
+                    FireInstanceId = trigger.FireInstanceId!,
+                    FireInstanceState = StoredTriggerState.Acquired,
+                    TriggerKey = trigger.Key,
+                    SchedulerInstanceId = "node",
+                })));
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+                A<ConnectionAndTransactionHolder>._, A<FiredTriggerQuery>.That.Matches(query => query.InstanceId != null), A<CancellationToken>._))
+            .ReturnsLazily(() => new ValueTask<List<FiredTriggerRecord>>([.. reservations]));
+
         GivenTheJob(ConcurrentJob());
         store = NewStore();
     }

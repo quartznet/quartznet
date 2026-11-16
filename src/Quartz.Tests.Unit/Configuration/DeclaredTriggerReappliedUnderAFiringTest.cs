@@ -25,11 +25,13 @@ using FakeItEasy;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Extensibility;
 using Quartz.Impl;
+using Quartz.Tests.Unit.Plugin.History;
 using Quartz.Xml;
 
 namespace Quartz.Tests.Unit.Configuration;
@@ -155,6 +157,42 @@ public sealed class DeclaredTriggerReappliedUnderAFiringTest
         List<TriggerFiredResult> fired = await store.TriggersFired(held);
         fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull(
             "re-applying the same declaration is not a new trigger, and the acquisition of the stored one still holds");
+    }
+
+    /// <summary>
+    /// A declaration whose replace is refused every time — the trigger fires between every read and the
+    /// replace — is left as stored with a warning, and the start goes on: the declarations after it are
+    /// applied, and nothing throws out of the start.
+    /// </summary>
+    [TestCase(StoreKind.InMemory)]
+    [TestCase(StoreKind.Sqlite)]
+    public async Task ADeclarationThatKeepsLosingToFiringsIsLeftAsStoredAndTheStartGoesOn(StoreKind kind)
+    {
+        await using ServiceProvider node = await StoreFiredOnce(kind);
+        IJobStore store = StoreOf(node);
+        TriggerKey next = new("t-next", triggerKey.Group);
+
+        using RecordingLoggerProvider logs = new();
+        using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(logs));
+        DeclaringProcessor processor = new(
+            clock,
+            JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).Build(),
+            loggerFactory.CreateLogger<XmlSchedulingDataProcessor>(),
+            TriggerBuilder.Create(clock).WithIdentity(triggerKey).ForJob(jobKey).StartNow()
+                .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromMinutes(30)).RepeatForever()).Build(),
+            TriggerBuilder.Create(clock).WithIdentity(next).ForJob(jobKey).StartNow()
+                .WithSimpleSchedule(s => s.WithInterval(interval).RepeatForever()).Build());
+        RefusingScheduler scheduler = new(await SchedulerOf(node), triggerKey);
+
+        Func<Task> start = async () => await processor.ScheduleJobs(scheduler);
+
+        await start.Should().NotThrowAsync("the store refused every write, so nothing is at risk and the start goes on");
+        scheduler.Refused.Should().Be(8, "the declaration is worked out again after each refusal, eight times in all");
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == 5038)
+            .Which.Level.Should().Be(LogLevel.Warning);
+        ((ISimpleTrigger) (await store.GetTrigger(triggerKey))!).RepeatInterval.Should().Be(interval,
+            "the trigger is left as stored, and the changed declaration applies at the next start");
+        (await store.GetTrigger(next)).Should().NotBeNull("the declarations after the one left as stored are still applied");
     }
 
     /// <summary>
@@ -292,19 +330,51 @@ public sealed class DeclaredTriggerReappliedUnderAFiringTest
     private sealed class DeclaringProcessor : XmlSchedulingDataProcessor
     {
         private readonly IJobDetail job;
-        private readonly ITrigger trigger;
+        private readonly ITrigger[] triggers;
 
         public DeclaringProcessor(TimeProvider timeProvider, IJobDetail job, ITrigger trigger)
-            : base(NullLogger<XmlSchedulingDataProcessor>.Instance, new SimpleTypeLoader(), timeProvider)
+            : this(timeProvider, job, NullLogger<XmlSchedulingDataProcessor>.Instance, trigger)
+        {
+        }
+
+        public DeclaringProcessor(TimeProvider timeProvider, IJobDetail job, ILogger<XmlSchedulingDataProcessor> logger, params ITrigger[] triggers)
+            : base(logger, new SimpleTypeLoader(), timeProvider)
         {
             this.job = job;
-            this.trigger = trigger;
+            this.triggers = triggers;
             ScheduleTriggerRelativeToReplacedTrigger = true;
         }
 
         protected override List<IJobDetail> LoadedJobs => [job];
 
-        protected override List<ITrigger> LoadedTriggers => [trigger];
+        protected override List<ITrigger> LoadedTriggers => [.. triggers];
+    }
+
+    /// <summary>
+    /// Answers every replace of one trigger as a store does whose trigger fired since the read: nothing
+    /// replaced. Everything else goes through.
+    /// </summary>
+    private sealed class RefusingScheduler : DelegatingScheduler
+    {
+        private readonly TriggerKey refused;
+
+        public RefusingScheduler(IScheduler scheduler, TriggerKey refused) : base(scheduler)
+        {
+            this.refused = refused;
+        }
+
+        public int Refused { get; private set; }
+
+        public override ValueTask<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger, CancellationToken cancellationToken = default)
+        {
+            if (triggerKey.Equals(refused))
+            {
+                Refused++;
+                return new ValueTask<DateTimeOffset?>((DateTimeOffset?) null);
+            }
+
+            return base.RescheduleJob(triggerKey, newTrigger, cancellationToken);
+        }
     }
 
     /// <summary>

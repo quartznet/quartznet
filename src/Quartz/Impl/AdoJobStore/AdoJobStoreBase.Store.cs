@@ -329,18 +329,21 @@ internal abstract partial class AdoJobStoreBase
                             && await IsOverlapPolicyUnsettled(conn, stored, OverlapPolicy.CancelPrevious, cancellationToken).ConfigureAwait(false);
                     }
 
+                    int updated = asRead is { } read
+                        ? await Delegate.UpdateTriggerIfUnchanged(conn, newTrigger, state, job, read.NextFireTimeUtc, cancellationToken).ConfigureAwait(false)
+                        : await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
+
                     if (!forceState)
                     {
                         // A replace that writes the row over by key, in the state it decides afresh: as with
                         // ReplaceTrigger, an acquisition of the trigger it replaces is no longer one to fire
-                        // (#4323). A write that keeps the row's state — a calendar's new fire times — is an
-                        // edit of the trigger an acquisition holds, and keeps its reservation.
+                        // (#4323). After the row's write, as there: see CancelReservations. A write that keeps
+                        // the row's state — a calendar's new fire times — keeps the reservation; if the
+                        // calendar moved the next fire time, the fire of that acquisition finds the fire time
+                        // it holds is no longer the row's, answers "not fired", and the trigger is acquired
+                        // again for its new time.
                         await CancelReservations(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
                     }
-
-                    int updated = asRead is { } read
-                        ? await Delegate.UpdateTriggerIfUnchanged(conn, newTrigger, state, job, read.NextFireTimeUtc, cancellationToken).ConfigureAwait(false)
-                        : await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
 
                     if (updated > 0)
                     {
@@ -955,11 +958,6 @@ internal abstract partial class AdoJobStoreBase
                     return reapply.Outcome == ReapplyOutcome.KeepRow;
                 }
 
-                // The acquisitions of the trigger being replaced are of a trigger that is no longer stored:
-                // a node holding one does not fire it, and its release leaves alone the row it no longer
-                // holds (#4323). The rows of its executions stay, for their completions and for recovery.
-                await CancelReservations(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-
                 bool removedTrigger = await Delegate.DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) > 0;
                 if (!removedTrigger)
                 {
@@ -968,6 +966,11 @@ internal abstract partial class AdoJobStoreBase
                     // is the answer a caller that arrived after that completion gets.
                     return false;
                 }
+
+                // The acquisitions of the trigger being replaced are of a trigger that is no longer stored:
+                // a node holding one does not fire it, and its release leaves alone the row it no longer
+                // holds (#4323). The rows of its executions stay, for their completions and for recovery.
+                await CancelReservations(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
                 await AddTrigger(
                     conn,
@@ -1097,6 +1100,12 @@ internal abstract partial class AdoJobStoreBase
     /// which a replace keeps (#3759); of a reservation it would only have moved the trigger back to
     /// <c>WAITING</c>, which a replace stores it in anyway. A read and a delete per reservation, on the
     /// fired-trigger table's trigger index, through members any delegate has.
+    /// </para>
+    /// <para>
+    /// Called once the trigger's row is written, so that a replace takes the row before the reservations, in
+    /// the order a firing round that fires apart takes them (#4117): its guard holds the row, then it reads
+    /// this node's reservations and updates its own. A replace that cancelled first could take the
+    /// reservation that round is about to update while it waited on the row the round holds.
     /// </para>
     /// </remarks>
     private async ValueTask CancelReservations(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken)
