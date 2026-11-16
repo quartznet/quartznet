@@ -636,7 +636,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Failed(schedulerName, actionName, schedulerName, ex, note, nodeLocal);
             Toasts.Error(ex.Message);
         }
