@@ -466,14 +466,14 @@ public class HistoryPageTest
         layout.WaitForAssertion(() => layout.Find("[data-testid=history-page-summary]").TextContent.Should().StartWith("Page 3 / 3"));
         int reads = HistoryReads();
 
-        // A zone nine hours from the UTC the fixture pins, with no daylight saving to move it.
-        TimeZoneInfo zone = TimeZoneInfo.GetSystemTimeZones()
-            .First(candidate => candidate.BaseUtcOffset == TimeSpan.FromHours(9) && !candidate.SupportsDaylightSavingTime);
-        layout.Find("#qz-timezone-select").Change(zone.Id);
+        // Named by its IANA id, which every runner resolves: Windows maps it, and Linux and macOS read it from
+        // tzdata. Nine hours from the UTC the fixture pins, and Japan has kept no daylight saving since 1951.
+        layout.Find("#qz-timezone-select").Change("Asia/Tokyo");
 
         layout.WaitForAssertion(() =>
         {
-            layout.Find(".qz-history-fired").TextContent.Should().Contain("+09:00", "the rows are drawn again in the zone chosen");
+            layout.Find(".qz-history-fired").TextContent.Should().Contain("16:08:09 +09:00",
+                "the run fired at 07:08:09 UTC, and the row is drawn again in the zone chosen");
             layout.Find("[data-testid=history-page-summary]").TextContent.Should().StartWith("Page 3 / 3",
                 "only the formatting changed, so the reader stays on the page they were reading");
         });
