@@ -77,9 +77,15 @@ Pluggable serialization for job store persistence:
   whole fire path, so it is the one package that gains from it. The other packages stay `net10.0`, and a
   `net11.0` application runs them on `Quartz`'s `net11.0` asset, NuGet's nearest match.
 - **One source and one public API.** No call site has an `#if`. A call is written against the `net11.0` API,
-  and what `net10.0` lacks is backfilled once as a C# 14 extension member guarded on the member:
-  `JsonSerializerOptionsPolyfills` backfills `GetTypeInfo<T>()`, which CA2263 asks for on `net11.0`.
-  `PublicApiTest_Quartz.verified.txt` holds both assets to one surface. There is no per-target baseline.
+  and what `net10.0` lacks is backfilled once as a C# 14 extension member: `JsonSerializerOptionsPolyfills`
+  backfills `GetTypeInfo<T>()`, which CA2263 asks for on `net11.0`. `PublicApiTest_Quartz.verified.txt` holds
+  both assets to one surface. There is no per-target baseline.
+- **The internal surface is the same in both assets too.** Eight shipped packages see Quartz's internals
+  (`AssemblyInfoExtras.cs`), compile against the `net10.0` asset, and in a `net11.0` application run on the
+  `net11.0` one. An internal member only one asset has throws `MissingMethodException` on .NET 11 alone. So a
+  backfill is never guarded on the member, only on its body. On `net11.0` the BCL's own member binds first at
+  Quartz's call sites, and the backfill's body forwards to it. `JsonSerializerOptionsPolyfillsTest` names the
+  member, so a build of the tests against either asset fails without it.
 - **Dependencies.** The `Microsoft.Extensions.*` floors are 10.0.0 for both targets. .NET 11's shared
   framework carries nine of the abstractions, `Options`, `Primitives` and `Logging.Abstractions` among them.
   NuGet prunes those for `net11.0`, so the `net11.0` asset compiles against the framework's copies. No NU1510
