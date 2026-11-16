@@ -17,10 +17,13 @@
 @inject IServiceProvider Services
 
 <div class="qz-page">
-    <AutoRefresh Every="TimeSpan.FromSeconds(1)" Refresh="RefreshAsync" />
+    <AutoRefresh Every="TimeSpan.FromSeconds(1)" Refresh="RefreshExecutingAsync" />
+    @* The other tiles every five seconds, as the execution-groups panel: they are a dozen counting reads, one of
+       them the history store's misfires. *@
+    <AutoRefresh Every="TimeSpan.FromSeconds(5)" Refresh="RefreshAsync" />
     <div class="qz-page-header">
         <h1>Quartz Dashboard</h1>
-        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" />
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@(_staleReason ?? _executingStaleReason)" />
     </div>
 
     @if (_isLoading)
@@ -201,22 +204,32 @@
 @code {
     private bool _isLoading = true;
 
-    /// <summary>Whether a read of the page is out, so a tick that comes round while it is reads nothing.</summary>
+    /// <summary>Whether a read of the whole page is out, so a tick that comes round while it is reads nothing.</summary>
     private bool _reading;
+
+    /// <summary>Whether the once-a-second read of the executing count is out.</summary>
+    private bool _readingExecuting;
 
     private string? _error;
 
     /// <summary>
-    /// When the page last read everything it shows, or <see langword="null" /> before it has. Every tile is
-    /// read again every second, the executing count with the rest.
+    /// When the page last read everything it shows, or <see langword="null" /> before it has. The tiles are read
+    /// again every five seconds and the executing count every second, so this moves on a read of them all.
     /// </summary>
     private DateTimeOffset? _lastUpdatedAt;
 
     /// <summary>
-    /// Why the last read failed while there was a page to keep, or <see langword="null" />. The page keeps
-    /// what it shows, and the next read that answers clears this.
+    /// Why the last read of the whole page failed while there was a page to keep, or <see langword="null" />.
+    /// The page keeps what it shows, and the next read of it that answers clears this.
     /// </summary>
     private string? _staleReason;
+
+    /// <summary>
+    /// Why the last read of the executing count failed, or <see langword="null" />. Kept apart from
+    /// <see cref="_staleReason" />, so a count that answers does not clear the mark a failed read of the other
+    /// tiles left.
+    /// </summary>
+    private string? _executingStaleReason;
 
     private SchedulerStatus _schedulerStatus = SchedulerStatus.Unknown;
     private int _totalJobs;
@@ -372,6 +385,7 @@
         // Another scheduler's figures are not ones to keep: a read of this one that fails shows its error.
         _lastUpdatedAt = null;
         _staleReason = null;
+        _executingStaleReason = null;
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -399,8 +413,50 @@
     }
 
     /// <summary>
-    /// The once-a-second read of every tile, which <see cref="AutoRefresh" /> holds back while the tab is
-    /// hidden. The page stays on screen while it reads.
+    /// The once-a-second read of the executing count alone, which <see cref="AutoRefresh" /> holds back while the
+    /// tab is hidden. Nothing is read before the page has been read once: the five-second read is what shows it.
+    /// </summary>
+    private async Task RefreshExecutingAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (_isLoading || _reading || _readingExecuting || _lastUpdatedAt is null || _schedulerIsNotCreated
+            || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        _readingExecuting = true;
+        try
+        {
+            CancellationToken cancellationToken = _cancellation.Token;
+            PagedResult<FireInstanceDto> executing = await Api.QueryFireInstances(
+                schedulerName,
+                new DashboardFireInstanceQuery { Take = 0 },
+                cancellationToken);
+            _currentlyExecuting = executing.TotalCount ?? 0;
+            _executingStaleReason = null;
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure.
+        }
+        catch (Exception ex)
+        {
+            // The page keeps the count it shows and says it is stale, rather than giving the whole of it up to
+            // an error until Retry is pressed.
+            _executingStaleReason = ex.Message;
+        }
+        finally
+        {
+            _readingExecuting = false;
+        }
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// The five-second read of every tile, the executing count with the rest, which <see cref="AutoRefresh" />
+    /// holds back while the tab is hidden. The page stays on screen while it reads.
     /// </summary>
     private async Task RefreshAsync()
     {
@@ -515,7 +571,7 @@
             _storeIsClustered = scheduler.Clustered;
 
             // The panel reads its own figures again when it is handed new lists, so the same lists read again
-            // are not handed over: that would be two more reads a second.
+            // are not handed over: that would be two more reads on every read of the page.
             if (!_servedExecutionGroups.SequenceEqual(scheduler.ServedExecutionGroups, StringComparer.Ordinal))
             {
                 _servedExecutionGroups = scheduler.ServedExecutionGroups;
@@ -574,12 +630,13 @@
 
     /// <summary>
     /// Notes a read of the whole page that answered: the time beside <em>Last updated</em> moves, and a
-    /// stale mark goes.
+    /// stale mark goes, the executing count's with it, since it was read too.
     /// </summary>
     private void MarkRead()
     {
         _lastUpdatedAt = Clock.GetUtcNow();
         _staleReason = null;
+        _executingStaleReason = null;
     }
 
     private Task StartSchedulerAsync()
