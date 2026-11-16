@@ -1,4 +1,5 @@
 @page "/quartz/schedulers"
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -9,6 +10,7 @@
 @inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject NavigationManager Navigation
+@inject IServiceProvider Services
 
 <div class="qz-page">
     <div class="qz-page-header">
@@ -18,6 +20,7 @@
             every scheduler reached through a target — an HTTP target, an agent, a store attached to this
             dashboard, or the cluster several targets turned out to be
         </span>
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" OnRefresh="RefreshAsync" RefreshDisabled="@_refreshing" />
     </div>
 
     @if (_isLoading)
@@ -192,6 +195,22 @@
     /// </summary>
     private readonly CancellationTokenSource _cancellation = new();
 
+    /// <summary>
+    /// When the fleet on screen was read, or <see langword="null" /> while the page holds nothing read.
+    /// </summary>
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// Why the last read of the listing failed while there was a fleet to keep, or <see langword="null" />.
+    /// </summary>
+    private string? _staleReason;
+
+    /// <summary>Whether the read the Refresh button asked for is out.</summary>
+    private bool _refreshing;
+
+    /// <summary>The clock the page says it read the fleet at.</summary>
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
     private string DashboardHref => DashboardLink.To(Options.Value, "");
 
     protected override async Task OnInitializedAsync()
@@ -213,15 +232,47 @@
         _cancellation.Dispose();
     }
 
+    /// <summary>
+    /// The Refresh button: the fleet read again, kept on screen until the new rows arrive, and the header's
+    /// status and picker read with it. The page reads nothing on its own after it has loaded.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        if (_refreshing)
+        {
+            return;
+        }
+
+        _refreshing = true;
+        try
+        {
+            await LoadDataAsync();
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+
+        if (!_cancellation.IsCancellationRequested)
+        {
+            Scheduler.NotifyRefreshed();
+        }
+    }
+
+    /// <remarks>
+    /// The rows on screen are replaced when the new ones are all read rather than emptied before, so a refresh
+    /// whose listing fails keeps them, marked stale beside the time they were read. Only a page with nothing
+    /// read to show has the error in its place.
+    /// </remarks>
     private async Task LoadDataAsync()
     {
-        _isLoading = true;
+        // A refresh keeps the fleet on screen until the new rows arrive; the spinner is for a page with nothing
+        // read to show.
+        _isLoading = !_refreshing || _lastUpdatedAt is null;
         _error = null;
 
         try
         {
-            _rows.Clear();
-
             // The fleet view is a listing like the picker's, and it is filtered like the picker's: a row
             // here is a scheduler the visitor can click through to.
             CancellationToken cancellationToken = _cancellation.Token;
@@ -238,17 +289,28 @@
                 return byTarget != 0 ? byTarget : string.CompareOrdinal(left.SchedulerName, right.SchedulerName);
             });
 
+            List<SchedulerRow> rows = [];
             foreach (SchedulerHeaderDto header in ordered)
             {
-                _rows.Add(await LoadRowAsync(header, cancellationToken));
+                rows.Add(await LoadRowAsync(header, cancellationToken));
             }
+
+            _rows.Clear();
+            _rows.AddRange(rows);
+            _lastUpdatedAt = Clock.GetUtcNow();
+            _staleReason = null;
         }
         catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
         {
             // The reader left. A read nobody is waiting for is not a failure.
         }
+        catch (Exception ex) when (_lastUpdatedAt is not null)
+        {
+            _staleReason = ex.Message;
+        }
         catch (Exception ex)
         {
+            _rows.Clear();
             _error = ex.Message;
         }
         finally

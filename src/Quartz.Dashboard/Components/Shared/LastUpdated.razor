@@ -3,7 +3,8 @@
 
 @* When a page last read what it shows, in the header's time zone, and beside it, while a refresh is
    failing, a mark that says the page is showing that earlier read rather than the scheduler's state now.
-   The reason is in the title: a refresh raises no toast, and the page is still the one the reader was on. *@
+   The reason is in the title: a refresh raises no toast, and the page is still the one the reader was on.
+   A page that does not refresh on a timer passes OnRefresh, and gets a Refresh button here. *@
 <span class="qz-last-updated">
     <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Last updated: @Scheduler.FormatInSelectedTimeZone(At, "HH:mm:ss")</span>
     @if (!string.IsNullOrWhiteSpace(StaleReason))
@@ -11,6 +12,14 @@
         <span class="qz-state-indicator qz-state-paused"
               data-testid="stale-marker"
               title="@("The last refresh failed: " + StaleReason)"><span class="qz-state-dot"></span>Stale</span>
+    }
+    @if (OnRefresh.HasDelegate)
+    {
+        <button type="button"
+                class="qz-button qz-last-updated-refresh"
+                data-testid="refresh"
+                disabled="@RefreshDisabled"
+                @onclick="OnRefresh">Refresh</button>
     }
 </span>
 
@@ -27,4 +36,17 @@
     /// </summary>
     [Parameter]
     public string? StaleReason { get; set; }
+
+    /// <summary>
+    /// The page's read, for a page that reads only when asked to; the Refresh button is offered only with one.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnRefresh { get; set; }
+
+    /// <summary>
+    /// Whether the Refresh button is disabled: while the read it asks for is out, so a double click reads once,
+    /// or while the page holds an edit a read would replace.
+    /// </summary>
+    [Parameter]
+    public bool RefreshDisabled { get; set; }
 }

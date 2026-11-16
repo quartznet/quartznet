@@ -146,6 +146,10 @@
     protected override async Task OnInitializedAsync()
     {
         SchedulerState.OnSchedulerChanged += OnStateChanged;
+
+        // A page that read the scheduler again at the reader's request: the status here is read with it, so a
+        // scheduler put in standby elsewhere stops showing Started.
+        SchedulerState.OnRefreshed += OnStateChanged;
         await LoadSchedulersAsync();
     }
 
@@ -271,6 +275,7 @@
     public void Dispose()
     {
         SchedulerState.OnSchedulerChanged -= OnStateChanged;
+        SchedulerState.OnRefreshed -= OnStateChanged;
     }
 
     private async void OnStateChanged(object? sender, EventArgs e)

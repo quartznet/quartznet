@@ -75,6 +75,12 @@ internal sealed class SchedulerState
     public event EventHandler? OnDisplayChanged;
 
     /// <summary>
+    /// Raised when a page has read the active scheduler again, so what else shows its state reads it too:
+    /// the header's status reads the scheduler's status with the page.
+    /// </summary>
+    public event EventHandler? OnRefreshed;
+
+    /// <summary>
     /// The key the browser remembered from the last visit, or <see langword="null" /> when it remembered
     /// none. Applied once the first listing says whether it is still there: a cookie is the browser's
     /// word, and the listing is what decides which keys this visitor may be pointed at.
@@ -276,6 +282,14 @@ internal sealed class SchedulerState
     public void NotifyDisplayChanged()
     {
         OnDisplayChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Raises <see cref="OnRefreshed" />, for a page that has read the active scheduler again.
+    /// </summary>
+    public void NotifyRefreshed()
+    {
+        OnRefreshed?.Invoke(this, EventArgs.Empty);
     }
 
     private TimeZoneInfo ResolveSelectedTimeZone()
