@@ -245,8 +245,7 @@ internal static class SidePackagesCheck
 
     private static async Task<T> Within<T>(Task<T> awaited, string failure)
     {
-        Task completed = await Task.WhenAny(awaited, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-        if (completed != awaited)
+        if (!await Signal.Within(awaited).ConfigureAwait(false))
         {
             throw new InvalidOperationException(failure);
         }
@@ -256,8 +255,7 @@ internal static class SidePackagesCheck
 
     private static async Task Within(Task awaited, string failure)
     {
-        Task completed = await Task.WhenAny(awaited, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-        if (completed != awaited)
+        if (!await Signal.Within(awaited).ConfigureAwait(false))
         {
             throw new InvalidOperationException(failure);
         }

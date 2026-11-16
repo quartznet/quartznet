@@ -140,10 +140,10 @@ internal static class JobDataCheck
 
         await scheduler.Start().ConfigureAwait(false);
 
-        Task completed = await Task.WhenAny(fired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+        bool completed = await Signal.Within(fired.Task).ConfigureAwait(false);
         await scheduler.Shutdown(waitForJobsToComplete: true).ConfigureAwait(false);
 
-        if (completed != fired.Task)
+        if (!completed)
         {
             failures.Add("the job with string job data never fired within a minute.");
             return;

@@ -256,20 +256,17 @@ internal static class StoreCheck
 
             // Signalled by the job itself. A sleep would pass on a machine slow enough to make it
             // meaningless, and fail on one that is merely busy.
-            Task completed = await Task.WhenAny(fired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-            if (completed != fired.Task)
+            if (!await Signal.Within(fired.Task).ConfigureAwait(false))
             {
                 return "FAIL store: the job never fired within a minute, so the store never handed a trigger to the scheduler.";
             }
 
-            Task typed = await Task.WhenAny(typedInput.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-            if (typed != typedInput.Task)
+            if (!await Signal.Within(typedInput.Task).ConfigureAwait(false))
             {
                 return "FAIL store: the typed-input job never fired within a minute.";
             }
 
-            Task manualTyped = await Task.WhenAny(manualTypedRun.Task, Task.Delay(TimeSpan.FromSeconds(60), scheduler.TimeProvider)).ConfigureAwait(false);
-            if (manualTyped != manualTypedRun.Task)
+            if (!await Signal.Within(manualTypedRun.Task, scheduler.TimeProvider).ConfigureAwait(false))
             {
                 return "FAIL store: the typed job TriggerJob<TInput> fired never ran within a minute.";
             }
@@ -280,14 +277,12 @@ internal static class StoreCheck
                 return $"FAIL store: TriggerJob<TInput> answered '{manualKey}' and the job was handed '{manualReceived}' on '{manualRanOn}'.";
             }
 
-            Task declared = await Task.WhenAny(declaredFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-            if (declared != declaredFired.Task)
+            if (!await Signal.Within(declaredFired.Task).ConfigureAwait(false))
             {
                 return "FAIL store: the job declared with [QuartzJob] never fired within a minute, so the generated registration did not reach the scheduler or did not read its ConfigurationKey.";
             }
 
-            Task declaredInterval = await Task.WhenAny(declaredIntervalFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-            if (declaredInterval != declaredIntervalFired.Task)
+            if (!await Signal.Within(declaredIntervalFired.Task).ConfigureAwait(false))
             {
                 return "FAIL store: the job declared with [SimpleTrigger] never fired within a minute, so the generated registration did not reach the scheduler.";
             }
@@ -298,8 +293,7 @@ internal static class StoreCheck
                 return $"FAIL store: the trigger declared with [SimpleTrigger] did not come back on the configured interval of {DeclaredInterval}, so its ConfigurationKey was not read.";
             }
 
-            Task delegated = await Task.WhenAny(delegateFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-            if (delegated != delegateFired.Task)
+            if (!await Signal.Within(delegateFired.Task).ConfigureAwait(false))
             {
                 return "FAIL store: the delegate job never fired within a minute, so its handler could not be bound or invoked.";
             }
@@ -310,8 +304,7 @@ internal static class StoreCheck
                 return $"FAIL store: the delegate job ran as '{delegateRun}'.";
             }
 
-            Task reflectedDelegated = await Task.WhenAny(reflectedDelegateFired.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-            if (reflectedDelegated != reflectedDelegateFired.Task)
+            if (!await Signal.Within(reflectedDelegateFired.Task).ConfigureAwait(false))
             {
                 return "FAIL store: the delegate job passed as a Delegate never fired within a minute, so its handler could not be bound or invoked by reflection.";
             }
@@ -322,8 +315,7 @@ internal static class StoreCheck
                 return $"FAIL store: the delegate job passed as a Delegate ran as '{reflectedDelegateRun}'.";
             }
 
-            Task retried = await Task.WhenAny(retriedByAttribute.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-            if (retried != retriedByAttribute.Task)
+            if (!await Signal.Within(retriedByAttribute.Task).ConfigureAwait(false))
             {
                 return "FAIL store: the job declaring [RetryPolicy] failed and was never retried within a minute, so its type's attribute was not read.";
             }

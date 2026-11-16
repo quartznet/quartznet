@@ -108,7 +108,7 @@ internal static partial class PublicApiRendering
 
                 foreach (string implementation in scope.ExplicitImplementations)
                 {
-                    result.Append(new string(' ', scope.MemberIndent))
+                    result.Append(' ', scope.MemberIndent)
                         .Append(ExplicitImplementationPrefix)
                         .Append(implementation)
                         .Append(lineEnding)
