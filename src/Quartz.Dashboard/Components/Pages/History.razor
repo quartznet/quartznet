@@ -574,6 +574,7 @@
     protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        Scheduler.OnDisplayChanged += OnDisplayChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -607,6 +608,14 @@
         ClearRows();
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// The time zone changed: the rows are drawn again in it, on the page they are on, and nothing is read.
+    /// </summary>
+    private void OnDisplayChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
     }
 
     /// <summary>
@@ -1446,6 +1455,7 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        Scheduler.OnDisplayChanged -= OnDisplayChanged;
         _cancellation.Cancel();
         _cancellation.Dispose();
     }

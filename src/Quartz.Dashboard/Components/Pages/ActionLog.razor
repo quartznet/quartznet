@@ -79,6 +79,7 @@
     protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        Scheduler.OnDisplayChanged += OnDisplayChanged;
         RefreshEntries();
     }
 
@@ -86,6 +87,12 @@
     {
         RefreshEntries();
         InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>The time zone changed: draw the times again in it.</summary>
+    private void OnDisplayChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private void RefreshEntries()
@@ -97,5 +104,6 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        Scheduler.OnDisplayChanged -= OnDisplayChanged;
     }
 }

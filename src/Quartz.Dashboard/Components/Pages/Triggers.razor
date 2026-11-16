@@ -483,6 +483,13 @@
     protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        Scheduler.OnDisplayChanged += OnDisplayChanged;
+    }
+
+    /// <summary>The time zone changed: draw the fire times again in it, and read nothing.</summary>
+    private void OnDisplayChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
     }
 
     /// <remarks>
@@ -1231,6 +1238,7 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        Scheduler.OnDisplayChanged -= OnDisplayChanged;
         _cancellation.Cancel();
         _cancellation.Dispose();
     }

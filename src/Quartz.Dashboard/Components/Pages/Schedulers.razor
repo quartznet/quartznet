@@ -196,11 +196,19 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Scheduler.OnDisplayChanged += OnDisplayChanged;
         await LoadDataAsync();
+    }
+
+    /// <summary>The time zone changed: draw the times again in it, and read nothing.</summary>
+    private void OnDisplayChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
     {
+        Scheduler.OnDisplayChanged -= OnDisplayChanged;
         _cancellation.Cancel();
         _cancellation.Dispose();
     }
