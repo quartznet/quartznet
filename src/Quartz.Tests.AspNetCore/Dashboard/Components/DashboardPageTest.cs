@@ -110,6 +110,62 @@ public class DashboardPageTest
     }
 
     /// <summary>
+    /// Every tile is read again every second with the executing count, and a status that changed has the header
+    /// read its own again.
+    /// </summary>
+    /// <remarks>
+    /// Only the executing count was read again: a trigger put in error, or the scheduler put in standby from
+    /// elsewhere, stayed as it was on the page, and in the header, until the page was loaded again.
+    /// </remarks>
+    [Test]
+    public void EveryTileIsReadAgainWithTheExecutingCount()
+    {
+        GivenCounts(jobs: 137, triggers: 250, errorTriggers: 3, executing: 2);
+        int headerReads = 0;
+        context.SchedulerState.OnRefreshed += (_, _) => headerReads++;
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+        page.WaitForAssertion(() => page.StatCardValue("Total Jobs").Should().Be("137"));
+
+        GivenCounts(jobs: 140, triggers: 251, errorTriggers: 4, executing: 1);
+        context.WithScheduler(status: SchedulerStatus.Standby);
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+
+        page.WaitForAssertion(() =>
+        {
+            page.StatCardValue("Total Jobs").Should().Be("140");
+            page.StatCardValue("Error Triggers").Should().Be("4");
+            page.StatCardValue("Currently Executing").Should().Be("1");
+            page.SchedulerStatusModifier().Should().Be("qz-state-standby");
+            headerReads.Should().Be(1, "the header showed the status read before, and reads it again now the page has read another");
+        });
+    }
+
+    /// <summary>
+    /// The page reading the same routing every second does not make the execution-groups panel read its own
+    /// figures every second too.
+    /// </summary>
+    /// <remarks>
+    /// The panel reads again when it is handed new lists, and every read of the scheduler's details answers
+    /// new ones: handed over as they came, the panel would read every second instead of every five.
+    /// </remarks>
+    [Test]
+    public void TheSameRoutingReadAgainDoesNotMakeThePanelReadAgain()
+    {
+        A.CallTo(() => context.Api.GetScheduler(TestData.SchedulerName, A<CancellationToken>._))
+            .ReturnsLazily(() => TestData.Dashboard.SchedulerDetail() with { ServedExecutionGroups = ["reports"] });
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+        page.WaitForAssertion(() => page.StatCardValue("Total Jobs").Should().Be("0"));
+        int panelReads = Reads(nameof(IQuartzApiClient.GetExecutionLimits));
+
+        GivenCounts(jobs: 5, triggers: 0, errorTriggers: 0, executing: 0);
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+        page.WaitForAssertion(() => page.StatCardValue("Total Jobs").Should().Be("5", "the page has read again"));
+
+        Reads(nameof(IQuartzApiClient.GetExecutionLimits)).Should().Be(panelReads,
+            "the routing read again is the routing the panel already read for");
+    }
+
+    /// <summary>
     /// The Nodes tile counts what the cluster has, and says how much of it is not answering.
     /// </summary>
     /// <remarks>
@@ -523,6 +579,12 @@ public class DashboardPageTest
                     TotalCount: query.State == TriggerState.Error ? errorTriggers : triggers));
         A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<FireInstanceDto>([], HasMore: false, TotalCount: executing));
+    }
+
+    /// <summary>How many times the page and its panel have called <paramref name="member" />.</summary>
+    private int Reads(string member)
+    {
+        return Fake.GetCalls(context.Api).Count(call => call.Method.Name == member);
     }
 
     private void GivenNodes(params ClusterNodeDto[] nodes)
