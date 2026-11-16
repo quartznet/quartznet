@@ -110,46 +110,56 @@ public class DashboardPageTest
     }
 
     /// <summary>
-    /// Every tile is read again every second with the executing count, and a status that changed has the header
-    /// read its own again.
+    /// The executing count is read again every second and the other tiles every five, and a status that changed
+    /// has the header read its own again.
     /// </summary>
     /// <remarks>
-    /// Only the executing count was read again: a trigger put in error, or the scheduler put in standby from
-    /// elsewhere, stayed as it was on the page, and in the header, until the page was loaded again.
+    /// Only the executing count was read again, so a trigger put in error, or the scheduler put in standby from
+    /// elsewhere, stayed as it was until the page was loaded again. The other tiles are a dozen counting reads,
+    /// one of them the history store's misfires, which is why they are not read every second.
     /// </remarks>
     [Test]
-    public void EveryTileIsReadAgainWithTheExecutingCount()
+    public async Task TheExecutingCountIsReadEverySecondAndTheOtherTilesEveryFive()
     {
         GivenCounts(jobs: 137, triggers: 250, errorTriggers: 3, executing: 2);
         int headerReads = 0;
         context.SchedulerState.OnRefreshed += (_, _) => headerReads++;
         IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
         page.WaitForAssertion(() => page.StatCardValue("Total Jobs").Should().Be("137"));
+        int tileReads = Reads(nameof(IQuartzApiClient.QueryJobs));
 
         GivenCounts(jobs: 140, triggers: 251, errorTriggers: 4, executing: 1);
         context.WithScheduler(status: SchedulerStatus.Standby);
         context.Clock.Advance(TimeSpan.FromSeconds(1));
 
+        page.WaitForAssertion(() => page.StatCardValue("Currently Executing").Should().Be("1", "the executing count is read every second"));
+
+        // A tick the clock made due is queued on the renderer before this, so it has run once this has.
+        await page.InvokeAsync(() => { });
+        Reads(nameof(IQuartzApiClient.QueryJobs)).Should().Be(tileReads, "the other tiles are not read every second");
+        page.StatCardValue("Total Jobs").Should().Be("137");
+
+        context.Clock.Advance(TimeSpan.FromSeconds(4));
+
         page.WaitForAssertion(() =>
         {
-            page.StatCardValue("Total Jobs").Should().Be("140");
+            page.StatCardValue("Total Jobs").Should().Be("140", "the other tiles are read every five seconds");
             page.StatCardValue("Error Triggers").Should().Be("4");
-            page.StatCardValue("Currently Executing").Should().Be("1");
             page.SchedulerStatusModifier().Should().Be("qz-state-standby");
             headerReads.Should().Be(1, "the header showed the status read before, and reads it again now the page has read another");
         });
     }
 
     /// <summary>
-    /// The page reading the same routing every second does not make the execution-groups panel read its own
-    /// figures every second too.
+    /// The page reading the same routing again does not make the execution-groups panel read its own figures
+    /// again: the panel reads on its own five seconds alone.
     /// </summary>
     /// <remarks>
     /// The panel reads again when it is handed new lists, and every read of the scheduler's details answers
-    /// new ones: handed over as they came, the panel would read every second instead of every five.
+    /// new ones: handed over as they came, the panel would read twice on every read of the page.
     /// </remarks>
     [Test]
-    public void TheSameRoutingReadAgainDoesNotMakeThePanelReadAgain()
+    public async Task TheSameRoutingReadAgainDoesNotMakeThePanelReadAgain()
     {
         A.CallTo(() => context.Api.GetScheduler(TestData.SchedulerName, A<CancellationToken>._))
             .ReturnsLazily(() => TestData.Dashboard.SchedulerDetail() with { ServedExecutionGroups = ["reports"] });
@@ -158,11 +168,13 @@ public class DashboardPageTest
         int panelReads = Reads(nameof(IQuartzApiClient.GetExecutionLimits));
 
         GivenCounts(jobs: 5, triggers: 0, errorTriggers: 0, executing: 0);
-        context.Clock.Advance(TimeSpan.FromSeconds(1));
+        context.Clock.Advance(TimeSpan.FromSeconds(5));
         page.WaitForAssertion(() => page.StatCardValue("Total Jobs").Should().Be("5", "the page has read again"));
 
-        Reads(nameof(IQuartzApiClient.GetExecutionLimits)).Should().Be(panelReads,
-            "the routing read again is the routing the panel already read for");
+        // The panel's own tick came due with the page's: once this has run, so has it.
+        await page.InvokeAsync(() => { });
+        Reads(nameof(IQuartzApiClient.GetExecutionLimits)).Should().Be(panelReads + 1,
+            "the panel reads on its own tick, and the routing read again is the routing it already read for");
     }
 
     /// <summary>
