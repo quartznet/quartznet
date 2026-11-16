@@ -66,6 +66,7 @@ exception is an agent's `IsOperationAllowed` and the dashboard's *Pause group* a
 | `TriggerScheduleDescriptionExtensions.DescribeSchedule(this ITrigger)` | `string?`: the trigger's schedule in English, in its time zone, for display only. `null` for a trigger kind it does not know. See [Describing a schedule](tutorial/more-about-triggers.md#describing-a-schedule) |
 | `TriggerHeaderDto.ScheduleDescription` | `Quartz.Dashboard`, `string?`, `init`: the row's schedule in words; `null` from a host older than 4.8 |
 | HTTP API trigger listing: `scheduleDescription`, `scheduleExpression` | Each row's schedule in words and the cron expression or recurrence rule it is written in. See [Listing endpoints are paged](packages/http-api.md#listing-endpoints-are-paged) |
+| Package `Quartz`: a `net11.0` asset | Beside `net10.0`, compiled with runtime async: on .NET 11 the runtime suspends and resumes Quartz's async methods itself, with no compiler state machines. Same public API. A `net11.0` application gets it from NuGet with no change; the other packages stay `net10.0` and run on it. See [Target Framework](#target-framework) |
 
 | Changed | What to check |
 |---|---|
@@ -1370,8 +1371,10 @@ every member, and the namespaces moved as in pass 1. If a type you used is not i
 
 ## Target Framework
 
-Quartz.NET 4.x targets `net10.0` only. There is no `netstandard2.0` build and no support for Full
-Framework style `.config` files. Upgrade your application to .NET 10 before upgrading to Quartz 4.x.
+Quartz.NET 4.x needs .NET 10 or later. Every package targets `net10.0`. From 4.8 the `Quartz` package also
+ships a `net11.0` asset, compiled with runtime async, which NuGet gives a `net11.0` application. There is no
+`netstandard2.0` build and no support for Full Framework style `.config` files. Upgrade your application to
+.NET 10 before upgrading to Quartz 4.x.
 
 ### If you are a library rather than an application
 

@@ -71,8 +71,13 @@ Per-file figures for a pull request: `https://sonarcloud.io/api/measures/compone
 - **`dotnet fallout WolverineSmoke ExamplesSmoke`** start the Wolverine sample and the examples out of
   process, and fail when an effect they assert does not arrive.
 - **`pr-tests-unit-net11`** is the .NET 11 leg (#4211), on ubuntu and only for changes to `src/`, `build/`,
-  `database/` and the root build files. `dotnet fallout UnitTest --unit-test-runtime 11` rolls every test host forward
-  to the newest runtime installed and fails unless each one reports .NET 11. `dotnet fallout Pack
+  `database/` and the root build files. `dotnet fallout Compile UnitTest --unit-test-runtime 11` builds
+  `Quartz.Tests.Unit` for `net11.0`, so it loads `Quartz`'s runtime-async asset (#4341;
+  [architecture.md](architecture.md), "Target frameworks"). It rolls the other test hosts forward to the newest
+  runtime installed, and fails unless each host reports .NET 11. The leg sets `UnitTestRuntime` in its
+  environment, where MSBuild reads it, and `build/Build.cs` puts a command-line value there too. Compile with
+  the same setting. `UnitTest --skip` over a build compiled without it runs the `net10.0` tests rolled forward,
+  and passes. `dotnet fallout Pack
   Net11ConsumerSmoke` builds `build/net11-consumer` with the .NET 11 SDK outside the repository, from the
   packed packages: a Debug web application with the dashboard at a custom path, then both trim canaries
   trimmed and native. Both need the .NET 11 SDK installed; the native publish on Windows needs `vswhere`

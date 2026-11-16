@@ -615,7 +615,7 @@ first `await`.
 
 ## Shipping a package that multi-targets
 
-Quartz 4 targets only `net10.0`. To serve `net8.0` and `net9.0` consumers, use a conditional
+Quartz 4 needs `net10.0` or later. To serve `net8.0` and `net9.0` consumers, use a conditional
 `PackageReference`
 ([NuGet: target frameworks](https://learn.microsoft.com/nuget/create-packages/multiple-target-frameworks-project-file)):
 

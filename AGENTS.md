@@ -40,9 +40,11 @@ row names before writing code there. Where the two differ, the document wins.
 - **No setter-only properties on interfaces.** Identity and configuration arrive by constructor or an explicit context parameter.
 - **Strong-named assemblies** — signed with `quartz.net.snk` (except examples).
 - **Central package management** — package versions in `Directory.Packages.props`.
-- **Single target** — everything targets `net10.0`. `Quartz.Analyzers` is the one exception: an analyzer
-  runs inside the compiler host, so it is `netstandard2.0`, links the cron parser's sources rather than
-  referencing `Quartz.dll`, and ships inside `Quartz.nupkg` under `analyzers/dotnet/cs`.
+- **Target frameworks** — everything targets `net10.0`, except `Quartz`, which also targets `net11.0`
+  with runtime async: one source, no `#if` at a call site, the same public API (architecture.md).
+  `Quartz.Analyzers` stays `netstandard2.0`: an analyzer runs inside the compiler host, so it links the cron
+  parser's sources rather than referencing `Quartz.dll`, and ships inside `Quartz.nupkg` under
+  `analyzers/dotnet/cs`.
 - **SDK**: .NET 11 SDK (see `global.json`), with `rollForward: latestMinor`. The test hosts and the build
   project are `net10.0` applications, so the .NET 10 runtime has to be installed beside it.
 - **License headers** — source files include Apache 2.0 license region at the top.
