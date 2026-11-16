@@ -179,7 +179,7 @@
             "null"
           ],
           "format": "int32",
-          "description": "Major version of a newer .NET runtime the unit test hosts roll forward to, such as 11, while the build stays on the SDK global.json names. The run fails unless every host reports that runtime"
+          "description": "Major version of a newer .NET runtime the unit test hosts run on, such as 11, while the build stays on the SDK global.json names. Quartz.Tests.Unit is built for it, so it loads Quartz's asset for that framework; the other test projects roll forward to it. The run fails unless every host reports that runtime"
         },
         "UnitTestTimeZone": {
           "type": "string",

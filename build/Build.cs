@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -45,7 +46,7 @@ partial class Build : FalloutBuild, ICompile, IPack
     [Parameter("IANA time zone the unit test hosts run in, handed to them as TZ. Linux and macOS only: .NET on Windows ignores TZ")]
     readonly string UnitTestTimeZone;
 
-    [Parameter("Major version of a newer .NET runtime the unit test hosts roll forward to, such as 11, while the build stays on the SDK global.json names. The run fails unless every host reports that runtime")]
+    [Parameter("Major version of a newer .NET runtime the unit test hosts run on, such as 11, while the build stays on the SDK global.json names. Quartz.Tests.Unit is built for it, so it loads Quartz's asset for that framework; the other test projects roll forward to it. The run fails unless every host reports that runtime")]
     readonly int? UnitTestRuntime;
 
     [GitRepository] readonly GitRepository GitRepository;
@@ -142,6 +143,15 @@ partial class Build : FalloutBuild, ICompile, IPack
         Log.Information("Configuration:\t{Configuration}", ((ICompile) this).Configuration);
         Log.Information("Version:\t{FullVersion}", FullVersion);
         Log.Information("Tagged build:\t{IsTaggedBuild}", IsTaggedBuild);
+
+        // Quartz.Tests.Unit is built for net{UnitTestRuntime}.0 when MSBuild sees UnitTestRuntime, and MSBuild reads
+        // it from the environment, where pr-tests-unit-net11 sets it. A value given on the command line goes there
+        // too, so Compile, the evaluation behind GetTestRuns and dotnet test all see the same framework (#4341).
+        if (UnitTestRuntime is { } runtime)
+        {
+            Environment.SetEnvironmentVariable(nameof(UnitTestRuntime), runtime.ToString(CultureInfo.InvariantCulture));
+            Log.Information("Unit tests:\tbuilt for and run on .NET {Runtime}", runtime);
+        }
     }
 
     Target Clean => _ => _

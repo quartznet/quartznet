@@ -21,7 +21,6 @@
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 
 using Quartz.Serialization.SystemTextJson;
 using Quartz.Util;
@@ -485,7 +484,7 @@ internal sealed record UpdateTriggerDetailsRequest : IValidatable
                 {
                     // Through the options' own JobDataMapConverter, which is what refuses a value the
                     // reading side could not accept - and through its metadata, so nothing here reflects.
-                    JsonSerializer.Serialize(writer, value.JobDataMap, (JsonTypeInfo<Quartz.JobDataMap>) options.GetTypeInfo(typeof(Quartz.JobDataMap)));
+                    JsonSerializer.Serialize(writer, value.JobDataMap, options.GetTypeInfo<Quartz.JobDataMap>());
                 }
             }
 
