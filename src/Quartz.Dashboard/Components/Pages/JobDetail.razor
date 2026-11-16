@@ -36,7 +36,7 @@
                 <div class="qz-actions">
                     <button type="button" class="qz-button" @onclick="PauseAsync">Pause</button>
                     <button type="button" class="qz-button" @onclick="ResumeAsync">Resume</button>
-                    <button type="button" class="qz-button qz-button-primary" @onclick="TriggerAsync">Trigger now</button>
+                    <button type="button" class="qz-button qz-button-primary" disabled="@_triggering" @onclick="TriggerAsync">Trigger now</button>
                     <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete</button>
                 </div>
             }
@@ -61,7 +61,7 @@
             <p class="qz-muted">Provide optional override values that will be merged for this trigger run.</p>
             <JobDataMapEditor DataMap="@_triggerDataMap" ReadOnly="false" />
             <div class="qz-actions qz-group-actions">
-                <button type="button" class="qz-button qz-button-primary" @onclick="TriggerWithDataAsync">Trigger with overrides</button>
+                <button type="button" class="qz-button qz-button-primary" disabled="@_triggering" @onclick="TriggerWithDataAsync">Trigger with overrides</button>
                 <button type="button" class="qz-button" @onclick="ResetTriggerDataMapAsync">Reset</button>
             </div>
         }
@@ -125,6 +125,12 @@
     private readonly Dictionary<string, string> _triggerStates = new(StringComparer.OrdinalIgnoreCase);
     private bool _showDeleteConfirm;
     private JobDataMap _triggerDataMap = new();
+
+    /// <summary>
+    /// Whether a trigger of this job is out. <em>Trigger now</em> and <em>Trigger with overrides</em> are
+    /// disabled until it answers, so a double click fires the job once.
+    /// </summary>
+    private bool _triggering;
 
     [Parameter]
     public string Group { get; set; } = string.Empty;
@@ -231,21 +237,43 @@
 
     private Task TriggerAsync()
     {
-        return ExecuteMutatingActionAsync(
+        return TriggerOnceAsync(() => ExecuteMutatingActionAsync(
             () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, Group, Name),
             "Triggered job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             actionName: "TriggerJob",
-            target: DisplayValueHelper.FormatKey(Group, Name));
+            target: DisplayValueHelper.FormatKey(Group, Name)));
     }
 
     private Task TriggerWithDataAsync()
     {
         JsonElement jobDataMap = JsonSerializer.SerializeToElement(_triggerDataMap, requestSerializerOptions);
-        return ExecuteMutatingActionAsync(
+        return TriggerOnceAsync(() => ExecuteMutatingActionAsync(
             () => Api.TriggerJobWithData(Scheduler.ActiveSchedulerName!, Group, Name, jobDataMap),
             "Triggered job " + DisplayValueHelper.FormatKey(Group, Name) + " with overrides.",
             actionName: "TriggerJobWithData",
-            target: DisplayValueHelper.FormatKey(Group, Name));
+            target: DisplayValueHelper.FormatKey(Group, Name)));
+    }
+
+    /// <summary>
+    /// Sends one trigger of this job unless one is already out, and holds both trigger buttons disabled until
+    /// it answers.
+    /// </summary>
+    private async Task TriggerOnceAsync(Func<Task> trigger)
+    {
+        if (_triggering)
+        {
+            return;
+        }
+
+        _triggering = true;
+        try
+        {
+            await trigger();
+        }
+        finally
+        {
+            _triggering = false;
+        }
     }
 
     private Task ResetTriggerDataMapAsync()
@@ -261,12 +289,19 @@
 
     private async Task DeleteAsync()
     {
+        // Closed before the call rather than after it, as the Overview's shutdown dialog is, so a second click
+        // on Confirm sends nothing: one that reaches the page before the dialog is drawn closed finds it shut.
+        if (!_showDeleteConfirm)
+        {
+            return;
+        }
+
+        _showDeleteConfirm = false;
         bool succeeded = await ExecuteMutatingActionAsync(
             () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, Group, Name),
             "Deleted job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             actionName: "DeleteJob",
             target: DisplayValueHelper.FormatKey(Group, Name));
-        _showDeleteConfirm = false;
         if (succeeded)
         {
             Navigation.NavigateTo(DashboardLink.To(Options.Value, "jobs"));

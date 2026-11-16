@@ -428,18 +428,26 @@
 
     private async Task ConfirmUnscheduleAsync()
     {
-        if (string.IsNullOrWhiteSpace(_pendingGroup) || string.IsNullOrWhiteSpace(_pendingName))
+        // Closed before the call rather than after it, as the Overview's shutdown dialog is, so a second click
+        // on Confirm sends nothing: one that reaches the page before the dialog is drawn closed finds it shut.
+        if (!_showUnscheduleConfirm)
         {
-            _showUnscheduleConfirm = false;
+            return;
+        }
+
+        _showUnscheduleConfirm = false;
+        string? group = _pendingGroup;
+        string? name = _pendingName;
+        if (string.IsNullOrWhiteSpace(group) || string.IsNullOrWhiteSpace(name))
+        {
             return;
         }
 
         await ExecuteMutatingActionAsync(
-            () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, _pendingGroup, _pendingName),
-            "Unscheduled trigger " + DisplayValueHelper.FormatKey(_pendingGroup, _pendingName) + ".",
+            () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, group, name),
+            "Unscheduled trigger " + DisplayValueHelper.FormatKey(group, name) + ".",
             actionName: "UnscheduleTrigger",
-            target: DisplayValueHelper.FormatKey(_pendingGroup, _pendingName));
-        _showUnscheduleConfirm = false;
+            target: DisplayValueHelper.FormatKey(group, name));
     }
 
     private Task CancelUnscheduleAsync()

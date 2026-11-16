@@ -292,12 +292,19 @@
 
     private async Task UnscheduleAsync()
     {
+        // Closed before the call rather than after it, as the Overview's shutdown dialog is, so a second click
+        // on Confirm sends nothing: one that reaches the page before the dialog is drawn closed finds it shut.
+        if (!_showUnscheduleConfirm)
+        {
+            return;
+        }
+
+        _showUnscheduleConfirm = false;
         bool succeeded = await ExecuteMutatingActionAsync(
             () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, Group, Name),
             "Unscheduled trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             actionName: "UnscheduleTrigger",
             target: DisplayValueHelper.FormatKey(Group, Name));
-        _showUnscheduleConfirm = false;
         if (succeeded)
         {
             Navigation.NavigateTo(DashboardLink.To(Options.Value, "triggers"));

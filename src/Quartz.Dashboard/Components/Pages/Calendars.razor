@@ -219,26 +219,32 @@
 
     private async Task ConfirmDeleteAsync()
     {
-        string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName) || string.IsNullOrWhiteSpace(_pendingCalendarName))
+        // Closed before the call rather than after it, as the Overview's shutdown dialog is, so a second click
+        // on Confirm sends nothing: one that reaches the page before the dialog is drawn closed finds it shut.
+        if (!_showDeleteConfirm)
         {
-            _showDeleteConfirm = false;
+            return;
+        }
+
+        _showDeleteConfirm = false;
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        string calendarName = _pendingCalendarName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName) || string.IsNullOrWhiteSpace(calendarName))
+        {
             return;
         }
 
         try
         {
-            await Api.DeleteCalendar(schedulerName, _pendingCalendarName);
-            ActionLog.Record(schedulerName, "DeleteCalendar", _pendingCalendarName, succeeded: true);
-            Toasts.Success("Deleted calendar " + _pendingCalendarName + ".");
-            _showDeleteConfirm = false;
+            await Api.DeleteCalendar(schedulerName, calendarName);
+            ActionLog.Record(schedulerName, "DeleteCalendar", calendarName, succeeded: true);
+            Toasts.Success("Deleted calendar " + calendarName + ".");
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
-            ActionLog.Record(schedulerName, "DeleteCalendar", _pendingCalendarName, succeeded: false, ex.Message);
+            ActionLog.Record(schedulerName, "DeleteCalendar", calendarName, succeeded: false, ex.Message);
             Toasts.Error(ex.Message);
-            _showDeleteConfirm = false;
         }
     }
 
