@@ -235,19 +235,19 @@ export function afterWebStarted() {
         },
 
         /**
-         * True when an actions menu should open above its chevron: not enough room below the
-         * viewport edge, and more room above. menuHeightPx is an estimate of the open menu.
+         * Space below and above a chevron for the Timeline actions menu. C# decides whether to flip
+         * (TimelineService.ActionsMenuOpensUp); the default menu height lives only there.
          */
-        actionsMenuOpensUp: function (anchorElement, menuHeightPx) {
+        actionsMenuSpace: function (anchorElement) {
             if (!anchorElement || typeof anchorElement.getBoundingClientRect !== "function") {
-                return false;
+                return { spaceBelow: 0, spaceAbove: 0 };
             }
 
             const rect = anchorElement.getBoundingClientRect();
-            const height = Number(menuHeightPx) > 0 ? Number(menuHeightPx) : 160;
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const spaceAbove = rect.top;
-            return spaceBelow < height && spaceAbove >= spaceBelow;
+            return {
+                spaceBelow: window.innerHeight - rect.bottom,
+                spaceAbove: rect.top
+            };
         }
     };
 }

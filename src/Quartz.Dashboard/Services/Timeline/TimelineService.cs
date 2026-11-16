@@ -18,6 +18,7 @@
 #endregion
 
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Models;
@@ -791,11 +792,18 @@ internal sealed class TimelineService
     /// </summary>
     internal const double ActionsMenuHeightPx = 160;
 
+    /// <summary>Space above and below a chevron, measured in the browser before the menu opens.</summary>
+    [StructLayout(LayoutKind.Auto)]
+    internal readonly record struct ActionsMenuSpace(double SpaceBelow, double SpaceAbove);
+
     /// <summary>
     /// Opens the menu above its chevron when there is not enough room below and at least as much above.
     /// </summary>
     public static bool ActionsMenuOpensUp(double spaceBelowPx, double spaceAbovePx, double menuHeightPx = ActionsMenuHeightPx) =>
         spaceBelowPx < menuHeightPx && spaceAbovePx >= spaceBelowPx;
+
+    public static bool ActionsMenuOpensUp(ActionsMenuSpace space, double menuHeightPx = ActionsMenuHeightPx) =>
+        ActionsMenuOpensUp(space.SpaceBelow, space.SpaceAbove, menuHeightPx);
 
     /// <summary>
     /// Shrinks each bar so it ends before the next by at least <see cref="BarGapFraction"/>.
