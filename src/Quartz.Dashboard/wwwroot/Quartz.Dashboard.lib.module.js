@@ -235,6 +235,17 @@ export function afterWebStarted() {
         },
 
         /**
+         * Put .qz-content back at the top after a path change. Query-only navigations keep the offset.
+         */
+        resetScrollTop: function (element) {
+            if (!element) {
+                return;
+            }
+
+            element.scrollTop = 0;
+        },
+
+        /**
          * Toggle .qz-timeline-sticky-pinned when stuck under .qz-header (drops top radius). DOM only.
          */
         attachTimelineStickyPin: function (stickyElement) {

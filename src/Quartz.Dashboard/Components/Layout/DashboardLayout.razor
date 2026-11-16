@@ -1,10 +1,12 @@
 @inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components
 @using Microsoft.JSInterop
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
 @implements IDisposable
 @inject Quartz.Dashboard.Services.SchedulerState SchedulerState
 @inject Quartz.Dashboard.Services.SchedulerAuthorization Authorization
+@inject NavigationManager Navigation
 @inject Microsoft.JSInterop.IJSRuntime JsRuntime
 
 <HeadContent>
@@ -55,7 +57,7 @@
                 </div>
             </header>
 
-            <main class="qz-content" role="main">
+            <main @ref="_content" class="qz-content" role="main">
                 @* The page frame is where a per-scheduler refusal belongs: a page that is never rendered
                    never runs its OnInitializedAsync, so nothing about a scheduler the visitor may not see
                    is read on their behalf. The header above stays, so they can pick one they may. *@
@@ -95,6 +97,8 @@
 
     private SchedulerAccess _access = SchedulerAccess.Unknown;
     private bool _sidebarCollapsed;
+    private ElementReference _content;
+    private string _lastPath = string.Empty;
 
     private readonly IReadOnlyList<TimeZoneInfo> _timeZones = TimeZoneInfo
         .GetSystemTimeZones()
@@ -105,6 +109,8 @@
     protected override async Task OnInitializedAsync()
     {
         SchedulerState.OnSchedulerChanged += OnSchedulerChanged;
+        _lastPath = GetAbsolutePath(Navigation.Uri);
+        Navigation.LocationChanged += OnLocationChanged;
 
         // Awaited before the first render, so a dashboard with no per-scheduler policy — where this
         // completes synchronously — renders its page exactly as it always did, with no intermediate frame.
@@ -136,6 +142,52 @@
     public void Dispose()
     {
         SchedulerState.OnSchedulerChanged -= OnSchedulerChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+
+    /// <summary>
+    /// The window no longer scrolls: <c>.qz-content</c> does. Blazor's path-change scroll reset only
+    /// reaches the window, so the content panel has to be put back at the top here. Query-only
+    /// navigations (paging, filters) keep the offset.
+    /// </summary>
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        string path = GetAbsolutePath(e.Location);
+        if (string.Equals(_lastPath, path, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _lastPath = path;
+        _ = InvokeAsync(ResetContentScrollAsync);
+    }
+
+    private async Task ResetContentScrollAsync()
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("quartzDashboardDom.resetScrollTop", _content);
+        }
+        catch (JSException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private static string GetAbsolutePath(string uri)
+    {
+        if (Uri.TryCreate(uri, UriKind.Absolute, out Uri? absolute))
+        {
+            return absolute.AbsolutePath;
+        }
+
+        int queryOrFragment = uri.IndexOfAny(['?', '#']);
+        return queryOrFragment < 0 ? uri : uri[..queryOrFragment];
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
