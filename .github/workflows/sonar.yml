@@ -78,6 +78,9 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+          # global.json names the .NET 11 SDK, and the test hosts and the build project are net10.0, so
+          # the 10.0 SDK comes too, for its runtime.
+          dotnet-version: 10.0.x
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
       - name: 'Install: SonarScanner for .NET'
