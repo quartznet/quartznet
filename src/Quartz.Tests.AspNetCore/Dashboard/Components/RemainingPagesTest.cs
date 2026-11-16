@@ -2,6 +2,8 @@ using System.Reflection;
 
 using Bunit;
 
+using FakeItEasy;
+
 using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Services;
 
@@ -75,6 +77,31 @@ public class RemainingPagesTest
     }
 
     /// <summary>
+    /// An interrupt that failed says so in a toast, as a failed action on every other page does.
+    /// </summary>
+    /// <remarks>
+    /// It raised none. The failure set an error on the page, which the refresh a second later cleared, so the
+    /// reader was never told.
+    /// </remarks>
+    [Test]
+    public void AnInterruptThatFailedRaisesAToast()
+    {
+        GivenRunningJob();
+        A.CallTo(() => context.Api.InterruptJob(A<string>._, "reports", "job-1"))
+            .Throws(new SchedulerException("the target is unreachable"));
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Interrupt").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            context.Toasts.Messages.Should().ContainSingle()
+                .Which.Message.Should().Be("the target is unreachable");
+            page.FindAll(".qz-error-alert").Should().BeEmpty("the toast is the report, and the listing is still true");
+        });
+    }
+
+    /// <summary>
     /// How many handlers <see cref="SchedulerState.OnSchedulerChanged" /> has. A field-like event's
     /// delegate is a private field of the same name.
     /// </summary>
@@ -83,5 +110,17 @@ public class RemainingPagesTest
         FieldInfo? field = typeof(SchedulerState).GetField(nameof(SchedulerState.OnSchedulerChanged), BindingFlags.Instance | BindingFlags.NonPublic);
         field.Should().NotBeNull("a field-like event's delegate is a field of its name; an event with its own accessors needs another way to count");
         return (field!.GetValue(state) as EventHandler)?.GetInvocationList().Length ?? 0;
+    }
+
+    /// <summary>
+    /// A job that is running, which is what the Currently Executing page offers to interrupt.
+    /// </summary>
+    private void GivenRunningJob()
+    {
+        context.Executing.Add(new CurrentlyExecutingJobDto(
+            new JobKeyDto("reports", "job-1"),
+            new TriggerKeyDto("nightly", "trigger-1"),
+            DashboardComponentContext.FiredAt,
+            "fire-1"));
     }
 }

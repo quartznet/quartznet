@@ -6,6 +6,7 @@
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
 @inject IOptions<QuartzDashboardOptions> Options
+@inject ToastService Toasts
 
 <div class="qz-page">
     <div class="qz-page-header">
@@ -197,7 +198,9 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            // Said where every other page says a failed action, as a toast. An error on the page would be
+            // cleared by the refresh a second later, before anyone had read it.
+            Toasts.Error(ex.Message);
         }
     }
 
