@@ -642,7 +642,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Failed(schedulerName, actionName, target, ex);
             Toasts.Error(ex.Message);
         }
@@ -678,7 +677,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Failed(schedulerName, actionName, target, ex, note);
             Toasts.Error(ex.Message);
         }
@@ -757,7 +755,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Failed(schedulerName, actionVerb + "JobGroup", group, ex, note);
             Toasts.Error(ex.Message);
         }

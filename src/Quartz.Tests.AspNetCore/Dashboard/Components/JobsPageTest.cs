@@ -271,6 +271,35 @@ public class JobsPageTest
     }
 
     /// <summary>
+    /// A failed action leaves the page it was taken from as it was: the toast and the Action Log say why.
+    /// </summary>
+    /// <remarks>
+    /// The listing was read and is still true; only the pause failed. Replacing it with the error and its
+    /// Retry button took away the page the reader was acting on, to repeat what the toast already said.
+    /// </remarks>
+    [Test]
+    public void AFailedPauseLeavesTheListingAndRaisesAToast()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 2));
+        A.CallTo(() => context.Api.PauseJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .Throws(new InvalidOperationException("the store is not answering"));
+
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Pause").Click();
+        page.ConfirmPause();
+
+        page.WaitForAssertion(() =>
+        {
+            context.Toasts.Messages.Should().ContainSingle()
+                .Which.Message.Should().Be("the store is not answering");
+            page.TextOfAll(".qz-key-badge-value").Should().Equal(["reports.job-1", "reports.job-2"],
+                "the listing was read and is still true; only the pause failed");
+            page.FindAll(".qz-error-alert").Should().BeEmpty("the toast is the report, not an error in place of the page");
+        });
+    }
+
+    /// <summary>
     /// The same trip for the agent's refusal: a worker whose <c>DashboardAgentOptions.ReadOnly</c> is set
     /// answers <c>403</c> with the agent's own words, and the dashboard — which has no idea the agent is
     /// read-only, since its own <c>ReadOnly</c> is off and the buttons are there — shows them.

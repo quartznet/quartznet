@@ -537,7 +537,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Failed(schedulerName, actionName, target, ex);
             Toasts.Error(ex.Message);
             return false;
@@ -575,7 +574,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Failed(schedulerName, actionName, target, ex, note);
             Toasts.Error(ex.Message);
             return false;

@@ -1117,7 +1117,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Failed(Scheduler.ActiveSchedulerName, actionName, target, ex, note);
             Toasts.Error(ex.Message);
         }
@@ -1181,7 +1180,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Failed(schedulerName, actionVerb + "TriggerGroup", group, ex, note);
             Toasts.Error(ex.Message);
         }
