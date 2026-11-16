@@ -112,6 +112,46 @@ public class TimelineLayoutTest
     }
 
     [Test]
+    public void ALongLastRunKeepsItsRealWidthWhenItStartsSoonAfterAShortOne()
+    {
+        TimelineBounds bounds = TimelineService.CreateBounds(TimelineWindow.LastHour, TimeSpan.Zero, Noon);
+        DateTimeOffset shortStart = bounds.Start.AddMinutes(10);
+        DateTimeOffset longStart = shortStart.AddMinutes(1);
+        List<TimelineBar> bars =
+        [
+            TimelineService.CreateBar(bounds, shortStart, shortStart.AddSeconds(1), "a", "short", "1"),
+            TimelineService.CreateBar(bounds, longStart, longStart.AddMinutes(20), "b", "long", "2")
+        ];
+
+        double realLongWidth = bars[1].Width;
+        realLongWidth.Should().BeGreaterThan(TimelineService.MinBarWidthFraction,
+            "precondition: the long run's width is its duration, not the floor");
+
+        TimelineService.ApplyBarGaps(bars);
+
+        bars[1].Width.Should().BeApproximately(realLongWidth, 0.000_000_1,
+            "capping the last bar must not shorten a duration-backed width to the previous spacing");
+        (bars[0].Left + bars[0].Width).Should().BeLessThan(bars[1].Left);
+    }
+
+    [Test]
+    public void CoincidentBarsKeepAClickableMark()
+    {
+        List<TimelineBar> bars =
+        [
+            new(0.10, TimelineService.MinBarWidthFraction, "a", "first", "1"),
+            new(0.10, TimelineService.MinBarWidthFraction, "b", "second", "2")
+        ];
+
+        TimelineService.ApplyBarGaps(bars);
+
+        bars[0].Width.Should().Be(TimelineService.CoincidentBarWidthFraction,
+            "same Left cannot leave a zero-width hit that overflow:hidden would also erase");
+        bars[1].Width.Should().Be(TimelineService.MinBarWidthFraction,
+            "the later bar stays on top at full floor width");
+    }
+
+    [Test]
     public void OnlyOfferedPageSizesAreKept()
     {
         TimelineService.NormalizePageSize(50).Should().Be(50);
