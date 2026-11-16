@@ -787,6 +787,17 @@ internal sealed class TimelineService
         Clamp01((instant - bounds.Start).Ticks / bounds.SpanTicks);
 
     /// <summary>
+    /// Default estimated height of an open actions menu, used when deciding whether to flip it up.
+    /// </summary>
+    internal const double ActionsMenuHeightPx = 160;
+
+    /// <summary>
+    /// Opens the menu above its chevron when there is not enough room below and at least as much above.
+    /// </summary>
+    public static bool ActionsMenuOpensUp(double spaceBelowPx, double spaceAbovePx, double menuHeightPx = ActionsMenuHeightPx) =>
+        spaceBelowPx < menuHeightPx && spaceAbovePx >= spaceBelowPx;
+
+    /// <summary>
     /// Shrinks each bar so it ends before the next by at least <see cref="BarGapFraction"/>.
     /// Prefer a smaller mark over an overlapping hit. The last bar is capped only when it still
     /// has the min-width floor — a real long duration must keep its width.

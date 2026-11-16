@@ -43,6 +43,7 @@ public partial class Timeline
 
     private TriggerActionTarget? _menuTarget;
     private TimelineJobRef? _jobMenuTarget;
+    private bool _menuOpensUp;
     private TriggerActionTarget? _actionTarget;
     private TimelineJobRef? _jobActionTarget;
     private bool _showPausePrompt;
@@ -298,18 +299,62 @@ public partial class Timeline
         && string.Equals(_jobMenuTarget.Row.JobGroup, row.JobGroup, StringComparison.Ordinal)
         && string.Equals(_jobMenuTarget.Row.JobName, row.JobName, StringComparison.Ordinal);
 
-    internal void ToggleTriggerMenu(TimelineTriggerRef target)
+    /// <summary>True while an open job/trigger menu should render above its chevron.</summary>
+    internal bool MenuOpensUp => _menuOpensUp;
+
+    internal async Task ToggleTriggerMenuAsync(TimelineTriggerRef target, ElementReference anchor)
     {
         _jobMenuTarget = null;
-        _menuTarget = IsMenuOpen(target.Row, target.Trigger) ? null : TriggerActionTarget.From(target.Row, target.Trigger);
+        if (IsMenuOpen(target.Row, target.Trigger))
+        {
+            _menuTarget = null;
+            _menuOpensUp = false;
+        }
+        else
+        {
+            _menuTarget = TriggerActionTarget.From(target.Row, target.Trigger);
+            _menuOpensUp = await MeasureMenuOpensUpAsync(anchor).ConfigureAwait(true);
+        }
+
         StateHasChanged();
     }
 
-    internal void ToggleJobMenu(TimelineJobRef target)
+    internal async Task ToggleJobMenuAsync(TimelineJobRef target, ElementReference anchor)
     {
         _menuTarget = null;
-        _jobMenuTarget = IsJobMenuOpen(target.Row) ? null : target;
+        if (IsJobMenuOpen(target.Row))
+        {
+            _jobMenuTarget = null;
+            _menuOpensUp = false;
+        }
+        else
+        {
+            _jobMenuTarget = target;
+            _menuOpensUp = await MeasureMenuOpensUpAsync(anchor).ConfigureAwait(true);
+        }
+
         StateHasChanged();
+    }
+
+    private async Task<bool> MeasureMenuOpensUpAsync(ElementReference anchor)
+    {
+        try
+        {
+            return await JsRuntime.InvokeAsync<bool>(
+                    "quartzDashboardDom.actionsMenuOpensUp",
+                    anchor,
+                    TimelineService.ActionsMenuHeightPx)
+                .ConfigureAwait(true);
+        }
+        catch (JSException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerender / no circuit yet.
+            return false;
+        }
     }
 
     internal void PromptPause(TimelineTriggerRef target)

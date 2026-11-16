@@ -152,6 +152,17 @@ public class TimelineLayoutTest
     }
 
     [Test]
+    public void ActionsMenuOpensUpWhenThereIsNoRoomBelow()
+    {
+        TimelineService.ActionsMenuOpensUp(spaceBelowPx: 40, spaceAbovePx: 400)
+            .Should().BeTrue("a last-row chevron with room above should flip the menu");
+        TimelineService.ActionsMenuOpensUp(spaceBelowPx: 400, spaceAbovePx: 40)
+            .Should().BeFalse("room below keeps the menu under the chevron");
+        TimelineService.ActionsMenuOpensUp(spaceBelowPx: 40, spaceAbovePx: 30)
+            .Should().BeFalse("when both sides are short, prefer below rather than covering the row");
+    }
+
+    [Test]
     public void OnlyOfferedPageSizesAreKept()
     {
         TimelineService.NormalizePageSize(50).Should().Be(50);

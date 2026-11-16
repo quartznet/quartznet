@@ -24,14 +24,15 @@
                    title="@(Trigger.Group + '.' + Trigger.Name)">@Trigger.Name</a>
                 @if (menu.Any)
                 {
-                    <div class="qz-timeline-actions @(menuOpen ? "qz-timeline-actions-open" : null)">
-                        <button type="button"
+                    <div class="qz-timeline-actions @(menuOpen ? "qz-timeline-actions-open" : null) @(menuOpen && Page.MenuOpensUp ? "qz-timeline-actions-up" : null)">
+                        <button @ref="_actionsButton"
+                                type="button"
                                 class="qz-timeline-actions-btn"
                                 data-testid="timeline-trigger-actions"
                                 title="Trigger actions"
                                 aria-label="Trigger actions"
                                 aria-expanded="@(menuOpen ? "true" : "false")"
-                                @onclick="OnMenuToggled"
+                                @onclick="OnMenuToggledAsync"
                                 @onclick:stopPropagation="true">
                             <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
                                 <path d="M3.2 5.4 8 10.2 12.8 5.4 11.5 4.2 8 7.8 4.5 4.2Z" />

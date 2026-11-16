@@ -232,6 +232,22 @@ export function afterWebStarted() {
             axisElement.style.transform = "";
             axisElement.classList.remove("qz-timeline-axis-track-panning");
             delete axisElement.__qzTimelineAxisPan;
+        },
+
+        /**
+         * True when an actions menu should open above its chevron: not enough room below the
+         * viewport edge, and more room above. menuHeightPx is an estimate of the open menu.
+         */
+        actionsMenuOpensUp: function (anchorElement, menuHeightPx) {
+            if (!anchorElement || typeof anchorElement.getBoundingClientRect !== "function") {
+                return false;
+            }
+
+            const rect = anchorElement.getBoundingClientRect();
+            const height = Number(menuHeightPx) > 0 ? Number(menuHeightPx) : 160;
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            return spaceBelow < height && spaceAbove >= spaceBelow;
         }
     };
 }
