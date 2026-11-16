@@ -1274,6 +1274,43 @@ internal abstract partial class AdoJobStoreBase
         return Delegate is StdAdoDelegate std ? std.SettleTriggerRow(conn, triggerKey, cancellationToken) : default;
     }
 
+    /// <summary>
+    /// What the fire of a trigger acquired earlier decides on: the trigger's header, and whether the
+    /// reservation the acquisition wrote is still there (#4323).
+    /// </summary>
+    /// <remarks>
+    /// One statement through a delegate Quartz ships. Any other delegate is asked the members it may have
+    /// overridden, the header and then — only for a row that is <c>ACQUIRED</c>, which is the one case the
+    /// answer decides — this node's fired-trigger rows of the trigger.
+    /// </remarks>
+    private async ValueTask<(StoredTriggerHeader? Header, bool Reserved)> ReadAcquiredTrigger(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        CancellationToken cancellationToken)
+    {
+        if (ShippedDelegate is { } shipped)
+        {
+            return await Guarded(
+                () => shipped.SelectTriggerHeaderForFire(conn, trigger.Key, trigger.FireInstanceId, cancellationToken),
+                "select trigger state").ConfigureAwait(false);
+        }
+
+        StoredTriggerHeader? header = await Guarded(
+            () => Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken),
+            "select trigger state").ConfigureAwait(false);
+
+        if (header is not { State: StoredTriggerState.Acquired })
+        {
+            return (header, false);
+        }
+
+        List<FiredTriggerRecord> held = await Guarded(
+            () => Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Trigger = trigger.Key, InstanceId = InstanceId }, cancellationToken),
+            "select the trigger's reservation").ConfigureAwait(false);
+
+        return (header, held.Exists(x => x.FireInstanceId == trigger.FireInstanceId && x.FireInstanceState == StoredTriggerState.Acquired));
+    }
+
     protected async ValueTask<TriggerFiredBundle?> TriggerFired(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
@@ -1323,9 +1360,19 @@ internal abstract partial class AdoJobStoreBase
         }
         else
         {
-            StoredTriggerHeader? header = await Guarded(
-                () => Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken),
-                "select trigger state").ConfigureAwait(false);
+            (StoredTriggerHeader? header, bool reserved) = await ReadAcquiredTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
+
+            // ACQUIRED says that somebody holds the row, not that this node does. The acquisition fired here
+            // is still this node's while its reservation is: a replace of the trigger cancels the
+            // reservations of the trigger it replaces, and another node may have acquired the replacement.
+            // Fired anyway, the copy held here wrote its definition over the replacement by key, and its
+            // release undid the other node's acquisition (#4323). And the copy still describes the row while
+            // the fire time it holds is the row's: one another node fired since, its pause and resume having
+            // let that node acquire it, has run.
+            if (header is { State: StoredTriggerState.Acquired } && (!reserved || header.NextFireTimeUtc != trigger.NextFireTimeUtc))
+            {
+                return TriggerFiredResult.NotFired;
+            }
 
             stored = header is null ? null : new StoredTriggerIdentity(header.State, header.TriggerType);
         }

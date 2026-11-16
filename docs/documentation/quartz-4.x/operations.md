@@ -77,6 +77,14 @@ Once the schema is ahead of every node, replace them one at a time. As each goes
   node notices it recovers its firings and deletes its rows. The node's identity in the dashboard, in
   `INSTANCE_NAME` on fired-trigger rows and in a `PREFERRED_NODE` pin does not survive the deployment —
   see [Naming a node in a container](#naming-a-node-in-a-container).
+- **A changed schedule wins on every node** (4.8). A new node replaces a trigger the old nodes may hold
+  acquired for their next fire time. The replace cancels those acquisitions: an old node does not fire its
+  copy of the old trigger or write it back, and lets go of nothing it no longer holds. The replacement
+  fires on the next acquisition, so a held fire time can run up to an idle wait late.
+- **Re-applying an unchanged declaration disturbs nothing** (4.8). With
+  [relative scheduling](how-tos/rescheduling-jobs.md#what-a-start-keeps) on, a start leaves the stored
+  trigger as it is, another node's acquisition included. A start never puts back a fire time another node
+  fired while it re-applied the trigger.
 
 ### Rolling 4.3 to 4.4
 

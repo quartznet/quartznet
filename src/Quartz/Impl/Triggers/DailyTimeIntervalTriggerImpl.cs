@@ -1035,4 +1035,10 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
             TimesTriggered = daily.TimesTriggered;
         }
     }
+
+    /// <inheritdoc />
+    internal override bool HasSameFireCountAs(TriggerBase stored)
+    {
+        return stored is DailyTimeIntervalTriggerImpl daily && TimesTriggered == daily.TimesTriggered;
+    }
 }

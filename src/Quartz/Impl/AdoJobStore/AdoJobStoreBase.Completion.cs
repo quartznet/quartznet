@@ -101,6 +101,12 @@ internal abstract partial class AdoJobStoreBase
     /// it. A reservation given back unfired — a sooner trigger, standby, shutdown — makes as many
     /// statements as it did before.
     /// </para>
+    /// <para>
+    /// A release whose row is gone moves nothing. The trigger it reserved was replaced, which cancels its
+    /// reservations, or a peer recovered this node's rows; the trigger row is then the replacement, perhaps
+    /// another node's acquisition of it, or the recovery's. Moved to <c>WAITING</c>, it let a third node
+    /// acquire a fire time another node held (#4323).
+    /// </para>
     /// </remarks>
     private ValueTask ReleaseAcquiredTrigger(
         ConnectionAndTransactionHolder conn,
@@ -113,7 +119,14 @@ internal abstract partial class AdoJobStoreBase
             async () =>
             {
                 List<FiredTriggerRecord> firings = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Job = jobKey }, cancellationToken).ConfigureAwait(false);
-                await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false);
+                if (await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false) == 0)
+                {
+                    // Nothing of this fire is left to release: the acquisition is no longer this node's. A
+                    // replace of the trigger cancelled it, and the row may be another node's acquisition of
+                    // the replacement (#4323), or a peer's recovery took it back. Either way the row is
+                    // somebody else's to move.
+                    return;
+                }
 
                 StoredTriggerState released = BlockedState(firings, StoredTriggerState.Waiting, excludedFireInstanceId: fireInstanceId);
                 await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, released, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);

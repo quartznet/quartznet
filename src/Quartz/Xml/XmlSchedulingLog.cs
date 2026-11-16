@@ -150,4 +150,12 @@ internal static partial class XmlSchedulingLog
 
     [LoggerMessage(EventId = 5036, Level = LogLevel.Information, Message = "Deleting trigger: {Key}")]
     public static partial void DeletingTrigger(this ILogger logger, TriggerKey key);
+
+    /// <remarks>
+    /// The stored trigger fired between the read the declaration was worked out from and the replace, on
+    /// another node, and the store left it as that firing did (#4324). The declaration is worked out again
+    /// from the trigger as it is now.
+    /// </remarks>
+    [LoggerMessage(EventId = 5037, Level = LogLevel.Debug, Message = "Trigger {TriggerKey} fired while its declaration was being re-applied; re-applying it over the trigger as it is now")]
+    public static partial void DeclaredTriggerReappliedAgain(this ILogger logger, TriggerKey triggerKey);
 }

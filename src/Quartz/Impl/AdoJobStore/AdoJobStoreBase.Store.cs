@@ -329,6 +329,15 @@ internal abstract partial class AdoJobStoreBase
                             && await IsOverlapPolicyUnsettled(conn, stored, OverlapPolicy.CancelPrevious, cancellationToken).ConfigureAwait(false);
                     }
 
+                    if (!forceState)
+                    {
+                        // A replace that writes the row over by key, in the state it decides afresh: as with
+                        // ReplaceTrigger, an acquisition of the trigger it replaces is no longer one to fire
+                        // (#4323). A write that keeps the row's state — a calendar's new fire times — is an
+                        // edit of the trigger an acquisition holds, and keeps its reservation.
+                        await CancelReservations(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
+                    }
+
                     int updated = asRead is { } read
                         ? await Delegate.UpdateTriggerIfUnchanged(conn, newTrigger, state, job, read.NextFireTimeUtc, cancellationToken).ConfigureAwait(false)
                         : await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
@@ -879,9 +888,14 @@ internal abstract partial class AdoJobStoreBase
 
     /// <summary>
     /// Deletes the trigger row and stores the replacement, leaving the fired-trigger rows of the old
-    /// trigger's executions alone.
+    /// trigger's executions alone and cancelling its reservations.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// A reservation is an acquisition of the trigger as it was, held by a node until its fire time, and
+    /// is deleted: the node holding it does not fire it, and its release moves nothing (#4323). See
+    /// <see cref="CancelReservations" />.
+    /// </para>
     /// <para>
     /// A replacement is not a removal. The trigger keeps its identity and its job, so an execution the
     /// row records is still one to finish — its completion deletes the row by fire instance id — or, if
@@ -933,8 +947,18 @@ internal abstract partial class AdoJobStoreBase
                 await EnsureContinuationParentExists(conn, newTrigger, alsoStored: null, cancellationToken).ConfigureAwait(false);
 
                 // Read before the row goes: a declared trigger re-applied at a start keeps the pause the row
-                // has, with its record (#4128). Any other replace decides the state afresh.
-                (bool keepPause, PauseInfo? keptPause) = await PauseKeptByReplace(conn, triggerKey, newTrigger, cancellationToken).ConfigureAwait(false);
+                // has, with its record (#4128), is held to the row it was worked out from, and leaves a row
+                // it describes exactly as it is (#4324). Any other replace decides the state afresh.
+                ReapplyDecision reapply = await DecideReapply(conn, triggerKey, newTrigger, cancellationToken).ConfigureAwait(false);
+                if (reapply.Outcome != ReapplyOutcome.Replace)
+                {
+                    return reapply.Outcome == ReapplyOutcome.KeepRow;
+                }
+
+                // The acquisitions of the trigger being replaced are of a trigger that is no longer stored:
+                // a node holding one does not fire it, and its release leaves alone the row it no longer
+                // holds (#4323). The rows of its executions stay, for their completions and for recovery.
+                await CancelReservations(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
                 bool removedTrigger = await Delegate.DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) > 0;
                 if (!removedTrigger)
@@ -955,8 +979,8 @@ internal abstract partial class AdoJobStoreBase
                     recovering: false,
                     continuationParentChecked: false,
                     cancellationToken,
-                    storePaused: keepPause,
-                    pause: keptPause).ConfigureAwait(false);
+                    storePaused: reapply.KeepPause,
+                    pause: reapply.KeptPause).ConfigureAwait(false);
 
                 return true;
             },
@@ -964,33 +988,127 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// What a replace keeps of the pause on the row it replaces: whether to store the replacement paused,
-    /// and the record to store with it.
+    /// What a replace does with the row it replaces: replace it, keeping its pause or not, leave it as it
+    /// is, or leave it because it moved since the replacement was worked out from it.
+    /// </summary>
+    private readonly record struct ReapplyDecision(ReapplyOutcome Outcome, bool KeepPause = false, PauseInfo? KeptPause = null);
+
+    private enum ReapplyOutcome
+    {
+        /// <summary>The row is replaced.</summary>
+        Replace,
+
+        /// <summary>The row is the replacement already, and is left as it is.</summary>
+        KeepRow,
+
+        /// <summary>The row moved since the replacement was worked out from it, and nothing is replaced.</summary>
+        RowMoved,
+    }
+
+    /// <summary>
+    /// Decides, in the replace's own transaction and under <c>TRIGGER_ACCESS</c>, what a declared trigger
+    /// the scheduling-data processor re-applies at a start does with the row it replaces.
     /// </summary>
     /// <remarks>
-    /// Kept only for a declared trigger the scheduling-data processor re-applies at a start, so a redeploy
-    /// does not resume a trigger an operator paused (#4128); read in the replace's own transaction, under
-    /// <c>TRIGGER_ACCESS</c>. The record is the one the trigger answers while paused: its own, or its
-    /// group's when it has none.
+    /// <para>
+    /// <b>The pause</b> (#4128): a redeploy does not resume a trigger an operator paused. The replacement is
+    /// stored paused, with the record the trigger answers while paused: its own, or its group's when it
+    /// has none.
+    /// </para>
+    /// <para>
+    /// <b>The row as read</b> (#4324): the processor read the trigger outside the lock and worked the
+    /// replacement's fire times and count out from that read. A row that has fired since, on another node,
+    /// is left as that firing left it and the replace answers that it replaced nothing; the processor reads
+    /// the trigger again. Without that, the replace put back the fire time that had just run, and it ran a
+    /// second time. The row's lock is taken before it is read, so a firing round that takes no
+    /// <c>TRIGGER_ACCESS</c> (#4067) cannot fire it between this read and the write that follows.
+    /// </para>
+    /// <para>
+    /// <b>The same trigger again</b> (#4324): a replacement that would be stored as exactly the row it
+    /// replaces — the same definition, fire times and count, which re-applying an unchanged declaration
+    /// with relative scheduling works out — leaves the row as it is, its state included, so that an
+    /// acquisition of it stays valid. A row in <c>ERROR</c> or <c>COMPLETE</c> is stored afresh all the same.
+    /// </para>
+    /// <para>
+    /// Any other replace decides the state afresh, and overwrites whatever the row holds.
+    /// </para>
     /// </remarks>
-    private async ValueTask<(bool Paused, PauseInfo? Pause)> PauseKeptByReplace(
+    private async ValueTask<ReapplyDecision> DecideReapply(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         IOperableTrigger newTrigger,
         CancellationToken cancellationToken)
     {
-        if (newTrigger is not TriggerBase { KeepsPauseOnReplace: true })
+        if (newTrigger is not TriggerBase { KeepsPauseOnReplace: true } reapplied)
         {
-            return (false, null);
+            return new ReapplyDecision(ReapplyOutcome.Replace);
+        }
+
+        if (Delegate is StdAdoDelegate std)
+        {
+            // The statement the commit check writes the row with: it changes nothing and takes the row's
+            // lock, which a round without TRIGGER_ACCESS claims through.
+            await std.SettleTriggerRow(conn, triggerKey, cancellationToken).ConfigureAwait(false);
         }
 
         StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-        if (state is not (StoredTriggerState.Paused or StoredTriggerState.PausedBlocked))
+        if (reapplied.ReplacesRunStateAsRead is not null || TriggerBase.KeepsStateWhenReappliedUnchanged(state))
         {
-            return (false, null);
+            IOperableTrigger? stored = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            if (stored is null)
+            {
+                // Its last firing completed without the lock since the job was read (#3863): there is no
+                // trigger to replace.
+                return new ReapplyDecision(ReapplyOutcome.RowMoved);
+            }
+
+            if (reapplied.ReplacesRunStateAsRead is { } asRead && !asRead.StillDescribes(stored))
+            {
+                return new ReapplyDecision(ReapplyOutcome.RowMoved);
+            }
+
+            if (TriggerBase.KeepsStateWhenReappliedUnchanged(state) && stored is TriggerBase storedTrigger && reapplied.DescribesSameTriggerAs(storedTrigger))
+            {
+                return new ReapplyDecision(ReapplyOutcome.KeepRow);
+            }
         }
 
-        return (true, await Delegate.SelectTriggerPause(conn, triggerKey, cancellationToken).ConfigureAwait(false));
+        if (state is not (StoredTriggerState.Paused or StoredTriggerState.PausedBlocked))
+        {
+            return new ReapplyDecision(ReapplyOutcome.Replace);
+        }
+
+        return new ReapplyDecision(ReapplyOutcome.Replace, KeepPause: true, await Delegate.SelectTriggerPause(conn, triggerKey, cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// Deletes the <c>ACQUIRED</c> fired-trigger rows of a trigger whose definition is being replaced: the
+    /// reservations of acquisitions made of the trigger as it was (#4323).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A node acquires a trigger ahead of its fire time and holds a copy of it until then. Replaced in the
+    /// meantime, the trigger is not the one that copy describes, and another node may acquire the
+    /// replacement for its own fire time. A fire of the copy checks its reservation, which is gone, and
+    /// answers that it did not fire; its release finds no row of its own and moves nothing.
+    /// </para>
+    /// <para>
+    /// An <c>ACQUIRED</c> row is a reservation, not an execution. Recovery reads the rows of executions,
+    /// which a replace keeps (#3759); of a reservation it would only have moved the trigger back to
+    /// <c>WAITING</c>, which a replace stores it in anyway. A read and a delete per reservation, on the
+    /// fired-trigger table's trigger index, through members any delegate has.
+    /// </para>
+    /// </remarks>
+    private async ValueTask CancelReservations(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        List<FiredTriggerRecord> rows = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Trigger = triggerKey }, cancellationToken).ConfigureAwait(false);
+        foreach (FiredTriggerRecord row in rows)
+        {
+            if (row.FireInstanceState == StoredTriggerState.Acquired)
+            {
+                await Delegate.DeleteFiredTrigger(conn, row.FireInstanceId, cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />

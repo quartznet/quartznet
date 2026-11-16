@@ -92,6 +92,40 @@ public class FireOnAcquireRoundTripTest
                 new ValueTask<List<StoredTriggerHeader>>(
                     keys.Select(key => new StoredTriggerHeader(key, jobKey, StoredTriggerState.Acquired, FireTime, AdoConstants.TriggerTypeSimple)).ToList()));
 
+        // A reservation the store writes is one it reads back, as from a database: the fire of an acquired
+        // trigger through the single-trigger members asks whether its reservation is still there (#4323).
+        Dictionary<TriggerKey, string> reservations = [];
+        A.CallTo(() => driverDelegate.InsertFiredTriggers(
+                A<ConnectionAndTransactionHolder>._,
+                A<IReadOnlyList<IOperableTrigger>>._,
+                StoredTriggerState.Acquired,
+                A<IJobDetail>._,
+                A<CancellationToken>._))
+            .Invokes((ConnectionAndTransactionHolder _, IReadOnlyList<IOperableTrigger> reserved, StoredTriggerState _, IJobDetail _, CancellationToken _) =>
+            {
+                foreach (IOperableTrigger trigger in reserved)
+                {
+                    reservations[trigger.Key] = trigger.FireInstanceId!;
+                }
+            });
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+                A<ConnectionAndTransactionHolder>._,
+                A<FiredTriggerQuery>.That.Matches(query => query.Trigger != null),
+                A<CancellationToken>._))
+            .ReturnsLazily((ConnectionAndTransactionHolder _, FiredTriggerQuery query, CancellationToken _) =>
+                new ValueTask<List<FiredTriggerRecord>>(reservations.TryGetValue(query.Trigger!, out string fireInstanceId)
+                    ?
+                    [
+                        new FiredTriggerRecord
+                        {
+                            FireInstanceId = fireInstanceId,
+                            FireInstanceState = StoredTriggerState.Acquired,
+                            TriggerKey = query.Trigger!,
+                            SchedulerInstanceId = "node",
+                        },
+                    ]
+                    : []));
+
         GivenTheJob(JobBuilder.Create<NoOpAcquisitionJob>().WithIdentity(jobKey).StoreDurably().Build());
     }
 
