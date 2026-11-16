@@ -283,6 +283,27 @@ public class SharedComponentsTest
             "only the formatting changed: a page told the scheduler changed reads everything again and starts over");
     }
 
+    /// <summary>
+    /// A page's timer asks the browser to report its tab, and stops listening when the page goes.
+    /// </summary>
+    /// <remarks>
+    /// A listener left on the document would call into a page that is gone at every tab switch, and there would
+    /// be one more for every page visited.
+    /// </remarks>
+    [Test]
+    public async Task LeavingAPageRemovesItsTabListener()
+    {
+        context.JSInterop.Setup<int>("quartzDashboardVisibility.observe", _ => true).SetResult(7);
+        context.Render<AutoRefresh>(parameters => parameters
+            .Add(x => x.Every, TimeSpan.FromSeconds(1))
+            .Add(x => x.Refresh, () => Task.CompletedTask));
+
+        await context.DisposeComponentsAsync();
+
+        context.JSInterop.VerifyInvoke("quartzDashboardVisibility.unobserve").Arguments.Should().ContainSingle()
+            .Which.Should().Be(7, "the listener removed is the one the browser registered for this page");
+    }
+
     [Test]
     public void AnUnknownTimeZoneFallsBackToTheMachinesRatherThanThrowing()
     {
