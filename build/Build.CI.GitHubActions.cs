@@ -148,7 +148,8 @@ using Quartz.Build;
 public partial class Build : IConfigureGitHubActions
 {
     /// <summary>
-    /// Every job that runs <see cref="UnitTest"/> keeps what the run left in <c>artifacts/test-results</c>
+    /// Every job installs the .NET 10 runtime beside the SDK <c>global.json</c> names. Every job that runs
+    /// <see cref="UnitTest"/> keeps what the run left in <c>artifacts/test-results</c>
     /// when it fails: a TRX per test project, and from a hung host HangDump's <c>*_hang.log</c> naming
     /// the tests that were in flight beside a mini dump of it (<c>*_crash.dmp</c> and
     /// <c>*_crash.sequence.log</c> from one that crashed). Nothing is uploaded from a green job, and a
@@ -156,6 +157,22 @@ public partial class Build : IConfigureGitHubActions
     /// </summary>
     public void ConfigureSteps(GitHubActionsStepPipeline pipeline)
     {
+        pipeline.Insert(GitHubActionsStepPosition.PreRun, new GitHubActionsCustomStep
+        {
+            Name = "Setup: .NET 10 runtime",
+            // global.json names the .NET 11 SDK, which carries the 11 runtime alone, and every project
+            // targets net10.0: the test hosts, the applications the smoke targets start and the build
+            // project dotnet fallout runs all need 10. A step of its own because the generated 'Setup: .NET
+            // SDK' after it takes global-json-file and nothing else; setup-dotnet installs runtimes only
+            // as part of an SDK, and global.json keeps the 11 SDK the one that builds. Explicit rather than
+            // left to whatever 10.0 the runner image carries. The release pinned as for the steps below.
+            Uses = "actions/setup-dotnet@v6",
+            With =
+            {
+                ["dotnet-version"] = "10.0.x"
+            }
+        });
+
         // The .NET 11 leg runs its unit tests from a step of its own, added below.
         bool runtimeLeg = pipeline.WorkflowName == "pr-tests-unit-net11";
 

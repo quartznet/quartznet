@@ -48,6 +48,10 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
+      - name: 'Setup: .NET 10 runtime'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
       - name: 'Setup: .NET SDK'
         uses: actions/setup-dotnet@v6
         with:
@@ -70,6 +74,10 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
+      - name: 'Setup: .NET 10 runtime'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
       - name: 'Setup: unit test time zone'
         run: echo "UnitTestTimeZone=America/Chicago" >> "$GITHUB_ENV"
       - name: 'Setup: .NET SDK'
@@ -94,6 +102,10 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
+      - name: 'Setup: .NET 10 runtime'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
       - name: 'Setup: .NET SDK'
         uses: actions/setup-dotnet@v6
         with:
