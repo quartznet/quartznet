@@ -17,7 +17,7 @@
  */
 #endregion
 
-using System.Reflection;
+using System.Runtime.InteropServices;
 
 #nullable enable
 
@@ -31,12 +31,16 @@ namespace Quartz.Tests.Unit;
 internal static class PrereleaseRuntimeIssues
 {
     /// <summary>
-    /// Whether this is a .NET 11 prerelease: its CoreLib's informational version carries a prerelease
-    /// label, <c>11.0.0-rc.3.26522.148+…</c>, where a released one is <c>11.0.0+…</c>.
+    /// Whether this is a .NET 11 prerelease: its <see cref="RuntimeInformation.FrameworkDescription" />
+    /// carries the prerelease label, <c>.NET 11.0.0-rc.3.26522.148</c>, where a released runtime's version
+    /// is stabilized and reads <c>.NET 11.0.0</c>.
     /// </summary>
+    /// <remarks>
+    /// CoreLib's informational version cannot tell them apart: the released 11.0.0 carries a label too,
+    /// <c>11.0.0-rtm.26529.118+…</c>.
+    /// </remarks>
     internal static bool IsPrereleaseNet11 { get; } =
-        Environment.Version.Major == 11
-        && typeof(object).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Contains('-') == true;
+        Environment.Version.Major == 11 && RuntimeInformation.FrameworkDescription.Contains('-');
 
     /// <summary>
     /// Ignores the Australia/Lord_Howe case on a .NET 11 prerelease, which disagrees with itself where the
