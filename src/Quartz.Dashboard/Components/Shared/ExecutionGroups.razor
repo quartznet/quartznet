@@ -3,6 +3,7 @@
 @using Quartz.Dashboard.Services
 @using Quartz.Extensibility
 @using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
 @inject IQuartzApiClient Api
 @inject IServiceProvider Services
 
@@ -168,6 +169,11 @@
     private string? _loadedSchedulerName;
 
     /// <summary>
+    /// Cancelled when the panel goes with its page, which stops the read in flight.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>
     /// Which execution groups the node serves, rebuilt from the two lists the scheduler reports, or
     /// null for a node that serves every group — which is also every scheduler older than 4.6.
     /// </summary>
@@ -296,7 +302,8 @@
                 return;
             }
 
-            _limits = await Api.GetExecutionLimits(schedulerName);
+            CancellationToken cancellationToken = _cancellation.Token;
+            _limits = await Api.GetExecutionLimits(schedulerName, cancellationToken);
             if (!_limits.CanReport)
             {
                 return;
@@ -305,7 +312,8 @@
             // Both states, because a reservation holds a slot as surely as a running execution does.
             PagedResult<FireInstanceDto> firings = await Api.QueryFireInstances(
                 schedulerName,
-                new DashboardFireInstanceQuery { State = null });
+                new DashboardFireInstanceQuery { State = null },
+                cancellationToken);
 
             // One more read for a node that routes, and none for one that does not: the schedulable
             // triggers more than five minutes overdue, which under routing are the ones no live node is
@@ -319,7 +327,8 @@
                     {
                         State = TriggerState.Normal,
                         NextFireTimeBefore = Clock.GetUtcNow() - TimeSpan.FromMinutes(OverdueCutoffMinutes),
-                    });
+                    },
+                    cancellationToken);
 
                 overdue = new Dictionary<string, int>(StringComparer.Ordinal);
                 foreach (TriggerHeaderDto header in late.Items)
@@ -332,6 +341,10 @@
             _firingsCounted = firings.Items.Count;
             _countsArePartial = firings.HasMore;
             BuildRows(_limits, firings.Items, overdue);
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The overview was left. A read nobody is waiting for is not a failure.
         }
         catch (Exception ex)
         {
@@ -556,6 +569,12 @@
     private static string OverdueOf(GroupRow row)
     {
         return row.IsRule ? "—" : row.Overdue.ToString(CultureInfo.InvariantCulture);
+    }
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 
     /// <summary>

@@ -235,6 +235,11 @@
     /// </summary>
     private string? _backfillUnavailable;
 
+    /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
     [Parameter]
     public string Group { get; set; } = string.Empty;
 
@@ -311,13 +316,14 @@
                 return;
             }
 
-            await Authorization.LoadOperations(schedulerName);
+            CancellationToken cancellationToken = _cancellation.Token;
+            await Authorization.LoadOperations(schedulerName, cancellationToken);
 
-            _trigger = await Api.GetTrigger(schedulerName, TriggerKey);
-            _triggerState = await Api.GetTriggerState(schedulerName, TriggerKey);
+            _trigger = await Api.GetTrigger(schedulerName, TriggerKey, cancellationToken);
+            _triggerState = await Api.GetTriggerState(schedulerName, TriggerKey, cancellationToken);
 
             // Only a paused trigger has a pause to explain, so nothing else asks.
-            _pause = _triggerState == TriggerState.Paused ? await Api.GetTriggerPause(schedulerName, TriggerKey) : null;
+            _pause = _triggerState == TriggerState.Paused ? await Api.GetTriggerPause(schedulerName, TriggerKey, cancellationToken) : null;
             _cronExpression = (_trigger as ICronTrigger)?.CronExpressionString;
             _editedCronExpression = _cronExpression ?? string.Empty;
             _misfireName = TriggerDetailsForm.MisfireNameOf(_trigger);
@@ -326,7 +332,11 @@
             // the trigger in Error rather than erasing what it waited for - so the row links to a page
             // only when there is one. TriggerState.None is what a key that resolves to nothing answers.
             _continuationParentExists = _trigger.Continuation.Parent is { } continuationParent
-                && await Api.GetTriggerState(schedulerName, new TriggerKeyDto(continuationParent.Group, continuationParent.Name)) != TriggerState.None;
+                && await Api.GetTriggerState(schedulerName, new TriggerKeyDto(continuationParent.Group, continuationParent.Name), cancellationToken) != TriggerState.None;
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure.
         }
         catch (Exception ex)
         {
@@ -640,5 +650,7 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 }

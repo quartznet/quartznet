@@ -346,6 +346,11 @@
     /// </summary>
     private string? _staleReason;
 
+    /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
     private TriggerFilters _applied = TriggerFilters.None;
     private string _groupInput = string.Empty;
     private string _nameInput = string.Empty;
@@ -536,13 +541,14 @@
                 return;
             }
 
-            await Authorization.LoadOperations(schedulerName);
-            await LoadCalendarNamesAsync(schedulerName);
+            CancellationToken cancellationToken = _cancellation.Token;
+            await Authorization.LoadOperations(schedulerName, cancellationToken);
+            await LoadCalendarNamesAsync(schedulerName, cancellationToken);
 
             PagedResult<TriggerHeaderDto> page;
             try
             {
-                page = await Api.QueryTriggers(schedulerName, PageQuery(_currentPage));
+                page = await Api.QueryTriggers(schedulerName, PageQuery(_currentPage), cancellationToken);
             }
             catch (NotSupportedException ex) when (_applied.NextFireBefore is not null)
             {
@@ -553,7 +559,7 @@
                 _applied = _applied with { NextFireBefore = null };
                 _beforeInput = string.Empty;
                 WriteAddress(_applied);
-                page = await Api.QueryTriggers(schedulerName, PageQuery(_currentPage));
+                page = await Api.QueryTriggers(schedulerName, PageQuery(_currentPage), cancellationToken);
             }
 
             int totalCount = page.TotalCount ?? page.Items.Count;
@@ -561,7 +567,7 @@
             if (_currentPage > totalPages)
             {
                 _currentPage = totalPages;
-                page = await Api.QueryTriggers(schedulerName, PageQuery(_currentPage));
+                page = await Api.QueryTriggers(schedulerName, PageQuery(_currentPage), cancellationToken);
                 totalCount = page.TotalCount ?? page.Items.Count;
             }
 
@@ -572,6 +578,10 @@
             _totalTriggers = totalCount;
             _lastUpdatedAt = Clock.GetUtcNow();
             _staleReason = null;
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure: no stale mark, no error.
         }
         catch (Exception ex) when (_lastUpdatedAt is not null)
         {
@@ -603,7 +613,7 @@
     /// Reads the calendar names the filter suggests, once per scheduler. A source that cannot answer
     /// leaves a filter that suggests nothing, which is a narrower control rather than an error.
     /// </summary>
-    private async Task LoadCalendarNamesAsync(string schedulerName)
+    private async Task LoadCalendarNamesAsync(string schedulerName, CancellationToken cancellationToken)
     {
         if (string.Equals(_calendarNamesLoadedFor, schedulerName, StringComparison.Ordinal))
         {
@@ -613,9 +623,9 @@
         _calendarNamesLoadedFor = schedulerName;
         try
         {
-            _calendarNames = await Api.GetCalendarNames(schedulerName);
+            _calendarNames = await Api.GetCalendarNames(schedulerName, cancellationToken);
         }
-        catch (Exception)
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
             _calendarNames = [];
         }
@@ -1221,6 +1231,8 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 
     /// <summary>

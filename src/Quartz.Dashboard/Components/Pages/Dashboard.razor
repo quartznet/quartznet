@@ -285,6 +285,12 @@
     private readonly List<DashboardActionLogEntry> _recentActions = [];
     private bool _showShutdownConfirm;
     private bool _showPauseAllPrompt;
+
+    /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
     private bool IsReadOnly => Options.Value.ReadOnly;
 
     /// <summary>
@@ -376,7 +382,8 @@
 
             // What the visitor's role allows here, asked once per scheduler, so the controls render from
             // an answer rather than offering what would be refused.
-            await Authorization.LoadOperations(schedulerName);
+            CancellationToken cancellationToken = _cancellation.Token;
+            await Authorization.LoadOperations(schedulerName, cancellationToken);
 
             SchedulerHeaderDto? header = Scheduler.Find(schedulerName);
             _isWindow = header?.IsWindow == true;
@@ -406,7 +413,7 @@
                 return;
             }
 
-            SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName);
+            SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName, cancellationToken);
             _schedulerStatus = scheduler.Status;
             _storeIsPersistent = scheduler.Persistent;
             _storeIsClustered = scheduler.Clustered;
@@ -414,16 +421,17 @@
             _refusedExecutionGroups = scheduler.RefusedExecutionGroups;
 
             // Counting queries: Take = 0 fetches no items, only the exact totals the tiles show.
-            PagedResult<JobKeyDto> jobs = await Api.QueryJobs(schedulerName, new DashboardJobQuery { Take = 0 });
-            PagedResult<TriggerHeaderDto> triggers = await Api.QueryTriggers(schedulerName, new DashboardTriggerQuery { Take = 0 });
-            PagedResult<FireInstanceDto> executing = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 });
+            PagedResult<JobKeyDto> jobs = await Api.QueryJobs(schedulerName, new DashboardJobQuery { Take = 0 }, cancellationToken);
+            PagedResult<TriggerHeaderDto> triggers = await Api.QueryTriggers(schedulerName, new DashboardTriggerQuery { Take = 0 }, cancellationToken);
+            PagedResult<FireInstanceDto> executing = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 }, cancellationToken);
 
             _triggersByState.Clear();
             foreach (TriggerState state in HistogramStates)
             {
                 PagedResult<TriggerHeaderDto> inState = await Api.QueryTriggers(
                     schedulerName,
-                    new DashboardTriggerQuery { Take = 0, State = state });
+                    new DashboardTriggerQuery { Take = 0, State = state },
+                    cancellationToken);
                 _triggersByState[state] = inState.TotalCount ?? 0;
             }
 
@@ -432,10 +440,12 @@
             // enumerates the groups that hold something.
             PagedResult<TriggerGroupDto> pausedTriggerGroups = await Api.QueryTriggerGroups(
                 schedulerName,
-                new DashboardGroupQuery { Take = 0, Paused = true });
+                new DashboardGroupQuery { Take = 0, Paused = true },
+                cancellationToken);
             PagedResult<JobGroupDto> pausedJobGroups = await Api.QueryJobGroups(
                 schedulerName,
-                new DashboardGroupQuery { Take = 0, Paused = true });
+                new DashboardGroupQuery { Take = 0, Paused = true },
+                cancellationToken);
 
             // The store's own retention window, so the tile counts over exactly what the store still
             // remembers rather than over a day it may already have forgotten.
@@ -443,7 +453,8 @@
             {
                 _misfires = await Api.CountMisfires(
                     schedulerName,
-                    DateTimeOffset.UtcNow - Options.Value.HistoryRetention);
+                    DateTimeOffset.UtcNow - Options.Value.HistoryRetention,
+                    cancellationToken);
             }
             catch (NotSupportedException)
             {
@@ -453,7 +464,7 @@
                 _misfires = null;
             }
 
-            List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(schedulerName);
+            List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(schedulerName, cancellationToken);
 
             _totalJobs = jobs.TotalCount ?? 0;
             _totalTriggers = triggers.TotalCount ?? 0;
@@ -466,6 +477,10 @@
 
             RefreshRecentActions(schedulerName);
             MarkRead();
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure.
         }
         catch (Exception ex)
         {
@@ -513,9 +528,13 @@
                 return;
             }
 
-            PagedResult<FireInstanceDto> executing = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 });
+            PagedResult<FireInstanceDto> executing = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 }, _cancellation.Token);
             _currentlyExecuting = executing.TotalCount ?? 0;
             _staleReason = null;
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left: no stale mark.
         }
         catch (Exception ex)
         {
@@ -671,5 +690,7 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 }

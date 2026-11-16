@@ -48,6 +48,7 @@ internal sealed class TimelineState
     private readonly HashSet<TimelineEntityKey> _nameMatchedTriggerKeys = new();
     private readonly TimelineService _service;
     private readonly TimeProvider _timeProvider;
+    private readonly CancellationToken _cancellationToken;
 
     private TimelineWindow _window = TimelineWindow.Last15Minutes;
     private bool _windowFromQuery;
@@ -71,10 +72,17 @@ internal sealed class TimelineState
     private readonly Dictionary<TimelineEntityKey, DateTimeOffset> _lastDueHeaderRefreshNextFireTimes = new();
     private string? _error;
 
-    public TimelineState(TimelineService service, TimeProvider timeProvider)
+    /// <param name="service">What reads the rows.</param>
+    /// <param name="timeProvider">The clock the window ends at.</param>
+    /// <param name="cancellationToken">
+    /// The page's, which every read passes on and which is cancelled when the reader leaves the page. A read it
+    /// cancels sets no error.
+    /// </param>
+    public TimelineState(TimelineService service, TimeProvider timeProvider, CancellationToken cancellationToken = default)
     {
         _service = service;
         _timeProvider = timeProvider;
+        _cancellationToken = cancellationToken;
     }
 
     public bool CanPanNewer => _panOffset > TimeSpan.Zero;
@@ -550,7 +558,7 @@ internal sealed class TimelineState
 
             if (!_windowFromQuery)
             {
-                TimelineWindowProbe probe = await _service.ProbeInitialWindowAsync(schedulerName, now).ConfigureAwait(true);
+                TimelineWindowProbe probe = await _service.ProbeInitialWindowAsync(schedulerName, now, cancellationToken: _cancellationToken).ConfigureAwait(true);
                 if (IsStaleSchedulerLoad(schedulerName))
                 {
                     // A finished after a switch to B: do not put A's window / rows back on screen.
@@ -582,7 +590,8 @@ internal sealed class TimelineState
                     schedulerName,
                     _bounds,
                     now,
-                    formatInstant).ConfigureAwait(true);
+                    formatInstant,
+                    cancellationToken: _cancellationToken).ConfigureAwait(true);
                 if (IsStaleSchedulerLoad(schedulerName))
                 {
                     return;
@@ -612,6 +621,10 @@ internal sealed class TimelineState
 
             _lastExecutingTriggerKeys = snapshot.ExecutingTriggerKeys;
             _chromeReady = true;
+        }
+        catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+        {
+            // The reader left the page. A read nobody is waiting for is not a failure.
         }
         catch (Exception ex)
         {
@@ -650,7 +663,8 @@ internal sealed class TimelineState
                 schedulerName,
                 _bounds,
                 now,
-                formatInstant).ConfigureAwait(true);
+                formatInstant,
+                cancellationToken: _cancellationToken).ConfigureAwait(true);
             if (IsStaleSchedulerLoad(schedulerName))
             {
                 return;
@@ -713,7 +727,8 @@ internal sealed class TimelineState
                     schedulerName,
                     headerRefreshRows,
                     snapshot.ExecutingTriggerKeys,
-                    now).ConfigureAwait(true);
+                    now,
+                    _cancellationToken).ConfigureAwait(true);
                 if (IsStaleSchedulerLoad(schedulerName))
                 {
                     // Switch during header refresh: do not remember A's due nexts after ClearRows.
@@ -726,6 +741,10 @@ internal sealed class TimelineState
             _lastExecutingTriggerKeys = snapshot.ExecutingTriggerKeys;
             FinalizeSections();
             RebuildAxisTicks(formatTick);
+        }
+        catch (OperationCanceledException) when (_cancellationToken.IsCancellationRequested)
+        {
+            // The reader left the page. A read nobody is waiting for is not a failure.
         }
         catch (Exception ex)
         {
@@ -857,7 +876,8 @@ internal sealed class TimelineState
                 _bounds,
                 pending,
                 CollectExecutingTriggerKeys(_pageRows),
-                formatInstant).ConfigureAwait(true);
+                formatInstant,
+                cancellationToken: _cancellationToken).ConfigureAwait(true);
             FinalizeSections();
             RebuildAxisTicks(formatTick);
         }
@@ -890,7 +910,8 @@ internal sealed class TimelineState
                 _bounds,
                 rowsToHydrate,
                 executingTriggerKeys,
-                formatInstant).ConfigureAwait(true);
+                formatInstant,
+                cancellationToken: _cancellationToken).ConfigureAwait(true);
         }
 
         FinalizeSections();
@@ -911,7 +932,7 @@ internal sealed class TimelineState
         string query = _nameFilter.Trim();
         if (!string.IsNullOrWhiteSpace(schedulerName))
         {
-            foreach (TimelineEntityKey key in await _service.FindTriggerLookupKeysByNameAsync(schedulerName, query).ConfigureAwait(true))
+            foreach (TimelineEntityKey key in await _service.FindTriggerLookupKeysByNameAsync(schedulerName, query, _cancellationToken).ConfigureAwait(true))
             {
                 _nameMatchedTriggerKeys.Add(key);
             }

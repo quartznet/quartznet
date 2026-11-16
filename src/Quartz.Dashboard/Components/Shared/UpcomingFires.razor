@@ -1,6 +1,7 @@
 @using Microsoft.Extensions.DependencyInjection
 @using Quartz
 @using Quartz.Dashboard.Services
+@implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
 @inject IServiceProvider Services
@@ -43,6 +44,9 @@
     private List<DateTimeOffset>? _fireTimes;
     private string? _unreadable;
     private DateTimeOffset _now;
+
+    /// <summary>Cancelled when the panel goes with its page, which stops the read in flight.</summary>
+    private readonly CancellationTokenSource _cancellation = new();
 
     /// <summary>
     /// The trigger the page shows, under the key the page reads it by.
@@ -93,7 +97,12 @@
         string? unreadable = null;
         try
         {
-            fireTimes = await Api.GetUpcomingFireTimes(schedulerName, TriggerKey, Count);
+            fireTimes = await Api.GetUpcomingFireTimes(schedulerName, TriggerKey, Count, _cancellation.Token);
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The page was left: nobody is waiting for these.
+            return;
         }
         catch (Exception ex)
         {
@@ -107,5 +116,11 @@
             _fireTimes = fireTimes;
             _unreadable = unreadable;
         }
+    }
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 }

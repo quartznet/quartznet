@@ -415,6 +415,35 @@ public class HistoryPageTest
         page.WaitForAssertion(() => HistoryReads().Should().Be(3, "and the timer runs again"));
     }
 
+    /// <summary>
+    /// Leaving the page cancels the read it has in flight.
+    /// </summary>
+    /// <remarks>
+    /// Leaving stopped the timer but not the read: a slow query on a persistent store, or a round trip to a
+    /// remote target, ran to its end and its answer was thrown away.
+    /// </remarks>
+    [Test]
+    public async Task LeavingThePageCancelsTheReadInFlight()
+    {
+        TaskCompletionSource<PagedResult<DashboardHistoryEntry>> answer = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken read = default;
+        A.CallTo(() => context.Api.QueryExecutions(A<DashboardHistoryQuery>._, A<CancellationToken>._))
+            .ReturnsLazily((DashboardHistoryQuery _, CancellationToken cancellationToken) =>
+            {
+                read = cancellationToken;
+                return new ValueTask<PagedResult<DashboardHistoryEntry>>(answer.Task);
+            });
+
+        context.Render<History>();
+        read.CanBeCanceled.Should().BeTrue("the page hands every read a token it can cancel");
+        read.IsCancellationRequested.Should().BeFalse("the reader is still on the page");
+
+        await context.DisposeComponentsAsync();
+
+        read.IsCancellationRequested.Should().BeTrue("a read whose answer nobody will see is stopped");
+        answer.SetCanceled(read);
+    }
+
     [Test]
     public void AFailureThatIsGoingToBeRetriedIsNotTheSameRowAsOneThatGaveUp()
     {

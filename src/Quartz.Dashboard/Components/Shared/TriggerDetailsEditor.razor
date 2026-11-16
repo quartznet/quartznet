@@ -1,6 +1,7 @@
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Services
+@implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
 @inject IOptions<QuartzDashboardOptions> Options
@@ -160,6 +161,12 @@
     private bool _saving;
 
     /// <summary>
+    /// Cancelled when the editor goes with its page, which stops the calendar listing in flight. A save
+    /// already sent is not withdrawn.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>
     /// The trigger as the page last read it. A different instance starts the form again from what it
     /// holds.
     /// </summary>
@@ -197,12 +204,18 @@
         {
             // Suggestions only: the field takes any name, so a listing that cannot be read leaves an
             // editor with nothing to suggest rather than no editor.
-            _calendarNames = await Api.GetCalendarNames(schedulerName);
+            _calendarNames = await Api.GetCalendarNames(schedulerName, _cancellation.Token);
         }
-        catch (Exception)
+        catch (Exception) when (!_cancellation.IsCancellationRequested)
         {
             _calendarNames = [];
         }
+    }
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 
     protected override void OnParametersSet()

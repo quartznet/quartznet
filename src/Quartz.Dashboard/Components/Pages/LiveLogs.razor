@@ -118,6 +118,12 @@
     private CancellationTokenSource? _subscription;
     private Task? _reading;
 
+    /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight and keeps a watch that was
+    /// starting from subscribing.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -182,6 +188,12 @@
 
         _watchedScheduler = schedulerName;
         _thisNode = await ReadThisNodeAsync(schedulerName);
+        if (_cancellation.IsCancellationRequested)
+        {
+            // The reader left while the node was being read: there is nobody to stream to.
+            return;
+        }
+
         _streaming = true;
 
         _subscription = new CancellationTokenSource();
@@ -264,11 +276,12 @@
     {
         try
         {
-            SchedulerDetailDto detail = await Api.GetScheduler(schedulerName);
+            SchedulerDetailDto detail = await Api.GetScheduler(schedulerName, _cancellation.Token);
             return detail.SchedulerInstanceId;
         }
         catch (Exception)
         {
+            // Cancelled too, when the reader left: WatchAsync then streams nothing.
             return null;
         }
     }
@@ -461,7 +474,9 @@
     public async ValueTask DisposeAsync()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        await _cancellation.CancelAsync();
         await StopAsync();
+        _cancellation.Dispose();
     }
 
     private sealed record LiveEventItem(

@@ -2,6 +2,7 @@
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Services
+@implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
 @inject IOptions<QuartzDashboardOptions> Options
@@ -81,6 +82,12 @@
     private bool _submitting;
 
     /// <summary>
+    /// Cancelled when the dialog goes with its page, which stops the calendar read in flight. A backfill
+    /// already sent is not withdrawn.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>
     /// The trigger as the page last read it: its schedule and calendar are what the preview counts.
     /// </summary>
     [Parameter]
@@ -146,12 +153,22 @@
 
         try
         {
-            _calendar = await Api.GetCalendar(schedulerName, calendarName);
+            _calendar = await Api.GetCalendar(schedulerName, calendarName, _cancellation.Token);
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The page was left: nobody is waiting for the preview.
         }
         catch (Exception ex)
         {
             _calendarUnreadable = ex.Message;
         }
+    }
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 
     private void OnFromChanged(ChangeEventArgs args)

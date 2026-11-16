@@ -128,6 +128,11 @@
     private bool _running;
     private bool _jobGone;
 
+    /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
     [Parameter]
     public string EntryId { get; set; } = string.Empty;
 
@@ -164,17 +169,22 @@
                 return;
             }
 
-            await Authorization.LoadOperations(schedulerName);
+            CancellationToken cancellationToken = _cancellation.Token;
+            await Authorization.LoadOperations(schedulerName, cancellationToken);
 
-            _entry = await Api.GetExecution(schedulerName, EntryId);
+            _entry = await Api.GetExecution(schedulerName, EntryId, cancellationToken);
             _metrics = RunResultDisplay.Metrics(_entry?.MetricsJson);
 
             // One question, and only when the button is offered: a page shows one run, so asking whether
             // its job is still stored costs a single read.
             if (OffersRunAgain(_entry))
             {
-                _jobGone = await RunAgainInput.IsJobGone(Api, schedulerName, new JobKeyDto(_entry.JobGroup, _entry.JobName));
+                _jobGone = await RunAgainInput.IsJobGone(Api, schedulerName, new JobKeyDto(_entry.JobGroup, _entry.JobName), cancellationToken);
             }
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure.
         }
         catch (NotSupportedException)
         {
@@ -296,5 +306,7 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 }

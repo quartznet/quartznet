@@ -65,6 +65,11 @@
     private readonly List<CalendarProperty> _properties = [];
     private bool _showDeleteConfirm;
 
+    /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
     [Parameter]
     public string CalendarName { get; set; } = string.Empty;
 
@@ -107,9 +112,14 @@
                 return;
             }
 
-            await Authorization.LoadOperations(schedulerName);
-            _calendar = await Api.GetCalendar(schedulerName, CalendarName);
+            CancellationToken cancellationToken = _cancellation.Token;
+            await Authorization.LoadOperations(schedulerName, cancellationToken);
+            _calendar = await Api.GetCalendar(schedulerName, CalendarName, cancellationToken);
             BuildPropertyRows(_calendar);
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure.
         }
         catch (Exception ex)
         {
@@ -184,6 +194,8 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 
     private sealed record CalendarProperty(string Name, string Value);
