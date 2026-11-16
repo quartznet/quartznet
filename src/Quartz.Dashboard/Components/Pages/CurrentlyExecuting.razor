@@ -284,7 +284,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Failed(
                 Scheduler.ActiveSchedulerName,
                 "InterruptFireInstance",
@@ -292,12 +291,10 @@
                 ex,
                 nodeLocal: true);
 
-            // A refusal for the visitor's role is said where every other page says it, as a toast: the
-            // button was offered when the page last asked, and the answer has changed since.
-            if (ex is OperationRefusedException)
-            {
-                Toasts.Error(ex.Message);
-            }
+            // Said where every other page says a failed action, as a toast. An error on the page would be
+            // cleared by the refresh a second later, before anyone had read it; a refusal for the visitor's
+            // role is one of these too, because the button was offered when the page last asked.
+            Toasts.Error(ex.Message);
         }
     }
 
