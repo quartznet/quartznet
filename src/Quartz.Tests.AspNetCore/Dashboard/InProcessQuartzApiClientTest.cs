@@ -230,6 +230,175 @@ public class InProcessQuartzApiClientTest
         A.CallTo(() => client.PauseJob("acme", new JobKeyDto("g", "j"), A<CancellationToken>._)).MustHaveHappenedOnceExactly();
     }
 
+    /// <summary>
+    /// <em>Pause group</em> pauses the group, so a job added to it afterwards is held; <em>Resume group</em>
+    /// lifts a group pause however it was made (#4319).
+    /// </summary>
+    [Test]
+    public async Task AJobGroupPausedThroughTheClientHoldsAJobAddedLaterAndResumingItLiftsAnyGroupPause()
+    {
+        IScheduler scheduler = await CreateScheduler("JobGroupPauseTest");
+        try
+        {
+            await ScheduleNightly(scheduler, "before");
+            IQuartzApiClient client = CreateClient(scheduler);
+            string name = scheduler.SchedulerName;
+
+            await client.PauseJobGroupWith(name, "reports", new PauseDetails { Reason = "quarter close", RequestedBy = "alice" });
+
+            await ScheduleNightly(scheduler, "after");
+            (await scheduler.GetTriggerState(new TriggerKey("after", "nightly"))).Should().Be(TriggerState.Paused,
+                "the pause is the group's, and a job added to a paused group comes in paused");
+            (await client.QueryJobGroups(name, new DashboardGroupQuery { Paused = true })).Items.Should().Equal(
+                [new JobGroupDto("reports", Paused: true)], "the group header reads the group's own pause");
+            (await client.GetJobGroupPause(name, "reports"))!.Reason.Should().Be("quarter close");
+
+            await client.ResumeJobGroup(name, "reports");
+            (await scheduler.GetTriggerState(new TriggerKey("after", "nightly"))).Should().Be(TriggerState.Normal);
+            (await client.QueryJobGroups(name, new DashboardGroupQuery { Paused = true })).Items.Should().BeEmpty();
+
+            // A pause made through the scheduler's own API, which the page's per-job resume used to leave in place.
+            await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("reports"));
+            await client.ResumeJobGroup(name, "reports");
+
+            (await client.QueryJobGroups(name, new DashboardGroupQuery { Paused = true })).Items.Should().BeEmpty(
+                "Resume group resumes the group, not only the jobs in it");
+            await ScheduleNightly(scheduler, "later");
+            (await scheduler.GetTriggerState(new TriggerKey("later", "nightly"))).Should().Be(TriggerState.Normal,
+                "a job added after the resume is not held by a pause nobody can see");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+
+        static async Task ScheduleNightly(IScheduler scheduler, string name)
+        {
+            JobKey jobKey = new(name, "reports");
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).Build(),
+                TriggerBuilder.Create().WithIdentity(name, "nightly").ForJob(jobKey).WithCronSchedule("0 0 1 * * ?").Build());
+        }
+    }
+
+    /// <summary>
+    /// The trigger group's pair, which the Triggers page's group buttons call: a trigger stored into the group
+    /// after the pause is held, and resuming lifts a pause made with the scheduler's own API.
+    /// </summary>
+    [Test]
+    public async Task ATriggerGroupPausedThroughTheClientHoldsATriggerAddedLaterAndResumingItLiftsAnyGroupPause()
+    {
+        IScheduler scheduler = await CreateScheduler("TriggerGroupPauseTest");
+        try
+        {
+            JobKey jobKey = new("job1", "reports");
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build());
+            IQuartzApiClient client = CreateClient(scheduler);
+            string name = scheduler.SchedulerName;
+
+            await client.PauseTriggerGroupWith(name, "nightly", new PauseDetails { Reason = "vendor outage" });
+
+            await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("after", "nightly").ForJob(jobKey).WithCronSchedule("0 0 1 * * ?").Build());
+            (await scheduler.GetTriggerState(new TriggerKey("after", "nightly"))).Should().Be(TriggerState.Paused,
+                "the pause is the group's, and a trigger stored into a paused group comes in paused");
+            (await client.QueryTriggerGroups(name, new DashboardGroupQuery { Paused = true })).Items.Should().Equal(
+                [new TriggerGroupDto("nightly", Paused: true)]);
+
+            await client.ResumeTriggerGroup(name, "nightly");
+            (await scheduler.GetTriggerState(new TriggerKey("after", "nightly"))).Should().Be(TriggerState.Normal);
+
+            await scheduler.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("nightly"));
+            await client.ResumeTriggerGroup(name, "nightly");
+
+            (await client.QueryTriggerGroups(name, new DashboardGroupQuery { Paused = true })).Items.Should().BeEmpty(
+                "Resume group resumes the group, not only the triggers in it");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// A group pause that says nothing is the scheduler's reasonless group pause, as every other pause the
+    /// client makes is, and every group member names the group exactly rather than every group containing it.
+    /// </summary>
+    [Test]
+    public async Task AGroupPauseThatSaysNothingIsTheSchedulersReasonlessGroupPause()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("acme");
+        IQuartzApiClient client = CreateClient(scheduler);
+        PauseDetails details = new() { Reason = "vendor outage" };
+
+        await client.PauseJobGroupWith("acme", "reports", new PauseDetails());
+        await client.PauseJobGroupWith("acme", "reports", details);
+        await client.ResumeJobGroup("acme", "reports");
+        await client.PauseTriggerGroupWith("acme", "nightly", null);
+        await client.PauseTriggerGroupWith("acme", "nightly", details);
+        await client.ResumeTriggerGroup("acme", "nightly");
+
+        GroupMatcher<JobKey> reports = GroupMatcher<JobKey>.GroupEquals("reports");
+        GroupMatcher<TriggerKey> nightly = GroupMatcher<TriggerKey>.GroupEquals("nightly");
+        A.CallTo(() => scheduler.PauseJobGroups(reports, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.PauseJobGroupsWith(reports, details, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.ResumeJobGroups(reports, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.PauseTriggerGroups(nightly, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.PauseTriggerGroupsWith(nightly, details, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.ResumeTriggerGroups(nightly, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => scheduler.PauseJobWith(A<JobKey>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => scheduler.PauseTriggerWith(A<TriggerKey>._, A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
+
+        Func<Task> nullGroup = async () => await client.PauseJobGroupWith("acme", null!, details);
+        await nullGroup.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    /// <summary>
+    /// A data source written before 4.8 has no group members of its own. The defaults do what the pages did:
+    /// read the group a page at a time and act on each member, through the members such a source has.
+    /// </summary>
+    [Test]
+    public async Task ADataSourceOfAnEarlier4xActsOnAGroupAMemberAtATime()
+    {
+        IQuartzApiClient client = A.Fake<IQuartzApiClient>();
+        A.CallTo(client).Where(call => GroupMembers.Contains(call.Method.Name)).CallsBaseMethod();
+        List<JobKeyDto> jobs = [.. TestData.Dashboard.JobKeys("reports", PagedQuery.DefaultTake + 1), .. TestData.Dashboard.JobKeys("reports-archive", 2)];
+        A.CallTo(() => client.QueryJobs("acme", A<DashboardJobQuery>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, DashboardJobQuery query, CancellationToken _) =>
+            {
+                List<JobKeyDto> matched = jobs.Where(job => job.Group.Contains(query.GroupContains!, StringComparison.Ordinal)).ToList();
+                return TestData.Dashboard.Page<JobKeyDto>(matched.Skip(query.Skip).Take(query.Take).ToList(), matched.Count);
+            });
+        List<TriggerHeaderDto> triggers = [.. TestData.Dashboard.TriggerHeaders("nightly", 2), .. TestData.Dashboard.TriggerHeaders("nightly-archive", 1)];
+        A.CallTo(() => client.QueryTriggers("acme", A<DashboardTriggerQuery>._, A<CancellationToken>._))
+            .Returns(TestData.Dashboard.Page<TriggerHeaderDto>(triggers, triggers.Count));
+        PauseDetails details = new() { Reason = "kept" };
+
+        await client.PauseJobGroupWith("acme", "reports", details);
+        await client.ResumeJobGroup("acme", "reports");
+        await client.PauseTriggerGroupWith("acme", "nightly", details);
+        await client.ResumeTriggerGroup("acme", "nightly");
+
+        // Every job of a group larger than one page, with the reason, and none of the group that merely contains its name.
+        A.CallTo(() => client.PauseJobWith("acme", A<JobKeyDto>.That.Matches(key => key.Group == "reports"), details, A<CancellationToken>._))
+            .MustHaveHappened(PagedQuery.DefaultTake + 1, Times.Exactly);
+        A.CallTo(() => client.ResumeJob("acme", A<JobKeyDto>.That.Matches(key => key.Group == "reports"), A<CancellationToken>._))
+            .MustHaveHappened(PagedQuery.DefaultTake + 1, Times.Exactly);
+        A.CallTo(() => client.PauseTriggerWith("acme", A<TriggerKeyDto>.That.Matches(key => key.Group == "nightly"), details, A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly();
+        A.CallTo(() => client.ResumeTrigger("acme", A<TriggerKeyDto>.That.Matches(key => key.Group == "nightly"), A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly();
+        A.CallTo(() => client.PauseJobWith("acme", A<JobKeyDto>.That.Matches(key => key.Group != "reports"), A<PauseDetails>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        A.CallTo(() => client.PauseTriggerWith("acme", A<TriggerKeyDto>.That.Matches(key => key.Group != "nightly"), A<PauseDetails>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// The members 4.8 added for the pages' group buttons, by name.
+    /// </summary>
+    private static readonly HashSet<string> GroupMembers = ["PauseJobGroupWith", "ResumeJobGroup", "PauseTriggerGroupWith", "ResumeTriggerGroup"];
+
     [Test]
     public async Task RescheduleFromTriggerDetailPayloadChangesNothingButTheSchedule()
     {

@@ -715,6 +715,70 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     }
 
     /// <remarks>
+    /// The scheduler's own group member with an equality matcher, so the group is paused as one: one store
+    /// transaction in process, one <c>…/jobs/pause</c> request over HTTP. <see cref="IScheduler.PauseJobGroups" />
+    /// when the details say nothing, as <see cref="PauseJobsWith" /> does, <see cref="IScheduler.PauseJobGroupsWith" />
+    /// otherwise.
+    /// </remarks>
+    public async ValueTask PauseJobGroupWith(string schedulerName, string groupName, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+        GroupMatcher<JobKey> group = GroupMatcher<JobKey>.GroupEquals(groupName);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseJobs, cancellationToken).ConfigureAwait(false);
+        if (PauseDetails.SaysNothing(details))
+        {
+            await scheduler.PauseJobGroups(group, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await scheduler.PauseJobGroupsWith(group, details, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <remarks>
+    /// <see cref="IScheduler.ResumeJobGroups" /> with an equality matcher: the group's pause is forgotten
+    /// whatever made it, and every job in it resumed.
+    /// </remarks>
+    public async ValueTask ResumeJobGroup(string schedulerName, string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+        GroupMatcher<JobKey> group = GroupMatcher<JobKey>.GroupEquals(groupName);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.ResumeJobs, cancellationToken).ConfigureAwait(false);
+        await scheduler.ResumeJobGroups(group, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <remarks>
+    /// The trigger group's <see cref="PauseJobGroupWith" />: <see cref="IScheduler.PauseTriggerGroups" /> or
+    /// <see cref="IScheduler.PauseTriggerGroupsWith" /> with an equality matcher, one <c>…/triggers/pause</c>
+    /// request over HTTP.
+    /// </remarks>
+    public async ValueTask PauseTriggerGroupWith(string schedulerName, string groupName, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+        GroupMatcher<TriggerKey> group = GroupMatcher<TriggerKey>.GroupEquals(groupName);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseTriggers, cancellationToken).ConfigureAwait(false);
+        if (PauseDetails.SaysNothing(details))
+        {
+            await scheduler.PauseTriggerGroups(group, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await scheduler.PauseTriggerGroupsWith(group, details, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <remarks>
+    /// <see cref="IScheduler.ResumeTriggerGroups" /> with an equality matcher, as <see cref="ResumeJobGroup" /> is.
+    /// </remarks>
+    public async ValueTask ResumeTriggerGroup(string schedulerName, string groupName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+        GroupMatcher<TriggerKey> group = GroupMatcher<TriggerKey>.GroupEquals(groupName);
+        IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.ResumeTriggers, cancellationToken).ConfigureAwait(false);
+        await scheduler.ResumeTriggerGroups(group, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <remarks>
     /// The extension over whichever scheduler the name resolves to, so a scheduler in another process is
     /// backfilled by one request to its host, which <c>HttpScheduler</c> sends. A write to the store, like
     /// pausing, so a window may make it: the nodes sharing the store fire the slots.

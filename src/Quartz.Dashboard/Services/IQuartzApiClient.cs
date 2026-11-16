@@ -766,6 +766,174 @@ public interface IQuartzApiClient
 
         return UpcomingFireTimes.Compute(trigger, calendar, count);
     }
+
+    /// <summary>
+    /// Pauses the job group itself, recording why and who asked, as <see cref="IScheduler.PauseJobGroupsWith" />
+    /// does with <see cref="GroupMatcher{TKey}.GroupEquals" />. The pause is the group's: a job added to the
+    /// group afterwards is paused too, and <see cref="GetJobGroupPause" /> answers the record.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Jobs page's <em>Pause group</em> makes: one call for the group. It is named for one group, as
+    /// <see cref="GetJobGroupPause" /> is, where the scheduler's member takes a matcher and is named for the
+    /// groups it matches. A group pause always applies, to a group holding no job too, so it answers nothing.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.8. The default reads the group a page at a time through
+    /// <see cref="QueryJobs" /> and calls <see cref="PauseJobWith" /> for each job in it, which is what the page
+    /// did before 4.8: an implementation of an application's own still pauses every job in the group, but not
+    /// the group, so a job added later is not held.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler holding the group.</param>
+    /// <param name="groupName">The group, matched exactly.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask PauseJobGroupWith(string schedulerName, string groupName, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        foreach (JobKeyDto jobKey in await JobsInGroup(schedulerName, groupName, cancellationToken).ConfigureAwait(false))
+        {
+            await PauseJobWith(schedulerName, jobKey, details, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Resumes the job group itself and every job in it, as <see cref="IScheduler.ResumeJobGroups" /> does
+    /// with <see cref="GroupMatcher{TKey}.GroupEquals" />. The group's pause is lifted however it was made: by
+    /// <see cref="PauseJobGroupWith" />, by the scheduler's own API or by another dashboard.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Jobs page's <em>Resume group</em> makes: one call for the group.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.8. The default calls <see cref="ResumeJob" /> for each job in the
+    /// group, as <see cref="PauseJobGroupWith" />'s default pauses them: the jobs are resumed, and a pause
+    /// recorded on the group stays.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler holding the group.</param>
+    /// <param name="groupName">The group, matched exactly.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask ResumeJobGroup(string schedulerName, string groupName, CancellationToken cancellationToken = default)
+    {
+        foreach (JobKeyDto jobKey in await JobsInGroup(schedulerName, groupName, cancellationToken).ConfigureAwait(false))
+        {
+            await ResumeJob(schedulerName, jobKey, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Pauses the trigger group itself, recording why and who asked, as
+    /// <see cref="IScheduler.PauseTriggerGroupsWith" /> does with <see cref="GroupMatcher{TKey}.GroupEquals" />.
+    /// The pause is the group's: a trigger stored into the group afterwards is paused too.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Triggers page's <em>Pause group</em> makes: one call for the group, named as
+    /// <see cref="PauseJobGroupWith" /> is.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.8. The default reads the group a page at a time through
+    /// <see cref="QueryTriggers" /> and calls <see cref="PauseTriggerWith" /> for each trigger in it, which is
+    /// what the page did before 4.8: the triggers are paused, the group is not.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler holding the group.</param>
+    /// <param name="groupName">The group, matched exactly.</param>
+    /// <param name="details">Why, and who asked; <see langword="null" /> for the reasonless pause.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask PauseTriggerGroupWith(string schedulerName, string groupName, PauseDetails? details, CancellationToken cancellationToken = default)
+    {
+        foreach (TriggerKeyDto triggerKey in await TriggersInGroup(schedulerName, groupName, cancellationToken).ConfigureAwait(false))
+        {
+            await PauseTriggerWith(schedulerName, triggerKey, details, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Resumes the trigger group itself and every trigger in it, as <see cref="IScheduler.ResumeTriggerGroups" />
+    /// does with <see cref="GroupMatcher{TKey}.GroupEquals" />. The group's pause is lifted however it was made.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Triggers page's <em>Resume group</em> makes: one call for the group.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.8. The default calls <see cref="ResumeTrigger" /> for each trigger
+    /// in the group: the triggers are resumed, and a pause recorded on the group stays.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler holding the group.</param>
+    /// <param name="groupName">The group, matched exactly.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask ResumeTriggerGroup(string schedulerName, string groupName, CancellationToken cancellationToken = default)
+    {
+        foreach (TriggerKeyDto triggerKey in await TriggersInGroup(schedulerName, groupName, cancellationToken).ConfigureAwait(false))
+        {
+            await ResumeTrigger(schedulerName, triggerKey, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// The jobs in <paramref name="groupName" />, matched exactly, read a page at a time: the listing's group
+    /// filter matches every group whose name contains it, and a group larger than one page takes several.
+    /// </summary>
+    private async ValueTask<List<JobKeyDto>> JobsInGroup(string schedulerName, string groupName, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+
+        List<JobKeyDto> jobs = [];
+        DashboardJobQuery query = new() { GroupContains = groupName, Take = PagedQuery.DefaultTake };
+        while (true)
+        {
+            PagedResult<JobKeyDto> page = await QueryJobs(schedulerName, query, cancellationToken).ConfigureAwait(false);
+            foreach (JobKeyDto job in page.Items)
+            {
+                if (string.Equals(job.Group, groupName, StringComparison.Ordinal))
+                {
+                    jobs.Add(job);
+                }
+            }
+
+            if (!page.HasMore || page.Items.Count == 0)
+            {
+                return jobs;
+            }
+
+            query = query with { Skip = query.Skip + page.Items.Count };
+        }
+    }
+
+    /// <summary>
+    /// The triggers in <paramref name="groupName" />, matched exactly, read a page at a time, as
+    /// <see cref="JobsInGroup" /> reads the jobs.
+    /// </summary>
+    private async ValueTask<List<TriggerKeyDto>> TriggersInGroup(string schedulerName, string groupName, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(groupName);
+
+        List<TriggerKeyDto> triggers = [];
+        DashboardTriggerQuery query = new() { GroupContains = groupName, Take = PagedQuery.DefaultTake };
+        while (true)
+        {
+            PagedResult<TriggerHeaderDto> page = await QueryTriggers(schedulerName, query, cancellationToken).ConfigureAwait(false);
+            foreach (TriggerHeaderDto trigger in page.Items)
+            {
+                if (string.Equals(trigger.Group, groupName, StringComparison.Ordinal))
+                {
+                    triggers.Add(new TriggerKeyDto(trigger.Group, trigger.Name));
+                }
+            }
+
+            if (!page.HasMore || page.Items.Count == 0)
+            {
+                return triggers;
+            }
+
+            query = query with { Skip = query.Skip + page.Items.Count };
+        }
+    }
 }
 
 /// <summary>

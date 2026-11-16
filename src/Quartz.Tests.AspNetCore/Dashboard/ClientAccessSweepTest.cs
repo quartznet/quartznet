@@ -68,6 +68,10 @@ public class ClientAccessSweepTest
         ("PauseJobsWith", Routes.PauseJobKeys, false, async client => await client.PauseJobsWith(SchedulerName, [Job], details: null)),
         ("ResumeTriggers", Routes.ResumeTriggerKeys, false, async client => await client.ResumeTriggers(SchedulerName, [Trigger])),
         ("UnscheduleJobs", Routes.UnscheduleJobs, false, async client => await client.UnscheduleJobs(SchedulerName, [Trigger])),
+        ("PauseJobGroupWith", Routes.PauseJobs, false, async client => await client.PauseJobGroupWith(SchedulerName, Job.Group, new PauseDetails { Reason = "maintenance" })),
+        ("ResumeJobGroup", Routes.ResumeJobs, false, async client => await client.ResumeJobGroup(SchedulerName, Job.Group)),
+        ("PauseTriggerGroupWith", Routes.PauseTriggers, false, async client => await client.PauseTriggerGroupWith(SchedulerName, Trigger.Group, details: null)),
+        ("ResumeTriggerGroup", Routes.ResumeTriggers, false, async client => await client.ResumeTriggerGroup(SchedulerName, Trigger.Group)),
         ("Backfill", Routes.BackfillTrigger, false, async client => await client.Backfill(SchedulerName, Trigger, Hour, Hour.AddHours(1))),
         ("ScheduleJob", Routes.ScheduleJob, false, async client => await client.ScheduleJob(SchedulerName, new ScheduleJobRequest(NewTrigger(), NewJob()))),
         ("UnscheduleJob", Routes.UnscheduleJob, false, async client => await client.UnscheduleJob(SchedulerName, Trigger)),
@@ -85,8 +89,8 @@ public class ClientAccessSweepTest
     [Test]
     public void TheSweepNamesEveryMutatingRouteTheDashboardCalls()
     {
-        Operations.Select(operation => operation.Route).Distinct().Should().HaveCount(26,
-            "the client reaches twenty-six of the thirty-nine mutating routes; the others are group and bulk forms, clearing and the execution limits, which it does not call");
+        Operations.Select(operation => operation.Route).Distinct().Should().HaveCount(30,
+            "the client reaches thirty of the thirty-nine mutating routes; the others are bulk and by-group forms, clearing and the execution limits, which it does not call");
         Operations.Should().OnlyContain(operation => operation.Route.Mutates);
     }
 

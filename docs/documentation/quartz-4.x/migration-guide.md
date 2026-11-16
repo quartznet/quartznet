@@ -60,6 +60,8 @@ An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorization
 | `QuartzInstrumentation.Instruments.JobExecutionStartDelay` | `quartz.job.execution.start_delay`, a `Histogram<double>` in `s`: how late the job started against when its attempt was due, never negative. The twelfth instrument. See [Reading the numbers](packages/opentelemetry-integration.md#reading-the-numbers) |
 | `ActivityTags.FiringOrigin` | `"quartz.firing.origin"`: `schedule`, `manual` or `backfill`, on the start delay and the `Quartz.Job.Execute` span |
 | `ActivityTags.ScheduledFireTime` | `"quartz.trigger.scheduled_fire_time"`: `ScheduledFireTimeUtc`, ISO 8601 round-trip in UTC, on the `Quartz.Job.Execute` span |
+| `IQuartzApiClient.PauseJobGroupWith(schedulerName, groupName, details)`, `ResumeJobGroup(schedulerName, groupName)` | `Quartz.Dashboard`. Default interface members: the job group itself, as `PauseJobGroupsWith` and `ResumeJobGroups` with `GroupMatcher.GroupEquals`. The defaults pause or resume each job in the group, as the Jobs page did |
+| `IQuartzApiClient.PauseTriggerGroupWith(schedulerName, groupName, details)`, `ResumeTriggerGroup(schedulerName, groupName)` | `Quartz.Dashboard`. The same for a trigger group. The defaults pause or resume each trigger in it |
 
 | Changed | What to check |
 |---|---|
