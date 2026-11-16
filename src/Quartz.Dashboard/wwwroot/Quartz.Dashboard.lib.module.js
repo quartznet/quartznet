@@ -235,6 +235,50 @@ export function afterWebStarted() {
         },
 
         /**
+         * Toggle .qz-timeline-sticky-pinned when stuck under .qz-header (drops top radius). DOM only.
+         */
+        attachTimelineStickyPin: function (stickyElement) {
+            if (!stickyElement) {
+                return;
+            }
+
+            this.detachTimelineStickyPin(stickyElement);
+
+            const scrollRoot = stickyElement.closest(".qz-content");
+            // -1px top rootMargin: stuck flush → not fully visible → ratio < 1.
+            const observer = new IntersectionObserver(
+                function (entries) {
+                    const entry = entries[0];
+                    if (!entry) {
+                        return;
+                    }
+
+                    stickyElement.classList.toggle(
+                        "qz-timeline-sticky-pinned",
+                        entry.intersectionRatio < 1);
+                },
+                {
+                    root: scrollRoot,
+                    threshold: [1],
+                    rootMargin: "-1px 0px 0px 0px"
+                });
+
+            observer.observe(stickyElement);
+            stickyElement.__qzTimelineStickyPin = observer;
+        },
+
+        detachTimelineStickyPin: function (stickyElement) {
+            const observer = stickyElement && stickyElement.__qzTimelineStickyPin;
+            if (!observer) {
+                return;
+            }
+
+            observer.disconnect();
+            stickyElement.classList.remove("qz-timeline-sticky-pinned");
+            delete stickyElement.__qzTimelineStickyPin;
+        },
+
+        /**
          * Space below and above a chevron for the Timeline actions menu. C# decides whether to flip
          * (TimelineService.ActionsMenuOpensUp); the default menu height lives only there.
          */

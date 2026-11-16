@@ -8,7 +8,7 @@
      class="qz-timeline"
      data-testid="timeline-gantt"
      style="@State.Bounds.MinuteGridStyle">
-    <div class="qz-timeline-sticky">
+    <div @ref="_stickyHeader" class="qz-timeline-sticky">
         <div class="qz-timeline-axis">
             <div @ref="_axisTrack"
                  class="qz-timeline-axis-track"
