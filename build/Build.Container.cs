@@ -81,9 +81,13 @@ public partial class Build
 
             try
             {
+                // Into Docker by name, because everything after this asks Docker for the image. From the .NET
+                // 11 SDK on, a publish that names no LocalRegistry loads the image into wslc on Windows, or
+                // Apple's container CLI on macOS, whenever one is installed and running, and Docker then
+                // answers "No such image".
                 Run(DotNetPath,
                     $"publish \"{DashboardHostProject}\" -c {((ICompile) this).Configuration} -t:PublishContainer "
-                    + $"-p:ContainerRuntimeIdentifier={rid} -p:RuntimeIdentifier={rid} "
+                    + $"-p:ContainerRuntimeIdentifier={rid} -p:RuntimeIdentifier={rid} -p:LocalRegistry=Docker "
                     + $"-p:ContainerRepository=quartz-dashboard-smoke -p:ContainerImageTag={suffix}");
 
                 AssertNonRootUser(image);
