@@ -1069,6 +1069,106 @@ public class RAMJobStoreTest
     }
 
     /// <summary>
+    /// #4331. A group pause paused the members of a group only when the call newly recorded the group,
+    /// so a trigger resumed on its own inside a paused group kept firing through a second group pause,
+    /// and the group was left out of the answer, so no <c>TriggersPaused</c> was raised for it. The
+    /// ADO.NET store pauses every member and answers every matched group.
+    /// </summary>
+    [Test]
+    public async Task PausingAPausedTriggerGroupAgainPausesATriggerResumedOnItsOwn()
+    {
+        TriggerKey resumed = await ScheduleInPauseGroup("resumed");
+        TriggerKey stayed = await ScheduleInPauseGroup("stayed");
+
+        (await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(PauseGroup))).Should().Equal([PauseGroup]);
+        await fJobStore.ResumeTrigger(resumed);
+        (await fJobStore.GetTriggerState(resumed)).Should().Be(TriggerState.Normal);
+
+        IReadOnlyCollection<string> again = await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(PauseGroup));
+
+        (await fJobStore.GetTriggerState(resumed)).Should().Be(TriggerState.Paused,
+            "a group pause pauses every trigger in the group, whether or not the group was paused already");
+        (await fJobStore.GetTriggerState(stayed)).Should().Be(TriggerState.Paused);
+        again.Should().Equal([PauseGroup], "a group that was paused already is still a group this call matched and paused");
+    }
+
+    [Test]
+    public async Task PausingAPausedJobGroupAgainPausesAJobResumedOnItsOwn()
+    {
+        IJobDetail resumedJob = await StorePauseJob("resumed");
+        IJobDetail stayedJob = await StorePauseJob("stayed");
+        TriggerKey resumed = await ScheduleInPauseGroup("resumed", resumedJob);
+        TriggerKey stayed = await ScheduleInPauseGroup("stayed", stayedJob);
+
+        (await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(PauseGroup))).Should().Equal([PauseGroup]);
+        await fJobStore.ResumeJob(resumedJob.Key);
+        (await fJobStore.GetTriggerState(resumed)).Should().Be(TriggerState.Normal);
+
+        IReadOnlyCollection<string> again = await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(PauseGroup));
+
+        (await fJobStore.GetTriggerState(resumed)).Should().Be(TriggerState.Paused,
+            "a group pause pauses every job in the group, whether or not the group was paused already");
+        (await fJobStore.GetTriggerState(stayed)).Should().Be(TriggerState.Paused);
+        again.Should().Equal([PauseGroup], "a group that was paused already is still a group this call matched and paused");
+    }
+
+    [Test]
+    public async Task APatternTriggerGroupPauseOverAPausedGroupAndANewOnePausesBothAndAnswersBoth()
+    {
+        TriggerKey resumed = await ScheduleInPauseGroup("resumed", group: "batch-old");
+        TriggerKey fresh = await ScheduleInPauseGroup("fresh", group: "batch-new");
+
+        await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("batch-old"));
+        await fJobStore.ResumeTrigger(resumed);
+
+        IReadOnlyCollection<string> paused = await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("batch-"));
+
+        (await fJobStore.GetTriggerState(resumed)).Should().Be(TriggerState.Paused,
+            "the pattern matched the group that was paused already, so its triggers are paused again");
+        (await fJobStore.GetTriggerState(fresh)).Should().Be(TriggerState.Paused);
+        paused.Should().BeEquivalentTo(["batch-old", "batch-new"],
+            "the answer is every group the pattern matched, the one that was paused already included");
+    }
+
+    [Test]
+    public async Task APatternJobGroupPauseOverAPausedGroupAndANewOnePausesBothAndAnswersBoth()
+    {
+        IJobDetail resumedJob = JobBuilder.Create<NoOpJob>().WithIdentity("resumed", "batch-old").StoreDurably().Build();
+        IJobDetail freshJob = JobBuilder.Create<NoOpJob>().WithIdentity("fresh", "batch-new").StoreDurably().Build();
+        await fJobStore.StoreJob(resumedJob, false);
+        await fJobStore.StoreJob(freshJob, false);
+        TriggerKey resumed = await ScheduleInPauseGroup("resumed", resumedJob);
+        TriggerKey fresh = await ScheduleInPauseGroup("fresh", freshJob);
+
+        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals("batch-old"));
+        await fJobStore.ResumeJob(resumedJob.Key);
+
+        IReadOnlyCollection<string> paused = await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("batch-"));
+
+        (await fJobStore.GetTriggerState(resumed)).Should().Be(TriggerState.Paused,
+            "the pattern matched the group that was paused already, so its jobs are paused again");
+        (await fJobStore.GetTriggerState(fresh)).Should().Be(TriggerState.Paused);
+        paused.Should().BeEquivalentTo(["batch-old", "batch-new"],
+            "the answer is every group the pattern matched, the one that was paused already included");
+    }
+
+    [Test]
+    public async Task PauseAllPausesATriggerResumedOnItsOwnInsideAPausedGroup()
+    {
+        TriggerKey resumed = await ScheduleInPauseGroup("resumed");
+        TriggerKey stayed = await ScheduleInPauseGroup("stayed");
+
+        await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(PauseGroup));
+        await fJobStore.ResumeTrigger(resumed);
+
+        await fJobStore.PauseAll();
+
+        (await fJobStore.GetTriggerState(resumed)).Should().Be(TriggerState.Paused,
+            "pause-all pauses every trigger, including one in a group that was paused already");
+        (await fJobStore.GetTriggerState(stayed)).Should().Be(TriggerState.Paused);
+    }
+
+    /// <summary>
     /// The leak #3507 reported. A firing can be abandoned between the store committing it and the job
     /// running - a job listener that fails, a veto, a scheduler shutting down - and the run shell hands
     /// such a firing back with no instruction, which settles nothing about the schedule. For a trigger
@@ -1307,6 +1407,37 @@ public class RAMJobStoreTest
             DateTimeOffset.UtcNow.AddSeconds(30), null, -1, TimeSpan.FromSeconds(30));
         trigger.ComputeFirstFireTimeUtc(null);
         return fJobStore.StoreTrigger(trigger, false);
+    }
+
+    private const string PauseGroup = "pauses";
+
+    private async Task<IJobDetail> StorePauseJob(string name)
+    {
+        IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity(name, PauseGroup).StoreDurably().Build();
+        await fJobStore.StoreJob(job, false);
+        return job;
+    }
+
+    /// <summary>
+    /// Stores a job of its own and a trigger for it in <paramref name="group" />.
+    /// </summary>
+    private async Task<TriggerKey> ScheduleInPauseGroup(string name, string group = PauseGroup)
+    {
+        IJobDetail job = await StorePauseJob("job-" + name + "-" + group);
+        return await ScheduleInPauseGroup(name, job, group);
+    }
+
+    /// <summary>
+    /// A year out, so nothing here is due while the test reads the trigger's state.
+    /// </summary>
+    private async Task<TriggerKey> ScheduleInPauseGroup(string name, IJobDetail job, string group = PauseGroup)
+    {
+        IOperableTrigger trigger = new SimpleTriggerImpl(
+            name, group, job.Key.Name, job.Key.Group,
+            DateTimeOffset.UtcNow.AddYears(1), null, -1, TimeSpan.FromHours(1));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(trigger, false);
+        return trigger.Key;
     }
 
     [DisallowConcurrentExecution]
