@@ -32,8 +32,10 @@ public partial class TimelineChart : IAsyncDisposable
 {
     private ElementReference _timelineRoot;
     private ElementReference _axisTrack;
+    private ElementReference _stickyHeader;
     private DotNetObjectReference<TimelineChart>? _dotNetRef;
     private bool _axisPanAttached;
+    private bool _stickyPinAttached;
     private TimeSpan _lastWindowSpan;
     private TimeSpan _lastPanOffset;
     private TimeSpan _lastMaxPan;
@@ -68,21 +70,25 @@ public partial class TimelineChart : IAsyncDisposable
                     jsOptions).ConfigureAwait(true);
                 _axisPanAttached = true;
                 RememberAxisPanOptions(windowSpan, panOffset, maxPan);
-                return;
             }
-
-            if (windowSpan == _lastWindowSpan
-                && panOffset == _lastPanOffset
-                && maxPan == _lastMaxPan)
+            else if (windowSpan != _lastWindowSpan
+                     || panOffset != _lastPanOffset
+                     || maxPan != _lastMaxPan)
             {
-                return;
+                await JsRuntime.InvokeVoidAsync(
+                    "quartzDashboardDom.updateTimelineAxisPan",
+                    _axisTrack,
+                    jsOptions).ConfigureAwait(true);
+                RememberAxisPanOptions(windowSpan, panOffset, maxPan);
             }
 
-            await JsRuntime.InvokeVoidAsync(
-                "quartzDashboardDom.updateTimelineAxisPan",
-                _axisTrack,
-                jsOptions).ConfigureAwait(true);
-            RememberAxisPanOptions(windowSpan, panOffset, maxPan);
+            if (!_stickyPinAttached)
+            {
+                await JsRuntime.InvokeVoidAsync(
+                    "quartzDashboardDom.attachTimelineStickyPin",
+                    _stickyHeader).ConfigureAwait(true);
+                _stickyPinAttached = true;
+            }
         }
         catch (JSException)
         {
@@ -107,23 +113,17 @@ public partial class TimelineChart : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_stickyPinAttached)
+        {
+            await TryInvokeVoidAsync("quartzDashboardDom.detachTimelineStickyPin", _stickyHeader)
+                .ConfigureAwait(true);
+            _stickyPinAttached = false;
+        }
+
         if (_axisPanAttached)
         {
-            try
-            {
-                await JsRuntime.InvokeVoidAsync("quartzDashboardDom.detachTimelineAxisPan", _axisTrack)
-                    .ConfigureAwait(true);
-            }
-            catch (JSException)
-            {
-            }
-            catch (InvalidOperationException)
-            {
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-
+            await TryInvokeVoidAsync("quartzDashboardDom.detachTimelineAxisPan", _axisTrack)
+                .ConfigureAwait(true);
             _axisPanAttached = false;
         }
 
@@ -137,5 +137,22 @@ public partial class TimelineChart : IAsyncDisposable
         _lastWindowSpan = windowSpan;
         _lastPanOffset = panOffset;
         _lastMaxPan = maxPan;
+    }
+
+    private async ValueTask TryInvokeVoidAsync(string identifier, object arg)
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync(identifier, arg).ConfigureAwait(true);
+        }
+        catch (JSException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 }

@@ -275,7 +275,9 @@ body{
     background-color: var(--qz-color-bg);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
 }
 
 .qz-dashboard *,
@@ -284,11 +286,14 @@ body{
     box-sizing: border-box;
 }
 
+/* Viewport-tall shell: .qz-content scrolls (sticky axis pins there; scrollbar stays in the chrome). */
 .qz-layout {
     display: grid;
     grid-template-columns: var(--qz-sidebar-width) 1fr;
     grid-template-rows: auto 1fr;
-    min-height: 100vh;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .qz-layout.qz-sidebar-collapsed {
@@ -497,19 +502,41 @@ body{
    6. MAIN CONTENT
    ========================================================================== */
 
-/* overflow-x: clip clips without a scroll container, so position:sticky (Timeline axis) can pin to the window.
-   overflow-x: hidden here used to make .qz-main a scroll container and kill sticky. */
+/* clip (not hidden) avoids a horizontal scroll container; min-height: 0 lets .qz-content scroll. */
 .qz-main {
     display: flex;
     flex-direction: column;
+    min-height: 0;
     overflow-x: clip;
+    overflow-y: hidden;
 }
 
-/* No overflow-y: the window scrolls. overflow-y: auto here never scrolled (no bounded height) but
-   still made a scroll container that prevented sticky from pinning. */
+/* Scroll panel for the viewport-tall layout; Timeline sticky pins to the top of this box. */
 .qz-content {
     flex: 1;
+    min-height: 0;
     padding: var(--qz-space-lg);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--qz-color-border-strong) var(--qz-color-surface);
+}
+
+.qz-content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.qz-content::-webkit-scrollbar-track {
+    background: var(--qz-color-surface);
+}
+
+.qz-content::-webkit-scrollbar-thumb {
+    background: var(--qz-color-border-strong);
+    border-radius: 999px;
+    border: 2px solid var(--qz-color-surface);
+}
+
+.qz-content::-webkit-scrollbar-thumb:hover {
+    background: var(--qz-color-text-muted);
 }
 
 .qz-page {
@@ -598,8 +625,9 @@ body{
     margin-bottom: var(--qz-space-lg);
 }
 
+/* Sticky axis uses top: 0; the former 8px inset is on .qz-page-timeline. */
 .qz-content:has(.qz-page-timeline) {
-    padding-top: var(--qz-space-sm);
+    padding-top: 0;
 }
 
 
@@ -2952,9 +2980,10 @@ body{
    27. Timeline
    ============================================================ */
 
-/* Timeline page chrome. The content padding stays in quartz-dashboard.css: that element is outside this component. */
+/* Top inset here (not on .qz-content) so sticky pins flush under .qz-header. */
 .qz-page-timeline {
     gap: var(--qz-space-sm);
+    padding-top: var(--qz-space-sm);
 }
 
 .qz-page-timeline > .qz-page-header {
@@ -3045,13 +3074,15 @@ body{
     justify-content: flex-end;
 }
 
-/* Axis, groups and job rows. overflow stays visible so sticky axis and row menus are not clipped. */
+/* overflow:visible keeps row menus unclipped. Top border is on the sticky (below) so the card's
+   rounded top stays correct; sticky overlaps L/R borders via margin -1px. */
 .qz-timeline {
     --qz-timeline-row-height: 1.55rem;
     display: flex;
     flex-direction: column;
     gap: 0;
     border: 1px solid var(--qz-color-border);
+    border-top: none;
     border-radius: var(--qz-radius-md);
     background: var(--qz-color-surface);
     overflow: visible;
@@ -3063,7 +3094,18 @@ body{
     position: sticky;
     top: 0;
     z-index: 4;
+    width: calc(100% + 2px);
+    margin: 0 -1px;
     background: var(--qz-color-surface);
+    border: 1px solid var(--qz-color-border);
+    border-bottom: none;
+    border-radius: var(--qz-radius-md) var(--qz-radius-md) 0 0;
+}
+
+/* JS toggles this when stuck under .qz-header: square + no top border, flush to the flat edge. */
+.qz-timeline-sticky-pinned {
+    border-radius: 0;
+    border-top: none;
 }
 
 /*
@@ -3125,6 +3167,18 @@ body{
     flex-direction: column;
 }
 
+/* Last leaf carries the card's bottom radius. No overflow:hidden - it clipped last-row menus. */
+.qz-timeline > .qz-timeline-section:last-child > :last-child,
+.qz-timeline > .qz-timeline-empty {
+    border-bottom-left-radius: var(--qz-radius-md);
+    border-bottom-right-radius: var(--qz-radius-md);
+}
+
+.qz-timeline > .qz-timeline-section:last-child > .qz-timeline-trigger:last-child > .qz-timeline-trigger-track {
+    border-bottom-left-radius: var(--qz-radius-md);
+    border-bottom-right-radius: var(--qz-radius-md);
+}
+
 .qz-timeline-section-header {
     display: flex;
     align-items: center;
@@ -3174,6 +3228,7 @@ body{
 .qz-timeline-axis {
     border-bottom: 1px solid var(--qz-timeline-time-edge);
     background: var(--qz-timeline-time-bg);
+    border-radius: inherit;
     overflow: hidden;
 }
 
