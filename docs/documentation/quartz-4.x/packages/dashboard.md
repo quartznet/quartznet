@@ -245,6 +245,10 @@ detail page.
 - From 4.3, *Pause*, *Pause group* and *Pause all* ask for an optional reason, recorded with the signed-in
   user's name. A paused trigger shows **Paused: reason (by who, when)** on its page and its listing rows, and a
   paused job group shows its record on the Jobs page. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
+- From 4.8, *Pause group* and *Resume group* pause and resume the group itself, in one call. A job or trigger
+  added to a paused group later comes in paused, the Jobs page's group header reads **Paused**, and *Resume
+  group* lifts a group pause however it was made. *Trigger group* still fires each job: a scheduler has no
+  group-level trigger.
 - *Reset error state* clears an `ERROR` trigger once its cause is fixed.
 - The cron reschedule editor previews the next five fires of the expression being edited, before it is saved,
   in the trigger's time zone and less what its calendar excludes. The preview shows only while the edited
@@ -1388,7 +1392,7 @@ builder.Services.AddQuartzDashboard(options =>
 | Every page, the scheduler picker, the live events | a read | `View` |
 | Start, Standby | `Start`, `Standby` | `Operate` |
 | Pause all, Resume all | `PauseAll`, `ResumeAll` | `Operate` |
-| Pause, Resume, on a job, a trigger, a group or a selection | `PauseJob`, `ResumeJob`, `PauseTrigger`, `ResumeTrigger`, `PauseJobKeys`, `PauseTriggerKeys`, `ResumeTriggerKeys` | `Operate` |
+| Pause, Resume, on a job, a trigger, a group or a selection | `PauseJob`, `ResumeJob`, `PauseTrigger`, `ResumeTrigger`, `PauseJobs`, `ResumeJobs`, `PauseTriggers`, `ResumeTriggers`, `PauseJobKeys`, `PauseTriggerKeys`, `ResumeTriggerKeys` | `Operate` |
 | Trigger now, Trigger group, Run again | `TriggerJob` | `Operate` |
 | Interrupt | `InterruptJob`, `InterruptJobInstance` | `Operate` |
 | Reset error state | `ResetTriggerFromErrorState` | `Operate` |

@@ -47,6 +47,12 @@ internal sealed class TestSchedulerAuthorizationService : IAuthorizationService
     public SchedulerAccess? Role { get; set; }
 
     /// <summary>
+    /// Operations moved to another level, by operation name, as <c>SchedulerRoles.Operations</c> moves them.
+    /// An operation not named here needs the level the dashboard asks with.
+    /// </summary>
+    public Dictionary<string, SchedulerAccess> Operations { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// The policy name the operation policy is configured under, which is how a question is told from the
     /// scheduler policy's: the dashboard asks both about the same <see cref="SchedulerResource" /> shape.
     /// </summary>
@@ -62,9 +68,14 @@ internal sealed class TestSchedulerAuthorizationService : IAuthorizationService
         }
 
         bool succeeded = policyName == OperationPolicyName
-            ? resource is SchedulerResource { Access: { } access } && Role >= access
+            ? resource is SchedulerResource { Access: { } access } operation && Role >= Needed(operation.Operation, access)
             : resource is SchedulerResource scheduler && Allowed.Contains(scheduler.SchedulerName);
         return succeeded ? AuthorizationResult.Success() : AuthorizationResult.Failed();
+    }
+
+    private SchedulerAccess Needed(string? operation, SchedulerAccess asked)
+    {
+        return operation is not null && Operations.TryGetValue(operation, out SchedulerAccess moved) ? moved : asked;
     }
 }
 

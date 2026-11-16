@@ -139,26 +139,41 @@ public class TriggersPageTest
         page.HasButton("Error only").Should().BeTrue("filtering is reading, not writing");
     }
 
+    /// <summary>
+    /// <em>Pause group</em> and <em>Resume group</em> act on the group in one call each, not a call per
+    /// trigger, and each click is one Action Log entry naming the group (#4319).
+    /// </summary>
     [Test]
-    public void AGroupActionAppliesToTheGroupItNamesAndNotToTheOnesThatMerelyContainIt()
+    public void PauseGroupAndResumeGroupActOnTheGroupInOneCallEach()
     {
         GivenTriggers([
             .. TestData.Dashboard.TriggerHeaders("nightly", 2),
             .. TestData.Dashboard.TriggerHeaders("nightly-archive", 3)
         ]);
-        A.CallTo(() => context.Api.PauseTrigger(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._)).Returns(true);
         IRenderedComponent<Triggers> page = context.Render<Triggers>();
 
         page.FindAll("button").First(button => button.TextContent.Trim() == "Pause group").Click();
         page.ConfirmPause();
 
-        A.CallTo(() => context.Api.PauseTrigger(
-                TestData.SchedulerName,
-                A<TriggerKeyDto>.That.Matches(key => key.Group == "nightly-archive"),
-                A<CancellationToken>._))
+        page.WaitForAssertion(() => context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Paused trigger group nightly."));
+        A.CallTo(() => context.Api.PauseTriggerGroupWith(A<string>._, A<string>._, A<PauseDetails?>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => context.Api.PauseTriggerGroupWith(TestData.SchedulerName, "nightly", A<PauseDetails?>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => context.Api.PauseTriggerWith(A<string>._, A<TriggerKeyDto>._, A<PauseDetails?>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        context.Toasts.Messages.Should().ContainSingle()
-            .Which.Message.Should().Be("Paused 2 of 2 trigger(s) in group nightly.");
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Resume group").Click();
+
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Resumed trigger group nightly."));
+        A.CallTo(() => context.Api.ResumeTriggerGroup(TestData.SchedulerName, "nightly", A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => context.Api.ResumeTrigger(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        context.ActionLog.GetLatest(10).Select(entry => (entry.Action, entry.Target)).Should().Equal(
+            [("ResumedTriggerGroup", "nightly"), ("PausedTriggerGroup", "nightly")],
+            "one entry per click, newest first, with the group as its target");
     }
 
     [Test]

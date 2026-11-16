@@ -154,14 +154,14 @@
         {
             <section class="qz-section">
                 <h2>@group.Key</h2>
-                @if (CanPause || CanResume)
+                @if (CanPauseGroup || CanResumeGroup)
                 {
                     <div class="qz-actions qz-group-actions">
-                        @if (CanPause)
+                        @if (CanPauseGroup)
                         {
                             <button type="button" class="qz-button" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
                         }
-                        @if (CanResume)
+                        @if (CanResumeGroup)
                         {
                             <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
                         }
@@ -411,6 +411,10 @@
     private bool CanPause => Can(Routes.PauseTrigger);
 
     private bool CanResume => Can(Routes.ResumeTrigger);
+
+    private bool CanPauseGroup => Can(Routes.PauseTriggers);
+
+    private bool CanResumeGroup => Can(Routes.ResumeTriggers);
 
     private bool CanUnschedule => Can(Routes.UnscheduleJob);
 
@@ -850,18 +854,18 @@
     private Task PauseGroup(string group, string? reason)
     {
         PauseDetails details = ActionLog.PauseDetailsFor(reason);
-        return ExecuteGroupMutatingActionAsync(
+        return ExecuteGroupActionAsync(
             group,
-            (schedulerName, triggerKey) => Api.PauseTriggerWith(schedulerName, triggerKey, details),
+            schedulerName => Api.PauseTriggerGroupWith(schedulerName, group, details),
             "Paused",
             DashboardActionLog.PauseNote(details));
     }
 
     private Task ResumeGroup(string group)
     {
-        return ExecuteGroupMutatingActionAsync(
+        return ExecuteGroupActionAsync(
             group,
-            (schedulerName, triggerKey) => Api.ResumeTrigger(schedulerName, triggerKey),
+            schedulerName => Api.ResumeTriggerGroup(schedulerName, group),
             "Resumed");
     }
 
@@ -1170,9 +1174,13 @@
         }
     }
 
-    private async Task ExecuteGroupMutatingActionAsync(
+    /// <summary>
+    /// One call on the group itself, and one Action Log entry with the group as its target: what
+    /// <em>Pause group</em> and <em>Resume group</em> make.
+    /// </summary>
+    private async Task ExecuteGroupActionAsync(
         string group,
-        Func<string, TriggerKeyDto, ValueTask<bool>> operation,
+        Func<string, ValueTask> operation,
         string actionVerb,
         string? note = null)
     {
@@ -1184,46 +1192,10 @@
 
         try
         {
-            // The group filter matches groups that contain it, so the exact group is selected here. A
-            // page at a time, because a group with more triggers in it than the server's MaxPageSize is
-            // a group an unbounded Take could not read at all over HTTP.
-            List<TriggerHeaderDto> triggersInGroup = [];
-            DashboardTriggerQuery groupQuery = new() { GroupContains = group, Take = PagedQuery.DefaultTake };
-            while (true)
-            {
-                PagedResult<TriggerHeaderDto> groupPage = await Api.QueryTriggers(schedulerName, groupQuery);
-                foreach (TriggerHeaderDto trigger in groupPage.Items)
-                {
-                    if (string.Equals(trigger.Group, group, StringComparison.Ordinal))
-                    {
-                        triggersInGroup.Add(trigger);
-                    }
-                }
+            await operation(schedulerName);
 
-                if (!groupPage.HasMore || groupPage.Items.Count == 0)
-                {
-                    break;
-                }
-
-                groupQuery = groupQuery with { Skip = groupQuery.Skip + groupPage.Items.Count };
-            }
-
-            int appliedCount = 0;
-            foreach (TriggerHeaderDto trigger in triggersInGroup)
-            {
-                if (await operation(schedulerName, new TriggerKeyDto(trigger.Group, trigger.Name)))
-                {
-                    appliedCount++;
-                }
-            }
-
-            ActionLog.Record(
-                schedulerName,
-                actionVerb + "TriggerGroup",
-                group,
-                succeeded: true,
-                DashboardActionLog.MessageOf(appliedCount + " of " + triggersInGroup.Count + " trigger(s)", note));
-            Toasts.Success(actionVerb + " " + appliedCount + " of " + triggersInGroup.Count + " trigger(s) in group " + group + ".");
+            ActionLog.Record(schedulerName, actionVerb + "TriggerGroup", group, succeeded: true, note);
+            Toasts.Success(actionVerb + " trigger group " + group + ".");
             await LoadDataAsync();
         }
         catch (Exception ex)

@@ -183,7 +183,7 @@ public sealed class PauseReasonPagesTest
     }
 
     [Test]
-    public void PausingATriggerGroupSendsTheReasonWithEachTrigger()
+    public void PausingATriggerGroupSendsTheReasonWithTheGroup()
     {
         GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
         IRenderedComponent<Triggers> page = context.Render<Triggers>();
@@ -191,14 +191,14 @@ public sealed class PauseReasonPagesTest
         page.FindAll("button").First(button => button.TextContent.Trim() == "Pause group").Click();
         page.ConfirmPause("deploy");
 
-        page.WaitForAssertion(() => A.CallTo(() => context.Api.PauseTriggerWith(
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.PauseTriggerGroupWith(
                 TestData.SchedulerName,
-                A<TriggerKeyDto>.That.Matches(key => key.Group == "nightly"),
-                A<PauseDetails>.That.Matches(d => d.Reason == "deploy"),
+                "nightly",
+                A<PauseDetails>.That.Matches(d => d.Reason == "deploy" && d.RequestedBy == "operator@example.com"),
                 A<CancellationToken>._))
-            .MustHaveHappened(2, Times.Exactly));
+            .MustHaveHappenedOnceExactly());
         page.WaitForAssertion(() => context.ActionLog.GetLatest(1).Should().ContainSingle()
-            .Which.Message.Should().Be("0 of 2 trigger(s); reason: deploy"));
+            .Which.Message.Should().Be("reason: deploy", "the group is paused as one, so there is no count of members to report"));
     }
 
     [Test]
@@ -248,7 +248,7 @@ public sealed class PauseReasonPagesTest
     }
 
     [Test]
-    public void PausingAJobGroupSendsTheReasonWithEachJob()
+    public void PausingAJobGroupSendsTheReasonWithTheGroup()
     {
         GivenJobs(TestData.Dashboard.JobKeys("reports", 2));
         IRenderedComponent<Jobs> page = context.Render<Jobs>();
@@ -256,12 +256,14 @@ public sealed class PauseReasonPagesTest
         page.FindAll("button").First(button => button.TextContent.Trim() == "Pause group").Click();
         page.ConfirmPause("quarter close");
 
-        page.WaitForAssertion(() => A.CallTo(() => context.Api.PauseJobWith(
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.PauseJobGroupWith(
                 TestData.SchedulerName,
-                A<JobKeyDto>.That.Matches(key => key.Group == "reports"),
-                A<PauseDetails>.That.Matches(d => d.Reason == "quarter close"),
+                "reports",
+                A<PauseDetails>.That.Matches(d => d.Reason == "quarter close" && d.RequestedBy == "operator@example.com"),
                 A<CancellationToken>._))
-            .MustHaveHappened(2, Times.Exactly));
+            .MustHaveHappenedOnceExactly());
+        page.WaitForAssertion(() => context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Message.Should().Be("reason: quarter close"));
     }
 
     [Test]

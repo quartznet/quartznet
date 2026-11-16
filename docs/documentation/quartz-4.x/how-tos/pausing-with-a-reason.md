@@ -193,6 +193,8 @@ Content-Type: application/json
 
 - *Pause*, *Pause group*, *Pause all* and *Pause selected* ask for an optional reason, once per click.
 - From 4.4, *Pause selected* is one `PauseTriggersWith` call, with or without a reason.
+- From 4.8, *Pause group* is one `PauseJobGroupWith` or `PauseTriggerGroupWith` call, and the record is the
+  group's: a job or trigger added to the group later is paused under it.
 - The requester is the signed-in user's name. An anonymous visitor who types no reason makes the reasonless
   pause.
 - A paused trigger shows **Paused: reason (by who, when)** on its page and in the listings; a paused job group
