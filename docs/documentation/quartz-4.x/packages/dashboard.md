@@ -197,6 +197,15 @@ picker, so switching schedulers keeps you on the same page.
 Detail pages are covered with their listing below. What the numbers mean for a cluster in trouble is in
 [Operating a Cluster](../operations.md).
 
+On the Overview, Jobs, Triggers and Execution History, a refresh that fails keeps what the page last read
+and marks it **Stale** beside *Last updated*, with the reason on hover. The next refresh that answers clears
+the mark.
+
+- On Jobs, Triggers and Execution History, only a page with nothing read yet shows the error and *Retry*.
+- On the Overview, only a failed read of the once-a-second executing count keeps the page and marks it
+  **Stale**. A failed reload of the whole Overview, such as the one after *Start* or *Pause all*, still shows
+  the error.
+
 ### Overview
 
 `/quartz` shows the scheduler's status and, outside read-only mode, start, stand-by, pause all, resume all and

@@ -1,4 +1,5 @@
 @page "/quartz/jobs"
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -13,9 +14,13 @@
 @inject ToastService Toasts
 @inject NavigationManager Navigation
 @inject DashboardActionLog ActionLog
+@inject IServiceProvider Services
 
 <div class="qz-page">
-    <h1>Jobs</h1>
+    <div class="qz-page-header">
+        <h1>Jobs</h1>
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" />
+    </div>
 
     <div class="qz-actions qz-group-actions qz-job-filters">
         <SearchFilter Id="job-filter-group" Placeholder="Filter by group" Value="@_filter" OnFilterChanged="OnFilterChangedAsync" />
@@ -200,6 +205,16 @@
     private string _pendingDeleteKey = string.Empty;
 
     /// <summary>
+    /// When the listing on screen was read, or <see langword="null" /> while it holds nothing read.
+    /// </summary>
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// Why the last read failed while there was a listing to keep, or <see langword="null" />.
+    /// </summary>
+    private string? _staleReason;
+
+    /// <summary>
     /// The run status of each job on the page that has one, from one read per page.
     /// </summary>
     private readonly Dictionary<JobKeyDto, JobRunStatus> _statuses = [];
@@ -226,6 +241,9 @@
     public string? NameQuery { get; set; }
 
     private bool IsReadOnly => Options.Value.ReadOnly;
+
+    /// <summary>The clock the page says it read the listing at.</summary>
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
 
     /// <summary>
     /// Whether the visitor may call <paramref name="route" /> on the active scheduler: never while the
@@ -286,10 +304,17 @@
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        // Another scheduler's listing is not one to keep: a read of this one that fails has nothing to show.
+        ClearListing();
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
 
+    /// <remarks>
+    /// The listing on screen is replaced when the new one arrives rather than emptied before the read, so a
+    /// read that fails keeps it, marked stale beside the time it was read. Only a page with nothing read to
+    /// show has the error in its place.
+    /// </remarks>
     private async Task LoadDataAsync()
     {
         _isLoading = true;
@@ -297,16 +322,10 @@
 
         try
         {
-            _jobs.Clear();
-            _groupStates.Clear();
-            _groupPauses.Clear();
-            _statuses.Clear();
-            _statusesShown = false;
-            _totalJobs = 0;
-
             string? schedulerName = Scheduler.ActiveSchedulerName;
             if (string.IsNullOrWhiteSpace(schedulerName))
             {
+                ClearListing();
                 return;
             }
 
@@ -326,6 +345,7 @@
                 totalCount = page.TotalCount ?? page.Items.Count;
             }
 
+            _jobs.Clear();
             _jobs.AddRange(page.Items);
             _totalJobs = totalCount;
 
@@ -353,6 +373,7 @@
             }
 
             // Why each paused group on this page is paused: asked of those alone, which are few.
+            _groupPauses.Clear();
             foreach (string group in _jobs.Select(job => job.Group).Distinct(StringComparer.Ordinal))
             {
                 if (GetGroupState(group) == "Paused" && await Api.GetJobGroupPause(schedulerName, group) is { } pause)
@@ -360,21 +381,38 @@
                     _groupPauses[group] = pause;
                 }
             }
+
+            _lastUpdatedAt = Clock.GetUtcNow();
+            _staleReason = null;
+        }
+        catch (Exception ex) when (_lastUpdatedAt is not null)
+        {
+            _staleReason = ex.Message;
         }
         catch (Exception ex)
         {
+            ClearListing();
             _error = ex.Message;
-            _jobs.Clear();
-            _groupStates.Clear();
-            _groupPauses.Clear();
-            _statuses.Clear();
-            _statusesShown = false;
-            _totalJobs = 0;
         }
         finally
         {
             _isLoading = false;
         }
+    }
+
+    /// <summary>
+    /// Empties the listing, for a scheduler of which there is nothing read to keep showing.
+    /// </summary>
+    private void ClearListing()
+    {
+        _jobs.Clear();
+        _groupStates.Clear();
+        _groupPauses.Clear();
+        _statuses.Clear();
+        _statusesShown = false;
+        _totalJobs = 0;
+        _lastUpdatedAt = null;
+        _staleReason = null;
     }
 
     /// <summary>
@@ -389,12 +427,16 @@
     {
         if (_jobs.Count == 0)
         {
+            _statuses.Clear();
+            _statusesShown = false;
             return;
         }
 
         try
         {
-            foreach (JobRunStatus status in await Api.GetJobRunStatuses(schedulerName, _jobs))
+            List<JobRunStatus> statuses = await Api.GetJobRunStatuses(schedulerName, _jobs);
+            _statuses.Clear();
+            foreach (JobRunStatus status in statuses)
             {
                 _statuses[new JobKeyDto(status.Job.Group, status.Job.Name)] = status;
             }
@@ -404,6 +446,7 @@
         catch (NotSupportedException)
         {
             _statuses.Clear();
+            _statusesShown = false;
         }
     }
 

@@ -68,6 +68,48 @@ public class DashboardPageTest
     }
 
     /// <summary>
+    /// A failed read of what is executing, which the page repeats every second, keeps the page and marks it
+    /// stale beside the time it was read; the next read that answers clears the mark.
+    /// </summary>
+    /// <remarks>
+    /// One failed read used to replace the whole overview with the error until Retry was pressed: a dropped
+    /// read out of sixty a minute took every figure on the page with it.
+    /// </remarks>
+    [Test]
+    public void AFailedRefreshKeepsTheOverviewAndMarksItStale()
+    {
+        GivenCounts(jobs: 137, triggers: 250, errorTriggers: 3, executing: 2);
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+        page.WaitForAssertion(() => page.StatCardValue("Total Jobs").Should().Be("137"));
+
+        // The once-a-second count, and nothing else: the execution-groups panel reads firings of its own.
+        A.CallTo(() => context.Api.QueryFireInstances(
+                A<string>._,
+                A<DashboardFireInstanceQuery>.That.Matches(query => query.Take == 0),
+                A<CancellationToken>._))
+            .Throws(new InvalidOperationException("the store is not answering"));
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll(".qz-error-alert").Should().BeEmpty("one failed refresh is not a page that failed to load");
+            page.StatCardValue("Total Jobs").Should().Be("137", "what the page read is still true enough to show");
+            page.StatCardValue("Currently Executing").Should().Be("2", "the last count read stays until another is");
+            page.Find("[data-testid=stale-marker]").GetAttribute("title").Should().Be(
+                "The last refresh failed: the store is not answering");
+        });
+
+        GivenCounts(jobs: 137, triggers: 250, errorTriggers: 3, executing: 1);
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll("[data-testid=stale-marker]").Should().BeEmpty("the next refresh that answers clears the mark");
+            page.StatCardValue("Currently Executing").Should().Be("1");
+        });
+    }
+
+    /// <summary>
     /// The Nodes tile counts what the cluster has, and says how much of it is not answering.
     /// </summary>
     /// <remarks>

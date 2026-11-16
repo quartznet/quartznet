@@ -16,7 +16,10 @@
 @inject IServiceProvider Services
 
 <div class="qz-page">
-    <h1>Execution History</h1>
+    <div class="qz-page-header">
+        <h1>Execution History</h1>
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" />
+    </div>
 
     <div class="qz-live-filters">
         <div class="qz-live-filter-grid">
@@ -358,6 +361,16 @@
     private bool _misfiresUnavailable;
 
     /// <summary>
+    /// When the rows on screen were read, or <see langword="null" /> while the page holds nothing read.
+    /// </summary>
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// Why the last refresh failed while there were rows to keep, or <see langword="null" />.
+    /// </summary>
+    private string? _staleReason;
+
+    /// <summary>
     /// The window the chart, the stat cards and the listing are narrowed to; <see cref="RunStatisticsWindow.All" />
     /// for the whole history.
     /// </summary>
@@ -589,6 +602,9 @@
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
         _page = 1;
+
+        // Another scheduler's rows are not ones to keep: a read of this one that fails has nothing to show.
+        ClearRows();
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -633,6 +649,11 @@
         }
     }
 
+    /// <remarks>
+    /// The rows on screen are replaced when the new ones arrive rather than emptied before the read, so a
+    /// refresh that fails keeps them, marked stale beside the time they were read, and the next one that
+    /// answers replaces them. Only a page with nothing read to show has the error in its place.
+    /// </remarks>
     private async Task LoadDataAsync()
     {
         if (_loadingInProgress)
@@ -642,27 +663,16 @@
 
         _loadingInProgress = true;
         _isLoading = true;
-        // Nothing has answered yet, so there is no misfire feed to show. Anything short of a page coming
-        // back — no scheduler selected, a read that threw — leaves the section out rather than rendering
-        // "no misfires" over an answer nobody gave.
-        _misfiresUnavailable = true;
         _historyUnavailable = false;
         _filterUnsupported = null;
         _error = null;
-        _entries.Clear();
-        _misfires.Clear();
-        _totalCount = 0;
-        _totalPages = 1;
-        _pageSuccessCount = 0;
-        _pageFailureCount = 0;
-        _pageAverageDuration = TimeSpan.Zero;
-        _pageP95Duration = TimeSpan.Zero;
 
         try
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
             if (string.IsNullOrWhiteSpace(schedulerName))
             {
+                ClearRows();
                 return;
             }
 
@@ -674,23 +684,27 @@
 
             PagedResult<DashboardHistoryEntry> page = await Api.QueryExecutions(HistoryQuery(schedulerName, _page));
 
-            _currentPageSize = _pageSize;
-            _totalCount = page.TotalCount ?? page.Items.Count;
-            _totalPages = Math.Max(1, (int) Math.Ceiling((double) _totalCount / _currentPageSize));
+            int totalCount = page.TotalCount ?? page.Items.Count;
+            int totalPages = Math.Max(1, (int) Math.Ceiling((double) totalCount / _pageSize));
 
             // A skip past the end answers with an empty page, where the reader asking for page 99 of 3
             // means the last one. Clamp and ask again, as the job and trigger listings do.
-            if (_page > _totalPages)
+            if (_page > totalPages)
             {
-                _page = _totalPages;
+                _page = totalPages;
                 page = await Api.QueryExecutions(HistoryQuery(schedulerName, _page));
             }
 
-            _entries.AddRange(page.Items);
-
             PagedResult<DashboardMisfireEntry> misfires = await Api.QueryMisfires(MisfireQuery(schedulerName));
+
+            ClearRows();
+            _currentPageSize = _pageSize;
+            _totalCount = totalCount;
+            _totalPages = totalPages;
+            _entries.AddRange(page.Items);
             _misfiresUnavailable = false;
             _misfires.AddRange(misfires.Items);
+            _lastUpdatedAt = now;
 
             ComputeAnalytics();
             await LoadStatisticsAsync(schedulerName, now);
@@ -698,6 +712,7 @@
         catch (NotSupportedException ex) when (HasVersionedFilter)
         {
             // The target serves history, but not these filters. Its words say which host and why.
+            ClearRows();
             _filterUnsupported = ex.Message;
         }
         catch (NotSupportedException)
@@ -705,10 +720,16 @@
             // The scheduler runs in another process and its API serves no history. That is a fact about
             // the target rather than a failure of this read, so the page says it instead of showing an
             // error with a retry button.
+            ClearRows();
             _historyUnavailable = true;
+        }
+        catch (Exception ex) when (_lastUpdatedAt is not null)
+        {
+            _staleReason = ex.Message;
         }
         catch (Exception ex)
         {
+            ClearRows();
             _error = ex.Message;
         }
         finally
@@ -716,6 +737,26 @@
             _isLoading = false;
             _loadingInProgress = false;
         }
+    }
+
+    /// <summary>
+    /// Empties the rows and the misfires, for a read that has none of either to show.
+    /// </summary>
+    private void ClearRows()
+    {
+        // No misfire feed has answered, so the section is left out rather than rendering "no misfires" over
+        // an answer nobody gave.
+        _misfiresUnavailable = true;
+        _entries.Clear();
+        _misfires.Clear();
+        _totalCount = 0;
+        _totalPages = 1;
+        _pageSuccessCount = 0;
+        _pageFailureCount = 0;
+        _pageAverageDuration = TimeSpan.Zero;
+        _pageP95Duration = TimeSpan.Zero;
+        _lastUpdatedAt = null;
+        _staleReason = null;
     }
 
     /// <summary>

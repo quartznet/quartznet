@@ -346,6 +346,43 @@ public class HistoryPageTest
             "nothing failed: the target answered, and what it said is that it has no history route");
     }
 
+    /// <summary>
+    /// A refresh that fails keeps the rows on screen and marks them stale beside the time they were read, and
+    /// the next one that answers replaces them and clears the mark.
+    /// </summary>
+    /// <remarks>
+    /// The rows used to be emptied before each read and the error shown when it failed, so over a flaky
+    /// connection the page alternated between the two every second.
+    /// </remarks>
+    [Test]
+    public void AFailedRefreshKeepsTheRowsAndMarksThemStale()
+    {
+        GivenHistory(Entry(100), Entry(200));
+        IRenderedComponent<History> page = context.Render<History>();
+        page.WaitForAssertion(() => page.FindAll("[data-testid=history-job]").Should().HaveCount(2));
+
+        A.CallTo(() => context.Api.QueryExecutions(A<DashboardHistoryQuery>._, A<CancellationToken>._))
+            .Throws(new InvalidOperationException("the history store is not answering"));
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll("[data-testid=history-job]").Should().HaveCount(2, "the rows stay until new ones arrive");
+            page.FindAll(".qz-error-alert").Should().BeEmpty("one failed refresh is not a page that failed to load");
+            page.Find("[data-testid=stale-marker]").GetAttribute("title").Should().Be(
+                "The last refresh failed: the history store is not answering");
+        });
+
+        GivenHistory(Entry(100), Entry(200), Entry(300));
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+
+        page.WaitForAssertion(() =>
+        {
+            page.FindAll("[data-testid=stale-marker]").Should().BeEmpty("the next refresh that answers clears the mark");
+            page.FindAll("[data-testid=history-job]").Should().HaveCount(3);
+        });
+    }
+
     [Test]
     public void AFailureThatIsGoingToBeRetriedIsNotTheSameRowAsOneThatGaveUp()
     {

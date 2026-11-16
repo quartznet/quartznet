@@ -240,6 +240,34 @@ public class JobsPageTest
     }
 
     /// <summary>
+    /// A read that fails once the listing has been read keeps it, marked stale beside the time it was read,
+    /// rather than putting the error in its place.
+    /// </summary>
+    [Test]
+    public void AFailedReloadKeepsTheListingAndMarksItStale()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 2));
+        A.CallTo(() => context.Api.ResumeJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._)).Returns(true);
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        // The resume answers; the read of the listing after it does not.
+        A.CallTo(() => context.Api.QueryJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))
+            .Throws(new InvalidOperationException("the store is not answering"));
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Resume").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            context.Toasts.Messages.Should().ContainSingle()
+                .Which.Message.Should().Be("Resumed job reports.job-1.");
+            page.TextOfAll(".qz-key-badge-value").Should().Equal(["reports.job-1", "reports.job-2"],
+                "the listing stays until a new one arrives");
+            page.FindAll(".qz-error-alert").Should().BeEmpty("a page with a listing to show is not a page that failed to load");
+            page.Find("[data-testid=stale-marker]").GetAttribute("title").Should().Be(
+                "The last refresh failed: the store is not answering");
+        });
+    }
+
+    /// <summary>
     /// A read-only HTTP API's refusal reaches the reader as a message rather than as a mutation that
     /// silently did nothing.
     /// </summary>
