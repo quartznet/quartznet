@@ -161,6 +161,8 @@
     /// </remarks>
     private async Task WatchAsync(string? schedulerName)
     {
+        // Taken before anything is awaited: the source behind it is disposed with the page.
+        CancellationToken cancellationToken = _cancellation.Token;
         await StopAsync();
 
         _error = null;
@@ -187,8 +189,8 @@
         }
 
         _watchedScheduler = schedulerName;
-        _thisNode = await ReadThisNodeAsync(schedulerName);
-        if (_cancellation.IsCancellationRequested)
+        _thisNode = await ReadThisNodeAsync(schedulerName, cancellationToken);
+        if (cancellationToken.IsCancellationRequested)
         {
             // The reader left while the node was being read: there is nobody to stream to.
             return;
@@ -272,11 +274,11 @@
     /// scheduler's facts. A data source that cannot answer leaves the toolbar saying nothing about the
     /// node rather than failing the page.
     /// </summary>
-    private async Task<string?> ReadThisNodeAsync(string schedulerName)
+    private async Task<string?> ReadThisNodeAsync(string schedulerName, CancellationToken cancellationToken)
     {
         try
         {
-            SchedulerDetailDto detail = await Api.GetScheduler(schedulerName, _cancellation.Token);
+            SchedulerDetailDto detail = await Api.GetScheduler(schedulerName, cancellationToken);
             return detail.SchedulerInstanceId;
         }
         catch (Exception)
