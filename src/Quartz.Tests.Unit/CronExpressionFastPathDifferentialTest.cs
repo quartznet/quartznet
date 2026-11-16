@@ -110,7 +110,7 @@ public class CronExpressionFastPathDifferentialTest
             return;
         }
 
-        PrereleaseRuntimeIssues.IgnoreLordHoweOnPrereleaseNet11(zoneId);
+        RuntimeIssues.IgnoreLordHoweWhereTheRuntimeHasTzYear1(zoneId);
 
         List<DateTimeOffset> transitions = FindTransitions(zone);
 
