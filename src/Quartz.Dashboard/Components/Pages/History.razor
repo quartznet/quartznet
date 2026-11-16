@@ -465,6 +465,11 @@
     private string? _clusterNodesLoadedFor;
     private bool _loadingInProgress;
 
+    /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
     [Parameter]
     [SupplyParameterFromQuery(Name = "job")]
     public string? JobFilterQuery { get; set; }
@@ -640,13 +645,14 @@
                 return;
             }
 
-            await Authorization.LoadOperations(schedulerName);
-            await LoadClusterNodesAsync(schedulerName);
+            CancellationToken cancellationToken = _cancellation.Token;
+            await Authorization.LoadOperations(schedulerName, cancellationToken);
+            await LoadClusterNodesAsync(schedulerName, cancellationToken);
 
             DateTimeOffset now = Clock.GetUtcNow();
             _windowFrom = _appliedWindow.From(now);
 
-            PagedResult<DashboardHistoryEntry> page = await Api.QueryExecutions(HistoryQuery(schedulerName, _page));
+            PagedResult<DashboardHistoryEntry> page = await Api.QueryExecutions(HistoryQuery(schedulerName, _page), cancellationToken);
 
             int totalCount = page.TotalCount ?? page.Items.Count;
             int totalPages = Math.Max(1, (int) Math.Ceiling((double) totalCount / _pageSize));
@@ -656,10 +662,10 @@
             if (_page > totalPages)
             {
                 _page = totalPages;
-                page = await Api.QueryExecutions(HistoryQuery(schedulerName, _page));
+                page = await Api.QueryExecutions(HistoryQuery(schedulerName, _page), cancellationToken);
             }
 
-            PagedResult<DashboardMisfireEntry> misfires = await Api.QueryMisfires(MisfireQuery(schedulerName));
+            PagedResult<DashboardMisfireEntry> misfires = await Api.QueryMisfires(MisfireQuery(schedulerName), cancellationToken);
 
             ClearRows();
             _currentPageSize = _pageSize;
@@ -671,7 +677,11 @@
             _lastUpdatedAt = now;
 
             ComputeAnalytics();
-            await LoadStatisticsAsync(schedulerName, now);
+            await LoadStatisticsAsync(schedulerName, now, cancellationToken);
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure: no stale mark, no error.
         }
         catch (NotSupportedException ex) when (HasVersionedFilter)
         {
@@ -732,7 +742,7 @@
     /// another process whose host is older than 4.4 — leaves the chart out, and the stat cards go back to the
     /// rows on the page. So does a read that fails: the listing is the page, and it has answered.
     /// </remarks>
-    private async Task LoadStatisticsAsync(string schedulerName, DateTimeOffset now)
+    private async Task LoadStatisticsAsync(string schedulerName, DateTimeOffset now, CancellationToken cancellationToken)
     {
         string key = string.Join(
             "\u001f",
@@ -758,9 +768,9 @@
 
         try
         {
-            _statistics = await _appliedWindow.Read(Api, StatisticsQuery(schedulerName), now);
+            _statistics = await _appliedWindow.Read(Api, StatisticsQuery(schedulerName), now, cancellationToken);
         }
-        catch (Exception)
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
             _statistics = null;
         }
@@ -785,7 +795,7 @@
     /// Reads the scheduler's nodes so the filter can offer them. A data source that cannot answer leaves
     /// the dropdown with whatever the loaded rows name, which is a narrower list rather than an error.
     /// </summary>
-    private async Task LoadClusterNodesAsync(string schedulerName)
+    private async Task LoadClusterNodesAsync(string schedulerName, CancellationToken cancellationToken)
     {
         if (string.Equals(_clusterNodesLoadedFor, schedulerName, StringComparison.OrdinalIgnoreCase))
         {
@@ -797,12 +807,12 @@
 
         try
         {
-            foreach (ClusterNodeDto node in await Api.QueryClusterNodes(schedulerName))
+            foreach (ClusterNodeDto node in await Api.QueryClusterNodes(schedulerName, cancellationToken))
             {
                 _clusterNodes.Add(node.InstanceId);
             }
         }
-        catch (Exception)
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
             // a node listing is a convenience here, not the page
         }
@@ -1436,5 +1446,7 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 }

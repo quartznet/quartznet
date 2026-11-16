@@ -3,6 +3,7 @@
 @using Quartz.Dashboard.Services
 @using Quartz.Extensibility
 @using Quartz.Impl.Triggers
+@implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
 @inject IServiceProvider Services
@@ -61,6 +62,9 @@
     private ICalendar? _calendar;
     private string? _calendarUnreadable;
     private bool _readingCalendar;
+
+    /// <summary>Cancelled when the preview goes with its page, which stops the read in flight.</summary>
+    private readonly CancellationTokenSource _cancellation = new();
 
     /// <summary>
     /// The trigger as the page last read it: its type, zone, start, end and calendar are the preview's.
@@ -126,7 +130,12 @@
         string? unreadable = null;
         try
         {
-            calendar = await Api.GetCalendar(schedulerName, trigger.CalendarName);
+            calendar = await Api.GetCalendar(schedulerName, trigger.CalendarName, _cancellation.Token);
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The page was left: nobody is waiting for the preview.
+            return;
         }
         catch (Exception ex)
         {
@@ -180,4 +189,10 @@
     }
 
     private string Until(DateTimeOffset fireTime) => DisplayValueHelper.FormatUntil(fireTime, _now);
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
+    }
 }

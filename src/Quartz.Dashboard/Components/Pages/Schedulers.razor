@@ -3,6 +3,7 @@
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
 @inject SchedulerAuthorization Authorization
@@ -185,11 +186,23 @@
     private bool _isLoading = true;
     private string? _error;
 
+    /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the reads in flight: their answers would be
+    /// thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
     private string DashboardHref => DashboardLink.To(Options.Value, "");
 
     protected override async Task OnInitializedAsync()
     {
         await LoadDataAsync();
+    }
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 
     private async Task LoadDataAsync()
@@ -203,8 +216,9 @@
 
             // The fleet view is a listing like the picker's, and it is filtered like the picker's: a row
             // here is a scheduler the visitor can click through to.
-            List<SchedulerHeaderDto> registered = await Api.GetSchedulers();
-            List<SchedulerHeaderDto> schedulers = await Authorization.Filter(registered);
+            CancellationToken cancellationToken = _cancellation.Token;
+            List<SchedulerHeaderDto> registered = await Api.GetSchedulers(cancellationToken);
+            List<SchedulerHeaderDto> schedulers = await Authorization.Filter(registered, cancellationToken);
             Scheduler.AvailableSchedulers = schedulers.AsReadOnly();
 
             // By target, the schedulers of this process first, and by name within a target: the fleet
@@ -218,8 +232,12 @@
 
             foreach (SchedulerHeaderDto header in ordered)
             {
-                _rows.Add(await LoadRowAsync(header));
+                _rows.Add(await LoadRowAsync(header, cancellationToken));
             }
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure.
         }
         catch (Exception ex)
         {
@@ -240,7 +258,7 @@
     /// the fleet view, and one unreachable tenant must not be the reason an operator cannot see the
     /// others.
     /// </remarks>
-    private async Task<SchedulerRow> LoadRowAsync(SchedulerHeaderDto header)
+    private async Task<SchedulerRow> LoadRowAsync(SchedulerHeaderDto header, CancellationToken cancellationToken)
     {
         if (!header.IsCreated)
         {
@@ -249,7 +267,7 @@
 
         try
         {
-            SchedulerDetailDto detail = await Api.GetScheduler(header.Key);
+            SchedulerDetailDto detail = await Api.GetScheduler(header.Key, cancellationToken);
 
             // Only a persistent, clustered store has a node table to read. A RAM store answers with the
             // one node it is, which is a query per scheduler for an answer that is always "1". A window
@@ -264,13 +282,13 @@
             }
             else if (header.IsWindow || (detail.Persistent && detail.Clustered))
             {
-                List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(header.Key);
+                List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(header.Key, cancellationToken);
                 nodeCount = nodes.Count;
             }
 
             return new SchedulerRow(header) { Detail = detail, NodeCount = nodeCount };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             return new SchedulerRow(header) { Error = ex.Message };
         }

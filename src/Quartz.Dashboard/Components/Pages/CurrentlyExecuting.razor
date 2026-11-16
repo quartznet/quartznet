@@ -143,6 +143,11 @@
     private DateTimeOffset? _lastUpdatedAt;
 
     /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>
     /// Whether the column is offered. A window onto an attached store offers it too, from 4.7: it asks the
     /// node running the firing through the firing's row, and says so when that node never reads one.
     /// </summary>
@@ -189,14 +194,20 @@
 
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {
-                // Once per scheduler, so the Interrupt column renders from what the visitor's role allows.
-                await Authorization.LoadOperations(schedulerName);
+                CancellationToken cancellationToken = _cancellation.Token;
 
-                PagedResult<FireInstanceDto> page = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery());
+                // Once per scheduler, so the Interrupt column renders from what the visitor's role allows.
+                await Authorization.LoadOperations(schedulerName, cancellationToken);
+
+                PagedResult<FireInstanceDto> page = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery(), cancellationToken);
                 _fireInstances.AddRange(page.Items);
                 _hasMore = page.HasMore;
                 _totalCount = page.TotalCount ?? page.Items.Count;
             }
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure.
         }
         catch (Exception ex)
         {
@@ -290,5 +301,7 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 }

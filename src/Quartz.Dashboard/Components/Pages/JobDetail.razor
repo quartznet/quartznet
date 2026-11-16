@@ -265,6 +265,11 @@
     /// </summary>
     private RunStatisticsView? _statistics;
 
+    /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
     private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
 
     [Parameter]
@@ -337,18 +342,23 @@
                 return;
             }
 
-            await Authorization.LoadOperations(schedulerName);
+            CancellationToken cancellationToken = _cancellation.Token;
+            await Authorization.LoadOperations(schedulerName, cancellationToken);
 
-            _job = await Api.GetJobDetail(schedulerName, JobKey);
+            _job = await Api.GetJobDetail(schedulerName, JobKey, cancellationToken);
             _triggerDataMap = CloneJobDataMap(JobDataMap);
-            _triggers.AddRange(await Api.GetTriggersOfJob(schedulerName, JobKey));
+            _triggers.AddRange(await Api.GetTriggersOfJob(schedulerName, JobKey, cancellationToken));
 
             // A job is paused through its triggers, each of which says why; its group's pause says it for
             // the triggers the group paused and for the ones added to it later.
-            _groupPause = await Api.GetJobGroupPause(schedulerName, Group);
+            _groupPause = await Api.GetJobGroupPause(schedulerName, Group, cancellationToken);
 
-            await LoadStatusAsync(schedulerName);
+            await LoadStatusAsync(schedulerName, cancellationToken);
             await LoadStatisticsAsync(schedulerName);
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure.
         }
         catch (Exception ex)
         {
@@ -372,11 +382,11 @@
     /// A data source that keeps no per-job status raises <see cref="NotSupportedException" />, and the panel
     /// is left out; the rest of the page does not depend on it.
     /// </remarks>
-    private async Task LoadStatusAsync(string schedulerName)
+    private async Task LoadStatusAsync(string schedulerName, CancellationToken cancellationToken)
     {
         try
         {
-            _status = await Api.GetJobRunStatus(schedulerName, JobKey);
+            _status = await Api.GetJobRunStatus(schedulerName, JobKey, cancellationToken);
             _statusKept = true;
         }
         catch (NotSupportedException)
@@ -400,9 +410,10 @@
             _statistics = await _window.Read(
                 Api,
                 new ExecutionStatisticsQuery { SchedulerName = schedulerName, Job = new Quartz.JobKey(Name, Group) },
-                Clock.GetUtcNow());
+                Clock.GetUtcNow(),
+                _cancellation.Token);
         }
-        catch (Exception)
+        catch (Exception) when (!_cancellation.IsCancellationRequested)
         {
             _statistics = null;
         }
@@ -634,5 +645,7 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 }

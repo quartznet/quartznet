@@ -199,6 +199,11 @@
     private DateTimeOffset? _lastUpdatedAt;
 
     /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>
     /// Whether the scheduler's job store is clustered, as the scheduler itself reports it, or null while
     /// nothing has been read.
     /// </summary>
@@ -341,20 +346,25 @@
 
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {
-                await ReadAsync(schedulerName);
+                CancellationToken cancellationToken = _cancellation.Token;
+                await ReadAsync(schedulerName, cancellationToken);
 
                 if (header is { IsCluster: true })
                 {
-                    await ResolveMembersAsync(header);
+                    await ResolveMembersAsync(header, cancellationToken);
 
                     // What the visitor's role allows on each member, which is what a node's buttons act
                     // through: asked once per member, so the buttons render from an answer.
                     foreach (string member in _memberByNode.Values.Distinct(StringComparer.OrdinalIgnoreCase))
                     {
-                        await Authorization.LoadOperations(member);
+                        await Authorization.LoadOperations(member, cancellationToken);
                     }
                 }
             }
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure.
         }
         catch (Exception ex)
         {
@@ -381,9 +391,9 @@
     /// <summary>
     /// The scheduler's nodes and the firings they hold and run.
     /// </summary>
-    private async Task ReadAsync(string schedulerName)
+    private async Task ReadAsync(string schedulerName, CancellationToken cancellationToken)
     {
-        SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName);
+        SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName, cancellationToken);
         _isClustered = scheduler.Clustered;
 
         // The answering node's own routing, unless the answer is a cluster's, whose members each say
@@ -393,14 +403,15 @@
             _detailsByNode[scheduler.SchedulerInstanceId] = scheduler;
         }
 
-        _nodes.AddRange(await Api.QueryClusterNodes(schedulerName));
+        _nodes.AddRange(await Api.QueryClusterNodes(schedulerName, cancellationToken));
 
         // Both states, because the two columns are what a node is holding and what it is
         // running: a reservation left behind by a node that died is exactly the thing an
         // operator comes to this page to see.
         PagedResult<FireInstanceDto> firings = await Api.QueryFireInstances(
             schedulerName,
-            new DashboardFireInstanceQuery { State = null });
+            new DashboardFireInstanceQuery { State = null },
+            cancellationToken);
 
         foreach (FireInstanceDto firing in firings.Items)
         {
@@ -437,7 +448,7 @@
     /// so is one whose node is no longer listed, because a node that restarted under a new instance id is
     /// the same member fronting a different row.
     /// </remarks>
-    private async Task ResolveMembersAsync(SchedulerHeaderDto cluster)
+    private async Task ResolveMembersAsync(SchedulerHeaderDto cluster, CancellationToken cancellationToken)
     {
         foreach (string member in cluster.Members)
         {
@@ -447,13 +458,14 @@
             }
 
             string memberKey = new SchedulerRef(cluster.SchedulerName, member).Key;
-            using CancellationTokenSource deadline = new(ContainerSchedulerRegistry.StatusTimeout);
+            using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deadline.CancelAfter(ContainerSchedulerRegistry.StatusTimeout);
             try
             {
                 SchedulerDetailDto detail = await Api.GetScheduler(memberKey, deadline.Token);
                 Map(member, memberKey, detail);
             }
-            catch (Exception)
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
             {
                 // Unreachable this time; the node it fronts shows a dash until it answers.
             }
@@ -562,6 +574,8 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 
     /// <summary>

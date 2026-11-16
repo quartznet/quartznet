@@ -65,6 +65,12 @@ public partial class Timeline : ComponentBase
     private TimelineState? _state;
     private TimelineActions? _actions;
 
+    /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the reads in flight: their answers would be
+    /// thrown away. <see cref="State" /> passes it to every read.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
     [Inject]
     private IServiceProvider Services { get; set; } = null!;
 
@@ -90,7 +96,7 @@ public partial class Timeline : ComponentBase
 
     private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
 
-    internal TimelineState State => _state ??= new TimelineState(new TimelineService(Api), Clock);
+    internal TimelineState State => _state ??= new TimelineState(new TimelineService(Api), Clock, _cancellation.Token);
 
     private TimelineActions Actions => _actions ??= new TimelineActions(
         Api,
@@ -149,6 +155,8 @@ public partial class Timeline : ComponentBase
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -745,7 +753,7 @@ public partial class Timeline : ComponentBase
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (!string.IsNullOrWhiteSpace(schedulerName))
         {
-            await Authorization.LoadOperations(schedulerName).ConfigureAwait(true);
+            await Authorization.LoadOperations(schedulerName, _cancellation.Token).ConfigureAwait(true);
         }
 
         await State.LoadTimelineAsync(schedulerName, FormatInstant, FormatTick).ConfigureAwait(true);

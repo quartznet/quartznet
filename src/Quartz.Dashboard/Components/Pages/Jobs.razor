@@ -222,6 +222,11 @@
     private string? _staleReason;
 
     /// <summary>
+    /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>
     /// The run status of each job on the page that has one, from one read per page.
     /// </summary>
     private readonly Dictionary<JobKeyDto, JobRunStatus> _statuses = [];
@@ -342,17 +347,18 @@
 
             // What the visitor's role allows here, asked once per scheduler, so the controls below render
             // from an answer rather than offering what would be refused.
-            await Authorization.LoadOperations(schedulerName);
+            CancellationToken cancellationToken = _cancellation.Token;
+            await Authorization.LoadOperations(schedulerName, cancellationToken);
 
             string? groupFilter = string.IsNullOrWhiteSpace(_filter) ? null : _filter;
-            PagedResult<JobKeyDto> page = await Api.QueryJobs(schedulerName, PageQuery(groupFilter, _currentPage));
+            PagedResult<JobKeyDto> page = await Api.QueryJobs(schedulerName, PageQuery(groupFilter, _currentPage), cancellationToken);
 
             int totalCount = page.TotalCount ?? page.Items.Count;
             int totalPages = Math.Max(1, (int) Math.Ceiling((double) totalCount / _pageSize));
             if (_currentPage > totalPages)
             {
                 _currentPage = totalPages;
-                page = await Api.QueryJobs(schedulerName, PageQuery(groupFilter, _currentPage));
+                page = await Api.QueryJobs(schedulerName, PageQuery(groupFilter, _currentPage), cancellationToken);
                 totalCount = page.TotalCount ?? page.Items.Count;
             }
 
@@ -360,7 +366,7 @@
             _jobs.AddRange(page.Items);
             _totalJobs = totalCount;
 
-            await LoadStatusesAsync(schedulerName);
+            await LoadStatusesAsync(schedulerName, cancellationToken);
 
             // Every group, because the page labels each of the ones its current page shows, and it
             // cannot know which those are before it has them. Read a page at a time rather than with one
@@ -369,7 +375,7 @@
             DashboardGroupQuery groupQuery = new() { Take = PagedQuery.DefaultTake };
             while (true)
             {
-                PagedResult<JobGroupDto> groups = await Api.QueryJobGroups(schedulerName, groupQuery);
+                PagedResult<JobGroupDto> groups = await Api.QueryJobGroups(schedulerName, groupQuery, cancellationToken);
                 foreach (JobGroupDto group in groups.Items)
                 {
                     _groupStates[group.Name] = group.Paused ? "Paused" : "Normal";
@@ -387,7 +393,7 @@
             _groupPauses.Clear();
             foreach (string group in _jobs.Select(job => job.Group).Distinct(StringComparer.Ordinal))
             {
-                if (GetGroupState(group) == "Paused" && await Api.GetJobGroupPause(schedulerName, group) is { } pause)
+                if (GetGroupState(group) == "Paused" && await Api.GetJobGroupPause(schedulerName, group, cancellationToken) is { } pause)
                 {
                     _groupPauses[group] = pause;
                 }
@@ -395,6 +401,10 @@
 
             _lastUpdatedAt = Clock.GetUtcNow();
             _staleReason = null;
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The reader left. A read nobody is waiting for is not a failure: no stale mark, no error.
         }
         catch (Exception ex) when (_lastUpdatedAt is not null)
         {
@@ -434,7 +444,7 @@
     /// scheduler in another process whose host is older than 4.4 — raises
     /// <see cref="NotSupportedException" />, and the columns are left out.
     /// </remarks>
-    private async Task LoadStatusesAsync(string schedulerName)
+    private async Task LoadStatusesAsync(string schedulerName, CancellationToken cancellationToken)
     {
         if (_jobs.Count == 0)
         {
@@ -445,7 +455,7 @@
 
         try
         {
-            List<JobRunStatus> statuses = await Api.GetJobRunStatuses(schedulerName, _jobs);
+            List<JobRunStatus> statuses = await Api.GetJobRunStatuses(schedulerName, _jobs, cancellationToken);
             _statuses.Clear();
             foreach (JobRunStatus status in statuses)
             {
@@ -857,5 +867,7 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _cancellation.Cancel();
+        _cancellation.Dispose();
     }
 }
