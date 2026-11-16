@@ -480,6 +480,7 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
             if (tw.Trigger is AbstractTrigger stored)
             {
                 stored.KeepsPauseOnReplace = false;
+                stored.ReplacesRunStateAsRead = null;
             }
 
             if (triggersByKey.ContainsKey(tw.TriggerKey))
@@ -607,7 +608,9 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
     /// The replacement's state is decided afresh: paused if its trigger group or job group is paused, blocked
     /// if its job disallows concurrent execution and is running, and waiting otherwise. So a replace resumes a
     /// trigger that was paused on its own. A declared trigger re-applied at a start is the exception: it
-    /// keeps an individual pause (#4128).
+    /// keeps an individual pause (#4128), it replaces nothing when the trigger has fired since the read it
+    /// was worked out from, and it leaves a trigger it describes exactly as it is, an acquisition included
+    /// (#4324).
     /// </remarks>
     /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
     /// <param name="newTrigger">The new trigger.</param>
@@ -621,21 +624,40 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
 
         lock (lockObject)
         {
-            // remove from triggers by FQN map
-            triggersByKey.TryRemove(triggerKey, out var tw);
-            found = tw != null;
+            found = triggersByKey.TryGetValue(triggerKey, out var tw);
 
             if (found)
             {
+                // Validated before anything is removed, so a rejected replacement leaves the store exactly
+                // as it was rather than half-deleting the trigger it refused to replace.
                 if (!tw!.Trigger.JobKey.Equals(newTrigger.JobKey))
                 {
                     throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
+                }
+
+                // A declared trigger re-applied at a start was worked out from a read of this trigger made
+                // outside the lock. Fired since, it is left as the firing left it, and the processor reads it
+                // again; the same trigger again is left as it is, acquisition and all (#4324).
+                if (newTrigger is AbstractTrigger { KeepsPauseOnReplace: true } reapplied)
+                {
+                    if (reapplied.ReplacesRunStateAsRead is { } asRead && !asRead.StillDescribes(tw.Trigger))
+                    {
+                        return Task.FromResult(false);
+                    }
+
+                    if (AbstractTrigger.KeepsStateWhenReappliedUnchanged(tw.state) && tw.Trigger is AbstractTrigger stored && reapplied.DescribesSameTriggerAs(stored))
+                    {
+                        return Task.FromResult(true);
+                    }
                 }
 
                 // Read before the old trigger goes: a declared trigger re-applied at a start keeps the pause
                 // the trigger it replaces has (#4128). Any other replace decides afresh.
                 bool keepPause = newTrigger is AbstractTrigger { KeepsPauseOnReplace: true }
                                  && tw.state is InternalTriggerState.Paused or InternalTriggerState.PausedAndBlocked;
+
+                // remove from triggers by FQN map
+                triggersByKey.TryRemove(triggerKey, out _);
 
                 // remove from triggers by group
                 if (triggersByGroup.TryGetValue(triggerKey.Group, out var grpMap))

@@ -951,11 +951,87 @@ public class XMLSchedulingDataProcessor
         Log.WarnFormat("Possibly duplicately named ({0}) trigger in configuration, this can be caused by not having a fixed job key for targeted jobs", trigger.Key);
     }
 
-    private async Task DoRescheduleJob(
+    /// <summary>
+    /// How many times a declared trigger is worked out again from a stored trigger that fired between the
+    /// read and the replace before the start leaves it as stored. A trigger that fires this often in a window
+    /// of milliseconds is a configuration to report, not to wait out.
+    /// </summary>
+    private const int MaxReapplyAttempts = 8;
+
+    /// <summary>
+    /// Replaces a stored trigger with a declared one, the declared one given the stored one's schedule and
+    /// run state where it keeps them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The stored trigger was read outside the store's lock, and another node may fire it before the
+    /// replace. The replace is held to the run state that was read: a store that finds the trigger fired
+    /// since leaves it alone and answers that it replaced nothing, and the trigger is read again and the
+    /// declared one worked out once more from a fresh copy (#4324). Without that, the replace put back the
+    /// fire time the other node had just fired, and it ran twice. A store that leaves the instruction
+    /// unread replaces as it always has.
+    /// </para>
+    /// <para>
+    /// A trigger the store no longer holds when it is asked is not stored here, as before. One that fires
+    /// between every read and its replace, <see cref="MaxReapplyAttempts" /> times over, is left as stored
+    /// with a warning, and the start goes on: the store refused each write, so nothing is lost but this
+    /// start's change to it, which the next start applies.
+    /// </para>
+    /// </remarks>
+    private async Task<DateTimeOffset?> DoRescheduleJob(
         IScheduler sched,
         IMutableTrigger trigger,
         ITrigger? oldTrigger,
         CancellationToken cancellationToken = default)
+    {
+        if (trigger is not AbstractTrigger || oldTrigger is null)
+        {
+            return await RescheduleOnce(sched, trigger, oldTrigger, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Each attempt works on a copy of the declaration as it came in: working it out and rescheduling it
+        // both write to the trigger they are given.
+        ITrigger declared = trigger.Clone();
+        for (int attempt = 1; ; attempt++)
+        {
+            DateTimeOffset? firstFireTime = await RescheduleOnce(sched, trigger, oldTrigger, cancellationToken).ConfigureAwait(false);
+            if (firstFireTime is not null)
+            {
+                return firstFireTime;
+            }
+
+            ITrigger? current = await sched.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
+            if (current is null)
+            {
+                return null;
+            }
+
+            if (attempt >= MaxReapplyAttempts)
+            {
+                // The store refused every write, so the trigger is as it stood and nothing ran twice. The
+                // start goes on with the declarations after this one, and the next start applies this one.
+                Log.WarnFormat(
+                    "Trigger {0} fired while its declaration was being re-applied, {1} times in a row; it is left as stored, and the declaration applies at the next start",
+                    trigger.Key,
+                    attempt);
+                return null;
+            }
+
+            if (Log.IsDebugEnabled())
+            {
+                Log.DebugFormat("Trigger {0} fired while its declaration was being re-applied; re-applying it over the trigger as it is now", trigger.Key);
+            }
+
+            oldTrigger = current;
+            trigger = (IMutableTrigger) declared.Clone();
+        }
+    }
+
+    private async Task<DateTimeOffset?> RescheduleOnce(
+        IScheduler sched,
+        IMutableTrigger trigger,
+        ITrigger? oldTrigger,
+        CancellationToken cancellationToken)
     {
         // if this is a trigger with default start time we can consider relative scheduling
         if (oldTrigger != null && trigger.StartTimeUtc - SystemTime.UtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
@@ -986,8 +1062,7 @@ public class XMLSchedulingDataProcessor
 
         if (trigger is not AbstractTrigger reapplied)
         {
-            await sched.RescheduleJob(trigger.Key, trigger, cancellationToken).ConfigureAwait(false);
-            return;
+            return await sched.RescheduleJob(trigger.Key, trigger, cancellationToken).ConfigureAwait(false);
         }
 
         // How many times it has fired, while its schedule is the stored one (#4128). A changed schedule is
@@ -997,17 +1072,20 @@ public class XMLSchedulingDataProcessor
             reapplied.CarryRunStateFrom(oldTrigger);
         }
 
-        // A redeploy must not resume a trigger an operator paused (#4128). The store decides under its own
-        // lock, from the trigger it replaces; an application's own RescheduleJob carries no such instruction,
-        // and ends an individual pause as it always has.
+        // A redeploy must not resume a trigger an operator paused (#4128), nor put back a fire time another
+        // node fired since the read (#4324). The store decides both under its own lock, from the trigger it
+        // replaces; an application's own RescheduleJob carries neither instruction, ends an individual pause
+        // as it always has, and overwrites whatever is stored.
         reapplied.KeepsPauseOnReplace = true;
+        reapplied.ReplacesRunStateAsRead = oldTrigger is null ? null : TriggerRunStateAsRead.Of(oldTrigger);
         try
         {
-            await sched.RescheduleJob(trigger.Key, trigger, cancellationToken).ConfigureAwait(false);
+            return await sched.RescheduleJob(trigger.Key, trigger, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             reapplied.KeepsPauseOnReplace = false;
+            reapplied.ReplacesRunStateAsRead = null;
         }
     }
 

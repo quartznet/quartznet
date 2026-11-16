@@ -663,6 +663,19 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <value></value>
     public override bool HasMillisecondPrecision => false;
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// The expression, as written, and the time zone. A cron trigger counts no fires, so nothing carries;
+    /// the comparison is what lets a declaration re-applied unchanged leave the stored trigger as it is
+    /// (#4324).
+    /// </remarks>
+    internal override bool HasSameScheduleAs(AbstractTrigger other)
+    {
+        return other is CronTriggerImpl cron
+               && string.Equals(CronExpressionString, cron.CronExpressionString, StringComparison.Ordinal)
+               && SameTimeZone(TimeZone, cron.TimeZone);
+    }
+
     /// <summary>
     /// Used by the <see cref="IScheduler" /> to determine whether or not
     /// it is possible for this <see cref="ITrigger" /> to fire again.

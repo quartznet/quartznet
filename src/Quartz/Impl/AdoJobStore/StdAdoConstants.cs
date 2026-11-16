@@ -355,6 +355,21 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectTriggerStatus =
         Invariant($"SELECT {ColumnTriggerState}, {ColumnNextFireTime}, {ColumnJobName}, {ColumnJobGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
+    /// <summary>
+    /// <see cref="SqlSelectTriggerStatus" />'s state and next fire time, with whether one acquisition still
+    /// holds the trigger: its fired-trigger row, <c>ACQUIRED</c> under the entry id given. What the fire of an
+    /// acquired trigger reads, so that it learns in the same statement whether the reservation it fires is
+    /// still its own, which a replace of the trigger cancels (#4323).
+    /// </summary>
+    /// <remarks>
+    /// The subquery correlates on the outer row for the scheduler and the trigger, so that the entry id is
+    /// its only parameter, and that parameter comes first in the statement: providers that adapt named
+    /// parameters positionally bind them in the order they appear. A seek on the fired-trigger table's
+    /// primary key.
+    /// </remarks>
+    internal static readonly string SqlSelectTriggerStateWithReservation =
+        Invariant($"SELECT {ColumnTriggerState}, {ColumnNextFireTime}, CASE WHEN EXISTS (SELECT 1 FROM {TablePrefixSubst}{TableFiredTriggers} FT WHERE FT.{ColumnSchedulerName} = {TablePrefixSubst}{TableTriggers}.{ColumnSchedulerName} AND FT.{ColumnEntryId} = @triggerEntryId AND FT.{ColumnTriggerName} = {TablePrefixSubst}{TableTriggers}.{ColumnTriggerName} AND FT.{ColumnTriggerGroup} = {TablePrefixSubst}{TableTriggers}.{ColumnTriggerGroup} AND FT.{ColumnEntryState} = '{StateAcquired}') THEN 1 ELSE 0 END FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
     public static readonly string SqlSelectTriggersForCalendar =
         Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnCalendarName} = @calendarName");
 

@@ -319,6 +319,12 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         }
     }
 
+    /// <inheritdoc />
+    internal override bool HasSameFireCountAs(AbstractTrigger stored)
+    {
+        return stored is SimpleTriggerImpl simple && timesTriggered == simple.TimesTriggered;
+    }
+
     /// <summary>
     /// Validates the misfire instruction.
     /// </summary>

@@ -1149,4 +1149,10 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
             TimesTriggered = daily.TimesTriggered;
         }
     }
+
+    /// <inheritdoc />
+    internal override bool HasSameFireCountAs(AbstractTrigger stored)
+    {
+        return stored is DailyTimeIntervalTriggerImpl daily && TimesTriggered == daily.TimesTriggered;
+    }
 }
