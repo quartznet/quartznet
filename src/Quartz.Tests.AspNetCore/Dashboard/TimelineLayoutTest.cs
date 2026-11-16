@@ -48,19 +48,19 @@ public class TimelineLayoutTest
         TimelineBar bar = TimelineService.CreateBar(
             bounds,
             bounds.Start,
-            bounds.Start.AddMilliseconds(1),
+            bounds.Start.AddSeconds(1),
             "qz-timeline-bar-succeeded",
             "title",
             "entry-1");
 
-        bar.Width.Should().BeGreaterThanOrEqualTo(0.0025, "a run shorter than a pixel still has a mark");
+        bar.Width.Should().BeGreaterThanOrEqualTo(TimelineService.MinBarWidthFraction,
+            "a 1 s run on the 1 h window still has a mark, not a hairline");
         (bar.Left + bar.Width).Should().BeLessThanOrEqualTo(1);
     }
 
     [Test]
     public void NeighbouringBarsKeepAGap()
     {
-        TimelineBounds bounds = TimelineService.CreateBounds(TimelineWindow.LastHour, TimeSpan.Zero, Noon);
         List<TimelineBar> bars =
         [
             new(0.10, 0.20, "a", "first", "1"),
@@ -69,7 +69,46 @@ public class TimelineLayoutTest
 
         TimelineService.ApplyBarGaps(bars);
 
-        (bars[0].Left + bars[0].Width).Should().BeLessThanOrEqualTo(bars[1].Left);
+        (bars[0].Left + bars[0].Width + TimelineService.BarGapFraction)
+            .Should().BeLessThanOrEqualTo(bars[1].Left, "hits leave a gap, not merely touch");
+    }
+
+    [Test]
+    public void CrowdedShortRunsOnTheHourWindowDoNotOverlapHits()
+    {
+        TimelineBounds bounds = TimelineService.CreateBounds(TimelineWindow.LastHour, TimeSpan.Zero, Noon);
+        DateTimeOffset first = bounds.Start.AddMinutes(10);
+        List<TimelineBar> bars =
+        [
+            TimelineService.CreateBar(bounds, first, first.AddSeconds(1), "a", "first", "1"),
+            TimelineService.CreateBar(bounds, first.AddSeconds(2), first.AddSeconds(3), "b", "second", "2"),
+            TimelineService.CreateBar(bounds, first.AddSeconds(4), first.AddSeconds(5), "c", "third", "3")
+        ];
+
+        TimelineService.ApplyBarGaps(bars);
+
+        for (int i = 0; i < bars.Count - 1; i++)
+        {
+            (bars[i].Left + bars[i].Width).Should().BeLessThan(bars[i + 1].Left,
+                "a crowded 1 h row must not let one hit cover the next");
+        }
+    }
+
+    [Test]
+    public void TheLastBarIsNotThickerThanItsNeighbourWhenEvenlySpaced()
+    {
+        List<TimelineBar> bars =
+        [
+            new(0.10, TimelineService.MinBarWidthFraction, "a", "first", "1"),
+            new(0.11, TimelineService.MinBarWidthFraction, "b", "second", "2"),
+            new(0.12, TimelineService.MinBarWidthFraction, "c", "third", "3")
+        ];
+
+        TimelineService.ApplyBarGaps(bars);
+
+        bars[^1].Width.Should().BeLessThanOrEqualTo(bars[^2].Width + 0.000_000_1,
+            "the last run used to keep the full min width while neighbours shrank");
+        (bars[^2].Left + bars[^2].Width).Should().BeLessThan(bars[^1].Left);
     }
 
     [Test]

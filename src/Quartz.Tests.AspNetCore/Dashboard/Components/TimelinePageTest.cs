@@ -150,6 +150,25 @@ public class TimelinePageTest
     }
 
     [Test]
+    public void ColumnHeadsCarryShortLabelsForNarrowLayout()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenHistory(now.AddMinutes(-10));
+        GivenTriggersOfJob("demo", "demo-job", CreateTrigger("demo", "demo-trigger", nextFire: now.AddMinutes(5)));
+
+        IRenderedComponent<Timeline> page = context.Render<Timeline>();
+        page.WaitForAssertion(() => page.Find(".qz-timeline-column-head").Should().NotBeNull());
+
+        IElement head = page.Find(".qz-timeline-column-head");
+        head.QuerySelectorAll(".qz-timeline-head-full").Select(node => node.TextContent.Trim())
+            .Should().Equal(["Schedule", "Start", "Previous", "Next", "End"]);
+        head.QuerySelectorAll(".qz-timeline-head-short").Select(node => node.TextContent.Trim())
+            .Should().Equal(
+                ["Sched", "Start", "Prev", "Next", "End"],
+                "phone CSS swaps to these so 390 px does not read as SCH STA PRE NEX END");
+    }
+
+    [Test]
     public void JobRowToggleCollapsesTriggerTracks()
     {
         DateTimeOffset now = context.Clock.GetUtcNow();

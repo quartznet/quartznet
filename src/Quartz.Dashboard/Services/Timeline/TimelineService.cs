@@ -78,8 +78,17 @@ internal sealed class TimelineService
 
     private static readonly TimeSpan MaxPanOffset = TimelineWindow.LastWeek.Span;
 
-    private const double MinBarPixelFraction = 0.0025;
-    private const double BarGapFraction = 0.002;
+    /// <summary>
+    /// Floor for a bar's width as a fraction of the axis. A 1 s run on the 1 h window would otherwise
+    /// be a sub-pixel hairline; 0.8 % keeps a short mark visible when neighbours leave it room.
+    /// Busy rows still shrink via <see cref="ApplyBarGaps"/>.
+    /// </summary>
+    internal const double MinBarWidthFraction = 0.008;
+
+    /// <summary>
+    /// Gap left between neighbouring bars so their hit targets never share a pixel.
+    /// </summary>
+    internal const double BarGapFraction = 0.002;
 
     private readonly IQuartzApiClient _api;
 
@@ -754,9 +763,9 @@ internal sealed class TimelineService
         double left = Clamp01((start - bounds.Start).Ticks / bounds.SpanTicks);
         double right = Clamp01((end - bounds.Start).Ticks / bounds.SpanTicks);
         double width = right - left;
-        if (width < MinBarPixelFraction)
+        if (width < MinBarWidthFraction)
         {
-            width = MinBarPixelFraction;
+            width = MinBarWidthFraction;
         }
 
         if (left + width > 1.0)
@@ -770,32 +779,44 @@ internal sealed class TimelineService
     public static double ComputeFraction(TimelineBounds bounds, DateTimeOffset instant) =>
         Clamp01((instant - bounds.Start).Ticks / bounds.SpanTicks);
 
+    /// <summary>
+    /// Shrinks each bar so it ends before the next by at least <see cref="BarGapFraction"/>.
+    /// Prefer a smaller mark over an overlapping hit. The last bar is capped from the previous
+    /// spacing too — otherwise only neighbours shrink and the final run looks thicker.
+    /// </summary>
     public static void ApplyBarGaps(List<TimelineBar> bars)
     {
         for (int i = 0; i < bars.Count - 1; i++)
         {
-            TimelineBar current = bars[i];
-            TimelineBar next = bars[i + 1];
-            double maxRight = next.Left - BarGapFraction;
-            double maxWidth = maxRight - current.Left;
-            if (current.Width <= maxWidth)
-            {
-                continue;
-            }
+            CapBarWidth(bars, i, bars[i + 1].Left - bars[i].Left);
+        }
 
-            double width = maxWidth;
-            if (width < MinBarPixelFraction)
-            {
-                width = next.Left > current.Left
-                    ? Math.Max(next.Left - current.Left - BarGapFraction, MinBarPixelFraction * 0.5)
-                    : MinBarPixelFraction * 0.5;
-                if (width <= 0)
-                {
-                    width = MinBarPixelFraction * 0.5;
-                }
-            }
+        if (bars.Count >= 2)
+        {
+            int last = bars.Count - 1;
+            CapBarWidth(bars, last, bars[last].Left - bars[last - 1].Left);
+        }
+    }
 
-            bars[i] = current with { Width = width };
+    private static void CapBarWidth(List<TimelineBar> bars, int index, double available)
+    {
+        TimelineBar current = bars[index];
+        if (available <= 0)
+        {
+            bars[index] = current with { Width = 0 };
+            return;
+        }
+
+        double maxWidth = available - BarGapFraction;
+        if (maxWidth <= 0)
+        {
+            // Not enough room for the full gap: keep half the span so hits still do not touch.
+            maxWidth = available * 0.5;
+        }
+
+        if (current.Width > maxWidth)
+        {
+            bars[index] = current with { Width = maxWidth };
         }
     }
 

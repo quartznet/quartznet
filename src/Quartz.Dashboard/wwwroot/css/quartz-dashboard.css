@@ -3061,9 +3061,16 @@ body{
     background: var(--qz-color-surface);
 }
 
+/* Name + Schedule/Start/Previous/Next/End. Floors fit the full uppercase heads (not SCH/PREVIOU…). */
 .qz-timeline-columns {
     display: grid;
-    grid-template-columns: minmax(8rem, 1.1fr) repeat(5, minmax(0, 1fr));
+    grid-template-columns:
+        minmax(8rem, 1.1fr)
+        minmax(6.5rem, 1fr)
+        minmax(3.5rem, 1fr)
+        minmax(6.5rem, 1fr)
+        minmax(3.5rem, 1fr)
+        minmax(3rem, 1fr);
     gap: 0;
     align-items: stretch;
     padding: 0;
@@ -3091,12 +3098,15 @@ body{
     overflow: hidden;
     font-size: var(--qz-font-size-xs);
     font-weight: var(--qz-font-weight-semibold);
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
-    text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--qz-color-text-secondary);
     background: var(--qz-color-surface-alt);
+}
+
+.qz-timeline-head-short {
+    display: none;
 }
 
 .qz-timeline-section {
@@ -3328,7 +3338,13 @@ body{
 /* One trigger row: schedule, action menu and the runs on its track. */
 .qz-timeline-columns {
     display: grid;
-    grid-template-columns: minmax(8rem, 1.1fr) repeat(5, minmax(0, 1fr));
+    grid-template-columns:
+        minmax(8rem, 1.1fr)
+        minmax(6.5rem, 1fr)
+        minmax(3.5rem, 1fr)
+        minmax(6.5rem, 1fr)
+        minmax(3.5rem, 1fr)
+        minmax(3rem, 1fr);
     gap: 0;
     align-items: stretch;
     padding: 0;
@@ -3564,6 +3580,8 @@ body{
     display: block;
     text-decoration: none;
     z-index: 1;
+    /* Clip the painted bar so a CSS min-width cannot spill into the next hit and steal its click. */
+    overflow: hidden;
 }
 
 /* Vertical hit padding only — horizontal ±px made neighbouring 1h bars steal each other's clicks. */
@@ -3583,7 +3601,7 @@ body{
     top: 0.25rem;
     height: calc(var(--qz-timeline-row-height) - 0.5rem);
     border-radius: 2px;
-    min-width: 2px;
+    min-width: 3px;
     box-sizing: border-box;
     display: block;
     pointer-events: none;
@@ -3637,19 +3655,34 @@ body{
     to { background-position: 8px 0; }
 }
 
-/* Phone-width timeline meta: drop uppercase so labels truncate as words, not SCH/STA/…. */
-@media (max-width: 480px) {
+/* Narrow timeline meta: short labels; flexible columns so End stays inside the border at ~390 px. */
+@media (max-width: 720px) {
+    .qz-timeline {
+        overflow-x: hidden;
+    }
+
     .qz-timeline-columns {
-        grid-template-columns: minmax(5.5rem, 1.1fr) repeat(5, minmax(0, 1fr));
+        /* No large minmax floors — their sum used to push End past the card edge. */
+        grid-template-columns: minmax(3.5rem, 0.95fr) repeat(5, minmax(0, 1fr));
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .qz-timeline-columns > * {
-        padding: 0.35rem 0.3rem;
+        padding: 0.3rem 0.2rem;
     }
 
     .qz-timeline-column-head > span {
         letter-spacing: normal;
         text-transform: none;
+    }
+
+    .qz-timeline-head-full {
+        display: none;
+    }
+
+    .qz-timeline-head-short {
+        display: inline;
     }
 }
 
