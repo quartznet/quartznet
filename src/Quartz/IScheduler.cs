@@ -842,7 +842,11 @@ public interface IScheduler : IAsyncDisposable
     /// remembered that group "axx" is paused and later when a job is added
     /// in that group, it will become paused.</para>
     /// </remarks>
-    /// <returns>The names of the job groups that were paused by this call.</returns>
+    /// <returns>
+    /// The names of the job groups that were paused by this call. A group that was paused already is
+    /// included and keeps the pause it had, and every job in it is paused again, one resumed on its own
+    /// included.
+    /// </returns>
     /// <seealso cref="ResumeJobGroups" />
     /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
     /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
@@ -913,7 +917,11 @@ public interface IScheduler : IAsyncDisposable
     /// remembered that group "axx" is paused and later when a trigger is added
     /// in that group, it will become paused.</para>
     /// </remarks>
-    /// <returns>The names of the trigger groups that were paused by this call.</returns>
+    /// <returns>
+    /// The names of the trigger groups that were paused by this call. A group that was paused already is
+    /// included and keeps the pause it had, and every trigger in it is paused again, one resumed on its own
+    /// included.
+    /// </returns>
     /// <seealso cref="ResumeTriggerGroups" />
     /// <exception cref="ArgumentNullException"><paramref name="matcher" /> is <see langword="null" />.</exception>
     /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>

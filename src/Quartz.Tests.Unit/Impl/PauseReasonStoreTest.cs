@@ -62,6 +62,8 @@ public sealed class PauseReasonStoreTest
 
     private static readonly PauseDetails maintenance = new() { Reason = "database maintenance", RequestedBy = "alice" };
 
+    private static readonly PauseDetails secondThoughts = new() { Reason = "second thoughts", RequestedBy = "bob" };
+
     private readonly PauseStoreKind kind;
 
     private SqliteTestDatabase? database;
@@ -308,6 +310,102 @@ public sealed class PauseReasonStoreTest
     }
 
     [Test]
+    public async Task PausingAPausedTriggerGroupAgainPausesATriggerResumedOnItsOwnAndKeepsTheGroupsFirstRecord()
+    {
+        TriggerKey resumed = await Schedule("resumed");
+        TriggerKey stayed = await Schedule("stayed");
+
+        (await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals(Group), maintenance)).Should().Equal([Group]);
+        (await store.ResumeTrigger(resumed)).Should().BeTrue();
+        (await store.GetTriggerState(resumed)).Should().Be(TriggerState.Normal);
+
+        clock.Advance(TimeSpan.FromHours(1));
+        List<string> again = await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals(Group), secondThoughts);
+
+        (await store.GetTriggerState(resumed)).Should().Be(TriggerState.Paused,
+            "a group pause pauses every trigger in the group, whether or not the group was paused already");
+        (await store.GetTriggerState(stayed)).Should().Be(TriggerState.Paused);
+        again.Should().Equal([Group], "a group that was paused already is still a group this call matched and paused");
+        (await store.GetTriggerGroupPause(Group)).Should().Be(new PauseInfo("database maintenance", "alice", epoch),
+            "a group that was already paused keeps the pause it had");
+        (await store.GetTriggerPause(resumed)).Should().Be(new PauseInfo("second thoughts", "bob", epoch.AddHours(1)),
+            "the trigger this call moved carries this call's record");
+        (await store.GetTriggerPause(stayed)).Should().Be(new PauseInfo("database maintenance", "alice", epoch));
+    }
+
+    [Test]
+    public async Task PausingAPausedJobGroupAgainPausesAJobResumedOnItsOwnAndKeepsTheGroupsFirstRecord()
+    {
+        IJobDetail resumedJob = await StoreJob("resumed");
+        IJobDetail stayedJob = await StoreJob("stayed");
+        TriggerKey resumed = await Schedule("resumed", resumedJob);
+        TriggerKey stayed = await Schedule("stayed", stayedJob);
+
+        (await store.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals(Group), maintenance)).Should().Equal([Group]);
+        (await store.ResumeJob(resumedJob.Key)).Should().BeTrue();
+        (await store.GetTriggerState(resumed)).Should().Be(TriggerState.Normal);
+
+        clock.Advance(TimeSpan.FromHours(1));
+        List<string> again = await store.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals(Group), secondThoughts);
+
+        (await store.GetTriggerState(resumed)).Should().Be(TriggerState.Paused,
+            "a group pause pauses every job in the group, whether or not the group was paused already");
+        (await store.GetTriggerState(stayed)).Should().Be(TriggerState.Paused);
+        again.Should().Equal([Group], "a group that was paused already is still a group this call matched and paused");
+        (await store.GetJobGroupPause(Group)).Should().Be(new PauseInfo("database maintenance", "alice", epoch),
+            "a group that was already paused keeps the pause it had");
+        (await store.GetTriggerPause(resumed)).Should().Be(new PauseInfo("second thoughts", "bob", epoch.AddHours(1)),
+            "the trigger this call moved carries this call's record");
+        (await store.GetTriggerPause(stayed)).Should().Be(new PauseInfo("database maintenance", "alice", epoch));
+    }
+
+    [Test]
+    public async Task APatternTriggerGroupPauseOverAPausedGroupAndANewOnePausesBothAndAnswersBoth()
+    {
+        TriggerKey resumed = await Schedule("resumed", group: "batch-old");
+        TriggerKey fresh = await Schedule("fresh", group: "batch-new");
+
+        await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals("batch-old"), maintenance);
+        (await store.ResumeTrigger(resumed)).Should().BeTrue();
+
+        clock.Advance(TimeSpan.FromHours(1));
+        List<string> paused = await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupStartsWith("batch-"), secondThoughts);
+
+        (await store.GetTriggerState(resumed)).Should().Be(TriggerState.Paused,
+            "the pattern matched the group that was paused already, so its triggers are paused again");
+        (await store.GetTriggerState(fresh)).Should().Be(TriggerState.Paused);
+        paused.Should().BeEquivalentTo(["batch-old", "batch-new"],
+            "the answer is every group the pattern matched, the one that was paused already included");
+        (await store.GetTriggerGroupPause("batch-old")).Should().Be(new PauseInfo("database maintenance", "alice", epoch));
+        (await store.GetTriggerGroupPause("batch-new")).Should().Be(new PauseInfo("second thoughts", "bob", epoch.AddHours(1)));
+    }
+
+    [Test]
+    public async Task APatternJobGroupPauseOverAPausedGroupAndANewOnePausesBothAndAnswersBoth()
+    {
+        IJobDetail resumedJob = JobBuilder.Create<PauseJob>().WithIdentity("resumed", "batch-old").StoreDurably().Build();
+        IJobDetail freshJob = JobBuilder.Create<PauseJob>().WithIdentity("fresh", "batch-new").StoreDurably().Build();
+        await store.AddJob(resumedJob);
+        await store.AddJob(freshJob);
+        TriggerKey resumed = await Schedule("resumed", resumedJob);
+        TriggerKey fresh = await Schedule("fresh", freshJob);
+
+        await store.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals("batch-old"), maintenance);
+        (await store.ResumeJob(resumedJob.Key)).Should().BeTrue();
+
+        clock.Advance(TimeSpan.FromHours(1));
+        List<string> paused = await store.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupStartsWith("batch-"), secondThoughts);
+
+        (await store.GetTriggerState(resumed)).Should().Be(TriggerState.Paused,
+            "the pattern matched the group that was paused already, so its jobs are paused again");
+        (await store.GetTriggerState(fresh)).Should().Be(TriggerState.Paused);
+        paused.Should().BeEquivalentTo(["batch-old", "batch-new"],
+            "the answer is every group the pattern matched, the one that was paused already included");
+        (await store.GetJobGroupPause("batch-old")).Should().Be(new PauseInfo("database maintenance", "alice", epoch));
+        (await store.GetJobGroupPause("batch-new")).Should().Be(new PauseInfo("second thoughts", "bob", epoch.AddHours(1)));
+    }
+
+    [Test]
     public async Task AJobAddedToAPausedJobGroupAnswersTheGroupsReason()
     {
         await store.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals(Group), maintenance);
@@ -338,6 +436,25 @@ public sealed class PauseReasonStoreTest
         (await store.GetTriggerGroupPause("elsewhere")).Should().BeNull();
         (await store.GetTriggerPause(first)).Should().BeNull();
         (await store.GetTriggerPause(other)).Should().BeNull();
+    }
+
+    [Test]
+    public async Task PauseAllPausesATriggerResumedOnItsOwnInsideAPausedGroup()
+    {
+        TriggerKey resumed = await Schedule("resumed");
+        TriggerKey stayed = await Schedule("stayed");
+
+        await store.PauseTriggerGroupsWith(GroupMatcher<TriggerKey>.GroupEquals(Group), maintenance);
+        (await store.ResumeTrigger(resumed)).Should().BeTrue();
+
+        clock.Advance(TimeSpan.FromHours(1));
+        await store.PauseAllWith(secondThoughts);
+
+        (await store.GetTriggerState(resumed)).Should().Be(TriggerState.Paused,
+            "pause-all pauses every trigger, including one in a group that was paused already");
+        (await store.GetTriggerState(stayed)).Should().Be(TriggerState.Paused);
+        (await store.GetTriggerGroupPause(Group)).Should().Be(new PauseInfo("database maintenance", "alice", epoch),
+            "a group that was already paused keeps the pause it had");
     }
 
     [Test]
