@@ -145,6 +145,20 @@ internal static class DisplayValueHelper
         return safeGroup + "." + safeName;
     }
 
+    /// <summary>
+    /// A duration as a clock, <c>hh:mm:ss</c>, with its days in front from a day up:
+    /// <c>1.02:00:00</c> for 26 hours.
+    /// </summary>
+    /// <remarks>
+    /// The format <c>hh\:mm\:ss</c> alone writes the hours component, so a 26-hour run read as
+    /// <c>02:00:00</c>.
+    /// </remarks>
+    public static string FormatClock(TimeSpan duration)
+    {
+        string format = duration.Duration() < TimeSpan.FromDays(1) ? @"hh\:mm\:ss" : @"d\.hh\:mm\:ss";
+        return duration.ToString(format, CultureInfo.InvariantCulture);
+    }
+
     private static bool TryGetPathValue(object source, string path, out object? value)
     {
         value = source;
