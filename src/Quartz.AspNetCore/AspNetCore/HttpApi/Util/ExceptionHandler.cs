@@ -82,7 +82,10 @@ internal sealed class ExceptionHandler
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        logger.RequestAbandoned(context.Request.GetDisplayUrl());
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.RequestAbandoned(context.Request.GetDisplayUrl());
+        }
     }
 
     /// <summary>

@@ -23,6 +23,7 @@ using JasperFx;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 using Weasel.Core;
 
@@ -82,9 +83,12 @@ internal sealed class QuartzWeaselStartup : IHostedLifecycleService
 
                 if (difference == SchemaPatchDifference.None)
                 {
-                    context.Logger.SchemaUnchanged(context.SchedulerName, database.Describe().DatabaseUri());
+                    if (context.Logger.IsEnabled(LogLevel.Debug))
+                    {
+                        context.Logger.SchemaUnchanged(context.SchedulerName, database.Describe().DatabaseUri());
+                    }
                 }
-                else
+                else if (context.Logger.IsEnabled(LogLevel.Information))
                 {
                     context.Logger.SchemaApplied(context.SchedulerName, database.Describe().DatabaseUri(), difference);
                 }

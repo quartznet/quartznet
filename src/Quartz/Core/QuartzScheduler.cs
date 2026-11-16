@@ -392,7 +392,11 @@ internal sealed class QuartzScheduler
 
         status = SchedulerStatus.Running;
 
-        logger.SchedulerStarted(resources.GetUniqueIdentifier());
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.SchedulerStarted(resources.GetUniqueIdentifier());
+        }
+
         WarnIfSubscribedToTheLegacyDiagnosticListener();
 
         await NotifySchedulerListenersStarted(cancellationToken).ConfigureAwait(false);
@@ -504,7 +508,11 @@ internal sealed class QuartzScheduler
     {
         await resources.JobStore.SchedulerPaused(cancellationToken).ConfigureAwait(false);
         schedThread.TogglePause(pause: true);
-        logger.SchedulerPaused(resources.GetUniqueIdentifier());
+
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.SchedulerPaused(resources.GetUniqueIdentifier());
+        }
     }
 
     /// <summary>
@@ -709,7 +717,10 @@ internal sealed class QuartzScheduler
 
         try
         {
-            logger.SchedulerShuttingDown(resources.GetUniqueIdentifier());
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.SchedulerShuttingDown(resources.GetUniqueIdentifier());
+            }
 
             // Firing stops here, but the scheduler does not pass through standby on its way down and no
             // listener is told that it did: a scheduler being torn down is not one waiting to be started
@@ -832,7 +843,10 @@ internal sealed class QuartzScheduler
             holdToPreventGc.Clear();
         }
 
-        logger.SchedulerShutdownComplete(resources.GetUniqueIdentifier());
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.SchedulerShutdownComplete(resources.GetUniqueIdentifier());
+        }
     }
 
     /// <summary>

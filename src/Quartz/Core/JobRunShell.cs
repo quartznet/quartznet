@@ -368,11 +368,14 @@ internal sealed class JobRunShell
                             // turning Debug on, and the retry instant is what tells them when to look.
                             // The policy the firing was retried under, which is the trigger's own only
                             // when it has one: a job type's or the scheduler's is never on the trigger.
-                            logger.TriggerRetryScheduled(
-                                trigger.Key,
-                                trigger.RetryAttempt,
-                                AppliedRetryPolicy(trigger)?.MaxAttempts ?? 0,
-                                trigger.NextFireTimeUtc.GetValueOrDefault());
+                            if (logger.IsEnabled(LogLevel.Information))
+                            {
+                                logger.TriggerRetryScheduled(
+                                    trigger.Key,
+                                    trigger.RetryAttempt,
+                                    AppliedRetryPolicy(trigger)?.MaxAttempts ?? 0,
+                                    trigger.NextFireTimeUtc.GetValueOrDefault());
+                            }
 
                             qs.resources.Meters.TriggerRetryScheduled(qs.resources.Name, qs.resources.InstanceId, trigger);
                         }
