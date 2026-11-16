@@ -1,4 +1,5 @@
 @page "/quartz/triggers"
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -9,9 +10,13 @@
 @inject ToastService Toasts
 @inject NavigationManager Navigation
 @inject DashboardActionLogService ActionLog
+@inject IServiceProvider Services
 
 <div class="qz-page">
-    <h1>Triggers</h1>
+    <div class="qz-page-header">
+        <h1>Triggers</h1>
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" />
+    </div>
 
     <SearchFilter OnFilterChanged="OnFilterChangedAsync" />
     <div class="qz-actions qz-group-actions">
@@ -136,7 +141,20 @@
     private string _pendingTriggerKey = string.Empty;
     private bool _showErrorOnly;
 
+    /// <summary>
+    /// When the listing on screen was read, or <see langword="null" /> while it holds nothing read.
+    /// </summary>
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// Why the last read failed while there was a listing to keep, or <see langword="null" />.
+    /// </summary>
+    private string? _staleReason;
+
     private bool IsReadOnly => Options.Value.ReadOnly;
+
+    /// <summary>The clock the page says it read the listing at.</summary>
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
 
     private IEnumerable<IGrouping<string, object>> GroupedTriggers =>
         _pagedTriggers.GroupBy(trigger => DisplayValueHelper.GetString(trigger, "Group", "Key.Group"));
@@ -149,10 +167,17 @@
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        // Another scheduler's listing is not one to keep: a read of this one that fails has nothing to show.
+        ClearListing();
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
 
+    /// <remarks>
+    /// The listing on screen is replaced when the new one arrives rather than emptied before the read, so a
+    /// read that fails keeps it, marked stale beside the time it was read. Only a page with nothing read to
+    /// show has the error in its place.
+    /// </remarks>
     private async Task LoadDataAsync()
     {
         _isLoading = true;
@@ -160,50 +185,48 @@
 
         try
         {
-            _allTriggers.Clear();
-            _states.Clear();
-
             string? schedulerName = Scheduler.ActiveSchedulerName;
             if (string.IsNullOrWhiteSpace(schedulerName))
             {
-                ApplyFilterAndPaging();
+                ClearListing();
                 return;
             }
 
             IReadOnlyList<object> triggers = DisplayValueHelper.ToObjectList(await Api.GetTriggerKeys(schedulerName));
-            _allTriggers.AddRange(triggers);
 
-            if (_showErrorOnly)
+            // The states are read before anything on screen is replaced, so a read of one that fails keeps the
+            // listing with the states it was read with. Filtering by error state needs every trigger's state
+            // upfront; otherwise only the current page's are read, to avoid N+1 calls for all triggers.
+            Dictionary<string, string> states = new(StringComparer.OrdinalIgnoreCase);
+            IEnumerable<object> statesToRead = _showErrorOnly ? triggers : CurrentPageOf(triggers);
+            foreach (object trigger in statesToRead)
             {
-                // When filtering by error state we need all trigger states upfront.
-                foreach (object trigger in _allTriggers)
-                {
-                    string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                    string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                    string state = await Api.GetTriggerState(schedulerName, group, name);
-                    _states[DisplayValueHelper.FormatKey(group, name)] = state;
-                }
+                string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                string state = await Api.GetTriggerState(schedulerName, group, name);
+                states[DisplayValueHelper.FormatKey(group, name)] = state;
+            }
+
+            _allTriggers.Clear();
+            _allTriggers.AddRange(triggers);
+            _states.Clear();
+            foreach (KeyValuePair<string, string> state in states)
+            {
+                _states[state.Key] = state.Value;
             }
 
             ApplyFilterAndPaging();
-
-            if (!_showErrorOnly)
-            {
-                // Only fetch states for the current page to avoid N+1 calls for all triggers.
-                foreach (object trigger in _pagedTriggers)
-                {
-                    string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                    string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                    string state = await Api.GetTriggerState(schedulerName, group, name);
-                    _states[DisplayValueHelper.FormatKey(group, name)] = state;
-                }
-            }
+            _lastUpdatedAt = Clock.GetUtcNow();
+            _staleReason = null;
+        }
+        catch (Exception ex) when (_lastUpdatedAt is not null)
+        {
+            _staleReason = ex.Message;
         }
         catch (Exception ex)
         {
+            ClearListing();
             _error = ex.Message;
-            _filteredTriggers.Clear();
-            _pagedTriggers.Clear();
         }
         finally
         {
@@ -211,19 +234,47 @@
         }
     }
 
+    /// <summary>
+    /// Empties the listing, for a scheduler of which there is nothing read to keep showing.
+    /// </summary>
+    private void ClearListing()
+    {
+        _allTriggers.Clear();
+        _states.Clear();
+        ApplyFilterAndPaging();
+        _lastUpdatedAt = null;
+        _staleReason = null;
+    }
+
+    /// <summary>
+    /// The triggers of <paramref name="triggers" /> that the current page shows outside <em>Error only</em>
+    /// once they are the listing: those the filter matches, a page of them, the page held within however
+    /// many pages there are then. These are the ones whose state the page reads.
+    /// </summary>
+    private List<object> CurrentPageOf(IReadOnlyList<object> triggers)
+    {
+        List<object> matching = [.. triggers.Where(MatchesFilter)];
+        int totalPages = Math.Max(1, (int) Math.Ceiling((double) matching.Count / _pageSize));
+        int currentPage = Math.Clamp(_currentPage, 1, totalPages);
+        return [.. matching.Skip((currentPage - 1) * _pageSize).Take(_pageSize)];
+    }
+
+    private bool MatchesFilter(object trigger)
+    {
+        if (string.IsNullOrWhiteSpace(_filter))
+        {
+            return true;
+        }
+
+        string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+        string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+        string key = DisplayValueHelper.FormatKey(group, name);
+        return key.Contains(_filter, StringComparison.OrdinalIgnoreCase);
+    }
+
     private void ApplyFilterAndPaging()
     {
-        IEnumerable<object> query = _allTriggers;
-        if (!string.IsNullOrWhiteSpace(_filter))
-        {
-            query = query.Where(trigger =>
-            {
-                string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                string key = DisplayValueHelper.FormatKey(group, name);
-                return key.Contains(_filter, StringComparison.OrdinalIgnoreCase);
-            });
-        }
+        IEnumerable<object> query = _allTriggers.Where(MatchesFilter);
 
         if (_showErrorOnly)
         {
