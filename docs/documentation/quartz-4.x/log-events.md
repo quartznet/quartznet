@@ -405,7 +405,7 @@ matching on its text is not.
 | 9101 | Information | `Quartz.Dashboard` | `"Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason} (origin {Origin}, node {Node})"` |
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |
 | 9103 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} closed for user {User}"` |
-| 9104 | Warning | `Quartz.Dashboard` | `"Forwarding scheduler {SchedulerName} events to the dashboard hub stopped"` |
+| 9104 | Warning | `Quartz.Dashboard` | `"Forwarding scheduler {SchedulerName} events to the dashboard hub failed; it subscribes again while the dashboard lists the scheduler"` |
 | 9105 | Information | `Quartz.Dashboard` | `"Cluster {Target} formed for scheduler {SchedulerName} from targets {Members}"` |
 | 9106 | Information | `Quartz.Dashboard` | `"Cluster {PreviousTarget} for scheduler {SchedulerName} is now {Target}: members {Members}"` |
 | 9107 | Information | `Quartz.Dashboard` | `"Cluster {Target} for scheduler {SchedulerName} dissolved; its targets are listed on their own again"` |

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Tests.AspNetCore.Dashboard.Support;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
@@ -128,10 +129,21 @@ public class QuartzDashboardHubAuthorizationTest
         IGroupManager groups = A.Fake<IGroupManager>();
 
         // A forwarder over a stream nothing publishes into: the join is what starts it, which is a fact this
-        // fixture asserts and which must not need a scheduler to be true.
+        // fixture asserts and which must not need a running scheduler to be true. The schedulers are listed,
+        // because the forwarder starts nothing for a name the dashboard does not list.
+        SchedulerRepository repository = new();
+        foreach (string schedulerName in (string[]) ["acme", "globex"])
+        {
+            IScheduler scheduler = A.Fake<IScheduler>();
+            A.CallTo(() => scheduler.SchedulerName).Returns(schedulerName);
+            A.CallTo(() => scheduler.SchedulerInstanceId).Returns("node-a");
+            repository.Bind(scheduler);
+        }
+
         FakeSchedulerEventSource events = new();
         ServiceCollection services = new();
         services.AddSingleton<ISchedulerEventSource>(events);
+        services.AddSingleton<ISchedulerRepository>(repository);
         ServiceProvider provider = services.BuildServiceProvider();
 
         QuartzDashboardHub hub = new(

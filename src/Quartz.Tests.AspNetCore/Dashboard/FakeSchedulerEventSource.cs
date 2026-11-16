@@ -78,9 +78,25 @@ internal sealed class FakeSchedulerEventSource : ISchedulerEventSource
     public void Push(SchedulerEvent schedulerEvent) => Stream(schedulerEvent.SchedulerName).Writer.TryWrite(schedulerEvent);
 
     /// <summary>
-    /// Ends one scheduler's stream, the way a scheduler that went away does.
+    /// Ends one scheduler's stream, the way a scheduler that went away does. A later subscription gets a
+    /// stream of its own, as one to a scheduler that came back, or to an agent redeployed under the same
+    /// target, does.
     /// </summary>
-    public void End(string schedulerName) => Stream(schedulerName).Writer.TryComplete();
+    public void End(string schedulerName) => Close(schedulerName, failure: null);
+
+    /// <summary>
+    /// Fails one scheduler's stream with <paramref name="failure" />, the way a connection that broke does.
+    /// A later subscription gets a stream of its own.
+    /// </summary>
+    public void Fail(string schedulerName, Exception failure) => Close(schedulerName, failure);
+
+    private void Close(string schedulerName, Exception? failure)
+    {
+        if (streams.TryRemove(schedulerName, out Channel<SchedulerEvent>? stream))
+        {
+            stream.Writer.TryComplete(failure);
+        }
+    }
 
     private Channel<SchedulerEvent> Stream(string schedulerName) =>
         streams.GetOrAdd(schedulerName, _ => Channel.CreateUnbounded<SchedulerEvent>());

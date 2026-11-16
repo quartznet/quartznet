@@ -2,12 +2,15 @@ using FakeItEasy;
 
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
+using Quartz.Impl;
+using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
 
@@ -180,6 +183,270 @@ public class DashboardHubForwarderTest
             "one subscription feeds every connection in the group, so joining twice subscribes once");
     }
 
+    /// <summary>
+    /// A stream that ends while the dashboard still lists its scheduler is subscribed to again, so the
+    /// connections already in the group go on receiving without joining again.
+    /// </summary>
+    /// <remarks>
+    /// An agent redeployed under the same target is the common case: the registry completes the old entry's
+    /// stream once the new entry is bound, and the key resolves to the new one.
+    /// </remarks>
+    [Test]
+    public async Task APumpWhoseStreamEndsSubscribesAgainAndForwardsTheNextEvent()
+    {
+        await using Forwarding forwarding = Forwarding.Of("TestScheduler");
+        await Eventually.Until(() => forwarding.Source.Subscribed.Count == 1);
+
+        forwarding.Source.End("TestScheduler");
+
+        // The pump waits before it subscribes again, on the clock the container holds; the clock is moved
+        // on until it has, rather than a test waiting seconds of real time.
+        await Eventually.Until(() =>
+        {
+            forwarding.Clock.Advance(DashboardHubForwarder.FirstRestartDelay);
+            return forwarding.Source.Subscribed.Count == 2;
+        });
+
+        forwarding.Publish(Event(SchedulerEventKind.JobPaused) with { JobKey = new KeyDto("nightly", "reports") });
+
+        await Eventually.Until(() => forwarding.Methods.Count == 1);
+
+        forwarding.Methods.Should().Equal(["JobPaused"],
+            "a client that joined before the stream ended is still in the group, and nothing tells it to join again");
+    }
+
+    /// <summary>
+    /// A stream that ends once the dashboard no longer lists its scheduler ends its pump, and the pump
+    /// leaves the forwarder.
+    /// </summary>
+    /// <remarks>
+    /// An agent forgotten after <c>ForgetAfter</c> is the case: the registry removes it and then completes its
+    /// stream. Subscribing again would subscribe to nothing that will ever deliver.
+    /// </remarks>
+    [Test]
+    public async Task APumpWhoseSchedulerIsNoLongerListedEndsAndLeavesTheForwarder()
+    {
+        await using Forwarding forwarding = Forwarding.Of("TestScheduler");
+        await Eventually.Until(() => forwarding.Source.Subscribed.Count == 1);
+
+        forwarding.Unlist("TestScheduler");
+        forwarding.Source.End("TestScheduler");
+
+        await Eventually.Until(() =>
+        {
+            forwarding.Clock.Advance(DashboardHubForwarder.FirstRestartDelay);
+            return !forwarding.IsForwarding("TestScheduler");
+        });
+
+        forwarding.Source.Subscribed.Should().Equal(["TestScheduler"],
+            "a scheduler the dashboard no longer lists is not subscribed to again");
+    }
+
+    /// <summary>
+    /// A join for a name the dashboard does not list starts nothing, and the same name starts a pump on the
+    /// first join after it is listed.
+    /// </summary>
+    /// <remarks>
+    /// With no scheduler or operation policy any name passes the hub's check, so the name is the client's to
+    /// choose; the dashboard's own listing is what bounds the forwarder.
+    /// </remarks>
+    [Test]
+    public async Task AJoinForANameTheDashboardDoesNotListStartsNoPump()
+    {
+        await using Forwarding forwarding = Forwarding.Nothing();
+
+        forwarding.Forward("made-up");
+
+        forwarding.IsForwarding("made-up").Should().BeFalse(
+            "a pump for a name no scheduler has would hold a subscription on the broker for the life of the process");
+        forwarding.Source.Subscribed.Should().BeEmpty();
+
+        forwarding.List("made-up");
+        forwarding.Forward("made-up");
+
+        await Eventually.Until(() => forwarding.Source.Subscribed.Count > 0);
+        forwarding.Source.Subscribed.Should().Equal(["made-up"], "a name that becomes known starts its pump on the next join");
+    }
+
+    /// <summary>
+    /// The pump the next join starts once the last one has ended is the one that forwards: the ended pump's
+    /// leaving does not take its replacement with it.
+    /// </summary>
+    [Test]
+    public async Task TheReplacementOfAnEndedPumpIsNotRemovedByIt()
+    {
+        await using Forwarding forwarding = Forwarding.Of("TestScheduler");
+        await Eventually.Until(() => forwarding.Source.Subscribed.Count == 1);
+
+        forwarding.Unlist("TestScheduler");
+        forwarding.Source.End("TestScheduler");
+        await Eventually.Until(() =>
+        {
+            forwarding.Clock.Advance(DashboardHubForwarder.FirstRestartDelay);
+            return !forwarding.IsForwarding("TestScheduler");
+        });
+
+        forwarding.List("TestScheduler");
+        forwarding.Forward("TestScheduler");
+        await Eventually.Until(() => forwarding.Source.Subscribed.Count == 2);
+
+        forwarding.IsForwarding("TestScheduler").Should().BeTrue("the replacement is the scheduler's pump now");
+
+        forwarding.Forward("TestScheduler");
+        forwarding.Publish(Event(SchedulerEventKind.JobPaused) with { JobKey = new KeyDto("nightly", "reports") });
+
+        await Eventually.Until(() => forwarding.Methods.Count == 1);
+
+        forwarding.Source.Subscribed.Should().HaveCount(2,
+            "a join while the replacement runs is a join to it, not a reason for a third subscription");
+        forwarding.Methods.Should().Equal(["JobPaused"], "one pump feeds the group, so each event arrives once");
+    }
+
+    /// <summary>
+    /// A stream that fails is subscribed to again, and the failure is logged once for a run of them rather
+    /// than once per retry; a subscription that delivers ends the run.
+    /// </summary>
+    [Test]
+    public async Task AFailingStreamIsSubscribedToAgainAndLoggedOncePerRunOfFailures()
+    {
+        await using Forwarding forwarding = Forwarding.Nothing();
+        forwarding.Source.Failure = new InvalidOperationException("the target answered 500");
+
+        forwarding.Forward("TestScheduler");
+
+        await Eventually.Until(() =>
+        {
+            forwarding.Clock.Advance(DashboardHubForwarder.MaxRestartDelay);
+            return forwarding.Source.Subscribed.Count >= 3;
+        });
+
+        forwarding.Logs.WithEventId(9104).Should().ContainSingle(
+            "a target that keeps failing is asked again after each wait, and one warning says so");
+
+        // The target recovers: an event queued for the scheduler is what the next subscription delivers.
+        forwarding.Source.Failure = null;
+        forwarding.Source.Push(Event(SchedulerEventKind.JobPaused) with { JobKey = new KeyDto("nightly", "reports") });
+
+        await Eventually.Until(() =>
+        {
+            forwarding.Clock.Advance(DashboardHubForwarder.MaxRestartDelay);
+            return forwarding.Methods.Count == 1;
+        });
+
+        forwarding.Source.Fail("TestScheduler", new InvalidOperationException("the connection broke"));
+
+        await Eventually.Until(() => forwarding.Logs.WithEventId(9104).Count == 2);
+
+        forwarding.Logs.WithEventId(9104).Select(entry => entry.Message).Should().AllSatisfy(message =>
+            message.Should().Be("Forwarding scheduler TestScheduler events to the dashboard hub failed; it subscribes again while the dashboard lists the scheduler"));
+    }
+
+    /// <summary>
+    /// The wait before subscribing again doubles from five seconds, stops growing at a minute, and starts
+    /// over at five seconds once a subscription has delivered an event.
+    /// </summary>
+    [Test]
+    public async Task TheWaitBeforeSubscribingAgainDoublesUpToAMinuteAndAnEventStartsItOver()
+    {
+        await using Forwarding forwarding = Forwarding.Nothing();
+        forwarding.Source.Failure = new InvalidOperationException("the target answered 500");
+
+        forwarding.Forward("TestScheduler");
+
+        await Eventually.Until(() =>
+        {
+            forwarding.Clock.Advance(DashboardHubForwarder.MaxRestartDelay);
+            return forwarding.Clock.Waits.Count >= 6;
+        });
+
+        forwarding.Clock.Waits.Take(6).Should().Equal(
+            [
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(10),
+                TimeSpan.FromSeconds(20),
+                TimeSpan.FromSeconds(40),
+                TimeSpan.FromSeconds(60),
+                TimeSpan.FromSeconds(60)
+            ],
+            "a target that keeps failing is asked less often each time, and never left for longer than a minute");
+
+        // The target recovers, and the subscription after it delivers the event queued for the scheduler.
+        forwarding.Source.Failure = null;
+        forwarding.Source.Push(Event(SchedulerEventKind.JobPaused) with { JobKey = new KeyDto("nightly", "reports") });
+
+        await Eventually.Until(() =>
+        {
+            forwarding.Clock.Advance(DashboardHubForwarder.MaxRestartDelay);
+            return forwarding.Methods.Count == 1;
+        });
+
+        int waitsBeforeTheBreak = forwarding.Clock.Waits.Count;
+        forwarding.Source.Fail("TestScheduler", new InvalidOperationException("the connection broke"));
+
+        await Eventually.Until(() => forwarding.Clock.Waits.Count > waitsBeforeTheBreak);
+
+        forwarding.Clock.Waits[waitsBeforeTheBreak].Should().Be(TimeSpan.FromSeconds(5),
+            "a stream that delivered was working, so its failure is the first of a new run");
+    }
+
+    /// <summary>
+    /// A stream cancelled by something other than the forwarder, such as a request that timed out, is a
+    /// failure like any other: it is logged and subscribed to again.
+    /// </summary>
+    [Test]
+    public async Task AStreamCancelledByAnythingButTheForwarderIsSubscribedToAgain()
+    {
+        await using Forwarding forwarding = Forwarding.Nothing();
+        forwarding.Source.Failure = new OperationCanceledException("the request timed out");
+
+        forwarding.Forward("TestScheduler");
+
+        await Eventually.Until(() =>
+        {
+            forwarding.Clock.Advance(DashboardHubForwarder.FirstRestartDelay);
+            return forwarding.Source.Subscribed.Count >= 2;
+        });
+
+        forwarding.IsForwarding("TestScheduler").Should().BeTrue("only the forwarder's own cancellation ends a pump");
+        forwarding.Logs.WithEventId(9104).Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// A target that serves no event stream ends its pump without retrying, and the pump leaves, although
+    /// the scheduler is still listed: there is nothing to forward from it.
+    /// </summary>
+    [Test]
+    public async Task ATargetThatServesNoEventStreamEndsItsPumpWithoutRetrying()
+    {
+        await using Forwarding forwarding = Forwarding.Nothing();
+        forwarding.Source.Failure = new NotSupportedException("the target does not serve an event stream");
+
+        forwarding.Forward("TestScheduler");
+
+        await Eventually.Until(() => forwarding.Source.Subscribed.Count == 1 && !forwarding.IsForwarding("TestScheduler"));
+
+        forwarding.Clock.Advance(DashboardHubForwarder.MaxRestartDelay * 10);
+
+        forwarding.Source.Subscribed.Should().ContainSingle("asking again would be told the same");
+        forwarding.Logs.WithEventId(9104).Should().BeEmpty("the page a visitor is looking at reads the same source and says so");
+    }
+
+    /// <summary>
+    /// A listed scheduler with no event source at all, such as a window onto an attached store, ends its pump
+    /// at once, and the pump leaves.
+    /// </summary>
+    [Test]
+    public async Task ASchedulerWithNoEventSourceEndsItsPumpAtOnce()
+    {
+        await using Forwarding forwarding = Forwarding.WithoutEventSource();
+
+        forwarding.Forward("TestScheduler");
+
+        await Eventually.Until(() => !forwarding.IsForwarding("TestScheduler"));
+
+        forwarding.Logs.WithEventId(9104).Should().BeEmpty("a scheduler that keeps no feed has nothing to fail at");
+    }
+
     private static readonly DateTimeOffset firedAt = new(2026, 9, 12, 10, 29, 55, TimeSpan.Zero);
 
     private static SchedulerEvent Event(SchedulerEventKind kind) => new()
@@ -191,14 +458,54 @@ public class DashboardHubForwarderTest
     };
 
     /// <summary>
-    /// A forwarder over a stream a test pushes into and a hub a test can read.
+    /// A clock a test moves, which also keeps every wait asked of it, in order.
+    /// </summary>
+    /// <remarks>
+    /// A wait on a <see cref="TimeProvider" /> other than the system's is a timer created on it, so the due
+    /// time of each timer is the length of each wait: what the forwarder chose, read rather than inferred
+    /// from when it subscribed again.
+    /// </remarks>
+    private sealed class RecordingClock : FakeTimeProvider
+    {
+        private readonly List<TimeSpan> waits = [];
+
+        /// <summary>
+        /// The waits asked for so far, oldest first.
+        /// </summary>
+        public List<TimeSpan> Waits
+        {
+            get
+            {
+                lock (waits)
+                {
+                    return [.. waits];
+                }
+            }
+        }
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            lock (waits)
+            {
+                waits.Add(dueTime);
+            }
+
+            return base.CreateTimer(callback, state, dueTime, period);
+        }
+    }
+
+    /// <summary>
+    /// A forwarder over a stream a test pushes into, a hub a test can read, a repository that says which
+    /// schedulers the dashboard lists, and a clock a test moves.
     /// </summary>
     private sealed class Forwarding : IAsyncDisposable
     {
         private readonly ServiceProvider provider;
+        private readonly LoggerFactory loggerFactory;
         private readonly DashboardHubForwarder forwarder;
+        private readonly SchedulerRepository repository = new();
 
-        private Forwarding(FakeSchedulerEventSource source)
+        private Forwarding(FakeSchedulerEventSource source, bool registerSource = true)
         {
             Source = source;
 
@@ -208,15 +515,31 @@ public class DashboardHubForwarderTest
             IHubClients<IQuartzDashboardHubClient> clients = A.Fake<IHubClients<IQuartzDashboardHubClient>>();
             A.CallTo(() => clients.Group(A<string>._)).Returns(client);
 
+            // The scheduler every test is about is listed, as a scheduler of this process is once its host
+            // has started.
+            List("TestScheduler");
+
             ServiceCollection services = new();
-            services.AddSingleton<ISchedulerEventSource>(source);
+            if (registerSource)
+            {
+                services.AddSingleton<ISchedulerEventSource>(source);
+            }
+
+            services.AddSingleton<ISchedulerRepository>(repository);
+            services.AddSingleton<TimeProvider>(Clock);
             services.AddSingleton<IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>>(new CapturingHubContext(clients));
 
             provider = services.BuildServiceProvider();
-            forwarder = new DashboardHubForwarder(provider, NullLogger<DashboardHubForwarder>.Instance);
+            loggerFactory = new LoggerFactory([Logs]);
+            forwarder = new DashboardHubForwarder(provider, loggerFactory.CreateLogger<DashboardHubForwarder>());
         }
 
         public static Forwarding Nothing() => new(new FakeSchedulerEventSource());
+
+        /// <summary>
+        /// A forwarder in a container that holds no event source, as a window's key resolves to none.
+        /// </summary>
+        public static Forwarding WithoutEventSource() => new(new FakeSchedulerEventSource(), registerSource: false);
 
         /// <summary>
         /// A forwarder already watching <paramref name="schedulerName" />, as the hub's first join leaves it.
@@ -229,6 +552,37 @@ public class DashboardHubForwarderTest
         }
 
         public FakeSchedulerEventSource Source { get; }
+
+        /// <summary>
+        /// The clock the forwarder waits on between two subscriptions.
+        /// </summary>
+        public RecordingClock Clock { get; } = new();
+
+        /// <summary>
+        /// What the forwarder logged.
+        /// </summary>
+        public RecordingLoggerProvider Logs { get; } = new();
+
+        /// <summary>
+        /// Puts a scheduler of this name on the dashboard, as building one binds it into the repository.
+        /// </summary>
+        public void List(string schedulerName)
+        {
+            IScheduler scheduler = A.Fake<IScheduler>();
+            A.CallTo(() => scheduler.SchedulerName).Returns(schedulerName);
+            A.CallTo(() => scheduler.SchedulerInstanceId).Returns("node-a");
+            repository.Bind(scheduler);
+        }
+
+        /// <summary>
+        /// Takes the scheduler of this name off the dashboard, as forgetting an agent does.
+        /// </summary>
+        public void Unlist(string schedulerName) => repository.Remove(schedulerName);
+
+        /// <summary>
+        /// Whether the forwarder holds a pump for <paramref name="schedulerName" />.
+        /// </summary>
+        public bool IsForwarding(string schedulerName) => forwarder.IsForwarding(schedulerName);
 
         /// <summary>
         /// The hub methods that were called, in order, which is what a connected client receives.
@@ -314,6 +668,7 @@ public class DashboardHubForwarderTest
         {
             await forwarder.DisposeAsync();
             await provider.DisposeAsync();
+            loggerFactory.Dispose();
         }
     }
 }
