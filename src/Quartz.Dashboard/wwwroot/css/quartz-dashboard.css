@@ -1642,14 +1642,28 @@ body{
 }
 
 /* The Triggers listing adds a schedule and two fire times to the key, state, execution group and actions.
-   The key and the schedule share what the fixed columns leave; the schedule wraps between words, a fire time
-   wraps between its date, its time and how far off it is, and the actions take two rows until there is room
-   for one. */
+   The key and the schedule share what the fixed columns leave, and the columns answer to the listing's own
+   width, not the window's, so a collapsed sidebar counts. Each step below gives way before the key or the
+   schedule drops under about 200px: Details and Execution group first, then Previous fire; then the schedule
+   moves under the key; and past that the table scrolls inside its card rather than the page sideways. The
+   schedule wraps between words, a fire time between its date, its time and how far off it is, and the
+   actions take two rows until there is room for one. */
+.qz-triggers-listing {
+    container: qz-triggers-listing / inline-size;
+    overflow-x: auto;
+}
+
 .qz-triggers-table th.qz-col-schedule,
-.qz-triggers-table td.qz-col-schedule {
+.qz-triggers-table td.qz-col-schedule,
+.qz-triggers-table .qz-schedule-inline {
     font-size: var(--qz-font-size-sm);
     white-space: normal;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+}
+
+.qz-triggers-table .qz-schedule-inline {
+    display: none;
+    margin-top: var(--qz-space-xs);
 }
 
 .qz-triggers-table th.qz-col-fire,
@@ -1668,7 +1682,8 @@ body{
 
 .qz-triggers-table th.qz-col-execution-group,
 .qz-triggers-table td.qz-col-execution-group {
-    width: 112px;
+    width: 128px;
+    white-space: normal;
 }
 
 .qz-triggers-table th.qz-col-details,
@@ -1688,17 +1703,39 @@ body{
     column-gap: var(--qz-space-xs);
 }
 
-@media (min-width: 1600px) {
+@container qz-triggers-listing (min-width: 1440px) {
     .qz-triggers-table th.qz-col-actions,
     .qz-triggers-table td.qz-col-actions {
         width: 340px;
     }
 }
 
-/* Narrower than that, the previous fire gives its width to the key; the trigger's own page shows it. */
-@media (max-width: 1439px) {
+/* Every column needs 1272px with the key and the schedule at their floors. The trigger's own page shows what
+   each step hides. */
+@container qz-triggers-listing (max-width: 1299px) {
+    .qz-triggers-table .qz-col-details,
+    .qz-triggers-table .qz-col-execution-group {
+        display: none;
+    }
+}
+
+@container qz-triggers-listing (max-width: 1079px) {
     .qz-triggers-table .qz-col-previous-fire {
         display: none;
+    }
+}
+
+@container qz-triggers-listing (max-width: 919px) {
+    .qz-triggers-table .qz-col-schedule {
+        display: none;
+    }
+
+    .qz-triggers-table .qz-schedule-inline {
+        display: block;
+    }
+
+    .qz-triggers-table {
+        min-width: 748px;
     }
 }
 

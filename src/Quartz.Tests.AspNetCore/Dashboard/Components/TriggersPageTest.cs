@@ -66,6 +66,38 @@ public class TriggersPageTest
     }
 
     /// <summary>
+    /// The markup a narrow listing is laid out by: the table sits in its own scroll container, whose width the
+    /// columns answer to; the columns that give way carry the classes they are hidden by; and the schedule is under
+    /// the key too, shown there once its own column is hidden. The layout itself is checked in a browser.
+    /// </summary>
+    [Test]
+    public void TheListingCarriesTheMarkupItsNarrowLayoutsAreBuiltOn()
+    {
+        GivenTriggers([
+            TestData.Dashboard.TriggerHeaders("nightly", 1)[0] with
+            {
+                ScheduleDescription = "Every weekday at 07:00 (America/Chicago)",
+                ScheduleExpression = "0 0 7 ? * MON-FRI"
+            }
+        ]);
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        IElement listing = page.Find("section.qz-section [data-testid=triggers-listing]");
+        listing.ClassList.Should().Contain("qz-triggers-listing");
+        listing.QuerySelectorAll("table.qz-triggers-table").Should().ContainSingle("the table is the scroll container's, not the page's");
+        foreach (string column in new[] { "qz-col-schedule", "qz-col-previous-fire", "qz-col-execution-group", "qz-col-details" })
+        {
+            page.FindAll("th." + column).Should().ContainSingle($"the {column} header is hidden with its cells");
+            page.FindAll("td." + column).Should().ContainSingle($"each row has a {column} cell");
+        }
+
+        IElement inline = page.Find("td.qz-col-key .qz-schedule-inline .qz-schedule");
+        inline.TextContent.Should().Be("Every weekday at 07:00 (America/Chicago)");
+        inline.GetAttribute("title").Should().Be("0 0 7 ? * MON-FRI");
+    }
+
+    /// <summary>
     /// A scheduler, HTTP API or agent older than 4.8 lists its triggers without descriptions.
     /// </summary>
     [Test]
