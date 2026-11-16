@@ -1509,6 +1509,19 @@ Both limits match the [HTTP API](http-api.md#production-hardening)'s.
   may trigger, pause, reschedule, unschedule, interrupt, delete and shut down. Any visitor who may view reads every
   job's data map and every exception message in the history. Authorize the dashboard as you would a shell on the
   machine.
+
+::: warning A data map is not a secret store
+Every page that shows a data map shows its values in plain text:
+
+- Job Detail shows the job's map, and Trigger Detail the trigger's, to any visitor who may view the scheduler.
+- The *Trigger with overrides* form and *Edit details* show the same values pre-filled, to `Administer` only.
+- The execution page shows the run's input to any visitor who may view the scheduler, when
+  [`RecordInput`](../how-tos/job-outcomes.md#record-a-run-s-input) is on.
+
+Keep secrets in `IConfiguration`, a key vault or the container, and put a *name* in the map if a job needs to
+find one.
+:::
+
 - **There is no rate limiting.** ASP.NET Core's rate limiter middleware applies as to any endpoint; Quartz
   configures none.
 
