@@ -180,6 +180,40 @@ public sealed class LockFreeRoundsApartSqliteTest
         (await TriggerState(key)).Should().Be("WAITING");
     }
 
+    /// <summary>
+    /// Between the two transactions another node replaced the trigger, which cancels this node's reservation,
+    /// and a third node acquired the replacement for the same fire time. The guard still matches the row,
+    /// which is <c>ACQUIRED</c> at that time, but the acquisition is no longer this node's: it is not fired,
+    /// and the other node's is left as it is (#4323).
+    /// </summary>
+    [Test]
+    public async Task AReservationAReplaceCancelledBetweenTheClaimAndTheFireIsNotFired()
+    {
+        TriggerKey key = await ScheduleRepeating("replaced");
+        seam.BeforeGuard = async conn =>
+        {
+            await Execute(conn, "DELETE FROM QRTZ_FIRED_TRIGGERS WHERE INSTANCE_NAME = 'node-a' AND TRIGGER_NAME = @n", key.Name);
+            await Execute(
+                conn,
+                "INSERT INTO QRTZ_FIRED_TRIGGERS (SCHED_NAME, ENTRY_ID, TRIGGER_NAME, TRIGGER_GROUP, INSTANCE_NAME, FIRED_TIME, SCHED_TIME, PRIORITY, STATE) "
+                + $"VALUES ('{SchedulerName}', 'node-c-1', @n, '{Group}', 'node-c', {epoch.UtcTicks}, {due.UtcTicks}, 5, 'ACQUIRED')",
+                key.Name);
+        };
+
+        TriggerAcquisitionResult round = await AcquireAndFire();
+
+        round.Fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().BeNull(
+            "the row is ACQUIRED at the fire time this node claimed, but by another node's acquisition");
+        (await NextFireTime(key)).Should().Be(due, "nothing was fired, so the trigger has not moved on");
+        (await TriggerState(key)).Should().Be("ACQUIRED", "the other node's acquisition stands");
+        (await FiredState("node-c-1")).Should().Be("ACQUIRED");
+        (await FiredRowCount()).Should().Be(1, "no firing ran, so no fired-trigger row was written for one");
+
+        await store.ReleaseAcquiredTrigger(round.Due[0]);
+
+        (await TriggerState(key)).Should().Be("ACQUIRED", "this node's release has no row of its own left, and moves nothing");
+    }
+
     [Test]
     public async Task AJobMadeSerialBetweenTheClaimAndTheFireIsLeftForTheSchedulerToFireUnderTheLock()
     {

@@ -92,6 +92,8 @@ registration, and each scheduling file, over the trigger the store holds. The tr
   stored afresh, which is how a redeploy that fixes its job brings it back.
 * The start reads the stored trigger before it replaces it. When another node fires the trigger in between,
   the replace finds it moved and the start reads it again (4.8), so a fire time that ran is never put back.
+  A trigger that fires between the read and the replace eight times in a row is left as stored, with warning
+  `5038`; the start goes on, and the registration applies at the next start.
 
 ## Changing metadata in place: UpdateTriggerDetails
 

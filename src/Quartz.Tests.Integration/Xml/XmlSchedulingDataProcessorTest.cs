@@ -130,6 +130,11 @@ public class XmlSchedulingDataProcessorTest
 
         A.CallTo(() => mockScheduler.GetTrigger(existing.Key, A<CancellationToken>._)).Returns(new ValueTask<ITrigger>(existing));
 
+        // The trigger is there to replace, so the replace says so: an answer of null is a trigger that was not
+        // found, which a processor that finds it again takes for one that fired in between (#4324).
+        A.CallTo(() => mockScheduler.RescheduleJob(existing.Key, A<ITrigger>._, A<CancellationToken>._))
+            .Returns(new ValueTask<DateTimeOffset?>(previousFireTime.AddSeconds(10)));
+
         Stream s = ReadJobXmlFromEmbeddedResource("ScheduleRelativeToOldTrigger.xml");
         await processor.ProcessStream(s, null);
         await processor.ScheduleJobs(mockScheduler);

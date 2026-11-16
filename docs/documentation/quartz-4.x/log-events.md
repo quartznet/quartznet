@@ -329,6 +329,7 @@ matching on its text is not.
 | 5035 | Information | `Quartz` | `"Deleting job: {Key}"` |
 | 5036 | Information | `Quartz` | `"Deleting trigger: {Key}"` |
 | 5037 | Debug | `Quartz` | `"Trigger {TriggerKey} fired while its declaration was being re-applied; re-applying it over the trigger as it is now"` |
+| 5038 | Warning | `Quartz` | `"Trigger {TriggerKey} fired while its declaration was being re-applied, {Attempts} times in a row; it is left as stored, and the declaration applies at the next start"` |
 | 5100 | Warning | `Quartz` | `"Misfire instruction '{MisfireInstruction}' is not one of the {Family} trigger names. It resolves to code {Code}, which for this trigger means {Policy}; spell it '{Canonical}'"` |
 | 5102 | Warning | `Quartz` | `"Type '{OldName}' was found as '{NewName}'; the type moved in Quartz 4.0. Update the configuration, as this fallback will not last forever."` |
 | 5103 | Warning | `Quartz` | `"Unrecognized misfire policy {MisfireInstruction}. Derived builder will use the default cron trigger behavior (FireOnceNow)"` |

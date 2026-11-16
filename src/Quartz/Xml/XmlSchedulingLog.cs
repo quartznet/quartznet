@@ -158,4 +158,12 @@ internal static partial class XmlSchedulingLog
     /// </remarks>
     [LoggerMessage(EventId = 5037, Level = LogLevel.Debug, Message = "Trigger {TriggerKey} fired while its declaration was being re-applied; re-applying it over the trigger as it is now")]
     public static partial void DeclaredTriggerReappliedAgain(this ILogger logger, TriggerKey triggerKey);
+
+    /// <remarks>
+    /// The stored trigger fired between every read its declaration was worked out from and the replace
+    /// (#4324). The store refused each write, so the trigger stays as stored and nothing ran twice; the start
+    /// goes on with its other declarations, and the next start applies this one.
+    /// </remarks>
+    [LoggerMessage(EventId = 5038, Level = LogLevel.Warning, Message = "Trigger {TriggerKey} fired while its declaration was being re-applied, {Attempts} times in a row; it is left as stored, and the declaration applies at the next start")]
+    public static partial void DeclaredTriggerLeftAsStored(this ILogger logger, TriggerKey triggerKey, int attempts);
 }

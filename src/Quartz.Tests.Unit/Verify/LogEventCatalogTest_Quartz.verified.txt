@@ -542,6 +542,8 @@
     "Deleting trigger: {Key}"
 5037  Debug  XmlSchedulingLog.DeclaredTriggerReappliedAgain
     "Trigger {TriggerKey} fired while its declaration was being re-applied; re-applying it over the trigger as it is now"
+5038  Warning  XmlSchedulingLog.DeclaredTriggerLeftAsStored
+    "Trigger {TriggerKey} fired while its declaration was being re-applied, {Attempts} times in a row; it is left as stored, and the declaration applies at the next start"
 5100  Warning  UtilityLog.MisfireInstructionFromAnotherFamily
     "Misfire instruction '{MisfireInstruction}' is not one of the {Family} trigger names. It resolves to code {Code}, which for this trigger means {Policy}; spell it '{Canonical}'"
 5102  Warning  UtilityLog.TypeFoundUnderNewName

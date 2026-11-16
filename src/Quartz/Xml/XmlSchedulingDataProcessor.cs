@@ -1115,7 +1115,7 @@ internal class XmlSchedulingDataProcessor
 
     /// <summary>
     /// How many times a declared trigger is worked out again from a stored trigger that fired between the
-    /// read and the replace before the start gives up on it. A trigger that fires this often in a window
+    /// read and the replace before the start leaves it as stored. A trigger that fires this often in a window
     /// of milliseconds is a configuration to report, not to wait out.
     /// </summary>
     private const int MaxReapplyAttempts = 8;
@@ -1134,7 +1134,10 @@ internal class XmlSchedulingDataProcessor
     /// unread replaces as it always has.
     /// </para>
     /// <para>
-    /// A trigger the store no longer holds when it is asked is not stored here, as before.
+    /// A trigger the store no longer holds when it is asked is not stored here, as before. One that fires
+    /// between every read and its replace, <see cref="MaxReapplyAttempts" /> times over, is left as stored
+    /// with a warning, and the start goes on: the store refused each write, so nothing is lost but this
+    /// start's change to it, which the next start applies.
     /// </para>
     /// </remarks>
     private async ValueTask<DateTimeOffset?> DoRescheduleJob(
@@ -1167,8 +1170,10 @@ internal class XmlSchedulingDataProcessor
 
             if (attempt >= MaxReapplyAttempts)
             {
-                Throw.SchedulerException(
-                    $"Trigger '{trigger.Key}' fired {attempt} times while its declaration was being re-applied.");
+                // The store refused every write, so the trigger is as it stood and nothing ran twice. The
+                // start goes on with the declarations after this one, and the next start applies this one.
+                logger.DeclaredTriggerLeftAsStored(trigger.Key, attempt);
+                return null;
             }
 
             logger.DeclaredTriggerReappliedAgain(trigger.Key);

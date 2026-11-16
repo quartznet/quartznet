@@ -379,8 +379,10 @@ internal abstract partial class AdoJobStoreBase
     /// the row the fire writes over, as in a folded round. A row that does not move was paused, deleted,
     /// rescheduled or recovered in between, and is answered <see cref="TriggerFiredResult.NotFired" />,
     /// which the scheduler releases, as <see cref="TriggersFired" /> answers a trigger no longer
-    /// <c>ACQUIRED</c>. No other node can have claimed the row since: a claim moves a row from
-    /// <c>WAITING</c> only.
+    /// <c>ACQUIRED</c>. A claim moves a row from <c>WAITING</c> only, but a replace stores the trigger
+    /// <c>WAITING</c> and cancels this node's reservation, and another node can then claim the replacement
+    /// for the same fire time. So a row the guard moved is fired only while this node's reservation of it
+    /// is still there, as <see cref="TriggersFired" /> fires a held acquisition (#4323).
     /// </para>
     /// <para>
     /// The count of a guard that writes the value the row already holds is the number of rows it matched on
@@ -426,6 +428,25 @@ internal abstract partial class AdoJobStoreBase
             return results;
         }
 
+        // The guard says the row is ACQUIRED at the fire time the claim held it to, not that the acquisition
+        // is still this node's: between the two transactions another node may have replaced the trigger,
+        // which cancels this node's reservation, and a third may have acquired the replacement for the same
+        // fire time. Fired anyway, that acquisition would run with no fired-trigger row of its own, unseen
+        // by recovery and by the checks of what is executing (#4323). Read after the guard, which holds the
+        // rows: a replace takes the trigger's row before it cancels its reservations, so none can go now.
+        HashSet<string> reserved = await ReservationsOfThisNode(conn, cancellationToken).ConfigureAwait(false);
+        Dictionary<TriggerKey, string?> claimedAs = new(due.Count);
+        foreach (IOperableTrigger claimed in due)
+        {
+            claimedAs[claimed.Key] = claimed.FireInstanceId;
+        }
+
+        held = held.FindAll(key => claimedAs.TryGetValue(key, out string? fireInstanceId) && fireInstanceId is not null && reserved.Contains(fireInstanceId));
+        if (held.Count == 0)
+        {
+            return results;
+        }
+
         FireOnAcquireRound round = new(failed: null, oneByOne: false, throughRoundMembers: Delegate.SupportsFireOnAcquire, lockReason: null, firesApart: true);
         Dictionary<TriggerKey, IOperableTrigger> rows = await ReadAcquisitionCandidates(conn, held, round, cancellationToken).ConfigureAwait(false);
 
@@ -459,6 +480,28 @@ internal abstract partial class AdoJobStoreBase
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// The entry ids of this node's <c>ACQUIRED</c> fired-trigger rows: the reservations its acquisitions
+    /// still hold. One read for the fire of a round that fires apart (#4117, #4323).
+    /// </summary>
+    private async ValueTask<HashSet<string>> ReservationsOfThisNode(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
+    {
+        List<FiredTriggerRecord> rows = await Guarded(
+            () => Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken),
+            "select this node's reservations").ConfigureAwait(false);
+
+        HashSet<string> reserved = new(rows.Count, StringComparer.Ordinal);
+        foreach (FiredTriggerRecord row in rows)
+        {
+            if (row.FireInstanceState == StoredTriggerState.Acquired)
+            {
+                reserved.Add(row.FireInstanceId);
+            }
+        }
+
+        return reserved;
     }
 
     /// <summary>
