@@ -178,6 +178,35 @@ public class DashboardPageTest
     }
 
     /// <summary>
+    /// Standing the scheduler down has the header read its status once.
+    /// </summary>
+    /// <remarks>
+    /// The page's own read after the action saw the status change and had the header read it, and then the
+    /// action told every page the scheduler had changed, which had the header read it a second time and the
+    /// page read itself again.
+    /// </remarks>
+    [Test]
+    public async Task StandingTheSchedulerDownHasTheHeaderReadItsStatusOnce()
+    {
+        SchedulerStatus status = SchedulerStatus.Running;
+        A.CallTo(() => context.Api.GetScheduler(TestData.SchedulerName, A<CancellationToken>._))
+            .ReturnsLazily(() => TestData.Dashboard.SchedulerDetail(status));
+        A.CallTo(() => context.Api.Standby(TestData.SchedulerName, A<CancellationToken>._))
+            .Invokes(() => status = SchedulerStatus.Standby);
+        int headerReads = 0;
+        context.SchedulerState.OnRefreshed += (_, _) => headerReads++;
+        context.SchedulerState.OnSchedulerChanged += (_, _) => headerReads++;
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+        page.WaitForAssertion(() => page.SchedulerStatusModifier().Should().Be("qz-state-running"));
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Standby").Click();
+
+        page.WaitForAssertion(() => page.SchedulerStatusModifier().Should().Be("qz-state-standby"));
+        await page.InvokeAsync(() => { });
+        headerReads.Should().Be(1, "one read of the status after the action is enough for the header");
+    }
+
+    /// <summary>
     /// The Nodes tile counts what the cluster has, and says how much of it is not answering.
     /// </summary>
     /// <remarks>
