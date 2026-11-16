@@ -3042,7 +3042,7 @@ body{
     justify-content: flex-end;
 }
 
-/* Axis, groups and job rows. */
+/* Axis, groups and job rows. overflow stays visible so sticky axis and row menus are not clipped. */
 .qz-timeline {
     --qz-timeline-row-height: 1.55rem;
     display: flex;
@@ -3052,6 +3052,8 @@ body{
     border-radius: var(--qz-radius-md);
     background: var(--qz-color-surface);
     overflow: visible;
+    container-type: inline-size;
+    container-name: timeline;
 }
 
 .qz-timeline-sticky {
@@ -3061,19 +3063,24 @@ body{
     background: var(--qz-color-surface);
 }
 
-/* Name + Schedule/Start/Previous/Next/End. Floors fit the full uppercase heads (not SCH/PREVIOU…). */
+/*
+ * Name + Schedule/Start/Previous/Next/End. Floors fit the full uppercase heads without summing to
+ * ~500 px (8+6.5+…), which spilled End with the sidebar open around 721–1000 px.
+ */
 .qz-timeline-columns {
     display: grid;
     grid-template-columns:
-        minmax(8rem, 1.1fr)
-        minmax(6.5rem, 1fr)
-        minmax(3.5rem, 1fr)
-        minmax(6.5rem, 1fr)
-        minmax(3.5rem, 1fr)
-        minmax(3rem, 1fr);
+        minmax(6rem, 1.1fr)
+        minmax(5.25rem, 1fr)
+        minmax(3.25rem, 1fr)
+        minmax(5.25rem, 1fr)
+        minmax(3.25rem, 1fr)
+        minmax(2.75rem, 1fr);
     gap: 0;
     align-items: stretch;
     padding: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .qz-timeline-columns > * {
@@ -3081,6 +3088,7 @@ body{
     padding: 0.4rem 0.55rem;
     border-left: 1px solid var(--qz-color-border);
     border-right: 1px solid var(--qz-color-border);
+    box-sizing: border-box;
 }
 
 .qz-timeline-columns > * + * {
@@ -3336,31 +3344,6 @@ body{
 }
 
 /* One trigger row: schedule, action menu and the runs on its track. */
-.qz-timeline-columns {
-    display: grid;
-    grid-template-columns:
-        minmax(8rem, 1.1fr)
-        minmax(6.5rem, 1fr)
-        minmax(3.5rem, 1fr)
-        minmax(6.5rem, 1fr)
-        minmax(3.5rem, 1fr)
-        minmax(3rem, 1fr);
-    gap: 0;
-    align-items: stretch;
-    padding: 0;
-}
-
-.qz-timeline-columns > * {
-    min-width: 0;
-    padding: 0.4rem 0.55rem;
-    border-left: 1px solid var(--qz-color-border);
-    border-right: 1px solid var(--qz-color-border);
-}
-
-.qz-timeline-columns > * + * {
-    margin-left: -1px;
-}
-
 .qz-timeline-trigger {
     background: var(--qz-color-surface);
 }
@@ -3655,17 +3638,14 @@ body{
     to { background-position: 8px 0; }
 }
 
-/* Narrow timeline meta: short labels; flexible columns so End stays inside the border at ~390 px. */
-@media (max-width: 720px) {
-    .qz-timeline {
-        overflow-x: hidden;
-    }
-
+/*
+ * Narrow card (not viewport): short labels and flexible columns. Follows the Timeline's own width
+ * so 721–1000 px with the sidebar open still switches when the card is tight, without overflow-x
+ * on .qz-timeline (that broke sticky axis and clipped row menus).
+ */
+@container timeline (max-width: 36rem) {
     .qz-timeline-columns {
-        /* No large minmax floors — their sum used to push End past the card edge. */
         grid-template-columns: minmax(3.5rem, 0.95fr) repeat(5, minmax(0, 1fr));
-        width: 100%;
-        box-sizing: border-box;
     }
 
     .qz-timeline-columns > * {

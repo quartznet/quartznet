@@ -79,9 +79,10 @@ internal sealed class TimelineService
     private static readonly TimeSpan MaxPanOffset = TimelineWindow.LastWeek.Span;
 
     /// <summary>
-    /// Floor for a bar's width as a fraction of the axis. A 1 s run on the 1 h window would otherwise
-    /// be a sub-pixel hairline; 0.8 % keeps a short mark visible when neighbours leave it room.
-    /// Busy rows still shrink via <see cref="ApplyBarGaps"/>.
+    /// Floor for a bar's width as a fraction of the axis: a mark, not a duration. A 1 s run on the
+    /// 1 h window would otherwise be a sub-pixel hairline; 0.8 % keeps that mark visible when
+    /// neighbours leave it room. On a 1 week window the same floor is about 80 minutes of axis —
+    /// the tooltip still names the real duration. Busy rows still shrink via <see cref="ApplyBarGaps"/>.
     /// </summary>
     internal const double MinBarWidthFraction = 0.008;
 
@@ -89,6 +90,12 @@ internal sealed class TimelineService
     /// Gap left between neighbouring bars so their hit targets never share a pixel.
     /// </summary>
     internal const double BarGapFraction = 0.002;
+
+    /// <summary>
+    /// Kept when two bars share a <see cref="TimelineBar.Left"/> (same start, or both clamped to the
+    /// window's start). Overlap is unavoidable; a zero hit would also clip the 3 px paint.
+    /// </summary>
+    internal const double CoincidentBarWidthFraction = MinBarWidthFraction * 0.5;
 
     private readonly IQuartzApiClient _api;
 
@@ -781,8 +788,8 @@ internal sealed class TimelineService
 
     /// <summary>
     /// Shrinks each bar so it ends before the next by at least <see cref="BarGapFraction"/>.
-    /// Prefer a smaller mark over an overlapping hit. The last bar is capped from the previous
-    /// spacing too — otherwise only neighbours shrink and the final run looks thicker.
+    /// Prefer a smaller mark over an overlapping hit. The last bar is capped only when it still
+    /// has the min-width floor — a real long duration must keep its width.
     /// </summary>
     public static void ApplyBarGaps(List<TimelineBar> bars)
     {
@@ -794,7 +801,13 @@ internal sealed class TimelineService
         if (bars.Count >= 2)
         {
             int last = bars.Count - 1;
-            CapBarWidth(bars, last, bars[last].Left - bars[last - 1].Left);
+            double available = bars[last].Left - bars[last - 1].Left;
+            // Only give back an inflated floor; never shorten a duration-backed width.
+            // Coincident last (available <= 0): leave it — the later bar stays on top.
+            if (available > 0 && bars[last].Width <= MinBarWidthFraction)
+            {
+                CapBarWidth(bars, last, available);
+            }
         }
     }
 
@@ -803,7 +816,7 @@ internal sealed class TimelineService
         TimelineBar current = bars[index];
         if (available <= 0)
         {
-            bars[index] = current with { Width = 0 };
+            bars[index] = current with { Width = CoincidentBarWidthFraction };
             return;
         }
 
