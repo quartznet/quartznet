@@ -58,6 +58,9 @@ public sealed class ShutDownSchedulerIsNotRestartedTest
         ISchedulerRepository repository = A.Fake<ISchedulerRepository>();
         A.CallTo(() => repository.Lookup("StillBoundScheduler", A<string>._)).Returns(dead);
 
+        // The factory reads every entry under its name, to pass over a proxy bound there (#4322).
+        A.CallTo(() => repository.LookupByName("StillBoundScheduler")).Returns([dead]);
+
         ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddLogging();

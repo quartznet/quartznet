@@ -334,6 +334,45 @@ public class QuartzHealthCheckTests
             + "from 'registered and not built'");
     }
 
+    /// <summary>
+    /// A dashboard agent's scheduler is bound in the repository under the name it runs as, but it is a
+    /// scheduler of another process, so the check does not report on it as a tenant of this one (#4322).
+    /// </summary>
+    [Test]
+    public async Task AHealthCheckForANameOnlyAProxyHoldsDoesNotReportOnTheProxy()
+    {
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddQuartz("core", q => q.UseInMemoryStore());
+        services.AddHealthChecks().AddQuartz("acme");
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        IScheduler inner = A.Fake<IScheduler>();
+        A.CallTo(() => inner.SchedulerName).Returns("acme");
+        A.CallTo(() => inner.Status).Returns(SchedulerStatus.Running);
+        provider.GetRequiredService<Quartz.Extensibility.ISchedulerRepository>().Bind(new ProxyScheduler(inner, "worker-1"));
+
+        HealthReportEntry result = await Run(provider, "quartz-scheduler-acme");
+
+        result.Status.Should().Be(HealthStatus.Unhealthy);
+        result.Description.Should().Contain("added at runtime under that name",
+            "an agent's scheduler is not a scheduler this process runs, so the name holds nothing to report on");
+        A.CallTo(() => inner.Status).MustNotHaveHappened();
+    }
+
+    private sealed class ProxyScheduler : Quartz.Impl.DelegatingScheduler, Quartz.Impl.IProxyScheduler
+    {
+        public ProxyScheduler(IScheduler inner, string target) : base(inner)
+        {
+            Target = target;
+        }
+
+        public string? Target { get; }
+
+        public SchedulerOrigin Origin => SchedulerOrigin.Agent;
+    }
+
     private static async Task<HealthReportEntry> Check(
         SchedulerStatus status,
         SchedulerException? storeFailure = null,

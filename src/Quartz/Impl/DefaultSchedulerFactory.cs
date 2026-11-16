@@ -64,12 +64,16 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             return await GetScheduler(cancellationToken).ConfigureAwait(false);
         }
 
-        if (schedulerRepository.Lookup(schedulerName) is { } live)
+        if (schedulerRepository.LookupLocal(schedulerName) is { } live)
         {
             return live;
         }
 
-        return await Build(schedulerName, cancellationToken).ConfigureAwait(false);
+        // A registration this container holds is built beside any proxy bound under its name, the same
+        // way GetScheduler builds it. A name no registration holds still resolves to whatever is bound
+        // under it, a proxy included: that is a lookup by name finding a scheduler of another process.
+        return await Build(schedulerName, cancellationToken).ConfigureAwait(false)
+            ?? schedulerRepository.Lookup(schedulerName);
     }
 
     /// <summary>
@@ -155,7 +159,12 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var existing = schedulerRepository.Lookup(options.InstanceName);
+            // Only a scheduler of this process counts. A dashboard agent, an AddQuartzHttpClient
+            // registration or a cluster's merged view can be bound under this very name, and handing one
+            // back would send everything this container schedules to another process, decided by which of
+            // the two happened to be bound first (#4322). The factory's own scheduler binds beside them,
+            // since a proxy is bound under its target.
+            var existing = schedulerRepository.LookupLocal(options.InstanceName);
             if (existing is not null)
             {
                 ThrowIfShutdown(existing.Status is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown, options.InstanceName);
