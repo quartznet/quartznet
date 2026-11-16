@@ -180,6 +180,35 @@ public class SharedComponentsTest
     }
 
     [Test]
+    public void TheShellResetsContentScrollOnAPathChangeAndKeepsItOnAQueryChange()
+    {
+        // The shell scrolls .qz-content, not the window. Blazor's own top-of-page reset only reaches the
+        // window, so a path change must ask for scrollTop = 0; paging and filters must not.
+        context.Navigate("/quartz/jobs");
+        IRenderedComponent<DashboardLayout> layout = context.Render<DashboardLayout>(parameters => parameters
+            .Add(x => x.Body, builder => builder.AddMarkupContent(0, "<p>the page</p>")));
+
+        int resetsBeforePathChange = CountContentScrollResets();
+        context.Navigate("/quartz/jobs/reports/job-1");
+
+        layout.WaitForAssertion(() =>
+            CountContentScrollResets().Should().Be(resetsBeforePathChange + 1,
+                "opening a detail page from a scrolled listing must start at the top of the content panel"));
+
+        int resetsBeforeQueryChange = CountContentScrollResets();
+        context.Navigate("/quartz/jobs/reports/job-1?from=timeline");
+
+        CountContentScrollResets().Should().Be(resetsBeforeQueryChange,
+            "a query-only change is paging or a filter, and those keep the scroll offset");
+    }
+
+    private int CountContentScrollResets()
+    {
+        return context.JSInterop.Invocations.Count(invocation =>
+            invocation.Identifier == "quartzDashboardDom.resetScrollTop");
+    }
+
+    [Test]
     public void ChoosingAThemeAppliesItAndRemembersIt()
     {
         IRenderedComponent<DashboardLayout> layout = context.Render<DashboardLayout>(parameters => parameters
