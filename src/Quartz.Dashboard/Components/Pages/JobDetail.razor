@@ -49,7 +49,7 @@
                     }
                     @if (CanTrigger)
                     {
-                        <button type="button" class="qz-button qz-button-primary" @onclick="TriggerAsync">Trigger now</button>
+                        <button type="button" class="qz-button qz-button-primary" disabled="@_triggering" @onclick="TriggerAsync">Trigger now</button>
                     }
                     @if (CanDelete)
                     {
@@ -169,7 +169,7 @@
             <p class="qz-muted">Provide optional override values that will be merged for this trigger run.</p>
             <JobDataMapEditor DataMap="@_triggerDataMap" ReadOnly="false" />
             <div class="qz-actions qz-group-actions">
-                <button type="button" class="qz-button qz-button-primary" @onclick="TriggerWithDataAsync">Trigger with overrides</button>
+                <button type="button" class="qz-button qz-button-primary" disabled="@_triggering" @onclick="TriggerWithDataAsync">Trigger with overrides</button>
                 <button type="button" class="qz-button" @onclick="ResetTriggerDataMapAsync">Reset</button>
             </div>
         }
@@ -239,6 +239,12 @@
     private bool _showPausePrompt;
     private PauseInfo? _groupPause;
     private JobDataMap _triggerDataMap = new();
+
+    /// <summary>
+    /// Whether a trigger of this job is out. <em>Trigger now</em> and <em>Trigger with overrides</em> are
+    /// disabled until it answers, so a double click fires the job once.
+    /// </summary>
+    private bool _triggering;
 
     /// <summary>
     /// How the job's runs have gone, or <see langword="null" /> when none has been recorded.
@@ -467,20 +473,42 @@
 
     private Task TriggerAsync()
     {
-        return ExecuteMutatingActionAsync(
+        return TriggerOnceAsync(() => ExecuteMutatingActionAsync(
             () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, JobKey),
             "Triggered job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             actionName: "TriggerJob",
-            target: DisplayValueHelper.FormatKey(Group, Name));
+            target: DisplayValueHelper.FormatKey(Group, Name)));
     }
 
     private Task TriggerWithDataAsync()
     {
-        return ExecuteMutatingActionAsync(
+        return TriggerOnceAsync(() => ExecuteMutatingActionAsync(
             () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, JobKey, _triggerDataMap),
             "Triggered job " + DisplayValueHelper.FormatKey(Group, Name) + " with overrides.",
             actionName: "TriggerJobWithData",
-            target: DisplayValueHelper.FormatKey(Group, Name));
+            target: DisplayValueHelper.FormatKey(Group, Name)));
+    }
+
+    /// <summary>
+    /// Sends one trigger of this job unless one is already out, and holds both trigger buttons disabled until
+    /// it answers.
+    /// </summary>
+    private async Task TriggerOnceAsync(Func<Task> trigger)
+    {
+        if (_triggering)
+        {
+            return;
+        }
+
+        _triggering = true;
+        try
+        {
+            await trigger();
+        }
+        finally
+        {
+            _triggering = false;
+        }
     }
 
     private Task ResetTriggerDataMapAsync()
@@ -496,13 +524,20 @@
 
     private async Task DeleteAsync()
     {
+        // Closed before the call rather than after it, as the Timeline's dialogs are, so a second click on
+        // Confirm sends nothing: one that reaches the page before the dialog is drawn closed finds it shut.
+        if (!_showDeleteConfirm)
+        {
+            return;
+        }
+
+        _showDeleteConfirm = false;
         bool deleted = await ExecuteMutatingActionAsync(
             () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, JobKey),
             "Deleted job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             "Job " + DisplayValueHelper.FormatKey(Group, Name) + " was not deleted - it no longer exists.",
             actionName: "DeleteJob",
             target: DisplayValueHelper.FormatKey(Group, Name));
-        _showDeleteConfirm = false;
         if (deleted)
         {
             Navigation.NavigateTo(DashboardLink.To(Options.Value, "jobs"));

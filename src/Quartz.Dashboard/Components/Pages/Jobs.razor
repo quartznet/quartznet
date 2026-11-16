@@ -62,7 +62,7 @@
                         }
                         @if (CanTrigger)
                         {
-                            <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerGroup(group.Key)">Trigger group</button>
+                            <button type="button" class="qz-button qz-button-primary" disabled="@(_triggering.Contains((group.Key, null)))" @onclick="() => TriggerGroup(group.Key)">Trigger group</button>
                         }
                     </div>
                 }
@@ -149,7 +149,7 @@
                                             }
                                             @if (CanTrigger)
                                             {
-                                                <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerJob(jobGroup, jobName)">Trigger now</button>
+                                                <button type="button" class="qz-button qz-button-primary" disabled="@(_triggering.Contains((jobGroup, jobName)))" @onclick="() => TriggerJob(jobGroup, jobName)">Trigger now</button>
                                             }
                                             @if (CanDelete)
                                             {
@@ -203,6 +203,13 @@
     private string? _pendingDeleteGroup;
     private string? _pendingDeleteName;
     private string _pendingDeleteKey = string.Empty;
+
+    /// <summary>
+    /// The <em>Trigger now</em> and <em>Trigger group</em> requests that are out: a job by its group and name,
+    /// a group by its name alone. Each button is disabled while its own request is out, so a double click
+    /// fires once.
+    /// </summary>
+    private readonly HashSet<(string Group, string? Name)> _triggering = [];
 
     /// <summary>
     /// When the listing on screen was read, or <see langword="null" /> while it holds nothing read.
@@ -595,16 +602,23 @@
 
     private async Task TriggerJob(string group, string name)
     {
-        if (!CanTrigger)
+        if (!CanTrigger || !_triggering.Add((group, name)))
         {
             return;
         }
 
-        await ExecuteMutatingActionAsync(
-            () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(group, name)),
-            "Triggered job " + DisplayValueHelper.FormatKey(group, name) + ".",
-            actionName: "TriggerJob",
-            target: DisplayValueHelper.FormatKey(group, name));
+        try
+        {
+            await ExecuteMutatingActionAsync(
+                () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(group, name)),
+                "Triggered job " + DisplayValueHelper.FormatKey(group, name) + ".",
+                actionName: "TriggerJob",
+                target: DisplayValueHelper.FormatKey(group, name));
+        }
+        finally
+        {
+            _triggering.Remove((group, name));
+        }
     }
 
     private Task PauseGroup(string group, string? reason)
@@ -625,12 +639,27 @@
             "Resumed");
     }
 
-    private Task TriggerGroup(string group)
+    /// <remarks>
+    /// A loop over the group's jobs: <see cref="IScheduler" /> has no group-level trigger.
+    /// </remarks>
+    private async Task TriggerGroup(string group)
     {
-        return ExecuteGroupMutatingActionAsync(
-            group,
-            (schedulerName, jobKey) => Api.TriggerJob(schedulerName, jobKey),
-            "Triggered");
+        if (!_triggering.Add((group, null)))
+        {
+            return;
+        }
+
+        try
+        {
+            await ExecuteGroupMutatingActionAsync(
+                group,
+                (schedulerName, jobKey) => Api.TriggerJob(schedulerName, jobKey),
+                "Triggered");
+        }
+        finally
+        {
+            _triggering.Remove((group, null));
+        }
     }
 
     private void PromptDelete(string group, string name)
@@ -643,19 +672,27 @@
 
     private async Task ConfirmDeleteAsync()
     {
-        if (!CanDelete || string.IsNullOrWhiteSpace(_pendingDeleteGroup) || string.IsNullOrWhiteSpace(_pendingDeleteName))
+        // Closed before the call rather than after it, as the Timeline's dialogs are, so a second click on
+        // Confirm sends nothing: one that reaches the page before the dialog is drawn closed finds it shut.
+        if (!_showDeleteConfirm)
         {
-            _showDeleteConfirm = false;
+            return;
+        }
+
+        _showDeleteConfirm = false;
+        string? group = _pendingDeleteGroup;
+        string? name = _pendingDeleteName;
+        if (!CanDelete || string.IsNullOrWhiteSpace(group) || string.IsNullOrWhiteSpace(name))
+        {
             return;
         }
 
         await ExecuteMutatingActionAsync(
-            () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(_pendingDeleteGroup, _pendingDeleteName)),
-            "Deleted job " + DisplayValueHelper.FormatKey(_pendingDeleteGroup, _pendingDeleteName) + ".",
-            "Job " + DisplayValueHelper.FormatKey(_pendingDeleteGroup, _pendingDeleteName) + " was not deleted - it no longer exists.",
+            () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(group, name)),
+            "Deleted job " + DisplayValueHelper.FormatKey(group, name) + ".",
+            "Job " + DisplayValueHelper.FormatKey(group, name) + " was not deleted - it no longer exists.",
             actionName: "DeleteJob",
-            target: DisplayValueHelper.FormatKey(_pendingDeleteGroup, _pendingDeleteName));
-        _showDeleteConfirm = false;
+            target: DisplayValueHelper.FormatKey(group, name));
     }
 
     private Task CancelDeleteAsync()

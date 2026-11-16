@@ -140,10 +140,17 @@
 
     private async Task ConfirmDeleteAsync()
     {
+        // Closed before the call rather than after it, as the Timeline's dialogs are, so a second click on
+        // Confirm sends nothing: one that reaches the page before the dialog is drawn closed finds it shut.
+        if (!_showDeleteConfirm)
+        {
+            return;
+        }
+
+        _showDeleteConfirm = false;
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (!CanDelete || string.IsNullOrWhiteSpace(schedulerName))
         {
-            _showDeleteConfirm = false;
             return;
         }
 
@@ -151,7 +158,6 @@
         {
             bool deleted = await Api.DeleteCalendar(schedulerName, CalendarName);
             ActionLog.Record(schedulerName, "DeleteCalendar", CalendarName, succeeded: deleted);
-            _showDeleteConfirm = false;
             if (deleted)
             {
                 Toasts.Success("Deleted calendar " + CalendarName + ".");
@@ -166,7 +172,6 @@
         {
             ActionLog.Failed(schedulerName, "DeleteCalendar", CalendarName, ex);
             Toasts.Error(ex.Message);
-            _showDeleteConfirm = false;
         }
     }
 

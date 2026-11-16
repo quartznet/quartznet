@@ -415,6 +415,34 @@ public class RemainingPagesTest
             "the job the page was showing is gone, so staying on it would show a not-found page");
     }
 
+    /// <summary>
+    /// A job's page disables both of its trigger buttons while a trigger is out, so a double click fires the
+    /// job once.
+    /// </summary>
+    [Test]
+    public void TriggeringAJobFromItsPageIsDisabledWhileTheRequestIsOut()
+    {
+        GivenJob();
+        TaskCompletionSource triggering = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<JobKeyDto>._, A<JobDataMap?>._, A<CancellationToken>._))
+            .Returns(new ValueTask(triggering.Task));
+        IRenderedComponent<JobDetail> page = RenderJobDetail();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Trigger now").Click();
+
+        page.WaitForAssertion(() => page.FindAll("button")
+            .Where(button => button.TextContent.Trim() is "Trigger now" or "Trigger with overrides")
+            .Should().HaveCount(2).And.OnlyContain(button => button.HasAttribute("disabled"),
+                "both fire the same job, and its trigger is still out"));
+
+        triggering.SetResult();
+
+        page.WaitForAssertion(() => page.FindAll("button").First(button => button.TextContent.Trim() == "Trigger now")
+            .HasAttribute("disabled").Should().BeFalse("the request has answered"));
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<JobKeyDto>._, A<JobDataMap?>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
     [Test]
     public void DeletingACalendarSaysWhetherThereWasOneToDelete()
     {
