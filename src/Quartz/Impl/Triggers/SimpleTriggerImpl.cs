@@ -199,6 +199,12 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     }
 
     /// <inheritdoc />
+    internal override bool HasSameFireCountAs(TriggerBase stored)
+    {
+        return stored is SimpleTriggerImpl simple && timesTriggered == simple.TimesTriggered;
+    }
+
+    /// <inheritdoc />
     public override IScheduleBuilder GetScheduleBuilder()
     {
         SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()

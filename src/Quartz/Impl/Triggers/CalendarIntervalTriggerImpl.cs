@@ -869,4 +869,10 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
             TimesTriggered = calendar.TimesTriggered;
         }
     }
+
+    /// <inheritdoc />
+    internal override bool HasSameFireCountAs(TriggerBase stored)
+    {
+        return stored is CalendarIntervalTriggerImpl calendar && TimesTriggered == calendar.TimesTriggered;
+    }
 }

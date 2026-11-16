@@ -1003,6 +1003,21 @@ internal static class StdAdoConstants
         Invariant($"SELECT {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerType} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     /// <summary>
+    /// <see cref="SqlSelectTriggerHeader" /> with whether one acquisition still holds the trigger: its
+    /// fired-trigger row, <c>ACQUIRED</c> under the entry id given. What the fire of an acquired trigger
+    /// reads, so that it learns in the same statement whether the reservation it fires is still its own,
+    /// which a replace of the trigger cancels (#4323).
+    /// </summary>
+    /// <remarks>
+    /// The subquery correlates on the outer row for the scheduler and the trigger, so that the entry id is
+    /// its only parameter, and that parameter comes first in the statement: providers that adapt named
+    /// parameters positionally bind them in the order they appear. A seek on the fired-trigger table's
+    /// primary key.
+    /// </remarks>
+    internal static readonly string SqlSelectTriggerHeaderWithReservation =
+        Invariant($"SELECT {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerType}, CASE WHEN EXISTS (SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} FT WHERE FT.{AdoConstants.ColumnSchedulerName} = {TablePrefixSubst}{AdoConstants.TableTriggers}.{AdoConstants.ColumnSchedulerName} AND FT.{AdoConstants.ColumnEntryId} = @{SqlParameters.EntryId} AND FT.{AdoConstants.ColumnTriggerName} = {TablePrefixSubst}{AdoConstants.TableTriggers}.{AdoConstants.ColumnTriggerName} AND FT.{AdoConstants.ColumnTriggerGroup} = {TablePrefixSubst}{AdoConstants.TableTriggers}.{AdoConstants.ColumnTriggerGroup} AND FT.{AdoConstants.ColumnEntryState} = '{AdoConstants.StateAcquired}') THEN 1 ELSE 0 END FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
+
+    /// <summary>
     /// Prefix of the batch header read; the caller appends a key-set predicate built by
     /// <c>AdoUtil.BuildTriggerKeyPredicate</c>. Same columns as <see cref="SqlSelectTriggerHeader" />
     /// with the key columns in front, because a set read has to say which row each header came from.

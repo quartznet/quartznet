@@ -750,6 +750,7 @@ public sealed class RAMJobStore : IJobStore
         if (tw.Trigger is TriggerBase stored)
         {
             stored.KeepsPauseOnReplace = false;
+            stored.ReplacesRunStateAsRead = null;
         }
 
         // The record of the pause the replaced trigger had, which the replacement keeps if it stays
@@ -1194,7 +1195,9 @@ public sealed class RAMJobStore : IJobStore
     /// if its job disallows concurrent execution and is running, and waiting otherwise. So a replace resumes
     /// a trigger that was paused on its own, which is the store contract and Java's. One that stays paused
     /// because a group is keeps the record of its pause. A declared trigger re-applied at a start is the
-    /// exception: it keeps an individual pause (#4128).
+    /// exception: it keeps an individual pause (#4128), it replaces nothing when the trigger has fired since
+    /// the read it was worked out from, and it leaves a trigger it describes exactly as it is, an
+    /// acquisition included (#4324).
     /// </remarks>
     /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
     /// <param name="trigger">The new trigger.</param>
@@ -1221,6 +1224,22 @@ public sealed class RAMJobStore : IJobStore
                 // rescheduled continuation whose parent has gone, parked or not. Put back after a
                 // refusal below, the old trigger would come back awaiting rather than as it was.
                 EnsureContinuationParentExistsNoLock(trigger, alsoStored: null);
+
+                // A declared trigger re-applied at a start was worked out from a read of this trigger made
+                // outside the lock. Fired since, it is left as the firing left it, and the processor reads it
+                // again; the same trigger again is left as it is, acquisition and all (#4324).
+                if (trigger is TriggerBase { KeepsPauseOnReplace: true } reapplied)
+                {
+                    if (reapplied.ReplacesRunStateAsRead is { } asRead && !asRead.StillDescribes(tw.Trigger))
+                    {
+                        return false;
+                    }
+
+                    if (TriggerBase.KeepsStateWhenReappliedUnchanged(tw.state) && tw.Trigger is TriggerBase stored && reapplied.DescribesSameTriggerAs(stored))
+                    {
+                        return true;
+                    }
+                }
 
                 // Read before the old trigger goes: a declared trigger re-applied at a start keeps the pause
                 // the trigger it replaces has, with its record (#4128). Any other replace decides afresh.

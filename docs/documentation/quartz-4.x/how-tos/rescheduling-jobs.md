@@ -58,6 +58,11 @@ This matters because `AddJob` and `AddTrigger` registrations are re-applied as a
 start, before the scheduler starts and recovery runs. Unscheduling, by contrast, removes its executions'
 records, and nothing is recovered.
 
+In a cluster, a node may hold the old trigger acquired for its next fire time. The reschedule cancels that
+acquisition (4.8): the node does not fire its copy of the old trigger, and the replacement fires on the next
+acquisition of any node. A `ScheduleJob` or `ScheduleTrigger` that replaces a stored trigger does the same.
+The old trigger never fires after `RescheduleJob` returns, and is never written back.
+
 ## What a start keeps
 
 With `OverwriteExistingData` on, the default, every start re-applies each `AddTrigger` and `ScheduleJob`
@@ -69,6 +74,7 @@ registration, and each scheduling file, over the trigger the store holds. The tr
 | `TimesTriggered` of a simple, daily time interval, calendar interval or recurrence trigger | While the schedule is unchanged (4.7) |
 | A pending retry: `RetryAttempt` and its fire time | While the schedule is unchanged (4.7) |
 | A pause on the trigger itself, with its reason | Always (4.7) |
+| The whole row, its state and an acquisition of it included | While the registration describes the stored trigger exactly (4.8) |
 
 * The schedule is what the trigger's schedule builder sets: the interval and repeat count, the cron
   expression or recurrence rule, the time zone, and so on. Start and end times are not part of it, and
@@ -79,6 +85,13 @@ registration, and each scheduling file, over the trigger the store holds. The tr
 * A trigger in a paused group stays paused, as any trigger stored into the group does.
 * `ScheduleTriggerRelativeToReplacedTrigger` still decides the next fire time. A pending retry wins over it.
 * A trigger that has finished is no longer in the store, so a start schedules it from the beginning.
+* "Exactly" is every field the registration sets, the fire times and the count included. With
+  `ScheduleTriggerRelativeToReplacedTrigger` on, an unchanged registration works out the stored fire times
+  again, and the start leaves the row as it is: another node's acquisition of the trigger stays valid. With
+  it off, the start time is the start's own, so the trigger is stored afresh. A trigger in `ERROR` is always
+  stored afresh, which is how a redeploy that fixes its job brings it back.
+* The start reads the stored trigger before it replaces it. When another node fires the trigger in between,
+  the replace finds it moved and the start reads it again (4.8), so a fire time that ran is never put back.
 
 ## Changing metadata in place: UpdateTriggerDetails
 

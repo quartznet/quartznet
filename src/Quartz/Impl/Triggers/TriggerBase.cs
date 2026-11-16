@@ -154,6 +154,10 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     [NonSerialized]
     private bool keepsPauseOnReplace;
 
+    // The second half of the same instruction; see ReplacesRunStateAsRead. Not serialized either.
+    [NonSerialized]
+    private TriggerRunStateAsRead? replacesRunStateAsRead;
+
     // Parsing the stored form once per trigger rather than once per read. Not serialized: it is
     // derived from the field above, which is.
     [NonSerialized]
@@ -526,6 +530,25 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     {
         get => keepsPauseOnReplace;
         set => keepsPauseOnReplace = value;
+    }
+
+    /// <summary>
+    /// The run state of the stored trigger this one was worked out from, which a store's
+    /// <see cref="IJobStore.ReplaceTrigger" /> holds the replace to: a stored trigger that has fired since
+    /// is left as it is, and the replace answers that it replaced nothing (#4324).
+    /// </summary>
+    /// <remarks>
+    /// Set by the scheduling-data processor alone, beside <see cref="KeepsPauseOnReplace" />, on a declared
+    /// trigger it re-applies at a start: it reads the stored trigger outside the store's lock and works the
+    /// replacement's fire times and count out from that read, and another node may fire the trigger in
+    /// between. On the answer that nothing was replaced it reads the trigger again and works the replacement
+    /// out once more. <see langword="null" /> for any other replace, which overwrites whatever is stored.
+    /// The in-memory store clears it on the copy it keeps, as it clears <see cref="KeepsPauseOnReplace" />.
+    /// </remarks>
+    internal TriggerRunStateAsRead? ReplacesRunStateAsRead
+    {
+        get => replacesRunStateAsRead;
+        set => replacesRunStateAsRead = value;
     }
 
     /// <summary>
@@ -1310,6 +1333,105 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
 
         bool fitsTheSchedule = stored.StartTimeUtc <= retryAt && (EndTimeUtc is null || retryAt <= EndTimeUtc.Value);
         return fitsTheSchedule ? retryAt : null;
+    }
+
+    /// <summary>
+    /// Whether this trigger, a declared one re-applied over <paramref name="stored" />, would be stored as the
+    /// very row <paramref name="stored" /> was read from: the same kind of trigger on the same schedule, with
+    /// the same definition and the same fire times and count (#4324).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A store that finds so leaves the row as it is, its state included, so that an acquisition of the
+    /// stored trigger is still the acquisition of this one. Re-applying an unchanged declaration is the
+    /// common start, and with relative scheduling it works out the stored fire times again.
+    /// </para>
+    /// <para>
+    /// Conservative: what it cannot compare exactly — a job data value of a type that does not compare by
+    /// value, a value stored under another type than it was declared with — counts as different, and the
+    /// trigger is replaced as it always was. What it leaves out is what a row keeps that no declaration
+    /// says: its state, its pause and the pause's record, a misfire's original fire time, and the store's
+    /// overlap bookkeeping. A new field of a trigger belongs here or in the list
+    /// <c>TriggerDefinitionComparisonTest</c> keeps of the ones that are not compared.
+    /// </para>
+    /// </remarks>
+    /// <param name="stored">The trigger the store holds under the same key.</param>
+    internal bool DescribesSameTriggerAs(TriggerBase stored)
+    {
+        return stored.GetType() == GetType()
+               && HasSameScheduleAs(stored)
+               && HasSameFireCountAs(stored)
+               && Equals(Key, stored.Key)
+               && Equals(JobKey, stored.JobKey)
+               && string.Equals(Description, stored.Description, StringComparison.Ordinal)
+               && string.Equals(CalendarName, stored.CalendarName, StringComparison.Ordinal)
+               && Priority == stored.Priority
+               && MisfireInstructionCode == stored.MisfireInstructionCode
+               && misfireThreshold == stored.misfireThreshold
+               && StartTimeUtc == stored.StartTimeUtc
+               && EndTimeUtc == stored.EndTimeUtc
+               && NextFireTimeUtc == stored.NextFireTimeUtc
+               && PreviousFireTimeUtc == stored.PreviousFireTimeUtc
+               && string.Equals(executionGroup, stored.executionGroup, StringComparison.Ordinal)
+               && string.Equals(preferredNode, stored.preferredNode, StringComparison.Ordinal)
+               && preferredNodeAuto == stored.preferredNodeAuto
+               && string.Equals(retryPolicy, stored.retryPolicy, StringComparison.Ordinal)
+               && retryAttempt == stored.retryAttempt
+               && string.Equals(continuesAfterTriggerName, stored.continuesAfterTriggerName, StringComparison.Ordinal)
+               && string.Equals(continuesAfterTriggerGroup, stored.continuesAfterTriggerGroup, StringComparison.Ordinal)
+               && continuationCondition == stored.continuationCondition
+               && overlapPolicy == stored.overlapPolicy
+               && HasSameJobData(jobDataMap, stored.jobDataMap);
+    }
+
+    /// <summary>
+    /// Whether a stored trigger in <paramref name="state" /> is left as it is when a declaration that
+    /// describes it exactly is re-applied over it: in every state but the ones a start stores afresh.
+    /// Those are <c>ERROR</c>, from which a redeploy that fixes the job brings the trigger back, and
+    /// <c>COMPLETE</c>.
+    /// </summary>
+    internal static bool KeepsStateWhenReappliedUnchanged(StoredTriggerState state)
+    {
+        return state is not (StoredTriggerState.Error or StoredTriggerState.Complete or StoredTriggerState.Deleted);
+    }
+
+    /// <summary>
+    /// Whether two trigger job data maps hold the same keys with values that compare equal; an empty map
+    /// and none at all are the same.
+    /// </summary>
+    private static bool HasSameJobData(JobDataMap? declared, JobDataMap? stored)
+    {
+        int count = declared?.Count ?? 0;
+        if (count != (stored?.Count ?? 0))
+        {
+            return false;
+        }
+
+        if (count == 0)
+        {
+            return true;
+        }
+
+        foreach (KeyValuePair<string, object?> entry in declared!)
+        {
+            if (!stored!.TryGetValue(entry.Key, out object? value) || !Equals(entry.Value, value))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="stored" />, a trigger of exactly this one's type on the same schedule, has
+    /// fired as many times as this one has, for a kind that counts its firings. A kind that does not count
+    /// them answers <see langword="true" />.
+    /// </summary>
+    /// <param name="stored">A trigger of exactly this one's type.</param>
+    internal virtual bool HasSameFireCountAs(TriggerBase stored)
+    {
+        return true;
     }
 
     /// <summary>

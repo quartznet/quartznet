@@ -792,6 +792,30 @@ public class AdoJobStoreBaseTest
     {
         A.CallTo(() => driverDelegate.SelectTriggerHeader(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<StoredTriggerHeader>(StoredHeader(trigger, StoredTriggerState.Acquired)));
+        GivenReservation(driverDelegate, trigger);
+    }
+
+    /// <summary>
+    /// Arranges the reservation acquisition wrote for the trigger: the fire of an acquired trigger through a
+    /// delegate Quartz does not ship reads this node's fired-trigger rows of the trigger, and fires only while
+    /// its own is among them (#4323).
+    /// </summary>
+    private static void GivenReservation(IDriverDelegate del, IOperableTrigger trigger)
+    {
+        A.CallTo(() => del.SelectFiredTriggerRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.That.Matches(query => Equals(query.Trigger, trigger.Key)),
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<FiredTriggerRecord>>(
+            [
+                new FiredTriggerRecord
+                {
+                    FireInstanceId = trigger.FireInstanceId,
+                    FireInstanceState = StoredTriggerState.Acquired,
+                    TriggerKey = trigger.Key,
+                    SchedulerInstanceId = "TestInstanceId",
+                },
+            ]));
     }
 
     private static StoredTriggerHeader StoredHeader(IOperableTrigger trigger, StoredTriggerState state)
@@ -1069,6 +1093,13 @@ public class AdoJobStoreBaseTest
                 A<FiredTriggerQuery>.That.Matches(query => query.InstanceId != null),
                 A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<FiredTriggerRecord>>(new List<FiredTriggerRecord>(records)));
+
+        // The rows are there, so deleting one deletes one: a release whose row is gone moves nothing (#4323).
+        foreach (FiredTriggerRecord record in records)
+        {
+            A.CallTo(() => driverDelegate.DeleteFiredTrigger(A<ConnectionAndTransactionHolder>.Ignored, record.FireInstanceId, A<CancellationToken>.Ignored))
+                .Returns(new ValueTask<int>(1));
+        }
     }
 
     /// <summary>Arranges the fired-trigger rows the release reads to decide whether a job is executing.</summary>
@@ -1655,6 +1686,7 @@ public class AdoJobStoreBaseTest
             });
         A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, trigger.JobKey, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
+        GivenReservation(del, trigger);
 
         List<TriggerFiredResult> results = await store.TriggersFired(new[] { trigger });
 
@@ -1742,6 +1774,8 @@ public class AdoJobStoreBaseTest
 
         A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
+        GivenReservation(del, triggerA);
+        GivenReservation(del, triggerB);
 
         List<TriggerFiredResult> results = await store.TriggersFired(new[] { triggerA, triggerB });
 
