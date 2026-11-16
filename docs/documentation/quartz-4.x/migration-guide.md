@@ -33,7 +33,8 @@ The compiler finds most of the 3.x → 4.0 work.
 ## Upgrading from 4.7 to 4.8
 
 An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorizationPolicy` set and the default
-`MaxAccess`, the HTTP API, the dashboard and the dashboard agent allow and refuse exactly what they did.
+`MaxAccess`, the HTTP API, the dashboard and the dashboard agent allow and refuse exactly what they did. The
+exception is an agent's `IsOperationAllowed` and the dashboard's *Pause group* and *Resume group*, under *Changed*.
 
 | Added | What it is |
 |---|---|
@@ -68,6 +69,7 @@ An application on 4.7 compiles on 4.8 unchanged. With no `OperationAuthorization
 | `UseDashboardAgent(configure)` | Reads `Quartz:DashboardAgent` from the container's configuration first, then runs the callback. An application with no such section, or one that sets the same options in the callback, is unaffected |
 | A firing recovered by cluster recovery or a shutdown hand-back | Scheduled as startup recovery schedules one: at the original's scheduled time, which it reports as `ScheduledFireTimeUtc`, and never as a misfire. It runs on the next acquisition, with no `TriggerMisfired` and no misfire history row. A job that read `ScheduledFireTimeUtc` there as the original's fire time reads `SchedulerConstants.FailedJobOriginalTriggerFireTime` instead |
 | `ISchedulerFactory.GetScheduler()` beside a proxy of the same name | Returns the container's own scheduler, building and binding it beside a dashboard agent, an `AddQuartzHttpClient` registration or a cluster view bound under the configured name. It used to return that proxy when the proxy was bound first, and then never built its own. `LookupScheduler(name)` for a name this container registers, and `ISchedulerRuntime.Restart` skip such a proxy the same way, and the health check prefers this container's own scheduler over it. To reach an agent's scheduler on purpose, use `ISchedulerRepository.Lookup(name, target)` |
+| Dashboard *Pause group* and *Resume group*, on Jobs and Triggers | They pause and resume the group itself in one call, where they acted on each member: a job or trigger added to a paused group later is held, and *Resume group* lifts a group pause made anywhere. The Action Log has one entry per click, with no *n of m* count. An agent whose `IsOperationAllowed` refuses `PauseJob`, `ResumeJob`, `PauseTrigger` or `ResumeTrigger` no longer refuses them: refuse `PauseJobs`, `ResumeJobs`, `PauseTriggers` and `ResumeTriggers` too. See [Jobs, Triggers and Calendars](packages/dashboard.md#jobs-triggers-and-calendars) |
 
 ## Upgrading from 4.6 to 4.7
 

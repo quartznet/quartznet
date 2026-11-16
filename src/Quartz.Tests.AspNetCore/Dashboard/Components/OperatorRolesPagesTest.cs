@@ -71,6 +71,36 @@ public class OperatorRolesPagesTest
             "a column with nothing in it is not drawn");
     }
 
+    /// <summary>
+    /// The group buttons are the HTTP API's group operations, <c>PauseJobs</c>, <c>ResumeJobs</c>,
+    /// <c>PauseTriggers</c> and <c>ResumeTriggers</c>, so a policy that moves those alone takes the group
+    /// buttons and leaves the single-key ones (#4319).
+    /// </summary>
+    [Test]
+    public void TheGroupButtonsAreTheGroupOperations()
+    {
+        context.WithOperatorRole(SchedulerAccess.Operate);
+        foreach (string operation in new[] { "PauseJobs", "ResumeJobs", "PauseTriggers", "ResumeTriggers" })
+        {
+            context.AuthorizationService.Operations[operation] = SchedulerAccess.Administer;
+        }
+
+        A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
+            .Returns(TestData.Dashboard.Page<TriggerHeaderDto>(TestData.Dashboard.TriggerHeaders("nightly", 1)));
+
+        IRenderedComponent<Jobs> jobs = context.Render<Jobs>();
+        jobs.WaitForAssertion(() => jobs.HasButton("Pause").Should().BeTrue("pausing one job is PauseJob, which is still Operate"));
+        jobs.HasButton("Resume").Should().BeTrue();
+        jobs.HasButton("Trigger group").Should().BeTrue("Trigger group is TriggerJob for each job");
+        jobs.HasButton("Pause group").Should().BeFalse("Pause group is PauseJobs, which the policy moved to Administer");
+        jobs.HasButton("Resume group").Should().BeFalse();
+
+        IRenderedComponent<Triggers> triggers = context.Render<Triggers>();
+        triggers.WaitForAssertion(() => triggers.HasButton("Pause").Should().BeTrue());
+        triggers.HasButton("Pause group").Should().BeFalse("Pause group is PauseTriggers");
+        triggers.HasButton("Resume group").Should().BeFalse();
+    }
+
     [TestCase(SchedulerAccess.View, new string[0], new[] { "Start", "Standby", "Pause all", "Resume all", "Shutdown" })]
     [TestCase(SchedulerAccess.Operate, new[] { "Start", "Standby", "Pause all", "Resume all" }, new[] { "Shutdown" })]
     [TestCase(SchedulerAccess.Administer, new[] { "Start", "Standby", "Pause all", "Resume all", "Shutdown" }, new string[0])]

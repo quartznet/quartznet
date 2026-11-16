@@ -159,30 +159,92 @@ public class JobsPageTest
             "a read-only dashboard still navigates");
     }
 
+    /// <summary>
+    /// <em>Pause group</em> pauses the group in one call rather than a call per job, so the group's header,
+    /// which reads the group's own pause, then says Paused (#4319).
+    /// </summary>
     [Test]
-    public void AGroupActionAppliesToTheGroupItNamesAndNotToTheOnesThatMerelyContainIt()
+    public void PauseGroupPausesTheGroupInOneCallAndItsHeaderThenReadsPaused()
     {
         GivenJobs([.. TestData.Dashboard.JobKeys("reports", 2), .. TestData.Dashboard.JobKeys("reports-archive", 3)]);
-        GivenGroups(("reports", false), ("reports-archive", false));
-        A.CallTo(() => context.Api.PauseJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._)).Returns(true);
+        bool paused = false;
+        A.CallTo(() => context.Api.QueryJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+            .ReturnsLazily(() => TestData.Dashboard.Page<JobGroupDto>([new JobGroupDto("reports", paused), new JobGroupDto("reports-archive", false)]));
+        A.CallTo(() => context.Api.PauseJobGroupWith(A<string>._, A<string>._, A<PauseDetails?>._, A<CancellationToken>._))
+            .Invokes(() => paused = true);
         IRenderedComponent<Jobs> page = context.Render<Jobs>();
+        GroupState(page, "reports").Should().Be("Normal");
 
         page.FindAll("button").First(button => button.TextContent.Trim() == "Pause group").Click();
         page.ConfirmPause();
 
-        A.CallTo(() => context.Api.PauseJob(
-                TestData.SchedulerName,
-                A<JobKeyDto>.That.Matches(key => key.Group == "reports"),
-                A<CancellationToken>._))
-            .MustHaveHappened(2, Times.Exactly);
-        A.CallTo(() => context.Api.PauseJob(
-                TestData.SchedulerName,
-                A<JobKeyDto>.That.Matches(key => key.Group == "reports-archive"),
-                A<CancellationToken>._))
+        page.WaitForAssertion(() => GroupState(page, "reports").Should().Be("Paused",
+            "the header reads the group's own pause, which only a pause of the group writes"));
+        A.CallTo(() => context.Api.PauseJobGroupWith(A<string>._, A<string>._, A<PauseDetails?>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => context.Api.PauseJobGroupWith(TestData.SchedulerName, "reports", A<PauseDetails?>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => context.Api.PauseJobWith(A<string>._, A<JobKeyDto>._, A<PauseDetails?>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        context.Toasts.Messages.Should().ContainSingle()
-            .Which.Message.Should().Be("Paused 2 of 2 job(s) in group reports.",
-                "the group filter matches groups that contain the name, so the count says which ones it acted on");
+        context.Toasts.Messages.Should().ContainSingle().Which.Message.Should().Be("Paused job group reports.");
+        context.ActionLog.GetLatest(10).Should().ContainSingle("one click is one entry")
+            .Which.Should().BeEquivalentTo(
+                new { Action = "PausedJobGroup", Target = "reports", Succeeded = true, Message = (string?) null },
+                options => options.ExcludingMissingMembers());
+    }
+
+    /// <summary>
+    /// <em>Resume group</em> resumes the group in one call, which lifts a group pause however it was made,
+    /// so a group paused through the scheduler's own API then reads Normal (#4319).
+    /// </summary>
+    [Test]
+    public void ResumeGroupResumesTheGroupInOneCallAndItsHeaderThenReadsNormal()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 2));
+        bool paused = true;
+        A.CallTo(() => context.Api.QueryJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+            .ReturnsLazily(() => TestData.Dashboard.Page<JobGroupDto>([new JobGroupDto("reports", paused)]));
+        A.CallTo(() => context.Api.ResumeJobGroup(A<string>._, A<string>._, A<CancellationToken>._))
+            .Invokes(() => paused = false);
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+        GroupState(page, "reports").Should().Be("Paused");
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Resume group").Click();
+
+        page.WaitForAssertion(() => GroupState(page, "reports").Should().Be("Normal",
+            "resuming every job leaves a pause recorded on the group in place; resuming the group lifts it"));
+        A.CallTo(() => context.Api.ResumeJobGroup(TestData.SchedulerName, "reports", A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => context.Api.ResumeJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        context.Toasts.Messages.Should().ContainSingle().Which.Message.Should().Be("Resumed job group reports.");
+        context.ActionLog.GetLatest(10).Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new { Action = "ResumedJobGroup", Target = "reports" }, options => options.ExcludingMissingMembers());
+    }
+
+    /// <summary>
+    /// <em>Trigger group</em> stays a loop, a scheduler having no group-level trigger: it fires each job of the
+    /// group it names, not of the groups that merely contain the name, and says how many in one entry.
+    /// </summary>
+    [Test]
+    public void TriggerGroupFiresEachJobOfTheGroupItNamesAndNotOfTheOnesThatMerelyContainIt()
+    {
+        GivenJobs([.. TestData.Dashboard.JobKeys("reports", 2), .. TestData.Dashboard.JobKeys("reports-archive", 3)]);
+        GivenGroups(("reports", false), ("reports-archive", false));
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Trigger group").Click();
+
+        page.WaitForAssertion(() => context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Triggered 2 job(s) in group reports."));
+        A.CallTo(() => context.Api.TriggerJob(TestData.SchedulerName, A<JobKeyDto>.That.Matches(key => key.Group == "reports"), A<JobDataMap?>._, A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly();
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<JobKeyDto>.That.Matches(key => key.Group == "reports-archive"), A<JobDataMap?>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        context.ActionLog.GetLatest(10).Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(
+                new { Action = "TriggeredJobGroup", Target = "reports", Message = "2 job(s)" },
+                options => options.ExcludingMissingMembers());
     }
 
     [Test]
@@ -550,5 +612,16 @@ public class JobsPageTest
 
         A.CallTo(() => context.Api.QueryJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<JobGroupDto>(dtos));
+    }
+
+    /// <summary>
+    /// The state the header of <paramref name="group" />'s section reads.
+    /// </summary>
+    private static string? GroupState(IRenderedComponent<Jobs> page, string group)
+    {
+        return page.FindAll("section.qz-section")
+            .Single(section => section.QuerySelector("h2")?.TextContent.Trim() == group)
+            .QuerySelector(".qz-row .qz-state-indicator")?
+            .GetAttribute("title");
     }
 }

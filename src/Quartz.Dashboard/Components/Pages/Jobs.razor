@@ -49,14 +49,14 @@
                     <StateIndicator State="@GetGroupState(group.Key)" />
                     <PauseNote Pause="@_groupPauses.GetValueOrDefault(group.Key)" />
                 </div>
-                @if (CanPause || CanResume || CanTrigger)
+                @if (CanPauseGroup || CanResumeGroup || CanTrigger)
                 {
                     <div class="qz-actions qz-group-actions">
-                        @if (CanPause)
+                        @if (CanPauseGroup)
                         {
                             <button type="button" class="qz-button" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
                         }
-                        @if (CanResume)
+                        @if (CanResumeGroup)
                         {
                             <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
                         }
@@ -261,6 +261,10 @@
     private bool CanPause => Can(Routes.PauseJob);
 
     private bool CanResume => Can(Routes.ResumeJob);
+
+    private bool CanPauseGroup => Can(Routes.PauseJobs);
+
+    private bool CanResumeGroup => Can(Routes.ResumeJobs);
 
     private bool CanTrigger => Can(Routes.TriggerJob);
 
@@ -624,18 +628,18 @@
     private Task PauseGroup(string group, string? reason)
     {
         PauseDetails details = ActionLog.PauseDetailsFor(reason);
-        return ExecuteGroupMutatingActionAsync(
+        return ExecuteGroupActionAsync(
             group,
-            (schedulerName, jobKey) => Api.PauseJobWith(schedulerName, jobKey, details),
+            schedulerName => Api.PauseJobGroupWith(schedulerName, group, details),
             "Paused",
             DashboardActionLog.PauseNote(details));
     }
 
     private Task ResumeGroup(string group)
     {
-        return ExecuteGroupMutatingActionAsync(
+        return ExecuteGroupActionAsync(
             group,
-            (schedulerName, jobKey) => Api.ResumeJob(schedulerName, jobKey),
+            schedulerName => Api.ResumeJobGroup(schedulerName, group),
             "Resumed");
     }
 
@@ -651,7 +655,7 @@
 
         try
         {
-            await ExecuteGroupMutatingActionAsync(
+            await ExecuteForEachJobInGroupAsync(
                 group,
                 (schedulerName, jobKey) => Api.TriggerJob(schedulerName, jobKey),
                 "Triggered");
@@ -762,26 +766,45 @@
         }
     }
 
-    private async Task ExecuteGroupMutatingActionAsync(
+    /// <summary>
+    /// One call on the group itself, and one Action Log entry with the group as its target: what
+    /// <em>Pause group</em> and <em>Resume group</em> make.
+    /// </summary>
+    private async Task ExecuteGroupActionAsync(
+        string group,
+        Func<string, ValueTask> operation,
+        string actionVerb,
+        string? note = null)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            await operation(schedulerName);
+
+            ActionLog.Record(schedulerName, actionVerb + "JobGroup", group, succeeded: true, note);
+            Toasts.Success(actionVerb + " job group " + group + ".");
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ActionLog.Failed(schedulerName, actionVerb + "JobGroup", group, ex, note);
+            Toasts.Error(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// <paramref name="operation" /> on each job in the group, and one Action Log entry with the group as its
+    /// target: what <em>Trigger group</em> makes, because a scheduler has no group-level trigger.
+    /// </summary>
+    private async Task ExecuteForEachJobInGroupAsync(
         string group,
         Func<string, JobKeyDto, ValueTask> operation,
         string actionVerb)
-    {
-        await ExecuteGroupMutatingActionAsync(
-            group,
-            async (schedulerName, jobKey) =>
-            {
-                await operation(schedulerName, jobKey);
-                return true;
-            },
-            actionVerb);
-    }
-
-    private async Task ExecuteGroupMutatingActionAsync(
-        string group,
-        Func<string, JobKeyDto, ValueTask<bool>> operation,
-        string actionVerb,
-        string? note = null)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
@@ -815,27 +838,18 @@
                 groupQuery = groupQuery with { Skip = groupQuery.Skip + groupPage.Items.Count };
             }
 
-            int appliedCount = 0;
             foreach (JobKeyDto job in jobsInGroup)
             {
-                if (await operation(schedulerName, job))
-                {
-                    appliedCount++;
-                }
+                await operation(schedulerName, job);
             }
 
-            ActionLog.Record(
-                schedulerName,
-                actionVerb + "JobGroup",
-                group,
-                succeeded: true,
-                DashboardActionLog.MessageOf(appliedCount + " of " + jobsInGroup.Count + " job(s)", note));
-            Toasts.Success(actionVerb + " " + appliedCount + " of " + jobsInGroup.Count + " job(s) in group " + group + ".");
+            ActionLog.Record(schedulerName, actionVerb + "JobGroup", group, succeeded: true, jobsInGroup.Count + " job(s)");
+            Toasts.Success(actionVerb + " " + jobsInGroup.Count + " job(s) in group " + group + ".");
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
-            ActionLog.Failed(schedulerName, actionVerb + "JobGroup", group, ex, note);
+            ActionLog.Failed(schedulerName, actionVerb + "JobGroup", group, ex);
             Toasts.Error(ex.Message);
         }
     }
