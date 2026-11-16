@@ -618,11 +618,14 @@ public class InProcessQuartzApiClientTest
             TriggerHeaderDto simple = headers.Single(h => h.Name == "simple");
             simple.TriggerType.Should().Be("Simple");
             simple.ScheduleDescription.Should().Be("Every 30 seconds, 3 times");
-            simple.ScheduleSummary.Should().BeNull("a simple trigger is built from numbers, not written in an expression");
+            simple.ScheduleSummary.Should().Be("Every 00:00:30, 2 time(s)",
+                "the summary keeps what it said before 4.8; the words are an addition beside it");
+            simple.ScheduleExpression.Should().BeNull("a simple trigger is built from numbers, not written in an expression");
             TriggerHeaderDto cron = headers.Single(h => h.Name == "cron");
             cron.TriggerType.Should().Be("Cron");
             cron.ScheduleDescription.Should().StartWith("Every day at 01:00 (");
             cron.ScheduleSummary.Should().Be("0 0 1 * * ?");
+            cron.ScheduleExpression.Should().Be("0 0 1 * * ?");
 
             headers.Should().AllSatisfy(
                 header => header.State.Should().Be(TriggerState.Normal),
@@ -662,13 +665,14 @@ public class InProcessQuartzApiClientTest
             InProcessQuartzApiClient client = CreateClient(scheduler);
             PagedResult<TriggerHeaderDto> page = await client.QueryTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 10 });
 
-            page.Items.Select(x => (x.Name, x.ScheduleDescription, x.ScheduleSummary)).Should().BeEquivalentTo(
+            page.Items.Select(x => (x.Name, x.ScheduleDescription, x.ScheduleExpression)).Should().BeEquivalentTo(
             [
                 ("cron", "Every weekday at 07:00 (UTC)", "0 0 7 ? * MON-FRI"),
                 ("recurrence", "Monthly on the second Tuesday (UTC)", "FREQ=MONTHLY;BYDAY=2TU"),
                 ("simple", "Every 30 seconds", (string?) null)
             ]);
             page.Items.Should().AllSatisfy(x => x.TriggerType.Should().BeNull("the listing still names no kind it could disagree with the job's table about"));
+            page.Items.Should().AllSatisfy(x => x.ScheduleSummary.Should().BeNull("the listing's summary is what it was before 4.8"));
         }
         finally
         {
@@ -702,6 +706,7 @@ public class InProcessQuartzApiClientTest
         TriggerHeaderDto row = page.Items.Should().ContainSingle().Subject;
         row.Name.Should().Be("t1");
         row.ScheduleDescription.Should().BeNull();
+        row.ScheduleExpression.Should().BeNull();
         row.ScheduleSummary.Should().BeNull();
     }
 

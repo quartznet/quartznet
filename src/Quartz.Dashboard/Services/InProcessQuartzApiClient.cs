@@ -336,7 +336,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 Group: trigger.Key.Group,
                 Name: trigger.Key.Name,
                 TriggerType: TriggerDisplay.TypeName(trigger),
-                ScheduleSummary: ScheduleDescriber.Expression(trigger),
+                ScheduleSummary: TriggerDisplay.ScheduleSummary(trigger),
                 State: states.TryGetValue(trigger.Key, out TriggerState state) ? state : null,
                 ExecutionGroup: trigger.ExecutionGroup)
             {
@@ -347,7 +347,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 EndTimeUtc = trigger.EndTimeUtc,
                 NextFireTimeUtc = trigger.NextFireTimeUtc,
                 PreviousFireTimeUtc = trigger.PreviousFireTimeUtc,
-                ScheduleDescription = trigger.DescribeSchedule()
+                ScheduleDescription = trigger.DescribeSchedule(),
+                ScheduleExpression = ScheduleDescriber.Expression(trigger)
             });
         }
 
@@ -529,13 +530,15 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<TriggerHeaderDto> items = new(triggers.Items.Count);
         foreach ((TriggerHeader trigger, string? scheduleDescription, string? scheduleExpression) in triggers.Items)
         {
-            // No kind to name: the store's own trigger-type discriminator is not the display name the
-            // associated-triggers table shows, and the two must not disagree.
+            // The trigger listing does not load the triggers itself, so it has no schedule to summarise and
+            // no kind to name: the store's own trigger-type discriminator is not the display name the
+            // associated-triggers table shows, and the two must not disagree. The words and the expression
+            // come from where the triggers are stored.
             items.Add(new TriggerHeaderDto(
                 Group: trigger.Key.Group,
                 Name: trigger.Key.Name,
                 TriggerType: null,
-                ScheduleSummary: scheduleExpression,
+                ScheduleSummary: null,
                 State: trigger.State,
                 ExecutionGroup: trigger.ExecutionGroup)
             {
@@ -548,7 +551,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 EndTimeUtc = trigger.EndTimeUtc,
                 NextFireTimeUtc = trigger.NextFireTimeUtc,
                 PreviousFireTimeUtc = trigger.PreviousFireTimeUtc,
-                ScheduleDescription = scheduleDescription
+                ScheduleDescription = scheduleDescription,
+                ScheduleExpression = scheduleExpression
             });
         }
 

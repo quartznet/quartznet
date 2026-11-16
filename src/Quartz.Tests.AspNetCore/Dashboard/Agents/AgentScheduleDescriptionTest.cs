@@ -27,6 +27,6 @@ public sealed class AgentScheduleDescriptionTest
 
         TriggerHeaderDto row = page.Items.Should().ContainSingle().Subject;
         row.ScheduleDescription.Should().Be("Monthly on the second Tuesday (UTC)");
-        row.ScheduleSummary.Should().Be("FREQ=MONTHLY;BYDAY=2TU");
+        row.ScheduleExpression.Should().Be("FREQ=MONTHLY;BYDAY=2TU");
     }
 }

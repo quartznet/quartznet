@@ -3,7 +3,7 @@ using Quartz.Dashboard.Services;
 namespace Quartz.Tests.AspNetCore.Dashboard;
 
 /// <summary>
-/// The one place the dashboard names a trigger's kind.
+/// The one place the dashboard names a trigger's kind and summarises its schedule.
 /// </summary>
 /// <remarks>
 /// Both API clients read it, which is the point: they used to describe the same trigger differently,
@@ -39,6 +39,46 @@ public class TriggerDisplayTest
 
         TriggerDisplay.TypeName(own).Should().Be(own.GetType().Name,
             "a kind with no display name of its own is better named by its type than by nothing");
+    }
+
+    [Test]
+    public void ScheduleSummaryForACronTriggerIsItsExpression()
+    {
+        TriggerDisplay.ScheduleSummary(Cron()).Should().Be("0 0 1 * * ?");
+    }
+
+    /// <summary>
+    /// What <see cref="TriggerHeaderDto.ScheduleSummary" /> held before 4.8 and still holds: the schedule in
+    /// words is <see cref="TriggerHeaderDto.ScheduleDescription" />, beside it (#4243).
+    /// </summary>
+    [Test]
+    public void ScheduleSummaryForASimpleTriggerCountsItsRepeats()
+    {
+        TriggerDisplay.ScheduleSummary(Simple(TimeSpan.FromSeconds(30), repeatCount: 2))
+            .Should().Be("Every 00:00:30, 2 time(s)");
+
+        TriggerDisplay.ScheduleSummary(Simple(TimeSpan.FromMinutes(5), repeatCount: -1))
+            .Should().Be("Every 00:05:00, repeat forever",
+                "a negative repeat count is Quartz's spelling of 'forever', not a count to show");
+
+        ITrigger fromCompletion = TriggerBuilder.Create()
+            .WithIdentity("from-completion", "group")
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(30)).RepeatForever().MeasureIntervalFromCompletion())
+            .Build();
+        TriggerDisplay.ScheduleSummary(fromCompletion).Should().Be("Every 00:00:30, repeat forever, measured from completion");
+    }
+
+    [Test]
+    public void ScheduleSummaryIsNullForAKindItCannotSummarise()
+    {
+        TriggerDisplay.ScheduleSummary(CalendarInterval()).Should().BeNull(
+            "the listing shows a dash rather than a half-true summary");
+        TriggerDisplay.ScheduleSummary(DailyTimeInterval()).Should().BeNull();
+        TriggerDisplay.ScheduleSummary(TriggerBuilder.Create()
+                .WithIdentity("recurrence", "group")
+                .WithRecurrenceSchedule("FREQ=DAILY")
+                .Build())
+            .Should().BeNull("a recurrence trigger had no summary before 4.8, and its rule is beside its description instead");
     }
 
     private static ITrigger Cron() => TriggerBuilder.Create()
