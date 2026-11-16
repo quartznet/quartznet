@@ -309,13 +309,14 @@ public partial class Timeline
         {
             _menuTarget = null;
             _menuOpensUp = false;
-        }
-        else
-        {
-            _menuTarget = TriggerActionTarget.From(target.Row, target.Trigger);
-            _menuOpensUp = await MeasureMenuOpensUpAsync(anchor).ConfigureAwait(true);
+            StateHasChanged();
+            return;
         }
 
+        // Measure before opening: setting the target first would render the menu below, then flip after await.
+        bool opensUp = await MeasureMenuOpensUpAsync(anchor).ConfigureAwait(true);
+        _menuTarget = TriggerActionTarget.From(target.Row, target.Trigger);
+        _menuOpensUp = opensUp;
         StateHasChanged();
     }
 
@@ -326,13 +327,13 @@ public partial class Timeline
         {
             _jobMenuTarget = null;
             _menuOpensUp = false;
-        }
-        else
-        {
-            _jobMenuTarget = target;
-            _menuOpensUp = await MeasureMenuOpensUpAsync(anchor).ConfigureAwait(true);
+            StateHasChanged();
+            return;
         }
 
+        bool opensUp = await MeasureMenuOpensUpAsync(anchor).ConfigureAwait(true);
+        _jobMenuTarget = target;
+        _menuOpensUp = opensUp;
         StateHasChanged();
     }
 
@@ -340,11 +341,11 @@ public partial class Timeline
     {
         try
         {
-            return await JsRuntime.InvokeAsync<bool>(
-                    "quartzDashboardDom.actionsMenuOpensUp",
-                    anchor,
-                    TimelineService.ActionsMenuHeightPx)
+            TimelineService.ActionsMenuSpace space = await JsRuntime.InvokeAsync<TimelineService.ActionsMenuSpace>(
+                    "quartzDashboardDom.actionsMenuSpace",
+                    anchor)
                 .ConfigureAwait(true);
+            return TimelineService.ActionsMenuOpensUp(space);
         }
         catch (JSException)
         {

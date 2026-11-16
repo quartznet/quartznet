@@ -6,6 +6,7 @@ using FakeItEasy;
 
 using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Services;
+using Quartz.Dashboard.Services.Timeline;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.Dashboard.Components;
@@ -153,8 +154,8 @@ public class TimelinePageTest
     public void TriggerActionsMenuFlipsUpWhenThereIsNoRoomBelow()
     {
         context.JSInterop
-            .Setup<bool>(invocation => invocation.Identifier == "quartzDashboardDom.actionsMenuOpensUp")
-            .SetResult(true);
+            .Setup<TimelineService.ActionsMenuSpace>(invocation => invocation.Identifier == "quartzDashboardDom.actionsMenuSpace")
+            .SetResult(new TimelineService.ActionsMenuSpace(SpaceBelow: 40, SpaceAbove: 400));
 
         DateTimeOffset now = context.Clock.GetUtcNow();
         GivenHistory(now.AddMinutes(-10));
@@ -168,8 +169,8 @@ public class TimelinePageTest
         page.WaitForAssertion(() =>
         {
             context.JSInterop.Invocations
-                .Should().Contain(invocation => invocation.Identifier == "quartzDashboardDom.actionsMenuOpensUp",
-                    "opening the menu asks the page whether to flip it");
+                .Should().Contain(invocation => invocation.Identifier == "quartzDashboardDom.actionsMenuSpace",
+                    "opening the menu measures space; C# decides whether to flip");
             IElement actions = page.Find(".qz-timeline-actions-open");
             actions.ClassList.Should().Contain("qz-timeline-actions-up",
                 "the last-row menu must open above the chevron when the page measured no room below");
