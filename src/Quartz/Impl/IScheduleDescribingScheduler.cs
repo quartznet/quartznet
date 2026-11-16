@@ -90,7 +90,8 @@ internal static class DescribedTriggerListing
     /// <remarks>
     /// The read is bounded by the page, as a detail page's read of one trigger is by the one. A page whose
     /// triggers cannot be read — a stored trigger of a type this process cannot load, say — is still listed,
-    /// without descriptions: the listing was answerable before it was described, and stays so.
+    /// without descriptions: the listing was answerable before it was described, and stays so. For the same
+    /// reason a trigger whose description throws leaves its own row without one.
     /// </remarks>
     public static async ValueTask<PagedResult<DescribedTriggerHeader>> Compose(IScheduler scheduler, TriggerQuery query, CancellationToken cancellationToken = default)
     {
@@ -117,11 +118,33 @@ internal static class DescribedTriggerListing
         List<DescribedTriggerHeader> rows = new(page.Items.Count);
         foreach (TriggerHeader header in page.Items)
         {
-            rows.Add(triggers.TryGetValue(header.Key, out ITrigger? trigger)
-                ? new DescribedTriggerHeader(header, ScheduleDescriber.Describe(trigger), ScheduleDescriber.Expression(trigger))
-                : new DescribedTriggerHeader(header, ScheduleDescription: null, ScheduleExpression: null));
+            rows.Add(Describe(header, triggers.GetValueOrDefault(header.Key)));
         }
 
         return new PagedResult<DescribedTriggerHeader>(rows, page.HasMore, page.TotalCount);
+    }
+
+    /// <summary>
+    /// One row, described when its trigger was read and its description does not throw.
+    /// </summary>
+    /// <remarks>
+    /// The shipped triggers never throw here. An <see cref="ITrigger" /> of an application's own can, from any of the
+    /// members the description reads, and one such trigger is no reason to fail the page of every other.
+    /// </remarks>
+    private static DescribedTriggerHeader Describe(TriggerHeader header, ITrigger? trigger)
+    {
+        if (trigger is not null)
+        {
+            try
+            {
+                return new DescribedTriggerHeader(header, ScheduleDescriber.Describe(trigger), ScheduleDescriber.Expression(trigger));
+            }
+            catch (Exception)
+            {
+                // Listed without a description, as a row whose trigger could not be read is.
+            }
+        }
+
+        return new DescribedTriggerHeader(header, ScheduleDescription: null, ScheduleExpression: null);
     }
 }

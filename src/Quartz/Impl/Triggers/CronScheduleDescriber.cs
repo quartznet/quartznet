@@ -86,6 +86,13 @@ internal static class CronScheduleDescriber
             return null;
         }
 
+        // 22-2 under a day filter fires the morning and the evening of each day it names, never the night from
+        // one into the next, so an overnight window would claim hours it skips.
+        if (time.CrossesMidnight && days.Kind != DayKind.EveryDay)
+        {
+            return null;
+        }
+
         string text;
         switch (days.Kind)
         {
@@ -110,6 +117,12 @@ internal static class CronScheduleDescriber
     }
 
     private static TimePhrase? DescribeTime(TimeField seconds, TimeField minutes, TimeField hours)
+    {
+        TimePhrase? time = DescribeTimeOfDay(seconds, minutes, hours);
+        return time is not null && hours.Wraps ? time with { CrossesMidnight = true } : time;
+    }
+
+    private static TimePhrase? DescribeTimeOfDay(TimeField seconds, TimeField minutes, TimeField hours)
     {
         if (seconds.Kind == FieldKind.Values && minutes.Kind == FieldKind.Values && hours.Kind == FieldKind.Values)
         {
@@ -382,9 +395,11 @@ internal static class CronScheduleDescriber
             return string.Empty;
         }
 
-        if (items.TrueForAll(static x => x.Kind == ItemKind.Value))
+        // A step or range that reaches one year is that year: 2026-2027/2 is 2026 only.
+        SortedSet<int> years = Item.Expand(items, MinYear, MaxYear);
+        if (years.Count == 1 || items.TrueForAll(static x => x.Kind == ItemKind.Value))
         {
-            return " in " + ScheduleWords.JoinList(Item.Expand(items, MinYear, MaxYear).Select(x => ScheduleWords.Number(x)).ToList());
+            return " in " + ScheduleWords.JoinList(years.Select(x => ScheduleWords.Number(x)).ToList());
         }
 
         return items switch
@@ -468,7 +483,14 @@ internal static class CronScheduleDescriber
 
     private static DayOfWeek CronDay(int day) => (DayOfWeek) (day - 1);
 
-    private sealed record TimePhrase(string Text, bool IsClockTimes);
+    /// <summary>
+    /// The time of day in words. <see cref="CrossesMidnight" /> is set on a window whose hours wrap past midnight,
+    /// <c>from 22:00 to 02:00</c>, which is one window only on a schedule that fires every day.
+    /// </summary>
+    private sealed record TimePhrase(string Text, bool IsClockTimes)
+    {
+        public bool CrossesMidnight { get; init; }
+    }
 
     private enum DayKind
     {
@@ -691,7 +713,9 @@ internal static class CronScheduleDescriber
                 return new TimeField(FieldKind.Any, all, 0, max, 1, open: true, wraps: false);
             }
 
-            if (items.TrueForAll(static x => x.Kind == ItemKind.Value))
+            // A step or range that reaches one value is that value: 20/6 in hours fires at 20 only, and reads as
+            // an interval from 20:00 to 20:00 otherwise.
+            if (all.Length == 1 || items.TrueForAll(static x => x.Kind == ItemKind.Value))
             {
                 return new TimeField(FieldKind.Values, all, all[0], all[^1], 1, open: false, wraps: false);
             }
@@ -780,8 +804,12 @@ internal static class CronScheduleDescriber
                     }
 
                     numbers.Add(item);
+
+                    // A step or range that reaches one day is that day: 25/10 is the 25th only.
+                    SortedSet<int> reached = Item.Expand([item], 1, 31);
                     phrases.Add(item.Kind switch
                     {
+                        _ when reached.Count == 1 => "the " + ScheduleWords.Ordinal(reached.Min),
                         ItemKind.Value => "the " + ScheduleWords.Ordinal(item.From),
                         ItemKind.Range => "the " + ScheduleWords.Ordinal(item.From) + " to the " + ScheduleWords.Ordinal(item.To),
                         _ => "every " + (item.Increment == 1 ? string.Empty : ScheduleWords.Ordinal(item.Increment) + " ") + "day from the "
