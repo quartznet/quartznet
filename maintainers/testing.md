@@ -76,8 +76,8 @@ Per-file figures for a pull request: `https://sonarcloud.io/api/measures/compone
   [architecture.md](architecture.md), "Target frameworks"). It rolls the other test hosts forward to the newest
   runtime installed, and fails unless each host reports .NET 11. The leg sets `UnitTestRuntime` in its
   environment, where MSBuild reads it, and `build/Build.cs` puts a command-line value there too. Compile with
-  the same setting. `UnitTest --skip` over a build compiled without it runs the `net10.0` tests rolled forward,
-  and passes. `dotnet fallout Pack
+  the same setting: `UnitTest` fails before any test runs when the `Quartz.Tests.Unit` it finds was built for
+  another framework, as its `runtimeconfig.json` says. `dotnet fallout Pack
   Net11ConsumerSmoke` builds `build/net11-consumer` with the .NET 11 SDK outside the repository, from the
   packed packages: a Debug web application with the dashboard at a custom path, then both trim canaries
   trimmed and native. Both need the .NET 11 SDK installed; the native publish on Windows needs `vswhere`

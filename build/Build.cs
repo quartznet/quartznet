@@ -9,6 +9,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 using Semver;
@@ -492,8 +493,10 @@ partial class Build : FalloutBuild, ICompile, IPack
 
             if (UnitTestRuntime is { } runtime)
             {
-                // Before the run rather than only after it: a runner without the runtime installed fails
-                // here in seconds, not after a whole suite has passed on the wrong one.
+                // Before the run rather than only after it: a runner without the runtime installed, or a
+                // Quartz.Tests.Unit compiled without UnitTestRuntime, fails here in seconds, not after a whole
+                // suite has passed on the wrong one.
+                AssertTheUnitTestsWereBuiltFor(runtime, testRuns);
                 AssertTheTestHostsRollForwardTo(runtime, testRuns[0]);
             }
 
@@ -521,6 +524,40 @@ partial class Build : FalloutBuild, ICompile, IPack
                 AssertTheTestHostsRanOn(major, testRuns, output);
             }
         });
+
+    /// <summary>
+    /// Fails unless the <c>Quartz.Tests.Unit</c> about to run was built for <c>net{major}.0</c>, so that it loads
+    /// <c>Quartz</c>'s asset for that framework (#4341).
+    /// </summary>
+    /// <remarks>
+    /// Its framework is only a property: the csproj reads <see cref="UnitTestRuntime" /> from the environment. A
+    /// build compiled without it is the <c>net10.0</c> one, in the same output directory, and
+    /// <c>UnitTest --skip</c> over it would roll it forward and pass: <c>RuntimeAsyncTest</c> included, since a
+    /// <c>net10.0</c> test assembly is right to load the <c>net10.0</c> asset. The SDK writes the framework a test
+    /// application was built for into its <c>runtimeconfig.json</c>, which is what this reads.
+    /// </remarks>
+    void AssertTheUnitTestsWereBuiltFor(int major, (Project Project, string Framework)[] testRuns)
+    {
+        string expected = $"net{major}.0";
+        (Project Project, string Framework) run = testRuns.Single(x => x.Project.Name == "Quartz.Tests.Unit");
+
+        Assert.True(run.Framework == expected,
+            $"Quartz.Tests.Unit evaluates to {run.Framework} with UnitTestRuntime={major}, not {expected}: its csproj no "
+            + "longer reads UnitTestRuntime, or MSBuild no longer sees it in the environment.");
+
+        AbsolutePath runtimeConfig = TestAssembly(run).Parent / $"{run.Project.Name}.runtimeconfig.json";
+        Assert.FileExists(runtimeConfig);
+
+        using JsonDocument document = JsonDocument.Parse(runtimeConfig.ReadAllText());
+        string built = document.RootElement.GetProperty("runtimeOptions").GetProperty("tfm").GetString();
+
+        Assert.True(built == expected,
+            $"The Quartz.Tests.Unit about to run was built for {built}, not {expected}, so it would load Quartz's {built} "
+            + $"asset rolled forward rather than its {expected} one. Compile with UnitTestRuntime={major} in the environment "
+            + $"or with --unit-test-runtime {major}, as pr-tests-unit-net11 does, before UnitTest --skip.");
+
+        Log.Information("Quartz.Tests.Unit was built for {Framework}", built);
+    }
 
     /// <summary>
     /// What a test host is handed to run on the newest runtime installed rather than the one it was built
