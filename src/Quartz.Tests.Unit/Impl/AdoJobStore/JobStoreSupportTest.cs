@@ -277,6 +277,23 @@ public class JobStoreSupportTest
             triggerKey,
             A<CancellationToken>.Ignored)).Returns(Task.FromResult(1));
 
+        // The row of an execution still running: the replace reads the trigger's fired rows to cancel its
+        // reservations (#4323), and leaves this one alone.
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey.Name,
+            triggerKey.Group,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult<IReadOnlyCollection<FiredTriggerRecord>>(new[]
+        {
+            new FiredTriggerRecord
+            {
+                FireInstanceId = "executing-fire-id",
+                FireInstanceState = AdoConstants.StateExecuting,
+                TriggerKey = triggerKey,
+                SchedulerInstanceId = "TestInstanceId",
+            },
+        }));
+
         (await jobStoreSupport.CallReplaceTrigger(conn, triggerKey, CreateTestTrigger())).Should().BeTrue();
 
         A.CallTo(() => driverDelegate.DeleteTrigger(
@@ -292,12 +309,6 @@ public class JobStoreSupportTest
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         // A replacement is not a removal: the rows record executions of the job, which is still there.
-        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
-            A<ConnectionAndTransactionHolder>.Ignored,
-            A<string>.Ignored,
-            A<string>.Ignored,
-            A<CancellationToken>.Ignored)).MustNotHaveHappened();
-
         A.CallTo(() => driverDelegate.DeleteFiredTrigger(
             A<ConnectionAndTransactionHolder>.Ignored,
             A<string>.Ignored,
@@ -509,6 +520,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => nvDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(Task.FromResult(AdoConstants.StateAcquired));
+        GivenReservation(nvDelegate, trigger);
         A.CallTo(() => nvDelegate.SelectJobDetail(conn, trigger.JobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.FromResult<IJobDetail>(job));
         A.CallTo(() => ((INextVersionDelegate) nvDelegate).IsJobCurrentlyExecuting(conn, trigger.JobKey.Name, trigger.JobKey.Group, A<CancellationToken>.Ignored))
@@ -540,6 +552,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => nvDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(Task.FromResult(AdoConstants.StateAcquired));
+        GivenReservation(nvDelegate, trigger);
         A.CallTo(() => nvDelegate.SelectJobDetail(conn, trigger.JobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.FromResult<IJobDetail>(job));
         A.CallTo(() => ((INextVersionDelegate) nvDelegate).IsJobCurrentlyExecuting(conn, trigger.JobKey.Name, trigger.JobKey.Group, A<CancellationToken>.Ignored))
@@ -566,6 +579,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => nvDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(Task.FromResult(AdoConstants.StateAcquired));
+        GivenReservation(nvDelegate, trigger);
         A.CallTo(() => nvDelegate.SelectJobDetail(conn, trigger.JobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.FromResult<IJobDetail>(job));
 
@@ -590,6 +604,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(Task.FromResult(AdoConstants.StateAcquired));
+        GivenReservation(driverDelegate, trigger);
         A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.FromResult<IJobDetail>(job));
 
@@ -1124,6 +1139,29 @@ public class JobStoreSupportTest
             .MustNotHaveHappened();
     }
 
+    /// <summary>
+    /// Arranges the reservation acquisition wrote for the trigger, at the fire time the acquisition holds:
+    /// the fire of an acquired trigger through a delegate Quartz does not ship reads the trigger's
+    /// fired-trigger rows, fires only while its own is among them, and then only at the fire time the row
+    /// still holds (#4323).
+    /// </summary>
+    private static void GivenReservation(IDriverDelegate del, IOperableTrigger trigger)
+    {
+        A.CallTo(() => del.SelectTriggerStatus(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(new TriggerStatus(AdoConstants.StateAcquired, trigger.GetNextFireTimeUtc(), trigger.Key, trigger.JobKey)));
+        A.CallTo(() => del.SelectFiredTriggerRecords(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key.Name, trigger.Key.Group, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<FiredTriggerRecord>>(new[]
+            {
+                new FiredTriggerRecord
+                {
+                    FireInstanceId = trigger.FireInstanceId,
+                    FireInstanceState = AdoConstants.StateAcquired,
+                    TriggerKey = trigger.Key,
+                    SchedulerInstanceId = "TestInstanceId",
+                },
+            }));
+    }
+
     private static IOperableTrigger CreateTestTrigger(string name = "t1", string fireInstanceId = "test-fire-id")
     {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
@@ -1315,6 +1353,13 @@ public class JobStoreSupportTest
                 A<string>.Ignored,
                 A<CancellationToken>.Ignored))
             .Returns(Task.FromResult<IReadOnlyCollection<FiredTriggerRecord>>(records));
+
+        // The rows are there, so deleting one deletes one: a release whose row is gone moves nothing (#4323).
+        foreach (FiredTriggerRecord record in records)
+        {
+            A.CallTo(() => driverDelegate.DeleteFiredTrigger(A<ConnectionAndTransactionHolder>.Ignored, record.FireInstanceId, A<CancellationToken>.Ignored))
+                .Returns(Task.FromResult(1));
+        }
     }
 
     /// <summary>Arranges the fired-trigger rows the release reads to decide whether a job is executing.</summary>
@@ -1996,6 +2041,7 @@ public class JobStoreSupportTest
             });
         A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, trigger.JobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.FromResult<IJobDetail>(job));
+        GivenReservation(del, trigger);
 
         IReadOnlyCollection<TriggerFiredResult> results = await store.TriggersFired(new[] { trigger });
 
@@ -2083,6 +2129,8 @@ public class JobStoreSupportTest
 
         A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.FromResult<IJobDetail>(job));
+        GivenReservation(del, triggerA);
+        GivenReservation(del, triggerB);
 
         IReadOnlyCollection<TriggerFiredResult> results = await store.TriggersFired(new[] { triggerA, triggerB });
 

@@ -2203,7 +2203,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             OperationName.JobStore.StoreTrigger,
             () => ExecuteInLock(
                 LockOnInsert || replaceExisting ? LockTriggerAccess : null,
-                conn => StoreTrigger(conn, newTrigger, null, replaceExisting, StateWaiting, false, false, cancellationToken),
+                conn => StoreTriggerForCaller(conn, newTrigger, null, replaceExisting, cancellationToken),
                 cancellationToken),
             activity =>
             {
@@ -2213,9 +2213,38 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 #else
         return ExecuteInLock(
             LockOnInsert || replaceExisting ? LockTriggerAccess : null,
-            conn => StoreTrigger(conn, newTrigger, null, replaceExisting, StateWaiting, false, false, cancellationToken),
+            conn => StoreTriggerForCaller(conn, newTrigger, null, replaceExisting, cancellationToken),
             cancellationToken);
 #endif
+    }
+
+    /// <summary>
+    /// Stores a trigger a caller of the store hands it and, when the caller lets it replace one stored under
+    /// the same key, cancels the reservations of the trigger it writes over (#4323).
+    /// </summary>
+    /// <remarks>
+    /// A replace by key that writes the row over rather than deleting it — a schedule call told to replace
+    /// what is stored — is a replace all the same: a node holding an acquisition of the trigger as it was
+    /// does not fire it, and its release leaves the row alone; see <see cref="CancelReservations" />. Only
+    /// the callers' writes come through here. The store's own writes of a trigger it holds — a fire, a
+    /// misfire, a calendar's new fire times — keep the trigger's reservations: a fire whose stored next fire
+    /// time moved under it answers "not fired" in <see cref="TriggerFired" />, and the trigger is acquired
+    /// again for its new time.
+    /// </remarks>
+    private async Task StoreTriggerForCaller(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger newTrigger,
+        IJobDetail? job,
+        bool replaceExisting,
+        CancellationToken cancellationToken)
+    {
+        await StoreTrigger(conn, newTrigger, job, replaceExisting, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+
+        if (replaceExisting)
+        {
+            // After the row's write, as in ReplaceTrigger.
+            await CancelReservations(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -2441,7 +2470,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     await StoreJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
                     foreach (var trigger in triggers)
                     {
-                        await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                        await StoreTriggerForCaller(conn, (IOperableTrigger) trigger, job, replace, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }, cancellationToken);
@@ -2688,9 +2717,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
     /// <summary>
     /// Deletes the trigger row and stores the replacement, leaving the fired-trigger rows of the old
-    /// trigger's executions alone.
+    /// trigger's executions alone and cancelling its reservations.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// A reservation is an acquisition of the trigger as it was, held by a node until its fire time, and
+    /// is deleted: the node holding it does not fire it, and its release moves nothing (#4323). See
+    /// <see cref="CancelReservations" />.
+    /// </para>
     /// <para>
     /// A replacement is not a removal. The trigger keeps its identity and its job, so an execution the
     /// row records is still one to finish — its completion deletes the row by fire instance id — or, if
@@ -2733,13 +2767,28 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             }
 
             // Read before the row goes: a declared trigger re-applied at a start keeps the pause the row has
-            // (#4128), stored paused rather than waiting and paused-blocked if its job is running. Any other
+            // (#4128), stored paused rather than waiting and paused-blocked if its job is running, is held to
+            // the row it was worked out from, and leaves a row it describes exactly as it is (#4324). Any other
             // replace decides the state afresh.
-            string state = await KeepsPauseOnReplace(conn, triggerKey, newTrigger, cancellationToken).ConfigureAwait(false)
-                ? StatePaused
-                : StateWaiting;
+            ReapplyOutcome reapply = await DecideReapply(conn, triggerKey, newTrigger, cancellationToken).ConfigureAwait(false);
+            if (reapply == ReapplyOutcome.KeepRow)
+            {
+                return true;
+            }
+
+            if (reapply == ReapplyOutcome.RowMoved)
+            {
+                return false;
+            }
+
+            string state = reapply == ReapplyOutcome.ReplaceKeepingPause ? StatePaused : StateWaiting;
 
             bool removedTrigger = await Delegate.DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) > 0;
+
+            // The acquisitions of the trigger being replaced are of a trigger that is no longer stored: a node
+            // holding one does not fire it, and its release leaves alone the row it no longer holds (#4323).
+            // The rows of its executions stay, for their completions and for recovery.
+            await CancelReservations(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
             await StoreTrigger(conn, newTrigger, job, false, state, false, false, cancellationToken).ConfigureAwait(false);
 
@@ -2752,22 +2801,122 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     }
 
     /// <summary>
-    /// Whether a replace keeps the pause on the row it replaces: only for a declared trigger the
-    /// scheduling-data processor re-applies at a start, and only when the row is paused (#4128).
+    /// What a replace does with the row it replaces: replace it, keeping its pause or not, leave it as it
+    /// is, or leave it because it moved since the replacement was worked out from it.
     /// </summary>
-    private async Task<bool> KeepsPauseOnReplace(
+    private enum ReapplyOutcome
+    {
+        /// <summary>The row is replaced, and the replacement's state decided afresh.</summary>
+        Replace,
+
+        /// <summary>The row is replaced, and the replacement stored paused, as the row is (#4128).</summary>
+        ReplaceKeepingPause,
+
+        /// <summary>The row is the replacement already, and is left as it is.</summary>
+        KeepRow,
+
+        /// <summary>The row moved since the replacement was worked out from it, and nothing is replaced.</summary>
+        RowMoved,
+    }
+
+    /// <summary>
+    /// Decides, in the replace's own transaction and under <c>TRIGGER_ACCESS</c>, what a declared trigger
+    /// the scheduling-data processor re-applies at a start does with the row it replaces.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The pause</b> (#4128): a redeploy does not resume a trigger an operator paused. The replacement is
+    /// stored paused.
+    /// </para>
+    /// <para>
+    /// <b>The row as read</b> (#4324): the processor read the trigger outside the lock and worked the
+    /// replacement's fire times and count out from that read. A row that has fired since, on another node,
+    /// is left as that firing left it and the replace answers that it replaced nothing; the processor reads
+    /// the trigger again. Without that, the replace put back the fire time that had just run, and it ran a
+    /// second time. The row's lock is taken before it is read, so an acquisition made without
+    /// <c>TRIGGER_ACCESS</c> cannot move it between this read and the write that follows.
+    /// </para>
+    /// <para>
+    /// <b>The same trigger again</b> (#4324): a replacement that would be stored as exactly the row it
+    /// replaces — the same definition, fire times and count, which re-applying an unchanged declaration
+    /// with relative scheduling works out — leaves the row as it is, its state included, so that an
+    /// acquisition of it stays valid. A row in <c>ERROR</c> or <c>COMPLETE</c> is stored afresh all the same.
+    /// </para>
+    /// <para>
+    /// Any other replace decides the state afresh, and overwrites whatever the row holds.
+    /// </para>
+    /// </remarks>
+    private async Task<ReapplyOutcome> DecideReapply(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         IOperableTrigger newTrigger,
         CancellationToken cancellationToken)
     {
-        if (newTrigger is not AbstractTrigger { KeepsPauseOnReplace: true })
+        if (newTrigger is not AbstractTrigger { KeepsPauseOnReplace: true } reapplied)
         {
-            return false;
+            return ReapplyOutcome.Replace;
+        }
+
+        if (Delegate is StdAdoDelegate std)
+        {
+            // The statement the commit check writes the row with: it changes nothing and takes the row's lock.
+            await std.SettleTriggerRow(conn, triggerKey, cancellationToken).ConfigureAwait(false);
         }
 
         string state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-        return state == StatePaused || state == StatePausedBlocked;
+        bool keepsState = AbstractTrigger.KeepsStateWhenReappliedUnchanged(state);
+        if (reapplied.ReplacesRunStateAsRead is not null || keepsState)
+        {
+            IOperableTrigger? stored = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            if (stored is null)
+            {
+                // Gone since the job was read: there is no trigger to replace.
+                return ReapplyOutcome.RowMoved;
+            }
+
+            if (reapplied.ReplacesRunStateAsRead is { } asRead && !asRead.StillDescribes(stored))
+            {
+                return ReapplyOutcome.RowMoved;
+            }
+
+            if (keepsState && stored is AbstractTrigger storedTrigger && reapplied.DescribesSameTriggerAs(storedTrigger))
+            {
+                return ReapplyOutcome.KeepRow;
+            }
+        }
+
+        return state == StatePaused || state == StatePausedBlocked ? ReapplyOutcome.ReplaceKeepingPause : ReapplyOutcome.Replace;
+    }
+
+    /// <summary>
+    /// Deletes the <c>ACQUIRED</c> fired-trigger rows of a trigger whose definition is being replaced: the
+    /// reservations of acquisitions made of the trigger as it was (#4323).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A node acquires a trigger ahead of its fire time and holds a copy of it until then. Replaced in the
+    /// meantime, the trigger is not the one that copy describes, and another node may acquire the
+    /// replacement for its own fire time. A fire of the copy checks its reservation, which is gone, and
+    /// answers that it did not fire; its release finds no row of its own and moves nothing.
+    /// </para>
+    /// <para>
+    /// An <c>ACQUIRED</c> row is a reservation, not an execution. Recovery reads the rows of executions,
+    /// which a replace keeps (#3759); of a reservation it would only have moved the trigger back to
+    /// <c>WAITING</c>, which a replace stores it in anyway. A read and a delete per reservation, through
+    /// members any delegate has. Called once the trigger's row is written, so that a replace takes the row
+    /// before its reservations, the order 4.x keeps for its rounds that fire without <c>TRIGGER_ACCESS</c>.
+    /// </para>
+    /// </remarks>
+    private async Task CancelReservations(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        IReadOnlyCollection<FiredTriggerRecord> rows = await Delegate.SelectFiredTriggerRecords(conn, triggerKey.Name, triggerKey.Group, cancellationToken).ConfigureAwait(false);
+        foreach (FiredTriggerRecord row in rows)
+        {
+            if (StateAcquired.Equals(row.FireInstanceState))
+            {
+                await Delegate.DeleteFiredTrigger(conn, row.FireInstanceId!, cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -4725,6 +4874,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// that landed although the scheduler was told it failed (#4259), and
     /// <see cref="ReleaseTriggerNoLongerAcquired" /> tells which before the fired row goes.
     /// </para>
+    /// <para>
+    /// A release whose fired row is gone moves nothing. The trigger it reserved was replaced, which cancels
+    /// its reservations, or a peer recovered this node's rows; the trigger row is then the replacement,
+    /// perhaps another node's acquisition of it, or the recovery's. Moved to <c>WAITING</c>, it let a third
+    /// node acquire a fire time another node held (#4323). The delete's count says so, after the move, which
+    /// is then undone in the same transaction: no other transaction sees it, and a release whose row is there
+    /// makes the statements it always has.
+    /// </para>
     /// </remarks>
     private async Task ReleaseAcquiredTrigger(
         ConnectionAndTransactionHolder conn,
@@ -4743,7 +4900,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 return;
             }
 
-            await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false);
+            if (await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false) == 0)
+            {
+                // Nothing of this fire is left to release: the acquisition is no longer this node's. A replace
+                // of the trigger cancelled it, and the row is another node's acquisition of the replacement
+                // (#4323), or a peer's recovery took it back. Either way the row is somebody else's to move, so
+                // the move above is undone.
+                await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StateAcquired, released, cancellationToken).ConfigureAwait(false);
+                return;
+            }
 
             if (StateWaiting.Equals(released))
             {
@@ -4796,7 +4961,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         IReadOnlyCollection<FiredTriggerRecord> firings = await Delegate.SelectFiredTriggerRecordsByJob(conn, jobKey.Name, jobKey.Group, cancellationToken).ConfigureAwait(false);
         FiredTriggerRecord? fired = FiredRow(firings, fireInstanceId);
 
-        await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false);
+        if (await Delegate.DeleteFiredTrigger(conn, fireInstanceId, cancellationToken).ConfigureAwait(false) == 0)
+        {
+            // Nothing of this fire is left to release (#4323): the row is somebody else's to move. See
+            // ReleaseAcquiredTrigger.
+            return;
+        }
 
         string released = fired != null
             ? await CheckBlockedState(conn, jobKey, StateWaiting, cancellationToken).ConfigureAwait(false)
@@ -5214,6 +5384,52 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         return Delegate is StdAdoDelegate std ? std.SettleTriggerRow(conn, triggerKey, cancellationToken) : Task.CompletedTask;
     }
 
+    /// <summary>
+    /// What the fire of a trigger acquired earlier decides on: the trigger's state and next fire time, and
+    /// whether the reservation the acquisition wrote is still there (#4323).
+    /// </summary>
+    /// <remarks>
+    /// One statement through a delegate Quartz ships. Any other delegate is asked the members it may have
+    /// overridden: the trigger's state, as the fire has always asked it; then, only for a row that is
+    /// <c>ACQUIRED</c>, which is the one case the answer decides, the trigger's fired-trigger rows; and only
+    /// while this acquisition's reservation is among them, the trigger's status, for the fire time it holds.
+    /// </remarks>
+    private async Task<(string State, DateTimeOffset? NextFireTimeUtc, bool Reserved)> ReadAcquiredTrigger(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        CancellationToken cancellationToken)
+    {
+        if (Delegate is StdAdoDelegate { IsShipped: true } shipped)
+        {
+            return await shipped.SelectTriggerStateForFire(conn, trigger.Key, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
+        }
+
+        string state = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+        if (!StateAcquired.Equals(state))
+        {
+            return (state, null, false);
+        }
+
+        bool reserved = false;
+        IReadOnlyCollection<FiredTriggerRecord> held = await Delegate.SelectFiredTriggerRecords(conn, trigger.Key.Name, trigger.Key.Group, cancellationToken).ConfigureAwait(false);
+        foreach (FiredTriggerRecord row in held)
+        {
+            if (row.FireInstanceId == trigger.FireInstanceId && StateAcquired.Equals(row.FireInstanceState))
+            {
+                reserved = true;
+                break;
+            }
+        }
+
+        if (!reserved)
+        {
+            return (state, null, false);
+        }
+
+        TriggerStatus? status = await Delegate.SelectTriggerStatus(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+        return (state, status?.NextFireTimeUtc, true);
+    }
+
     protected virtual async Task<TriggerFiredBundle?> TriggerFired(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
@@ -5226,8 +5442,20 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         try
         {
             // if trigger was deleted, state will be StateDeleted
-            string state = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+            (string state, DateTimeOffset? storedNextFireTime, bool reserved) = await ReadAcquiredTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
             if (!state.Equals(StateAcquired))
+            {
+                return null;
+            }
+
+            // ACQUIRED says that somebody holds the row, not that this node does. The acquisition fired here
+            // is still this node's while its reservation is: a replace of the trigger cancels the
+            // reservations of the trigger it replaces, and another node may have acquired the replacement.
+            // Fired anyway, the copy held here wrote its definition over the replacement by key, and its
+            // release undid the other node's acquisition (#4323). And the copy still describes the row while
+            // the fire time it holds is the row's: one another node fired since, its pause and resume having
+            // let that node acquire it, has run.
+            if (!reserved || storedNextFireTime != trigger.GetNextFireTimeUtc())
             {
                 return null;
             }

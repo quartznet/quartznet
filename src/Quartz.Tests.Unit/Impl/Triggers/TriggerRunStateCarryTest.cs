@@ -118,13 +118,18 @@ public sealed class TriggerRunStateCarryTest
         declared.TimesTriggered.Should().Be(1, "carrying a value over is for a declaration that said nothing about it");
     }
 
+    /// <summary>
+    /// A cron trigger counts no fires, so a carry changes nothing on it; its schedule is compared all the
+    /// same, which is what lets an unchanged declaration leave the stored trigger as it is (#4324).
+    /// </summary>
     [Test]
     public void ACronTriggerHasNothingToCarry()
     {
         AbstractTrigger stored = (AbstractTrigger) Cron();
         AbstractTrigger declared = (AbstractTrigger) Cron();
 
-        declared.CarryRunStateFrom(stored).Should().BeFalse("a cron trigger counts no fires");
+        declared.CarryRunStateFrom(stored).Should().BeTrue("the expression and its zone are the stored ones");
+        declared.DescribesSameTriggerAs(stored).Should().BeTrue("a cron trigger counts no fires, so there is nothing to carry");
     }
 
     [Test]

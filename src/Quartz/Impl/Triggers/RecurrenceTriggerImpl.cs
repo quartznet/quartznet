@@ -431,4 +431,10 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
             TimesTriggered = recurrence.TimesTriggered;
         }
     }
+
+    /// <inheritdoc />
+    internal override bool HasSameFireCountAs(AbstractTrigger stored)
+    {
+        return stored is RecurrenceTriggerImpl recurrence && TimesTriggered == recurrence.TimesTriggered;
+    }
 }
