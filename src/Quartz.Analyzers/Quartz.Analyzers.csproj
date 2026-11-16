@@ -56,13 +56,12 @@
 
   <!--
     Analyzer release tracking, which EnforceExtendedAnalyzerRules requires: every shipped diagnostic id
-    is listed with its category, severity and what it says, so that removing or re-purposing one is a
-    diff rather than a surprise.
+    is listed with its category, severity and what it says, in AnalyzerReleases.Shipped.md and
+    AnalyzerReleases.Unshipped.md, so that removing or re-purposing one is a diff rather than a surprise.
+    They reach the compiler as AdditionalFiles through Microsoft.CodeAnalysis.Analyzers, which
+    Microsoft.CodeAnalysis.CSharp brings and whose targets add both files when they exist. Naming them
+    here as well made each a duplicate source file, which docfx reports as a warning.
   -->
-  <ItemGroup>
-    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
-    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
-  </ItemGroup>
 
   <!--
     The cron parser, linked rather than referenced.
