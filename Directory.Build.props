@@ -100,7 +100,12 @@
     <!-- CA1507: Use nameof in place of string literal -->
     <NoWarn>$(NoWarn);CA1507</NoWarn>
 
-    <!-- CA1873: Evaluation of this argument may be expensive and unnecessary if logging is disabled -->
+    <!--
+      CA1873: Evaluation of this argument may be expensive and unnecessary if logging is disabled.
+      The .NET 11 analyzers narrowed it to a method call or an array allocation in a log call's
+      arguments, and it still reports some forty of them, most on start-up and shutdown lines and in the
+      examples; an IsEnabled guard at each is the only fix it accepts.
+    -->
     <NoWarn>$(NoWarn);CA1873</NoWarn>
 
   </PropertyGroup>
