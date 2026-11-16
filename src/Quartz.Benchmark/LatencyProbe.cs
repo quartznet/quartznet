@@ -68,18 +68,60 @@ internal static class LatencyProbe
     private static double acquisitionSeconds;
 
     /// <summary>
-    /// Runs both passes against one scheduler and prints their percentiles.
+    /// Runs both passes against an idle <c>RAMJobStore</c> scheduler, then against an idle PostgreSQL one
+    /// when <c>QUARTZ_BENCHMARK_POSTGRES</c> is set, and prints their percentiles.
     /// </summary>
+    /// <remarks>
+    /// The PostgreSQL store is <see cref="FireThroughputPostgresBenchmark" />'s, with
+    /// <see cref="RoundTripLatency" /> and <see cref="LockFreeRoundsArm" /> applied, and its rows are cleared
+    /// before and after. Its schedule-to-execute interval holds the <c>ScheduleJob</c> commit and the round
+    /// trips of an acquisition and a fire, which is what an application on that store waits for.
+    /// </remarks>
     public static void Run()
     {
+        Run("RAMJobStore", quartz => quartz.UseInMemoryStore());
+
+        if (Environment.GetEnvironmentVariable("QUARTZ_BENCHMARK_POSTGRES") is null)
+        {
+            return;
+        }
+
+        BenchmarkDatabase database = BenchmarkDatabase.Open(BenchmarkDialect.Postgres).GetAwaiter().GetResult();
+        try
+        {
+            OneOffCensus.ClearRows(database, nameof(LatencyProbe)).GetAwaiter().GetResult();
+
+            string connectionString = database.Provider.ConnectionString;
+            string providerName = database.ProviderName;
+
+            Run("PostgreSQL", quartz => quartz.UsePersistentStore(store =>
+            {
+                store.UsePostgres(connectionString);
+                store.UseSystemTextJsonSerializer();
+                RoundTripLatency.Inject(store, providerName, connectionString);
+                LockFreeRoundsArm.Apply(store);
+            }));
+        }
+        finally
+        {
+            OneOffCensus.ClearRows(database, nameof(LatencyProbe)).GetAwaiter().GetResult();
+            database.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void Run(string store, Action<IQuartzBuilder> configureStore)
+    {
         IScheduler scheduler = QuartzSchedulerBuilder
-            .Create(quartz => quartz
-                .ConfigureScheduler(options =>
+            .Create(quartz =>
+            {
+                quartz.ConfigureScheduler(options =>
                 {
                     options.InstanceName = nameof(LatencyProbe);
                     options.InstanceId = nameof(LatencyProbe);
-                })
-                .UseInMemoryStore())
+                });
+
+                configureStore(quartz);
+            })
             .BuildScheduler()
             .GetAwaiter().GetResult();
 
@@ -90,7 +132,7 @@ internal static class LatencyProbe
             double[] endToEnd = MeasureEndToEnd(scheduler);
 
             Console.WriteLine();
-            Console.WriteLine($"Schedule-to-execute latency, idle RAMJobStore scheduler, {Repetitions} repetitions (us)");
+            Console.WriteLine($"Schedule-to-execute latency, idle {store} scheduler, {Repetitions} repetitions (us)");
             Console.WriteLine();
             PrintHeader();
             PrintRow("schedule -> Execute", endToEnd);
