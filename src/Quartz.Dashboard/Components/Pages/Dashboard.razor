@@ -477,6 +477,9 @@
     private async Task ReadAsync()
     {
         _reading = true;
+
+        // The status the page shows now, for the header to be told when the read changes it; none before a read.
+        SchedulerStatus? statusShown = _lastUpdatedAt is null ? null : _schedulerStatus;
         try
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
@@ -513,6 +516,7 @@
                 _recentActions.Clear();
                 _error = null;
                 MarkRead();
+                TellTheHeaderIfTheStatusChanged(statusShown);
                 return;
             }
 
@@ -565,7 +569,6 @@
 
             List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(schedulerName, cancellationToken);
 
-            SchedulerStatus? statusShown = _lastUpdatedAt is null ? null : _schedulerStatus;
             _schedulerStatus = scheduler.Status;
             _storeIsPersistent = scheduler.Persistent;
             _storeIsClustered = scheduler.Clustered;
@@ -602,11 +605,7 @@
             RefreshRecentActions(schedulerName);
             _error = null;
             MarkRead();
-
-            if (statusShown is { } shown && shown != _schedulerStatus)
-            {
-                Scheduler.NotifyRefreshed();
-            }
+            TellTheHeaderIfTheStatusChanged(statusShown);
         }
         catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
         {
@@ -637,6 +636,18 @@
         _lastUpdatedAt = Clock.GetUtcNow();
         _staleReason = null;
         _executingStaleReason = null;
+    }
+
+    /// <summary>
+    /// Has the header read the scheduler's status again when the read just made changed the one the page showed:
+    /// after <em>Start</em> or <em>Standby</em>, or a change made elsewhere. One read, so the two agree.
+    /// </summary>
+    private void TellTheHeaderIfTheStatusChanged(SchedulerStatus? statusShown)
+    {
+        if (statusShown is { } shown && shown != _schedulerStatus)
+        {
+            Scheduler.NotifyRefreshed();
+        }
     }
 
     private Task StartSchedulerAsync()
@@ -740,8 +751,10 @@
             ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: true, note, nodeLocal);
             Toasts.Success(successMessage);
             await RefreshSchedulersAsync(preferCurrentScheduler ? schedulerName : null);
+
+            // The read has the header read the status again when the action changed it, and a switch to another
+            // scheduler above has already told every page.
             await LoadDataAsync();
-            Scheduler.NotifyChanged();
         }
         catch (Exception ex)
         {
