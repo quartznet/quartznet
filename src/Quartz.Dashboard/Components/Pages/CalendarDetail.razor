@@ -1,5 +1,6 @@
 @page "/quartz/calendars/{CalendarName}"
 @using System.Reflection
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
@@ -11,9 +12,13 @@
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
 @inject NavigationManager Navigation
+@inject IServiceProvider Services
 
 <div class="qz-page">
-    <h1>Calendar Detail</h1>
+    <div class="qz-page-header">
+        <h1>Calendar Detail</h1>
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" OnRefresh="RefreshAsync" RefreshDisabled="@_refreshing" />
+    </div>
 
     @if (_isLoading)
     {
@@ -70,6 +75,22 @@
     /// </summary>
     private readonly CancellationTokenSource _cancellation = new();
 
+    /// <summary>
+    /// When the calendar on screen was read, or <see langword="null" /> while the page holds nothing read.
+    /// </summary>
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// Why the last read failed while there was a calendar to keep, or <see langword="null" />.
+    /// </summary>
+    private string? _staleReason;
+
+    /// <summary>Whether the read the Refresh button asked for is out.</summary>
+    private bool _refreshing;
+
+    /// <summary>The clock the page says it read the calendar at.</summary>
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
     [Parameter]
     public string CalendarName { get; set; } = string.Empty;
 
@@ -82,53 +103,115 @@
     protected override async Task OnInitializedAsync()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        Scheduler.OnDisplayChanged += OnDisplayChanged;
         await LoadDataAsync();
     }
 
     protected override async Task OnParametersSetAsync()
     {
+        // Another calendar's properties are not ones to keep.
+        ClearCalendar();
         await LoadDataAsync();
     }
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        ClearCalendar();
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>The time zone changed: draw the last-updated time again in it, and read nothing.</summary>
+    private void OnDisplayChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    /// <remarks>
+    /// The calendar on screen is replaced when the new read arrives rather than emptied before it, so a refresh
+    /// that fails keeps it, marked stale beside the time it was read. Only a page with nothing read to show has
+    /// the error in its place.
+    /// </remarks>
     private async Task LoadDataAsync()
     {
-        _isLoading = true;
+        // A refresh keeps the calendar on screen until the new read arrives; the spinner is for a page with
+        // nothing read to show.
+        _isLoading = !_refreshing || _lastUpdatedAt is null;
         _error = null;
 
         try
         {
-            _calendar = null;
-            _properties.Clear();
-
             string? schedulerName = Scheduler.ActiveSchedulerName;
             if (string.IsNullOrWhiteSpace(schedulerName))
             {
+                ClearCalendar();
                 return;
             }
 
             CancellationToken cancellationToken = _cancellation.Token;
             await Authorization.LoadOperations(schedulerName, cancellationToken);
-            _calendar = await Api.GetCalendar(schedulerName, CalendarName, cancellationToken);
-            BuildPropertyRows(_calendar);
+            ICalendar calendar = await Api.GetCalendar(schedulerName, CalendarName, cancellationToken);
+            _calendar = calendar;
+            _properties.Clear();
+            BuildPropertyRows(calendar);
+            _lastUpdatedAt = Clock.GetUtcNow();
+            _staleReason = null;
         }
         catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
         {
             // The reader left. A read nobody is waiting for is not a failure.
         }
+        catch (Exception ex) when (_lastUpdatedAt is not null)
+        {
+            _staleReason = ex.Message;
+        }
         catch (Exception ex)
         {
+            ClearCalendar();
             _error = ex.Message;
         }
         finally
         {
             _isLoading = false;
         }
+    }
+
+    /// <summary>
+    /// The Refresh button: the calendar read again, kept on screen until the new read arrives, and the header's
+    /// status read with it. The page reads nothing on its own after it has loaded.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        if (_refreshing)
+        {
+            return;
+        }
+
+        _refreshing = true;
+        try
+        {
+            await LoadDataAsync();
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+
+        if (!_cancellation.IsCancellationRequested)
+        {
+            Scheduler.NotifyRefreshed();
+        }
+    }
+
+    /// <summary>
+    /// Empties the page, for a calendar or a scheduler of which there is nothing read to keep showing.
+    /// </summary>
+    private void ClearCalendar()
+    {
+        _calendar = null;
+        _properties.Clear();
+        _lastUpdatedAt = null;
+        _staleReason = null;
     }
 
     private void BuildPropertyRows(ICalendar calendar)
@@ -194,6 +277,7 @@
     public void Dispose()
     {
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        Scheduler.OnDisplayChanged -= OnDisplayChanged;
         _cancellation.Cancel();
         _cancellation.Dispose();
     }

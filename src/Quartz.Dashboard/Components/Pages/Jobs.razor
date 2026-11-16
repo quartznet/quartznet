@@ -19,7 +19,7 @@
 <div class="qz-page">
     <div class="qz-page-header">
         <h1>Jobs</h1>
-        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" />
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" OnRefresh="RefreshAsync" RefreshDisabled="@_refreshing" />
     </div>
 
     <div class="qz-actions qz-group-actions qz-job-filters">
@@ -226,6 +226,9 @@
     /// </summary>
     private readonly CancellationTokenSource _cancellation = new();
 
+    /// <summary>Whether the read the Refresh button asked for is out.</summary>
+    private bool _refreshing;
+
     /// <summary>
     /// The run status of each job on the page that has one, from one read per page.
     /// </summary>
@@ -340,7 +343,9 @@
     /// </remarks>
     private async Task LoadDataAsync()
     {
-        _isLoading = true;
+        // A refresh keeps the listing on screen until the new one arrives; the spinner is for a page with
+        // nothing read to show.
+        _isLoading = !_refreshing || _lastUpdatedAt is null;
         _error = null;
 
         try
@@ -425,6 +430,33 @@
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// The Refresh button: the listing read again, kept on screen until the new one arrives, and the header's
+    /// status read with it. The page reads nothing on its own after it has loaded.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        if (_refreshing)
+        {
+            return;
+        }
+
+        _refreshing = true;
+        try
+        {
+            await LoadDataAsync();
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+
+        if (!_cancellation.IsCancellationRequested)
+        {
+            Scheduler.NotifyRefreshed();
         }
     }
 

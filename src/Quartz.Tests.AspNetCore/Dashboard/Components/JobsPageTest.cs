@@ -6,6 +6,7 @@ using Bunit;
 
 using FakeItEasy;
 
+using Quartz.Dashboard.Components.Layout;
 using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Services;
@@ -389,6 +390,41 @@ public class JobsPageTest
             page.FindAll(".qz-error-alert").Should().BeEmpty("a page with a listing to show is not a page that failed to load");
             page.Find("[data-testid=stale-marker]").GetAttribute("title").Should().Be(
                 "The last refresh failed: the store is not answering");
+        });
+    }
+
+    /// <summary>
+    /// The Refresh button reads the listing again, and the header's status with it. Nothing reads on a timer.
+    /// </summary>
+    /// <remarks>
+    /// The page read once and never again, so a job added by a deployment, or a scheduler put in standby from
+    /// another tab, stayed out of sight until the browser was reloaded.
+    /// </remarks>
+    [Test]
+    public void TheRefreshButtonReadsTheListingAndTheHeaderStatusAgain()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 1));
+        IRenderedComponent<DashboardLayout> layout = context.Render<DashboardLayout>(parameters => parameters
+            .Add(x => x.Body, builder =>
+            {
+                builder.OpenComponent<Jobs>(0);
+                builder.CloseComponent();
+            }));
+        layout.WaitForAssertion(() => layout.TextOfAll(".qz-key-badge-value").Should().Equal(["reports.job-1"]));
+
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 2));
+        context.WithScheduler(status: SchedulerStatus.Standby);
+        context.Clock.Advance(TimeSpan.FromMinutes(5));
+        layout.TextOfAll(".qz-key-badge-value").Should().Equal(["reports.job-1"], "the page reads nothing on a timer");
+
+        layout.Find("[data-testid=refresh]").Click();
+
+        layout.WaitForAssertion(() =>
+        {
+            layout.TextOfAll(".qz-key-badge-value").Should().Equal(["reports.job-1", "reports.job-2"],
+                "the button reads the listing again");
+            layout.Find(".qz-scheduler-status .qz-state-dot").ClassList.Should().Contain("qz-state-standby",
+                "the header's status is read with the page");
         });
     }
 

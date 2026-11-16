@@ -1,4 +1,5 @@
 @page "/quartz/triggers/{Group}/{Name}"
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -13,9 +14,14 @@
 @inject NavigationManager Navigation
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
+@inject IServiceProvider Services
 
 <div class="qz-page">
-    <h1>Trigger Detail</h1>
+    <div class="qz-page-header">
+        <h1>Trigger Detail</h1>
+        @* Not while the details editor is open: a read hands it a new trigger, which starts its form again. *@
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" OnRefresh="RefreshAsync" RefreshDisabled="@(_refreshing || _editing)" />
+    </div>
     <OriginBackLink />
 
     @if (_isLoading)
@@ -240,6 +246,22 @@
     /// </summary>
     private readonly CancellationTokenSource _cancellation = new();
 
+    /// <summary>
+    /// When the trigger on screen was read, or <see langword="null" /> while the page holds nothing read.
+    /// </summary>
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// Why the last read failed while there was a trigger to keep, or <see langword="null" />.
+    /// </summary>
+    private string? _staleReason;
+
+    /// <summary>Whether the read the Refresh button asked for is out.</summary>
+    private bool _refreshing;
+
+    /// <summary>The clock the page says it read the trigger at.</summary>
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
     [Parameter]
     public string Group { get; set; } = string.Empty;
 
@@ -293,6 +315,9 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        // Another trigger's details are not ones to keep as stale.
+        _lastUpdatedAt = null;
+        _staleReason = null;
         await LoadDataAsync();
     }
 
@@ -303,13 +328,21 @@
         _editing = false;
         _backfillUnavailable = null;
         _showBackfill = false;
+        _lastUpdatedAt = null;
+        _staleReason = null;
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
 
+    /// <remarks>
+    /// What is on screen is replaced when the new read arrives, so a refresh that fails keeps it, marked stale
+    /// beside the time it was read. Only a page with nothing read to show has the error in its place.
+    /// </remarks>
     private async Task LoadDataAsync()
     {
-        _isLoading = true;
+        // A refresh keeps the trigger on screen until the new read arrives; the spinner is for a page with
+        // nothing read to show.
+        _isLoading = !_refreshing || _lastUpdatedAt is null;
         _error = null;
 
         try
@@ -320,30 +353,50 @@
                 _trigger = null;
                 _triggerState = TriggerState.None;
                 _pause = null;
+                _lastUpdatedAt = null;
+                _staleReason = null;
                 return;
             }
 
             CancellationToken cancellationToken = _cancellation.Token;
             await Authorization.LoadOperations(schedulerName, cancellationToken);
 
-            _trigger = await Api.GetTrigger(schedulerName, TriggerKey, cancellationToken);
-            _triggerState = await Api.GetTriggerState(schedulerName, TriggerKey, cancellationToken);
+            ITrigger trigger = await Api.GetTrigger(schedulerName, TriggerKey, cancellationToken);
+            TriggerState triggerState = await Api.GetTriggerState(schedulerName, TriggerKey, cancellationToken);
 
             // Only a paused trigger has a pause to explain, so nothing else asks.
-            _pause = _triggerState == TriggerState.Paused ? await Api.GetTriggerPause(schedulerName, TriggerKey, cancellationToken) : null;
-            _cronExpression = (_trigger as ICronTrigger)?.CronExpressionString;
-            _editedCronExpression = _cronExpression ?? string.Empty;
-            _misfireName = TriggerDetailsForm.MisfireNameOf(_trigger);
+            PauseInfo? pause = triggerState == TriggerState.Paused ? await Api.GetTriggerPause(schedulerName, TriggerKey, cancellationToken) : null;
 
             // A continuation keeps naming its parent after the parent is gone - a deleted parent parks
             // the trigger in Error rather than erasing what it waited for - so the row links to a page
             // only when there is one. TriggerState.None is what a key that resolves to nothing answers.
-            _continuationParentExists = _trigger.Continuation.Parent is { } continuationParent
+            bool continuationParentExists = trigger.Continuation.Parent is { } continuationParent
                 && await Api.GetTriggerState(schedulerName, new TriggerKeyDto(continuationParent.Group, continuationParent.Name), cancellationToken) != TriggerState.None;
+
+            // A refresh keeps an expression the reader is editing; every other read starts the editor again from
+            // the trigger's own.
+            bool keepEdit = _refreshing && IsPreviewingAnEdit;
+            _trigger = trigger;
+            _triggerState = triggerState;
+            _pause = pause;
+            _cronExpression = (trigger as ICronTrigger)?.CronExpressionString;
+            if (!keepEdit)
+            {
+                _editedCronExpression = _cronExpression ?? string.Empty;
+            }
+
+            _misfireName = TriggerDetailsForm.MisfireNameOf(trigger);
+            _continuationParentExists = continuationParentExists;
+            _lastUpdatedAt = Clock.GetUtcNow();
+            _staleReason = null;
         }
         catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
         {
             // The reader left. A read nobody is waiting for is not a failure.
+        }
+        catch (Exception ex) when (_lastUpdatedAt is not null)
+        {
+            _staleReason = ex.Message;
         }
         catch (Exception ex)
         {
@@ -352,6 +405,33 @@
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// The Refresh button: the trigger read again, kept on screen until the new read arrives, and the header's
+    /// status read with it. The page reads nothing on its own after it has loaded.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        if (_refreshing || _editing)
+        {
+            return;
+        }
+
+        _refreshing = true;
+        try
+        {
+            await LoadDataAsync();
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+
+        if (!_cancellation.IsCancellationRequested)
+        {
+            Scheduler.NotifyRefreshed();
         }
     }
 

@@ -625,6 +625,17 @@ body{
     margin-bottom: var(--qz-space-lg);
 }
 
+.qz-last-updated {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--qz-space-sm);
+}
+
+.qz-last-updated-refresh {
+    padding: var(--qz-space-xs) var(--qz-space-sm);
+    font-size: var(--qz-font-size-xs);
+}
+
 /* Sticky axis uses top: 0; the former 8px inset is on .qz-page-timeline. */
 .qz-content:has(.qz-page-timeline) {
     padding-top: 0;

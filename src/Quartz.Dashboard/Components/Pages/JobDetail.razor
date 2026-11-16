@@ -15,7 +15,10 @@
 @inject IServiceProvider Services
 
 <div class="qz-page">
-    <h1>Job Detail</h1>
+    <div class="qz-page-header">
+        <h1>Job Detail</h1>
+        <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" OnRefresh="RefreshAsync" RefreshDisabled="@_refreshing" />
+    </div>
     <OriginBackLink />
 
     @if (_isLoading)
@@ -270,6 +273,19 @@
     /// </summary>
     private readonly CancellationTokenSource _cancellation = new();
 
+    /// <summary>
+    /// When the job on screen was read, or <see langword="null" /> while the page holds nothing read.
+    /// </summary>
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// Why the last read failed while there was a job to keep, or <see langword="null" />.
+    /// </summary>
+    private string? _staleReason;
+
+    /// <summary>Whether the read the Refresh button asked for is out.</summary>
+    private bool _refreshing;
+
     private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
 
     [Parameter]
@@ -320,61 +336,125 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        // Another job's details are not ones to keep.
+        ClearJob();
         await LoadDataAsync();
     }
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        ClearJob();
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
 
+    /// <remarks>
+    /// What is on screen is replaced when the new read arrives rather than emptied before it, so a refresh that
+    /// fails keeps it, marked stale beside the time it was read. Only a page with nothing read to show has the
+    /// error in its place.
+    /// </remarks>
     private async Task LoadDataAsync()
     {
-        _isLoading = true;
+        // A refresh keeps the job on screen until the new read arrives; the spinner is for a page with nothing
+        // read to show.
+        _isLoading = !_refreshing || _lastUpdatedAt is null;
         _error = null;
 
         try
         {
-            _job = null;
-            _groupPause = null;
-            _status = null;
-            _statusKept = false;
-            _statistics = null;
-            _triggers.Clear();
-
             string? schedulerName = Scheduler.ActiveSchedulerName;
             if (string.IsNullOrWhiteSpace(schedulerName))
             {
+                ClearJob();
                 return;
             }
 
             CancellationToken cancellationToken = _cancellation.Token;
             await Authorization.LoadOperations(schedulerName, cancellationToken);
 
-            _job = await Api.GetJobDetail(schedulerName, JobKey, cancellationToken);
-            _triggerDataMap = CloneJobDataMap(JobDataMap);
-            _triggers.AddRange(await Api.GetTriggersOfJob(schedulerName, JobKey, cancellationToken));
+            JobDetailDto? job = await Api.GetJobDetail(schedulerName, JobKey, cancellationToken);
+            List<TriggerHeaderDto> triggers = await Api.GetTriggersOfJob(schedulerName, JobKey, cancellationToken);
 
             // A job is paused through its triggers, each of which says why; its group's pause says it for
             // the triggers the group paused and for the ones added to it later.
-            _groupPause = await Api.GetJobGroupPause(schedulerName, Group, cancellationToken);
+            PauseInfo? groupPause = await Api.GetJobGroupPause(schedulerName, Group, cancellationToken);
+
+            _job = job;
+            _triggers.Clear();
+            _triggers.AddRange(triggers);
+            _groupPause = groupPause;
+
+            // A refresh keeps the overrides the reader has typed; every other read starts them again from the
+            // job's own map.
+            if (!_refreshing || !_triggerDataMap.Dirty)
+            {
+                _triggerDataMap = CloneJobDataMap(JobDataMap);
+            }
 
             await LoadStatusAsync(schedulerName, cancellationToken);
             await LoadStatisticsAsync(schedulerName);
+            _lastUpdatedAt = Clock.GetUtcNow();
+            _staleReason = null;
         }
         catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
         {
             // The reader left. A read nobody is waiting for is not a failure.
         }
+        catch (Exception ex) when (_lastUpdatedAt is not null)
+        {
+            _staleReason = ex.Message;
+        }
         catch (Exception ex)
         {
+            ClearJob();
             _error = ex.Message;
         }
         finally
         {
             _isLoading = false;
         }
+    }
+
+    /// <summary>
+    /// The Refresh button: the job read again, kept on screen until the new read arrives, and the header's
+    /// status read with it. The page reads nothing on its own after it has loaded.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        if (_refreshing)
+        {
+            return;
+        }
+
+        _refreshing = true;
+        try
+        {
+            await LoadDataAsync();
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+
+        if (!_cancellation.IsCancellationRequested)
+        {
+            Scheduler.NotifyRefreshed();
+        }
+    }
+
+    /// <summary>
+    /// Empties the page, for a job or a scheduler of which there is nothing read to keep showing.
+    /// </summary>
+    private void ClearJob()
+    {
+        _job = null;
+        _groupPause = null;
+        _status = null;
+        _statusKept = false;
+        _statistics = null;
+        _triggers.Clear();
+        _lastUpdatedAt = null;
+        _staleReason = null;
     }
 
     private string GetTriggerPath(string group, string name)
