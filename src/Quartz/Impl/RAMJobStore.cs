@@ -2593,15 +2593,12 @@ public sealed class RAMJobStore : IJobStore
 
     private List<string> PauseTriggersNoLock(GroupMatcher<TriggerKey> matcher, PauseInfo? pause)
     {
-        var pausedGroups = new HashSet<string>();
+        List<string> matchedGroups = [];
 
         StringOperator op = matcher.CompareWithOperator;
         if (StringOperator.Equality.Equals(op))
         {
-            if (pausedTriggerGroups.TryAdd(matcher.CompareToValue, pause))
-            {
-                pausedGroups.Add(matcher.CompareToValue);
-            }
+            matchedGroups.Add(matcher.CompareToValue);
         }
         else
         {
@@ -2610,24 +2607,27 @@ public sealed class RAMJobStore : IJobStore
             // pause for every later one.
             foreach (string group in triggersByGroup.Keys)
             {
-                if (op.Evaluate(group, matcher.CompareToValue) && pausedTriggerGroups.TryAdd(group, pause))
+                if (op.Evaluate(group, matcher.CompareToValue))
                 {
-                    pausedGroups.Add(group);
+                    matchedGroups.Add(group);
                 }
             }
         }
 
-        foreach (string pausedGroup in pausedGroups)
+        // Every trigger of every matched group is paused, a group that was paused already included, so a
+        // trigger resumed on its own inside one is paused again (#4331). That group keeps the record it
+        // had, and is in the answer, as on the ADO.NET store.
+        foreach (string group in matchedGroups)
         {
-            var keys = GetTriggerKeysNoLock(GroupMatcher<TriggerKey>.GroupEquals(pausedGroup));
+            pausedTriggerGroups.TryAdd(group, pause);
 
-            foreach (TriggerKey key in keys)
+            foreach (TriggerKey key in GetTriggerKeysNoLock(GroupMatcher<TriggerKey>.GroupEquals(group)))
             {
                 PauseTriggerNoLock(key, pause);
             }
         }
 
-        return [..pausedGroups];
+        return matchedGroups;
     }
 
     /// <summary>
@@ -2720,15 +2720,11 @@ public sealed class RAMJobStore : IJobStore
         lock (lockObject)
         {
             PauseInfo? pause = PauseDetails.Record(details, timeProvider.GetUtcNow());
-            List<string> pausedGroups = [];
+            List<string> matchedGroups = [];
             StringOperator op = matcher.CompareWithOperator;
             if (StringOperator.Equality.Equals(op))
             {
-                resumedJobsInPausedGroups.RemoveWhere(k => k.Group == matcher.CompareToValue);
-                if (pausedJobGroups.TryAdd(matcher.CompareToValue, pause))
-                {
-                    pausedGroups.Add(matcher.CompareToValue);
-                }
+                matchedGroups.Add(matcher.CompareToValue);
             }
             else
             {
@@ -2736,28 +2732,29 @@ public sealed class RAMJobStore : IJobStore
                 {
                     if (op.Evaluate(group, matcher.CompareToValue))
                     {
-                        resumedJobsInPausedGroups.RemoveWhere(k => k.Group == group);
-                        if (pausedJobGroups.TryAdd(group, pause))
-                        {
-                            pausedGroups.Add(group);
-                        }
+                        matchedGroups.Add(group);
                     }
                 }
             }
 
-            foreach (string groupName in pausedGroups)
+            // Every job of every matched group is paused, a group that was paused already included, so a
+            // job resumed on its own inside one is paused again and no longer counts as resumed (#4331).
+            // That group keeps the record it had, and is in the answer, as on the ADO.NET store.
+            foreach (string group in matchedGroups)
             {
-                foreach (JobKey jobKey in GetJobKeysNoLock(GroupMatcher<JobKey>.GroupEquals(groupName)))
+                resumedJobsInPausedGroups.RemoveWhere(k => k.Group == group);
+                pausedJobGroups.TryAdd(group, pause);
+
+                foreach (JobKey jobKey in GetJobKeysNoLock(GroupMatcher<JobKey>.GroupEquals(group)))
                 {
-                    var triggerKeys = GetTriggerKeysForJobNoLock(jobKey);
-                    foreach (TriggerKey key in triggerKeys)
+                    foreach (TriggerKey key in GetTriggerKeysForJobNoLock(jobKey))
                     {
                         PauseTriggerNoLock(key, pause);
                     }
                 }
             }
 
-            return new ValueTask<List<string>>(pausedGroups);
+            return new ValueTask<List<string>>(matchedGroups);
         }
     }
 

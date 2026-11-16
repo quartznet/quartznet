@@ -99,6 +99,30 @@ public sealed class PauseReasonSchedulerTest
     }
 
     [Test]
+    public async Task PausingAPausedJobGroupAgainIsAnnouncedOnceForTheGroup()
+    {
+        PauseRecorder recorder = new();
+        await using ServiceProvider provider = BuildScheduler("repeat-group-pause", quartz =>
+            quartz.AddSchedulerListener(recorder));
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        (await scheduler.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals("imports"), maintenance)).Should().Equal(["imports"]);
+        (await scheduler.ResumeJob(new JobKey("import", "imports"))).Should().BeTrue();
+
+        List<string> again = await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("imports"));
+
+        recorder.Events.Should().Equal(["job group imports", "job group imports"],
+            "the repeat pause names the group in its answer, so JobsPaused is raised for it once, as for the first");
+        again.Should().Equal(["imports"]);
+        (await scheduler.GetTriggerState(new TriggerKey("hourly", "imports"))).Should().Be(TriggerState.Paused,
+            "the job resumed on its own is paused again by its group");
+        (await scheduler.GetJobGroupPause("imports"))!.Reason.Should().Be("database maintenance",
+            "the group keeps the pause it had");
+
+        await scheduler.Shutdown();
+    }
+
+    [Test]
     public async Task TheArgumentsAreChecked()
     {
         await using ServiceProvider provider = BuildScheduler("arguments");
