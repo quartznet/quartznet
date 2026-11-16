@@ -422,6 +422,43 @@ public sealed class QuartzApiClientContractTest
     }
 
     /// <summary>
+    /// A group paused through the client is the group's pause, whichever process the scheduler is in: a job
+    /// added afterwards is held, and resuming the group lifts it (#4319). For the other two carriers each is
+    /// one group request, <c>…/jobs/pause</c> or <c>…/triggers/pause</c>, rather than one per member.
+    /// </summary>
+    [Test]
+    public async Task AGroupPausedThroughTheClientHoldsWhatIsAddedToItLater()
+    {
+        const string group = "group-pause";
+        TriggerKey later = new("later", group);
+        DateTimeOffset soon = DateTimeOffset.UtcNow.AddHours(1);
+
+        await client.PauseJobGroupWith(key, group, new PauseDetails { Reason = "quarter close", RequestedBy = "alice" });
+
+        JobKey jobKey = new("nightly", group);
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(),
+            TriggerBuilder.Create().WithIdentity(later).ForJob(jobKey).StartAt(soon).Build());
+        (await scheduler.GetTriggerState(later)).Should().Be(TriggerState.Paused,
+            "the group was paused before the job was added, and only a pause of the group holds it");
+        (await client.GetJobGroupPause(key, group))!.Reason.Should().Be("quarter close");
+
+        await client.ResumeJobGroup(key, group);
+        (await scheduler.GetTriggerState(later)).Should().Be(TriggerState.Normal);
+        (await client.QueryJobGroups(key, new DashboardGroupQuery { Paused = true })).Items.Should().NotContain(g => g.Name == group);
+
+        await client.PauseTriggerGroupWith(key, group, details: null);
+        await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("latest", group).ForJob(jobKey).StartAt(soon).Build());
+        (await scheduler.GetTriggerState(new TriggerKey("latest", group))).Should().Be(TriggerState.Paused);
+
+        await client.ResumeTriggerGroup(key, group);
+        (await scheduler.GetTriggerState(new TriggerKey("latest", group))).Should().Be(TriggerState.Normal);
+        (await client.QueryTriggerGroups(key, new DashboardGroupQuery { Paused = true })).Items.Should().NotContain(g => g.Name == group);
+
+        await scheduler.DeleteJob(jobKey);
+    }
+
+    /// <summary>
     /// The Trigger Detail page's backfill, through the client: the extension over the scheduler the name
     /// resolves to, which for the HTTP carrier is <see cref="HttpScheduler" /> sending the host's
     /// <c>backfill</c> route.
