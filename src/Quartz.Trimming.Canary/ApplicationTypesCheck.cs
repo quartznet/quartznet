@@ -108,8 +108,7 @@ internal static class ApplicationTypesCheck
 
             await scheduler.Start().ConfigureAwait(false);
 
-            Task completed = await Task.WhenAny(fired.Task, Task.Delay(TimeSpan.FromSeconds(60), scheduler.TimeProvider)).ConfigureAwait(false);
-            if (completed != fired.Task)
+            if (!await Signal.Within(fired.Task, scheduler.TimeProvider).ConfigureAwait(false))
             {
                 await scheduler.Shutdown(waitForJobsToComplete: true).ConfigureAwait(false);
                 return "FAIL application-types: the job never fired within a minute.";

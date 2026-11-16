@@ -68,8 +68,7 @@ internal static class StoreRoundTrip
 
         // Signalled by the job itself. A sleep would pass on a machine slow enough to make it meaningless,
         // and fail on one that is merely busy.
-        Task completed = await Task.WhenAny(fired, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
-        if (completed != fired)
+        if (!await Signal.Within(fired).ConfigureAwait(false))
         {
             return $"FAIL {check}: the job never fired within a minute, so the store never handed a trigger to the scheduler.";
         }
