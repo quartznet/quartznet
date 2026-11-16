@@ -233,7 +233,7 @@ the dashboard accepts it with `AcceptAgents`.
 - **A message may belong to a bus.** An application already running Wolverine with an outbox, wanting
   "publish X every weekday at 03:00", should use Wolverine's schedule rather than a second runtime and
   set of tables — [Quartz.NET with Wolverine](how-tos/wolverine.md) covers both directions.
-- **.NET Framework is 3.x territory.** Quartz 4.x is `net10.0` only; Hangfire still ships `net451`, and is
+- **.NET Framework is 3.x territory.** Quartz 4.x needs .NET 10 or later; Hangfire still ships `net451`, and is
   the only one of the five whose current line a .NET Framework application can take.
 
 Choose:

@@ -39,7 +39,8 @@
         }
       ],
       "dest": "api",
-      // Everything targets net10.0, but a project is evaluated without a solution here, so the
+      // net10.0 is the framework every project targets. Quartz also targets net11.0, with the same public
+      // API, so one framework documents all of them. A project is evaluated without a solution here, so the
       // configuration has to be named or docfx would document the Debug build's symbols.
       "properties": {
         "TargetFramework": "net10.0",

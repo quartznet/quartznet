@@ -69,6 +69,30 @@ Pluggable serialization for job store persistence:
 - OpenTelemetry: `AddSource(QuartzInstrumentation.ActivitySourceName)`, `AddMeter(QuartzInstrumentation.MeterName)`; the contrib package emits nothing.
 - Logging: `Microsoft.Extensions.Logging` via `LogProvider`, same namespace.
 
+## Target frameworks
+
+- **Every project targets `net10.0`, and `Quartz` also targets `net11.0`** (#4341). The `net11.0` asset is
+  compiled with `<Features>runtime-async=on</Features>`, so the runtime suspends and resumes its async methods
+  with no compiler state machines. Runtime async is opt-in per assembly and needs `net11.0`. `Quartz` holds the
+  whole fire path, so it is the one package that gains from it. The other packages stay `net10.0`, and a
+  `net11.0` application runs them on `Quartz`'s `net11.0` asset, NuGet's nearest match.
+- **One source and one public API.** No call site has an `#if`. A call is written against the `net11.0` API,
+  and what `net10.0` lacks is backfilled once as a C# 14 extension member guarded on the member:
+  `JsonSerializerOptionsPolyfills` backfills `GetTypeInfo<T>()`, which CA2263 asks for on `net11.0`.
+  `PublicApiTest_Quartz.verified.txt` holds both assets to one surface. There is no per-target baseline.
+- **Dependencies.** The `Microsoft.Extensions.*` floors are 10.0.0 for both targets. .NET 11's shared
+  framework carries nine of the abstractions, `Options`, `Primitives` and `Logging.Abstractions` among them.
+  NuGet prunes those for `net11.0`, so the `net11.0` asset compiles against the framework's copies. No NU1510
+  is raised. Pack leaves the pruned two, `Hosting.Abstractions` and `Logging.Abstractions`, out of the
+  `net11.0` dependency group, and the `net10.0` group is unchanged.
+- **Which asset a test loads.** `Quartz.Tests.Unit` is built for `net10.0`, or for `net11.0` when
+  `UnitTestRuntime` is set, as on the .NET 11 leg ([testing.md](testing.md)). `RuntimeAsyncTest` fails when a
+  run loads an asset other than the one its framework gets, and when `JobRunShell.Run` in the `net11.0` asset
+  has a state machine.
+- **Packaging.** `buildTransitive/net10.0/Quartz.targets` and the analyzer under `analyzers/dotnet/cs` serve
+  both assets: NuGet picks the `net10.0` build folder as the nearest one for `net11.0`. docfx documents the
+  `net10.0` asset.
+
 ## Trimming and AOT
 
 - **`Quartz` builds with the trim, AOT and single-file analyzers on**, so an `IL2xxx` or `IL3xxx` is an error.
@@ -77,3 +101,6 @@ Pluggable serialization for job store persistence:
   warning against a Quartz type. A new one is new reflection — fix it; that file's header gives the order
   to try fixes in. The package **does** say `IsAotCompatible`: Quartz produces no `IL3050` at all.
   `src/Quartz/Quartz.csproj` spells all of this out.
+- **Both assets are analyzed and published.** The analyzers run on each target. `PublishTrimmed` and
+  `PublishAot` publish the canaries as `net10.0` applications from the repository. `Net11ConsumerSmoke`
+  publishes them as `net11.0` applications from the packages, which is how the `net11.0` asset is published.
