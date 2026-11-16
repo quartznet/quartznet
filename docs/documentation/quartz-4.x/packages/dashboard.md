@@ -201,15 +201,16 @@ A page reads again on a timer or when you ask it to:
 
 | Page | Reads again |
 |---|---|
-| Overview, Currently Executing, Execution History | Every second |
-| Cluster, and the Overview's execution groups | Every five seconds |
+| Currently Executing, Execution History, and the Overview's executing count | Every second |
+| Cluster, and the Overview's other tiles and execution groups | Every five seconds |
 | Timeline | On its Jobs and Triggers refresh intervals |
 | Jobs, Triggers, Calendars, Schedulers, and one job, trigger or calendar | When you press **Refresh**, beside *Last updated* |
 
 - A timer stops while the browser tab is hidden. The page reads once when the tab is shown again.
 - **Refresh** also reads the scheduler status in the header. So does the Overview, when the status it read
   has changed.
-- Leaving a page cancels the read it has in flight.
+- Leaving a page cancels the read it has in flight. Only reads are cancelled: an action that was sent, such
+  as a pause or a delete, finishes, and its toast and Action Log entry still report it.
 - Changing the time zone redraws the page and reads nothing. On the Timeline, bar tooltips take the new
   zone at its next refresh.
 
