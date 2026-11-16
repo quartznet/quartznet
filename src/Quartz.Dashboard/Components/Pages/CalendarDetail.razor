@@ -162,7 +162,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Record(schedulerName, "DeleteCalendar", CalendarName, succeeded: false, ex.Message);
             Toasts.Error(ex.Message);
             _showDeleteConfirm = false;

@@ -417,7 +417,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: false, ex.Message);
             Toasts.Error(ex.Message);
         }
@@ -465,7 +464,6 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
             ActionLog.Record(schedulerName, actionVerb + "TriggerGroup", group, succeeded: false, ex.Message);
             Toasts.Error(ex.Message);
         }
