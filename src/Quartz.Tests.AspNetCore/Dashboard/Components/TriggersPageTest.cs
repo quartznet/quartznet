@@ -52,8 +52,8 @@ public class TriggersPageTest
         GivenTriggers([
             TestData.Dashboard.TriggerHeaders("nightly", 1)[0] with
             {
-                ScheduleSummary = "0 0 7 ? * MON-FRI",
-                ScheduleDescription = "Every weekday at 07:00 (America/Chicago)"
+                ScheduleDescription = "Every weekday at 07:00 (America/Chicago)",
+                ScheduleExpression = "0 0 7 ? * MON-FRI"
             }
         ]);
 

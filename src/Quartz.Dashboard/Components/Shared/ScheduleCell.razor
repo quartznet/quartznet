@@ -4,7 +4,7 @@
    or agent older than 4.8 carries no words, and the cell is a dash. *@
 @if (Trigger.ScheduleDescription is { Length: > 0 } description)
 {
-    <span class="qz-schedule" title="@Trigger.ScheduleSummary">@description</span>
+    <span class="qz-schedule" title="@Trigger.ScheduleExpression">@description</span>
 }
 else
 {

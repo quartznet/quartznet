@@ -1323,15 +1323,9 @@ public sealed record TriggerKeyDto(string Group, string Name);
 /// One row of a trigger listing: enough to show the trigger without loading it.
 /// </summary>
 /// <remarks>
-/// <para>
-/// <see cref="ScheduleSummary" /> is the text the schedule is written in: a cron trigger's expression and a
-/// recurrence trigger's rule. It is null for the kinds built from numbers, and on a row whose host did not
-/// send one. Before 4.8 it summarised a simple trigger too; that is <see cref="ScheduleDescription" /> now.
-/// </para>
-/// <para>
-/// <see cref="TriggerType" /> is null on <see cref="IQuartzApiClient.QueryTriggers" />, which does not load
-/// the triggers, and <see cref="State" /> is null when the listing could not pair the header with a state.
-/// </para>
+/// <see cref="ScheduleSummary" /> is null on the listings that do not load the triggers themselves,
+/// and <see cref="State" /> is null when the listing could not pair the header with a state. From 4.8,
+/// <see cref="ScheduleDescription" /> says the schedule in words on every listing.
 /// </remarks>
 public sealed record TriggerHeaderDto(
     string Group,
@@ -1398,6 +1392,17 @@ public sealed record TriggerHeaderDto(
     /// read, and on a listing from a scheduler, HTTP API or agent older than 4.8, which sends none.
     /// </remarks>
     public string? ScheduleDescription { get; init; }
+
+    /// <summary>
+    /// The cron expression or recurrence rule the schedule is written in, which the dashboard shows beside
+    /// <see cref="ScheduleDescription" />, or <see langword="null" /> for the kinds built from numbers and on
+    /// the rows that have no description.
+    /// </summary>
+    /// <remarks>
+    /// Internal, and not <see cref="ScheduleSummary" />: that field keeps what it has always held, a simple
+    /// trigger's summary included.
+    /// </remarks>
+    internal string? ScheduleExpression { get; init; }
 }
 
 /// <remarks>

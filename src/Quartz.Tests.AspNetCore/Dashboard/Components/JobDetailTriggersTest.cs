@@ -48,9 +48,10 @@ public class JobDetailTriggersTest
             {
                 new("billing", "weekday-mornings", "Cron", "0 0 7 ? * MON-FRI", TriggerState.Normal, ExecutionGroup: null)
                 {
-                    ScheduleDescription = "Every weekday at 07:00 (America/Chicago)"
+                    ScheduleDescription = "Every weekday at 07:00 (America/Chicago)",
+                    ScheduleExpression = "0 0 7 ? * MON-FRI"
                 },
-                new("billing", "every-30-seconds", "Simple", ScheduleSummary: null, TriggerState.Normal, ExecutionGroup: null)
+                new("billing", "every-30-seconds", "Simple", "Every 00:00:30, repeat forever", TriggerState.Normal, ExecutionGroup: null)
                 {
                     ScheduleDescription = "Every 30 seconds"
                 },
