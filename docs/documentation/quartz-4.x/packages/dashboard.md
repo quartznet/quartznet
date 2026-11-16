@@ -197,14 +197,26 @@ picker, so switching schedulers keeps you on the same page.
 Detail pages are covered with their listing below. What the numbers mean for a cluster in trouble is in
 [Operating a Cluster](../operations.md).
 
-On the Overview, Jobs, Triggers and Execution History, a refresh that fails keeps what the page last read
-and marks it **Stale** beside *Last updated*, with the reason on hover. The next refresh that answers clears
-the mark.
+A page reads again on a timer or when you ask it to:
 
-- On Jobs, Triggers and Execution History, only a page with nothing read yet shows the error and *Retry*.
-- On the Overview, only a failed read of the once-a-second executing count keeps the page and marks it
-  **Stale**. A failed reload of the whole Overview, such as the one after *Start* or *Pause all*, still shows
-  the error.
+| Page | Reads again |
+|---|---|
+| Overview, Currently Executing, Execution History | Every second |
+| Cluster, and the Overview's execution groups | Every five seconds |
+| Timeline | On its Jobs and Triggers refresh intervals |
+| Jobs, Triggers, Calendars, Schedulers, and one job, trigger or calendar | When you press **Refresh**, beside *Last updated* |
+
+- A timer stops while the browser tab is hidden. The page reads once when the tab is shown again.
+- **Refresh** also reads the scheduler status in the header. So does the Overview, when the status it read
+  has changed.
+- Leaving a page cancels the read it has in flight.
+- Changing the time zone redraws the page and reads nothing. On the Timeline, bar tooltips take the new
+  zone at its next refresh.
+
+On the Overview, Jobs, Triggers, Execution History, Calendars, Schedulers, and one job, trigger or calendar,
+a refresh that fails keeps what the page last read and marks it **Stale** beside *Last updated*, with the
+reason on hover. The next refresh that answers clears the mark. Only a page with nothing read yet shows the
+error and *Retry*.
 
 ### Overview
 
@@ -504,7 +516,8 @@ control how often the page reloads:
 | Triggers refresh | Bars and live executing; headers when a fire ends | `5s` | `qz-timeline-triggers-refresh` | `5s`, `10s`, `30s`, `1 min`, `5 min`, `Off` |
 
 **Off** disables that loop; navigation, group/page/window/pan changes, and a trigger action still reload
-both. The header badge reflects the Triggers refresh interval. When history returns more than 500 runs for
+both. Both loops stop while the tab is hidden, and whichever is on reloads when it is shown again. The header
+badge reflects the Triggers refresh interval. When history returns more than 500 runs for
 the window, the page says **latest 500 runs**.
 
 **Collapse.** Job groups and individual job rows collapse; the browser remembers both in localStorage
