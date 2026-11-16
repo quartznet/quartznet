@@ -710,6 +710,41 @@ public class InProcessQuartzApiClientTest
         row.ScheduleSummary.Should().BeNull();
     }
 
+    /// <summary>
+    /// A trigger that cannot be described — one of an application's own whose expression throws when read — leaves
+    /// its own row without a description, and every other row of the page is described as usual.
+    /// </summary>
+    [Test]
+    public async Task QueryTriggersListsATriggerThatCannotBeDescribedWithoutADescription()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("one-unreadable-row");
+        A.CallTo(() => scheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._)).Returns(new PagedResult<TriggerHeader>(
+            [Header("broken"), Header("nightly")],
+            HasMore: false,
+            TotalCount: 2));
+
+        ICronTrigger broken = A.Fake<ICronTrigger>();
+        A.CallTo(() => broken.Key).Returns(new TriggerKey("broken", "g"));
+        A.CallTo(() => broken.CronExpressionString).Throws(new InvalidOperationException("the expression could not be read"));
+        ITrigger nightly = TriggerBuilder.Create()
+            .WithIdentity("nightly", "g")
+            .WithCronSchedule("0 0 2 * * ?", x => x.InTimeZone(TimeZoneInfo.Utc))
+            .Build();
+        A.CallTo(() => scheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(new List<ITrigger> { broken, nightly });
+
+        InProcessQuartzApiClient client = CreateClient(scheduler);
+        PagedResult<TriggerHeaderDto> page = await client.QueryTriggers("one-unreadable-row", new DashboardTriggerQuery { Take = 10 });
+
+        page.Items.Select(x => (x.Name, x.ScheduleDescription, x.ScheduleExpression)).Should().Equal(
+            ("broken", (string?) null, (string?) null),
+            ("nightly", "Every day at 02:00 (UTC)", "0 0 2 * * ?"));
+
+        static TriggerHeader Header(string name) => new(new TriggerKey(name, "g"), new JobKey("j", "g"), Description: null, "CRON", TriggerState.Normal,
+            DateTimeOffset.UnixEpoch, EndTimeUtc: null, NextFireTimeUtc: null, PreviousFireTimeUtc: null, CalendarName: null,
+            Priority: 5, ExecutionGroup: null, RetryPolicy: null, RetryAttempt: 0);
+    }
+
     [Test]
     public async Task GetTriggersOfJobMapsScheduleBoundsAndFireTimes()
     {

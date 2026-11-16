@@ -500,4 +500,117 @@ public class TriggerScheduleDescriptionTest
     {
         CronScheduleDescriber.Describe(expression, TimeZoneInfo.Utc).Should().Be(expected);
     }
+
+    /// <summary>
+    /// A step or a range that reaches only one value is that value, not an interval: <c>20/6</c> in hours fires at
+    /// 20:00 and nowhere else that day. Each sentence is held to the fire times the parser computes from
+    /// 2026-01-01T00:00Z, not only to a string.
+    /// </summary>
+    [TestCase("0 0 20/6 * * ?", "Every day at 20:00 (UTC)",
+        new[] { "2026-01-01T20:00:00Z", "2026-01-02T20:00:00Z", "2026-01-03T20:00:00Z" })]
+    [TestCase("0 30/45 * * * ?", "Every hour at minute 30 (UTC)",
+        new[] { "2026-01-01T00:30:00Z", "2026-01-01T01:30:00Z", "2026-01-01T02:30:00Z" })]
+    [TestCase("0 0 12/13 * * ?", "Every day at 12:00 (UTC)",
+        new[] { "2026-01-01T12:00:00Z", "2026-01-02T12:00:00Z", "2026-01-03T12:00:00Z" })]
+    [TestCase("0 0 5-5 * * ?", "Every day at 05:00 (UTC)",
+        new[] { "2026-01-01T05:00:00Z", "2026-01-02T05:00:00Z", "2026-01-03T05:00:00Z" })]
+    [TestCase("40/30 0 9 * * ?", "Every day at 09:00:40 (UTC)",
+        new[] { "2026-01-01T09:00:40Z", "2026-01-02T09:00:40Z", "2026-01-03T09:00:40Z" })]
+    [TestCase("0 0 12 25/10 * ?", "At 12:00 on the 25th of every month (UTC)",
+        new[] { "2026-01-25T12:00:00Z", "2026-02-25T12:00:00Z", "2026-03-25T12:00:00Z" })]
+    [TestCase("0 0 12 5-5 * ?", "At 12:00 on the 5th of every month (UTC)",
+        new[] { "2026-01-05T12:00:00Z", "2026-02-05T12:00:00Z", "2026-03-05T12:00:00Z" })]
+    public void AStepOrRangeThatReachesOneValueReadsAsThatValue(string expression, string expected, string[] firstFires)
+    {
+        CronScheduleDescriber.Describe(expression, TimeZoneInfo.Utc).Should().Be(expected);
+
+        FireTimes(expression, new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), firstFires.Length)
+            .Should().Equal(firstFires.Select(x => DateTimeOffset.Parse(x, CultureInfo.InvariantCulture)),
+                "the sentence says exactly when the expression fires");
+    }
+
+    /// <summary>
+    /// A year step that reaches one year is that year: <c>2026-2027/2</c> fires every day of 2026 and never again.
+    /// </summary>
+    [Test]
+    public void AYearStepThatReachesOneYearReadsAsThatYear()
+    {
+        const string Expression = "0 0 12 * * ? 2026-2027/2";
+        CronExpression cron = new(Expression, TimeZoneInfo.Utc);
+
+        CronScheduleDescriber.Describe(Expression, TimeZoneInfo.Utc).Should().Be("Every day at 12:00 in 2026 (UTC)");
+
+        cron.GetNextValidTimeAfter(new DateTimeOffset(2025, 6, 1, 0, 0, 0, TimeSpan.Zero))
+            .Should().Be(new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        cron.GetNextValidTimeAfter(new DateTimeOffset(2026, 7, 1, 12, 0, 0, TimeSpan.Zero))
+            .Should().Be(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero), "it fires every day of the year it names");
+        cron.GetNextValidTimeAfter(new DateTimeOffset(2026, 12, 31, 12, 0, 0, TimeSpan.Zero))
+            .Should().BeNull("2028 is past the end of the range, so 2026 is the only year");
+    }
+
+    /// <summary>
+    /// An hour range that crosses midnight reads as one overnight window only when every day fires. With a day
+    /// filter it fires the morning and the evening of the same day, never the night that runs into the next day, so
+    /// no window would be true and the expression shows as written. <c>0 0 22-2 ? * MON</c> fires Monday 00:00 to
+    /// 02:00 and Monday 22:00 to 23:00, and nothing on Tuesday.
+    /// </summary>
+    [TestCase("0 0 22-2 ? * MON")]
+    [TestCase("0 0/15 22-2 ? * MON-FRI")]
+    [TestCase("*/30 * 22-2 ? * SUN")]
+    [TestCase("0 0 22-2 1 * ?")]
+    [TestCase("0 0 22-2 L * ?")]
+    public void AnHourRangeOverMidnightWithADayFilterIsShownAsWritten(string expression)
+    {
+        CronScheduleDescriber.Phrase(expression).Should().BeNull();
+        CronScheduleDescriber.Describe(expression, TimeZoneInfo.Utc).Should().Be(expression + " (UTC)");
+    }
+
+    [Test]
+    public void AnHourRangeOverMidnightWithADayFilterNeverFiresIntoTheNextDay()
+    {
+        CronExpression cron = new("0 0 22-2 ? * MON", TimeZoneInfo.Utc);
+
+        // 2026-01-05 is a Monday.
+        cron.GetNextValidTimeAfter(new DateTimeOffset(2026, 1, 5, 2, 0, 0, TimeSpan.Zero))
+            .Should().Be(new DateTimeOffset(2026, 1, 5, 22, 0, 0, TimeSpan.Zero));
+        cron.GetNextValidTimeAfter(new DateTimeOffset(2026, 1, 5, 23, 0, 0, TimeSpan.Zero))
+            .Should().Be(new DateTimeOffset(2026, 1, 12, 0, 0, 0, TimeSpan.Zero),
+                "the window does not run on into Tuesday, which is why no overnight sentence describes it");
+    }
+
+    /// <summary>
+    /// On every day the same ranges are one window through midnight, and say so.
+    /// </summary>
+    [TestCase("0 0 22-2 * * ?", "Every hour from 22:00 to 02:00 (UTC)")]
+    [TestCase("0 0/15 22-2 * * ?", "Every 15 minutes between 22:00 and 02:45 (UTC)")]
+    [TestCase("0 0/15 22-2 * MAR ?", "Every 15 minutes between 22:00 and 02:45 in March (UTC)")]
+    public void AnHourRangeOverMidnightOnEveryDayReadsAsOneWindow(string expression, string expected)
+    {
+        CronScheduleDescriber.Describe(expression, TimeZoneInfo.Utc).Should().Be(expected);
+    }
+
+    [Test]
+    public void AWindowOverMidnightOnEveryDayFiresThroughMidnight()
+    {
+        CronExpression cron = new("0 0/15 22-2 * * ?", TimeZoneInfo.Utc);
+
+        cron.GetNextValidTimeAfter(new DateTimeOffset(2026, 1, 5, 23, 45, 0, TimeSpan.Zero))
+            .Should().Be(new DateTimeOffset(2026, 1, 6, 0, 0, 0, TimeSpan.Zero));
+        cron.GetNextValidTimeAfter(new DateTimeOffset(2026, 1, 6, 2, 45, 0, TimeSpan.Zero))
+            .Should().Be(new DateTimeOffset(2026, 1, 6, 22, 0, 0, TimeSpan.Zero));
+    }
+
+    private static List<DateTimeOffset> FireTimes(string expression, DateTimeOffset after, int count)
+    {
+        CronExpression cron = new(expression, TimeZoneInfo.Utc);
+        List<DateTimeOffset> times = [];
+        DateTimeOffset cursor = after;
+        while (times.Count < count && cron.GetNextValidTimeAfter(cursor) is { } next)
+        {
+            times.Add(next);
+            cursor = next;
+        }
+
+        return times;
+    }
 }
