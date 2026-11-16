@@ -1,4 +1,7 @@
 using System.Reflection;
+using System.Text.Json;
+
+using AngleSharp.Dom;
 
 using Bunit;
 
@@ -102,6 +105,34 @@ public class RemainingPagesTest
     }
 
     /// <summary>
+    /// A job's page disables both of its trigger buttons while a trigger is out, so a double click fires the
+    /// job once.
+    /// </summary>
+    [Test]
+    public void TriggeringAJobFromItsPageIsDisabledWhileTheRequestIsOut()
+    {
+        GivenJob();
+        TaskCompletionSource triggering = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<string>._, A<string>._))
+            .Returns(triggering.Task);
+        IRenderedComponent<JobDetail> page = RenderJobDetail();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Trigger now").Click();
+
+        page.WaitForAssertion(() => page.FindAll("button")
+            .Where(button => button.TextContent.Trim() is "Trigger now" or "Trigger with overrides")
+            .Should().HaveCount(2).And.OnlyContain(button => button.HasAttribute("disabled"),
+                "both fire the same job, and its trigger is still out"));
+
+        triggering.SetResult();
+
+        page.WaitForAssertion(() => page.FindAll("button").First(button => button.TextContent.Trim() == "Trigger now")
+            .HasAttribute("disabled").Should().BeFalse("the request has answered"));
+        A.CallTo(() => context.Api.TriggerJob(A<string>._, A<string>._, A<string>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
     /// How many handlers <see cref="SchedulerState.OnSchedulerChanged" /> has. A field-like event's
     /// delegate is a private field of the same name.
     /// </summary>
@@ -122,5 +153,29 @@ public class RemainingPagesTest
             new TriggerKeyDto("nightly", "trigger-1"),
             DashboardComponentContext.FiredAt,
             "fire-1"));
+    }
+
+    private void GivenJob()
+    {
+        A.CallTo(() => context.Api.GetJob(A<string>._, A<string>._, A<string>._))
+            .Returns(new JobDetailDto(
+                "job-1",
+                "reports",
+                "Quartz.Tests.AspNetCore.Support.DummyJob",
+                "Dummy job description",
+                Durable: true,
+                RequestsRecovery: false,
+                ConcurrentExecutionDisallowed: true,
+                PersistJobDataAfterExecution: false,
+                JobDataMap: JsonSerializer.SerializeToElement(new Dictionary<string, string> { ["TestKey"] = "TestValue" })));
+        A.CallTo(() => context.Api.GetJobTriggers(A<string>._, A<string>._, A<string>._))
+            .Returns([new TriggerHeaderDto("nightly", "trigger-1")]);
+    }
+
+    private IRenderedComponent<JobDetail> RenderJobDetail()
+    {
+        return context.Render<JobDetail>(parameters => parameters
+            .Add(x => x.Group, "reports")
+            .Add(x => x.Name, "job-1"));
     }
 }
