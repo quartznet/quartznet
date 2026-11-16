@@ -200,18 +200,21 @@
 
 @code {
     private bool _isLoading = true;
-    private bool _isRefreshingExecuting;
+
+    /// <summary>Whether a read of the page is out, so a tick that comes round while it is reads nothing.</summary>
+    private bool _reading;
+
     private string? _error;
 
     /// <summary>
-    /// When the page last read everything it shows, or <see langword="null" /> before it has. Only the count
-    /// of what is executing is read again every second, so this moves on a full read alone.
+    /// When the page last read everything it shows, or <see langword="null" /> before it has. Every tile is
+    /// read again every second, the executing count with the rest.
     /// </summary>
     private DateTimeOffset? _lastUpdatedAt;
 
     /// <summary>
-    /// Why the last read of what is executing failed, or <see langword="null" />. The page keeps what it
-    /// shows, and the next read that answers clears this.
+    /// Why the last read failed while there was a page to keep, or <see langword="null" />. The page keeps
+    /// what it shows, and the next read that answers clears this.
     /// </summary>
     private string? _staleReason;
 
@@ -366,6 +369,9 @@
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        // Another scheduler's figures are not ones to keep: a read of this one that fails shows its error.
+        _lastUpdatedAt = null;
+        _staleReason = null;
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -376,13 +382,45 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Reads the whole page with the spinner up: when it opens, after an action, and when the scheduler changes.
+    /// </summary>
     private async Task LoadDataAsync()
     {
         _isLoading = true;
-        _error = null;
-        _errorTriggers = 0;
-        _schedulerIsNotCreated = false;
+        try
+        {
+            await ReadAsync();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
 
+    /// <summary>
+    /// The once-a-second read of every tile, which <see cref="AutoRefresh" /> holds back while the tab is
+    /// hidden. The page stays on screen while it reads.
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        if (_isLoading || _reading)
+        {
+            return;
+        }
+
+        await ReadAsync();
+        StateHasChanged();
+    }
+
+    /// <remarks>
+    /// Every figure is read before any is shown, so a read that fails keeps the page as it was, marked stale
+    /// beside the time it was read; only a page with nothing read to show has the error in its place. When the
+    /// status read here is not the one read before it, the header reads its own again, so the two agree.
+    /// </remarks>
+    private async Task ReadAsync()
+    {
+        _reading = true;
         try
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
@@ -405,6 +443,7 @@
                 _totalJobs = 0;
                 _totalTriggers = 0;
                 _currentlyExecuting = 0;
+                _errorTriggers = 0;
                 _nodes = 0;
                 _unhealthyNodes = 0;
                 _pausedTriggerGroups = 0;
@@ -416,30 +455,26 @@
                 _refusedExecutionGroups = [];
                 _triggersByState.Clear();
                 _recentActions.Clear();
+                _error = null;
                 MarkRead();
                 return;
             }
 
             SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName, cancellationToken);
-            _schedulerStatus = scheduler.Status;
-            _storeIsPersistent = scheduler.Persistent;
-            _storeIsClustered = scheduler.Clustered;
-            _servedExecutionGroups = scheduler.ServedExecutionGroups;
-            _refusedExecutionGroups = scheduler.RefusedExecutionGroups;
 
             // Counting queries: Take = 0 fetches no items, only the exact totals the tiles show.
             PagedResult<JobKeyDto> jobs = await Api.QueryJobs(schedulerName, new DashboardJobQuery { Take = 0 }, cancellationToken);
             PagedResult<TriggerHeaderDto> triggers = await Api.QueryTriggers(schedulerName, new DashboardTriggerQuery { Take = 0 }, cancellationToken);
             PagedResult<FireInstanceDto> executing = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 }, cancellationToken);
 
-            _triggersByState.Clear();
+            Dictionary<TriggerState, int> triggersByState = [];
             foreach (TriggerState state in HistogramStates)
             {
                 PagedResult<TriggerHeaderDto> inState = await Api.QueryTriggers(
                     schedulerName,
                     new DashboardTriggerQuery { Take = 0, State = state },
                     cancellationToken);
-                _triggersByState[state] = inState.TotalCount ?? 0;
+                triggersByState[state] = inState.TotalCount ?? 0;
             }
 
             // The paused groups are counted with the paused filter rather than by listing every group
@@ -456,9 +491,10 @@
 
             // The store's own retention window, so the tile counts over exactly what the store still
             // remembers rather than over a day it may already have forgotten.
+            int? misfires;
             try
             {
-                _misfires = await Api.CountMisfires(
+                misfires = await Api.CountMisfires(
                     schedulerName,
                     DateTimeOffset.UtcNow - Options.Value.HistoryRetention,
                     cancellationToken);
@@ -468,26 +504,63 @@
                 // A scheduler in another process whose API does not serve history. The tile shows its
                 // dash rather than a zero: "none" and "nobody said" are different answers, and only one
                 // of them means there is nothing to look into.
-                _misfires = null;
+                misfires = null;
             }
 
             List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(schedulerName, cancellationToken);
 
+            SchedulerStatus? statusShown = _lastUpdatedAt is null ? null : _schedulerStatus;
+            _schedulerStatus = scheduler.Status;
+            _storeIsPersistent = scheduler.Persistent;
+            _storeIsClustered = scheduler.Clustered;
+
+            // The panel reads its own figures again when it is handed new lists, so the same lists read again
+            // are not handed over: that would be two more reads a second.
+            if (!_servedExecutionGroups.SequenceEqual(scheduler.ServedExecutionGroups, StringComparer.Ordinal))
+            {
+                _servedExecutionGroups = scheduler.ServedExecutionGroups;
+            }
+
+            if (!_refusedExecutionGroups.SequenceEqual(scheduler.RefusedExecutionGroups, StringComparer.Ordinal))
+            {
+                _refusedExecutionGroups = scheduler.RefusedExecutionGroups;
+            }
+
+            _triggersByState.Clear();
+            foreach (KeyValuePair<TriggerState, int> count in triggersByState)
+            {
+                _triggersByState[count.Key] = count.Value;
+            }
+
+            _schedulerIsNotCreated = false;
             _totalJobs = jobs.TotalCount ?? 0;
             _totalTriggers = triggers.TotalCount ?? 0;
             _currentlyExecuting = executing.TotalCount ?? 0;
             _errorTriggers = CountInState(TriggerState.Error);
             _pausedTriggerGroups = pausedTriggerGroups.TotalCount ?? 0;
             _pausedJobGroups = pausedJobGroups.TotalCount ?? 0;
+            _misfires = misfires;
             _nodes = nodes.Count;
             _unhealthyNodes = nodes.Count(node => node.State != ClusterNodeState.Alive);
 
             RefreshRecentActions(schedulerName);
+            _error = null;
             MarkRead();
+
+            if (statusShown is { } shown && shown != _schedulerStatus)
+            {
+                Scheduler.NotifyRefreshed();
+            }
         }
         catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
         {
             // The reader left. A read nobody is waiting for is not a failure.
+        }
+        catch (Exception ex) when (_lastUpdatedAt is not null)
+        {
+            // A refresh that failed: the page keeps what it shows and says it is stale, rather than giving
+            // the whole of it up to an error until Retry is pressed.
+            _staleReason = ex.Message;
         }
         catch (Exception ex)
         {
@@ -495,7 +568,7 @@
         }
         finally
         {
-            _isLoading = false;
+            _reading = false;
         }
     }
 
@@ -507,52 +580,6 @@
     {
         _lastUpdatedAt = Clock.GetUtcNow();
         _staleReason = null;
-    }
-
-    /// <summary>
-    /// The once-a-second read, which <see cref="AutoRefresh" /> holds back while the tab is hidden.
-    /// </summary>
-    private async Task RefreshAsync()
-    {
-        await RefreshCurrentlyExecutingAsync();
-        StateHasChanged();
-    }
-
-    private async Task RefreshCurrentlyExecutingAsync()
-    {
-        if (_isLoading || _isRefreshingExecuting)
-        {
-            return;
-        }
-
-        _isRefreshingExecuting = true;
-        try
-        {
-            string? schedulerName = Scheduler.ActiveSchedulerName;
-            if (string.IsNullOrWhiteSpace(schedulerName))
-            {
-                _currentlyExecuting = 0;
-                return;
-            }
-
-            PagedResult<FireInstanceDto> executing = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 }, _cancellation.Token);
-            _currentlyExecuting = executing.TotalCount ?? 0;
-            _staleReason = null;
-        }
-        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
-        {
-            // The reader left: no stale mark.
-        }
-        catch (Exception ex)
-        {
-            // A refresh that failed: the page keeps what it shows and says it is stale, rather than giving
-            // the whole of it up to an error until Retry is pressed.
-            _staleReason = ex.Message;
-        }
-        finally
-        {
-            _isRefreshingExecuting = false;
-        }
     }
 
     private Task StartSchedulerAsync()
