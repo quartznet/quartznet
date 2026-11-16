@@ -1,8 +1,13 @@
-﻿using System.Collections.Specialized;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Specialized;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Impl.Matchers;
+using Quartz.Job;
+using Quartz.Listener;
 using Quartz.Logging;
 
 namespace Quartz.Tests.Unit;
@@ -205,5 +210,60 @@ public class SchedulerListenerTest
         Assert.AreEqual(3, jobExecutionCount);
         Assert.AreEqual(3, triggerListener.FireCount);
         Assert.AreEqual(1, schedulerListener.TriggerFinalizedCount);
+    }
+
+    /// <summary>
+    /// #4331. The in-memory store left a group that was paused already out of its answer, so a repeat
+    /// group pause raised no <c>JobsPaused</c>, while the ADO.NET store has always named it.
+    /// </summary>
+    [Test]
+    public async Task PausingAPausedJobGroupAgainIsAnnouncedOnceForTheGroup()
+    {
+        PauseRecorder recorder = new PauseRecorder();
+        SchedulerBuilder config = SchedulerBuilder.Create("AUTO", "repeat-group-pause");
+        config.UseInMemoryStore();
+        IScheduler scheduler = await config.BuildScheduler();
+        scheduler.ListenerManager.AddSchedulerListener(recorder);
+
+        try
+        {
+            IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("import", "imports").Build();
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("hourly", "imports")
+                .StartAt(DateTimeOffset.UtcNow.AddYears(1))
+                .Build();
+            await scheduler.ScheduleJob(job, trigger);
+
+            await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("imports"));
+            await scheduler.ResumeJob(job.Key);
+
+            await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("imports"));
+
+            recorder.Events.Should().Equal(["job group imports", "job group imports"],
+                "the repeat pause names the group in its answer, so JobsPaused is raised for it once, as for the first");
+            (await scheduler.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
+                "the job resumed on its own is paused again by its group");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    private sealed class PauseRecorder : SchedulerListenerSupport
+    {
+        public ConcurrentQueue<string> Events { get; } = new ConcurrentQueue<string>();
+
+        public override Task JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
+        {
+            Events.Enqueue("job group " + jobGroup);
+            return Task.CompletedTask;
+        }
+
+        public override Task TriggersPaused(string triggerGroup, CancellationToken cancellationToken = default)
+        {
+            Events.Enqueue("trigger group " + triggerGroup);
+            return Task.CompletedTask;
+        }
     }
 }

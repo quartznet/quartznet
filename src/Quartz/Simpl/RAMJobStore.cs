@@ -1444,15 +1444,12 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
     {
         lock (lockObject)
         {
-            var pausedGroups = new HashSet<string>();
+            List<string> matchedGroups = [];
 
             StringOperator op = matcher.CompareWithOperator;
             if (Equals(op, StringOperator.Equality))
             {
-                if (pausedTriggerGroups.Add(matcher.CompareToValue))
-                {
-                    pausedGroups.Add(matcher.CompareToValue);
-                }
+                matchedGroups.Add(matcher.CompareToValue);
             }
             else
             {
@@ -1463,25 +1460,25 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                 {
                     if (op.Evaluate(group, matcher.CompareToValue))
                     {
-                        if (pausedTriggerGroups.Add(group))
-                        {
-                            pausedGroups.Add(group);
-                        }
+                        matchedGroups.Add(group);
                     }
                 }
             }
 
-            foreach (string pausedGroup in pausedGroups)
+            // Every trigger of every matched group is paused, a group that was paused already included, so a
+            // trigger resumed on its own inside one is paused again (#4331). That group is in the answer, as on
+            // the ADO.NET store.
+            foreach (string group in matchedGroups)
             {
-                var keys = GetTriggerKeysInternal(GroupMatcher<TriggerKey>.GroupEquals(pausedGroup));
+                pausedTriggerGroups.Add(group);
 
-                foreach (TriggerKey key in keys)
+                foreach (TriggerKey key in GetTriggerKeysInternal(GroupMatcher<TriggerKey>.GroupEquals(group)))
                 {
                     PauseTriggerInternal(key);
                 }
             }
 
-            return pausedGroups;
+            return matchedGroups;
         }
     }
 
@@ -1518,15 +1515,11 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
     {
         lock (lockObject)
         {
-            List<string> pausedGroups = new List<string>();
+            List<string> matchedGroups = [];
             StringOperator op = matcher.CompareWithOperator;
             if (Equals(op, StringOperator.Equality))
             {
-                resumedJobsInPausedGroups.RemoveWhere(k => k.Group == matcher.CompareToValue);
-                if (pausedJobGroups.Add(matcher.CompareToValue))
-                {
-                    pausedGroups.Add(matcher.CompareToValue);
-                }
+                matchedGroups.Add(matcher.CompareToValue);
             }
             else
             {
@@ -1534,27 +1527,29 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                 {
                     if (op.Evaluate(group, matcher.CompareToValue))
                     {
-                        resumedJobsInPausedGroups.RemoveWhere(k => k.Group == group);
-                        if (pausedJobGroups.Add(group))
-                        {
-                            pausedGroups.Add(group);
-                        }
+                        matchedGroups.Add(group);
                     }
                 }
             }
 
-            foreach (string groupName in pausedGroups)
+            // Every job of every matched group is paused, a group that was paused already included, so a
+            // job resumed on its own inside one is paused again and no longer counts as resumed (#4331).
+            // That group is in the answer, as on the ADO.NET store.
+            foreach (string group in matchedGroups)
             {
-                foreach (JobKey jobKey in GetJobKeysInternal(GroupMatcher<JobKey>.GroupEquals(groupName)))
+                resumedJobsInPausedGroups.RemoveWhere(k => k.Group == group);
+                pausedJobGroups.Add(group);
+
+                foreach (JobKey jobKey in GetJobKeysInternal(GroupMatcher<JobKey>.GroupEquals(group)))
                 {
-                    var triggers = GetTriggersForJobInternal(jobKey);
-                    foreach (IOperableTrigger trigger in triggers)
+                    foreach (IOperableTrigger trigger in GetTriggersForJobInternal(jobKey))
                     {
                         PauseTriggerInternal(trigger.Key);
                     }
                 }
             }
-            return Task.FromResult<IReadOnlyCollection<string>>(pausedGroups);
+
+            return Task.FromResult<IReadOnlyCollection<string>>(matchedGroups);
         }
     }
 
