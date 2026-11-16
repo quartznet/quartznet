@@ -508,6 +508,10 @@ the container; the page subscribes for the scheduler on screen.
 - The page opens no connection of its own, so it works behind a proxy that forwards only the dashboard's path.
   The SignalR hub is still served and fed for your own clients; a proxy must forward `{DashboardPath}/hub` only
   for those.
+- Your clients call `JoinScheduler(key)` to receive a scheduler's events. A key the dashboard does not list joins
+  its group and receives nothing; join again once it is listed. From 4.8, a stream that ends while its scheduler
+  is listed is subscribed to again within a minute, so joined clients keep receiving. An agent redeployed under
+  the same target is the usual case.
 
 ### Action Log
 
