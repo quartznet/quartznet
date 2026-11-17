@@ -2054,8 +2054,34 @@ save. What it does change is the stack, 11 frames at `Execute` against 17, and t
 batch of one (+41 %) and 422 ns more with a batch of the pool (+26 %). A's own spread is 82 ns and B's 106 ns,
 and `--profile-fire` measures the same gap without BenchmarkDotNet. The p99 latency rises from 239 µs to
 370-420 µs, and the p50 does not move. Every .NET 11 leg shows it, runtime async or not, so it is the runtime's
-and not Quartz's asset; this section does not say where it is. A profile of A against B under `--profile-fire`
-is the next step.
+and not Quartz's asset.
+
+It is 11.0.0's thread-pool spin rule,
+[dotnet/runtime#137494](https://github.com/dotnet/runtime/issues/137494), for which
+[dotnet/runtime#136078](https://github.com/dotnet/runtime/pull/136078) is an open candidate fix.
+
+- **The rule.** A worker that is woken and finds no work spins its full budget before it parks. The budget is
+  1,024 units of `Backoff.Exponential`, where .NET 10 spun 70 iterations. It skips the spin only when more than
+  `ProcessorCount` × 2/3 workers are processing, which is 21 on this machine.
+- **Why Quartz always hits it.** Ten workers and the scheduler loop make at most eleven, which is below that
+  threshold on any machine with 18 or more logical CPUs, so every spurious wake-up spins.
+- **Why throughput falls, not only CPU.** The spinners take CPU, and they contend for `RAMJobStore`'s lock,
+  which is on the scheduler loop's critical path.
+
+A second window turned the rule off, on `--profile-fire` with two runs per row. CPU is the process's over the
+loop, divided by firings:
+
+| Run | ns per firing | CPU per firing |
+|---|---:|---:|
+| A, .NET 10 | 1,686-1,705 | 13.3-13.4 µs |
+| B, .NET 11 | 2,152-2,205 | 20.6-23.3 µs |
+| B, `SpuriousDispatchNoSpinThreshold=0` | 1,497-1,503 | 7.9-8.0 µs |
+| B, `UnfairSemaphoreSpinLimit=0` | 1,587-1,703 | 7.2-7.7 µs |
+
+Until the runtime changes, set `System.Threading.ThreadPool.SpuriousDispatchNoSpinThreshold` to `0` in a .NET 11
+application's runtimeconfig, or `DOTNET_ThreadPool_SpuriousDispatchNoSpinThreshold=0` in its environment.
+.NET 11 is then 11 % faster than .NET 10 here, at 60 % of its CPU. The functions where B spends the extra time are
+in [the #4214 comment](https://github.com/quartznet/quartznet/issues/4214#issuecomment-6958106895).
 
 **On PostgreSQL no leg differs beyond its spread.** About 2 ms of each firing is the container's commit.
 
