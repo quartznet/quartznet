@@ -157,7 +157,9 @@ public class PropertySettingJobFactoryTest
         TestObject myObject = new TestObject();
         factory.SetObjectProperties(myObject, jobDataMap);
 
-        Assert.That(myObject.IntValue, Is.EqualTo(1));
+        myObject.IntValue.Should().Be(1,
+            "'i' upper-cases to the dotted 'İ' in the Turkish culture, so the key has to be capitalised with "
+            + "the invariant culture to find IntValue");
     }
 
     [Test]
