@@ -24,14 +24,25 @@ namespace Quartz.Benchmark;
 /// where BenchmarkDotNet reports a mean over invocations it chose the count of.
 /// </para>
 /// <para>
-/// <b>Two passes, and the second one is not free.</b> The first pass measures the end-to-end interval
-/// with nothing collecting Quartz's instruments, which is how an application runs. The second attaches
+/// <b>Three passes, and the last two are not free.</b> The first pass measures the end-to-end interval
+/// with nothing collecting Quartz's instruments, which is how an application runs. The other two attach
 /// a <see cref="MeterListener" /> to <c>quartz.trigger.acquisition.duration</c> and
-/// <c>quartz.jobstore.operation.duration</c>, whose callbacks run on the scheduler thread at the
-/// instant the measurement is recorded — so a timestamp taken inside them splits the interval where the
-/// scheduler thread crosses into the store and back out of it. Enabling those instruments makes the
-/// scheduler take timestamps it otherwise skips, so the second pass is the decomposition and the first
-/// pass is the headline.
+/// <c>quartz.jobstore.operation.duration</c>, whose callbacks run at the instant the measurement is
+/// recorded — so a timestamp taken inside them splits the interval where the store has stored the
+/// trigger, which is when the scheduler thread is signalled, and where that thread crosses into the
+/// store and back out of it — and an <see cref="ActivityListener" /> to the acquisition's span, whose
+/// <c>quartz.jobstore.trigger.fired_on_acquire</c> says whether the store fired the trigger as it
+/// acquired it. Enabling those makes the scheduler take timestamps it otherwise skips, so the later
+/// passes are the decomposition and the first pass is the headline.
+/// </para>
+/// <para>
+/// <b>A trigger takes one of two paths through the store</b>, and each repetition is reported under the
+/// one it took. A store fires a trigger already due as it acquires it, with no <c>TriggersFired</c> of its
+/// own, so acquisition and fire are one phase. A trigger it leaves pending is fired by the scheduler
+/// thread through <c>TriggersFired</c> once it is due. A trigger scheduled for now takes the first path
+/// on <c>RAMJobStore</c> and on PostgreSQL, with lock-free rounds or without, so the last pass schedules
+/// its trigger <see cref="LeadPast" /> ahead to reach the second. Its wait for the fire time is the lead
+/// the pass chose rather than a cost, and no row holds it.
 /// </para>
 /// </remarks>
 internal static class LatencyProbe
@@ -44,6 +55,9 @@ internal static class LatencyProbe
     /// dictionaries are warm and the first firing is not a class being loaded.
     /// </summary>
     private const int WarmupRepetitions = 20;
+
+    /// <summary>The width of the phase column, which fits the longest phase name.</summary>
+    private const int PhaseWidth = 38;
 
     /// <summary>
     /// How long a repetition may take before it is called a broken probe rather than a slow one. A
@@ -59,17 +73,22 @@ internal static class LatencyProbe
     /// </summary>
     private static readonly TimeSpan settle = TimeSpan.FromMilliseconds(20);
 
+    /// <summary>The shortest lead the last pass schedules its trigger with.</summary>
+    private static readonly TimeSpan minimumLead = TimeSpan.FromMilliseconds(10);
+
     private static readonly ManualResetEventSlim executed = new(false);
 
-    private static long scheduledReturnedAt;
+    private static long storedAt;
     private static long executedAt;
     private static long acquisitionEndedAt;
-    private static long firedEndedAt;
     private static double acquisitionSeconds;
+    private static int firedOnAcquire;
+    private static long firedEndedAt;
+    private static double firedSeconds;
 
     /// <summary>
-    /// Runs both passes against an idle <c>RAMJobStore</c> scheduler, then against an idle PostgreSQL one
-    /// when <c>QUARTZ_BENCHMARK_POSTGRES</c> is set, and prints their percentiles.
+    /// Runs the three passes against an idle <c>RAMJobStore</c> scheduler, then against an idle PostgreSQL
+    /// one when <c>QUARTZ_BENCHMARK_POSTGRES</c> is set, and prints their percentiles.
     /// </summary>
     /// <remarks>
     /// The PostgreSQL store is <see cref="FireThroughputPostgresBenchmark" />'s, with
@@ -137,16 +156,12 @@ internal static class LatencyProbe
             PrintHeader();
             PrintRow("schedule -> Execute", endToEnd);
 
-            Phase[] phases = MeasurePhases(scheduler);
+            PrintBreakdowns("scheduled for now", MeasurePhases(scheduler, TimeSpan.Zero));
 
-            Console.WriteLine();
-            Console.WriteLine($"Where it goes, with the instruments enabled ({phases[0].Samples.Length} of {Repetitions} repetitions usable)");
-            Console.WriteLine();
-            PrintHeader();
-            foreach (Phase phase in phases)
-            {
-                PrintRow(phase.Name, phase.Samples);
-            }
+            TimeSpan lead = LeadPast(endToEnd);
+            PrintBreakdowns(
+                string.Create(CultureInfo.InvariantCulture, $"due {lead.TotalMilliseconds} ms after scheduling, the wait left out"),
+                MeasurePhases(scheduler, lead));
         }
         finally
         {
@@ -164,13 +179,13 @@ internal static class LatencyProbe
 
         for (int i = 0; i < WarmupRepetitions; i++)
         {
-            FireOnce(scheduler, ++id);
+            FireOnce(scheduler, ++id, TimeSpan.Zero);
         }
 
         double[] samples = new double[Repetitions];
         for (int i = 0; i < Repetitions; i++)
         {
-            long scheduledAt = FireOnce(scheduler, ++id);
+            long scheduledAt = FireOnce(scheduler, ++id, TimeSpan.Zero);
             samples[i] = Microseconds(executedAt - scheduledAt);
         }
 
@@ -178,83 +193,147 @@ internal static class LatencyProbe
     }
 
     /// <summary>
-    /// The decomposition pass: the same repetitions with the acquisition and store-operation histograms
-    /// enabled, so the scheduler thread's own crossings into the store are timestamped as they happen.
+    /// How far ahead of its scheduling the last pass's trigger is due: twice the headline's 95th
+    /// percentile, in whole milliseconds, and at least <see cref="minimumLead" />. The whole interval to
+    /// <c>Execute</c> is shorter than half of that in nineteen repetitions in twenty, so the acquisition,
+    /// which comes before it, almost always finds the trigger not yet due, and the store leaves it
+    /// pending. The 95th rather than the 99th, so that one stall of the box does not set the pass's length.
     /// </summary>
-    /// <remarks>
-    /// A repetition is discarded when its four timestamps are not in order, which happens when the
-    /// acquisition round that follows the previous firing's completion lands inside this repetition's
-    /// window instead of before it. The count of usable repetitions is printed rather than hidden.
-    /// </remarks>
-    private static Phase[] MeasurePhases(IScheduler scheduler)
+    private static TimeSpan LeadPast(double[] endToEnd)
     {
-        using MeterListener listener = new();
-        listener.InstrumentPublished = static (instrument, meterListener) =>
+        double[] sorted = [.. endToEnd.Order()];
+        TimeSpan lead = TimeSpan.FromMilliseconds(Math.Ceiling(2 * Percentile(sorted, 95) / 1_000));
+        return lead > minimumLead ? lead : minimumLead;
+    }
+
+    /// <summary>
+    /// A decomposition pass: the same repetitions with the acquisition and store-operation histograms
+    /// and the acquisition's span enabled, so the scheduler thread's own crossings into the store are
+    /// timestamped as they happen, and the acquisition says whether it fired the trigger.
+    /// </summary>
+    /// <param name="scheduler">The scheduler the headline pass ran on.</param>
+    /// <param name="lead">How long after its scheduling each repetition's trigger is due.</param>
+    /// <returns>The usable repetitions, one breakdown for each path through the store.</returns>
+    /// <remarks>
+    /// <para>
+    /// <c>TriggersFired</c> is the store operation's own duration, so the scheduler thread's time between
+    /// the acquisition and the fire, its wait for the fire time included, is in no row.
+    /// </para>
+    /// <para>
+    /// The wake is counted from the store's answer to <c>ScheduleJob</c>, after which the scheduler thread
+    /// is signalled, rather than from the call's return. A caller blocked on a store that answers
+    /// asynchronously, as PostgreSQL's does, is woken as the scheduler thread is, and is often the later
+    /// of the two; its return is on no path to <c>Execute</c>.
+    /// </para>
+    /// <para>
+    /// A repetition is discarded when its path cannot be told or its timestamps are not in order, which
+    /// happens when the acquisition round that follows the previous firing's completion lands inside this
+    /// repetition's window instead of before it. The count of usable repetitions is printed rather than
+    /// hidden.
+    /// </para>
+    /// </remarks>
+    private static Breakdown[] MeasurePhases(IScheduler scheduler, TimeSpan lead)
+    {
+        using MeterListener meterListener = new();
+        meterListener.InstrumentPublished = static (instrument, listener) =>
         {
             if (instrument.Meter.Name == QuartzInstrumentation.MeterName
                 && instrument.Name is QuartzInstrumentation.Instruments.TriggerAcquisitionDuration
                     or QuartzInstrumentation.Instruments.JobStoreOperationDuration)
             {
-                meterListener.EnableMeasurementEvents(instrument);
+                listener.EnableMeasurementEvents(instrument);
             }
         };
 
-        listener.SetMeasurementEventCallback<double>(OnMeasurement);
-        listener.Start();
+        meterListener.SetMeasurementEventCallback<double>(OnMeasurement);
+        meterListener.Start();
 
-        int id = 1_000_000;
+        // The acquisition's span and no other, with its attributes, which is where fired_on_acquire is.
+        using ActivityListener activityListener = new()
+        {
+            ShouldListenTo = static source => source.Name == QuartzInstrumentation.ActivitySourceName,
+            Sample = static (ref ActivityCreationOptions<ActivityContext> options) =>
+                options.Name == OperationName.JobStore.AcquireNextTriggers
+                    ? ActivitySamplingResult.AllData
+                    : ActivitySamplingResult.None,
+            ActivityStopped = OnAcquisitionStopped,
+        };
+        ActivitySource.AddActivityListener(activityListener);
+
+        int id = lead == TimeSpan.Zero ? 1_000_000 : 2_000_000;
 
         for (int i = 0; i < WarmupRepetitions; i++)
         {
-            FireOnce(scheduler, ++id);
+            FireOnce(scheduler, ++id, lead);
         }
 
-        List<double> call = [];
-        List<double> wake = [];
-        List<double> acquisition = [];
-        List<double> fire = [];
-        List<double> dispatch = [];
+        List<Repetition> byAcquisition = [];
+        List<Repetition> byTriggersFired = [];
 
         for (int i = 0; i < Repetitions; i++)
         {
-            long scheduledAt = FireOnce(scheduler, ++id);
+            long scheduledAt = FireOnce(scheduler, ++id, lead);
 
-            long returned = scheduledReturnedAt;
+            long stored = storedAt;
             long acquisitionEnded = acquisitionEndedAt;
-            long fired = firedEndedAt;
+            long acquisitionStarted = acquisitionEnded - Ticks(acquisitionSeconds);
+            long firedEnded = firedEndedAt;
             long executeEntered = executedAt;
-            long acquisitionTicks = (long) (acquisitionSeconds * Stopwatch.Frequency);
 
-            if (acquisitionEnded - acquisitionTicks < returned
-                || fired < acquisitionEnded
-                || executeEntered < fired)
+            if (stored == 0 || acquisitionStarted < stored)
             {
                 continue;
             }
 
-            call.Add(Microseconds(returned - scheduledAt));
-            wake.Add(Microseconds(acquisitionEnded - acquisitionTicks - returned));
-            acquisition.Add(acquisitionSeconds * 1_000_000);
-            fire.Add(Microseconds(fired - acquisitionEnded));
-            dispatch.Add(Microseconds(executeEntered - fired));
+            if (firedOnAcquire > 0 && executeEntered >= acquisitionEnded)
+            {
+                byAcquisition.Add(new Repetition(
+                    Microseconds(stored - scheduledAt),
+                    Microseconds(acquisitionStarted - stored),
+                    acquisitionSeconds * 1_000_000,
+                    0,
+                    Microseconds(executeEntered - acquisitionEnded)));
+            }
+            else if (firedOnAcquire == 0
+                && firedEnded != 0
+                && firedEnded - Ticks(firedSeconds) >= acquisitionEnded
+                && executeEntered >= firedEnded)
+            {
+                byTriggersFired.Add(new Repetition(
+                    Microseconds(stored - scheduledAt),
+                    Microseconds(acquisitionStarted - stored),
+                    acquisitionSeconds * 1_000_000,
+                    firedSeconds * 1_000_000,
+                    Microseconds(executeEntered - firedEnded)));
+            }
         }
 
         return
         [
-            new Phase("ScheduleJob call", [.. call]),
-            new Phase("scheduler thread wake", [.. wake]),
-            new Phase("AcquireNextTriggers", [.. acquisition]),
-            new Phase("TriggersFired", [.. fire]),
-            new Phase("dispatch to Execute", [.. dispatch]),
+            new Breakdown("Fired by the acquisition",
+            [
+                new Phase("ScheduleJob until stored", [.. byAcquisition.Select(static r => r.Store)]),
+                new Phase("scheduler thread wake", [.. byAcquisition.Select(static r => r.Wake)]),
+                new Phase("AcquireNextTriggers (fired on acquire)", [.. byAcquisition.Select(static r => r.Acquisition)]),
+                new Phase("dispatch to Execute", [.. byAcquisition.Select(static r => r.Dispatch)]),
+            ]),
+            new Breakdown("Fired by TriggersFired",
+            [
+                new Phase("ScheduleJob until stored", [.. byTriggersFired.Select(static r => r.Store)]),
+                new Phase("scheduler thread wake", [.. byTriggersFired.Select(static r => r.Wake)]),
+                new Phase("AcquireNextTriggers", [.. byTriggersFired.Select(static r => r.Acquisition)]),
+                new Phase("TriggersFired", [.. byTriggersFired.Select(static r => r.Fire)]),
+                new Phase("dispatch to Execute", [.. byTriggersFired.Select(static r => r.Dispatch)]),
+            ]),
         ];
     }
 
     /// <summary>
-    /// Schedules one job for now and blocks until it has started running, answering with the timestamp
-    /// the schedule was made at. <see cref="executedAt" /> holds the one its <c>Execute</c> was entered
-    /// at.
+    /// Schedules one job, due <paramref name="lead" /> from now, and blocks until it has started running,
+    /// answering with the timestamp the schedule was made at. <see cref="executedAt" /> holds the one its
+    /// <c>Execute</c> was entered at.
     /// </summary>
-    private static long FireOnce(IScheduler scheduler, int id)
+    private static long FireOnce(IScheduler scheduler, int id, TimeSpan lead)
     {
         Thread.Sleep(settle);
 
@@ -262,32 +341,36 @@ internal static class LatencyProbe
             .WithIdentity(string.Create(CultureInfo.InvariantCulture, $"latency-job-{id}"))
             .Build();
 
-        ITrigger trigger = TriggerBuilder.Create()
-            .WithIdentity(string.Create(CultureInfo.InvariantCulture, $"latency-trigger-{id}"))
-            .StartNow()
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create()
+            .WithIdentity(string.Create(CultureInfo.InvariantCulture, $"latency-trigger-{id}"));
+
+        ITrigger trigger = (lead == TimeSpan.Zero ? builder.StartNow() : builder.StartAt(TimeProvider.System.GetUtcNow() + lead))
             .Build();
 
         executed.Reset();
+        storedAt = 0;
         acquisitionEndedAt = 0;
-        firedEndedAt = 0;
         acquisitionSeconds = 0;
+        firedOnAcquire = -1;
+        firedEndedAt = 0;
+        firedSeconds = 0;
 
         long scheduledAt = Stopwatch.GetTimestamp();
         scheduler.ScheduleJob(job, trigger).GetAwaiter().GetResult();
-        scheduledReturnedAt = Stopwatch.GetTimestamp();
 
         if (!executed.Wait(executeTimeout))
         {
             throw new InvalidOperationException(
-                $"Waited {executeTimeout} for one job scheduled to run now. The scheduler stopped firing, which is a broken probe rather than a slow one.");
+                $"Waited {executeTimeout} for one job due {lead.TotalMilliseconds} ms after it was scheduled. The scheduler stopped firing, which is a broken probe rather than a slow one.");
         }
 
         return scheduledAt;
     }
 
     /// <summary>
-    /// Runs on the scheduler thread, at the instant the scheduler records the measurement, which is why
-    /// a timestamp taken here says when that thread came back out of the store.
+    /// Runs at the instant a measurement is recorded: on the scheduler thread for the acquisition and
+    /// <c>TriggersFired</c>, which is why a timestamp taken here says when that thread came back out of the
+    /// store, and on whichever thread finished the store's <c>ScheduleJob</c> for that one.
     /// </summary>
     private static void OnMeasurement(
         Instrument instrument,
@@ -306,21 +389,41 @@ internal static class LatencyProbe
             return;
         }
 
-        if (firedEndedAt != 0)
-        {
-            return;
-        }
-
         foreach (KeyValuePair<string, object?> tag in tags)
         {
-            if (tag.Key == ActivityTags.JobStoreOperation
-                && (string?) tag.Value == OperationName.JobStore.TriggersFired)
+            if (tag.Key != ActivityTags.JobStoreOperation)
             {
-                firedEndedAt = Stopwatch.GetTimestamp();
-                return;
+                continue;
             }
+
+            string? operation = (string?) tag.Value;
+            if (operation == OperationName.JobStore.ScheduleJob && storedAt == 0)
+            {
+                storedAt = Stopwatch.GetTimestamp();
+            }
+            else if (operation == OperationName.JobStore.TriggersFired && firedEndedAt == 0)
+            {
+                firedSeconds = measurement;
+                firedEndedAt = Stopwatch.GetTimestamp();
+            }
+
+            return;
         }
     }
+
+    /// <summary>
+    /// Runs on the scheduler thread as the acquisition's span ends, before the acquisition is measured,
+    /// and keeps how many triggers the repetition's first acquisition fired as it acquired them.
+    /// </summary>
+    private static void OnAcquisitionStopped(Activity activity)
+    {
+        if (firedOnAcquire < 0 && activity.GetTagItem(ActivityTags.TriggersFiredOnAcquire) is int fired)
+        {
+            firedOnAcquire = fired;
+        }
+    }
+
+    private static long Ticks(double seconds) => (long) (seconds * Stopwatch.Frequency);
 
     private static double Microseconds(long ticks) => ticks * 1_000_000d / Stopwatch.Frequency;
 
@@ -339,10 +442,37 @@ internal static class LatencyProbe
         return sorted[Math.Clamp(rank - 1, 0, sorted.Length - 1)];
     }
 
+    /// <summary>
+    /// Prints a decomposition pass: how many repetitions were usable, then a table for each path that
+    /// any of them took.
+    /// </summary>
+    private static void PrintBreakdowns(string pass, Breakdown[] breakdowns)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"Where it goes, {pass}, with the instruments enabled ({breakdowns.Sum(static b => b.Count)} of {Repetitions} repetitions usable)");
+
+        foreach (Breakdown breakdown in breakdowns)
+        {
+            if (breakdown.Count == 0)
+            {
+                continue;
+            }
+
+            Console.WriteLine();
+            Console.WriteLine($"{breakdown.Path}: {breakdown.Count}");
+            Console.WriteLine();
+            PrintHeader();
+            foreach (Phase phase in breakdown.Phases)
+            {
+                PrintRow(phase.Name, phase.Samples);
+            }
+        }
+    }
+
     private static void PrintHeader()
     {
-        Console.WriteLine("| Phase                     |       p50 |       p95 |       p99 |       min |       max |");
-        Console.WriteLine("|-------------------------- |----------:|----------:|----------:|----------:|----------:|");
+        Console.WriteLine($"| {"Phase",-PhaseWidth} |       p50 |       p95 |       p99 |       min |       max |");
+        Console.WriteLine($"|{new string('-', PhaseWidth + 1)} |----------:|----------:|----------:|----------:|----------:|");
     }
 
     private static void PrintRow(string name, double[] samples)
@@ -351,11 +481,20 @@ internal static class LatencyProbe
 
         Console.WriteLine(string.Create(
             CultureInfo.InvariantCulture,
-            $"| {name,-25} | {Percentile(sorted, 50),9:F1} | {Percentile(sorted, 95),9:F1} | {Percentile(sorted, 99),9:F1} | {Percentile(sorted, 0),9:F1} | {Percentile(sorted, 100),9:F1} |"));
+            $"| {name,-PhaseWidth} | {Percentile(sorted, 50),9:F1} | {Percentile(sorted, 95),9:F1} | {Percentile(sorted, 99),9:F1} | {Percentile(sorted, 0),9:F1} | {Percentile(sorted, 100),9:F1} |"));
     }
 
-    /// <summary>One row of the decomposition: what the phase is called and what it measured.</summary>
+    /// <summary>One usable repetition of a decomposition pass, phase by phase, in microseconds.</summary>
+    private readonly record struct Repetition(double Store, double Wake, double Acquisition, double Fire, double Dispatch);
+
+    /// <summary>One row of a breakdown: what the phase is called and what it measured.</summary>
     private sealed record Phase(string Name, double[] Samples);
+
+    /// <summary>The repetitions of a decomposition pass that took one path through the store.</summary>
+    private sealed record Breakdown(string Path, Phase[] Phases)
+    {
+        public int Count => Phases[0].Samples.Length;
+    }
 
     /// <summary>
     /// Records the instant its execution was entered at. Everything the probe reports is the interval
