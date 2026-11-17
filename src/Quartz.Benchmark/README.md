@@ -30,8 +30,10 @@ would prove nothing.
 ### Comparing runtimes and Quartz assets
 
 `Quartz` ships a `net10.0` asset and a `net11.0` one compiled with runtime async, and this project is
-`net10.0`. `-p:BenchmarkRuntime=11` builds it for `net11.0`, which loads the `net11.0` asset. A
-`net10.0` build run with `DOTNET_ROLL_FORWARD=LatestMajor` is the `net10.0` asset on .NET 11. Copy each
+`net10.0`. `-p:BenchmarkRuntime=11` builds it for `net11.0`, which loads the `net11.0` asset. Adding
+`-p:Features=` compiles that asset without runtime async; `-p:UseRuntimeAsync=false` does not, because
+`Quartz.csproj` sets `Features` itself. A `net10.0` build run with `DOTNET_ROLL_FORWARD=LatestMajor` is the
+`net10.0` asset on .NET 11. Copy each
 build's `bin/Release/<framework>/` folder somewhere of its own, because the next build overwrites it.
 Then check what each copy loads with `--runtime-info`:
 
@@ -1966,3 +1968,97 @@ removing any._
 _To be filled from `FireThroughputPostgres` and `--recurring-postgres` against `3228fb2c2`: the plain and the
 `[DisallowConcurrentExecution]` arms, and punctuality at a hundred schedules firing every second and at twenty. The
 expectation is no movement outside noise: one node contends with nobody for the lock._
+
+## Runtime async on .NET 11 (2026-11-17, AMD Ryzen 9 5950X)
+
+Taken for #4214, on the `Quartz` that #4353 ships: `net10.0`, and `net11.0` compiled with runtime async. Each
+leg is one process. `--runtime-info` checked which runtime and which `Quartz.dll` it loads; "Comparing
+runtimes and Quartz assets" above says how the legs are built.
+
+| Leg | Build | Runtime | `Quartz.dll` loaded |
+|---|---|---|---|
+| A | `net10.0` | .NET 10.0.15 | `net10.0`: 817 state machines |
+| B | `net10.0`, `DOTNET_ROLL_FORWARD=LatestMajor` | .NET 11.0.0 | `net10.0`: 817 state machines |
+| C | `-p:BenchmarkRuntime=11 -p:Features=` | .NET 11.0.0 | `net11.0`: 817 state machines |
+| D | `-p:BenchmarkRuntime=11` | .NET 11.0.0 | `net11.0`: 817 runtime-async methods |
+
+B minus A is the runtime alone, and C minus D is runtime async alone. `-p:UseRuntimeAsync=false` does not build
+leg C: the `Features` that `Quartz.csproj` sets still wins, so the asset is still runtime async. Emptying
+`Features` builds it.
+
+**Method.** BenchmarkDotNet v0.15.8, Windows 11 (10.0.26300.9974), SDK 11.0.100; .NET 10.0.15 (10.0.1526.53008)
+and 11.0.0 (11.0.26.53018), X64 RyuJIT x86-64-v3, concurrent workstation GC. Every job ran in process
+(`QUARTZ_BENCHMARK_IN_PROCESS=true`), with `FireThroughputBenchmark`'s default job and
+`FireThroughputPostgresBenchmark`'s own three warm-up and ten measured iterations. PostgreSQL 15.1 ran in Docker
+over loopback, at its shipped durability. The other sessions on the machine were paused. The rounds ran
+A B C D, then D C B A, then two more `RAMJobStore` rounds, B D A C and C A D B, so that no leg runs twice in a
+row. Medians are given with the range across runs.
+
+### RAMJobStore
+
+`MaxConcurrency` 10, a hundred jobs, four runs per leg. Latency is `--latency`'s schedule-to-`Execute` p99, over
+two runs; its p50 was 73-83 µs on every leg. Frames are `--stack-depth`'s count at `IJob.Execute`, the same in
+every firing.
+
+| Leg | Batch of one | Fires/s | Batch of the pool | Fires/s | Bytes per firing (one, pool) | p99 latency | Frames |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| A | 1,497 ns (1,462-1,544) | 668,000 | 1,602 ns (1,584-1,786) | 624,000 | 2,253, 1,915 | 239 µs (237-241) | 16 |
+| B | 2,108 ns (2,037-2,143) | 474,000 | 2,024 ns (2,017-2,112) | 494,000 | 2,243, 1,925 | 418 µs (381-456) | 17 |
+| C | 2,033 ns (1,975-2,172) | 492,000 | 2,070 ns (1,991-2,222) | 483,000 | 2,243, 1,930 | 402 µs (336-468) | 17 |
+| D | 2,068 ns (1,939-2,435) | 484,000 | 2,061 ns (1,966-2,202) | 485,000 | 2,243, 1,935 | 371 µs (367-375) | 11 |
+
+`--profile-fire`, which takes BenchmarkDotNet out of the measurement (a batch of one, 25 s, two runs per leg),
+agrees: A 1,672-1,724 ns per firing, B 2,089-2,131 ns, D 2,109-2,118 ns.
+
+### PostgreSQL
+
+`MaxConcurrency` 10, concurrent jobs, two runs per leg. BenchmarkDotNet's Error is 3-25 % of the mean here. Here
+a firing reaches the job either straight from its dispatch or from a continuation, once the thread pool's
+`RunAndSignal` has waited. So the frames column gives every depth seen, the deepest being the straight
+dispatch.
+
+| Leg | Per firing | Fires/s | Bytes per firing | Latency p50, p99 | Frames |
+|---|---:|---:|---:|---:|---:|
+| A | 2.12 ms (1.95-2.28) | 473 | 47.7 KB | 12.7 ms, 43-128 ms | 8, 12, 16 |
+| B | 2.03 ms (1.82-2.24) | 493 | 47.5 KB | 12.7 ms, 23-78 ms | 9, 13, 17 |
+| C | 2.09 ms (1.91-2.27) | 479 | 47.8 KB | 12.8 ms, 24-47 ms | 9, 13, 17 |
+| D | 2.39 ms (2.35-2.43) | 418 | 47.7 KB | 15.5 ms, 40-279 ms | 9, 10, 11 |
+
+D's two PostgreSQL runs were back to back, at the end of the first round and the start of the second. The same
+build, measured later for the `AsyncLocal` arms below, gave a latency p50 of 12.4-12.7 ms, so the D row is
+those two minutes of the machine rather than runtime async.
+
+### The `AsyncLocal` write
+
+`AmbientJobExecution.Begin` writes its `AsyncLocal` once per firing. For this measurement only, a local switch
+that was never committed skipped the write; the measured job does not read what it carries. `AmbientConnection`
+writes nothing on this path: it writes only when an application enlists a connection. `RAMJobStore`, two runs per
+arm:
+
+| Leg | Arm | Batch of one | Batch of the pool | Bytes per firing (one, pool) |
+|---|---|---:|---:|---:|
+| B | written | 2,053 ns (2,040-2,065) | 2,060 ns (2,036-2,084) | 2,243, 1,930 |
+| B | skipped | 2,053 ns (2,022-2,084) | 2,020 ns (2,012-2,027) | 2,089, 1,761 |
+| D | written | 2,000 ns (1,996-2,004) | 2,105 ns (2,089-2,120) | 2,243, 1,930 |
+| D | skipped | 1,958 ns (1,913-2,002) | 2,024 ns (1,970-2,077) | 2,089, 1,782 |
+
+### Verdict
+
+**Runtime async is worth nothing measurable on the fire path, and costs nothing.** C and D are within each
+other's ranges on both stores, and their bytes per firing are the same. A firing of a job that returns at once
+completes every `await` synchronously, so there is no state machine to box, and nothing for runtime async to
+save. What it does change is the stack, 11 frames at `Execute` against 17, and the asset, 3,156,992 bytes against
+3,964,928.
+
+**The .NET 11 runtime is slower on this workload than .NET 10.** B against A is 611 ns more per firing with a
+batch of one (+41 %) and 422 ns more with a batch of the pool (+26 %). A's own spread is 82 ns and B's 106 ns,
+and `--profile-fire` measures the same gap without BenchmarkDotNet. The p99 latency rises from 239 µs to
+370-420 µs, and the p50 does not move. Every .NET 11 leg shows it, runtime async or not, so it is the runtime's
+and not Quartz's asset; this section does not say where it is. A profile of A against B under `--profile-fire`
+is the next step.
+
+**On PostgreSQL no leg differs beyond its spread.** About 2 ms of each firing is the container's commit.
+
+**The `AsyncLocal` write costs 148-169 bytes per firing on .NET 11, and 0-80 ns**, which is at or under the spread.
+.NET 11 skips restoring an `ExecutionContext` that has nothing to restore, but the write still allocates the
+new one, so neither the runtime nor runtime async makes it free.
