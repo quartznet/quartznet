@@ -59,7 +59,7 @@ internal static class Program
             "Schedules into a started scheduler for about 20 seconds, clearing the store every 50,000. Attach a profiler to this for ScheduleJob.",
             ProfileSchedule),
         ("--latency",
-            "Schedules one job for now on an idle scheduler, 200 times, and prints the schedule-to-execute percentiles and where they go. RAMJobStore, then PostgreSQL when QUARTZ_BENCHMARK_POSTGRES is set.",
+            "Schedules one job for now on an idle scheduler, 200 times, and prints the schedule-to-execute percentiles and where they go, then where a job due a little later goes through TriggersFired. RAMJobStore, then PostgreSQL when QUARTZ_BENCHMARK_POSTGRES is set.",
             LatencyProbe.Run),
         ("--stack-depth",
             "Counts the frames on the stack at IJob.Execute over 2,000 firings of the fire-throughput workload. RAMJobStore, then PostgreSQL when QUARTZ_BENCHMARK_POSTGRES is set.",
