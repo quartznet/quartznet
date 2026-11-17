@@ -120,6 +120,19 @@ public class ObjectUtilsTest
     }
 
     [Test]
+    [SetCulture("tr-TR")]
+    public void ALowerCaseNameStartingWithIFindsItsPropertyInTheTurkishCulture()
+    {
+        InstanceComponent component = new InstanceComponent();
+
+        ObjectUtils.SetObjectProperties(component, new NameValueCollection { ["instanceId"] = "node1" });
+
+        component.InstanceId.Should().Be("node1",
+            "'i' upper-cases to the dotted 'İ' in the Turkish culture, so the first letter has to be "
+            + "capitalised with the invariant culture to reach InstanceId");
+    }
+
+    [Test]
     public void TestIsAnnotationPresentOnSuperClass()
     {
         Assert.IsTrue(ObjectUtils.IsAttributePresent(typeof (BaseJob), typeof (DisallowConcurrentExecutionAttribute)));
@@ -172,6 +185,11 @@ public class ObjectUtilsTest
         public TimeSpan TimeMilliseconds { get; set; }
 
         public TimeSpan TimeDefault { get; set; }
+    }
+
+    private sealed class InstanceComponent
+    {
+        public string InstanceId { get; set; }
     }
 }
 
