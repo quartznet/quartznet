@@ -787,9 +787,15 @@ partial class Build : FalloutBuild, ICompile, IPack
         {
             var solution = ((IHasSolution) this).Solution;
 
+            // net10.0 only, although the project also targets net11.0. Under BenchmarkDotNet 0.16 a smoke pass
+            // takes about 100 seconds where 0.15.8 took 20, because each of its in-process dry cases costs about
+            // four times as much, and a second framework would add that again on every pull request. The harness
+            // is the same source on both frameworks; what differs is Quartz's asset, which the unit tests' .NET 11
+            // leg covers.
             DotNetRun(s => s
                 .SetProjectFile(solution.AllProjects.First(x => x.Name == "Quartz.Benchmark"))
                 .SetConfiguration(Configuration.Release)
+                .SetFramework("net10.0")
                 .SetApplicationArguments("--smoke")
             );
         });

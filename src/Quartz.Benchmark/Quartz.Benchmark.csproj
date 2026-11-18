@@ -2,15 +2,20 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
     <!--
-      -p:BenchmarkRuntime=11 builds this project for net11.0, which loads Quartz's net11.0 asset, compiled
-      with runtime async; left out, it is net10.0 and loads the net10.0 one (#4214). A property rather than
-      a second target, so that 'dotnet run' and the BenchmarkSmoke target keep running without a framework
-      argument. README.md, "Comparing runtimes and Quartz assets", says how the legs of #4214 are built,
-      and the runtime-info run of Program.cs says which asset a build loads.
+      Both of Quartz's frameworks (#4214): the net11.0 build loads Quartz's net11.0 asset, compiled with
+      runtime async, and the net10.0 build loads the net10.0 one. BenchmarkDotNet 0.16 knows .NET 11, so a
+      job for either runtime is built and run in a process of its own. 'dotnet run' therefore needs -f.
+      README.md, "Comparing runtimes and Quartz assets", says how the runtime comparison is run.
     -->
-    <TargetFramework Condition="'$(BenchmarkRuntime)' != ''">net$(BenchmarkRuntime).0</TargetFramework>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+    <!--
+      Built into the repository's artifacts layout like every other project. Until BenchmarkDotNet 0.16 this
+      project opted out, because the project generated per job could not find an exe there. 0.16 builds each
+      job's generated project with an ArtifactsPath of its own under .bdn/, and a project outside the layout
+      would still write its output into bin/Release/<framework>, where the process that started the run has
+      it loaded: the copy fails, and every job of that framework comes back NA.
+    -->
     <Nullable>enable</Nullable>
     <!-- Necessary to run benchmarks on .NET 6.0+ -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -21,6 +26,13 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
+    <!--
+      JobRunShellBenchmark measures a firing under a real LoggerFactory, whose scope provider allocates where
+      NullLoggerFactory does not. BenchmarkDotNet 0.15.8 brought the package along, through
+      Microsoft.Diagnostics.Runtime 3.1 and Microsoft.Diagnostics.NETCore.Client 0.2.410101; 0.16's
+      Microsoft.Diagnostics.NETCore.Client 0.2.661903 brings only the abstractions.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
 
   <!--

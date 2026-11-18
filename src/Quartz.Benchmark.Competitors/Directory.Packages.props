@@ -10,10 +10,10 @@
     central transitive pinning holds them at the floor, so restore refuses the graph with NU1109.
 
     A VersionOverride in the csproj would answer that for this project and break every measured run
-    instead: BenchmarkDotNet generates a project per job beside the built exe, copies the package
-    references into it and builds it, and the generated project gets the centrally defined version
+    instead: BenchmarkDotNet generates a project per job under this project's .bdn/ folder, copies the
+    package references into it and builds it, and the generated project gets the centrally defined version
     while this one asks for the override — a downgrade either way round. The generated project sits
-    under bin/, so a file here is what reaches both. That is the failure #3816 found on
+    under this folder, so a file here is what reaches both. That is the failure #3816 found on
     Quartz.Benchmark, where every out-of-process case came back NA.
 
     Raising the floors is not on the table: a floor is a demand every consumer of every shipped package

@@ -8,15 +8,21 @@ The BenchmarkDotNet suites for Quartz.NET. Nothing here ships — the project se
 One suite, measured properly:
 
 ```shell
-dotnet run -c Release --project src/Quartz.Benchmark -- --filter "*CronExpressionBenchmark*"
+dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter "*CronExpressionBenchmark*"
 ```
+
+The project targets `net10.0` and `net11.0`, one for each of Quartz's assets, so `dotnet run` needs `-f`.
+`-f net11.0` measures the `net11.0` asset, which is compiled with runtime async.
 
 Everything, executed once with nothing measured — the liveness check that the `BenchmarkSmoke` build
 target runs on every pull request, and what to run by hand after touching a benchmark:
 
 ```shell
-dotnet run -c Release --project src/Quartz.Benchmark -- --smoke
+dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --smoke
 ```
+
+`BenchmarkSmoke` runs it on `net10.0`; `-f net11.0` runs it against Quartz's runtime-async asset. Under
+BenchmarkDotNet 0.16 a pass takes about 100 seconds where 0.15.8 took 20.
 
 `--smoke` is a whole run rather than a modifier, so it takes no other arguments. It covers every
 benchmark in the assembly except the two categories in `BenchmarkCategories`: `RequiresDatabase`,
@@ -29,24 +35,36 @@ would prove nothing.
 
 ### Comparing runtimes and Quartz assets
 
-`Quartz` ships a `net10.0` asset and a `net11.0` one compiled with runtime async, and this project is
-`net10.0`. `-p:BenchmarkRuntime=11` builds it for `net11.0`, which loads the `net11.0` asset. Adding
-`-p:Features=` compiles that asset without runtime async; `-p:UseRuntimeAsync=false` does not, because
-`Quartz.csproj` sets `Features` itself. A `net10.0` build run with `DOTNET_ROLL_FORWARD=LatestMajor` is the
-`net10.0` asset on .NET 11. Copy each
-build's `bin/Release/<framework>/` folder somewhere of its own, because the next build overwrites it.
-Then check what each copy loads with `--runtime-info`:
+`--runtime-comparison`, before BenchmarkDotNet's own arguments, runs each selected row under five jobs. Each
+job is built and run in a process of its own, and job A is the baseline the Ratio column reads against:
+
+| Job | Build | Runtime |
+|---|---|---|
+| `A_net10` | `net10.0` | .NET 10 |
+| `B_net10_on_11` | `net10.0`, `DOTNET_ROLL_FORWARD=LatestMajor` | .NET 11 |
+| `C_net11_state_machines` | `net11.0`, `/p:Features=` and an artifacts folder of its own | .NET 11 |
+| `D_net11` | `net11.0`, as shipped: runtime async | .NET 11 |
+| `E_net11_spin_rule_off` | D, with `DOTNET_ThreadPool_SpuriousDispatchNoSpinThreshold=0` | .NET 11 |
 
 ```shell
-dotnet build -c Release src/Quartz.Benchmark/Quartz.Benchmark.csproj -p:BenchmarkRuntime=11
-src/Quartz.Benchmark/bin/Release/net11.0/Quartz.Benchmark.exe --runtime-info
+dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --runtime-comparison --filter "*FireThroughputBenchmark.Fire(MaxConcurrency: 10, JobCount: 100*"
 ```
 
-BenchmarkDotNet's own process per case can't be one of these legs. It is built from this project's
-source, for the framework of the runtime it detects. `QUARTZ_BENCHMARK_IN_PROCESS=true` runs every job in
-the process that was started, including a job a benchmark declares with `[SimpleJob]`, so the
-measurement is of that process's runtime and `Quartz.dll`. `--inProcess` alone adds a job of its own and
-leaves an attribute's job out of process.
+Each row runs every job before the next row starts, in the order above.
+- **Order:** `--runtime-comparison-reversed` runs the jobs in the opposite order, for a second round.
+- **A check that measures nothing:** `--job dry` builds every job on BenchmarkDotNet's dry job and runs each once. Under
+  `--runtime-comparison`, `--job` sets the base of the five jobs rather than adding a sixth.
+- **Builds:** BenchmarkDotNet 0.16 builds each set of jobs that builds alike with an `ArtifactsPath` of its own
+  under `src/Quartz.Benchmark/.bdn/`, so C's state-machine `Quartz.dll` and D's are compiled into different folders.
+  MSBuild does not rebuild a project because a global property changed, so a shared folder could have handed one
+  job the other's.
+- **Leg C's switch:** `-p:UseRuntimeAsync=false` would not build it, because `Quartz.csproj` sets `Features`
+  itself.
+
+The fire-throughput benchmarks print what their own process loaded from `[GlobalSetup]`. That `Measured process`
+line, under each job in the log, is the proof of a row, and a job's name is not. It gives the runtime, the
+`Quartz.dll` asset, whether its async methods are runtime async, and the roll-forward and spin-rule settings.
+`--runtime-info` prints the same for a build run by hand.
 
 ### Round-trip latency
 
@@ -57,7 +75,7 @@ around the driver, so that the real-database benchmarks rank round trips the way
 network would:
 
 ```shell
-QUARTZ_BENCHMARK_ROUND_TRIP_MS=2 dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
+QUARTZ_BENCHMARK_ROUND_TRIP_MS=2 dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
 ```
 
 It is a model: `Task.Delay` on the client, with a floor of about a millisecond on Windows, and no
@@ -88,13 +106,13 @@ when it ends, so a capture can be checked against the rate the benchmark reports
 to have measured the same thing. Nothing in CI runs any of them.
 
 Build Release and profile the built exe rather than `dotnet run`, which would put MSBuild in the
-trace. This project sets `UseArtifactsOutput` to `false`, so the exe is where it has always been:
+trace. The exe is in the repository's artifacts layout, one folder per framework:
 
 ```shell
 dotnet build -c Release src/Quartz.Benchmark/Quartz.Benchmark.csproj
 
 # ultra (xoofx/ultra), from an elevated shell — ETW needs it
-ultra profile -o fire --delay 3 -- src/Quartz.Benchmark/bin/Release/net10.0/Quartz.Benchmark.exe --profile-fire
+ultra profile -o fire --delay 3 -- artifacts/bin/Quartz.Benchmark/release_net10.0/Quartz.Benchmark.exe --profile-fire
 ```
 
 `--delay 3` skips the startup and the first JIT, which for `--profile-fire` also skips the scheduler
@@ -108,12 +126,12 @@ other:
 ```shell
 # where the time goes
 dotnet-trace collect --providers "Microsoft-DotNETCore-SampleProfiler:::SampleProfilerIntervalInMs=1" \
-  -o fire-cpu.nettrace -- src/Quartz.Benchmark/bin/Release/net10.0/Quartz.Benchmark.exe --profile-fire
+  -o fire-cpu.nettrace -- artifacts/bin/Quartz.Benchmark/release_net10.0/Quartz.Benchmark.exe --profile-fire
 dotnet-trace convert fire-cpu.nettrace --format speedscope
 
 # what it allocates, by type
 dotnet-trace collect --profile gc-verbose \
-  -o fire-gc.nettrace -- src/Quartz.Benchmark/bin/Release/net10.0/Quartz.Benchmark.exe --profile-fire
+  -o fire-gc.nettrace -- artifacts/bin/Quartz.Benchmark/release_net10.0/Quartz.Benchmark.exe --profile-fire
 ```
 
 The speedscope conversion keeps sample events and nothing else, so it is for the first capture only;
@@ -1869,17 +1887,17 @@ The benchmark arms this work added are the ones that show it, and none has a tim
 
 ```shell
 # the round with the most reads per trigger, against the plain one
-dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*FireThroughputPostgres*'
+dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter '*FireThroughputPostgres*'
 
 # the completion, with and without execution history, over loopback and over a modelled wire
-dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
-QUARTZ_BENCHMARK_ROUND_TRIP_MS=2 dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
+dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
+QUARTZ_BENCHMARK_ROUND_TRIP_MS=2 dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
 
 # statements per firing at the database
-dotnet run -c Release --project src/Quartz.Benchmark -- --one-off-census
+dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --one-off-census
 
 # the in-memory store at a hundred thousand live triggers, with and without history
-dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*FireThroughputScale*'
+dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter '*FireThroughputScale*'
 ```
 
 Each on `c782267ff` and on the change, alternating sittings, on a `postgres:15.1` container at its shipped
@@ -1922,16 +1940,16 @@ $env:QUARTZ_TEST_DATABASE = 'basic'
 dotnet test --project src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj --filter 'FullyQualifiedName~ClusteredOneOffDrainPostgresTest' --output Detailed
 
 # statements per firing at the database, the shipped rounds against 4.5's
-dotnet run -c Release --project src/Quartz.Benchmark -- --one-off-census
+dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --one-off-census
 $env:QUARTZ_BENCHMARK_LOCK_FREE_ROUNDS = 'false'
-dotnet run -c Release --project src/Quartz.Benchmark -- --one-off-census
+dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --one-off-census
 Remove-Item Env:QUARTZ_BENCHMARK_LOCK_FREE_ROUNDS
 
 # punctuality on the ADO store: a hundred schedules firing every second, then twenty (S4 on PostgreSQL), against the base
 dotnet run -c Release --project src/Quartz.Benchmark.Competitors -- --recurring-postgres
 
 # the single-node fire path, plain and [DisallowConcurrentExecution], against the base
-dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*FireThroughputPostgres*'
+dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter '*FireThroughputPostgres*'
 
 # the soaks, PostgreSQL and SQL Server, thirty minutes each, each on its own Testcontainers database
 $env:QUARTZ_SOAK_MINUTES = '30'
@@ -1972,8 +1990,11 @@ expectation is no movement outside noise: one node contends with nobody for the 
 ## Runtime async on .NET 11 (2026-11-17, AMD Ryzen 9 5950X)
 
 Taken for #4214, on the `Quartz` that #4353 ships: `net10.0`, and `net11.0` compiled with runtime async. Each
-leg is one process. `--runtime-info` checked which runtime and which `Quartz.dll` it loads; "Comparing
-runtimes and Quartz assets" above says how the legs are built.
+leg is one process, and `--runtime-info` checked which runtime and which `Quartz.dll` it loads. The legs were
+builds copied by hand and measured in process, with the `BenchmarkRuntime` property and the
+`QUARTZ_BENCHMARK_IN_PROCESS` switch below. Both are gone since the move to BenchmarkDotNet 0.16: the same legs
+are now `--runtime-comparison`'s jobs, out of process, and "BenchmarkDotNet 0.16, out of process (2026-11-18)"
+re-measures them.
 
 | Leg | Build | Runtime | `Quartz.dll` loaded |
 |---|---|---|---|

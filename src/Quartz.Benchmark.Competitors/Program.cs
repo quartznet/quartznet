@@ -117,7 +117,7 @@ internal static class Program
         ManualConfig config = ManualConfig.CreateEmpty()
             .AddLogger(ConsoleLogger.Default)
             .AddColumnProvider(DefaultColumnProviders.Instance)
-            .AddJob(Job.Dry.WithToolchain(InProcessNoEmitToolchain.Instance).DontEnforcePowerPlan())
+            .AddJob(Job.Dry.WithToolchain(InProcessNoEmitToolchain.Default).DontEnforcePowerPlan())
             .AddFilter(new SimpleFilter(benchmark => !benchmark.Descriptor.Categories.Contains(RequiresDatabase, StringComparer.OrdinalIgnoreCase)))
             .WithOptions(ConfigOptions.DisableLogFile);
 

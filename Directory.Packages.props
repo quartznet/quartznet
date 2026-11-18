@@ -24,7 +24,8 @@
       and this is the second place in the file where central management cannot express what is meant.
       CentralPackageTransitivePinningEnabled turns a PackageVersion into a demand on every project that
       resolves the id at all, and two already resolve Microsoft.CodeAnalysis above 4.12.0 for reasons of
-      their own: BenchmarkDotNet 0.15.8 asks Quartz.Benchmark for >= 4.14.0, and JasperFx.RuntimeCompiler
+      their own: BenchmarkDotNet 0.16.0-preview.2 asks Quartz.Benchmark and Quartz.Benchmark.Competitors
+      for Microsoft.CodeAnalysis.CSharp >= 5.6.0, and JasperFx.RuntimeCompiler
       pulls Microsoft.CodeAnalysis 5.0.0 into Quartz.Examples.Wolverine, which pins
       Microsoft.CodeAnalysis.Common at exactly 5.0.0. A central row at 4.12.0 is NU1109 for the first and
       NU1107 for the second; a row high enough for both would raise the analyzer's compiler floor, which
@@ -40,7 +41,7 @@
     <PackageVersion Include="Aspire.Npgsql" Version="$(AspireVersion)" />
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="AwesomeAssertions.Analyzers" Version="9.0.8" />
-    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.16.0-preview.2" />
     <PackageVersion Include="bunit" Version="2.15.2" />
     <PackageVersion Include="coverlet.MTP" Version="10.1.0" />
     <PackageVersion Include="FakeItEasy" Version="9.0.1" />

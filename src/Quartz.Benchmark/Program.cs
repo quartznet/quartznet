@@ -9,7 +9,6 @@ using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
-using BenchmarkDotNet.Toolchains.InProcess.Emit;
 using BenchmarkDotNet.Toolchains.InProcess.NoEmit;
 
 namespace Quartz.Benchmark;
@@ -104,16 +103,28 @@ internal static class Program
             return 0;
         }
 
+        // The runtime comparison is a modifier on a BenchmarkDotNet run, so it is taken off the arguments and
+        // the rest go to the switcher as they came.
+        bool reversed = args.Contains(RuntimeComparison.ReversedOption, StringComparer.OrdinalIgnoreCase);
+        bool comparison = reversed || args.Contains(RuntimeComparison.Option, StringComparer.OrdinalIgnoreCase);
+        List<string> benchmarkArguments =
+        [
+            .. args.Where(argument => !RuntimeComparison.Option.Equals(argument, StringComparison.OrdinalIgnoreCase)
+                                      && !RuntimeComparison.ReversedOption.Equals(argument, StringComparison.OrdinalIgnoreCase))
+        ];
+        Job comparisonBase = comparison ? RuntimeComparison.TakeBaseJob(benchmarkArguments) : Job.Default;
+
         // The filter is passed even in smoke mode, because a switcher given no selection at all asks the
         // console which benchmark to run, and CI has nobody to ask.
-        string[] switcherArguments = smoke ? ["--filter", "*"] : args;
+        string[] switcherArguments = smoke ? ["--filter", "*"] : [.. benchmarkArguments];
+        IConfig? config = smoke ? SmokeConfig() : comparison ? RuntimeComparison.Config(reversed, comparisonBase) : null;
 
         List<Summary> summaries;
         try
         {
             summaries =
             [
-                .. BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(switcherArguments, smoke ? SmokeConfig() : InProcessConfig())
+                .. BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(switcherArguments, config)
             ];
         }
         catch (Exception exception)
@@ -165,40 +176,10 @@ internal static class Program
         return ManualConfig.CreateEmpty()
             .AddLogger(ConsoleLogger.Default)
             .AddColumnProvider(DefaultColumnProviders.Instance)
-            .AddJob(Job.Dry.WithToolchain(InProcessNoEmitToolchain.Instance).DontEnforcePowerPlan())
+            .AddJob(Job.Dry.WithToolchain(InProcessNoEmitToolchain.Default).DontEnforcePowerPlan())
             .AddFilter(new SimpleFilter(benchmark => !benchmark.Descriptor.Categories.Any(
                 category => BenchmarkCategories.ExcludedFromSmokeRun.Contains(category, StringComparer.OrdinalIgnoreCase))))
             .WithOptions(ConfigOptions.DisableLogFile);
-    }
-
-    /// <summary>
-    /// <c>QUARTZ_BENCHMARK_IN_PROCESS=true</c> runs every job in this process, a job a benchmark declares
-    /// with an attribute included, so that what is measured is the runtime and the <c>Quartz.dll</c> this
-    /// process loaded (#4214).
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// BenchmarkDotNet's own process per case is built from <c>Quartz.Benchmark.csproj</c> and the source
-    /// beside it, for the framework of the runtime it detects. That cannot be one leg of a comparison
-    /// between Quartz's two assets on one runtime, or between one asset on two runtimes. A build of this
-    /// project, run as it is, can: <c>RuntimeInfo</c> says what it loads. <c>--inProcess</c> is not enough
-    /// on its own: it adds a job of its own rather than changing the jobs the attributes declare, so
-    /// <see cref="FireThroughputPostgresBenchmark" />'s <c>[SimpleJob]</c> would still be built and run in a
-    /// process of its own. The toolchain is applied as a mutator instead, which BenchmarkDotNet merges into
-    /// every job.
-    /// </para>
-    /// <para>
-    /// Unset, or anything else, is BenchmarkDotNet's default, a process per case.
-    /// </para>
-    /// </remarks>
-    private static IConfig? InProcessConfig()
-    {
-        if (!string.Equals(Environment.GetEnvironmentVariable("QUARTZ_BENCHMARK_IN_PROCESS"), "true", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return DefaultConfig.Instance.AddJob(Job.Default.WithToolchain(InProcessEmitToolchain.Instance).AsMutator());
     }
 
     /// <summary>
@@ -257,6 +238,11 @@ internal static class Program
             Console.WriteLine($"  {option,-18}  {description}");
         }
 
+        Console.WriteLine();
+        Console.WriteLine("Modifiers on a BenchmarkDotNet run, given before its own arguments:");
+        Console.WriteLine();
+        Console.WriteLine($"  {RuntimeComparison.Option}            Runs each selected row under five jobs, each in a process of its own: net10.0 on .NET 10 (the baseline), net10.0 rolled forward to .NET 11, net11.0 without runtime async, net11.0, and net11.0 with the thread-pool spin rule off.");
+        Console.WriteLine($"  {RuntimeComparison.ReversedOption}   The same jobs in the opposite order.");
         Console.WriteLine();
     }
 

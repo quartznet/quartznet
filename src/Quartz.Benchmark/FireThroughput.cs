@@ -217,6 +217,11 @@ internal static class FireThroughput
     /// one trigger of each and a firing holds the job's other triggers <c>BLOCKED</c> until it ends. On
     /// a persistent store that is the round with the most reads per trigger, which #4066 is about.
     /// </param>
+    /// <param name="suspend">
+    /// Whether the jobs are <see cref="YieldJob" />, which suspends once on <see cref="Task.Yield" /> before it
+    /// counts, so that every firing's chain from <c>JobRunShell</c> down to the job is resumed rather than run
+    /// through. Ignored when <paramref name="nonConcurrent" /> is set.
+    /// </param>
     /// <param name="executionHistory">
     /// Whether every firing is recorded through <c>AddQuartzExecutionHistory()</c>: on the in-memory
     /// store into <c>InMemoryExecutionHistoryStore</c>, on a persistent one into whatever
@@ -230,7 +235,8 @@ internal static class FireThroughput
         FireBatching? batching = null,
         int triggerCount = DefaultTriggerCount,
         bool nonConcurrent = false,
-        bool executionHistory = false)
+        bool executionHistory = false,
+        bool suspend = false)
     {
         QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(quartz =>
         {
@@ -263,7 +269,9 @@ internal static class FireThroughput
             string jobName = "job-" + i.ToString(CultureInfo.InvariantCulture);
             IJobDetail job = nonConcurrent
                 ? JobBuilder.Create<SerialNoOpJob>().WithIdentity(jobName, Group).Build()
-                : JobBuilder.Create<NoOpJob>().WithIdentity(jobName, Group).Build();
+                : suspend
+                    ? JobBuilder.Create<YieldJob>().WithIdentity(jobName, Group).Build()
+                    : JobBuilder.Create<NoOpJob>().WithIdentity(jobName, Group).Build();
 
             int triggersForThisJob = triggerCount / jobCount;
             ITrigger[] triggers = new ITrigger[triggersForThisJob];
@@ -328,6 +336,27 @@ internal static class FireThroughput
         {
             Fired();
             return default;
+        }
+    }
+
+    /// <summary>
+    /// A job that suspends once and then counts: <see cref="Task.Yield" /> always completes asynchronously, so its
+    /// continuation goes through the thread pool and every async method between <c>JobRunShell</c> and the job is
+    /// suspended and resumed, where <see cref="NoOpJob" /> lets them all complete synchronously.
+    /// </summary>
+    /// <remarks>
+    /// The job itself is a compiler state machine on every leg, as an application's job is unless the application
+    /// turns runtime async on: this project does not, so what runtime async changes here is Quartz's side of the
+    /// chain. Jint measured a host call that really suspends allocating 300-400 bytes more with runtime async
+    /// (sebastienros/jint#4373); this is the same question asked of Quartz's fire path (#4214).
+    /// </remarks>
+    public sealed class YieldJob : IJob
+    {
+        /// <summary>Yields to the thread pool once, then counts the firing.</summary>
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            Fired();
         }
     }
 
