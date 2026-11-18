@@ -102,7 +102,7 @@ deduplicates per occurrence can derive a stable key. From 4.8.
 * Two backfills of one slot share `OccurrenceUtc` and `context.Trigger.Key`: a backfill names its trigger
   after the slot. `ScheduledFireTimeUtc`, when each backfill started its firing, tells them apart, and is
   the same on that backfill's retries.
-* A recovery of a retry or a catch-up serves the time that attempt was due, with `RetryAttempt` `0`
+* A recovery of a retry or a catch-up serves the occurrence, with `RetryAttempt` the attempt that firing was
   ([#4272](https://github.com/quartznet/quartznet/issues/4272)).
 * Quartz formats no key. The format is yours:
 

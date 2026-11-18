@@ -109,18 +109,18 @@ public sealed class FiringOccurrenceRecoverySqliteTest
     }
 
     /// <summary>
-    /// The gap, pinned as it is today: when the firing a recovery runs again was itself a retry or a misfire
-    /// catch-up, the recovery serves the time that attempt was due rather than the occurrence, and starts its
-    /// attempts again from <c>0</c>.
+    /// The gap #4272 closed: when the firing a recovery runs again was itself a retry or a misfire
+    /// catch-up, the recovery serves the occurrence, and keeps the attempt that firing was, rather than
+    /// the time that attempt was due with its attempts started again from <c>0</c>.
     /// </summary>
     /// <remarks>
-    /// The fired-trigger row's <c>SCHED_TIME</c> is the trigger's next fire time when it fired: a retry's
-    /// instant, or the time a misfire instruction moved a catch-up to. That is all a recovery trigger is built
-    /// from. Fixing it needs the occurrence carried on the row or in the recovery trigger's markers.
+    /// The fired-trigger row's <c>SCHED_TIME</c> is the occurrence the firing serves, and the recovery
+    /// trigger restores the attempt its trigger's row still counts, so the replay is the same firing
+    /// again on the cluster path this test drives.
     /// </remarks>
     [TestCase(false)]
     [TestCase(true)]
-    public async Task ARecoveredRetryOrCatchUpServesTheTimeThatAttemptWasDue(bool catchUp)
+    public async Task ARecoveredRetryOrCatchUpServesItsOccurrence(bool catchUp)
     {
         FakeTimeProvider clock = new(due);
         await using ServiceProvider dead = BuildNode("node-a", clock);
@@ -136,13 +136,11 @@ public sealed class FiringOccurrenceRecoverySqliteTest
             .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever().WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow))
             .Build());
 
-        DateTimeOffset attemptDue;
         if (catchUp)
         {
             // Ten minutes late: the misfire pass moves the trigger to now, and the catch-up fires then.
             clock.Advance(TimeSpan.FromMinutes(10));
             await deadStore.RecoverMisfires(Guid.NewGuid());
-            attemptDue = clock.GetUtcNow();
         }
         else
         {
@@ -154,7 +152,6 @@ public sealed class FiringOccurrenceRecoverySqliteTest
             await deadStore.TriggeredJobComplete(first.Trigger, first.JobDetail, instruction);
 
             clock.Advance(TimeSpan.FromMinutes(5));
-            attemptDue = clock.GetUtcNow();
         }
 
         FiringOccurrence original = OccurrenceOf(deadScheduler, await Fire(deadStore, clock));
@@ -169,8 +166,8 @@ public sealed class FiringOccurrenceRecoverySqliteTest
         (await store.CheckIn(Guid.NewGuid())).Should().BeTrue("the premise: the check-in recovers the dead node's attempt");
 
         FiringOccurrence recovered = OccurrenceOf(scheduler, await Fire(store, clock));
-        recovered.Should().Be(new FiringOccurrence(attemptDue, FiringOrigin.Schedule) { Recovering = true },
-            "today a recovery serves the time the attempt it runs again was due, which for a retry or a catch-up is not the occurrence");
+        recovered.Should().Be(new FiringOccurrence(due, FiringOrigin.Schedule) { RetryAttempt = catchUp ? 0 : 1, Recovering = true },
+            "a recovery runs that firing again: the same occurrence, for the same reason");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

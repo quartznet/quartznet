@@ -136,11 +136,13 @@ public class SelectColumnListTest
             projected,
             (del, conn) => del.SelectFiredTriggerRecords(conn, new FiredTriggerQuery()).AsTask());
 
+        // Two readers trail the row: the job data map, and the original trigger the attempt is read
+        // from (#4272).
         List<IOperableTrigger> recoveryTriggers = await Issue(
             StdAdoConstants.SqlSelectInstancesRecoverableFiredTriggers,
             projected,
             (del, conn) => del.SelectTriggersForRecoveringJobs(conn).AsTask(),
-            trailingReaders: 1);
+            trailingReaders: 2);
 
         records.Should().ContainSingle().Which.ExecutionGroup.Should().Be(expected,
             "cluster recovery and the shutdown hand-back build their recovery trigger from this record");
