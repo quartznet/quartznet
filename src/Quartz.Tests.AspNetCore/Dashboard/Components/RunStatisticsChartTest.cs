@@ -358,7 +358,7 @@ public class RunStatisticsChartTest
         markup.IndexOf("data-testid=\"history-page-summary\"", StringComparison.Ordinal).Should()
             .BeGreaterThan(markup.IndexOf("data-testid=\"run-statistics\"", StringComparison.Ordinal), "the chart counts the window, not the rows")
             .And.BeLessThan(markup.IndexOf("qz-history-table", StringComparison.Ordinal), "the line counts the table under it");
-        page.Find("[data-testid=history-page-summary]").TextContent.Should().Be("Page 1 / 1 · Showing 1 row(s) · Total 1 row(s)");
+        page.Find("[data-testid=history-page-summary]").TextContent.Should().Be("Showing 1 row(s) · Total 1 row(s)");
     }
 
     [Test]

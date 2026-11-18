@@ -183,7 +183,7 @@ public class HistoryPageTest
 
         IRenderedComponent<History> page = context.Render<History>();
 
-        page.Markup.Should().Contain("Page 2 / 2",
+        page.Find(".qz-pagination-info").TextContent.Should().Be("Page 2 of 2",
             "asking for page 99 of 2 means the last one, which is what a job or trigger listing does too");
         A.CallTo(() => context.Api.QueryExecutions(
                 A<DashboardHistoryQuery>.That.Matches(query => query.Skip == 25),
@@ -463,7 +463,7 @@ public class HistoryPageTest
                 builder.OpenComponent<History>(0);
                 builder.CloseComponent();
             }));
-        layout.WaitForAssertion(() => layout.Find("[data-testid=history-page-summary]").TextContent.Should().StartWith("Page 3 / 3"));
+        layout.WaitForAssertion(() => layout.Find(".qz-pagination-info").TextContent.Should().Be("Page 3 of 3"));
         int reads = HistoryReads();
 
         // Named by its IANA id, which every runner resolves: Windows maps it, and Linux and macOS read it from
@@ -474,7 +474,7 @@ public class HistoryPageTest
         {
             layout.Find(".qz-history-fired").TextContent.Should().Contain("16:08:09 +09:00",
                 "the run fired at 07:08:09 UTC, and the row is drawn again in the zone chosen");
-            layout.Find("[data-testid=history-page-summary]").TextContent.Should().StartWith("Page 3 / 3",
+            layout.Find(".qz-pagination-info").TextContent.Should().Be("Page 3 of 3",
                 "only the formatting changed, so the reader stays on the page they were reading");
         });
         HistoryReads().Should().Be(reads, "nothing about the scheduler changed, so nothing is read again");
