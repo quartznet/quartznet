@@ -415,6 +415,22 @@ public partial class StdAdoDelegate
             }
 
             trigger.JobDataMap = jd;
+
+            // A replay stands in for the firing the row records, so its previous fire time is that
+            // firing's occurrence, which a retry's fire leaves unset on a fresh trigger — without it the
+            // replay would report when it fired instead of the occurrence it stands in for (#4272).
+            // And the firing may itself have been a retry: the original trigger's row still counts it,
+            // since nothing completed it, so the replay counts it too. A trigger gone since leaves the
+            // count at zero.
+            if (trigger is TriggerBase recoverable)
+            {
+                recoverable.PreviousFireTimeUtc = dataHolder.ScheduleTimestamp;
+
+                if (await SelectTrigger(conn, key, cancellationToken).ConfigureAwait(false) is { } original)
+                {
+                    recoverable.RetryAttempt = original.RetryAttempt;
+                }
+            }
         }
 
         return triggers;

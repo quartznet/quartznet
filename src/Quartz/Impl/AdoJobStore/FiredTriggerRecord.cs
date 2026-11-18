@@ -70,7 +70,10 @@ public sealed record FiredTriggerRecord
     public DateTimeOffset FireTimestamp { get; init; }
 
     /// <summary>
-    /// The time the trigger was scheduled to fire at.
+    /// The occurrence the firing serves, once the row is executing: the time the trigger was scheduled
+    /// to fire at — for a retry or a misfire catch-up, the occurrence rather than the time that attempt
+    /// was due (#4272). While the row is still acquired, the time the trigger was reserved for, which
+    /// for a retry or a catch-up is the attempt's due time; the fire rewrites it to the occurrence.
     /// </summary>
     public DateTimeOffset ScheduleTimestamp { get; init; }
 
