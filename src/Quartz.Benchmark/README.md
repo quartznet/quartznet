@@ -2148,8 +2148,8 @@ are given with the range across rounds. ns per firing:
 | | E | | 2,163 (2,151-2,175) | 1,560 | 3.28 KB |
 
 **What the 11-17 numbers keep.** .NET 11 is slower than .NET 10 on the batch-of-one row with or without runtime
-async, C and D are the same there, and with the spin rule off .NET 11 is faster than .NET 10 on every row:
-0.78, 0.85 and 0.88 of A with OSR on.
+async. C and D are within 3 % of each other there: equal with OSR on, and D 3 % slower with it off. With the spin
+rule off, .NET 11 is faster than .NET 10 on every row: 0.78, 0.85 and 0.88 of A with OSR on.
 
 **What they lose.**
 - **The size of the gap.** B against A is +10-13 % on the batch-of-one row, where 11-17 had +41 %.
