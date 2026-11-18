@@ -83,7 +83,8 @@
     }
 
     /// <summary>
-    /// The current page, kept inside the range, so a page past the end still draws a window of pages to go back to.
+    /// The current page, kept inside the range. A page past the end, left behind when the listing shrank, reads
+    /// as the last page: the info text, the highlight and Prev all start from there.
     /// </summary>
     private int ShownPage => Math.Clamp(CurrentPage, 1, TotalPages);
 

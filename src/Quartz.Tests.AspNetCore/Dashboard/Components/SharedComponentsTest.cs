@@ -144,10 +144,20 @@ public class SharedComponentsTest
     [Test]
     public void ThePagerKeepsAWindowOfPagesWhenTheCurrentOneIsPastTheEnd()
     {
-        IRenderedComponent<Pagination> pager = RenderPager(totalPages: 23, currentPage: 30);
+        List<int> requested = [];
+        IRenderedComponent<Pagination> pager = context.Render<Pagination>(parameters => parameters
+            .Add(x => x.TotalItems, 23 * 25)
+            .Add(x => x.PageSize, 25)
+            .Add(x => x.CurrentPage, 30)
+            .Add(x => x.OnPageChanged, EventCallback.Factory.Create<int>(this, requested.Add)));
 
         pager.TextOfAll(".qz-pagination-controls button").Should().Equal(["Prev", "1", "19", "20", "21", "22", "23", "Next"],
             "a listing that shrank under the reader still needs a way back to the pages that are left");
+        pager.Find(".qz-pagination-info").TextContent.Should().Be("Page 23 of 23", "there is no page 30 of 23 to be on");
+        pager.Find("[aria-current=page]").TextContent.Trim().Should().Be("23");
+
+        pager.FindAll("button").First(button => button.TextContent.Trim() == "Prev").Click();
+        requested.Should().Equal([22], "Prev steps back from the last page there is, not from one past it");
     }
 
     [Test]
