@@ -4,10 +4,13 @@
 
   <PropertyGroup>
     <!--
-      Same as Quartz.Benchmark: BenchmarkDotNet generates a project per job beside the built exe and
-      builds it, which the repository-wide artifacts layout puts somewhere it cannot find.
+      The repository's artifacts folder. The SDK roots the layout beside the nearest Directory.Build.props,
+      which is this one, so without this the output would land in this project's own artifacts folder.
+      Quartz.Benchmark says why the benchmark projects build into the layout at all: BenchmarkDotNet 0.16
+      gives each job's build an ArtifactsPath of its own, and output outside the layout is locked by the
+      process that started the run.
     -->
-    <UseArtifactsOutput>false</UseArtifactsOutput>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)..\..\artifacts</ArtifactsPath>
 
     <!--
       TickerQ and Hangfire.PostgreSql ship unsigned assemblies, and a strong-named assembly referencing

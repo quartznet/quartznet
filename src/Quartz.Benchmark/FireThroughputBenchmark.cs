@@ -70,6 +70,8 @@ public class FireThroughputBenchmark
     [GlobalSetup]
     public async Task Setup()
     {
+        Console.WriteLine(RuntimeInfo.Describe());
+
         scheduler = await FireThroughput.StartScheduler(
             instanceName: "RamThroughputBenchmark",
             maxConcurrency: MaxConcurrency,

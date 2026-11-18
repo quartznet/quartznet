@@ -32,7 +32,7 @@ namespace Quartz.Benchmark;
 ///
 /// QUARTZ_BENCHMARK_POSTGRES='Host=localhost;Port=55432;Database=quartznet;Username=quartznet;Password=quartznet'
 ///
-/// dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
+/// dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter '*OneOffThroughput*'
 /// </code>
 /// <para>
 /// <c>--one-off-census</c> is the same workload with the statements counted at the database instead

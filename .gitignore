@@ -98,6 +98,8 @@ docs/.vuepress/.temp
 
 /node_modules
 BenchmarkDotNet.Artifacts
+# BenchmarkDotNet 0.16 generates and builds a project per job under the benchmark project's own .bdn folder.
+.bdn/
 
 *.received.*
 

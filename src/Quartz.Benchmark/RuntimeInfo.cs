@@ -15,8 +15,8 @@ namespace Quartz.Benchmark;
 /// <remarks>
 /// <para>
 /// Quartz ships <c>net10.0</c> and <c>net11.0</c>, and only <c>net11.0</c> is compiled with
-/// <c>runtime-async=on</c>. This project built as usual loads the <c>net10.0</c> asset, on .NET 10 or
-/// rolled forward to .NET 11; built with <c>-p:BenchmarkRuntime=11</c> it loads the <c>net11.0</c> one.
+/// <c>runtime-async=on</c>. This project's <c>net10.0</c> build loads the <c>net10.0</c> asset, on .NET 10 or
+/// rolled forward to .NET 11, and its <c>net11.0</c> build loads the <c>net11.0</c> one.
 /// Nothing in a benchmark's output says which, so each leg of a comparison between them is checked with
 /// this run first, from the same build and under the same environment as its measured runs.
 /// </para>
@@ -87,6 +87,35 @@ internal static class RuntimeInfo
         }
 
         return (asyncFlagged, stateMachines);
+    }
+
+    /// <summary>
+    /// One line saying what this process measures: the runtime, the Quartz asset it loaded and how that asset's
+    /// fire path is compiled, and the environment the thread-pool and roll-forward settings come from.
+    /// </summary>
+    /// <remarks>
+    /// The fire-throughput benchmarks print it from <c>[GlobalSetup]</c>, which runs in the measured process, so
+    /// that a job of <see cref="RuntimeComparison" /> is proved from the inside rather than from its name.
+    /// </remarks>
+    public static string Describe()
+    {
+        Assembly quartz = typeof(JobRunShell).Assembly;
+        MethodInfo? run = typeof(JobRunShell).GetMethod(nameof(JobRunShell.Run), [typeof(CancellationToken)]);
+        bool runtimeAsync = run is not null && (run.MethodImplementationFlags & Async) == Async;
+        bool stateMachine = run?.GetCustomAttribute<AsyncStateMachineAttribute>() is not null;
+        string compiled = (runtimeAsync, stateMachine) switch
+        {
+            (true, false) => "runtime async",
+            (false, true) => "state machines",
+            _ => $"unclear (Async flag {runtimeAsync}, state machine {stateMachine})",
+        };
+
+        string? rollForward = Environment.GetEnvironmentVariable("DOTNET_ROLL_FORWARD");
+        string? spinThreshold = Environment.GetEnvironmentVariable("DOTNET_ThreadPool_SpuriousDispatchNoSpinThreshold");
+
+        return $"Measured process: .NET {Environment.Version}, Quartz {FrameworkOf(quartz)} asset with {compiled}, "
+               + $"DOTNET_ROLL_FORWARD={rollForward ?? "-"}, DOTNET_ThreadPool_SpuriousDispatchNoSpinThreshold={spinThreshold ?? "-"}, "
+               + $"{quartz.Location}";
     }
 
     /// <summary>The framework an assembly was built for, as <c>net11.0</c>.</summary>

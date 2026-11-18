@@ -9,7 +9,7 @@ namespace Quartz.Benchmark;
 /// <remarks>
 /// Excluded from the <c>BenchmarkSmoke</c> build target's dry run: one case is hundreds of thousands of
 /// job executions through a running scheduler, which is minutes even when it is asked for once. Run it
-/// by name — <c>dotnet run -c Release --project src/Quartz.Benchmark -- --filter *SchedulerBenchmark*</c>
+/// by name — <c>dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter *SchedulerBenchmark*</c>
 /// — and expect to wait.
 /// </remarks>
 [MemoryDiagnoser]

@@ -1,9 +1,0 @@
-<Project>
-
-  <Import Project="..\..\Directory.Build.props" />
-
-  <PropertyGroup>
-    <UseArtifactsOutput>false</UseArtifactsOutput>
-  </PropertyGroup>
-
-</Project>

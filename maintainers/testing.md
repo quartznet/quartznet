@@ -61,8 +61,10 @@ Per-file figures for a pull request: `https://sonarcloud.io/api/measures/compone
 
 ## Runs the unit suite does not cover
 
-- **`dotnet fallout BenchmarkSmoke`** runs every benchmark once. Run it when a change touches a type
-  `src/Quartz.Benchmark` uses: triggers, `TriggerHeader`, scheduler internals, serialization shapes.
+- **`dotnet fallout BenchmarkSmoke`** runs every benchmark once, on `net10.0`. Run it when a change touches a
+  type `src/Quartz.Benchmark` uses: triggers, `TriggerHeader`, scheduler internals, serialization shapes. By hand
+  it is `dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --smoke`. The project also targets
+  `net11.0`, for Quartz's runtime-async asset, so `dotnet run` needs `-f`, and `-f net11.0` smokes that build.
 - **`dotnet fallout PublishTrimmed PublishAot`** is where an `IL2xxx` or `IL3xxx` shows up; see
   [architecture.md](architecture.md), "Trimming and AOT".
 - **`dotnet fallout ContainerSmoke`** builds the dashboard host's image into a local Linux Docker engine, runs

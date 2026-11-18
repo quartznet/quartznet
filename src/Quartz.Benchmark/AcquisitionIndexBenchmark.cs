@@ -80,7 +80,7 @@ public enum AcquisitionIndexShape
 /// QUARTZ_BENCHMARK_SQLSERVER='Server=localhost,51433;User ID=sa;Password=Quartz!DockerP4ss;TrustServerCertificate=true'
 /// QUARTZ_BENCHMARK_MYSQL='Server=localhost;Port=53306;Database=quartznet;User ID=root;Password=quartznet'
 ///
-/// dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*AcquisitionIndex*'
+/// dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter '*AcquisitionIndex*'
 /// </code>
 /// <para>
 /// Setting <c>QUARTZ_BENCHMARK_EXPLAIN=1</c> makes each parameter set print three things before

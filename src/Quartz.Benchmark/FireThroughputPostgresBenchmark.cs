@@ -24,7 +24,7 @@ namespace Quartz.Benchmark;
 ///
 /// QUARTZ_BENCHMARK_POSTGRES='Host=localhost;Port=55432;Database=quartznet;Username=quartznet;Password=quartznet'
 ///
-/// dotnet run -c Release --project src/Quartz.Benchmark -- --filter '*FireThroughput*'
+/// dotnet run -c Release -f net10.0 --project src/Quartz.Benchmark -- --filter '*FireThroughput*'
 /// </code>
 /// <para>
 /// The schema comes from <c>database/tables/</c> and is applied on first use by
