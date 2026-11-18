@@ -74,8 +74,31 @@ internal static class RuntimeComparison
     }
 
     /// <summary>The configuration for the comparison, its jobs in the order they run.</summary>
+    /// <remarks>
+    /// <para>
+    /// Every job puts back the two JIT settings BenchmarkDotNet 0.16 changes in a process it starts, so that the
+    /// runtime tiers Quartz's code as it does in an application. For a job that is not <c>ColdStart</c>, 0.16 sets
+    /// <c>TC_CallCountingDelayMs=0</c>, and <c>TC_OnStackReplacement=0</c> unless the job is <c>Monitoring</c>
+    /// (dotnet/BenchmarkDotNet#3201). It leaves <c>TC_QuickJitForLoops</c> on. Turning OSR off shortens its own JIT
+    /// stage and leaves a benchmark method that is called again and again tiered as usual.
+    /// </para>
+    /// <para>
+    /// The code measured here is not called again and again. <c>QuartzSchedulerThread.Run</c> is entered once and
+    /// loops for the scheduler's life, and the thread pool's workers loop too: on-stack replacement is how an
+    /// application's runtime gets such methods to optimized code. With the defaults put back, the suspending row's
+    /// .NET 10 job went from about 2.5 to 1.8 µs a firing, and the no-op rows' moved by 5 % or less (README.md,
+    /// "BenchmarkDotNet 0.16, out of process"). A job sets a variable after BenchmarkDotNet's own, so these win.
+    /// The values are the runtime's defaults: OSR on, and a 100 ms delay.
+    /// </para>
+    /// </remarks>
     public static IConfig Config(bool reversed, Job baseJob)
     {
+        baseJob = baseJob
+            .WithEnvironmentVariable("DOTNET_TC_OnStackReplacement", "1")
+            .WithEnvironmentVariable("COMPlus_TC_OnStackReplacement", "1")
+            .WithEnvironmentVariable("DOTNET_TC_CallCountingDelayMs", "100")
+            .WithEnvironmentVariable("COMPlus_TC_CallCountingDelayMs", "100");
+
         Job a = baseJob.WithRuntime(CoreRuntime.Core10_0).WithId("A_net10").AsBaseline();
         Job b = baseJob.WithRuntime(CoreRuntime.Core10_0)
             .WithEnvironmentVariable("DOTNET_ROLL_FORWARD", "LatestMajor")

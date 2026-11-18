@@ -76,6 +76,17 @@ Pluggable serialization for job store persistence:
   with no compiler state machines. Runtime async is opt-in per assembly and needs `net11.0`. `Quartz` holds the
   whole fire path, so it is the one package that gains from it. The other packages stay `net10.0`, and a
   `net11.0` application runs them on `Quartz`'s `net11.0` asset, NuGet's nearest match.
+- **What runtime async costs and gains, and why it stays on** (#4214; measured 2026-11-17 and 2026-11-18,
+  kept on by the maintainer's decision of 2026-11-18). Against a state-machine build of the same source on
+  .NET 11, the `net11.0` asset fires a job that completes synchronously at the same speed, within the spread, and
+  with the same allocations. A job that suspends fires about 3 % faster and allocates about 450 B more per firing
+  (+15 %), because runtime async allocates more when a firing suspends. The assembly is about 20 % smaller, and a
+  job's `Execute` runs 11 frames deep instead of 17. It stays on because the time is what an application pays,
+  and the extra bytes are collected within the measured time. Revisit it when the runtime changes what a
+  suspension allocates, or when an 11.0.x defect in runtime async reaches Quartz. Turning it off means removing
+  the `Features` line from `Quartz.csproj` and turning `RuntimeAsyncTest`'s assertion round.
+  `-p:UseRuntimeAsync=false` doesn't do it, because the explicit `Features` wins. The numbers are in
+  `src/Quartz.Benchmark/README.md`.
 - **One source and one public API.** No call site has an `#if`. A call is written against the `net11.0` API,
   and what `net10.0` lacks is backfilled once as a C# 14 extension member: `JsonSerializerOptionsPolyfills`
   backfills `GetTypeInfo<T>()`, which CA2263 asks for on `net11.0`. `PublicApiTest_Quartz.verified.txt` holds
