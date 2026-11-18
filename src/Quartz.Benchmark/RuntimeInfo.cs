@@ -112,9 +112,12 @@ internal static class RuntimeInfo
 
         string? rollForward = Environment.GetEnvironmentVariable("DOTNET_ROLL_FORWARD");
         string? spinThreshold = Environment.GetEnvironmentVariable("DOTNET_ThreadPool_SpuriousDispatchNoSpinThreshold");
+        string? osr = Environment.GetEnvironmentVariable("DOTNET_TC_OnStackReplacement");
+        string? callCountingDelay = Environment.GetEnvironmentVariable("DOTNET_TC_CallCountingDelayMs");
 
         return $"Measured process: .NET {Environment.Version}, Quartz {FrameworkOf(quartz)} asset with {compiled}, "
                + $"DOTNET_ROLL_FORWARD={rollForward ?? "-"}, DOTNET_ThreadPool_SpuriousDispatchNoSpinThreshold={spinThreshold ?? "-"}, "
+               + $"DOTNET_TC_OnStackReplacement={osr ?? "-"}, DOTNET_TC_CallCountingDelayMs={callCountingDelay ?? "-"}, "
                + $"{quartz.Location}";
     }
 

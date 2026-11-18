@@ -42,7 +42,7 @@ job is built and run in a process of its own, and job A is the baseline the Rati
 |---|---|---|
 | `A_net10` | `net10.0` | .NET 10 |
 | `B_net10_on_11` | `net10.0`, `DOTNET_ROLL_FORWARD=LatestMajor` | .NET 11 |
-| `C_net11_state_machines` | `net11.0`, `/p:Features=` and an artifacts folder of its own | .NET 11 |
+| `C_net11_state_machines` | `net11.0`, `/p:Features=` | .NET 11 |
 | `D_net11` | `net11.0`, as shipped: runtime async | .NET 11 |
 | `E_net11_spin_rule_off` | D, with `DOTNET_ThreadPool_SpuriousDispatchNoSpinThreshold=0` | .NET 11 |
 
@@ -60,10 +60,14 @@ Each row runs every job before the next row starts, in the order above.
   job the other's.
 - **Leg C's switch:** `-p:UseRuntimeAsync=false` would not build it, because `Quartz.csproj` sets `Features`
   itself.
+- **JIT settings:** every job sets `TC_OnStackReplacement=1` and `TC_CallCountingDelayMs=100`, the runtime's
+  defaults. BenchmarkDotNet 0.16 turns both off in a process it starts, and Quartz's scheduler loop and the pool's
+  workers are long-running methods, which an application's runtime moves to optimized code by on-stack replacement.
 
 The fire-throughput benchmarks print what their own process loaded from `[GlobalSetup]`. That `Measured process`
 line, under each job in the log, is the proof of a row, and a job's name is not. It gives the runtime, the
-`Quartz.dll` asset, whether its async methods are runtime async, and the roll-forward and spin-rule settings.
+`Quartz.dll` asset, whether its async methods are runtime async, and the roll-forward, spin-rule, OSR and
+call-counting settings.
 `--runtime-info` prints the same for a build run by hand.
 
 ### Round-trip latency
@@ -2109,3 +2113,58 @@ in [the #4214 comment](https://github.com/quartznet/quartznet/issues/4214#issuec
 **The `AsyncLocal` write costs 148-169 bytes per firing on .NET 11, and 0-80 ns**, which is at or under the spread.
 .NET 11 skips restoring an `ExecutionContext` that has nothing to restore, but the write still allocates the
 new one, so neither the runtime nor runtime async makes it free.
+
+## BenchmarkDotNet 0.16, out of process (2026-11-18)
+
+The 2026-11-17 legs, re-measured as `--runtime-comparison`'s five jobs. Each job is built by BenchmarkDotNet
+0.16.0-preview.2 and runs in a process of its own, one per row. Each process printed its runtime, its `Quartz.dll`
+asset and how that asset is compiled, and the 30 rows of the first sitting and the 15 of the second all matched
+their job. The rows are `FireThroughputBenchmark` at `MaxConcurrency` 10 and a hundred jobs, and
+`SuspendingFireThroughputBenchmark`, whose job awaits `Task.Yield()` once, with a batch of one.
+
+**Method.** Windows 11 (10.0.26300.9974), AMD Ryzen 9 5950X, SDK 11.0.100, .NET 10.0.15 and 11.0.0, and
+BenchmarkDotNet's default job. No other session was running. The first sitting ran two rounds, A to E and then E
+to A, at BenchmarkDotNet 0.16's JIT settings: it sets `TC_OnStackReplacement=0` and `TC_CallCountingDelayMs=0` in a
+process it starts (dotnet/BenchmarkDotNet#3201), and leaves `TC_QuickJitForLoops` on. The second sitting ran one
+round, A to E, with the runtime's defaults put back: OSR on and a 100 ms delay, which the jobs now set. Medians
+are given with the range across rounds. ns per firing:
+
+| Row | Job | 11-17, in process | 0.16, OSR off | 0.16, OSR on | Bytes per firing |
+|---|---|---:|---:|---:|---:|
+| No-op, batch of one | A | 1,497 | 2,397 (2,390-2,404) | 2,506 | 2.19 KB |
+| | B | 2,108 | 2,720 (2,681-2,759) | 2,745 | 2.19 KB |
+| | C | 2,033 | 2,759 (2,722-2,796) | 2,740 | 2.19 KB |
+| | D | 2,068 | 2,834 (2,828-2,839) | 2,744 | 2.19 KB |
+| | E | | 2,093 (2,089-2,096) | 1,956 | 2.19 KB |
+| No-op, batch of the pool | A | 1,602 | 1,486 (1,485-1,487) | 1,543 | 1.87 KB |
+| | B | 2,024 | 1,563 (1,541-1,584) | 1,951 | 1.87-1.88 KB |
+| | C | 2,070 | 1,551 (1,474-1,628) | 1,565 | 1.87-1.88 KB |
+| | D | 2,061 | 1,575 (1,549-1,600) | 1,974 | 1.87-1.89 KB |
+| | E | | 1,709 (1,628-1,789) | 1,318 | 1.89-1.92 KB |
+| Suspending, batch of one | A | | 2,539 (2,499-2,578) | 1,775 | 2.85-2.86 KB |
+| | B | | 3,039 (2,990-3,087) | 2,476 | 2.82-2.83 KB |
+| | C | | 3,062 (3,051-3,072) | 2,516 | 2.82-2.83 KB |
+| | D | | 2,917 (2,901-2,932) | 2,437 | 3.26-3.28 KB |
+| | E | | 2,163 (2,151-2,175) | 1,560 | 3.28 KB |
+
+**What the 11-17 numbers keep.** .NET 11 is slower than .NET 10 on the batch-of-one row with or without runtime
+async, C and D are the same there, and with the spin rule off .NET 11 is faster than .NET 10 on every row:
+0.78, 0.85 and 0.88 of A with OSR on.
+
+**What they lose.**
+- **The size of the gap.** B against A is +10-13 % on the batch-of-one row, where 11-17 had +41 %.
+- **Leg A.** Its batch-of-one cost is 2.4-2.5 µs out of process, against 1,497 ns in process. Putting OSR back
+  does not account for it, and this section does not say what does.
+- **The pool row.** It is less stable on .NET 11 than the ranges suggest. In the OSR-on round, B and D read
+  about 1.95 µs and C 1.57 µs. B and C are both state machines on .NET 11, so the gap is not runtime async.
+
+**OSR matters for the suspending row.** Putting the runtime's defaults back took A from 2.5 to 1.8 µs a firing,
+and every other job's suspending row fell by 0.5-0.6 µs. The no-op rows' A moved by 5 % or less.
+
+**Runtime async on the suspending row, C against D.** D allocates about 450 bytes more per firing: 3.26-3.28 KB
+against 2.82-2.83 KB (+15 %), the same in all three rounds. It takes about 3 % less time with OSR on (2,437
+against 2,516 ns) and 5 % less with it off. On the no-op rows C and D allocate the same bytes. Jint measured
+300-400 bytes more per suspended call with runtime async, and keeps it off (sebastienros/jint#4373).
+
+Runtime async stays on in 4.8 by the maintainer's decision; the reasons are in `maintainers/architecture.md`,
+"Target frameworks".
