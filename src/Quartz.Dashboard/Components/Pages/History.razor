@@ -347,7 +347,6 @@
     private readonly int _pageSize = 25;
     private int _currentPageSize = 25;
     private int _totalCount;
-    private int _totalPages = 1;
     private int _pageSuccessCount;
     private int _pageFailureCount;
     private TimeSpan _pageAverageDuration;
@@ -542,7 +541,7 @@
     private bool PageSummaryAboveTable => _statistics is not null && _totalCount > 0;
 
     private RenderFragment PageSummary =>
-        @<p class="qz-muted" data-testid="history-page-summary">Page @_page / @_totalPages · Showing @_entries.Count row(s) · Total @_totalCount row(s)</p>;
+        @<p class="qz-muted" data-testid="history-page-summary">Showing @_entries.Count row(s) · Total @_totalCount row(s)</p>;
 
     private bool HasNodeFilter => !string.IsNullOrWhiteSpace(_appliedNodeFilter);
 
@@ -679,7 +678,6 @@
             ClearRows();
             _currentPageSize = _pageSize;
             _totalCount = totalCount;
-            _totalPages = totalPages;
             _entries.AddRange(page.Items);
             _misfiresUnavailable = false;
             _misfires.AddRange(misfires.Items);
@@ -733,7 +731,6 @@
         _entries.Clear();
         _misfires.Clear();
         _totalCount = 0;
-        _totalPages = 1;
         _pageSuccessCount = 0;
         _pageFailureCount = 0;
         _pageAverageDuration = TimeSpan.Zero;
