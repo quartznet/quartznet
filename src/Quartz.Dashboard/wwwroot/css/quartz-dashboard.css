@@ -461,8 +461,8 @@ body{
     border-bottom: 1px solid var(--qz-color-border);
 }
 
-/* Too narrow for one row, the right-hand controls wrap under the scheduler, and each control can shrink
-   to its select's floor: the header no longer sets the width of the page beneath it. */
+/* When the header is too narrow for one row, the right-hand controls wrap under the scheduler and each
+   control can shrink to its select's minimum width: the header no longer sets the width of the page. */
 .qz-header-left {
     display: flex;
     align-items: center;
@@ -510,8 +510,8 @@ body{
    6. MAIN CONTENT
    ========================================================================== */
 
-/* clip (not hidden) avoids a horizontal scroll container; min-height: 0 lets .qz-content scroll, and
-   min-width: 0 keeps the grid column at the viewport's width rather than its widest content's. */
+/* clip (not hidden) keeps .qz-main from scrolling sideways itself; min-height: 0 lets .qz-content scroll, and
+   min-width: 0 keeps the grid column at the viewport's width, so a page wider than it scrolls in .qz-content. */
 .qz-main {
     display: flex;
     flex-direction: column;
@@ -577,6 +577,7 @@ body{
 
 .qz-row > h2 {
     margin: 0;
+    overflow-wrap: anywhere;
 }
 
 .qz-grid {

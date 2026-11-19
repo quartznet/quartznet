@@ -304,13 +304,17 @@ public class SharedComponentsTest
         Rule(css, ".qz-header-left").Should().Contain("min-width: 0;");
         Rule(css, ".qz-header-right").Should().Contain("min-width: 0;");
         Rule(css, ".qz-header-control").Should().Contain("min-width: 0;",
-            "a picker shrinks to its select's floor rather than holding the header open");
+            "a picker shrinks to its select's minimum width rather than holding the header open");
+        Rule(css, ".qz-header-control-label").Should().Contain("white-space: nowrap;",
+            "a label keeps to one line and its select is what shrinks");
         Rule(css, ".qz-scheduler-selector").Should().Contain("flex-wrap: wrap;",
             "the scheduler's status moves under its picker");
         Rule(css, ".qz-main").Should().Contain("min-width: 0;",
             "the grid column is the viewport's width, not that of the widest thing in it");
         Rule(css, ".qz-section > h2").Should().Contain("overflow-wrap: anywhere;",
             "a long unbroken group name breaks rather than widening the page");
+        Rule(css, ".qz-row > h2").Should().Contain("overflow-wrap: anywhere;",
+            "the Jobs page's group heading shares a row with the group's state, and breaks the same way");
     }
 
     private static string Rule(string css, string selector)
