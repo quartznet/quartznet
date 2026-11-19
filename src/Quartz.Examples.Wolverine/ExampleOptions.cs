@@ -17,8 +17,10 @@ namespace Quartz.Examples.Wolverine;
 /// <param name="ExpiryCron">
 /// The expression part 7 registers with Wolverine's own scheduler. Cronos' grammar rather than
 /// Quartz's, and no faster than every second: <c>CronSchedule</c> refuses a quicker cadence at the
-/// registration call site. One faster than every five seconds runs on a timer agent rather than as a
-/// pre-scheduled message, because durable scheduled messages replay on a five-second poll.
+/// registration call site. A schedule whose shortest gap is under <c>opts.Schedules.TimerThreshold</c>,
+/// 15 minutes by default, runs on a timer agent rather than as a pre-scheduled message. One faster than
+/// every five seconds always does, whatever the threshold, because durable scheduled messages replay on
+/// a five-second poll.
 /// </param>
 /// <param name="PostgresConnectionString">
 /// Set from <c>QUARTZ_WOLVERINE_POSTGRES</c>. When it is absent — which is the case on every CI leg —
@@ -60,8 +62,9 @@ public sealed record ExampleOptions(
             // expression otherwise, which is what the page shows.
             ReconciliationCron: smoke ? "0/2 * * * * ?" : Part1RecurringPublishing.NightlyCron,
             ReminderDelay: smoke ? TimeSpan.FromSeconds(2) : TimeSpan.FromMinutes(30),
-            // Every two seconds, as part 1 fires. Since Wolverine 6.61 that is accepted, and it runs on
-            // a timer agent: anything under five seconds does.
+            // Every two seconds, as part 1 fires, which Wolverine accepts since 6.61. It runs on a timer
+            // agent, as the old "*/5" did under the default 15-minute TimerThreshold; one faster than
+            // every five seconds always does, whatever the threshold.
             ExpiryCron: smoke ? "*/2 * * * * *" : Part7WolverineSchedules.NightlyCron,
             PostgresConnectionString: Environment.GetEnvironmentVariable(PostgresVariable));
 
