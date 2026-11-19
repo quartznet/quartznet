@@ -103,6 +103,11 @@ updates:
       - dependency-name: "StackExchange.Redis"
       - dependency-name: "System.Security.Cryptography.Pkcs"
       - dependency-name: "TimeZoneConverter"
+      # Oracle.ManagedDataAccess.Core 23.26.401 needs System.Security.Cryptography.Pkcs 10.0.13, and
+      # Dependabot raises that row with it as a required dependency, past the 9.0.21 floor that already
+      # fixes both Pkcs advisories (#4366). Lift this when the Pkcs floor moves.
+      - dependency-name: "Oracle.ManagedDataAccess.Core"
+        versions: [">= 23.26.401"]
       # The Quartz.Weasel packages depend on Weasel by range, [9.39.0, 10.0.0): Weasel 10 is a new major
       # the packages have to be built and tested against first. A single requirement with no comma in it,
       # because the C# updater splits a requirement string on commas.
