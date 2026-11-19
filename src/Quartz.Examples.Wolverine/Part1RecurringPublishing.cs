@@ -65,16 +65,19 @@ public sealed class ReconciliationJob : IJob<ReconciliationWindow>
         DateTimeOffset to = occurrence.OccurrenceUtc;
 
         RunReconciliation message = new(to - input.Length, to);
-        await bus.PublishAsync(message, AsWolverineOccurrence(context, occurrence));
+        await bus.PublishAsync(message, WolverineOccurrence.For(ScheduleName, context, occurrence));
 
         logger.LogInformation("Published {Message} for the window ending {To:O}", nameof(RunReconciliation), to);
     }
+}
 
-    /// <summary>
-    /// What Wolverine stamps on an occurrence of its own schedules (<c>RecurringOccurrencePublisher</c>,
-    /// checked against Wolverine 6.64.2).
-    /// </summary>
-    private static DeliveryOptions AsWolverineOccurrence(IJobExecutionContext context, FiringOccurrence occurrence)
+/// <summary>
+/// What Wolverine stamps on an occurrence of its own schedules (<c>RecurringOccurrencePublisher</c>,
+/// checked against Wolverine 6.64.2), for a Quartz firing.
+/// </summary>
+public static class WolverineOccurrence
+{
+    public static DeliveryOptions For(string scheduleName, IJobExecutionContext context, FiringOccurrence occurrence)
     {
         // Wolverine internals, not an integration point it documents for other schedulers: re-check
         // the id's form and the two header names on every Wolverine update.
@@ -85,14 +88,14 @@ public sealed class ReconciliationJob : IJob<ReconciliationWindow>
             DeduplicationId = occurrence.Origin switch
             {
                 // RecurringMessage.DeduplicationIdFor's form: a republish collapses at consumption.
-                FiringOrigin.Schedule => $"{ScheduleName}:{at}",
+                FiringOrigin.Schedule => $"{scheduleName}:{at}",
 
                 // ManualDeduplicationIdFor's form: a run asked for by TriggerJob is a run of its own.
-                FiringOrigin.Manual => $"{ScheduleName}:manual:{at}",
+                FiringOrigin.Manual => $"{scheduleName}:manual:{at}",
 
                 // A form of its own. The scheduled form would collapse a backfill into the run it
                 // repeats; when each backfill started tells two backfills of one slot apart.
-                FiringOrigin.Backfill => $"{ScheduleName}:backfill:{at}:{context.ScheduledFireTimeUtc:O}",
+                FiringOrigin.Backfill => $"{scheduleName}:backfill:{at}:{context.ScheduledFireTimeUtc:O}",
 
                 _ => throw new UnreachableException()
             }
@@ -100,7 +103,7 @@ public sealed class ReconciliationJob : IJob<ReconciliationWindow>
 
         // wolverine.schedule.name on the handler's span and schedule.name on its metrics, and what
         // DeadLetterEnvelopeQuery.Header filters dead letters by.
-        options.Headers[RecurringMessage.HeaderKey] = ScheduleName;
+        options.Headers[RecurringMessage.HeaderKey] = scheduleName;
 
         // wolverine.schedule.occurrence on the handler's span.
         options.Headers[RecurringMessage.OccurrenceHeaderKey] = at;
