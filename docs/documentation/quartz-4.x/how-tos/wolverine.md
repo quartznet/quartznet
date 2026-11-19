@@ -8,8 +8,8 @@ title: 'Quartz.NET with Wolverine'
 Since 6.34.0 ([JasperFx/wolverine#4307](https://github.com/JasperFx/wolverine/pull/4307)),
 [Wolverine](https://wolverinefx.net) can publish a message on a cron expression with
 `opts.Schedules.ScheduleRecurring`, parsed by [Cronos](https://github.com/HangfireIO/Cronos). It is a cron
-on top of Wolverine's scheduled messages, deliberately not a scheduler. This page covers when to use it,
-when to use Quartz, and how to run both.
+on top of Wolverine's messaging, deliberately not a scheduler. This page covers when to use it, when to use
+Quartz, and how to run both.
 
 There is no integration package (no `WolverineFx.Quartz`, no `Quartz.Wolverine`); one was
 [planned for Wolverine 6](https://github.com/JasperFx/wolverine/issues/2715) but has not shipped. This is a
@@ -167,9 +167,9 @@ a schedule runs on one of two paths:
 * `UseTimer()` and `UseScheduledMessages()` force a path.
 * Each occurrence has a deterministic deduplication id, `{name}:{occurrenceUtc:O}`, so a re-publish after
   agent failover collapses at consumption. A manual run's is `{name}:manual:{requestedUtc:O}`.
-* With a relational message store, `wolverine_recurring_messages` records which schedule owns which pending
-  envelope; the agent checks it is still in the inbox, and a successor adopts it instead of publishing
-  again.
+* On the scheduled-message path with a relational message store, `wolverine_recurring_messages` records
+  which schedule owns which pending envelope; the agent checks it is still in the inbox, and a successor
+  adopts it instead of publishing again.
 * `IRecurringScheduleControl` pauses, resumes and queries a schedule, and `TriggerAsync` runs it once now.
 
 [Documented](https://wolverinefx.net/guide/messaging/recurring.html) limits:
