@@ -178,9 +178,10 @@
     wrote the reference, which is what makes lowering them worth the trouble.
 
     .github/dependabot.yml carries an ignore entry for each of these ids so no newer version, minor, patch
-    or major, is offered, and PackageDependencyTest fails a Microsoft.* floor that is not x.0.0 or the fixed
-    version of an advisory it records, so a bump that gets past both still has to argue with a unit test
-    that names this comment.
+    or major, is offered. PackageDependencyTest fails a Microsoft.* floor that is not x.0.0 or the fixed
+    version of an advisory it records, and any other floor that is not the version it records with its
+    reason. So a bump that gets past the ignores, as a required dependency of an allowed update can (#4366),
+    still has to argue with a unit test that names this comment.
   -->
   <ItemGroup Label="Dependency floors">
     <!--
