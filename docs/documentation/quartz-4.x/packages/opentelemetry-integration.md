@@ -62,8 +62,7 @@ The thirty-five store operations are those that change something or hand work to
 - **The scheduler loop's store calls are roots.** `AcquireNextTriggers`, `TriggersFired` and
   `TriggeredJobComplete` belong to no request, and the loop runs for the life of the process.
 
-The loop asks the store for triggers every few seconds, due or not, so an idle scheduler still exports a trace
-each round. From 4.8, to stop emitting a store span for a call made with no ambient `Activity`:
+To stop emitting a store span for a call made with no ambient `Activity`, from 4.8:
 
 <!-- snippet: sample_opentelemetry_root_store_operations -->
 ```csharp
@@ -71,9 +70,14 @@ services.AddQuartz(q => q.ConfigureScheduler(options => options.TraceRootStoreOp
 ```
 <!-- endSnippet -->
 
+- **Why:** the loop asks the store for triggers at least once per `IdleWaitTime`, due or not, so an idle scheduler
+  still exports a trace each round.
 - **Their children go with them.** The call is made current as an activity that is not sampled, so under a
   parent-based sampler, OpenTelemetry's default, the SqlClient or Npgsql spans beneath it are dropped too. With
-  nothing current they would each be a root, one trace per query.
+  nothing current they would each be a root, one trace per query. A sampler that is not parent-based, such as
+  `AlwaysOnSampler`, still exports them, under a parent that is never exported.
+- **The ADO.NET store's own loops are not store calls.** Its misfire check and, on a cluster, its check-in query
+  the database on their own, so their driver spans are still roots.
 - **The rule is the ambient activity, not the loop.** A store call made inside a request keeps its span in that
   request's trace. A call made outside any activity, at startup for example, loses its span as the loop's do.
 - **Metrics are unchanged.** `quartz.jobstore.operation.duration` and the acquisition instruments are recorded
