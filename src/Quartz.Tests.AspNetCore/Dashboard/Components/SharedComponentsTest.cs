@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 using AngleSharp.Dom;
 
 using Bunit;
@@ -285,6 +287,37 @@ public class SharedComponentsTest
 
         CountContentScrollResets().Should().Be(resetsBeforeQueryChange,
             "a query-only change is paging or a filter, and those keep the scroll offset");
+    }
+
+    /// <summary>
+    /// At a phone's width the header's controls wrap and shrink rather than widening the shell, the grid
+    /// column holding the page stays at the viewport's width, and a group name with no break in it breaks
+    /// anywhere in its heading (#4345). A browser measures this; the rules that make it so are pinned here.
+    /// </summary>
+    [Test]
+    public void TheHeaderAndTheGroupHeadingsGiveWayAtAPhonesWidth()
+    {
+        string css = File.ReadAllText(HistoryPageTest.DashboardStylesheet());
+
+        Rule(css, ".qz-header").Should().Contain("flex-wrap: wrap;",
+            "the time zone and theme pickers move under the scheduler when one row is too wide");
+        Rule(css, ".qz-header-left").Should().Contain("min-width: 0;");
+        Rule(css, ".qz-header-right").Should().Contain("min-width: 0;");
+        Rule(css, ".qz-header-control").Should().Contain("min-width: 0;",
+            "a picker shrinks to its select's floor rather than holding the header open");
+        Rule(css, ".qz-scheduler-selector").Should().Contain("flex-wrap: wrap;",
+            "the scheduler's status moves under its picker");
+        Rule(css, ".qz-main").Should().Contain("min-width: 0;",
+            "the grid column is the viewport's width, not that of the widest thing in it");
+        Rule(css, ".qz-section > h2").Should().Contain("overflow-wrap: anywhere;",
+            "a long unbroken group name breaks rather than widening the page");
+    }
+
+    private static string Rule(string css, string selector)
+    {
+        Match rule = Regex.Match(css, "(?m)^" + Regex.Escape(selector) + @" \{([^}]*)\}");
+        rule.Success.Should().BeTrue("the stylesheet defines " + selector);
+        return rule.Groups[1].Value;
     }
 
     private int CountContentScrollResets()
