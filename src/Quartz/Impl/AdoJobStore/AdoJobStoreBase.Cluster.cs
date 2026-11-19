@@ -1250,6 +1250,69 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
+    /// Deletes this node's own check-in row when it shuts down cleanly, so its peers do not report a
+    /// stopped node as failed (#4374).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only once the check-in loop has stopped and the node has left no fired-trigger row behind: by the
+    /// time the store shuts down, the scheduler thread has stopped and released its reservations, and the
+    /// thread pool's wait has run. A firing that outlived that wait — an unwaited shutdown, or a waited one
+    /// whose deadline expired — leaves its row in <c>QRTZ_FIRED_TRIGGERS</c>, and keeping the state row is
+    /// what lets a running peer's check-in find and recover that node on its ordinary timer rather than
+    /// waiting for the orphan scan, which runs only on a node's first check-in.
+    /// </para>
+    /// <para>
+    /// Under <see cref="SchedulerLock.StateAccess" /> so it does not race a peer's recovery, and in its own
+    /// transaction with ambient connections suppressed, as <see cref="CheckIn" /> runs. A database failure on
+    /// the way down is swallowed so the rest of the store's teardown still closes the provider and lock
+    /// handler; the row left behind then falls back to the ordinary stale-row recovery.
+    /// </para>
+    /// </remarks>
+    internal async ValueTask DeleteOwnSchedulerStateOnShutdown(CancellationToken cancellationToken = default)
+    {
+        if (!Clustered || firstCheckIn)
+        {
+            return;
+        }
+
+        using var suppression = AmbientConnection.Suppress();
+
+        try
+        {
+            await ExecuteInLocalTransactionLock(
+                SchedulerLock.StateAccess,
+                async conn =>
+                {
+                    List<FiredTriggerRecord> remaining = await Delegate.SelectFiredTriggerRecords(
+                        conn,
+                        new FiredTriggerQuery { InstanceId = InstanceId },
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (remaining.Count > 0)
+                    {
+                        return;
+                    }
+
+                    int repinned = await Delegate.RepinTriggersFromDeadNode(
+                        conn, InstanceId, StdAdoConstants.AutoPinSentinel, cancellationToken).ConfigureAwait(false);
+                    if (repinned > 0)
+                    {
+                        Logger.AutoPinnedTriggersReleased(repinned, InstanceId);
+                    }
+
+                    await Delegate.DeleteSchedulerState(conn, InstanceId, cancellationToken).ConfigureAwait(false);
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e) when (!IsCallerCancellation(e, cancellationToken))
+        {
+            // Best-effort on the way down: the provider and lock handler still have to be closed, and a row
+            // that could not be deleted is cleaned up by a peer's next recovery pass.
+        }
+    }
+
+    /// <summary>
     /// What one failed node's fired-trigger rows turned out to mean, worked out before anything is
     /// written and then acted on a set at a time.
     /// </summary>

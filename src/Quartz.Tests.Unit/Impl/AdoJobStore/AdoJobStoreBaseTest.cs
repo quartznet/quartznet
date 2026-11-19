@@ -3854,6 +3854,148 @@ public class AdoJobStoreBaseTest
         return new SchedulerStateRecord(DeadInstanceId, ClusterNow - TimeSpan.FromSeconds(60), CheckinInterval);
     }
 
+    [Test]
+    public async Task Shutdown_ShouldDeleteOwnSchedulerStateAndRepinAutoPinnedTriggersWhenClusteredAndClean()
+    {
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.Clustered = true;
+        jobStoreSupport.LockHandler = new InProcessLockHandler();
+        jobStoreSupport.SetFirstCheckIn(false);
+
+        GivenFiredTriggersForInstance(OwnInstanceId);
+
+        await jobStoreSupport.Shutdown();
+
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.That.Matches(query => query.InstanceId == OwnInstanceId),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.RepinTriggersFromDeadNode(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                OwnInstanceId,
+                StdAdoConstants.AutoPinSentinel,
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.DeleteSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                OwnInstanceId,
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task Shutdown_ShouldLeaveOwnSchedulerStateWhenFiredTriggersRemain()
+    {
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.Clustered = true;
+        jobStoreSupport.LockHandler = new InProcessLockHandler();
+        jobStoreSupport.SetFirstCheckIn(false);
+
+        GivenFiredTriggersForInstance(OwnInstanceId,
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, new TriggerKey("t-executing", "tg"), new JobKey("j", "jg"), instanceId: OwnInstanceId));
+
+        await jobStoreSupport.Shutdown();
+
+        A.CallTo(() => driverDelegate.DeleteSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.RepinTriggersFromDeadNode(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task Shutdown_ShouldNotDeleteOwnSchedulerStateBeforeFirstCheckIn()
+    {
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.Clustered = true;
+        jobStoreSupport.LockHandler = new InProcessLockHandler();
+        jobStoreSupport.SetFirstCheckIn(true);
+
+        await jobStoreSupport.Shutdown();
+
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.DeleteSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task Shutdown_ACleanlyShutDownPeerIsNotReportedAsFailedBySurvivingPeer()
+    {
+        RecordingLoggerProvider log = GivenRecordedLog(ClusterNow);
+        jobStoreSupport.Clustered = true;
+        jobStoreSupport.LockHandler = new InProcessLockHandler();
+        jobStoreSupport.SetFirstCheckIn(false);
+        jobStoreSupport.LastCheckin = ClusterNow;
+
+        List<SchedulerStateRecord> stateTable =
+        [
+            new SchedulerStateRecord(OwnInstanceId, ClusterNow, CheckinInterval),
+            new SchedulerStateRecord("peer-node", ClusterNow, CheckinInterval),
+        ];
+
+        A.CallTo(() => driverDelegate.SelectSchedulerStateRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .ReturnsLazily(() => new ValueTask<List<SchedulerStateRecord>>([.. stateTable]));
+
+        A.CallTo(() => driverDelegate.DeleteSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Invokes((ConnectionAndTransactionHolder _, string id, CancellationToken _) =>
+                stateTable.RemoveAll(r => r.SchedulerInstanceId == id))
+            .Returns(new ValueTask<int>(1));
+
+        A.CallTo(() => driverDelegate.UpdateSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<DateTimeOffset>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<int>(1));
+
+        GivenFiredTriggersForInstance("peer-node");
+
+        // peer-node shuts down cleanly and removes its state row.
+        FakeTimeProvider peerClock = new(ClusterNow);
+        TestAdoJobStoreBase peer = new(clustered: true, timeProvider: peerClock, loggerFactory: jobStoreSupport.LoggerFactory)
+        {
+            DirectDelegate = driverDelegate,
+            DirectSignaler = A.Fake<ISchedulerSignaler>(),
+            LockHandler = new InProcessLockHandler(),
+            LastCheckin = ClusterNow,
+        };
+        await peer.Initialize(TestJobStores.Identity(instanceId: "peer-node"));
+        peer.SetFirstCheckIn(false);
+
+        await peer.Shutdown();
+
+        stateTable.Select(r => r.SchedulerInstanceId).Should().Equal([OwnInstanceId]);
+
+        // The surviving node checks in after the failure threshold — and neither detects a failed
+        // instance nor logs EventId 3503.
+        (await jobStoreSupport.CheckIn(Guid.NewGuid())).Should().BeFalse();
+        log.Entries.Should().NotContain(entry => entry.EventId.Id == 3503);
+    }
+
     #endregion
 
     #endregion

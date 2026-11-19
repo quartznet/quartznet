@@ -1502,6 +1502,8 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
             await clusterManager.Shutdown().ConfigureAwait(false);
         }
 
+        await DeleteOwnSchedulerStateOnShutdown(cancellationToken).ConfigureAwait(false);
+
         try
         {
             DbProvider.Shutdown();
