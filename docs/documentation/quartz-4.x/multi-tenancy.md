@@ -795,9 +795,9 @@ returns `false` instead of throwing, so removing twice, or removing a tenant som
 reports what happened.
 
 ::: warning Removing a tenant deletes none of its data
-The tenant's rows under its `SCHED_NAME` stay, and its `SCHEDULER_STATE` row expires like a stopped
-node's. Deleting a tenant's data is the application's decision. A tenant added again under the same name
-picks up everything left behind.
+The tenant's rows under its `SCHED_NAME` stay. A clustered tenant that shuts down with no firing left deletes
+its own `SCHEDULER_STATE` row (4.8); one that leaves a firing keeps it for recovery. Deleting a tenant's data
+is the application's decision. A tenant added again under the same name picks up everything left behind.
 :::
 
 ### What `Add` refuses
@@ -876,9 +876,10 @@ restart is a node failure.
 
 What a restart changes:
 
-- **Clustering.** With a fixed `InstanceId`, the new generation finds its own `SCHEDULER_STATE` row and
-  recovers nothing. With a generated id (`AUTO`, or `UseClustering()` with no `InstanceId`) it takes a new
-  id, and the old row expires like a stopped node's, to be recovered by a peer or the new generation.
+- **Clustering.** The drain leaves no firing, so the old generation deletes its `SCHEDULER_STATE` row
+  (4.8) and the new one writes a fresh row and recovers nothing. With a generated id (`AUTO`, or
+  `UseClustering()` with no `InstanceId`) that row is under a new id. A generation that left a firing keeps
+  its row, to be recovered by a peer or the new generation.
 - **Declared content is re-applied** under the recipe's `OverwriteExistingData` (`true` by default). A
   declared trigger keeps its pause, and its run state unless its schedule changed: see
   [What a start keeps](how-tos/rescheduling-jobs.md#what-a-start-keeps). Set `Scheduling.IgnoreDuplicates` to

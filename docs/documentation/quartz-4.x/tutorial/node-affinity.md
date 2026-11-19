@@ -166,11 +166,11 @@ pass it to `IScheduler.RescheduleJob`, or
 
 ## Failover behavior
 
-When the preferred node stops checking in:
+When the preferred node stops checking in, or shuts down:
 
-1. **Acquisition.** A node whose last check-in is older than the cluster check-in threshold is treated
-   as dead, so surviving nodes can acquire its pinned triggers immediately, without waiting for cluster
-   recovery.
+1. **Acquisition.** A node with no check-in row, or whose last check-in is older than the cluster
+   check-in threshold, is treated as dead, so surviving nodes can acquire its pinned triggers
+   immediately, without waiting for cluster recovery.
 2. **Steal on fire.** A node that fires a trigger still auto-claimed by a stale node takes the pin over
    by compare-and-swap, so affinity moves to a live node instead of bouncing.
 3. **Cluster recovery.** When recovery confirms a node dead, its auto-claimed pins are reset to unclaimed
@@ -178,6 +178,11 @@ When the preferred node stops checking in:
    execution group limits.
 4. **Named pins are kept.** They are never re-pinned. Other nodes run the trigger while the node is down;
    when it checks in again, it takes the trigger back.
+5. **A clean shutdown counts at once** (4.8). A node that shuts down with no firing left deletes its
+   check-in row and resets its auto-claimed pins itself, as recovery would. Its named pins are eligible
+   on every node from that moment, not after the threshold, so during a rolling restart another node
+   runs them until the node is back. Before 4.8 they waited about fifteen seconds, and a node back within
+   that time ran them itself.
 
 ## Updating the preferred node at runtime
 

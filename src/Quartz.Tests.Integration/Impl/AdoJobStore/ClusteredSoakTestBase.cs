@@ -485,8 +485,8 @@ public abstract partial class ClusteredSoakTestBase : ClusteredJobStoreTestBase
 
         await nodeB.Shutdown(waitForJobsToComplete: false);
 
-        // Shutdown leaves the node's own SCHEDULER_STATE row behind — only a peer's ClusterRecover
-        // deletes it — so ageing it is what turns "stopped" into "died".
+        // The row above keeps the node's own SCHEDULER_STATE row through its shutdown — a node deletes
+        // it only when it leaves no firing (#4374) — so ageing it is what turns "stopped" into "died".
         await BackdateCheckin(NodeB, TimeSpan.FromMinutes(5));
     }
 

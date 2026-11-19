@@ -287,10 +287,12 @@ closes is abandoned and leaves what a crashed node leaves. A peer resolves it on
 after `CheckinInterval + CheckinMisfireThreshold` plus a grace period for an execution that may still be
 alive.
 
-**It does not delete its check-in row.** The `QRTZ_SCHEDULER_STATE` row keeps its last timestamp until a
-peer declares the node failed and recovers it. So a node that leaves is declared failed on the same
-schedule as one that crashed. Wait for jobs, and allow the window above, so the node leaves nothing to
-recover.
+**It deletes its check-in row when it leaves nothing behind** (4.8). With no fired-trigger row of its own
+left, the node deletes its `QRTZ_SCHEDULER_STATE` row and releases the triggers it had
+[pinned automatically](node-affinity.md), as a peer's recovery would. Its peers then have no node to
+recover and log nothing (event `3522` on the node says it left). A node that leaves a firing behind keeps
+its row, and a peer declares it failed and recovers it on the same schedule as one that crashed (event
+`3523` says how many firings). Wait for jobs, and allow the window above, so the node leaves cleanly.
 
 ## Asking for recovery
 

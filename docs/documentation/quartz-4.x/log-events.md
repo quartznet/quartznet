@@ -231,6 +231,10 @@ matching on its text is not.
 | 3519 | Information | `Quartz` | `"Interrupt of fire instance {FireInstanceId} requested of node {SchedulerInstanceId}, which cancels the job's token after its next check-in"` |
 | 3520 | Warning | `Quartz` | `"Interrupt requests for firings on node {SchedulerInstanceId} (Quartz {QuartzVersion}) are recorded but never answered: a node reads them from Quartz {InterruptRequestsSince}. Interrupt its firings through that node, or upgrade it"` |
 | 3521 | Information | `Quartz` | `"Firing rounds take TRIGGER_ACCESS while no other live node is in the cluster: on SQL Server a round takes no lock only beside another live node of Quartz {LockFreeRoundsSince} or later"` |
+| 3522 | Information | `Quartz` | `"This scheduler instance ({InstanceId}) left the cluster: its scheduler state row is deleted, so no peer recovers it, and {ReleasedPinCount} auto-pinned trigger(s) are released"` |
+| 3523 | Information | `Quartz` | `"This scheduler instance ({InstanceId}) keeps its scheduler state row at shutdown: it leaves {FiredTriggerCount} fired trigger(s), which a peer recovers once the row lapses"` |
+| 3524 | Information | `Quartz` | `"This scheduler instance ({InstanceId}) keeps its scheduler state row at shutdown: its check-in loop had not ended when the shutdown stopped waiting for it, and a check-in could write the row back. A peer recovers the instance once the row lapses"` |
+| 3525 | Warning | `Quartz` | `"This scheduler instance ({InstanceId}) could not delete its scheduler state row at shutdown, so a peer recovers the instance once the row lapses: {ExceptionMessage}"` |
 | 3600 | Information | `Quartz` | `"Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed."` |
 | 3601 | Information | `Quartz` | `"Handling {Count} trigger(s) that missed their scheduled fire-time."` |
 | 3602 | Debug | `Quartz` | `"Found 0 triggers that missed their scheduled fire-time."` |

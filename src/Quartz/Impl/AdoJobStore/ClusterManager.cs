@@ -78,6 +78,15 @@ internal sealed class ClusterManager
         task = Task.Factory.StartNew(() => Run(cancellationToken), cancellationToken, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
     }
 
+    /// <summary>
+    /// Whether the check-in loop has ended, so that no check-in of this node's runs any more.
+    /// </summary>
+    /// <remarks>
+    /// Asked once <see cref="Shutdown" /> has returned. It waits a second for the loop and then gives up
+    /// on it, and a check-in that outlived the wait still writes this node's row.
+    /// </remarks>
+    public bool CheckInsEnded => task is null || task.IsCompleted;
+
     /// <remarks>
     /// One-shot: the token source is released at the end, and a source that has been released answers
     /// Cancel with an ObjectDisposedException rather than doing nothing.

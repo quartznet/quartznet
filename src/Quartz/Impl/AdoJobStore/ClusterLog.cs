@@ -116,4 +116,18 @@ internal static partial class ClusterLog
     // Once per node: a 4.5 node never reads the column, so every request for its firings goes unanswered.
     [LoggerMessage(EventId = 3520, Level = LogLevel.Warning, Message = "Interrupt requests for firings on node {SchedulerInstanceId} (Quartz {QuartzVersion}) are recorded but never answered: a node reads them from Quartz {InterruptRequestsSince}. Interrupt its firings through that node, or upgrade it")]
     public static partial void InterruptRequestsUndeliverable(this ILogger logger, string schedulerInstanceId, string quartzVersion, Version interruptRequestsSince);
+
+    // What a clustered node's shutdown did with its scheduler state row (#4374): one of these four per
+    // shutdown of a node that checked in. A peer logs 3503 later for a node that kept its row.
+    [LoggerMessage(EventId = 3522, Level = LogLevel.Information, Message = "This scheduler instance ({InstanceId}) left the cluster: its scheduler state row is deleted, so no peer recovers it, and {ReleasedPinCount} auto-pinned trigger(s) are released")]
+    public static partial void LeftCluster(this ILogger logger, string instanceId, int releasedPinCount);
+
+    [LoggerMessage(EventId = 3523, Level = LogLevel.Information, Message = "This scheduler instance ({InstanceId}) keeps its scheduler state row at shutdown: it leaves {FiredTriggerCount} fired trigger(s), which a peer recovers once the row lapses")]
+    public static partial void SchedulerStateKeptForFiredTriggers(this ILogger logger, string instanceId, int firedTriggerCount);
+
+    [LoggerMessage(EventId = 3524, Level = LogLevel.Information, Message = "This scheduler instance ({InstanceId}) keeps its scheduler state row at shutdown: its check-in loop had not ended when the shutdown stopped waiting for it, and a check-in could write the row back. A peer recovers the instance once the row lapses")]
+    public static partial void SchedulerStateKeptForRunningCheckIn(this ILogger logger, string instanceId);
+
+    [LoggerMessage(EventId = 3525, Level = LogLevel.Warning, Message = "This scheduler instance ({InstanceId}) could not delete its scheduler state row at shutdown, so a peer recovers the instance once the row lapses: {ExceptionMessage}")]
+    public static partial void SchedulerStateNotDeleted(this ILogger logger, string instanceId, string exceptionMessage, Exception exception);
 }

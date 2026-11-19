@@ -94,6 +94,10 @@ public class ClusterManagerTest
             await shutdown.Should().CompleteWithinAsync(TimeSpan.FromSeconds(10),
                 "the loop is parked in a store call that ignores its cancellation, so the shutdown has to give up "
                 + "on it - and give up in wall time, because the store's clock is one nothing advances");
+
+            clusterManager.CheckInsEnded.Should().BeFalse(
+                "the check-in the shutdown gave up on is still running, and would write the node's row back after "
+                + "the store deleted it (#4374)");
         }
         finally
         {
@@ -119,6 +123,8 @@ public class ClusterManagerTest
 
         // Assert
         completedTask.Should().Be(shutdownTask, "Shutdown should complete");
+        clusterManager.CheckInsEnded.Should().BeTrue(
+            "a loop asleep between check-ins ends on its cancellation, so the store may delete the node's row (#4374)");
     }
 
     /// <summary>

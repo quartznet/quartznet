@@ -66,17 +66,20 @@ Once the schema is ahead of every node, replace them one at a time. As each goes
   the store's `RecoverFiringsCancelledByShutdown`, a `RequestRecovery()` job that stops on its token is
   stored as a recovery trigger, and a peer runs it on its next acquisition rather than a check-in timeout
   later. See [A job a shutdown stops](how-tos/retrying-failed-jobs.md#a-job-a-shutdown-stops).
-- **A clean shutdown leaves the node's check-in row.** The `QRTZ_SCHEDULER_STATE` row keeps its last
-  timestamp until a peer recovers it, so a stopped node is declared *failed* about fifteen seconds later on
-  the default settings, exactly like a crash. Its jobs that request recovery run again on another node.
-  Use [`WaitForJobsToComplete`](../best-practices.md#shutdown-has-a-deadline) so a node has nothing left to
-  recover when it exits.
+- **A clean shutdown deletes the node's check-in row** (4.8). A node that leaves no fired-trigger row
+  deletes its `QRTZ_SCHEDULER_STATE` row and releases its automatic pins, so its peers recover nothing and
+  log no event `3503`. A node that leaves a firing keeps its row: it is declared *failed* about fifteen
+  seconds later on the default settings, exactly like a crash, and its jobs that request recovery run again
+  on another node. Before 4.8 every node kept its row, so each one a deployment stopped logged `3503` on
+  its peers. Use [`WaitForJobsToComplete`](../best-practices.md#shutdown-has-a-deadline) so a node has
+  nothing left to recover when it exits.
 - **A node that generates its instance id comes back as a different node.** Since 4.6 that is every
   clustered node with no `InstanceId` set. `GenerateInstanceId` uses the host name and a timestamp, so each
-  restart gets a new id. Cluster recovery treats the old id's check-in row as a failed node's: whichever
-  node notices it recovers its firings and deletes its rows. The node's identity in the dashboard, in
-  `INSTANCE_NAME` on fired-trigger rows and in a `PREFERRED_NODE` pin does not survive the deployment —
-  see [Naming a node in a container](#naming-a-node-in-a-container).
+  restart gets a new id. A previous run that crashed or left a firing kept its row under the old id, and
+  cluster recovery treats it as a failed node's: whichever node notices it recovers its firings and
+  deletes its rows. The node's identity in the dashboard, in `INSTANCE_NAME` on fired-trigger rows and in
+  a `PREFERRED_NODE` pin does not survive the deployment — see
+  [Naming a node in a container](#naming-a-node-in-a-container).
 - **A changed schedule wins on every node** (4.8). A new node replaces a trigger the old nodes may hold
   acquired for their next fire time. The replace cancels those acquisitions: an old node does not fire its
   copy of the old trigger or write it back, and lets go of nothing it no longer holds. The replacement
@@ -336,14 +339,16 @@ reading the timestamp it wrote and comparing it with its own clock. The one thin
 
 - **The first check-in** happens during `Start()`, before firing begins. It treats the node's *own*
   previous row as a failed instance, so whatever the last run left behind is recovered then. Only a fixed
-  `InstanceId` has a previous row: a generated id's last run is recovered as a failed peer, once overdue.
+  `InstanceId` whose last run crashed or left a firing has a previous row, since a clean shutdown deletes
+  it (4.8). A generated id's last run is recovered as a failed peer, once overdue.
 - **Later check-ins** update the timestamp and look for failed peers, taking the cluster-wide locks only
   when there are any.
 - **The stored check-in interval is written once.** `CHECKIN_INTERVAL` is set when the row is inserted;
   only `LAST_CHECKIN_TIME` is updated. A node with a stable instance id that changes its `CheckinInterval`
-  keeps advertising the old value until its row is deleted and recreated, which happens after a recovery,
-  not a restart. When widening the interval across a cluster, expect peers to use the new value only
-  after each node has been declared failed once, or delete the rows while the cluster is stopped.
+  keeps advertising the old value until its row is deleted and recreated: by a clean shutdown (4.8) or a
+  recovery, not by a crash and restart. When widening the interval across a cluster, restart each node
+  with a clean shutdown. A node that keeps its row advertises the old value until it has been declared
+  failed once.
 - **Check-in failures are logged sparsely**: one line per `RetryableActionErrorLogThreshold` consecutive
   failures, **4** by default. A database that is down produces a quarter of the lines you might expect.
 
@@ -385,6 +390,9 @@ A takeover:
 3. deletes the rest of its fired-trigger rows;
 4. releases node-affinity pins it claimed automatically;
 5. deletes its check-in row.
+
+A node that shuts down with no fired-trigger row left does the last two itself (4.8), so no takeover follows.
+Event `3522` says it left; `3523`, `3524` and `3525` say why a shutdown kept the row.
 
 Recovering a `[DisallowConcurrentExecution]` job is held back on first detection, because the node that
 missed a check-in may still be running it. While anything is held back, the failed node's row stays with

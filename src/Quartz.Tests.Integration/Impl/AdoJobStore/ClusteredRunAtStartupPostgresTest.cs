@@ -62,8 +62,10 @@ public sealed class ClusteredRunAtStartupPostgresTest : ClusteredPostgresTestBas
             await WaitForExecutionCount(2, 20_000);
             await nodeA.Shutdown(true);
 
-            // What a crash of nodeA before its run fired would have left: its trigger, due, pinned to it.
-            // nodeB takes nodeA for alive within the threshold, so it leaves the trigger alone.
+            // What a crash of nodeA before its run fired would have left: its check-in row, just written,
+            // and its trigger, due, pinned to it. A clean shutdown deleted the row (#4374), so it is written
+            // back. nodeB takes nodeA for alive within the threshold, so it leaves the trigger alone.
+            await WriteCrashedNodeCheckin("nodeA", TimeSpan.Zero);
             ITrigger leftoverA = StartupRunPlugin.CreateTrigger(warmKey, "nodeA", clustered: true, TimeProvider.System);
             await nodeB.ScheduleJob(leftoverA);
 

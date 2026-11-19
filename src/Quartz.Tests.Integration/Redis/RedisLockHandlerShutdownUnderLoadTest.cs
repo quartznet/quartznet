@@ -121,9 +121,9 @@ public sealed class RedisLockHandlerShutdownUnderLoadTest : RedisClusterTestBase
         await Task.Delay(2000);
         int nodeAAfterLeaving = NodeFiringCount("nodeA");
 
-        // Generous, because the survivor may first have to notice its peer is gone: a node that leaves
-        // does not delete its own SCHEDULER_STATE row, so anything it was holding waits on the other
-        // node's cluster recovery — one check-in interval plus the misfire threshold.
+        // Generous, because the survivor may first have to notice its peer is gone: a node that leaves a
+        // firing behind keeps its own SCHEDULER_STATE row (#4374), so anything it was holding waits on the
+        // other node's cluster recovery — one check-in interval plus the misfire threshold.
         await WaitForCondition(
             () => Task.FromResult(FiringCount() >= OrdinaryFirings + SerialFirings),
             timeoutMs: 90_000,

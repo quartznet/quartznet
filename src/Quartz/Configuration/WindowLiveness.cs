@@ -48,11 +48,12 @@ internal readonly record struct WindowLiveness(SchedulerStatus Status, int LiveN
     /// Three answers, and the third is the one that matters. A node the cluster would still trust —
     /// <see cref="ClusterNodeState.Alive" /> or <see cref="ClusterNodeState.Overdue" />, judged by the
     /// same predicate the failover sweep convicts with — means <see cref="SchedulerStatus.Running" />.
-    /// Rows that are all convicted mean <see cref="SchedulerStatus.Shutdown" />: every node that ever
-    /// checked in has stopped. <em>No rows at all</em> means <see cref="SchedulerStatus.Unknown" />,
-    /// because a scheduler whose store is not clustered writes no check-in row and is indistinguishable
-    /// here from one that was never started — and reporting it as stopped would be the false-dead
-    /// reading every shared-storage dashboard is known for.
+    /// Rows that are all convicted mean <see cref="SchedulerStatus.Shutdown" />: every node that checked
+    /// in has stopped without leaving, as a crashed node does. <em>No rows at all</em> means
+    /// <see cref="SchedulerStatus.Unknown" />, because a scheduler whose store is not clustered writes no
+    /// check-in row, and a node that shuts down cleanly deletes its own (#4374): such a scheduler is
+    /// indistinguishable here from one that was never started — and reporting it as stopped would be
+    /// the false-dead reading every shared-storage dashboard is known for.
     /// </para>
     /// </remarks>
     /// <param name="scheduler">The window, whose store watches the cluster's check-ins.</param>

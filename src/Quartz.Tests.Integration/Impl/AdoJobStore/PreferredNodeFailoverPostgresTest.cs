@@ -47,9 +47,9 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             throw;
         }
 
-        // nodeA is gone but its SCHEDULER_STATE row lingers with a fresh timestamp. Age the row
-        // rather than sleeping past the threshold: the survivor reads that column, not a stopwatch.
-        await BackdateCheckin("nodeA", TimeSpan.FromMinutes(5));
+        // nodeA shut down cleanly, which deleted its SCHEDULER_STATE row (#4374). Write the stale row a
+        // crash would have left instead, so that nodeB's start recovers a dead node.
+        await WriteCrashedNodeCheckin("nodeA", TimeSpan.FromMinutes(5));
 
         IScheduler nodeB = await CreateScheduler("nodeB");
         try
@@ -125,9 +125,19 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
         // Reset recordings so nodeA's earlier executions don't satisfy nodeB's assertions
         RecordingJob.Reset();
 
-        // nodeA is gone but its SCHEDULER_STATE row lingers with a fresh timestamp. Age the row
-        // rather than sleeping past the threshold: the survivor reads that column, not a stopwatch.
-        await BackdateCheckin("nodeA", TimeSpan.FromMinutes(5));
+        // nodeA shut down cleanly, which deleted its SCHEDULER_STATE row and released its automatic pin
+        // (#4374). Write back what a crash would have left — the stale row and nodeA's claim — so that
+        // nodeB's start recovers a dead node that still holds the pin.
+        await WriteCrashedNodeCheckin("nodeA", TimeSpan.FromMinutes(5));
+        int reclaimed = await ExecuteNonQuery(
+            "UPDATE QRTZ_TRIGGERS SET PREFERRED_NODE = @node, PREFERRED_NODE_AUTO = @automatic "
+            + "WHERE SCHED_NAME = @schedulerName AND TRIGGER_NAME = @triggerName AND TRIGGER_GROUP = @triggerGroup",
+            ("node", "nodeA"),
+            ("automatic", true),
+            ("schedulerName", SchedulerName),
+            ("triggerName", "autoPinFailoverTrigger"),
+            ("triggerGroup", "failoverTest"));
+        reclaimed.Should().Be(1, "nodeA's automatic claim is written back as a crash leaves it");
 
         IScheduler nodeB = await CreateScheduler("nodeB");
         try
