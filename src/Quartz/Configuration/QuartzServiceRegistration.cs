@@ -278,7 +278,7 @@ internal static class QuartzServiceRegistration
                 Meters = meters,
                 JobInputSerializer = provider.GetScheduler<IJobInputSerializer>(key),
                 ThreadPool = threadPool,
-                JobStore = Instrument(jobStore, meters, timeProvider, recordExceptionSpanEvents),
+                JobStore = Instrument(jobStore, meters, timeProvider, recordExceptionSpanEvents, options.TraceRootStoreOperations),
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
                 SchedulerRepository = provider.GetRequiredService<ISchedulerRepository>(),
                 JobExecutionPipeline = ComposeJobExecutionPipeline(provider, key),
@@ -393,14 +393,19 @@ internal static class QuartzServiceRegistration
     /// scheduler that is about to be built from these resources.
     /// </para>
     /// </remarks>
-    private static TracingJobStore Instrument(IJobStore jobStore, Meters meters, TimeProvider timeProvider, bool recordExceptionSpanEvents)
+    private static TracingJobStore Instrument(
+        IJobStore jobStore,
+        Meters meters,
+        TimeProvider timeProvider,
+        bool recordExceptionSpanEvents,
+        bool traceRootStoreOperations)
     {
         if (JobStores.Unwrap(jobStore) is AdoJobStoreBase persistent)
         {
             persistent.Meters = meters;
         }
 
-        return new TracingJobStore(jobStore, meters, timeProvider, recordExceptionSpanEvents);
+        return new TracingJobStore(jobStore, meters, timeProvider, recordExceptionSpanEvents, traceRootStoreOperations);
     }
 
     /// <summary>
