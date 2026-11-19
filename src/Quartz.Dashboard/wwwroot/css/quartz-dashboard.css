@@ -944,6 +944,7 @@
 .qz-pagination-controls {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 2px;
 }
 
@@ -953,42 +954,10 @@
     padding: 0 var(--qz-space-sm);
 }
 
-.qz-pagination-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 32px;
-    height: 32px;
-    padding: 0 var(--qz-space-sm);
-    border: 1px solid var(--qz-color-border);
-    background-color: var(--qz-color-surface);
+.qz-pagination-ellipsis {
+    min-width: 36px;
+    text-align: center;
     color: var(--qz-color-text-secondary);
-    border-radius: var(--qz-radius-sm);
-    font-size: var(--qz-font-size-sm);
-    cursor: pointer;
-    transition: all var(--qz-transition-fast);
-}
-
-.qz-pagination-btn:hover:not(:disabled) {
-    background-color: var(--qz-color-surface-hover);
-    border-color: var(--qz-color-border-strong);
-    color: var(--qz-color-text);
-}
-
-.qz-pagination-btn:focus-visible {
-    outline: 2px solid var(--qz-color-primary);
-    outline-offset: -2px;
-}
-
-.qz-pagination-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.qz-pagination-btn.qz-active {
-    background-color: var(--qz-color-primary);
-    border-color: var(--qz-color-primary);
-    color: var(--qz-color-text-inverse);
 }
 
 /* ==========================================================================

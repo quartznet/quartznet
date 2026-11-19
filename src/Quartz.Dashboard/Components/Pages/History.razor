@@ -40,7 +40,7 @@
 
     @if (!_isLoading && !_historyUnavailable && string.IsNullOrWhiteSpace(_error))
     {
-        <p class="qz-muted">Page @_page / @_totalPages · Showing @_entries.Count row(s) · Total @_totalCount row(s)</p>
+        <p class="qz-muted">Showing @_entries.Count row(s) · Total @_totalCount row(s)</p>
         @if (HasFilters)
         {
             <p class="qz-muted">@BuildFilterSummary()</p>
@@ -121,7 +121,6 @@
     private readonly int _pageSize = 25;
     private int _currentPageSize = 25;
     private int _totalCount;
-    private int _totalPages = 1;
     private int _pageSuccessCount;
     private int _pageFailureCount;
     private long _pageAverageDurationMs;
@@ -293,7 +292,6 @@
             _page = pageNumber;
             _currentPageSize = pageSize;
             _totalCount = totalCount;
-            _totalPages = Math.Max(1, (int) Math.Ceiling((double) _totalCount / _currentPageSize));
             _entries.AddRange(rows);
             _lastUpdatedAt = Clock.GetUtcNow();
 
@@ -322,7 +320,6 @@
     {
         _entries.Clear();
         _totalCount = 0;
-        _totalPages = 1;
         _pageSuccessCount = 0;
         _pageFailureCount = 0;
         _pageAverageDurationMs = 0;
