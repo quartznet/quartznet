@@ -153,7 +153,7 @@ public sealed class QuartzSchedulerOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The scheduler's loop asks the store for triggers every few seconds whether or not anything is due,
+    /// The scheduler's loop asks the store for triggers at least once per <see cref="IdleWaitTime" /> whether or not anything is due,
     /// and nothing is current while it does, so with this on an idle scheduler still exports a trace every
     /// round. Turned off, such a call is made current as an activity that is not sampled: no span is
     /// emitted, and under a parent-based sampler — OpenTelemetry's default — the spans the database driver

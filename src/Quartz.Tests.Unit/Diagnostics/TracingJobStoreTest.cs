@@ -568,6 +568,77 @@ public sealed class TracingJobStoreTest
     }
 
     /// <summary>
+    /// #4343, off: what is current during the call is no span. A listener on every source sees it start,
+    /// on the default source, and it is not recorded and asks for no data — the two properties
+    /// OpenTelemetry's processors skip an activity on.
+    /// </summary>
+    [Test]
+    public async Task WithRootOperationsOff_TheActivityCurrentDuringTheCall_IsNotRecorded()
+    {
+        using ActivitySource source = new($"Quartz.Tests.Store.{Guid.NewGuid():N}");
+        using ActivityListener everything = new()
+        {
+            ShouldListenTo = static _ => true,
+            Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(everything);
+
+        Activity duringCall = null;
+        IJobStore inner = StubStore();
+        A.CallTo(() => inner.PauseAll(A<CancellationToken>.Ignored)).ReturnsLazily(() =>
+        {
+            duringCall = Activity.Current;
+            return default;
+        });
+
+        TracingJobStore store = new(inner, new Meters(meterFactory: null), TimeProvider.System, source, traceRootOperations: false);
+        await store.Initialize(new SchedulerIdentity { SchedulerName = schedulerName, InstanceId = "node-1" });
+
+        Activity.Current = null;
+        await store.PauseAll();
+
+        duringCall.Should().NotBeNull("the call is made current as something, so the driver's spans have a parent");
+        duringCall.Source.Should().NotBeSameAs(source, "no sampler on the store's source is asked about it");
+        duringCall.Recorded.Should().BeFalse();
+        duringCall.IsAllDataRequested.Should().BeFalse();
+        duringCall.IdFormat.Should().Be(ActivityIdFormat.W3C, "a parent-based sampler reads the W3C trace flags");
+        duringCall.GetTagItem(SchedulerNameTag).Should().BeNull("nothing reads the tags of an activity no one records");
+    }
+
+    /// <summary>
+    /// #4343, off, and the call throws: the exception reaches the caller, the stand-in is stopped, and
+    /// the histogram still records the failure.
+    /// </summary>
+    [Test]
+    public async Task WithRootOperationsOff_AFailedCallOutsideAnyActivity_IsMeasuredAndLeavesNothingCurrent()
+    {
+        using ParentBasedTracing tracing = new();
+        IJobStore store = await tracing.Decorated(schedulerName, traceRootOperations: false);
+        A.CallTo(() => JobStores.Unwrap(store).ResumeAll(A<CancellationToken>.Ignored))
+            .ReturnsLazily(() => Fail());
+
+        Activity.Current = null;
+        Func<Task> act = async () => await store.ResumeAll();
+        await act.Should().ThrowAsync<JobPersistenceException>();
+
+        Activity.Current.Should().BeNull();
+        tracing.Stopped.Should().BeEmpty();
+
+        lock (measurements)
+        {
+            measurements.Should().ContainSingle(m => Equals(m.Tags[OperationTag], OperationName.JobStore.ResumeAll))
+                .Which.Tags.Should().ContainKey(ErrorTypeTag)
+                .WhoseValue.Should().Be(typeof(JobPersistenceException).FullName);
+        }
+
+        static async ValueTask Fail()
+        {
+            await Task.Yield();
+            throw new JobPersistenceException("the database is gone");
+        }
+    }
+
+    /// <summary>
     /// #4343, on: the default, which is today's shape — a store span as the root, the database span
     /// under it.
     /// </summary>
