@@ -62,9 +62,9 @@ public abstract class ClusteredJobStoreTestBase
     public async Task CleanUpDatabaseState()
     {
         // Tests shut their schedulers down in finally blocks, but a clustered node's own
-        // SCHEDULER_STATE row survives Shutdown (it is only deleted by another node's
-        // ClusterRecover), and scheduler.Clear() does not touch it either. Remove all
-        // rows for this fixture's scheduler so later tests start against a clean cluster.
+        // SCHEDULER_STATE row survives a Shutdown that leaves a firing behind (#4374), tests write
+        // rows of their own, and scheduler.Clear() does not touch either. Remove all rows for this
+        // fixture's scheduler so later tests start against a clean cluster.
         //
         // One statement per round trip rather than one semicolon-separated batch: Oracle has no
         // statement separator outside a PL/SQL block and Firebird's driver takes one statement per
@@ -247,6 +247,39 @@ public abstract class ClusteredJobStoreTestBase
         updated.Should().Be(1,
             "backdating is what makes '{0}' look dead, so a test whose instance id never matched a "
             + "SCHEDULER_STATE row would go on to wait for a recovery that is never triggered", instanceId);
+    }
+
+    /// <summary>
+    /// Writes the SCHEDULER_STATE row a node that crashed leaves behind, last written <paramref name="age" />
+    /// ago: past the failure threshold for a node its peers are to recover, zero for one that has only just
+    /// gone.
+    /// </summary>
+    /// <remarks>
+    /// A node a test shut down cleanly has deleted its own row (#4374), so a test about a node that crashed
+    /// stops the node and then writes what the crash would have left; one that never ran writes it for a
+    /// node that does not exist. The row is inserted at the current time and backdated rather than written
+    /// already stale, so that the helper the staleness waits use is also what makes the node look dead.
+    /// </remarks>
+    protected async Task WriteCrashedNodeCheckin(string instanceId, TimeSpan age)
+    {
+        int existing = await CountRows(
+            "SELECT COUNT(*) FROM QRTZ_SCHEDULER_STATE WHERE SCHED_NAME = @schedulerName AND INSTANCE_NAME = @instanceName",
+            ("schedulerName", SchedulerName),
+            ("instanceName", instanceId));
+
+        existing.Should().Be(0,
+            "a node a test shut down cleanly deletes its own row, so a row of '{0}' here means it left a firing "
+            + "behind or never stopped, and the test is not looking at the crash it set out to write", instanceId);
+
+        await ExecuteNonQuery(
+            "INSERT INTO QRTZ_SCHEDULER_STATE (SCHED_NAME, INSTANCE_NAME, LAST_CHECKIN_TIME, CHECKIN_INTERVAL) "
+            + "VALUES (@schedulerName, @instanceName, @lastCheckinTime, @checkinInterval)",
+            ("schedulerName", SchedulerName),
+            ("instanceName", instanceId),
+            ("lastCheckinTime", DateTimeOffset.UtcNow.UtcTicks),
+            ("checkinInterval", 1000L));
+
+        await BackdateCheckin(instanceId, age);
     }
 
     /// <summary>

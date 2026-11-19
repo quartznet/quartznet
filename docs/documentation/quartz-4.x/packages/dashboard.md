@@ -940,11 +940,12 @@ the Overview derive status from `QRTZ_SCHEDULER_STATE` instead:
 | Check-in rows under that `SCHED_NAME` | Reported |
 |---|---|
 | At least one node within its check-in interval plus the threshold | `Running`, with the node count |
-| Rows, but every one convicted | `Shutdown`: every node that checked in has stopped |
+| Rows, but every one convicted | `Shutdown`: every node that checked in has stopped without leaving, as a crashed node does |
 | No rows | `Unknown` |
 
 **A non-clustered scheduler writes no check-in row**, so a window cannot tell it from one never started, and
-reports `Unknown` rather than "stopped". For liveness of a non-clustered scheduler, reach it over
+reports `Unknown` rather than "stopped". Nor can it tell a cluster whose every node shut down cleanly, because
+such a node deletes its row (4.8). For liveness of a non-clustered scheduler, reach it over
 [HTTP](#fronting-a-scheduler-in-another-process-over-http).
 
 The window writes no check-in row and is never listed as a node; the Cluster page says whose rows it shows.

@@ -1497,10 +1497,15 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
             await misfireHandler.Shutdown().ConfigureAwait(false);
         }
 
+        bool checkInsEnded = true;
         if (clusterManager is not null)
         {
             await clusterManager.Shutdown().ConfigureAwait(false);
+            checkInsEnded = clusterManager.CheckInsEnded;
         }
+
+        // After the check-in loop, the row's other writer, and while the provider is still open.
+        await LeaveCluster(checkInsEnded, cancellationToken).ConfigureAwait(false);
 
         try
         {

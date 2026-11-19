@@ -1234,19 +1234,126 @@ internal abstract partial class AdoJobStoreBase
             return;
         }
 
-        // Sticky failover: release only AUTO-CLAIMED pins from the dead node (explicit pins are left
-        // untouched so the original node reclaims them when it returns). Resetting to the "*" sentinel
-        // rather than to another node lets any eligible node claim the trigger on its next fire, which
-        // correctly respects execution group limits. This must happen before the state row is deleted,
-        // and relies on the already-confirmed dead-node detection from FindFailedInstances.
-        int repinned = await Delegate.RepinTriggersFromDeadNode(
-            conn, record.SchedulerInstanceId, StdAdoConstants.AutoPinSentinel, cancellationToken).ConfigureAwait(false);
+        int repinned = await DeleteRegistration(conn, record.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
         if (repinned > 0)
         {
             Logger.AutoPinnedTriggersReleased(repinned, record.SchedulerInstanceId);
         }
+    }
 
-        await Delegate.DeleteSchedulerState(conn, record.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
+    /// <summary>
+    /// Takes a node out of the cluster: releases the pins it claimed automatically, then deletes its
+    /// scheduler state row. A peer does it for a node it judged failed, and a node does it for itself
+    /// as it shuts down.
+    /// </summary>
+    /// <returns>How many pins were released.</returns>
+    private async ValueTask<int> DeleteRegistration(
+        ConnectionAndTransactionHolder conn,
+        string instanceId,
+        CancellationToken cancellationToken)
+    {
+        // Sticky failover: release only AUTO-CLAIMED pins (explicit pins are left untouched so the
+        // original node reclaims them when it returns). Resetting to the "*" sentinel rather than to
+        // another node lets any eligible node claim the trigger on its next fire, which correctly
+        // respects execution group limits. This must happen before the state row is deleted, and only
+        // for a node that is not coming back under that row: one FindFailedInstances convicted, or this
+        // node leaving.
+        int repinned = await Delegate.RepinTriggersFromDeadNode(
+            conn, instanceId, StdAdoConstants.AutoPinSentinel, cancellationToken).ConfigureAwait(false);
+
+        await Delegate.DeleteSchedulerState(conn, instanceId, cancellationToken).ConfigureAwait(false);
+        return repinned;
+    }
+
+    /// <summary>
+    /// Takes this node out of the cluster as it shuts down, as a peer's recovery of it would end, so
+    /// that no peer recovers a node that left cleanly (#4374).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Before 4.8 a clean shutdown left the row. Each peer then logged event 3503, the line a crash
+    /// logs, and ran recovery for a node that had released everything it held.
+    /// </para>
+    /// <para>
+    /// The row stays while the node leaves a fired-trigger row: an execution the shutdown abandoned, a
+    /// completion the closed store refused, a reservation the scheduling loop could not give back. A
+    /// peer finds those through the row, because the scan for fired triggers with no row runs only at
+    /// a node's first check-in, and recovers the node as one that failed. Nothing writes a
+    /// fired-trigger row of this node's once its scheduling loop has stopped, so a read that finds none
+    /// stays true for the delete in the same transaction.
+    /// </para>
+    /// <para>
+    /// The row stays too while a check-in may still be running, because it would write the row back,
+    /// and when the delete fails. Neither stops the shutdown.
+    /// </para>
+    /// </remarks>
+    /// <param name="checkInsEnded">
+    /// Whether the check-in loop has ended, as <see cref="ClusterManager.CheckInsEnded" /> says.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal async ValueTask LeaveCluster(bool checkInsEnded, CancellationToken cancellationToken = default)
+    {
+        // No check-in, so no row of this run's: a window onto another process's cluster, or a store
+        // whose start failed.
+        if (!Clustered || firstCheckIn)
+        {
+            return;
+        }
+
+        if (!checkInsEnded)
+        {
+            Logger.SchedulerStateKeptForRunningCheckIn(InstanceId);
+            return;
+        }
+
+        // As the check-in does: a transaction of the store's own, never a connection the application enlisted.
+        using var suppression = AmbientConnection.Suppress();
+
+        try
+        {
+            ClusterLeave leave = await ExecuteInLocalTransactionLock(
+                SchedulerLock.TriggerAccess,
+                conn => LeaveCluster(conn, cancellationToken),
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (leave.FiredTriggersLeft > 0)
+            {
+                Logger.SchedulerStateKeptForFiredTriggers(InstanceId, leave.FiredTriggersLeft);
+            }
+            else
+            {
+                Logger.LeftCluster(InstanceId, leave.PinsReleased);
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.SchedulerStateNotDeleted(InstanceId, e.Message, e);
+        }
+    }
+
+    /// <summary>
+    /// The transaction of <see cref="LeaveCluster(bool, CancellationToken)" />, under the
+    /// <c>TRIGGER_ACCESS</c> lock that a peer's recovery of this node holds.
+    /// </summary>
+    private ValueTask<ClusterLeave> LeaveCluster(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
+    {
+        return Guarded(
+            async () =>
+            {
+                List<FiredTriggerRecord> left = await Delegate.SelectFiredTriggerRecords(
+                    conn,
+                    new FiredTriggerQuery { InstanceId = InstanceId },
+                    cancellationToken).ConfigureAwait(false);
+
+                if (left.Count > 0)
+                {
+                    return new ClusterLeave(left.Count, PinsReleased: 0);
+                }
+
+                int released = await DeleteRegistration(conn, InstanceId, cancellationToken).ConfigureAwait(false);
+                return new ClusterLeave(FiredTriggersLeft: 0, released);
+            },
+            "delete this node's scheduler state");
     }
 
     /// <summary>
@@ -1304,4 +1411,11 @@ internal abstract partial class AdoJobStoreBase
     /// </summary>
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
     private readonly record struct RecoveryScheduling(int Scheduled, int JobsGone);
+
+    /// <summary>
+    /// What <see cref="LeaveCluster(ConnectionAndTransactionHolder, CancellationToken)" /> found: the
+    /// fired-trigger rows that kept this node's row, or, when there were none, how many pins it released.
+    /// </summary>
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
+    private readonly record struct ClusterLeave(int FiredTriggersLeft, int PinsReleased);
 }

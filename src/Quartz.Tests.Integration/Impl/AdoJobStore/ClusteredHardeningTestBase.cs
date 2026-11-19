@@ -68,7 +68,7 @@ public abstract class ClusteredHardeningTestBase : ClusteredExactlyOnceTestBase
             // The residue of `kill -9` between acquisition and firing. The job columns stay null and the
             // flags false because that is exactly what StdAdoDelegate.InsertFiredTrigger writes for an
             // ACQUIRED row — the job has not been loaded at that point.
-            await InsertDeadNodeCheckin();
+            await WriteCrashedNodeCheckin(DeadNode, TimeSpan.FromMinutes(5));
             await InsertDeadNodeFiredTrigger(
                 entryId: "killed-node-acquired-1",
                 triggerKey: triggerKey,
@@ -131,7 +131,7 @@ public abstract class ClusteredHardeningTestBase : ClusteredExactlyOnceTestBase
                 .StartAt(DateTimeOffset.UtcNow.AddHours(1))
                 .Build());
 
-            await InsertDeadNodeCheckin();
+            await WriteCrashedNodeCheckin(DeadNode, TimeSpan.FromMinutes(5));
             await InsertDeadNodeFiredTrigger(
                 entryId: "killed-node-executing-1",
                 triggerKey: triggerKey,
@@ -182,7 +182,7 @@ public abstract class ClusteredHardeningTestBase : ClusteredExactlyOnceTestBase
 
         try
         {
-            await InsertDeadNodeCheckin();
+            await WriteCrashedNodeCheckin(DeadNode, TimeSpan.FromMinutes(5));
 
             List<ClusterNode> beforeRecovery = await survivor.QueryClusterNodes();
 
@@ -335,24 +335,6 @@ public abstract class ClusteredHardeningTestBase : ClusteredExactlyOnceTestBase
                 await peer.Shutdown(waitForJobsToComplete: false);
             }
         }
-    }
-
-    /// <summary>
-    /// Writes the SCHEDULER_STATE row a node leaves behind, then ages it past the failure threshold. The
-    /// row is inserted at the current time and backdated rather than written already stale, so that the
-    /// helper the staleness waits use is also what makes this node look dead.
-    /// </summary>
-    private async Task InsertDeadNodeCheckin()
-    {
-        await ExecuteNonQuery(
-            "INSERT INTO QRTZ_SCHEDULER_STATE (SCHED_NAME, INSTANCE_NAME, LAST_CHECKIN_TIME, CHECKIN_INTERVAL) "
-            + "VALUES (@schedulerName, @instanceName, @lastCheckinTime, @checkinInterval)",
-            ("schedulerName", SchedulerName),
-            ("instanceName", DeadNode),
-            ("lastCheckinTime", DateTimeOffset.UtcNow.UtcTicks),
-            ("checkinInterval", 1000L));
-
-        await BackdateCheckin(DeadNode, TimeSpan.FromMinutes(5));
     }
 
     /// <summary>

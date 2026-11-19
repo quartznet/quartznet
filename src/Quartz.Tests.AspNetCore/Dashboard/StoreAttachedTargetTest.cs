@@ -156,7 +156,8 @@ public sealed class StoreAttachedTargetTest
     {
         await using ServiceProvider node = await StartNode(ClusterScheduler);
 
-        // The row a node that stopped an hour ago left behind: written, then never renewed.
+        // The row a node that died an hour ago left behind: written, then never renewed. A node that shuts
+        // down cleanly deletes its row instead (#4374).
         WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow - TimeSpan.FromHours(1));
 
         await using DashboardHost dashboard = await DashboardHost.Attached(database);
