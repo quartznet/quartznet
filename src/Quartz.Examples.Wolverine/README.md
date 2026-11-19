@@ -40,7 +40,7 @@ to.
 
 | File | What it shows |
 |---|---|
-| `Part1RecurringPublishing.cs` | An `IJob<TInput>` publishing a Wolverine message on a cron schedule |
+| `Part1RecurringPublishing.cs` | An `IJob<TInput>` publishing a Wolverine message on a cron schedule, stamped with the deduplication id and headers of Wolverine's own occurrences |
 | `Part2OneOffFromHandler.cs` | Scheduling one firing from a handler, and cancelling every firing for one order by trigger group |
 | `Part3RawMessageData.cs` | Storing a serialized envelope and sending it with `SendRawMessageAsync` at fire time |
 | `Part4TunedLatency.cs` | `IdleWaitTime`, `MaxBatchSize` and `BatchTriggerAcquisitionFireAheadTimeWindow`, and what they really bound |

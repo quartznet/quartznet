@@ -34,6 +34,7 @@ public static class Smoke
         [
             Events.SchedulerStartedByWolverine,
             Events.ReconciliationPublished,
+            Events.ReconciliationStampedAsOccurrence,
             Events.ReminderScheduled,
             Events.ReminderFired,
             Events.RemindersCancelled,

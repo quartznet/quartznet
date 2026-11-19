@@ -39,6 +39,9 @@ builder.UseWolverine(opts =>
         // The outbox, the inbox and the node table part 5's agent needs. Quartz's own tables go in the
         // same database, because part 6's single transaction cannot span two servers.
         opts.PersistMessagesWithPostgresql(options.PostgresConnectionString!);
+
+        // Part 1's job stamps a deduplication id; enforcing it needs a store that deduplicates.
+        Part1RecurringPublishing.RequireDeduplication(opts);
     }
 });
 

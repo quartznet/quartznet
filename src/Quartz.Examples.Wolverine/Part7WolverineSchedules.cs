@@ -8,19 +8,22 @@ namespace Quartz.Examples.Wolverine;
  *
  * opts.Schedules.ScheduleRecurring publishes a message on a cron expression parsed by Cronos: five
  * fields, or six where the leading one is seconds, read in the schedule's own time zone — UTC unless
- * CronSchedule is handed another. One SingularAgent per cluster keeps the *next* occurrence of every
- * schedule pre-scheduled through the ordinary scheduled-message pipeline, so delivery, durability and
- * replay are the machinery Wolverine already shipped. Each occurrence carries a deterministic
- * deduplication id of the form "{name}:{occurrenceUtc:O}", so a failover that re-publishes one collapses
- * it at consumption rather than running it twice, and IRecurringScheduleControl pauses, resumes and
- * queries a schedule at run time.
+ * CronSchedule is handed another. Since 6.52 a schedule runs one of two ways. One whose shortest gap
+ * over a week is under opts.Schedules.TimerThreshold, 15 minutes by default, runs on a timer agent of
+ * its own and is published the moment it comes due. Any other has its *next* occurrence kept
+ * pre-scheduled by one SingularAgent per cluster, through the ordinary scheduled-message pipeline, so
+ * delivery, durability and replay are the machinery Wolverine already shipped. Each occurrence carries a
+ * deterministic deduplication id of the form "{name}:{occurrenceUtc:O}", so a failover that re-publishes
+ * one collapses it at consumption rather than running it twice, and IRecurringScheduleControl pauses,
+ * resumes, triggers and queries a schedule at run time.
  *
  * What it deliberately does not do, and where part 1 still earns its place: a missed occurrence is
  * skipped rather than decided about — there is no misfire policy to choose from — and the set of
  * schedules is fixed in code at UseWolverine, so nothing adds, moves or removes one while the host is
- * up. Anything faster than every five seconds is refused at the registration call site, because durable
- * scheduled messages replay on DurabilitySettings.ScheduledJobPollingTime and a faster cadence could not
- * be honoured.
+ * up. Since 6.61 a schedule may fire as often as every second (CronSchedule.MinimumCadence); one faster
+ * than every five seconds always runs on a timer agent, because durable scheduled messages replay on
+ * DurabilitySettings.ScheduledJobPollingTime. SkipWhileRunning() skips an occurrence that comes due
+ * while the previous one is still running, on the timer path only.
  *
  * Registration lives inside UseWolverine rather than inside AddQuartz, which is the whole point: this
  * schedule is Wolverine's, and Quartz never learns it exists.
