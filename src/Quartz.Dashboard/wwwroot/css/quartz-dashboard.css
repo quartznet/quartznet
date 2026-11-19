@@ -637,6 +637,15 @@ body{
     margin-bottom: var(--qz-space-lg);
 }
 
+/* On a phone the title, a page's description and its refresh cannot share a row, so they wrap. Only there: a
+   long description's own width would wrap the row on a wide screen too, where it fits. */
+@media (max-width: 640px) {
+    .qz-page-header {
+        flex-wrap: wrap;
+        gap: var(--qz-space-sm) var(--qz-space-md);
+    }
+}
+
 .qz-last-updated {
     display: inline-flex;
     align-items: center;
@@ -1661,6 +1670,14 @@ body{
     }
 }
 
+/* With the sidebar a rail, the fixed columns take 600px and the key would get what is left, which on a phone
+   is nothing. The key keeps 160px and the table scrolls inside the content panel instead. */
+@media (max-width: 1024px) {
+    .qz-jobs-table {
+        min-width: 760px;
+    }
+}
+
 /* The Triggers listing adds a schedule and two fire times to the key, state, execution group and actions.
    The key and the schedule share what the fixed columns leave, and the columns answer to the listing's own
    width, not the window's, so a collapsed sidebar counts. Each step below gives way before the key or the
@@ -1961,6 +1978,14 @@ body{
 @media (max-width: 1279px) {
     .qz-history-table .qz-col-summary {
         display: none;
+    }
+}
+
+/* With the sidebar a rail, the fixed columns take 584px and the two keys would share what is left, which on a
+   phone is nothing. Each key keeps 120px and the table scrolls inside the content panel instead. */
+@media (max-width: 1024px) {
+    .qz-history-table {
+        min-width: 824px;
     }
 }
 
