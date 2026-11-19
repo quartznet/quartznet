@@ -453,16 +453,21 @@ body{
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--qz-space-sm) var(--qz-space-md);
     padding: var(--qz-space-sm) var(--qz-space-lg);
     min-height: var(--qz-header-height);
     background-color: var(--qz-color-surface);
     border-bottom: 1px solid var(--qz-color-border);
 }
 
+/* Too narrow for one row, the right-hand controls wrap under the scheduler, and each control can shrink
+   to its select's floor: the header no longer sets the width of the page beneath it. */
 .qz-header-left {
     display: flex;
     align-items: center;
     gap: var(--qz-space-md);
+    min-width: 0;
 }
 
 .qz-header-right {
@@ -470,6 +475,7 @@ body{
     align-items: center;
     gap: var(--qz-space-md);
     flex-wrap: wrap;
+    min-width: 0;
 }
 
 .qz-header-title {
@@ -483,6 +489,7 @@ body{
     display: inline-flex;
     align-items: center;
     gap: var(--qz-space-xs);
+    min-width: 0;
 }
 
 .qz-header-control-label {
@@ -491,6 +498,7 @@ body{
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-weight: var(--qz-font-weight-semibold);
+    white-space: nowrap;
 }
 
 .qz-header-select {
@@ -502,11 +510,13 @@ body{
    6. MAIN CONTENT
    ========================================================================== */
 
-/* clip (not hidden) avoids a horizontal scroll container; min-height: 0 lets .qz-content scroll. */
+/* clip (not hidden) avoids a horizontal scroll container; min-height: 0 lets .qz-content scroll, and
+   min-width: 0 keeps the grid column at the viewport's width rather than its widest content's. */
 .qz-main {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
     overflow-x: clip;
     overflow-y: hidden;
 }
@@ -592,6 +602,7 @@ body{
 
 .qz-section > h2 {
     margin: 0 0 var(--qz-space-md);
+    overflow-wrap: anywhere;
     font-size: var(--qz-font-size-sm);
     font-weight: var(--qz-font-weight-semibold);
     color: var(--qz-color-text-secondary);
@@ -2795,7 +2806,9 @@ body{
 .qz-scheduler-selector {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: var(--qz-space-sm);
+    min-width: 0;
 }
 
 .qz-scheduler-select {
