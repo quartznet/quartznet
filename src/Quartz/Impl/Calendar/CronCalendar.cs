@@ -292,7 +292,7 @@ public sealed class CronCalendar : BaseCalendar, IEquatable<CronCalendar>
         {
             return false;
         }
-        bool baseEqual = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
+        bool baseEqual = Equals(CalendarBase, other.CalendarBase);
 
         return baseEqual && CronExpression.Equals(other.CronExpression);
     }

@@ -510,7 +510,7 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
         {
             return false;
         }
-        bool baseEqual = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
+        bool baseEqual = Equals(CalendarBase, other.CalendarBase);
 
         return baseEqual
                && InvertTimeRange == other.InvertTimeRange
