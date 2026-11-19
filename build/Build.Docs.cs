@@ -74,6 +74,15 @@ public partial class Build
     static readonly Regex DocfxWarningCount = new(@"^\s*(\d+) warning\(s\)\s*$", RegexOptions.None, TimeSpan.FromSeconds(5));
 
     /// <summary>
+    /// An ANSI escape sequence: any ECMA-48 control sequence, of which a colour is one. docfx colours
+    /// its lines on GitHub Actions, though not into a redirected Windows console, and prints
+    /// <c>ESC[38;5;11mwarning: …</c> there. Left in, the <c>m</c> before <c>warning</c> takes away the
+    /// word boundary <see cref="DocfxWarning" /> starts with, and the codes around the closing count keep
+    /// <see cref="DocfxWarningCount" />'s anchors from matching, so a coloured warning passed unread.
+    /// </summary>
+    static readonly Regex AnsiEscapeSequence = new(@"\x1B\[[0-?]*[ -/]*[@-~]", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    /// <summary>
     /// The one warning this build tolerates, and it is about the machine rather than about Quartz.
     /// </summary>
     /// <remarks>
@@ -141,7 +150,13 @@ public partial class Build
 
         process.AssertZeroExitCode();
 
-        List<string> output = process.Output.Select(x => x.Text).Where(x => x is not null).ToList();
+        // Stripped once, here, so that every pattern below reads the text docfx printed rather than the
+        // colours it printed it in, whichever docfx version or terminal decided on them.
+        List<string> output = process.Output
+            .Select(x => x.Text)
+            .Where(x => x is not null)
+            .Select(x => AnsiEscapeSequence.Replace(x, string.Empty))
+            .ToList();
         List<string> recognized = output.Where(x => DocfxWarning.IsMatch(x)).ToList();
         List<string> unexpected = recognized.Where(x => !ToleratedDocfxWarning.IsMatch(x)).ToList();
 
