@@ -1,32 +1,62 @@
 @if (TotalPages > 1)
 {
-    <nav class="qz-pagination">
-        <button type="button"
-                class="qz-button"
-                disabled="@(CurrentPage <= 1)"
-                @onclick="() => ChangePageAsync(CurrentPage - 1)">
-            Prev
-        </button>
+    <nav class="qz-pagination" aria-label="Pagination">
+        <span class="qz-pagination-info">Page @ShownPage of @TotalPages</span>
 
-        @foreach (int pageNumber in VisiblePages)
-        {
+        <div class="qz-pagination-controls">
             <button type="button"
-                    class="qz-button @(pageNumber == CurrentPage ? "qz-button-primary" : string.Empty)"
-                    @onclick="() => ChangePageAsync(pageNumber)">
-                @pageNumber
+                    class="qz-button"
+                    disabled="@(ShownPage <= 1)"
+                    @onclick="() => ChangePageAsync(ShownPage - 1)">
+                Prev
             </button>
-        }
 
-        <button type="button"
-                class="qz-button"
-                disabled="@(CurrentPage >= TotalPages)"
-                @onclick="() => ChangePageAsync(CurrentPage + 1)">
-            Next
-        </button>
+            @foreach (int pageNumber in Slots)
+            {
+                if (pageNumber == Gap)
+                {
+                    <span class="qz-pagination-ellipsis" aria-hidden="true">…</span>
+                }
+                else
+                {
+                    <button type="button"
+                            class="qz-button @(pageNumber == ShownPage ? "qz-button-primary" : string.Empty)"
+                            aria-current="@(pageNumber == ShownPage ? "page" : null)"
+                            @onclick="() => ChangePageAsync(pageNumber)">
+                        @pageNumber
+                    </button>
+                }
+            }
+
+            <button type="button"
+                    class="qz-button"
+                    disabled="@(ShownPage >= TotalPages)"
+                    @onclick="() => ChangePageAsync(ShownPage + 1)">
+                Next
+            </button>
+        </div>
     </nav>
 }
 
 @code {
+    /// <summary>
+    /// How many page slots the pager shows once there are more pages than fit: the first page, the last, and
+    /// an ellipsis or a page in each slot between. The count stays the same as the reader moves, so the
+    /// buttons do not shift under the pointer.
+    /// </summary>
+    private const int SlotCount = 7;
+
+    /// <summary>
+    /// Marks a slot that stands for the pages skipped there.
+    /// </summary>
+    private const int Gap = 0;
+
+    /// <summary>
+    /// The pages shown together at either end, beside the far end's page and one gap. In the middle, three
+    /// pages sit between two gaps instead.
+    /// </summary>
+    private const int EndRun = SlotCount - 2;
+
     [Parameter]
     public int TotalItems { get; set; }
 
@@ -52,19 +82,66 @@
         }
     }
 
-    private IEnumerable<int> VisiblePages
+    /// <summary>
+    /// The current page, kept inside the range. A page past the end, left behind when the listing shrank, reads
+    /// as the last page: the info text, the highlight and Prev all start from there.
+    /// </summary>
+    private int ShownPage => Math.Clamp(CurrentPage, 1, TotalPages);
+
+    /// <summary>
+    /// Every page when they all fit; otherwise the first and last pages, the current one with a neighbour on
+    /// each side, and an ellipsis for each run of pages skipped. Near either end the window stops sliding and
+    /// shows the five pages at that end instead.
+    /// </summary>
+    private List<int> Slots
     {
         get
         {
-            int start = Math.Max(1, CurrentPage - 2);
-            int end = Math.Min(TotalPages, CurrentPage + 2);
-            List<int> pages = [];
-            for (int page = start; page <= end; page++)
+            int total = TotalPages;
+            int current = ShownPage;
+            List<int> slots = [];
+
+            if (total <= SlotCount)
             {
-                pages.Add(page);
+                for (int page = 1; page <= total; page++)
+                {
+                    slots.Add(page);
+                }
+
+                return slots;
             }
 
-            return pages;
+            if (current <= EndRun - 1)
+            {
+                for (int page = 1; page <= EndRun; page++)
+                {
+                    slots.Add(page);
+                }
+
+                slots.Add(Gap);
+                slots.Add(total);
+            }
+            else if (current >= total - (EndRun - 2))
+            {
+                slots.Add(1);
+                slots.Add(Gap);
+                for (int page = total - EndRun + 1; page <= total; page++)
+                {
+                    slots.Add(page);
+                }
+            }
+            else
+            {
+                slots.Add(1);
+                slots.Add(Gap);
+                slots.Add(current - 1);
+                slots.Add(current);
+                slots.Add(current + 1);
+                slots.Add(Gap);
+                slots.Add(total);
+            }
+
+            return slots;
         }
     }
 

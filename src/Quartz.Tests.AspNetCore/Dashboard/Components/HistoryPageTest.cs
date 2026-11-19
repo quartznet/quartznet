@@ -66,6 +66,21 @@ public class HistoryPageTest
         });
     }
 
+    /// <summary>
+    /// The pager says which page of how many, so the line over the table counts rows and leaves the page out.
+    /// </summary>
+    [Test]
+    public void ThePagerAloneSaysWhichPageTheReaderIsOn()
+    {
+        GivenHistory(Enumerable.Range(0, 30).Select(_ => Entry(100)).ToArray());
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.WaitForAssertion(() => page.Find(".qz-pagination-info").TextContent.Should().Be("Page 1 of 2"));
+        page.Markup.Should().Contain("Showing 30 row(s) · Total 30 row(s)")
+            .And.NotContain("Page 1 / 2", "one place says which page the reader is on");
+    }
+
     private static HistoryEntry Entry(int durationMilliseconds)
     {
         return new HistoryEntry(
