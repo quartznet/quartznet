@@ -33,8 +33,9 @@
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <!--
       Quartz's tables join the schema Wolverine manages, through Weasel, in the durable half. Beside
-      WolverineFx.Postgresql, which asks for the same Weasel as Quartz.Weasel's floor, this is also the
-      dependency graph a Critter Stack application restores: one Weasel, at that floor.
+      WolverineFx.Postgresql, which asks for a Weasel above Quartz.Weasel's floor (9.50.0 from 6.64.2), this
+      is also the dependency graph a Critter Stack application restores: one Weasel, at Wolverine's floor.
+      Quartz.Weasel's own tests stay on the floor it ships with; Directory.Packages.props says how.
     -->
     <ProjectReference Include="..\Quartz.Weasel.PostgreSQL\Quartz.Weasel.PostgreSQL.csproj" />
   </ItemGroup>

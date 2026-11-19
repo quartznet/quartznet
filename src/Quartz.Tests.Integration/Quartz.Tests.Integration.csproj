@@ -80,8 +80,15 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Testcontainers.Redis" />
     <PackageReference Include="TimeZoneConverter" />
-    <PackageReference Include="WolverineFx.Postgresql" />
-    <PackageReference Include="WolverineFx.SqlServer" />
+    <!--
+      Held at 6.45.0, below the central row, for the reason the comment above Marten in
+      Directory.Packages.props gives: from 6.46 Wolverine asks for a Weasel above the floor Quartz.Weasel
+      ships with, and here it would move Weasel.Core, Postgresql and SqlServer off that floor while MySql,
+      Oracle and Firebird stayed on it. The example and WolverineSmoke run the central version. Drop the
+      override when the Weasel floor moves.
+    -->
+    <PackageReference Include="WolverineFx.Postgresql" VersionOverride="6.45.0" />
+    <PackageReference Include="WolverineFx.SqlServer" VersionOverride="6.45.0" />
   </ItemGroup>
 
   <ItemGroup>

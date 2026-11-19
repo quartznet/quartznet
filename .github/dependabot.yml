@@ -118,7 +118,9 @@ updates:
       # Marten 9.46 and Wolverine 6.46 each requires a Weasel above the floor above, which moves the tests off
       # the floor Quartz.Weasel ships with (Directory.Packages.props says why that matters). Every JasperFx
       # release reopened the same held update (#4048/#4049, #4054/#4055). Lift these with the Weasel floor,
-      # in the same change. Security updates are not affected by an ignore.
+      # in the same change. Security updates are not affected by an ignore. The WolverineFx rows themselves
+      # move by hand for the example (6.64.2, #4244), while Quartz.Tests.Integration keeps 6.45.0 with a
+      # VersionOverride that goes when the floor moves.
       - dependency-name: "Marten"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "WolverineFx*"
