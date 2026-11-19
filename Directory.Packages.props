@@ -66,6 +66,10 @@
       Weasel asks for, and Weasel itself at 9.37.0 and 9.38.0, below the Weasel range's floor. So the tests
       run Quartz.Weasel on the floor it ships with. A Marten or Wolverine that asks for a Weasel above the
       floor moves the tests off it; raise the floor with it, or hold that update.
+
+      Wolverine is held in the tests alone. The rows below are 6.64.2, which asks for Weasel 9.50.0 and
+      JasperFx 2.102.0, for the example and WolverineSmoke, which ship nothing and test no Weasel floor;
+      Quartz.Tests.Integration keeps Wolverine 6.45.0 with a VersionOverride beside Marten 9.45.0.
     -->
     <PackageVersion Include="Marten" Version="9.45.0" />
     <PackageVersion Include="MELT" Version="1.1.0" />
@@ -128,10 +132,10 @@
       32.0.1 is the last Verify without a licence check; .github/dependabot.yml says why it stays there.
     -->
     <PackageVersion Include="Verify.NUnit" Version="32.0.1" />
-    <PackageVersion Include="WolverineFx" Version="6.45.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="6.45.0" />
-    <PackageVersion Include="WolverineFx.SqlServer" Version="6.45.0" />
-    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.45.0" />
+    <PackageVersion Include="WolverineFx" Version="6.64.2" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.64.2" />
+    <PackageVersion Include="WolverineFx.SqlServer" Version="6.64.2" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.64.2" />
   </ItemGroup>
 
   <!--
