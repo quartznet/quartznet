@@ -61,6 +61,7 @@ public sealed class RetryPolicyAppliedTest
     private static int firings;
 
     private readonly List<ServiceProvider> providers = [];
+    private readonly List<IScheduler> schedulers = [];
     private readonly ConcurrentBag<string> exhaustedFor = [];
     private MeterListener meterListener;
 
@@ -101,6 +102,17 @@ public sealed class RetryPolicyAppliedTest
     public async Task TearDown()
     {
         meterListener?.Dispose();
+
+        // Shut down here, waiting for the jobs, rather than on each test's last line: a test that fails
+        // before that line would leave its scheduler firing, and every PlainJob counts into the static
+        // firings the next test reads. Disposing the container does not shut down a scheduler that
+        // AddQuartz registered.
+        foreach (IScheduler scheduler in schedulers)
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+
+        schedulers.Clear();
         foreach (ServiceProvider provider in providers)
         {
             await provider.DisposeAsync();
@@ -125,8 +137,6 @@ public sealed class RetryPolicyAppliedTest
         exhaustedFor.Should().NotContain(scheduler.SchedulerInstanceId, "nothing ran out, so nothing is counted");
         (await scheduler.GetTriggerState(key)).Should().Be(TriggerState.Normal,
             "PauseTriggerWhenRetriesExhausted pauses a trigger whose retries ran out, and this one had none to run out of");
-
-        await scheduler.Shutdown(waitForJobsToComplete: true);
     }
 
     [Test]
@@ -151,8 +161,6 @@ public sealed class RetryPolicyAppliedTest
         listener.Heard.Should().BeEmpty("the subclass overrides ExecutionComplete without the base, so it applied no inherited policy");
         exhaustedFor.Should().NotContain(scheduler.SchedulerInstanceId);
         (await scheduler.GetTriggerState(key)).Should().Be(TriggerState.Normal);
-
-        await scheduler.Shutdown(waitForJobsToComplete: true);
     }
 
     [Test]
@@ -164,15 +172,14 @@ public sealed class RetryPolicyAppliedTest
         (IScheduler scheduler, ExhaustedListener listener, RecordingLoggerProvider log) = await Start(EveryTwoSeconds(key, ownPolicy: null));
 
         await WaitForFirings(2);
+        TriggerState state = await StateOnceSettled(scheduler, key);
 
         listener.Heard.Should().BeEmpty(
             "the scheduler's default was supplied without knowing this schedule, so a retry with no room is not a policy running out");
         exhaustedFor.Should().NotContain(scheduler.SchedulerInstanceId);
-        (await scheduler.GetTriggerState(key)).Should().Be(TriggerState.Normal,
+        state.Should().Be(TriggerState.Normal,
             "nothing ran out, so PauseTriggerWhenRetriesExhausted has nothing to pause, and the trigger fired again");
         log.EventIds.Should().Contain(1062, "the quiet settlement is still logged, at Debug").And.NotContain(1057);
-
-        await scheduler.Shutdown(waitForJobsToComplete: true);
     }
 
     [Test]
@@ -191,8 +198,6 @@ public sealed class RetryPolicyAppliedTest
         exhaustedFor.Should().Contain(scheduler.SchedulerInstanceId);
         (await scheduler.GetTriggerState(key)).Should().Be(TriggerState.Paused, "PauseTriggerWhenRetriesExhausted paused it");
         log.EventIds.Should().Contain(1057).And.NotContain(1062);
-
-        await scheduler.Shutdown(waitForJobsToComplete: true);
     }
 
     [Test]
@@ -293,6 +298,7 @@ public sealed class RetryPolicyAppliedTest
         providers.Add(provider);
 
         IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        schedulers.Add(scheduler);
         await scheduler.ScheduleJob(JobBuilder.Create<PlainJob>().WithIdentity(JobKey).Build(), trigger);
         await scheduler.Start();
         return (scheduler, listener, log);
@@ -303,6 +309,32 @@ public sealed class RetryPolicyAppliedTest
         for (int i = 0; i < count; i++)
         {
             (await fired.WaitAsync(waitLimit)).Should().BeTrue("firing {0} of {1} should have happened by now", i + 1, count);
+        }
+    }
+
+    /// <summary>
+    /// The trigger's state once no firing of it is in flight.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="PlainJob" /> counts a firing as it starts, and the store reports the trigger as
+    /// <see cref="TriggerState.Executing" /> until the run shell completes that firing, after every
+    /// listener has heard it, so a read straight after <see cref="WaitForFirings" /> races the
+    /// completion. Once the state is something else, the listeners, the counter and the log have all
+    /// had the firing.
+    /// </remarks>
+    private static async Task<TriggerState> StateOnceSettled(IScheduler scheduler, TriggerKey key)
+    {
+        DateTimeOffset deadline = TimeProvider.System.GetUtcNow() + waitLimit;
+        while (true)
+        {
+            TriggerState state = await scheduler.GetTriggerState(key);
+            if (state != TriggerState.Executing)
+            {
+                return state;
+            }
+
+            TimeProvider.System.GetUtcNow().Should().BeBefore(deadline, "the firing should have completed by now");
+            await Task.Delay(20);
         }
     }
 
