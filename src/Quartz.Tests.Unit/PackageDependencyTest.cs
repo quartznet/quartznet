@@ -31,7 +31,8 @@ namespace Quartz.Tests.Unit;
 /// resolves a minimum by raising everything else to meet it, so a floor at the newest servicing patch
 /// stops an application pinning the one before it from restoring at all (#3717). The floors live in
 /// their own item group in <c>Directory.Packages.props</c>, under a comment saying why, and
-/// <see cref="MicrosoftFloorIsTheMajorItself" /> is what holds them there.
+/// <see cref="MicrosoftFloorIsTheMajorItself" /> and <see cref="OtherFloorIsTheRecordedVersion" /> are
+/// what hold them there.
 /// </para>
 /// </remarks>
 public class PackageDependencyTest
@@ -93,6 +94,73 @@ public class PackageDependencyTest
     };
 
     private sealed record AdvisoryFloor(string Advisory, string FixedVersion);
+
+    /// <summary>
+    /// Every other floor is the version recorded for it in <see cref="RecordedFloors" />, where its reason
+    /// is written down.
+    /// </summary>
+    /// <remarks>
+    /// Outside the framework's lockstep families a floor has no shape to check: it is the lowest release
+    /// that is correct for Quartz, or the one that fixed an advisory, and only its reason says which. Without
+    /// a record such a floor moved unseen. An Oracle driver patch asked for
+    /// <c>System.Security.Cryptography.Pkcs</c> 10.0.13, Dependabot raised the 9.0.21 floor with it as a
+    /// required dependency, past its ignore entry, and every check passed (#4366).
+    /// </remarks>
+    [TestCaseSource(nameof(OtherFloors))]
+    public void OtherFloorIsTheRecordedVersion(string package, string version)
+    {
+        RecordedFloors.Should().ContainKey(package,
+            $"{package} is a floor a consumer inherits from a shipped nuspec. Record it in {nameof(RecordedFloors)} "
+            + "with the reason it is that version: the lowest release that is correct for Quartz, or the one "
+            + "that fixed an advisory");
+
+        RecordedFloor recorded = RecordedFloors[package];
+        version.Should().Be(recorded.Version,
+            $"{package} is floored at {recorded.Version}: {recorded.Reason}. A floor moves for a security "
+            + "advisory or a fix Quartz needs, and for nothing else. If this one has to, change its entry in "
+            + $"{nameof(RecordedFloors)} and its reason in the same change, with the comment above the row in "
+            + "Directory.Packages.props");
+    }
+
+    /// <summary>
+    /// Every entry of <see cref="RecordedFloors" /> is still a floor, so the record says nothing of a row
+    /// that has gone.
+    /// </summary>
+    [Test]
+    public void EveryRecordedFloorIsAFloor()
+    {
+        Floors().Keys.Should().Contain(RecordedFloors.Keys,
+            $"{nameof(RecordedFloors)} records the rows of the \"{FloorsLabel}\" group in Directory.Packages.props. "
+            + "Drop the entry of a floor that has left it");
+    }
+
+    private const string WeaselRange = "[9.39.0, 10.0.0)";
+
+    private const string WeaselReason = "9.39.0 is the first release with Weasel.Firebird, the ceiling is the next "
+        + "major, and every Weasel row moves with the others";
+
+    /// <summary>
+    /// The floors outside the <c>Microsoft.*</c> families: the version each one is, and why.
+    /// </summary>
+    private static readonly Dictionary<string, RecordedFloor> RecordedFloors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Aspire.Hosting"] = new("13.6.5", "it is the lowest release outside GHSA-f7vh-h5g3-7jrh"),
+        ["MySqlConnector"] = new("2.6.1", "Weasel.MySql 9.39.0 declares 2.4.0, under GHSA-473q-m89c-ghf8, and 2.6.1 fixed it"),
+        ["Newtonsoft.Json"] = new("13.0.2", "13.0.1 round-trips a TimeOnly without its seconds (JobDataMapPortabilityTest)"),
+        ["OpenTelemetry.Extensions.Hosting"] = new("1.15.3", "it fixed GHSA-g94r-2vxg-569j, which every earlier 1.x brings in through OpenTelemetry.Api"),
+        ["StackExchange.Redis"] = new("3.0.0", "it is the lowest release of the major Quartz.Extensions.Redis builds against"),
+        ["System.Security.Cryptography.Pkcs"] = new("9.0.21", "it is the lowest release both database drivers accept that fixes GHSA-2fmv-rv2c-59x7 and GHSA-846f-f764-76mx"),
+        ["TimeZoneConverter"] = new("7.1.0", "it is the lowest release that resolves a Windows id whose CLDR name is a tzdata-legacy link (TimeZoneConverter #177)"),
+        ["Weasel.Core"] = new(WeaselRange, WeaselReason),
+        ["Weasel.Firebird"] = new(WeaselRange, WeaselReason),
+        ["Weasel.MySql"] = new(WeaselRange, WeaselReason),
+        ["Weasel.Oracle"] = new(WeaselRange, WeaselReason),
+        ["Weasel.Postgresql"] = new(WeaselRange, WeaselReason),
+        ["Weasel.Sqlite"] = new(WeaselRange, WeaselReason),
+        ["Weasel.SqlServer"] = new(WeaselRange, WeaselReason),
+    };
+
+    private sealed record RecordedFloor(string Version, string Reason);
 
     /// <summary>
     /// Every <c>Microsoft.*</c> a shipped project references is declared with the floors, so the list
@@ -314,6 +382,11 @@ public class PackageDependencyTest
 
     public static IEnumerable<TestCaseData> MicrosoftFloors() => Floors()
         .Where(x => IsMicrosoft(x.Key))
+        .OrderBy(x => x.Key, StringComparer.Ordinal)
+        .Select(x => new TestCaseData(x.Key, x.Value).SetArgDisplayNames(x.Key));
+
+    public static IEnumerable<TestCaseData> OtherFloors() => Floors()
+        .Where(x => !IsMicrosoft(x.Key))
         .OrderBy(x => x.Key, StringComparer.Ordinal)
         .Select(x => new TestCaseData(x.Key, x.Value).SetArgDisplayNames(x.Key));
 

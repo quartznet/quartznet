@@ -96,6 +96,7 @@ updates:
       # The other floors are ignored whole, majors included: a new major of a shipped floor is a Quartz 5
       # decision, as MySqlConnector 3.0.0 was (#4288). Aspire.Hosting is Quartz.Aspire.Hosting's floor;
       # the example's Aspire packages move on $(AspireVersion) through the aspire group, and this row does not.
+      # PackageDependencyTest records each one's version and reason, and fails a row that differs from it.
       - dependency-name: "Aspire.Hosting"
       - dependency-name: "MySqlConnector"
       - dependency-name: "Newtonsoft.Json"
