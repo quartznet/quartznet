@@ -639,6 +639,26 @@ public sealed class TracingJobStoreTest
     }
 
     /// <summary>
+    /// #4343, off, and the store throws before it returns its <see cref="ValueTask" />: the call is
+    /// deferred into the completer, so the stand-in is still stopped and nothing is left current.
+    /// </summary>
+    [Test]
+    public async Task WithRootOperationsOff_ASynchronousThrowOutsideAnyActivity_LeavesNothingCurrent()
+    {
+        using ParentBasedTracing tracing = new();
+        IJobStore store = await tracing.Decorated(schedulerName, traceRootOperations: false);
+        A.CallTo(() => JobStores.Unwrap(store).ResumeAll(A<CancellationToken>.Ignored))
+            .Throws(new JobPersistenceException("the database is gone"));
+
+        Activity.Current = null;
+        Func<Task> act = async () => await store.ResumeAll();
+        await act.Should().ThrowAsync<JobPersistenceException>();
+
+        Activity.Current.Should().BeNull("the stand-in started for the call is stopped even though the store never returned");
+        tracing.Stopped.Should().BeEmpty("no span is recorded for a call made outside any activity");
+    }
+
+    /// <summary>
     /// #4343, on: the default, which is today's shape — a store span as the root, the database span
     /// under it.
     /// </summary>
