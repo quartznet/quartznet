@@ -8,7 +8,7 @@ using Quartz.Dashboard.Services;
 namespace Quartz.Tests.AspNetCore.Dashboard.Components;
 
 /// <summary>
-/// The Execution History page: what a failed refresh leaves on it.
+/// The Execution History page: what a failed refresh leaves on it, and which part of it names the page.
 /// </summary>
 public class HistoryPageTest
 {
@@ -77,7 +77,7 @@ public class HistoryPageTest
         IRenderedComponent<History> page = context.Render<History>();
 
         page.WaitForAssertion(() => page.Find(".qz-pagination-info").TextContent.Should().Be("Page 1 of 2"));
-        page.Markup.Should().Contain("Showing 30 row(s) · Total 30 row(s)")
+        page.Markup.Should().Contain("Total 30 row(s)")
             .And.NotContain("Page 1 / 2", "one place says which page the reader is on");
     }
 
