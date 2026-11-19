@@ -32,7 +32,7 @@
       the tool's directory filter never scans a directory named 'packages', which is where the package
       pages live. See build/Build.Docs.Snippets.cs.
     -->
-    <PackageReference Include="MarkdownSnippets" Version="29.0.0" />
+    <PackageReference Include="MarkdownSnippets" Version="30.0.1" />
 
     <PackageReference Include="Semver" Version="3.0.0" />
 
