@@ -20,21 +20,22 @@ namespace Quartz.Examples.Wolverine;
  * the part of the integration where the honest answer is not the tidy one.
  *
  *   - WITHOUT persistence — the default in this example, and what CI compiles and runs — Wolverine
- *     runs no agents at all. WolverineRuntime.startAgentsAsync() opens with
- *     `if (Storage is NullMessageStore) { ...; return; }`, so NodeAgentController is never built and
- *     the IAgentFamily registrations in the container are never read. AddSingularAgent<T>() would
- *     compile, register, and silently never start. So the faithful form here is an ordinary
+ *     runs none of yours. WolverineRuntime.startAgentsAsync() opens with
+ *     `if (Storage is NullMessageStore) { ...; return; }`, which starts only Wolverine's own
+ *     recurring-schedule agents, so NodeAgentController is never built and no other IAgentFamily
+ *     registration is read. AddSingularAgent<T>() would compile, register, and silently never start.
+ *     So the faithful form here is an ordinary
  *     IHostedService registered after UseWolverine — hosted services start in registration order, so
  *     WolverineRuntime is up before the scheduler is.
  *
  *   - WITH persistence, Wolverine's agent machinery is running and SingularAgent is the supported way
  *     to say "one node in the cluster does this". It is also the one worth being precise about:
  *     SingularAgent.EvaluateAssignmentsAsync picks
- *     `assignments.Nodes.FirstOrDefault(x => !x.IsLeader) ?? assignments.Nodes.FirstOrDefault()`, so
- *     it is once-per-cluster and *prefers a non-leader*, falling back to the leader only when there is
- *     one node. It is not leader-pinned. Wolverine's own leader-pinned family,
- *     LeaderPinnedListenerFamily, is for transport listeners and is registered internally; a user
- *     cannot add to it. Strictly-leader-only means writing an IAgentFamily and calling
+ *     `serving.FirstOrDefault(x => !x.IsLeader) ?? serving.FirstOrDefault()` from the nodes that are
+ *     not warming up, so it is once-per-cluster and *prefers a non-leader*, falling back to the leader
+ *     only when there is one node. It is not leader-pinned. Wolverine's own leader-pinned family,
+ *     LeaderPinnedListenerFamily, is built from the leader-pinned transport listeners; a user cannot
+ *     add an agent to it. Strictly-leader-only means writing an IAgentFamily and calling
  *     AssignmentGrid.RunOnLeader, which is more machinery than this example earns.
  *
  * Either way, note what is NOT being asked of Wolverine: not "which node may fire this trigger". A

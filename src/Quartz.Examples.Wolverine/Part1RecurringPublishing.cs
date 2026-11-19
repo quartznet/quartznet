@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Globalization;
+
 using Microsoft.Extensions.Logging;
 
 using Wolverine;
@@ -15,12 +18,14 @@ namespace Quartz.Examples.Wolverine;
  * What a Quartz trigger adds over it, all of it visible in Register below: a misfire instruction, so a
  * firing the process was down for has a decided outcome rather than a fixed one; a schedule that lives
  * in the store rather than in the registration code, so it can be added, moved, paused or removed while
- * the host is up; a job with data, a priority, a retry policy and a calendar of dates to skip; and no
- * floor on how often it may fire. Part 7's header comment is the other half of this comparison, and the
- * page has the table.
+ * the host is up; a job with data, a priority, a retry policy and a calendar of dates to skip; and a
+ * backfill of a past range. Part 7's header comment is the other half of this comparison, and the page
+ * has the table.
  *
  * The job is the only place the two libraries meet: an IJob<TInput> that resolves IMessageBus and
- * publishes. Nothing downstream can tell the message came from a scheduler rather than from a handler.
+ * publishes. It stamps the message with the deduplication id and the two headers Wolverine stamps on
+ * its own schedules' occurrences, so the handler side treats it as one of them: the same span tags,
+ * metric tags, dead-letter filter and, where the store can back it, deduplication.
  */
 
 /// <summary>
@@ -34,6 +39,12 @@ public sealed record ReconciliationWindow(TimeSpan Length);
 /// </summary>
 public sealed class ReconciliationJob : IJob<ReconciliationWindow>
 {
+    /// <summary>
+    /// The name Wolverine's telemetry knows this schedule by. Not a name registered with
+    /// <c>opts.Schedules</c>: the two would share deduplication ids, metric tags and dead letters.
+    /// </summary>
+    public const string ScheduleName = "reconciliation";
+
     private readonly IMessageBus bus;
     private readonly ILogger<ReconciliationJob> logger;
 
@@ -48,14 +59,53 @@ public sealed class ReconciliationJob : IJob<ReconciliationWindow>
         ReconciliationWindow input,
         CancellationToken cancellationToken = default)
     {
-        // The scheduler's own clock, not DateTimeOffset.UtcNow: a trigger that misfired and is firing
-        // late still reports the time it was scheduled for, which is the window the run is about.
-        DateTimeOffset to = context.ScheduledFireTimeUtc ?? context.FireTimeUtc;
+        // The occurrence this firing serves, not the clock: the same instant on a retry, a late
+        // misfire catch-up and a recovery, and the slot on a backfill. The window is the one it names.
+        FiringOccurrence occurrence = context.GetOccurrence();
+        DateTimeOffset to = occurrence.OccurrenceUtc;
 
         RunReconciliation message = new(to - input.Length, to);
-        await bus.PublishAsync(message);
+        await bus.PublishAsync(message, AsWolverineOccurrence(context, occurrence));
 
         logger.LogInformation("Published {Message} for the window ending {To:O}", nameof(RunReconciliation), to);
+    }
+
+    /// <summary>
+    /// What Wolverine stamps on an occurrence of its own schedules (<c>RecurringOccurrencePublisher</c>,
+    /// checked against Wolverine 6.64.2).
+    /// </summary>
+    private static DeliveryOptions AsWolverineOccurrence(IJobExecutionContext context, FiringOccurrence occurrence)
+    {
+        // Wolverine internals, not an integration point it documents for other schedulers: re-check
+        // the id's form and the two header names on every Wolverine update.
+        string at = occurrence.OccurrenceUtc.ToString("O", CultureInfo.InvariantCulture);
+
+        DeliveryOptions options = new()
+        {
+            DeduplicationId = occurrence.Origin switch
+            {
+                // RecurringMessage.DeduplicationIdFor's form: a republish collapses at consumption.
+                FiringOrigin.Schedule => $"{ScheduleName}:{at}",
+
+                // ManualDeduplicationIdFor's form: a run asked for by TriggerJob is a run of its own.
+                FiringOrigin.Manual => $"{ScheduleName}:manual:{at}",
+
+                // A form of its own. The scheduled form would collapse a backfill into the run it
+                // repeats; when each backfill started tells two backfills of one slot apart.
+                FiringOrigin.Backfill => $"{ScheduleName}:backfill:{at}:{context.ScheduledFireTimeUtc:O}",
+
+                _ => throw new UnreachableException()
+            }
+        };
+
+        // wolverine.schedule.name on the handler's span and schedule.name on its metrics, and what
+        // DeadLetterEnvelopeQuery.Header filters dead letters by.
+        options.Headers[RecurringMessage.HeaderKey] = ScheduleName;
+
+        // wolverine.schedule.occurrence on the handler's span.
+        options.Headers[RecurringMessage.OccurrenceHeaderKey] = at;
+
+        return options;
     }
 }
 
@@ -64,9 +114,20 @@ public sealed class ReconciliationJob : IJob<ReconciliationWindow>
 /// </summary>
 public static class RunReconciliationHandler
 {
-    public static void Handle(RunReconciliation message)
+    public static void Handle(RunReconciliation message, Envelope envelope)
     {
         Ledger.Record(Events.ReconciliationPublished, $"{message.FromUtc:O} .. {message.ToUtc:O}");
+
+        // The stamping as the handler side sees it, which is what --smoke checks it by: the two headers
+        // arrived, and the deduplication id is the schedule's form built from them.
+        bool stamped = envelope.TryGetHeader(RecurringMessage.HeaderKey, out string? schedule)
+            && envelope.TryGetHeader(RecurringMessage.OccurrenceHeaderKey, out string? occurrence)
+            && string.Equals(envelope.DeduplicationId, $"{schedule}:{occurrence}", StringComparison.Ordinal);
+
+        if (stamped)
+        {
+            Ledger.Record(Events.ReconciliationStampedAsOccurrence, envelope.DeduplicationId!);
+        }
     }
 }
 
@@ -94,5 +155,18 @@ public static class Part1RecurringPublishing
                 // not offer.
                 .WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing))
             .UsingInput(new ReconciliationWindow(TimeSpan.FromDays(1))));
+    }
+
+    /// <summary>
+    /// Makes Wolverine enforce the deduplication id the job stamps. Called from <c>Program.cs</c> inside
+    /// <c>UseWolverine</c>, and only with a database.
+    /// </summary>
+    public static void RequireDeduplication(WolverineOptions opts)
+    {
+        // Wolverine does this by itself only for message types registered with opts.Schedules.
+        // [Deduplicated] on the handler says the same. On a store that cannot deduplicate, either form
+        // throws at the first message, which is why the in-memory run leaves it off.
+        opts.Durability.MessageDeduplicationMode = MessageDeduplicationMode.CompareByHash;
+        opts.Policies.RequireDeduplicationId(chain => chain.MessageType == typeof(RunReconciliation));
     }
 }

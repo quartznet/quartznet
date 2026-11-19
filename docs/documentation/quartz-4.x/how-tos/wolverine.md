@@ -13,7 +13,8 @@ when to use Quartz, and how to run both.
 
 There is no integration package (no `WolverineFx.Quartz`, no `Quartz.Wolverine`); one was
 [planned for Wolverine 6](https://github.com/JasperFx/wolverine/issues/2715) but has not shipped. This is a
-recipe, written against Wolverine 6.35.0. It uses Wolverine's hook for scheduling libraries,
+recipe, checked against Wolverine 6.64.2 (tag [`V6.64.2`](https://github.com/JasperFx/wolverine/tree/V6.64.2)).
+It uses Wolverine's hook for scheduling libraries,
 ["Sending Raw Message Data"](https://wolverinefx.net/guide/messaging/message-bus.html), in
 [Deferring a serialized envelope](#deferring-a-serialized-envelope).
 
@@ -30,8 +31,8 @@ request, on all three operating systems, with no database.
 
 | Use | When |
 |---|---|
-| Wolverine's `opts.Schedules` | publish a message on a cron, skipping whatever the process was down for |
-| a Quartz trigger that publishes | a missed firing needs a *decided* outcome; the schedule changes while the host runs; some dates are excluded; or runs must not overlap |
+| Wolverine's `opts.Schedules` | publish a message on a cron, skipping whatever the process was down for, and with `SkipWhileRunning()` an occurrence due while the previous one runs |
+| a Quartz trigger that publishes | a missed firing needs a *decided* outcome; the schedule changes while the host runs; some dates are excluded; a past range is backfilled; or an overlapping run must wait, or cancel the one before |
 
 For the first case Wolverine's schedule is three lines in `UseWolverine`, rides the existing outbox, and
 needs no second runtime.
@@ -80,6 +81,9 @@ builder.UseWolverine(opts =>
         // The outbox, the inbox and the node table part 5's agent needs. Quartz's own tables go in the
         // same database, because part 6's single transaction cannot span two servers.
         opts.PersistMessagesWithPostgresql(options.PostgresConnectionString!);
+
+        // Part 1's job stamps a deduplication id; enforcing it needs a store that deduplicates.
+        Part1RecurringPublishing.RequireDeduplication(opts);
     }
 });
 ```
@@ -91,7 +95,7 @@ that package is referenced or handlers were pre-generated with `codegen write`.
 Register Quartz as usual; the persistent branch is for the last two sections:
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Program.cs:45 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Program.cs:48 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -132,7 +136,7 @@ its own tables with, so `db-apply`, `db-assert` and `resources setup` cover both
 Register it inside `UseWolverine`; the Quartz scheduler never sees it.
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Part7WolverineSchedules.cs:66 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Part7WolverineSchedules.cs:69 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -152,24 +156,38 @@ public static void Register(WolverineOptions opts, string cron)
 }
 ```
 
-* One `SingularAgent` per cluster keeps the *next* occurrence of each schedule queued as an ordinary
-  scheduled message, so delivery, durability and replay are Wolverine's.
+Since 6.52 ([`RecurringMessage.cs`](https://github.com/JasperFx/wolverine/blob/V6.64.2/src/Wolverine/Runtime/Recurring/RecurringMessage.cs)),
+a schedule runs on one of two paths:
+
+| Path | Chosen for | How it runs |
+|---|---|---|
+| Timer agent | a schedule whose shortest gap over a week is under `opts.Schedules.TimerThreshold`, 15 minutes by default | one agent per schedule publishes each occurrence when it comes due; no inbox row, no poller |
+| Scheduled message | every other schedule | one `SingularAgent` per cluster keeps the *next* occurrence queued as an ordinary scheduled message, so delivery, durability and replay are Wolverine's |
+
+* `UseTimer()` and `UseScheduledMessages()` force a path.
 * Each occurrence has a deterministic deduplication id, `{name}:{occurrenceUtc:O}`, so a re-publish after
-  agent failover collapses at consumption.
+  agent failover collapses at consumption. A manual run's is `{name}:manual:{requestedUtc:O}`.
 * With a relational message store, `wolverine_recurring_messages` records which schedule owns which pending
   envelope; the agent checks it is still in the inbox, and a successor adopts it instead of publishing
   again.
+* `IRecurringScheduleControl` pauses, resumes and queries a schedule, and `TriggerAsync` runs it once now.
 
 [Documented](https://wolverinefx.net/guide/messaging/recurring.html) limits:
 
-* **Nothing faster than every five seconds**, the default `DurabilitySettings.ScheduledJobPollingTime`; a
-  faster cron is refused at registration. So the smoke run uses `*/5 * * * * *` here, while part 1's Quartz
-  trigger fires every two seconds under `--smoke`.
-* **Without a message store** (a startup warning), occurrences in a restart window are lost and there is no
-  store-backed deduplication. `DurabilityMode.Serverless` and `DurabilityMode.MediatorOnly` run no agents,
-  so a host in either mode with a schedule refuses to start.
+* **Nothing faster than every second** (6.61, `CronSchedule.MinimumCadence`); it was five seconds. A gap
+  under five seconds, the default `ScheduledJobPollingTime`, always runs on a timer agent, and
+  `UseScheduledMessages()` refuses it. So the smoke run uses `*/2 * * * * *` here, the cadence of part 1's
+  Quartz trigger under `--smoke`.
+* **`SkipWhileRunning()`** (6.61) skips an occurrence that comes due while the previous one is still being
+  handled. It works on the timer path only, where it *invokes* each occurrence instead of publishing it:
+  no inbox row, no dead letter queue, and no other subscriber receives it.
 * **Missed occurrences are skipped, never back-filled**, including during a `PauseAsync` / `ResumeAsync`
-  window. This is the main difference from a Quartz trigger.
+  window. On the scheduled-message path the one pre-scheduled occurrence still fires; on the timer path the
+  occurrences that fall due while a dead node's agent is reassigned are lost. This is the main difference
+  from a Quartz trigger.
+* **Without a message store** (a startup warning), occurrences in a restart window are lost and there is no
+  store-backed deduplication. `Serverless`, `ServerlessWithOutbox` and `MediatorOnly` run no agents, so a
+  host in those modes with a schedule refuses to start.
 
 ## When the schedule still belongs in Quartz
 
@@ -178,12 +196,18 @@ publishes. Take `IMessageBus` in the constructor; Quartz resolves the job in a f
 scoped `IMessageBus` is right.
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Part1RecurringPublishing.cs:35 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Part1RecurringPublishing.cs:40 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
 public sealed class ReconciliationJob : IJob<ReconciliationWindow>
 {
+    /// <summary>
+    /// The name Wolverine's telemetry knows this schedule by. Not a name registered with
+    /// <c>opts.Schedules</c>: the two would share deduplication ids, metric tags and dead letters.
+    /// </summary>
+    public const string ScheduleName = "reconciliation";
+
     private readonly IMessageBus bus;
     private readonly ILogger<ReconciliationJob> logger;
 
@@ -198,23 +222,23 @@ public sealed class ReconciliationJob : IJob<ReconciliationWindow>
         ReconciliationWindow input,
         CancellationToken cancellationToken = default)
     {
-        // The scheduler's own clock, not DateTimeOffset.UtcNow: a trigger that misfired and is firing
-        // late still reports the time it was scheduled for, which is the window the run is about.
-        DateTimeOffset to = context.ScheduledFireTimeUtc ?? context.FireTimeUtc;
+        // The occurrence this firing serves, not the clock: the same instant on a retry, a late
+        // misfire catch-up and a recovery, and the slot on a backfill. The window is the one it names.
+        FiringOccurrence occurrence = context.GetOccurrence();
+        DateTimeOffset to = occurrence.OccurrenceUtc;
 
         RunReconciliation message = new(to - input.Length, to);
-        await bus.PublishAsync(message);
+        await bus.PublishAsync(message, AsWolverineOccurrence(context, occurrence));
 
         logger.LogInformation("Published {Message} for the window ending {To:O}", nameof(RunReconciliation), to);
     }
-}
 ```
 
 `IJob<TInput>` receives the payload as a parameter, not a `JobDataMap` lookup. Register it with a cron trigger
 and `UsingInput`:
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Part1RecurringPublishing.cs:85 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Part1RecurringPublishing.cs:146 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -232,8 +256,102 @@ q.ScheduleJob<ReconciliationJob>(trigger => trigger
     .UsingInput(new ReconciliationWindow(TimeSpan.FromDays(1))));
 ```
 
-Read `context.ScheduledFireTimeUtc`, not the clock: a late firing after a misfire still reports its
-scheduled time, which is the window the run covers.
+Read `context.GetOccurrence().OccurrenceUtc`, not the clock. It is the occurrence the firing serves, the
+same on a retry, a late misfire catch-up and a recovery, and the slot on a backfill
+([Which occurrence a firing serves](backfill.md#which-occurrence-a-firing-serves)).
+
+## Joining Wolverine's schedule telemetry
+
+Publish with the deduplication id and the two headers Wolverine stamps on its own occurrences, and the
+handler side treats the message as one of them. Checked against 6.64.2:
+
+| Set | Effect on the handler side |
+|---|---|
+| `DeliveryOptions.DeduplicationId`, in the form of [`RecurringMessage.DeduplicationIdFor`](https://github.com/JasperFx/wolverine/blob/V6.64.2/src/Wolverine/Runtime/Recurring/RecurringMessage.cs) | a republish after a retry or a recovery collapses at consumption |
+| header `RecurringMessage.HeaderKey` (`recurring-schedule`) = the name | `wolverine.schedule.name` on the span and `schedule.name` on the metrics ([`Envelope.Internals.cs`](https://github.com/JasperFx/wolverine/blob/V6.64.2/src/Wolverine/Envelope.Internals.cs)); dead letters filter by it with [`DeadLetterEnvelopeQuery.Header`](https://github.com/JasperFx/wolverine/blob/V6.64.2/src/Wolverine/Persistence/Durability/DeadLetterManagement/DeadLetterEnvelopeQuery.cs) |
+| header `RecurringMessage.OccurrenceHeaderKey` (`recurring-occurrence`) = the occurrence, `O` format | `wolverine.schedule.occurrence` on the span |
+
+<!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
+     Copied from src/Quartz.Examples.Wolverine/Part1RecurringPublishing.cs:77 — WolverineHowToTest fails when the two stop
+     matching. -->
+
+```csharp
+private static DeliveryOptions AsWolverineOccurrence(IJobExecutionContext context, FiringOccurrence occurrence)
+{
+    // Wolverine internals, not an integration point it documents for other schedulers: re-check
+    // the id's form and the two header names on every Wolverine update.
+    string at = occurrence.OccurrenceUtc.ToString("O", CultureInfo.InvariantCulture);
+
+    DeliveryOptions options = new()
+    {
+        DeduplicationId = occurrence.Origin switch
+        {
+            // RecurringMessage.DeduplicationIdFor's form: a republish collapses at consumption.
+            FiringOrigin.Schedule => $"{ScheduleName}:{at}",
+
+            // ManualDeduplicationIdFor's form: a run asked for by TriggerJob is a run of its own.
+            FiringOrigin.Manual => $"{ScheduleName}:manual:{at}",
+
+            // A form of its own. The scheduled form would collapse a backfill into the run it
+            // repeats; when each backfill started tells two backfills of one slot apart.
+            FiringOrigin.Backfill => $"{ScheduleName}:backfill:{at}:{context.ScheduledFireTimeUtc:O}",
+
+            _ => throw new UnreachableException()
+        }
+    };
+
+    // wolverine.schedule.name on the handler's span and schedule.name on its metrics, and what
+    // DeadLetterEnvelopeQuery.Header filters dead letters by.
+    options.Headers[RecurringMessage.HeaderKey] = ScheduleName;
+
+    // wolverine.schedule.occurrence on the handler's span.
+    options.Headers[RecurringMessage.OccurrenceHeaderKey] = at;
+
+    return options;
+}
+```
+
+`context.GetOccurrence()` supplies the occurrence, and its `Origin` sets the id:
+
+* `Schedule`, also on a retry, a misfire catch-up and a recovery: `{name}:{occurrence:O}`, Wolverine's own
+  form.
+* `Manual`, a `TriggerJob` run: `{name}:manual:{requested:O}`, the form of a `TriggerAsync` run. It never
+  collapses into a scheduled run.
+* `Backfill`: a form of its own. The scheduled form would collapse a backfill into the run it repeats.
+
+**The handler must enforce the id.** Wolverine adds deduplication by itself only to message types
+registered with `opts.Schedules`
+([`RecurringDeduplicationPolicy`](https://github.com/JasperFx/wolverine/blob/V6.64.2/src/Wolverine/Runtime/Recurring/RecurringDeduplicationPolicy.cs)).
+Mark the handler `[Deduplicated]`, or name it in a policy, and set `MessageDeduplicationMode`. On a store
+that cannot deduplicate, a deduplicated handler throws at its first message, so the example does this
+only with a database:
+
+<!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
+     Copied from src/Quartz.Examples.Wolverine/Part1RecurringPublishing.cs:164 — WolverineHowToTest fails when the two stop
+     matching. -->
+
+```csharp
+public static void RequireDeduplication(WolverineOptions opts)
+{
+    // Wolverine does this by itself only for message types registered with opts.Schedules.
+    // [Deduplicated] on the handler says the same. On a store that cannot deduplicate, either form
+    // throws at the first message, which is why the in-memory run leaves it off.
+    opts.Durability.MessageDeduplicationMode = MessageDeduplicationMode.CompareByHash;
+    opts.Policies.RequireDeduplicationId(chain => chain.MessageType == typeof(RunReconciliation));
+}
+```
+
+* **Don't reuse a name registered with `opts.Schedules`.** The two would share deduplication ids, metric
+  tags and dead letters.
+* **CritterWatch's [Schedule Explorer](https://critterwatch.jasperfx.net/ui/schedule-explorer) does not
+  list this schedule.** It lists `opts.Schedules` registrations. The handler's spans and metrics carry the
+  name all the same.
+* **The firing's trace holds the whole run.** A Quartz firing is a
+  [trace root](../packages/opentelemetry-integration.md#how-the-spans-are-shaped-into-traces), so the
+  publish and the handler land in its trace, as they land under `wolverine.recurring.occurrence` for a
+  Wolverine schedule.
+* **These are Wolverine internals**, not an integration point Wolverine documents for other schedulers.
+  Re-check them on every Wolverine update.
 
 ## Scheduling one firing from a handler
 
@@ -350,7 +468,7 @@ public async ValueTask Execute(
         // whatever was serialized, which this job has no static knowledge of.
         envelope.MessageType = input.MessageTypeName;
 
-        // Setting Destination is not optional, and Wolverine 6.35.0 does not do it for you.
+        // Setting Destination is not optional, and Wolverine 6.64.2 does not do it for you.
         // DestinationEndpoint.SendRawMessageAsync assigns Sender but leaves Destination null, and
         // Executor.ExecuteAsync logs both success and failure through envelope.Destination!, so a
         // raw message that is handled perfectly still ends the pipeline with a
@@ -362,7 +480,7 @@ public async ValueTask Execute(
 
 * `Envelope.MessageType` comes from the stored name, because the job does not know the type statically.
   `typeof(T).ToMessageTypeName()` honours a `[MessageIdentity]` alias; a raw `FullName` would not.
-* **Set `Envelope.Destination` by hand.** In Wolverine 6.35.0, `SendRawMessageAsync` sets `Sender` but not
+* **Set `Envelope.Destination` by hand.** In Wolverine 6.64.2, `SendRawMessageAsync` sets `Sender` but not
   `Destination`, and `Executor.ExecuteAsync` logs through `envelope.Destination!`. Without that line the
   message is still delivered, but a `NullReferenceException` from `Executor.ExecuteAsync` is logged.
 
@@ -416,7 +534,7 @@ With `AutoStart = false` the scheduler is built, initialized and bound, and wait
 every scheduler it created.
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Program.cs:73 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Program.cs:76 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -427,13 +545,13 @@ builder.Services.AddQuartzHostedService(hosted =>
 });
 ```
 
-**Without persistence**, Wolverine runs no agents: `WolverineRuntime.startAgentsAsync` begins with
-`if (Storage is NullMessageStore) { ...; return; }`, so `IAgentFamily` registrations are never read and
-`AddSingularAgent<T>()` silently never starts. Register an `IHostedService` after `UseWolverine` (hosted
-services start in registration order):
+**Without persistence**, Wolverine runs none of your agents: `WolverineRuntime.startAgentsAsync` begins with
+`if (Storage is NullMessageStore) { ...; return; }`, which starts only Wolverine's own recurring-schedule
+agents, so `AddSingularAgent<T>()` silently never starts. Register an `IHostedService` after `UseWolverine`
+(hosted services start in registration order):
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Part5StartedByWolverine.cs:51 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Part5StartedByWolverine.cs:52 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -465,7 +583,7 @@ public sealed class SchedulerStarter : IHostedService
 **With persistence**, use a `SingularAgent`, which runs on one node in the cluster:
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Part5StartedByWolverine.cs:96 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Part5StartedByWolverine.cs:97 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -496,9 +614,9 @@ protected override async Task stopAsync(CancellationToken cancellationToken)
 ```
 
 * `SingularAgent` is *not* leader-pinned: `EvaluateAssignmentsAsync` picks
-  `assignments.Nodes.FirstOrDefault(x => !x.IsLeader) ?? assignments.Nodes.FirstOrDefault()`, preferring a
-  non-leader. Wolverine's leader-pinned family is internal, for transport listeners. For leader-only, write
-  an `IAgentFamily` that calls `AssignmentGrid.RunOnLeader`.
+  `serving.FirstOrDefault(x => !x.IsLeader) ?? serving.FirstOrDefault()` from the nodes not warming up,
+  preferring a non-leader. Wolverine's leader-pinned family is for transport listeners only. For
+  leader-only, write an `IAgentFamily` that calls `AssignmentGrid.RunOnLeader`.
 * This does not decide which node fires a trigger; a clustered persistent Quartz store does that with its
   own lock. It only makes the bus start before the first job can publish.
 
@@ -577,7 +695,7 @@ From [`SchedulerEnlistmentExtensions`](https://github.com/quartznet/quartznet/bl
   misfire handler and cluster check-in.
 * **One database.** Different schemas are fine; one `DbTransaction` cannot span two servers.
 
-The transaction is opened by hand because, as of 6.35.0, Wolverine's `[Transactional]` gets nothing from the
+The transaction is opened by hand because, as of 6.64.2, Wolverine's `[Transactional]` gets nothing from the
 raw-ADO.NET Postgres package: neither `Wolverine.Postgresql` nor `Wolverine.RDBMS` defines an
 `IPersistenceFrameProvider`. `[Transactional] Handle(T msg, NpgsqlTransaction tx)` with plain
 `PersistMessagesWithPostgresql` compiles, then fails with "JasperFx was unable to resolve a variable of type
@@ -588,8 +706,10 @@ the trigger then waits for the next sweep.
 ## What this recipe does not do
 
 * **It is not a package.** Install `Quartz` and `WolverineFx`, and `Quartz.Weasel.PostgreSQL` for the schema.
-  The wiring here is not covered by Quartz.NET's API compatibility promises; prefer a first-party JasperFx
-  integration if one ships.
+  The wiring here is not covered by Quartz.NET's API compatibility promises. For Wolverine 7.0 JasperFx
+  [tentatively plans](https://jasperfx.net/news/recurring-jobs-with-wolverine-and-critterwatch.html)
+  Quartz.NET 4 as an alternative execution path for `opts.Schedules`; prefer it if it ships. Quartz's side
+  of an occurrence's identity is `GetOccurrence()` ([#4246](https://github.com/quartznet/quartznet/issues/4246)).
 * **It does not put Quartz under Wolverine's leader election.** A persistent store with `UseClustering()`
   owns triggers; the agent in [Letting Wolverine start the scheduler](#letting-wolverine-start-the-scheduler)
   only decides which node *runs a scheduler*.
@@ -597,7 +717,9 @@ the trigger then waits for the next sweep.
   Wolverine's in-memory scheduled envelopes.
 * **It does not replace Wolverine's scheduling.** Use `ScheduleAsync` and `TimeoutMessage` for delayed
   messages and saga timeouts, and `opts.Schedules` (6.34+) for recurring publishes that may skip missed
-  runs. Use Quartz for a misfire policy, a calendar, changes while running, or operator visibility.
+  runs. Use Quartz for a misfire policy, a calendar, a backfill, priorities, node affinity, a per-trigger
+  retry policy, changes while running, or execution history. Both have a dashboard: CritterWatch's Schedule
+  Explorer shows `opts.Schedules`.
 
 ## See also
 

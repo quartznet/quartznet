@@ -50,7 +50,7 @@ namespace Quartz.Examples.Wolverine;
  *     in different schemas, but one DbTransaction cannot span two servers.
  *
  * Why the transaction is opened by hand rather than by [Transactional]: Wolverine's transactional
- * middleware supplies whatever its persistence provider supplies, and on 6.35.0 the raw-ADO.NET
+ * middleware supplies whatever its persistence provider supplies, and on 6.64.2 the raw-ADO.NET
  * Postgres package supplies nothing. Neither Wolverine.Postgresql nor Wolverine.RDBMS defines an
  * IPersistenceFrameProvider; the ones that exist arrive with a document store or an ORM, and raw
  * ADO.NET is neither. A handler declaring `[Transactional] Handle(T msg, NpgsqlTransaction tx)`

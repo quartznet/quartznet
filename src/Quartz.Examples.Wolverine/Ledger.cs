@@ -59,6 +59,7 @@ public static class Ledger
 public static class Events
 {
     public const string ReconciliationPublished = "part1:reconciliation-published";
+    public const string ReconciliationStampedAsOccurrence = "part1:stamped-as-wolverine-occurrence";
     public const string ReminderScheduled = "part2:reminder-scheduled";
     public const string ReminderFired = "part2:reminder-fired";
     public const string RemindersCancelled = "part2:reminders-cancelled";
