@@ -292,10 +292,11 @@ public class SharedComponentsTest
     /// <summary>
     /// At a phone's width the header's controls wrap and shrink rather than widening the shell, the grid
     /// column holding the page stays at the viewport's width, and a group name with no break in it breaks
-    /// anywhere in its heading (#4345). A browser measures this; the rules that make it so are pinned here.
+    /// anywhere in its heading. The fixed-layout listings keep their key columns and scroll, and a page's own
+    /// header row wraps (#4345). A browser measures this; the rules that make it so are pinned here.
     /// </summary>
     [Test]
-    public void TheHeaderAndTheGroupHeadingsGiveWayAtAPhonesWidth()
+    public void TheHeaderTheHeadingsAndTheListingsGiveWayAtAPhonesWidth()
     {
         string css = File.ReadAllText(HistoryPageTest.DashboardStylesheet());
 
@@ -315,6 +316,25 @@ public class SharedComponentsTest
             "a long unbroken group name breaks rather than widening the page");
         Rule(css, ".qz-row > h2").Should().Contain("overflow-wrap: anywhere;",
             "the Jobs page's group heading shares a row with the group's state, and breaks the same way");
+
+        // With the column no wider than the viewport, a fixed-layout table's key columns get what its fixed
+        // columns leave, which on a phone is nothing: below 1280px Jobs fixes 600px and History 584px.
+        NarrowMinWidth(css, 1024, ".qz-jobs-table").Should().BeGreaterThanOrEqualTo(600 + 160,
+            "the job's key and its Copy button keep their width and the table scrolls instead");
+        NarrowMinWidth(css, 1024, ".qz-history-table").Should().BeGreaterThanOrEqualTo(584 + 2 * 120,
+            "the job's and the trigger's keys keep their width and the table scrolls instead");
+
+        css.Should().MatchRegex(@"@media \(max-width: 640px\) \{\s*\.qz-page-header \{[^}]*flex-wrap: wrap;",
+            "on a phone a page's title, description and refresh wrap rather than pushing Refresh off the screen");
+        Rule(css, ".qz-page-header").Should().NotContain("flex-wrap",
+            "on a wide screen a long description's own width would wrap a row that fits");
+    }
+
+    private static int NarrowMinWidth(string css, int breakpoint, string selector)
+    {
+        Match rule = Regex.Match(css, @"@media \(max-width: " + breakpoint + @"px\) \{\s*" + Regex.Escape(selector) + @" \{\s*min-width: (\d+)px;");
+        rule.Success.Should().BeTrue("below " + breakpoint + "px " + selector + " has a minimum width");
+        return int.Parse(rule.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static string Rule(string css, string selector)
