@@ -263,7 +263,7 @@ public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
             return false;
         }
 
-        bool toReturn = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
+        bool toReturn = Equals(CalendarBase, other.CalendarBase);
 
         return toReturn && excludeDays.SetEquals(other.excludeDays);
     }

@@ -147,6 +147,21 @@ public sealed class CalendarChainingTest
             "the instant a calendar names as next included has to be one it includes");
     }
 
+    [TestCaseSource(nameof(ShippedCalendars))]
+    public void ACalendarWithoutABase_DoesNotEqualTheSameCalendarWithOne(Func<BaseCalendar> build)
+    {
+        BaseCalendar chained = Chain(build);
+        BaseCalendar unchained = build();
+        unchained.TimeZone = TimeZoneInfo.Utc;
+
+        unchained.IsTimeIncluded(noonOnTheHoliday).Should().BeTrue(
+            "without the base nothing excludes the holiday, so the two calendars exclude different times");
+        Equals(unchained, chained).Should().BeFalse(
+            "a calendar with no base excludes less than the same calendar over a base");
+        Equals(chained, unchained).Should().BeFalse(
+            "equality is symmetric");
+    }
+
     /// <summary>
     /// Every public calendar the library ships has a case above, so a new one cannot be added without
     /// saying what it does with its base.

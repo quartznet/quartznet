@@ -279,7 +279,7 @@ public sealed class MonthlyCalendar : BaseCalendar, IEquatable<MonthlyCalendar>
         {
             return false;
         }
-        bool baseEqual = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
+        bool baseEqual = Equals(CalendarBase, other.CalendarBase);
 
         return baseEqual && excludeDays.SetEquals(other.excludeDays);
     }

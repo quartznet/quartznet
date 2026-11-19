@@ -235,7 +235,7 @@ public sealed class HolidayCalendar : BaseCalendar, IEquatable<HolidayCalendar>
             return false;
         }
 
-        bool baseEqual = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
+        bool baseEqual = Equals(CalendarBase, other.CalendarBase);
 
         return baseEqual && dates.SetEquals(other.dates);
     }
