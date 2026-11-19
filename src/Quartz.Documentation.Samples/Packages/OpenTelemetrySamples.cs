@@ -36,4 +36,13 @@ public static class OpenTelemetrySamples
 
         #endregion
     }
+
+    public static void TraceNoRootStoreOperations(IServiceCollection services)
+    {
+        #region sample_opentelemetry_root_store_operations
+
+        services.AddQuartz(q => q.ConfigureScheduler(options => options.TraceRootStoreOperations = false));
+
+        #endregion
+    }
 }

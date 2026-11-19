@@ -64,21 +64,34 @@ internal sealed class TracingJobStore : DelegatingJobStore, ISharedExecutionGrou
     /// </summary>
     private readonly bool recordExceptionEvents;
 
+    /// <summary>
+    /// Whether a store call made with no <see cref="Activity.Current" /> gets a span of its own. See
+    /// <see cref="QuartzSchedulerOptions.TraceRootStoreOperations" />.
+    /// </summary>
+    private readonly bool traceRootOperations;
+
     private string schedulerName = "";
     private string schedulerId = "";
 
-    internal TracingJobStore(IJobStore jobStore, Meters meters, TimeProvider timeProvider, bool recordExceptionEvents = true)
-        : this(jobStore, meters, timeProvider, QuartzActivitySource.Instance, recordExceptionEvents)
+    internal TracingJobStore(IJobStore jobStore, Meters meters, TimeProvider timeProvider, bool recordExceptionEvents = true, bool traceRootOperations = true)
+        : this(jobStore, meters, timeProvider, QuartzActivitySource.Instance, recordExceptionEvents, traceRootOperations)
     {
     }
 
-    internal TracingJobStore(IJobStore jobStore, Meters meters, TimeProvider timeProvider, ActivitySource activitySource, bool recordExceptionEvents = true)
+    internal TracingJobStore(
+        IJobStore jobStore,
+        Meters meters,
+        TimeProvider timeProvider,
+        ActivitySource activitySource,
+        bool recordExceptionEvents = true,
+        bool traceRootOperations = true)
         : base(jobStore)
     {
         this.meters = meters;
         this.timeProvider = timeProvider;
         this.activitySource = activitySource;
         this.recordExceptionEvents = recordExceptionEvents;
+        this.traceRootOperations = traceRootOperations;
     }
 
     /// <summary>
@@ -731,9 +744,20 @@ internal sealed class TracingJobStore : DelegatingJobStore, ISharedExecutionGrou
     {
         // HasListeners first: it is a volatile read, where CreateActivity walks the source's listeners
         // and consults their samplers. Nothing subscribed is the case this has to be free in.
-        Activity? activity = activitySource.HasListeners()
-            ? activitySource.CreateActivity(operationName, ActivityKind.Client)
-            : null;
+        Activity? activity = null;
+        bool unrecorded = false;
+        if (activitySource.HasListeners())
+        {
+            if (traceRootOperations || Activity.Current is not null)
+            {
+                activity = activitySource.CreateActivity(operationName, ActivityKind.Client);
+            }
+            else
+            {
+                activity = Unrecorded(operationName);
+                unrecorded = true;
+            }
+        }
 
         bool measured = meters.JobStoreOperationEnabled;
 
@@ -742,14 +766,36 @@ internal sealed class TracingJobStore : DelegatingJobStore, ISharedExecutionGrou
             return default;
         }
 
-        if (activity is not null)
+        if (activity is not null && !unrecorded)
         {
             // Before Start, so a listener that reads the activity as it starts sees the identity on it.
             activity.SetTag(ActivityTags.SchedulerName, schedulerName);
             activity.SetTag(ActivityTags.SchedulerId, schedulerId);
         }
 
-        return new StoreOperation(this, activity, operationName, measured ? timeProvider.GetTimestamp() : 0, measured);
+        return new StoreOperation(this, activity, unrecorded, operationName, measured ? timeProvider.GetTimestamp() : 0, measured);
+    }
+
+    /// <summary>
+    /// What a store call made outside any activity is made current as, when such calls are not traced:
+    /// an activity no source's listener is asked about and nothing records.
+    /// </summary>
+    /// <remarks>
+    /// Leaving nothing current instead would not leave the call untraced. The database driver underneath
+    /// opens a span for each command, and with no parent each of those would become a root of its own: one
+    /// trace per round of the scheduler's loop would become one trace per query (#4343). Current and not
+    /// sampled, it is the parent those spans take, and a parent-based sampler — OpenTelemetry's default —
+    /// drops them with it. Created directly rather than through the source, so that no listener's sampler
+    /// gets the chance to record it, and only when the source has a listener, so a scheduler nobody is
+    /// watching still pays nothing.
+    /// </remarks>
+    private static Activity Unrecorded(string operationName)
+    {
+        Activity activity = new(operationName);
+        activity.SetIdFormat(ActivityIdFormat.W3C);
+        activity.ActivityTraceFlags = ActivityTraceFlags.None;
+        activity.IsAllDataRequested = false;
+        return activity;
     }
 
     /// <summary>
@@ -912,14 +958,22 @@ internal sealed class TracingJobStore : DelegatingJobStore, ISharedExecutionGrou
     {
         private readonly TracingJobStore? store;
         private readonly Activity? activity;
+
+        /// <summary>
+        /// Whether <see cref="activity" /> is the stand-in made current for a call that is not traced,
+        /// rather than a span. See <see cref="Unrecorded" />.
+        /// </summary>
+        private readonly bool unrecorded;
+
         private readonly string operationName;
         private readonly long startTimestamp;
         private readonly bool measured;
 
-        internal StoreOperation(TracingJobStore store, Activity? activity, string operationName, long startTimestamp, bool measured)
+        internal StoreOperation(TracingJobStore store, Activity? activity, bool unrecorded, string operationName, long startTimestamp, bool measured)
         {
             this.store = store;
             this.activity = activity;
+            this.unrecorded = unrecorded;
             this.operationName = operationName;
             this.startTimestamp = startTimestamp;
             this.measured = measured;
@@ -973,7 +1027,7 @@ internal sealed class TracingJobStore : DelegatingJobStore, ISharedExecutionGrou
         {
             if (activity is not null)
             {
-                if (exception is not null)
+                if (exception is not null && !unrecorded)
                 {
                     activity.SetStatus(ActivityStatusCode.Error, exception.Message);
                     // The value the operation's measurement is tagged with, and what is left of the

@@ -1755,6 +1755,7 @@ namespace Quartz
         public System.Collections.Generic.List<string> RefusedExecutionGroups { get; }
         public System.Collections.Generic.List<string> ServedExecutionGroups { get; }
         public Quartz.ShutdownJobInterruption ShutdownJobInterruption { get; set; }
+        public bool TraceRootStoreOperations { get; set; }
     }
     public static class QuartzServiceCollectionExtensions
     {

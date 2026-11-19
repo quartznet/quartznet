@@ -148,6 +148,28 @@ public sealed class QuartzSchedulerOptions
     public bool? RecordExceptionSpanEvents { get; set; }
 
     /// <summary>
+    /// Whether a job store call made with no current activity gets a <c>Quartz.JobStore.*</c> span of
+    /// its own, as the root of a new trace. On by default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The scheduler's loop asks the store for triggers every few seconds whether or not anything is due,
+    /// and nothing is current while it does, so with this on an idle scheduler still exports a trace every
+    /// round. Turned off, such a call is made current as an activity that is not sampled: no span is
+    /// emitted, and under a parent-based sampler — OpenTelemetry's default — the spans the database driver
+    /// opens beneath it are dropped with it rather than becoming roots of their own.
+    /// </para>
+    /// <para>
+    /// The rule is about the ambient activity, not about the loop. A store call made inside the caller's
+    /// activity — scheduling a job from a request, say — keeps its span in that trace either way, and a
+    /// call made outside any activity at startup loses its span as the loop's do. The
+    /// <c>quartz.jobstore.operation.duration</c> histogram and the acquisition instruments are recorded
+    /// either way.
+    /// </para>
+    /// </remarks>
+    public bool TraceRootStoreOperations { get; set; } = true;
+
+    /// <summary>
     /// The misfire instruction a trigger is given when nobody stated one for it. Defaults to
     /// <see cref="Quartz.DefaultMisfireHandling.SmartPolicy" />, which is what every trigger did before
     /// there was a default.
