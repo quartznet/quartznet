@@ -225,7 +225,7 @@ public class HolidayCalendar : BaseCalendar
             return false;
         }
 
-        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = Equals(CalendarBase, obj.CalendarBase);
 
         return baseEqual && ExcludedDates.SequenceEqual(obj.ExcludedDates);
     }

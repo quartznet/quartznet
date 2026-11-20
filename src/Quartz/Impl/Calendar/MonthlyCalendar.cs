@@ -290,7 +290,7 @@ public class MonthlyCalendar : BaseCalendar
         {
             return false;
         }
-        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = Equals(CalendarBase, obj.CalendarBase);
 
         return baseEqual && DaysExcluded.SequenceEqual(obj.DaysExcluded);
     }

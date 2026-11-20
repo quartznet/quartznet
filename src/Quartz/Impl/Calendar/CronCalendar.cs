@@ -273,7 +273,7 @@ public class CronCalendar : BaseCalendar
         {
             return false;
         }
-        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = Equals(CalendarBase, obj.CalendarBase);
 
         return baseEqual && CronExpression.Equals(obj.CronExpression);
     }
