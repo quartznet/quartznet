@@ -296,7 +296,7 @@ public class WeeklyCalendar : BaseCalendar
         {
             return false;
         }
-        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = Equals(CalendarBase, obj.CalendarBase);
 
         return baseEqual && obj.DaysExcluded.SequenceEqual(DaysExcluded);
     }

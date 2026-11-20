@@ -979,7 +979,7 @@ public class DailyCalendar : BaseCalendar
         {
             return false;
         }
-        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = Equals(CalendarBase, obj.CalendarBase);
 
         return baseEqual && InvertTimeRange == obj.InvertTimeRange &&
                rangeStartingHourOfDay == obj.rangeStartingHourOfDay &&

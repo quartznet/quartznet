@@ -285,7 +285,7 @@ public class AnnualCalendar : BaseCalendar
             return false;
         }
 
-        bool toReturn = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool toReturn = Equals(CalendarBase, obj.CalendarBase);
 
         toReturn = toReturn && DaysExcluded.Count == obj.DaysExcluded.Count;
         if (toReturn)
