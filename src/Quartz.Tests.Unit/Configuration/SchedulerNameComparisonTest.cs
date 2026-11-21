@@ -29,8 +29,6 @@ public sealed class SchedulerNameComparisonTest
         ServiceCollection services = new();
         services.AddQuartz(RegisteredName, _ => { });
 
-        // Awaited disposal: resolving IScheduler hands back a DeferredScheduler, which the container can
-        // only dispose asynchronously.
         await using ServiceProvider provider = services.BuildServiceProvider();
 
         provider.GetRequiredKeyedService<IScheduler>(RegisteredName).Should().NotBeNull(

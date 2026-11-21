@@ -18,7 +18,8 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
-| From 4.7 | [Upgrading from 4.7 to 4.8](#upgrading-from-4-7-to-4-8) |
+| From 4.8 | [Upgrading from 4.8 to 4.9](#upgrading-from-4-8-to-4-9) |
+| From 4.7 | [Upgrading from 4.7 to 4.8](#upgrading-from-4-7-to-4-8). Then 4.8 to 4.9 |
 | From 4.6 | [Upgrading from 4.6 to 4.7](#upgrading-from-4-6-to-4-7). It has a database migration. Then 4.7 to 4.8 |
 | From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). It has a database migration. Then 4.6 to 4.7 |
 | From 4.4 | [Upgrading from 4.4 to 4.5](#upgrading-from-4-4-to-4-5). No database migration. Then 4.5 to 4.6 |
@@ -29,6 +30,14 @@ If you are a new user starting with the latest version, you don't need to follow
 | Nothing: you are starting a new project | The [quick start](quick-start.md), then [the tutorial](tutorial/) |
 
 The compiler finds most of the 3.x → 4.0 work.
+
+## Upgrading from 4.8 to 4.9
+
+An application on 4.8 compiles on 4.9 unchanged.
+
+| Changed | What to check |
+|---|---|
+| `ServiceProvider.Dispose()` on a container that resolved `IScheduler` (#4387) | Works, and shuts the scheduler down: the `IScheduler` a container injects implements `IDisposable` as well, which blocks on the shutdown. Before, it implemented only `IAsyncDisposable`, so `Dispose()` threw `InvalidOperationException` ("type only implements IAsyncDisposable") and left the scheduler running. `await using` is still the better choice: the shutdown is asynchronous, and `Dispose()` blocks a thread on it. See [A container holding a scheduler is disposed asynchronously](#a-container-holding-a-scheduler-is-disposed-asynchronously) |
 
 ## Upgrading from 4.7 to 4.8
 
@@ -2727,18 +2736,20 @@ What disposing does depends on the instance:
 
 ### A container holding a scheduler is disposed asynchronously
 
-This change can show up as a runtime error. `ServiceProvider.Dispose()` throws when a singleton it
-created implements only `IAsyncDisposable`, so dispose a container that resolved an `IScheduler` with
-`await using`:
+Dispose a container you build yourself with `await using`. Disposing it shuts its schedulers down, which
+`Dispose()` can only block on:
 
 ```diff
 - using var provider = services.BuildServiceProvider();
 + await using var provider = services.BuildServiceProvider();
 ```
 
+From 4.0 to 4.8, `ServiceProvider.Dispose()` threw `InvalidOperationException` on a container that had
+resolved an `IScheduler`, because the handle it injects implemented only `IAsyncDisposable`. From 4.9 it
+works, and blocks on the shutdown.
+
 Applications hosted by `IHost` need no change: the host disposes its container asynchronously, and
-`AddQuartzHostedService` shuts the schedulers down first anyway. This affects containers built by hand,
-mostly in tests.
+`AddQuartzHostedService` shuts the schedulers down first anyway.
 
 ## A scheduler's lifecycle is one value
 
