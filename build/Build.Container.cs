@@ -6,7 +6,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 using Fallout.Common;
 using Fallout.Common.CI.GitHubActions;
@@ -41,8 +43,17 @@ public partial class Build
     const string ContainerRegistry = "ghcr.io";
     const string ContainerRepository = "quartznet/quartz-dashboard";
 
-    /// <summary>The architectures a release publishes, as one index.</summary>
-    static readonly string[] ContainerRuntimeIdentifiers = ["linux-x64", "linux-arm64"];
+    /// <summary>
+    /// The architectures a release publishes as one index: each one's runtime identifier, and the platform
+    /// the index names it by.
+    /// </summary>
+    static readonly (string RuntimeIdentifier, string Platform)[] ContainerArchitectures =
+    [
+        ("linux-x64", "linux/amd64"),
+        ("linux-arm64", "linux/arm64"),
+    ];
+
+    static string[] ContainerRuntimeIdentifiers => [.. ContainerArchitectures.Select(x => x.RuntimeIdentifier)];
 
     AbsolutePath DashboardHostProject => SourceDirectory / "Quartz.Dashboard.Host" / "Quartz.Dashboard.Host.csproj";
 
@@ -51,7 +62,9 @@ public partial class Build
     /// <summary>
     /// Builds the image into the local daemon, starts it from environment variables alone, and checks what
     /// a deployment relies on: the health probe, the sign-in, the dashboard's pages and assets, a non-root
-    /// user, and a refusal to start with no authentication mode. The image is removed afterwards.
+    /// user, and a refusal to start with no authentication mode. Then publishes every architecture a
+    /// release does to a registry of its own, and checks the index lists each one. The image and the
+    /// registry are removed afterwards.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -61,8 +74,11 @@ public partial class Build
     /// answers.
     /// </para>
     /// <para>
-    /// The image is the runner's own architecture: a smoke check of a foreign one would be a test of QEMU.
-    /// <see cref="PublishContainer" /> builds both.
+    /// The image it runs is the runner's own architecture: running a foreign one would be a test of QEMU.
+    /// The publish of every architecture goes through <see cref="PublishDashboardImage" />, the command
+    /// <see cref="PublishContainer" /> runs, into a <c>registry:2</c> started for it. The 4.8.0 image failed
+    /// in that command alone, which a build of one architecture never runs: each library was built once per
+    /// architecture, and the compiler could not load the analyzer built for linux-arm64.
     /// </para>
     /// </remarks>
     Target ContainerSmoke => _ => _
@@ -72,23 +88,18 @@ public partial class Build
         .OnlyWhenDynamic(() => CanRunLinuxContainers())
         .Executes(() =>
         {
+            string configuration = ((ICompile) this).Configuration;
             string rid = RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "linux-arm64" : "linux-x64";
             string suffix = Guid.NewGuid().ToString("N")[..12];
             string image = $"quartz-dashboard-smoke:{suffix}";
             string container = $"quartz-dashboard-smoke-{suffix}";
             string refusing = $"quartz-dashboard-smoke-refusal-{suffix}";
+            string registry = $"quartz-dashboard-smoke-registry-{suffix}";
             string token = $"smoke-token-{Guid.NewGuid():N}";
 
             try
             {
-                // Into Docker by name, because everything after this asks Docker for the image. From the .NET
-                // 11 SDK on, a publish that names no LocalRegistry loads the image into wslc on Windows, or
-                // Apple's container CLI on macOS, whenever one is installed and running, and Docker then
-                // answers "No such image".
-                Run(DotNetPath,
-                    $"publish \"{DashboardHostProject}\" -c {((ICompile) this).Configuration} -t:PublishContainer "
-                    + $"-p:ContainerRuntimeIdentifier={rid} -p:RuntimeIdentifier={rid} -p:LocalRegistry=Docker "
-                    + $"-p:ContainerRepository=quartz-dashboard-smoke -p:ContainerImageTag={suffix}");
+                PublishDashboardImage(configuration, [rid], registry: null, "quartz-dashboard-smoke", [suffix]);
 
                 AssertNonRootUser(image);
                 AssertRefusesToStartWithoutAMode(image, refusing);
@@ -101,18 +112,26 @@ public partial class Build
                     secret: token);
 
                 AssertServes(container, new Uri($"http://127.0.0.1:{port}"), token);
+
+                Stopwatch publishing = Stopwatch.StartNew();
+                string address = StartRegistry(registry);
+                PublishDashboardImage(configuration, ContainerRuntimeIdentifiers, address, "quartz-dashboard-smoke", [suffix]);
+                AssertIndexListsEveryArchitecture($"{address}/quartz-dashboard-smoke:{suffix}");
+                Log.Information("Every architecture published as one index in {Elapsed:F0}s", publishing.Elapsed.TotalSeconds);
             }
             finally
             {
                 Docker($"rm -f {container}");
                 Docker($"rm -f {refusing}");
+                Docker($"rm -f {registry}");
                 Docker($"rmi -f {image}");
             }
         });
 
     /// <summary>
-    /// Publishes the image for <see cref="ContainerRuntimeIdentifiers" /> as one index, tagged for the
-    /// release, and writes its digest as the step output <c>digest</c> for the attestation that follows.
+    /// Publishes the image for <see cref="ContainerArchitectures" /> as one index, tagged for the release,
+    /// checks the index lists each one, and writes its digest as the step output <c>digest</c> for the
+    /// attestation that follows.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -137,24 +156,10 @@ public partial class Build
             string[] tags = ContainerTags(version, ReleasedVersions());
             Log.Information("Publishing {Repository} as {Tags}", $"{ContainerRegistry}/{ContainerRepository}", string.Join(", ", tags));
 
-            Run(DotNetPath,
-                $"publish \"{DashboardHostProject}\" -c Release -t:PublishContainer "
-                + $"-p:ContainerRegistry={ContainerRegistry} -p:ContainerRepository={ContainerRepository} "
-                + $"-p:ContainerImageTags=\\\"{string.Join(';', tags)}\\\" "
-                + $"-p:ContainerRuntimeIdentifiers=\\\"{string.Join(';', ContainerRuntimeIdentifiers)}\\\" "
-                + $"-p:RuntimeIdentifiers=\\\"{string.Join(';', ContainerRuntimeIdentifiers)}\\\" "
-                + $"-p:VersionPrefix={VersionPrefix} -p:VersionSuffix={VersionSuffix} "
-                + $"-p:AssemblyVersion={VersionPrefix} -p:FileVersion={VersionPrefix} "
-                + $"-p:ContinuousIntegrationBuild={IsContinuousIntegrationBuild.ToString().ToLowerInvariant()}");
+            PublishDashboardImage(Configuration.Release, ContainerRuntimeIdentifiers, ContainerRegistry, ContainerRepository, tags);
 
             string reference = $"{ContainerRegistry}/{ContainerRepository}:{FullVersion}";
-            string digest = Run("docker", $"buildx imagetools inspect {reference}")
-                .Select(line => Regex.Match(line, @"^Digest:\s+(sha256:[0-9a-f]{64})\s*$", RegexOptions.None, TimeSpan.FromSeconds(5)))
-                .Where(match => match.Success)
-                .Select(match => match.Groups[1].Value)
-                .FirstOrDefault();
-
-            Assert.NotNullOrWhiteSpace(digest, $"{reference} was pushed, but 'docker buildx imagetools inspect' reported no digest for it");
+            string digest = AssertIndexListsEveryArchitecture(reference);
             Log.Information("Published {Reference}@{Digest}", reference, digest);
 
             if (Environment.GetEnvironmentVariable("GITHUB_OUTPUT") is { Length: > 0 } output)
@@ -162,6 +167,108 @@ public partial class Build
                 File.AppendAllText(output, $"digest={digest}{Environment.NewLine}");
             }
         });
+
+    /// <summary>
+    /// Publishes the dashboard host's image with <c>dotnet publish -t:PublishContainer</c>: the one command
+    /// <see cref="PublishContainer" /> and both publishes of <see cref="ContainerSmoke" /> run.
+    /// </summary>
+    /// <param name="configuration">The build configuration.</param>
+    /// <param name="runtimeIdentifiers">One architecture, or several to publish as one index.</param>
+    /// <param name="registry">
+    /// The registry to push to, or <see langword="null" /> to load the image into the local Docker daemon.
+    /// </param>
+    /// <param name="repository">The image's repository.</param>
+    /// <param name="tags">The tags to publish it under.</param>
+    void PublishDashboardImage(string configuration, IReadOnlyList<string> runtimeIdentifiers, string registry, string repository, IReadOnlyCollection<string> tags)
+    {
+        // Several architectures are named by ContainerRuntimeIdentifiers alone, which the project derives its
+        // RuntimeIdentifiers from. Passed here, RuntimeIdentifiers would be a global property, and every
+        // project in the graph would be built once per architecture: the 4.8.0 image failed because the
+        // compiler, an x64 process, could not load the analyzer built for linux-arm64.
+        string architectures = runtimeIdentifiers.Count == 1
+            ? $"-p:ContainerRuntimeIdentifier={runtimeIdentifiers[0]} -p:RuntimeIdentifier={runtimeIdentifiers[0]}"
+            : $"-p:ContainerRuntimeIdentifiers=\\\"{string.Join(';', runtimeIdentifiers)}\\\"";
+
+        // Into Docker by name when there is no registry, because whatever follows asks Docker for the image.
+        // From the .NET 11 SDK on, a publish that names no LocalRegistry loads the image into wslc on Windows,
+        // or Apple's container CLI on macOS, whenever one is installed and running, and Docker then answers
+        // "No such image".
+        string destination = registry is null ? "-p:LocalRegistry=Docker" : $"-p:ContainerRegistry={registry}";
+
+        Run(DotNetPath,
+            $"publish \"{DashboardHostProject}\" -c {configuration} -t:PublishContainer {architectures} {destination} "
+            + $"-p:ContainerRepository={repository} -p:ContainerImageTags=\\\"{string.Join(';', tags)}\\\" "
+            + $"-p:VersionPrefix={VersionPrefix} -p:VersionSuffix={VersionSuffix} "
+            + $"-p:AssemblyVersion={VersionPrefix} -p:FileVersion={VersionPrefix} "
+            + $"-p:ContinuousIntegrationBuild={IsContinuousIntegrationBuild.ToString().ToLowerInvariant()}");
+    }
+
+    /// <summary>
+    /// Reads an image index from its registry, and fails unless it lists every architecture in
+    /// <see cref="ContainerArchitectures" />. Returns the index's digest.
+    /// </summary>
+    static string AssertIndexListsEveryArchitecture(string reference)
+    {
+        IProcess inspect = ProcessTasks.StartProcess("docker", $"buildx imagetools inspect {reference} --format \"{{{{json .Manifest}}}}\"", logOutput: false);
+        inspect.AssertZeroExitCode();
+
+        using JsonDocument index = JsonDocument.Parse(string.Join('\n', inspect.Output.Where(x => x.Type == OutputType.Std).Select(x => x.Text)));
+        string digest = index.RootElement.TryGetProperty("digest", out JsonElement value) ? value.GetString() : null;
+        List<string> platforms = index.RootElement.TryGetProperty("manifests", out JsonElement manifests)
+            ? [.. manifests.EnumerateArray()
+                .Where(x => x.TryGetProperty("platform", out _))
+                .Select(x => x.GetProperty("platform"))
+                .Select(x => $"{x.GetProperty("os").GetString()}/{x.GetProperty("architecture").GetString()}")]
+            : [];
+
+        string[] missing = [.. ContainerArchitectures.Select(x => x.Platform).Except(platforms, StringComparer.Ordinal)];
+        Assert.True(missing.Length == 0,
+            $"{reference} lists [{string.Join(", ", platforms)}], so {string.Join(" and ", missing)} is missing: "
+            + $"a release publishes {string.Join(" and ", ContainerArchitectures.Select(x => x.Platform))} as one index");
+        Assert.True(digest is not null && Regex.IsMatch(digest, "^sha256:[0-9a-f]{64}$", RegexOptions.None, TimeSpan.FromSeconds(5)),
+            $"{reference} was pushed, but 'docker buildx imagetools inspect' reported no digest for it, only '{digest}'");
+
+        Log.Information("{Reference} is one index of {Platforms}", reference, string.Join(", ", platforms));
+        return digest;
+    }
+
+    /// <summary>
+    /// Starts a throwaway <c>registry:2</c> on a loopback port, waits until it answers, and returns its
+    /// address.
+    /// </summary>
+    static string StartRegistry(string container)
+    {
+        int port = FreeLoopbackPort();
+        Run("docker", $"run -d --name {container} -p 127.0.0.1:{port}:5000 registry:2");
+
+        using HttpClient client = new() { Timeout = TimeSpan.FromSeconds(5) };
+        Stopwatch waiting = Stopwatch.StartNew();
+        while (true)
+        {
+            try
+            {
+                using HttpResponseMessage response = client.GetAsync($"http://127.0.0.1:{port}/v2/").GetAwaiter().GetResult();
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    break;
+                }
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+            {
+                // Not listening yet.
+            }
+
+            if (waiting.Elapsed > ContainerStartTimeout)
+            {
+                Assert.Fail($"{container} did not answer /v2/ within {ContainerStartTimeout.TotalSeconds:F0}s.{Environment.NewLine}{ContainerLogs(container)}");
+            }
+
+            System.Threading.Thread.Sleep(250);
+        }
+
+        // localhost rather than 127.0.0.1: the SDK pushes to it over plain HTTP, as Docker does.
+        return $"localhost:{port}";
+    }
 
     /// <summary>
     /// The tags one release is published under.

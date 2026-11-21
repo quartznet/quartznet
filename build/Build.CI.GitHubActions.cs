@@ -33,8 +33,8 @@ using Quartz.Build;
     // while somebody is still looking; the push and release legs are budgeted for building, testing and
     // packing and have nothing to do with any of them. ExamplesSmoke runs the two applications PublishTrimmed only ever published,
     // on all three images, because a host that refuses to start does so per platform. ContainerSmoke builds the
-    // dashboard host's image and runs it; only ubuntu-latest has a Linux container engine, so the other two legs
-    // skip it.
+    // dashboard host's image and runs it, then publishes both architectures to a local registry as a release does;
+    // only ubuntu-latest has a Linux container engine, so the other two legs skip it.
     InvokedTargets = [nameof(VerifyMigrations), nameof(VerifySchema), nameof(ICompile.Compile), nameof(UnitTest), nameof(BenchmarkSmoke), nameof(WolverineSmoke), nameof(ExamplesSmoke), nameof(ContainerSmoke), nameof(PublishTrimmed), nameof(PublishAot)],
     CacheKeyFiles = [],
     // Generating native code is minutes rather than seconds, and it happens after everything else here.

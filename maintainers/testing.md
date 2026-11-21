@@ -68,8 +68,10 @@ Per-file figures for a pull request: `https://sonarcloud.io/api/measures/compone
 - **`dotnet fallout PublishTrimmed PublishAot`** is where an `IL2xxx` or `IL3xxx` shows up; see
   [architecture.md](architecture.md), "Trimming and AOT".
 - **`dotnet fallout ContainerSmoke`** builds the dashboard host's image into a local Linux Docker engine, runs
-  it and removes it. Run it when a change touches `src/Quartz.Dashboard.Host` or its csproj; it skips, with a
-  warning, where no Linux engine answers.
+  it and removes it. It then publishes both architectures to a throwaway `registry:2` with the command a
+  release runs, and checks that the index lists `linux/amd64` and `linux/arm64`. Run it when a change touches
+  `src/Quartz.Dashboard.Host`, its csproj, or a project it references; it skips, with a warning, where no Linux
+  engine answers.
 - **`dotnet fallout WolverineSmoke ExamplesSmoke`** start the Wolverine sample and the examples out of
   process, and fail when an effect they assert does not arrive.
 - **`pr-tests-unit-net11`** is the .NET 11 leg (#4211), on ubuntu and only for changes to `src/`, `build/`,
