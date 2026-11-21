@@ -153,6 +153,51 @@ public sealed class ContainerDisposalShutdownTest
         listenerConstructed.Should().BeFalse("nothing asked for a scheduler, so disposal must not build one just to tear it down");
     }
 
+    [Test]
+    public async Task AFiringThatEndsWhileDisposalShutsTheSchedulerDownIsStillRecorded()
+    {
+        DisposalOrder order = new();
+        IExecutionHistoryStore history = A.Fake<IExecutionHistoryStore>(options => options.Implements<IAsyncDisposable>());
+        A.CallTo(() => history.AddExecution(A<ExecutionHistoryEntry>._, A<CancellationToken>._))
+            .Invokes((ExecutionHistoryEntry entry, CancellationToken _) => order.Record("recorded " + entry.JobName));
+        A.CallTo(() => ((IAsyncDisposable) history).DisposeAsync())
+            .Invokes(() => order.Record("history store disposed"));
+
+        ServiceCollection services = new();
+
+        // Through a factory, so the container creates the store and disposes it; an instance it would leave alone.
+        services.AddSingleton(_ => history);
+        services.AddQuartzExecutionHistory();
+        services.AddQuartz(q => q
+            .ConfigureScheduler(options => options.InstanceName = nameof(AFiringThatEndsWhileDisposalShutsTheSchedulerDownIsStillRecorded))
+            .UseJobFactory<SimpleJobFactory>()
+            .UseInMemoryStore()
+            .AddSchedulerListener(new ShutdownRecorder(order)));
+
+        ServiceProvider provider = services.BuildServiceProvider();
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        await scheduler.Start();
+
+        // A firing that ends before the disposal, at which a store resolved per event used to be created:
+        // after the scheduler's shutdown handle, and so disposed before it.
+        await scheduler.ScheduleJob(JobBuilder.Create<GatedJob>().WithIdentity("before").Build(), TriggerBuilder.Create().StartNow().Build());
+        await WaitUntil(() => order.Events.Contains("recorded before"), "the first firing is recorded");
+
+        // And one still running when the disposal begins, which ends during the shutdown it runs.
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<GatedJob>().WithIdentity("during").UsingJobData(GatedJob.GatedKey, true).Build(),
+            TriggerBuilder.Create().StartNow().Build());
+        await GatedJob.Started.Task.WaitAsync(TimeSpan.FromSeconds(30));
+
+        ValueTask disposal = provider.DisposeAsync();
+        GatedJob.Release.TrySetResult();
+        await disposal;
+
+        order.Events.Should().Equal(
+            ["recorded before", "recorded during", "scheduler shut down", "history store disposed"],
+            "the plugin resolves the store while the scheduler is built, so the container shuts the scheduler down before it disposes the store, and the plugin holds the store rather than asking a container that is being disposed");
+    }
+
     private static ServiceProvider Container(string runId, string schedulerName = null)
     {
         ServiceCollection services = new();
@@ -219,6 +264,36 @@ public sealed class ContainerDisposalShutdownTest
     }
 
     private static int FireCount(string runId) => fires.TryGetValue(runId, out int count) ? count : 0;
+
+    private static async Task WaitUntil(Func<bool> condition, string because)
+    {
+        for (int attempt = 0; attempt < 600 && !condition(); attempt++)
+        {
+            await Task.Delay(50);
+        }
+
+        condition().Should().BeTrue(because);
+    }
+
+    /// <summary>
+    /// Returns at once, or with <see cref="GatedKey" /> in its data waits for <see cref="Release" /> once it has said it started.
+    /// </summary>
+    public sealed class GatedJob : IJob
+    {
+        public const string GatedKey = "gated";
+
+        public static readonly TaskCompletionSource Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public static readonly TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            if (context.MergedJobDataMap.ContainsKey(GatedKey))
+            {
+                Started.TrySetResult();
+                await Release.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
 
     public sealed class CountingJob : IJob
     {

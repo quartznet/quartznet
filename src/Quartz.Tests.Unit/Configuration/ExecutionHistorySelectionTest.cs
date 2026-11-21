@@ -224,6 +224,34 @@ public sealed class ExecutionHistorySelectionTest
     }
 
     /// <summary>
+    /// The same refusal ends the scheduler's build: the recorder resolves its store as the scheduler is
+    /// built, so this exception is what an operator reads when the application fails to start. On 4.7 it
+    /// failed every event the history recorded while the scheduler ran on.
+    /// </summary>
+    [Test]
+    public async Task ADelegateTheHistoryCannotUseFailsTheSchedulerBuildSayingWhatToDo()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(quartz => quartz.UsePersistentStore(store =>
+        {
+            store.UseDriverDelegate(_ => A.Fake<IDriverDelegate>());
+            store.UseSqlite(SqliteFactory.Instance, ConnectionString);
+            store.UseExecutionHistory();
+
+            // Nothing here has a schema, and the job store would refuse the start for that first.
+            store.ConfigureStore(options => options.SchemaProvisioning = SchemaProvisioning.None);
+        }));
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        Func<Task> build = async () => await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        await build.Should().ThrowAsync<SchedulerConfigException>("the failure to start is all an operator has to go on")
+            .WithMessage("*does not derive from StdAdoDelegate, so it cannot serve the execution history*"
+                + "Derive the delegate from StdAdoDelegate, or leave UseExecutionHistory() uncalled and register an IExecutionHistoryStore of your own.");
+    }
+
+    /// <summary>
     /// A store that records nowhere, standing in for one an application wrote.
     /// </summary>
     private sealed class NoOpExecutionHistoryStore : IExecutionHistoryStore

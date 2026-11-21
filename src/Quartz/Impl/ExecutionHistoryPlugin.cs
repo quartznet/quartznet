@@ -49,7 +49,8 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
 
     private readonly IServiceProvider serviceProvider;
     private readonly TimeProvider timeProvider;
-    private ILogger? logger;
+    private RecordingParts? parts;
+    private ResolvedStore? store;
 
     /// <summary>
     /// Takes the container the history store is resolved from, and the clock a misfire is stamped with.
@@ -69,9 +70,19 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     public string Name { get; private set; } = PluginName;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Resolves what the plugin records through while the scheduler is being built, the history store
+    /// included when the history is on. The container then creates the store before
+    /// <c>ShutdownOnContainerDisposal</c>, which it disposes newest first, so a container disposed with the
+    /// scheduler running shuts the scheduler down before it disposes the store, and a firing that ends
+    /// during that shutdown still has its row written. With the history switched off, as
+    /// <see cref="ExecutionHistoryOptions.MaxEntriesPerScheduler" /> of <c>0</c> does, no store is built
+    /// until it is switched on.
+    /// </remarks>
     public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         Name = pluginName;
+        _ = Store();
         scheduler.ListenerManager.AddJobListener(this, Matchers.AllJobs());
         scheduler.ListenerManager.AddTriggerListener(this, Matchers.AllTriggers());
         return default;
@@ -87,21 +98,15 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// them, and before its job store closes the connection provider the history writes through — so this is
     /// the last moment the buffered rows can still reach the database. A store that buffers nothing has
     /// nothing to write.
+    /// <para>
+    /// Only a store the plugin holds can hold a row it queued, so one it never resolved is not resolved
+    /// now. A build that failed, or a history that was off throughout, has nothing to flush, and resolving
+    /// again would only report the build's failure a second time.
+    /// </para>
     /// </remarks>
     public async ValueTask Shutdown(CancellationToken cancellationToken = default)
     {
-        IBufferedExecutionHistoryStore? buffered;
-        try
-        {
-            buffered = serviceProvider.GetService<IExecutionHistoryStore>() as IBufferedExecutionHistoryStore;
-        }
-        catch (ObjectDisposedException)
-        {
-            // The container went first, and disposing the store wrote what it held.
-            return;
-        }
-
-        if (buffered is not null)
+        if (Volatile.Read(ref store)?.Value is IBufferedExecutionHistoryStore buffered)
         {
             await buffered.Flush(cancellationToken).ConfigureAwait(false);
         }
@@ -354,18 +359,33 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// Where a dropped metrics object is reported: the container's logging, or the static fallback when
     /// the container has none.
     /// </summary>
-    private ILogger Logger => logger ??= serviceProvider.GetService<ILoggerFactory>()?.CreateLogger<ExecutionHistoryPlugin>()
-                                         ?? LogProvider.CreateLogger<ExecutionHistoryPlugin>();
+    private ILogger Logger => Parts.Logger;
+
+    /// <summary>
+    /// The bounds and the logger, resolved from the container once.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Initialize" /> resolves them; a plugin used without being initialized resolves them at
+    /// its first event. Held rather than resolved per event, because a container that has begun
+    /// disposing resolves nothing at all, and that is when the firings still running at shutdown end.
+    /// A resolution that fails leaves nothing held, so the next event tries again.
+    /// </remarks>
+    private RecordingParts Parts => Volatile.Read(ref parts) ?? LazyInitializer.EnsureInitialized(ref parts, ResolveParts);
+
+    private RecordingParts ResolveParts() => new(
+        serviceProvider.GetService<IOptions<ExecutionHistoryOptions>>(),
+        serviceProvider.GetService<ILoggerFactory>()?.CreateLogger<ExecutionHistoryPlugin>()
+            ?? LogProvider.CreateLogger<ExecutionHistoryPlugin>());
 
     /// <summary>
     /// The store to record into, or <see langword="null" /> when there is none to record into and when
     /// the bounds say to record nothing.
     /// </summary>
     /// <remarks>
-    /// Resolved per event and allowed to be absent: a container with no history store is a reason to
-    /// record nothing, not a reason to fail the execution that just finished. Nor is a container the
-    /// host has begun disposing, which is what the callers' <see cref="ObjectDisposedException" />
-    /// handlers are for.
+    /// Allowed to be absent: a container with no history store is a reason to record nothing, not a
+    /// reason to fail the execution that just finished. Nor is a plugin that was never initialized and
+    /// whose container the host has begun disposing, which is what the callers'
+    /// <see cref="ObjectDisposedException" /> handlers are for.
     /// <para>
     /// <see cref="ExecutionHistoryOptions.MaxEntriesPerScheduler" /> of <c>0</c> is the opt-out, and it
     /// is honoured here rather than in the store: a process that does not want a history should not
@@ -384,11 +404,88 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
             return null;
         }
 
-        return serviceProvider.GetService<IExecutionHistoryStore>();
+        return (Volatile.Read(ref store) ?? LazyInitializer.EnsureInitialized(ref store, ResolveStore)).Value;
     }
+
+    /// <summary>
+    /// The history store, held as <see cref="Parts" /> are, resolved when the history is first on.
+    /// </summary>
+    private ResolvedStore ResolveStore() => new(HistoryStore());
 
     /// <summary>
     /// The bounds as they stand for this event, or <see langword="null" /> when the container has none.
     /// </summary>
-    private ExecutionHistoryOptions? Bounds() => serviceProvider.GetService<IOptions<ExecutionHistoryOptions>>()?.Value;
+    private ExecutionHistoryOptions? Bounds() => Parts.Bounds?.Value;
+
+    /// <summary>
+    /// The container's history store, or <see langword="null" /> when it has none.
+    /// </summary>
+    /// <remarks>
+    /// A container that validates scopes refuses a scoped store here, outside any scope, with an
+    /// <see cref="InvalidOperationException" /> that names the store but not the fix. Since
+    /// <see cref="Initialize" /> resolves this while the scheduler is built, that refusal is the start
+    /// failure an operator reads, so it is replaced by one that says what to change. Whether the store is
+    /// scoped is asked by resolving it in a scope, not by reading the container's message.
+    /// </remarks>
+    private IExecutionHistoryStore? HistoryStore()
+    {
+        try
+        {
+            return serviceProvider.GetService<IExecutionHistoryStore>();
+        }
+        catch (InvalidOperationException e) when (ResolvesOnlyInAScope())
+        {
+            Throw.SchedulerConfigException(
+                "IExecutionHistoryStore, or a service it depends on, is registered as a scoped service, and this container "
+                + "validates scopes, so it will not resolve the store outside one. The execution history is recorded outside "
+                + "any scope, by one recorder per scheduler that holds the store for the scheduler's lifetime. Register the "
+                + "history store and what it depends on as singletons.",
+                e);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Whether the history store resolves in a scope, asked after it would not resolve outside one.
+    /// </summary>
+    private bool ResolvesOnlyInAScope()
+    {
+        try
+        {
+            IServiceScope scope = serviceProvider.CreateScope();
+            try
+            {
+                return scope.ServiceProvider.GetService<IExecutionHistoryStore>() is not null;
+            }
+            finally
+            {
+                // Asynchronously, because a scope holding a store that is only IAsyncDisposable refuses to be
+                // disposed synchronously, which would lose the diagnosis this is asked for.
+                if (scope is IAsyncDisposable asyncScope)
+                {
+                    asyncScope.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                }
+                else
+                {
+                    scope.Dispose();
+                }
+            }
+        }
+        catch (Exception e) when (e is InvalidOperationException or ObjectDisposedException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The bounds and the logger: <see langword="null" /> bounds, or the fallback logger, when the
+    /// container has none.
+    /// </summary>
+    private sealed record RecordingParts(IOptions<ExecutionHistoryOptions>? Bounds, ILogger Logger);
+
+    /// <summary>
+    /// The history store, or <see langword="null" /> when the container has none: held either way, so
+    /// an absent store is asked for once.
+    /// </summary>
+    private sealed record ResolvedStore(IExecutionHistoryStore? Value);
 }

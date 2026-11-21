@@ -723,11 +723,18 @@ public sealed class ExecutionHistoryPluginShutdownTest
     [Test]
     public async Task ShutdownLeavesAStoreThatDoesNotBufferAlone()
     {
+        // Nothing but the store, as a container that registered only that one would answer. The plugin
+        // also asks for the bounds and the logging, and a fake's own answer to those is not null.
         IServiceProvider services = A.Fake<IServiceProvider>();
+        A.CallTo(() => services.GetService(A<Type>._)).Returns(null);
         A.CallTo(() => services.GetService(typeof(IExecutionHistoryStore)))
             .Returns(new InMemoryExecutionHistoryStore(Options.Create(new ExecutionHistoryOptions())));
 
-        Func<Task> shutdown = async () => await new ExecutionHistoryPlugin(services, TimeProvider.System).Shutdown();
+        // Initialized, because only a store the plugin holds is one it can flush.
+        ExecutionHistoryPlugin plugin = new(services, TimeProvider.System);
+        await plugin.Initialize(ExecutionHistoryPlugin.PluginName, A.Fake<IScheduler>());
+
+        Func<Task> shutdown = async () => await plugin.Shutdown();
 
         await shutdown.Should().NotThrowAsync("the in-memory history writes as it is handed each run, so there is nothing to flush");
     }
@@ -740,6 +747,6 @@ public sealed class ExecutionHistoryPluginShutdownTest
 
         Func<Task> shutdown = async () => await new ExecutionHistoryPlugin(services, TimeProvider.System).Shutdown();
 
-        await shutdown.Should().NotThrowAsync("disposing the container disposed the store, which wrote what it held");
+        await shutdown.Should().NotThrowAsync("a plugin that never resolved a store queued nothing, so its shutdown asks the container for nothing");
     }
 }
