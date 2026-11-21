@@ -76,7 +76,8 @@
       build into one folder now that none of them is per-RID. A later instance can still decide to
       recompile, because the first thing it does touches its AssemblyInfoInputs.cache. Built in parallel,
       two instances of Quartz.Analyzers or Quartz then compiled into one obj folder at once, and one
-      compiler could not open the assembly the other was writing (CS2012).
+      compiler could not open the assembly the other was writing (CS2012). This goes once the SDK has the
+      fix for dotnet/sdk#57267.
     -->
     <ContainerPublishInParallel>false</ContainerPublishInParallel>
     <!--
@@ -85,7 +86,8 @@
       PackageProjectUrl, and the later label wins. Its description would be the package's, which has a
       semicolon in it. A multi-architecture publish hands the labels to each architecture's build as one
       semicolon-separated list, so the text after that semicolon arrived as a label with no value, and
-      _ParseItemsForPublishingSingleContainer failed with MSB4184. The source and licence labels come
+      _ParseItemsForPublishingSingleContainer failed with MSB4184. Until the SDK has the fix for
+      dotnet/sdk#57266, no label value here may contain a semicolon. The source and licence labels come
       from RepositoryUrl and PackageLicenseExpression.
     -->
     <ContainerTitle>Quartz.NET Dashboard</ContainerTitle>
