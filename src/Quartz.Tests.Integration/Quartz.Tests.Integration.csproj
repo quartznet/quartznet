@@ -122,6 +122,16 @@
     <ProjectReference Include="..\Quartz.Tests.Integration.MixedVersionNode\Quartz.Tests.Integration.MixedVersionNode.csproj" ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
 
+  <!--
+    The released Quartz that node's second build runs, named once, in the node project: the test reads it
+    back from this assembly's metadata to find that build and to know what its version does.
+  -->
+  <Import Project="..\Quartz.Tests.Integration.MixedVersionNode\MixedVersionReleasedQuartz.props" />
+
+  <ItemGroup>
+    <AssemblyMetadata Include="MixedVersionReleasedQuartz" Value="$(MixedVersionReleasedQuartz)" />
+  </ItemGroup>
+
   <ItemGroup>
     <GlobalPackageReference Remove="Meziantou.Analyzer" />
   </ItemGroup>

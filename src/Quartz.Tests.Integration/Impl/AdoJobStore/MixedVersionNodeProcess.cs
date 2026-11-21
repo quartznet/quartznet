@@ -44,7 +44,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 internal sealed class MixedVersionNodeProcess : IAsyncDisposable
 {
     private const string ReplyPrefix = "@@";
-    private const int LogLines = 400;
+    private const int LogLines = 2000;
 
     private static readonly TimeSpan ReplyTimeout = TimeSpan.FromMinutes(2);
 
@@ -72,6 +72,13 @@ internal sealed class MixedVersionNodeProcess : IAsyncDisposable
     /// Whether the node's firing rounds take the lock only when something in them needs it (#4067); the
     /// working-tree build reads it, a released one ignores it.
     /// </param>
+    /// <param name="checkIn">
+    /// The node's check-in interval and the threshold past it at which its peers recover it, or
+    /// <see langword="null" /> for what its version ships.
+    /// </param>
+    /// <param name="logLevel">
+    /// The least level the node writes to its log, or <see langword="null" /> for its default, warnings.
+    /// </param>
     public static async Task<MixedVersionNodeProcess> Start(
         string assembly,
         string instanceId,
@@ -80,7 +87,9 @@ internal sealed class MixedVersionNodeProcess : IAsyncDisposable
         string tablePrefix,
         string runsTable,
         bool history,
-        bool lockFreeRounds = true)
+        bool lockFreeRounds = true,
+        (TimeSpan Interval, TimeSpan Threshold)? checkIn = null,
+        string logLevel = null)
     {
         ProcessStartInfo start = new("dotnet")
         {
@@ -113,6 +122,20 @@ internal sealed class MixedVersionNodeProcess : IAsyncDisposable
         {
             start.ArgumentList.Add("--lock-free");
             start.ArgumentList.Add("false");
+        }
+
+        if (checkIn is { } cluster)
+        {
+            start.ArgumentList.Add("--checkin-interval");
+            start.ArgumentList.Add(((long) cluster.Interval.TotalMilliseconds).ToString(CultureInfo.InvariantCulture));
+            start.ArgumentList.Add("--checkin-threshold");
+            start.ArgumentList.Add(((long) cluster.Threshold.TotalMilliseconds).ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (logLevel is not null)
+        {
+            start.ArgumentList.Add("--log-level");
+            start.ArgumentList.Add(logLevel);
         }
 
         MixedVersionNodeProcess node = new(instanceId, Process.Start(start)!);
@@ -159,7 +182,7 @@ internal sealed class MixedVersionNodeProcess : IAsyncDisposable
     }
 
     /// <summary>
-    /// Shuts the scheduler down and waits for the process to exit.
+    /// Shuts the scheduler down and waits for the process to exit, and for the last of what it logged.
     /// </summary>
     /// <param name="waitForJobs">
     /// Whether running jobs finish first, which is what makes every execution the node started one the
@@ -171,7 +194,17 @@ internal sealed class MixedVersionNodeProcess : IAsyncDisposable
 
         using CancellationTokenSource timeout = new(TimeSpan.FromMinutes(1));
         await process.WaitForExitAsync(timeout.Token);
+        await pumps.WaitAsync(timeout.Token);
         process.ExitCode.Should().Be(0, $"a node that was told to shut down exits cleanly. {Describe()}");
+    }
+
+    /// <summary>
+    /// The lines the node logged under one event id, of those it still keeps.
+    /// </summary>
+    public List<string> Logged(int eventId)
+    {
+        string tag = " " + eventId.ToString(CultureInfo.InvariantCulture) + "] ";
+        return log.Where(x => x.StartsWith("[" + InstanceId + " ", StringComparison.Ordinal) && x.Contains(tag, StringComparison.Ordinal)).ToList();
     }
 
     /// <summary>

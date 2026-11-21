@@ -66,6 +66,21 @@ public sealed class ChainJob : RecordingJob;
 public sealed class StateJob : RecordingJob;
 
 /// <summary>
+/// A concurrent job that takes a while, so that an interval measured from its completion is plainly not
+/// one measured from its start.
+/// </summary>
+public sealed class HeldJob : RecordingJob
+{
+    public static readonly TimeSpan Hold = TimeSpan.FromMilliseconds(250);
+
+    private protected override async ValueTask<FireProgress?> Run(IJobExecutionContext context, CancellationToken cancellationToken)
+    {
+        await Task.Delay(Hold, cancellationToken).ConfigureAwait(false);
+        return null;
+    }
+}
+
+/// <summary>
 /// A job that must never run beside itself, held for long enough that an overlap anywhere in the
 /// cluster lands inside the window.
 /// </summary>

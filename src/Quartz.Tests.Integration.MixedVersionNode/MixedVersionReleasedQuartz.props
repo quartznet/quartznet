@@ -1,0 +1,12 @@
+<Project>
+
+  <!--
+    The released Quartz the mixed-version gate's old node runs: the node project builds against it, and
+    Quartz.Tests.Integration stamps it into its assembly metadata, where MixedVersionClusterPostgresTest
+    reads it. This is the one place that names it. When it moves is in maintainers/branches-and-releases.md.
+  -->
+  <PropertyGroup>
+    <MixedVersionReleasedQuartz>4.7.3</MixedVersionReleasedQuartz>
+  </PropertyGroup>
+
+</Project>

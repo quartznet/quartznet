@@ -15,10 +15,10 @@
     -->
     <AssemblyName>Quartz.Tests.Integration.MixedVersionNode</AssemblyName>
     <SignAssembly>false</SignAssembly>
-
-    <!-- The released Quartz the second build runs. MixedVersionClusterPostgresTest names the same version. -->
-    <MixedVersionReleasedQuartz>4.6.0</MixedVersionReleasedQuartz>
   </PropertyGroup>
+
+  <!-- MixedVersionReleasedQuartz: the released Quartz the second build runs. -->
+  <Import Project="MixedVersionReleasedQuartz.props" />
 
   <!--
     ReleasedQuartzVersion selects the Quartz a build compiles against: unset is the working tree, set is
