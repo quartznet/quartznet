@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Extensibility;
+using Quartz.Tests.Unit.Plugin.History;
 
 namespace Quartz.Tests.Unit.Configuration;
 
@@ -174,6 +176,98 @@ public sealed class ExecutionHistoryRegistrationTest
             + "difference a history page has to show and a FailedFinally filter selects on");
     }
 
+    /// <summary>
+    /// The recorder resolves its store while the scheduler is built and outside any scope, so a scoped store
+    /// under scope validation fails the build, saying what to change. On 4.7 it failed every event the
+    /// history recorded while the scheduler ran on.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task AScopedHistoryStoreFailsTheSchedulerBuildSayingToRegisterItAsASingleton(bool onlyAsyncDisposable)
+    {
+        ServiceCollection services = new();
+        services.AddLogging();
+        if (onlyAsyncDisposable)
+        {
+            // A scope holding it refuses to be disposed synchronously, which the diagnosis has to survive.
+            services.AddScoped<IExecutionHistoryStore, AsyncDisposableStore>();
+        }
+        else
+        {
+            services.AddScoped<IExecutionHistoryStore, RecordingStore>();
+        }
+
+        services.AddQuartz(q => q.UseInMemoryStore());
+        services.AddQuartzExecutionHistory();
+        await using ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+
+        Func<Task> build = async () => await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        (await build.Should().ThrowAsync<SchedulerConfigException>("the failure to start is all an operator has to go on"))
+            .WithMessage("IExecutionHistoryStore, or a service it depends on, is registered as a scoped service*Register the history store and what it depends on as singletons.")
+            .WithInnerException<InvalidOperationException>();
+    }
+
+    /// <summary>
+    /// A history switched off builds no store, so one that cannot be built does not stop the scheduler
+    /// starting, as on 4.7: the recorder resolves the store only once the history is on.
+    /// </summary>
+    [Test]
+    public async Task AHistorySwitchedOffBuildsNoStore()
+    {
+        int built = 0;
+        await using ServiceProvider provider = Container(services =>
+        {
+            services.AddSingleton<IExecutionHistoryStore>(_ =>
+            {
+                Interlocked.Increment(ref built);
+                throw new SchedulerConfigException("the history store cannot be built");
+            });
+            services.AddQuartz(q => q.UseInMemoryStore());
+            services.AddQuartzExecutionHistory(options => options.MaxEntriesPerScheduler = 0);
+        });
+
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        await scheduler.Start();
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<SignallingJob>().WithIdentity("unrecorded", "DummyGroup").Build(),
+            TriggerBuilder.Create().WithIdentity("now", "DummyGroup").StartNow().Build());
+        (await SignallingJob.Executed.Task.WaitAsync(TimeSpan.FromSeconds(30))).Should().BeTrue();
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        built.Should().Be(0, "MaxEntriesPerScheduler of 0 records nothing, so nothing asks for a store to record into");
+    }
+
+    /// <summary>
+    /// A build that fails on the history store reports it once. The shutdown that follows flushes only a
+    /// store the recorder holds, so it does not ask for the store again and report the same failure as
+    /// one of its own.
+    /// </summary>
+    [Test]
+    public async Task AFailedBuildAsksForTheHistoryStoreOnce()
+    {
+        int attempts = 0;
+        RecordingLoggerProvider log = new();
+        await using ServiceProvider provider = Container(services =>
+        {
+            services.AddLogging(logging => logging.AddProvider(log));
+            services.AddSingleton<IExecutionHistoryStore>(_ =>
+            {
+                Interlocked.Increment(ref attempts);
+                throw new SchedulerConfigException("the history store cannot be built");
+            });
+            services.AddQuartz(q => q.UseInMemoryStore());
+            services.AddQuartzExecutionHistory();
+        });
+
+        Func<Task> build = async () => await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        await build.Should().ThrowAsync<SchedulerConfigException>().WithMessage("the history store cannot be built");
+        attempts.Should().Be(1, "the failure is the build's, and the shutdown after it asks for no store");
+        log.Entries.Should().NotContain(entry => entry.EventId.Id == 4006,
+            "a second failure in the shutdown after the first would be reported under 'another exception while shutting down'");
+    }
+
     private static ServiceProvider Container(Action<IServiceCollection> configure)
     {
         ServiceCollection services = new();
@@ -242,6 +336,26 @@ public sealed class ExecutionHistoryRegistrationTest
 
             throw new InvalidOperationException("the upstream system is down");
         }
+    }
+
+    /// <summary>
+    /// A store that is only <see cref="IAsyncDisposable" />, which a container cannot dispose synchronously.
+    /// </summary>
+    private sealed class AsyncDisposableStore : IExecutionHistoryStore, IAsyncDisposable
+    {
+        public ValueTask AddExecution(ExecutionHistoryEntry entry, CancellationToken cancellationToken = default) => default;
+
+        public ValueTask<PagedResult<ExecutionHistoryEntry>> QueryExecutions(ExecutionHistoryQuery query, CancellationToken cancellationToken = default)
+            => new(new PagedResult<ExecutionHistoryEntry>([], HasMore: false, 0));
+
+        public ValueTask AddMisfire(MisfireHistoryEntry entry, CancellationToken cancellationToken = default) => default;
+
+        public ValueTask<PagedResult<MisfireHistoryEntry>> QueryMisfires(MisfireHistoryQuery query, CancellationToken cancellationToken = default)
+            => new(new PagedResult<MisfireHistoryEntry>([], HasMore: false, 0));
+
+        public ValueTask<int> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default) => new(0);
+
+        public ValueTask DisposeAsync() => default;
     }
 
     /// <summary>
