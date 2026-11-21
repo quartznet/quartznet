@@ -29,7 +29,7 @@ docker run -p 8080:8080 \
   -e Quartz__Dashboard__Authentication__Mode=Token \
   -e Quartz__Dashboard__Authentication__Tokens__Administrator=<32 random characters> \
   -e Quartz__Dashboard__Targets__orders__ConnectionString="Host=db;Database=quartz;Username=quartz;Password=…" \
-  ghcr.io/quartznet/quartz-dashboard:4.8.0
+  ghcr.io/quartznet/quartz-dashboard:4.8
 ```
 
 Open `/quartz` and sign in with the token. Every key below is under `Quartz:Dashboard`, written
@@ -158,7 +158,7 @@ process's memory.
 Every image carries a GitHub build provenance attestation. To check one:
 
 ```shell
-gh attestation verify oci://ghcr.io/quartznet/quartz-dashboard:4.8.0 --owner quartznet
+gh attestation verify oci://ghcr.io/quartznet/quartz-dashboard:4.8 --owner quartznet
 ```
 
 ## Limitations

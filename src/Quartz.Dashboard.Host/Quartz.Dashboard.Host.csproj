@@ -50,7 +50,8 @@
   <!--
     The container image, for `dotnet fallout PublishContainer` and ContainerSmoke. The registry, the
     tags and the architectures are the build's: a release publishes linux-x64 and linux-arm64 as one
-    index, and ContainerSmoke builds the runner's own architecture into the local daemon.
+    index. ContainerSmoke builds the runner's own architecture into the local daemon, then publishes both
+    to a local registry with the release's command.
 
     noble-chiseled-extra rather than plain chiseled: the extra variant carries ICU and tzdata, which a
     dashboard showing cron schedules in their own time zones needs. Chiseled images run as the non-root
@@ -59,15 +60,41 @@
   <PropertyGroup>
     <ContainerRepository>quartznet/quartz-dashboard</ContainerRepository>
     <ContainerFamily>noble-chiseled-extra</ContainerFamily>
+    <!--
+      The architectures a multi-architecture publish restores and builds, derived from
+      ContainerRuntimeIdentifiers. Passed on the command line, RuntimeIdentifiers is a global property and
+      reaches every project in the graph, so no library is RID-agnostic any more. Each one is built once
+      per architecture, and Quartz.Analyzers built for linux-arm64 is an arm64 assembly that the compiler
+      on an x64 machine cannot load (CS8034, which stopped the 4.8.0 image). Set here, it is this
+      project's alone. Only a container publish sets ContainerRuntimeIdentifiers, so a pack still makes
+      the one tool package, for any RID.
+    -->
+    <RuntimeIdentifiers Condition="'$(ContainerRuntimeIdentifiers)' != ''">$(ContainerRuntimeIdentifiers)</RuntimeIdentifiers>
+    <!--
+      One architecture's build after the other. Each one hands its ContainerRuntimeIdentifier down to the
+      libraries it references, so every library gets a project instance per architecture, and they all
+      build into one folder now that none of them is per-RID. A later instance can still decide to
+      recompile, because the first thing it does touches its AssemblyInfoInputs.cache. Built in parallel,
+      two instances of Quartz.Analyzers or Quartz then compiled into one obj folder at once, and one
+      compiler could not open the assembly the other was writing (CS2012).
+    -->
+    <ContainerPublishInParallel>false</ContainerPublishInParallel>
+    <!--
+      The image's labels, through the properties the SDK labels it from. ContainerLabel items do not
+      do it: the SDK adds its own labels after the project's, from Title, Description and
+      PackageProjectUrl, and the later label wins. Its description would be the package's, which has a
+      semicolon in it. A multi-architecture publish hands the labels to each architecture's build as one
+      semicolon-separated list, so the text after that semicolon arrived as a label with no value, and
+      _ParseItemsForPublishingSingleContainer failed with MSB4184. The source and licence labels come
+      from RepositoryUrl and PackageLicenseExpression.
+    -->
+    <ContainerTitle>Quartz.NET Dashboard</ContainerTitle>
+    <ContainerDescription>The Quartz.NET dashboard, configured from Quartz__Dashboard__* environment variables</ContainerDescription>
+    <ContainerDocumentationUrl>https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard-host.html</ContainerDocumentationUrl>
   </PropertyGroup>
 
   <ItemGroup>
     <ContainerPort Include="8080" Type="tcp" />
-    <ContainerLabel Include="org.opencontainers.image.title" Value="Quartz.NET Dashboard" />
-    <ContainerLabel Include="org.opencontainers.image.description" Value="The Quartz.NET dashboard, configured from Quartz__Dashboard__* environment variables" />
-    <ContainerLabel Include="org.opencontainers.image.source" Value="https://github.com/quartznet/quartznet" />
-    <ContainerLabel Include="org.opencontainers.image.licenses" Value="Apache-2.0" />
-    <ContainerLabel Include="org.opencontainers.image.documentation" Value="https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/dashboard-host.html" />
   </ItemGroup>
 
   <ItemGroup>
