@@ -164,4 +164,11 @@ internal static partial class ConfigurationLog
     /// </remarks>
     [LoggerMessage(EventId = 4032, Level = LogLevel.Information, Message = "Trigger '{TriggerKey}' is switched off: '{Source}' is '-', so it is not scheduled. A copy already stored was unscheduled: {Unscheduled}")]
     public static partial void TriggerSwitchedOffByConfiguration(this ILogger logger, TriggerKey triggerKey, string source, bool unscheduled);
+
+    /// <remarks>
+    /// Logged rather than thrown: a container stops disposing at the first service whose disposal throws,
+    /// and the application's own services would be left undisposed. See <c>ShutdownOnContainerDisposal</c>.
+    /// </remarks>
+    [LoggerMessage(EventId = 4033, Level = LogLevel.Error, Message = "Scheduler '{SchedulerName}' failed to shut down when the container that built it was disposed; the container's other services are disposed anyway")]
+    public static partial void ShutdownOnContainerDisposalFailed(this ILogger logger, string schedulerName, Exception exception);
 }

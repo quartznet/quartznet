@@ -105,8 +105,8 @@ public sealed class RetryPolicyAppliedTest
 
         // Shut down here, waiting for the jobs, rather than on each test's last line: a test that fails
         // before that line would leave its scheduler firing, and every PlainJob counts into the static
-        // firings the next test reads. Disposing the container does not shut down a scheduler that
-        // AddQuartz registered.
+        // firings the next test reads. Disposing the container below shuts the scheduler down too, but
+        // without waiting, so a firing still in flight could count into the next test.
         foreach (IScheduler scheduler in schedulers)
         {
             await scheduler.Shutdown(waitForJobsToComplete: true);

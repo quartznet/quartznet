@@ -293,6 +293,12 @@ internal static class QuartzServiceRegistration
             provider.GetScheduler<QuartzSchedulerResources>(key),
             provider.GetSchedulerTimeProvider(key)));
 
+        // What shuts the scheduler down when the container is disposed with it still running. Only the
+        // factory resolves it, once the scheduler is built: see ShutdownOnContainerDisposal.
+        services.TryAddKeyed<ShutdownOnContainerDisposal>(key, static (provider, key) => new ShutdownOnContainerDisposal(
+            provider.GetScheduler<QuartzScheduler>(key),
+            provider.GetRequiredService<ILogger<ShutdownOnContainerDisposal>>()));
+
         // The jobs, triggers, listeners and calendars a scheduler should carry are per-scheduler, so these
         // are keyed too, and are handed this scheduler's own key and content rather than resolving them
         // unkeyed — which for a named scheduler would be the default scheduler's.

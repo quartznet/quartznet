@@ -287,6 +287,10 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
                     quartzScheduler.Clustered ? "" : "; this store is not clustered, so nothing else runs them");
             }
 
+            // Last, so that the container, which disposes in the reverse order of creation, shuts this
+            // scheduler down before it disposes anything the scheduler was built from.
+            serviceProvider.GetScheduler<ShutdownOnContainerDisposal>(Key);
+
             return scheduler;
         }
         catch
