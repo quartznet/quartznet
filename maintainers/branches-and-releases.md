@@ -32,6 +32,16 @@ before assuming the feature is missing.
 `main`'s analyzers are stricter. Write a change both branches carry so it passes `main`'s, and the shared
 source stays identical.
 
+## The mixed-version gate at a minor release
+
+`MixedVersionClusterPostgresTest` runs a released node beside a working-tree node through a rolling
+upgrade, and a clean stop of each beside the other. **At each minor release, the gate moves to the newest
+patch of the previous minor, whether or not there is a migration since it**: 4.8.0's gate runs 4.7.3.
+The version is named once, as `MixedVersionReleasedQuartz` in
+[`MixedVersionReleasedQuartz.props`](../src/Quartz.Tests.Integration.MixedVersionNode/MixedVersionReleasedQuartz.props).
+Moving it also means re-reading every assertion the test makes about what the released node does: one
+written against the old minor's behaviour is wrong against the new one.
+
 ## Release notes
 
 - **Release notes live in GitHub releases, not in the repository.** There is no changelog file on

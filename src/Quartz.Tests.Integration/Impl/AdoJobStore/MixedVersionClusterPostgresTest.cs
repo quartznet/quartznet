@@ -19,6 +19,7 @@
 
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 
 using AwesomeAssertions.Execution;
@@ -32,18 +33,20 @@ using Quartz.Extensibility;
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
-/// A released node of the previous minor, 4.6, and a working-tree node share one PostgreSQL cluster and
-/// one execution history through a rolling upgrade whose migration runs while the released node is up,
-/// and nothing is lost, doubled or overwritten.
+/// A released node of the previous minor and a working-tree node share one PostgreSQL cluster and one
+/// execution history through a rolling upgrade, and nothing is lost, doubled or overwritten; and a node of
+/// either version that stops cleanly beside the other is recovered or left alone as its version says.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>The upgrade.</b> The schema starts as 4.3.0's fresh install with every migration through 4.6
-/// applied over it (<see cref="MigrationChains.Since" />): an operator's 4.6 database. The released node —
-/// Quartz 4.6.0 from nuget.org — starts on it and schedules half of the work. Then every migration since
-/// 4.6 runs while that node is up, as the migration guide says to, and the working-tree node, which
-/// refuses a schema without them, joins and schedules the other half. Both run with their shipped
-/// defaults and keep their execution history in the database.
+/// <b>The upgrade.</b> The schema starts as 4.3.0's fresh install with every migration through the
+/// released node's minor applied over it (<see cref="MigrationChains.Since" />): the database an operator on
+/// that minor has. The released node — <see cref="ReleasedQuartz" /> from nuget.org, the newest patch of
+/// the previous minor — starts on it and schedules half of the work. Then every migration since its minor
+/// runs while it is up, as the migration guide says to, and the working-tree node, which refuses a schema
+/// without them, joins and schedules the other half. A minor with no migration since it, as 4.7 is beside
+/// 4.8, runs none, and the report says so: the working tree joins the released schema as it is. Both run
+/// with their shipped defaults and keep their execution history in the database.
 /// </para>
 /// <para>
 /// <b>The nodes.</b> <c>Quartz.Tests.Integration.MixedVersionNode</c> is built twice with one assembly
@@ -58,16 +61,25 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// completed on either node. The pause and overlap columns the working tree wrote survive the released
 /// node firing, misfiring, updating, pausing and resuming the rows around them, and a trigger the working
 /// tree gave <c>RetryPolicy.None</c> is fired by the released node and read back as it was written. A
-/// trigger the working tree made measure its interval from completion is fired by the released node at a
-/// fixed rate, and its <c>FIXED_DELAY</c> is still set after that node fired and updated it (#4140). Every
-/// execution is in the history once, under the node that ran it, with the outcome that node's jobs report.
+/// trigger the working tree made measure its interval from completion is fired by the released node an
+/// interval after each run completed, and its <c>FIXED_DELAY</c> is still set after that node fired and
+/// updated it (#4140). Every execution is in the history once, under the node that ran it, with the
+/// outcome that node's jobs report.
 /// </para>
 /// <para>
-/// <b>The lock.</b> Each node reads the other's version stamp as 4.6 or later, so neither keeps its rounds
-/// locked for the other (#4067): once the work that needs the lock is stood down, a round of
-/// concurrent-allowed work on either node takes none, and the nodes' <c>round-locks</c> commands say so.
-/// The other arm turns <c>LockFreeFiringRounds</c> off on the working tree and asserts that every one of
-/// its rounds is locked, beside a released node whose rounds are not.
+/// <b>The lock.</b> Each node stamps its state row with its version at every check-in, and reads the
+/// other's stamp as 4.6 or later, so neither keeps its rounds locked for the other (#4067): once the work
+/// that needs the lock is stood down, a round of concurrent-allowed work on either node takes none, and the
+/// nodes' <c>round-locks</c> commands say so. The other arm turns <c>LockFreeFiringRounds</c> off on the
+/// working tree and asserts that every one of its rounds is locked, beside a released node whose rounds
+/// are not.
+/// </para>
+/// <para>
+/// <b>Leaving.</b> From 4.8 a node that stops cleanly, leaving no fired-trigger row, deletes its
+/// <c>QRTZ_SCHEDULER_STATE</c> row, so its peers recover nothing (#4378); an older node keeps the row, and
+/// a peer recovers it once the row lapses. <see cref="ACleanlyStoppedNodeIsRecoveredOnlyIfItsVersionKeepsItsRow" />
+/// stops a working-tree node beside the released one, and the released one beside a working-tree node, on
+/// a check-in short enough that a recovery is seconds away.
 /// </para>
 /// <para>
 /// It runs in the PostgreSQL leg. Against a server at its shipped durability — the Testcontainers one
@@ -86,8 +98,21 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [Category("migrations")]
 public sealed class MixedVersionClusterPostgresTest
 {
-    /// <summary>The released Quartz the old node runs; the node project's csproj names the same one.</summary>
-    private const string ReleasedQuartz = "4.6.0";
+    /// <summary>
+    /// The released Quartz the old node runs: <c>MixedVersionReleasedQuartz.props</c> in the node project names
+    /// it, and this assembly's build stamps it into its metadata.
+    /// </summary>
+    private static string ReleasedQuartz =>
+        typeof(MixedVersionClusterPostgresTest).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .SingleOrDefault(x => x.Key == "MixedVersionReleasedQuartz")?.Value
+        ?? throw new InvalidOperationException(
+            "Quartz.Tests.Integration carries no MixedVersionReleasedQuartz metadata; its csproj imports the version from the node project.");
+
+    /// <summary>
+    /// Whether the released node deletes its own state row when it stops cleanly, as a node does from 4.8
+    /// on (#4378), rather than keeping it for a peer to recover.
+    /// </summary>
+    private static bool ReleasedLeavesTheCluster => Version.Parse(ReleasedQuartz) >= new Version(4, 8);
 
     /// <summary>
     /// The release whose fresh install the database starts as: its install plus every migration through
@@ -105,8 +130,14 @@ public sealed class MixedVersionClusterPostgresTest
 
     private const string RunsTable = "mixed_version_runs";
 
-    private const string Released = "node-46";
-    private const string WorkingTree = "node-47";
+    private const string Released = "node-released";
+    private const string WorkingTree = "node-working-tree";
+
+    /// <summary>
+    /// The second working-tree node of <see cref="ACleanlyStoppedNodeIsRecoveredOnlyIfItsVersionKeepsItsRow" />,
+    /// which joins once the first has left and is there when the released node stops.
+    /// </summary>
+    private const string Joining = "node-joining";
 
     private const int OneOffs = 2_000;
 
@@ -140,6 +171,9 @@ public sealed class MixedVersionClusterPostgresTest
 
     /// <summary>The interval of the fixed-delay trigger the released node fires, in milliseconds.</summary>
     private const int FixedDelayIntervalMs = 1000;
+
+    /// <summary>The interval of the triggers pinned to each node while nodes stop, in milliseconds.</summary>
+    private const int PinnedIntervalMs = 500;
 
     /// <summary>
     /// How many more rounds the working tree has to run after the stand-down, in the arm with lock-free
@@ -179,6 +213,19 @@ public sealed class MixedVersionClusterPostgresTest
     /// </summary>
     private static readonly TimeSpan LockFreeWithin = TimeSpan.FromSeconds(60);
 
+    /// <summary>
+    /// The check-in of every node in <see cref="ACleanlyStoppedNodeIsRecoveredOnlyIfItsVersionKeepsItsRow" />:
+    /// once a second, and a peer silent for two seconds past that is recovered, so a recovery comes a few
+    /// seconds after a node stops rather than the fifteen the shipped defaults take.
+    /// </summary>
+    private static readonly (TimeSpan Interval, TimeSpan Threshold) ShortCheckIn = (TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));
+
+    /// <summary>
+    /// How long a node that stopped is given to be recovered, or its peer to check in past the moment it
+    /// would have recovered it, before the assertions say what is missing.
+    /// </summary>
+    private static readonly TimeSpan StopSettlesWithin = TimeSpan.FromSeconds(30);
+
     private const string CreateRunsTable =
         "CREATE TABLE " + RunsTable + " ("
         + "id BIGSERIAL PRIMARY KEY, trigger_group TEXT NOT NULL, trigger_name TEXT NOT NULL, job_group TEXT NOT NULL, "
@@ -214,6 +261,9 @@ public sealed class MixedVersionClusterPostgresTest
         "UPDATE qrtzv_triggers SET next_fire_time = next_fire_time - @age "
         + "WHERE sched_name = @schedulerName AND trigger_group = @group AND trigger_name = @name AND trigger_state = 'PAUSED'";
 
+    private const string SelectSchedulerStates =
+        "SELECT instance_name, last_checkin_time, quartz_version FROM qrtzv_scheduler_state WHERE sched_name = @schedulerName";
+
     private const string SelectLeftoverTables =
         "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() "
         + "AND (table_name LIKE 'qrtzv\\_%' OR table_name = '" + RunsTable + "')";
@@ -225,7 +275,7 @@ public sealed class MixedVersionClusterPostgresTest
     /// </param>
     [TestCase(true)]
     [TestCase(false)]
-    public async Task AReleased46NodeAndAWorkingTreeNodeShareOneClusterAndOneHistory(bool lockFreeRounds)
+    public async Task AReleasedNodeAndAWorkingTreeNodeShareOneClusterAndOneHistory(bool lockFreeRounds)
     {
         string connectionString = MigrationScriptTest.RequireConnectionString("PG_CONNECTION_STRING");
         string releasedAssembly = NodeAssembly(ReleasedQuartz);
@@ -249,9 +299,9 @@ public sealed class MixedVersionClusterPostgresTest
 
             // The working tree's migrations, run while the released node is up and has rows of its own in the
             // tables they alter. The working tree refuses to start without them.
-            await MigrateWhileReleasedIsUp(connectionString);
+            List<string> migrations = await MigrateWhileReleasedIsUp(connectionString);
             (await released.Send("cluster-nodes"))["nodes"].Should().Be($"{Released}:Alive",
-                "the released node is still up and checking in once the migration has run under it");
+                "the released node is still up and checking in once the migrations since its minor, if any, have run under it");
 
             workingTree = await MixedVersionNodeProcess.Start(workingTreeAssembly, WorkingTree, SchedulerName, connectionString, TablePrefix, RunsTable, history: true, lockFreeRounds);
             workingTree.QuartzVersion.Should().NotStartWith(ReleasedQuartz, "the new node has to run the working tree");
@@ -270,6 +320,7 @@ public sealed class MixedVersionClusterPostgresTest
 
             string nodes = (await workingTree.Send("cluster-nodes"))["nodes"];
             nodes.Should().Be($"{Released}:Alive,{WorkingTree}:Alive", "each node sees the other checking in");
+            Dictionary<string, StateRow> stamps = await ReadSchedulerStates(connectionString);
 
             // A few seconds into the drain, so that the released node has fired its overlap-policy trigger
             // and is writing fired rows for the one-offs while it works around the working tree's rows.
@@ -299,7 +350,7 @@ public sealed class MixedVersionClusterPostgresTest
             HistoryAfter history = await ReadHistory(connectionString);
             HistoryThroughTheApi throughTheApi = await ReadHistoryThroughTheApi(connectionString);
 
-            TestContext.Out.WriteLine(Report(runs, due, elapsed.Elapsed, released, workingTree, await Durability(connectionString), releasedRounds, workingTreeRounds));
+            TestContext.Out.WriteLine(Report(runs, due, elapsed.Elapsed, released, workingTree, await Durability(connectionString), migrations, stamps, releasedRounds, workingTreeRounds));
 
             using (new AssertionScope())
             {
@@ -308,13 +359,13 @@ public sealed class MixedVersionClusterPostgresTest
                 AssertContinuationsSettled(runs, columns);
                 AssertWorkingTreeColumnsSurvived(runs, columns, state, around, releasedLiveUntil);
                 AssertRetryPolicyNoneSurvivesTheReleasedNode(runs, columns, retryPolicyAsScheduled, releasedLiveUntil);
-                AssertTheReleasedNodeRunsAFixedDelayAtAFixedRate(runs, columns, fixedDelayAsScheduled, state, around, releasedLiveUntil);
+                AssertTheReleasedNodeMeasuresAFixedDelayFromCompletion(runs, columns, fixedDelayAsScheduled, around, releasedLiveUntil);
                 AssertTheWorkingTreeReadsThemBack(columns, triggerPause, groupPause, jobGroupPause);
                 AssertProgressSurvived(runs);
                 AssertEachRunIsInTheHistoryOnce(runs, history);
                 AssertEachNodeWritesTheOutcomeItsJobsReport(runs, history);
                 AssertTheWorkingTreeReadsTheHistoryBack(runs, history, throughTheApi);
-                AssertNeitherNodeLocksForTheOther(releasedRounds, workingTreeRounds, lockFreeRounds);
+                AssertNeitherNodeLocksForTheOther(stamps, releasedRounds, workingTreeRounds, lockFreeRounds);
             }
         }
         finally
@@ -332,6 +383,261 @@ public sealed class MixedVersionClusterPostgresTest
                 await released.DisposeAsync();
             }
         }
+    }
+
+    /// <summary>
+    /// A node of either version stops cleanly beside a node of the other, and the peer reads the stop as
+    /// the stopped node's version means it: a working-tree node leaves the cluster, so the released node
+    /// recovers nothing from it (#4378); the released node keeps its row, as every node before 4.8 does,
+    /// and a working-tree node recovers it once it lapses — or, from 4.8, it leaves as well.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The released node and a working-tree node start on the released minor's schema, migrated as the
+    /// rolling upgrade migrates it, and each fires a trigger pinned to it every half second, so that each
+    /// stops with work of its own. The working-tree node stops first. A second one then joins, and the
+    /// released node stops beside it. Last, the second one stops, and no state row is left.
+    /// </para>
+    /// <para>
+    /// Every node checks in every second and is recovered two seconds past that (<see cref="ShortCheckIn" />),
+    /// so each wait is a few seconds: for a node that keeps its row, until its peer has recovered it; for one
+    /// that left, until its peer has checked in an interval past the moment the row would have lapsed, which
+    /// is when it would have recovered it. Every node logs at Information, where event 3504 names the node a
+    /// recovery scans and 3522 says that a node left.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task ACleanlyStoppedNodeIsRecoveredOnlyIfItsVersionKeepsItsRow()
+    {
+        string connectionString = MigrationScriptTest.RequireConnectionString("PG_CONNECTION_STRING");
+        string releasedAssembly = NodeAssembly(ReleasedQuartz);
+        string workingTreeAssembly = NodeAssembly(null);
+
+        await PrepareDatabase(connectionString);
+
+        MixedVersionNodeProcess released = null;
+        MixedVersionNodeProcess leaving = null;
+        MixedVersionNodeProcess joining = null;
+        try
+        {
+            released = await StartWithShortCheckIn(releasedAssembly, Released, connectionString);
+            released.QuartzVersion.Should().StartWith(ReleasedQuartz, "the old node has to run the released package, not the working tree");
+            await released.Send("start");
+            await MigrateWhileReleasedIsUp(connectionString);
+
+            leaving = await StartWithShortCheckIn(workingTreeAssembly, WorkingTree, connectionString);
+            leaving.Build.Should().Be("working-tree");
+            await leaving.Send("start");
+
+            foreach (string node in (string[]) [Released, WorkingTree])
+            {
+                await released.Send("schedule",
+                    ("name", Pinned(node)), ("group", "leave"), ("job", "leave"), ("type", "state"),
+                    ("start", DateTimeOffset.UtcNow), ("intervalMs", PinnedIntervalMs), ("pin", node));
+            }
+
+            await PollUntil(StopSettlesWithin, async () =>
+                (await leaving.Send("cluster-nodes"))["nodes"] == $"{Released}:Alive,{WorkingTree}:Alive"
+                && FiredOnItsNode(await ReadRuns(connectionString), Released, WorkingTree));
+            (await leaving.Send("cluster-nodes"))["nodes"].Should().Be($"{Released}:Alive,{WorkingTree}:Alive",
+                "each node sees the other checking in before either stops");
+            FiredOnItsNode(await ReadRuns(connectionString), Released, WorkingTree).Should().BeTrue(
+                "each node fires the trigger pinned to it, so it stops with work of its own");
+
+            // The working tree stops beside the released node.
+            CleanStop workingTreeStop = await StopBeside(connectionString, leaving, released, leaves: true);
+
+            // A second working-tree node joins, and the released node stops beside it.
+            joining = await StartWithShortCheckIn(workingTreeAssembly, Joining, connectionString);
+            await joining.Send("start");
+            await PollUntil(StopSettlesWithin, async () =>
+                (await joining.Send("cluster-nodes"))["nodes"] == $"{Joining}:Alive,{Released}:Alive"
+                && (await released.Send("cluster-nodes"))["nodes"] == $"{Joining}:Alive,{Released}:Alive");
+            (await joining.Send("cluster-nodes"))["nodes"].Should().Be($"{Joining}:Alive,{Released}:Alive",
+                "the joining node and the released one see each other checking in before the released one stops");
+
+            CleanStop releasedStop = await StopBeside(connectionString, released, joining, ReleasedLeavesTheCluster);
+
+            // Last, the second working-tree node stops, with no peer left to read it.
+            await joining.Stop(waitForJobs: true);
+            Dictionary<string, StateRow> rowsLeft = await ReadSchedulerStates(connectionString);
+            List<Run> runs = await ReadRuns(connectionString);
+
+            TestContext.Out.WriteLine(StopReport(runs, released, leaving, joining, [workingTreeStop, releasedStop]));
+
+            using (new AssertionScope())
+            {
+                AssertTheStopIsReadAsItsVersionMeansIt(workingTreeStop, leaving, released, runs);
+                AssertTheStopIsReadAsItsVersionMeansIt(releasedStop, released, joining, runs);
+
+                joining.Logged(3522).Should().ContainSingle(
+                    "{0} stopped last, with nothing of its own in flight, and left the cluster", Joining);
+                rowsLeft.Keys.Should().BeEmpty("every node either left the cluster or was recovered by a peer, so no state row is left");
+
+                NoViolations(
+                    "clean stops: each node waited for its jobs, so a recovering execution is a firing a peer replayed",
+                    runs.Where(x => x.Recovering).Select(x => x.ToString()));
+                NoViolations(
+                    "clean stops: a scheduled fire time of a pinned trigger ran more than once, on the node that stopped and on "
+                    + "the peer that took it over",
+                    runs.GroupBy(x => (x.Trigger, x.ScheduledFireUtc)).Where(x => x.Count() > 1).Select(x => Describe(x.ToList())));
+            }
+        }
+        finally
+        {
+            MixedVersionNodeProcess[] nodes = [.. new[] { joining, leaving, released }.Where(x => x is not null)];
+            TestContext.Out.WriteLine(string.Join(Environment.NewLine, nodes.Select(x => x.Describe())));
+
+            foreach (MixedVersionNodeProcess node in nodes)
+            {
+                await node.DisposeAsync();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Stops <paramref name="node" /> cleanly beside <paramref name="peer" />, reads the state rows at once,
+    /// and waits for what the stop leads to. A node that <paramref name="leaves" /> is waited on until the
+    /// peer has checked in an interval past the moment its row would have lapsed, which is when the peer
+    /// would have recovered it; one that keeps its row, until the peer has recovered it. Either way also
+    /// until the trigger pinned to it has fired on the peer.
+    /// </summary>
+    private static async Task<CleanStop> StopBeside(string connectionString, MixedVersionNodeProcess node, MixedVersionNodeProcess peer, bool leaves)
+    {
+        DateTimeOffset stopping = DateTimeOffset.UtcNow;
+        await node.Stop(waitForJobs: true);
+        Dictionary<string, StateRow> atStop = await ReadSchedulerStates(connectionString);
+
+        long wouldHaveRecovered = (stopping + ShortCheckIn.Interval + ShortCheckIn.Threshold + ShortCheckIn.Interval).UtcTicks;
+        Stopwatch waited = Stopwatch.StartNew();
+        bool settled = await PollUntil(StopSettlesWithin, async () =>
+        {
+            Dictionary<string, StateRow> rows = await ReadSchedulerStates(connectionString);
+            bool readByPeer = leaves
+                ? rows.TryGetValue(peer.InstanceId, out StateRow peerRow) && peerRow.LastCheckin > wouldHaveRecovered
+                : !rows.ContainsKey(node.InstanceId) && ScannedFor(peer, node.InstanceId).Count > 0;
+            return readByPeer && (await ReadRuns(connectionString)).Any(x => x.TriggerName == Pinned(node.InstanceId) && x.Node == peer.InstanceId && x.FiredUtc > stopping.UtcTicks);
+        });
+
+        return new CleanStop(
+            node.InstanceId,
+            node.QuartzVersion,
+            peer.InstanceId,
+            leaves,
+            stopping,
+            atStop,
+            await ReadSchedulerStates(connectionString),
+            (await peer.Send("cluster-nodes"))["nodes"],
+            settled,
+            waited.Elapsed);
+    }
+
+    /// <summary>
+    /// What one clean stop left and what its peer made of it: a node that leaves deletes its row, says so,
+    /// and is never scanned for; one that keeps its row is recovered by the peer, as a failed node is.
+    /// Either way the row is gone in the end, and the work pinned to the node moved to the peer only once it
+    /// had stopped.
+    /// </summary>
+    private static void AssertTheStopIsReadAsItsVersionMeansIt(CleanStop stop, MixedVersionNodeProcess node, MixedVersionNodeProcess peer, List<Run> runs)
+    {
+        string stopped = $"{stop.Node} (Quartz {stop.QuartzVersion})";
+        stop.RowsAtStop.Should().ContainKey(stop.Peer, "{0} is still up and checking in when {1} stops", stop.Peer, stop.Node);
+
+        if (stop.Leaves)
+        {
+            stop.RowsAtStop.Should().NotContainKey(stop.Node,
+                "{0} stopped cleanly with nothing of its own in flight, so it deletes its QRTZ_SCHEDULER_STATE row as it leaves (#4378)", stopped);
+            node.Logged(3522).Should().ContainSingle("{0} logs that it left the cluster", stopped);
+            ScannedFor(peer, stop.Node).Should().BeEmpty(
+                "{0} recovers nothing from a node that left: it never scans for {1}'s in-progress jobs", stop.Peer, stop.Node);
+            stop.Settled.Should().BeTrue(
+                "{0} checked in past the moment {1}'s row would have lapsed, and fired the trigger pinned to it, within {2} s",
+                stop.Peer, stop.Node, StopSettlesWithin.TotalSeconds);
+        }
+        else
+        {
+            stop.RowsAtStop.Should().ContainKey(stop.Node,
+                "{0} keeps its QRTZ_SCHEDULER_STATE row on a clean shutdown, as every node before 4.8 does", stopped);
+            node.Logged(3522).Should().BeEmpty("{0} does not leave the cluster on a clean shutdown", stopped);
+            ScannedFor(peer, stop.Node).Should().ContainSingle(
+                "{0} recovers the row {1} kept once it lapses, as it recovers a failed node", stop.Peer, stop.Node);
+            peer.Logged(3503).Should().NotBeEmpty("{0} logs the failed instance it found", stop.Peer);
+            stop.Settled.Should().BeTrue(
+                "{0} recovered {1} and fired the trigger pinned to it within {2} s", stop.Peer, stop.Node, StopSettlesWithin.TotalSeconds);
+        }
+
+        stop.RowsAfter.Should().NotContainKey(stop.Node, "{0} left the cluster or was recovered, and either way its row is gone", stop.Node);
+        stop.PeerSees.Should().Be($"{stop.Peer}:Alive", "{0} lists no {1} once it left or was recovered", stop.Peer, stop.Node);
+
+        runs.Count(x => x.TriggerName == Pinned(stop.Node) && x.Node == stop.Node).Should().BeGreaterThan(0,
+            "{0} fired the trigger pinned to it before it stopped", stop.Node);
+        NoViolations(
+            $"clean stops: {Pinned(stop.Node)} is {stop.Node}'s alone until it stops",
+            runs.Where(x => x.TriggerName == Pinned(stop.Node) && x.Node != stop.Node && x.FiredUtc <= stop.Stopping.UtcTicks).Select(x => x.ToString()));
+    }
+
+    private static string Pinned(string node) => "pinned-" + node;
+
+    private static bool FiredOnItsNode(List<Run> runs, params string[] nodes) =>
+        nodes.All(node => runs.Any(x => x.TriggerName == Pinned(node) && x.Node == node));
+
+    /// <summary>The 3504 lines in which <paramref name="peer" /> scanned for a failed node's in-progress jobs.</summary>
+    private static List<string> ScannedFor(MixedVersionNodeProcess peer, string instanceId) =>
+        peer.Logged(3504).Where(x => x.Contains($"instance {instanceId}'s ", StringComparison.Ordinal)).ToList();
+
+    private static Task<MixedVersionNodeProcess> StartWithShortCheckIn(string assembly, string instanceId, string connectionString) =>
+        MixedVersionNodeProcess.Start(assembly, instanceId, SchedulerName, connectionString, TablePrefix, RunsTable, history: false,
+            checkIn: ShortCheckIn, logLevel: "Information");
+
+    /// <summary>
+    /// Asks <paramref name="done" /> every quarter second until it says yes or <paramref name="within" /> has
+    /// passed, and says which. Not a failure of its own: the assertions after it say what is missing.
+    /// </summary>
+    private static async Task<bool> PollUntil(TimeSpan within, Func<Task<bool>> done)
+    {
+        DateTimeOffset giveUp = DateTimeOffset.UtcNow + within;
+        while (!await done())
+        {
+            if (DateTimeOffset.UtcNow >= giveUp)
+            {
+                return false;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        return true;
+    }
+
+    private static string StopReport(List<Run> runs, MixedVersionNodeProcess released, MixedVersionNodeProcess leaving, MixedVersionNodeProcess joining, CleanStop[] stops)
+    {
+        StringBuilder report = new();
+        report.AppendLine(CultureInfo.InvariantCulture,
+            $"Clean stops on PostgreSQL, every node checking in each {ShortCheckIn.Interval.TotalSeconds:0} s and recovered "
+            + $"{ShortCheckIn.Threshold.TotalSeconds:0} s past that: {Released} = Quartz {released.QuartzVersion}, "
+            + $"{WorkingTree} and {Joining} = Quartz {leaving.QuartzVersion}.");
+        report.AppendLine();
+        report.AppendLine("| Stopped | Beside | Its row at the stop | Peer scanned for it (3504) | It left (3522) | Pinned work on the peer after | Waited |");
+        report.AppendLine("|---|---|---|---|---|---:|---:|");
+
+        foreach (CleanStop stop in stops)
+        {
+            MixedVersionNodeProcess node = stop.Node == Released ? released : leaving;
+            MixedVersionNodeProcess peer = stop.Peer == Released ? released : joining;
+            long? firstOnPeer = runs
+                .Where(x => x.TriggerName == Pinned(stop.Node) && x.Node == stop.Peer && x.FiredUtc > stop.Stopping.UtcTicks)
+                .Select(x => (long?) x.FiredUtc)
+                .Min();
+            string movedAfter = firstOnPeer is { } fired
+                ? ((fired - stop.Stopping.UtcTicks) / TimeSpan.TicksPerMillisecond).ToString(CultureInfo.InvariantCulture) + " ms"
+                : "never";
+
+            report.AppendLine(CultureInfo.InvariantCulture,
+                $"| {stop.Node} | {stop.Peer} | {(stop.RowsAtStop.ContainsKey(stop.Node) ? "kept" : "deleted")} | "
+                + $"{ScannedFor(peer, stop.Node).Count} | {node.Logged(3522).Count} | {movedAfter} | {stop.Waited.TotalSeconds:F1} s |");
+        }
+
+        return report.ToString();
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -382,11 +688,13 @@ public sealed class MixedVersionClusterPostgresTest
             ("name", "retry-none"), ("group", "state"), ("job", "state"), ("type", "state"),
             ("start", due), ("intervalMs", 1000), ("pin", Released), ("retry", "none"));
 
-        // Measuring its interval from completion, which the released node cannot do (#4140): it fires the
-        // trigger, and updates it, without naming FIXED_DELAY.
-        long fixedDelayFirst = long.Parse((await workingTree.Send("schedule",
-            ("name", "fixed-delay"), ("group", "state"), ("job", "state"), ("type", "state"),
-            ("start", due), ("intervalMs", FixedDelayIntervalMs), ("pin", Released), ("fromCompletion", true)))["first"], CultureInfo.InvariantCulture);
+        // Measuring its interval from completion (#4140), and fired by the released node, which reads
+        // FIXED_DELAY, measures from each run's completion and writes the column back when it updates the
+        // trigger. Its job holds for a while, so that the next run is plainly an interval after the last
+        // one ended rather than after it began.
+        await workingTree.Send("schedule",
+            ("name", "fixed-delay"), ("group", "state"), ("job", "fixed-delay"), ("type", "held"),
+            ("start", due), ("intervalMs", FixedDelayIntervalMs), ("pin", Released), ("fromCompletion", true));
 
         // Paused with a reason, and updated by the released node while it is. Its start is past the run, so
         // nothing but the pause is keeping it from firing.
@@ -416,7 +724,7 @@ public sealed class MixedVersionClusterPostgresTest
             ("name", "overlap-misfired"), ("group", "held"), ("job", "state"), ("type", "state"),
             ("start", due), ("intervalMs", 1000), ("pin", Released), ("policy", nameof(OverlapPolicy.BufferOne)));
 
-        return new StateArrangement(beforeTriggerPause, afterTriggerPause, beforeGroupPauses, afterGroupPauses, fixedDelayFirst);
+        return new StateArrangement(beforeTriggerPause, afterTriggerPause, beforeGroupPauses, afterGroupPauses);
     }
 
     /// <summary>
@@ -842,38 +1150,43 @@ public sealed class MixedVersionClusterPostgresTest
     }
 
     /// <summary>
-    /// A trigger the working tree made measure its interval from completion is one the released node fires at
-    /// a fixed rate, and leaves <c>FIXED_DELAY</c> as the working tree wrote it (#4140): it never names the
-    /// column.
+    /// A trigger the working tree made measure its interval from completion is one the released node fires an
+    /// interval after each run completed, and writes back with <c>FIXED_DELAY</c> as the working tree wrote it
+    /// (#4140).
     /// </summary>
-    private static void AssertTheReleasedNodeRunsAFixedDelayAtAFixedRate(
+    private static void AssertTheReleasedNodeMeasuresAFixedDelayFromCompletion(
         List<Run> runs,
         ColumnsAfter columns,
         bool? asScheduled,
-        StateArrangement state,
         AroundTheState around,
         long releasedLiveUntil)
     {
         asScheduled.Should().BeTrue("the working tree stores a trigger that measures from completion with FIXED_DELAY set");
 
-        List<Run> released = runs.Where(x => x.Trigger == "state.fixed-delay" && x.Node == Released).ToList();
-        released.Count(x => x.FiredUtc > around.Updated.UtcTicks).Should().BeGreaterThanOrEqualTo(3,
-            "state.fixed-delay is pinned to the released node, which fires it every second after updating it");
+        List<Run> fired = runs.Where(x => x.Trigger == "state.fixed-delay").OrderBy(x => x.ScheduledFireUtc).ToList();
+        fired.Count(x => x.Node == Released && x.FiredUtc > around.Updated.UtcTicks).Should().BeGreaterThanOrEqualTo(3,
+            "state.fixed-delay is pinned to the released node, which keeps firing it after updating it");
         NoViolations("state.fixed-delay is pinned to the released node while it is live",
-            runs.Where(x => x.Trigger == "state.fixed-delay" && x.Node != Released && x.FiredUtc <= releasedLiveUntil).Select(x => x.ToString()));
+            fired.Where(x => x.Node != Released && x.FiredUtc <= releasedLiveUntil).Select(x => x.ToString()));
 
-        // A fixed delay would put each run an interval after the last one's completion, which is off this grid
-        // by however long the run and the firing took.
+        // The node that completes a run is the one that writes the next fire time. Measured from completion, it
+        // is an interval after the run ended, which is after it began and held; at a fixed rate it would be an
+        // interval after the run was due, which is before both.
         long interval = FixedDelayIntervalMs * TimeSpan.TicksPerMillisecond;
+        List<(Run Previous, Run Next)> measured = fired.Zip(fired.Skip(1)).Where(x => x.First.Node == Released).ToList();
+        measured.Count.Should().BeGreaterThanOrEqualTo(2, "the released node completed state.fixed-delay's runs and so set the next fire time of each");
         NoViolations(
-            "state.fixed-delay: the released node fires a trigger that measures from completion at a fixed rate, on the grid "
-            + "of its start time and interval",
-            released.Where(x => x.ScheduledFireUtc is not { } scheduled || scheduled < state.FixedDelayFirst || (scheduled - state.FixedDelayFirst) % interval != 0)
-                .Select(x => x.ToString()));
+            "state.fixed-delay: the released node reads the FIXED_DELAY the working tree wrote, and measures the trigger's "
+            + "interval from the completion of each run it ran",
+            measured
+                .Select(x => (x.Previous, x.Next, Earliest: x.Previous.StartedUtc + StopwatchToTimeSpanTicks(x.Previous.Ended - x.Previous.Started) + interval))
+                .Where(x => x.Next.ScheduledFireUtc is not { } scheduled || scheduled < x.Earliest)
+                .Select(x => $"{x.Next} was due {(x.Earliest - (x.Next.ScheduledFireUtc ?? 0)) / TimeSpan.TicksPerMillisecond} ms "
+                             + $"before an interval had passed since {x.Previous} ended"));
 
         TriggerColumns columnsAfter = columns.Triggers["state.fixed-delay"];
         columnsAfter.FixedDelay.Should().BeTrue(
-            "the released node fires the trigger and updates its details without naming FIXED_DELAY, so it leaves the column as the working tree wrote it");
+            "the released node fires the trigger by FIXED_DELAY and writes the column back as it read it when it updates the trigger's details");
         columnsAfter.Description.Should().Be(UpdatedDescription, "the released node's update of state.fixed-delay took effect");
     }
 
@@ -1019,24 +1332,33 @@ public sealed class MixedVersionClusterPostgresTest
     }
 
     /// <summary>
-    /// Neither node keeps its rounds locked for the other (#4067): each reads the other's version stamp as
-    /// 4.6 or later, so beside it a round of concurrent-allowed work takes no lock — unless the working
-    /// tree's <c>LockFreeFiringRounds</c> is off, in which case none of its rounds does, beside a released
-    /// node whose rounds still go without.
+    /// Neither node keeps its rounds locked for the other (#4067): each stamps its row with its version and
+    /// reads the other's stamp as 4.6 or later, so beside it a round of concurrent-allowed work takes no lock
+    /// — unless the working tree's <c>LockFreeFiringRounds</c> is off, in which case none of its rounds does,
+    /// beside a released node whose rounds still go without.
     /// </summary>
-    private static void AssertNeitherNodeLocksForTheOther(RoundLocks released, RoundLocks workingTree, bool lockFreeRounds)
+    private static void AssertNeitherNodeLocksForTheOther(Dictionary<string, StateRow> stamps, RoundLocks released, RoundLocks workingTree, bool lockFreeRounds)
     {
+        (stamps.GetValueOrDefault(Released)?.QuartzVersion).Should().Be(ReleasedQuartz,
+            "a node from 4.6 on stamps its state row with the major.minor.patch it runs at every check-in");
+        foreach (string node in (string[]) [Released, WorkingTree])
+        {
+            Version.TryParse(stamps.GetValueOrDefault(node)?.QuartzVersion, out Version stamp).Should().BeTrue("{0} stamps its row", node);
+            stamp.Should().BeGreaterThanOrEqualTo(new Version(4, 6),
+                "{0}'s stamp is one a peer's lock-free round runs beside on PostgreSQL", node);
+        }
+
         released.LockFree.Should().BeGreaterThan(0,
             "the released node reads the working tree's stamp as a node whose writes a lock-free round can run beside "
             + "(its rounds since the stand-down: {0})", released);
-        released.Untagged.Should().Be(0, "a 4.6 node tags every round with the lock it ran under");
+        released.Untagged.Should().Be(0, "a node from 4.6 on tags every round with the lock it ran under");
         workingTree.Untagged.Should().Be(0, "the working tree tags every round with the lock it ran under");
 
         if (lockFreeRounds)
         {
             workingTree.LockFree.Should().BeGreaterThan(0,
-                "the working tree reads the released node's 4.6 stamp as a node whose writes a lock-free round can run beside "
-                + "(its rounds since the stand-down: {0})", workingTree);
+                "the working tree reads the released node's {0} stamp as a node whose writes a lock-free round can run beside "
+                + "(its rounds since the stand-down: {1})", ReleasedQuartz, workingTree);
         }
         else
         {
@@ -1131,12 +1453,19 @@ public sealed class MixedVersionClusterPostgresTest
 
     /// <summary>
     /// Every PostgreSQL migration since the released node's minor, run while that node is up: what the
-    /// migration guide tells an operator to do before rolling the nodes.
+    /// migration guide tells an operator to do before rolling the nodes. A minor with none since it runs
+    /// none, and says so: the working tree joins its schema as it is.
     /// </summary>
-    private static async Task MigrateWhileReleasedIsUp(string connectionString)
+    /// <returns>The migrations run, as <c>version/name</c>, for the report.</returns>
+    private static async Task<List<string>> MigrateWhileReleasedIsUp(string connectionString)
     {
         (string Version, string Name)[] migrations = MigrationChains.Since(ReleasedMinor().ToString());
-        migrations.Should().NotBeEmpty("the gate is the migration since the released minor, so there has to be one");
+        if (migrations.Length == 0)
+        {
+            TestContext.Out.WriteLine(
+                $"No migration since {ReleasedMinor()}: the working tree joins the schema the released node runs on as it is.");
+            return [];
+        }
 
         await using NpgsqlConnection connection = new(connectionString);
         await connection.OpenAsync();
@@ -1144,9 +1473,11 @@ public sealed class MixedVersionClusterPostgresTest
         {
             await Execute(connection, MigrationScriptTest.MigrationScript(version, name, "postgres", TablePrefix));
         }
+
+        return migrations.Select(x => x.Version + "/" + x.Name).ToList();
     }
 
-    /// <summary>The released node's minor, which names its folder of migrations: <c>4.6</c> for 4.6.0.</summary>
+    /// <summary>The released node's minor, which names its folder of migrations: <c>4.7</c> for 4.7.3.</summary>
     private static Version ReleasedMinor()
     {
         Version released = Version.Parse(ReleasedQuartz);
@@ -1265,6 +1596,24 @@ public sealed class MixedVersionClusterPostgresTest
         return new HistoryThroughTheApi([.. all.Items], succeeded.Items.Count, oneOff);
     }
 
+    /// <summary>The cluster's <c>QRTZ_SCHEDULER_STATE</c> rows, by instance.</summary>
+    private static async Task<Dictionary<string, StateRow>> ReadSchedulerStates(string connectionString)
+    {
+        await using NpgsqlConnection connection = new(connectionString);
+        await connection.OpenAsync();
+        await using NpgsqlCommand command = new(SelectSchedulerStates, connection);
+        command.Parameters.AddWithValue("schedulerName", SchedulerName);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+
+        Dictionary<string, StateRow> rows = new(StringComparer.Ordinal);
+        while (await reader.ReadAsync())
+        {
+            rows[reader.GetString(0)] = new StateRow(reader.GetInt64(1), reader.IsDBNull(2) ? null : reader.GetString(2));
+        }
+
+        return rows;
+    }
+
     private static async Task<TriggerColumns> ReadTriggerColumns(string connectionString, string group, string name)
     {
         await using NpgsqlConnection connection = new(connectionString);
@@ -1369,12 +1718,18 @@ public sealed class MixedVersionClusterPostgresTest
         MixedVersionNodeProcess released,
         MixedVersionNodeProcess workingTree,
         string durability,
+        List<string> migrations,
+        Dictionary<string, StateRow> stamps,
         RoundLocks releasedRounds,
         RoundLocks workingTreeRounds)
     {
         StringBuilder report = new();
         report.AppendLine(CultureInfo.InvariantCulture,
             $"Mixed-version cluster on PostgreSQL ({durability}): {Released} = Quartz {released.QuartzVersion}, {WorkingTree} = Quartz {workingTree.QuartzVersion}.");
+        report.AppendLine(CultureInfo.InvariantCulture,
+            $"Migrations since {ReleasedMinor()} run while {Released} was up: {(migrations.Count == 0 ? "none, as there are none" : string.Join(", ", migrations))}.");
+        report.AppendLine(CultureInfo.InvariantCulture,
+            $"Version stamps: {string.Join(", ", stamps.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => $"{x.Key} {x.Value.QuartzVersion}"))}.");
         report.AppendLine(CultureInfo.InvariantCulture,
             $"Rounds by lock since the stand-down: {Released} {releasedRounds}; {WorkingTree} {workingTreeRounds}.");
         report.AppendLine();
@@ -1427,6 +1782,8 @@ public sealed class MixedVersionClusterPostgresTest
 
     private static string Milliseconds(long stopwatchTicks) =>
         (stopwatchTicks * 1000.0 / Stopwatch.Frequency).ToString("F1", CultureInfo.InvariantCulture);
+
+    private static long StopwatchToTimeSpanTicks(long stopwatchTicks) => stopwatchTicks * TimeSpan.TicksPerSecond / Stopwatch.Frequency;
 
     private static TimeSpan Until(DateTimeOffset instant)
     {
@@ -1499,6 +1856,26 @@ public sealed class MixedVersionClusterPostgresTest
 
     private sealed record PauseColumns(string PauseReason, string PausedBy, long? PausedAt);
 
+    /// <summary>One <c>QRTZ_SCHEDULER_STATE</c> row: a node's last check-in, in UTC ticks, and its version stamp.</summary>
+    private sealed record StateRow(long LastCheckin, string QuartzVersion);
+
+    /// <summary>
+    /// One clean stop beside a peer: whether the stopped node's version leaves the cluster, the state rows
+    /// at the stop and after the wait, what the peer's <c>cluster-nodes</c> answered then, and whether the
+    /// wait saw what it waited for.
+    /// </summary>
+    private sealed record CleanStop(
+        string Node,
+        string QuartzVersion,
+        string Peer,
+        bool Leaves,
+        DateTimeOffset Stopping,
+        Dictionary<string, StateRow> RowsAtStop,
+        Dictionary<string, StateRow> RowsAfter,
+        string PeerSees,
+        bool Settled,
+        TimeSpan Waited);
+
     private sealed record ColumnsAfter(
         Dictionary<string, TriggerColumns> Triggers,
         PauseColumns TriggerGroupPause,
@@ -1509,8 +1886,7 @@ public sealed class MixedVersionClusterPostgresTest
         DateTimeOffset BeforeTriggerPause,
         DateTimeOffset AfterTriggerPause,
         DateTimeOffset BeforeGroupPauses,
-        DateTimeOffset AfterGroupPauses,
-        long FixedDelayFirst);
+        DateTimeOffset AfterGroupPauses);
 
     private sealed record AroundTheState(DateTimeOffset Updated, DateTimeOffset SiblingResumed, DateTimeOffset Resumed);
 

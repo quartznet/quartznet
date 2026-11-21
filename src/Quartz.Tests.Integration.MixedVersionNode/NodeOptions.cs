@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 using Microsoft.Extensions.Logging;
@@ -38,6 +39,8 @@ internal sealed class NodeOptions
         --log-level          the least level written to standard error (default Warning)
         --history            keep the execution history in the database (UseExecutionHistory())
         --lock-free          true or false: AdoJobStoreOptions.LockFreeFiringRounds, on the working tree only (default true)
+        --checkin-interval   ClusteringOptions.CheckinInterval, in milliseconds (default: what the version ships)
+        --checkin-threshold  ClusteringOptions.CheckinMisfireThreshold, in milliseconds (default: what the version ships)
         """;
 
     private static readonly Regex Identifier = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant);
@@ -70,6 +73,19 @@ internal sealed class NodeOptions
     /// </summary>
     public bool LockFreeRounds { get; init; } = true;
 
+    /// <summary>
+    /// How often the node checks in (<c>ClusteringOptions.CheckinInterval</c>), or <see langword="null" />
+    /// for the shipped default. Both builds read it.
+    /// </summary>
+    public TimeSpan? CheckinInterval { get; init; }
+
+    /// <summary>
+    /// How long past its check-in interval a peer may stay silent before this node recovers it
+    /// (<c>ClusteringOptions.CheckinMisfireThreshold</c>), or <see langword="null" /> for the shipped default.
+    /// Both builds read it.
+    /// </summary>
+    public TimeSpan? CheckinMisfireThreshold { get; init; }
+
     public static NodeOptions Parse(string[] args)
     {
         Dictionary<string, string> values = new(StringComparer.Ordinal);
@@ -97,6 +113,10 @@ internal sealed class NodeOptions
             ? value
             : throw new ArgumentException($"--{name} is required.");
 
+        TimeSpan? Milliseconds(string name) => values.TryGetValue(name, out string? value)
+            ? TimeSpan.FromMilliseconds(int.Parse(value, CultureInfo.InvariantCulture))
+            : null;
+
         NodeOptions options = new()
         {
             InstanceId = Required("instance-id"),
@@ -106,7 +126,9 @@ internal sealed class NodeOptions
             RunsTable = Required("runs-table"),
             LogLevel = values.TryGetValue("log-level", out string? level) ? Enum.Parse<LogLevel>(level, ignoreCase: true) : LogLevel.Warning,
             History = values.ContainsKey("history"),
-            LockFreeRounds = !values.TryGetValue("lock-free", out string? lockFree) || bool.Parse(lockFree)
+            LockFreeRounds = !values.TryGetValue("lock-free", out string? lockFree) || bool.Parse(lockFree),
+            CheckinInterval = Milliseconds("checkin-interval"),
+            CheckinMisfireThreshold = Milliseconds("checkin-threshold")
         };
 
         // Both names are written into SQL text, so they are held to what an unquoted identifier may be.

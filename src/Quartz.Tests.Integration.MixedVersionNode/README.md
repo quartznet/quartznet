@@ -9,10 +9,17 @@ other:
 | Build | Quartz | Output |
 |---|---|---|
 | default | the working tree | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode/<config>/` |
-| `-p:ReleasedQuartzVersion=4.6.0` | that version from nuget.org | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode.4.6.0/<config>/` |
+| `-p:ReleasedQuartzVersion=4.7.3` | that version from nuget.org | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode.4.7.3/<config>/` |
 
 Building the default builds the released one too, so a solution build, `dotnet fallout Compile` and
 `dotnet build src/Quartz.Tests.Integration` all leave both where the test looks.
+
+The released version is named once, as `MixedVersionReleasedQuartz` in
+[`MixedVersionReleasedQuartz.props`](MixedVersionReleasedQuartz.props): this project builds against it,
+and `Quartz.Tests.Integration` imports it and stamps it into its assembly metadata, where the test reads it.
+At each minor release it moves to the newest patch of the previous minor
+([branches-and-releases.md](../../maintainers/branches-and-releases.md#the-mixed-version-gate-at-a-minor-release)).
+The node's source compiles against both, so it uses only API that version has.
 
 ## Running it
 
@@ -25,6 +32,8 @@ Building the default builds the released one too, so a solution build, `dotnet f
 --log-level          the least level written to standard error (default Warning)
 --history            keep the execution history in the database (UseExecutionHistory())
 --lock-free          true or false: AdoJobStoreOptions.LockFreeFiringRounds, on the working tree only (default true)
+--checkin-interval   ClusteringOptions.CheckinInterval, in milliseconds (default: what the version ships)
+--checkin-threshold  ClusteringOptions.CheckinMisfireThreshold, in milliseconds (default: what the version ships)
 ```
 
 `Protocol.cs` describes the command format and `Node.cs` lists the commands. Only the working tree reports

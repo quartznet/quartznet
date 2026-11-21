@@ -30,10 +30,11 @@ namespace Quartz.Tests.Integration.MixedVersionNode;
 /// </summary>
 /// <remarks>
 /// The scheduler is built with the shipped defaults for everything but what makes it a cluster node on
-/// that database: pool, batch size, idle wait, misfire threshold and check-in are what each version
-/// ships. With <c>--history</c> it also keeps its execution history there, bounded so that nothing the
-/// run writes is swept before the test reads it. <c>--lock-free false</c> turns 4.6's lock-free firing
-/// rounds off on the working tree; a released node keeps its shipped default.
+/// that database: pool, batch size, idle wait and misfire threshold are what each version ships, and so
+/// is the check-in unless <c>--checkin-interval</c> and <c>--checkin-threshold</c> shorten it. With
+/// <c>--history</c> it also keeps its execution history there, bounded so that nothing the run writes is
+/// swept before the test reads it. <c>--lock-free false</c> turns the lock-free firing rounds (#4067) off
+/// on the working tree; a released node keeps its shipped default.
 /// </remarks>
 internal sealed class Node
 {
@@ -90,7 +91,18 @@ internal sealed class Node
                     store.ConfigureStore(o => o.TablePrefix = options.TablePrefix);
                     store.UsePostgres(NpgsqlFactory.Instance, options.ConnectionString);
                     store.UseSystemTextJsonSerializer();
-                    store.UseClustering();
+                    store.UseClustering(o =>
+                    {
+                        if (options.CheckinInterval is { } interval)
+                        {
+                            o.CheckinInterval = interval;
+                        }
+
+                        if (options.CheckinMisfireThreshold is { } threshold)
+                        {
+                            o.CheckinMisfireThreshold = threshold;
+                        }
+                    });
 
                     if (options.History)
                     {
@@ -330,7 +342,7 @@ internal sealed class Node
     /// <summary>
     /// One simple trigger every <c>intervalMs=</c>, repeating forever unless <c>repeat=</c> says how often
     /// or <c>end=</c> when to stop, optionally pinned to a node, given an overlap policy and a retry policy,
-    /// and measuring its interval from completion (<c>fromCompletion=</c>, the working tree only).
+    /// and measuring its interval from completion (<c>fromCompletion=</c>).
     /// </summary>
     private async Task<List<KeyValuePair<string, string>>> Schedule(Command command)
     {
@@ -342,14 +354,10 @@ internal sealed class Node
             ? schedule.WithRepeatCount(int.Parse(repeat, CultureInfo.InvariantCulture))
             : schedule.RepeatForever();
 
-        // An interval measured from the previous run's completion (#4140), which only the working tree has.
+        // An interval measured from the previous run's completion (#4140), which Quartz has since 4.7.
         if (command.OptionalText("fromCompletion") is not null)
         {
-#if QUARTZ_WORKING_TREE
             schedule = schedule.MeasureIntervalFromCompletion(command.Flag("fromCompletion"));
-#else
-            throw new ArgumentException($"Quartz {QuartzVersion} cannot measure an interval from completion; only the working tree is sent fromCompletion=.");
-#endif
         }
 
         TriggerBuilder<IJob> trigger = TriggerBuilder.Create()
@@ -440,13 +448,14 @@ internal sealed class Node
         "chain" => JobBuilder.Create<ChainJob>().WithIdentity(key).StoreDurably().Build(),
         "state" => JobBuilder.Create<StateJob>().WithIdentity(key).StoreDurably().Build(),
         "progress" => JobBuilder.Create<ProgressJob>().WithIdentity(key).StoreDurably().Build(),
+        "held" => JobBuilder.Create<HeldJob>().WithIdentity(key).StoreDurably().Build(),
         _ => throw new ArgumentException($"'{type}' is not a job type this node has.")
     };
 
     /// <summary>
     /// Counts this node's firing rounds by the lock each said it ran under (#4067): the
-    /// <c>quartz.jobstore.lock</c> attribute on <c>quartz.trigger.acquisition.duration</c>, which a 4.6 node
-    /// tags <c>none</c> or <c>TRIGGER_ACCESS</c> and an older node does not tag at all.
+    /// <c>quartz.jobstore.lock</c> attribute on <c>quartz.trigger.acquisition.duration</c>, which a node from
+    /// 4.6 on tags <c>none</c> or <c>TRIGGER_ACCESS</c> and an older node does not tag at all.
     /// </summary>
     /// <remarks>
     /// Spelled with the instrument and attribute names rather than the constants, so that the same source
