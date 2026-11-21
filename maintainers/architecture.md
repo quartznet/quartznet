@@ -56,6 +56,13 @@ to typed options and registrations by `QuartzPropertyBridge`, which is the only 
 them; `LegacyPropertyKeys` holds the key strings and rejects a misspelled one. A new setting is therefore
 a typed option plus a bridge entry, never a string read somewhere else.
 
+A scheduler the application does not shut down itself is shut down by Quartz. The hosted service does it
+inside the host's shutdown window, and `StandaloneSchedulerFactory` before it disposes its container.
+Otherwise the container's disposal does it, through `ShutdownOnContainerDisposal`, without waiting for
+jobs; a runtime tenant is `SchedulerRuntime`'s. `DefaultSchedulerFactory.Create` resolves that handle last. The container disposes newest first, so the scheduler is shut down before any part it was
+built from; resolve nothing after the handle there. A failed shutdown is logged as `4033`, never thrown,
+because Microsoft's container stops at the first disposal that throws and leaves the rest undisposed.
+
 ## Serialization
 
 Pluggable serialization for job store persistence:

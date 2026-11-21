@@ -112,8 +112,9 @@ builder.AddQuartzHostedService("reporting", options => options.AutoStart = false
   and `GET /schedulers` see it.
 - It stays in `Created` until something calls `scheduler.Start()`.
 - `AutoStart` overrides `AwaitApplicationStarted` and `StartDelay`, which then do not apply.
-- Shutdown is unchanged: the hosted service shuts down every scheduler it created, started or not. Not
-  registering the hosted service at all would lose that shutdown handling.
+- Shutdown is unchanged: the hosted service shuts down every scheduler it created, started or not. Without
+  the hosted service, a scheduler the application does not shut down itself is shut down when its container
+  is disposed: after the host's shutdown window, and without waiting for its jobs.
 - It is per scheduler: the example defers `reporting` and leaves the others to start with the host.
 
 ## Health checks
