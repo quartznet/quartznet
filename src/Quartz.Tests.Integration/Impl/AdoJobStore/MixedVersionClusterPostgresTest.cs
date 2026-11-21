@@ -215,10 +215,16 @@ public sealed class MixedVersionClusterPostgresTest
 
     /// <summary>
     /// The check-in of every node in <see cref="ACleanlyStoppedNodeIsRecoveredOnlyIfItsVersionKeepsItsRow" />:
-    /// once a second, and a peer silent for two seconds past that is recovered, so a recovery comes a few
+    /// once a second, and a peer silent for four seconds past that is recovered, so a recovery comes a few
     /// seconds after a node stops rather than the fifteen the shipped defaults take.
     /// </summary>
-    private static readonly (TimeSpan Interval, TimeSpan Threshold) ShortCheckIn = (TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));
+    /// <remarks>
+    /// Four rather than less, because the test reads a stopped node's row once the node has shut down and
+    /// exited, and a node that keeps its row is recovered at its peer's first check-in after its own last one
+    /// plus an interval plus this: that last check-in can come up to an interval before its store stops, and
+    /// what is left has to cover the shutdown, the exit and the read on a slow runner.
+    /// </remarks>
+    private static readonly (TimeSpan Interval, TimeSpan Threshold) ShortCheckIn = (TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(4));
 
     /// <summary>
     /// How long a node that stopped is given to be recovered, or its peer to check in past the moment it
@@ -399,7 +405,7 @@ public sealed class MixedVersionClusterPostgresTest
     /// released node stops beside it. Last, the second one stops, and no state row is left.
     /// </para>
     /// <para>
-    /// Every node checks in every second and is recovered two seconds past that (<see cref="ShortCheckIn" />),
+    /// Every node checks in every second and is recovered four seconds past that (<see cref="ShortCheckIn" />),
     /// so each wait is a few seconds: for a node that keeps its row, until its peer has recovered it; for one
     /// that left, until its peer has checked in an interval past the moment the row would have lapsed, which
     /// is when it would have recovered it. Every node logs at Information, where event 3504 names the node a
@@ -1477,7 +1483,10 @@ public sealed class MixedVersionClusterPostgresTest
         return migrations.Select(x => x.Version + "/" + x.Name).ToList();
     }
 
-    /// <summary>The released node's minor, which names its folder of migrations: <c>4.7</c> for 4.7.3.</summary>
+    /// <summary>
+    /// The released node's minor, which names its folder of migrations: the major and minor of the version in
+    /// <c>MixedVersionReleasedQuartz.props</c>.
+    /// </summary>
     private static Version ReleasedMinor()
     {
         Version released = Version.Parse(ReleasedQuartz);

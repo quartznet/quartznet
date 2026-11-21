@@ -40,7 +40,7 @@ patch of the previous minor, whether or not there is a migration since it**: 4.8
 The version is named once, as `MixedVersionReleasedQuartz` in
 [`MixedVersionReleasedQuartz.props`](../src/Quartz.Tests.Integration.MixedVersionNode/MixedVersionReleasedQuartz.props).
 Moving it also means re-reading every assertion the test makes about what the released node does: one
-written against the old minor's behaviour is wrong against the new one.
+written against the old minor's behaviour can be wrong against the new one.
 
 ## Release notes
 
