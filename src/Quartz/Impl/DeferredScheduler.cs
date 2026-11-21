@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
@@ -32,6 +33,7 @@ internal sealed class DeferredScheduler : IScheduler, ISharedExecutionGroupSourc
     private readonly IOptionsMonitor<QuartzSchedulerOptions> options;
     private readonly string optionsName;
     private readonly string? registrationName;
+    private readonly ILogger<DeferredScheduler> logger;
 
     private IScheduler? scheduler;
     private Task<IScheduler>? creation;
@@ -39,12 +41,14 @@ internal sealed class DeferredScheduler : IScheduler, ISharedExecutionGroupSourc
     public DeferredScheduler(
         ISchedulerFactory factory,
         IOptionsMonitor<QuartzSchedulerOptions> options,
-        SchedulerKey schedulerKey)
+        SchedulerKey schedulerKey,
+        ILogger<DeferredScheduler> logger)
     {
         this.factory = factory;
         this.options = options;
         optionsName = schedulerKey.OptionsName;
         registrationName = schedulerKey.Key as string;
+        this.logger = logger;
     }
 
     /// <summary>
@@ -238,17 +242,23 @@ internal sealed class DeferredScheduler : IScheduler, ISharedExecutionGroupSourc
     /// Disposes the scheduler if one was built, and does nothing at all if none was.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// This is the one member that must not resolve. Every other one builds the scheduler because a
     /// caller asked it to do something; building one here would start a scheduler — and, under a
     /// persistent store, open a database connection — on the way out of a container that never used it,
     /// only to shut it straight back down.
+    /// </para>
+    /// <para>
+    /// A failed shutdown is logged as event 4033, not thrown, whether the container or the application
+    /// disposes this. The container is the one that matters: it stops at the first disposal that throws.
+    /// </para>
     /// </remarks>
     public ValueTask DisposeAsync()
     {
         // The field, not Resolved: an in-flight build has not produced a scheduler to dispose, and
         // waiting for one so it can be shut down is the same wasted work as starting one.
         IScheduler? built = scheduler;
-        return built is null ? default : built.DisposeAsync();
+        return built is null ? default : ShutdownOnContainerDisposal.DisposeScheduler(built, logger);
     }
 
     public async ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)

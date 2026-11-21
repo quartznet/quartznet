@@ -62,22 +62,29 @@ internal sealed class ShutdownOnContainerDisposal : IAsyncDisposable, IDisposabl
     }
 
     /// <summary>
-    /// Shuts the scheduler down without waiting for its jobs, and logs a failure rather than throwing it.
+    /// Shuts the scheduler down without waiting for its jobs, through <see cref="DisposeScheduler" />.
+    /// </summary>
+    public ValueTask DisposeAsync() => DisposeScheduler(scheduler.Scheduler, logger);
+
+    /// <summary>
+    /// Disposes a scheduler, and logs a failed shutdown rather than throwing it.
     /// </summary>
     /// <remarks>
     /// Microsoft's container stops at the first service whose disposal throws, and leaves the services
-    /// created before it undisposed. Those are the application's own services as well as this
-    /// scheduler's parts, so a failed shutdown is logged as event 4033 and the disposal goes on.
+    /// created before it undisposed: the application's own as well as the scheduler's parts. So a failed
+    /// shutdown is logged as event 4033 and the disposal goes on. <see cref="DeferredScheduler" />, the
+    /// <see cref="IScheduler" /> a container injects, disposes through this too. It is usually first
+    /// resolved after the scheduler is built, so the container disposes it before this.
     /// </remarks>
-    public async ValueTask DisposeAsync()
+    internal static async ValueTask DisposeScheduler(IScheduler scheduler, ILogger logger)
     {
         try
         {
-            await scheduler.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
+            await scheduler.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception e)
         {
-            logger.ShutdownOnContainerDisposalFailed(scheduler.SchedulerName, e);
+            logger.SchedulerDisposalFailed(scheduler.SchedulerName, e);
         }
     }
 

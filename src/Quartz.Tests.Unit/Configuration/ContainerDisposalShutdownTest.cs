@@ -96,8 +96,9 @@ public sealed class ContainerDisposalShutdownTest
             "the container disposes in the reverse order of creation, and the shutdown is resolved after every part of the scheduler, its job factory among them");
     }
 
-    [Test]
-    public async Task AFailedShutdownIsLoggedAndTheRestOfTheContainerIsStillDisposed()
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task AFailedShutdownIsLoggedAndTheRestOfTheContainerIsStillDisposed(bool throughTheInjectedScheduler)
     {
         IJobStore store = A.Fake<IJobStore>();
         A.CallTo(() => store.Shutdown(A<CancellationToken>._))
@@ -114,6 +115,13 @@ public sealed class ContainerDisposalShutdownTest
         ServiceProvider provider = services.BuildServiceProvider();
         DisposalProbe probe = provider.GetRequiredService<DisposalProbe>();
         await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        if (throughTheInjectedScheduler)
+        {
+            // Resolved and used after the build, as an injected IScheduler usually is, so the container
+            // disposes it before the scheduler's own shutdown, and it is the one that meets the failure.
+            await provider.GetRequiredService<IScheduler>().GetJobGroupNames();
+        }
 
         Func<Task> dispose = async () => await provider.DisposeAsync();
 
