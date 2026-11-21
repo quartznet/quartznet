@@ -19,6 +19,7 @@
 
 using FakeItEasy;
 
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
@@ -216,7 +217,7 @@ public sealed class PauseReasonForwardingTest
         IOptionsMonitor<QuartzSchedulerOptions> options = A.Fake<IOptionsMonitor<QuartzSchedulerOptions>>();
         A.CallTo(() => options.Get(A<string>._)).Returns(new QuartzSchedulerOptions());
 
-        await ExerciseAndVerify(new DeferredScheduler(factory, options, new SchedulerKey("reporting")), inner);
+        await ExerciseAndVerify(new DeferredScheduler(factory, options, new SchedulerKey("reporting"), NullLogger<DeferredScheduler>.Instance), inner);
     }
 
     [Test]

@@ -1,6 +1,7 @@
 using FakeItEasy;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
@@ -103,7 +104,7 @@ public sealed class SchedulerResolutionTest
     public void SchedulerName_IsAnsweredWithoutBuildingTheScheduler()
     {
         var factory = A.Fake<ISchedulerFactory>();
-        var scheduler = new DeferredScheduler(factory, OptionsFor(new QuartzSchedulerOptions()), new SchedulerKey("reporting"));
+        var scheduler = new DeferredScheduler(factory, OptionsFor(new QuartzSchedulerOptions()), new SchedulerKey("reporting"), NullLogger<DeferredScheduler>.Instance);
 
         scheduler.SchedulerName.Should().Be("reporting");
 
@@ -117,7 +118,7 @@ public sealed class SchedulerResolutionTest
         var factory = A.Fake<ISchedulerFactory>();
         A.CallTo(() => factory.GetScheduler(A<CancellationToken>._)).Returns(new ValueTask<IScheduler>(creation.Task));
 
-        var scheduler = new DeferredScheduler(factory, OptionsFor(new QuartzSchedulerOptions()), new SchedulerKey("reporting"));
+        var scheduler = new DeferredScheduler(factory, OptionsFor(new QuartzSchedulerOptions()), new SchedulerKey("reporting"), NullLogger<DeferredScheduler>.Instance);
 
         var read = () => scheduler.Status;
         read.Should().Throw<InvalidOperationException>()
@@ -170,7 +171,7 @@ public sealed class SchedulerResolutionTest
         ISchedulerFactory factory = A.Fake<ISchedulerFactory>();
         A.CallTo(() => factory.GetScheduler(A<CancellationToken>._)).Returns(new ValueTask<IScheduler>(built));
 
-        DeferredScheduler scheduler = new DeferredScheduler(factory, OptionsFor(new QuartzSchedulerOptions()), new SchedulerKey("reporting"));
+        DeferredScheduler scheduler = new DeferredScheduler(factory, OptionsFor(new QuartzSchedulerOptions()), new SchedulerKey("reporting"), NullLogger<DeferredScheduler>.Instance);
 
         GroupMatcher<JobKey> jobs = GroupMatcher<JobKey>.GroupEquals("saga-17");
         GroupMatcher<TriggerKey> triggers = GroupMatcher<TriggerKey>.GroupEquals("saga-17");

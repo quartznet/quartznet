@@ -167,8 +167,10 @@ internal static partial class ConfigurationLog
 
     /// <remarks>
     /// Logged rather than thrown: a container stops disposing at the first service whose disposal throws,
-    /// and the application's own services would be left undisposed. See <c>ShutdownOnContainerDisposal</c>.
+    /// and the application's own services would be left undisposed. Both disposals a container makes of
+    /// a scheduler log it: the scheduler's own <c>ShutdownOnContainerDisposal</c>, and the
+    /// <see cref="IScheduler" /> it injects. See <c>ShutdownOnContainerDisposal.DisposeScheduler</c>.
     /// </remarks>
-    [LoggerMessage(EventId = 4033, Level = LogLevel.Error, Message = "Scheduler '{SchedulerName}' failed to shut down when the container that built it was disposed; the container's other services are disposed anyway")]
-    public static partial void ShutdownOnContainerDisposalFailed(this ILogger logger, string schedulerName, Exception exception);
+    [LoggerMessage(EventId = 4033, Level = LogLevel.Error, Message = "Scheduler '{SchedulerName}' failed to shut down as it was disposed; the failure is logged rather than thrown, so a container disposing it goes on to its other services")]
+    public static partial void SchedulerDisposalFailed(this ILogger logger, string schedulerName, Exception exception);
 }

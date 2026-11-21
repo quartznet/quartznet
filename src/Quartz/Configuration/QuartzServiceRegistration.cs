@@ -325,7 +325,8 @@ internal static class QuartzServiceRegistration
         services.TryAddKeyed<IScheduler>(key, static (provider, key) => new DeferredScheduler(
             provider.GetScheduler<ISchedulerFactory>(key),
             provider.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>(),
-            new SchedulerKey(key)));
+            new SchedulerKey(key),
+            provider.GetRequiredService<ILogger<DeferredScheduler>>()));
 
         // Last: this scheduler's job factory is settled only now, and it decides whether the job types the
         // scheduler was given are registered with the container.

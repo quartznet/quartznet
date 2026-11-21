@@ -24,11 +24,14 @@ using System.Net;
 using FakeItEasy;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
 using Quartz.Extensibility;
 using Quartz.Impl;
+using Quartz.Tests.Unit.Plugin.History;
 
 namespace Quartz.Tests.Unit.Impl;
 
@@ -97,7 +100,8 @@ public sealed class SchedulerDisposalTest
         DeferredScheduler handle = new DeferredScheduler(
             factory,
             OptionsFor(new QuartzSchedulerOptions()),
-            new SchedulerKey("never-used"));
+            new SchedulerKey("never-used"),
+            NullLogger<DeferredScheduler>.Instance);
 
         await handle.DisposeAsync();
 
@@ -116,12 +120,39 @@ public sealed class SchedulerDisposalTest
         DeferredScheduler handle = new DeferredScheduler(
             factory,
             OptionsFor(new QuartzSchedulerOptions()),
-            new SchedulerKey("used"));
+            new SchedulerKey("used"),
+            NullLogger<DeferredScheduler>.Instance);
 
         await handle.Start();
         await handle.DisposeAsync();
 
         A.CallTo(() => built.DisposeAsync()).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task DisposingAHandleWhoseSchedulerFailsToShutDownLogsTheFailureRatherThanThrowingIt()
+    {
+        IScheduler built = A.Fake<IScheduler>();
+        A.CallTo(() => built.SchedulerName).Returns("failing");
+        A.CallTo(() => built.DisposeAsync()).Throws(new InvalidOperationException("the store refused to shut down"));
+        ISchedulerFactory factory = A.Fake<ISchedulerFactory>();
+        A.CallTo(() => factory.GetScheduler(A<CancellationToken>._)).Returns(new ValueTask<IScheduler>(built));
+
+        RecordingLoggerProvider log = new();
+        using ILoggerFactory loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(log));
+        DeferredScheduler handle = new DeferredScheduler(
+            factory,
+            OptionsFor(new QuartzSchedulerOptions()),
+            new SchedulerKey("failing"),
+            loggerFactory.CreateLogger<DeferredScheduler>());
+
+        await handle.Start();
+
+        Func<Task> dispose = async () => await handle.DisposeAsync();
+
+        await dispose.Should().NotThrowAsync("the container disposes this handle, and stops at the first disposal that throws");
+        log.Entries.Should().ContainSingle(entry => entry.EventId.Id == 4033, "a shutdown that failed is reported, not swallowed")
+            .Which.Exception.Should().BeOfType<InvalidOperationException>();
     }
 
     [Test]
