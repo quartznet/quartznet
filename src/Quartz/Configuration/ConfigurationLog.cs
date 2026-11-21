@@ -171,6 +171,6 @@ internal static partial class ConfigurationLog
     /// a scheduler log it: the scheduler's own <c>ShutdownOnContainerDisposal</c>, and the
     /// <see cref="IScheduler" /> it injects. See <c>ShutdownOnContainerDisposal.DisposeScheduler</c>.
     /// </remarks>
-    [LoggerMessage(EventId = 4033, Level = LogLevel.Error, Message = "Scheduler '{SchedulerName}' failed to shut down as it was disposed; the failure is logged rather than thrown, so a container disposing it goes on to its other services")]
+    [LoggerMessage(EventId = 4033, Level = LogLevel.Error, Message = "Scheduler '{SchedulerName}' failed to shut down while it was being disposed; the failure is logged rather than thrown, so a container disposing it goes on to its other services")]
     public static partial void SchedulerDisposalFailed(this ILogger logger, string schedulerName, Exception exception);
 }
