@@ -477,7 +477,7 @@
 4032  Information  ConfigurationLog.TriggerSwitchedOffByConfiguration
     "Trigger '{TriggerKey}' is switched off: '{Source}' is '-', so it is not scheduled. A copy already stored was unscheduled: {Unscheduled}"
 4033  Error  ConfigurationLog.SchedulerDisposalFailed
-    "Scheduler '{SchedulerName}' failed to shut down as it was disposed; the failure is logged rather than thrown, so a container disposing it goes on to its other services"
+    "Scheduler '{SchedulerName}' failed to shut down while it was being disposed; the failure is logged rather than thrown, so a container disposing it goes on to its other services"
 5000  Information  XmlSchedulingLog.ParsingFile
     "Parsing XML file: {FileName} with systemId: {SystemId}"
 5001  Information  XmlSchedulingLog.ParsingStream
