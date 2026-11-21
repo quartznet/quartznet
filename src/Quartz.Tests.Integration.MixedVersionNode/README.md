@@ -9,10 +9,11 @@ other:
 | Build | Quartz | Output |
 |---|---|---|
 | default | the working tree | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode/<config>/` |
-| `-p:ReleasedQuartzVersion=4.7.3` | that version from nuget.org | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode.4.7.3/<config>/` |
+| `-p:ReleasedQuartzVersion=<version>` | that version from nuget.org | `artifacts/bin/Quartz.Tests.Integration.MixedVersionNode.<version>/<config>/` |
 
-Building the default builds the released one too, so a solution build, `dotnet fallout Compile` and
-`dotnet build src/Quartz.Tests.Integration` all leave both where the test looks.
+`<version>` is the one in `MixedVersionReleasedQuartz.props`, below. Building the default builds the
+released one too, so a solution build, `dotnet fallout Compile` and `dotnet build src/Quartz.Tests.Integration`
+all leave both where the test looks.
 
 The released version is named once, as `MixedVersionReleasedQuartz` in
 [`MixedVersionReleasedQuartz.props`](MixedVersionReleasedQuartz.props): this project builds against it,
