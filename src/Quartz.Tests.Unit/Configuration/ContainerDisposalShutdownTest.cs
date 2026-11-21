@@ -74,6 +74,24 @@ public sealed class ContainerDisposalShutdownTest
     }
 
     [Test]
+    public async Task DisposingTheContainerSynchronouslyAfterItInjectedTheSchedulerShutsItDown()
+    {
+        string runId = nameof(DisposingTheContainerSynchronouslyAfterItInjectedTheSchedulerShutsItDown);
+        ServiceProvider provider = Container(runId);
+        IScheduler scheduler = await StartFiring(provider, runId);
+
+        // Resolved and used after the build, as an injected IScheduler usually is, so the container
+        // disposes this handle first.
+        await provider.GetRequiredService<IScheduler>().GetJobGroupNames();
+
+        Action dispose = provider.Dispose;
+
+        dispose.Should().NotThrow("the handle a container injects is disposable both ways, so a synchronous disposal reaches the scheduler's shutdown");
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown);
+        await AssertNoLongerFiring(runId);
+    }
+
+    [Test]
     public async Task TheSchedulerIsShutDownBeforeTheContainerDisposesWhatItWasBuiltFrom()
     {
         DisposalOrder order = new();

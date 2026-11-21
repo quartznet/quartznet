@@ -69,10 +69,9 @@ public sealed class StandaloneSchedulerFactory : ISchedulerFactory, IDisposable,
     /// </summary>
     /// <remarks>
     /// Blocking, because a synchronous door onto asynchronous work can do nothing else, and the
-    /// alternative is what this used to do: return promptly with the scheduler still running. It also
-    /// cannot be a bare container disposal, synchronous or not — a container that handed its
-    /// <see cref="IScheduler"/> to anything holds a singleton implementing only
-    /// <see cref="IAsyncDisposable"/>, and disposing such a container synchronously throws.
+    /// alternative is what this used to do: return promptly with the scheduler still running. The
+    /// shutdown runs before the container's disposal rather than inside it, so a failed one reaches the
+    /// caller, where a container's own disposal can only log it as event 4033.
     /// </remarks>
     public void Dispose()
     {

@@ -27,7 +27,7 @@ namespace Quartz.Impl;
 /// a registration always knows the name it was made under.
 /// </para>
 /// </remarks>
-internal sealed class DeferredScheduler : IScheduler, ISharedExecutionGroupSource
+internal sealed class DeferredScheduler : IScheduler, ISharedExecutionGroupSource, IDisposable
 {
     private readonly ISchedulerFactory factory;
     private readonly IOptionsMonitor<QuartzSchedulerOptions> options;
@@ -259,6 +259,18 @@ internal sealed class DeferredScheduler : IScheduler, ISharedExecutionGroupSourc
         // waiting for one so it can be shut down is the same wasted work as starting one.
         IScheduler? built = scheduler;
         return built is null ? default : ShutdownOnContainerDisposal.DisposeScheduler(built, logger);
+    }
+
+    /// <inheritdoc cref="DisposeAsync" />
+    /// <remarks>
+    /// Present because <c>ServiceProvider.Dispose()</c> throws on a service that is only
+    /// <see cref="IAsyncDisposable" />, and every container that injected an <see cref="IScheduler" />
+    /// holds this one. That throw ended the container's disposal before the scheduler was shut down.
+    /// This blocks on <see cref="DisposeAsync" />, as <see cref="ShutdownOnContainerDisposal.Dispose" /> does.
+    /// </remarks>
+    public void Dispose()
+    {
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
     public async ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
