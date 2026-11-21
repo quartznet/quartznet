@@ -107,18 +107,23 @@ public sealed class RetryPolicyAppliedTest
         // before that line would leave its scheduler firing, and every PlainJob counts into the static
         // firings the next test reads. Disposing the container below shuts the scheduler down too, but
         // without waiting, so a firing still in flight could count into the next test.
-        foreach (IScheduler scheduler in schedulers)
+        try
         {
-            await scheduler.Shutdown(waitForJobsToComplete: true);
+            foreach (IScheduler scheduler in schedulers)
+            {
+                await scheduler.Shutdown(waitForJobsToComplete: true);
+            }
         }
-
-        schedulers.Clear();
-        foreach (ServiceProvider provider in providers)
+        finally
         {
-            await provider.DisposeAsync();
-        }
+            schedulers.Clear();
+            foreach (ServiceProvider provider in providers)
+            {
+                await provider.DisposeAsync();
+            }
 
-        providers.Clear();
+            providers.Clear();
+        }
     }
 
     [Test]
