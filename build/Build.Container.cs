@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -104,14 +105,13 @@ public partial class Build
                 AssertNonRootUser(image);
                 AssertRefusesToStartWithoutAMode(image, refusing);
 
-                int port = FreeLoopbackPort();
                 Run("docker",
-                    $"run -d --name {container} -p 127.0.0.1:{port}:8080 "
+                    $"run -d --name {container} -p 127.0.0.1::8080 "
                     + "-e Quartz__Dashboard__Authentication__Mode=Token "
                     + $"-e Quartz__Dashboard__Authentication__Tokens__Administrator={token} {image}",
                     secret: token);
 
-                AssertServes(container, new Uri($"http://127.0.0.1:{port}"), token);
+                AssertServes(container, new Uri($"http://127.0.0.1:{PublishedLoopbackPort(container, 8080)}"), token);
 
                 Stopwatch publishing = Stopwatch.StartNew();
                 string address = StartRegistry(registry);
@@ -123,7 +123,9 @@ public partial class Build
             {
                 Docker($"rm -f {container}");
                 Docker($"rm -f {refusing}");
-                Docker($"rm -f {registry}");
+                // -v: registry:2 declares /var/lib/registry a volume, so without it every run would leave the
+                // images it pushed behind in an anonymous volume.
+                Docker($"rm -f -v {registry}");
                 Docker($"rmi -f {image}");
             }
         });
@@ -238,8 +240,10 @@ public partial class Build
     /// </summary>
     static string StartRegistry(string container)
     {
-        int port = FreeLoopbackPort();
-        Run("docker", $"run -d --name {container} -p 127.0.0.1:{port}:5000 registry:2");
+        // --quiet: a pull writes its progress to standard error, which Fallout logs as errors and GitHub
+        // Actions turns into an error annotation for each line, on a run that passed.
+        Run("docker", $"run -d --quiet --name {container} -p 127.0.0.1::5000 registry:2");
+        int port = PublishedLoopbackPort(container, 5000);
 
         using HttpClient client = new() { Timeout = TimeSpan.FromSeconds(5) };
         Stopwatch waiting = Stopwatch.StartNew();
@@ -268,6 +272,24 @@ public partial class Build
 
         // localhost rather than 127.0.0.1: the SDK pushes to it over plain HTTP, as Docker does.
         return $"localhost:{port}";
+    }
+
+    /// <summary>
+    /// The loopback port Docker published a container's port on. The container is started with
+    /// <c>-p 127.0.0.1::port</c>, so Docker picks a free port as it binds it, and nothing can take the port
+    /// between the choice and the bind.
+    /// </summary>
+    static int PublishedLoopbackPort(string container, int containerPort)
+    {
+        const string loopback = "127.0.0.1:";
+        string binding = Run("docker", $"port {container} {containerPort}/tcp")
+            .Select(x => x.Trim())
+            .FirstOrDefault(x => x.StartsWith(loopback, StringComparison.Ordinal));
+
+        int port = 0;
+        Assert.True(binding is not null && int.TryParse(binding[loopback.Length..], NumberStyles.None, CultureInfo.InvariantCulture, out port),
+            $"'docker port {container} {containerPort}/tcp' reported no loopback binding, only '{binding}'");
+        return port;
     }
 
     /// <summary>
