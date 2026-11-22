@@ -298,7 +298,7 @@ public class WeeklyCalendar : BaseCalendar
         }
         bool baseEqual = Equals(CalendarBase, obj.CalendarBase);
 
-        return baseEqual && obj.DaysExcluded.SequenceEqual(DaysExcluded);
+        return baseEqual && Equals(TimeZone, obj.TimeZone) && obj.DaysExcluded.SequenceEqual(DaysExcluded);
     }
 
     public override bool Equals(object? obj)

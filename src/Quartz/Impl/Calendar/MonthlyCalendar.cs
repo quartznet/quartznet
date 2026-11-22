@@ -292,7 +292,7 @@ public class MonthlyCalendar : BaseCalendar
         }
         bool baseEqual = Equals(CalendarBase, obj.CalendarBase);
 
-        return baseEqual && DaysExcluded.SequenceEqual(obj.DaysExcluded);
+        return baseEqual && Equals(TimeZone, obj.TimeZone) && DaysExcluded.SequenceEqual(obj.DaysExcluded);
     }
 
     public override bool Equals(object? obj)

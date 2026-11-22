@@ -227,7 +227,7 @@ public class HolidayCalendar : BaseCalendar
 
         bool baseEqual = Equals(CalendarBase, obj.CalendarBase);
 
-        return baseEqual && ExcludedDates.SequenceEqual(obj.ExcludedDates);
+        return baseEqual && Equals(TimeZone, obj.TimeZone) && ExcludedDates.SequenceEqual(obj.ExcludedDates);
     }
 
     public override bool Equals(object? obj)

@@ -287,7 +287,7 @@ public class AnnualCalendar : BaseCalendar
 
         bool toReturn = Equals(CalendarBase, obj.CalendarBase);
 
-        toReturn = toReturn && DaysExcluded.Count == obj.DaysExcluded.Count;
+        toReturn = toReturn && Equals(TimeZone, obj.TimeZone) && DaysExcluded.Count == obj.DaysExcluded.Count;
         if (toReturn)
         {
             foreach (DateTime date in DaysExcluded)
