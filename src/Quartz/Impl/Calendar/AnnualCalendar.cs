@@ -265,7 +265,7 @@ public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
 
         bool toReturn = Equals(CalendarBase, other.CalendarBase);
 
-        return toReturn && excludeDays.SetEquals(other.excludeDays);
+        return toReturn && Equals(TimeZone, other.TimeZone) && excludeDays.SetEquals(other.excludeDays);
     }
 
     /// <inheritdoc />

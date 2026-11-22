@@ -513,6 +513,7 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
         bool baseEqual = Equals(CalendarBase, other.CalendarBase);
 
         return baseEqual
+               && Equals(TimeZone, other.TimeZone)
                && InvertTimeRange == other.InvertTimeRange
                && rangeStart == other.rangeStart
                && rangeEnd == other.rangeEnd;
