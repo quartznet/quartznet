@@ -981,7 +981,7 @@ public class DailyCalendar : BaseCalendar
         }
         bool baseEqual = Equals(CalendarBase, obj.CalendarBase);
 
-        return baseEqual && InvertTimeRange == obj.InvertTimeRange &&
+        return baseEqual && Equals(TimeZone, obj.TimeZone) && InvertTimeRange == obj.InvertTimeRange &&
                rangeStartingHourOfDay == obj.rangeStartingHourOfDay &&
                rangeStartingMinute == obj.rangeStartingMinute &&
                rangeStartingSecond == obj.rangeStartingSecond &&
