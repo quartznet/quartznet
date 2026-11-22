@@ -258,7 +258,7 @@ public sealed class WeeklyCalendar : BaseCalendar, IEquatable<WeeklyCalendar>
         }
         bool baseEqual = Equals(CalendarBase, other.CalendarBase);
 
-        return baseEqual && excludeDays.SetEquals(other.excludeDays);
+        return baseEqual && Equals(TimeZone, other.TimeZone) && excludeDays.SetEquals(other.excludeDays);
     }
 
     /// <inheritdoc />

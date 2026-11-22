@@ -237,7 +237,7 @@ public sealed class HolidayCalendar : BaseCalendar, IEquatable<HolidayCalendar>
 
         bool baseEqual = Equals(CalendarBase, other.CalendarBase);
 
-        return baseEqual && dates.SetEquals(other.dates);
+        return baseEqual && Equals(TimeZone, other.TimeZone) && dates.SetEquals(other.dates);
     }
 
     /// <inheritdoc />
