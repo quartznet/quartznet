@@ -275,7 +275,7 @@ public class AnnualCalendar : BaseCalendar
             baseHash = CalendarBase.GetHashCode();
         }
 
-        return excludeDays.GetHashCode() + 5 * baseHash;
+        return excludeDays.Count + 5 * baseHash;
     }
 
     public bool Equals(AnnualCalendar obj)

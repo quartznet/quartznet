@@ -99,6 +99,7 @@ public sealed class CalendarTimeZoneEqualityTest
         second.TimeZone = plusNine;
 
         Equals(first, second).Should().BeTrue();
+        first.GetHashCode().Should().Be(second.GetHashCode());
     }
 
     private static DateTimeOffset? FirstInstantTheyDisagreeOn(ICalendar first, ICalendar second)
