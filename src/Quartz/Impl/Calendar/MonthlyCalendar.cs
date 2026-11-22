@@ -274,7 +274,7 @@ public class MonthlyCalendar : BaseCalendar
             baseHash = CalendarBase.GetHashCode();
         }
 
-        return DaysExcluded.GetHashCode() + 5 * baseHash;
+        return excludeDays.Count(excluded => excluded) + 5 * baseHash;
     }
 
     public bool Equals(MonthlyCalendar obj)
