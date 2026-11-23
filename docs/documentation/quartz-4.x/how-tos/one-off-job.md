@@ -201,6 +201,110 @@ public async ValueTask RunNow(IScheduler scheduler, ILogger logger, SendInvoice 
   carries it as a job data value. Serialize it to the JSON the host's serializer reads.
 * `TriggerJob(jobKey, token)` fires the job with no input, as `TriggerJob(jobKey, cancellationToken: token)` does.
 
+## Trigger it and wait for the outcome
+
+From 4.9. `TriggerJobAndWait` fires a stored job now and waits for how its run ended. The timeout stops the
+wait, never the job: a wait that runs out answers `Pending` with the key to ask again with.
+
+<!-- snippet: sample_one_off_job_trigger_and_wait -->
+```csharp
+app.MapPost("/reports/{name}/run", async (string name, IScheduler scheduler, CancellationToken cancellationToken) =>
+{
+    // Fires the stored job now and waits up to 30 seconds. The timeout stops the wait, never the job.
+    FiringResult result = await scheduler.TriggerJobAndWait(new JobKey(name, "reports"), TimeSpan.FromSeconds(30), cancellationToken);
+
+    return result.Status switch
+    {
+        // Still running: hand back the key to ask again with.
+        FiringWaitStatus.Pending => Results.Accepted($"/reports/runs/{result.TriggerKey.Name}"),
+        FiringWaitStatus.Ended when result.Outcome == ExecutionOutcome.Succeeded => Results.Ok(result.Execution?.Summary),
+        _ => Results.Problem(result.Execution?.ExceptionMessage ?? result.Message)
+    };
+});
+```
+<!-- endSnippet -->
+
+`WaitForFiring` waits for a firing already triggered, by its trigger's key:
+
+<!-- snippet: sample_one_off_job_wait_for_firing -->
+```csharp
+app.MapGet("/reports/runs/{run}", async (string run, IScheduler scheduler, CancellationToken cancellationToken) =>
+{
+    // TimeSpan.Zero looks once. A run that has ended is read from the execution history.
+    FiringResult result = await scheduler.WaitForFiring(new TriggerKey(run), TimeSpan.Zero, cancellationToken);
+
+    return result.Status == FiringWaitStatus.Pending
+        ? Results.Accepted()
+        : Results.Ok(new { result.Status, result.Outcome, result.Execution?.Summary });
+});
+```
+<!-- endSnippet -->
+
+Both answer a `FiringResult`:
+
+| Member | Meaning |
+|---|---|
+| `TriggerKey` | the trigger that fires: the `MT_` one-off, or the key `WaitForFiring` was given |
+| `Status` | `Ended`; `Pending`: the timeout ran out first; `Unknown`: the trigger is gone and nothing says how its firing ended |
+| `Outcome` | how it ended: `Succeeded`, `Failed`, `Cancelled`, `Vetoed` or `NotExecuted` |
+| `Execution` | the run's [history row](job-outcomes.md#read-one-firing-s-outcome), when the job ran |
+| `Misfire` | the row of a veto, a misfire or an overlap skip |
+| `Message` | why the job never ran, for `NotExecuted` |
+
+* **What ends a wait:** the trigger's next final completion after the wait begins. For a trigger already gone,
+  its newest final row in the history. A retried occurrence ends at its last attempt. A veto, and a job that
+  could not be built, end it too.
+* **`Outcome` is what the scheduler saw.** A job that reported `JobRunReport.Failed` without throwing is
+  `Succeeded`, and its `Execution.EffectiveResult` is `Failed`.
+* **In process** the completion answers the wait as the store commits it, so when it returns the one-off is gone.
+* `TimeSpan.Zero` looks once, and `Timeout.InfiniteTimeSpan` has no limit. Both use the system clock. The
+  token throws `OperationCanceledException` and leaves the job running.
+* **A wait still open at shutdown** throws `SchedulerException` once running firings have had the shutdown's
+  window to end.
+* **`Unknown`**: the trigger was unscheduled or its job deleted, it ended before the wait began on a scheduler
+  without an [execution history](job-outcomes.md), or retention trimmed its row.
+* A scheduler of your own, not built by Quartz, is refused with `NotSupportedException`. A
+  `DelegatingScheduler` over Quartz's is not.
+
+### On a cluster
+
+The firing may run on another node. The wait then reads the
+[execution history in the database](../tutorial/job-stores.md#execution-history-in-the-database) and the
+trigger's state, polling 200 ms apart at first and doubling to 5 s.
+
+* Call `store.UseExecutionHistory()` on every node. A clustered scheduler without it refuses both calls with
+  `NotSupportedException`, before anything is stored.
+* A row [written behind](../tutorial/job-stores.md#write-behind) is waited for: a trigger seen gone is looked at
+  again for 5 s plus twice `WriteBehindInterval`.
+* Each waiting caller reads the database at most twice per poll.
+* Over [`HttpScheduler`](../packages/http-client.md#history) the wait polls the host's history and trigger
+  routes the same way.
+
+### Naming the trigger's key
+
+`TriggerJob(jobKey, data, triggerKey)` stores the firing under a key the caller names. A key already stored is
+refused with `ObjectAlreadyExistsException` and never re-keyed, so a retried request cannot run the job twice:
+
+<!-- snippet: sample_one_off_job_trigger_named_key -->
+```csharp
+public async ValueTask<FiringResult> RunOnce(IScheduler scheduler, string requestId, CancellationToken cancellationToken)
+{
+    // The request's id is the trigger's key, so a retried request cannot run the job twice.
+    TriggerKey firing = new(requestId, "report-requests");
+    try
+    {
+        await scheduler.TriggerJob(new JobKey("monthly", "reports"), data: null, firing, cancellationToken);
+    }
+    catch (ObjectAlreadyExistsException)
+    {
+        // The first attempt is still stored: wait for it rather than firing again.
+    }
+
+    return await scheduler.WaitForFiring(firing, TimeSpan.FromSeconds(30), cancellationToken);
+}
+```
+<!-- endSnippet -->
+
 ## Scheduling the same name twice
 
 `OnConflict` decides what a call does when a firing is already scheduled under its `Name`:

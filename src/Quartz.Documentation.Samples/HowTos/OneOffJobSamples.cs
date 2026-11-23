@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -142,6 +144,64 @@ public sealed class TypedRunNow
 
         // The manual run's trigger: ExecutionHistoryQuery.Trigger finds the run once it has ended.
         logger.LogInformation("Invoice run {Trigger} requested", firing);
+    }
+
+    #endregion
+}
+
+public sealed class TriggerAndWait
+{
+    public static void MapRunEndpoints(WebApplication app)
+    {
+        #region sample_one_off_job_trigger_and_wait
+
+        app.MapPost("/reports/{name}/run", async (string name, IScheduler scheduler, CancellationToken cancellationToken) =>
+        {
+            // Fires the stored job now and waits up to 30 seconds. The timeout stops the wait, never the job.
+            FiringResult result = await scheduler.TriggerJobAndWait(new JobKey(name, "reports"), TimeSpan.FromSeconds(30), cancellationToken);
+
+            return result.Status switch
+            {
+                // Still running: hand back the key to ask again with.
+                FiringWaitStatus.Pending => Results.Accepted($"/reports/runs/{result.TriggerKey.Name}"),
+                FiringWaitStatus.Ended when result.Outcome == ExecutionOutcome.Succeeded => Results.Ok(result.Execution?.Summary),
+                _ => Results.Problem(result.Execution?.ExceptionMessage ?? result.Message)
+            };
+        });
+
+        #endregion
+
+        #region sample_one_off_job_wait_for_firing
+
+        app.MapGet("/reports/runs/{run}", async (string run, IScheduler scheduler, CancellationToken cancellationToken) =>
+        {
+            // TimeSpan.Zero looks once. A run that has ended is read from the execution history.
+            FiringResult result = await scheduler.WaitForFiring(new TriggerKey(run), TimeSpan.Zero, cancellationToken);
+
+            return result.Status == FiringWaitStatus.Pending
+                ? Results.Accepted()
+                : Results.Ok(new { result.Status, result.Outcome, result.Execution?.Summary });
+        });
+
+        #endregion
+    }
+
+    #region sample_one_off_job_trigger_named_key
+
+    public async ValueTask<FiringResult> RunOnce(IScheduler scheduler, string requestId, CancellationToken cancellationToken)
+    {
+        // The request's id is the trigger's key, so a retried request cannot run the job twice.
+        TriggerKey firing = new(requestId, "report-requests");
+        try
+        {
+            await scheduler.TriggerJob(new JobKey("monthly", "reports"), data: null, firing, cancellationToken);
+        }
+        catch (ObjectAlreadyExistsException)
+        {
+            // The first attempt is still stored: wait for it rather than firing again.
+        }
+
+        return await scheduler.WaitForFiring(firing, TimeSpan.FromSeconds(30), cancellationToken);
     }
 
     #endregion

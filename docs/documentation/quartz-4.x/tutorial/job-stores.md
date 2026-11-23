@@ -335,7 +335,8 @@ process, in memory, so a dashboard attached to a cluster through a shared store 
 page: no node wrote to anything it reads.
 
 `UseExecutionHistory()` moves both feeds into the scheduler's own database, so the cluster has one
-history and any node can read all of it:
+history and any node can read all of it. A [wait for a firing](../how-tos/one-off-job.md#trigger-it-and-wait-for-the-outcome)
+on a cluster needs it, because the firing may run on another node:
 
 <!-- snippet: sample_job_stores_execution_history -->
 ```csharp
