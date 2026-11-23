@@ -2115,6 +2115,13 @@ body{
     }
 }
 
+/* Narrower still, as on a phone, two labels are all that fit: the first, and the one halfway along. */
+@container (max-width: 26rem) {
+    .qz-run-chart-time:not(:first-child):not(:nth-child(4)) {
+        display: none;
+    }
+}
+
 .qz-run-chart-grid {
     position: absolute;
     left: 0;
@@ -2369,10 +2376,11 @@ body{
     font-weight: 600;
 }
 
+/* The theme's text colour on the hover tint, in both themes: the link blue on the dark tint is 2.8:1. */
 .qz-header-search-option:hover,
 .qz-header-search-option.qz-header-search-option-active {
     background-color: var(--qz-color-surface-hover);
-    color: var(--qz-color-primary);
+    color: var(--qz-color-text);
 }
 
 .qz-header-search-option.qz-header-search-option-active {
@@ -2417,7 +2425,7 @@ body{
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--qz-space-md);
-    align-items: start;
+    align-items: stretch;
 }
 
 @media (min-width: 1280px) {
@@ -2426,16 +2434,28 @@ body{
     }
 }
 
+/* The chart's card fills its column, so the two columns end together and the section ends under them. */
+.qz-needs-attention-runs {
+    display: flex;
+    flex-direction: column;
+}
+
 .qz-needs-attention-columns .qz-run-chart {
-    margin-top: 0;
+    flex: 1 1 auto;
+    margin: 0;
 }
 
 .qz-needs-attention-when {
     white-space: nowrap;
 }
 
+/* Two lines of the failure at most; the whole of it is the title, and on the job's failed runs. */
 .qz-needs-attention-message {
-    display: block;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
     overflow-wrap: anywhere;
 }
 
@@ -2443,6 +2463,49 @@ body{
     .qz-needs-attention-message {
         display: none;
     }
+}
+
+/* Very narrow: each failing job is its name with its badge under it, and the last failure's time goes too, so
+   nothing scrolls sideways at 320 px. */
+@media (max-width: 480px) {
+    .qz-needs-attention-table thead,
+    .qz-needs-attention-table td:nth-child(3) {
+        display: none;
+    }
+
+    .qz-needs-attention-table,
+    .qz-needs-attention-table tbody,
+    .qz-needs-attention-table tr,
+    .qz-needs-attention-table td {
+        display: block;
+    }
+
+    .qz-needs-attention-table tr {
+        padding: var(--qz-space-xs) 0;
+        border-bottom: 1px solid var(--qz-color-border);
+    }
+
+    .qz-needs-attention-table tr:last-child {
+        border-bottom: none;
+    }
+
+    .qz-needs-attention-table td {
+        border: none;
+        padding-top: 2px;
+        padding-bottom: 2px;
+        overflow-wrap: anywhere;
+    }
+}
+
+/* Trigger Detail's properties: the values wrap, so a long key, type or JobDataMap value stays inside the card. */
+.qz-properties-table th,
+.qz-properties-table td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.qz-properties-table th {
+    width: 40%;
 }
 
 /* Trigger Detail's "Why isn't it firing?" */

@@ -196,8 +196,9 @@ public class Startup
                     .WithDescription("Intentional failure to demonstrate error history on the timeline")
             );
 
-            // a job that may not run beside itself, running longer than its interval, so its trigger is BLOCKED
-            // most of the time and the dashboard's "Why isn't it firing?" names the firing that holds it
+            // a job that may not run beside itself, running longer than either trigger's interval: while one
+            // trigger's firing runs the other is BLOCKED, and the running one's own next fire waits too, which the
+            // dashboard's "Why isn't it firing?" shows as held by the job's running firing
             q.ScheduleJob<DemoBlockingJob>(
                 triggerConfigurator => triggerConfigurator
                     .WithIdentity("demoBlockingJobTrigger", "demo")
@@ -205,7 +206,14 @@ public class Startup
                     .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever()),
                 jobConfigurator => jobConfigurator
                     .WithIdentity("demoBlockingJob", "demo")
-                    .WithDescription("Runs 20 s every 5 s without overlapping, so its trigger is usually blocked")
+                    .WithDescription("Runs 20 s without overlapping, wanted every few seconds by two triggers")
+            );
+            q.AddTrigger(t => t
+                .WithIdentity("demoBlockingJobTrigger2", "demo")
+                .ForJob("demoBlockingJob", "demo")
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(3)).RepeatForever())
+                .WithDescription("A second trigger of the same job, blocked while the first one's firing runs")
             );
 
             // async disposable dependencies
