@@ -85,6 +85,54 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
+    /// One row's state and the parent its continuation columns name: a step of the walk up a
+    /// continuation's chain that refuses a trigger whose chain leads back to it (#4416).
+    /// </summary>
+    /// <remarks>
+    /// A primary-key read, issued only for a trigger being stored as a continuation and only up its
+    /// chain, so storing a trigger that waits for nothing never issues it.
+    /// </remarks>
+    internal static readonly string SqlSelectContinuationLink =
+        $"SELECT {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnContinuesTriggerName}, {AdoConstants.ColumnContinuesTriggerGroup}"
+        + $" FROM {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableTriggers}"
+        + $" WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}";
+
+    /// <summary>
+    /// Whether a trigger is stored, and the trigger it waits for; see <see cref="SqlSelectContinuationLink" />.
+    /// </summary>
+    /// <remarks>
+    /// Only an <c>AWAITING</c> row waits. A released one has had its continuation columns cleared, and
+    /// one parked in <c>ERROR</c> because its parent was deleted still names it but is run, not put back
+    /// to wait, when it is reset.
+    /// </remarks>
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="triggerKey">The trigger to read.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal async ValueTask<ContinuationLink> SelectContinuationLink(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectContinuationLink));
+
+        // Statement order.
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return ContinuationLink.NotHeld;
+        }
+
+        bool awaiting = StoredTriggerStates.FromStoredValue(rs.GetString(0)) == StoredTriggerState.Awaiting;
+        return awaiting && !rs.IsDBNull(1)
+            ? new ContinuationLink(Held: true, new TriggerKey(rs.GetString(1), rs.GetString(2)))
+            : new ContinuationLink(Held: true, WaitsFor: null);
+    }
+
+    /// <summary>
     /// Moves every <c>AWAITING</c> row waiting on one parent onto another, keeping its condition.
     /// </summary>
     internal static readonly string SqlReparentAwaitingContinuations =

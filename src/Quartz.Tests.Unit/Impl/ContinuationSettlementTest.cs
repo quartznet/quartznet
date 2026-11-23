@@ -613,6 +613,219 @@ public sealed class ContinuationSettlementTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // A continuation whose chain of parents leads back to it is refused when it is stored (#4416)
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task ABatchCarryingATriggerThatWaitsForItselfStoresNothing()
+    {
+        IJobDetail job = Job("batch-self");
+        IOperableTrigger self = ContinuationOf(new TriggerKey("self", Group), "self", job.Key);
+
+        Func<Task> schedule = async () => await store.ScheduleJobs(new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>
+        {
+            [job] = [self],
+        });
+
+        await schedule.Should().ThrowExactlyAsync<JobPersistenceException>(
+                "a trigger that waits for its own firing never fires, and the batch holding it is no reason to accept it")
+            .WithMessage("*'settlement.self'*settlement.self -> settlement.self*");
+
+        (await store.Exists(self.Key)).Should().BeFalse();
+        (await store.Exists(job.Key)).Should().BeFalse("the batch is refused as a whole, before anything in it is stored");
+    }
+
+    [Test]
+    public async Task ABatchOfTwoTriggersThatWaitForEachOtherStoresNothing()
+    {
+        IJobDetail job = Job("batch-loop");
+        IOperableTrigger ordinary = Hourly("batch-loop-ordinary", job.Key);
+        IOperableTrigger chicken = ContinuationOf(new TriggerKey("egg", Group), "chicken", job.Key);
+        IOperableTrigger egg = ContinuationOf(chicken.Key, "egg", job.Key);
+
+        Func<Task> schedule = async () => await store.ScheduleJobs(new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>
+        {
+            [job] = [ordinary, chicken, egg],
+        });
+
+        await schedule.Should().ThrowExactlyAsync<JobPersistenceException>(
+                "each waits for the other's firing, so neither ever fires")
+            .WithMessage("*settlement.chicken -> settlement.egg -> settlement.chicken*",
+                "the message walks the loop from the trigger refused, so it can be read off without a debugger");
+
+        (await store.Exists(chicken.Key)).Should().BeFalse();
+        (await store.Exists(egg.Key)).Should().BeFalse();
+        (await store.Exists(ordinary.Key)).Should().BeFalse("the batch is refused as a whole");
+    }
+
+    [TestCase(Replacement.AddTrigger)]
+    [TestCase(Replacement.StoreTrigger)]
+    [TestCase(Replacement.ScheduleJobs)]
+    [TestCase(Replacement.ReplaceTrigger)]
+    public async Task ReplacingATriggerWithAContinuationOfItselfIsRefusedAndLeavesItAsItWas(Replacement how)
+    {
+        IOperableTrigger stored = await ScheduleParent("selfish");
+        IOperableTrigger itsOwnContinuation = ContinuationOf(stored.Key, "selfish", stored.JobKey);
+
+        Func<Task> replace = async () => await Replace(how, itsOwnContinuation);
+
+        await replace.Should().ThrowExactlyAsync<JobPersistenceException>(
+                "the trigger it would wait for is the one it replaces, which only it could fire")
+            .WithMessage("*'settlement.selfish'*settlement.selfish -> settlement.selfish*");
+
+        (await store.GetTriggerState(stored.Key)).Should().Be(TriggerState.Normal,
+            "a refused replacement leaves the trigger it would have replaced as it was");
+        (await store.GetTrigger(stored.Key))!.Continuation.IsNone.Should().BeTrue();
+    }
+
+    [TestCase(Replacement.AddTrigger)]
+    [TestCase(Replacement.StoreTrigger)]
+    [TestCase(Replacement.ScheduleJobs)]
+    [TestCase(Replacement.ReplaceTrigger)]
+    public async Task ReplacingATriggerSoThatItWaitsForItsOwnContinuationsIsRefused(Replacement how)
+    {
+        IOperableTrigger first = await ScheduleParent("first");
+        IOperableTrigger second = await ScheduleContinuation("second", first.Key, ContinuationCondition.OnSuccess);
+        IOperableTrigger third = await ScheduleContinuation("third", second.Key, ContinuationCondition.OnSuccess);
+
+        Func<Task> replace = async () => await Replace(how, ContinuationOf(third.Key, "first", first.JobKey));
+
+        await replace.Should().ThrowExactlyAsync<JobPersistenceException>(
+                "the loop runs through triggers already stored, which the store reads up the chain")
+            .WithMessage("*'settlement.first'*settlement.first -> settlement.third -> settlement.second -> settlement.first*");
+
+        (await store.GetTriggerState(first.Key)).Should().Be(TriggerState.Normal);
+        (await store.GetTrigger(first.Key))!.Continuation.IsNone.Should().BeTrue();
+        (await store.GetTriggerState(second.Key)).Should().Be(TriggerState.Awaiting);
+        (await store.GetTriggerState(third.Key)).Should().Be(TriggerState.Awaiting);
+    }
+
+    [Test]
+    public async Task ReplacingATriggerWithOneOfAnotherKeyThatWaitsForItIsRefusedBeforeItGoes()
+    {
+        IOperableTrigger old = await ScheduleParent("old");
+
+        Func<Task> replace = async () => await store.ReplaceTrigger(old.Key, ContinuationOf(old.Key, "new", old.JobKey));
+
+        ObjectDoesNotExistException refused = (await replace.Should().ThrowAsync<ObjectDoesNotExistException>(
+            "the trigger it would wait for is the one the replacement deletes")).Which;
+        refused.MissingTriggerKey.Should().Be(old.Key);
+
+        (await store.GetTriggerState(old.Key)).Should().Be(TriggerState.Normal);
+        (await store.Exists(new TriggerKey("new", Group))).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task ATriggerThatHasBeenReleasedNoLongerWaitsSoItsParentMayWaitForIt()
+    {
+        IOperableTrigger parent = await ScheduleParent("parent");
+        IOperableTrigger released = await ScheduleContinuation("released", parent.Key, ContinuationCondition.OnSuccess);
+
+        await Complete(Firing(await Fire(parent.Key), parent.Key), ExecutionOutcome.Succeeded);
+        (await store.GetTriggerState(released.Key)).Should().Be(TriggerState.Normal, "the parent's success released it");
+
+        await store.AddTrigger(ContinuationOf(released.Key, "parent", parent.JobKey), AddTriggerOptions.Replacing);
+
+        (await store.GetTriggerState(parent.Key)).Should().Be(TriggerState.Awaiting,
+            "a released trigger is an ordinary one and waits for nothing, so nothing here leads back to the parent");
+    }
+
+    [Test]
+    public async Task ATriggerParkedInErrorNoLongerWaitsSoANewParentMayWaitForIt()
+    {
+        IOperableTrigger doomed = await ScheduleParent("doomed");
+        IOperableTrigger parked = await ScheduleContinuation("parked", doomed.Key, ContinuationCondition.OnSuccess);
+
+        await store.DeleteTrigger(doomed.Key);
+        (await store.GetTriggerState(parked.Key)).Should().Be(TriggerState.Error, "its parent was deleted");
+
+        // Under the deleted parent's key: the parked trigger still names it, but a reset runs it rather than
+        // putting it back to wait.
+        await store.AddTrigger(ContinuationOf(parked.Key, "doomed", doomed.JobKey));
+
+        (await store.GetTriggerState(doomed.Key)).Should().Be(TriggerState.Awaiting,
+            "only a trigger awaiting its parent waits for it; one in error waits for an operator's reset, which runs it");
+    }
+
+    [Test]
+    public async Task ALoopAlreadyInTheStoreIsWalkedRoundOnce()
+    {
+        if (kind != ContinuationStoreKind.Sqlite)
+        {
+            Assert.Ignore("Only a database can hold a loop stored before 4.9 refused one; the in-memory store starts empty.");
+        }
+
+        IOperableTrigger left = await ScheduleParent("left");
+        IOperableTrigger right = await ScheduleParent("right");
+        await MakeAwait(left.Key, right.Key);
+        await MakeAwait(right.Key, left.Key);
+
+        Func<Task> schedule = async () => await ScheduleContinuation("late", left.Key, ContinuationCondition.OnSuccess);
+
+        await schedule.Should().CompleteWithinAsync(TimeSpan.FromSeconds(30),
+            "the walk stops at a trigger it has passed already rather than going round a loop the new trigger is not part of");
+
+        (await store.GetTriggerState(new TriggerKey("late", Group))).Should().Be(TriggerState.Awaiting);
+    }
+
+    /// <summary>
+    /// The store calls that replace a stored trigger with another of the same key.
+    /// </summary>
+    public enum Replacement
+    {
+        AddTrigger,
+        StoreTrigger,
+        ScheduleJobs,
+        ReplaceTrigger
+    }
+
+    private async Task Replace(Replacement how, IOperableTrigger replacement)
+    {
+        switch (how)
+        {
+            case Replacement.AddTrigger:
+                await store.AddTrigger(replacement, AddTriggerOptions.Replacing);
+                break;
+            case Replacement.StoreTrigger:
+                await store.StoreTrigger(replacement, TriggerConflict.Replace);
+                break;
+            case Replacement.ScheduleJobs:
+                IJobDetail job = (await store.GetJob(replacement.JobKey))!;
+                await store.ScheduleJobs(
+                    new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> { [job] = [replacement] },
+                    new ScheduleJobOptions { Replace = true });
+                break;
+            case Replacement.ReplaceTrigger:
+                await store.ReplaceTrigger(replacement.Key, replacement);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(how), how, null);
+        }
+    }
+
+    /// <summary>
+    /// Writes a row as awaiting <paramref name="parent" /> behind the store's back, as a store written
+    /// before 4.9 could have been left.
+    /// </summary>
+    private async Task MakeAwait(TriggerKey key, TriggerKey parent)
+    {
+        await using SqliteConnection connection = new(database!.ConnectionString);
+        await connection.OpenAsync();
+
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText =
+            "UPDATE QRTZ_TRIGGERS SET TRIGGER_STATE = 'AWAITING', CONTINUES_TRIGGER_NAME = @parentName, CONTINUES_TRIGGER_GROUP = @parentGroup"
+            + " WHERE SCHED_NAME = @schedulerName AND TRIGGER_NAME = @name AND TRIGGER_GROUP = @group";
+        command.Parameters.AddWithValue("@parentName", parent.Name);
+        command.Parameters.AddWithValue("@parentGroup", parent.Group);
+        command.Parameters.AddWithValue("@schedulerName", SchedulerName);
+        command.Parameters.AddWithValue("@name", key.Name);
+        command.Parameters.AddWithValue("@group", key.Group);
+
+        (await command.ExecuteNonQueryAsync()).Should().Be(1);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // A listener hears of a settlement once it has committed
     //////////////////////////////////////////////////////////////////////////////////////////////
 
