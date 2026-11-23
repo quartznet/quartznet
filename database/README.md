@@ -297,8 +297,9 @@ overwritten.
 1. Add the change to every `tables/tables_*.sql`, so fresh installs get it.
 2. Add it to the schema model in `build/Build.DatabaseSchema.cs`, with `AddedBy` on a column or index a
    table that already exists gains, and run `dotnet fallout GenerateSchema`. That regenerates the
-   provisioning scripts and the Weasel models (`src/Quartz.Weasel.*/Generated/QuartzTables.g.cs`), so a
-   scheduler that provisions its own schema, and one Weasel manages, get it too. CI runs `VerifySchema`,
+   provisioning scripts, the Weasel models (`src/Quartz.Weasel.*/Generated/QuartzTables.g.cs`) and the EF Core
+   model (`src/Quartz.EntityFrameworkCore/Generated/`), so a scheduler that provisions its own schema, one
+   Weasel manages and one whose tables are in an EF Core model get it too. CI runs `VerifySchema`,
    and `SchemaScriptTest` compares the two sets object by object; a change in only one fails both.
 3. Describe the change once in `build/Build.DatabaseMigrations.Scripts.cs`, and fold it into the `4.0`
    script there too if it is a 3.x change.

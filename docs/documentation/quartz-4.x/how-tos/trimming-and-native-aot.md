@@ -68,6 +68,7 @@ arrived in .NET 10, and many compatible libraries do not declare it. Treat the l
 | `Quartz.Aspire` | yes | no: its one path names a driver, which is `[RequiresUnreferencedCode]` | — | that call site, at your `AddQuartzPersistentStore` |
 | `Quartz.Weasel.SQLite` | yes | yes | `Quartz.Trimming.Canary`: creates the schema as a host starts; a store on it schedules, fires and reads back | nothing; `Weasel.Core` reports one `IL2093` of its own |
 | `Quartz.Weasel` and the five server dialect packages | yes | no: each dialect needs its database | — | nothing |
+| `Quartz.EntityFrameworkCore` | yes | no: it runs where `dotnet ef` builds the model, not in a published application | — | nothing |
 | `Quartz.Serialization.Newtonsoft` | **no** | no | — | see [below](#the-two-packages-that-are-not-trimmable) |
 | `Quartz.Dashboard` | **no** | no | — | see [below](#the-two-packages-that-are-not-trimmable) |
 

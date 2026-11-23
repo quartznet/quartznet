@@ -79,6 +79,7 @@ await scheduler.Start();
 | [Quartz.Aspire](https://www.nuget.org/packages/Quartz.Aspire) | a persistent store, its telemetry and its health check from an Aspire connection name |
 | [Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) | the web dashboard |
 | [Quartz.Dashboard.Agent](https://www.nuget.org/packages/Quartz.Dashboard.Agent) | putting a scheduler on a dashboard elsewhere, over one outbound connection |
+| [Quartz.EntityFrameworkCore](https://www.nuget.org/packages/Quartz.EntityFrameworkCore) | the store's tables in your own `DbContext`, created and upgraded by `dotnet ef migrations` |
 | [Quartz.HttpClient](https://www.nuget.org/packages/Quartz.HttpClient) | driving a remote scheduler over the HTTP API |
 | [Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) | ready-made jobs: file scanning, sending mail, running a process |
 | [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) | history logging, XML and JSON schedule files |

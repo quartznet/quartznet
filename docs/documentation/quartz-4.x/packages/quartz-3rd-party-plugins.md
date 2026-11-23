@@ -10,11 +10,11 @@ states its own Quartz version compatibility.
 
 ### [AppAny.Quartz.EntityFrameworkCore.Migrations](https://github.com/appany/AppAny.Quartz.EntityFrameworkCore.Migrations)
 
-Creates and migrates the Quartz.NET schema with EF Core migrations, in one line of configuration.
+Creates and migrates the Quartz.NET schema with EF Core migrations, for Quartz 3.x and 4.x.
 
-Since 4.0, schema creation is [built in](../tutorial/job-stores.md#creating-the-schema). Its DDL is compared
-object by object with `database/tables/` in the build and provisioned against every dialect in the integration
-tests, so it matches the release. A package that models the tables separately states its own schema version.
+On 4.9 and later, use the official [Quartz.EntityFrameworkCore](entity-framework-core.md), whose model is
+generated from Quartz's own schema for PostgreSQL, SQL Server, MySQL and SQLite.
+[Moving off AppAny](entity-framework-core.md#moving-off-appany) is one migration.
 
 ### [Weasel.Quartz](https://github.com/Hawxy/Weasel.Quartz)
 

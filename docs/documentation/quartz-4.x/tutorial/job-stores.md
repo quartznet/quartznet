@@ -205,13 +205,13 @@ without looking inside it.
   scheduler would start, report itself validated, and fire nothing.
 * The check is by column, not table count: a table 4.x created has every column 4.x needs, so a node can
   also finish a schema whose creator died half-way.
-* Only [`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations)
-  moves a schema forward, and the 3.x → 4.0 upgrade is mandatory. See
-  [Database Schema Changes](../../database/schema-changes.md).
+* Only [`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations),
+  [Weasel](../packages/weasel.md) and [EF Core migrations](../packages/entity-framework-core.md) move a schema
+  forward, and the 3.x → 4.0 upgrade is mandatory. See [Database Schema Changes](../../database/schema-changes.md).
 
 **It is not the default**, because creating tables needs a permission production databases usually do
 not grant. Provision in development and tests, as in the sample, and apply the schema in production with
-whatever applies the rest of yours. Without the permission, startup fails naming the fresh-install script
+whatever applies the rest of yours, such as [EF Core migrations](../packages/entity-framework-core.md). Without the permission, startup fails naming the fresh-install script
 for that database and the setting to fall back to.
 
 **Not every configuration can provision:**
