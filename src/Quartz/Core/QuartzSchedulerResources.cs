@@ -405,5 +405,16 @@ internal sealed class QuartzSchedulerResources
     /// </remarks>
     internal JobExecutionDelegate? JobExecutionPipeline { get; set; }
 
+    /// <summary>
+    /// The execution history this scheduler's recorder writes, or <see langword="null" /> when it has no
+    /// recorder.
+    /// </summary>
+    /// <remarks>
+    /// Set by the recorder to its own store lookup, so a wait for a firing reads exactly the history the
+    /// recorder writes, and reads none while <see cref="ExecutionHistoryOptions.MaxEntriesPerScheduler" /> is
+    /// <c>0</c> (#4414).
+    /// </remarks>
+    internal Func<IExecutionHistoryStore?>? ExecutionHistory { get; set; }
+
     internal ISchedulerRepository SchedulerRepository { get; set; }
 }

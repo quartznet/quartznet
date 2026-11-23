@@ -37,4 +37,13 @@ internal interface IBufferedExecutionHistoryStore
     /// </summary>
     /// <param name="cancellationToken">Stops the wait; it does not stop the write.</param>
     ValueTask Flush(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// How long an execution may wait in the buffer, or <see langword="null" /> when none waits.
+    /// </summary>
+    /// <remarks>
+    /// Read by a wait for a firing, which looks for a gone trigger's row for that long again before it answers
+    /// that nothing says how the firing ended.
+    /// </remarks>
+    TimeSpan? WriteBehindInterval { get; }
 }

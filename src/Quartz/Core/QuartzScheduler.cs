@@ -816,6 +816,10 @@ internal sealed class QuartzScheduler
                 await resources.ThreadPool.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
             }
 
+            // A firing that completed inside the window above has answered its waits. Past it the plugins, the
+            // history and the job store close, so nothing could answer the rest (#4414).
+            FiringWatches.ShutDown();
+
             // Same reasoning as the pool shutdown above: in hosted shutdown the caller's token is
             // the graceful-deadline token, which by design may already have fired while waiting for
             // jobs. A plugin, job store or listener that honoured it would abort the remaining
@@ -2743,6 +2747,43 @@ internal sealed class QuartzScheduler
     private readonly ListenerManagerImpl listenerManager = new();
 
     public IListenerManager ListenerManager => listenerManager;
+
+    /// <summary>
+    /// The waits for firings this scheduler's own completions answer (#4414).
+    /// </summary>
+    internal FiringWatches FiringWatches { get; } = new();
+
+    /// <summary>
+    /// Starts a wait for the next final completion of <paramref name="triggerKey" />.
+    /// </summary>
+    /// <param name="triggerKey">The trigger whose firing to wait for.</param>
+    /// <param name="facade">The scheduler the wait reads the trigger's state through.</param>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    /// <exception cref="NotSupportedException">
+    /// The scheduler is clustered and its recorder writes no history the other nodes share.
+    /// </exception>
+    internal FiringWatch Watch(TriggerKey triggerKey, IScheduler facade)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        ValidateState();
+
+        IExecutionHistoryStore? history = resources.ExecutionHistory?.Invoke();
+        bool clustered = Clustered;
+
+        // A wait that works only when this node happens to run the firing is worse than none: another node's
+        // completion reaches no signal here, so it is read from the history every node writes.
+        if (clustered && history is null or Impl.InMemoryExecutionHistoryStore)
+        {
+            throw new NotSupportedException(
+                $"The scheduler '{SchedulerName}' is clustered, so the firing may run on another node, and its execution history "
+                + "is not one the other nodes write: a wait could not hear how such a firing ended. Call "
+                + "UsePersistentStore(store => store.UseExecutionHistory()) on every node, and run "
+                + "database/migrations/4.2/add_execution_history_<dialect>.sql.");
+        }
+
+        FiringSignal signal = FiringWatches.Watch(triggerKey);
+        return new FiringWatch(triggerKey, facade, SchedulerName, history, pollsHistory: clustered, signal);
+    }
 
     /// <summary>
     /// Notifies the job store that a vetoed firing is over.

@@ -310,6 +310,34 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
         RetryScheduled = retryScheduled;
     }
 
+    /// <summary>
+    /// The row the execution history recorded for this firing: an execution, or the misfire row of a veto.
+    /// </summary>
+    /// <remarks>
+    /// One field for the two, since a firing that ran was not vetoed, so a context is eight bytes larger rather
+    /// than sixteen. Written by the recorder, before the store hears of the completion, and read by the run
+    /// shell to answer a wait for the firing with the row the history holds (#4414).
+    /// </remarks>
+    private object? recordedRow;
+
+    /// <summary>
+    /// The execution row the history recorded for this firing, or <see langword="null" /> when none was.
+    /// </summary>
+    internal ExecutionHistoryEntry? RecordedExecution
+    {
+        get => recordedRow as ExecutionHistoryEntry;
+        set => recordedRow = value;
+    }
+
+    /// <summary>
+    /// The misfire row the history recorded for this firing's veto, or <see langword="null" /> when none was.
+    /// </summary>
+    internal MisfireHistoryEntry? RecordedMisfire
+    {
+        get => recordedRow as MisfireHistoryEntry;
+        set => recordedRow = value;
+    }
+
     /// <inheritdoc />
     /// <remarks>
     /// <para>
