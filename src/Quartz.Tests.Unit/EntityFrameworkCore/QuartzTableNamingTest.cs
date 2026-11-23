@@ -47,7 +47,7 @@ public sealed class QuartzTableNamingTest
 
         IRelationalModel model = context.DesignModel.GetRelationalModel();
 
-        model.Tables.Should().HaveCount(15).And.AllSatisfy(t =>
+        model.Tables.Should().HaveCount(16).And.AllSatisfy(t =>
         {
             t.Schema.Should().Be("jobs");
             t.Name.Should().StartWith("APP_");
@@ -82,7 +82,7 @@ public sealed class QuartzTableNamingTest
             model.AddQuartzTables(database.ProviderName, t => t.TablePrefix = "QRTZ2_");
         });
 
-        context.DesignModel.GetRelationalModel().Tables.Should().HaveCount(30,
+        context.DesignModel.GetRelationalModel().Tables.Should().HaveCount(32,
             "two schedulers' stores can keep their tables in one database under two prefixes, and so in one model");
     }
 

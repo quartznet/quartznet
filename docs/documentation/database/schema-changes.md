@@ -52,6 +52,7 @@ editing.
 | 4.3 | 4.4 / 4.5 | Nothing mandatory. [4.4](#version-4-4) only with `UseExecutionHistory()` |
 | 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version, interrupt and misfire threshold columns **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()`; then [4.7](#version-4-7) for 4.7+ |
 | 4.6 | 4.7+ | [4.7](#version-4-7): the fixed-delay column, **mandatory** |
+| 4.7 / 4.8 | 4.9+ | Nothing mandatory. [4.9](#version-4-9) only with `UseExecutionHistory()` |
 
 ## Upgrading to 4.x is mandatory
 
@@ -803,6 +804,39 @@ Run the script while 4.6 nodes are still up: the column is nullable with no defa
 names it. A 4.6 node runs a trigger measured from completion at a fixed rate, beside a running firing of it,
 and leaves the column as it was when it updates the row. Roll every node, then make a trigger measure from
 completion.
+
+## Version 4.9
+
+One optional script: only a store configured with `UseExecutionHistory()` needs it
+([#4243](https://github.com/quartznet/quartznet/issues/4243)). 4.8 changed no schema.
+
+| Script | Status | Adds |
+|---|---|---|
+| [`migrations/4.9/add_trigger_status_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.9) | Optional: only with `UseExecutionHistory()` | The `QRTZ_TRIGGER_STATUS` table |
+
+- A store configured with `UseExecutionHistory()` refuses to start without it; the startup check names the
+  table and the script. No other store probes for it.
+- It creates a table and alters nothing, so it runs in any order beside 4.9's other scripts.
+
+### The trigger status table
+
+`QRTZ_TRIGGER_STATUS` holds one row per trigger, keyed by `(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)`, with
+[`QRTZ_JOB_STATUS`](#the-job-status-table)'s columns and widths.
+
+- The store writes it with each history row, in the same transaction, after the job's row.
+- It folds every firing of the trigger's own key except one after which the trigger is finalized: a one-off,
+  the last firing of a series, a manual run, a backfill and a recovery leave no row.
+- The primary key is its only index.
+- No foreign key: a 4.8 node deleting a trigger must not trip on a row it has never heard of. The history's
+  sweep deletes the row of a trigger that is gone once its last run is older than the longest retention.
+
+### Rolling 4.8 → 4.9
+
+Run the script at any time. A 4.8 node never touches the table, so the trigger rollup counts only the firings
+4.9 nodes record until every node is 4.9: a trigger's last run can be older than its previous fire time, and a
+4.8 node's success does not clear its failing count.
+
+A fresh install from `database/tables/`, and `ProvisionSchema()`, create it.
 
 ## See also
 

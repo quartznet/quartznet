@@ -64,7 +64,7 @@ public sealed class FirebirdWeaselModelTest
             List<ISchemaObject> objects = database.BuildFeatureSchemas().Single().Objects.ToList();
             List<Table> tables = objects.OfType<Table>().ToList();
 
-            tables.Should().HaveCount(15);
+            tables.Should().HaveCount(16);
             tables.Should().OnlyContain(x => x.Identifier.Schema == FirebirdObjectName.DefaultSchema && x.Identifier.Name.StartsWith("QRTZ_", StringComparison.Ordinal),
                 "Firebird has no schemas, and Weasel's pseudo-schema is never written into DDL");
             tables.Should().OnlyContain(x => x.AddOnlyMigrations, "an application's own columns and indexes are never dropped");

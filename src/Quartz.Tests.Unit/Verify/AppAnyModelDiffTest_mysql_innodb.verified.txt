@@ -4,6 +4,7 @@ repaired: AppAny's schema has it wrong, and the move changes it
   CreateIndex IDX_QRTZ_EH_FIRE_INST on QRTZ_EXECUTION_HISTORY (SCHED_NAME, FIRE_INSTANCE_ID)
   CreateIndex IDX_QRTZ_EH_JOB_TIME on QRTZ_EXECUTION_HISTORY (SCHED_NAME, JOB_GROUP, JOB_NAME, FIRED_TIME)
   CreateIndex IDX_QRTZ_EH_TRIG_TIME on QRTZ_EXECUTION_HISTORY (SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME, FIRED_TIME)
+  CreateTable QRTZ_TRIGGER_STATUS
 
 converged: harmless, changed in place with no table rebuilt and no column narrowed
   (none)

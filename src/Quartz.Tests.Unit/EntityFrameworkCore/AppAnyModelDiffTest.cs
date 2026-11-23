@@ -97,12 +97,14 @@ public sealed class AppAnyModelDiffTest
 
     /// <summary>
     /// What AppAny 0.6.3's schema has wrong: three history indexes it never creates, which the history's reads by
-    /// job, by trigger and by firing scan without; and on SQL Server the NOT NULL string properties Quartz writes
+    /// job, by trigger and by firing scan without; the trigger rollup 4.9 added, without which a store keeping its
+    /// history in the database refuses to start; and on SQL Server the NOT NULL string properties Quartz writes
     /// NULL to for a calendar-interval or recurrence trigger, and an instance name narrower than the one the
     /// scheduler state takes.
     /// </summary>
     private static bool IsRepair(string difference) =>
         difference.StartsWith("CreateIndex ", StringComparison.Ordinal)
+        || difference.StartsWith("CreateTable ", StringComparison.Ordinal)
         || difference.Contains(".STR_PROP_", StringComparison.Ordinal)
         || difference.Contains("QRTZ_FIRED_TRIGGERS.INSTANCE_NAME ", StringComparison.Ordinal);
 

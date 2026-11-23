@@ -2967,6 +2967,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string TableSchedulerState = "SCHEDULER_STATE";
         public const string TableSimplePropertiesTriggers = "SIMPROP_TRIGGERS";
         public const string TableSimpleTriggers = "SIMPLE_TRIGGERS";
+        public const string TableTriggerStatus = "TRIGGER_STATUS";
         public const string TableTriggers = "TRIGGERS";
         public const string TriggerTypeBlob = "BLOB";
         public const string TriggerTypeCalendarInterval = "CAL_INT";

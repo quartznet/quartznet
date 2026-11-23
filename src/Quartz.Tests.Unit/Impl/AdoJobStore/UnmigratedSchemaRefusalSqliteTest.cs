@@ -656,6 +656,41 @@ public sealed class UnmigratedSchemaRefusalSqliteTest
     }
 
     /// <summary>
+    /// A history 4.8 left behind is missing the trigger rollup 4.9 added, and only a store that keeps its history
+    /// there notices.
+    /// </summary>
+    [Test]
+    public async Task A48HistoryIsRefusedForTheTriggerStatusTableOnlyWhenTheHistoryIsOn()
+    {
+        Install43Schema(withHistory: true);
+        ApplyMigration(AdoConstants.Migration44ExecutionOutcome);
+        ApplyMigration("4.6", "add_execution_history_lookup_indexes_sqlite.sql");
+
+        Func<Task> withoutHistory = async () => await (await GetScheduler(
+            nameof(A48HistoryIsRefusedForTheTriggerStatusTableOnlyWhenTheHistoryIsOn) + "-off", provision: false)).Shutdown();
+
+        await withoutHistory.Should().NotThrowAsync(
+            "a scheduler that keeps no history never reads the trigger rollup, so 4.9's history migration is as "
+            + "optional as 4.4's");
+
+        await container!.DisposeAsync();
+        container = null;
+
+        SchedulerException failure = await StartAndCatch(
+            nameof(A48HistoryIsRefusedForTheTriggerStatusTableOnlyWhenTheHistoryIsOn) + "-on",
+            configure: store => store.UseExecutionHistory());
+
+        MessagesOf(failure).Should().ContainMatch($"*table QRTZ_{AdoConstants.TableTriggerStatus}*",
+            "the trigger rollup is written with every history row of a recurring trigger, so its absence is refused "
+            + "at startup rather than dropping those rows at the first firing");
+
+        MessagesOf(failure).Should().ContainMatch("*database/migrations/4.9/add_trigger_status_sqlite.sql*",
+            "and the one script that creates it is the whole remedy");
+
+        ShouldNameEveryPathOnce(failure);
+    }
+
+    /// <summary>
     /// The columns 4.4 added are probed on their own, not only through the table the same script creates.
     /// </summary>
     [Test]

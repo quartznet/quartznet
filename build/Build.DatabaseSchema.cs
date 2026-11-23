@@ -430,28 +430,51 @@ partial class Build
                 Text("SCHED_NAME", 120, 120, required: true),
                 Text("JOB_GROUP", 150, 200, required: true),
                 Text("JOB_NAME", 150, 200, required: true),
-                Timestamp("FIRST_FIRED_TIME", required: true),
-                Timestamp("LAST_FIRED_TIME", required: true),
-                EnumColumn("LAST_RESULT", required: true),
-                Column("LAST_RUN_TIME",
-                    sqlServer: "bigint NOT NULL",
-                    postgres: "BIGINT NOT NULL",
-                    mysql: "BIGINT NOT NULL",
-                    oracle: "NUMBER(19) NOT NULL",
-                    sqlite: "BIGINT NOT NULL",
-                    firebird: "BIGINT NOT NULL"),
-                Text("LAST_INSTANCE_NAME", 200, 200, required: true),
-                Text("LAST_ENTRY_ID", 140, 140, required: false),
-                MessageColumn("LAST_SUMMARY"),
-                Timestamp("LAST_SUCCESS_TIME", required: false),
-                Timestamp("LAST_FAILURE_TIME", required: false),
-                MessageColumn("LAST_FAILURE_MESSAGE"),
-                Counter("CONSECUTIVE_FAILURES", wide: false),
-                Counter("RUN_COUNT", wide: true),
-                Counter("FAILURE_COUNT", wide: true),
+                .. RunStatusColumns(),
             ],
             OracleStem: "JOB_STATUS",
             AddedBy: "4.4"),
+
+        // One row per trigger, rolled up as JOB_STATUS is, from the firings of that trigger's own key other than
+        // one after which the trigger is finalized. New in 4.9 as a whole. No foreign key, for JOB_STATUS's
+        // reason: a 4.8 node deleting a trigger must not trip on a row it has never heard of.
+        new("TRIGGER_STATUS",
+            ["SCHED_NAME", "TRIGGER_GROUP", "TRIGGER_NAME"],
+            [
+                Text("SCHED_NAME", 120, 120, required: true),
+                Text("TRIGGER_GROUP", 150, 200, required: true),
+                Text("TRIGGER_NAME", 150, 200, required: true),
+                .. RunStatusColumns(),
+            ],
+            OracleStem: "TRIGGER_STATUS",
+            AddedBy: "4.9"),
+    ];
+
+    /// <summary>
+    /// The value columns a run status keeps, after its key: <c>JOB_STATUS</c>'s and <c>TRIGGER_STATUS</c>'s, which
+    /// the history store folds by one rule.
+    /// </summary>
+    static SchemaColumn[] RunStatusColumns() =>
+    [
+        Timestamp("FIRST_FIRED_TIME", required: true),
+        Timestamp("LAST_FIRED_TIME", required: true),
+        EnumColumn("LAST_RESULT", required: true),
+        Column("LAST_RUN_TIME",
+            sqlServer: "bigint NOT NULL",
+            postgres: "BIGINT NOT NULL",
+            mysql: "BIGINT NOT NULL",
+            oracle: "NUMBER(19) NOT NULL",
+            sqlite: "BIGINT NOT NULL",
+            firebird: "BIGINT NOT NULL"),
+        Text("LAST_INSTANCE_NAME", 200, 200, required: true),
+        Text("LAST_ENTRY_ID", 140, 140, required: false),
+        MessageColumn("LAST_SUMMARY"),
+        Timestamp("LAST_SUCCESS_TIME", required: false),
+        Timestamp("LAST_FAILURE_TIME", required: false),
+        MessageColumn("LAST_FAILURE_MESSAGE"),
+        Counter("CONSECUTIVE_FAILURES", wide: false),
+        Counter("RUN_COUNT", wide: true),
+        Counter("FAILURE_COUNT", wide: true),
     ];
 
     /// <summary>
