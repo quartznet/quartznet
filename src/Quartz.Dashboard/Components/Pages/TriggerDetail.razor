@@ -103,56 +103,6 @@
                                   OnCancel="CancelEditing" />
         }
 
-        <table class="qz-table">
-            <tbody>
-                <tr><th>Type</th><td>@TriggerDisplay.TypeName(_trigger)</td></tr>
-                <tr><th>Execution Group</th><td>@(_trigger.ExecutionGroup is { Length: > 0 } executionGroup ? executionGroup : "\u2014")</td></tr>
-                <tr><th>Description</th><td>@_trigger.Description</td></tr>
-                <tr><th>Priority</th><td>@_trigger.Priority</td></tr>
-                <tr><th>Calendar</th><td>@(_trigger.CalendarName is { Length: > 0 } calendarName ? calendarName : "\u2014")</td></tr>
-                <tr><th>Preferred Node</th><td>@DisplayPreferredNode(_trigger.PreferredNode)</td></tr>
-                <tr><th>Misfire Instruction</th><td>@_misfireName</td></tr>
-                <tr><th>Misfire Threshold</th><td>@TriggerDetailsForm.MisfireThresholdOf(_trigger)</td></tr>
-                <tr>
-                    <th>Schedule</th>
-                    <td data-testid="trigger-schedule">
-                        <span class="qz-schedule-description">@BuildScheduleDescription()</span>
-                        @if (ScheduleExpressionBeside() is { } scheduleExpression)
-                        {
-                            <span class="qz-table-cell-mono qz-muted qz-schedule-expression">@scheduleExpression</span>
-                        }
-                    </td>
-                </tr>
-                <tr><th>Next Fire</th><td>@FormatDate(_trigger.NextFireTimeUtc)</td></tr>
-                <tr><th>Previous Fire</th><td>@FormatDate(_trigger.PreviousFireTimeUtc)</td></tr>
-                <tr><th>Retry Policy</th><td>@(_trigger.RetryPolicy is { } retryPolicy ? retryPolicy.ToStoredString() : "—")</td></tr>
-                <tr><th>Retry Attempt</th><td>@_trigger.RetryAttempt</td></tr>
-                <tr><th>Overlap Policy</th><td>@_trigger.OverlapPolicy</td></tr>
-                @if (_trigger is ISimpleTrigger { MeasureIntervalFromCompletion: true })
-                {
-                    <tr><th>Interval</th><td>Measured from completion</td></tr>
-                }
-                @if (_trigger.Continuation.Parent is { } continuationParent)
-                {
-                    <tr>
-                        <th>Continues after</th>
-                        <td>
-                            @if (_continuationParentExists)
-                            {
-                                <a class="qz-details-link" href="@GetTriggerPath(continuationParent.Group, continuationParent.Name)">@DisplayValueHelper.FormatKey(continuationParent.Group, continuationParent.Name)</a>
-                            }
-                            else
-                            {
-                                @DisplayValueHelper.FormatKey(continuationParent.Group, continuationParent.Name)
-                                <span class="qz-muted">&mdash; no longer scheduled</span>
-                            }
-                        </td>
-                    </tr>
-                    <tr><th>When</th><td>@DisplayValueHelper.FormatContinuationCondition(_trigger.Continuation.When)</td></tr>
-                }
-            </tbody>
-        </table>
-
         @if (_diagnosisFacts is not null)
         {
             @* Every check an operator works through, read once on load and on Refresh: never on a timer. With
@@ -202,6 +152,58 @@
                 }
             </section>
         }
+
+        <div class="qz-table-scroll">
+        <table class="qz-table qz-properties-table">
+            <tbody>
+                <tr><th>Type</th><td>@TriggerDisplay.TypeName(_trigger)</td></tr>
+                <tr><th>Execution Group</th><td>@(_trigger.ExecutionGroup is { Length: > 0 } executionGroup ? executionGroup : "\u2014")</td></tr>
+                <tr><th>Description</th><td>@_trigger.Description</td></tr>
+                <tr><th>Priority</th><td>@_trigger.Priority</td></tr>
+                <tr><th>Calendar</th><td>@(_trigger.CalendarName is { Length: > 0 } calendarName ? calendarName : "\u2014")</td></tr>
+                <tr><th>Preferred Node</th><td>@DisplayPreferredNode(_trigger.PreferredNode)</td></tr>
+                <tr><th>Misfire Instruction</th><td>@_misfireName</td></tr>
+                <tr><th>Misfire Threshold</th><td>@TriggerDetailsForm.MisfireThresholdOf(_trigger)</td></tr>
+                <tr>
+                    <th>Schedule</th>
+                    <td data-testid="trigger-schedule">
+                        <span class="qz-schedule-description">@BuildScheduleDescription()</span>
+                        @if (ScheduleExpressionBeside() is { } scheduleExpression)
+                        {
+                            <span class="qz-table-cell-mono qz-muted qz-schedule-expression">@scheduleExpression</span>
+                        }
+                    </td>
+                </tr>
+                <tr><th>Next Fire</th><td>@FormatDate(_trigger.NextFireTimeUtc)</td></tr>
+                <tr><th>Previous Fire</th><td>@FormatDate(_trigger.PreviousFireTimeUtc)</td></tr>
+                <tr><th>Retry Policy</th><td>@(_trigger.RetryPolicy is { } retryPolicy ? retryPolicy.ToStoredString() : "—")</td></tr>
+                <tr><th>Retry Attempt</th><td>@_trigger.RetryAttempt</td></tr>
+                <tr><th>Overlap Policy</th><td>@_trigger.OverlapPolicy</td></tr>
+                @if (_trigger is ISimpleTrigger { MeasureIntervalFromCompletion: true })
+                {
+                    <tr><th>Interval</th><td>Measured from completion</td></tr>
+                }
+                @if (_trigger.Continuation.Parent is { } continuationParent)
+                {
+                    <tr>
+                        <th>Continues after</th>
+                        <td>
+                            @if (_continuationParentExists)
+                            {
+                                <a class="qz-details-link" href="@GetTriggerPath(continuationParent.Group, continuationParent.Name)">@DisplayValueHelper.FormatKey(continuationParent.Group, continuationParent.Name)</a>
+                            }
+                            else
+                            {
+                                @DisplayValueHelper.FormatKey(continuationParent.Group, continuationParent.Name)
+                                <span class="qz-muted">&mdash; no longer scheduled</span>
+                            }
+                        </td>
+                    </tr>
+                    <tr><th>When</th><td>@DisplayValueHelper.FormatContinuationCondition(_trigger.Continuation.When)</td></tr>
+                }
+            </tbody>
+        </table>
+        </div>
 
         @* Every trigger type's, computed by its scheduler and read through the client, so a scheduler reached
            over HTTP or through an agent shows the same panel. *@
@@ -396,6 +398,7 @@
 
         _loadedKey = TriggerKey;
         _checksShown = false;
+        _interruptsRequested.Clear();
 
         // Another trigger's details are not ones to keep as stale.
         _lastUpdatedAt = null;
@@ -639,7 +642,16 @@
                             }
                             @if (check.Action == DiagnosisAction.Interrupt && check.FireInstanceId is { } fireInstanceId && CanInterrupt)
                             {
-                                <button type="button" class="qz-button qz-diagnosis-interrupt" @onclick="() => InterruptFiringAsync(fireInstanceId)">Interrupt</button>
+                                @if (_interruptsRequested.Contains(fireInstanceId))
+                                {
+                                    @* Said where the button was, for as long as the firing is listed: the toast fades, and a
+                                       job stops only when it next looks at its cancellation token. *@
+                                    <span class="qz-muted qz-diagnosis-interrupt-requested" data-testid="diagnosis-interrupt-requested">Interrupt requested</span>
+                                }
+                                else
+                                {
+                                    <button type="button" class="qz-button qz-diagnosis-interrupt" @onclick="() => InterruptFiringAsync(fireInstanceId)">Interrupt</button>
+                                }
                             }
                             @if (check.Action == DiagnosisAction.ResetError && CanReset)
                             {
@@ -655,15 +667,28 @@
     /// <summary>
     /// The diagnosis's <em>Interrupt</em>: the firing that holds a blocked trigger's job.
     /// </summary>
-    private Task InterruptFiringAsync(string fireInstanceId)
+    /// <remarks>
+    /// The request is acknowledged twice: a toast, and the button giving way to <em>Interrupt requested</em> once the
+    /// page has read the diagnosis again, since the firing may well still be listed while its job winds down.
+    /// </remarks>
+    private async Task InterruptFiringAsync(string fireInstanceId)
     {
-        return ExecuteMutatingActionAsync(
+        _interruptsRequested.Add(fireInstanceId);
+        bool requested = await ExecuteMutatingActionAsync(
             () => Api.InterruptFireInstance(Scheduler.ActiveSchedulerName!, fireInstanceId),
-            "Asked firing " + fireInstanceId + " to stop.",
+            "Interrupt requested for firing " + fireInstanceId + ": it stops when its job next checks its cancellation token.",
             "Firing " + fireInstanceId + " was not interrupted - it had already finished.",
             actionName: "InterruptFireInstance",
             target: fireInstanceId);
+
+        if (!requested)
+        {
+            _interruptsRequested.Remove(fireInstanceId);
+        }
     }
+
+    /// <summary>The firings this page asked to stop, which show <em>Interrupt requested</em> in place of the button.</summary>
+    private readonly HashSet<string> _interruptsRequested = new(StringComparer.Ordinal);
 
     private static string VerdictGlyph(DiagnosisVerdict verdict)
     {

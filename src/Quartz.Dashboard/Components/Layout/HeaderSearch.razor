@@ -21,9 +21,9 @@
     <label class="qz-header-control-label qz-header-search-label" for="@InputId">Search</label>
     <input @ref="_input"
            id="@InputId"
-           type="search"
+           type="text"
            class="qz-input qz-header-search-input"
-           placeholder="Jump to a job or trigger"
+           placeholder="Find a job or trigger"
            autocomplete="off"
            role="combobox"
            aria-autocomplete="list"
@@ -34,6 +34,7 @@
            value="@_term"
            @oninput="OnInputAsync"
            @onkeydown="OnKeyDownAsync"
+           @onfocus="OnFocus"
            @onfocusout="OnFocusOut" />
 
     @if (_open)
@@ -111,6 +112,12 @@
     private int _active = -1;
 
     /// <summary>
+    /// Whether the list was closed by Escape or by focus leaving: a lookup that answers then keeps its results for
+    /// ↓ without opening over the page. Typing, focus or ↓ clears it.
+    /// </summary>
+    private bool _away;
+
+    /// <summary>
     /// The keystroke's: cancelled by the next one, which ends its wait and the reads it made, and by leaving.
     /// </summary>
     private CancellationTokenSource _keystroke = new();
@@ -136,6 +143,7 @@
     private async Task OnInputAsync(ChangeEventArgs args)
     {
         _term = args.Value?.ToString() ?? string.Empty;
+        _away = false;
 
         CancellationToken cancellationToken = NextKeystroke();
         string term = _term.Trim();
@@ -166,7 +174,7 @@
             _searched = term;
             _error = null;
             _active = -1;
-            _open = true;
+            _open = !_away;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -178,7 +186,7 @@
             _options = [];
             _active = -1;
             _error = ex.Message;
-            _open = true;
+            _open = !_away;
         }
     }
 
@@ -242,6 +250,7 @@
                 int step = args.Key == "ArrowDown" ? 1 : -1;
                 if (!_open)
                 {
+                    _away = false;
                     _open = true;
                     _active = step > 0 ? 0 : _options.Count - 1;
                     return;
@@ -261,9 +270,11 @@
                 return;
 
             case "Escape":
-                if (_open)
+                // Also before a pending lookup answers, so the list it finds does not open over the page.
+                bool wasOpen = _open;
+                Collapse();
+                if (wasOpen)
                 {
-                    Collapse();
                     await FocusInputAsync();
                 }
 
@@ -271,10 +282,18 @@
         }
     }
 
-    /// <summary>Focus left the box, so the list it controls closes. The text stays for when it comes back.</summary>
+    /// <summary>
+    /// Focus left the box, so the list it controls closes. The text stays for when it comes back, and a lookup still
+    /// pending finishes, so ↓ shows what it found.
+    /// </summary>
     private void OnFocusOut(FocusEventArgs args)
     {
         Collapse();
+    }
+
+    private void OnFocus(FocusEventArgs args)
+    {
+        _away = false;
     }
 
     private async Task FocusInputAsync()
@@ -314,17 +333,21 @@
         });
     }
 
-    /// <summary>Closes the list and stops what is in flight; the text and what it found stay.</summary>
+    /// <summary>
+    /// Closes the list, and keeps it closed when a lookup still pending answers; the text, what it found and the
+    /// lookup itself stay, so ↓ opens the list again.
+    /// </summary>
     private void Collapse()
     {
-        NextKeystroke();
+        _away = true;
         _open = false;
         _active = -1;
     }
 
-    /// <summary>Closes the list and clears the box.</summary>
+    /// <summary>Closes the list, stops what is in flight and clears the box.</summary>
     private void Reset()
     {
+        NextKeystroke();
         Collapse();
         _term = string.Empty;
         _options = [];

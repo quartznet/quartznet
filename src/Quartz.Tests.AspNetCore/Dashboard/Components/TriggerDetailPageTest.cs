@@ -407,6 +407,41 @@ public class TriggerDetailPageTest
             .MustHaveHappenedOnceExactly());
     }
 
+    /// <summary>
+    /// A serial job's trigger whose own firing runs reads Executing, never Blocked (#1416), and is held all the
+    /// same once its next fire time passes: the page names the firing that holds it, with Interrupt, and Interrupt
+    /// is acknowledged where the button was as well as in a toast.
+    /// </summary>
+    [Test]
+    public void AnExecutingTriggerHeldByItsJobsRunningFiringSaysSoAndInterruptsIt()
+    {
+        ITrigger trigger = Scheduled(CronTrigger("0 0 12 * * ?"));
+        ((Quartz.Extensibility.IMutableTrigger) trigger).NextFireTimeUtc = new DateTimeOffset(2026, 10, 5, 14, 0, 0, TimeSpan.Zero);
+        GivenTrigger(trigger);
+        A.CallTo(() => context.Api.GetTriggerState(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(TriggerState.Executing);
+        A.CallTo(() => context.Api.QueryFireInstances(TestData.SchedulerName, A<DashboardFireInstanceQuery>.That.Matches(query => query.Job != null), A<CancellationToken>._))
+            .Returns(new PagedResult<FireInstanceDto>([HoldingFiring()], HasMore: false, TotalCount: 1));
+        A.CallTo(() => context.Api.GetJobDetail(TestData.SchedulerName, new JobKeyDto("CronJobGroup", "CronJobKey"), A<CancellationToken>._))
+            .Returns(new JobDetailDto("CronJobKey", "CronJobGroup", "Example.SerialJob", null, Durable: true, RequestsRecovery: false,
+                ConcurrentExecutionDisallowed: true, PersistJobDataAfterExecution: null, new JobDataMap()));
+        A.CallTo(() => context.Api.InterruptFireInstance(TestData.SchedulerName, "fire-7", A<CancellationToken>._)).Returns(true);
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Find("tr[data-check=\"Its job's firings\"]").TextContent.Should()
+            .Contain("Held by its job's running firing fire-7 on node node-b since 2026-10-05 13:00:00"));
+        page.Find("[data-testid=trigger-diagnosis-summary]").TextContent.Trim().Should().Be("One finding may stop this trigger firing.");
+
+        page.Find(".qz-diagnosis-interrupt").Click();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=diagnosis-interrupt-requested]").TextContent.Should().Be("Interrupt requested"));
+        page.FindAll(".qz-diagnosis-interrupt").Should().BeEmpty("the request was accepted, and the button would only send it again");
+        A.CallTo(() => context.Api.InterruptFireInstance(TestData.SchedulerName, "fire-7", A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        context.Toasts.Messages.Should().ContainSingle().Which.Message.Should().StartWith("Interrupt requested for firing fire-7");
+        A.CallTo(() => context.Api.GetTrigger(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._)).MustHaveHappenedTwiceExactly();
+    }
+
     [Test]
     public void ATriggerWithNothingWrongSaysSo()
     {

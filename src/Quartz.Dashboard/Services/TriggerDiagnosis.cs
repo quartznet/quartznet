@@ -96,6 +96,17 @@ internal static class TriggerDiagnosis
             () => api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery { Job = job, State = null, Take = FiringsShown }, cancellationToken),
             cancellationToken).ConfigureAwait(false);
 
+        // A trigger whose own firing is running reads Executing, which outranks Blocked (#1416), so a serial job's
+        // trigger can be held while it never shows BLOCKED. Whether the running firing holds the trigger's next
+        // occurrence depends on the job not allowing concurrent execution, which only the job says: one read, made
+        // only when a firing of the job is running and the trigger's next fire time has passed.
+        Answer<JobDetailDto> jobDetail = subject.State != TriggerState.Blocked
+            && jobFirings.Value is { Items.Count: > 0 }
+            && trigger.NextFireTimeUtc is { } due
+            && due <= subject.Now
+            ? await Ask(() => api.GetJobDetail(schedulerName, job, cancellationToken), cancellationToken).ConfigureAwait(false)
+            : default;
+
         Answer<ExecutionLimitsDto> limits = await Ask(() => api.GetExecutionLimits(schedulerName, cancellationToken), cancellationToken).ConfigureAwait(false);
 
         // What the trigger's execution group has in flight, asked only when a finite limit governs it: one more
@@ -126,6 +137,7 @@ internal static class TriggerDiagnosis
             TriggerGroupPause = triggerGroupPause,
             JobGroupPause = jobGroupPause,
             JobFirings = jobFirings,
+            JobDetail = jobDetail,
             Limits = limits,
             GroupFirings = groupFirings,
             Misfires = misfires,
@@ -319,21 +331,34 @@ internal static class TriggerDiagnosis
 
         FireInstanceDto oldest = page.Items.MinBy(static firing => firing.FireTimeUtc)!;
         int count = page.TotalCount ?? page.Items.Count;
-        string text = (count == 1 ? "One running" : count.ToString(CultureInfo.InvariantCulture) + " running")
-            + ": on node " + oldest.SchedulerInstanceId + " since " + formatTime(oldest.FireTimeUtc)
-            + (count > 1 ? ", the oldest" : string.Empty) + ".";
+
+        // Not BLOCKED, yet held all the same: the trigger reads Executing while a firing of its own runs, and a job
+        // that does not allow concurrent execution keeps its next occurrence waiting once that is due.
+        bool held = !blocked
+            && facts.JobDetail.Value?.ConcurrentExecutionDisallowed == true
+            && facts.Subject.Trigger.NextFireTimeUtc is { } next
+            && next <= facts.Subject.Now;
+
+        string text = held
+            ? "Held by its job's running firing " + oldest.FireInstanceId + " on node " + oldest.SchedulerInstanceId
+              + " since " + formatTime(oldest.FireTimeUtc) + ": the job does not allow concurrent execution, and this "
+              + "trigger's next fire time, " + formatTime(facts.Subject.Trigger.NextFireTimeUtc) + ", has passed."
+            : (count == 1 ? "One running" : count.ToString(CultureInfo.InvariantCulture) + " running")
+              + ": on node " + oldest.SchedulerInstanceId + " since " + formatTime(oldest.FireTimeUtc)
+              + (count > 1 ? ", the oldest" : string.Empty) + ".";
 
         if (oldest.InterruptRequestedUtc is { } requested)
         {
             text += " An interrupt was requested at " + formatTime(requested) + ".";
         }
 
-        return new DiagnosisCheck(Name, blocked ? DiagnosisVerdict.Problem : DiagnosisVerdict.Info, text)
+        bool holds = blocked || held;
+        return new DiagnosisCheck(Name, holds ? DiagnosisVerdict.Problem : DiagnosisVerdict.Info, text)
         {
             LinkText = "Currently Executing",
             LinkPath = "executing",
-            Action = blocked ? DiagnosisAction.Interrupt : DiagnosisAction.None,
-            FireInstanceId = blocked ? oldest.FireInstanceId : null,
+            Action = holds ? DiagnosisAction.Interrupt : DiagnosisAction.None,
+            FireInstanceId = holds ? oldest.FireInstanceId : null,
         };
     }
 
@@ -365,7 +390,10 @@ internal static class TriggerDiagnosis
                 + ", and has not fired.");
         }
 
-        return new DiagnosisCheck(Name, DiagnosisVerdict.Ok, formatTime(next) + " (" + DisplayValueHelper.FormatUntil(next, now) + ").");
+        // Due and not yet five minutes late, as a held trigger's often is: said as due, not as still ahead.
+        return new DiagnosisCheck(Name, DiagnosisVerdict.Ok, next <= now
+            ? formatTime(next) + " (due " + DisplayValueHelper.FormatSince(next, now) + ")."
+            : formatTime(next) + " (" + DisplayValueHelper.FormatUntil(next, now) + ").");
     }
 
     private static DiagnosisCheck CheckExecutionGroup(TriggerDiagnosisFacts facts)
@@ -580,6 +608,9 @@ internal sealed record TriggerDiagnosisFacts(DiagnosisSubject Subject)
     public Answer<PauseInfo?> JobGroupPause { get; init; }
 
     public Answer<PagedResult<FireInstanceDto>> JobFirings { get; init; }
+
+    /// <summary>The trigger's job, read only to learn whether a running firing of it holds the trigger.</summary>
+    public Answer<JobDetailDto> JobDetail { get; init; }
 
     public Answer<ExecutionLimitsDto> Limits { get; init; }
 

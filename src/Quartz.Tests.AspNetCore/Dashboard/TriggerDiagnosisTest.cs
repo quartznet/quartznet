@@ -174,6 +174,66 @@ public class TriggerDiagnosisTest
         firings.FireInstanceId.Should().Be("fire-1", "the oldest firing is the one holding the job");
     }
 
+    /// <summary>
+    /// A serial job's trigger whose own firing is running reads Executing, which outranks Blocked (#1416), so it
+    /// never shows BLOCKED; once its next fire time has passed it is held all the same, and the check says so with
+    /// Interrupt, as it does for a blocked trigger.
+    /// </summary>
+    [Test]
+    public void AnExecutingTriggerOfASerialJobIsHeldByItsRunningFiring()
+    {
+        TriggerDiagnosisFacts facts = Facts(Trigger(next: Now.AddMinutes(-2)), TriggerState.Executing) with
+        {
+            JobFirings = Answered(Page(Firing("fire-1", NodeA, Now.AddMinutes(-3)))),
+            JobDetail = Answered(Job(concurrentExecutionDisallowed: true)),
+        };
+
+        DiagnosisCheck check = Check(Evaluate(facts), "Its job's firings");
+
+        check.Verdict.Should().Be(DiagnosisVerdict.Problem);
+        check.Text.Should().StartWith("Held by its job's running firing fire-1 on node node-a since " + Format(Now.AddMinutes(-3)));
+        check.Text.Should().Contain("next fire time, " + Format(Now.AddMinutes(-2)) + ", has passed");
+        check.Action.Should().Be(DiagnosisAction.Interrupt);
+        check.FireInstanceId.Should().Be("fire-1");
+    }
+
+    [TestCase(false, -2, TestName = "A job that allows concurrent execution does not hold its trigger")]
+    [TestCase(null, -2, TestName = "A job whose type this process cannot read claims nothing")]
+    [TestCase(true, 2, TestName = "A trigger whose next fire is still ahead is not held yet")]
+    public void ARunningFiringThatDoesNotHoldTheTriggerIsWorthKnowingOnly(bool? concurrentExecutionDisallowed, int nextInMinutes)
+    {
+        TriggerDiagnosisFacts facts = Facts(Trigger(next: Now.AddMinutes(nextInMinutes)), TriggerState.Executing) with
+        {
+            JobFirings = Answered(Page(Firing("fire-1", NodeA, Now.AddMinutes(-3)))),
+            JobDetail = Answered(Job(concurrentExecutionDisallowed)),
+        };
+
+        DiagnosisCheck check = Check(Evaluate(facts), "Its job's firings");
+
+        check.Verdict.Should().Be(DiagnosisVerdict.Info);
+        check.Action.Should().Be(DiagnosisAction.None);
+    }
+
+    /// <summary>
+    /// The job is read only when a firing of it is running and the trigger's next fire time has passed: the one
+    /// case in which whether it allows concurrent execution decides anything.
+    /// </summary>
+    [Test]
+    public async Task TheJobIsReadOnlyWhenItsRunningFiringMayHoldTheTrigger()
+    {
+        IQuartzApiClient api = FakeApi();
+        A.CallTo(() => api.QueryFireInstances(SchedulerName, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+            .Returns(Page(Firing("fire-1", NodeA, Now.AddMinutes(-3))));
+        A.CallTo(() => api.GetJobDetail(SchedulerName, A<JobKeyDto>._, A<CancellationToken>._)).Returns(Job(concurrentExecutionDisallowed: true));
+
+        await TriggerDiagnosis.Read(api, Subject(Trigger(next: Now.AddMinutes(5)), TriggerState.Executing));
+        A.CallTo(() => api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._)).MustNotHaveHappened();
+
+        TriggerDiagnosisFacts facts = await TriggerDiagnosis.Read(api, Subject(Trigger(next: Now.AddMinutes(-1)), TriggerState.Executing));
+        A.CallTo(() => api.GetJobDetail(SchedulerName, new JobKeyDto("batch", "import"), A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        Check(Evaluate(facts), "Its job's firings").Action.Should().Be(DiagnosisAction.Interrupt);
+    }
+
     [Test]
     public void ABlockWithNothingRunningIsLeftOver()
     {
@@ -537,6 +597,12 @@ public class TriggerDiagnosisTest
     private static HashSet<string> Set(params string[] names) => new(names, StringComparer.Ordinal);
 
     private static PagedResult<FireInstanceDto> Page(params FireInstanceDto[] firings) => new([.. firings], HasMore: false, TotalCount: firings.Length);
+
+    private static JobDetailDto Job(bool? concurrentExecutionDisallowed)
+    {
+        return new JobDetailDto("import", "batch", "Example.ImportJob", Description: null, Durable: true, RequestsRecovery: false,
+            concurrentExecutionDisallowed, PersistJobDataAfterExecution: null, new JobDataMap());
+    }
 
     private static FireInstanceDto Firing(string id, string node, DateTimeOffset firedAt)
     {

@@ -178,6 +178,42 @@ public class HeaderSearchTest
         Highlighted(search).Should().Be("billing.invoice-export", "the arrow keys open what Escape closed");
     }
 
+    /// <summary>
+    /// The box is a text box: a search box's own Escape empties it, and Escape here closes the list and keeps the
+    /// text for ↓ to reopen.
+    /// </summary>
+    [Test]
+    public void TheBoxIsATextBoxSoEscapeKeepsItsText()
+    {
+        IRenderedComponent<HeaderSearch> search = Render();
+
+        search.Find("input").GetAttribute("type").Should().Be("text");
+        search.Find("input").GetAttribute("placeholder").Should().Be("Find a job or trigger");
+    }
+
+    /// <summary>
+    /// Typing and leaving the box before the pause lets the lookup finish without opening the list over the page;
+    /// back in the box, ↓ shows what it found.
+    /// </summary>
+    [Test]
+    public async Task ALookupStillPendingWhenFocusLeavesFinishesForTheArrowKeys()
+    {
+        GivenOneOfEach();
+        IRenderedComponent<HeaderSearch> search = Render(TimeSpan.FromMilliseconds(150));
+
+        search.Find("input").Input("invoice");
+        await search.Find("input").FocusOutAsync(new FocusEventArgs());
+
+        search.WaitForAssertion(() => A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+        search.FindAll("[data-testid=header-search-results]").Should().BeEmpty("focus has left, so the list does not open over the page");
+
+        await search.Find("input").FocusAsync(new FocusEventArgs());
+        await Press(search, "ArrowDown");
+
+        Highlighted(search).Should().Be("billing.invoice-export");
+    }
+
     [Test]
     public async Task LeavingTheBoxClosesTheList()
     {

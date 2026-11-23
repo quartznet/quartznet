@@ -20,10 +20,15 @@
 namespace Quartz.Examples.AspNetCore;
 
 /// <summary>
-/// A job that runs for 20 seconds and may not run beside itself, triggered every 5 seconds, so its trigger is
-/// <see cref="TriggerState.Blocked" /> most of the time: what the dashboard's "Why isn't it firing?" shows, with the
+/// A job that runs for 20 seconds and may not run beside itself, with two triggers that each want it every few
+/// seconds, so one of them is nearly always held: what the dashboard's "Why isn't it firing?" shows, with the
 /// firing that holds the job and <em>Interrupt</em>.
 /// </summary>
+/// <remarks>
+/// While one trigger's firing runs, the other trigger is <see cref="TriggerState.Blocked" />. The running
+/// trigger itself reads <see cref="TriggerState.Executing" />, which outranks Blocked, and its own next fire
+/// time passes while it waits: the dashboard says it is held by its job's running firing.
+/// </remarks>
 [DisallowConcurrentExecution]
 public sealed class DemoBlockingJob : IJob
 {

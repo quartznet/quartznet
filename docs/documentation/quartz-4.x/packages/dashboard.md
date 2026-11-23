@@ -275,8 +275,9 @@ From 4.9, the header's search box finds a job or trigger on any page. Type at le
 - It reads once typing pauses for 300 ms. A keystroke cancels the read still in flight, so a slow target answers
   only the last text.
 - From the keyboard: *↓* and *↑* move through the results, *Enter* opens the highlighted one, and *Escape* closes
-  the list and keeps the text. Leaving the box, or following a result, closes it too. The box is an ARIA
-  combobox, so a screen reader announces the highlighted result.
+  the list and keeps the text. Leaving the box, or following a result, closes it too. A lookup still pending
+  when focus leaves finishes, and *↓* shows what it found. The box is an ARIA combobox, so a screen reader
+  announces the highlighted result.
 - On a screen 768 px wide or less, the box takes a row of its own under the scheduler picker.
 - Over a slow HTTP target the read is bounded by the target's client timeout.
 
@@ -367,21 +368,24 @@ and gives a verdict for each: ✓ fine, ℹ worth knowing, ⚠ may hold it back,
 | Scheduler | It is in standby, not started or shut down. A window's status comes from the cluster's check-ins | Overview |
 | Trigger | It is paused (by whom, when, why), blocked, complete, or in error. In error, the cause: a deleted parent, or the last run's failure | The failed run; *Reset error state* |
 | Trigger group, Job group | The group is paused, with its record: who paused it, when and why | The listing narrowed to the group |
-| Its job's firings | The trigger is `BLOCKED`: the firing that holds its job, its node and since when | *Interrupt*; Currently Executing |
+| Its job's firings | The trigger is `BLOCKED`: the firing that holds its job, its node and since when. Or it is held without being `BLOCKED`: its own firing runs, so it reads `EXECUTING`, which outranks `BLOCKED`, its job does not allow concurrent execution, and its next fire time has passed | *Interrupt*; Currently Executing |
 | Next fire | There is none (its end time passed), or a waiting trigger is more than 5 minutes past it | |
 | Execution group | Its limit is 0 or reached, or **this node** does not serve the group | Currently Executing; Cluster |
 | Misfires | The history records misfires of this trigger: how many, the latest and why | Its misfires on History |
 | Retry | Shown when a retry of a failed occurrence is pending, and when it is due | |
 
 - **The page reads about eight things** on load and on **Refresh**, never on a timer and never per row: the
-  scheduler, the paused groups, the job group's record when paused, the job's firings (with
-  `DashboardFireInstanceQuery.Job`), the execution limits, the group's firings when a limit governs it, the
-  trigger's misfires, and its last run when it is in error.
+  scheduler, the paused groups, a paused group's record, the job's firings (with
+  `DashboardFireInstanceQuery.Job`), the job itself when a running firing may hold the trigger, the execution
+  limits, the group's firings when a limit governs it, the trigger's misfires, and its last run when it is in
+  error.
 - **"This node does not serve it", never "no node does."** Nodes publish nothing about what they serve, so the
   check speaks for the node that answered. A window and a cluster of targets say nothing about routing.
 - **A read that fails leaves its check `?`**, and the other checks stand.
 - *Interrupt* and *Reset error state* keep their own operations: hidden in read-only mode and below the
-  [role](#operator-roles) each needs.
+  [role](#operator-roles) each needs. An accepted *Interrupt* shows a toast, the checks are read again, and the
+  button reads *Interrupt requested* while the firing is still listed: a job stops when it next checks its
+  cancellation token.
 - It works the same in process, over HTTP, through an agent and on a window.
 
 ### Editing a trigger
