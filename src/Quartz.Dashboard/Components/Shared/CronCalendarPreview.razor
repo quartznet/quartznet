@@ -74,7 +74,7 @@
         }
         catch (FormatException ex)
         {
-            _error = "Invalid cron expression: " + ex.Message;
+            _error = "Not a valid cron expression: " + ex.Message;
             return;
         }
 

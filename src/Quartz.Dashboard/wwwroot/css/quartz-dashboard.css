@@ -1502,7 +1502,12 @@ body{
     white-space: nowrap;
 }
 
-/* The History page's result filter: one box per result, in a row. */
+/* The History page's result filter: one box per result, in a row. The filter grid gives it a row of its own,
+   since four themed checks and their words are wider than one of its columns. */
+.qz-form-group:has(> .qz-result-filter) {
+    grid-column: 1 / -1;
+}
+
 .qz-result-filter {
     display: flex;
     flex-wrap: wrap;
@@ -4382,13 +4387,20 @@ body{
     min-width: 3.5rem;
 }
 
-/* An annual calendar is 12 rows of 31 days: it scrolls sideways in a narrow card rather than squeezing. */
+/* An annual calendar is 12 rows of 31 days: on a phone it scrolls sideways inside a box of its own, whose border
+   says where the grid ends, and a swipe that reaches the grid's end does not carry on to the page. */
 .qz-calendar-year-scroll {
+    width: fit-content;
+    max-width: 100%;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
 }
 
 .qz-calendar-year {
     border-collapse: collapse;
+    border-style: hidden;
     font-size: var(--qz-font-size-xs);
 }
 
@@ -4523,6 +4535,68 @@ body{
 
 .qz-calendars-table td {
     overflow-wrap: break-word;
+}
+
+/* Room under the listing, so the row a save has just added can be scrolled up clear of the toast that says so,
+   even when it is the last row. */
+.qz-calendars-page {
+    padding-bottom: 6rem;
+}
+
+/* The listing scrolls inside its card rather than clip its actions, and on a phone its cells give up padding so it
+   seldom has to. */
+.qz-calendars-listing {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+@media (max-width: 480px) {
+    .qz-calendars-table th,
+    .qz-calendars-table td {
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
+}
+
+/* The type is shown in its column, or on a phone under the name, the column giving its width to the actions. */
+.qz-calendar-type-inline {
+    display: none;
+    font-size: var(--qz-font-size-xs);
+}
+
+@media (max-width: 400px) {
+    .qz-calendars-table .qz-col-type {
+        display: none;
+    }
+
+    .qz-calendar-type-inline {
+        display: block;
+    }
+
+    .qz-calendars-table .qz-button {
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
+}
+
+/* The days a calendar ticks, as one group: the field a "too many days" message is about, outlined like any other
+   field the save found wrong. */
+.qz-day-group {
+    min-width: 0;
+    border-radius: var(--qz-radius-sm);
+}
+
+.qz-day-group[aria-invalid="true"] {
+    outline: 2px solid var(--qz-color-danger);
+    outline-offset: 4px;
+}
+
+.qz-calendar-description {
+    margin-top: var(--qz-space-xs);
+}
+
+.qz-calendar-editor-note {
+    margin: var(--qz-space-md) 0 0;
 }
 
 /* What is wrong with one field, beside it. The danger colour is 3.89:1 on the dark theme's surface, so the
