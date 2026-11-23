@@ -50,6 +50,7 @@ public class LogCallSiteTest
         "src/Quartz.Plugins",
         "src/Quartz.Plugins.TimeZoneConverter",
         "src/Quartz.Serialization.Newtonsoft",
+        "src/Quartz.EntityFrameworkCore",
         "src/Quartz.Weasel",
         "src/Quartz.Weasel.Firebird",
         "src/Quartz.Weasel.MySQL",

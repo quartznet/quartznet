@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <Nullable>disable</Nullable>
-    <NoWarn>CAC001</NoWarn>
+    <NoWarn>CAC001;CS8002</NoWarn>
     <SonarQubeExclude>true</SonarQubeExclude>
     <AnalysisLevel>none</AnalysisLevel>
   </PropertyGroup>
@@ -41,6 +41,11 @@
     <Compile Include="..\Quartz.Tests.Unit\Impl\MisfireThroughAStoreTestBase.cs" />
     <Compile Include="..\Quartz.Tests.Unit\Impl\MisfireExpectation.cs" />
     <Compile Include="..\Quartz.Tests.Unit\Impl\MisfireMatrixCases.cs" />
+    <!--
+      The context Quartz.EntityFrameworkCore's tests build its model in, and run its migrations through, shared
+      with the unit project, which runs the same steps on SQLite.
+    -->
+    <Compile Include="..\Quartz.Tests.Unit\EntityFrameworkCore\EntityFrameworkCoreContext.cs" Link="EntityFrameworkCore\EntityFrameworkCoreContext.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -63,6 +68,19 @@
     <PackageReference Include="MELT" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Data.SQLite" />
+    <!--
+      Quartz.EntityFrameworkCore's schema migrated into the containers through each provider, and
+      AppAny.Quartz.EntityFrameworkCore.Migrations 0.6.3's schema created there to be moved. AppAny is not
+      strong-named (CS8002).
+    -->
+    <PackageReference Include="AppAny.Quartz.EntityFrameworkCore.Migrations" />
+    <PackageReference Include="AppAny.Quartz.EntityFrameworkCore.Migrations.MySql" />
+    <PackageReference Include="AppAny.Quartz.EntityFrameworkCore.Migrations.PostgreSQL" />
+    <PackageReference Include="AppAny.Quartz.EntityFrameworkCore.Migrations.SqlServer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="MySql.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <!--
       Quartz itself only needs Microsoft.Extensions.Hosting.Abstractions. A scenario that stands a real
       host up around a scheduler needs the host, which the Microsoft.AspNetCore.App framework reference
@@ -105,6 +123,7 @@
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
     <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
     <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
+    <ProjectReference Include="..\Quartz.EntityFrameworkCore\Quartz.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />

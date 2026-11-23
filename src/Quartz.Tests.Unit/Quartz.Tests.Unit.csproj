@@ -18,7 +18,7 @@
       Microsoft.Extensions.Options. On .NET 11 one StartupValidator implements both, and Validate() runs the
       same validators, so each of those tests means the same on both frameworks.
     -->
-    <NoWarn>CS0618;SYSLIB0066</NoWarn>
+    <NoWarn>CS0618;SYSLIB0066;CS8002</NoWarn>
     <SonarQubeExclude>true</SonarQubeExclude>
 
     <!-- Microsoft.Extensions.TimeProvider.Testing 8.6.0 doesn't support net472 and has not been tested with it... -->
@@ -60,12 +60,39 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      The scheduler workload the migration tests run on a schema, shared by source with the integration project,
+      where the server dialects run it, so that the SQLite run of Quartz.EntityFrameworkCore's schema is one the
+      coverage gate sees.
+    -->
+    <Compile Include="..\Quartz.Tests.Integration\Impl\AdoJobStore\MigratedSchemaWorkload.cs" Link="EntityFrameworkCore\MigratedSchemaWorkload.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      AppAny.Quartz.EntityFrameworkCore.Migrations 0.6.3, whose model the tests diff against Quartz's and whose
+      schema they move, one package per provider. Not strong-named, so the signed test assembly is told it may
+      reference them (CS8002).
+    -->
+    <PackageReference Include="AppAny.Quartz.EntityFrameworkCore.Migrations" />
+    <PackageReference Include="AppAny.Quartz.EntityFrameworkCore.Migrations.MySql" />
+    <PackageReference Include="AppAny.Quartz.EntityFrameworkCore.Migrations.PostgreSQL" />
+    <PackageReference Include="AppAny.Quartz.EntityFrameworkCore.Migrations.SQLite" />
+    <PackageReference Include="AppAny.Quartz.EntityFrameworkCore.Migrations.SqlServer" />
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="AwesomeAssertions.Analyzers" />
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Data.SQLite" />
+    <!--
+      Quartz.EntityFrameworkCore's model built under each provider it has one for, with no connection opened:
+      the DDL each provider writes for it, the differences between releases, and AppAny's model against it.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="MySql.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
@@ -92,6 +119,7 @@
     -->
     <ProjectReference Include="..\Quartz.Documentation.Samples\Quartz.Documentation.Samples.csproj" />
     <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
+    <ProjectReference Include="..\Quartz.EntityFrameworkCore\Quartz.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
