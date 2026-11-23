@@ -52,10 +52,8 @@ namespace Quartz;
 /// <c>observerNow - FireTimeUtc</c> — a subtraction that mixes the observer's clock with the firing
 /// node's, so it carries any clock skew between them and can come out negative; clamp it at zero.</param>
 /// <param name="ScheduledFireTimeUtc">The fire time the schedule called for, as the owning node
-/// recorded it. While the firing is only reserved, the time the trigger was reserved for; once it is
-/// running, the occurrence the firing serves — for a retry or a misfire catch-up, the occurrence rather
-/// than the time that attempt was due (#4272) — so it agrees with
-/// <see cref="IJobExecutionContext.ScheduledFireTimeUtc" /> for a running firing, and
+/// recorded it. After a misfire this is the <em>rescheduled</em> time rather than the originally
+/// scheduled one, so it can differ from <see cref="IJobExecutionContext.ScheduledFireTimeUtc" /> and
 /// <c>FireTimeUtc - ScheduledFireTimeUtc</c> is not misfire lateness.</param>
 /// <param name="ExecutionGroup">The execution group the trigger carried when it fired, if any. Rows
 /// written by a 4.0 preview before this column was populated report <see langword="null" />.</param>

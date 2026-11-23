@@ -911,16 +911,16 @@ internal abstract partial class AdoJobStoreBase
     /// </para>
     /// <para>
     /// Built as the recovery a node runs over its own rows at startup builds its trigger: it starts at the
-    /// row's scheduled time and ignores the misfire policy. The replay's
+    /// row's occurrence and ignores the misfire policy. The replay's
     /// <see cref="IJobExecutionContext.ScheduledFireTimeUtc" /> is therefore the original's to the tick, as
     /// <see cref="IJobExecutionContext.RecoveringTriggerKey" /> says it is, and however long ago the original
     /// fired, the next acquisition takes the replay: no misfire pass waits for it and no
     /// <see cref="ITriggerListener.TriggerMisfired" /> announces a firing nobody missed. Before 4.8 it started
     /// at the time the execution fired and fired now on a misfire, so a long job's replay was a misfire. Every
     /// version acquires a trigger that ignores the misfire policy whatever its next fire time, as it acquires
-    /// startup recovery's. It also keeps the attempt the firing was, read off the original trigger's row,
+    /// startup recovery's. It also keeps the attempt the firing was, read off the fired-trigger row,
     /// and its previous fire time is the occurrence, so a recovery of a retry or a misfire catch-up serves
-    /// the occurrence rather than the time that attempt was due (#4272).
+    /// the occurrence rather than the time that attempt was due, for firings a 4.9 node recorded (#4272).
     /// </para>
     /// <para>
     /// A firing that was itself a recovery already stands in for an earlier one, and its data map says
@@ -969,7 +969,7 @@ internal abstract partial class AdoJobStoreBase
         SimpleTriggerImpl recoveryTrigger = new SimpleTriggerImpl(timeProvider)
         {
             Key = recoveryKey,
-            StartTimeUtc = firedTrigger.ScheduleTimestamp,
+            StartTimeUtc = firedTrigger.OccurrenceTimestamp,
             JobKey = jobKey,
             MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy,
             Priority = firedTrigger.Priority,
@@ -987,7 +987,7 @@ internal abstract partial class AdoJobStoreBase
 
             // As the recovery a node runs over its own rows at startup writes it, which cluster recovery
             // used to leave out.
-            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(firedTrigger.ScheduleTimestamp, CultureInfo.InvariantCulture);
+            jobDataMap[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(firedTrigger.OccurrenceTimestamp, CultureInfo.InvariantCulture);
         }
 
         recoveryTrigger.JobDataMap = jobDataMap;
@@ -995,15 +995,12 @@ internal abstract partial class AdoJobStoreBase
         // A replay stands in for the firing the row records, so its previous fire time is that
         // firing's occurrence, which a retry's fire leaves unset on a fresh trigger — without it the
         // replay would report when it fired instead of the occurrence it stands in for (#4272).
-        recoveryTrigger.PreviousFireTimeUtc = firedTrigger.ScheduleTimestamp;
+        recoveryTrigger.PreviousFireTimeUtc = firedTrigger.OccurrenceTimestamp;
 
-        // And the firing may itself have been a retry: the original trigger's row still counts it,
-        // since nothing completed it, so the replay counts it too. A trigger gone since leaves the
-        // count at zero.
-        if (await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) is { } original)
-        {
-            recoveryTrigger.RetryAttempt = original.RetryAttempt;
-        }
+        // And the firing may itself have been a retry: the row records the attempt it was, so the
+        // replay counts it too, without a read of the trigger's row — misfire handling may have
+        // zeroed that count since.
+        recoveryTrigger.RetryAttempt = firedTrigger.RetryAttempt;
 
         recoveryTrigger.ComputeFirstFireTimeUtc(null);
         await AddTrigger(

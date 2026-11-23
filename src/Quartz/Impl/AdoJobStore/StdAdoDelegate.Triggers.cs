@@ -345,9 +345,9 @@ public partial class StdAdoDelegate
     {
         List<IOperableTrigger> triggers = [];
 
-        // Only the two timestamps of the fired-trigger row are carried over to the recovery trigger's
+        // Only the firing's occurrence, attempt and times are carried over to the recovery trigger's
         // job data, so there is no reason to build a whole record for them.
-        List<(DateTimeOffset ScheduleTimestamp, DateTimeOffset FireTimestamp)> triggerData = [];
+        List<(DateTimeOffset OccurrenceTimestamp, DateTimeOffset FireTimestamp, int RetryAttempt)> triggerData = [];
         List<TriggerKey> keys = [];
 
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectInstancesRecoverableFiredTriggers)))
@@ -364,6 +364,11 @@ public partial class StdAdoDelegate
                 // recovery trigger ungrouped, which is what it was before the column was projected.
                 int executionGroupOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnExecutionGroup);
 
+                // Looked for rather than demanded, as the columns are: a row a 4.8 node wrote has
+                // neither, and reads as the time the attempt was due with attempt 0 (#4272).
+                int occurrenceOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnOccurrenceTime);
+                int retryAttemptOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnRetryAttempt);
+
                 while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
                     string jobName = rs.GetString(AdoConstants.ColumnJobName)!;
@@ -373,10 +378,16 @@ public partial class StdAdoDelegate
                     int priority = Convert.ToInt32(rs[AdoConstants.ColumnPriority], CultureInfo.InvariantCulture);
                     DateTimeOffset firedTime = GetDateTimeFromDbValue(rs[AdoConstants.ColumnFiredTime]) ?? DateTimeOffset.MinValue;
                     DateTimeOffset scheduledTime = GetDateTimeFromDbValue(rs[AdoConstants.ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
+                    DateTimeOffset occurrence = occurrenceOrdinal < 0 || rs.IsDBNull(occurrenceOrdinal)
+                        ? scheduledTime
+                        : GetDateTimeFromDbValue(rs.GetValue(occurrenceOrdinal)) ?? scheduledTime;
+                    int retryAttempt = retryAttemptOrdinal < 0 || rs.IsDBNull(retryAttemptOrdinal)
+                        ? 0
+                        : Convert.ToInt32(rs.GetValue(retryAttemptOrdinal), CultureInfo.InvariantCulture);
                     SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl(timeProvider)
                     {
                         Key = new TriggerKey("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture), SchedulerConstants.DefaultRecoveryGroup),
-                        StartTimeUtc = scheduledTime,
+                        StartTimeUtc = occurrence,
                         JobKey = new JobKey(jobName, jobGroup),
                         Priority = priority,
                         MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy,
@@ -385,7 +396,7 @@ public partial class StdAdoDelegate
                         ExecutionGroup = ReadOptionalString(rs, executionGroupOrdinal)
                     };
 
-                    triggerData.Add((scheduledTime, firedTime));
+                    triggerData.Add((occurrence, firedTime, retryAttempt));
                     triggers.Add(rcvryTrig);
                     keys.Add(new TriggerKey(trigName, trigGroup));
                 }
@@ -397,7 +408,7 @@ public partial class StdAdoDelegate
         {
             IOperableTrigger trigger = triggers[i];
             TriggerKey key = keys[i];
-            (DateTimeOffset ScheduleTimestamp, DateTimeOffset FireTimestamp) dataHolder = triggerData[i];
+            (DateTimeOffset OccurrenceTimestamp, DateTimeOffset FireTimestamp, int RetryAttempt) dataHolder = triggerData[i];
 
             // load job data map and transfer information
             JobDataMap jd = await SelectTriggerJobDataMap(conn, key, cancellationToken).ConfigureAwait(false);
@@ -411,7 +422,7 @@ public partial class StdAdoDelegate
                 jd[SchedulerConstants.FailedJobOriginalTriggerName] = key.Name;
                 jd[SchedulerConstants.FailedJobOriginalTriggerGroup] = key.Group;
                 jd[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture)!;
-                jd[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)!;
+                jd[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(dataHolder.OccurrenceTimestamp, CultureInfo.InvariantCulture)!;
             }
 
             trigger.JobDataMap = jd;
@@ -419,17 +430,13 @@ public partial class StdAdoDelegate
             // A replay stands in for the firing the row records, so its previous fire time is that
             // firing's occurrence, which a retry's fire leaves unset on a fresh trigger — without it the
             // replay would report when it fired instead of the occurrence it stands in for (#4272).
-            // And the firing may itself have been a retry: the original trigger's row still counts it,
-            // since nothing completed it, so the replay counts it too. A trigger gone since leaves the
-            // count at zero.
+            // And the firing may itself have been a retry: the row records the attempt it was, so the
+            // replay counts it too, without a read of the trigger's row — misfire handling may have
+            // zeroed that count since.
             if (trigger is TriggerBase recoverable)
             {
-                recoverable.PreviousFireTimeUtc = dataHolder.ScheduleTimestamp;
-
-                if (await SelectTrigger(conn, key, cancellationToken).ConfigureAwait(false) is { } original)
-                {
-                    recoverable.RetryAttempt = original.RetryAttempt;
-                }
+                recoverable.PreviousFireTimeUtc = dataHolder.OccurrenceTimestamp;
+                recoverable.RetryAttempt = dataHolder.RetryAttempt;
             }
         }
 
@@ -1257,7 +1264,7 @@ public partial class StdAdoDelegate
         {
             // Acquired in this very transaction, with no reservation row written for it: the row goes in
             // as the update below would have left it, rather than being inserted and then updated.
-            statements.Add(BuildInsertFiredTriggerStatement(trigger, StoredTriggerState.Executing, update.JobDetail, update.ScheduledFireTimeUtc));
+            statements.Add(BuildInsertFiredTriggerStatement(trigger, StoredTriggerState.Executing, update.JobDetail, update.ScheduledFireTimeUtc, update.OccurrenceTimeUtc, update.RetryAttempt));
         }
         else
         {
@@ -1273,6 +1280,8 @@ public partial class StdAdoDelegate
                 new SqlStatementParameter(SqlParameters.IsNonConcurrent, GetDbBooleanValue(update.JobDetail.ConcurrentExecutionDisallowed)),
                 new SqlStatementParameter(SqlParameters.RequestsRecover, GetDbBooleanValue(update.JobDetail.RequestsRecovery)),
                 new SqlStatementParameter(SqlParameters.ExecutionGroup, (object?) trigger.ExecutionGroup ?? DBNull.Value),
+                new SqlStatementParameter(SqlParameters.OccurrenceTime, GetDbDateTimeValue(update.OccurrenceTimeUtc)),
+                new SqlStatementParameter(SqlParameters.FiredRetryAttempt, update.RetryAttempt),
                 new SqlStatementParameter(SqlParameters.EntryId, trigger.FireInstanceId)
             ]));
         }
@@ -2600,7 +2609,8 @@ public partial class StdAdoDelegate
         StoredTriggerState state,
         IJobDetail? job)
     {
-        return BuildInsertFiredTriggerStatement(trigger, state, job, trigger.NextFireTimeUtc);
+        // A reservation names no occurrence and no attempt yet: the fire writes both when it starts.
+        return BuildInsertFiredTriggerStatement(trigger, state, job, trigger.NextFireTimeUtc, occurrenceTimeUtc: null, retryAttempt: null);
     }
 
     /// <summary>
@@ -2612,7 +2622,9 @@ public partial class StdAdoDelegate
         IOperableTrigger trigger,
         StoredTriggerState state,
         IJobDetail? job,
-        DateTimeOffset? scheduledFireTimeUtc)
+        DateTimeOffset? scheduledFireTimeUtc,
+        DateTimeOffset? occurrenceTimeUtc,
+        int? retryAttempt)
     {
         // In the order the statement mentions them, for providers that bind positionally.
         return new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlInsertFiredTrigger),
@@ -2632,7 +2644,9 @@ public partial class StdAdoDelegate
             new SqlStatementParameter(SqlParameters.TriggerJobStateful, GetDbBooleanValue(job?.ConcurrentExecutionDisallowed ?? false)),
             new SqlStatementParameter(SqlParameters.TriggerJobRequestsRecovery, GetDbBooleanValue(job?.RequestsRecovery ?? false)),
             new SqlStatementParameter(SqlParameters.TriggerPriority, trigger.Priority),
-            new SqlStatementParameter(SqlParameters.TriggerExecutionGroup, trigger.ExecutionGroup)
+            new SqlStatementParameter(SqlParameters.TriggerExecutionGroup, trigger.ExecutionGroup),
+            new SqlStatementParameter(SqlParameters.TriggerOccurrenceTime, GetDbDateTimeValue(occurrenceTimeUtc)),
+            new SqlStatementParameter(SqlParameters.TriggerFiredRetryAttempt, (object?) retryAttempt ?? DBNull.Value)
         ]);
     }
 
@@ -2683,6 +2697,11 @@ public partial class StdAdoDelegate
             // Looked for rather than demanded, as IS_NONCONCURRENT is on acquisition: -1 reads as no
             // execution group, which is what the record said before the column was projected.
             ExecutionGroup = OptionalOrdinal(rs, AdoConstants.ColumnExecutionGroup);
+
+            // Looked for rather than demanded, as the columns are: a row a 4.8 node wrote has
+            // neither, and reads as the time the attempt was due with attempt 0 (#4272).
+            OccurrenceTime = OptionalOrdinal(rs, AdoConstants.ColumnOccurrenceTime);
+            RetryAttempt = OptionalOrdinal(rs, AdoConstants.ColumnRetryAttempt);
         }
 
         public int EntryState { get; }
@@ -2698,6 +2717,8 @@ public partial class StdAdoDelegate
         public int JobName { get; }
         public int JobGroup { get; }
         public int ExecutionGroup { get; }
+        public int OccurrenceTime { get; }
+        public int RetryAttempt { get; }
     }
 
     private FiredTriggerRecord ReadFiredTriggerRecord(DbDataReader rs, FiredTriggerRowOrdinals ordinals)
@@ -2707,12 +2728,20 @@ public partial class StdAdoDelegate
         // An ACQUIRED row is written before the job has been loaded, so its job columns hold nothing yet.
         bool hasJob = state != StoredTriggerState.Acquired;
 
+        DateTimeOffset scheduledTime = GetDateTimeFromDbValue(rs.GetValue(ordinals.ScheduledTime)) ?? DateTimeOffset.MinValue;
+
         return new FiredTriggerRecord
         {
             FireInstanceId = rs.GetString(ordinals.EntryId),
             FireInstanceState = state,
             FireTimestamp = GetDateTimeFromDbValue(rs.GetValue(ordinals.FiredTime)) ?? DateTimeOffset.MinValue,
-            ScheduleTimestamp = GetDateTimeFromDbValue(rs.GetValue(ordinals.ScheduledTime)) ?? DateTimeOffset.MinValue,
+            ScheduleTimestamp = scheduledTime,
+            OccurrenceTimestamp = ordinals.OccurrenceTime < 0 || rs.IsDBNull(ordinals.OccurrenceTime)
+                ? scheduledTime
+                : GetDateTimeFromDbValue(rs.GetValue(ordinals.OccurrenceTime)) ?? scheduledTime,
+            RetryAttempt = ordinals.RetryAttempt < 0 || rs.IsDBNull(ordinals.RetryAttempt)
+                ? 0
+                : Convert.ToInt32(rs.GetValue(ordinals.RetryAttempt), CultureInfo.InvariantCulture),
             Priority = Convert.ToInt32(rs.GetValue(ordinals.Priority), CultureInfo.InvariantCulture),
             SchedulerInstanceId = rs.GetString(ordinals.InstanceName),
             TriggerKey = new TriggerKey(rs.GetString(ordinals.TriggerName), rs.GetString(ordinals.TriggerGroup)),

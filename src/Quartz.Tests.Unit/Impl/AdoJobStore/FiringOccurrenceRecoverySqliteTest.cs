@@ -114,9 +114,9 @@ public sealed class FiringOccurrenceRecoverySqliteTest
     /// the time that attempt was due with its attempts started again from <c>0</c>.
     /// </summary>
     /// <remarks>
-    /// The fired-trigger row's <c>SCHED_TIME</c> is the occurrence the firing serves, and the recovery
-    /// trigger restores the attempt its trigger's row still counts, so the replay is the same firing
-    /// again on the cluster path this test drives.
+    /// The fired-trigger row's <c>OCCURRENCE_TIME</c> is the occurrence the firing serves, and its
+    /// <c>RETRY_ATTEMPT</c> the attempt it was, so the replay is the same firing again on the cluster
+    /// path this test drives.
     /// </remarks>
     [TestCase(false)]
     [TestCase(true)]
@@ -168,6 +168,112 @@ public sealed class FiringOccurrenceRecoverySqliteTest
         FiringOccurrence recovered = OccurrenceOf(scheduler, await Fire(store, clock));
         recovered.Should().Be(new FiringOccurrence(due, FiringOrigin.Schedule) { RetryAttempt = catchUp ? 0 : 1, Recovering = true },
             "a recovery runs that firing again: the same occurrence, for the same reason");
+    }
+
+    /// <summary>
+    /// The startup path keeps the attempt too, even once the trigger's next occurrence has passed: the
+    /// misfire pass startup recovery runs first zeroes the trigger's own count, so only the fired
+    /// row's <c>RETRY_ATTEMPT</c> can say the retry was attempt 1 (#4272).
+    /// </summary>
+    [Test]
+    public async Task ARetryRecoveredAtStartupKeepsItsAttemptAfterTheNextOccurrence()
+    {
+        FakeTimeProvider clock = new(due);
+        FiringOccurrence original;
+        await using (ServiceProvider dead = BuildNode("one", clock))
+        {
+            IScheduler deadScheduler = await dead.GetRequiredService<ISchedulerFactory>().GetScheduler();
+            AdoJobStoreBase deadStore = (AdoJobStoreBase) dead.GetRequiredService<IJobStore>();
+
+            IJobDetail job = JobBuilder.Create<RecordingJob>().WithIdentity(jobKey).StoreDurably().RequestRecovery().Build();
+            await deadScheduler.ScheduleJob(job, TriggerBuilder.Create(clock)
+                .WithIdentity("hourly", "occurrence")
+                .ForJob(jobKey)
+                .StartAt(due)
+                .WithRetryPolicy(RetryPolicy.Fixed(2, TimeSpan.FromMinutes(5)))
+                .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever().WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow))
+                .Build());
+
+            // The occurrence fails on time, and its retry is due five minutes later.
+            TriggerFiredBundle first = await Fire(deadStore, clock);
+            using JobExecutionContextImpl context = new(deadScheduler, first, new RecordingJob());
+            SchedulerInstruction instruction = first.Trigger.ExecutionComplete(context, new JobExecutionException(new InvalidOperationException("boom")));
+            instruction.Should().Be(SchedulerInstruction.RetryTrigger, "the premise: a failure with attempts left is retried");
+            await deadStore.TriggeredJobComplete(first.Trigger, first.JobDetail, instruction);
+
+            clock.Advance(TimeSpan.FromMinutes(5));
+            original = OccurrenceOf(deadScheduler, await Fire(deadStore, clock));
+            original.Should().Be(new FiringOccurrence(due, FiringOrigin.Schedule) { RetryAttempt = 1 },
+                "the premise: the retry left behind serves the occurrence due at nine");
+
+            // No completion: the node dies here, and the trigger's next occurrence passes before it
+            // starts again, so the misfire pass zeroes the trigger's own count first.
+            clock.Advance(TimeSpan.FromHours(1) + TimeSpan.FromMinutes(10));
+        }
+
+        // A real start: the store recovers the node's own firing, and the scheduler runs the recovery.
+        await using ServiceProvider restarted = BuildNode("one", clock);
+        IScheduler scheduler = await restarted.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        await scheduler.Start();
+
+        FiringOccurrence recovered = await Recordings.Recovered.WaitAsync(waitLimit);
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+        recovered.Should().Be(original with { Recovering = true },
+            "a startup recovery runs that firing again: the same occurrence, for the same reason, even after the trigger's next occurrence");
+    }
+
+    /// <summary>
+    /// A row a 4.8 node wrote has neither new column: the recovery serves the time the attempt was due
+    /// with attempt <c>0</c>, as it always has (#4272).
+    /// </summary>
+    [Test]
+    public async Task ARowWithoutTheNewColumnsRecoversAtTheTimeThatAttemptWasDue()
+    {
+        FakeTimeProvider clock = new(due);
+        await using (ServiceProvider dead = BuildNode("node-a", clock))
+        {
+            IScheduler deadScheduler = await dead.GetRequiredService<ISchedulerFactory>().GetScheduler();
+            AdoJobStoreBase deadStore = (AdoJobStoreBase) dead.GetRequiredService<IJobStore>();
+
+            IJobDetail job = JobBuilder.Create<RecordingJob>().WithIdentity(jobKey).StoreDurably().RequestRecovery().Build();
+            await deadScheduler.ScheduleJob(job, TriggerBuilder.Create(clock)
+                .WithIdentity("hourly", "occurrence")
+                .ForJob(jobKey)
+                .StartAt(due)
+                .WithRetryPolicy(RetryPolicy.Fixed(2, TimeSpan.FromMinutes(5)))
+                .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever().WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow))
+                .Build());
+
+            // The occurrence fails on time, and its retry is due five minutes later.
+            TriggerFiredBundle first = await Fire(deadStore, clock);
+            using JobExecutionContextImpl context = new(deadScheduler, first, new RecordingJob());
+            SchedulerInstruction instruction = first.Trigger.ExecutionComplete(context, new JobExecutionException(new InvalidOperationException("boom")));
+            instruction.Should().Be(SchedulerInstruction.RetryTrigger, "the premise: a failure with attempts left is retried");
+            await deadStore.TriggeredJobComplete(first.Trigger, first.JobDetail, instruction);
+
+            clock.Advance(TimeSpan.FromMinutes(5));
+            FiringOccurrence original = OccurrenceOf(deadScheduler, await Fire(deadStore, clock));
+            original.Should().Be(new FiringOccurrence(due, FiringOrigin.Schedule) { RetryAttempt = 1 },
+                "the premise: the retry left behind serves the occurrence due at nine");
+
+            // No completion: the node dies here, leaving a row a 4.8 node would have written.
+            await using SqliteConnection connection = new(database.ConnectionString);
+            await connection.OpenAsync();
+            await using SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "UPDATE QRTZ_FIRED_TRIGGERS SET OCCURRENCE_TIME = NULL, RETRY_ATTEMPT = NULL";
+            (await command.ExecuteNonQueryAsync()).Should().Be(1, "the premise: one fired row, the retry left behind");
+        }
+
+        // A peer recovers the attempt.
+        await using ServiceProvider survivor = BuildNode("node-b", clock);
+        IScheduler scheduler = await survivor.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        AdoJobStoreBase store = (AdoJobStoreBase) survivor.GetRequiredService<IJobStore>();
+        store.Clustered = true;
+        (await store.CheckIn(Guid.NewGuid())).Should().BeTrue("the premise: the check-in recovers the dead node's attempt");
+
+        FiringOccurrence recovered = OccurrenceOf(scheduler, await Fire(store, clock));
+        recovered.Should().Be(new FiringOccurrence(due.AddMinutes(5), FiringOrigin.Schedule) { RetryAttempt = 0, Recovering = true },
+            "a row without the new columns recovers at the time the attempt was due, with its attempts started again from 0");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

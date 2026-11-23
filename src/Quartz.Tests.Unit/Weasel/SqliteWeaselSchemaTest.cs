@@ -135,8 +135,8 @@ public sealed class SqliteWeaselSchemaTest
     /// <summary>
     /// 4.3 → 4.9 only adds: five columns and an index on the history table, the rollup table, two lookup
     /// indexes on the history table, the version column on the state table, the interrupt column on the
-    /// fired-trigger table, the misfire threshold and fixed-delay columns on the triggers table, and the
-    /// trigger rollup table.
+    /// fired-trigger table, the misfire threshold and fixed-delay columns on the triggers table, the
+    /// occurrence columns on the fired-trigger table, and the trigger rollup table.
     /// </summary>
     [Test]
     public async Task A43SchemaIsBroughtToAFreshInstallByAddingOnlyAndKeepsItsRows()
@@ -152,7 +152,7 @@ public sealed class SqliteWeaselSchemaTest
 
             changed.Select(x => (x.SchemaObject.Identifier.Name.ToUpperInvariant(), x.Difference)).Should().BeEquivalentTo(
                 [("QRTZ_EXECUTION_HISTORY", SchemaPatchDifference.Update), ("QRTZ_JOB_STATUS", SchemaPatchDifference.Create), ("QRTZ_SCHEDULER_STATE", SchemaPatchDifference.Update), ("QRTZ_FIRED_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGERS", SchemaPatchDifference.Update), ("QRTZ_TRIGGER_STATUS", SchemaPatchDifference.Create)],
-                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table, 4.7 the fixed-delay column to it, and 4.9 the trigger rollup: " + Describe(planned));
+                "4.4 changes nothing a 4.3 schema has but the history table and adds the rollup, and 4.6 adds the version column to the state table, the interrupt column to the fired-trigger table and the misfire threshold to the triggers table, 4.7 the fixed-delay column to it, and 4.9 the occurrence columns to the fired-trigger table and the trigger rollup: " + Describe(planned));
 
             TableDelta triggers = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_TRIGGERS", StringComparison.OrdinalIgnoreCase));
             triggers.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().BeEquivalentTo(["MISFIRE_THRESHOLD", "FIXED_DELAY"],
@@ -178,8 +178,8 @@ public sealed class SqliteWeaselSchemaTest
             state.Columns.Different.Should().BeEmpty("no column 4.3 created changes shape");
 
             TableDelta fired = changed.OfType<TableDelta>().Single(x => x.SchemaObject.Identifier.Name.Equals("QRTZ_FIRED_TRIGGERS", StringComparison.OrdinalIgnoreCase));
-            fired.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().Equal(["INTERRUPT_REQUESTED_TIME"],
-                "the one thing 4.6 adds to a firing's row is when another node asked for it to be interrupted (#4071)");
+            fired.Columns.Missing.Select(x => x.Name.ToUpperInvariant()).Should().Equal(["INTERRUPT_REQUESTED_TIME", "OCCURRENCE_TIME", "RETRY_ATTEMPT"],
+                "4.6 adds to a firing's row when another node asked for it to be interrupted (#4071), and 4.9 the occurrence the firing serves and which attempt at it this is (#4272)");
             fired.Columns.Extras.Should().BeEmpty();
             fired.Columns.Different.Should().BeEmpty("no column 4.3 created changes shape");
 
