@@ -90,13 +90,17 @@ public sealed class FiringWaitTest
         watch.RowGrace.Should().Be(FiringWait.MinimumRowGrace, "a history that is not this process's own may lag its firing");
     }
 
+    /// <summary>
+    /// Two seconds, so the polls at about 0, 200, 600 and 1400 ms all land inside the timeout even on a box
+    /// whose timers fire late.
+    /// </summary>
     [Test]
     public async Task AWaitWithNoLocalSignalThatRunsOutIsPending()
     {
         IScheduler scheduler = State(TriggerState.Normal);
         await using FiringWatch watch = Watch(scheduler, history: null);
 
-        FiringResult result = await watch.Result(TimeSpan.FromMilliseconds(300));
+        FiringResult result = await watch.Result(TimeSpan.FromSeconds(2));
 
         result.Status.Should().Be(FiringWaitStatus.Pending);
         result.TriggerKey.Should().Be(key);
@@ -143,27 +147,25 @@ public sealed class FiringWaitTest
         result.Message.Should().Contain("ERROR");
     }
 
+    /// <summary>
+    /// A trigger seen in ERROR while a completion of it is on its way to the store waits for that completion,
+    /// whose answer names the failure, rather than answering from the state. The completion is never released
+    /// here, so a wait that answered from the state would be NotExecuted at once, and one that waits is Pending
+    /// at its deadline, however fast or slow the box is.
+    /// </summary>
     [Test]
-    public async Task ATriggerSeenInErrorWhileItsCompletionIsStoredIsAnsweredByTheCompletion()
+    public async Task ATriggerSeenInErrorWhileItsCompletionIsStoredWaitsForThatCompletion()
     {
         FiringWatches watches = new();
         FiringSignal signal = watches.Watch(key);
-        FiringWatches.Settling settling = watches.Settle(key)!;
-        settling.Result = new FiringResult
-        {
-            TriggerKey = key,
-            Status = FiringWaitStatus.Ended,
-            Outcome = ExecutionOutcome.NotExecuted,
-            Message = "the shell's own words"
-        };
+        watches.Settle(key).Should().NotBeNull();
 
         await using FiringWatch watch = new(key, State(TriggerState.Error), SchedulerName, history: null, pollsHistory: false, signal);
 
-        Task<FiringResult> wait = watch.Result(waitLimit).AsTask();
-        await Task.Delay(100);
-        watches.Release(settling);
+        FiringResult result = await watch.Result(TimeSpan.FromMilliseconds(300));
 
-        (await wait.WaitAsync(waitLimit)).Message.Should().Be("the shell's own words");
+        result.Status.Should().Be(FiringWaitStatus.Pending, "the settled completion, not the ERROR state, is the answer");
+        result.Outcome.Should().BeNull();
     }
 
     [Test]

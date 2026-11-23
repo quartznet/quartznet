@@ -47,22 +47,23 @@ public sealed class FiringWaitSqliteTest
 
     private static readonly TimeSpan waitLimit = TimeSpan.FromSeconds(30);
 
-    private readonly List<ServiceProvider> nodes = [];
+    private readonly List<(ServiceProvider Node, IScheduler Scheduler)> nodes = [];
     private SqliteTestDatabase database = null!;
 
     [SetUp]
     public void CreateDatabase()
     {
         database = new SqliteTestDatabase("firing-wait");
+        CancellableJob.Reset();
     }
 
     [TearDown]
     public async Task ShutDownEveryNode()
     {
-        // Every node, whatever the test did: a node left running holds the file open.
-        foreach (ServiceProvider node in nodes)
+        // Every node, whatever the test did: a node left running holds the file open. A scheduler the test
+        // already shut down returns at once.
+        foreach ((ServiceProvider node, IScheduler scheduler) in nodes)
         {
-            IScheduler scheduler = await node.GetRequiredService<ISchedulerFactory>().GetScheduler();
             await scheduler.Shutdown(waitForJobsToComplete: true);
             await node.DisposeAsync();
         }
@@ -139,6 +140,33 @@ public sealed class FiringWaitSqliteTest
         result.Execution.FiredAtUtc.Should().BeAfter(earlier.FiredAtUtc);
     }
 
+    /// <summary>
+    /// A firing the shutdown cancels and hands back for recovery (#4014) goes on as a recovery trigger, so it
+    /// does not end the wait. The shutdown then fails the wait, as it fails every wait still open.
+    /// </summary>
+    [Test]
+    public async Task AFiringHandedBackForRecoveryDoesNotEndTheWaitAndTheShutdownFailsIt()
+    {
+        (IScheduler scheduler, ServiceProvider node) = await NodeWithContainer("node-a", clustered: false, sharedHistory: false, handBack: true);
+        JobKey job = new("handed-back", "wait");
+        await scheduler.AddJob(JobBuilder.Create<CancellableJob>().WithIdentity(job).RequestRecovery().StoreDurably().Build());
+        await scheduler.Start();
+
+        Task<FiringResult> wait = scheduler.TriggerJobAndWait(job, Timeout.InfiniteTimeSpan).AsTask();
+        await CancellableJob.Started.WaitAsync(waitLimit);
+
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        Func<Task> act = () => wait.WaitAsync(waitLimit);
+        (await act.Should().ThrowAsync<SchedulerException>("the occurrence goes on as a recovery trigger, so the cancellation is not its end"))
+            .WithMessage("The scheduler shut down before the firing of trigger 'DEFAULT.MT_*' ended.");
+
+        PagedResult<ExecutionHistoryEntry> rows = await node.GetRequiredService<IExecutionHistoryStore>()
+            .QueryExecutions(new ExecutionHistoryQuery { SchedulerName = SchedulerName, Job = job });
+        rows.Items.Should().ContainSingle().Which.Summary.Should().StartWith(JobRunClassifier.HandedBackSummary,
+            "the control: the firing was handed back rather than completed");
+    }
+
     [Test]
     public async Task AClusterWithoutASharedHistoryIsRefusedBeforeAnythingIsStored()
     {
@@ -179,7 +207,7 @@ public sealed class FiringWaitSqliteTest
         bool sharedHistory = true,
         Action<ExecutionHistoryOptions>? history = null)
     {
-        (IScheduler scheduler, _) = await NodeWithContainer(instanceId, refuseRemote, clustered, sharedHistory, history);
+        (IScheduler scheduler, _) = await NodeWithContainer(instanceId, refuseRemote, clustered, sharedHistory, history: history);
         return scheduler;
     }
 
@@ -188,6 +216,7 @@ public sealed class FiringWaitSqliteTest
         bool refuseRemote = false,
         bool clustered = true,
         bool sharedHistory = true,
+        bool handBack = false,
         Action<ExecutionHistoryOptions>? history = null)
     {
         ServiceCollection services = new();
@@ -200,6 +229,11 @@ public sealed class FiringWaitSqliteTest
                 options.InstanceName = SchedulerName;
                 options.InstanceId = instanceId;
                 options.IdleWaitTime = TimeSpan.FromSeconds(1);
+                if (handBack)
+                {
+                    // The shutdown asks running jobs to stop, and then waits for them to.
+                    options.ShutdownJobInterruption = ShutdownJobInterruption.WhenWaitingForJobs;
+                }
             });
 
             if (refuseRemote)
@@ -221,13 +255,17 @@ public sealed class FiringWaitSqliteTest
                 {
                     store.UseExecutionHistory();
                 }
+
+                if (handBack)
+                {
+                    store.ConfigureStore(options => options.RecoverFiringsCancelledByShutdown = true);
+                }
             });
         });
 
         ServiceProvider node = services.BuildServiceProvider();
-        nodes.Add(node);
-
         IScheduler scheduler = await node.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        nodes.Add((node, scheduler));
         return (scheduler, node);
     }
 
@@ -270,6 +308,22 @@ public sealed class FiringWaitSqliteTest
     public sealed class LocalJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>Runs until its firing is cancelled, and lets the cancellation out.</summary>
+    public sealed class CancellableJob : IJob
+    {
+        private static TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public static Task Started => started.Task;
+
+        public static void Reset() => started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
     }
 
     /// <summary>
