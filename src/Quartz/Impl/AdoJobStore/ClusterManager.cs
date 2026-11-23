@@ -206,9 +206,10 @@ internal sealed class ClusterManager
             }
 
             // A check-in that reached the database is when this node reads the interrupts other nodes asked
-            // of its firings (#4071): one indexed read per check-in, so a request lands within one interval.
-            // Not after a failed one, whose read would fail the same way. The read runs off this thread, so a
-            // job's cancellation callbacks never delay the next check-in.
+            // of its firings (#4071): one indexed read per check-in while the node runs a firing, none while
+            // it runs nothing (#4410), so a request lands within one interval. Not after a failed one, whose
+            // read would fail the same way. The read runs off this thread, so a job's cancellation callbacks
+            // never delay the next check-in.
             if (numFails == 0)
             {
                 jobStoreSupport.SignalInterruptRequestPoll();
