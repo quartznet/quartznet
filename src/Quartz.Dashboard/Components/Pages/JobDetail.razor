@@ -222,6 +222,7 @@
 
 <ConfirmDialog IsOpen="@_showDeleteConfirm"
                Title="Delete job"
+               ConfirmText="Delete"
                Message="@($"Delete {DisplayValueHelper.FormatKey(Group, Name)}? This cannot be undone.")"
                OnConfirm="DeleteAsync"
                OnCancel="CancelDeleteAsync" />

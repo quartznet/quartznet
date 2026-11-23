@@ -62,12 +62,14 @@
 
 <ConfirmDialog IsOpen="@_showUnscheduleConfirm"
                Title="Unschedule trigger"
+               ConfirmText="Unschedule"
                Message="@(_actionTarget is null ? string.Empty : $"Unschedule {DisplayValueHelper.FormatKey(_actionTarget.TriggerGroup, _actionTarget.TriggerName)}? This cannot be undone.")"
                OnConfirm="UnscheduleTriggerAsync"
                OnCancel="CancelUnscheduleAsync" />
 
 <ConfirmDialog IsOpen="@_showDeleteJobConfirm"
                Title="Delete job"
+               ConfirmText="Delete"
                Message="@DeleteJobDialogMessage"
                OnConfirm="DeleteJobAsync"
                OnCancel="CancelDeleteJobAsync" />

@@ -1,0 +1,20 @@
+@* What is wrong with one field, beside it: announced as it appears, and named by the field's aria-describedby, which
+   points at Id. Nothing is drawn while there is nothing to say. *@
+@if (!string.IsNullOrEmpty(Message))
+{
+    <p id="@Id" class="qz-field-error" role="alert" data-testid="@TestId">@Message</p>
+}
+
+@code {
+    /// <summary>The id the field's aria-describedby names.</summary>
+    [Parameter]
+    [EditorRequired]
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>What is wrong, or <see langword="null" /> when nothing is.</summary>
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public string? TestId { get; set; }
+}

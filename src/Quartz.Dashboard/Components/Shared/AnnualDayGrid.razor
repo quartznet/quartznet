@@ -80,6 +80,10 @@
     [Parameter]
     public bool ReadOnly { get; set; }
 
+    /// <summary>Raised after a tick has changed <see cref="Days" />.</summary>
+    [Parameter]
+    public EventCallback OnChange { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !ReadOnly)
@@ -150,11 +154,11 @@
         return days.ToArray();
     }
 
-    private void Toggle(MonthDay day, ChangeEventArgs args)
+    private Task Toggle(MonthDay day, ChangeEventArgs args)
     {
         if (ReadOnly)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         if (args.Value is true)
@@ -165,5 +169,7 @@
         {
             Days.Remove(day);
         }
+
+        return OnChange.InvokeAsync();
     }
 }

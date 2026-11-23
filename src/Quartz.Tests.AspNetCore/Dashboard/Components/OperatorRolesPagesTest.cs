@@ -158,7 +158,7 @@ public class OperatorRolesPagesTest
 
         page.WaitForAssertion(() => page.Markup.Should().Contain("holidays"));
         page.HasButton("Delete").Should().Be(offered);
-        page.FindAll("[data-testid=calendar-editor]").Count.Should().Be(offered ? 1 : 0);
+        page.FindAll("[data-testid=calendar-new]").Count.Should().Be(offered ? 1 : 0, "creating a calendar is AddCalendar, which is Administer");
     }
 
     [TestCase(SchedulerAccess.View, false)]

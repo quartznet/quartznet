@@ -14,7 +14,9 @@
 @inject IServiceProvider Services
 
 <div class="qz-page">
-    <div class="qz-page-header">
+    @* The calendar's name follows the title closely: the header keeps the title where every page has it, and drops
+       the space under it that a page with a section next would need. *@
+    <div class="qz-page-header qz-calendar-detail-header">
         <h1>Calendar Detail</h1>
         <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" OnRefresh="RefreshAsync" RefreshDisabled="@_refreshing" />
     </div>
@@ -33,7 +35,7 @@
     }
     else
     {
-        <h2>@CalendarName</h2>
+        <h2 class="qz-calendar-name">@CalendarName</h2>
         <p data-testid="calendar-used-by">
             @if (_usedBy is 0)
             {
@@ -102,6 +104,7 @@
 
 <ConfirmDialog IsOpen="@_showDeleteConfirm"
                Title="Delete calendar"
+               ConfirmText="Delete"
                Message="@($"Delete {CalendarName}? This cannot be undone.")"
                OnConfirm="ConfirmDeleteAsync"
                OnCancel="CancelDeleteAsync" />

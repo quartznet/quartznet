@@ -251,15 +251,15 @@ internal sealed class CalendarForm
     /// </summary>
     public CalendarFormResult Build()
     {
-        List<string> errors = [];
+        List<CalendarFieldError> errors = [];
         string? cronExpressionError = null;
 
         TimeZoneInfo? timeZone = TryResolveTimeZone();
         if (timeZone is null)
         {
-            errors.Add(TimeZoneId.Trim().Length == 0
+            errors.Add(new CalendarFieldError(CalendarField.TimeZone, TimeZoneId.Trim().Length == 0
                 ? "A calendar needs a time zone: its days and times are read in it."
-                : "Time zone '" + TimeZoneId.Trim() + "' is not one this dashboard knows.");
+                : "Time zone '" + TimeZoneId.Trim() + "' is not one this dashboard knows."));
         }
 
         // The editor changes the calendar's own rules; the calendars under it go back as they came.
@@ -298,11 +298,11 @@ internal sealed class CalendarForm
         return calendar;
     }
 
-    private AnnualCalendar BuildAnnual(List<string> errors, ICalendar? calendarBase)
+    private AnnualCalendar BuildAnnual(List<CalendarFieldError> errors, ICalendar? calendarBase)
     {
         if (AnnualDays.Count == 366)
         {
-            errors.Add("An annual calendar that excludes every day of the year leaves a trigger nothing to fire at.");
+            errors.Add(new CalendarFieldError(CalendarField.Rules, "An annual calendar that excludes every day of the year leaves a trigger nothing to fire at."));
         }
 
         AnnualCalendar calendar = new() { CalendarBase = calendarBase };
@@ -314,11 +314,11 @@ internal sealed class CalendarForm
         return calendar;
     }
 
-    private WeeklyCalendar BuildWeekly(List<string> errors, ICalendar? calendarBase)
+    private WeeklyCalendar BuildWeekly(List<CalendarFieldError> errors, ICalendar? calendarBase)
     {
         if (WeeklyDays.Count == 7)
         {
-            errors.Add("A weekly calendar that excludes every day of the week leaves a trigger nothing to fire at.");
+            errors.Add(new CalendarFieldError(CalendarField.Rules, "A weekly calendar that excludes every day of the week leaves a trigger nothing to fire at."));
         }
 
         // Each day is said, because the type starts out excluding the weekend.
@@ -338,11 +338,11 @@ internal sealed class CalendarForm
         return calendar;
     }
 
-    private MonthlyCalendar BuildMonthly(List<string> errors, ICalendar? calendarBase)
+    private MonthlyCalendar BuildMonthly(List<CalendarFieldError> errors, ICalendar? calendarBase)
     {
         if (MonthlyDays.Count == 31)
         {
-            errors.Add("A monthly calendar that excludes every day of the month leaves a trigger nothing to fire at.");
+            errors.Add(new CalendarFieldError(CalendarField.Rules, "A monthly calendar that excludes every day of the month leaves a trigger nothing to fire at."));
         }
 
         MonthlyCalendar calendar = new() { CalendarBase = calendarBase };
@@ -354,10 +354,10 @@ internal sealed class CalendarForm
         return calendar;
     }
 
-    private DailyCalendar? BuildDaily(List<string> errors, ICalendar? calendarBase)
+    private DailyCalendar? BuildDaily(List<CalendarFieldError> errors, ICalendar? calendarBase)
     {
-        TimeOnly? start = ParseTime(DailyStart, "range start", errors);
-        TimeOnly? end = ParseTime(DailyEnd, "range end", errors);
+        TimeOnly? start = ParseTime(DailyStart, "range start", CalendarField.DailyStart, errors);
+        TimeOnly? end = ParseTime(DailyEnd, "range end", CalendarField.DailyEnd, errors);
         if (start is null || end is null)
         {
             return null;
@@ -365,7 +365,7 @@ internal sealed class CalendarForm
 
         if (start.Value >= end.Value)
         {
-            errors.Add("The range must start before it ends, and may not cross midnight.");
+            errors.Add(new CalendarFieldError(CalendarField.DailyRange, "The range must start before it ends, and may not cross midnight."));
             return null;
         }
 
@@ -393,12 +393,12 @@ internal sealed class CalendarForm
         }
     }
 
-    private static TimeOnly? ParseTime(string text, string field, List<string> errors)
+    private static TimeOnly? ParseTime(string text, string field, CalendarField input, List<CalendarFieldError> errors)
     {
         string trimmed = text.Trim();
         if (trimmed.Length == 0)
         {
-            errors.Add("A daily calendar needs a " + field + ".");
+            errors.Add(new CalendarFieldError(input, "A daily calendar needs a " + field + "."));
             return null;
         }
 
@@ -407,7 +407,7 @@ internal sealed class CalendarForm
             return time;
         }
 
-        errors.Add("The " + field + " '" + trimmed + "' is not a time of day written as HH:mm, HH:mm:ss or HH:mm:ss.fff.");
+        errors.Add(new CalendarFieldError(input, "The " + field + " '" + trimmed + "' is not a time of day written as HH:mm, HH:mm:ss or HH:mm:ss.fff."));
         return null;
     }
 }
@@ -417,4 +417,28 @@ internal sealed class CalendarForm
 /// about the cron expression is <see cref="CronExpressionError" />, kept apart so the editor says it once, beside
 /// the expression.
 /// </summary>
-internal sealed record CalendarFormResult(ICalendar? Calendar, List<string> Errors, string? CronExpressionError = null);
+internal sealed record CalendarFormResult(ICalendar? Calendar, List<CalendarFieldError> FieldErrors, string? CronExpressionError = null)
+{
+    /// <summary>The reasons, in the order the fields are read.</summary>
+    public List<string> Errors => FieldErrors.Select(static error => error.Message).ToList();
+}
+
+/// <summary>
+/// The part of the calendar editor a reason is about, which the editor says it beside and marks invalid.
+/// </summary>
+internal enum CalendarField
+{
+    Name,
+    TimeZone,
+    DailyStart,
+    DailyEnd,
+
+    /// <summary>The daily range as a whole: its start and end together.</summary>
+    DailyRange,
+
+    /// <summary>The days ticked or listed, as a whole.</summary>
+    Rules,
+}
+
+/// <summary>One reason the editor's fields describe no calendar, and the field it is about.</summary>
+internal sealed record CalendarFieldError(CalendarField Field, string Message);
