@@ -68,12 +68,19 @@ namespace Quartz;
 /// listing reports such a scheduler as <see cref="SchedulerOrigin.Remote" />.
 /// </para>
 /// </remarks>
-public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler
+public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler
 {
     /// <summary>The first version whose schedule routes store a trigger paused.</summary>
     private static readonly Version FirstStoringPausedVersion = new(4, 4);
 
     private readonly WireClient wire;
+
+    /// <summary>What the host's history is read over, for a wait for a firing; see <see cref="History" />.</summary>
+    private readonly IWireTransport transport;
+
+    private readonly JsonSerializerOptions? jsonSerializerOptions;
+    private readonly ILogger? logger;
+    private HttpExecutionHistoryStore? history;
 
     /// <summary>Whether the host has been found to be 4.4 or later; see <see cref="RequireStoringPaused" />.</summary>
     private volatile bool hostStoresPaused;
@@ -151,6 +158,10 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
 
         Target = target;
         Origin = origin;
+
+        this.transport = transport;
+        this.jsonSerializerOptions = jsonSerializerOptions;
+        this.logger = logger;
 
         // The caller's options are borrowed, not owned: adding our converters to their instance would
         // throw once those options had been used for anything (they are read-only from then on), and
@@ -660,6 +671,28 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
 
         return result.Applied;
     }
+
+    /// <summary>
+    /// Starts a wait for a firing on the host: no completion there reaches this process, so every poll reads the
+    /// host's history and trigger routes, as a wait on a cluster reads the shared history (#4414).
+    /// </summary>
+    /// <remarks>
+    /// A host that keeps no history, or is older than 4.6, refuses the history read with
+    /// <see cref="NotSupportedException" />, and <c>TriggerJobAndWait</c> asks before it stores anything.
+    /// </remarks>
+    ValueTask<Core.FiringWatch> IFiringWaitingScheduler.Watch(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        return new ValueTask<Core.FiringWatch>(new Core.FiringWatch(triggerKey, this, SchedulerName, History, pollsHistory: true, signal: null));
+    }
+
+    /// <summary>
+    /// The host's history, read over this scheduler's own transport, made at the first wait.
+    /// </summary>
+    private HttpExecutionHistoryStore History =>
+        Volatile.Read(ref history) ?? LazyInitializer.EnsureInitialized(
+            ref history,
+            () => new HttpExecutionHistoryStore(SchedulerName, transport, jsonSerializerOptions, logger));
 
     /// <summary>
     /// A backfill in one request: the host's <c>backfill</c> route runs it, against the host's clock, and
