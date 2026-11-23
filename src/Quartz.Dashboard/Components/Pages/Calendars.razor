@@ -3,7 +3,6 @@
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
-@using Quartz.Impl.Calendar
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
@@ -21,35 +20,8 @@
 
     @if (CanAdd)
     {
-        <section class="qz-section">
-            <h2>Create or replace cron calendar</h2>
-            <div class="qz-form-group">
-                <label class="qz-form-label" for="calendar-name">Calendar name</label>
-                <input id="calendar-name" class="qz-input" @bind="_newCalendarName" />
-            </div>
-            <div class="qz-form-group">
-                <label class="qz-form-label" for="calendar-cron">Cron expression</label>
-                <input id="calendar-cron" class="qz-input qz-input-mono" @bind="_newCalendarCronExpression" />
-            </div>
-            <div class="qz-form-group">
-                <label class="qz-form-label" for="calendar-description">Description</label>
-                <input id="calendar-description" class="qz-input" @bind="_newCalendarDescription" />
-            </div>
-            <div class="qz-live-filter-grid">
-                <label class="qz-live-filter-item">
-                    <input type="checkbox" @bind="_replaceCalendar" />
-                    <span>Replace if existing</span>
-                </label>
-                <label class="qz-live-filter-item">
-                    <input type="checkbox" @bind="_updateTriggers" />
-                    <span>Update associated triggers</span>
-                </label>
-            </div>
-            <div class="qz-actions qz-group-actions">
-                <button type="button" class="qz-button qz-button-primary" @onclick="CreateOrUpdateCalendarAsync">Save calendar</button>
-                <button type="button" class="qz-button" @onclick="ResetNewCalendarForm">Reset</button>
-            </div>
-        </section>
+        @* A name the listing holds is a replace, and the editor asks about it as one. *@
+        <CalendarEditor ExistingNames="@_calendarNames" OnSaved="OnCalendarSavedAsync" />
     }
 
     @if (_isLoading)
@@ -97,11 +69,6 @@
     private string? _error;
     private bool _showDeleteConfirm;
     private string _pendingCalendarName = string.Empty;
-    private string _newCalendarName = string.Empty;
-    private string _newCalendarCronExpression = "0 0/5 * ? * *";
-    private string _newCalendarDescription = string.Empty;
-    private bool _replaceCalendar = true;
-    private bool _updateTriggers;
 
     /// <summary>
     /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
@@ -245,65 +212,10 @@
         return DashboardLink.To(Options.Value, "calendars/" + Uri.EscapeDataString(name));
     }
 
-    private async Task CreateOrUpdateCalendarAsync()
+    /// <summary>A calendar was stored: the listing is read again, so a new name is on it.</summary>
+    private Task OnCalendarSavedAsync(string calendarName)
     {
-        string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (!CanAdd || string.IsNullOrWhiteSpace(schedulerName))
-        {
-            return;
-        }
-
-        string calendarName = _newCalendarName.Trim();
-        if (string.IsNullOrWhiteSpace(calendarName))
-        {
-            Toasts.Error("Calendar name is required.");
-            return;
-        }
-
-        string cronExpression = _newCalendarCronExpression.Trim();
-        if (string.IsNullOrWhiteSpace(cronExpression))
-        {
-            Toasts.Error("Cron expression is required.");
-            return;
-        }
-
-        try
-        {
-            CronCalendar calendar = new(baseCalendar: null, cronExpression, TimeZoneInfo.Utc)
-            {
-                Description = string.IsNullOrWhiteSpace(_newCalendarDescription) ? null : _newCalendarDescription.Trim()
-            };
-
-            AddCalendarRequest request = new(calendarName, calendar, _replaceCalendar, _updateTriggers);
-            await Api.AddCalendar(schedulerName, request);
-            ActionLog.Record(
-                schedulerName,
-                _replaceCalendar ? "UpsertCalendar" : "CreateCalendar",
-                calendarName,
-                succeeded: true,
-                _updateTriggers ? "updateTriggers=true" : null);
-            Toasts.Success("Saved calendar " + calendarName + ".");
-            await LoadDataAsync();
-        }
-        catch (Exception ex)
-        {
-            ActionLog.Failed(
-                schedulerName,
-                _replaceCalendar ? "UpsertCalendar" : "CreateCalendar",
-                calendarName,
-                ex);
-            Toasts.Error(ex.Message);
-        }
-    }
-
-    private Task ResetNewCalendarForm()
-    {
-        _newCalendarName = string.Empty;
-        _newCalendarCronExpression = "0 0/5 * ? * *";
-        _newCalendarDescription = string.Empty;
-        _replaceCalendar = true;
-        _updateTriggers = false;
-        return Task.CompletedTask;
+        return LoadDataAsync();
     }
 
     private void PromptDelete(string calendarName)
