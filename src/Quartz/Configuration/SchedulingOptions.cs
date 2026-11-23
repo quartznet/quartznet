@@ -115,15 +115,17 @@ public sealed class SchedulingOptions
     /// declared job in an owned group, whatever the trigger's group. What a declaration names is kept:
     /// <c>AddJob</c>, <c>AddTrigger</c> and <c>ScheduleJob</c> inside <c>AddQuartz(…)</c>, the
     /// <c>Quartz:Schedule</c> section, a trigger switched off with <c>-</c>, a key
-    /// <see cref="IgnoreDuplicates" /> passed over, and every job and trigger a scheduling file loaded at
-    /// start-up. A pending manual firing (<c>TriggerJob</c>) is kept, and so are the triggers the scheduler
-    /// keeps for itself: recovery, fail-over, start-up runs and backfills.
+    /// <see cref="IgnoreDuplicates" /> passed over, every job and trigger a scheduling file loaded at
+    /// start-up, and the job of every declared trigger. A pending manual firing (<c>TriggerJob</c>) and a
+    /// pending one-off of <c>ScheduleJob&lt;TJob, TInput&gt;</c> are kept, and so are the triggers the
+    /// scheduler keeps for itself: recovery, fail-over, start-up runs and backfills.
     /// </para>
     /// <para>
     /// It runs only on a store that persists, once, at the first <c>Start</c>: after the plugins have
     /// started, so a scheduling file's content counts, and before the scheduler fires anything. Each
-    /// deletion is logged as a warning. A scheduling file that fails to load leaves what it declares
-    /// unknown, so nothing is pruned at that start.
+    /// deletion is logged as a warning. A scheduling file that is listed and not found, does not load, or
+    /// is not read because its plugin failed to start leaves what it declares unknown, so nothing is
+    /// pruned at that start; to remove what a file declares, take the file out of the list.
     /// </para>
     /// <para>
     /// Pruning belongs to a deploy that runs one version: a node starting with older declarations stores

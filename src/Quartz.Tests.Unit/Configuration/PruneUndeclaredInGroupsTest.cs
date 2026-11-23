@@ -324,30 +324,7 @@ public sealed class PruneUndeclaredInGroupsTest
     [Test]
     public async Task WhatAnXmlSchedulingFileDeclaresIsKeptWithItsRunState()
     {
-        string file = WriteFile("jobs.xml", $"""
-            <?xml version="1.0" encoding="UTF-8"?>
-            <job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
-              <schedule>
-                <job>
-                  <name>sweep</name>
-                  <group>{Owned}</group>
-                  <job-type>{typeof(RecordingJob).AssemblyQualifiedName}</job-type>
-                  <durable>true</durable>
-                  <recover>false</recover>
-                </job>
-                <trigger>
-                  <simple>
-                    <name>sweep-hourly</name>
-                    <group>{Owned}</group>
-                    <job-name>sweep</job-name>
-                    <job-group>{Owned}</job-group>
-                    <repeat-count>5</repeat-count>
-                    <repeat-interval>3600000</repeat-interval>
-                  </simple>
-                </trigger>
-              </schedule>
-            </job-scheduling-data>
-            """);
+        string file = WriteFile("jobs.xml", SweepFile("xml"));
 
         await TheFilesContentIsKept(q => q.UseXmlSchedulingConfiguration(x =>
         {
@@ -360,17 +337,7 @@ public sealed class PruneUndeclaredInGroupsTest
     [Test]
     public async Task WhatAJsonSchedulingFileDeclaresIsKeptWithItsRunState()
     {
-        string file = WriteFile("jobs.json", $$"""
-            {
-              "Schedule": {
-                "Jobs": [{ "Name": "sweep", "Group": "{{Owned}}", "JobType": "{{typeof(RecordingJob).AssemblyQualifiedName}}", "Durable": true }],
-                "Triggers": [{
-                  "Name": "sweep-hourly", "Group": "{{Owned}}", "JobName": "sweep", "JobGroup": "{{Owned}}",
-                  "Simple": { "Interval": "01:00:00", "RepeatCount": 5 }
-                }]
-              }
-            }
-            """);
+        string file = WriteFile("jobs.json", SweepFile("json"));
 
         await TheFilesContentIsKept(q => q.UseJsonSchedulingConfiguration(x =>
         {
@@ -400,6 +367,138 @@ public sealed class PruneUndeclaredInGroupsTest
         LogEntry entry = logs.Entries.Should().ContainSingle(x => x.EventId.Id == PruneFailed).Which;
         entry.Level.Should().Be(LogLevel.Error);
         entry.Exception.Message.Should().Contain(file).And.Contain("nothing was pruned");
+    }
+
+    /// <summary>
+    /// A file plugin whose start fails before it reads its files says nothing of what they declare, so the
+    /// prune must not run against them: here the store refuses the scan job stored ahead of each file.
+    /// </summary>
+    [TestCase("xml")]
+    [TestCase("json")]
+    public async Task APluginThatFailsToStartStopsThePrune(string format)
+    {
+        JobKey sweep = new("sweep", Owned);
+        TriggerKey hourly = new("sweep-hourly", Owned);
+        IScheduler before = await Opened(_ => { });
+        await before.ScheduleJob(
+            JobBuilder.Create<RecordingJob>().WithIdentity(sweep).StoreDurably().Build(),
+            TriggerBuilder.Create().WithIdentity(hourly).WithCronSchedule("0 0 * * * ?").Build());
+        await before.Shutdown(waitForJobsToComplete: true);
+
+        string file = WriteFile("jobs." + format, SweepFile(format));
+        string pluginGroup = format == "xml" ? "XmlSchedulingDataProcessorPlugin" : "JsonSchedulingDataProcessorPlugin";
+        Action<FileSchedulingOptions> options = x =>
+        {
+            x.Files.Add(file);
+            x.ScanInterval = TimeSpan.FromMinutes(1);
+        };
+
+        WatchedStore? store = null;
+        IScheduler scheduler = await Started(
+            q => _ = format == "xml" ? q.UseXmlSchedulingConfiguration(options) : q.UseJsonSchedulingConfiguration(options),
+            owned: [Owned],
+            wrap: inner => store = new WatchedStore(inner) { RefusedJobGroup = pluginGroup });
+
+        store!.Refusals.Should().Be(1, "the premise: the plugin's start failed at the file's scan job");
+        (await scheduler.GetJobDetail(sweep)).Should().NotBeNull("the file was never read, so what it declares is not known");
+        (await scheduler.GetTrigger(hourly)).Should().NotBeNull();
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == PruneFailed)
+            .Which.Exception.Message.Should().Contain(file);
+    }
+
+    /// <summary>
+    /// A declared trigger names its job, so the job is the declarations' even when nothing else names it.
+    /// </summary>
+    [Test]
+    public async Task ADeclaredTriggerKeepsTheJobItNames()
+    {
+        JobKey addedAtRunTime = new("R", Owned);
+        TriggerKey nightly = new("R-nightly", "ops");
+        IScheduler before = await Opened(_ => { });
+        await before.AddJob(JobBuilder.Create<RecordingJob>().WithIdentity(addedAtRunTime).StoreDurably().Build());
+        await before.Shutdown(waitForJobsToComplete: true);
+
+        IScheduler scheduler = await Started(
+            q => q.AddTrigger(t => t.WithIdentity(nightly).ForJob(addedAtRunTime).WithCronSchedule("0 0 1 * * ?")),
+            owned: [Owned]);
+
+        (await scheduler.GetJobDetail(addedAtRunTime)).Should().NotBeNull("a declared trigger names it");
+        (await scheduler.GetTrigger(nightly)).Should().NotBeNull("a declaration names it, so it is never taken with its job");
+        logs.Entries.Where(x => x.EventId.Id is JobDeleted or TriggerUnscheduled).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Every trigger of a job in <see cref="SchedulerConstants.ScheduledJobGroup" /> is a one-off a caller
+    /// asked for, whatever group the trigger is in.
+    /// </summary>
+    [Test]
+    public async Task APendingOneOffIsKeptInAnOwnedGroup()
+    {
+        IScheduler before = await Opened(_ => { });
+        ScheduledOneOffJob oneOff = await before.ScheduleJob<InputJob, string>(
+            "payload",
+            TimeSpan.FromHours(1),
+            new OneOffJobOptions { Group = Owned });
+        await before.Shutdown(waitForJobsToComplete: true);
+
+        IScheduler scheduler = await Started(_ => { }, owned: [Owned]);
+
+        (await scheduler.GetTrigger(oneOff.TriggerKey)).Should().NotBeNull("a one-off is somebody's request rather than a declaration");
+        logs.Entries.Where(x => x.EventId.Id is JobDeleted or TriggerUnscheduled).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// A file that is listed and not found declares nothing anyone knows of: to remove what a file declares,
+    /// the file is taken out of the list.
+    /// </summary>
+    [TestCase("xml")]
+    [TestCase("json")]
+    public async Task AFileThatIsNotFoundStopsThePrune(string format)
+    {
+        JobKey stale = new("stale", Owned);
+        IScheduler before = await Opened(_ => { });
+        await before.AddJob(JobBuilder.Create<RecordingJob>().WithIdentity(stale).StoreDurably().Build());
+        await before.Shutdown(waitForJobsToComplete: true);
+
+        files ??= Directory.CreateTempSubdirectory("quartz-prune-undeclared-");
+        string missing = Path.Combine(files.FullName, "missing." + format);
+        Action<FileSchedulingOptions> options = x =>
+        {
+            x.Files.Add(missing);
+            x.FailOnFileNotFound = false;
+        };
+
+        IScheduler scheduler = await Started(
+            q => _ = format == "xml" ? q.UseXmlSchedulingConfiguration(options) : q.UseJsonSchedulingConfiguration(options),
+            owned: [Owned]);
+
+        (await scheduler.GetJobDetail(stale)).Should().NotBeNull();
+        logs.Entries.Should().ContainSingle(x => x.EventId.Id == PruneFailed)
+            .Which.Exception.Message.Should().Contain("missing." + format).And.Contain("not found");
+    }
+
+    /// <summary>
+    /// A switched-off trigger names its job, which <c>ContainerConfigurationProcessor</c> records: the
+    /// trigger is not among what it stores.
+    /// </summary>
+    [Test]
+    public async Task ASwitchedOffTriggerKeepsTheJobOnlyItNames()
+    {
+        const string cronKey = "Jobs:Report:Cron";
+        TriggerKey report = new("report", Owned);
+        Action<IQuartzBuilder> trigger = q => q.AddConfiguredTrigger<IJob>(cronKey, static (services, key) => services.GetService<IConfiguration>()?[key],
+            (_, configured, t) => t.WithIdentity(report).ForJob(job).WithCronSchedule(configured ?? "0 0 6 * * ?"));
+
+        await Started(q =>
+        {
+            q.AddJob<RecordingJob>(j => j.WithIdentity(job).StoreDurably());
+            trigger(q);
+        }, services: s => Configuration(s, new() { [cronKey] = "0 0 4 * * ?" }));
+
+        IScheduler scheduler = await Started(trigger, owned: [Owned], services: s => Configuration(s, new() { [cronKey] = "-" }));
+
+        (await scheduler.GetJobDetail(job)).Should().NotBeNull("the switched-off trigger still names its job, and nothing else had to");
+        logs.Entries.Where(x => x.EventId.Id == JobDeleted).Should().BeEmpty();
     }
 
     // (10)
@@ -649,6 +748,50 @@ public sealed class PruneUndeclaredInGroupsTest
         logs.Entries.Where(x => x.EventId.Id == TriggerUnscheduled).Should().BeEmpty();
     }
 
+    /// <summary>
+    /// A scheduling file declaring <c>app.sweep</c>, durable, and its hourly trigger <c>app.sweep-hourly</c>.
+    /// </summary>
+    private static string SweepFile(string format)
+    {
+        string jobType = typeof(RecordingJob).AssemblyQualifiedName!;
+        return format == "xml"
+            ? $"""
+              <?xml version="1.0" encoding="UTF-8"?>
+              <job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+                <schedule>
+                  <job>
+                    <name>sweep</name>
+                    <group>{Owned}</group>
+                    <job-type>{jobType}</job-type>
+                    <durable>true</durable>
+                    <recover>false</recover>
+                  </job>
+                  <trigger>
+                    <simple>
+                      <name>sweep-hourly</name>
+                      <group>{Owned}</group>
+                      <job-name>sweep</job-name>
+                      <job-group>{Owned}</job-group>
+                      <repeat-count>5</repeat-count>
+                      <repeat-interval>3600000</repeat-interval>
+                    </simple>
+                  </trigger>
+                </schedule>
+              </job-scheduling-data>
+              """
+            : $$"""
+              {
+                "Schedule": {
+                  "Jobs": [{ "Name": "sweep", "Group": "{{Owned}}", "JobType": "{{jobType}}", "Durable": true }],
+                  "Triggers": [{
+                    "Name": "sweep-hourly", "Group": "{{Owned}}", "JobName": "sweep", "JobGroup": "{{Owned}}",
+                    "Simple": { "Interval": "01:00:00", "RepeatCount": 5 }
+                  }]
+                }
+              }
+              """;
+    }
+
     private string WriteFile(string name, string content)
     {
         files ??= Directory.CreateTempSubdirectory("quartz-prune-undeclared-");
@@ -773,9 +916,14 @@ public sealed class PruneUndeclaredInGroupsTest
         }
     }
 
+    public sealed class InputJob : IJob<string>
+    {
+        public ValueTask Execute(IJobExecutionContext context, string input, CancellationToken cancellationToken = default) => default;
+    }
+
     /// <summary>
     /// The persistent store, saying in which order the prune and the loop reached it, and failing a job
-    /// deletion when told to.
+    /// deletion, or the storing of a job in one group, when told to.
     /// </summary>
     private sealed class WatchedStore(IJobStore inner) : DelegatingJobStore(inner)
     {
@@ -787,7 +935,39 @@ public sealed class PruneUndeclaredInGroupsTest
 
         private int deleteJobsCalls;
 
+        private int refusals;
+
         public bool FailDeleteJobs { get; init; }
+
+        /// <summary>The group a job may not be stored in, as a scan job of a file plugin is.</summary>
+        public string? RefusedJobGroup { get; init; }
+
+        public int Refusals => Volatile.Read(ref refusals);
+
+        public override ValueTask ScheduleJob(IJobDetail job, IOperableTrigger trigger, CancellationToken cancellationToken = default)
+        {
+            Refuse(job);
+            return base.ScheduleJob(job, trigger, cancellationToken);
+        }
+
+        public override ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
+        {
+            foreach (IJobDetail job in triggersAndJobs.Keys)
+            {
+                Refuse(job);
+            }
+
+            return base.ScheduleJobs(triggersAndJobs, options, cancellationToken);
+        }
+
+        private void Refuse(IJobDetail job)
+        {
+            if (string.Equals(job.Key.Group, RefusedJobGroup, StringComparison.Ordinal))
+            {
+                Interlocked.Increment(ref refusals);
+                throw new JobPersistenceException("the scan job is refused by the test");
+            }
+        }
 
         public int DeleteJobsCalls => Volatile.Read(ref deleteJobsCalls);
 

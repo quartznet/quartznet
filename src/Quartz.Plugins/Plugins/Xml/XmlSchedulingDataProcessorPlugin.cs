@@ -170,6 +170,8 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
     /// </summary>
     public async ValueTask Start(CancellationToken cancellationToken = default)
     {
+        // How many files were read, so a start that fails part-way can say which were not.
+        int read = 0;
         try
         {
             if (jobFiles.Count > 0)
@@ -212,6 +214,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
                     }
 
                     await ProcessFile(jobFile, cancellationToken).ConfigureAwait(false);
+                    read++;
                 }
             }
         }
@@ -222,6 +225,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
                 throw;
             }
             logger.FileWatchStartFailed(se);
+            CouldNotReadFrom(read);
         }
         finally
         {
@@ -306,10 +310,35 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
         }
     }
 
+    /// <summary>
+    /// Says that the files from <paramref name="first" /> on were not read, so the first start does not prune
+    /// against what they declare.
+    /// </summary>
+    private void CouldNotReadFrom(int first)
+    {
+        if (Configuration.DeclaredContent.Of(Scheduler) is not { } declared)
+        {
+            return;
+        }
+
+        for (int i = first; i < jobFiles.Count; i++)
+        {
+            declared.CouldNotRead($"'{jobFiles[i].Value.FileName}' (not read: the plugin's start failed)");
+        }
+    }
+
     private async ValueTask ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)
     {
-        if (jobFile is null || jobFile.FileFound == false)
+        if (jobFile is null)
         {
+            return;
+        }
+
+        if (!jobFile.FileFound)
+        {
+            // A file listed and not found declares nothing anyone knows of; taking it out of the list is
+            // how its content is removed.
+            Configuration.DeclaredContent.Of(Scheduler)?.CouldNotRead($"'{jobFile.FileName}' (not found)");
             return;
         }
 
@@ -339,7 +368,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
             var schedulerException = new SchedulerException(message, e);
 
             // What the file declares is not known, so the first start must not prune against it.
-            Configuration.DeclaredContent.Of(Scheduler)?.CouldNotRead(jobFile.FileName);
+            Configuration.DeclaredContent.Of(Scheduler)?.CouldNotRead($"'{jobFile.FileName}'");
 
             logger.FileProcessingFailed(jobFile.FileName, e.Message, e);
 
