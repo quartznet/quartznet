@@ -54,6 +54,7 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `IQuartzApiClient.QueryJobRunStatuses(JobRunStatusQuery, CancellationToken)` | `Quartz.Dashboard`. Default interface member: one page of the per-job run statuses, as `IExecutionHistoryStore.QueryJobRunStatuses`. The default throws `NotSupportedException`, as `GetJobRunStatus` does, and the Overview leaves its failing jobs out. See [Needs attention](packages/dashboard.md#needs-attention) |
 | `IQuartzApiClient.GetTriggerGroupPause(schedulerName, groupName)` | `Quartz.Dashboard`. Default interface member: why the trigger group is paused, who asked and when, as `IScheduler.GetTriggerGroupPause`. The default answers `null`, as `GetJobGroupPause`'s does. *Why isn't it firing?* shows it |
 | `DashboardFireInstanceQuery.Job` | `Quartz.Dashboard`, `JobKeyDto?`, `init`: the firings of one job, as `FireInstanceQuery.Job`. What Trigger Detail's *Why isn't it firing?* reads. See [Why isn't it firing?](packages/dashboard.md#why-isn-t-it-firing) |
+| `QuartzHttpApiOptions.AllowedOrigins` | The origins a browser may call the HTTP API from; any other `Origin` is refused with `403`. Empty, the default, checks nothing. For an API authenticated by a cookie. See [Refusing cross-site requests](packages/http-api.md#refusing-cross-site-requests) |
 
 | Changed | What to check |
 |---|---|

@@ -1237,6 +1237,7 @@ every node and client, then schedule continuations.
 | `OperationAuthorizationPolicy` | none | Policy for every operation, at the operator role it needs; see [Operator roles](#operator-roles) |
 | `IsJobTypeAllowed` | none | Predicate over a request's job type *name*; refused is `403`; see [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) |
 | `EventStreamHeartbeatInterval` | `00:00:15` | Idle time before the [event stream](#the-event-stream) sends a `Heartbeat` |
+| `AllowedOrigins` | empty | Origins a browser may call from; any other `Origin` is `403`. Empty checks nothing; see [Refusing cross-site requests](#refusing-cross-site-requests) |
 
 - Set `EventStreamHeartbeatInterval` below the idle read timeout of any proxy in front of the API: nginx's
   `proxy_read_timeout` defaults to 60 seconds, Azure's front doors to 90.
@@ -1332,6 +1333,37 @@ builder.Services.AddQuartzHttpApi(options => options.OperationAuthorizationPolic
 - Setting it without authorization services in the container fails at startup. It authorizes and never
   authenticates: add `RequireAuthenticatedUser()` to the policy, or `RequireAuthorization()` on the mapping, to
   challenge an anonymous caller with a `401`.
+
+### Refusing cross-site requests
+
+::: warning
+Do not authenticate the HTTP API with a cookie the browser sends on its own. Routes such as
+`POST …/shutdown`, `start`, `standby`, and pause or resume without a body, take no body, so a plain HTML form on
+any page the operator visits reaches them with no CORS preflight, carrying the cookie wherever it is
+`SameSite=None` or the page is on a sibling of the API's site. Authenticate with a bearer token or an API-key
+header, which a browser does not attach by itself, or set `AllowedOrigins`.
+:::
+
+From 4.9, `AllowedOrigins` lists the origins a browser may call the API from:
+
+<!-- snippet: sample_httpapi_allowed_origins -->
+```csharp
+builder.Services.AddQuartzHttpApi(options =>
+{
+    // The pages that may call the API from a browser, as scheme://host[:port].
+    // A request from any other page is refused with 403; a script sends no Origin and is unaffected.
+    options.AllowedOrigins.Add("https://ops.example.com");
+});
+```
+<!-- endSnippet -->
+
+- A request whose `Origin` header is present and not listed is `403` with problem details, logged as `9005` at
+  `Warning`. It is decided before anything else: before both policies, `ReadOnly` and the body.
+- A request with no `Origin` passes: scripts, pipelines and `HttpScheduler` send none. A same-origin page's `GET`
+  sends none either; list the API's own origin when a page of it posts.
+- The comparison is exact on `scheme://host[:port]`, ignoring case, as a browser writes the header. A default
+  port is left out, and `Origin: null` matches nothing. An entry that is not an origin fails at startup.
+- Empty, the default, checks nothing, so no existing caller changes.
 
 ### Narrowing which job types may be named
 
