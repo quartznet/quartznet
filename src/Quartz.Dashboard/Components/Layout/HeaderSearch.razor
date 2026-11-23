@@ -1,0 +1,204 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Services
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject NavigationManager Navigation
+
+@* "Where is invoice-export?" from any page (#4411): two reads of the listings the pages already make, by name,
+   eight of each. Debounced, from two characters, and a keystroke cancels the read still in flight, so a slow
+   target answers only the last word typed. *@
+<div class="qz-header-search" role="search">
+    <label class="qz-header-control-label" for="qz-header-search">Search</label>
+    <input id="qz-header-search"
+           type="search"
+           class="qz-input qz-header-search-input"
+           placeholder="Jump to a job or trigger"
+           autocomplete="off"
+           aria-label="Jump to a job or trigger by name"
+           aria-controls="qz-header-search-results"
+           value="@_term"
+           @oninput="OnInputAsync"
+           @onkeydown="OnKeyDown" />
+
+    @if (_open)
+    {
+        <div id="qz-header-search-results" class="qz-header-search-results" data-testid="header-search-results">
+            @if (_error is not null)
+            {
+                <p class="qz-muted">@_error</p>
+            }
+            else if (_jobs.Count == 0 && _triggers.Count == 0)
+            {
+                <p class="qz-muted" data-testid="header-search-none">No job or trigger has a name containing '@_searched'.</p>
+            }
+            else
+            {
+                @if (_jobs.Count > 0)
+                {
+                    <h3 class="qz-header-search-heading">Jobs</h3>
+                    <ul class="qz-header-search-list" data-testid="header-search-jobs">
+                        @foreach (JobKeyDto job in _jobs)
+                        {
+                            <li><a href="@DashboardLink.To(Options.Value, "jobs/" + Uri.EscapeDataString(job.Group) + "/" + Uri.EscapeDataString(job.Name))">@DisplayValueHelper.FormatKey(job.Group, job.Name)</a></li>
+                        }
+                    </ul>
+                    <a class="qz-details-link" href="@DashboardLink.To(Options.Value, "jobs?name=" + Uri.EscapeDataString(_searched))">@SeeAll(_jobsTotal, "job")</a>
+                }
+                @if (_triggers.Count > 0)
+                {
+                    <h3 class="qz-header-search-heading">Triggers</h3>
+                    <ul class="qz-header-search-list" data-testid="header-search-triggers">
+                        @foreach (TriggerHeaderDto trigger in _triggers)
+                        {
+                            <li><a href="@DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(trigger.Group) + "/" + Uri.EscapeDataString(trigger.Name))">@DisplayValueHelper.FormatKey(trigger.Group, trigger.Name)</a></li>
+                        }
+                    </ul>
+                    <a class="qz-details-link" href="@DashboardLink.To(Options.Value, "triggers?name=" + Uri.EscapeDataString(_searched))">@SeeAll(_triggersTotal, "trigger")</a>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The fewest characters a search is made for: one matches nearly every name.</summary>
+    internal const int MinimumLength = 2;
+
+    /// <summary>How many jobs, and how many triggers, the dropdown lists.</summary>
+    internal const int Shown = 8;
+
+    private string _term = string.Empty;
+    private string _searched = string.Empty;
+    private bool _open;
+    private string? _error;
+    private List<JobKeyDto> _jobs = [];
+    private List<TriggerHeaderDto> _triggers = [];
+    private int _jobsTotal;
+    private int _triggersTotal;
+
+    /// <summary>
+    /// The keystroke's: cancelled by the next one, which ends its wait and the reads it made, and by leaving.
+    /// </summary>
+    private CancellationTokenSource _keystroke = new();
+
+    /// <summary>How long typing has to pause before the reads are made.</summary>
+    [Parameter]
+    public TimeSpan Debounce { get; set; } = TimeSpan.FromMilliseconds(300);
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+    }
+
+    private async Task OnInputAsync(ChangeEventArgs args)
+    {
+        _term = args.Value?.ToString() ?? string.Empty;
+
+        CancellationToken cancellationToken = NextKeystroke();
+        string term = _term.Trim();
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (term.Length < MinimumLength || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            _open = false;
+            return;
+        }
+
+        try
+        {
+            await Task.Delay(Debounce, cancellationToken);
+
+            PagedResult<JobKeyDto> jobs = await Api.QueryJobs(
+                schedulerName,
+                new DashboardJobQuery { NameContains = term, Take = Shown },
+                cancellationToken);
+            PagedResult<TriggerHeaderDto> triggers = await Api.QueryTriggers(
+                schedulerName,
+                new DashboardTriggerQuery { NameContains = term, Take = Shown },
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            _jobs = [.. jobs.Items];
+            _triggers = [.. triggers.Items];
+            _jobsTotal = jobs.TotalCount ?? jobs.Items.Count;
+            _triggersTotal = triggers.TotalCount ?? triggers.Items.Count;
+            _searched = term;
+            _error = null;
+            _open = true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Another keystroke came, or the reader left: the answer is for a word nobody is looking for.
+        }
+        catch (Exception ex)
+        {
+            _searched = term;
+            _error = ex.Message;
+            _open = true;
+        }
+    }
+
+    private void OnKeyDown(KeyboardEventArgs args)
+    {
+        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal))
+        {
+            Close();
+        }
+    }
+
+    /// <summary>A result was followed, or the page changed some other way: the dropdown has done its work.</summary>
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _ = InvokeAsync(() =>
+        {
+            Close();
+            StateHasChanged();
+        });
+    }
+
+    /// <summary>Another scheduler's names are not this one's.</summary>
+    private void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(() =>
+        {
+            Close();
+            StateHasChanged();
+        });
+    }
+
+    private void Close()
+    {
+        NextKeystroke();
+        _open = false;
+        _term = string.Empty;
+    }
+
+    /// <summary>Cancels the previous keystroke's wait and reads, and hands out the token of the next.</summary>
+    private CancellationToken NextKeystroke()
+    {
+        _keystroke.Cancel();
+        _keystroke.Dispose();
+        _keystroke = new CancellationTokenSource();
+        return _keystroke.Token;
+    }
+
+    private static string SeeAll(int total, string noun)
+    {
+        return total > Shown
+            ? "See all " + total.ToString(System.Globalization.CultureInfo.InvariantCulture) + " " + noun + "s"
+            : "Open the " + noun + "s listing";
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _keystroke.Cancel();
+        _keystroke.Dispose();
+    }
+}
