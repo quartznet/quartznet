@@ -282,6 +282,7 @@ internal static class QuartzServiceRegistration
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
                 SchedulerRepository = provider.GetRequiredService<ISchedulerRepository>(),
                 JobExecutionPipeline = ComposeJobExecutionPipeline(provider, key),
+                DeclaredContent = DeclaredContent.For(provider.GetSchedulerOptions<QuartzOptions>(key).Scheduling, jobStore),
             };
 
             // Plugins are added by the scheduler factory rather than here, because those named by

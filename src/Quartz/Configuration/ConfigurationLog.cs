@@ -173,4 +173,27 @@ internal static partial class ConfigurationLog
     /// </remarks>
     [LoggerMessage(EventId = 4033, Level = LogLevel.Error, Message = "Scheduler '{SchedulerName}' failed to shut down while it was being disposed; the failure is logged rather than thrown, so a container disposing it goes on to its other services")]
     public static partial void SchedulerDisposalFailed(this ILogger logger, string schedulerName, Exception exception);
+
+    /// <remarks>
+    /// Logged once per job deleted, at the first start of a scheduler whose
+    /// <see cref="SchedulingOptions.PruneUndeclaredInGroups" /> lists the job's group. Its triggers went with it.
+    /// </remarks>
+    [LoggerMessage(EventId = 4034, Level = LogLevel.Warning, Message = "Scheduler '{SchedulerName}' deleted job '{JobKey}' and its triggers: no declaration names it, and PruneUndeclaredInGroups lists its group '{OwnedGroup}'")]
+    public static partial void UndeclaredJobDeleted(this ILogger logger, string schedulerName, JobKey jobKey, string ownedGroup);
+
+    /// <remarks>
+    /// Logged once per trigger unscheduled, at the first start of a scheduler whose
+    /// <see cref="SchedulingOptions.PruneUndeclaredInGroups" /> lists the trigger's group or its declared
+    /// job's group, which <c>OwnedGroup</c> names.
+    /// </remarks>
+    [LoggerMessage(EventId = 4035, Level = LogLevel.Warning, Message = "Scheduler '{SchedulerName}' unscheduled trigger '{TriggerKey}' of job '{JobKey}': no declaration names it, and PruneUndeclaredInGroups lists the group '{OwnedGroup}'")]
+    public static partial void UndeclaredTriggerUnscheduled(this ILogger logger, string schedulerName, TriggerKey triggerKey, JobKey jobKey, string ownedGroup);
+
+    /// <remarks>
+    /// Logged rather than thrown: a cleanup that fails leaves what a start without it leaves, and refusing to
+    /// start would turn a stale trigger into an outage. What was deleted before the failure, each logged as
+    /// <c>4034</c> or <c>4035</c>, stays deleted.
+    /// </remarks>
+    [LoggerMessage(EventId = 4036, Level = LogLevel.Error, Message = "Scheduler '{SchedulerName}' did not finish pruning the jobs and triggers no declaration names in the groups {OwnedGroups}; nothing else is deleted at this start, and the start goes on")]
+    public static partial void UndeclaredContentPruneFailed(this ILogger logger, string schedulerName, string ownedGroups, Exception exception);
 }

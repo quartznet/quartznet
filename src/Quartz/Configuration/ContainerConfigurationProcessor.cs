@@ -21,6 +21,12 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
     private readonly List<SwitchedOffTrigger> switchedOff;
 
     /// <summary>
+    /// Every job the registrations declare, those <see cref="WithoutJobsLeftUntriggered" /> leaves out
+    /// included: a job is the declarations' whether or not it is stored.
+    /// </summary>
+    private readonly List<JobKey> declaredJobKeys;
+
+    /// <summary>
     /// The most trigger keys <see cref="ReportPinsUnderGeneratedInstanceId" /> names; the rest are counted.
     /// </summary>
     private const int PinnedTriggerKeysNamed = 5;
@@ -46,7 +52,9 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
         ISchedulerContent[] parts = content.ToArray();
         triggers = parts.SelectMany(x => x.Triggers).ToList();
         switchedOff = parts.SelectMany(x => x.SwitchedOffTriggers).ToList();
-        jobs = WithoutJobsLeftUntriggered(parts.SelectMany(x => x.Jobs), triggers, switchedOff);
+        List<IJobDetail> declared = parts.SelectMany(x => x.Jobs).ToList();
+        declaredJobKeys = declared.Select(static x => x.Key).ToList();
+        jobs = WithoutJobsLeftUntriggered(declared, triggers, switchedOff);
         generatedIdentities = parts.Select(x => x.GeneratedIdentity).OfType<GeneratedIdentity>().ToList();
     }
 
@@ -86,6 +94,12 @@ internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcess
     /// </remarks>
     public override async ValueTask ScheduleJobs(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
+        // What the base records is only what it stores; a switched-off trigger, its job, and a job left out
+        // for having nothing to fire it are the declarations' too, so the first start does not prune them.
+        DeclaredContent.Of(scheduler)?.Declare(
+            declaredJobKeys.Concat(switchedOff.Select(static x => x.JobKey)),
+            switchedOff.Select(static x => x.Key));
+
         foreach (SwitchedOffTrigger trigger in switchedOff)
         {
             bool unscheduled = await scheduler.UnscheduleJob(trigger.Key, cancellationToken).ConfigureAwait(false);

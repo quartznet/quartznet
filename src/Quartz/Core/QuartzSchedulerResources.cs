@@ -417,4 +417,11 @@ internal sealed class QuartzSchedulerResources
     internal Func<IExecutionHistoryStore?>? ExecutionHistory { get; set; }
 
     internal ISchedulerRepository SchedulerRepository { get; set; }
+
+    /// <summary>
+    /// The keys this scheduler's declarations name, which its first start prunes the owned groups against;
+    /// <see langword="null" /> when <see cref="SchedulingOptions.PruneUndeclaredInGroups" /> lists none or the
+    /// store keeps nothing across starts.
+    /// </summary>
+    internal Configuration.DeclaredContent? DeclaredContent { get; set; }
 }

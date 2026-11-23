@@ -755,6 +755,14 @@ internal class XmlSchedulingDataProcessor
         List<IJobDetail> jobs = new List<IJobDetail>(LoadedJobs);
         List<ITrigger> triggers = new List<ITrigger>(LoadedTriggers);
 
+        // Before anything is stored, so a key passed over below is still recorded as declared: the
+        // first start prunes the owned groups against these, when the scheduler keeps a record.
+        if (Configuration.DeclaredContent.Of(scheduler) is { } record)
+        {
+            record.Declare(jobs.Select(static x => x.Key), triggers.Select(static x => x.Key));
+            record.NeverPrune(jobGroupsToNeverDelete, triggerGroupsToNeverDelete);
+        }
+
         logger.AddingJobsAndTriggers(jobs.Count, triggers.Count);
 
         Dictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFullyQualifiedJobNameMap(triggers);
