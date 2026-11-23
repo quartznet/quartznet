@@ -1,4 +1,5 @@
 @page "/quartz/actions"
+@using Quartz.AspNetCore
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
 @implements IDisposable
@@ -8,9 +9,31 @@
 <div class="qz-page">
     <h1>Action Log</h1>
 
+    <div class="qz-live-filters">
+        <div class="qz-live-filter-grid">
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="action-log-via-filter">Via</label>
+                @* Applies on its own, as the History page's dropdowns do. What a script did through this
+                   process's HTTP API is entered here beside what the pages did, so this is how to read
+                   either alone. *@
+                <select id="action-log-via-filter"
+                        class="qz-select"
+                        data-testid="action-log-via-filter"
+                        value="@(_via?.ToString() ?? "")"
+                        @onchange="OnViaChanged">
+                    <option value="">Every surface</option>
+                    @foreach (OperatorChannel channel in Enum.GetValues<OperatorChannel>())
+                    {
+                        <option value="@channel">@ViaLabel(channel)</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
     @if (_entries.Count == 0)
     {
-        <p class="qz-muted">No recorded admin actions yet.</p>
+        <p class="qz-muted">@(_via is null ? "No recorded admin actions yet." : $"No recorded actions through {ViaLabel(_via.Value)} yet.")</p>
     }
     else
     {
@@ -18,6 +41,7 @@
             <thead>
                 <tr>
                     <th>Time</th>
+                    <th>Via</th>
                     <th>Scheduler</th>
                     <th>User</th>
                     <th>Action</th>
@@ -31,6 +55,17 @@
                 {
                     <tr>
                         <td>@Scheduler.FormatInSelectedTimeZone(entry.Timestamp, "u")</td>
+                        <td>
+                            @* The client's name is its own claim, so it is shown as stated and never as the
+                               user, who is the identity the action was authorized for. *@
+                            <span class="qz-tag @ViaClass(entry.Via)"
+                                  data-testid="action-log-via"
+                                  title="@(entry.Client is null ? null : $"Client, as stated: {entry.Client}")">@ViaLabel(entry.Via)</span>
+                            @if (entry.Client is { } client)
+                            {
+                                <div class="qz-muted qz-action-log-client" style="font-size: var(--qz-font-size-xs);">@client (as stated)</div>
+                            }
+                        </td>
                         <td>
                             @entry.SchedulerName
 
@@ -75,6 +110,7 @@
 
 @code {
     private readonly List<DashboardActionLogEntry> _entries = [];
+    private OperatorChannel? _via;
 
     protected override void OnInitialized()
     {
@@ -98,8 +134,28 @@
     private void RefreshEntries()
     {
         _entries.Clear();
-        _entries.AddRange(ActionLogs.GetLatest(Scheduler.ActiveSchedulerName, 100));
+        _entries.AddRange(ActionLogs.GetLatest(Scheduler.ActiveSchedulerName, _via, 100));
     }
+
+    private void OnViaChanged(ChangeEventArgs args)
+    {
+        _via = Enum.TryParse(args.Value?.ToString(), out OperatorChannel channel) ? channel : null;
+        RefreshEntries();
+    }
+
+    private static string ViaLabel(OperatorChannel channel) => channel switch
+    {
+        OperatorChannel.HttpApi => "HTTP API",
+        OperatorChannel.Mcp => "MCP",
+        _ => "Dashboard",
+    };
+
+    private static string ViaClass(OperatorChannel channel) => channel switch
+    {
+        OperatorChannel.HttpApi => "qz-tag-via-api",
+        OperatorChannel.Mcp => "qz-tag-via-mcp",
+        _ => "qz-tag-via-dashboard",
+    };
 
     public void Dispose()
     {
