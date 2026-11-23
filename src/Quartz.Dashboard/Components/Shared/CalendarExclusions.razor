@@ -74,7 +74,7 @@
                     {
                         <li>
                             <label class="qz-live-filter-item">
-                                <input type="checkbox" checked="@weekly.IsDayExcluded(day)" disabled data-day="@day" />
+                                <input type="checkbox" class="qz-check" checked="@weekly.IsDayExcluded(day)" disabled data-day="@day" />
                                 <span>@day</span>
                             </label>
                         </li>
@@ -90,7 +90,7 @@
                         int dayOfMonth = day;
                         <li>
                             <label class="qz-live-filter-item">
-                                <input type="checkbox" checked="@monthly.IsDayExcluded(dayOfMonth)" disabled data-day="@dayOfMonth" />
+                                <input type="checkbox" class="qz-check" checked="@monthly.IsDayExcluded(dayOfMonth)" disabled data-day="@dayOfMonth" />
                                 <span>@dayOfMonth</span>
                             </label>
                         </li>

@@ -53,7 +53,10 @@ public sealed class CalendarEditorTest
         Fill(page, "office-holidays", "Holiday");
         page.Find("#calendar-time-zone").Change(kathmandu.Id);
         page.Find("#calendar-description").Change("Office holidays");
-        page.Find("#calendar-holiday-dates").Change("2026-12-25\n2026-12-24");
+        AddHoliday(page, "2026-12-25");
+        AddHoliday(page, "2026-12-24");
+        page.FindAll("[data-testid=calendar-editor-holiday-dates] li .qz-mono").Select(item => item.TextContent).Should().Equal(
+            ["2026-12-24", "2026-12-25"], "the list is in date order, whatever order the dates were added in");
         Save(page);
 
         AddCalendarRequest request = SentOnce(page);
@@ -223,13 +226,13 @@ public sealed class CalendarEditorTest
         IRenderedComponent<CalendarDetail> page = context.Render<CalendarDetail>(parameters => parameters.Add(x => x.CalendarName, "office"));
         page.WaitForAssertion(() => page.Find("[data-testid=calendar-edit]").Click());
 
-        page.WaitForAssertion(() => page.Find("#calendar-holiday-dates").GetAttribute("value").Should().Be("2026-12-25"));
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-editor-holiday-dates] li .qz-mono").Select(item => item.TextContent).Should().Equal(["2026-12-25"]));
         page.Find("#calendar-time-zone").GetAttribute("value").Should().Be(kathmandu.Id, "the editor starts in the zone the calendar reports");
         page.FindAll("#calendar-name").Should().BeEmpty("an edit keeps the name it is stored under");
         page.FindAll("#calendar-kind").Should().BeEmpty("an edit keeps the type");
         page.Find("[data-testid=calendar-editor-base-kept]").TextContent.Should().Contain("1 calendar under it");
 
-        page.Find("#calendar-holiday-dates").Change("2026-12-25\n2026-12-26");
+        AddHoliday(page, "2026-12-26");
         Save(page);
 
         page.WaitForAssertion(() => page.Find("[data-testid=calendar-replace-used-by]").TextContent.Should().Be("2 triggers use it.",
@@ -306,11 +309,175 @@ public sealed class CalendarEditorTest
         page.HasButton("Delete calendar").Should().BeTrue("deleting a calendar does not need its type understood");
     }
 
+    /// <summary>
+    /// A wrong expression is said once, beside it, as it is typed, and goes as soon as the expression parses; it is
+    /// not also put in the form's error banner, where a save used to leave it after the expression was fixed.
+    /// </summary>
+    [Test]
+    public void AWrongCronExpressionIsSaidOnceAndGoesWhenItParses()
+    {
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        Fill(page, "night", "Cron");
+        page.Find("#calendar-cron").Input("not a cron");
+        Save(page);
+
+        page.WaitForAssertion(() => CountOf(page.Find("[data-testid=calendar-editor]").TextContent, "Invalid cron expression").Should().Be(1,
+            "the message is said beside the expression and nowhere else"));
+        page.Find("[data-testid=calendar-cron-error]").TextContent.Should().StartWith("Invalid cron expression: ");
+        page.FindAll("[data-testid=calendar-editor-errors]").Should().BeEmpty();
+        sent.Should().BeEmpty();
+
+        page.Find("#calendar-cron").Input("* * 2-3 ? * *");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-editor]").TextContent.Should().NotContain("Invalid cron expression",
+            "the expression parses now, so nothing is wrong with it"));
+        page.FindAll("[data-testid=calendar-cron-spans] li").Should().NotBeEmpty("a valid expression is previewed");
+    }
+
+    [Test]
+    public void AMissingCronExpressionIsSaidBesideItOnSaveAndGoesWhenOneIsTyped()
+    {
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        Fill(page, "night", "Cron");
+        page.FindAll("[data-testid=calendar-cron-error]").Should().BeEmpty("a blank field is not wrong until it is saved");
+        Save(page);
+
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-cron-error]").TextContent.Should().StartWith("A cron calendar needs an expression"));
+        page.Find("#calendar-cron").Input("* * 2");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-cron-error]").TextContent.Should().StartWith("Invalid cron expression"));
+        page.Find("#calendar-cron").Input("* * 2-3 ? * *");
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-cron-error]").Should().BeEmpty());
+    }
+
+    [Test]
+    public void AMonthlyCalendarWithNoDayTickedIsWarnedAboutBeforeItIsSaved()
+    {
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        Fill(page, "month-days", "Monthly");
+
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-editor-excludes-nothing]").TextContent.Should().Be(
+            "No day of the month is ticked: saved like this, the calendar excludes nothing."));
+        page.Find("[data-testid=calendar-editor-monthly-days] input[data-day='15']").Change(true);
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-editor-excludes-nothing]").Should().BeEmpty());
+    }
+
+    [Test]
+    public void TheDailyRangeIsTwoTimeFields()
+    {
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        Fill(page, "business-hours", "Daily");
+
+        foreach (string id in new[] { "#calendar-daily-start", "#calendar-daily-end" })
+        {
+            page.Find(id).GetAttribute("type").Should().Be("time");
+            page.Find(id).GetAttribute("step").Should().Be("1", "a range may start or end on a second");
+        }
+    }
+
+    [Test]
+    public void AHolidayIsTakenOffTheListAndSeveralArePastedAtOnce()
+    {
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        Fill(page, "office-holidays", "Holiday");
+        page.Find("#calendar-holiday-paste").Change("2026-12-24\n2026-12-25\nBoxing Day\n2026-12-26");
+        page.Find("[data-testid=calendar-holiday-paste-add]").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-editor-holiday-dates] li .qz-mono").Select(item => item.TextContent).Should().Equal(
+            ["2026-12-24", "2026-12-25", "2026-12-26"]));
+        page.Find("[data-testid=calendar-holiday-rejected]").TextContent.Should().Contain("Boxing Day");
+        page.Find("#calendar-holiday-paste").GetAttribute("value").Should().Be("Boxing Day", "the lines that were not added stay in the box to be fixed");
+
+        page.Find("[data-testid=calendar-editor-holiday-dates] button[data-date='2026-12-25']").Click();
+        Save(page);
+
+        HolidayCalendar calendar = SentOnce(page).Calendar.Should().BeOfType<HolidayCalendar>().Subject;
+        calendar.DaysExcluded.Should().Equal([new DateOnly(2026, 12, 24), new DateOnly(2026, 12, 26)]);
+    }
+
+    [Test]
+    public void EscapeClosesTheReplaceQuestionAndSendsNothing()
+    {
+        GivenUsers("existing", 2);
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        Fill(page, "existing", "Weekly");
+        Save(page);
+        page.WaitForElement("[data-testid=calendar-replace-dialog]");
+
+        page.Find("[data-testid=modal-overlay]").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Escape" });
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-replace-dialog]").Should().BeEmpty());
+        sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public void ACalendarNoTriggerUsesSaysSoWithoutALink()
+    {
+        A.CallTo(() => context.Api.GetCalendar(TestData.SchedulerName, "unused", A<CancellationToken>._))
+            .Returns(new WeeklyCalendar { TimeZone = TimeZoneInfo.Utc });
+        GivenUsers("unused", 0);
+
+        IRenderedComponent<CalendarDetail> page = context.Render<CalendarDetail>(parameters => parameters.Add(x => x.CalendarName, "unused"));
+
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-used-by]").TextContent.Trim().Should().Be("Not used by any trigger"));
+        page.FindAll("[data-testid=calendar-used-by] a").Should().BeEmpty("a listing of no triggers is not worth a link");
+    }
+
+    [Test]
+    public void WhileEditingTheCalendarIsNotAlsoShownBelowTheEditor()
+    {
+        A.CallTo(() => context.Api.GetCalendar(TestData.SchedulerName, "office", A<CancellationToken>._))
+            .Returns(new WeeklyCalendar { TimeZone = TimeZoneInfo.Utc });
+        GivenUsers("office", 0);
+        IRenderedComponent<CalendarDetail> page = context.Render<CalendarDetail>(parameters => parameters.Add(x => x.CalendarName, "office"));
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-facts]").Should().ContainSingle());
+
+        page.Find("[data-testid=calendar-edit]").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-editor]").Should().ContainSingle());
+        page.FindAll("[data-testid=calendar-facts]").Should().BeEmpty("the editor holds the type, the zone and the days");
+
+        page.Find("[data-testid=calendar-cancel]").Click();
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-facts]").Should().ContainSingle());
+    }
+
+    [Test]
+    public void TheListingSaysEachCalendarsType()
+    {
+        GivenCalendarNames("bank", "weekends", "zone", "broken");
+        A.CallTo(() => context.Api.GetCalendar(TestData.SchedulerName, "bank", A<CancellationToken>._)).Returns(new HolidayCalendar());
+        A.CallTo(() => context.Api.GetCalendar(TestData.SchedulerName, "weekends", A<CancellationToken>._)).Returns(new WeeklyCalendar());
+        A.CallTo(() => context.Api.GetCalendar(TestData.SchedulerName, "zone", A<CancellationToken>._)).Returns(new BaseCalendar());
+        A.CallTo(() => context.Api.GetCalendar(TestData.SchedulerName, "broken", A<CancellationToken>._))
+            .ThrowsAsync(new InvalidOperationException("no serializer for OfficeClosures"));
+
+        IRenderedComponent<Calendars> page = context.Render<Calendars>();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-type]").Select(cell => cell.TextContent).Should().Equal(
+            ["Holiday", "Weekly", "Base", "unreadable"]));
+        page.FindAll("[data-testid=calendar-type]")[3].GetAttribute("title").Should().Be("no serializer for OfficeClosures",
+            "a calendar that cannot be read says why, and the others are still read");
+        page.FindAll("thead th").Select(cell => cell.TextContent.Trim()).Take(2).Should().Equal("Name", "Type");
+    }
+
     private IRenderedComponent<Calendars> RenderListing()
     {
         IRenderedComponent<Calendars> page = context.Render<Calendars>();
         page.WaitForAssertion(() => page.Find("[data-testid=calendar-editor]"));
         return page;
+    }
+
+    private static void AddHoliday<T>(IRenderedComponent<T> page, string date) where T : IComponent
+    {
+        page.Find("#calendar-holiday-add").Change(date);
+        page.Find("[data-testid=calendar-holiday-add]").Click();
     }
 
     private static void Fill(IRenderedComponent<Calendars> page, string name, string kind)
@@ -336,6 +503,17 @@ public sealed class CalendarEditorTest
     {
         A.CallTo(() => context.Api.QueryTriggers(TestData.SchedulerName, A<DashboardTriggerQuery>.That.Matches(query => query.CalendarName == calendarName), A<CancellationToken>._))
             .Returns(new PagedResult<TriggerHeaderDto>([], HasMore: false, TotalCount: count));
+    }
+
+    private static int CountOf(string text, string value)
+    {
+        int count = 0;
+        for (int index = text.IndexOf(value, StringComparison.Ordinal); index >= 0; index = text.IndexOf(value, index + value.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
     }
 
     private static string Text(IElement element) => string.Join(' ', element.TextContent.Split((char[]?) null, StringSplitOptions.RemoveEmptyEntries));

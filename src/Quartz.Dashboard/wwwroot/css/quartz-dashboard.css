@@ -1296,6 +1296,11 @@ body{
     animation: qz-fade-in var(--qz-transition-base);
 }
 
+/* A dialog keeps a margin from the window's edges on a phone. */
+.qz-confirm-overlay {
+    padding: var(--qz-space-md);
+}
+
 .qz-dialog,
 .qz-confirm-dialog {
     background-color: var(--qz-color-surface);
@@ -1375,9 +1380,27 @@ body{
 
 .qz-confirm-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     align-items: center;
     gap: var(--qz-space-sm);
+}
+
+/* On a phone a dialog's actions stack, each as wide as the dialog, rather than run off its edge. */
+@media (max-width: 480px) {
+    .qz-confirm-dialog {
+        padding: var(--qz-space-md);
+    }
+
+    .qz-confirm-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .qz-confirm-actions > .qz-button {
+        width: 100%;
+        white-space: normal;
+    }
 }
 
 /* The two stops either side of a dialog that keep Tab inside it: focusable, and not seen. */
@@ -4264,9 +4287,37 @@ body{
     gap: var(--qz-space-sm);
 }
 
-.qz-calendar-facts th {
+/* The facts tables wrap their values on a phone rather than run past the card: a zone id, a type name and an
+   explanation share the value column, and the label column gives up the table's 160-pixel floor. */
+.qz-calendar-facts {
+    table-layout: fixed;
+}
+
+.qz-table.qz-calendar-facts tbody th {
     width: 9rem;
+    min-width: 0;
     text-align: left;
+}
+
+.qz-calendar-facts td {
+    overflow-wrap: break-word;
+}
+
+@media (max-width: 480px) {
+    .qz-table.qz-calendar-facts tbody th {
+        width: 6.5rem;
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
+
+    .qz-calendar-facts td {
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
+
+    .qz-calendar-chain-item {
+        padding-left: var(--qz-space-sm);
+    }
 }
 
 .qz-calendar-rules > p {
@@ -4302,9 +4353,14 @@ body{
 
 .qz-calendar-year th,
 .qz-calendar-year td {
-    padding: 1px 2px;
+    padding: 3px;
     text-align: center;
     border: 1px solid var(--qz-color-border);
+}
+
+.qz-calendar-year td {
+    width: 28px;
+    height: 28px;
 }
 
 .qz-calendar-year th[scope="row"] {
@@ -4313,16 +4369,126 @@ body{
     white-space: nowrap;
 }
 
-.qz-calendar-year input[type="checkbox"] {
-    margin: 0;
-}
-
 .qz-calendar-year-excluded {
-    background-color: var(--qz-color-danger-bg);
+    background-color: var(--qz-color-primary-light);
 }
 
 .qz-calendar-year-none {
     background-color: var(--qz-color-surface-alt);
+}
+
+/* The dashboard's own check: a box with a solid fill and a white tick when it is checked, the same in the
+   editor and on the read-only page, in both themes. Its unchecked border is the muted token, 4.7:1 or better
+   against the surface; checked, the tick on the primary fill is 3.7:1 or better. */
+.qz-check {
+    appearance: none;
+    flex: none;
+    display: inline-grid;
+    place-content: center;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    border: 2px solid var(--qz-color-text-muted);
+    border-radius: var(--qz-radius-sm);
+    background-color: var(--qz-color-surface);
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.qz-check::before {
+    content: "";
+    width: 10px;
+    height: 5px;
+    border-left: 2px solid #ffffff;
+    border-bottom: 2px solid #ffffff;
+    transform: translateY(-1px) rotate(-45deg);
+    opacity: 0;
+}
+
+.qz-check:checked {
+    background-color: var(--qz-color-primary);
+    border-color: var(--qz-color-primary);
+}
+
+.qz-check:checked::before {
+    opacity: 1;
+}
+
+.qz-check:focus-visible {
+    outline: 2px solid var(--qz-color-primary);
+    outline-offset: 2px;
+}
+
+/* Read-only checks keep their colours, so an excluded day reads as one; only the pointer says they are not
+   for changing. */
+.qz-check:disabled {
+    cursor: default;
+    opacity: 1;
+}
+
+.qz-calendar-editor-rules {
+    display: flex;
+    flex-direction: column;
+    gap: var(--qz-space-sm);
+    margin-top: var(--qz-space-md);
+}
+
+.qz-calendar-editor-rules > p,
+.qz-calendar-editor-rules .qz-form-group > p {
+    margin: 0;
+}
+
+.qz-calendar-editor .qz-actions {
+    margin-top: var(--qz-space-md);
+}
+
+.qz-calendar-add-date {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--qz-space-sm);
+}
+
+/* The field's own bottom margin would leave Add below it rather than level with it. */
+.qz-calendar-add-date .qz-form-group {
+    margin-bottom: 0;
+}
+
+.qz-calendar-paste > summary {
+    cursor: pointer;
+    color: var(--qz-color-text-secondary);
+}
+
+.qz-calendar-paste[open] > summary {
+    margin-bottom: var(--qz-space-sm);
+}
+
+.qz-calendar-paste .qz-form-group {
+    margin-bottom: var(--qz-space-sm);
+}
+
+/* A warning about what is about to be saved: the page's own text on the warning background, which keeps it at
+   AA where the warning colour alone would not be. */
+.qz-form-warning {
+    margin: 0;
+    padding: var(--qz-space-sm) var(--qz-space-md);
+    border: 1px solid var(--qz-color-warning);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-warning-bg);
+    color: var(--qz-color-text);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-calendars-table td {
+    overflow-wrap: anywhere;
+}
+
+/* What is wrong with one field, beside it. The danger colour is 3.89:1 on the dark theme's surface, so the
+   text takes its darker or lighter step: 6.47:1 light, 5.29:1 dark. */
+.qz-field-error {
+    margin: var(--qz-space-xs) 0 0;
+    color: var(--qz-color-danger-hover);
+    font-size: var(--qz-font-size-sm);
 }
 
 .qz-calendar-chain-item {

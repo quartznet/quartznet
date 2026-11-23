@@ -93,7 +93,7 @@ internal sealed class CalendarForm
         switch (calendar)
         {
             case HolidayCalendar holiday:
-                form.HolidayDates = string.Join("\n", holiday.DaysExcluded.Order().Select(CalendarReading.FormatDate));
+                form.HolidayDays.UnionWith(holiday.DaysExcluded);
                 break;
             case AnnualCalendar annual:
                 form.AnnualDays.UnionWith(annual.DaysExcluded);
@@ -128,8 +128,8 @@ internal sealed class CalendarForm
     /// <summary>The zone the calendar's days and times are read in, by its system id.</summary>
     public string TimeZoneId { get; set; } = string.Empty;
 
-    /// <summary>A holiday calendar's dates, one a line, as <c>yyyy-MM-dd</c>.</summary>
-    public string HolidayDates { get; set; } = string.Empty;
+    /// <summary>A holiday calendar's dates, in order, which the editor adds to and takes from.</summary>
+    public SortedSet<DateOnly> HolidayDays { get; } = [];
 
     /// <summary>An annual calendar's days of the year, which the grid's ticks change in place.</summary>
     public HashSet<MonthDay> AnnualDays { get; } = [];
@@ -151,6 +151,72 @@ internal sealed class CalendarForm
 
     /// <summary>A cron calendar's expression, whose matching seconds it excludes.</summary>
     public string CronExpression { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether a calendar of the kind the form builds, saved as it stands, would exclude nothing: no date, day
+    /// or day of the year ticked. Daily and cron calendars always exclude something, or are refused.
+    /// </summary>
+    public bool ExcludesNothing => Kind switch
+    {
+        CalendarKind.Holiday => HolidayDays.Count == 0,
+        CalendarKind.Annual => AnnualDays.Count == 0,
+        CalendarKind.Weekly => WeeklyDays.Count == 0,
+        CalendarKind.Monthly => MonthlyDays.Count == 0,
+        _ => false,
+    };
+
+    /// <summary>
+    /// Adds the dates in <paramref name="text" />, one a line as <c>yyyy-MM-dd</c>, to <see cref="HolidayDays" />,
+    /// and answers the lines that are not such a date. Blank lines and surrounding space are not lines.
+    /// </summary>
+    public List<string> AddHolidayDates(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+
+        List<string> rejected = [];
+        foreach (string line in text.Split('\n'))
+        {
+            string trimmed = line.Trim();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            if (DateOnly.TryParseExact(trimmed, CalendarReading.DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly date))
+            {
+                HolidayDays.Add(date);
+            }
+            else
+            {
+                rejected.Add(trimmed);
+            }
+        }
+
+        return rejected;
+    }
+
+    /// <summary>
+    /// What is wrong with <see cref="CronExpression" /> as it stands, or <see langword="null" /> when it parses or
+    /// is still blank: the editor says it beside the field as it is typed, and drops it as soon as it parses.
+    /// </summary>
+    public string? CronExpressionError()
+    {
+        string expression = CronExpression.Trim();
+        if (expression.Length == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            _ = new CronExpression(expression);
+            return null;
+        }
+        catch (FormatException ex)
+        {
+            return "Invalid cron expression: " + ex.Message;
+        }
+    }
 
     /// <summary>
     /// The zone <see cref="TimeZoneId" /> names, or <see langword="null" /> while it names none this process
@@ -180,11 +246,13 @@ internal sealed class CalendarForm
 
     /// <summary>
     /// The calendar the fields describe, or the reasons they describe none. Each reason names the field it is
-    /// about, so the reader corrects that one rather than starting again.
+    /// about, so the reader corrects that one rather than starting again. What is wrong with a cron expression is
+    /// <see cref="CalendarFormResult.CronExpressionError" />, said beside its field rather than with the others.
     /// </summary>
     public CalendarFormResult Build()
     {
         List<string> errors = [];
+        string? cronExpressionError = null;
 
         TimeZoneInfo? timeZone = TryResolveTimeZone();
         if (timeZone is null)
@@ -200,18 +268,18 @@ internal sealed class CalendarForm
 
         ICalendar? calendar = Kind switch
         {
-            CalendarKind.Holiday => BuildHoliday(errors, calendarBase),
+            CalendarKind.Holiday => BuildHoliday(calendarBase),
             CalendarKind.Annual => BuildAnnual(errors, calendarBase),
             CalendarKind.Weekly => BuildWeekly(errors, calendarBase),
             CalendarKind.Monthly => BuildMonthly(errors, calendarBase),
             CalendarKind.Daily => BuildDaily(errors, calendarBase),
-            CalendarKind.Cron => BuildCron(errors, calendarBase, timeZone),
+            CalendarKind.Cron => BuildCron(calendarBase, timeZone, out cronExpressionError),
             _ => throw new InvalidOperationException("The dashboard does not build a " + CalendarReading.Describe(Kind).ToLowerInvariant() + "."),
         };
 
-        if (errors.Count > 0 || calendar is null || timeZone is null)
+        if (errors.Count > 0 || cronExpressionError is not null || calendar is null || timeZone is null)
         {
-            return new CalendarFormResult(null, errors);
+            return new CalendarFormResult(null, errors, cronExpressionError);
         }
 
         calendar.Description = description;
@@ -219,25 +287,12 @@ internal sealed class CalendarForm
         return new CalendarFormResult(calendar, errors);
     }
 
-    private HolidayCalendar? BuildHoliday(List<string> errors, ICalendar? calendarBase)
+    private HolidayCalendar BuildHoliday(ICalendar? calendarBase)
     {
         HolidayCalendar calendar = new() { CalendarBase = calendarBase };
-        foreach (string line in HolidayDates.Split('\n'))
+        foreach (DateOnly date in HolidayDays)
         {
-            string text = line.Trim();
-            if (text.Length == 0)
-            {
-                continue;
-            }
-
-            if (DateOnly.TryParseExact(text, CalendarReading.DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly date))
-            {
-                calendar.AddExcludedDay(date);
-            }
-            else
-            {
-                errors.Add("'" + text + "' is not a date written as " + CalendarReading.DateFormat + ".");
-            }
+            calendar.AddExcludedDay(date);
         }
 
         return calendar;
@@ -317,22 +372,23 @@ internal sealed class CalendarForm
         return new DailyCalendar(start.Value, end.Value, calendarBase) { InvertTimeRange = DailyInvert };
     }
 
-    private CronCalendar? BuildCron(List<string> errors, ICalendar? calendarBase, TimeZoneInfo? timeZone)
+    private CronCalendar? BuildCron(ICalendar? calendarBase, TimeZoneInfo? timeZone, out string? error)
     {
         string expression = CronExpression.Trim();
         if (expression.Length == 0)
         {
-            errors.Add("A cron calendar needs an expression: it excludes every second the expression matches.");
+            error = "A cron calendar needs an expression: it excludes every second the expression matches.";
             return null;
         }
 
         try
         {
+            error = null;
             return new CronCalendar(calendarBase, expression, timeZone ?? TimeZoneInfo.Utc);
         }
         catch (FormatException ex)
         {
-            errors.Add("Invalid cron expression: " + ex.Message);
+            error = "Invalid cron expression: " + ex.Message;
             return null;
         }
     }
@@ -357,6 +413,8 @@ internal sealed class CalendarForm
 }
 
 /// <summary>
-/// What <see cref="CalendarForm.Build" /> made of the fields: the calendar, or the reasons there is none.
+/// What <see cref="CalendarForm.Build" /> made of the fields: the calendar, or the reasons there is none. A reason
+/// about the cron expression is <see cref="CronExpressionError" />, kept apart so the editor says it once, beside
+/// the expression.
 /// </summary>
-internal sealed record CalendarFormResult(ICalendar? Calendar, List<string> Errors);
+internal sealed record CalendarFormResult(ICalendar? Calendar, List<string> Errors, string? CronExpressionError = null);

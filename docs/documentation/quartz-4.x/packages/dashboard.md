@@ -290,7 +290,7 @@ detail page.
 |---|---|---|
 | **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete |
 | **Triggers**: from 4.8, [the schedule in words, and next and previous fire](#the-schedule-and-fire-times); state, execution group | from 4.7, its [upcoming fires](#upcoming-fires); from 4.8, the schedule in words beside its expression; the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
-| **Calendars**: names | from 4.9, [the calendar's own rules](#calendars), its time zone, the calendars under it and how many triggers use it | from 4.9, [create or edit](#calendars) a calendar of any of the six built-in types; delete |
+| **Calendars**: names; from 4.9, each one's type | from 4.9, [the calendar's own rules](#calendars), its time zone, the calendars under it and how many triggers use it | from 4.9, [create or edit](#calendars) a calendar of any of the six built-in types; delete |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
   query parameter too; see [Filtering the listings](#filtering-the-listings).
@@ -446,11 +446,11 @@ created.
 
 | Type | Calendar Detail shows | The editor takes |
 |---|---|---|
-| `HolidayCalendar` | its dates, each with its weekday | dates, one a line, as `yyyy-MM-dd` |
-| `AnnualCalendar` | a month-by-day grid of the days excluded every year | ticks in the same grid; February counts 29 |
+| `HolidayCalendar` | its dates, each with its weekday | a date picker and *Add*, *Remove* beside each date, and several dates pasted one a line as `yyyy-MM-dd` |
+| `AnnualCalendar` | a month-by-day grid of the days excluded every year | ticks in the same grid; February counts 29. The grid is one tab stop: the arrow keys move between days, Home and End to the month's ends, and Space ticks |
 | `WeeklyCalendar` | the days of the week, ticked | ticks; a new one starts with Saturday and Sunday, as the type does |
 | `MonthlyCalendar` | the days of the month, ticked | ticks, 1 to 31 |
-| `DailyCalendar` | the range, and whether it is inverted: the range is then the part of the day included | start and end as `HH:mm`, `HH:mm:ss` or `HH:mm:ss.fff`, and the inversion |
+| `DailyCalendar` | the range, and whether it is inverted: the range is then the part of the day included | start and end as two time fields, to the second, and the inversion |
 | `CronCalendar` | the expression, and the next five spans it excludes | the expression, previewed as it is typed |
 
 - **Every calendar says its time zone**, the zone its days and times are read in. The cron spans show in it, with
@@ -459,7 +459,13 @@ created.
   calendar, not a link: replacing a calendar stored under another name does not change it. The editor keeps them
   as they are.
 - **The *Used by N triggers* link** opens the Triggers listing [filtered](#filtering-the-listings) by the calendar.
-  The number is one count, with no trigger read, on load and on **Refresh**.
+  The number is one count, with no trigger read, on load and on **Refresh**. A calendar no trigger uses says
+  *Not used by any trigger*, with no link.
+- **The listing reads each calendar once for its type**, on load and on **Refresh**, eight at a time and no more than
+  200; a scheduler lists names alone. A calendar that cannot be read, such as a custom type the dashboard has no
+  serializer for, shows *unreadable* with the reason on hover.
+- **A holiday, annual, weekly or monthly calendar with nothing ticked** is warned about before it is saved: it
+  would exclude nothing.
 - **Saving over a stored calendar asks first**, and says how many triggers use it. *Replace and update triggers*
   recomputes each one's next fire time against the new calendar (`AddCalendarRequest.UpdateTriggers`). *Replace
   only* leaves each the next fire time it has, even one the new calendar excludes.

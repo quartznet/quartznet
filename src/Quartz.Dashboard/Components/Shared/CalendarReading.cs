@@ -108,6 +108,18 @@ internal static class CalendarReading
         };
     }
 
+    /// <summary>
+    /// The calendar's type in a word, as the Calendars listing shows it: <c>Holiday</c>, <c>Annual</c>, <c>Weekly</c>,
+    /// <c>Monthly</c>, <c>Daily</c>, <c>Cron</c> or <c>Base</c>, and a custom type's own name.
+    /// </summary>
+    public static string ShortName(ICalendar calendar)
+    {
+        ArgumentNullException.ThrowIfNull(calendar);
+
+        CalendarKind kind = KindOf(calendar);
+        return kind == CalendarKind.Custom ? calendar.GetType().Name : kind.ToString();
+    }
+
     /// <summary>Whether the dashboard edits a calendar of this kind.</summary>
     public static bool IsEditable(CalendarKind kind) => kind is not (CalendarKind.Base or CalendarKind.Custom);
 

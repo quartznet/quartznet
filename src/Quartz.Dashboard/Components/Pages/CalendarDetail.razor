@@ -35,7 +35,12 @@
     {
         <h2>@CalendarName</h2>
         <p data-testid="calendar-used-by">
-            @if (_usedBy is { } usedBy)
+            @if (_usedBy is 0)
+            {
+                @* Nothing to list, so nothing to link to. *@
+                <span>Not used by any trigger</span>
+            }
+            else if (_usedBy is { } usedBy)
             {
                 <a href="@TriggersPath">Used by @CalendarReading.Count(usedBy, "trigger")</a>
             }
@@ -65,10 +70,13 @@
 
         @if (_editing && CanEdit)
         {
+            @* The editor holds the type, the zone and the rules, so the view of them is not drawn twice. *@
             <CalendarEditor Calendar="@_calendar" CalendarName="@CalendarName" UsedBy="@_usedBy" OnSaved="OnCalendarSavedAsync" OnCancel="StopEditing" />
         }
-
-        <CalendarExclusions Calendar="@_calendar" From="@_readAt" />
+        else
+        {
+            <CalendarExclusions Calendar="@_calendar" From="@_readAt" />
+        }
 
         @if (_baseChain.Count > 0)
         {

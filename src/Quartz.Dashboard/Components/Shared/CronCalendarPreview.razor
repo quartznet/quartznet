@@ -6,7 +6,7 @@
 <div class="qz-calendar-cron-preview" data-testid="calendar-cron-preview">
     @if (_error is { } error)
     {
-        <p class="qz-text-danger" data-testid="calendar-cron-preview-error">@error</p>
+        <p class="qz-field-error" data-testid="calendar-cron-preview-error">@error</p>
     }
     else if (_spans.Count == 0)
     {
