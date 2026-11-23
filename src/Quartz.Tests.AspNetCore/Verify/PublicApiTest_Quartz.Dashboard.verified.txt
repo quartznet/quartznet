@@ -216,6 +216,7 @@ namespace Quartz.Dashboard.Services
     {
         public DashboardFireInstanceQuery() { }
         public string? GroupContains { get; init; }
+        public Quartz.Dashboard.Services.JobKeyDto? Job { get; init; }
         public Quartz.FireInstanceState? State { get; init; }
     }
     public sealed record DashboardGroupQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardGroupQuery>

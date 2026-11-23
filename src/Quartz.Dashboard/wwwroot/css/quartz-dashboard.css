@@ -2306,6 +2306,29 @@ body{
     margin-bottom: var(--qz-space-md);
 }
 
+/* Trigger Detail's "Why isn't it firing?" */
+.qz-diagnosis-table th {
+    width: 12rem;
+    white-space: nowrap;
+}
+
+.qz-diagnosis-table td.qz-diagnosis-verdict {
+    width: 2rem;
+    text-align: center;
+    font-weight: 600;
+}
+
+.qz-diagnosis-ok .qz-diagnosis-verdict { color: var(--qz-color-success); }
+.qz-diagnosis-info .qz-diagnosis-verdict { color: var(--qz-color-info); }
+.qz-diagnosis-warning .qz-diagnosis-verdict { color: var(--qz-color-warning); }
+.qz-diagnosis-problem .qz-diagnosis-verdict { color: var(--qz-color-danger); }
+.qz-diagnosis-unknown .qz-diagnosis-verdict { color: var(--qz-color-text-muted); }
+
+.qz-diagnosis-table .qz-details-link,
+.qz-diagnosis-table .qz-button {
+    margin-left: var(--qz-space-sm);
+}
+
 /* ==========================================================================
    16. ALERTS
    ========================================================================== */

@@ -1025,6 +1025,18 @@ public sealed record DashboardFireInstanceQuery : PagedQuery
     /// query lists what is running; <see langword="null" /> lists reserved firings as well.
     /// </summary>
     public FireInstanceState? State { get; init; } = FireInstanceState.Executing;
+
+    /// <summary>
+    /// Lists only the firings of this job, matched exactly, or every job's when null, as
+    /// <see cref="FireInstanceQuery.Job" /> does. A firing that is only <see cref="FireInstanceState.Acquired" />
+    /// has no job recorded yet and never matches. Added in 4.9.
+    /// </summary>
+    /// <remarks>
+    /// What Trigger Detail's diagnosis reads to name the firing that holds a <see cref="TriggerState.Blocked" />
+    /// trigger's job. Over HTTP and through an agent it travels as the route's <c>jobName</c> and <c>jobGroup</c>,
+    /// which hosts have read since 4.0.
+    /// </remarks>
+    public JobKeyDto? Job { get; init; }
 }
 
 /// <summary>

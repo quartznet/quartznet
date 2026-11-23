@@ -177,6 +177,38 @@ public sealed class StoreAttachedTargetTest
         mixed.Costs.Should().ContainSingle().Which.Should().Contain("node node-b").And.Contain("TRIGGER_ACCESS").And.Contain("never answered");
     }
 
+    /// <summary>
+    /// Trigger Detail's diagnosis reads a window as it reads a scheduler (#4411): the status from the
+    /// cluster's check-ins, the job group's pause from the store, and the firing of the job a node is running,
+    /// through the firing listing's job filter.
+    /// </summary>
+    [Test]
+    public async Task AWindowIsDiagnosedFromTheStoreTheClusterShares()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        IScheduler nodeScheduler = await node.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        await nodeScheduler.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals("batch"), new PauseDetails { Reason = "quarter close", RequestedBy = "finance" });
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow, version: "4.9.0");
+        WriteExecutingFiring("node-a-1", NodeA);
+        WriteExecutingFiring("node-b-1", "node-b", jobName: "other");
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+        SchedulerHeaderDto window = (await dashboard.Client.GetSchedulers()).Single(x => x.SchedulerName == ClusterScheduler);
+        ITrigger trigger = await dashboard.Client.GetTrigger(window.Key, new TriggerKeyDto("nightly", "at-midnight"));
+        TriggerState state = await dashboard.Client.GetTriggerState(window.Key, new TriggerKeyDto("nightly", "at-midnight"));
+
+        TriggerDiagnosisFacts facts = await TriggerDiagnosis.Read(
+            dashboard.Client,
+            new DiagnosisSubject(window.Key, trigger, state, Pause: null, ContinuationParentExists: true, DateTimeOffset.UtcNow) { IsWindow = true });
+        List<DiagnosisCheck> checks = TriggerDiagnosis.Evaluate(facts, value => value?.ToString("u", CultureInfo.InvariantCulture) ?? "-");
+
+        state.Should().Be(TriggerState.Paused, "pausing the job group pauses its triggers");
+        checks.Single(check => check.Name == "Scheduler").Text.Should().Be("Running: a node of the cluster checked in within its interval.");
+        checks.Single(check => check.Name == "Job group").Text.Should().StartWith("'batch' is paused by finance at").And.Contain("(quarter close)");
+        checks.Single(check => check.Name == "Its job's firings").Text.Should().StartWith("One running: on node " + NodeA,
+            "the job filter finds the firing the node wrote for this job, and not node-b's of another");
+    }
+
     [Test]
     public async Task AWindowWithNoLiveNodeIsNotRunning()
     {
@@ -537,7 +569,7 @@ public sealed class StoreAttachedTargetTest
     /// The row a node writes for a firing it is running, as the node itself would: <c>EXECUTING</c>, with
     /// the job's key. Written by hand for the reason the check-in row is: nothing here runs the job.
     /// </summary>
-    private void WriteExecutingFiring(string entryId, string instanceId)
+    private void WriteExecutingFiring(string entryId, string instanceId, string jobName = "nightly")
     {
         using SqliteConnection connection = new(database.ConnectionString);
         connection.Open();
@@ -545,11 +577,12 @@ public sealed class StoreAttachedTargetTest
         using SqliteCommand command = connection.CreateCommand();
         command.CommandText =
             "INSERT INTO QRTZ_FIRED_TRIGGERS (SCHED_NAME, ENTRY_ID, TRIGGER_NAME, TRIGGER_GROUP, INSTANCE_NAME, FIRED_TIME, SCHED_TIME, PRIORITY, STATE, JOB_NAME, JOB_GROUP, IS_NONCONCURRENT, REQUESTS_RECOVERY) "
-            + "VALUES (@scheduler, @entry, 'at-midnight', 'nightly', @instance, @fired, @fired, 5, 'EXECUTING', 'nightly', 'batch', 0, 0)";
+            + "VALUES (@scheduler, @entry, 'at-midnight', 'nightly', @instance, @fired, @fired, 5, 'EXECUTING', @job, 'batch', 0, 0)";
         command.Parameters.AddWithValue("@scheduler", ClusterScheduler);
         command.Parameters.AddWithValue("@entry", entryId);
         command.Parameters.AddWithValue("@instance", instanceId);
         command.Parameters.AddWithValue("@fired", DateTimeOffset.UtcNow.UtcTicks);
+        command.Parameters.AddWithValue("@job", jobName);
         command.ExecuteNonQuery();
     }
 

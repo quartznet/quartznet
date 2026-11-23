@@ -363,6 +363,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         FireInstanceQuery storeQuery = new()
         {
             TriggerGroup = BuildGroupMatcher<TriggerKey>(query.GroupContains),
+            Job = query.Job is null ? null : AsJobKey(query.Job),
             State = query.State,
             Skip = query.Skip,
             Take = query.Take,
