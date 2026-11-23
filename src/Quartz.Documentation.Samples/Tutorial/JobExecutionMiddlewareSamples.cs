@@ -85,6 +85,25 @@ public static class JobExecutionMiddlewareSamples
 
         #endregion
     }
+
+    public static void StartJitterRegistering(IHostApplicationBuilder builder)
+    {
+        #region sample_job_middleware_start_jitter_register
+
+        builder.AddQuartz(q =>
+        {
+            q.AddJobMiddleware(provider => new StartJitterMiddleware(
+                provider.GetService<TimeProvider>() ?? TimeProvider.System,
+                Random.Shared));
+
+            // each firing of this job waits a random time of up to 30 seconds before it runs
+            q.AddJob<ReportJob>(job => job
+                .WithIdentity("report")
+                .UsingJobData(StartJitter.MaxDelaySeconds, 30));
+        });
+
+        #endregion
+    }
 }
 
 #region sample_job_timeout_attribute
@@ -106,6 +125,33 @@ public sealed class ReportJob : IJob
 public sealed class NightlyRebuildJob : IJob
 {
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
+
+#endregion
+
+#region sample_job_middleware_start_jitter
+
+public static class StartJitter
+{
+    // The job-data key a job sets to opt in: the most seconds its start may be delayed by.
+    public const string MaxDelaySeconds = "start-jitter-max-seconds";
+}
+
+public sealed class StartJitterMiddleware(TimeProvider timeProvider, Random random) : IJobExecutionMiddleware
+{
+    public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
+    {
+        if (context.MergedJobDataMap.TryGetDouble(StartJitter.MaxDelaySeconds, out double maxSeconds) && maxSeconds > 0)
+        {
+            TimeSpan delay = TimeSpan.FromSeconds(random.NextDouble() * maxSeconds);
+
+            // The firing's token, so interrupting the firing ends the wait and the job does not run.
+            // ScheduledFireTimeUtc is left alone, so the firing's occurrence stays what the trigger said.
+            await Task.Delay(delay, timeProvider, cancellationToken);
+        }
+
+        await next(context, cancellationToken);
+    }
 }
 
 #endregion

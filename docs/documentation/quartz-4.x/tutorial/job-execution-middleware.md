@@ -381,6 +381,64 @@ An exception the job threw that is *not* a cancellation is kept even when the bu
 because it says more about what went wrong. The overrun is logged either way.
 :::
 
+## A random delay before each run
+
+Jobs that share a schedule start in the same second, and so do their calls to a remote service. A
+middleware can hold each firing back by a random amount first
+(asked for in discussions [#2227](https://github.com/quartznet/quartznet/discussions/2227) and
+[#1482](https://github.com/quartznet/quartznet/discussions/1482)). A job opts in with a job-data key:
+
+<!-- snippet: sample_job_middleware_start_jitter -->
+```csharp
+public static class StartJitter
+{
+    // The job-data key a job sets to opt in: the most seconds its start may be delayed by.
+    public const string MaxDelaySeconds = "start-jitter-max-seconds";
+}
+
+public sealed class StartJitterMiddleware(TimeProvider timeProvider, Random random) : IJobExecutionMiddleware
+{
+    public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
+    {
+        if (context.MergedJobDataMap.TryGetDouble(StartJitter.MaxDelaySeconds, out double maxSeconds) && maxSeconds > 0)
+        {
+            TimeSpan delay = TimeSpan.FromSeconds(random.NextDouble() * maxSeconds);
+
+            // The firing's token, so interrupting the firing ends the wait and the job does not run.
+            // ScheduledFireTimeUtc is left alone, so the firing's occurrence stays what the trigger said.
+            await Task.Delay(delay, timeProvider, cancellationToken);
+        }
+
+        await next(context, cancellationToken);
+    }
+}
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_job_middleware_start_jitter_register -->
+```csharp
+builder.AddQuartz(q =>
+{
+    q.AddJobMiddleware(provider => new StartJitterMiddleware(
+        provider.GetService<TimeProvider>() ?? TimeProvider.System,
+        Random.Shared));
+
+    // each firing of this job waits a random time of up to 30 seconds before it runs
+    q.AddJob<ReportJob>(job => job
+        .WithIdentity("report")
+        .UsingJobData(StartJitter.MaxDelaySeconds, 30));
+});
+```
+<!-- endSnippet -->
+
+* The trigger and its `ScheduledFireTimeUtc` are unchanged, so the occurrence is what the schedule said.
+* The wait is part of the run. `JobRunTime`, the history's `Duration` and `quartz.job.execution.duration`
+  include it. The history's fired-at time and `quartz.job.execution.start_delay` do not: both are taken
+  before the pipeline is called.
+* The wait holds a worker thread slot. Size the thread pool for it, or keep the maximum small.
+* For a fixed, deterministic spread per job, a cron trigger can use
+  [`H`](../cron-expressions.md#h-hash-for-load-distribution).
+
 ## Middleware or a listener?
 
 | Use middleware when you need to | Use a listener when you need to |
