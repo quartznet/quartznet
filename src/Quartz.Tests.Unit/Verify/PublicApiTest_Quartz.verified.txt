@@ -2411,6 +2411,32 @@ namespace Quartz
         public System.DateTimeOffset? NextFireTimeBefore { get; init; }
         public Quartz.TriggerState? State { get; init; }
     }
+    public sealed record TriggerRunStatus : System.IEquatable<Quartz.TriggerRunStatus>
+    {
+        public TriggerRunStatus(string SchedulerName, Quartz.TriggerKey Trigger, System.DateTimeOffset LastFiredAtUtc, Quartz.JobRunResult LastResult) { }
+        public int ConsecutiveFailures { get; init; }
+        public long FailureCount { get; init; }
+        public System.DateTimeOffset FirstFiredAtUtc { get; init; }
+        public System.TimeSpan LastDuration { get; init; }
+        public string? LastEntryId { get; init; }
+        public System.DateTimeOffset? LastFailedAtUtc { get; init; }
+        public string? LastFailureMessage { get; init; }
+        public System.DateTimeOffset LastFiredAtUtc { get; init; }
+        public Quartz.JobRunResult LastResult { get; init; }
+        public string? LastSchedulerInstanceId { get; init; }
+        public System.DateTimeOffset? LastSucceededAtUtc { get; init; }
+        public string? LastSummary { get; init; }
+        public long RunCount { get; init; }
+        public string SchedulerName { get; init; }
+        public Quartz.TriggerKey Trigger { get; init; }
+    }
+    public sealed record TriggerRunStatusQuery : Quartz.PagedQuery, System.IEquatable<Quartz.TriggerRunStatusQuery>
+    {
+        public TriggerRunStatusQuery() { }
+        public bool? Failing { get; init; }
+        public required string SchedulerName { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey>? Triggers { get; init; }
+    }
     public static class TriggerScheduleDescriptionExtensions
     {
         public static string? DescribeSchedule(this Quartz.ITrigger trigger) { }
@@ -2550,6 +2576,7 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.ExecutionHistoryEntry>> QueryExecutions(Quartz.ExecutionHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobRunStatus>> QueryJobRunStatuses(Quartz.JobRunStatusQuery query, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.MisfireHistoryEntry>> QueryMisfires(Quartz.MisfireHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.TriggerRunStatus>> QueryTriggerRunStatuses(Quartz.TriggerRunStatusQuery query, System.Threading.CancellationToken cancellationToken = default); // default implementation
     }
     public interface IInstanceIdGenerator
     {

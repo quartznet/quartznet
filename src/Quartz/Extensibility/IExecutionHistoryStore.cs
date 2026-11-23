@@ -45,8 +45,9 @@ namespace Quartz.Extensibility;
 /// </para>
 /// <para>
 /// Beside the feeds, a store may keep a <see cref="JobRunStatus" /> per job, read with
-/// <see cref="QueryJobRunStatuses" /> and <see cref="GetJobRunStatus" />. Every store counts its runs over
-/// time with <see cref="QueryExecutionStatistics" />.
+/// <see cref="QueryJobRunStatuses" /> and <see cref="GetJobRunStatus" />, and a <see cref="TriggerRunStatus" />
+/// per trigger, read with <see cref="QueryTriggerRunStatuses" />. Every store counts its runs over time with
+/// <see cref="QueryExecutionStatistics" />.
 /// </para>
 /// </remarks>
 public interface IExecutionHistoryStore
@@ -179,6 +180,32 @@ public interface IExecutionHistoryStore
             cancellationToken).ConfigureAwait(false);
 
         return page.Items.Count > 0 ? page.Items[0] : null;
+    }
+
+    /// <summary>
+    /// Returns one page of the per-trigger run statuses the store keeps, ordered by trigger group and then name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A trigger's status is folded by the rule a job's is, from the executions its own key fired, as the store
+    /// records them, so it outlives the rows. A firing after which the trigger is finalized leaves none, and a
+    /// manual run, a backfill and a recovered firing run under triggers of their own. The shipped in-memory store
+    /// keeps one per trigger, up to <see cref="ExecutionHistoryOptions.MaxEntriesPerScheduler" /> per scheduler.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.9, so a store written against an earlier 4.x keeps compiling. The
+    /// default throws <see cref="NotSupportedException" />: the rows it could read are trimmed, so counts built
+    /// from them would be wrong.
+    /// </para>
+    /// </remarks>
+    /// <param name="query">Which statuses to return, and how many.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="NotSupportedException">The store keeps no per-trigger status.</exception>
+    ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            $"{GetType().Name} keeps no per-trigger run status. Implement {nameof(IExecutionHistoryStore)}."
+            + $"{nameof(QueryTriggerRunStatuses)} to keep one beside the rows it records.");
     }
 
     /// <summary>

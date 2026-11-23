@@ -1385,6 +1385,18 @@ public sealed class ExecutionHistoryStoreDefaultsTest
     }
 
     [Test]
+    public async Task AStoreWithoutTriggerStatusesSaysSo()
+    {
+        IExecutionHistoryStore store = A.Fake<IExecutionHistoryStore>(options => options.CallsBaseMethods());
+
+        Func<Task> query = async () => await store.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = "Scheduler" });
+
+        await query.Should().ThrowAsync<NotSupportedException>(
+                "a store written before 4.9 keeps no trigger status, and counts rebuilt from trimmed rows would be wrong")
+            .WithMessage("*QueryTriggerRunStatuses*");
+    }
+
+    [Test]
     public async Task TheDefaultSingleStatusReadAsksTheListingForThatOneJob()
     {
         IExecutionHistoryStore store = A.Fake<IExecutionHistoryStore>(options => options.CallsBaseMethods());

@@ -414,6 +414,16 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     }
 
     /// <summary>
+    /// Not supported yet: no route serves the target's per-trigger run statuses.
+    /// </summary>
+    /// <exception cref="NotSupportedException">Always.</exception>
+    public ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            $"The scheduler '{schedulerName}' is reached over HTTP, and this client reads no per-trigger run status.");
+    }
+
+    /// <summary>
     /// The target's runs, counted by result and timed in buckets of fire time:
     /// <c>GET …/history/statistics</c>.
     /// </summary>
