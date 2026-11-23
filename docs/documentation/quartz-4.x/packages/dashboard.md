@@ -28,7 +28,7 @@ Fifteen pages, listed under [The pages](#the-pages).
   whole cluster, and the pages say which scope they show.
 - **A control panel**, from 4.3: [edit a trigger in place](#editing-a-trigger),
   [backfill it](#backfilling-a-trigger), [filter the listings](#filtering-the-listings) and
-  [act on a selection](#acting-on-a-selection).
+  [act on a selection](#acting-on-a-selection). From 4.9, [create and edit calendars](#calendars) of every built-in type.
 - **Execution history**, installed automatically and bounded by age and count. It is in-memory and per-process
   unless you [give it a store](#execution-history-and-misfires); for a scheduler in another process it is read
   from that process.
@@ -290,7 +290,7 @@ detail page.
 |---|---|---|
 | **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete |
 | **Triggers**: from 4.8, [the schedule in words, and next and previous fire](#the-schedule-and-fire-times); state, execution group | from 4.7, its [upcoming fires](#upcoming-fires); from 4.8, the schedule in words beside its expression; the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
-| **Calendars**: names | one calendar | create, replace or delete a cron calendar |
+| **Calendars**: names | from 4.9, [the calendar's own rules](#calendars), its time zone, the calendars under it and how many triggers use it | from 4.9, [create or edit](#calendars) a calendar of any of the six built-in types; delete |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
   query parameter too; see [Filtering the listings](#filtering-the-listings).
@@ -437,6 +437,38 @@ From 4.3, *Backfill…* on a trigger's page runs its schedule over a past range:
   sharing the store fires.
 - An `IQuartzApiClient` of your own that does not implement `Backfill` answers its default,
   `NotSupportedException`. The button is then disabled with that reason.
+
+### Calendars
+
+From 4.9, a calendar's page shows its own rules, read through its type, and the Calendars page creates any of the
+six built-in types. Before 4.9 the page listed the calendar's properties as text, and only a cron calendar could be
+created.
+
+| Type | Calendar Detail shows | The editor takes |
+|---|---|---|
+| `HolidayCalendar` | its dates, each with its weekday | dates, one a line, as `yyyy-MM-dd` |
+| `AnnualCalendar` | a month-by-day grid of the days excluded every year | ticks in the same grid; February counts 29 |
+| `WeeklyCalendar` | the days of the week, ticked | ticks; a new one starts with Saturday and Sunday, as the type does |
+| `MonthlyCalendar` | the days of the month, ticked | ticks, 1 to 31 |
+| `DailyCalendar` | the range, and whether it is inverted: the range is then the part of the day included | start and end as `HH:mm`, `HH:mm:ss` or `HH:mm:ss.fff`, and the inversion |
+| `CronCalendar` | the expression, and the next five spans it excludes | the expression, previewed as it is typed |
+
+- **Every calendar says its time zone**, the zone its days and times are read in. The cron spans show in it, with
+  their offset. A new calendar starts in UTC, and the zone is a field of the editor.
+- **The calendars under it** (`CalendarBase`) are drawn below it, level by level. Each is a copy stored inside the
+  calendar, not a link: replacing a calendar stored under another name does not change it. The editor keeps them
+  as they are.
+- **The *Used by N triggers* link** opens the Triggers listing [filtered](#filtering-the-listings) by the calendar.
+  The number is one count, with no trigger read, on load and on **Refresh**.
+- **Saving over a stored calendar asks first**, and says how many triggers use it. *Replace and update triggers*
+  recomputes each one's next fire time against the new calendar (`AddCalendarRequest.UpdateTriggers`). *Replace
+  only* leaves each the next fire time it has, even one the new calendar excludes.
+- **A calendar type of your own** shows its type name and description, and is edited in code. The page does not
+  read its properties. A plain `BaseCalendar` is the same.
+- **Every save is in the [Action Log](#action-log)** as `CreateCalendar` or `ReplaceCalendar`, with the type and,
+  for a replace, `updateTriggers=true` or `false`.
+- **Creating and replacing are `AddCalendar`**, an `Administer` operation; reading is `View`. Read-only mode hides
+  the editor.
 
 ### Filtering the listings
 
@@ -1543,7 +1575,7 @@ builder.Services.AddQuartzDashboard(options =>
 | Save schedule | `RescheduleJob` | `Administer` |
 | Unschedule, Unschedule selected | `UnscheduleJob`, `UnscheduleJobs` | `Administer` |
 | Delete a job | `DeleteJob` | `Administer` |
-| Create or replace a calendar, Delete a calendar | `AddCalendar`, `DeleteCalendar` | `Administer` |
+| Create, edit or replace a calendar, Delete a calendar | `AddCalendar`, `DeleteCalendar` | `Administer` |
 | Shutdown | `Shutdown` | `Administer` |
 
 - The roles and operations are the HTTP API's; its [Operator roles](http-api.md#operator-roles) lists every one.
@@ -1580,7 +1612,7 @@ Unset, every visitor may do everything `ReadOnly` allows, as in earlier releases
 
 `ReadOnly = true` hides every mutating control: pause, resume, trigger-now, trigger-with-overrides, reschedule,
 edit details, reset-from-error-state, unschedule, interrupt, delete, the listings' selection checkboxes, calendar
-create and replace, and the scheduler's start, stand-by, pause-all, resume-all and shutdown. Every listing, filter,
+create, edit and replace, and the scheduler's start, stand-by, pause-all, resume-all and shutdown. Every listing, filter,
 detail page and live view remains.
 
 - It is one setting per process, not per scheduler or per visitor. For different powers per visitor, use
@@ -1807,7 +1839,8 @@ shell without `ASPNETCORE_ENVIRONMENT`.
   operation from `SchedulerResource`.
 - **The misfire tile and Cluster page show what the store can answer**: a dash for no misfire feed, one node for a
   store with no check-in state. Neither is a count of zero.
-- **Typed editors are narrow**: cron calendars, cron trigger reschedules, job-data overrides and, from 4.3, a
-  trigger's details. Building an arbitrary trigger from the UI is not offered.
+- **Typed editors are narrow**: cron trigger reschedules, job-data overrides, from 4.3 a trigger's details and,
+  from 4.9, calendars of the six built-in types. Building an arbitrary trigger from the UI is not offered, and a
+  calendar's base calendars are kept rather than edited.
 - **It is a scheduler console, not a workflow tool.** Job dependencies, DAGs and business-process visualisation
   are outside what Quartz models.

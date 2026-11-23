@@ -239,6 +239,9 @@ public class Startup
                 .WithCalendarName(calendarName)
             );
 
+            // one calendar of each built-in type, which the dashboard's Calendars page shows and edits
+            AddSampleCalendars(q);
+
             // your own configuration can decide what a scheduler runs: whether there is a schedule at all
             // is decided here, where jobs and triggers are registered, and the schedule itself is read out
             // of the container when the trigger is built
@@ -449,6 +452,50 @@ public class Startup
 
             settings.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor(securityScope));
         });
+    }
+
+    /// <summary>
+    /// One calendar of each built-in type, each in a time zone of its own, which the dashboard's Calendars page
+    /// shows and edits. "Business Days" is layered over a copy of "Bank Holidays", so its page shows a base
+    /// calendar too. Only myHolidayCalendar is used by a trigger.
+    /// </summary>
+    private static void AddSampleCalendars(IQuartzBuilder q)
+    {
+        TimeZoneInfo london = TimeZones.FindById("Europe/London");
+        TimeZoneInfo newYork = TimeZones.FindById("America/New_York");
+        AddCalendarOptions replace = new() { Replace = true };
+
+        HolidayCalendar bankHolidays = new() { TimeZone = london, Description = "England and Wales bank holidays, 2026" };
+        foreach (DateOnly date in new DateOnly[] { new(2026, 12, 25), new(2026, 12, 28), new(2026, 8, 31), new(2026, 5, 25), new(2026, 5, 4), new(2026, 4, 6), new(2026, 4, 3), new(2026, 1, 1) })
+        {
+            bankHolidays.AddExcludedDay(date);
+        }
+
+        q.AddCalendar("Bank Holidays", bankHolidays, replace);
+
+        AnnualCalendar annual = new() { TimeZone = london, Description = "The same days every year" };
+        annual.AddExcludedDay(new MonthDay(1, 1));
+        annual.AddExcludedDay(new MonthDay(12, 25));
+        annual.AddExcludedDay(new MonthDay(12, 26));
+        q.AddCalendar("Christmas and New Year", annual, replace);
+
+        // A weekly calendar excludes Saturday and Sunday until told otherwise; its base is a copy of the holidays.
+        WeeklyCalendar businessDays = new(bankHolidays.Clone()) { TimeZone = london, Description = "Weekdays that are not bank holidays" };
+        q.AddCalendar("Business Days", businessDays, replace);
+
+        MonthlyCalendar payroll = new() { TimeZone = newYork, Description = "Payroll runs on the 1st and the 15th" };
+        payroll.AddExcludedDay(1);
+        payroll.AddExcludedDay(15);
+        q.AddCalendar("Payroll Days", payroll, replace);
+
+        DailyCalendar maintenance = new(new TimeOnly(2, 0), new TimeOnly(4, 0)) { TimeZone = newYork, Description = "Nightly maintenance window" };
+        q.AddCalendar("Maintenance Window", maintenance, replace);
+
+        DailyCalendar officeHours = new(new TimeOnly(9, 0), new TimeOnly(17, 30)) { TimeZone = london, Description = "Only during office hours", InvertTimeRange = true };
+        q.AddCalendar("Office Hours Only", officeHours, replace);
+
+        CronCalendar quietHalfHours = new(baseCalendar: null, "* 0-29 22-23 ? * MON-FRI", newYork) { Description = "The first half of each late-evening hour on weekdays" };
+        q.AddCalendar("Quiet Half Hours", quietHalfHours, replace);
     }
 
     private sealed class CustomTimeProvider : TimeProvider;

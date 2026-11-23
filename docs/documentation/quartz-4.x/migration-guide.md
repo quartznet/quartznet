@@ -68,6 +68,7 @@ An application on 4.8 compiles on 4.9 unchanged.
 | The dashboard's Action Log in a process that maps the HTTP API | Lists every API change and refusal for a role, with *Via HTTP API*, beside the dashboard's own. Before, it listed only the dashboard's buttons. See [Action Log](packages/dashboard.md#action-log) |
 | `HttpClientException` raised for a status | Carries an `HttpRequestException` with the status as its `InnerException`. The message is unchanged |
 | `RAMJobStore`: `RescheduleJob` to a trigger of another key while continuations wait for the old one | They are settled as a deleted parent's: `OnAnyOutcome` ones released, the others parked in `Error` with `TriggerInError`. Before, they waited for the old key for ever. The persistent store already settled them, at its next misfire pass. See [When the parent is deleted](how-tos/job-continuations.md#when-the-parent-is-deleted) |
+| A calendar saved from the dashboard (#4413), in the Action Log and log events `9100` and `9101` | `CreateCalendar` for a new name and `ReplaceCalendar` for a stored one, with the calendar's type and, for a replace, `updateTriggers=true` or `false` in the message. A save with *Replace if existing* ticked was `UpsertCalendar`. An alert matching `UpsertCalendar` matches neither. See [Calendars](packages/dashboard.md#calendars) |
 
 ## Upgrading from 4.7 to 4.8
 
