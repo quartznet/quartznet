@@ -257,15 +257,19 @@ public sealed class SchedulerWaitExtensionsTest
         TriggerKey key = new("trigger-listener-fails", Group);
 
         // Recurring, because a trigger that may fire again is the one whose completion notification can fail
-        // the firing's exit.
-        await scheduler.ScheduleJob(TriggerBuilder.Create()
-            .WithIdentity(key)
-            .ForJob(job)
-            .StartAt(TimeProvider.System.GetUtcNow().AddMilliseconds(500))
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
-            .Build());
+        // the firing's exit. Stored paused and resumed once the wait has begun, so it cannot fire before.
+        await scheduler.ScheduleJob(
+            TriggerBuilder.Create()
+                .WithIdentity(key)
+                .ForJob(job)
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+                .Build(),
+            new ScheduleJobOptions { Paused = true });
 
-        FiringResult result = await scheduler.WaitForFiring(key, waitLimit);
+        Task<FiringResult> wait = scheduler.WaitForFiring(key, waitLimit).AsTask();
+        await scheduler.ResumeTrigger(key);
+        FiringResult result = await wait;
 
         result.Outcome.Should().Be(ExecutionOutcome.Succeeded);
         result.Execution!.TriggerName.Should().Be(key.Name);
@@ -331,17 +335,23 @@ public sealed class SchedulerWaitExtensionsTest
             .WithMessage("The scheduler shut down before the firing of trigger 'DEFAULT.MT_*' ended.");
     }
 
+    /// <summary>
+    /// The job is let go only once the shutdown has told its listeners it is under way, so its completion lands
+    /// after the shutdown began and before it fails the waits still open.
+    /// </summary>
     [Test]
     public async Task AFiringThatEndsInsideTheShutdownWindowAnswersItsWait()
     {
         IScheduler scheduler = await Started();
+        ShuttingDownSignal shuttingDown = new();
+        scheduler.ListenerManager.AddSchedulerListener(shuttingDown);
         JobKey job = await AddDurable<HeldJob>(scheduler, "held-window");
 
         Task<FiringResult> wait = scheduler.TriggerJobAndWait(job, waitLimit).AsTask();
         await Gates.Reached(job.Name).WaitAsync(waitLimit);
 
         Task shutdown = scheduler.Shutdown(waitForJobsToComplete: false).AsTask();
-        await Task.Delay(300);
+        await shuttingDown.Reached.WaitAsync(waitLimit);
         Gates.Open(job.Name);
 
         FiringResult result = await wait.WaitAsync(waitLimit);
@@ -491,7 +501,12 @@ public sealed class SchedulerWaitExtensionsTest
     [Test]
     public async Task APausedTriggerUnscheduledWhileWaitedOnIsUnknown()
     {
-        (IScheduler scheduler, ServiceProvider container) = await StartedWithContainer();
+        StateReadingStore? store = null;
+        (IScheduler scheduler, ServiceProvider container) = await StartedWithContainer(configure: q => q.UseJobStore(provider =>
+        {
+            store = new StateReadingStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+            return store;
+        }));
         JobKey job = await AddDurable<SucceedingJob>(scheduler, "unscheduled");
         TriggerKey key = new("unscheduled", Group);
         await scheduler.ScheduleJob(TriggerBuilder.Create()
@@ -503,8 +518,10 @@ public sealed class SchedulerWaitExtensionsTest
         await Recorded(container, scheduler, key);
         await scheduler.PauseTrigger(key);
 
+        // Unscheduled only once the wait's first look has read the trigger as there.
+        Task firstLook = store!.NextStateRead();
         Task<FiringResult> wait = scheduler.WaitForFiring(key, waitLimit).AsTask();
-        await Task.Delay(100);
+        await firstLook.WaitAsync(waitLimit);
         wait.IsCompleted.Should().BeFalse("a paused trigger is still there to fire");
         await scheduler.UnscheduleJob(key);
 
@@ -535,8 +552,8 @@ public sealed class SchedulerWaitExtensionsTest
         Task<FiringResult> first = scheduler.TriggerJobAndWait(job, waitLimit).AsTask();
         TriggerKey key = await store!.Holding.WaitAsync(waitLimit);
 
+        // The wait is registered as the call is made, while the completion is held.
         Task<FiringResult> late = scheduler.WaitForFiring(key, TimeSpan.FromSeconds(5)).AsTask();
-        await Task.Delay(300);
         late.IsCompleted.Should().BeFalse("the completion is held before the store commits it");
 
         store.Release();
@@ -1028,6 +1045,42 @@ public sealed class SchedulerWaitExtensionsTest
             }
 
             await base.FiringComplete(context, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// The in-memory store, saying when the next read of a trigger's state has been answered.
+    /// </summary>
+    private sealed class StateReadingStore(IJobStore inner) : DelegatingJobStore(inner)
+    {
+        private TaskCompletionSource? next;
+
+        public Task NextStateRead()
+        {
+            TaskCompletionSource source = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref next, source);
+            return source.Task;
+        }
+
+        public override async ValueTask<TriggerState> GetTriggerState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        {
+            TriggerState state = await base.GetTriggerState(triggerKey, cancellationToken);
+            Interlocked.Exchange(ref next, null)?.TrySetResult();
+            return state;
+        }
+    }
+
+    /// <summary>Says when the scheduler has begun to shut down.</summary>
+    private sealed class ShuttingDownSignal : ISchedulerListener
+    {
+        private readonly TaskCompletionSource reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Reached => reached.Task;
+
+        public ValueTask SchedulerShuttingDown(IScheduler scheduler, CancellationToken cancellationToken = default)
+        {
+            reached.TrySetResult();
+            return default;
         }
     }
 
