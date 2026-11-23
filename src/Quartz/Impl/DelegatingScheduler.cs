@@ -10,7 +10,7 @@ namespace Quartz.Impl;
 /// Every member is <c>virtual</c>, and a member added to <see cref="IScheduler" /> lands here as one
 /// more forwarder — which is what keeps a decorator in somebody else's codebase compiling.
 /// </remarks>
-public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler
+public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler
 {
     private readonly IScheduler scheduler;
 
@@ -574,9 +574,29 @@ public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingF
     }
 
     /// <summary>
+    /// Starts the wait for a firing where the scheduler is, when the scheduler this wrapping ends in can wait.
+    /// </summary>
+    /// <remarks>
+    /// There is nothing to compose it from otherwise: a wait needs to hear a completion, which no
+    /// <see cref="IScheduler" /> member says. The trigger is still stored through this decorator, so every
+    /// override on the way down takes part in that.
+    /// </remarks>
+    ValueTask<Core.FiringWatch> IFiringWaitingScheduler.Watch(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        return EndsIn<IFiringWaitingScheduler>()
+            ? ((IFiringWaitingScheduler) scheduler).Watch(triggerKey, cancellationToken)
+            : throw SchedulerWaitExtensions.CannotWait(InnermostScheduler());
+    }
+
+    /// <summary>
     /// Whether the scheduler this wrapping ends in, past every decorator, is a <typeparamref name="T" />.
     /// </summary>
-    private bool EndsIn<T>()
+    private bool EndsIn<T>() => InnermostScheduler() is T;
+
+    /// <summary>
+    /// The scheduler this wrapping ends in, past every decorator.
+    /// </summary>
+    private IScheduler InnermostScheduler()
     {
         IScheduler innermost = scheduler;
         while (innermost is DelegatingScheduler delegating)
@@ -584,6 +604,6 @@ public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingF
             innermost = delegating.InnerScheduler;
         }
 
-        return innermost is T;
+        return innermost;
     }
 }

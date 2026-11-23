@@ -89,7 +89,7 @@ public static class SchedulerJobExtensions
     /// The attempts <see cref="TriggerJob{TInput}" /> makes at a free trigger name before it lets the
     /// collision through. A name is 63 random bits, so a second attempt is already a curiosity.
     /// </summary>
-    private const int ManualFiringAttempts = 3;
+    internal const int ManualFiringAttempts = 3;
 
     /// <summary>
     /// Fires the stored job now with the given input, and returns the key of the trigger that fires it.
@@ -189,6 +189,82 @@ public static class SchedulerJobExtensions
         return scheduler.TriggerJob(jobKey, data: null, cancellationToken);
     }
 
+    /// <summary>
+    /// Fires the stored job now under the trigger key the caller names.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The firing <see cref="IScheduler.TriggerJob" /> makes — one-shot, due now, marked manual, in the execution
+    /// group <c>TriggerJob</c> would give it — stored under <paramref name="triggerKey" /> rather than a generated
+    /// <c>MT_</c> name. The key is known before the job can run, so the caller can wait for the run with
+    /// <see cref="SchedulerWaitExtensions.WaitForFiring" /> or look it up in the history by
+    /// <see cref="ExecutionHistoryQuery.Trigger" />.
+    /// </para>
+    /// <para>
+    /// A key already stored is refused, never re-keyed, which makes the call idempotent: a request retried under
+    /// the same request id cannot run the job twice while the first firing is stored. The map is copied onto the
+    /// trigger; the one passed in is left as it was.
+    /// </para>
+    /// </remarks>
+    /// <param name="scheduler">The scheduler to fire the job on.</param>
+    /// <param name="jobKey">The stored job to fire.</param>
+    /// <param name="data">The firing's own job data, or <see langword="null" /> for none.</param>
+    /// <param name="triggerKey">The key the firing's trigger is stored under.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="scheduler" />, <paramref name="jobKey" /> or <paramref name="triggerKey" /> is <see langword="null" />.
+    /// </exception>
+    /// <exception cref="ObjectAlreadyExistsException">A trigger is already stored under <paramref name="triggerKey" />.</exception>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    /// <exception cref="JobPersistenceException">No job is stored under <paramref name="jobKey" />.</exception>
+    public static ValueTask TriggerJob(
+        this IScheduler scheduler,
+        JobKey jobKey,
+        JobDataMap? data,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(scheduler);
+        ArgumentNullException.ThrowIfNull(jobKey);
+        ArgumentNullException.ThrowIfNull(triggerKey);
+
+        JobDataMap? copy = data is null ? null : new JobDataMap((IDictionary<string, object?>) data);
+        return FireNamed(scheduler, jobKey, copy, triggerKey, cancellationToken);
+
+        static async ValueTask FireNamed(IScheduler scheduler, JobKey jobKey, JobDataMap? data, TriggerKey triggerKey, CancellationToken cancellationToken)
+        {
+            SimpleTriggerImpl trigger = await ManualTrigger(scheduler, jobKey, data, triggerKey, cancellationToken).ConfigureAwait(false);
+            await scheduler.ScheduleJob(trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// The one-shot trigger of a manual firing, built through the scheduler: <see cref="IScheduler.TriggerJob" />'s
+    /// execution group, read through the scheduler rather than its store as <c>RunAtStartup</c> reads it.
+    /// </summary>
+    /// <param name="scheduler">The scheduler the job is stored in.</param>
+    /// <param name="jobKey">The job to fire.</param>
+    /// <param name="data">The firing's own job data, used as the trigger's map; <see langword="null" /> for none.</param>
+    /// <param name="triggerKey">The trigger's key, or <see langword="null" /> for a generated <c>MT_</c> one.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal static async ValueTask<SimpleTriggerImpl> ManualTrigger(
+        IScheduler scheduler,
+        JobKey jobKey,
+        JobDataMap? data,
+        TriggerKey? triggerKey,
+        CancellationToken cancellationToken)
+    {
+        string? executionGroup = await ManualFiringExecutionGroup.Resolve(scheduler, jobKey, data, cancellationToken).ConfigureAwait(false);
+
+        SimpleTriggerImpl trigger = ManualFiring.CreateTrigger(jobKey, data, executionGroup, scheduler.TimeProvider);
+        if (triggerKey is not null)
+        {
+            trigger.Key = triggerKey;
+        }
+
+        return trigger;
+    }
+
     private static async ValueTask<TriggerKey> FireNow<TInput>(
         IScheduler scheduler,
         JobKey jobKey,
@@ -196,11 +272,7 @@ public static class SchedulerJobExtensions
         CancellationToken cancellationToken)
     {
         JobDataMap data = new() { [SchedulerConstants.JobInput] = input };
-
-        // TriggerJob's order, read through the scheduler rather than its store: RunAtStartup does the same.
-        string? executionGroup = await ManualFiringExecutionGroup.Resolve(scheduler, jobKey, data, cancellationToken).ConfigureAwait(false);
-
-        SimpleTriggerImpl trigger = ManualFiring.CreateTrigger(jobKey, data, executionGroup, scheduler.TimeProvider);
+        SimpleTriggerImpl trigger = await ManualTrigger(scheduler, jobKey, data, triggerKey: null, cancellationToken).ConfigureAwait(false);
 
         int attempt = 1;
         while (true)

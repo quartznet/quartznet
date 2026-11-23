@@ -542,6 +542,9 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
         return Volatile.Read(ref writeBehind) is { } queue ? queue.Flush(cancellationToken) : default;
     }
 
+    /// <inheritdoc />
+    public TimeSpan? WriteBehindInterval => historyOptions.Value.WriteBehindInterval;
+
     /// <summary>
     /// Writes what the write-behind queue holds, then stops the sweep as <see cref="Dispose" /> does.
     /// </summary>

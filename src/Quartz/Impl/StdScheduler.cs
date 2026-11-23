@@ -35,7 +35,7 @@ namespace Quartz.Impl;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSource
+internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSource, IFiringWaitingScheduler
 {
     internal readonly QuartzScheduler scheduler;
 
@@ -707,6 +707,15 @@ internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSo
         return enlistmentSource is null
             ? scheduler.GetSharedExecutionGroup(jobKey, cancellationToken)
             : WithEnlistment(static (qs, state, ct) => qs.GetSharedExecutionGroup(state, ct), jobKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// Starts a wait on the proxied <see cref="QuartzScheduler" />, which reads the trigger's state through this
+    /// facade.
+    /// </summary>
+    ValueTask<FiringWatch> IFiringWaitingScheduler.Watch(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        return new ValueTask<FiringWatch>(scheduler.Watch(triggerKey, this));
     }
 
     /// <summary>

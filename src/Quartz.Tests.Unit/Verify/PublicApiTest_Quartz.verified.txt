@@ -602,6 +602,22 @@ namespace Quartz
         Manual = 1,
         Backfill = 2,
     }
+    public sealed record FiringResult : System.IEquatable<Quartz.FiringResult>
+    {
+        public FiringResult() { }
+        public Quartz.ExecutionHistoryEntry? Execution { get; init; }
+        public string? Message { get; init; }
+        public Quartz.MisfireHistoryEntry? Misfire { get; init; }
+        public Quartz.ExecutionOutcome? Outcome { get; init; }
+        public required Quartz.FiringWaitStatus Status { get; init; }
+        public required Quartz.TriggerKey TriggerKey { get; init; }
+    }
+    public enum FiringWaitStatus
+    {
+        Ended = 0,
+        Pending = 1,
+        Unknown = 2,
+    }
     public sealed class GroupMatcher<TKey> : Quartz.StringMatcher<TKey>
         where TKey : Quartz.Key<TKey>
     {
@@ -1977,6 +1993,7 @@ namespace Quartz
         public static System.Threading.Tasks.ValueTask<Quartz.ScheduledOneOffJob> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.IScheduler scheduler, TInput input, System.TimeSpan delay, Quartz.OneOffJobOptions options = default, System.Threading.CancellationToken cancellationToken = default)
             where TJob : Quartz.IJob<TInput> { }
         public static System.Threading.Tasks.ValueTask TriggerJob(this Quartz.IScheduler scheduler, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public static System.Threading.Tasks.ValueTask TriggerJob(this Quartz.IScheduler scheduler, Quartz.JobKey jobKey, Quartz.JobDataMap? data, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.ValueTask<Quartz.TriggerKey> TriggerJob<TInput>(this Quartz.IScheduler scheduler, Quartz.JobKey jobKey, TInput input, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed record SchedulerMetadata : System.IEquatable<Quartz.SchedulerMetadata>
@@ -2068,6 +2085,13 @@ namespace Quartz
         Standby = 3,
         ShuttingDown = 4,
         Shutdown = 5,
+    }
+    public static class SchedulerWaitExtensions
+    {
+        public static System.Threading.Tasks.ValueTask<Quartz.FiringResult> TriggerJobAndWait(this Quartz.IScheduler scheduler, Quartz.JobKey jobKey, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default) { }
+        public static System.Threading.Tasks.ValueTask<Quartz.FiringResult> TriggerJobAndWait(this Quartz.IScheduler scheduler, Quartz.JobKey jobKey, Quartz.JobDataMap? data, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default) { }
+        public static System.Threading.Tasks.ValueTask<Quartz.FiringResult> TriggerJobAndWait<TInput>(this Quartz.IScheduler scheduler, Quartz.JobKey jobKey, TInput input, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default) { }
+        public static System.Threading.Tasks.ValueTask<Quartz.FiringResult> WaitForFiring(this Quartz.IScheduler scheduler, Quartz.TriggerKey triggerKey, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class SchedulingDataValidationException : Quartz.SchedulerException
     {
@@ -3959,6 +3983,7 @@ namespace Quartz.Impl
     public class DelegatingScheduler : Quartz.IScheduler, System.IAsyncDisposable
     {
         // explicit interface implementation: Quartz.Impl.IBackfillingScheduler.Backfill(Quartz.TriggerKey, System.DateTimeOffset, System.DateTimeOffset, Quartz.BackfillOptions, System.Threading.CancellationToken)
+        // explicit interface implementation: Quartz.Impl.IFiringWaitingScheduler.Watch(Quartz.TriggerKey, System.Threading.CancellationToken)
         // explicit interface implementation: Quartz.Impl.IScheduleDescribingScheduler.QueryDescribedTriggers(Quartz.TriggerQuery, System.Threading.CancellationToken)
         // explicit interface implementation: Quartz.Impl.IUpcomingFireTimesScheduler.GetUpcomingFireTimes(Quartz.TriggerKey, int, System.Threading.CancellationToken)
         public DelegatingScheduler(Quartz.IScheduler scheduler) { }
