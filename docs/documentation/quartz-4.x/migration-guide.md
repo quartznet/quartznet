@@ -52,6 +52,7 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `ClusterNode.QuartzVersion` | `string?`, `init`: the version a node stamped its check-in row with, `4.9.0`. `null` for a row a node older than 4.6 wrote, and on a store that keeps no check-in rows. The HTTP API sends it as `quartzVersion` on `…/nodes`. See [Cluster](packages/dashboard.md#cluster) |
 | `ClusterNodeDto.QuartzVersion` | `Quartz.Dashboard`, `string?`, `init`: `ClusterNode.QuartzVersion`, carried over. `null` from a host older than 4.9 |
 | `IQuartzApiClient.QueryJobRunStatuses(JobRunStatusQuery, CancellationToken)` | `Quartz.Dashboard`. Default interface member: one page of the per-job run statuses, as `IExecutionHistoryStore.QueryJobRunStatuses`. The default throws `NotSupportedException`, as `GetJobRunStatus` does, and the Overview leaves its failing jobs out. See [Needs attention](packages/dashboard.md#needs-attention) |
+| `IQuartzApiClient.GetTriggerGroupPause(schedulerName, groupName)` | `Quartz.Dashboard`. Default interface member: why the trigger group is paused, who asked and when, as `IScheduler.GetTriggerGroupPause`. The default answers `null`, as `GetJobGroupPause`'s does. *Why isn't it firing?* shows it |
 | `DashboardFireInstanceQuery.Job` | `Quartz.Dashboard`, `JobKeyDto?`, `init`: the firings of one job, as `FireInstanceQuery.Job`. What Trigger Detail's *Why isn't it firing?* reads. See [Why isn't it firing?](packages/dashboard.md#why-isn-t-it-firing) |
 
 | Changed | What to check |

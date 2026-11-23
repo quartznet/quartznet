@@ -24,6 +24,7 @@ using Bunit;
 using FakeItEasy;
 
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Dashboard.Components.Layout;
@@ -68,7 +69,7 @@ public class HeaderSearchTest
 
         search.WaitForAssertion(() => search.Find("[data-testid=header-search-jobs] a").GetAttribute("href").Should().Be("quartz/jobs/billing/invoice-export"));
         search.Find("[data-testid=header-search-triggers] a").GetAttribute("href").Should().Be("quartz/triggers/billing/invoice-nightly");
-        search.FindAll("[data-testid=header-search-results] a.qz-details-link").Select(link => (link.TextContent, link.GetAttribute("href"))).Should().Equal([
+        search.FindAll("[data-testid=header-search-results] a.qz-header-search-see-all").Select(link => (link.TextContent, link.GetAttribute("href"))).Should().Equal([
             ("See all 11 jobs", "quartz/jobs?name=invoice"),
             ("Open the triggers listing", "quartz/triggers?name=invoice"),
         ]);
@@ -77,6 +78,118 @@ public class HeaderSearchTest
             .MustHaveHappenedOnceExactly();
         A.CallTo(() => context.Api.QueryTriggers(TestData.SchedulerName, A<DashboardTriggerQuery>.That.Matches(query => query.NameContains == "invoice" && query.Take == 8), A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// The box is an ARIA combobox: it says whether its list is open and names the list only while there is one,
+    /// and the list is a listbox of options.
+    /// </summary>
+    [Test]
+    public void TheBoxIsAComboboxThatNamesItsListWhileOpen()
+    {
+        GivenOneOfEach();
+        IRenderedComponent<HeaderSearch> search = Render();
+        IElement input = search.Find("input");
+
+        input.GetAttribute("role").Should().Be("combobox");
+        input.GetAttribute("aria-expanded").Should().Be("false");
+        input.HasAttribute("aria-controls").Should().BeFalse("nothing it could control exists while the list is closed");
+
+        input.Input("invoice");
+
+        search.WaitForAssertion(() => search.Find("input").GetAttribute("aria-expanded").Should().Be("true"));
+        string controls = search.Find("input").GetAttribute("aria-controls")!;
+        search.Find("#" + controls).GetAttribute("role").Should().Be("listbox");
+        search.FindAll("[role=option]").Select(option => option.TextContent).Should().Equal(
+            ["billing.invoice-export", "Open the jobs listing", "billing.invoice-nightly", "Open the triggers listing"]);
+        search.FindAll("[role=option]").Should().OnlyContain(option => option.GetAttribute("tabindex") == "-1",
+            "focus stays in the box; the options are reached with the arrow keys");
+    }
+
+    /// <summary>
+    /// The arrow keys move a highlight through the results, wrapping at either end, and the box names the
+    /// highlighted one with aria-activedescendant.
+    /// </summary>
+    [Test]
+    public async Task TheArrowKeysMoveTheHighlight()
+    {
+        GivenOneOfEach();
+        IRenderedComponent<HeaderSearch> search = Render();
+        search.Find("input").Input("invoice");
+        search.WaitForAssertion(() => search.FindAll("[role=option]").Should().HaveCount(4));
+
+        await Press(search, "ArrowDown");
+        Highlighted(search).Should().Be("billing.invoice-export");
+        search.Find("input").GetAttribute("aria-activedescendant").Should().Be(search.Find("[aria-selected=true]").Id);
+
+        await Press(search, "ArrowDown");
+        await Press(search, "ArrowDown");
+        Highlighted(search).Should().Be("billing.invoice-nightly");
+
+        await Press(search, "ArrowUp");
+        Highlighted(search).Should().Be("Open the jobs listing");
+
+        await Press(search, "ArrowUp");
+        await Press(search, "ArrowUp");
+        Highlighted(search).Should().Be("Open the triggers listing", "up from the first wraps to the last");
+        search.FindAll(".qz-header-search-option-active").Should().ContainSingle("the highlight is visible as well as announced");
+    }
+
+    [Test]
+    public async Task EnterOpensTheHighlightedResult()
+    {
+        GivenOneOfEach();
+        IRenderedComponent<HeaderSearch> search = Render();
+        search.Find("input").Input("invoice");
+        search.WaitForAssertion(() => search.FindAll("[role=option]").Should().HaveCount(4));
+
+        await Press(search, "ArrowDown");
+        await Press(search, "ArrowDown");
+        await Press(search, "ArrowDown");
+        await Press(search, "Enter");
+
+        context.CurrentUri.Should().EndWith("quartz/triggers/billing/invoice-nightly");
+        search.WaitForAssertion(() => search.FindAll("[data-testid=header-search-results]").Should().BeEmpty());
+    }
+
+    /// <summary>
+    /// Escape closes the list, from the box or from the list itself, keeps the text, and puts focus back in the
+    /// box; the arrow keys open it again.
+    /// </summary>
+    [Test]
+    public async Task EscapeClosesTheListAndReturnsFocusToTheBox()
+    {
+        GivenOneOfEach();
+        IRenderedComponent<HeaderSearch> search = Render();
+        search.Find("input").Input("invoice");
+        search.WaitForAssertion(() => search.FindAll("[role=option]").Should().HaveCount(4));
+
+        await search.Find("[data-testid=header-search-results]").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+
+        search.FindAll("[data-testid=header-search-results]").Should().BeEmpty();
+        IElement input = search.Find("input");
+        input.GetAttribute("aria-expanded").Should().Be("false");
+        input.HasAttribute("aria-controls").Should().BeFalse();
+        input.HasAttribute("aria-activedescendant").Should().BeFalse();
+        input.GetAttribute("value").Should().Be("invoice", "Escape closes the list, not the search");
+        context.JSInterop.VerifyFocusAsyncInvoke();
+
+        await Press(search, "ArrowDown");
+        Highlighted(search).Should().Be("billing.invoice-export", "the arrow keys open what Escape closed");
+    }
+
+    [Test]
+    public async Task LeavingTheBoxClosesTheList()
+    {
+        GivenOneOfEach();
+        IRenderedComponent<HeaderSearch> search = Render();
+        search.Find("input").Input("invoice");
+        search.WaitForAssertion(() => search.FindAll("[role=option]").Should().HaveCount(4));
+
+        await search.Find("input").FocusOutAsync(new FocusEventArgs());
+
+        search.FindAll("[data-testid=header-search-results]").Should().BeEmpty();
+        search.Find("input").GetAttribute("aria-expanded").Should().Be("false");
     }
 
     [Test]
@@ -155,6 +268,26 @@ public class HeaderSearchTest
             .Add(x => x.Body, builder => builder.AddContent(0, "page")));
 
         layout.FindAll(".qz-header-left [role=search] input#qz-header-search").Should().ContainSingle();
+    }
+
+    private void GivenOneOfEach()
+    {
+        GivenJobs(total: 1, new JobKeyDto("billing", "invoice-export"));
+        GivenTriggers(total: 1, new TriggerHeaderDto("billing", "invoice-nightly", "Cron", null, TriggerState.Normal, null));
+    }
+
+    /// <summary>
+    /// Presses a key in the box and waits for it to be handled: the renderer may still be finishing the debounced
+    /// read when the test goes on, and a key sent without waiting would be handled after the next look.
+    /// </summary>
+    private static Task Press(IRenderedComponent<HeaderSearch> search, string key)
+    {
+        return search.Find("input").KeyDownAsync(new KeyboardEventArgs { Key = key });
+    }
+
+    private static string Highlighted(IRenderedComponent<HeaderSearch> search)
+    {
+        return search.Find("[role=option][aria-selected=true]").TextContent;
     }
 
     private IRenderedComponent<HeaderSearch> Render(TimeSpan? debounce = null)

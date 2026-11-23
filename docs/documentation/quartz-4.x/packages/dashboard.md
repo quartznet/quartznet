@@ -273,7 +273,11 @@ From 4.9, the header's search box finds a job or trigger on any page. Type at le
 - It searches the selected scheduler's job names and trigger names (`NameContains`), up to 8 of each.
 - Each result links to its page. *See all* opens the Jobs or Triggers listing filtered by the same text.
 - It reads once typing pauses for 300 ms. A keystroke cancels the read still in flight, so a slow target answers
-  only the last text. *Escape* or following a result closes the list.
+  only the last text.
+- From the keyboard: *↓* and *↑* move through the results, *Enter* opens the highlighted one, and *Escape* closes
+  the list and keeps the text. Leaving the box, or following a result, closes it too. The box is an ARIA
+  combobox, so a screen reader announces the highlighted result.
+- On a screen 768 px wide or less, the box takes a row of its own under the scheduler picker.
 - Over a slow HTTP target the read is bounded by the target's client timeout.
 
 ### Jobs, Triggers and Calendars
@@ -338,6 +342,8 @@ From 4.7, every trigger's page lists its next ten fire times, whatever the trigg
   [`fire-times` route](http-api.md#upcoming-fire-times).
 - **The times show in the dashboard's time zone**, each with how long until it (`in 12h`).
 - **A trigger that does not fire again** says so: *This trigger does not fire again.*
+- **A paused trigger** says so above the list: these are its schedule's times, and it fires none of them until it
+  is resumed. A trigger in a paused group is paused.
 - **A simple trigger [measured from completion](../tutorial/simpletriggers.md#measured-from-completion)**
   lists its next fire time, then *Then every 30 s after each run completes.*
 - **A source that cannot answer** says so in the panel, and the rest of the page still shows. An agent whose
@@ -360,7 +366,7 @@ and gives a verdict for each: ✓ fine, ℹ worth knowing, ⚠ may hold it back,
 |---|---|---|
 | Scheduler | It is in standby, not started or shut down. A window's status comes from the cluster's check-ins | Overview |
 | Trigger | It is paused (by whom, when, why), blocked, complete, or in error. In error, the cause: a deleted parent, or the last run's failure | The failed run; *Reset error state* |
-| Trigger group, Job group | The group is paused, with the job group's record | The listing narrowed to the group |
+| Trigger group, Job group | The group is paused, with its record: who paused it, when and why | The listing narrowed to the group |
 | Its job's firings | The trigger is `BLOCKED`: the firing that holds its job, its node and since when | *Interrupt*; Currently Executing |
 | Next fire | There is none (its end time passed), or a waiting trigger is more than 5 minutes past it | |
 | Execution group | Its limit is 0 or reached, or **this node** does not serve the group | Currently Executing; Cluster |

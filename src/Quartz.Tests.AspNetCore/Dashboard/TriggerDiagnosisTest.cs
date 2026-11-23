@@ -102,6 +102,32 @@ public class TriggerDiagnosisTest
     }
 
     [Test]
+    public void APausedTriggerGroupSaysWhoPausedItWhenAndWhy()
+    {
+        TriggerDiagnosisFacts facts = Facts(Trigger(), TriggerState.Paused) with
+        {
+            PausedTriggerGroups = Answered(Set("nightly")),
+            TriggerGroupPause = Answered<PauseInfo?>(new PauseInfo("vendor outage", "alice", Now.AddHours(-3))),
+        };
+
+        Check(Evaluate(facts), "Trigger group").Text.Should()
+            .StartWith("'nightly' is paused by alice at " + Format(Now.AddHours(-3)) + " (vendor outage):");
+    }
+
+    [Test]
+    public async Task OnlyAPausedTriggerGroupsRecordIsRead()
+    {
+        IQuartzApiClient api = FakeApi();
+        await TriggerDiagnosis.Read(api, Subject(Trigger(), TriggerState.Normal));
+        A.CallTo(() => api.GetTriggerGroupPause(A<string>._, A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
+
+        A.CallTo(() => api.QueryTriggerGroups(SchedulerName, A<DashboardGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerGroupDto>([new TriggerGroupDto("nightly", Paused: true)], HasMore: false, TotalCount: 1));
+        await TriggerDiagnosis.Read(api, Subject(Trigger(), TriggerState.Paused));
+        A.CallTo(() => api.GetTriggerGroupPause(SchedulerName, "nightly", A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
     public void APausedGroupBesideAResumedTriggerIsWorthKnowingOnly()
     {
         TriggerDiagnosisFacts facts = Facts(Trigger()) with { PausedTriggerGroups = Answered(Set("nightly")) };
@@ -447,6 +473,7 @@ public class TriggerDiagnosisTest
         A.CallTo(() => api.QueryJobGroups(SchedulerName, A<DashboardGroupQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<JobGroupDto>([], HasMore: false, TotalCount: 0));
         A.CallTo(() => api.GetJobGroupPause(SchedulerName, A<string>._, A<CancellationToken>._)).Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
+        A.CallTo(() => api.GetTriggerGroupPause(SchedulerName, A<string>._, A<CancellationToken>._)).Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
         A.CallTo(() => api.QueryFireInstances(SchedulerName, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<FireInstanceDto>([], HasMore: false, TotalCount: 0));
         A.CallTo(() => api.GetExecutionLimits(SchedulerName, A<CancellationToken>._)).Returns(new ExecutionLimitsDto([]));

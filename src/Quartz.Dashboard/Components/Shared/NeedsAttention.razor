@@ -36,9 +36,11 @@
         </p>
     }
 
+    @* The failing jobs and the day's runs side by side where there is room for both, stacked where there is not. *@
+    <div class="qz-needs-attention-columns">
     @if (_failingAvailable)
     {
-        <div data-testid="needs-attention-failing">
+        <div class="qz-needs-attention-failing" data-testid="needs-attention-failing">
             @if (_failing.Count == 0)
             {
                 <p class="qz-muted">No job is failing.</p>
@@ -46,7 +48,8 @@
             else
             {
                 <p>@FailingSentence</p>
-                <table class="qz-table">
+                <div class="qz-table-scroll">
+                <table class="qz-table qz-needs-attention-table">
                     <thead>
                         <tr>
                             <th>Job</th>
@@ -61,29 +64,33 @@
                                 <td><a class="qz-details-link" href="@JobPath(status.Job)">@DisplayValueHelper.FormatKey(status.Job.Group, status.Job.Name)</a></td>
                                 <td><a class="qz-failing-badge" href="@FailuresPath(status.Job)">failing ×@status.ConsecutiveFailures.ToString(CultureInfo.InvariantCulture)</a></td>
                                 <td>
-                                    @Scheduler.FormatInSelectedTimeZone(status.LastFailedAtUtc, "u")
+                                    <span class="qz-needs-attention-when">@Scheduler.FormatInSelectedTimeZone(status.LastFailedAtUtc, "u")</span>
                                     @if (status.LastFailureMessage is { Length: > 0 } message)
                                     {
-                                        <span class="qz-muted" title="@message">&nbsp;@message</span>
+                                        <span class="qz-muted qz-needs-attention-message" title="@message">@message</span>
                                     }
                                 </td>
                             </tr>
                         }
                     </tbody>
                 </table>
+                </div>
             }
         </div>
     }
 
     @if (_statistics is { } statistics)
     {
-        <RunStatisticsChart Statistics="@statistics.Statistics"
-                            From="@statistics.From"
-                            Before="@statistics.Before"
-                            Scope="@statistics.Window.Scope"
-                            Title="Runs, last 24 hours"
-                            HeadingId="needs-attention-runs" />
+        <div class="qz-needs-attention-runs">
+            <RunStatisticsChart Statistics="@statistics.Statistics"
+                                From="@statistics.From"
+                                Before="@statistics.Before"
+                                Scope="@statistics.Window.Scope"
+                                Title="Runs, last 24 hours"
+                                HeadingId="needs-attention-runs" />
+        </div>
     }
+    </div>
 </section>
 
 @code {

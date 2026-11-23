@@ -169,6 +169,8 @@ internal sealed class DashboardComponentContext : BunitContext
             .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
         A.CallTo(() => Api.GetJobGroupPause(A<string>._, A<string>._, A<CancellationToken>._))
             .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
+        A.CallTo(() => Api.GetTriggerGroupPause(A<string>._, A<string>._, A<CancellationToken>._))
+            .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
 
         // And no calendar by any name, which the in-process client answers as not found. A dummy calendar
         // excludes every time, and the Trigger Detail page's cron preview would walk it to the end of the

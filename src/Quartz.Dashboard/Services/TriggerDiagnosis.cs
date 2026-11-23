@@ -83,7 +83,11 @@ internal static class TriggerDiagnosis
                 .Items.Select(static group => group.Name).ToHashSet(StringComparer.Ordinal),
             cancellationToken).ConfigureAwait(false);
 
-        // Only a paused job group has a pause to explain.
+        // Only a paused group has a pause to explain.
+        Answer<PauseInfo?> triggerGroupPause = pausedTriggerGroups.Value?.Contains(triggerKey.Group) == true
+            ? await Ask(() => api.GetTriggerGroupPause(schedulerName, triggerKey.Group, cancellationToken), cancellationToken).ConfigureAwait(false)
+            : default;
+
         Answer<PauseInfo?> jobGroupPause = pausedJobGroups.Value?.Contains(job.Group) == true
             ? await Ask(() => api.GetJobGroupPause(schedulerName, job.Group, cancellationToken), cancellationToken).ConfigureAwait(false)
             : default;
@@ -119,6 +123,7 @@ internal static class TriggerDiagnosis
             Scheduler = scheduler,
             PausedTriggerGroups = pausedTriggerGroups,
             PausedJobGroups = pausedJobGroups,
+            TriggerGroupPause = triggerGroupPause,
             JobGroupPause = jobGroupPause,
             JobFirings = jobFirings,
             Limits = limits,
@@ -142,7 +147,7 @@ internal static class TriggerDiagnosis
         [
             CheckScheduler(facts),
             CheckTrigger(facts, formatTime),
-            CheckTriggerGroup(facts),
+            CheckTriggerGroup(facts, formatTime),
             CheckJobGroup(facts, formatTime),
             CheckFirings(facts, formatTime),
             CheckNextFire(facts, formatTime),
@@ -245,7 +250,7 @@ internal static class TriggerDiagnosis
         return check;
     }
 
-    private static DiagnosisCheck CheckTriggerGroup(TriggerDiagnosisFacts facts)
+    private static DiagnosisCheck CheckTriggerGroup(TriggerDiagnosisFacts facts, Func<DateTimeOffset?, string> formatTime)
     {
         const string Name = "Trigger group";
         if (facts.PausedTriggerGroups.Value is not { } paused)
@@ -262,7 +267,8 @@ internal static class TriggerDiagnosis
         return new DiagnosisCheck(
             Name,
             facts.Subject.State == TriggerState.Paused ? DiagnosisVerdict.Problem : DiagnosisVerdict.Info,
-            Quote(group) + " is paused: a trigger stored into it is stored paused, and resuming the group resumes its triggers.")
+            Quote(group) + " is paused" + PauseText(facts.TriggerGroupPause.Value, formatTime)
+            + ": a trigger stored into it is stored paused, and resuming the group resumes its triggers.")
         {
             LinkText = "Triggers in the group",
             LinkPath = "triggers?group=" + Uri.EscapeDataString(group),
@@ -568,6 +574,8 @@ internal sealed record TriggerDiagnosisFacts(DiagnosisSubject Subject)
     public Answer<HashSet<string>> PausedTriggerGroups { get; init; }
 
     public Answer<HashSet<string>> PausedJobGroups { get; init; }
+
+    public Answer<PauseInfo?> TriggerGroupPause { get; init; }
 
     public Answer<PauseInfo?> JobGroupPause { get; init; }
 

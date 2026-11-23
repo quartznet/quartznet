@@ -441,6 +441,20 @@ public interface IQuartzApiClient
     }
 
     /// <summary>
+    /// Why the trigger group is paused, who asked and when, or <see langword="null" /> when it is not paused
+    /// or its pause recorded nothing — what <see cref="IScheduler.GetTriggerGroupPause" /> answers.
+    /// </summary>
+    /// <remarks>
+    /// What Trigger Detail's diagnosis says of a paused trigger group. A default interface member, added in 4.9,
+    /// whose default reports the datum as unavailable: <see langword="null" />, as <see cref="GetJobGroupPause" />'s
+    /// does.
+    /// </remarks>
+    ValueTask<PauseInfo?> GetTriggerGroupPause(string schedulerName, string groupName, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
     /// Why the job group is paused, who asked and when, or <see langword="null" /> when it is not paused
     /// or its pause recorded nothing — what <see cref="IScheduler.GetJobGroupPause" /> answers.
     /// </summary>
