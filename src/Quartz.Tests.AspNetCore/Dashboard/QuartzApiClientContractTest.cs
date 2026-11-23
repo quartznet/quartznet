@@ -255,6 +255,99 @@ public sealed class QuartzApiClientContractTest
             .Which.Message.Should().Contain("no-such-trigger");
     }
 
+    private static IEnumerable<TestCaseData> EveryBuiltInCalendar()
+    {
+        // Kathmandu is UTC+05:45: a zone the wire has to carry by its id, since no default would produce it.
+        TimeZoneInfo kathmandu = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kathmandu");
+        BaseCalendar under = new(kathmandu) { Description = "under" };
+
+        HolidayCalendar holiday = new(under) { TimeZone = kathmandu, Description = "holiday" };
+        holiday.AddExcludedDay(new DateOnly(2030, 12, 25));
+        holiday.AddExcludedDay(new DateOnly(2031, 1, 1));
+        yield return new TestCaseData("contract-holiday", holiday).SetArgDisplayNames("Holiday");
+
+        AnnualCalendar annual = new(under) { TimeZone = kathmandu, Description = "annual" };
+        annual.AddExcludedDay(new MonthDay(2, 29));
+        annual.AddExcludedDay(new MonthDay(12, 25));
+        yield return new TestCaseData("contract-annual", annual).SetArgDisplayNames("Annual");
+
+        WeeklyCalendar weekly = new(under) { TimeZone = kathmandu, Description = "weekly" };
+        weekly.RemoveExcludedDay(DayOfWeek.Saturday);
+        weekly.AddExcludedDay(DayOfWeek.Wednesday);
+        yield return new TestCaseData("contract-weekly", weekly).SetArgDisplayNames("Weekly");
+
+        MonthlyCalendar monthly = new(under) { TimeZone = kathmandu, Description = "monthly" };
+        monthly.AddExcludedDay(1);
+        monthly.AddExcludedDay(31);
+        yield return new TestCaseData("contract-monthly", monthly).SetArgDisplayNames("Monthly");
+
+        DailyCalendar daily = new(new TimeOnly(9, 30), new TimeOnly(17, 0, 0, 250), under) { TimeZone = kathmandu, Description = "daily", InvertTimeRange = true };
+        yield return new TestCaseData("contract-daily", daily).SetArgDisplayNames("Daily");
+
+        CronCalendar cron = new(under, "* * 0-6 ? * MON-FRI", kathmandu) { Description = "cron" };
+        yield return new TestCaseData("contract-cron", cron).SetArgDisplayNames("Cron");
+    }
+
+    /// <summary>
+    /// Each built-in calendar type the dashboard's editor builds is stored through the client and read back as it
+    /// was sent, whichever carrier the scheduler is reached by (#4413): its own rules, its time zone, its
+    /// description and the calendar under it.
+    /// </summary>
+    [TestCaseSource(nameof(EveryBuiltInCalendar))]
+    public async Task EveryBuiltInCalendarTypeIsStoredAndReadBackAsItWasSent(string name, ICalendar calendar)
+    {
+        await client.AddCalendar(key, new AddCalendarRequest(name, calendar, Replace: false, UpdateTriggers: false));
+
+        ICalendar read = await client.GetCalendar(key, name);
+
+        read.Should().BeOfType(calendar.GetType());
+        read.Should().Be(calendar, "the calendar the page shows is the one the editor sent, rules, zone, description and base alike");
+        read.CalendarBase.Should().Be(calendar.CalendarBase);
+    }
+
+    /// <summary>
+    /// What the Replace question on the calendar pages offers: a replace leaves each trigger's next fire time as it
+    /// was unless the triggers are updated, and the count of the triggers that use the calendar is one read with
+    /// no trigger in it. 9:00 UTC every day from 5 October 2030, years ahead of every carrier's clock.
+    /// </summary>
+    [Test]
+    public async Task AReplaceUpdatesTheTriggersThatUseTheCalendarOnlyWhenAskedTo()
+    {
+        JobKey jobKey = new("export", "calendar-contract");
+        TriggerKey triggerKey = new("daily", "calendar-contract");
+        TriggerKeyDto triggerKeyDto = new(triggerKey.Group, triggerKey.Name);
+        DateTimeOffset fifth = new(2030, 10, 5, 9, 0, 0, TimeSpan.Zero);
+        await client.AddCalendar(key, new AddCalendarRequest("contract-days", new HolidayCalendar { TimeZone = TimeZoneInfo.Utc }, Replace: false, UpdateTriggers: false));
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build());
+        await scheduler.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartAt(new DateTimeOffset(2030, 10, 5, 0, 0, 0, TimeSpan.Zero))
+            .WithCalendarName("contract-days")
+            .WithCronSchedule("0 0 9 * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc))
+            .Build());
+        await scheduler.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity("unrelated", "calendar-contract")
+            .ForJob(jobKey)
+            .StartAt(fifth)
+            .Build());
+
+        PagedResult<TriggerHeaderDto> users = await client.QueryTriggers(key, new DashboardTriggerQuery { CalendarName = "contract-days", Take = 0 });
+        users.TotalCount.Should().Be(1, "one trigger names the calendar");
+        users.Items.Should().BeEmpty("a count reads no trigger");
+
+        HolidayCalendar withoutTheFifth = new() { TimeZone = TimeZoneInfo.Utc };
+        withoutTheFifth.AddExcludedDay(new DateOnly(2030, 10, 5));
+
+        await client.AddCalendar(key, new AddCalendarRequest("contract-days", withoutTheFifth, Replace: true, UpdateTriggers: false));
+        (await client.GetTrigger(key, triggerKeyDto)).NextFireTimeUtc.Should().Be(fifth,
+            "a replace alone leaves the trigger the next fire time it had, though the new calendar excludes it");
+
+        await client.AddCalendar(key, new AddCalendarRequest("contract-days", withoutTheFifth, Replace: true, UpdateTriggers: true));
+        (await client.GetTrigger(key, triggerKeyDto)).NextFireTimeUtc.Should().Be(fifth.AddDays(1),
+            "updating the triggers recomputes the next fire time against the calendar that replaced the old one");
+    }
+
     [Test]
     public async Task AMissingCalendarIsReportedAsAMissingKey()
     {
