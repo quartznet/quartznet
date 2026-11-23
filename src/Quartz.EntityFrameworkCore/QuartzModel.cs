@@ -36,7 +36,8 @@ namespace Quartz.EntityFrameworkCore;
 /// </para>
 /// <para>
 /// Every column states its store type, nullability and default, and every index its name and directions, so
-/// nothing is left to a provider's conventions. The constraint names are left to EF Core.
+/// nothing is left to a provider's conventions. The constraint names are the scripts' on Oracle and Firebird,
+/// and left to EF Core elsewhere.
 /// </para>
 /// </remarks>
 internal static class QuartzModel
@@ -72,7 +73,11 @@ internal static class QuartzModel
                     }
                 }
 
-                entity.HasKey(table.PrimaryKey);
+                KeyBuilder key = entity.HasKey(table.PrimaryKey);
+                if (table.PrimaryKeyName is { } primaryKeyName)
+                {
+                    key.HasName(naming.Constraint(primaryKeyName));
+                }
 
                 foreach (QuartzIndexDefinition index in table.Indexes.Where(i => Exists(i.AddedBy, asOf)))
                 {
@@ -96,13 +101,18 @@ internal static class QuartzModel
                 continue;
             }
 
-            modelBuilder.SharedTypeEntity<Dictionary<string, object>>(naming.EntityName(table.Name))
+            ReferenceCollectionBuilder relationship = modelBuilder.SharedTypeEntity<Dictionary<string, object>>(naming.EntityName(table.Name))
                 .HasOne(naming.EntityName(foreignKey.ReferencedTable), navigationName: null)
                 .WithMany()
                 .HasForeignKey(foreignKey.Columns)
                 .HasPrincipalKey(foreignKey.ReferencedColumns)
                 .IsRequired()
-                .OnDelete(foreignKey.Cascade ? DeleteBehavior.Cascade : DeleteBehavior.NoAction);
+                .OnDelete(foreignKey.Cascade ? DeleteBehavior.Cascade : dialect.PlainDelete);
+
+            if (foreignKey.Name is { } foreignKeyName)
+            {
+                relationship.HasConstraintName(naming.Constraint(foreignKeyName));
+            }
         }
     }
 

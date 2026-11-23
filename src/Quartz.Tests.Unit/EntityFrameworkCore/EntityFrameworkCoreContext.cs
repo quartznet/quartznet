@@ -56,8 +56,11 @@ internal sealed class EntityFrameworkCoreContext : DbContext
         this.build = build;
     }
 
-    /// <summary>The four dialects with a model, as the schema model keys them.</summary>
-    public static readonly string[] Dialects = ["postgres", "sqlServer", "mysql_innodb", "sqlite"];
+    /// <summary>The dialects with a model, as the schema model keys them.</summary>
+    public static readonly string[] Dialects = ["postgres", "sqlServer", "mysql_innodb", "sqlite", "oracle", "firebird"];
+
+    /// <summary>The dialects AppAny.Quartz.EntityFrameworkCore.Migrations has a model of, to move from.</summary>
+    public static readonly string[] AppAnyDialects = ["postgres", "sqlServer", "mysql_innodb", "sqlite"];
 
     /// <summary>The key this instance's model is cached under, which no other instance shares.</summary>
     public Guid ModelKey { get; } = Guid.NewGuid();
@@ -87,6 +90,8 @@ internal sealed class EntityFrameworkCoreContext : DbContext
             "sqlServer" => options.UseSqlServer(connectionString ?? "Server=localhost;Database=quartz"),
             "mysql_innodb" => options.UseMySQL(connectionString ?? "server=localhost;database=quartz"),
             "sqlite" => options.UseSqlite(connectionString ?? "Data Source=:memory:"),
+            "oracle" => options.UseOracle(connectionString ?? "User Id=quartz;Password=quartz;Data Source=localhost:1521/XEPDB1"),
+            "firebird" => options.UseFirebird(connectionString ?? "database=localhost:quartz.fdb;user=sysdba;password=masterkey"),
             _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect, "Quartz.EntityFrameworkCore has no model for this dialect"),
         };
 

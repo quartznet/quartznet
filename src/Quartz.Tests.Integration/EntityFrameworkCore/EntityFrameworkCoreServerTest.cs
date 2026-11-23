@@ -33,7 +33,11 @@ using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
 using MySqlConnector;
 
+using FirebirdSql.Data.FirebirdClient;
+
 using Npgsql;
+
+using Oracle.ManagedDataAccess.Client;
 
 using Quartz.Tests.Integration.Impl.AdoJobStore;
 using Quartz.Tests.Integration.Weasel;
@@ -43,8 +47,9 @@ namespace Quartz.Tests.Integration.EntityFrameworkCore;
 
 /// <summary>
 /// Quartz.EntityFrameworkCore's schema in a real database of each server dialect it has a model for: an empty
-/// database migrated, a database the scripts created and then baselined, and a schema AppAny 0.6.3 created,
-/// moved. Each ends with a scheduler running on the tables.
+/// database migrated, and a database the scripts created and then baselined, each ending with a scheduler running
+/// on the tables. <see cref="EntityFrameworkCoreAppAnyServerTest" /> adds a schema AppAny 0.6.3 created, moved, on
+/// the three server databases AppAny had a model of.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -63,8 +68,8 @@ public abstract class EntityFrameworkCoreServerTest
 
     private protected abstract Task<IQuartzTestDatabase> CreateDatabaseAsync();
 
-    /// <summary>The prefix as Quartz's options take it; PostgreSQL folds it either way.</summary>
-    private static Action<QuartzTablesOptions> Prefix(string prefix) => t => t.TablePrefix = prefix;
+    /// <summary>The prefix as Quartz's options take it; PostgreSQL, Oracle and Firebird fold it either way.</summary>
+    private protected static Action<QuartzTablesOptions> Prefix(string prefix) => t => t.TablePrefix = prefix;
 
     [Test]
     public async Task AnEmptyDatabaseMigratedIsTheFreshInstallAndRunsTheScheduler()
@@ -117,6 +122,14 @@ public abstract class EntityFrameworkCoreServerTest
         await MigratedSchemaWorkload.RunAsync(connection, Dialect, database.ConnectionString, "QRTZB_");
     }
 
+    private protected virtual Task AssertAcquisitionIndexIsDescendingAsync(IQuartzTestDatabase database, string tablePrefix) => Task.CompletedTask;
+}
+
+/// <summary>
+/// The server databases AppAny 0.6.3 had a model of, which also take a schema AppAny created and move it.
+/// </summary>
+public abstract class EntityFrameworkCoreAppAnyServerTest : EntityFrameworkCoreServerTest
+{
     /// <summary>
     /// A schema AppAny 0.6.3 created, moved by <c>MoveQuartzTablesFromAppAny</c>: what it leaves is exactly what
     /// the move says it leaves, and a scheduler runs on it.
@@ -170,8 +183,6 @@ public abstract class EntityFrameworkCoreServerTest
     /// <summary>What is true of AppAny's schema before it is moved.</summary>
     private protected virtual Task BeforeTheMoveAsync(DbConnection connection, string connectionString, string tablePrefix) => Task.CompletedTask;
 
-    private protected virtual Task AssertAcquisitionIndexIsDescendingAsync(IQuartzTestDatabase database, string tablePrefix) => Task.CompletedTask;
-
     /// <summary>The leading <c>TABLE|COLUMN</c> or <c>TABLE(</c> of each row a snapshot reads.</summary>
     private static IEnumerable<string> Keys(IEnumerable<string> rows) => rows.Select(r =>
     {
@@ -182,7 +193,7 @@ public abstract class EntityFrameworkCoreServerTest
 }
 
 [Category("db-postgres")]
-public sealed class PostgresEntityFrameworkCoreTest : EntityFrameworkCoreServerTest
+public sealed class PostgresEntityFrameworkCoreTest : EntityFrameworkCoreAppAnyServerTest
 {
     private protected override string Dialect => "postgres";
 
@@ -192,7 +203,7 @@ public sealed class PostgresEntityFrameworkCoreTest : EntityFrameworkCoreServerT
 }
 
 [Category("db-sqlserver")]
-public sealed class SqlServerEntityFrameworkCoreTest : EntityFrameworkCoreServerTest
+public sealed class SqlServerEntityFrameworkCoreTest : EntityFrameworkCoreAppAnyServerTest
 {
     private protected override string Dialect => "sqlServer";
 
@@ -220,7 +231,7 @@ public sealed class SqlServerEntityFrameworkCoreTest : EntityFrameworkCoreServer
 }
 
 [Category("db-mysql")]
-public sealed class MySqlEntityFrameworkCoreTest : EntityFrameworkCoreServerTest
+public sealed class MySqlEntityFrameworkCoreTest : EntityFrameworkCoreAppAnyServerTest
 {
     private protected override string Dialect => "mysql_innodb";
 
@@ -244,6 +255,26 @@ public sealed class MySqlEntityFrameworkCoreTest : EntityFrameworkCoreServerTest
 
         collation.Should().Be("D", "acquisition orders by NEXT_FIRE_TIME ASC, PRIORITY DESC, and the index has to say the same");
     }
+}
+
+[Category("db-oracle")]
+public sealed class OracleEntityFrameworkCoreTest : EntityFrameworkCoreServerTest
+{
+    private protected override string Dialect => "oracle";
+
+    private protected override async Task<IQuartzTestDatabase> CreateDatabaseAsync() => new OracleQuartzTestDatabase(await OracleWeaselDatabase.CreateAsync());
+}
+
+/// <summary>
+/// Firebird, on whichever server the leg runs: 4 by default, 3, 4 or 5 on the image legs, which run this namespace.
+/// The test prefixes are six characters, the longest Firebird 3's 31 bytes leave room for.
+/// </summary>
+[Category("db-firebird")]
+public sealed class FirebirdEntityFrameworkCoreTest : EntityFrameworkCoreServerTest
+{
+    private protected override string Dialect => "firebird";
+
+    private protected override async Task<IQuartzTestDatabase> CreateDatabaseAsync() => new FirebirdQuartzTestDatabase(await FirebirdWeaselDatabase.CreateAsync("UTF8"));
 }
 
 /// <summary>A database of a test's own, as the tests here need it, over the Weasel tests' helpers.</summary>
@@ -329,6 +360,54 @@ internal sealed class SqlServerQuartzTestDatabase(SqlServerWeaselDatabase databa
     public override async Task<DbConnection> OpenAsync()
     {
         SqlConnection connection = new(database.ConnectionString);
+        await connection.OpenAsync();
+        return connection;
+    }
+
+    public override Task<object?> ScalarAsync(string sql) => database.ScalarAsync(sql);
+
+    public override ValueTask DisposeAsync() => database.DisposeAsync();
+}
+
+internal sealed class OracleQuartzTestDatabase(OracleWeaselDatabase database) : QuartzTestDatabase
+{
+    public override string ConnectionString => database.ConnectionString;
+
+    public override Task ProvisionAsync(string tablePrefix) => database.ProvisionAsync(tablePrefix);
+
+    /// <summary>Through the container's own <c>sqlplus</c>, as this user, which is what understands the script.</summary>
+    public override async Task RunBaselineAsync(string version, string tablePrefix) =>
+        await database.RunScriptAsync(await BaselineAsync(version, "oracle", tablePrefix));
+
+    public override async Task<DbConnection> OpenAsync()
+    {
+        OracleConnection connection = new(database.ConnectionString);
+        await connection.OpenAsync();
+        return connection;
+    }
+
+    public override Task<object?> ScalarAsync(string sql) => database.ScalarAsync(sql);
+
+    public override ValueTask DisposeAsync() => database.DisposeAsync();
+}
+
+internal sealed class FirebirdQuartzTestDatabase(FirebirdWeaselDatabase database) : QuartzTestDatabase
+{
+    public override string ConnectionString => database.ConnectionString;
+
+    public override Task ProvisionAsync(string tablePrefix) => database.ProvisionAsync(tablePrefix);
+
+    /// <summary>
+    /// Through the server's own isql, which is what understands the script, without the bare <c>DROP</c> lines that
+    /// fail on an empty database.
+    /// </summary>
+    public override async Task RunBaselineAsync(string version, string tablePrefix) =>
+        await database.RunIsqlAsync(string.Join('\n', (await BaselineAsync(version, "firebird", tablePrefix)).Split('\n')
+            .Where(line => !line.TrimStart().StartsWith("DROP ", StringComparison.OrdinalIgnoreCase))));
+
+    public override async Task<DbConnection> OpenAsync()
+    {
+        FbConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
         return connection;
     }

@@ -115,6 +115,11 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.3" />
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.3" />
     <!--
+      Firebird's EF Core provider, for Quartz.EntityFrameworkCore's tests alone: 13.x is the line for EF Core 10.
+      Its licence, the Initial Developer's Public License, is FirebirdSql.Data.FirebirdClient's word for word.
+    -->
+    <PackageVersion Include="FirebirdSql.EntityFrameworkCore.Firebird" Version="13.0.0" />
+    <!--
       Oracle's MySQL provider, the only one for EF Core 10, and a test reference alone: GPL-2.0 with the
       Universal FOSS Exception, and it brings MySql.Data. Quartz.EntityFrameworkCore reads the provider's name
       and never references it.
@@ -134,6 +139,12 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.21.0" />
+    <!--
+      Oracle's EF Core provider, for Quartz.EntityFrameworkCore's tests alone. Its licence, the Oracle Free
+      Distribution, Hosting, and Use Terms, is Oracle.ManagedDataAccess.Core's word for word, and it takes the
+      driver at the version below.
+    -->
+    <PackageVersion Include="Oracle.EntityFrameworkCore" Version="10.23.26400" />
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.400" />
     <!--
       The nullable attributes, IsByRefLikeAttribute and the rest of what a netstandard2.0 compilation

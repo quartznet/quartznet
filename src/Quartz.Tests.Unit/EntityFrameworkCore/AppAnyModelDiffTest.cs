@@ -53,7 +53,7 @@ namespace Quartz.Tests.Unit.EntityFrameworkCore;
 /// </remarks>
 public sealed class AppAnyModelDiffTest
 {
-    private static IEnumerable<string> Dialects() => EntityFrameworkCoreContext.Dialects;
+    private static IEnumerable<string> Dialects() => EntityFrameworkCoreContext.AppAnyDialects;
 
     [TestCaseSource(nameof(Dialects))]
     public async Task AppAnysModelBecomesThisPackagesThus(string dialect)

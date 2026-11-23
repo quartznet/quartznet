@@ -19,16 +19,18 @@ using System.Text;
 /// </para>
 /// <para>
 /// Every column has an explicit store type, because a provider left to choose picks types the scripts do
-/// not use (PostgreSQL <c>character varying(n)</c>, MySQL <c>longblob</c>). The spelling is the script's,
+/// not use (PostgreSQL <c>character varying(n)</c>, MySQL <c>longblob</c>, Oracle <c>BOOLEAN</c> and
+/// <c>NVARCHAR2</c>, Firebird <c>BLOB SUB_TYPE BINARY</c>). The spelling is the script's,
 /// folded the way the package's predecessor spelled it where that changes nothing in the database:
 /// PostgreSQL in lower case, as its script is generated; MySQL in lower case, with <c>BOOLEAN</c> as
 /// <c>tinyint(1)</c>, because Oracle's MySQL provider writes any other boolean type with a <c>(1)</c> after
 /// it. EF Core compares a store type as written, so a spelling that changes is a migration.
 /// </para>
 /// <para>
-/// The names that depend on the table prefix and the schema, and the primary- and foreign-key constraint
-/// names, are left to the package at run time: they are a rule rather than data, as on the Weasel models.
-/// A new dialect is one more <see cref="EntityFrameworkCoreDialect" />.
+/// The names that depend on the table prefix and the schema are the package's at run time: they are a rule
+/// rather than data, as on the Weasel models. On Oracle and Firebird the primary- and foreign-key names are the
+/// scripts' own, rendered with the prefix as <c>{1}</c>; on the other four they are left to EF Core. A new
+/// dialect is one more <see cref="EntityFrameworkCoreDialect" />.
 /// </para>
 /// </remarks>
 partial class Build
@@ -45,13 +47,20 @@ partial class Build
     /// a column of it can hold.
     /// </param>
     /// <param name="DeleteTriggers">Whether the dialect carries <see cref="SqliteDeleteTriggers" />.</param>
+    /// <param name="NamesConstraints">
+    /// Whether the model names the primary and foreign keys as the dialect's script names them. Oracle's and
+    /// Firebird's scripts name every key, and no earlier EF Core model of these two databases left the names to
+    /// EF Core, so the scripts' names cost nobody a migration. The other four leave them to EF Core, because
+    /// the AppAny models a database may have been built with did.
+    /// </param>
     sealed record EntityFrameworkCoreDialect(
         string Dialect,
         string Member,
         Func<string, string> StoreType,
         bool Cascades,
         bool IntegerIs64Bits = false,
-        bool DeleteTriggers = false);
+        bool DeleteTriggers = false,
+        bool NamesConstraints = false);
 
     const string EntityFrameworkCoreProject = "Quartz.EntityFrameworkCore";
 
@@ -62,6 +71,8 @@ partial class Build
         new("sqlServer", "SqlServer", AsDeclared, Cascades: true),
         new("mysql_innodb", "MySql", MySqlEntityFrameworkCoreType, Cascades: false),
         new("sqlite", "Sqlite", AsDeclared, Cascades: true, IntegerIs64Bits: true, DeleteTriggers: true),
+        new("oracle", "Oracle", AsDeclared, Cascades: false, NamesConstraints: true),
+        new("firebird", "Firebird", AsDeclared, Cascades: false, NamesConstraints: true),
     ];
 
     /// <summary>Every generated model, as a path under <c>src/</c> and its content.</summary>
@@ -113,7 +124,8 @@ partial class Build
                 string kind = EntityFrameworkCoreKind(ef, parsed.Type);
                 StringBuilder line = new($"                new(\"{column.Name}\", QuartzColumnKind.{kind}, \"{ef.StoreType(parsed.Type)}\", Nullable: {(parsed.NotNull ? "false" : "true")}");
 
-                if (parsed.Default is { } defaultValue)
+                // Firebird writes a nullable column's absent default as DEFAULT NULL, which is no default at all.
+                if (parsed.Default is { } defaultValue && !defaultValue.Equals("NULL", StringComparison.OrdinalIgnoreCase))
                 {
                     line.Append($", DefaultValue: {EntityFrameworkCoreDefault(kind, defaultValue)}");
                 }
@@ -129,6 +141,11 @@ partial class Build
             o.AppendLine("            ],");
             o.AppendLine($"            PrimaryKey: {StringArray(table.PrimaryKey)},");
 
+            if (ef.NamesConstraints)
+            {
+                o.AppendLine($"            PrimaryKeyName: \"{ConstraintName(PrimaryKeyName(dialect, table))}\",");
+            }
+
             if (table.ForeignKey is not null && ForeignKeyOn(dialect, table) is null)
             {
                 o.AppendLine($"            // No foreign key: tables_{dialect}.sql creates none on this table. See SchemaForeignKey.LeftOutOn.");
@@ -139,7 +156,9 @@ partial class Build
                 bool cascade = foreignKey.Cascade && ef.Cascades;
                 o.AppendLine(
                     $"            ForeignKey: new({StringArray(foreignKey.Columns)}, \"{foreignKey.ReferencedTable}\", "
-                    + $"{StringArray(foreignKey.ReferencedColumns)}, Cascade: {(cascade ? "true" : "false")}),");
+                    + $"{StringArray(foreignKey.ReferencedColumns)}, Cascade: {(cascade ? "true" : "false")}"
+                    + (ef.NamesConstraints ? $", Name: \"{ConstraintName(ForeignKeyName(dialect, table, foreignKey))}\"" : "")
+                    + "),");
             }
             else
             {
@@ -218,9 +237,19 @@ partial class Build
     }
 
     /// <summary>
+    /// A constraint's name as the script's clause gives it, <c>CONSTRAINT {1}JOB_DETAILS_PK </c>, without the
+    /// keyword: the template the package fills the prefix into.
+    /// </summary>
+    static string ConstraintName(string clause) => clause.Trim()["CONSTRAINT ".Length..];
+
+    /// <summary>
     /// The CLR type a column of this store type is given, as a <c>QuartzColumnKind</c> member name. A type
     /// the model does not use yet is refused rather than guessed at.
     /// </summary>
+    /// <remarks>
+    /// Oracle's <c>VARCHAR2(1)</c> flags are strings, <c>'0'</c> and <c>'1'</c>, which is what the store writes and
+    /// what their defaults say. Its <c>NUMBER(p)</c> is the smallest integer type that holds <c>p</c> digits.
+    /// </remarks>
     static string EntityFrameworkCoreKind(EntityFrameworkCoreDialect ef, string type)
     {
         string upper = type.ToUpperInvariant();
@@ -229,7 +258,14 @@ partial class Build
         {
             _ when upper.StartsWith("NVARCHAR", StringComparison.Ordinal)
                    || upper.StartsWith("VARCHAR", StringComparison.Ordinal)
-                   || upper is "TEXT" or "LONGTEXT" => "String",
+                   || upper is "TEXT" or "LONGTEXT" or "CLOB" or "BLOB SUB_TYPE TEXT" => "String",
+            _ when upper.StartsWith("NUMBER(", StringComparison.Ordinal) =>
+                int.Parse(upper["NUMBER(".Length..^1], CultureInfo.InvariantCulture) switch
+                {
+                    <= 4 => "Int16",
+                    <= 9 => "Int32",
+                    _ => "Int64",
+                },
             "BIGINT" => "Int64",
             "INTEGER" => ef.IntegerIs64Bits ? "Int64" : "Int32",
             "INT" => "Int32",
@@ -247,6 +283,7 @@ partial class Build
     /// </summary>
     static string EntityFrameworkCoreDefault(string kind, string value) => (kind, value.ToUpperInvariant()) switch
     {
+        ("String", _) when value.Length >= 2 && value[0] == '\'' && value[^1] == '\'' => CSharpString(value[1..^1].Replace("''", "'")),
         ("Boolean", "0" or "FALSE") => "false",
         ("Boolean", "1" or "TRUE") => "true",
         ("Int16", _) => $"(short) {int.Parse(value, CultureInfo.InvariantCulture)}",
