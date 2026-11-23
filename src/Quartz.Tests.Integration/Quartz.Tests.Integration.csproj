@@ -79,8 +79,10 @@
     <PackageReference Include="AppAny.Quartz.EntityFrameworkCore.Migrations.SqlServer" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="FirebirdSql.EntityFrameworkCore.Firebird" />
     <PackageReference Include="MySql.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Oracle.EntityFrameworkCore" />
     <!--
       Quartz itself only needs Microsoft.Extensions.Hosting.Abstractions. A scenario that stands a real
       host up around a scheduler needs the host, which the Microsoft.AspNetCore.App framework reference

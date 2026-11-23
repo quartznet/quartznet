@@ -19,7 +19,22 @@
 
 #endregion
 
+using Microsoft.EntityFrameworkCore;
+
 namespace Quartz.EntityFrameworkCore;
+
+/// <summary>What a database does to the case of an identifier the store writes unquoted.</summary>
+internal enum QuartzIdentifierCase
+{
+    /// <summary>Keeps it as written, or compares it without regard to case: SQL Server, MySQL, SQLite.</summary>
+    AsWritten,
+
+    /// <summary>Folds it to lower case: PostgreSQL.</summary>
+    Lower,
+
+    /// <summary>Folds it to upper case: Oracle and Firebird.</summary>
+    Upper,
+}
 
 /// <summary>
 /// One database Quartz has a model for, and the EF Core providers that speak to it.
@@ -34,40 +49,68 @@ internal sealed class QuartzDialect
     internal static readonly QuartzDialect PostgreSql = new(
         "PostgreSQL",
         QuartzSchema.PostgreSql,
-        foldsToLowerCase: true,
+        QuartzIdentifierCase.Lower,
         supportsSchemas: true,
         maxIdentifierLength: 63,
         rebuildsDescendingIndexes: false,
-        deleteTriggers: []);
+        deleteTriggers: [],
+        hasAppAnyModel: true);
 
     internal static readonly QuartzDialect SqlServer = new(
         "SQL Server",
         QuartzSchema.SqlServer,
-        foldsToLowerCase: false,
+        QuartzIdentifierCase.AsWritten,
         supportsSchemas: true,
         maxIdentifierLength: 128,
         rebuildsDescendingIndexes: false,
-        deleteTriggers: []);
+        deleteTriggers: [],
+        hasAppAnyModel: true);
 
     // Oracle's MySql.EntityFrameworkCore drops an index column's direction when it creates the index, so the
     // schema is completed by an index rebuild that says it.
     internal static readonly QuartzDialect MySql = new(
         "MySQL",
         QuartzSchema.MySql,
-        foldsToLowerCase: false,
+        QuartzIdentifierCase.AsWritten,
         supportsSchemas: false,
         maxIdentifierLength: 64,
         rebuildsDescendingIndexes: true,
-        deleteTriggers: []);
+        deleteTriggers: [],
+        hasAppAnyModel: true);
 
     internal static readonly QuartzDialect Sqlite = new(
         "SQLite",
         QuartzSchema.Sqlite,
-        foldsToLowerCase: false,
+        QuartzIdentifierCase.AsWritten,
         supportsSchemas: false,
         maxIdentifierLength: int.MaxValue,
         rebuildsDescendingIndexes: false,
-        deleteTriggers: QuartzSchema.SqliteDeleteTriggers);
+        deleteTriggers: QuartzSchema.SqliteDeleteTriggers,
+        hasAppAnyModel: true);
+
+    // The tables go in the session's own schema, as the scripts and the Weasel package put them.
+    internal static readonly QuartzDialect Oracle = new(
+        "Oracle",
+        QuartzSchema.Oracle,
+        QuartzIdentifierCase.Upper,
+        supportsSchemas: false,
+        maxIdentifierLength: 128,
+        rebuildsDescendingIndexes: false,
+        deleteTriggers: [],
+        hasAppAnyModel: false);
+
+    // 31 bytes is Firebird 3's limit. Firebird 4 and 5 take 63, but a model cannot know which server opens the
+    // database, so every Firebird database is held to the lower one.
+    internal static readonly QuartzDialect Firebird = new(
+        "Firebird",
+        QuartzSchema.Firebird,
+        QuartzIdentifierCase.Upper,
+        supportsSchemas: false,
+        maxIdentifierLength: 31,
+        rebuildsDescendingIndexes: false,
+        deleteTriggers: [],
+        hasAppAnyModel: false,
+        plainDelete: DeleteBehavior.Restrict);
 
     /// <summary>Every provider name Quartz recognizes, and the dialect it speaks.</summary>
     internal static readonly IReadOnlyList<(string ProviderName, QuartzDialect Dialect)> Providers =
@@ -77,24 +120,30 @@ internal sealed class QuartzDialect
         ("MySql.EntityFrameworkCore", MySql),
         ("Pomelo.EntityFrameworkCore.MySql", MySql),
         ("Microsoft.EntityFrameworkCore.Sqlite", Sqlite),
+        ("Oracle.EntityFrameworkCore", Oracle),
+        ("FirebirdSql.EntityFrameworkCore.Firebird", Firebird),
     ];
 
     private QuartzDialect(
         string label,
         QuartzTableDefinition[] tables,
-        bool foldsToLowerCase,
+        QuartzIdentifierCase identifierCase,
         bool supportsSchemas,
         int maxIdentifierLength,
         bool rebuildsDescendingIndexes,
-        QuartzTriggerDefinition[] deleteTriggers)
+        QuartzTriggerDefinition[] deleteTriggers,
+        bool hasAppAnyModel,
+        DeleteBehavior plainDelete = DeleteBehavior.NoAction)
     {
+        PlainDelete = plainDelete;
         Label = label;
         Tables = tables;
-        FoldsToLowerCase = foldsToLowerCase;
+        IdentifierCase = identifierCase;
         SupportsSchemas = supportsSchemas;
         MaxIdentifierLength = maxIdentifierLength;
         RebuildsDescendingIndexes = rebuildsDescendingIndexes;
         DeleteTriggers = deleteTriggers;
+        HasAppAnyModel = hasAppAnyModel;
     }
 
     /// <summary>The database's name, for messages.</summary>
@@ -104,15 +153,18 @@ internal sealed class QuartzDialect
     internal QuartzTableDefinition[] Tables { get; }
 
     /// <summary>
-    /// Whether the database folds the store's unquoted identifiers to lower case, which PostgreSQL does. EF Core
-    /// quotes what it creates, so the model has to say the folded names itself.
+    /// What the database does to the case of the store's unquoted identifiers. EF Core quotes what it creates, so
+    /// the model has to say the folded names itself.
     /// </summary>
-    internal bool FoldsToLowerCase { get; }
+    internal QuartzIdentifierCase IdentifierCase { get; }
 
     /// <summary>Whether the tables may go in a schema of their own.</summary>
     internal bool SupportsSchemas { get; }
 
-    /// <summary>The longest identifier the provider writes, which is where EF Core cuts the names it makes up.</summary>
+    /// <summary>
+    /// The longest identifier the database takes, in bytes: where EF Core cuts the names it makes up, and past
+    /// which a name the model gives is refused.
+    /// </summary>
     internal int MaxIdentifierLength { get; }
 
     /// <summary>Whether an index with a descending column has to be created again after EF Core created it.</summary>
@@ -120,6 +172,15 @@ internal sealed class QuartzDialect
 
     /// <summary>The triggers the model cannot express, which <c>CompleteQuartzSchema</c> creates.</summary>
     internal QuartzTriggerDefinition[] DeleteTriggers { get; }
+
+    /// <summary>Whether AppAny.Quartz.EntityFrameworkCore.Migrations has a model of this database to move from.</summary>
+    internal bool HasAppAnyModel { get; }
+
+    /// <summary>
+    /// The delete rule of a foreign key the script declares without one, as the database records it: NO ACTION,
+    /// except on Firebird, which records the script's keys as RESTRICT and EF Core's NO ACTION as NO ACTION.
+    /// </summary>
+    internal DeleteBehavior PlainDelete { get; }
 
     /// <summary>The table of this name, which every caller names from the model itself.</summary>
     internal QuartzTableDefinition Table(string name) => Tables.Single(t => t.Name == name);
@@ -135,7 +196,8 @@ internal sealed class QuartzDialect
             throw new ArgumentNullException(
                 nameof(providerName),
                 "No database provider is configured, so Quartz cannot tell which database's tables to add. "
-                + "Configure the provider first (UseNpgsql, UseSqlServer, UseMySQL or UseSqlite) and pass Database.ProviderName.");
+                + "Configure the provider first (UseNpgsql, UseSqlServer, UseMySQL, UseSqlite, UseOracle or UseFirebird) and pass "
+                + "Database.ProviderName.");
         }
 
         foreach ((string name, QuartzDialect dialect) in Providers)

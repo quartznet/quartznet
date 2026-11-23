@@ -57,11 +57,15 @@ internal sealed record QuartzColumnDefinition(
 /// <param name="ReferencedTable">The unprefixed name of the table referenced.</param>
 /// <param name="ReferencedColumns">The columns referenced, which are that table's primary key.</param>
 /// <param name="Cascade">Whether deleting the parent row deletes this one, as the dialect's script says.</param>
+/// <param name="Name">
+/// The script's name for the key, with the prefix as <c>{1}</c>, or <see langword="null" /> to leave it to EF Core.
+/// </param>
 internal sealed record QuartzForeignKeyDefinition(
     string[] Columns,
     string ReferencedTable,
     string[] ReferencedColumns,
-    bool Cascade);
+    bool Cascade,
+    string? Name = null);
 
 /// <summary>An index.</summary>
 /// <param name="Suffix">The part of the name after <c>IDX_</c> and the table prefix.</param>
@@ -81,13 +85,18 @@ internal sealed record QuartzIndexDefinition(
 /// <param name="ForeignKey">The foreign key, where the dialect's script declares one.</param>
 /// <param name="Indexes">The indexes.</param>
 /// <param name="AddedBy">The release whose migration created the table, or <see langword="null" /> for one 4.0 had.</param>
+/// <param name="PrimaryKeyName">
+/// The script's name for the primary key, with the prefix as <c>{1}</c>, or <see langword="null" /> to leave it to
+/// EF Core.
+/// </param>
 internal sealed record QuartzTableDefinition(
     string Name,
     QuartzColumnDefinition[] Columns,
     string[] PrimaryKey,
     QuartzForeignKeyDefinition? ForeignKey,
     QuartzIndexDefinition[] Indexes,
-    string? AddedBy = null);
+    string? AddedBy = null,
+    string? PrimaryKeyName = null);
 
 /// <summary>A trigger the model cannot express, as a statement with the table prefix as <c>{0}</c>.</summary>
 internal sealed record QuartzTriggerDefinition(string Name, string Sql);

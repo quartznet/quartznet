@@ -225,7 +225,7 @@ public sealed class QuartzModelTest
     }
 
     private static readonly Regex AddedColumn = new(
-        @"ALTER TABLE\s+(?:\[?DBO\]?\.)?[\[`""]?(?<table>QRTZ_\w+)[\]`""]?\s+ADD\s+(?:COLUMN\s+)?(?:IF NOT EXISTS\s+)?[\[`""]?(?<column>\w+)",
+        @"ALTER TABLE\s+(?:\[?DBO\]?\.)?[\[`""]?(?<table>QRTZ_\w+)[\]`""]?\s+ADD\s+(?:COLUMN\s+)?(?:IF NOT EXISTS\s+)?\(?[\[`""]?(?<column>\w+)",
         RegexOptions.CultureInvariant);
 
     private static readonly Regex CreatedTable = new(

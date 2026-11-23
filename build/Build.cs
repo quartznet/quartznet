@@ -1190,7 +1190,8 @@ partial class Build : FalloutBuild, ICompile, IPack
 
     /// <summary>
     /// What a Firebird leg on an image of its own (<see cref="FirebirdImage" />) runs: the tests that read or
-    /// write Firebird's catalog — provisioning, the migration scripts and the Weasel model.
+    /// write Firebird's catalog — provisioning, the migration scripts, the Weasel model and the Entity Framework
+    /// Core model.
     /// </summary>
     /// <remarks>
     /// That is where Firebird 3, 4 and 5 differ: system tables, identifier limits, how DDL is run. The
@@ -1198,7 +1199,7 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// compile and about a minute of tests, against about four for the whole category.
     /// </remarks>
     const string FirebirdCatalogFilter =
-        "TestCategory=db-firebird&(TestCategory=provisioning|TestCategory=migrations|FullyQualifiedName~Quartz.Tests.Integration.Weasel.)";
+        "TestCategory=db-firebird&(TestCategory=provisioning|TestCategory=migrations|FullyQualifiedName~Quartz.Tests.Integration.Weasel.|FullyQualifiedName~Quartz.Tests.Integration.EntityFrameworkCore.)";
 
     /// <summary>
     /// What one integration leg runs: the fixtures for its database, and never a release gate.

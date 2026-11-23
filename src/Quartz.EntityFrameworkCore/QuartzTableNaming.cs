@@ -30,13 +30,19 @@ namespace Quartz.EntityFrameworkCore;
 /// <remarks>
 /// <para>
 /// A table is the prefix and its name, and an index is <c>IDX_</c>, the prefix and its suffix, as the job
-/// store's scripts name them. On PostgreSQL every name is folded to lower case, which is what the database does
-/// to the store's unquoted identifiers; EF Core quotes the names it is given, so it would otherwise create
-/// tables the store cannot find.
+/// store's scripts name them. Every name is folded as the database folds the store's unquoted identifiers: to
+/// lower case on PostgreSQL, to upper case on Oracle and Firebird. EF Core quotes the names it is given, so it
+/// would otherwise create tables the store cannot find.
 /// </para>
 /// <para>
-/// Primary- and foreign-key constraint names are left to EF Core, which derives them from the table and column
-/// names. <see cref="ForeignKeyName" /> says what EF Core derives, for the migration that has to name one.
+/// On Oracle and Firebird the primary- and foreign-key names are the scripts', through <see cref="Constraint" />.
+/// Elsewhere they are left to EF Core, which derives them from the table and column names;
+/// <see cref="ForeignKeyName" /> says what EF Core derives, for the migration that has to name one.
+/// </para>
+/// <para>
+/// A prefix that makes a name longer than the database takes is refused here, before anything runs, because
+/// EF Core passes a name it is given through unchecked: PostgreSQL would cut it silently and Firebird refuse it
+/// half-way through a migration.
 /// </para>
 /// </remarks>
 internal sealed class QuartzTableNaming
@@ -58,7 +64,8 @@ internal sealed class QuartzTableNaming
 
     /// <summary>The naming the options describe, for the dialect a provider speaks.</summary>
     /// <exception cref="ArgumentException">
-    /// The prefix carries a schema or quotes, or the schema is set for a database without schemas.
+    /// The prefix holds what an unquoted identifier cannot or makes a name too long for the database, or the
+    /// schema is set for a database without schemas.
     /// </exception>
     internal static QuartzTableNaming Create(QuartzDialect dialect, Action<QuartzTablesOptions>? configure)
     {
@@ -82,12 +89,41 @@ internal sealed class QuartzTableNaming
         if (schema is not null && !dialect.SupportsSchemas)
         {
             throw new ArgumentException(
-                $"{dialect.Label} has no schema for Quartz's tables to go in: they go in the connection's database. "
-                + "Leave QuartzTablesOptions.Schema unset.",
+                $"{dialect.Label} has no schema for Quartz's tables to go in here: they go in the connection's database, "
+                + "or on Oracle the session's schema. Leave QuartzTablesOptions.Schema unset.",
                 nameof(configure));
         }
 
-        return new QuartzTableNaming(dialect, prefix, schema);
+        QuartzTableNaming naming = new(dialect, prefix, schema);
+        naming.ThrowIfANameIsTooLong(prefix, nameof(configure));
+        return naming;
+    }
+
+    /// <summary>A constraint name from the script's template, the prefix filled in where it says <c>{1}</c>.</summary>
+    internal string Constraint(string template) => Fold(template).Replace("{1}", TablePrefix, StringComparison.Ordinal);
+
+    /// <summary>Every name the model gives that depends on the prefix: tables, indexes and the scripts' constraints.</summary>
+    internal IEnumerable<string> PrefixedNames() => dialect.Tables.SelectMany(t =>
+        new[] { Table(t.Name), t.PrimaryKeyName is { } pk ? Constraint(pk) : null, t.ForeignKey?.Name is { } fk ? Constraint(fk) : null }
+            .Concat(t.Indexes.Select(i => Index(i.Suffix))))
+        .OfType<string>();
+
+    private void ThrowIfANameIsTooLong(string prefix, string parameterName)
+    {
+        string? longest = PrefixedNames().MaxBy(n => Encoding.UTF8.GetByteCount(n));
+        int length = longest is null ? 0 : Encoding.UTF8.GetByteCount(longest);
+        if (longest is null || length <= dialect.MaxIdentifierLength)
+        {
+            return;
+        }
+
+        int beyondThePrefix = length - Encoding.UTF8.GetByteCount(TablePrefix);
+        string note = dialect == QuartzDialect.Firebird ? " (Firebird 3's limit, which every Firebird database is held to)" : "";
+
+        throw new ArgumentException(
+            $"QuartzTablesOptions.TablePrefix '{prefix}' makes the name {longest} {length} bytes long, and {dialect.Label} takes "
+            + $"{dialect.MaxIdentifierLength}{note}. Use a prefix of at most {dialect.MaxIdentifierLength - beyondThePrefix} characters.",
+            parameterName);
     }
 
     internal string Table(string name) => TablePrefix + Fold(name);
@@ -119,5 +155,10 @@ internal sealed class QuartzTableNaming
             : name.ToString(0, dialect.MaxIdentifierLength - 1) + "~";
     }
 
-    private string Fold(string identifier) => dialect.FoldsToLowerCase ? identifier.ToLowerInvariant() : identifier;
+    private string Fold(string identifier) => dialect.IdentifierCase switch
+    {
+        QuartzIdentifierCase.Lower => identifier.ToLowerInvariant(),
+        QuartzIdentifierCase.Upper => identifier.ToUpperInvariant(),
+        _ => identifier,
+    };
 }

@@ -175,6 +175,8 @@ updates:
           - "Microsoft.EntityFrameworkCore*"
           - "Npgsql.EntityFrameworkCore*"
           - "MySql.EntityFrameworkCore"
+          - "Oracle.EntityFrameworkCore"
+          - "FirebirdSql.EntityFrameworkCore*"
       # ADO.NET providers and other data store clients used by the job stores.
       database-providers:
         patterns:

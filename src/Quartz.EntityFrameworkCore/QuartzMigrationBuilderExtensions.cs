@@ -38,8 +38,8 @@ public static class QuartzMigrationBuilderExtensions
     /// <para>
     /// On SQLite it creates the four delete triggers that clear a trigger's detail rows on a connection that
     /// does not enforce foreign keys. On MySQL it creates the acquisition index again with its descending
-    /// <c>PRIORITY</c> column, which Oracle's provider leaves out when it creates the index. On PostgreSQL and
-    /// SQL Server it adds nothing.
+    /// <c>PRIORITY</c> column, which Oracle's MySQL provider leaves out when it creates the index. On PostgreSQL,
+    /// SQL Server, Oracle and Firebird it adds nothing.
     /// </para>
     /// <para>
     /// It is safe to run again: the triggers are created only where they are missing, and the index is
@@ -52,7 +52,8 @@ public static class QuartzMigrationBuilderExtensions
     /// <returns>The same migration builder, for chaining.</returns>
     /// <exception cref="NotSupportedException">The migration's provider is not one Quartz has a model for.</exception>
     /// <exception cref="ArgumentException">
-    /// The prefix carries a schema or quotes, or the schema is set for a database without schemas.
+    /// The prefix holds what an unquoted identifier cannot or makes a name too long for the database, or the
+    /// schema is set for a database without schemas.
     /// </exception>
     public static MigrationBuilder CompleteQuartzSchema(this MigrationBuilder migrationBuilder, Action<QuartzTablesOptions>? configure = null)
     {
@@ -91,15 +92,26 @@ public static class QuartzMigrationBuilderExtensions
     /// <param name="migrationBuilder">The migration being built.</param>
     /// <param name="configure">The table prefix and the schema, as <c>AddQuartzTables</c> is given them.</param>
     /// <returns>The same migration builder, for chaining.</returns>
-    /// <exception cref="NotSupportedException">The migration's provider is not one Quartz has a model for.</exception>
+    /// <exception cref="NotSupportedException">
+    /// The migration's provider is not one Quartz has a model for, or is Oracle's or Firebird's, of which AppAny
+    /// has none.
+    /// </exception>
     /// <exception cref="ArgumentException">
-    /// The prefix carries a schema or quotes, or the schema is set for a database without schemas.
+    /// The prefix holds what an unquoted identifier cannot or makes a name too long for the database, or the
+    /// schema is set for a database without schemas.
     /// </exception>
     public static MigrationBuilder MoveQuartzTablesFromAppAny(this MigrationBuilder migrationBuilder, Action<QuartzTablesOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(migrationBuilder);
 
         QuartzDialect dialect = QuartzDialect.ForProvider(migrationBuilder.ActiveProvider);
+        if (!dialect.HasAppAnyModel)
+        {
+            throw new NotSupportedException(
+                $"AppAny.Quartz.EntityFrameworkCore.Migrations has no {dialect.Label} model, so there is no AppAny schema to "
+                + $"move on {dialect.Label}. Create Quartz's tables with the first migration, ended by CompleteQuartzSchema().");
+        }
+
         QuartzTableNaming naming = QuartzTableNaming.Create(dialect, configure);
 
         AppAnyMove.Add(migrationBuilder, dialect, naming);

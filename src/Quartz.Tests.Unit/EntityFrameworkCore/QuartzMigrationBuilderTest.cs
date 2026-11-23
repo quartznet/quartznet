@@ -35,7 +35,8 @@ public sealed class QuartzMigrationBuilderTest
 
     /// <summary>
     /// <c>CompleteQuartzSchema</c> and <c>MoveQuartzTablesFromAppAny</c>, statement by statement, under the default
-    /// prefix and the schema AppAny's users have on the two databases that have one.
+    /// prefix and the schema AppAny's users have on the two databases that have one. On Oracle and Firebird,
+    /// where AppAny has no model, the move's refusal.
     /// </summary>
     [TestCaseSource(nameof(Dialects))]
     public async Task TheMigrationExtensionsWriteThisSql(string dialect)
@@ -44,14 +45,44 @@ public sealed class QuartzMigrationBuilderTest
         await using EntityFrameworkCoreContext context = EntityFrameworkCoreContext.Quartz(dialect, configure);
 
         List<string> complete = context.Sql(context.Migration(m => m.CompleteQuartzSchema(configure)));
-        List<string> move = context.Sql(context.Migration(m => m.MoveQuartzTablesFromAppAny(configure)));
+        string move = EntityFrameworkCoreContext.AppAnyDialects.Contains(dialect)
+            ? string.Join("\n\n", context.Sql(context.Migration(m => m.MoveQuartzTablesFromAppAny(configure))))
+            : "-- refused: " + Refusal(() => context.Migration(m => m.MoveQuartzTablesFromAppAny(configure)));
 
         await Verify(
-                "-- CompleteQuartzSchema\n\n" + string.Join("\n\n", complete)
-                + "\n\n-- MoveQuartzTablesFromAppAny\n\n" + string.Join("\n\n", move),
+                "-- CompleteQuartzSchema\n\n" + (complete.Count == 0 ? "-- nothing" : string.Join("\n\n", complete))
+                + "\n\n-- MoveQuartzTablesFromAppAny\n\n" + move,
                 extension: "sql")
             .UseDirectory("../Verify")
             .UseFileName($"QuartzMigrationBuilderTest_{dialect}");
+    }
+
+    /// <summary>
+    /// AppAny has no Oracle or Firebird model, so there is no schema of its to move there: the move says so rather
+    /// than doing nothing in silence.
+    /// </summary>
+    [TestCase("Oracle.EntityFrameworkCore", "Oracle")]
+    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "Firebird")]
+    public void TheMoveFromAppAnyIsRefusedWhereAppAnyHasNoModel(string provider, string database)
+    {
+        Action move = () => new MigrationBuilder(provider).MoveQuartzTablesFromAppAny();
+
+        move.Should().Throw<NotSupportedException>()
+            .WithMessage($"AppAny.Quartz.EntityFrameworkCore.Migrations has no {database} model*CompleteQuartzSchema()*");
+    }
+
+    private static string Refusal(Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (NotSupportedException exception)
+        {
+            return exception.Message;
+        }
+
+        throw new AssertionException("the move was expected to refuse");
     }
 
     [Test]
@@ -87,12 +118,12 @@ public sealed class QuartzMigrationBuilderTest
     [Test]
     public void AMigrationForAProviderQuartzHasNoModelForIsRefused()
     {
-        MigrationBuilder migrationBuilder = new("Oracle.EntityFrameworkCore");
+        MigrationBuilder migrationBuilder = new("Microsoft.EntityFrameworkCore.InMemory");
 
         Action complete = () => migrationBuilder.CompleteQuartzSchema();
         Action move = () => migrationBuilder.MoveQuartzTablesFromAppAny();
 
-        complete.Should().Throw<NotSupportedException>().WithMessage("*'Oracle.EntityFrameworkCore'*");
-        move.Should().Throw<NotSupportedException>().WithMessage("*'Oracle.EntityFrameworkCore'*");
+        complete.Should().Throw<NotSupportedException>().WithMessage("*'Microsoft.EntityFrameworkCore.InMemory'*");
+        move.Should().Throw<NotSupportedException>().WithMessage("*'Microsoft.EntityFrameworkCore.InMemory'*");
     }
 }

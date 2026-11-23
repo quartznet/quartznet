@@ -37,7 +37,8 @@ public static class QuartzModelBuilderExtensions
     /// <remarks>
     /// <para>
     /// Call it from <c>OnModelCreating</c> with <c>Database.ProviderName</c>. The provider decides the dialect:
-    /// PostgreSQL (Npgsql), SQL Server, MySQL (Oracle's <c>MySql.EntityFrameworkCore</c> or Pomelo) and SQLite.
+    /// PostgreSQL (Npgsql), SQL Server, MySQL (Oracle's <c>MySql.EntityFrameworkCore</c> or Pomelo), SQLite, Oracle
+    /// and Firebird.
     /// The tables are the ones <c>SchemaProvisioning.CreateIfMissing</c> creates, generated from the same model.
     /// </para>
     /// <para>
@@ -55,7 +56,8 @@ public static class QuartzModelBuilderExtensions
     /// <exception cref="ArgumentNullException">No provider is configured.</exception>
     /// <exception cref="NotSupportedException">The provider is not one Quartz has a model for.</exception>
     /// <exception cref="ArgumentException">
-    /// The prefix carries a schema or quotes, or the schema is set for a database without schemas.
+    /// The prefix holds what an unquoted identifier cannot or makes a name too long for the database, or the
+    /// schema is set for a database without schemas.
     /// </exception>
     public static ModelBuilder AddQuartzTables(this ModelBuilder modelBuilder, string? providerName, Action<QuartzTablesOptions>? configure = null)
     {

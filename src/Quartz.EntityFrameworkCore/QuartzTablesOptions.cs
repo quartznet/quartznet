@@ -36,8 +36,9 @@ public sealed class QuartzTablesOptions
     /// job store's.
     /// </summary>
     /// <remarks>
-    /// On PostgreSQL the names are folded to lower case, as PostgreSQL folds the store's unquoted ones, so
-    /// <c>QRTZ_</c> and <c>qrtz_</c> name the same tables there.
+    /// The names are folded as the database folds the store's unquoted ones: to lower case on PostgreSQL, to upper
+    /// case on Oracle and Firebird, so <c>QRTZ_</c> and <c>qrtz_</c> name the same tables there. A prefix that makes
+    /// a name longer than the database takes is refused; on Firebird that is 31 bytes, so at most six characters.
     /// </remarks>
     public string TablePrefix { get; set; } = "QRTZ_";
 
@@ -46,8 +47,8 @@ public sealed class QuartzTablesOptions
     /// connection's when the model sets none.
     /// </summary>
     /// <remarks>
-    /// PostgreSQL and SQL Server only: on MySQL and SQLite the tables are in the connection's database, and a
-    /// schema here is refused.
+    /// PostgreSQL and SQL Server only: on MySQL, SQLite and Firebird the tables are in the connection's database,
+    /// and on Oracle in the session's schema, so a schema here is refused.
     /// </remarks>
     public string? Schema { get; set; }
 }

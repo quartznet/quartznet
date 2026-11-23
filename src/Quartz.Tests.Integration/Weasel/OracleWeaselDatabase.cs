@@ -214,11 +214,11 @@ internal sealed class OracleWeaselDatabase : IAsyncDisposable
     /// A script under the repository root — a fresh install, or a released version's — run as this user by
     /// the container's own <c>sqlplus</c>, which is what understands the script's PL/SQL blocks.
     /// </summary>
-    public async Task RunRepositoryScriptAsync(params string[] path)
-    {
-        string script = await File.ReadAllTextAsync(ResolveRepositoryFile(path));
-        await TestcontainersDatabaseEnvironment.ExecuteOracleScriptAsync(Name, Password, script);
-    }
+    public async Task RunRepositoryScriptAsync(params string[] path) =>
+        await RunScriptAsync(await File.ReadAllTextAsync(ResolveRepositoryFile(path)));
+
+    /// <summary>A script, run as this user by the container's own <c>sqlplus</c>.</summary>
+    public Task RunScriptAsync(string script) => TestcontainersDatabaseEnvironment.ExecuteOracleScriptAsync(Name, Password, script);
 
     public async ValueTask DisposeAsync()
     {
