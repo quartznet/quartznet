@@ -5,10 +5,10 @@ repaired: AppAny's schema has it wrong, and the move changes it
   CreateIndex IDX_QRTZ_EH_JOB_TIME on QRTZ_EXECUTION_HISTORY (SCHED_NAME, JOB_GROUP, JOB_NAME, FIRED_TIME)
   CreateIndex IDX_QRTZ_EH_TRIG_TIME on QRTZ_EXECUTION_HISTORY (SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME, FIRED_TIME)
 
-converged: harmless, cheap to change and never a narrowing, and the move changes it
-  AlterColumn QRTZ_FIRED_TRIGGERS.IS_NONCONCURRENT tinyint(1) NOT NULL -> tinyint(1) NULL
+converged: harmless, changed in place with no table rebuilt and no column narrowed
+  (none)
 
-left: harmless or a spelling of the same type, and the move leaves it
+left: harmless, a spelling of the same type, or a change that would narrow a column or rebuild a table
   AddForeignKey FK_QRTZ_BLOB_TRIGGERS_QRTZ_TRIGGERS_SCHED_NAME_TRIGGER_NAME_TRI~ on QRTZ_BLOB_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP) -> QRTZ_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP) on delete NoAction
   AddForeignKey FK_QRTZ_CRON_TRIGGERS_QRTZ_TRIGGERS_SCHED_NAME_TRIGGER_NAME_TRI~ on QRTZ_CRON_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP) -> QRTZ_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP) on delete NoAction
   AddForeignKey FK_QRTZ_SIMPLE_TRIGGERS_QRTZ_TRIGGERS_SCHED_NAME_TRIGGER_NAME_T~ on QRTZ_SIMPLE_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP) -> QRTZ_TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP) on delete NoAction
@@ -18,6 +18,7 @@ left: harmless or a spelling of the same type, and the move leaves it
   AlterColumn QRTZ_EXECUTION_HISTORY.RUN_TIME bigint(19) NOT NULL -> bigint NOT NULL
   AlterColumn QRTZ_FIRED_TRIGGERS.FIRED_TIME bigint(19) NOT NULL -> bigint NOT NULL
   AlterColumn QRTZ_FIRED_TRIGGERS.INTERRUPT_REQUESTED_TIME bigint(19) NULL -> bigint NULL
+  AlterColumn QRTZ_FIRED_TRIGGERS.IS_NONCONCURRENT tinyint(1) NOT NULL -> tinyint(1) NULL
   AlterColumn QRTZ_FIRED_TRIGGERS.SCHED_TIME bigint(19) NOT NULL -> bigint NOT NULL
   AlterColumn QRTZ_JOB_STATUS.FAILURE_COUNT bigint(19) NOT NULL DEFAULT 0 -> bigint NOT NULL DEFAULT 0
   AlterColumn QRTZ_JOB_STATUS.FIRST_FIRED_TIME bigint(19) NOT NULL -> bigint NOT NULL

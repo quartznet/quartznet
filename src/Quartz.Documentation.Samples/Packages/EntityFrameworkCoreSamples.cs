@@ -79,6 +79,11 @@ public static class BaselineMigration
         protected override void Up(MigrationBuilder migrationBuilder)
         {
         }
+
+        // emptied too: the tables were not this migration's to drop
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+        }
     }
 
     #endregion
@@ -90,8 +95,14 @@ public partial class MoveToQuartzEntityFrameworkCore : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        // replaces everything dotnet ef wrote here; the options are AddQuartzTables's
+        // replaces everything dotnet ef wrote here; the options are AddQuartzTables's,
+        // and Schema is for PostgreSQL and SQL Server only
         migrationBuilder.MoveQuartzTablesFromAppAny(tables => tables.Schema = "quartz");
+    }
+
+    // one-way: what dotnet ef wrote here would undo the repairs, and rebuild every table on SQLite
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
     }
 }
 

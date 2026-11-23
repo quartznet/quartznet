@@ -32,9 +32,17 @@ namespace Quartz.EntityFrameworkCore;
 /// Three kinds of difference, and the move treats each its own way. <b>Wrong</b>: what makes Quartz fail or read
 /// slowly — the missing history indexes, and on SQL Server the <c>NOT NULL</c> string properties and the narrow
 /// instance name. Repaired. <b>Different and harmless</b>: a nullability, a column type or a delete rule the
-/// scripts declare otherwise. Converged where the change is cheap and never narrows a column, left otherwise.
-/// <b>Spelling only</b>: <c>bigint(19)</c> for <c>bigint</c> on MySQL, <c>text</c> for <c>NVARCHAR(n)</c> on
-/// SQLite. Left, because the database is the same either way and respelling would rebuild tables.
+/// scripts declare otherwise. Converged where the database changes it in place, without rewriting or rebuilding
+/// the table, and never by narrowing a column; left otherwise. <b>Spelling only</b>: <c>bigint(19)</c> for
+/// <c>bigint</c> on MySQL, <c>text</c> for <c>NVARCHAR(n)</c> on SQLite. Left, because the database is the same
+/// either way and respelling would rebuild tables.
+/// </para>
+/// <para>
+/// So the move rebuilds no table. Two convergences would, and are left: on SQL Server <c>MISFIRE_INSTR</c> from
+/// <c>smallint</c> to <c>int</c> rewrites every row of <c>QRTZ_TRIGGERS</c> and rebuilds the acquisition index over
+/// it, and on MySQL making <c>IS_NONCONCURRENT</c> nullable rebuilds <c>QRTZ_FIRED_TRIGGERS</c> in place (MySQL
+/// refuses <c>ALGORITHM=INSTANT</c> for it). The store reads the first with a conversion and always writes the
+/// second, so neither changes anything it does.
 /// </para>
 /// <para>
 /// Only 0.6.3 is described. An earlier AppAny model has different indexes, and its users upgrade to 0.6.3 and
@@ -76,15 +84,9 @@ internal static class AppAnyMove
                 new("SIMPROP_TRIGGERS", "STR_PROP_3", "nvarchar(512)", QuartzColumnKind.String, Nullable: false),
                 // Wrong: an instance id of 151 to 200 characters, which QRTZ_SCHEDULER_STATE takes, fails here.
                 new("FIRED_TRIGGERS", "INSTANCE_NAME", "nvarchar(150)", QuartzColumnKind.String, Nullable: false),
-                // Harmless, and cheap to converge: a metadata change, and a widening.
+                // Harmless, and converged because SQL Server changes only the metadata to allow NULL.
                 new("FIRED_TRIGGERS", "IS_NONCONCURRENT", "bit", QuartzColumnKind.Boolean, Nullable: false),
-                new("TRIGGERS", "MISFIRE_INSTR", "smallint", QuartzColumnKind.Int16, Nullable: true),
             ];
-        }
-
-        if (dialect == QuartzDialect.MySql)
-        {
-            return [new("FIRED_TRIGGERS", "IS_NONCONCURRENT", "tinyint(1)", QuartzColumnKind.Boolean, Nullable: false)];
         }
 
         return [];
@@ -159,8 +161,6 @@ internal static class AppAnyMove
                 nullable: ours.Nullable, oldClrType: oldClrType, oldType: appAny.StoreType, oldNullable: appAny.Nullable),
             QuartzColumnKind.Boolean => migrationBuilder.AlterColumn<bool>(name, table, ours.StoreType, schema: naming.Schema,
                 nullable: ours.Nullable, oldClrType: oldClrType, oldType: appAny.StoreType, oldNullable: appAny.Nullable),
-            QuartzColumnKind.Int32 => migrationBuilder.AlterColumn<int>(name, table, ours.StoreType, schema: naming.Schema,
-                nullable: ours.Nullable, oldClrType: oldClrType, oldType: appAny.StoreType, oldNullable: appAny.Nullable),
             _ => throw new InvalidOperationException($"{appAny.Table}.{appAny.Column} is a {ours.Kind} column, which the move has no change for"),
         };
     }
@@ -169,8 +169,6 @@ internal static class AppAnyMove
     {
         QuartzColumnKind.String => typeof(string),
         QuartzColumnKind.Boolean => typeof(bool),
-        QuartzColumnKind.Int16 => typeof(short),
-        QuartzColumnKind.Int32 => typeof(int),
         _ => throw new InvalidOperationException($"the move describes no AppAny column of kind {kind}"),
     };
 }

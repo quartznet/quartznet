@@ -200,7 +200,8 @@ public sealed class SqlServerEntityFrameworkCoreTest : EntityFrameworkCoreServer
 
     private protected override Action<QuartzModelBuilder> UseAppAny(string prefix) => q => q.UseSqlServer(prefix, schema: null);
 
-    private protected override string[] LeftColumns => ["CRON_TRIGGERS|TIME_ZONE_ID", "SIMPLE_TRIGGERS|REPEAT_COUNT", "SIMPLE_TRIGGERS|TIMES_TRIGGERED"];
+    private protected override string[] LeftColumns =>
+        ["CRON_TRIGGERS|TIME_ZONE_ID", "SIMPLE_TRIGGERS|REPEAT_COUNT", "SIMPLE_TRIGGERS|TIMES_TRIGGERED", "TRIGGERS|MISFIRE_INSTR"];
 
     /// <summary>
     /// AppAny declares <c>STR_PROP_1</c> to <c>STR_PROP_3</c> <c>NOT NULL</c> on SQL Server, and Quartz writes
@@ -226,6 +227,8 @@ public sealed class MySqlEntityFrameworkCoreTest : EntityFrameworkCoreServerTest
     private protected override async Task<IQuartzTestDatabase> CreateDatabaseAsync() => new MySqlQuartzTestDatabase(await MySqlWeaselDatabase.CreateAsync());
 
     private protected override Action<QuartzModelBuilder> UseAppAny(string prefix) => q => q.UseMySql(prefix);
+
+    private protected override string[] LeftColumns => ["FIRED_TRIGGERS|IS_NONCONCURRENT"];
 
     private protected override string[] LeftForeignKeys => ["TRIGGERS", "SIMPLE_TRIGGERS", "SIMPROP_TRIGGERS", "CRON_TRIGGERS", "BLOB_TRIGGERS"];
 

@@ -75,16 +75,17 @@ public static class QuartzMigrationBuilderExtensions
     /// which Quartz writes <c>NULL</c> to, and the 150-character <c>QRTZ_FIRED_TRIGGERS.INSTANCE_NAME</c>.
     /// </para>
     /// <para>
-    /// It converges what is cheap to change and never narrows a column: on SQL Server and MySQL,
-    /// <c>QRTZ_FIRED_TRIGGERS.IS_NONCONCURRENT</c> becomes nullable; on SQL Server,
-    /// <c>QRTZ_TRIGGERS.MISFIRE_INSTR</c> becomes <c>int</c>; on PostgreSQL and SQL Server, the foreign keys
-    /// take the job store's delete rules. What differs in spelling only, or would narrow a column, is left as it
-    /// is. Then it does what <see cref="CompleteQuartzSchema" /> does.
+    /// It converges what the database changes in place, never narrowing a column: on SQL Server,
+    /// <c>QRTZ_FIRED_TRIGGERS.IS_NONCONCURRENT</c> becomes nullable; on PostgreSQL and SQL Server, the foreign keys
+    /// take the job store's delete rules. What differs in spelling only, would narrow a column, or would rewrite or
+    /// rebuild a table is left as it is, so no table is rebuilt. Then it does what
+    /// <see cref="CompleteQuartzSchema" /> does.
     /// </para>
     /// <para>
     /// Scaffold the migration after replacing the AppAny model with <c>AddQuartzTables</c>, given the prefix and
-    /// the schema the AppAny model used, and replace the body EF Core wrote with this call. The snapshot then
-    /// holds this package's model, and every later migration only adds.
+    /// the schema the AppAny model used, and replace the body of <c>Up</c> with this call. The move is one-way:
+    /// empty <c>Down</c>, which EF Core wrote as the whole difference reversed. The snapshot then holds this
+    /// package's model, and every later migration only adds.
     /// </para>
     /// </remarks>
     /// <param name="migrationBuilder">The migration being built.</param>

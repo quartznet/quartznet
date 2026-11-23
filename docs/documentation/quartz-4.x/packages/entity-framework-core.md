@@ -116,7 +116,7 @@ without running it:
    [Database Schema Changes](../../database/schema-changes.md).
 2. Run `dotnet ef migrations add AddQuartz` with no other model change pending, so that Quartz's tables are
    all the migration holds.
-3. Empty its `Up`:
+3. Empty its `Up` and its `Down`, which would drop tables this migration did not create:
 
    <!-- snippet: sample_efcore_baseline -->
    ```csharp
@@ -125,6 +125,11 @@ without running it:
        // the tables are there already, from database/tables or ProvisionSchema();
        // dotnet ef database update records this migration and runs nothing
        protected override void Up(MigrationBuilder migrationBuilder)
+       {
+       }
+   
+       // emptied too: the tables were not this migration's to drop
+       protected override void Down(MigrationBuilder migrationBuilder)
        {
        }
    }
@@ -153,6 +158,9 @@ dotnet ef migrations add UpgradeQuartz
 
 * Constraint names are EF Core's: `PK_<table>` and `FK_<table>_<referenced>_<columns>`, cut to the database's
   identifier length. The store never names a constraint.
+* A database the scripts created keeps the scripts' constraint names, such as `FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS`
+  on SQL Server and `qrtz_triggers_pkey` on PostgreSQL, which differ from the snapshot's. Harmless while
+  Quartz's migrations only add.
 * SQL Server writes a default as `CAST(0 AS bit)` where the script writes `0`. Same value.
 * On SQLite, a migration of yours that changes a column of a Quartz table rebuilds the table, which drops
   its triggers. End it with `CompleteQuartzSchema()`. Quartz's own migrations never rebuild a table.
@@ -167,7 +175,7 @@ dotnet ef migrations add UpgradeQuartz
 brought EF Core migrations to Quartz.NET first; thanks to its authors for building and keeping it. This
 package succeeds it on Quartz 4.9. An application on Quartz 3.x keeps AppAny.
 
-The tables have the same names, so the move renames nothing and rebuilds no table. It is one migration.
+The tables have the same names, so the move renames nothing, and it rebuilds no table. It is one migration.
 
 1. Upgrade AppAny to 0.6.3 and migrate. Earlier versions have other indexes.
 2. Replace AppAny's `modelBuilder.AddQuartz(q => q.UseSqlServer())` with `AddQuartzTables`, keeping AppAny's
@@ -184,7 +192,7 @@ The tables have the same names, so the move renames nothing and rebuilds no tabl
    <!-- endSnippet -->
 
 3. Remove the AppAny packages.
-4. Run `dotnet ef migrations add MoveToQuartzEntityFrameworkCore`, and replace the body of `Up`:
+4. Run `dotnet ef migrations add MoveToQuartzEntityFrameworkCore`, replace the body of `Up`, and empty `Down`:
 
    <!-- snippet: sample_efcore_move -->
    ```csharp
@@ -192,28 +200,41 @@ The tables have the same names, so the move renames nothing and rebuilds no tabl
    {
        protected override void Up(MigrationBuilder migrationBuilder)
        {
-           // replaces everything dotnet ef wrote here; the options are AddQuartzTables's
+           // replaces everything dotnet ef wrote here; the options are AddQuartzTables's,
+           // and Schema is for PostgreSQL and SQL Server only
            migrationBuilder.MoveQuartzTablesFromAppAny(tables => tables.Schema = "quartz");
+       }
+   
+       // one-way: what dotnet ef wrote here would undo the repairs, and rebuild every table on SQLite
+       protected override void Down(MigrationBuilder migrationBuilder)
+       {
        }
    }
    ```
    <!-- endSnippet -->
 
-5. Run `dotnet ef database update` with the schedulers stopped: on SQL Server and MySQL it rebuilds indexes on
-   `QRTZ_TRIGGERS` and `QRTZ_FIRED_TRIGGERS`.
+   The move is one-way. The `Down` EF Core wrote reverses the whole difference: on SQL Server it makes
+   `STR_PROP_1` to `STR_PROP_3` `NOT NULL` again, which fails once a trigger has stored a `NULL` there, and
+   narrows `INSTANCE_NAME` back to 150; on SQLite it rebuilds every table. Emptied, a rollback leaves the moved
+   schema in place.
+
+5. Run `dotnet ef database update` with the schedulers stopped.
 
 The snapshot then holds this package's model, and every later migration only adds.
 
 | What the move does | PostgreSQL | SQL Server | MySQL | SQLite |
 |---|---|---|---|---|
 | **Repairs**: AppAny has it wrong | the 3 history indexes AppAny never created | the same; `STR_PROP_1` to `STR_PROP_3` nullable; `QRTZ_FIRED_TRIGGERS.INSTANCE_NAME` 150 to 200 wide | the same indexes; `IDX_QRTZ_T_NFT_ST` with `PRIORITY DESC` | the same indexes; the delete triggers |
-| **Converges**: harmless, cheap, never narrows | `QRTZ_TRIGGERS`' foreign key stops cascading | the same; `QRTZ_BLOB_TRIGGERS`' foreign key dropped; `IS_NONCONCURRENT` nullable; `MISFIRE_INSTR` `int` | `IS_NONCONCURRENT` nullable | — |
-| **Leaves**: harmless, or the same type spelled otherwise | `boolean` for `bool` on two columns | `CRON_TRIGGERS.TIME_ZONE_ID` 120 wide; `REPEAT_COUNT`, `TIMES_TRIGGERED` `bigint` | 33 spellings such as `bigint(19)`; five cascading foreign keys | every column's spelling, such as `text`; `QRTZ_TRIGGERS`' cascading foreign key |
+| **Converges**: harmless, changed in place | `QRTZ_TRIGGERS`' foreign key stops cascading | the same; `QRTZ_BLOB_TRIGGERS`' foreign key dropped; `IS_NONCONCURRENT` nullable | — | — |
+| **Leaves**: harmless, a spelling of the same type, or not changeable in place | `boolean` for `bool` on two columns | `CRON_TRIGGERS.TIME_ZONE_ID` 120 wide; `REPEAT_COUNT`, `TIMES_TRIGGERED` `bigint`; `MISFIRE_INSTR` `smallint` | 33 spellings such as `bigint(19)`; `IS_NONCONCURRENT` `NOT NULL`; five cascading foreign keys | every column's spelling, such as `text`; `QRTZ_TRIGGERS`' cascading foreign key |
+| **Costs**: what the database does | builds 3 indexes; re-adding the foreign key reads `QRTZ_TRIGGERS` once | the same; the column changes are metadata only, but EF Core rebuilds `IDX_QRTZ_FT_INST_JOB_REQ_RCVRY` over `INSTANCE_NAME` | builds 3 indexes; rebuilds `IDX_QRTZ_T_NFT_ST` | builds 3 indexes; creates 4 triggers |
 
 * On SQL Server, AppAny's `NOT NULL` string properties fail every calendar-interval and recurrence trigger,
   which leave `STR_PROP_2` and `STR_PROP_3` empty: "Cannot insert the value NULL into column 'STR_PROP_2'".
-* What it leaves stays in the database as AppAny made it. Changing it would narrow a column, copy a table on
-  MySQL or rebuild every table on SQLite, for no difference the store sees.
+* What it leaves stays in the database as AppAny made it, for no difference the store sees. Changing it would
+  narrow a column; rewrite every row of `QRTZ_TRIGGERS` and rebuild its acquisition index (`MISFIRE_INSTR` on
+  SQL Server); rebuild `QRTZ_FIRED_TRIGGERS`, since MySQL makes a column nullable only by rebuilding the table;
+  copy a table to change a foreign key on MySQL; or rebuild every table on SQLite.
 
 ## See also
 
