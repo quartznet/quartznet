@@ -65,16 +65,23 @@ public sealed class QuartzMigrationBuilderTest
             .And.Contain("DELETE ON QRTZX_TRIGGERS"));
     }
 
-    [Test]
-    public async Task TheMoveNamesTheSchemaOnEveryOperation()
+    /// <summary>
+    /// Every operation of the move is on a table of the configured schema, and a foreign key it adds references
+    /// one there too: folded on PostgreSQL, as written on SQL Server.
+    /// </summary>
+    [TestCase("postgres", "quartz")]
+    [TestCase("sqlServer", "Quartz")]
+    public async Task TheMoveNamesTheSchemaOnEveryOperation(string dialect, string schema)
     {
-        await using EntityFrameworkCoreContext context = EntityFrameworkCoreContext.Quartz("postgres", t => t.Schema = "quartz");
+        await using EntityFrameworkCoreContext context = EntityFrameworkCoreContext.Quartz(dialect);
 
         IReadOnlyList<MigrationOperation> operations = context.Migration(m => m.MoveQuartzTablesFromAppAny(t => t.Schema = "Quartz"));
 
-        operations.Should().NotBeEmpty();
-        operations.OfType<TableOperation>().Should().AllSatisfy(o => o.Schema.Should().Be("quartz"));
-        operations.OfType<CreateIndexOperation>().Should().AllSatisfy(o => o.Schema.Should().Be("quartz"));
+        operations.OfType<ITableMigrationOperation>().Should().NotBeEmpty()
+            .And.HaveCount(operations.Count, "every operation the move makes on these two databases is on a table")
+            .And.AllSatisfy(o => o.Schema.Should().Be(schema));
+        operations.OfType<AddForeignKeyOperation>().Should().NotBeEmpty()
+            .And.AllSatisfy(o => o.PrincipalSchema.Should().Be(schema));
     }
 
     [Test]

@@ -23,6 +23,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 using Quartz.EntityFrameworkCore;
 
@@ -127,17 +128,40 @@ public sealed class QuartzTableNamingTest
         add.Should().Throw<ArgumentNullException>().WithParameterName("providerName").WithMessage("*Database.ProviderName*");
     }
 
+    /// <summary>
+    /// A prefix is what an unquoted identifier can hold: the store writes it into its SQL unquoted, and so does
+    /// <c>CompleteQuartzSchema</c> into SQLite's triggers, so a schema, a quote or a statement separator in it is
+    /// refused rather than written there.
+    /// </summary>
     [TestCase("quartz.QRTZ_")]
     [TestCase("[quartz].QRTZ_")]
     [TestCase("\"QRTZ_\"")]
-    public void APrefixWithASchemaInItIsRefused(string prefix)
+    [TestCase("QRTZ_;")]
+    [TestCase("QRTZ-")]
+    [TestCase("QRTZ/*")]
+    [TestCase("QRTZ ")]
+    [TestCase(null)]
+    public void APrefixAnUnquotedIdentifierCannotHoldIsRefused(string? prefix)
     {
         ModelBuilder modelBuilder = new();
 
-        Action add = () => modelBuilder.AddQuartzTables("Microsoft.EntityFrameworkCore.SqlServer", t => t.TablePrefix = prefix);
+        Action add = () => modelBuilder.AddQuartzTables("Microsoft.EntityFrameworkCore.Sqlite", t => t.TablePrefix = prefix!);
+        Action complete = () => new MigrationBuilder("Microsoft.EntityFrameworkCore.Sqlite").CompleteQuartzSchema(t => t.TablePrefix = prefix!);
 
         add.Should().Throw<ArgumentException>().WithParameterName("configure")
-            .WithMessage("*put the schema in QuartzTablesOptions.Schema*");
+            .WithMessage("*letters, digits, '_', '$' and '#'*put the schema in QuartzTablesOptions.Schema*");
+        complete.Should().Throw<ArgumentException>().WithParameterName("configure");
+    }
+
+    [TestCase("")]
+    [TestCase("QRTZ_")]
+    [TestCase("App2$#_")]
+    [TestCase("Quarz_Ä_")]
+    public async Task APrefixOfIdentifierCharactersNamesTheTables(string prefix)
+    {
+        await using EntityFrameworkCoreContext context = EntityFrameworkCoreContext.Quartz("sqlite", t => t.TablePrefix = prefix);
+
+        context.DesignModel.GetRelationalModel().Tables.Select(t => t.Name).Should().Contain(prefix + "TRIGGERS");
     }
 
     [TestCase("MySql.EntityFrameworkCore")]
