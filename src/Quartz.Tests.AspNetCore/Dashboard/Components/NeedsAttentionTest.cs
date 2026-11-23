@@ -74,6 +74,23 @@ public class NeedsAttentionTest
             .MustHaveHappenedOnceExactly();
     }
 
+    /// <summary>
+    /// More failing jobs than one page holds: the ten are ranked from the page read, the first 250 by name, and
+    /// the sentence says so rather than claiming the ten worst of all.
+    /// </summary>
+    [Test]
+    public void AFailingListLongerThanAPageSaysItsTenAreFromTheFirstPage()
+    {
+        JobRunStatus[] page = Enumerable.Range(1, 12).Select(index => Status("job-" + index.ToString("00", System.Globalization.CultureInfo.InvariantCulture), consecutiveFailures: index)).ToArray();
+        A.CallTo(() => context.Api.QueryJobRunStatuses(A<JobRunStatusQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobRunStatus>([.. page], HasMore: true, TotalCount: 300));
+
+        IRenderedComponent<NeedsAttention> panel = Render();
+
+        panel.WaitForAssertion(() => panel.Find("[data-testid=needs-attention-failing] p").TextContent.Should()
+            .Be("300 jobs are failing; these are the 10 failing the most times in a row, of the first 250 by name."));
+    }
+
     [Test]
     public void NoFailingJobIsSaid()
     {

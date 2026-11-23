@@ -30,8 +30,9 @@ namespace Quartz.Dashboard.Services;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Two halves, so the rules are tested without a page. <see cref="Read" /> makes a fixed set of reads, about
-/// eight, on load and on Refresh: never on a timer and never per row. <see cref="Evaluate" /> turns what they
+/// Two halves, so the rules are tested without a page. <see cref="Read" /> makes a fixed set of reads, six
+/// always and five more only when they matter, on load and on Refresh: never on a timer and never per row.
+/// <see cref="Evaluate" /> turns what they
 /// answered into the checks, and reads nothing.
 /// </para>
 /// <para>
@@ -73,22 +74,31 @@ internal static class TriggerDiagnosis
 
         Answer<SchedulerDetailDto> scheduler = await Ask(() => api.GetScheduler(schedulerName, cancellationToken), cancellationToken).ConfigureAwait(false);
 
-        Answer<HashSet<string>> pausedTriggerGroups = await Ask(
-            async () => (await api.QueryTriggerGroups(schedulerName, new DashboardGroupQuery { Paused = true }, cancellationToken).ConfigureAwait(false))
-                .Items.Select(static group => group.Name).ToHashSet(StringComparer.Ordinal),
+        // One page of each, so a scheduler with more paused groups than the page holds is said to be one.
+        Answer<PausedGroupPage> pausedTriggerGroups = await Ask(
+            async () =>
+            {
+                PagedResult<TriggerGroupDto> page = await api.QueryTriggerGroups(
+                    schedulerName, new DashboardGroupQuery { Paused = true, Take = PagedQuery.DefaultTake }, cancellationToken).ConfigureAwait(false);
+                return new PausedGroupPage(page.Items.Select(static group => group.Name).ToHashSet(StringComparer.Ordinal), page.HasMore);
+            },
             cancellationToken).ConfigureAwait(false);
 
-        Answer<HashSet<string>> pausedJobGroups = await Ask(
-            async () => (await api.QueryJobGroups(schedulerName, new DashboardGroupQuery { Paused = true }, cancellationToken).ConfigureAwait(false))
-                .Items.Select(static group => group.Name).ToHashSet(StringComparer.Ordinal),
+        Answer<PausedGroupPage> pausedJobGroups = await Ask(
+            async () =>
+            {
+                PagedResult<JobGroupDto> page = await api.QueryJobGroups(
+                    schedulerName, new DashboardGroupQuery { Paused = true, Take = PagedQuery.DefaultTake }, cancellationToken).ConfigureAwait(false);
+                return new PausedGroupPage(page.Items.Select(static group => group.Name).ToHashSet(StringComparer.Ordinal), page.HasMore);
+            },
             cancellationToken).ConfigureAwait(false);
 
         // Only a paused group has a pause to explain.
-        Answer<PauseInfo?> triggerGroupPause = pausedTriggerGroups.Value?.Contains(triggerKey.Group) == true
+        Answer<PauseInfo?> triggerGroupPause = pausedTriggerGroups.Value?.Names.Contains(triggerKey.Group) == true
             ? await Ask(() => api.GetTriggerGroupPause(schedulerName, triggerKey.Group, cancellationToken), cancellationToken).ConfigureAwait(false)
             : default;
 
-        Answer<PauseInfo?> jobGroupPause = pausedJobGroups.Value?.Contains(job.Group) == true
+        Answer<PauseInfo?> jobGroupPause = pausedJobGroups.Value?.Names.Contains(job.Group) == true
             ? await Ask(() => api.GetJobGroupPause(schedulerName, job.Group, cancellationToken), cancellationToken).ConfigureAwait(false)
             : default;
 
@@ -271,9 +281,9 @@ internal static class TriggerDiagnosis
         }
 
         string group = facts.Subject.Trigger.Key.Group;
-        if (!paused.Contains(group))
+        if (!paused.Names.Contains(group))
         {
-            return new DiagnosisCheck(Name, DiagnosisVerdict.Ok, Quote(group) + " is not paused.");
+            return NotAmongPaused(Name, group, paused, "trigger", "triggers?group=" + Uri.EscapeDataString(group), "Triggers in the group");
         }
 
         return new DiagnosisCheck(
@@ -296,9 +306,9 @@ internal static class TriggerDiagnosis
         }
 
         string group = facts.Subject.Trigger.JobKey.Group;
-        if (!paused.Contains(group))
+        if (!paused.Names.Contains(group))
         {
-            return new DiagnosisCheck(Name, DiagnosisVerdict.Ok, Quote(group) + " is not paused.");
+            return NotAmongPaused(Name, group, paused, "job", "jobs?group=" + Uri.EscapeDataString(group), "Jobs in the group");
         }
 
         return new DiagnosisCheck(
@@ -309,6 +319,27 @@ internal static class TriggerDiagnosis
         {
             LinkText = "Jobs in the group",
             LinkPath = "jobs?group=" + Uri.EscapeDataString(group),
+        };
+    }
+
+    /// <summary>
+    /// A group not among the paused ones read: not paused, when the page held every paused group; unknown when
+    /// there were more than the page holds, since it may be one of the rest.
+    /// </summary>
+    private static DiagnosisCheck NotAmongPaused(string name, string group, PausedGroupPage paused, string kind, string linkPath, string linkText)
+    {
+        if (!paused.HasMore)
+        {
+            return new DiagnosisCheck(name, DiagnosisVerdict.Ok, Quote(group) + " is not paused.");
+        }
+
+        string count = Number(paused.Names.Count);
+        return new DiagnosisCheck(name, DiagnosisVerdict.Unknown,
+            "More than " + count + " " + kind + " groups are paused, and " + Quote(group) + " is not among the first " + count
+            + " by name, so whether it is paused cannot be told from here.")
+        {
+            LinkText = linkText,
+            LinkPath = linkPath,
         };
     }
 
@@ -405,18 +436,27 @@ internal static class TriggerDiagnosis
         string label = trigger.ExecutionGroup is { Length: > 0 } group ? Quote(group) : "No execution group";
 
         // What the answering node routes. A window runs nothing and a cluster is several nodes, so neither
-        // speaks for a node; and no node publishes what it serves, so this is never "no node serves it".
+        // speaks for a node; and no node publishes what it serves, so a clustered store is never "no node serves
+        // it", nor "a node that does fires it". A store that is not clustered is this one node, so a group it
+        // refuses never runs at all (event 1093).
         if (!subject.IsWindow && !subject.IsCluster
             && facts.Scheduler.Value is { RoutesExecutionGroups: true } scheduler
             && ExecutionGroupRouting.FromSpellings(scheduler.ServedExecutionGroups, scheduler.RefusedExecutionGroups) is { } routing
             && !routing.Serves(trigger.ExecutionGroup))
         {
-            return new DiagnosisCheck(Name, DiagnosisVerdict.Warning,
-                label + ": this node does not serve it, so the trigger fires on a node that does.")
-            {
-                LinkText = "Cluster",
-                LinkPath = "cluster",
-            };
+            return scheduler.Clustered
+                ? new DiagnosisCheck(Name, DiagnosisVerdict.Warning,
+                    label + ": this node does not serve it: only a node that serves it fires it.")
+                {
+                    LinkText = "Cluster",
+                    LinkPath = "cluster",
+                }
+                : new DiagnosisCheck(Name, DiagnosisVerdict.Problem,
+                    label + ": this scheduler does not serve it, and its store is not clustered, so nothing runs it.")
+                {
+                    LinkText = "Execution groups",
+                    LinkPath = "",
+                };
         }
 
         if (facts.Limits.Value is not { } limits)
@@ -453,15 +493,32 @@ internal static class TriggerDiagnosis
             && (!perNode || string.Equals(firing.SchedulerInstanceId, answeringNode, StringComparison.Ordinal)));
         string where = perNode ? " on this node" : string.Empty;
 
-        return inFlight >= max
-            ? new DiagnosisCheck(Name, DiagnosisVerdict.Warning,
-                label + ": at its limit, " + Number(inFlight) + " of " + Number(max) + scope + " in flight" + where + ", so the trigger waits for a slot.")
+        // One page of firings, as the execution-groups panel counts them: with more in flight than it holds, the
+        // count is a floor.
+        string atLeast = firings.HasMore ? "at least " : string.Empty;
+        if (inFlight >= max)
+        {
+            return new DiagnosisCheck(Name, DiagnosisVerdict.Warning,
+                label + ": at its limit, " + atLeast + Number(inFlight) + " of " + Number(max) + scope + " in flight" + where + ", so the trigger waits for a slot.")
             {
                 LinkText = "Currently Executing",
                 LinkPath = "executing",
-            }
-            : new DiagnosisCheck(Name, DiagnosisVerdict.Ok,
-                label + ": " + Number(inFlight) + " of " + Number(max) + scope + " in flight" + where + ".");
+            };
+        }
+
+        if (firings.HasMore)
+        {
+            return new DiagnosisCheck(Name, DiagnosisVerdict.Unknown,
+                label + ": at least " + Number(inFlight) + " of " + Number(max) + scope + " in flight" + where + ", counted from the first "
+                + Number(firings.Items.Count) + " firings; more are in flight, so whether it is at its limit cannot be told from here.")
+            {
+                LinkText = "Currently Executing",
+                LinkPath = "executing",
+            };
+        }
+
+        return new DiagnosisCheck(Name, DiagnosisVerdict.Ok,
+            label + ": " + Number(inFlight) + " of " + Number(max) + scope + " in flight" + where + ".");
     }
 
     private static DiagnosisCheck CheckMisfires(TriggerDiagnosisFacts facts, Func<DateTimeOffset?, string> formatTime)
@@ -600,9 +657,9 @@ internal sealed record TriggerDiagnosisFacts(DiagnosisSubject Subject)
 {
     public Answer<SchedulerDetailDto> Scheduler { get; init; }
 
-    public Answer<HashSet<string>> PausedTriggerGroups { get; init; }
+    public Answer<PausedGroupPage> PausedTriggerGroups { get; init; }
 
-    public Answer<HashSet<string>> PausedJobGroups { get; init; }
+    public Answer<PausedGroupPage> PausedJobGroups { get; init; }
 
     public Answer<PauseInfo?> TriggerGroupPause { get; init; }
 
@@ -621,6 +678,13 @@ internal sealed record TriggerDiagnosisFacts(DiagnosisSubject Subject)
 
     public Answer<PagedResult<DashboardHistoryEntry>> LastRun { get; init; }
 }
+
+/// <summary>
+/// One page of the paused groups: their names, and whether more are paused than the page holds.
+/// </summary>
+/// <param name="Names">The paused groups the page held.</param>
+/// <param name="HasMore">Whether more groups are paused than it held.</param>
+internal sealed record PausedGroupPage(HashSet<string> Names, bool HasMore);
 
 /// <summary>How much a check's answer matters.</summary>
 internal enum DiagnosisVerdict
