@@ -18,11 +18,20 @@
     A C# AppHost needs the Aspire CLI bundle, the dashboard and the Developer Control Plane, from 17 on
     (ASPIRE013, which cannot be suppressed). Restore no longer brings them as packages. Building does: it
     looks for the bundle in the Aspire home, ~/.aspire or ASPIRE_HOME, and when none is there it runs
-    `aspire setup`, with the `aspire` on PATH or, without one, `dnx aspire.cli@$(AspireVersion)`. So a machine
-    with neither the CLI nor a bundle, a CI runner, downloads the CLI (about 180 MB) the first time it builds
-    this project, and has to reach nuget.org to do it. A bundle that is already there is used whatever its
-    version; `dotnet run` hands the AppHost to the CLI's `aspire run`, which brings its own.
+    `aspire setup`, with the `aspire` on PATH or, without one, `dnx aspire.cli@$(AspireVersion)`, within a
+    fixed two minutes. A bundle that is already there is used whatever its version; `dotnet run` hands the
+    AppHost to the CLI's `aspire run`, which brings its own.
+
+    CI compiles this project and never runs it, so on CI (where `CI` is true) the build is told where the
+    Developer Control Plane and the dashboard are, which skips the bundle lookup and its download (about
+    180 MB from nuget.org, which on a slow runner does not finish within the two minutes: ASPIRE009). The
+    paths are only stamped into the AppHost's assembly attributes, which nothing reads unless it runs.
   -->
+
+  <PropertyGroup Condition="'$(CI)' == 'true'">
+    <DcpDir Condition="'$(DcpDir)' == ''">$(MSBuildProjectDirectory)/obj/ci-no-bundle/dcp/</DcpDir>
+    <AspireDashboardDir Condition="'$(AspireDashboardDir)' == ''">$(MSBuildProjectDirectory)/obj/ci-no-bundle/dashboard/</AspireDashboardDir>
+  </PropertyGroup>
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
