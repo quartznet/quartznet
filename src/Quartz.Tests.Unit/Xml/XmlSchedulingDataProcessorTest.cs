@@ -2140,6 +2140,81 @@ public class XmlSchedulingDataProcessorTest
         }
     }
 
+    /// <summary>
+    /// Once both triggers are stored, a document processed again reschedules them one at a time, and the
+    /// parent each names exists: only the store's walk up the chain stops the second from closing the loop
+    /// (#4416).
+    /// </summary>
+    [Test]
+    public async Task ADocumentThatTurnsStoredTriggersIntoALoopIsRefused()
+    {
+        NameValueCollection properties = new()
+        {
+            ["quartz.scheduler.instanceName"] = nameof(ADocumentThatTurnsStoredTriggersIntoALoopIsRefused),
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
+
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(properties).BuildScheduler();
+        try
+        {
+            await CreateProcessor().ProcessStreamAndScheduleJobs(ToStream(Document(ChickenAndEgg(loop: false))), scheduler);
+
+            Func<Task> act = async () => await CreateProcessor().ProcessStreamAndScheduleJobs(
+                ToStream(Document(ChickenAndEgg(loop: true))), scheduler);
+
+            // The processor holds chicken back until egg, which it waits for, is rescheduled: chicken closes the loop.
+            await act.Should().ThrowExactlyAsync<JobPersistenceException>(
+                    "rescheduled one after the other, the second would wait for the first, which by then waits for it")
+                .WithMessage("*group1.chicken -> group1.egg -> group1.chicken*");
+
+            (await scheduler.GetTriggerState(new TriggerKey("chicken", "group1"))).Should().Be(TriggerState.Normal,
+                "the refused reschedule leaves the trigger as it was stored");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// Two triggers of <see cref="Job" />, each waiting for the other when <paramref name="loop" /> says so.
+    /// </summary>
+    private static string ChickenAndEgg(bool loop)
+    {
+        string WaitsFor(string parent) => loop
+            ? $"""
+               <continues-after>
+                 <name>{parent}</name>
+                 <group>group1</group>
+               </continues-after>
+               """
+            : "";
+
+        return $"""
+            <schedule>
+              {Job}
+              <trigger>
+                <simple>
+                  <name>chicken</name>
+                  <group>group1</group>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  {WaitsFor("egg")}
+                </simple>
+              </trigger>
+              <trigger>
+                <simple>
+                  <name>egg</name>
+                  <group>group1</group>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  {WaitsFor("chicken")}
+                </simple>
+              </trigger>
+            </schedule>
+            """;
+    }
+
     private const string ContinuationBeforeItsParent = $"""
         <schedule>
           <job>

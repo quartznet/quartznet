@@ -22,6 +22,7 @@
 #nullable enable
 
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Jobs;
@@ -182,6 +183,66 @@ public sealed class AdoContinuationSqliteTest
     }
 
     /// <summary>
+    /// The <c>Schedule</c> section is applied again at every start, and a persistent store still holds
+    /// what the last start stored. An edit that makes two of those triggers wait for each other is
+    /// refused by the start that applies it, rather than leaving both waiting for ever (#4416).
+    /// </summary>
+    [Test]
+    public async Task AScheduleSectionThatTurnsStoredTriggersIntoALoopIsRefusedAtTheStart()
+    {
+        await using (ServiceProvider before = BuildContainer(ChickenAndEgg(loop: false)))
+        {
+            IScheduler scheduler = await before.GetRequiredService<ISchedulerFactory>().GetScheduler();
+            (await scheduler.GetTriggerState(new TriggerKey("egg", Group))).Should().Be(TriggerState.Normal);
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+
+        await using ServiceProvider after = BuildContainer(ChickenAndEgg(loop: true));
+
+        Func<Task> start = async () => await after.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        // The processor holds chicken back until egg, which it waits for, is rescheduled: chicken closes the loop.
+        await start.Should().ThrowExactlyAsync<JobPersistenceException>(
+                "the second reschedule would wait for the first, which by then waits for it")
+            .WithMessage("*continuations.chicken -> continuations.egg -> continuations.chicken*");
+
+        (await ReadColumn("TRIGGER_STATE", new TriggerKey("chicken", Group))).Should().Be("WAITING",
+            "the refused reschedule leaves the row as the first start stored it");
+    }
+
+    /// <summary>
+    /// A <c>Schedule</c> section with two triggers of one job, each waiting for the other when
+    /// <paramref name="loop" /> says so.
+    /// </summary>
+    private static IConfiguration ChickenAndEgg(bool loop)
+    {
+        Dictionary<string, string?> values = new()
+        {
+            ["Schedule:Jobs:0:Name"] = "farm",
+            ["Schedule:Jobs:0:Group"] = Group,
+            ["Schedule:Jobs:0:JobType"] = "Quartz.Jobs.NoOpJob, Quartz.Jobs",
+            ["Schedule:Jobs:0:Durable"] = "true",
+        };
+
+        string[] names = ["chicken", "egg"];
+        for (int i = 0; i < names.Length; i++)
+        {
+            values[$"Schedule:Triggers:{i}:Name"] = names[i];
+            values[$"Schedule:Triggers:{i}:Group"] = Group;
+            values[$"Schedule:Triggers:{i}:JobName"] = "farm";
+            values[$"Schedule:Triggers:{i}:JobGroup"] = Group;
+            values[$"Schedule:Triggers:{i}:Cron:Expression"] = "0 0 * * * ?";
+            if (loop)
+            {
+                values[$"Schedule:Triggers:{i}:ContinuesAfter:Name"] = names[1 - i];
+                values[$"Schedule:Triggers:{i}:ContinuesAfter:Group"] = Group;
+            }
+        }
+
+        return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
+    }
+
+    /// <summary>
     /// The parent trigger. By default far enough out that nothing fires it at all; give
     /// <paramref name="dueIn" /> to have it fire shortly after the scheduler is started.
     /// </summary>
@@ -258,10 +319,12 @@ public sealed class AdoContinuationSqliteTest
         Assert.Fail($"Timed out after {observationDeadline.TotalSeconds:F0} s waiting for {what}.");
     }
 
-    private ServiceProvider BuildContainer()
+    /// <param name="configuration">A configuration whose <c>Schedule</c> section the scheduler applies, if any.</param>
+    private ServiceProvider BuildContainer(IConfiguration? configuration = null)
     {
         ServiceCollection services = new();
-        services.AddQuartz(q =>
+
+        void Configure(IQuartzBuilder q)
         {
             q.ConfigureScheduler(options =>
             {
@@ -274,7 +337,16 @@ public sealed class AdoContinuationSqliteTest
                 store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
                 store.ProvisionSchema();
             });
-        });
+        }
+
+        if (configuration is null)
+        {
+            services.AddQuartz(Configure);
+        }
+        else
+        {
+            services.AddQuartz(configuration, Configure);
+        }
 
         return services.BuildServiceProvider();
     }

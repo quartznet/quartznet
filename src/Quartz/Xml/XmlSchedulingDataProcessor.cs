@@ -1065,8 +1065,9 @@ internal class XmlSchedulingDataProcessor
     /// <remarks>
     /// A chain is stored parent first however deep it goes, because each pass stores whatever has its
     /// parent in place by then. What is left when nothing can go waits in a loop — each for another that
-    /// is waiting too — and the first of it is stored anyway: the store's refusal of it, naming the
-    /// parent that does not exist, is the error such a document has earned.
+    /// is waiting too — and the first of it is stored anyway: the store's refusal, naming the parent that
+    /// does not exist or, when the loop's triggers are stored already and only rescheduled, the loop
+    /// (#4416), is the error such a document has earned.
     /// </remarks>
     private async ValueTask ScheduleDeferredContinuations(
         IScheduler scheduler,

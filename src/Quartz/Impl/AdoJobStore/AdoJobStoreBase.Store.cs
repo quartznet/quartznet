@@ -41,7 +41,7 @@ internal abstract partial class AdoJobStoreBase
         {
             // Before the job is written, not only inside AddTrigger: a store running in a transaction
             // the application owns — or in none — cannot count on a rollback to take the job back out.
-            await EnsureContinuationParentExists(conn, trigger, alsoStored: null, cancellationToken).ConfigureAwait(false);
+            await EnsureContinuationParentExists(conn, trigger, alsoStored: null, replaced: null, cancellationToken).ConfigureAwait(false);
 
             await AddJob(conn, job, false, cancellationToken).ConfigureAwait(false);
             await AddTrigger(conn, trigger, job, false, StoredTriggerState.Waiting, false, false, continuationParentChecked: true, cancellationToken).ConfigureAwait(false);
@@ -211,9 +211,10 @@ internal abstract partial class AdoJobStoreBase
     /// <param name="forceState">Whether <paramref name="state" /> is stored as given.</param>
     /// <param name="recovering">Whether this is a recovery trigger, which is never blocked.</param>
     /// <param name="continuationParentChecked">
-    /// Whether the caller has already made sure a continuation's parent exists — the batch add, which
-    /// looks across the batch as well as the store, so that a continuation stored before its parent in
-    /// the same call is not refused.
+    /// Whether the caller has already made sure a continuation's parent exists and its chain does not
+    /// lead back to it — the batch add, which looks across the batch as well as the store, so that a
+    /// continuation stored before its parent in the same call is not refused, and a replace, which looks
+    /// before it deletes the row it replaces.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <param name="knownToExist">
@@ -269,7 +270,7 @@ internal abstract partial class AdoJobStoreBase
             // store as it was — the job stored beside it and the row it would have replaced included.
             if (!continuationParentChecked)
             {
-                await EnsureContinuationParentExists(conn, newTrigger, alsoStored: null, cancellationToken).ConfigureAwait(false);
+                await EnsureContinuationParentExists(conn, newTrigger, alsoStored: null, replaced: null, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -430,32 +431,101 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Refuses a trigger whose continuation waits for a trigger this store does not hold.
+    /// Refuses a trigger whose continuation waits for a trigger this store does not hold, or whose chain
+    /// of parents leads back to it.
     /// </summary>
     /// <remarks>
-    /// Such a trigger would wait for a firing that can never happen — a misspelled parent, or a
-    /// one-shot parent that has already fired and been deleted — and a row held in
-    /// <c>AWAITING</c> with nothing to release it is one nobody notices.
+    /// <para>
+    /// Either would wait for a firing that can never happen — a misspelled parent, a one-shot parent
+    /// that has already fired and been deleted, or a parent that waits, however far up, for this
+    /// trigger (#4416) — and a row held in <c>AWAITING</c> with nothing to release it is one nobody
+    /// notices. See <see cref="ContinuationChainWalk" />.
+    /// </para>
+    /// <para>
+    /// One primary-key read per stored trigger on the chain, in the unit of work storing the trigger, and
+    /// none for a trigger that waits for nothing. The read of the parent is the existence check this
+    /// method has always made, so a continuation of an ordinary trigger costs what it did.
+    /// </para>
     /// </remarks>
     /// <param name="conn">The unit of work the trigger is being stored in.</param>
     /// <param name="trigger">The trigger about to be stored.</param>
     /// <param name="alsoStored">
-    /// Keys being stored in the same operation, which count as present; <see langword="null" /> when
-    /// there are none.
+    /// Triggers being stored in the same operation, by key, which count as present and are read in
+    /// place of the rows under their keys; <see langword="null" /> when there are none.
+    /// </param>
+    /// <param name="replaced">
+    /// A stored trigger the operation deletes, which counts as absent; <see langword="null" /> when there
+    /// is none.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     private async ValueTask EnsureContinuationParentExists(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        HashSet<TriggerKey>? alsoStored,
+        Dictionary<TriggerKey, IOperableTrigger>? alsoStored,
+        TriggerKey? replaced,
         CancellationToken cancellationToken)
     {
-        if (trigger.Continuation.Parent is { } parent
-            && alsoStored?.Contains(parent) != true
-            && !await TriggerExists(conn, parent, cancellationToken).ConfigureAwait(false))
+        if (trigger.Continuation.Parent is not { } parent)
+        {
+            return;
+        }
+
+        ContinuationChainWalk walk = new(trigger.Key, parent);
+        ContinuationLink link = await ReadContinuationLink(conn, parent, alsoStored, replaced, cancellationToken).ConfigureAwait(false);
+        if (!link.Held)
         {
             Throw.ObjectDoesNotExistException(trigger, parent);
         }
+
+        while (link.WaitsFor is { } next && walk.Advance(next))
+        {
+            link = await ReadContinuationLink(conn, next, alsoStored, replaced, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// The trigger under <paramref name="key" /> as the store will hold it once the operation is done,
+    /// and what it waits for.
+    /// </summary>
+    /// <remarks>
+    /// The row's continuation columns are read by <see cref="StdAdoDelegate" /> alone, as the stranded
+    /// sweep is. A delegate of another lineage answers whether the row exists, as before 4.9, and the
+    /// walk goes no further into the store than that.
+    /// </remarks>
+    private ValueTask<ContinuationLink> ReadContinuationLink(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey key,
+        Dictionary<TriggerKey, IOperableTrigger>? alsoStored,
+        TriggerKey? replaced,
+        CancellationToken cancellationToken)
+    {
+        if (alsoStored is not null && alsoStored.TryGetValue(key, out IOperableTrigger? stored))
+        {
+            return new ValueTask<ContinuationLink>(new ContinuationLink(Held: true, stored.Continuation.Parent));
+        }
+
+        if (key.Equals(replaced))
+        {
+            return new ValueTask<ContinuationLink>(ContinuationLink.NotHeld);
+        }
+
+        if (Delegate is StdAdoDelegate std)
+        {
+            return Guarded(
+                () => std.SelectContinuationLink(conn, key, cancellationToken),
+                $"read what trigger '{key}' waits for");
+        }
+
+        return ReadExistenceOnly(conn, key, cancellationToken);
+    }
+
+    private async ValueTask<ContinuationLink> ReadExistenceOnly(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey key,
+        CancellationToken cancellationToken)
+    {
+        bool exists = await TriggerExists(conn, key, cancellationToken).ConfigureAwait(false);
+        return new ContinuationLink(Held: exists, WaitsFor: null);
     }
 
     /// <summary>
@@ -629,13 +699,14 @@ internal abstract partial class AdoJobStoreBase
                 // A continuation may wait for a trigger stored beside it in this same call, whichever
                 // order the two come in, so its parent is looked for in the batch as well as in the
                 // store — once, here, rather than by each AddTrigger below, which would refuse one that
-                // came before its parent.
-                HashSet<TriggerKey> batch = [];
+                // came before its parent. The walk up its chain reads a key the batch stores from the
+                // batch, which replaces the row under it.
+                Dictionary<TriggerKey, IOperableTrigger> batch = new();
                 foreach (var pair in triggersAndJobs)
                 {
                     foreach (var trigger in pair.Value)
                     {
-                        batch.Add(trigger.Key);
+                        batch[trigger.Key] = trigger;
                     }
                 }
 
@@ -643,7 +714,7 @@ internal abstract partial class AdoJobStoreBase
                 {
                     foreach (var trigger in pair.Value)
                     {
-                        await EnsureContinuationParentExists(conn, trigger, batch, cancellationToken).ConfigureAwait(false);
+                        await EnsureContinuationParentExists(conn, trigger, batch, replaced: null, cancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -944,10 +1015,10 @@ internal abstract partial class AdoJobStoreBase
                 }
 
                 // Likewise a replacement that would wait for a trigger the store does not hold — a
-                // rescheduled continuation whose parent has gone — and before the old row is deleted, for
-                // a store whose transaction is not its own to roll back. AddTrigger asks again once the
-                // row has gone, which is what refuses a trigger replaced by one that waits for itself.
-                await EnsureContinuationParentExists(conn, newTrigger, alsoStored: null, cancellationToken).ConfigureAwait(false);
+                // rescheduled continuation whose parent has gone, or the trigger it replaces — or for
+                // itself through its chain of parents; and before the old row is deleted, for a store
+                // whose transaction is not its own to roll back. The row being replaced counts as gone.
+                await EnsureContinuationParentExists(conn, newTrigger, alsoStored: null, replaced: triggerKey, cancellationToken).ConfigureAwait(false);
 
                 // Read before the row goes: a declared trigger re-applied at a start keeps the pause the row
                 // has, with its record (#4128), is held to the row it was worked out from, and leaves a row
@@ -980,7 +1051,7 @@ internal abstract partial class AdoJobStoreBase
                     StoredTriggerState.Waiting,
                     forceState: false,
                     recovering: false,
-                    continuationParentChecked: false,
+                    continuationParentChecked: true,
                     cancellationToken,
                     storePaused: reapply.KeepPause,
                     pause: reapply.KeptPause).ConfigureAwait(false);
