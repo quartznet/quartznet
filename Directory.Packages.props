@@ -40,9 +40,10 @@
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="$(AspireVersion)" />
     <PackageVersion Include="Aspire.Npgsql" Version="$(AspireVersion)" />
     <!--
-      The community package Quartz.EntityFrameworkCore succeeds on 4.x (MIT), referenced by the tests alone:
-      they build its 0.6.3 model to diff it against Quartz's, and create its schema to move it. No code is taken
-      from it. The provider packages also have an older 3.x line that sorts above 0.6.3, so the version is exact.
+      AppAny's community package (MIT), which Quartz.EntityFrameworkCore succeeds on 4.x, referenced by the
+      tests alone: they build its 0.6.3 model to diff it against Quartz's, and create its schema to move it. No
+      code is taken from it. The provider packages also have an older 3.x line that sorts above 0.6.3, so the
+      version is exact.
     -->
     <PackageVersion Include="AppAny.Quartz.EntityFrameworkCore.Migrations" Version="0.6.3" />
     <PackageVersion Include="AppAny.Quartz.EntityFrameworkCore.Migrations.MySql" Version="0.6.3" />

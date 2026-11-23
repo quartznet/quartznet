@@ -41,8 +41,9 @@ namespace Quartz.Tests.Unit.EntityFrameworkCore;
 /// <remarks>
 /// <para>
 /// Each difference is one of three. <b>Repaired</b>: AppAny's schema has it wrong, and the move changes it.
-/// <b>Converged</b>: harmless, but cheap to change and never a narrowing, and the move changes it. <b>Left</b>:
-/// harmless, or a spelling of the same type, and the move leaves the database as it is; the snapshot holds this
+/// <b>Converged</b>: harmless, but the database changes it in place, rebuilding no table and narrowing no column,
+/// and the move changes it. <b>Left</b>: harmless, a spelling of the same type, or a change that would narrow a
+/// column or rewrite or rebuild a table, and the move leaves the database as it is; the snapshot holds this
 /// package's model from the move on, so no later migration sees it again.
 /// </para>
 /// <para>
@@ -82,9 +83,9 @@ public sealed class AppAnyModelDiffTest
         text.Append("AppAny.Quartz.EntityFrameworkCore.Migrations 0.6.3 to Quartz.EntityFrameworkCore, ").Append(dialect).Append("\n");
         Section(text, "repaired: AppAny's schema has it wrong, and the move changes it",
             differences.Where(d => moved.Contains(d) && IsRepair(d)));
-        Section(text, "converged: harmless, cheap to change and never a narrowing, and the move changes it",
+        Section(text, "converged: harmless, changed in place with no table rebuilt and no column narrowed",
             differences.Where(d => moved.Contains(d) && !IsRepair(d)));
-        Section(text, "left: harmless or a spelling of the same type, and the move leaves it",
+        Section(text, "left: harmless, a spelling of the same type, or a change that would narrow a column or rebuild a table",
             differences.Where(d => !moved.Contains(d)));
         Section(text, "completed: CompleteQuartzSchema, which the move ends with",
             move.OfType<SqlOperation>().Select(MigrationOperationText.Describe));

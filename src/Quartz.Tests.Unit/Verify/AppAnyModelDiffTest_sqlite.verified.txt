@@ -5,10 +5,10 @@ repaired: AppAny's schema has it wrong, and the move changes it
   CreateIndex IDX_QRTZ_EH_JOB_TIME on QRTZ_EXECUTION_HISTORY (SCHED_NAME, JOB_GROUP, JOB_NAME, FIRED_TIME)
   CreateIndex IDX_QRTZ_EH_TRIG_TIME on QRTZ_EXECUTION_HISTORY (SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME, FIRED_TIME)
 
-converged: harmless, cheap to change and never a narrowing, and the move changes it
+converged: harmless, changed in place with no table rebuilt and no column narrowed
   (none)
 
-left: harmless or a spelling of the same type, and the move leaves it
+left: harmless, a spelling of the same type, or a change that would narrow a column or rebuild a table
   AddForeignKey FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS_SCHED_NAME_JOB_NAME_JOB_GROUP on QRTZ_TRIGGERS (SCHED_NAME, JOB_NAME, JOB_GROUP) -> QRTZ_JOB_DETAILS (SCHED_NAME, JOB_NAME, JOB_GROUP) on delete NoAction
   AlterColumn QRTZ_BLOB_TRIGGERS.BLOB_DATA bytea NULL -> BLOB NULL
   AlterColumn QRTZ_BLOB_TRIGGERS.SCHED_NAME text NOT NULL -> NVARCHAR(120) NOT NULL
