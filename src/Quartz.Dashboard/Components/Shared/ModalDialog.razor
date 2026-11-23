@@ -4,9 +4,11 @@
 @* The frame every dashboard dialog draws in, and what makes it modal for a keyboard: focus moves into the dialog
    as it opens (to the element marked data-autofocus, or the dialog itself), Tab and Shift+Tab wrap inside it
    through the two guards either side, Escape is the dialog's Cancel, and focus goes back to the element that
-   opened it when it closes. The parent renders it while the dialog is open and drops it to close it. *@
+   opened it when it closes. The parent renders it while the dialog is open and drops it to close it. The guards
+   are empty and pass focus on as they get it, so they are not hidden from assistive technology: a focusable
+   element must not be. *@
 <div class="qz-confirm-overlay" data-testid="modal-overlay" @onkeydown="OnKeyDownAsync">
-    <span class="qz-focus-guard" tabindex="0" aria-hidden="true" data-testid="modal-guard-start" @onfocus="FocusLastAsync"></span>
+    <span class="qz-focus-guard" tabindex="0" data-testid="modal-guard-start" @onfocus="FocusLastAsync"></span>
     <div @ref="_dialog"
          class="qz-confirm-dialog @Class"
          role="dialog"
@@ -16,7 +18,7 @@
          data-testid="@TestId">
         @ChildContent
     </div>
-    <span class="qz-focus-guard" tabindex="0" aria-hidden="true" data-testid="modal-guard-end" @onfocus="FocusFirstAsync"></span>
+    <span class="qz-focus-guard" tabindex="0" data-testid="modal-guard-end" @onfocus="FocusFirstAsync"></span>
 </div>
 
 @code {

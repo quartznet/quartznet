@@ -483,7 +483,7 @@ public class Startup
         WeeklyCalendar businessDays = new(bankHolidays.Clone()) { TimeZone = london, Description = "Weekdays that are not bank holidays" };
         q.AddCalendar("Business Days", businessDays, replace);
 
-        MonthlyCalendar payroll = new() { TimeZone = newYork, Description = "Payroll runs on the 1st and the 15th" };
+        MonthlyCalendar payroll = new() { TimeZone = newYork, Description = "No batch runs on payroll days, the 1st and the 15th" };
         payroll.AddExcludedDay(1);
         payroll.AddExcludedDay(15);
         q.AddCalendar("Payroll Days", payroll, replace);
