@@ -115,12 +115,17 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// Where a row left out of a listing for a name this client does not know is reported;
     /// <see langword="null" /> for whatever <c>LogProvider</c> was given.
     /// </param>
+    /// <param name="gatewayTarget">
+    /// The host's target the scheduler is behind — <see cref="HttpClientOptions.GatewayTarget" /> — which every
+    /// read names and every success must echo; <see langword="null" /> for the host's own scheduler.
+    /// </param>
     public HttpExecutionHistoryStore(
         string schedulerName,
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null,
-        ILogger? logger = null)
-        : this(schedulerName, new HttpWireTransport(httpClient ?? throw new ArgumentNullException(nameof(httpClient))), jsonSerializerOptions, logger)
+        ILogger? logger = null,
+        string? gatewayTarget = null)
+        : this(schedulerName, new HttpWireTransport(httpClient ?? throw new ArgumentNullException(nameof(httpClient)), gatewayTarget), jsonSerializerOptions, logger)
     {
     }
 

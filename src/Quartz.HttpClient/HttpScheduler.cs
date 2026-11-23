@@ -107,7 +107,34 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null,
         SystemTextJsonSerializerRegistry? serializerRegistry = null)
-        : this(RequireName(schedulerName), OverHttp(httpClient), jsonSerializerOptions, serializerRegistry)
+        : this(RequireName(schedulerName), OverHttp(httpClient, gatewayTarget: null), jsonSerializerOptions, serializerRegistry)
+    {
+    }
+
+    /// <summary>
+    /// A client of the scheduler the host the client calls lists under <paramref name="scheduler" />'s key:
+    /// <c>w1/QuartzScheduler</c> through the dashboard host, or a bare name for the host's own scheduler.
+    /// Added in 4.9.
+    /// </summary>
+    /// <param name="scheduler">
+    /// The key as the host lists it. Its <see cref="SchedulerRef.Target" /> is sent on every request as
+    /// <c>?target=</c> — <see cref="HttpClientOptions.GatewayTarget" /> — and a success that does not echo it
+    /// is refused; a key with no target is the constructor that takes the name.
+    /// </param>
+    /// <param name="httpClient">The client, whose base address is the host's HTTP API.</param>
+    /// <param name="jsonSerializerOptions">Optional serializer options, copied as the other constructor copies them.</param>
+    /// <param name="serializerRegistry">The trigger and calendar serializers to understand.</param>
+    /// <remarks>
+    /// The key is read as the host reads it, so the client and the dashboard spell a scheduler one way.
+    /// <see cref="SchedulerName" /> is the name half: what the host's routes carry, and what this process
+    /// knows the scheduler as.
+    /// </remarks>
+    public HttpScheduler(
+        SchedulerRef scheduler,
+        HttpClient httpClient,
+        JsonSerializerOptions? jsonSerializerOptions = null,
+        SystemTextJsonSerializerRegistry? serializerRegistry = null)
+        : this(RequireName(RequireKey(scheduler).SchedulerName), OverHttp(httpClient, scheduler.Target), jsonSerializerOptions, serializerRegistry)
     {
     }
 
@@ -117,14 +144,19 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     /// <param name="serializerRegistry">The trigger and calendar serializers to understand.</param>
     /// <param name="logger">Where what a newer host sent that this client cannot read is reported.</param>
     /// <param name="target">The target this scheduler is reached through, or <see langword="null" /> for the bare name.</param>
+    /// <param name="gatewayTarget">
+    /// The host's target the scheduler is behind — <see cref="HttpClientOptions.GatewayTarget" /> — or
+    /// <see langword="null" /> for the host's own scheduler.
+    /// </param>
     internal HttpScheduler(
         string schedulerName,
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions,
         SystemTextJsonSerializerRegistry? serializerRegistry,
         ILogger logger,
-        string? target = null)
-        : this(RequireName(schedulerName), OverHttp(httpClient), jsonSerializerOptions, serializerRegistry, logger, target)
+        string? target = null,
+        string? gatewayTarget = null)
+        : this(RequireName(schedulerName), OverHttp(httpClient, gatewayTarget), jsonSerializerOptions, serializerRegistry, logger, target)
     {
     }
 
@@ -187,7 +219,13 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         return schedulerName;
     }
 
-    private static HttpWireTransport OverHttp(HttpClient httpClient)
+    private static SchedulerRef RequireKey(SchedulerRef scheduler)
+    {
+        ArgumentNullException.ThrowIfNull(scheduler);
+        return scheduler;
+    }
+
+    private static HttpWireTransport OverHttp(HttpClient httpClient, string? gatewayTarget)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         if (!httpClient.BaseAddress?.ToString().EndsWith('/') == true)
@@ -195,7 +233,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
             throw new ArgumentException("HttpClient's BaseAddress must end in /", nameof(httpClient));
         }
 
-        return new HttpWireTransport(httpClient);
+        return new HttpWireTransport(httpClient, gatewayTarget);
     }
 
     /// <inheritdoc />

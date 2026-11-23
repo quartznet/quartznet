@@ -84,6 +84,7 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
     private readonly JsonSerializerOptions jsonSerializerOptions;
     private readonly TimeProvider timeProvider;
     private readonly UnknownWireNames unknownNames;
+    private readonly string? gatewayTarget;
 
     /// <param name="schedulerName">The remote scheduler's name, which the route is addressed to.</param>
     /// <param name="httpClient">The client to call the remote scheduler with.</param>
@@ -95,17 +96,23 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
     /// <param name="logger">
     /// Where a skipped frame is reported; <see langword="null" /> for whatever <c>LogProvider</c> was given.
     /// </param>
+    /// <param name="gatewayTarget">
+    /// The host's target the scheduler is behind — <see cref="HttpClientOptions.GatewayTarget" /> — which the
+    /// stream's request names and its answer must echo; <see langword="null" /> for the host's own scheduler.
+    /// </param>
     public HttpSchedulerEventReader(
         string schedulerName,
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null,
         TimeProvider? timeProvider = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        string? gatewayTarget = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
         ArgumentNullException.ThrowIfNull(httpClient);
 
         this.schedulerName = schedulerName;
+        this.gatewayTarget = gatewayTarget;
         this.httpClient = httpClient;
         this.timeProvider = timeProvider ?? TimeProvider.System;
         unknownNames = new UnknownWireNames(logger ?? HttpClientLog.Fallback(), schedulerName);
@@ -177,8 +184,19 @@ internal sealed class HttpSchedulerEventReader : ISchedulerEventSource
         try
         {
             HttpResponseMessage response = await httpClient
-                .GetStream(SchedulerRoutes.StreamEvents.For(schedulerName).Path, jsonSerializerOptions, cancellationToken)
+                .GetStream(GatewayTarget.Append(SchedulerRoutes.StreamEvents.For(schedulerName).Path, gatewayTarget), jsonSerializerOptions, cancellationToken)
                 .ConfigureAwait(false);
+
+            try
+            {
+                // Before a frame is read: a host that ignored ?target= streams another scheduler's events.
+                GatewayTarget.EnsureEchoed(response, gatewayTarget);
+            }
+            catch
+            {
+                response.Dispose();
+                throw;
+            }
 
             return await Connection.Read(response, jsonSerializerOptions, unknownNames, cancellationToken).ConfigureAwait(false);
         }

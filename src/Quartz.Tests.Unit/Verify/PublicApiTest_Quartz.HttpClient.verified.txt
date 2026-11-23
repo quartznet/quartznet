@@ -10,6 +10,7 @@ namespace Quartz
     {
         public HttpClientOptions() { }
         public System.Func<System.IServiceProvider, System.Net.Http.HttpClient>? CreateHttpClient { get; set; }
+        public string? GatewayTarget { get; set; }
         public string? HttpClientName { get; set; }
         public System.Text.Json.JsonSerializerOptions? JsonSerializerOptions { get; set; }
         public string SchedulerName { get; set; }
@@ -23,6 +24,7 @@ namespace Quartz
         // explicit interface implementation: Quartz.Impl.IProxyScheduler.Target
         // explicit interface implementation: Quartz.Impl.IScheduleDescribingScheduler.QueryDescribedTriggers(Quartz.TriggerQuery, System.Threading.CancellationToken)
         // explicit interface implementation: Quartz.Impl.IUpcomingFireTimesScheduler.GetUpcomingFireTimes(Quartz.TriggerKey, int, System.Threading.CancellationToken)
+        public HttpScheduler(Quartz.SchedulerRef scheduler, System.Net.Http.HttpClient httpClient, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null, Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry? serializerRegistry = null) { }
         public HttpScheduler(string schedulerName, System.Net.Http.HttpClient httpClient, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null, Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry? serializerRegistry = null) { }
         public Quartz.SchedulerContext Context { get; }
         public Quartz.IListenerManager ListenerManager { get; }
