@@ -83,7 +83,7 @@
       Quartz.Tests.Integration keeps Wolverine 6.45.0 with a VersionOverride beside Marten 9.45.0.
     -->
     <PackageVersion Include="Marten" Version="9.45.0" />
-    <PackageVersion Include="MELT" Version="1.1.0" />
+    <PackageVersion Include="MELT" Version="2.0.0" />
     <!--
       Quartz.Dashboard.Host's sign-in through an identity provider. Current rather than a floor: the host is
       a tool and a container image, which carry this inside them rather than asking a consumer for it.
@@ -108,8 +108,8 @@
     -->
     <PackageVersion Include="Microsoft.Data.SQLite" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.2" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="11.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="11.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="11.0.1" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CrashDump" Version="2.5.3" />
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.3" />
