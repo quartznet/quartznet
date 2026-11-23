@@ -406,7 +406,10 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 LastCheckInUtc: node.LastCheckInUtc,
                 CheckInInterval: node.CheckInInterval,
                 State: node.State,
-                IsCurrentNode: node.IsCurrentNode));
+                IsCurrentNode: node.IsCurrentNode)
+            {
+                QuartzVersion = node.QuartzVersion
+            });
         }
 
         return items;

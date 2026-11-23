@@ -110,6 +110,7 @@ namespace Quartz
         public string InstanceId { get; init; }
         public bool IsCurrentNode { get; init; }
         public System.DateTimeOffset? LastCheckInUtc { get; init; }
+        public string? QuartzVersion { get; init; }
         public Quartz.ClusterNodeState State { get; init; }
     }
     public enum ClusterNodeState

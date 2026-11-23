@@ -54,4 +54,25 @@ public sealed record ClusterNode(
     DateTimeOffset? LastCheckInUtc,
     TimeSpan? CheckInInterval,
     ClusterNodeState State,
-    bool IsCurrentNode);
+    bool IsCurrentNode)
+{
+    /// <summary>
+    /// The Quartz version the node stamped its check-in row with, <c>major.minor.patch</c> (<c>4.9.0</c>), or
+    /// <see langword="null" /> when there is no stamp to read.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Read from <c>QRTZ_SCHEDULER_STATE.QUARTZ_VERSION</c>, which a node writes at every check-in from 4.6. It is
+    /// <see langword="null" /> for a row a node older than 4.6 wrote, and for every node of a store that keeps
+    /// no check-in rows: the in-memory store, and an ADO.NET store that is not clustered. The node answering
+    /// carries its own version before its first check-in has written a row. A version tells a mixed cluster
+    /// apart: rounds of work that allow concurrent execution take <c>TRIGGER_ACCESS</c> while a live node is
+    /// older than 4.6, and such a node never answers an interrupt request.
+    /// </para>
+    /// <para>
+    /// A non-positional <c>init</c> property, as <see cref="FireInstance.Progress" /> is, so the record's
+    /// constructor is unchanged. Added in 4.9.
+    /// </para>
+    /// </remarks>
+    public string? QuartzVersion { get; init; }
+}

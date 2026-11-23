@@ -55,6 +55,40 @@ public class ClusterPageTest
         page.TextOfAll("tbody td").Should().Contain(["Alive", "Overdue", "Failed"]);
     }
 
+    /// <summary>
+    /// Halfway through a rolling upgrade, the page names the node still on the old version and what that costs
+    /// the cluster (#4411). A row with no stamp, in a listing that has stamps, is a node older than 4.6.
+    /// </summary>
+    [Test]
+    public void EachNodesVersionIsShownAndAMixedClusterSaysWhatItCosts()
+    {
+        GivenNodes(CurrentNode() with { QuartzVersion = "4.9.0" }, Node("node-b", ClusterNodeState.Alive));
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        page.FindAll("[data-testid=cluster-node-version]").Select(cell => cell.TextContent.Trim())
+            .Should().Equal(["4.9.0", "older than 4.6"]);
+        page.Find("[data-testid=cluster-mixed-versions]").TextContent.Should()
+            .Contain("older than 4.6 on node-b; 4.9.0 on " + TestData.SchedulerInstanceId)
+            .And.Contain("takes TRIGGER_ACCESS")
+            .And.Contain("never answered");
+    }
+
+    /// <summary>
+    /// A host older than 4.9 sends no version, and the page does not call every node old for it.
+    /// </summary>
+    [Test]
+    public void AHostThatSendsNoVersionsIsNotReadAsAClusterOfOldNodes()
+    {
+        GivenNodes(CurrentNode(), Node("node-b", ClusterNodeState.Alive));
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        page.FindAll("[data-testid=cluster-node-version]").Select(cell => cell.TextContent.Trim())
+            .Should().Equal(["not reported", "not reported"]);
+        page.FindAll("[data-testid=cluster-mixed-versions]").Should().BeEmpty();
+    }
+
     [Test]
     public void TheNodeAnsweringIsMarkedAsThisOne()
     {
@@ -165,7 +199,7 @@ public class ClusterPageTest
 
         IRenderedComponent<Cluster> page = context.Render<Cluster>();
 
-        string cell = RowCells(page, rowIndex: 0)[2];
+        string cell = RowCells(page, rowIndex: 0)[3];
         cell.Should().Contain("2024-05-06 07:08:09",
             "the absolute time is what an operator correlates with a log, rendered in the zone they picked");
         cell.Should().Contain("ago",
@@ -287,9 +321,9 @@ public class ClusterPageTest
 
         IRenderedComponent<Cluster> page = context.Render<Cluster>();
 
-        RowCells(page, rowIndex: 0)[4].Should().Be("only reports, (no execution group)",
+        RowCells(page, rowIndex: 0)[5].Should().Be("only reports, (no execution group)",
             "the answering node's own details say which groups it serves, with the ungrouped bucket spelled out");
-        RowCells(page, rowIndex: 1)[4].Should().Be("—",
+        RowCells(page, rowIndex: 1)[5].Should().Be("—",
             "a node publishes nothing about its routing to the store, so a single target can only speak for itself");
     }
 
@@ -300,7 +334,7 @@ public class ClusterPageTest
 
         IRenderedComponent<Cluster> page = context.Render<Cluster>();
 
-        RowCells(page, rowIndex: 0)[4].Should().Be("all");
+        RowCells(page, rowIndex: 0)[5].Should().Be("all");
     }
 
     [Test]
@@ -324,9 +358,9 @@ public class ClusterPageTest
 
         page.WaitForAssertion(() =>
         {
-            RowCells(page, rowIndex: 0)[4].Should().Be("only reports", "member a fronts node-a and says what it serves");
-            RowCells(page, rowIndex: 1)[4].Should().Be("all but gpu", "member b fronts node-b");
-            RowCells(page, rowIndex: 2)[4].Should().Be("—", "no member fronts node-c, so nothing can say what it serves");
+            RowCells(page, rowIndex: 0)[5].Should().Be("only reports", "member a fronts node-a and says what it serves");
+            RowCells(page, rowIndex: 1)[5].Should().Be("all but gpu", "member b fronts node-b");
+            RowCells(page, rowIndex: 2)[5].Should().Be("—", "no member fronts node-c, so nothing can say what it serves");
         });
     }
 

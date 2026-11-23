@@ -151,6 +151,32 @@ public sealed class StoreAttachedTargetTest
         statuses.Should().ContainSingle().Which.RunCount.Should().Be(1);
     }
 
+    /// <summary>
+    /// A window reads each node's version off its row (#4411), so halfway through a rolling upgrade the
+    /// Cluster page names the node still on the old one and what it costs.
+    /// </summary>
+    [Test]
+    public async Task AWindowReadsEachNodesVersionAndSaysWhatAMixedClusterCosts()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow, version: "4.9.0");
+        WriteCheckIn(ClusterScheduler, "node-b", DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+
+        List<ClusterNodeDto> nodes = await dashboard.Client.QueryClusterNodes(ClusterScheduler);
+        nodes.Single(x => x.InstanceId == NodeA).QuartzVersion.Should().Be("4.9.0");
+        nodes.Single(x => x.InstanceId == "node-b").QuartzVersion.Should().BeNull("node-b's row has no stamp: it is older than 4.6");
+
+        bool reports = NodeVersions.Reports(nodes, isWindow: true);
+        NodeVersions.Label(nodes.Single(x => x.InstanceId == "node-b"), reports, answeringVersion: null).Should().Be("older than 4.6");
+
+        MixedVersions mixed = NodeVersions.Mixed(nodes, reports)!;
+        mixed.Should().NotBeNull("two live nodes run different versions");
+        mixed.Groups.Select(group => group.Version).Should().Equal(["older than 4.6", "4.9.0"], "oldest first");
+        mixed.Costs.Should().ContainSingle().Which.Should().Contain("node node-b").And.Contain("TRIGGER_ACCESS").And.Contain("never answered");
+    }
+
     [Test]
     public async Task AWindowWithNoLiveNodeIsNotRunning()
     {
