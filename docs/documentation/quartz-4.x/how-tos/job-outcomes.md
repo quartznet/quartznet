@@ -290,6 +290,9 @@ if (page.Items.FirstOrDefault() is { } outcome)
 <!-- endSnippet -->
 
 * The row is written when the run ends. Before that, or once retention has trimmed it, the page is empty.
+* To wait for the row rather than poll for it, use `WaitForFiring` with the trigger's key; see
+  [Trigger it and wait for the outcome](one-off-job.md#trigger-it-and-wait-for-the-outcome). Its `Outcome`
+  says what the scheduler saw, and `Execution.EffectiveResult` what the run achieved.
 * The [database history](../tutorial/job-stores.md#execution-history-in-the-database) seeks either lookup on
   an index of its own from 4.6. A database created earlier gets them from the optional
   [4.6 migration](../../database/schema-changes.md#version-4-6); without it, a lookup scans the scheduler's rows.

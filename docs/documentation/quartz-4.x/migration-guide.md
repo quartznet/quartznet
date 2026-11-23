@@ -40,6 +40,13 @@ An application on 4.8 compiles on 4.9 unchanged.
 | Package `Quartz.EntityFrameworkCore`: `QuartzModelBuilderExtensions.AddQuartzTables(this ModelBuilder, string? providerName, Action<QuartzTablesOptions>?)`, `QuartzTablesOptions` (`TablePrefix`, `Schema`, `MaxIdentifierLength`) | The job store's tables in an application's own EF Core model, so `dotnet ef migrations add` creates and upgrades them. PostgreSQL, SQL Server, MySQL, SQLite, Oracle and Firebird. See [Entity Framework Core](packages/entity-framework-core.md) |
 | `QuartzMigrationBuilderExtensions.CompleteQuartzSchema(this MigrationBuilder, Action<QuartzTablesOptions>?)` | What the model cannot say: SQLite's delete triggers, MySQL's descending index column. See [The first migration](packages/entity-framework-core.md#the-first-migration) |
 | `QuartzMigrationBuilderExtensions.MoveQuartzTablesFromAppAny(this MigrationBuilder, Action<QuartzTablesOptions>?)` | The one migration from AppAny.Quartz.EntityFrameworkCore.Migrations 0.6.3. See [Moving off AppAny](packages/entity-framework-core.md#moving-off-appany) |
+| `SchedulerWaitExtensions.TriggerJobAndWait(this IScheduler, JobKey, TimeSpan, CancellationToken)` | Fires a stored job now and waits up to the timeout for how its run ended (#4414). The timeout stops the wait, never the job. See [Trigger it and wait for the outcome](how-tos/one-off-job.md#trigger-it-and-wait-for-the-outcome) |
+| `SchedulerWaitExtensions.TriggerJobAndWait(this IScheduler, JobKey, JobDataMap?, TimeSpan, CancellationToken)` | The same, with the firing's own job data, copied onto the trigger |
+| `SchedulerWaitExtensions.TriggerJobAndWait<TInput>(this IScheduler, JobKey, TInput, TimeSpan, CancellationToken)` | The same, with a typed input, as `TriggerJob<TInput>` stores it |
+| `SchedulerWaitExtensions.WaitForFiring(this IScheduler, TriggerKey, TimeSpan, CancellationToken)` | Waits for the trigger's next final completion, or reads how a firing already gone ended from the execution history. A cluster needs `UseExecutionHistory()` on every node; see [On a cluster](how-tos/one-off-job.md#on-a-cluster) |
+| `SchedulerJobExtensions.TriggerJob(this IScheduler, JobKey, JobDataMap?, TriggerKey, CancellationToken)` | Fires a stored job now under a trigger key the caller names. A key already stored throws `ObjectAlreadyExistsException`. See [Naming the trigger's key](how-tos/one-off-job.md#naming-the-trigger-s-key) |
+| `FiringResult` | `sealed record`: `TriggerKey`, `Status`, `Outcome`, `Execution`, `Misfire`, `Message`, all `init`. What a wait answers |
+| `FiringWaitStatus` | Enum `Ended`, `Pending`, `Unknown`: where a wait stood when it answered. `Ended` is `0` |
 
 | Changed | What to check |
 |---|---|
