@@ -351,6 +351,27 @@ public sealed class SchedulerWaitExtensionsTest
         result.Outcome.Should().Be(ExecutionOutcome.Succeeded);
     }
 
+    /// <summary>
+    /// A shutdown that throws before its window is over still fails the waits it leaves open, so a wait with no
+    /// timeout does not wait for ever on a scheduler that is down.
+    /// </summary>
+    [Test]
+    public async Task AShutdownThatFailsStillFailsTheWaitsItLeavesOpen()
+    {
+        IScheduler scheduler = await Started(configure: q => q.ConfigureScheduler(options => options.ShutdownJobInterruption = ShutdownJobInterruption.Always));
+        JobKey job = await AddDurable<TokenFaultingJob>(scheduler, "faulting-token");
+
+        Task<FiringResult> wait = scheduler.TriggerJobAndWait(job, Timeout.InfiniteTimeSpan).AsTask();
+        await Gates.Reached(job.Name).WaitAsync(waitLimit);
+
+        Func<Task> shutdown = async () => await scheduler.Shutdown(waitForJobsToComplete: false);
+        await shutdown.Should().ThrowAsync<Exception>("the job's token callback throws as the shutdown interrupts the job");
+
+        Func<Task> act = () => wait.WaitAsync(TimeSpan.FromSeconds(5));
+        (await act.Should().ThrowAsync<SchedulerException>())
+            .WithMessage("The scheduler shut down before the firing of trigger 'DEFAULT.MT_*' ended.");
+    }
+
     [Test]
     public async Task AWaitOnASchedulerThatHasShutDownIsRefused()
     {
@@ -911,6 +932,19 @@ public sealed class SchedulerWaitExtensionsTest
         {
             Runs.Begin(context);
             throw new InvalidOperationException("attempt " + context.RetryAttempt);
+        }
+    }
+
+    /// <summary>
+    /// Holds on its gate with a callback on its token that throws, so the shutdown's interrupt fails.
+    /// </summary>
+    public sealed class TokenFaultingJob : IJob
+    {
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            using CancellationTokenRegistration registration = cancellationToken.Register(
+                static () => throw new InvalidOperationException("the job's token callback failed"));
+            await Gates.Hold(context.JobDetail.Key.Name);
         }
     }
 

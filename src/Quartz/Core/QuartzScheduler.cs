@@ -843,6 +843,11 @@ internal sealed class QuartzScheduler
             // this earlier, so the SchedulerShutdown listener still reads Shutdown.
             status = SchedulerStatus.Shutdown;
 
+            // And whatever happened above, no wait for a firing outlives it: a shutdown that threw before its
+            // window was over would otherwise leave one with no timeout waiting for ever. A second call
+            // finds nothing left to fail.
+            FiringWatches.ShutDown();
+
             resources.SchedulerRepository.Remove(resources.Name, resources.InstanceId);
             holdToPreventGc.Clear();
         }
