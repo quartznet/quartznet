@@ -2115,9 +2115,22 @@ body{
     }
 }
 
-/* Narrower still, as on a phone, two labels are all that fit: the first, and the one halfway along. */
+/* Narrower still, as on a phone, two labels are all that fit: the first, and the one halfway along. The fourth
+   is even, so the rule above hid it; this one, later and as specific, shows it again. */
 @container (max-width: 26rem) {
     .qz-run-chart-time:not(:first-child):not(:nth-child(4)) {
+        display: none;
+    }
+
+    .qz-run-chart-time:nth-child(4) {
+        display: block;
+    }
+}
+
+/* A chart this narrow, as in a card on a 320 px phone, has a plot of under 100 px: one label, the window's start.
+   On a 390 px phone the same card's content box is about 220 px wide and keeps two. */
+@container (max-width: 11rem) {
+    .qz-run-chart-time:nth-child(4) {
         display: none;
     }
 }
@@ -2371,8 +2384,10 @@ body{
     overflow-wrap: anywhere;
 }
 
+/* The shared link colour once the dashboard has one (#4427 adds --qz-color-link at AA in both themes); the
+   primary colour until then. */
 .qz-header-search-option.qz-header-search-see-all {
-    color: var(--qz-color-primary);
+    color: var(--qz-color-link, var(--qz-color-primary));
     font-weight: 600;
 }
 
@@ -2545,7 +2560,7 @@ body{
     padding: 0;
     border: none;
     background: none;
-    color: var(--qz-color-primary);
+    color: var(--qz-color-link, var(--qz-color-primary));
     font: inherit;
     font-size: var(--qz-font-size-sm);
     font-weight: 600;

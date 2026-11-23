@@ -37,6 +37,16 @@ public class TriggerDiagnosisTest
 
     private static readonly DateTimeOffset Now = new(2026, 11, 23, 12, 0, 0, TimeSpan.Zero);
 
+    [TestCase(-30, "just due", TestName = "A fire time under a minute past is just due")]
+    [TestCase(-180, "due 3m ago", TestName = "A fire time minutes past says how long ago")]
+    [TestCase(3600, "in 1h", TestName = "A fire time ahead says how long until it")]
+    public void TheNextFireSaysWhenItIsDue(int seconds, string when)
+    {
+        DateTimeOffset next = Now.AddSeconds(seconds);
+
+        Check(Evaluate(Facts(Trigger(next: next))), "Next fire").Text.Should().Be(Format(next) + " (" + when + ").");
+    }
+
     [Test]
     public void AHealthyTriggerHasNothingHoldingItBack()
     {

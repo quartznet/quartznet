@@ -39,6 +39,17 @@ public class ClusterPageTest
         context.Dispose();
     }
 
+    /// <summary>
+    /// The node table scrolls inside its card, so a phone's page does not scroll sideways under it.
+    /// </summary>
+    [Test]
+    public void TheNodeTableScrollsInsideItsCard()
+    {
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        page.FindAll(".qz-table-scroll > table.qz-table").Should().ContainSingle();
+    }
+
     [Test]
     public void EachNodesStateIsShownWithTheColourItsSeverityEarns()
     {
