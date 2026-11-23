@@ -971,9 +971,10 @@ public sealed class RAMJobStore : IJobStore
     // keeps them, whether in place or through ReplaceTrigger, matching the ADO store, where a replacement
     // leaves the trigger's fired-trigger rows alone and only a removal deletes them (#3759).
     //
-    // keepDependants: whether the triggers awaiting this one survive. A replacement keeps them for the
-    // same reason — the trigger still exists and will still fire — while a removal means the firing they
-    // are waiting for is never going to happen, so they are settled here instead.
+    // keepDependants: whether the triggers awaiting this one survive. A replacement under the same key
+    // keeps them for the same reason — the trigger still exists and will still fire — while a removal, or
+    // a replacement under another key, means the firing they are waiting for is never going to happen, so
+    // they are settled here instead.
     //
     // There is no default for either: every caller says which.
     private bool RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, bool keepExecutions, bool keepDependants, ref PendingSignals pending)
@@ -1247,7 +1248,8 @@ public sealed class RAMJobStore : IJobStore
     /// because a group is keeps the record of its pause. A declared trigger re-applied at a start is the
     /// exception: it keeps an individual pause (#4128), it replaces nothing when the trigger has fired since
     /// the read it was worked out from, and it leaves a trigger it describes exactly as it is, an
-    /// acquisition included (#4324).
+    /// acquisition included (#4324). A replacement under another key settles the continuations that waited
+    /// for the old key as a deletion of it would.
     /// </remarks>
     /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
     /// <param name="trigger">The new trigger.</param>
@@ -1268,6 +1270,15 @@ public sealed class RAMJobStore : IJobStore
                 if (!tw!.JobKey.Equals(trigger.JobKey))
                 {
                     Throw.JobPersistenceException("New trigger is not related to the same job as the old trigger.");
+                }
+
+                // Likewise a replacement under another key that is taken: refused here rather than by the add
+                // below, because a change of key settles what waited for the old one as the old trigger is
+                // removed, and putting the old trigger back would not undo that.
+                bool keepsKey = trigger.Key.Equals(triggerKey);
+                if (!keepsKey && triggersByKey.ContainsKey(trigger.Key))
+                {
+                    Throw.ObjectAlreadyExistsException(trigger);
                 }
 
                 // Likewise a replacement that would wait for a trigger the store does not hold — a
@@ -1303,7 +1314,13 @@ public sealed class RAMJobStore : IJobStore
                 // running under it, as in the ADO store where a replacement leaves the fired-trigger rows
                 // for the execution's completion, or for recovery, to settle (#3759). Removing through the
                 // shared path means everything else kept per trigger is cleaned up here too.
-                RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: true, keepDependants: true, ref pending);
+                //
+                // The triggers waiting for it keep waiting when the replacement keeps its key, which still
+                // has a trigger to fire. Under a new key nothing holds the old one, so they are settled as a
+                // deleted trigger's are: released when they wait on any outcome, parked in error otherwise.
+                // The ADO store leaves them to its stranded sweep, which settles them the same way at its
+                // next misfire pass; this store has no sweep, and left them waiting for ever.
+                RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: true, keepDependants: keepsKey, ref pending);
 
                 try
                 {
