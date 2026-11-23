@@ -83,6 +83,12 @@ public static class QuartzInstrumentation
         /// <summary>Triggers acquired for firing — a counter, <c>{trigger}</c>.</summary>
         public const string TriggerAcquired = "quartz.trigger.acquired";
 
+        /// <summary>Waiting triggers whose fire time has passed — a gauge, <c>{trigger}</c>, from the ADO.NET store. Aggregate across nodes with <c>max</c>.</summary>
+        public const string TriggerDue = "quartz.trigger.due";
+
+        /// <summary>Time since the earliest fire time among those triggers — a gauge, seconds, from the ADO.NET store. Aggregate across nodes with <c>max</c>.</summary>
+        public const string TriggerDueAge = "quartz.trigger.due.age";
+
         /// <summary>How long a cluster check-in took — a histogram, seconds.</summary>
         public const string ClusterCheckinDuration = "quartz.cluster.checkin.duration";
 

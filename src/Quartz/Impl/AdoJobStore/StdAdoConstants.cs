@@ -1333,6 +1333,28 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectExecutionGroupsInFlight =
         Invariant($"SELECT {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnTriggerGroup}, COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} GROUP BY {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnTriggerGroup}");
 
+    /// <summary>
+    /// The scheduler's due backlog per execution group (#4401): how many <c>WAITING</c> triggers have a
+    /// fire time at or before <c>@noLaterThan</c>, and the earliest of those fire times.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Not narrowed to the groups this node serves, unlike the misfire count: every node reports the
+    /// whole scheduler's backlog, so the cluster's nodes agree and the gauge aggregates with <c>max</c>.
+    /// No misfire predicate either: a trigger that ignores misfires is still due.
+    /// </para>
+    /// <para>
+    /// <c>PAUSED</c> and <c>BLOCKED</c> wait on purpose, and an <c>ACQUIRED</c> row is about to fire, so
+    /// none of them is backlog.
+    /// </para>
+    /// <para>
+    /// Seeks <c>IDX_QRTZ_T_NFT_ST</c> on the state and fire time. EXECUTION_GROUP is not in that index,
+    /// so the grouping reads every due row and its cost grows with the backlog.
+    /// </para>
+    /// </remarks>
+    public static readonly string SqlSelectDueTriggersByExecutionGroup =
+        Invariant($"SELECT {AdoConstants.ColumnExecutionGroup}, COUNT(*), MIN({AdoConstants.ColumnNextFireTime}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND {AdoConstants.ColumnNextFireTime} <= @{SqlParameters.NoLaterThan} GROUP BY {AdoConstants.ColumnExecutionGroup}");
+
     public static readonly string SqlFireInstanceTriggerGroupEqualsPredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     public static readonly string SqlFireInstanceTriggerGroupLikePredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} LIKE @{SqlParameters.TriggerGroup}{SqlLikeEscapeClause}");

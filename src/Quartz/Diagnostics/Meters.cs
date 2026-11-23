@@ -52,6 +52,11 @@ internal sealed class Meters : IDisposable
     private readonly Counter<long> clusterRecoveredTriggers;
     private readonly Histogram<double> jobStoreOperationDuration;
     private readonly Histogram<double> jobStoreLockWaitDuration;
+    private readonly ObservableGauge<long> triggersDue;
+    private readonly ObservableGauge<double> triggersDueAge;
+
+    private readonly Lock dueTriggerSourcesLock = new();
+    private DueTriggerBacklog[] dueTriggerSources = [];
 
     public Meters(IMeterFactory? meterFactory)
     {
@@ -122,6 +127,13 @@ internal sealed class Meters : IDisposable
         // through it, so this is where a peer that stopped holding the row - or a database session whose
         // client is gone - shows up as a number rather than as a scheduler that has gone quiet.
         jobStoreLockWaitDuration = meter.CreateHistogram<double>(QuartzInstrumentation.Instruments.JobStoreLockWaitDuration, "s", "Elapsed time spent waiting for a job store lock");
+
+        // Work that is due and not yet picked up, which nothing above shows until a job finally starts
+        // (#4401). Gauges rather than up-down counters: every node of a cluster counts the whole
+        // scheduler's backlog and reports the same value under its own id, so the series aggregate with
+        // max, and a sum would multiply the backlog by the number of nodes.
+        triggersDue = meter.CreateObservableGauge<long>(QuartzInstrumentation.Instruments.TriggerDue, ObserveTriggersDue, "{trigger}", "Number of waiting triggers whose fire time has passed");
+        triggersDueAge = meter.CreateObservableGauge<double>(QuartzInstrumentation.Instruments.TriggerDueAge, ObserveTriggersDueAge, "s", "Time since the earliest fire time among the waiting triggers that are due");
     }
 
     public static Meters Shared => shared.Value;
@@ -261,6 +273,76 @@ internal sealed class Meters : IDisposable
         }
 
         triggerMisfires.Add(1, tags);
+    }
+
+    /// <summary>
+    /// Whether anything is collecting the due-trigger gauges. The store asks before it counts its
+    /// backlog, so an application that drops both instruments never pays for the query.
+    /// </summary>
+    internal bool TriggersDueEnabled => triggersDue.Enabled || triggersDueAge.Enabled;
+
+    /// <summary>
+    /// Adds a store's backlog to what the due-trigger gauges report. One <see cref="Meters" /> serves
+    /// every scheduler in the container, so the gauges report one set of series per registered store.
+    /// </summary>
+    internal void RegisterDueTriggers(DueTriggerBacklog backlog)
+    {
+        lock (dueTriggerSourcesLock)
+        {
+            dueTriggerSources = [.. dueTriggerSources, backlog];
+        }
+    }
+
+    internal void UnregisterDueTriggers(DueTriggerBacklog backlog)
+    {
+        lock (dueTriggerSourcesLock)
+        {
+            dueTriggerSources = [.. dueTriggerSources.Where(x => !ReferenceEquals(x, backlog))];
+        }
+    }
+
+    private IEnumerable<Measurement<long>> ObserveTriggersDue()
+    {
+        foreach (DueTriggerBacklog backlog in Volatile.Read(ref dueTriggerSources))
+        {
+            if (backlog.TryRead(out List<DueTriggerCount>? counts))
+            {
+                foreach (DueTriggerCount count in counts)
+                {
+                    yield return new Measurement<long>(count.Count, DueTriggerTags(backlog, count));
+                }
+            }
+        }
+    }
+
+    private IEnumerable<Measurement<double>> ObserveTriggersDueAge()
+    {
+        foreach (DueTriggerBacklog backlog in Volatile.Read(ref dueTriggerSources))
+        {
+            if (backlog.TryRead(out List<DueTriggerCount>? counts))
+            {
+                foreach (DueTriggerCount count in counts)
+                {
+                    yield return new Measurement<double>(count.AgeSeconds, DueTriggerTags(backlog, count));
+                }
+            }
+        }
+    }
+
+    private static TagList DueTriggerTags(DueTriggerBacklog backlog, DueTriggerCount count)
+    {
+        TagList tags = new()
+        {
+            { ActivityTags.SchedulerName, backlog.SchedulerName },
+            { ActivityTags.SchedulerId, backlog.SchedulerId },
+        };
+
+        if (count.ExecutionGroup is { } executionGroup)
+        {
+            tags.Add(ActivityTags.ExecutionGroup, executionGroup);
+        }
+
+        return tags;
     }
 
     /// <summary>

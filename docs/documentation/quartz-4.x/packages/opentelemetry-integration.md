@@ -184,7 +184,7 @@ into its next firing.
 
 ## Metrics
 
-Twelve instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
+Fourteen instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
 `quartz.scheduler.id`**: the name identifies the scheduler, the id its node in a cluster.
 
 Each instrument name is a `const string` on `QuartzInstrumentation.Instruments`; for example
@@ -201,6 +201,8 @@ constants equal to what the meter emits and snapshot the name, kind, unit and de
 | `quartz.trigger.retries_exhausted` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Failed occurrences whose retry policy ran out |
 | `quartz.trigger.acquisition.duration` | `Histogram<double>` | `s` | `quartz.jobstore.lock`⁴, `quartz.jobstore.lock.reason`⁵ | Loop's wait on the store for the next batch, the fire of the triggers already due included |
 | `quartz.trigger.acquired` | `Counter<long>` | `{trigger}` | `quartz.jobstore.lock`⁴, `quartz.jobstore.lock.reason`⁵ | Triggers returned by those rounds, fired or pending |
+| `quartz.trigger.due` | `ObservableGauge<long>` | `{trigger}` | `quartz.execution.group`¹ | Waiting triggers whose fire time has passed, from 4.9. See [The due backlog](#the-due-backlog) |
+| `quartz.trigger.due.age` | `ObservableGauge<double>` | `s` | `quartz.execution.group`¹ | Time since the earliest of those fire times, from 4.9 |
 | `quartz.cluster.checkin.duration` | `Histogram<double>` | `s` | `error.type`² | Cluster check-in duration, per attempt |
 | `quartz.cluster.recovery.trigger` | `Counter<long>` | `{trigger}` | `quartz.cluster.recovered.instance.id` | Fired-trigger rows recovered from a failed node |
 | `quartz.jobstore.operation.duration` | `Histogram<double>` | `s` | `quartz.jobstore.operation`, `error.type`² | Every store round trip, by operation |
@@ -236,8 +238,8 @@ another session returns and throws nothing, so no operation or failure is record
 event 3716 in [Log Events](../log-events.md); the case is
 [A Lock Held by a Connection That Is Gone](../../troubleshooting.md#a-lock-held-by-a-connection-that-is-gone).
 
-The two cluster instruments and the lock-wait histogram come from the ADO.NET store, the only clustered one. The
-other nine work with any store.
+The two cluster instruments, the lock-wait histogram and the two due-trigger gauges come from the ADO.NET store.
+The other nine work with any store.
 
 ### Reading the numbers
 
@@ -304,6 +306,31 @@ histogram_quantile(0.95,
   finer percentiles, set explicit boundaries for the instrument in a view.
 - Some exporters add the unit to the series name: `quartz_job_execution_start_delay_seconds_bucket`.
 
+### The due backlog
+
+`quartz.trigger.due` counts the `WAITING` triggers whose fire time has passed, per execution group.
+`quartz.trigger.due.age` is how long the earliest of them has been due. Together they show work piling up
+before any job starts: a stalled cluster, or an execution group at its limit.
+
+- **Aggregate with `max`, never `sum`.** Every node counts the whole scheduler's backlog, not only the groups it
+  serves, and reports it under its own `quartz.scheduler.id`. A sum multiplies the backlog by the number of nodes.
+- **Counted in the misfire pass.** The store counts at most once per `MisfireHandlerFrequency`, which defaults to
+  the misfire threshold. The gauges report that count, measured when it was taken. For fresher numbers, lower
+  `MisfireHandlerFrequency`: the misfire pass then runs as often.
+- **No data means no current count.** A count older than two intervals is not reported, so a store that has
+  stopped passing shows as missing data, not as its last value. A group whose backlog clears reports `0`.
+- **Paused, blocked and acquired triggers are not counted.** A paused or blocked trigger waits on purpose, and
+  an acquired one is about to fire.
+- **The query runs only while something collects either gauge.** To collect the `Quartz` meter without it,
+  drop both instruments in a view (`MetricStreamConfiguration.Drop`).
+- The query reads every due row, so its cost grows with the backlog.
+
+::: warning The age resets at the misfire threshold
+Misfire handling rewrites a trigger's next fire time. A one-off trigger with the default `FireNow` instruction is
+re-timed to now each time it passes the threshold, so its age drops back to zero while it still waits. The count
+stays right. Past the misfire threshold, alert on the rate of `quartz.trigger.misfire` instead.
+:::
+
 ## OpenTelemetry.Instrumentation.Quartz
 
 [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz) is
@@ -343,7 +370,7 @@ Replace it with the two calls at the top of this page, `AddSource(QuartzInstrume
 - Lost: the package's `QuartzInstrumentationOptions.TracedOperations` filter. Subscribing directly records both
   `Quartz.Job.Execute` and `Quartz.Job.Veto`; drop one with an OpenTelemetry
   [processor or sampler](https://opentelemetry.io/docs/languages/dotnet/).
-- Gained: everything 4.x added, including the store spans and all twelve instruments.
+- Gained: everything 4.x added, including the store spans and all fourteen instruments.
 
 ## Older packages
 

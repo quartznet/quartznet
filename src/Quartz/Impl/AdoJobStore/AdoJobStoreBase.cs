@@ -1497,6 +1497,11 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
             await misfireHandler.Shutdown().ConfigureAwait(false);
         }
 
+        if (dueTriggerBacklog is not null)
+        {
+            Meters.UnregisterDueTriggers(dueTriggerBacklog);
+        }
+
         bool checkInsEnded = true;
         if (clusterManager is not null)
         {

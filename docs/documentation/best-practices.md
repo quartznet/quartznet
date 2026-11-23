@@ -849,8 +849,8 @@ The job and trigger name and group, the job type and the fire instance id are at
 store-operation spans: acquisition latency and its exceptions are where a struggling database first
 shows.
 
-**Metrics are 4.x only**; Quartz 3.x publishes none. There are eight instruments, on a meter named
-`Quartz`. **Every measurement carries `quartz.scheduler.name` and `quartz.scheduler.id`**, so you
+**Metrics are 4.x only**; Quartz 3.x publishes none. The instruments are on a meter named `Quartz`;
+these are the ones to watch. **Every measurement carries `quartz.scheduler.name` and `quartz.scheduler.id`**, so you
 can split by node and by scheduler with no instrumentation of your own.
 
 | Instrument | Shows |
@@ -860,6 +860,7 @@ can split by node and by scheduler with no instrumentation of your own.
 | `quartz.trigger.misfire` | Firings that did not happen on time; alert on it for a slipping schedule or a group stuck at its limit |
 | `quartz.trigger.acquisition.duration` | How long the scheduling loop waited on the store; a struggling database shows here first |
 | `quartz.trigger.acquired` | Triggers acquired |
+| `quartz.trigger.due`, `quartz.trigger.due.age` | From 4.9, ADO.NET store only: triggers due and not yet picked up, per execution group, and how long the oldest has waited. Aggregate nodes with `max` |
 | `quartz.cluster.checkin.duration` | Cluster check-in time |
 | `quartz.cluster.recovery.trigger` | A node's work being taken over |
 | `quartz.jobstore.operation.duration` | Store operations, tagged with the operation's name |
@@ -867,8 +868,8 @@ can split by node and by scheduler with no instrumentation of your own.
 The [OpenTelemetry page](quartz-4.x/packages/opentelemetry-integration.md#metrics) lists each
 instrument's attributes.
 
-**There is no trigger-state gauge.** Query the store instead: count `QRTZ_TRIGGERS` by
-`TRIGGER_STATE`, and alert on `ERROR` and on `BLOCKED` rows older than your longest job. Count
+**The only trigger-state gauges are the due backlog's.** For any other state, query the store: count
+`QRTZ_TRIGGERS` by `TRIGGER_STATE`, and alert on `ERROR` and on `BLOCKED` rows older than your longest job. Count
 `QRTZ_FIRED_TRIGGERS` to see what the cluster believes is running; in 4.x,
 `IScheduler.QueryFireInstances` answers that without SQL.
 

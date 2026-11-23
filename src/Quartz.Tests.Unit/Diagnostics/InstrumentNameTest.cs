@@ -137,6 +137,8 @@ public sealed class InstrumentNameTest
                 "quartz.trigger.retries_exhausted",
                 "quartz.trigger.acquisition.duration",
                 "quartz.trigger.acquired",
+                "quartz.trigger.due",
+                "quartz.trigger.due.age",
                 "quartz.cluster.checkin.duration",
                 "quartz.cluster.recovery.trigger",
                 "quartz.jobstore.operation.duration",

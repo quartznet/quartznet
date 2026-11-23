@@ -21,6 +21,7 @@
 
 using System.Runtime.InteropServices;
 
+using Quartz.Diagnostics;
 using Quartz.Extensibility;
 using Quartz.Impl.Triggers;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -638,6 +639,48 @@ internal abstract partial class AdoJobStoreBase
         }
     }
 
+    /// <summary>
+    /// The backlog the due-trigger gauges read, created at the first count and registered with
+    /// <see cref="Meters" /> until shutdown. Only the misfire handler's thread writes these.
+    /// </summary>
+    private DueTriggerBacklog? dueTriggerBacklog;
+
+    private DateTimeOffset dueTriggersLastCountedUtc = DateTimeOffset.MinValue;
+
+    /// <summary>
+    /// Counts the scheduler's due backlog for the due-trigger gauges (#4401), at most once per
+    /// <see cref="MisfireHandlerFrequency" /> and only while something collects them.
+    /// </summary>
+    /// <remarks>
+    /// The pass reruns after 50 ms while misfires remain, hence the interval check. A snapshot older than
+    /// two intervals is not reported, so a handler that stops passing shows as missing data rather than
+    /// as its last count.
+    /// </remarks>
+    private async ValueTask CountDueTriggers(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
+    {
+        if (!Meters.TriggersDueEnabled || Delegate is not StdAdoDelegate shipped)
+        {
+            return;
+        }
+
+        DateTimeOffset now = timeProvider.GetUtcNow();
+        if (now - dueTriggersLastCountedUtc < MisfireHandlerFrequency)
+        {
+            return;
+        }
+
+        List<DueTriggers> due = await shipped.SelectDueTriggersByExecutionGroup(conn, now, cancellationToken).ConfigureAwait(false);
+        dueTriggersLastCountedUtc = now;
+
+        if (dueTriggerBacklog is null)
+        {
+            dueTriggerBacklog = new DueTriggerBacklog(InstanceName, InstanceId, timeProvider, MisfireHandlerFrequency * 2);
+            Meters.RegisterDueTriggers(dueTriggerBacklog);
+        }
+
+        dueTriggerBacklog.Publish(now, due);
+    }
+
     internal async ValueTask<RecoverMisfiredJobsResult> RecoverMisfires(
         Guid requestorId,
         CancellationToken cancellationToken = default)
@@ -667,12 +710,16 @@ internal abstract partial class AdoJobStoreBase
                 transOwner = await AcquireLock(requestorId, null, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
                 locked = true;
                 conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
+                await CountDueTriggers(conn, cancellationToken).ConfigureAwait(false);
                 result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                 staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
             }
             else
             {
                 conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
+
+                // Before the lock is taken, so the count never holds up the store's other work.
+                await CountDueTriggers(conn, cancellationToken).ConfigureAwait(false);
 
                 // Before we make the potentially expensive call to acquire the
                 // trigger lock, peek ahead to see if it is likely we would find
