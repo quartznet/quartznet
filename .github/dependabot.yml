@@ -111,6 +111,13 @@ updates:
       # fixes both Pkcs advisories (#4366). Lift this when the Pkcs floor moves.
       - dependency-name: "Oracle.ManagedDataAccess.Core"
         versions: [">= 23.26.401"]
+      # Npgsql 11 folds Npgsql.DependencyInjection into Npgsql, so AddNpgsqlDataSource is ambiguous beside the
+      # 10.x that Aspire.Npgsql (13.6.5 and 17.0.0) still brings (CS0121, #4405). It also removes
+      # NpgsqlConnectionStringBuilder.Multiplexing, which Npgsql.EntityFrameworkCore.PostgreSQL 10 still sets,
+      # and that provider's 11 is net11.0 only. Weasel.Postgresql 10 floors Npgsql at 11.0.0: lift this with the
+      # Weasel range below, in the same change.
+      - dependency-name: "Npgsql"
+        versions: [">= 11.0.0"]
       # The Quartz.Weasel packages depend on Weasel by range, [9.39.0, 10.0.0): Weasel 10 is a new major
       # the packages have to be built and tested against first. A single requirement with no comma in it,
       # because the C# updater splits a requirement string on commas.
