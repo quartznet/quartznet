@@ -167,12 +167,15 @@ attempt is still `Failed`, but every store skips settling on `SchedulerInstructi
 
 ## When the parent is deleted
 
-When a parent is removed (`UnscheduleJob`, `DeleteJob` or any other trigger deletion) while continuations
-wait, there is no outcome:
+When a parent is removed (`UnscheduleJob`, `DeleteJob` or any other trigger deletion), or replaced by a
+trigger of another key (`RescheduleJob`), while continuations wait, there is no outcome:
 
 * `OnAnyOutcome` continuations are released anyway.
 * Narrower ones are parked in `TriggerState.Error`, with `ISchedulerListener.TriggerInError`, for an
   operator, rather than deleted or left waiting.
+
+After a replace under another key, the in-memory store settles them in the call and the persistent store at
+its next misfire pass.
 
 This does not apply to a continuation *discarded* by its parent's outcome; that [cascades](#the-model).
 

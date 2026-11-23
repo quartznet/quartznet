@@ -491,6 +491,52 @@ public sealed class ContinuationSettlementTest
         signals.Finalized.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// A replacement under another key leaves nothing under the old one, so what waited for the old key
+    /// waits for a firing that can never come: it is settled as a deletion's dependants are.
+    /// </summary>
+    [Test]
+    public async Task ReplacingAParentWithATriggerOfAnotherKeySettlesWhatWaitedForItAsADeletionDoes()
+    {
+        IOperableTrigger parent = await ScheduleParent("renamed");
+        IOperableTrigger onSuccess = await ScheduleContinuation("orphaned", parent.Key, ContinuationCondition.OnSuccess);
+        IOperableTrigger onAny = await ScheduleContinuation("indifferent", parent.Key, ContinuationCondition.OnAnyOutcome);
+
+        (await store.ReplaceTrigger(parent.Key, Hourly("new-name", parent.JobKey))).Should().BeTrue();
+
+        if (kind == ContinuationStoreKind.Sqlite)
+        {
+            // The database store deletes the old row and leaves its dependants to the stranded sweep, which
+            // settles them as a deleted parent's at the next misfire pass rather than in the replace.
+            (await store.GetTriggerState(onSuccess.Key)).Should().Be(TriggerState.Awaiting);
+            await ((AdoJobStoreBase) store).RecoverMisfires(Guid.NewGuid());
+        }
+
+        (await store.GetTriggerState(onSuccess.Key)).Should().Be(TriggerState.Error,
+            "no trigger holds the key it waits for any more, which is the question a deleted parent leaves unanswered");
+        (await store.GetTriggerState(onAny.Key)).Should().Be(TriggerState.Normal,
+            "'however it ends' is released, as it is when the parent is deleted");
+        signals.InError.Should().Equal([onSuccess.Key]);
+        signals.Finalized.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task AReplacementUnderATakenKeyIsRefusedBeforeWhatWaitedForTheOldKeyIsSettled()
+    {
+        IOperableTrigger parent = await ScheduleParent("kept");
+        IOperableTrigger dependant = await ScheduleContinuation("still-waiting", parent.Key, ContinuationCondition.OnSuccess);
+        IOperableTrigger taken = await ScheduleParent("taken");
+
+        Func<Task> replace = async () => await store.ReplaceTrigger(parent.Key, Hourly(taken.Key.Name, parent.JobKey));
+
+        await replace.Should().ThrowAsync<ObjectAlreadyExistsException>();
+
+        (await store.GetTriggerState(parent.Key)).Should().Be(TriggerState.Normal);
+        (await store.GetTriggerState(dependant.Key)).Should().Be(TriggerState.Awaiting,
+            "a refused replacement leaves the store as it was, the triggers waiting for the old key included");
+        signals.InError.Should().BeEmpty();
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////
     // A continuation whose parent does not exist is refused when it is stored
     //////////////////////////////////////////////////////////////////////////////////////////////
