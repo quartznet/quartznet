@@ -70,8 +70,25 @@ public class ClusterPageTest
             .Should().Equal(["4.9.0", "older than 4.6"]);
         page.Find("[data-testid=cluster-mixed-versions]").TextContent.Should()
             .Contain("older than 4.6 on node-b; 4.9.0 on " + TestData.SchedulerInstanceId)
+            .And.Contain("While node node-b (older than 4.6) is live")
             .And.Contain("takes TRIGGER_ACCESS")
             .And.Contain("never answered");
+    }
+
+    /// <summary>
+    /// The banner says only what holds on every database: between nodes of 4.6 or later it names the versions
+    /// and claims no cost.
+    /// </summary>
+    [Test]
+    public void NodesOf46OrLaterThatDifferAreNamedWithNoCostClaimed()
+    {
+        GivenNodes(CurrentNode() with { QuartzVersion = "4.9.0" }, Node("node-b", ClusterNodeState.Alive) with { QuartzVersion = "4.6.3" });
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        string banner = page.Find("[data-testid=cluster-mixed-versions]").TextContent;
+        banner.Should().Contain("4.6.3 on node-b; 4.9.0 on " + TestData.SchedulerInstanceId);
+        banner.Should().NotContain("SQL Server").And.NotContain("TRIGGER_ACCESS");
     }
 
     /// <summary>

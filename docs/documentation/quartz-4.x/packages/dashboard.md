@@ -350,7 +350,11 @@ From 4.7, every trigger's page lists its next ten fire times, whatever the trigg
 
 From 4.9, every trigger's page works through the checks of [Nothing is firing](../operations.md#nothing-is-firing)
 and gives a verdict for each: ✓ fine, ℹ worth knowing, ⚠ may hold it back, ✗ holds it back, ? could not be told.
-The line above the checks counts the ⚠ and ✗ findings.
+
+- **Nothing found**: the section is one line, *Nothing found that stops this trigger firing.*, with the checks
+  behind a toggle beside it.
+- **Something found**: the section opens with the ⚠ and ✗ findings, worst first, and a count. The checks that
+  passed are behind the toggle.
 
 | Check | Holds it back when | Link or action |
 |---|---|---|
@@ -536,10 +540,10 @@ the last refresh time in the header so a stalled page is visible.
   - *older than 4.6*: the row has no stamp; nodes stamp it from 4.6.
   - *not reported*: the host answering is older than 4.9 and sends no versions.
   - A store with no check-in rows shows the answering node's own version, and a dash for the rest.
-- **A banner while the live nodes run different versions** names each version's nodes and what the older ones
-  cost: while a node older than 4.6 is live, every round of work that allows concurrent execution takes
-  `TRIGGER_ACCESS` (event `3517`), and an interrupt request for its firings is never answered (`3520`). A 4.6
-  node beside newer ones makes every SQL Server round take the lock. See
+- **A banner while the live nodes run different versions** names each version's nodes. While a node older than
+  4.6 is live, it names that node and its version and says what it costs on every database: every round of work
+  that allows concurrent execution takes `TRIGGER_ACCESS` (event `3517`), and an interrupt request for its
+  firings is never answered (`3520`). It claims nothing that depends on the database. See
   [Upgrading a running deployment](../migration-guide.md#upgrading-a-running-deployment).
 - The state (`Alive`, `Overdue` or `Failed`) is `IScheduler.QueryClusterNodes()`'s verdict, from the same
   predicate the store's recovery sweep uses. Meanings, and why a `Failed` node is listed briefly and then

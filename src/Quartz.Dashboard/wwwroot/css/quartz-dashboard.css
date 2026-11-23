@@ -2368,6 +2368,16 @@ body{
 .qz-diagnosis-problem .qz-diagnosis-verdict { color: var(--qz-color-danger); }
 .qz-diagnosis-unknown .qz-diagnosis-verdict { color: var(--qz-color-text-muted); }
 
+.qz-diagnosis-details > summary {
+    cursor: pointer;
+    margin-bottom: var(--qz-space-sm);
+}
+
+.qz-diagnosis-toggle {
+    margin-left: var(--qz-space-sm);
+    font-size: var(--qz-font-size-sm);
+}
+
 .qz-diagnosis-table .qz-details-link,
 .qz-diagnosis-table .qz-button {
     margin-left: var(--qz-space-sm);
