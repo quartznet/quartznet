@@ -17,6 +17,8 @@
  */
 #endregion
 
+using Quartz.AspNetCore;
+
 namespace Quartz.Dashboard.Services;
 
 internal sealed record DashboardActionLogEntry(
@@ -67,6 +69,22 @@ internal sealed record DashboardActionLogEntry(
     /// the scheduler. Always beside a false <see cref="Succeeded" />. Added in 4.8.
     /// </summary>
     public bool Refused { get; init; }
+
+    /// <summary>
+    /// The surface the action came through: a page's own button, a request to the HTTP API this process
+    /// maps, or a tool an MCP client called. Added in 4.9.
+    /// </summary>
+    /// <remarks>
+    /// Until 4.9 the log held what the dashboard's buttons did and nothing else, so a script that paused a
+    /// trigger through the host's API left the operator's page silent about it.
+    /// </remarks>
+    public OperatorChannel Via { get; init; } = OperatorChannel.Dashboard;
+
+    /// <summary>
+    /// The client's own name for itself, as it stated it — an MCP client's — or <see langword="null" />.
+    /// Shown as stated, never as an identity: the identity is <see cref="User" />. Added in 4.9.
+    /// </summary>
+    public string? Client { get; init; }
 }
 
 internal sealed class DashboardActionLogService
@@ -107,7 +125,17 @@ internal sealed class DashboardActionLogService
     /// Filtered before the count is taken. The log is one list for every scheduler in the process, so taking
     /// the latest entries first left a page with few or none once another scheduler had been busier.
     /// </remarks>
-    public IReadOnlyList<DashboardActionLogEntry> GetLatest(string? schedulerName, int maxCount)
+    public IReadOnlyList<DashboardActionLogEntry> GetLatest(string? schedulerName, int maxCount) => GetLatest(schedulerName, via: null, maxCount);
+
+    /// <summary>
+    /// The latest <paramref name="maxCount" /> entries for <paramref name="schedulerName" /> that came through
+    /// <paramref name="via" />, newest first; every surface's when it is <see langword="null" />.
+    /// </summary>
+    /// <remarks>
+    /// Filtered before the count is taken, as the scheduler is: a script that changes things often would
+    /// otherwise push the page's own entries off the first page of a filter that asked for them.
+    /// </remarks>
+    public IReadOnlyList<DashboardActionLogEntry> GetLatest(string? schedulerName, OperatorChannel? via, int maxCount)
     {
         int safeMaxCount = Math.Clamp(maxCount, 1, maxEntries);
         bool everyScheduler = string.IsNullOrWhiteSpace(schedulerName);
@@ -115,6 +143,7 @@ internal sealed class DashboardActionLogService
         {
             return entries
                 .Where(entry => everyScheduler || string.Equals(entry.SchedulerName, schedulerName, StringComparison.OrdinalIgnoreCase))
+                .Where(entry => via is null || entry.Via == via)
                 .Take(safeMaxCount)
                 .ToList();
         }

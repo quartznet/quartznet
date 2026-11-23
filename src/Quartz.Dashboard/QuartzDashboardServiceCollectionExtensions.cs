@@ -182,6 +182,10 @@ public static class QuartzDashboardServiceCollectionExtensions
         AddHistory(services);
         services.TryAddSingleton<DashboardActionLogService>();
 
+        // What the HTTP API and MCP of this process did, in the same log as what the pages did: their audit
+        // hands every change and every refusal to the recorders registered here (#4218).
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IOperatorActionRecorder, HttpApiActionRecorder>());
+
         // Scoped over the singleton store: the entries are the process's, and who made one is the
         // circuit's. Pages talk to this, which writes both the page's own log and the application's.
         services.TryAddScoped<DashboardActionLog>();

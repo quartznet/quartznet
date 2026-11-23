@@ -2780,6 +2780,20 @@ body{
     color: var(--qz-color-primary);
 }
 
+/* The Action Log's Via badge: which surface an action came through. The page's own buttons keep the plain
+   tag, so the entries a script or an agent made are the ones that stand out. */
+.qz-tag-via-api {
+    background-color: var(--qz-color-info-bg);
+    border-color: var(--qz-color-info);
+    color: var(--qz-color-info);
+}
+
+.qz-tag-via-mcp {
+    background-color: var(--qz-color-warning-bg);
+    border-color: var(--qz-color-warning);
+    color: var(--qz-color-warning);
+}
+
 /* ==========================================================================
    18. EMPTY STATE
    ========================================================================== */
