@@ -37,7 +37,7 @@ An application on 4.8 compiles on 4.9 unchanged.
 
 | Added | What it is |
 |---|---|
-| Package `Quartz.EntityFrameworkCore`: `QuartzModelBuilderExtensions.AddQuartzTables(this ModelBuilder, string? providerName, Action<QuartzTablesOptions>?)`, `QuartzTablesOptions` (`TablePrefix`, `Schema`) | The job store's tables in an application's own EF Core model, so `dotnet ef migrations add` creates and upgrades them. PostgreSQL, SQL Server, MySQL, SQLite, Oracle and Firebird. See [Entity Framework Core](packages/entity-framework-core.md) |
+| Package `Quartz.EntityFrameworkCore`: `QuartzModelBuilderExtensions.AddQuartzTables(this ModelBuilder, string? providerName, Action<QuartzTablesOptions>?)`, `QuartzTablesOptions` (`TablePrefix`, `Schema`, `MaxIdentifierLength`) | The job store's tables in an application's own EF Core model, so `dotnet ef migrations add` creates and upgrades them. PostgreSQL, SQL Server, MySQL, SQLite, Oracle and Firebird. See [Entity Framework Core](packages/entity-framework-core.md) |
 | `QuartzMigrationBuilderExtensions.CompleteQuartzSchema(this MigrationBuilder, Action<QuartzTablesOptions>?)` | What the model cannot say: SQLite's delete triggers, MySQL's descending index column. See [The first migration](packages/entity-framework-core.md#the-first-migration) |
 | `QuartzMigrationBuilderExtensions.MoveQuartzTablesFromAppAny(this MigrationBuilder, Action<QuartzTablesOptions>?)` | The one migration from AppAny.Quartz.EntityFrameworkCore.Migrations 0.6.3. See [Moving off AppAny](packages/entity-framework-core.md#moving-off-appany) |
 
