@@ -400,6 +400,8 @@ public class TriggerDetailPageTest
         A.CallTo(() => context.Api.QueryFireInstances(TestData.SchedulerName, A<DashboardFireInstanceQuery>.That.Matches(query =>
                 query.Job == new JobKeyDto("CronJobGroup", "CronJobKey")), A<CancellationToken>._))
             .MustHaveHappened();
+        page.Find(".qz-diagnosis-interrupt").GetAttribute("aria-label").Should().Be("Interrupt firing fire-7",
+            "a screen reader says which firing the button stops");
 
         page.Find(".qz-diagnosis-interrupt").Click();
 

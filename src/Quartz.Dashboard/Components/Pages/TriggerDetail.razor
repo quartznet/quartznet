@@ -650,7 +650,7 @@
                                 }
                                 else
                                 {
-                                    <button type="button" class="qz-button qz-diagnosis-interrupt" @onclick="() => InterruptFiringAsync(fireInstanceId)">Interrupt</button>
+                                    <button type="button" class="qz-button qz-diagnosis-interrupt" aria-label="@("Interrupt firing " + fireInstanceId)" @onclick="() => InterruptFiringAsync(fireInstanceId)">Interrupt</button>
                                 }
                             }
                             @if (check.Action == DiagnosisAction.ResetError && CanReset)

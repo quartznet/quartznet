@@ -391,9 +391,10 @@ internal static class TriggerDiagnosis
         }
 
         // Due and not yet five minutes late, as a held trigger's often is: said as due, not as still ahead.
-        return new DiagnosisCheck(Name, DiagnosisVerdict.Ok, next <= now
-            ? formatTime(next) + " (due " + DisplayValueHelper.FormatSince(next, now) + ")."
-            : formatTime(next) + " (" + DisplayValueHelper.FormatUntil(next, now) + ").");
+        string when = next > now
+            ? DisplayValueHelper.FormatUntil(next, now)
+            : now - next < TimeSpan.FromMinutes(1) ? "just due" : "due " + DisplayValueHelper.FormatSince(next, now);
+        return new DiagnosisCheck(Name, DiagnosisVerdict.Ok, formatTime(next) + " (" + when + ").");
     }
 
     private static DiagnosisCheck CheckExecutionGroup(TriggerDiagnosisFacts facts)
