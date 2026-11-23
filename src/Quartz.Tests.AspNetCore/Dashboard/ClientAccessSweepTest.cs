@@ -115,6 +115,7 @@ public class ClientAccessSweepTest
             "GetScheduler",
             "GetSchedulers",
             "GetTrigger",
+            "GetTriggerGroupPause",
             "GetTriggerPause",
             "GetTriggerState",
             "GetTriggersOfJob",

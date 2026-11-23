@@ -168,27 +168,37 @@
                 <h2>Why isn't it firing?</h2>
                 @if (findings.Count == 0)
                 {
-                    <details class="qz-diagnosis-details" data-testid="trigger-diagnosis-checks">
-                        <summary>
-                            <span data-testid="trigger-diagnosis-summary">Nothing found that stops this trigger firing.</span>
-                            <span class="qz-muted qz-diagnosis-toggle">Show the @others.Count checks</span>
-                        </summary>
-                        @CheckTable(others)
-                    </details>
+                    <p class="qz-diagnosis-line">
+                        <span data-testid="trigger-diagnosis-summary">Nothing found that stops this trigger firing.</span>
+                        <button type="button"
+                                class="qz-diagnosis-toggle"
+                                data-testid="trigger-diagnosis-toggle"
+                                aria-expanded="@(_checksShown ? "true" : "false")"
+                                aria-controls="trigger-diagnosis-checks"
+                                @onclick="ToggleChecks">@(_checksShown ? "Hide the checks" : "Show the " + others.Count + " checks")</button>
+                    </p>
                 }
                 else
                 {
                     <p data-testid="trigger-diagnosis-summary">
                         @(findings.Count == 1 ? "One finding may stop this trigger firing." : findings.Count + " findings may stop this trigger firing.")
                     </p>
-                    <div data-testid="trigger-diagnosis-findings">@CheckTable(findings)</div>
+                    <div class="qz-table-scroll" data-testid="trigger-diagnosis-findings">@CheckTable(findings)</div>
                     @if (others.Count > 0)
                     {
-                        <details class="qz-diagnosis-details" data-testid="trigger-diagnosis-checks">
-                            <summary><span class="qz-muted qz-diagnosis-toggle">Show the @others.Count other checks</span></summary>
-                            @CheckTable(others)
-                        </details>
+                        <p class="qz-diagnosis-line">
+                            <button type="button"
+                                    class="qz-diagnosis-toggle"
+                                    data-testid="trigger-diagnosis-toggle"
+                                    aria-expanded="@(_checksShown ? "true" : "false")"
+                                    aria-controls="trigger-diagnosis-checks"
+                                    @onclick="ToggleChecks">@(_checksShown ? "Hide the other checks" : "Show the " + others.Count + " other checks")</button>
+                        </p>
                     }
+                }
+                @if (_checksShown && others.Count > 0)
+                {
+                    <div id="trigger-diagnosis-checks" class="qz-table-scroll" data-testid="trigger-diagnosis-checks">@CheckTable(others)</div>
                 }
             </section>
         }
@@ -196,6 +206,14 @@
         @* Every trigger type's, computed by its scheduler and read through the client, so a scheduler reached
            over HTTP or through an agent shows the same panel. *@
         <h2>Upcoming fires</h2>
+        @if (_triggerState == TriggerState.Paused)
+        {
+            @* A paused trigger keeps its schedule, so the list below is still its schedule's times: it fires none of
+               them until it is resumed, and its misfire instruction then decides what it missed. *@
+            <p class="qz-muted" data-testid="upcoming-fires-paused">
+                Paused: these are its schedule's times, and it fires none of them until it is resumed.
+            </p>
+        }
         <UpcomingFires TriggerKey="@TriggerKey" Trigger="@_trigger" Count="10" />
 
         <h2>JobDataMap</h2>
@@ -377,6 +395,7 @@
         }
 
         _loadedKey = TriggerKey;
+        _checksShown = false;
 
         // Another trigger's details are not ones to keep as stale.
         _lastUpdatedAt = null;
@@ -589,6 +608,17 @@
             "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not resumed - it no longer exists or was not paused.",
             actionName: "ResumeTrigger",
             target: DisplayValueHelper.FormatKey(Group, Name));
+    }
+
+    /// <summary>
+    /// Whether the diagnosis's passed checks are shown; behind the toggle until asked for, and kept as asked across
+    /// a refresh.
+    /// </summary>
+    private bool _checksShown;
+
+    private void ToggleChecks()
+    {
+        _checksShown = !_checksShown;
     }
 
     /// <summary>The diagnosis's checks as rows: the verdict, the finding, and its link or action.</summary>

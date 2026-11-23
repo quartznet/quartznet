@@ -1396,13 +1396,16 @@ body{
     vertical-align: bottom;
 }
 
-/* A job whose latest occurrences failed for good, and how many in a row. */
-.qz-failing-badge {
+/* A job whose latest occurrences failed for good, and how many in a row. The deeper red of the pair, which
+   reaches AA on its tint in both themes (5.3:1 light, 5.8:1 dark), and named on a table cell's link too, whose
+   own colour would otherwise win. */
+.qz-failing-badge,
+.qz-table td > a.qz-failing-badge {
     display: inline-block;
     padding: 1px 8px;
     border-radius: var(--qz-radius-sm);
     background-color: var(--qz-color-danger-bg);
-    color: var(--qz-color-danger);
+    color: var(--qz-color-danger-hover);
     font-size: var(--qz-font-size-sm);
     font-weight: 600;
     text-decoration: none;
@@ -2053,9 +2056,10 @@ body{
    here hold the value labels on the left, the last time label on the right and the time axis beneath. Only
    the plot stretches, so a wide page widens the time axis and nothing else. The labels are sized in rem,
    like the rest of the dashboard, so the gutters that hold them are too: a larger browser font grows both. */
+/* The top padding is the "Runs" title's row, clear of the top tick's label under it. */
 .qz-run-chart-panel {
     position: relative;
-    padding: 1.25rem 1.75rem 0.75rem 4rem;
+    padding: 2rem 1.75rem 0.75rem 4rem;
 }
 
 .qz-run-chart-panel-durations {
@@ -2306,16 +2310,19 @@ body{
     margin-bottom: var(--qz-space-md);
 }
 
-/* The header's search: a box, and the dropdown of what it found under it. */
+/* The header's search: a box, and the list of what it found under it. The highlighted result is the one
+   the arrow keys reached, drawn as a hovered one is. */
 .qz-header-search {
     position: relative;
     display: flex;
     align-items: center;
     gap: var(--qz-space-sm);
+    min-width: 0;
 }
 
 .qz-header-search-input {
     width: 16rem;
+    min-width: 0;
 }
 
 .qz-header-search-results {
@@ -2324,42 +2331,139 @@ body{
     left: 0;
     z-index: 50;
     min-width: 22rem;
+    max-width: min(32rem, calc(100vw - 2 * var(--qz-space-md)));
     max-height: 60vh;
     overflow-y: auto;
-    padding: var(--qz-space-sm) var(--qz-space-md);
+    padding: var(--qz-space-xs);
     border: 1px solid var(--qz-color-border-strong);
     border-radius: var(--qz-radius-md);
     background-color: var(--qz-color-surface);
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+    box-shadow: var(--qz-shadow-md, 0 8px 24px rgba(15, 23, 42, 0.15));
+}
+
+.qz-header-search-results > p {
+    margin: var(--qz-space-xs) var(--qz-space-sm);
 }
 
 .qz-header-search-heading {
-    margin: var(--qz-space-sm) 0 var(--qz-space-xs);
+    margin: var(--qz-space-sm) var(--qz-space-sm) var(--qz-space-xs);
     font-size: var(--qz-font-size-xs);
+    font-weight: var(--qz-font-weight-semibold);
     text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: var(--qz-color-text-secondary);
 }
 
-.qz-header-search-list {
-    list-style: none;
-    margin: 0 0 var(--qz-space-xs);
-    padding: 0;
+.qz-header-search-option {
+    display: block;
+    padding: var(--qz-space-xs) var(--qz-space-sm);
+    border-radius: var(--qz-radius-sm);
+    color: var(--qz-color-text);
+    font-size: var(--qz-font-size-sm);
+    text-decoration: none;
+    overflow-wrap: anywhere;
 }
 
-.qz-header-search-list li {
-    padding: 2px 0;
+.qz-header-search-option.qz-header-search-see-all {
+    color: var(--qz-color-primary);
+    font-weight: 600;
 }
 
-/* Trigger Detail's "Why isn't it firing?" */
-.qz-diagnosis-table th {
-    width: 12rem;
+.qz-header-search-option:hover,
+.qz-header-search-option.qz-header-search-option-active {
+    background-color: var(--qz-color-surface-hover);
+    color: var(--qz-color-primary);
+}
+
+.qz-header-search-option.qz-header-search-option-active {
+    box-shadow: inset 3px 0 0 var(--qz-color-primary);
+}
+
+/* Narrow: the search takes a row of its own under the scheduler picker, the box as wide as the row. */
+@media (max-width: 768px) {
+    .qz-header-left {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .qz-header-search {
+        flex: 1 1 100%;
+    }
+
+    .qz-header-search-label {
+        display: none;
+    }
+
+    .qz-header-search-input {
+        flex: 1 1 auto;
+        width: auto;
+    }
+
+    .qz-header-search-results {
+        right: 0;
+        min-width: 0;
+        max-width: none;
+    }
+}
+
+/* A table that keeps its columns and scrolls inside its card when the card is narrower than it. */
+.qz-table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* The Overview's Needs attention: the failing jobs beside the day's runs where both fit, else stacked. */
+.qz-needs-attention-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--qz-space-md);
+    align-items: start;
+}
+
+@media (min-width: 1280px) {
+    .qz-needs-attention-columns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.qz-needs-attention-columns .qz-run-chart {
+    margin-top: 0;
+}
+
+.qz-needs-attention-when {
     white-space: nowrap;
 }
 
+.qz-needs-attention-message {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+    .qz-needs-attention-message {
+        display: none;
+    }
+}
+
+/* Trigger Detail's "Why isn't it firing?" */
+.qz-diagnosis-table {
+    table-layout: fixed;
+}
+
+.qz-diagnosis-table th {
+    width: 11rem;
+    overflow-wrap: anywhere;
+}
+
 .qz-diagnosis-table td.qz-diagnosis-verdict {
-    width: 2rem;
+    width: 2.5rem;
     text-align: center;
     font-weight: 600;
+}
+
+.qz-diagnosis-table td:last-child {
+    text-align: left;
+    overflow-wrap: anywhere;
 }
 
 .qz-diagnosis-ok .qz-diagnosis-verdict { color: var(--qz-color-success); }
@@ -2368,19 +2472,70 @@ body{
 .qz-diagnosis-problem .qz-diagnosis-verdict { color: var(--qz-color-danger); }
 .qz-diagnosis-unknown .qz-diagnosis-verdict { color: var(--qz-color-text-muted); }
 
-.qz-diagnosis-details > summary {
-    cursor: pointer;
-    margin-bottom: var(--qz-space-sm);
+.qz-diagnosis-line {
+    margin: var(--qz-space-sm) 0;
 }
 
+/* The toggle reads as a link: it opens and closes what is under it, and says which it will do. */
 .qz-diagnosis-toggle {
     margin-left: var(--qz-space-sm);
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--qz-color-primary);
+    font: inherit;
     font-size: var(--qz-font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.qz-diagnosis-line > .qz-diagnosis-toggle:first-child {
+    margin-left: 0;
+}
+
+.qz-diagnosis-toggle:hover {
+    text-decoration: underline;
 }
 
 .qz-diagnosis-table .qz-details-link,
 .qz-diagnosis-table .qz-button {
     margin-left: var(--qz-space-sm);
+}
+
+/* Narrow: each check is the verdict and its name on one line, the finding under them, the full width. */
+@media (max-width: 640px) {
+    .qz-diagnosis-table,
+    .qz-diagnosis-table tbody {
+        display: block;
+    }
+
+    .qz-diagnosis-table tr {
+        display: grid;
+        grid-template-columns: 2rem minmax(0, 1fr);
+        border-bottom: 1px solid var(--qz-color-border);
+    }
+
+    .qz-diagnosis-table th,
+    .qz-diagnosis-table td {
+        border: none;
+    }
+
+    .qz-diagnosis-table th {
+        grid-column: 2;
+        grid-row: 1;
+        width: auto;
+    }
+
+    .qz-diagnosis-table td.qz-diagnosis-verdict {
+        grid-column: 1;
+        grid-row: 1;
+        width: auto;
+    }
+
+    .qz-diagnosis-table td:last-child {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
 }
 
 /* ==========================================================================
@@ -3928,4 +4083,3 @@ body{
         display: inline;
     }
 }
-

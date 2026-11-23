@@ -390,8 +390,13 @@ public class TriggerDetailPageTest
             "the trigger is blocked, and the firing is what blocks it");
         page.FindAll("[data-testid=trigger-diagnosis-findings] tr").Select(row => row.GetAttribute("data-check")).Should()
             .Equal(["Trigger", "Its job's firings"], "the findings open the section, ahead of the checks that passed");
-        page.Find("details[data-testid=trigger-diagnosis-checks]").HasAttribute("open").Should().BeFalse("the checks that passed are behind the toggle");
-        page.FindAll("details[data-testid=trigger-diagnosis-checks] tr").Should().HaveCount(7);
+        page.FindAll("[data-testid=trigger-diagnosis-checks]").Should().BeEmpty("the checks that passed are behind the toggle");
+        page.Find("[data-testid=trigger-diagnosis-toggle]").TextContent.Should().Be("Show the 7 other checks");
+
+        page.Find("[data-testid=trigger-diagnosis-toggle]").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=trigger-diagnosis-checks] tr").Should().HaveCount(7));
+        page.Find("[data-testid=trigger-diagnosis-toggle]").TextContent.Should().Be("Hide the other checks");
         A.CallTo(() => context.Api.QueryFireInstances(TestData.SchedulerName, A<DashboardFireInstanceQuery>.That.Matches(query =>
                 query.Job == new JobKeyDto("CronJobGroup", "CronJobKey")), A<CancellationToken>._))
             .MustHaveHappened();
@@ -413,11 +418,75 @@ public class TriggerDetailPageTest
             .Should().Be("Nothing found that stops this trigger firing."));
 
         // One line, and every check behind the toggle beside it.
-        AngleSharp.Dom.IElement checks = page.Find("details[data-testid=trigger-diagnosis-checks]");
-        checks.HasAttribute("open").Should().BeFalse("with nothing found the section is one line until it is opened");
-        checks.QuerySelector("summary")!.TextContent.Should().Contain("Nothing found that stops this trigger firing.").And.Contain("Show the 9 checks");
-        checks.QuerySelectorAll("tbody tr").Should().HaveCount(9);
+        page.FindAll("[data-testid=trigger-diagnosis-checks]").Should().BeEmpty("with nothing found the section is one line until it is opened");
         page.FindAll("[data-testid=trigger-diagnosis-findings]").Should().BeEmpty();
+        page.Find("[data-testid=trigger-diagnosis-toggle]").TextContent.Should().Be("Show the 9 checks");
+        page.Find("[data-testid=trigger-diagnosis-toggle]").GetAttribute("aria-expanded").Should().Be("false");
+    }
+
+    /// <summary>
+    /// The toggle says what it will do: "Show the 9 checks" while they are folded away, "Hide the checks" once
+    /// they show, and it says which with aria-expanded.
+    /// </summary>
+    [Test]
+    public void TheDiagnosisToggleSaysWhetherItWillShowOrHide()
+    {
+        GivenTrigger(Scheduled(CronTrigger("0 0 12 * * ?")));
+        IRenderedComponent<TriggerDetail> page = Render();
+        page.WaitForAssertion(() => page.Find("[data-testid=trigger-diagnosis-toggle]"));
+
+        page.Find("[data-testid=trigger-diagnosis-toggle]").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=trigger-diagnosis-checks] tbody tr").Should().HaveCount(9));
+        AngleSharp.Dom.IElement toggle = page.Find("[data-testid=trigger-diagnosis-toggle]");
+        toggle.TextContent.Should().Be("Hide the checks");
+        toggle.GetAttribute("aria-expanded").Should().Be("true");
+        toggle.GetAttribute("aria-controls").Should().Be(page.Find("[data-testid=trigger-diagnosis-checks]").Id);
+
+        toggle.Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=trigger-diagnosis-checks]").Should().BeEmpty());
+        page.Find("[data-testid=trigger-diagnosis-toggle]").TextContent.Should().Be("Show the 9 checks");
+    }
+
+    /// <summary>
+    /// A paused trigger's upcoming fires are its schedule's times, which it does not fire: the page says so above
+    /// the list.
+    /// </summary>
+    [TestCase(TriggerState.Paused, true)]
+    [TestCase(TriggerState.Normal, false)]
+    public void UpcomingFiresSayWhenThePausedTriggerFiresNone(TriggerState state, bool said)
+    {
+        GivenTrigger(Scheduled(CronTrigger("0 0 12 * * ?")));
+        A.CallTo(() => context.Api.GetTriggerState(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._)).Returns(state);
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=trigger-diagnosis]"));
+        page.FindAll("[data-testid=upcoming-fires-paused]").Should().HaveCount(said ? 1 : 0);
+        if (said)
+        {
+            page.Find("[data-testid=upcoming-fires-paused]").TextContent.Should().Contain("fires none of them until it is resumed");
+        }
+    }
+
+    /// <summary>
+    /// A trigger group's pause shows who paused it, when and why, as the trigger's own and the job group's do.
+    /// </summary>
+    [Test]
+    public void APausedTriggerGroupsReasonShowsInItsFinding()
+    {
+        GivenTrigger(Scheduled(CronTrigger("0 0 12 * * ?")));
+        A.CallTo(() => context.Api.GetTriggerState(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._)).Returns(TriggerState.Paused);
+        A.CallTo(() => context.Api.QueryTriggerGroups(TestData.SchedulerName, A<DashboardGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerGroupDto>([new TriggerGroupDto(TriggerGroup, Paused: true)], HasMore: false, TotalCount: 1));
+        A.CallTo(() => context.Api.GetTriggerGroupPause(TestData.SchedulerName, TriggerGroup, A<CancellationToken>._))
+            .Returns(new PauseInfo("vendor outage", "alice", new DateTimeOffset(2026, 10, 5, 13, 0, 0, TimeSpan.Zero)));
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Find("tr[data-check=\"Trigger group\"]").TextContent.Should()
+            .Contain("'CronTriggerGroup' is paused by alice at 2026-10-05 13:00:00").And.Contain("(vendor outage)"));
     }
 
     /// <summary>

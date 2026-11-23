@@ -507,6 +507,7 @@ public sealed class QuartzApiClientContractTest
             JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(),
             TriggerBuilder.Create().WithIdentity(triggerKey).ForJob(jobKey).StartAt(DateTimeOffset.UtcNow.AddHours(1)).Build());
         await client.PauseJobGroupWith(key, group, new PauseDetails { Reason = "quarter close", RequestedBy = "alice" });
+        await client.PauseTriggerGroupWith(key, group, new PauseDetails { Reason = "vendor outage", RequestedBy = "bob" });
         await history.AddMisfire(Misfire(DateTimeOffset.UtcNow.AddMinutes(-5), "at-three") with { TriggerGroup = group, JobKey = jobKey });
 
         TriggerKeyDto dto = new(group, "at-three");
@@ -521,11 +522,13 @@ public sealed class QuartzApiClientContractTest
         checks["Scheduler"].Verdict.Should().Be(DiagnosisVerdict.Problem, "the fixture's scheduler is never started, on every carrier");
         checks["Trigger"].Text.Should().StartWith("Paused");
         checks["Job group"].Text.Should().StartWith("'diagnosis' is paused by alice at").And.Contain("(quarter close)");
+        checks["Trigger group"].Text.Should().StartWith("'diagnosis' is paused by bob at").And.Contain("(vendor outage)");
         checks["Its job's firings"].Text.Should().Be("None running.");
         checks["Execution group"].Text.Should().Be("No execution group: unlimited.");
         checks["Misfires"].Text.Should().StartWith("1 recorded; the latest at");
         checks.Values.Should().NotContain(check => check.Verdict == DiagnosisVerdict.Unknown, "every read answers through every carrier");
 
+        await client.ResumeTriggerGroup(key, group);
         await scheduler.DeleteJob(jobKey);
     }
 

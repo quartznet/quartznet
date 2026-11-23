@@ -436,6 +436,12 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return await scheduler.PauseJobWith(AsJobKey(key), details, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<PauseInfo?> GetTriggerGroupPause(string schedulerName, string groupName, CancellationToken cancellationToken = default)
+    {
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.GetTriggerGroupPause(groupName, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask<PauseInfo?> GetJobGroupPause(string schedulerName, string groupName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
