@@ -63,6 +63,20 @@ public static class HttpApiSamples
         #endregion
     }
 
+    public static void AllowedOrigins(WebApplicationBuilder builder)
+    {
+        #region sample_httpapi_allowed_origins
+
+        builder.Services.AddQuartzHttpApi(options =>
+        {
+            // The pages that may call the API from a browser, as scheme://host[:port].
+            // A request from any other page is refused with 403; a script sends no Origin and is unaffected.
+            options.AllowedOrigins.Add("https://ops.example.com");
+        });
+
+        #endregion
+    }
+
     public static void OperatorRoles(WebApplicationBuilder builder)
     {
         #region sample_httpapi_operator_roles

@@ -213,6 +213,14 @@ public static class QuartzAspNetCoreConfigurationExtensions
 
         QuartzApiConventionBuilder conventionBuilder = new(allEndpoints);
 
+        // Last, so it is the outermost wrapper: a request a browser sent from a page of another origin is
+        // refused before a policy is asked about the caller the page borrowed. Off unless origins are listed,
+        // because a check by default would break the single-page applications that call the API today.
+        if (options.AllowedOrigins.Count > 0)
+        {
+            new QuartzRequestGuard(options.AllowedOrigins).Apply(conventionBuilder);
+        }
+
         // Says "Quartz mapped this" on every route, which is what QuartzEndpointAuthorizationGuard reads
         // at startup. Added through the returned builder rather than to each group, so a route added to
         // any of the four later carries it by being one of them.
