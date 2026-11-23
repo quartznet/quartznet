@@ -323,6 +323,10 @@ PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(new Exec
 - From 4.9, [`TriggerJobAndWait` and `WaitForFiring`](../how-tos/one-off-job.md#trigger-it-and-wait-for-the-outcome)
   on `HttpScheduler` poll these routes and the trigger's state; the host must keep a history, and be 4.6 or
   later. Against one that serves none they throw `NotSupportedException`, before anything is stored.
+- Such a wait can answer `Unknown` instead of refusing. A host that maps the API always has a history, so it
+  answers the routes even when its history records nothing (`MaxEntriesPerScheduler = 0`). The client cannot
+  read the host's `WriteBehindInterval`, so it looks for a gone trigger's row for 5 s only: a row written
+  behind for longer arrives too late.
 
 From 4.4:
 
