@@ -13,7 +13,7 @@ states its own Quartz version compatibility.
 Creates and migrates the Quartz.NET schema with EF Core migrations, for Quartz 3.x and 4.x.
 
 On 4.9 and later, use the official [Quartz.EntityFrameworkCore](entity-framework-core.md), whose model is
-generated from Quartz's own schema for PostgreSQL, SQL Server, MySQL and SQLite.
+generated from Quartz's own schema for PostgreSQL, SQL Server, MySQL, SQLite, Oracle and Firebird.
 [Moving off AppAny](entity-framework-core.md#moving-off-appany) is one migration.
 
 ### [Weasel.Quartz](https://github.com/Hawxy/Weasel.Quartz)

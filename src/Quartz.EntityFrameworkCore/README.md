@@ -25,7 +25,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 ```
 <!-- endSnippet -->
 
-* PostgreSQL, SQL Server, MySQL and SQLite, chosen by the context's provider.
+* PostgreSQL, SQL Server, MySQL, SQLite, Oracle and Firebird, chosen by the context's provider.
 * End the migration that creates the tables with `migrationBuilder.CompleteQuartzSchema()`.
 * Moving from AppAny.Quartz.EntityFrameworkCore.Migrations, which this package succeeds on Quartz 4.x with
   thanks to its authors: see the documentation.
