@@ -160,12 +160,18 @@ partial class Build
     /// (<c>FIRED_TRIGGER</c>). Kept rather than reinvented so that a provisioned Oracle schema names
     /// its constraints what a scripted one does.
     /// </param>
+    /// <param name="AddedBy">
+    /// The release whose migration created the table, or <see langword="null" /> for a table 4.0 already
+    /// had. It is what the Entity Framework Core model reads to rebuild the schema as an earlier release
+    /// left it, so that each release's difference can be checked against that release's migration.
+    /// </param>
     sealed record SchemaTable(
         string Name,
         string[] PrimaryKey,
         SchemaColumn[] Columns,
         SchemaForeignKey ForeignKey = null,
-        string OracleStem = null);
+        string OracleStem = null,
+        string AddedBy = null);
 
     static SchemaColumn Column(
         string name,
@@ -386,7 +392,8 @@ partial class Build
                 // says it has none rather than passing a cut one.
                 Flag("JOB_INPUT_TOO_LARGE", required: false) with { AddedBy = "4.4" },
             ],
-            OracleStem: "EXEC_HISTORY"),
+            OracleStem: "EXEC_HISTORY",
+            AddedBy: "4.2"),
 
         new("MISFIRE_HISTORY",
             ["SCHED_NAME", "ENTRY_ID"],
@@ -408,11 +415,13 @@ partial class Build
                 // leave it NULL, which is what they are.
                 EnumColumn("REASON", required: false) with { AddedBy = "4.3" },
             ],
-            OracleStem: "MISFIRE_HISTORY"),
+            OracleStem: "MISFIRE_HISTORY",
+            AddedBy: "4.2"),
 
         // One row per job, rolled up from the history as each row is written, so it survives the
-        // history's own retention. New in 4.4 as a whole, so none of its columns has an AddedBy. No
-        // foreign key: a 4.3 node deleting a job must not trip on a row it has never heard of.
+        // history's own retention. New in 4.4 as a whole, so the table has an AddedBy and none of its
+        // columns has one. No foreign key: a 4.3 node deleting a job must not trip on a row it has never
+        // heard of.
         new("JOB_STATUS",
             ["SCHED_NAME", "JOB_GROUP", "JOB_NAME"],
             [
@@ -439,7 +448,8 @@ partial class Build
                 Counter("RUN_COUNT", wide: true),
                 Counter("FAILURE_COUNT", wide: true),
             ],
-            OracleStem: "JOB_STATUS"),
+            OracleStem: "JOB_STATUS",
+            AddedBy: "4.4"),
     ];
 
     /// <summary>
@@ -616,15 +626,15 @@ partial class Build
                 // The continuation columns are the trigger key columns made nullable — what they hold
                 // is a trigger key, so a name TRIGGER_NAME accepts has to fit here too. PostgreSQL
                 // therefore says TEXT rather than the VARCHAR(200) of the three columns above.
-                Text("CONTINUES_TRIGGER_NAME", 150, 200, required: false),
-                Text("CONTINUES_TRIGGER_GROUP", 150, 200, required: false),
+                Text("CONTINUES_TRIGGER_NAME", 150, 200, required: false) with { AddedBy = "4.2" },
+                Text("CONTINUES_TRIGGER_GROUP", 150, 200, required: false) with { AddedBy = "4.2" },
                 Column("CONTINUATION_CONDITION",
                     sqlServer: "int NULL",
                     postgres: "INTEGER NULL",
                     mysql: "INTEGER NULL",
                     oracle: "NUMBER(13) NULL",
                     sqlite: "INTEGER NULL",
-                    firebird: "INTEGER DEFAULT NULL"),
+                    firebird: "INTEGER DEFAULT NULL") with { AddedBy = "4.2" },
                 // The integer of the trigger's OverlapPolicy; NULL is Default, which is what every row
                 // a 4.2 node writes reads as.
                 Column("OVERLAP_POLICY",
