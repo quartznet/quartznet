@@ -3,16 +3,18 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
     <!--
-      Aspire ships its AppHost SDK, its hosting packages and its client integrations as one version,
-      so the example pins all four from one property — including the MSBuild SDK, which the AppHost
-      names with the <Sdk> element form for exactly that reason.
+      Aspire ships its hosting packages and its client integrations as one version, and the AppHost's
+      build fetches the Aspire CLI at the version of Aspire.Hosting.AppHost, so the example takes its four
+      Aspire packages from one property and they cannot disagree. Until Aspire 17 the AppHost also named
+      the Aspire.AppHost.Sdk MSBuild SDK with it, which no PackageVersion can version; 17 made that SDK
+      obsolete (#4370).
 
-      This is the only version in the file that is a property rather than a PackageVersion, and the
-      reason is that the SDK reference is not a PackageReference and so cannot be centrally managed.
-      Note also that `aspire update` does not work in a repository using central package management
-      (microsoft/aspire#15476); move these by hand, or let the `aspire` dependabot group do it.
+      Only the example's rows use it. Quartz.Aspire.Hosting's Aspire.Hosting is a floor, below, and stays
+      where it is when this moves. Note also that `aspire update` does not work in a repository using
+      central package management (microsoft/aspire#15476); move these by hand, or let the `aspire`
+      dependabot group do it.
     -->
-    <AspireVersion>13.6.5</AspireVersion>
+    <AspireVersion>17.0.0</AspireVersion>
     <!--
       The compiler Quartz.Analyzers is written against, and therefore the oldest host that can load it.
       4.12.0 is the .NET 9 SDK's Roslyn and Visual Studio 17.12's, which is as old as a host that can
@@ -21,7 +23,7 @@
       than as the missing diagnostics it is. Raising this raises the floor on every consumer's IDE.
 
       A property with a VersionOverride at each of the two call sites, rather than a PackageVersion row,
-      and this is the second place in the file where central management cannot express what is meant.
+      because central management cannot express what is meant here.
       CentralPackageTransitivePinningEnabled turns a PackageVersion into a demand on every project that
       resolves the id at all, and two already resolve Microsoft.CodeAnalysis above 4.12.0 for reasons of
       their own: BenchmarkDotNet 0.16.0-preview.2 asks Quartz.Benchmark and Quartz.Benchmark.Competitors
@@ -37,6 +39,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="$(AspireVersion)" />
+    <PackageVersion Include="Aspire.Hosting.Dotnet" Version="$(AspireVersion)" />
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="$(AspireVersion)" />
     <PackageVersion Include="Aspire.Npgsql" Version="$(AspireVersion)" />
     <!--

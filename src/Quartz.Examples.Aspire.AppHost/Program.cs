@@ -23,9 +23,13 @@ IResourceBuilder<PostgresDatabaseResource> quartzDb = postgres.AddDatabase("quar
 
 // The Quartz.NET dashboard, from Quartz.Aspire.Hosting: the ghcr.io/quartznet/quartz-dashboard image at the
 // package's own version. Its URL in the Aspire dashboard signs the browser in as an administrator, with a
-// token the AppHost generates and keeps in its user secrets.
+// token the AppHost generates and keeps with its secrets, in ~/.aspire/secrets from Aspire 17.
 IResourceBuilder<QuartzDashboardResource> dashboard = builder.AddQuartzDashboard("quartz-dashboard");
 
+// AddDotnetProject, from Aspire.Hosting.Dotnet, is Aspire 17's way to add a project: it takes the path,
+// relative to this project, and builds the worker before it starts it. AddProject<Projects.X> is what
+// Aspire 13 took, and is obsolete from 17.
+//
 // WithHttpHealthCheck needs the resource to have an http or https endpoint, and throws at AppHost
 // build time when it does not. The worker's http endpoint comes from its launch profile, which is
 // why that project has a Properties/launchSettings.json and the other examples' workers do not.
@@ -33,7 +37,7 @@ IResourceBuilder<QuartzDashboardResource> dashboard = builder.AddQuartzDashboard
 // WithReference(dashboard) makes the worker one of the dashboard's agents: it sets
 // Quartz__DashboardAgent__Endpoint, Token and Target, which the worker's UseDashboardAgent() reads. The
 // worker dials out, so it waits for nothing; it keeps retrying until the dashboard answers.
-builder.AddProject<Projects.Quartz_Examples_Aspire_Worker>("worker")
+builder.AddDotnetProject("worker", "../Quartz.Examples.Aspire.Worker/Quartz.Examples.Aspire.Worker.csproj")
     .WithReference(quartzDb)
     .WaitFor(quartzDb)
     .WithReference(dashboard)

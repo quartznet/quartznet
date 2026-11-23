@@ -24,10 +24,13 @@ integration:
 var postgres = builder.AddPostgres("postgres").WithDataVolume();
 var quartzDb = postgres.AddDatabase("quartz");
 
-builder.AddProject<Projects.Orders_Worker>("orders")
+builder.AddDotnetProject("orders", "../Orders.Worker/Orders.Worker.csproj")
     .WithReference(quartzDb)
     .WaitFor(quartzDb);
 ```
+
+`AddDotnetProject` is Aspire 17's, from `Aspire.Hosting.Dotnet`; on Aspire 13 the call is
+`AddProject<Projects.Orders_Worker>("orders")`. This package needs no particular Aspire version.
 
 The worker names it once:
 

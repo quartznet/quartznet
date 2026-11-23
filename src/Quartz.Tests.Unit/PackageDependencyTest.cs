@@ -507,7 +507,7 @@ public class PackageDependencyTest
 
     /// <summary>
     /// Substitutes a single <c>$(Name)</c> property reference, which is the only form the file uses —
-    /// Aspire ships its packages and its MSBuild SDK as one version, so they are written as a property.
+    /// Aspire ships its packages as one version, so the example's are written as a property.
     /// </summary>
     private static string Resolve(string version, IReadOnlyDictionary<string, string> properties)
     {

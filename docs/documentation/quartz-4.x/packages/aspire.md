@@ -29,7 +29,7 @@ The recipe (the AppHost, the dashboard, and each step written out by hand) is
 The Quartz.NET dashboard as an AppHost resource is the hosting integration, [Aspire Hosting](aspire-hosting.md).
 
 ::: tip
-Quartz 4.0 or later required. Documented against **Aspire 13.5**.
+Quartz 4.0 or later required, and no particular Aspire version. Documented against **Aspire 17**.
 :::
 
 ## Installation
@@ -50,7 +50,7 @@ dotnet add package Npgsql
 
 The package has **no `Aspire.*` package reference**; `IHostApplicationBuilder` is its whole contract. It is not
 tied to Aspire's release cadence and works in any generic-host application with a `ConnectionStrings:` entry.
-`Aspire.Npgsql` 13.5.3 has no `Aspire.*` dependency either.
+`Aspire.Npgsql` 17.0.0 has no `Aspire.*` dependency either.
 
 ## The call
 
