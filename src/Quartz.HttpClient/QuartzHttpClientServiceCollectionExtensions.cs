@@ -161,7 +161,8 @@ public static class QuartzHttpClientServiceCollectionExtensions
                 options.JsonSerializerOptions,
                 serviceProvider.GetRequiredService<SystemTextJsonSerializerRegistry>(),
                 ClientLogger(serviceProvider),
-                options.Target);
+                options.Target,
+                options.GatewayTarget);
 
             // A targeted registration claims its target in the container's registry first, which is
             // where every kind of target - a store the dashboard attached, an agent - is held to one
@@ -194,7 +195,8 @@ public static class QuartzHttpClientServiceCollectionExtensions
                 options.SchedulerName,
                 serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client,
                 options.JsonSerializerOptions,
-                ClientLogger(serviceProvider)));
+                ClientLogger(serviceProvider),
+                options.GatewayTarget));
 
         // The target's own events, keyed like the scheduler for the reason its history is: a reader
         // asking for "this scheduler's events" is asking the process the scheduler runs in. Keyed only —
@@ -206,7 +208,8 @@ public static class QuartzHttpClientServiceCollectionExtensions
                 serviceProvider.GetRequiredKeyedService<HttpSchedulerTarget>(key).Client,
                 options.JsonSerializerOptions,
                 serviceProvider.GetService<TimeProvider>(),
-                ClientLogger(serviceProvider)));
+                ClientLogger(serviceProvider),
+                options.GatewayTarget));
 
         // Keyed like any other scheduler, and unkeyed as well so that a container holding one remote
         // scheduler and nothing else answers GetRequiredService<IScheduler>() with it. TryAdd, because a

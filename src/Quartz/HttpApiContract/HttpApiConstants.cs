@@ -74,4 +74,26 @@ internal static class HttpApiConstants
     /// still accepted and means the same thing.
     /// </remarks>
     public const string AllItems = "all";
+
+    /// <summary>
+    /// The query parameter a request names its scheduler's target in: <c>…/schedulers/QuartzScheduler/jobs?target=w1</c>
+    /// is the scheduler the host lists as <c>w1/QuartzScheduler</c>. Added in 4.9.
+    /// </summary>
+    /// <remarks>
+    /// A query parameter rather than part of the path, because a key cannot be one path segment —
+    /// <c>%2F</c> stays escaped and routing does not unescape it — and rather than a header, which neither
+    /// a <c>curl</c> user nor a proxy's request log shows. The route value stays the scheduler's own name.
+    /// </remarks>
+    public const string TargetQueryParameter = "target";
+
+    /// <summary>
+    /// The response header a 4.9 host sets on every answer to a request that named a target, carrying that
+    /// target.
+    /// </summary>
+    /// <remarks>
+    /// A host older than 4.9 ignores <see cref="TargetQueryParameter" /> and answers for the bare name, so a
+    /// client that sent one refuses a success without this header rather than take another scheduler's
+    /// answer for the target's.
+    /// </remarks>
+    public const string TargetHeader = "Quartz-Target";
 }

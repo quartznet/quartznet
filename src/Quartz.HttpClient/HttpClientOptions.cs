@@ -96,6 +96,28 @@ public sealed class HttpClientOptions
     /// </para>
     /// </remarks>
     public string? Target { get; set; }
+
+    /// <summary>
+    /// The target the scheduler is behind <em>in the host the client calls</em> — the dashboard host, or any
+    /// application that fronts it — which every request names as <c>?target=</c>. Null, the default, reaches
+    /// the host's own scheduler of <see cref="SchedulerName" />. Added in 4.9.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Not <see cref="Target" />. That is the name this process gives the registration, the first half of its
+    /// key here, and it is never sent; this is the host's name for the target, and it is sent on every
+    /// request. A script that drives <c>w1/QuartzScheduler</c> through the dashboard host sets
+    /// <see cref="SchedulerName" /> to <c>QuartzScheduler</c>, this to <c>w1</c>, and the client's base
+    /// address to the host's HTTP API.
+    /// </para>
+    /// <para>
+    /// The scheduler, its execution history and its event stream all carry it, and each refuses a success
+    /// that does not carry the <c>Quartz-Target</c> header back: a host older than 4.9 ignores
+    /// <c>?target=</c> and would otherwise answer for a scheduler of its own with the bare name. A target name
+    /// cannot contain <c>/</c> or <c>+</c>, as <see cref="Target" /> cannot.
+    /// </para>
+    /// </remarks>
+    public string? GatewayTarget { get; set; }
 }
 
 /// <summary>
@@ -134,6 +156,11 @@ internal sealed class HttpClientOptionsValidator : IValidateOptions<HttpClientOp
         if (options.Target is not null && SchedulerTargets.Problem(options.Target) is { } problem)
         {
             (failures ??= []).Add($"{nameof(HttpClientOptions.Target)}: {problem}");
+        }
+
+        if (options.GatewayTarget is not null && SchedulerTargets.Problem(options.GatewayTarget) is { } gatewayProblem)
+        {
+            (failures ??= []).Add($"{nameof(HttpClientOptions.GatewayTarget)}: {gatewayProblem}");
         }
 
         return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
