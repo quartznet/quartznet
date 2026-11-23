@@ -1,0 +1,424 @@
+@using Microsoft.Extensions.DependencyInjection
+@using Quartz
+@using Quartz.Dashboard.Services
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
+@inject ToastService Toasts
+@inject DashboardActionLog ActionLog
+@inject IServiceProvider Services
+
+@* Creates a calendar of any of the six built-in types, or edits one in place. Replacing a stored calendar asks
+   first whether the triggers that use it have their next fire times recomputed, which is what
+   AddCalendarRequest.UpdateTriggers does: without it, a trigger keeps the next fire time it has, even one the
+   new calendar excludes. *@
+<section class="qz-section qz-calendar-editor" data-testid="calendar-editor">
+    <h2>@(IsNew ? "New calendar" : "Edit calendar")</h2>
+
+    @if (_errors.Count > 0 || !string.IsNullOrWhiteSpace(_refusal))
+    {
+        <div class="qz-form-errors" role="alert" data-testid="calendar-editor-errors">
+            <ul>
+                @foreach (string error in _errors)
+                {
+                    <li>@error</li>
+                }
+                @if (!string.IsNullOrWhiteSpace(_refusal))
+                {
+                    <li>@_refusal</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <div class="qz-live-filter-grid">
+        @if (IsNew)
+        {
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="calendar-name">Calendar name</label>
+                <input id="calendar-name" class="qz-input" @bind="_name" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="calendar-kind">Type</label>
+                <select id="calendar-kind" class="qz-select" @bind="_form.Kind">
+                    @foreach (CalendarKind kind in CalendarReading.EditableKinds)
+                    {
+                        <option value="@kind">@CalendarReading.Describe(kind)</option>
+                    }
+                </select>
+            </div>
+        }
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="calendar-description">Description</label>
+            <input id="calendar-description" class="qz-input" @bind="_form.Description" />
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="calendar-time-zone">Time zone</label>
+            <input id="calendar-time-zone"
+                   class="qz-input qz-input-mono"
+                   list="calendar-time-zones"
+                   title="The zone the calendar's days and times are read in, by its system id"
+                   @bind="_form.TimeZoneId" />
+            <datalist id="calendar-time-zones">
+                @foreach (TimeZoneInfo timeZone in TimeZones)
+                {
+                    <option value="@timeZone.Id"></option>
+                }
+            </datalist>
+        </div>
+    </div>
+
+    <div class="qz-calendar-editor-rules" data-testid="calendar-editor-rules">
+        @switch (_form.Kind)
+        {
+            case CalendarKind.Holiday:
+                <div class="qz-form-group">
+                    <label class="qz-form-label" for="calendar-holiday-dates">Dates excluded, one a line, as yyyy-MM-dd</label>
+                    <textarea id="calendar-holiday-dates" class="qz-input" rows="8" @bind="_form.HolidayDates"></textarea>
+                </div>
+                break;
+
+            case CalendarKind.Annual:
+                <p class="qz-muted">Tick the days excluded every year.</p>
+                <AnnualDayGrid Days="@_form.AnnualDays" />
+                break;
+
+            case CalendarKind.Weekly:
+                <p class="qz-muted">Tick the days excluded every week.</p>
+                <ul class="qz-calendar-days" data-testid="calendar-editor-weekly-days">
+                    @foreach (DayOfWeek day in CalendarReading.WeekDays)
+                    {
+                        DayOfWeek weekDay = day;
+                        <li>
+                            <label class="qz-live-filter-item">
+                                <input type="checkbox"
+                                       data-day="@weekDay"
+                                       checked="@_form.WeeklyDays.Contains(weekDay)"
+                                       @onchange="args => Toggle(_form.WeeklyDays, weekDay, args)" />
+                                <span>@weekDay</span>
+                            </label>
+                        </li>
+                    }
+                </ul>
+                break;
+
+            case CalendarKind.Monthly:
+                <p class="qz-muted">Tick the days excluded every month. A day a month does not have excludes nothing in it.</p>
+                <ul class="qz-calendar-days qz-calendar-month-days" data-testid="calendar-editor-monthly-days">
+                    @for (int day = 1; day <= 31; day++)
+                    {
+                        int dayOfMonth = day;
+                        <li>
+                            <label class="qz-live-filter-item">
+                                <input type="checkbox"
+                                       data-day="@dayOfMonth"
+                                       checked="@_form.MonthlyDays.Contains(dayOfMonth)"
+                                       @onchange="args => Toggle(_form.MonthlyDays, dayOfMonth, args)" />
+                                <span>@dayOfMonth</span>
+                            </label>
+                        </li>
+                    }
+                </ul>
+                break;
+
+            case CalendarKind.Daily:
+                <div class="qz-live-filter-grid">
+                    <div class="qz-form-group">
+                        <label class="qz-form-label" for="calendar-daily-start">Range start</label>
+                        <input id="calendar-daily-start" class="qz-input qz-input-mono" placeholder="HH:mm:ss" @bind="_form.DailyStart" />
+                    </div>
+                    <div class="qz-form-group">
+                        <label class="qz-form-label" for="calendar-daily-end">Range end</label>
+                        <input id="calendar-daily-end" class="qz-input qz-input-mono" placeholder="HH:mm:ss" @bind="_form.DailyEnd" />
+                    </div>
+                    <div class="qz-form-group">
+                        <label class="qz-live-filter-item" for="calendar-daily-invert">
+                            <input id="calendar-daily-invert" type="checkbox" @bind="_form.DailyInvert" />
+                            <span>Inverted: the range is the part of the day included</span>
+                        </label>
+                    </div>
+                </div>
+                break;
+
+            case CalendarKind.Cron:
+                <div class="qz-form-group">
+                    <label class="qz-form-label" for="calendar-cron">Cron expression: every second it matches is excluded</label>
+                    <input id="calendar-cron" class="qz-input qz-input-mono" placeholder="* * 0-6 ? * *" @bind="_form.CronExpression" @bind:event="oninput" />
+                </div>
+                @if (_form.TryResolveTimeZone() is { } previewZone)
+                {
+                    <h3>Excluded next</h3>
+                    <CronCalendarPreview Expression="@_form.CronExpression" TimeZone="@previewZone" From="@Clock.GetUtcNow()" />
+                }
+                break;
+        }
+    </div>
+
+    @if (!IsNew && _calendarBaseCount > 0)
+    {
+        <p class="qz-muted" data-testid="calendar-editor-base-kept">The @CalendarReading.Count(_calendarBaseCount, "calendar") under it are kept as they are.</p>
+    }
+
+    <div class="qz-actions qz-group-actions">
+        <button type="button" class="qz-button qz-button-primary" data-testid="calendar-save" disabled="@_saving" @onclick="SaveAsync">Save calendar</button>
+        @if (IsNew)
+        {
+            <button type="button" class="qz-button" data-testid="calendar-reset" @onclick="Reset">Reset</button>
+        }
+        else
+        {
+            <button type="button" class="qz-button" data-testid="calendar-cancel" @onclick="CancelAsync">Cancel</button>
+        }
+    </div>
+</section>
+
+@if (_pending is { } pending)
+{
+    <div class="qz-confirm-overlay">
+        <div class="qz-confirm-dialog" role="dialog" aria-labelledby="qz-calendar-replace-title" data-testid="calendar-replace-dialog">
+            <h3 id="qz-calendar-replace-title">Replace calendar @pending.Name?</h3>
+            <p data-testid="calendar-replace-used-by">@UsedByText(pending)</p>
+            @if (pending.UsedBy != 0)
+            {
+                <p class="qz-muted">
+                    Updating recomputes each one's next fire time against the new calendar. Without it, each keeps the
+                    next fire time it has now, even one the new calendar excludes.
+                </p>
+            }
+            <div class="qz-confirm-actions">
+                @if (pending.UsedBy == 0)
+                {
+                    <button type="button" class="qz-button qz-button-primary" data-testid="calendar-replace-only" @onclick="() => ReplaceAsync(updateTriggers: false)">Replace calendar</button>
+                }
+                else
+                {
+                    <button type="button" class="qz-button qz-button-primary" data-testid="calendar-replace-update" @onclick="() => ReplaceAsync(updateTriggers: true)">Replace and update triggers</button>
+                    <button type="button" class="qz-button" data-testid="calendar-replace-only" @onclick="() => ReplaceAsync(updateTriggers: false)">Replace only</button>
+                }
+                <button type="button" class="qz-button" data-testid="calendar-replace-cancel" @onclick="CancelReplace">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private CalendarForm _form = CalendarForm.ForNew();
+    private ICalendar? _formFor;
+    private string _name = string.Empty;
+    private List<string> _errors = [];
+    private string? _refusal;
+    private bool _saving;
+    private int _calendarBaseCount;
+    private PendingReplace? _pending;
+
+    /// <summary>Cancelled when the editor goes with its page, which stops the trigger count in flight.</summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>
+    /// The calendar to edit, as the page last read it, or <see langword="null" /> to create one. A different
+    /// instance starts the form again from what it holds.
+    /// </summary>
+    [Parameter]
+    public ICalendar? Calendar { get; set; }
+
+    /// <summary>The name the edited calendar is stored under. Unused when creating, where the form asks.</summary>
+    [Parameter]
+    public string? CalendarName { get; set; }
+
+    /// <summary>
+    /// The names the scheduler holds, as the listing read them: saving a new calendar under one of them is a
+    /// replace, and is asked about as one.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyCollection<string> ExistingNames { get; set; } = [];
+
+    /// <summary>
+    /// How many triggers use the edited calendar, as the page counted them, or <see langword="null" /> when it
+    /// could not. A replace from the listing counts them itself.
+    /// </summary>
+    [Parameter]
+    public int? UsedBy { get; set; }
+
+    /// <summary>Raised with the name once a save has been applied, so the page can read again.</summary>
+    [Parameter]
+    public EventCallback<string> OnSaved { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private bool IsNew => Calendar is null;
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    private static IReadOnlyList<TimeZoneInfo> TimeZones { get; } = TimeZoneInfo.GetSystemTimeZones();
+
+    protected override void OnParametersSet()
+    {
+        if (Calendar is null || ReferenceEquals(_formFor, Calendar))
+        {
+            return;
+        }
+
+        _formFor = Calendar;
+        _form = CalendarForm.From(Calendar);
+        _calendarBaseCount = CalendarReading.BaseChainOf(Calendar).Count;
+        _errors = [];
+        _refusal = null;
+    }
+
+    /// <summary>
+    /// Builds the calendar, and stores it at once when it is new; a replace waits for the reader's answer.
+    /// </summary>
+    private async Task SaveAsync()
+    {
+        _errors = [];
+        _refusal = null;
+
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (string.IsNullOrWhiteSpace(schedulerName) || !Authorization.Allows(schedulerName, Quartz.HttpApiContract.SchedulerRoutes.AddCalendar))
+        {
+            return;
+        }
+
+        string name = IsNew ? _name.Trim() : CalendarName ?? string.Empty;
+        if (name.Length == 0)
+        {
+            _errors.Add("A calendar needs a name: triggers refer to it by that name.");
+        }
+
+        CalendarFormResult result = _form.Build();
+        _errors.AddRange(result.Errors);
+        if (_errors.Count > 0 || result.Calendar is null)
+        {
+            return;
+        }
+
+        bool replacing = !IsNew || ExistingNames.Contains(name, StringComparer.Ordinal);
+        if (!replacing)
+        {
+            await SendAsync(schedulerName, name, result.Calendar, replace: false, updateTriggers: false);
+            return;
+        }
+
+        int? usedBy = IsNew ? await CountUsersAsync(schedulerName, name) : UsedBy;
+        _pending = new PendingReplace(name, result.Calendar, usedBy);
+    }
+
+    private async Task ReplaceAsync(bool updateTriggers)
+    {
+        // Closed before the call rather than after it, so a second click sends nothing.
+        if (_pending is not { } pending)
+        {
+            return;
+        }
+
+        _pending = null;
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        await SendAsync(schedulerName, pending.Name, pending.Calendar, replace: true, updateTriggers);
+    }
+
+    private void CancelReplace()
+    {
+        _pending = null;
+    }
+
+    private async Task SendAsync(string schedulerName, string name, ICalendar calendar, bool replace, bool updateTriggers)
+    {
+        string action = replace ? "ReplaceCalendar" : "CreateCalendar";
+        string detail = CalendarReading.Describe(CalendarReading.KindOf(calendar)) + (replace ? "; updateTriggers=" + (updateTriggers ? "true" : "false") : string.Empty);
+        _saving = true;
+        try
+        {
+            await Api.AddCalendar(schedulerName, new AddCalendarRequest(name, calendar, replace, updateTriggers));
+            ActionLog.Record(schedulerName, action, name, succeeded: true, detail);
+            Toasts.Success((replace ? "Replaced calendar " : "Created calendar ") + name + (updateTriggers ? " and updated the triggers that use it." : "."));
+            if (IsNew)
+            {
+                Reset();
+            }
+
+            await OnSaved.InvokeAsync(name);
+        }
+        catch (Exception ex)
+        {
+            _refusal = ex.Message;
+            ActionLog.Failed(schedulerName, action, name, ex, detail: detail);
+            if (ex is OperationRefusedException)
+            {
+                Toasts.Error(ex.Message);
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    /// <summary>
+    /// How many triggers use the calendar of that name: one count, with no trigger read. <see langword="null" />
+    /// when the source cannot say, which the question then says instead of a number.
+    /// </summary>
+    private async Task<int?> CountUsersAsync(string schedulerName, string name)
+    {
+        try
+        {
+            PagedResult<TriggerHeaderDto> page = await Api.QueryTriggers(
+                schedulerName,
+                new DashboardTriggerQuery { CalendarName = name, Take = 0 },
+                _cancellation.Token);
+            return page.TotalCount;
+        }
+        catch (Exception) when (!_cancellation.IsCancellationRequested)
+        {
+            return null;
+        }
+    }
+
+    private static string UsedByText(PendingReplace pending) => pending.UsedBy switch
+    {
+        null => "How many triggers use it could not be read.",
+        0 => "No trigger uses it.",
+        1 => "1 trigger uses it.",
+        { } count => count.ToString(System.Globalization.CultureInfo.InvariantCulture) + " triggers use it.",
+    };
+
+    private void Reset()
+    {
+        _name = string.Empty;
+        _form = CalendarForm.ForNew(_form.Kind);
+        _errors = [];
+        _refusal = null;
+    }
+
+    private Task CancelAsync()
+    {
+        return OnCancel.InvokeAsync();
+    }
+
+    private static void Toggle<T>(HashSet<T> days, T day, ChangeEventArgs args)
+    {
+        if (args.Value is true)
+        {
+            days.Add(day);
+        }
+        else
+        {
+            days.Remove(day);
+        }
+    }
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
+    }
+
+    /// <summary>A replace built and waiting for the reader's answer about the triggers that use the calendar.</summary>
+    private sealed record PendingReplace(string Name, ICalendar Calendar, int? UsedBy);
+}
