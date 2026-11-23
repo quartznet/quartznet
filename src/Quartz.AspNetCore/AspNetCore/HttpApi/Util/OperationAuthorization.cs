@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Security.Claims;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -84,7 +86,7 @@ internal static class OperationAuthorization
     private static async Task Authorize(HttpContext context, string policyName, WireRoute route, RequestDelegate next)
     {
         if (context.Request.RouteValues[SchedulerAuthorization.SchedulerNameRouteValue] is string schedulerName
-            && await Refusal(context, policyName, schedulerName, route, route.Access, route.Name, context.RequestAborted).ConfigureAwait(false) is { } refusal)
+            && await Refusal(context, policyName, TargetedRequest.Key(context, schedulerName), route, route.Access, route.Name, context.RequestAborted).ConfigureAwait(false) is { } refusal)
         {
             await refusal.ExecuteAsync(context).ConfigureAwait(false);
             return;
@@ -111,36 +113,69 @@ internal static class OperationAuthorization
         }
 
         WireRoute route = SchedulerRoutes.TriggerJob;
-        return Refusal(context, policyName, schedulerName, route, SchedulerRoutes.RequiredAccess(route, carriesJobData: true), route.Name + " with job data", cancellationToken);
+        return Refusal(
+            context,
+            policyName,
+            TargetedRequest.Key(context, schedulerName),
+            route,
+            SchedulerRoutes.RequiredAccess(route, carriesJobData: true),
+            route.Name + " with job data",
+            cancellationToken);
     }
 
     /// <summary>
-    /// Whether the request's user may call <paramref name="route" /> on <paramref name="schedulerName" />
-    /// at <paramref name="access" />. A null or blank policy is the default configuration, where every caller
-    /// who reached the endpoint may.
+    /// Whether the request's user may call <paramref name="route" /> on <paramref name="key" /> at
+    /// <paramref name="access" />. A null or blank policy is the default configuration, where every caller who
+    /// reached the endpoint may.
     /// </summary>
     public static ValueTask<bool> IsAllowed(
         HttpContext context,
         string? policyName,
-        string schedulerName,
+        SchedulerRef key,
         WireRoute route,
         SchedulerAccess access,
         CancellationToken cancellationToken = default)
     {
+        return IsAllowed(context.User, context.RequestServices, policyName, key, route, access, cancellationToken);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="user" /> may call <paramref name="route" /> on <paramref name="key" /> at
+    /// <paramref name="access" />: the question every carrier of the operation catalogue asks the same
+    /// policy, whether or not it has an <see cref="HttpContext" /> to ask it from. Added in 4.9.
+    /// </summary>
+    /// <remarks>
+    /// The resource carries the key's target, so a policy that decides by target decides a request through
+    /// a gateway as it decides the dashboard's own call. A null or blank policy allows every caller.
+    /// </remarks>
+    public static ValueTask<bool> IsAllowed(
+        ClaimsPrincipal user,
+        IServiceProvider services,
+        string? policyName,
+        SchedulerRef key,
+        WireRoute route,
+        SchedulerAccess access,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(route);
+
         if (string.IsNullOrWhiteSpace(policyName))
         {
             return new ValueTask<bool>(true);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return Evaluate(context, policyName, schedulerName, route, access);
+        return Evaluate(user, services, policyName, key, route, access);
 
-        static async ValueTask<bool> Evaluate(HttpContext context, string policyName, string schedulerName, WireRoute route, SchedulerAccess access)
+        static async ValueTask<bool> Evaluate(ClaimsPrincipal user, IServiceProvider services, string policyName, SchedulerRef key, WireRoute route, SchedulerAccess access)
         {
-            // Resolved per request, as SchedulerAuthorization does: IAuthorizationService is transient.
-            IAuthorizationService authorizationService = context.RequestServices.GetRequiredService<IAuthorizationService>();
-            SchedulerResource resource = new(schedulerName) { Operation = route.Name, Access = access };
-            AuthorizationResult result = await authorizationService.AuthorizeAsync(context.User, resource, policyName).ConfigureAwait(false);
+            // Resolved per call, as SchedulerAuthorization does: IAuthorizationService is transient.
+            IAuthorizationService authorizationService = services.GetRequiredService<IAuthorizationService>();
+            SchedulerResource resource = new(key.SchedulerName) { Target = key.Target, Operation = route.Name, Access = access };
+            AuthorizationResult result = await authorizationService.AuthorizeAsync(user, resource, policyName).ConfigureAwait(false);
             return result.Succeeded;
         }
     }
@@ -148,19 +183,19 @@ internal static class OperationAuthorization
     private static async ValueTask<IResult?> Refusal(
         HttpContext context,
         string policyName,
-        string schedulerName,
+        SchedulerRef key,
         WireRoute route,
         SchedulerAccess access,
         string operation,
         CancellationToken cancellationToken)
     {
-        if (await IsAllowed(context, policyName, schedulerName, route, access, cancellationToken).ConfigureAwait(false))
+        if (await IsAllowed(context, policyName, key, route, access, cancellationToken).ConfigureAwait(false))
         {
             return null;
         }
 
-        context.RequestServices.GetService<MutationAudit>()?.Refused(context, operation, schedulerName, access);
-        return Forbidden(operation, schedulerName, access);
+        context.RequestServices.GetService<MutationAudit>()?.Refused(context, operation, key.Key, access);
+        return Forbidden(operation, key.Key, access);
     }
 
     /// <summary>

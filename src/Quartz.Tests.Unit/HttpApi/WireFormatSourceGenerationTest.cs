@@ -58,6 +58,8 @@ public class WireFormatSourceGenerationTest
         typeof(NotFoundException),
         typeof(NotServedException),
         typeof(ForbiddenException),
+        typeof(TargetFaultException),
+        typeof(TargetFault),
         typeof(ProblemClassification),
         typeof(ProblemKind)
     ];

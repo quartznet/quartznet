@@ -103,7 +103,8 @@ internal sealed class AgentDashboard : IAsyncDisposable
         Action<DashboardAgentHubOptions>? configureAgents = null,
         Action<IServiceCollection>? configureServices = null,
         Action<QuartzDashboardOptions>? configureDashboard = null,
-        bool kestrel = false)
+        bool kestrel = false,
+        Action<WebApplication>? configureApp = null)
     {
         FakeTimeProvider clock = new(new DateTimeOffset(2026, 7, 1, 12, 0, 0, TimeSpan.Zero));
         RecordingLoggerProvider logs = new();
@@ -151,6 +152,7 @@ internal sealed class AgentDashboard : IAsyncDisposable
 
             await next(context);
         });
+        configureApp?.Invoke(app);
         app.MapQuartzDashboard().AllowAnonymous();
         await app.StartAsync();
 

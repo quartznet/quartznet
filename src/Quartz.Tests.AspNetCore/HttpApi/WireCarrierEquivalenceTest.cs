@@ -200,6 +200,57 @@ public sealed class WireCarrierEquivalenceTest
     }
 
     /// <summary>
+    /// The same sweep through a gateway (#4218): an application that fronts this host as target <c>w1</c> and
+    /// maps the API over it, driven by an <see cref="HttpScheduler" /> built from the key the gateway lists.
+    /// Every member is answered with a success, and every route it sends reaches this host's endpoint of the
+    /// same name, through the gateway's own handler and the <c>HttpScheduler</c> it reaches the target with.
+    /// </summary>
+    [Test]
+    public async Task EveryMemberHttpSchedulerImplementsIsAnsweredThroughAGatewayTarget()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddQuartzHttpClient(options =>
+        {
+            options.SchedulerName = TestData.SchedulerName;
+            options.Target = "w1";
+            options.CreateHttpClient = _ => httpClient;
+        });
+        builder.Services.AddQuartzHttpApi();
+        await using WebApplication gateway = builder.Build();
+        gateway.MapQuartzHttpApi("/quartz-api").AllowAnonymous();
+        await gateway.StartAsync();
+
+        using HttpClient toGateway = gateway.GetTestClient();
+        toGateway.BaseAddress = new Uri(toGateway.BaseAddress!, "quartz-api/");
+        await using HttpScheduler throughGateway = new(new SchedulerRef(TestData.SchedulerName, "w1"), toGateway);
+
+        using (new AssertionScope())
+        {
+            foreach ((string signature, Row row) in OverTheWire(Plain))
+            {
+                served.Clear();
+
+                Func<Task> call = () => row.Invoke(throughGateway);
+                await call.Should().NotThrowAsync($"{signature} is answered with a success through the gateway");
+
+                List<string?> reached = served.Requests.Select(request => request.EndpointName).ToList();
+                if (ReExpressedThroughAGateway.TryGetValue(signature, out string[]? instead))
+                {
+                    reached.Should().Contain(instead, $"{signature} is answered at the gateway over the target's {string.Join(" and ", instead)}");
+                }
+                else
+                {
+                    reached.Should().Contain(row.Routes.Select(route => route.Name),
+                        $"{signature} reaches the target's endpoint for {string.Join(" and ", row.Routes.Select(route => route.Name))} through the gateway");
+                }
+                served.Requests.Should().OnlyContain(request => request.Status >= 200 && request.Status <= 299,
+                    $"the target accepts what the gateway sends on for {signature}");
+            }
+        }
+    }
+
+    /// <summary>
     /// The third reader of the table: the dashboard agent's carrier answers every route the catalogue
     /// holds but the event stream, which goes up its connection as a stream rather than as a request.
     /// </summary>
@@ -559,6 +610,21 @@ public sealed class WireCarrierEquivalenceTest
         ["DeleteCalendar(String, CancellationToken)"] = new([SchedulerRoutes.DeleteCalendar], s => s.DeleteCalendar(names.Calendar).AsTask()),
         ["GetCalendar(String, CancellationToken)"] = new([SchedulerRoutes.GetCalendar], s => s.GetCalendar(names.Calendar).AsTask()),
         ["Exists(String, CancellationToken)"] = new([SchedulerRoutes.CheckCalendarExists], s => s.Exists(names.Calendar).AsTask()),
+    };
+
+    /// <summary>
+    /// The members a gateway's own handler answers over other reads of the target than the route the client
+    /// sent, with the routes it sends instead. The answer is the same: the handler is the one every carrier
+    /// runs, over the <see cref="IScheduler" /> the gateway reaches the target with.
+    /// </summary>
+    private static readonly Dictionary<string, string[]> ReExpressedThroughAGateway = new(StringComparer.Ordinal)
+    {
+        // The backfill is planned where the endpoint runs: the gateway reads the trigger and its calendar from
+        // the target, and schedules the slots there.
+        ["Backfill(TriggerKey, DateTimeOffset, DateTimeOffset, BackfillOptions, CancellationToken)"] =
+            [SchedulerRoutes.GetTrigger.Name, SchedulerRoutes.ScheduleJob.Name],
+        ["GetTriggerGroupPause(String, CancellationToken)"] = [SchedulerRoutes.QueryTriggerGroups.Name],
+        ["GetJobGroupPause(String, CancellationToken)"] = [SchedulerRoutes.QueryJobGroups.Name],
     };
 
     /// <summary>

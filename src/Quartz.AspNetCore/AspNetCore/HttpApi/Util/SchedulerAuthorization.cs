@@ -17,7 +17,9 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// The check is a filter over the whole route rather than a call inside each handler, so it runs before
 /// anything is read: before the scheduler is looked up, and before a request body is bound. That ordering
 /// is the point — a caller who fails the policy gets the same answer whether or not the scheduler exists,
-/// so a <c>404</c> only ever answers a name the caller was allowed to ask about.
+/// so a <c>404</c> only ever answers a name the caller was allowed to ask about. From 4.9 the resource
+/// carries the request's <c>?target=</c>, so a policy decides by target before anything is sent to one,
+/// and a refused caller cannot tell a missing target from a forbidden one either.
 /// </remarks>
 internal static class SchedulerAuthorization
 {
@@ -66,24 +68,27 @@ internal static class SchedulerAuthorization
     {
         // The request's own token: a caller who has gone away is not one to evaluate a policy for, and
         // every endpoint behind this filter already abandons its work the same way.
-        if (context.Request.RouteValues[SchedulerNameRouteValue] is string schedulerName
-            && !await IsAuthorized(context, policyName, schedulerName, context.RequestAborted).ConfigureAwait(false))
+        if (context.Request.RouteValues[SchedulerNameRouteValue] is string schedulerName)
         {
-            await Forbidden(schedulerName).ExecuteAsync(context).ConfigureAwait(false);
-            return;
+            SchedulerRef key = TargetedRequest.Key(context, schedulerName);
+            if (!await IsAuthorized(context, policyName, key, context.RequestAborted).ConfigureAwait(false))
+            {
+                await Forbidden(key.Key).ExecuteAsync(context).ConfigureAwait(false);
+                return;
+            }
         }
 
         await next(context).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Whether the request's user may act on <paramref name="schedulerName" />. A null or blank policy is
-    /// the default configuration, where every caller who reached the endpoint may act on every scheduler.
+    /// Whether the request's user may act on <paramref name="key" />. A null or blank policy is the default
+    /// configuration, where every caller who reached the endpoint may act on every scheduler.
     /// </summary>
     public static ValueTask<bool> IsAuthorized(
         HttpContext context,
         string? policyName,
-        string schedulerName,
+        SchedulerRef key,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(policyName))
@@ -92,18 +97,17 @@ internal static class SchedulerAuthorization
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return Evaluate(context, policyName, schedulerName);
+        return Evaluate(context, policyName, key);
 
-        static async ValueTask<bool> Evaluate(HttpContext context, string policyName, string schedulerName)
+        static async ValueTask<bool> Evaluate(HttpContext context, string policyName, SchedulerRef key)
         {
             // Resolved per request rather than injected: IAuthorizationService is transient, and an API
             // with no policy configured must keep working in a container that has none registered.
             IAuthorizationService authorizationService = context.RequestServices.GetRequiredService<IAuthorizationService>();
-            // A route value is a bare name and resolves to a scheduler reached through no target, so the
-            // resource carries the name as given and no target: a scheduler of this process whose name
-            // contains '/' is the scheduler the handler always knew.
+            // The route value is the name as given and the query the target: a scheduler of this process whose
+            // name contains '/' is still the bare name the handler always knew, with no target.
             AuthorizationResult result = await authorizationService
-                .AuthorizeAsync(context.User, new SchedulerResource(schedulerName), policyName)
+                .AuthorizeAsync(context.User, new SchedulerResource(key.SchedulerName) { Target = key.Target }, policyName)
                 .ConfigureAwait(false);
 
             return result.Succeeded;

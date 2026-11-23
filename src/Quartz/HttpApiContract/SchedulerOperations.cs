@@ -57,9 +57,14 @@ internal static class SchedulerOperations
     /// Every scheduler the container knows about that <paramref name="isVisible" /> lets the caller see,
     /// ordered by name. A registration nothing has built is listed with a null status.
     /// </summary>
+    /// <remarks>
+    /// The predicate is asked with each registration's key — its name and the target it is reached through —
+    /// so that a policy deciding by target decides the listing the way it decides a request that names
+    /// the target.
+    /// </remarks>
     public static async ValueTask<SchedulerHeaderDto[]> GetAllSchedulers(
         ISchedulerRegistry schedulerRegistry,
-        Func<string, CancellationToken, ValueTask<bool>> isVisible,
+        Func<SchedulerRef, CancellationToken, ValueTask<bool>> isVisible,
         CancellationToken cancellationToken)
     {
         List<SchedulerRegistration> registrations = await schedulerRegistry.QuerySchedulers(cancellationToken).ConfigureAwait(false);
@@ -67,7 +72,7 @@ internal static class SchedulerOperations
         List<SchedulerHeaderDto> result = new(registrations.Count);
         foreach (SchedulerRegistration registration in registrations)
         {
-            if (!await isVisible(registration.Name, cancellationToken).ConfigureAwait(false))
+            if (!await isVisible(new SchedulerRef(registration.Name, registration.Target), cancellationToken).ConfigureAwait(false))
             {
                 continue;
             }
