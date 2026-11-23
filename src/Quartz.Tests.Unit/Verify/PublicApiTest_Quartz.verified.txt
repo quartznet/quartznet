@@ -2855,6 +2855,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnMisfireThreshold = "MISFIRE_THRESHOLD";
         public const string ColumnMisfireTime = "MISFIRE_TIME";
         public const string ColumnNextFireTime = "NEXT_FIRE_TIME";
+        public const string ColumnOccurrenceTime = "OCCURRENCE_TIME";
         public const string ColumnOverlapPolicy = "OVERLAP_POLICY";
         public const string ColumnPauseReason = "PAUSE_REASON";
         public const string ColumnPausedAt = "PAUSED_AT";
@@ -3037,7 +3038,9 @@ namespace Quartz.Impl.AdoJobStore
         public bool JobDisallowsConcurrentExecution { get; init; }
         public Quartz.JobKey? JobKey { get; init; }
         public bool JobRequestsRecovery { get; init; }
+        public System.DateTimeOffset OccurrenceTimestamp { get; init; }
         public int Priority { get; init; }
+        public int RetryAttempt { get; init; }
         public System.DateTimeOffset ScheduleTimestamp { get; init; }
         public required string SchedulerInstanceId { get; init; }
         public required Quartz.TriggerKey TriggerKey { get; init; }
@@ -3640,6 +3643,8 @@ namespace Quartz.Impl.AdoJobStore
         public bool FiredOnAcquire { get; init; }
         public required Quartz.IJobDetail JobDetail { get; init; }
         public required Quartz.Extensibility.StoredTriggerState NewState { get; init; }
+        public System.DateTimeOffset? OccurrenceTimeUtc { get; init; }
+        public int RetryAttempt { get; init; }
         public required System.DateTimeOffset? ScheduledFireTimeUtc { get; init; }
         public required string StoredTriggerType { get; init; }
         public required Quartz.Extensibility.IOperableTrigger Trigger { get; init; }

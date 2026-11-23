@@ -64,19 +64,35 @@ public sealed record TriggerFiredUpdate
     public required string StoredTriggerType { get; init; }
 
     /// <summary>
-    /// The occurrence this fire serves, which the fired-trigger row records: a misfire's original fire
-    /// time, else the previous fire time the fire just set or left alone — not the time the attempt was
-    /// due, which a retry's instant or a misfire instruction's move is (#4272). When neither says, the
-    /// due time stands, as the row has always carried it.
+    /// The time the fire was scheduled for, which is the trigger's next fire time as it stood
+    /// <em>before</em> the fire advanced it.
     /// </summary>
     /// <remarks>
     /// Carried explicitly rather than read off <see cref="Trigger" />, because by the time this update
-    /// is applied the trigger has already moved on to its following fire time, and the occurrence is
-    /// only known once the fire has advanced it. That used to be expressed as an ordering constraint —
-    /// the fired-trigger row had to be written before <c>Triggered</c> ran — which is precisely the
-    /// kind of constraint a batch cannot honour.
+    /// is applied the trigger has already moved on to its following fire time. That used to be
+    /// expressed as an ordering constraint — the fired-trigger row had to be written before
+    /// <c>Triggered</c> ran — which is precisely the kind of constraint a batch cannot honour.
     /// </remarks>
     public required DateTimeOffset? ScheduledFireTimeUtc { get; init; }
+
+    /// <summary>
+    /// The occurrence this fire serves, for the fired-trigger row: a misfire's original fire time,
+    /// else the previous fire time the fire just set or left alone — not the time the attempt was due,
+    /// which a retry's instant or a misfire instruction's move is (#4272). <see langword="null" />
+    /// when neither says, which a recovery reads as the time the attempt was due.
+    /// </summary>
+    /// <remarks>
+    /// Carried beside <see cref="ScheduledFireTimeUtc" /> rather than read off <see cref="Trigger" />,
+    /// because the occurrence is only known once the fire has advanced it.
+    /// </remarks>
+    public DateTimeOffset? OccurrenceTimeUtc { get; init; }
+
+    /// <summary>
+    /// Which attempt at the occurrence this fire is, for the fired-trigger row: the trigger's count as
+    /// the fire found it. A recovery restores it from the row rather than reading the trigger's row,
+    /// which misfire handling may have zeroed since (#4272).
+    /// </summary>
+    public int RetryAttempt { get; init; }
 
     /// <summary>
     /// Whether the trigger's recorded original fire time has to be cleared, which it does when this

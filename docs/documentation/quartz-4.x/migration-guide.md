@@ -18,6 +18,7 @@ If you are a new user starting with the latest version, you don't need to follow
 | An application's code from 3.x | [Package Changes](#package-changes): the first error a mixed 3.x/4.x project shows is a package problem. Then [The road from 3.x, phase by phase](#the-road-from-3-x-phase-by-phase) |
 | An F# application | [Upgrading an F# project](#upgrading-an-f-project) first. F# reports the same upgrade as more errors than it has causes |
 | From a 4.0 alpha or beta | [Appendix: if you ran a 4.0 pre-release](#appendix-if-you-ran-a-4-0-pre-release) |
+| From 4.8 | [Upgrading from 4.8 to 4.9](#upgrading-from-4-8-to-4-9). It has a database migration. |
 | From 4.7 | [Upgrading from 4.7 to 4.8](#upgrading-from-4-7-to-4-8) |
 | From 4.6 | [Upgrading from 4.6 to 4.7](#upgrading-from-4-6-to-4-7). It has a database migration. Then 4.7 to 4.8 |
 | From 4.5 | [Upgrading from 4.5 to 4.6](#upgrading-from-4-5-to-4-6). It has a database migration. Then 4.6 to 4.7 |
@@ -78,6 +79,30 @@ exception is an agent's `IsOperationAllowed` and the dashboard's *Pause group* a
 | `RAMJobStore`: `PauseJobGroups`, `PauseTriggerGroups` and their `…With` forms on a group already paused | Every job or trigger in the group is paused again, one resumed on its own included, and `PauseAll` pauses it too. It used to keep running. The answer now names that group, so `JobsPaused` or `TriggersPaused` is raised for it, as the ADO.NET store always did. The group keeps the pause it had |
 | A trigger replaced while another node holds it acquired (#4323) | `RescheduleJob`, and a `ScheduleJob` or `ScheduleTrigger` that replaces, cancel the old trigger's acquisitions. The node holding one does not fire its copy and does not write it back; the replacement fires on the next acquisition. Before, both definitions ran and the row flipped between them. See [Rescheduling Jobs](how-tos/rescheduling-jobs.md#changing-the-schedule-reschedulejob) |
 | A declared trigger re-applied at a start (#4324) | Held to the stored trigger as the start read it: a firing on another node in between is not undone. A registration that describes the stored trigger exactly, which an unchanged one does with `ScheduleTriggerRelativeToReplacedTrigger` on, leaves the row as it is, its state and an acquisition included. Log event `5037` says a start read a trigger again; warning `5038` that one kept firing between its reads and is left as stored until the next start. See [What a start keeps](how-tos/rescheduling-jobs.md#what-a-start-keeps) |
+
+## Upgrading from 4.8 to 4.9
+
+An application on 4.8 compiles on 4.9 unchanged. The upgrade has one required database migration, in
+[`database/migrations/4.9/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.9):
+
+| Migration | Adds, nullable |
+|---|---|
+| `add_fired_trigger_occurrence_<db>.sql` | `OCCURRENCE_TIME` and `RETRY_ATTEMPT` on `QRTZ_FIRED_TRIGGERS` |
+
+A 4.9 node refuses to start without it; a 4.8 node never names it. Run it while the 4.8 nodes are up, then
+roll the nodes. A firing a 4.8 node runs recovers at the time its attempt was due with attempt `0`, as it
+always has; only firings a 4.9 node records recover at the occurrence with the attempt kept. See
+[Version 4.9](../database/schema-changes.md#version-4-9).
+
+| Added | What it is |
+|---|---|
+| `FiredTriggerRecord.OccurrenceTimestamp` | `DateTimeOffset`, `init`: the occurrence the firing serves. A row a 4.8 node wrote reads as the time the attempt was due |
+| `FiredTriggerRecord.RetryAttempt` | `int`, `init`: which attempt at the occurrence the firing was. A row a 4.8 node wrote reads as `0` |
+| `QRTZ_FIRED_TRIGGERS.OCCURRENCE_TIME`, `RETRY_ATTEMPT`, `AdoConstants.ColumnOccurrenceTime`, `AdoConstants.ColumnRetryAttempt` | Nullable columns, from the required `4.9/add_fired_trigger_occurrence_<db>.sql`; `NULL` is the time the attempt was due with attempt `0`. See [Version 4.9](../database/schema-changes.md#version-4-9) |
+
+| Changed | What to check |
+|---|---|
+| A recovery of a retry or a misfire catch-up | Serves the occurrence and keeps `RetryAttempt`, for firings a 4.9 node recorded. A row a 4.8 node wrote recovers at the time the attempt was due with attempt `0`, as it always has |
 
 ## Upgrading from 4.6 to 4.7
 

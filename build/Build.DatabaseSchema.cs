@@ -837,6 +837,19 @@ partial class Build
                 // table's other times. The node running the firing reads its own rows' requests at every
                 // check-in and cancels the job's token (#4071).
                 Timestamp("INTERRUPT_REQUESTED_TIME", required: false) with { AddedBy = "4.6" },
+                // The occurrence this firing serves, in ticks like the table's other times, and which
+                // attempt at it this is: a recovery of a retry or a misfire catch-up serves the
+                // occurrence and keeps the attempt, for firings a 4.9 node recorded (#4272). Both are
+                // NULL on a row a node older than 4.9 wrote, which reads as the time the attempt was
+                // due with attempt 0.
+                Timestamp("OCCURRENCE_TIME", required: false) with { AddedBy = "4.9" },
+                Column("RETRY_ATTEMPT",
+                    sqlServer: "int NULL",
+                    postgres: "INTEGER NULL",
+                    mysql: "INTEGER NULL",
+                    oracle: "NUMBER(13) NULL",
+                    sqlite: "INTEGER NULL",
+                    firebird: "INTEGER DEFAULT NULL") with { AddedBy = "4.9" },
             ],
             OracleStem: "FIRED_TRIGGER"),
 

@@ -61,9 +61,10 @@ public static class JobExecutionContextOccurrenceExtensions
     /// <para>
     /// A recovery keeps the origin, occurrence and attempt of the firing it runs again: the recovery
     /// trigger carries that firing's job data, is scheduled for the time that firing was, and restores
-    /// the attempt its trigger's row still counts (#4272). The fired-trigger row records the occurrence
-    /// rather than the time the attempt was due, so a recovery of a retry or a misfire catch-up serves
-    /// the occurrence too.
+    /// the attempt the fired-trigger row records (#4272). For firings a 4.9 node recorded, the row
+    /// carries the occurrence and the attempt, so a recovery of a retry or a misfire catch-up serves
+    /// the occurrence too; a row an older node wrote recovers at the time the attempt was due with
+    /// attempt <c>0</c>.
     /// </para>
     /// <para>
     /// A firing with no scheduled fire time is taken to be due when it fired.

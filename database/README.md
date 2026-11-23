@@ -113,6 +113,7 @@ file whose suffix matches your database: `_sqlServer`, `_postgres`, `_mysql_inno
 | [`4.6`](migrations/4.6) | `add_trigger_misfire_threshold_<db>.sql`: `MISFIRE_THRESHOLD` on `QRTZ_TRIGGERS`, a trigger's own misfire threshold in milliseconds (#4070) | **Required on 4.6+**, safe during a mixed 4.5/4.6 window; a 4.5 node ignores the column, so give a trigger a threshold only once every node is 4.6 | all | `main` only |
 | [`4.6`](migrations/4.6) | `add_execution_history_lookup_indexes_<db>.sql`: `IDX_QRTZ_EH_FIRE_INST` and `IDX_QRTZ_EH_TRIG_TIME` on `QRTZ_EXECUTION_HISTORY`, a firing's outcome and a trigger's history read by seek rather than scan (#4072) | **Optional**, performance only; changes nothing on a database without the history table, except on SQLite; safe under a mixed cluster | all | `main` only |
 | [`4.7`](migrations/4.7) | `add_trigger_fixed_delay_<db>.sql`: `FIXED_DELAY` on `QRTZ_TRIGGERS`, a simple trigger whose interval is measured from the previous run's completion (#4140) | **Required on 4.7+**, safe during a mixed 4.6/4.7 window; a 4.6 node ignores the column, so measure from completion only once every node is 4.7 | all | `main` only |
+| [`4.9`](migrations/4.9) | `add_fired_trigger_occurrence_<db>.sql`: `OCCURRENCE_TIME` and `RETRY_ATTEMPT` on `QRTZ_FIRED_TRIGGERS`, the occurrence a firing serves and which attempt at it this is (#4272) | **Required on 4.9+**, safe during a mixed 4.8/4.9 window; a 4.8 node never names the columns, so its firings recover at the time the attempt was due with attempt `0` | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -270,6 +271,20 @@ them. Run it when you want a cluster-wide execution history, at any time, or nev
 - **Make a trigger measure from completion only once every node is 4.7.** A 4.6 node ignores the column
   and runs the trigger at a fixed rate, beside a running firing of it.
 - A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have the column.
+
+### Upgrading 4.8 → 4.9
+
+[`migrations/4.9`](migrations/4.9) has one file, and it is required.
+
+| File | Status | What |
+|---|---|---|
+| `add_fired_trigger_occurrence_<db>.sql` | **Required** | `OCCURRENCE_TIME` and `RETRY_ATTEMPT` on `QRTZ_FIRED_TRIGGERS`: the occurrence a firing serves and which attempt at it this is, `NULL` on a row a 4.8 node wrote. A 4.9 node writes both when a firing starts and reads them when it recovers one, and refuses to start without them. |
+
+- **Run it while 4.8 nodes are still up.** The columns are nullable with no default, and a 4.8 node never
+  names them, so its rows read `NULL`.
+- **A recovery serves the occurrence only for firings a 4.9 node recorded.** A firing a 4.8 node runs
+  recovers at the time its attempt was due with attempt `0`, as it always has.
+- A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have both columns.
 
 ## Where these files moved
 

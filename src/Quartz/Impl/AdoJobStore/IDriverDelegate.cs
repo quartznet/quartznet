@@ -84,7 +84,7 @@ public interface IDriverDelegate
     /// <see cref="SchedulerConstants.FailedJobOriginalTriggerName" /> and the keys beside it; a replay of a
     /// recovery trigger keeps the names that trigger's map already carries. Each trigger also stands in for
     /// the firing the row records: its previous fire time is that firing's occurrence, and its retry attempt
-    /// is the attempt that firing was, read off the trigger's row (#4272).
+    /// is the attempt that firing was, read off the fired-trigger row (#4272).
     /// </remarks>
     /// <param name="conn">The DB Connection</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>

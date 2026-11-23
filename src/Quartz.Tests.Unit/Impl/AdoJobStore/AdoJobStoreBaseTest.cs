@@ -2497,6 +2497,7 @@ public class AdoJobStoreBaseTest
         DateTimeOffset scheduledAt = default)
     {
         DateTimeOffset fireTimestamp = firedAt == default ? ClusterNow - TimeSpan.FromMinutes(1) : firedAt;
+        DateTimeOffset scheduleTimestamp = scheduledAt == default ? fireTimestamp : scheduledAt;
         return new FiredTriggerRecord
         {
             FireInstanceId = fireInstanceId,
@@ -2508,7 +2509,10 @@ public class AdoJobStoreBaseTest
             JobRequestsRecovery = requestsRecovery,
             Priority = priority,
             FireTimestamp = fireTimestamp,
-            ScheduleTimestamp = scheduledAt == default ? fireTimestamp : scheduledAt,
+            ScheduleTimestamp = scheduleTimestamp,
+
+            // A plain firing serves the occurrence it was due at, on its first attempt.
+            OccurrenceTimestamp = scheduleTimestamp,
         };
     }
 

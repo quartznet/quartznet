@@ -90,12 +90,13 @@ internal sealed class ProjectionDataReader : DbDataReader
 
         // Stored as UTC ticks.
         AdoConstants.ColumnFiredTime or AdoConstants.ColumnScheduledTime or AdoConstants.ColumnLastCheckinTime
-            or AdoConstants.ColumnNextFireTime => 638_000_000_000_000_000L,
+            or AdoConstants.ColumnNextFireTime or AdoConstants.ColumnOccurrenceTime => 638_000_000_000_000_000L,
 
         // Stored as whole milliseconds.
         AdoConstants.ColumnCheckinInterval or AdoConstants.ColumnRepeatInterval => 15_000L,
 
-        AdoConstants.ColumnPriority or AdoConstants.ColumnRepeatCount or AdoConstants.ColumnTimesTriggered => 5,
+        AdoConstants.ColumnPriority or AdoConstants.ColumnRepeatCount or AdoConstants.ColumnTimesTriggered
+            or AdoConstants.ColumnRetryAttempt => 5,
         AdoConstants.ColumnIsNonConcurrent or AdoConstants.ColumnRequestsRecovery => true,
         AdoConstants.ColumnExecutionGroup => "gpu",
         AdoConstants.ColumnQuartzVersion => "4.6.0",

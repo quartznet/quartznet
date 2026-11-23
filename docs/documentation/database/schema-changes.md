@@ -52,6 +52,7 @@ editing.
 | 4.3 | 4.4 / 4.5 | Nothing mandatory. [4.4](#version-4-4) only with `UseExecutionHistory()` |
 | 4.3 / 4.4 / 4.5 | 4.6+ | [4.6](#version-4-6): the version, interrupt and misfire threshold columns **mandatory**, the history indexes optional; [4.4](#version-4-4) only with `UseExecutionHistory()`; then [4.7](#version-4-7) for 4.7+ |
 | 4.6 | 4.7+ | [4.7](#version-4-7): the fixed-delay column, **mandatory** |
+| 4.7 / 4.8 | 4.9+ | [4.9](#version-4-9): the occurrence columns, **mandatory** |
 
 ## Upgrading to 4.x is mandatory
 
@@ -803,6 +804,37 @@ Run the script while 4.6 nodes are still up: the column is nullable with no defa
 names it. A 4.6 node runs a trigger measured from completion at a fixed rate, beside a running firing of it,
 and leaves the column as it was when it updates the row. Roll every node, then make a trigger measure from
 completion.
+
+## Version 4.9
+
+One mandatory script ([#4272](https://github.com/quartznet/quartznet/issues/4272)).
+
+| Script | Status | Adds |
+|---|---|---|
+| [`migrations/4.9/add_fired_trigger_occurrence_<db>.sql`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.9) | **Mandatory** for 4.9 and later | `OCCURRENCE_TIME` and `RETRY_ATTEMPT` on `QRTZ_FIRED_TRIGGERS` |
+
+### The occurrence columns
+
+`OCCURRENCE_TIME` is the occurrence the firing serves, in ticks like `SCHED_TIME`: a misfire's
+original fire time, else the previous fire time the fire set or left alone. `RETRY_ATTEMPT` is which
+attempt at that occurrence the firing is. A firing writes both when it starts; a reservation leaves
+both `NULL`. `SCHED_TIME` keeps meaning when the attempt was due.
+
+| Value | Meaning |
+|---|---|
+| `NULL` | A row a node older than 4.9 wrote: the recovery serves the time the attempt was due with attempt `0`, as it always has |
+| set | The occurrence and the attempt the firing was: a recovery of a retry or a misfire catch-up serves the occurrence and keeps the attempt |
+
+- Nullable, no default, no index. The columns are read with the rest of the row, which recovery
+  already reads, and never searched on.
+- A 4.9 node refuses to start without them; the startup check names the column and the script.
+
+### Rolling 4.8 → 4.9
+
+Run the script while 4.8 nodes are still up: the columns are nullable with no default, and a 4.8 node never
+names them. A firing a 4.8 node runs recovers at the time its attempt was due with attempt `0`, and leaves
+the columns as it found them when it updates the row. Roll every node, then rely on a recovery serving the
+occurrence only for firings a 4.9 node recorded.
 
 ## See also
 

@@ -203,6 +203,21 @@ internal static class SqlParameters
     public const string ExecutingState = "executingState";
     public const string FiredTime = "firedTime";
     public const string ScheduledTime = "scheduledTime";
+
+    /// <summary>The occurrence the firing serves, for its fired-trigger row.</summary>
+    /// <remarks>
+    /// Its own name rather than a trigger's, because the two are bound in different statements against
+    /// different tables and a shared name would hide that.
+    /// </remarks>
+    public const string OccurrenceTime = "occurrenceTime";
+
+    /// <summary>Which attempt at the occurrence a fired-trigger row is of.</summary>
+    /// <remarks>
+    /// Its own name rather than <see cref="TriggerRetryAttempt" />, because the two are bound in
+    /// different statements against different tables and a shared name would hide that.
+    /// </remarks>
+    public const string FiredRetryAttempt = "firedRetryAttempt";
+
     public const string Progress = "progress";
     public const string ProgressMessage = "progressMessage";
     public const string InterruptRequestedTime = "interruptRequestedTime";
@@ -221,6 +236,21 @@ internal static class SqlParameters
     public const string TriggerInstanceName = "triggerInstanceName";
     public const string TriggerFireTime = "triggerFireTime";
     public const string TriggerScheduledTime = "triggerScheduledTime";
+
+    /// <summary>The occurrence the firing serves, for the fired-trigger row an insert writes.</summary>
+    /// <remarks>
+    /// Its own name rather than a trigger's, because the two are bound in different statements against
+    /// different tables and a shared name would hide that.
+    /// </remarks>
+    public const string TriggerOccurrenceTime = "triggerOccurrenceTime";
+
+    /// <summary>Which attempt at the occurrence the fired-trigger row an insert writes is of.</summary>
+    /// <remarks>
+    /// Its own name rather than <see cref="TriggerRetryAttempt" />, because the two are bound in
+    /// different statements against different tables and a shared name would hide that.
+    /// </remarks>
+    public const string TriggerFiredRetryAttempt = "triggerFiredRetryAttempt";
+
     public const string TriggerJobStateful = "triggerJobStateful";
     public const string TriggerJobRequestsRecovery = "triggerJobRequestsRecovery";
 
