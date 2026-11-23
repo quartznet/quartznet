@@ -461,6 +461,38 @@ public sealed class QuartzApiClientContractTest
     }
 
     /// <summary>
+    /// The header search's two reads (#4411), through every carrier: the jobs and the triggers whose names
+    /// contain the text, eight of each, with the total its <em>See all</em> link counts.
+    /// </summary>
+    [Test]
+    public async Task TheHeaderSearchFindsJobsAndTriggersByNameThroughTheClient()
+    {
+        const string group = "header-search";
+        for (int index = 0; index < 10; index++)
+        {
+            JobKey jobKey = new("invoice-" + index.ToString("00", CultureInfo.InvariantCulture), group);
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<DummyJob>().WithIdentity(jobKey).Build(),
+                TriggerBuilder.Create().WithIdentity(jobKey.Name + "-nightly", group).ForJob(jobKey).StartAt(DateTimeOffset.UtcNow.AddHours(1)).Build());
+        }
+
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<DummyJob>().WithIdentity("payroll", group).Build(),
+            TriggerBuilder.Create().WithIdentity("payroll-monthly", group).StartAt(DateTimeOffset.UtcNow.AddHours(1)).Build());
+
+        PagedResult<JobKeyDto> jobs = await client.QueryJobs(key, new DashboardJobQuery { NameContains = "invoice", Take = 8 });
+        PagedResult<TriggerHeaderDto> triggers = await client.QueryTriggers(key, new DashboardTriggerQuery { NameContains = "invoice", Take = 8 });
+
+        jobs.Items.Should().HaveCount(8).And.OnlyContain(job => job.Name.StartsWith("invoice-", StringComparison.Ordinal));
+        jobs.TotalCount.Should().Be(10);
+        jobs.HasMore.Should().BeTrue();
+        triggers.Items.Should().HaveCount(8).And.OnlyContain(trigger => trigger.Name.EndsWith("-nightly", StringComparison.Ordinal));
+        triggers.TotalCount.Should().Be(10);
+
+        await scheduler.DeleteJobs([.. Enumerable.Range(0, 10).Select(index => new JobKey("invoice-" + index.ToString("00", CultureInfo.InvariantCulture), group)), new JobKey("payroll", group)]);
+    }
+
+    /// <summary>
     /// Trigger Detail's "Why isn't it firing?" reads the same through every carrier (#4411): the scheduler's
     /// status, the paused groups and the job group's pause, the job's firings by the job filter, the limits and
     /// the trigger's misfires, each over the route a page already reads.

@@ -2306,6 +2306,50 @@ body{
     margin-bottom: var(--qz-space-md);
 }
 
+/* The header's search: a box, and the dropdown of what it found under it. */
+.qz-header-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--qz-space-sm);
+}
+
+.qz-header-search-input {
+    width: 16rem;
+}
+
+.qz-header-search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 50;
+    min-width: 22rem;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: var(--qz-space-sm) var(--qz-space-md);
+    border: 1px solid var(--qz-color-border-strong);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-surface);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+}
+
+.qz-header-search-heading {
+    margin: var(--qz-space-sm) 0 var(--qz-space-xs);
+    font-size: var(--qz-font-size-xs);
+    text-transform: uppercase;
+    color: var(--qz-color-text-secondary);
+}
+
+.qz-header-search-list {
+    list-style: none;
+    margin: 0 0 var(--qz-space-xs);
+    padding: 0;
+}
+
+.qz-header-search-list li {
+    padding: 2px 0;
+}
+
 /* Trigger Detail's "Why isn't it firing?" */
 .qz-diagnosis-table th {
     width: 12rem;
