@@ -51,7 +51,7 @@ writes the tables, EF Core never does.
 |---|---|---|
 | `TablePrefix` | `QRTZ_` | what every table and index name starts with, without a schema |
 | `Schema` | unset: the model's default schema | PostgreSQL and SQL Server only |
-| `MaxIdentifierLength` | unset: the database's limit, 31 bytes on Firebird | Firebird only: up to 63 for a database only Firebird 4 or later opens. See [Limits](#limits) |
+| `MaxIdentifierLength` | unset: the database's limit; on Firebird, Firebird 3's 31 bytes | Firebird only. See [Limits](#limits) |
 
 <!-- snippet: sample_efcore_schema -->
 ```csharp
@@ -186,7 +186,7 @@ dotnet ef migrations add UpgradeQuartz
 | Firebird | |
 |---|---|
 | Names | 31 bytes by default, Firebird 3's limit: a prefix of at most 6 bytes of UTF-8, 6 characters of ASCII |
-| Names on Firebird 4 and 5 | 63 bytes with `MaxIdentifierLength = 63`: a prefix of at most 38 bytes. Only for a database Firebird 3 never opens: Firebird 3 refuses the migration and keeps nothing of it |
+| Names on Firebird 4 and 5 | 63 characters, counted here as 63 bytes of UTF-8, with `MaxIdentifierLength = 63`: a prefix of at most 38 bytes, 38 characters of ASCII. Only for a database Firebird 3 never opens: Firebird 3 refuses the migration and keeps nothing of it |
 | `migrations script --idempotent` | Not supported by the provider. Script a range of migrations, `script <from> <to>`, or use a migration bundle |
 | Index directions | One per index, so `IDX_QRTZ_T_NFT_ST` is the script's three columns without `PRIORITY DESC`; the provider refuses mixed directions |
 | The schema | The tables go in the connection's database; `Schema` is refused |
