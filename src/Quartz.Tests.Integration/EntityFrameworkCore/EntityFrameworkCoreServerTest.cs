@@ -279,9 +279,9 @@ public sealed class FirebirdEntityFrameworkCoreTest : EntityFrameworkCoreServerT
 
     /// <summary>
     /// A database only Firebird 4 or later opens takes 63-character names, which <c>MaxIdentifierLength = 63</c>
-    /// says. A prefix one byte past Firebird 3's six, and the longest 63 leaves room for, then migrate to the fresh
-    /// install and run the scheduler. Firebird 3 refuses the first name past its 31 bytes and keeps nothing of the
-    /// migration.
+    /// says. Two prefixes, one byte past Firebird 3's six and the longest 63 leaves room for, migrate to the fresh
+    /// install's schema and run the scheduler. Firebird 3 refuses the first name past its 31 bytes and keeps nothing
+    /// of the migration.
     /// </summary>
     [TestCase("QRTZ63_")]
     [TestCase("QUARTZ_FOR_FIREBIRD_4_AND_5_REPORTING_")]
