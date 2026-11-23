@@ -73,14 +73,44 @@
         @switch (_form.Kind)
         {
             case CalendarKind.Holiday:
-                <div class="qz-form-group">
-                    <label class="qz-form-label" for="calendar-holiday-dates">Dates excluded, one a line, as yyyy-MM-dd</label>
-                    <textarea id="calendar-holiday-dates" class="qz-input" rows="8" @bind="_form.HolidayDates"></textarea>
+                <p class="qz-muted">The dates excluded, each a whole day in the calendar's time zone.</p>
+                <div class="qz-calendar-add-date">
+                    <div class="qz-form-group">
+                        <label class="qz-form-label" for="calendar-holiday-add">Add a date</label>
+                        <input id="calendar-holiday-add" class="qz-input" type="date" @bind="_holidayToAdd" />
+                    </div>
+                    <button type="button" class="qz-button" data-testid="calendar-holiday-add" @onclick="AddHoliday">Add</button>
                 </div>
+                @if (_form.HolidayDays.Count > 0)
+                {
+                    <ul class="qz-list" data-testid="calendar-editor-holiday-dates">
+                        @foreach (DateOnly date in _form.HolidayDays)
+                        {
+                            DateOnly holiday = date;
+                            string label = CalendarReading.FormatDate(holiday);
+                            <li>
+                                <span><span class="qz-mono">@label</span> <span class="qz-muted">@holiday.DayOfWeek</span></span>
+                                <button type="button" class="qz-button" aria-label="@("Remove " + label)" data-date="@label" @onclick="() => _form.HolidayDays.Remove(holiday)">Remove</button>
+                            </li>
+                        }
+                    </ul>
+                }
+                <details class="qz-calendar-paste">
+                    <summary>Paste several dates</summary>
+                    <div class="qz-form-group">
+                        <label class="qz-form-label" for="calendar-holiday-paste">Dates, one a line, as yyyy-MM-dd</label>
+                        <textarea id="calendar-holiday-paste" class="qz-input" rows="6" @bind="_holidayPaste"></textarea>
+                    </div>
+                    @if (_holidayRejected.Count > 0)
+                    {
+                        <p class="qz-field-error" data-testid="calendar-holiday-rejected">Not dates as yyyy-MM-dd, so not added: @string.Join(", ", _holidayRejected)</p>
+                    }
+                    <button type="button" class="qz-button" data-testid="calendar-holiday-paste-add" @onclick="AddPastedHolidays">Add these dates</button>
+                </details>
                 break;
 
             case CalendarKind.Annual:
-                <p class="qz-muted">Tick the days excluded every year.</p>
+                <p class="qz-muted">Tick the days excluded every year. The arrow keys move between days and Space ticks one.</p>
                 <AnnualDayGrid Days="@_form.AnnualDays" />
                 break;
 
@@ -93,6 +123,7 @@
                         <li>
                             <label class="qz-live-filter-item">
                                 <input type="checkbox"
+                                       class="qz-check"
                                        data-day="@weekDay"
                                        checked="@_form.WeeklyDays.Contains(weekDay)"
                                        @onchange="args => Toggle(_form.WeeklyDays, weekDay, args)" />
@@ -112,6 +143,7 @@
                         <li>
                             <label class="qz-live-filter-item">
                                 <input type="checkbox"
+                                       class="qz-check"
                                        data-day="@dayOfMonth"
                                        checked="@_form.MonthlyDays.Contains(dayOfMonth)"
                                        @onchange="args => Toggle(_form.MonthlyDays, dayOfMonth, args)" />
@@ -126,32 +158,45 @@
                 <div class="qz-live-filter-grid">
                     <div class="qz-form-group">
                         <label class="qz-form-label" for="calendar-daily-start">Range start</label>
-                        <input id="calendar-daily-start" class="qz-input qz-input-mono" placeholder="HH:mm:ss" @bind="_form.DailyStart" />
+                        <input id="calendar-daily-start" class="qz-input" type="time" step="1" value="@_form.DailyStart" @onchange="args => _form.DailyStart = args.Value?.ToString() ?? string.Empty" />
                     </div>
                     <div class="qz-form-group">
                         <label class="qz-form-label" for="calendar-daily-end">Range end</label>
-                        <input id="calendar-daily-end" class="qz-input qz-input-mono" placeholder="HH:mm:ss" @bind="_form.DailyEnd" />
-                    </div>
-                    <div class="qz-form-group">
-                        <label class="qz-live-filter-item" for="calendar-daily-invert">
-                            <input id="calendar-daily-invert" type="checkbox" @bind="_form.DailyInvert" />
-                            <span>Inverted: the range is the part of the day included</span>
-                        </label>
+                        <input id="calendar-daily-end" class="qz-input" type="time" step="1" value="@_form.DailyEnd" @onchange="args => _form.DailyEnd = args.Value?.ToString() ?? string.Empty" />
                     </div>
                 </div>
+                <label class="qz-live-filter-item" for="calendar-daily-invert">
+                    <input id="calendar-daily-invert" type="checkbox" class="qz-check" @bind="_form.DailyInvert" />
+                    <span>Inverted: the range is the part of the day included</span>
+                </label>
                 break;
 
             case CalendarKind.Cron:
                 <div class="qz-form-group">
                     <label class="qz-form-label" for="calendar-cron">Cron expression: every second it matches is excluded</label>
-                    <input id="calendar-cron" class="qz-input qz-input-mono" placeholder="* * 0-6 ? * *" @bind="_form.CronExpression" @bind:event="oninput" />
+                    <input id="calendar-cron"
+                           class="qz-input qz-input-mono"
+                           placeholder="* * 0-6 ? * *"
+                           aria-describedby="calendar-cron-error"
+                           @bind="_form.CronExpression"
+                           @bind:event="oninput"
+                           @bind:after="OnCronExpressionChanged" />
+                    @if (CronError is { } cronError)
+                    {
+                        <p id="calendar-cron-error" class="qz-field-error" role="alert" data-testid="calendar-cron-error">@cronError</p>
+                    }
                 </div>
-                @if (_form.TryResolveTimeZone() is { } previewZone)
+                @if (CronError is null && _form.CronExpression.Trim().Length > 0 && _form.TryResolveTimeZone() is { } previewZone)
                 {
                     <h3>Excluded next</h3>
                     <CronCalendarPreview Expression="@_form.CronExpression" TimeZone="@previewZone" From="@Clock.GetUtcNow()" />
                 }
                 break;
+        }
+
+        @if (_form.ExcludesNothing)
+        {
+            <p class="qz-form-warning" role="status" data-testid="calendar-editor-excludes-nothing">@ExcludesNothingText</p>
         }
     </div>
 
@@ -210,6 +255,21 @@
     private int _calendarBaseCount;
     private PendingReplace? _pending;
 
+    /// <summary>The date in the holiday editor's date field, which Add puts on the list.</summary>
+    private DateOnly? _holidayToAdd;
+
+    /// <summary>Dates pasted one a line, which Add these dates puts on the list.</summary>
+    private string _holidayPaste = string.Empty;
+
+    /// <summary>The pasted lines that were not dates, said beside the paste box until it is used again.</summary>
+    private List<string> _holidayRejected = [];
+
+    /// <summary>
+    /// What the last save said about the cron expression when there was none to parse: shown beside the field until
+    /// something is typed in it. A wrong one is said as it is typed, and not kept.
+    /// </summary>
+    private string? _cronMissing;
+
     /// <summary>Cancelled when the editor goes with its page, which stops the trigger count in flight.</summary>
     private readonly CancellationTokenSource _cancellation = new();
 
@@ -251,6 +311,20 @@
 
     private static IReadOnlyList<TimeZoneInfo> TimeZones { get; } = TimeZoneInfo.GetSystemTimeZones();
 
+    /// <summary>
+    /// The one thing said about the cron expression, beside it: what is wrong with it as typed, or that a save
+    /// found none. Nothing once it parses.
+    /// </summary>
+    private string? CronError => _form.CronExpressionError() ?? _cronMissing;
+
+    private string ExcludesNothingText => _form.Kind switch
+    {
+        CalendarKind.Holiday => "No date is on the list: saved like this, the calendar excludes nothing.",
+        CalendarKind.Annual => "No day is ticked: saved like this, the calendar excludes nothing.",
+        CalendarKind.Weekly => "No day of the week is ticked: saved like this, the calendar excludes nothing.",
+        _ => "No day of the month is ticked: saved like this, the calendar excludes nothing.",
+    };
+
     protected override void OnParametersSet()
     {
         if (Calendar is null || ReferenceEquals(_formFor, Calendar))
@@ -263,6 +337,7 @@
         _calendarBaseCount = CalendarReading.BaseChainOf(Calendar).Count;
         _errors = [];
         _refusal = null;
+        _cronMissing = null;
     }
 
     /// <summary>
@@ -272,6 +347,7 @@
     {
         _errors = [];
         _refusal = null;
+        _cronMissing = null;
 
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (string.IsNullOrWhiteSpace(schedulerName) || !Authorization.Allows(schedulerName, Quartz.HttpApiContract.SchedulerRoutes.AddCalendar))
@@ -287,6 +363,13 @@
 
         CalendarFormResult result = _form.Build();
         _errors.AddRange(result.Errors);
+
+        // A wrong expression is already said beside the field, as it is typed; only a missing one needs the save.
+        if (_form.CronExpressionError() is null)
+        {
+            _cronMissing = result.CronExpressionError;
+        }
+
         if (_errors.Count > 0 || result.Calendar is null)
         {
             return;
@@ -392,6 +475,31 @@
         _form = CalendarForm.ForNew(_form.Kind);
         _errors = [];
         _refusal = null;
+        _cronMissing = null;
+        _holidayToAdd = null;
+        _holidayPaste = string.Empty;
+        _holidayRejected = [];
+    }
+
+    private void OnCronExpressionChanged()
+    {
+        _cronMissing = null;
+    }
+
+    private void AddHoliday()
+    {
+        if (_holidayToAdd is { } date)
+        {
+            _form.HolidayDays.Add(date);
+            _holidayToAdd = null;
+        }
+    }
+
+    /// <summary>Adds the pasted dates, and keeps the lines that were not dates in the box, said beside it.</summary>
+    private void AddPastedHolidays()
+    {
+        _holidayRejected = _form.AddHolidayDates(_holidayPaste);
+        _holidayPaste = string.Join("\n", _holidayRejected);
     }
 
     private Task CancelAsync()

@@ -114,18 +114,18 @@ public class RefreshButtonPagesTest
     {
         GivenCalendarNames("holidays");
         IRenderedComponent<Calendars> page = context.Render<Calendars>();
-        page.WaitForAssertion(() => page.TextOfAll(".qz-list a").Should().Equal(["holidays"]));
+        page.WaitForAssertion(() => page.TextOfAll("[data-testid=calendars-table] tbody a").Should().Equal(["holidays"]));
 
         GivenCalendarNames("holidays", "month-end");
         page.Find("[data-testid=refresh]").Click();
-        page.WaitForAssertion(() => page.TextOfAll(".qz-list a").Should().Equal(["holidays", "month-end"], "the button reads the names again"));
+        page.WaitForAssertion(() => page.TextOfAll("[data-testid=calendars-table] tbody a").Should().Equal(["holidays", "month-end"], "the button reads the names again"));
 
         A.CallTo(() => context.Api.GetCalendarNames(A<string>._, A<CancellationToken>._))
             .Throws(new InvalidOperationException(Failure));
         page.Find("[data-testid=refresh]").Click();
         page.WaitForAssertion(() =>
         {
-            page.TextOfAll(".qz-list a").Should().Equal(["holidays", "month-end"], "the names stay until new ones arrive");
+            page.TextOfAll("[data-testid=calendars-table] tbody a").Should().Equal(["holidays", "month-end"], "the names stay until new ones arrive");
             StaleReason(page).Should().Be("The last refresh failed: " + Failure);
         });
     }

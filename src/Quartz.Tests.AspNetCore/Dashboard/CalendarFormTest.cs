@@ -74,33 +74,51 @@ public sealed class CalendarFormTest
     }
 
     [Test]
-    public void TheHolidayDatesAreReadOneALine()
+    public void PastedHolidayDatesAreReadOneALineAndTheRestAreSaid()
     {
         CalendarForm form = CalendarForm.ForNew(CalendarKind.Holiday);
-        form.HolidayDates = "2026-12-24\r\n\r\n  2026-12-25  \n2026-12-24";
         form.Description = "  Office  ";
 
-        HolidayCalendar built = (HolidayCalendar) form.Build().Calendar!;
+        List<string> rejected = form.AddHolidayDates("2026-12-24\r\n\r\n  2026-12-25  \n25.12.2026\n2026-12-24\n2026-13-01");
 
-        built.DaysExcluded.Should().Equal([new DateOnly(2026, 12, 24), new DateOnly(2026, 12, 25)],
+        rejected.Should().Equal(["25.12.2026", "2026-13-01"], "a line that is not a yyyy-MM-dd date is said, not dropped");
+        form.HolidayDays.Should().Equal([new DateOnly(2026, 12, 24), new DateOnly(2026, 12, 25)],
             "blank lines and surrounding space are not dates, and a date given twice is one");
+        HolidayCalendar built = (HolidayCalendar) form.Build().Calendar!;
+        built.DaysExcluded.Should().Equal([new DateOnly(2026, 12, 24), new DateOnly(2026, 12, 25)]);
         built.Description.Should().Be("Office");
     }
 
     [Test]
-    public void EachMistakeIsNamedAndNothingIsBuilt()
+    public void AnUnknownZoneIsNamedAndNothingIsBuilt()
     {
         CalendarForm holiday = CalendarForm.ForNew(CalendarKind.Holiday);
-        holiday.HolidayDates = "2026-12-25\n25.12.2026\n2026-13-01";
+        holiday.HolidayDays.Add(new DateOnly(2026, 12, 25));
         holiday.TimeZoneId = "Mars/Olympus_Mons";
 
         CalendarFormResult result = holiday.Build();
 
         result.Calendar.Should().BeNull();
-        result.Errors.Should().Equal(
-            "Time zone 'Mars/Olympus_Mons' is not one this dashboard knows.",
-            "'25.12.2026' is not a date written as yyyy-MM-dd.",
-            "'2026-13-01' is not a date written as yyyy-MM-dd.");
+        result.Errors.Should().Equal("Time zone 'Mars/Olympus_Mons' is not one this dashboard knows.");
+    }
+
+    [TestCase("Holiday")]
+    [TestCase("Annual")]
+    [TestCase("Weekly")]
+    [TestCase("Monthly")]
+    public void AFormWithNothingTickedSaysItExcludesNothing(string kind)
+    {
+        CalendarForm form = CalendarForm.ForNew(Enum.Parse<CalendarKind>(kind));
+        form.WeeklyDays.Clear();
+
+        form.ExcludesNothing.Should().BeTrue();
+        form.Build().Calendar.Should().NotBeNull("a calendar that excludes nothing is allowed; the editor warns about it");
+
+        form.HolidayDays.Add(new DateOnly(2026, 12, 25));
+        form.AnnualDays.Add(new MonthDay(12, 25));
+        form.WeeklyDays.Add(DayOfWeek.Sunday);
+        form.MonthlyDays.Add(1);
+        form.ExcludesNothing.Should().BeFalse();
     }
 
     [TestCase("", "17:00", "A daily calendar needs a range start.")]
@@ -121,10 +139,15 @@ public sealed class CalendarFormTest
     {
         CalendarForm form = CalendarForm.ForNew(CalendarKind.Cron);
 
-        form.Build().Errors.Should().Equal("A cron calendar needs an expression: it excludes every second the expression matches.");
+        CalendarFormResult missing = form.Build();
+        missing.Calendar.Should().BeNull();
+        missing.Errors.Should().BeEmpty("what is wrong with the expression is said beside it, not with the other fields");
+        missing.CronExpressionError.Should().Be("A cron calendar needs an expression: it excludes every second the expression matches.");
+        form.CronExpressionError().Should().BeNull("a blank field is not wrong until it is saved");
 
         form.CronExpression = "every Monday";
-        form.Build().Errors.Should().ContainSingle().Which.Should().StartWith("Invalid cron expression: ");
+        form.Build().CronExpressionError.Should().StartWith("Invalid cron expression: ");
+        form.CronExpressionError().Should().StartWith("Invalid cron expression: ", "the editor says it as the expression is typed");
 
         form.CronExpression = "* * 0-6 ? * *";
         form.TimeZoneId = Kathmandu.Id;
@@ -166,8 +189,8 @@ public sealed class CalendarFormTest
         CalendarForm form = CalendarForm.From(holidays);
 
         form.IsNew.Should().BeFalse();
-        form.HolidayDates.Should().Be("2026-12-25");
-        form.HolidayDates += "\n2026-12-26";
+        form.HolidayDays.Should().Equal([new DateOnly(2026, 12, 25)]);
+        form.HolidayDays.Add(new DateOnly(2026, 12, 26));
 
         HolidayCalendar built = (HolidayCalendar) form.Build().Calendar!;
 

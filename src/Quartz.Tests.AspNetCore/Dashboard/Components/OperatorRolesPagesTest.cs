@@ -175,7 +175,7 @@ public class OperatorRolesPagesTest
         IRenderedComponent<CalendarDetail> page = context.Render<CalendarDetail>(parameters => parameters
             .Add(x => x.CalendarName, "holidays"));
 
-        page.WaitForAssertion(() => page.Find("[data-testid=calendar-used-by]").TextContent.Should().Contain("Used by 0 triggers",
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-used-by]").TextContent.Should().Contain("Not used by any trigger",
             "reading who uses a calendar is View"));
         page.HasButton("Edit calendar").Should().Be(offered, "replacing a calendar is AddCalendar, which is Administer");
     }

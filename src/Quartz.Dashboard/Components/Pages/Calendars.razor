@@ -38,22 +38,38 @@
     }
     else
     {
-        <ul class="qz-list">
-            @foreach (string calendarName in _calendarNames)
-            {
-                <li>
-                    <div class="qz-list-item-main">
-                        <a href="@GetCalendarPath(calendarName)">@calendarName</a>
-                    </div>
+        <table class="qz-table qz-calendars-table" data-testid="calendars-table">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Type</th>
                     @if (CanDelete)
                     {
-                        <div class="qz-list-item-actions">
-                            <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptDelete(calendarName)">Delete</button>
-                        </div>
+                        <th scope="col"><span class="qz-sr-only">Actions</span></th>
                     }
-                </li>
-            }
-        </ul>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (string calendarName in _calendarNames)
+                {
+                    CalendarType type = TypeOf(calendarName);
+                    <tr>
+                        <td><a href="@GetCalendarPath(calendarName)">@calendarName</a></td>
+                        <td data-testid="calendar-type" title="@type.Reason">@type.Text</td>
+                        @if (CanDelete)
+                        {
+                            <td class="qz-table-cell-actions">
+                                <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptDelete(calendarName)">Delete</button>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (_calendarNames.Count > TypeReadLimit)
+        {
+            <p class="qz-muted" data-testid="calendar-types-capped">The type is read for the first @TypeReadLimit calendars only.</p>
+        }
     }
 </div>
 
@@ -64,7 +80,16 @@
                OnCancel="CancelDeleteAsync" />
 
 @code {
+    /// <summary>The most calendars whose type the listing reads; a scheduler holding more lists the rest without one.</summary>
+    private const int TypeReadLimit = 200;
+
+    /// <summary>How many of those reads are out at once.</summary>
+    private const int TypeReadConcurrency = 8;
+
     private readonly List<string> _calendarNames = [];
+
+    /// <summary>Each listed calendar's type, by name, read with the names.</summary>
+    private Dictionary<string, CalendarType> _types = new(StringComparer.Ordinal);
     private bool _isLoading = true;
     private string? _error;
     private bool _showDeleteConfirm;
@@ -146,8 +171,10 @@
             await Authorization.LoadOperations(schedulerName, cancellationToken);
 
             IReadOnlyList<string> names = await Api.GetCalendarNames(schedulerName, cancellationToken);
+            Dictionary<string, CalendarType> types = await ReadTypesAsync(schedulerName, names, cancellationToken);
             _calendarNames.Clear();
             _calendarNames.AddRange(names);
+            _types = types;
             _lastUpdatedAt = Clock.GetUtcNow();
             _staleReason = null;
         }
@@ -203,6 +230,7 @@
     private void ClearListing()
     {
         _calendarNames.Clear();
+        _types = new Dictionary<string, CalendarType>(StringComparer.Ordinal);
         _lastUpdatedAt = null;
         _staleReason = null;
     }
@@ -210,6 +238,47 @@
     private string GetCalendarPath(string name)
     {
         return DashboardLink.To(Options.Value, "calendars/" + Uri.EscapeDataString(name));
+    }
+
+    private CalendarType TypeOf(string calendarName)
+    {
+        return _types.TryGetValue(calendarName, out CalendarType? type) ? type : new CalendarType("—", null);
+    }
+
+    /// <summary>
+    /// Each calendar's type, read with the names on load and on Refresh: the scheduler lists names only, so the type
+    /// is one read of each calendar, a few at a time and no more than <see cref="TypeReadLimit" /> of them. A
+    /// calendar that cannot be read is listed with the reason, and the rest are still read.
+    /// </summary>
+    private async Task<Dictionary<string, CalendarType>> ReadTypesAsync(string schedulerName, IReadOnlyList<string> names, CancellationToken cancellationToken)
+    {
+        Dictionary<string, CalendarType> types = new(StringComparer.Ordinal);
+        using SemaphoreSlim gate = new(TypeReadConcurrency);
+
+        async Task<(string Name, CalendarType Type)> ReadOne(string name)
+        {
+            await gate.WaitAsync(cancellationToken);
+            try
+            {
+                ICalendar calendar = await Api.GetCalendar(schedulerName, name, cancellationToken);
+                return (name, new CalendarType(CalendarReading.ShortName(calendar), null));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                return (name, new CalendarType("unreadable", ex.Message));
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        foreach ((string name, CalendarType type) in await Task.WhenAll(names.Take(TypeReadLimit).Select(ReadOne)))
+        {
+            types[name] = type;
+        }
+
+        return types;
     }
 
     /// <summary>A calendar was stored: the listing is read again, so a new name is on it.</summary>
@@ -276,4 +345,7 @@
         _cancellation.Cancel();
         _cancellation.Dispose();
     }
+
+    /// <summary>A calendar's type as the listing shows it, and why it could not be read when it could not.</summary>
+    private sealed record CalendarType(string Text, string? Reason);
 }
