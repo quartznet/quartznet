@@ -153,6 +153,47 @@
             </tbody>
         </table>
 
+        @if (_diagnosisFacts is not null)
+        {
+            @* Every check an operator works through, read once on load and on Refresh: never on a timer. *@
+            List<DiagnosisCheck> checks = TriggerDiagnosis.Evaluate(_diagnosisFacts, FormatDate);
+            int holdingBack = checks.Count(static check => check.HoldsBack);
+            <section class="qz-section qz-diagnosis" data-testid="trigger-diagnosis">
+                <h2>Why isn't it firing?</h2>
+                <p class="qz-muted" data-testid="trigger-diagnosis-summary">
+                    @(holdingBack == 0
+                        ? "Nothing found that holds it back."
+                        : holdingBack == 1 ? "One finding may hold it back." : holdingBack + " findings may hold it back.")
+                </p>
+                <table class="qz-table qz-diagnosis-table">
+                    <tbody>
+                        @foreach (DiagnosisCheck check in checks)
+                        {
+                            <tr class="qz-diagnosis-@check.Verdict.ToString().ToLowerInvariant()" data-check="@check.Name">
+                                <th scope="row">@check.Name</th>
+                                <td class="qz-diagnosis-verdict" title="@check.Verdict">@VerdictGlyph(check.Verdict)</td>
+                                <td>
+                                    <span class="qz-diagnosis-text">@check.Text</span>
+                                    @if (check.LinkPath is not null)
+                                    {
+                                        <a class="qz-details-link" href="@DashboardLink.To(Options.Value, check.LinkPath)">@check.LinkText</a>
+                                    }
+                                    @if (check.Action == DiagnosisAction.Interrupt && check.FireInstanceId is { } fireInstanceId && CanInterrupt)
+                                    {
+                                        <button type="button" class="qz-button qz-diagnosis-interrupt" @onclick="() => InterruptFiringAsync(fireInstanceId)">Interrupt</button>
+                                    }
+                                    @if (check.Action == DiagnosisAction.ResetError && CanReset)
+                                    {
+                                        <button type="button" class="qz-button qz-diagnosis-reset" @onclick="ResetFromErrorAsync">Reset error state</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+
         @* Every trigger type's, computed by its scheduler and read through the client, so a scheduler reached
            over HTTP or through an agent shows the same panel. *@
         <h2>Upcoming fires</h2>
@@ -282,6 +323,14 @@
 
     private bool CanReset => Can(Routes.ResetTriggerFromErrorState);
 
+    private bool CanInterrupt => Can(Routes.InterruptJobInstance);
+
+    /// <summary>
+    /// What the diagnosis read on load or on Refresh, or <see langword="null" /> before it has; judged again on
+    /// each render, which reads nothing, so a change of time zone redraws it.
+    /// </summary>
+    private TriggerDiagnosisFacts? _diagnosisFacts;
+
     private bool CanEdit => Can(Routes.UpdateTriggerDetails);
 
     private bool CanBackfill => Can(Routes.BackfillTrigger);
@@ -353,6 +402,7 @@
                 _trigger = null;
                 _triggerState = TriggerState.None;
                 _pause = null;
+                _diagnosisFacts = null;
                 _lastUpdatedAt = null;
                 _staleReason = null;
                 return;
@@ -373,6 +423,16 @@
             bool continuationParentExists = trigger.Continuation.Parent is { } continuationParent
                 && await Api.GetTriggerState(schedulerName, new TriggerKeyDto(continuationParent.Group, continuationParent.Name), cancellationToken) != TriggerState.None;
 
+            SchedulerHeaderDto? header = Scheduler.Find(schedulerName);
+            TriggerDiagnosisFacts diagnosis = await TriggerDiagnosis.Read(
+                Api,
+                new DiagnosisSubject(schedulerName, trigger, triggerState, pause, continuationParentExists, Clock.GetUtcNow())
+                {
+                    IsWindow = header?.IsWindow == true,
+                    IsCluster = header?.IsCluster == true,
+                },
+                cancellationToken);
+
             // A refresh keeps an expression the reader is editing; every other read starts the editor again from
             // the trigger's own.
             bool keepEdit = _refreshing && IsPreviewingAnEdit;
@@ -387,6 +447,7 @@
 
             _misfireName = TriggerDetailsForm.MisfireNameOf(trigger);
             _continuationParentExists = continuationParentExists;
+            _diagnosisFacts = diagnosis;
             _lastUpdatedAt = Clock.GetUtcNow();
             _staleReason = null;
         }
@@ -511,6 +572,31 @@
             "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not resumed - it no longer exists or was not paused.",
             actionName: "ResumeTrigger",
             target: DisplayValueHelper.FormatKey(Group, Name));
+    }
+
+    /// <summary>
+    /// The diagnosis's <em>Interrupt</em>: the firing that holds a blocked trigger's job.
+    /// </summary>
+    private Task InterruptFiringAsync(string fireInstanceId)
+    {
+        return ExecuteMutatingActionAsync(
+            () => Api.InterruptFireInstance(Scheduler.ActiveSchedulerName!, fireInstanceId),
+            "Asked firing " + fireInstanceId + " to stop.",
+            "Firing " + fireInstanceId + " was not interrupted - it had already finished.",
+            actionName: "InterruptFireInstance",
+            target: fireInstanceId);
+    }
+
+    private static string VerdictGlyph(DiagnosisVerdict verdict)
+    {
+        return verdict switch
+        {
+            DiagnosisVerdict.Ok => "✓",
+            DiagnosisVerdict.Info => "ℹ",
+            DiagnosisVerdict.Warning => "⚠",
+            DiagnosisVerdict.Problem => "✗",
+            _ => "?",
+        };
     }
 
     private Task ResetFromErrorAsync()

@@ -368,6 +368,81 @@ public class TriggerDetailPageTest
             "a trigger that waits for nothing has nothing to say about waiting");
     }
 
+    /// <summary>
+    /// "Why isn't it firing?" (#4411): a blocked trigger names the firing that holds its job, the node and
+    /// since when, and <em>Interrupt</em> asks that firing to stop.
+    /// </summary>
+    [Test]
+    public void ABlockedTriggerNamesTheFiringThatHoldsItsJobAndInterruptsIt()
+    {
+        GivenTrigger(Scheduled(CronTrigger("0 0 12 * * ?")));
+        A.CallTo(() => context.Api.GetTriggerState(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(TriggerState.Blocked);
+        A.CallTo(() => context.Api.QueryFireInstances(TestData.SchedulerName, A<DashboardFireInstanceQuery>.That.Matches(query => query.Job != null), A<CancellationToken>._))
+            .Returns(new PagedResult<FireInstanceDto>([HoldingFiring()], HasMore: false, TotalCount: 1));
+        A.CallTo(() => context.Api.InterruptFireInstance(TestData.SchedulerName, "fire-7", A<CancellationToken>._)).Returns(true);
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Find("tr[data-check=\"Its job's firings\"]").TextContent.Should()
+            .Contain("One running: on node node-b since 2026-10-05 13:00:00"));
+        page.Find("[data-testid=trigger-diagnosis-summary]").TextContent.Trim().Should().Be("2 findings may hold it back.",
+            "the trigger is blocked, and the firing is what blocks it");
+        A.CallTo(() => context.Api.QueryFireInstances(TestData.SchedulerName, A<DashboardFireInstanceQuery>.That.Matches(query =>
+                query.Job == new JobKeyDto("CronJobGroup", "CronJobKey")), A<CancellationToken>._))
+            .MustHaveHappened();
+
+        page.Find(".qz-diagnosis-interrupt").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.InterruptFireInstance(TestData.SchedulerName, "fire-7", A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+    }
+
+    [Test]
+    public void ATriggerWithNothingWrongSaysSo()
+    {
+        GivenTrigger(Scheduled(CronTrigger("0 0 12 * * ?")));
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=trigger-diagnosis-summary]").TextContent.Trim()
+            .Should().Be("Nothing found that holds it back."));
+        page.FindAll("[data-testid=trigger-diagnosis] tbody tr").Should().HaveCount(9);
+    }
+
+    /// <summary>
+    /// The actions the diagnosis offers keep their own operations: read-only mode offers neither.
+    /// </summary>
+    [Test]
+    public void ReadOnlyModeOffersNoActionInTheDiagnosis()
+    {
+        context.Options.ReadOnly = true;
+        GivenTrigger(Scheduled(CronTrigger("0 0 12 * * ?")));
+        A.CallTo(() => context.Api.GetTriggerState(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(TriggerState.Blocked);
+        A.CallTo(() => context.Api.QueryFireInstances(TestData.SchedulerName, A<DashboardFireInstanceQuery>.That.Matches(query => query.Job != null), A<CancellationToken>._))
+            .Returns(new PagedResult<FireInstanceDto>([HoldingFiring()], HasMore: false, TotalCount: 1));
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=trigger-diagnosis]"));
+        page.FindAll(".qz-diagnosis-interrupt, .qz-diagnosis-reset").Should().BeEmpty();
+    }
+
+    private static FireInstanceDto HoldingFiring()
+    {
+        DateTimeOffset firedAt = new(2026, 10, 5, 13, 0, 0, TimeSpan.Zero);
+        return new FireInstanceDto("fire-7", new TriggerKeyDto(TriggerGroup, "other"), new JobKeyDto("CronJobGroup", "CronJobKey"), "node-b",
+            FireInstanceState.Executing, firedAt, firedAt, ExecutionGroup: null);
+    }
+
+    /// <summary>A trigger as a store holds it: with its first fire time computed.</summary>
+    private static ITrigger Scheduled(ITrigger trigger)
+    {
+        ((Quartz.Extensibility.IOperableTrigger) trigger).ComputeFirstFireTimeUtc(null);
+        return trigger;
+    }
+
     private static ITrigger ContinuationTrigger(ContinuationCondition condition)
     {
         return TriggerBuilder.Create()

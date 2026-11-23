@@ -127,6 +127,30 @@ public class InProcessQuartzApiClientTest
         A.CallTo(() => scheduler.PauseAllWith(A<PauseDetails>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
+    /// <summary>
+    /// The firing listing's job filter reaches the scheduler as its own (#4411), which an HTTP target and an
+    /// agent send as <c>jobName</c> and <c>jobGroup</c>: Trigger Detail's diagnosis names the firing that
+    /// holds a blocked trigger's job with it.
+    /// </summary>
+    [Test]
+    public async Task TheFiringListingsJobFilterIsTheSchedulers()
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("acme");
+        FireInstanceQuery? asked = null;
+        A.CallTo(() => scheduler.QueryFireInstances(A<FireInstanceQuery>._, A<CancellationToken>._))
+            .Invokes((FireInstanceQuery query, CancellationToken _) => asked = query)
+            .Returns(new PagedResult<FireInstance>([], HasMore: false, TotalCount: 0));
+        InProcessQuartzApiClient client = CreateClient(scheduler);
+
+        await client.QueryFireInstances("acme", new DashboardFireInstanceQuery { Job = new JobKeyDto("billing", "invoice"), State = null });
+        asked!.Job.Should().Be(new JobKey("invoice", "billing"));
+        asked.State.Should().BeNull();
+
+        await client.QueryFireInstances("acme", new DashboardFireInstanceQuery());
+        asked!.Job.Should().BeNull("no job named lists every job's firings");
+    }
+
     [Test]
     public async Task ADataSourceOfAnEarlier4xPausesWithoutTheDetailsAndReportsNoRecord()
     {
