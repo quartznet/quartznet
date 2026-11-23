@@ -129,7 +129,8 @@ public class HeaderSearchTest
 
         input.Input("invo");
 
-        inFlight.IsCancellationRequested.Should().BeTrue("the read for 'inv' answers a word nobody is looking for");
+        // Checked once the keystroke has been handled: its event may wait behind the first read's continuation.
+        search.WaitForAssertion(() => inFlight.IsCancellationRequested.Should().BeTrue("the read for 'inv' answers a word nobody is looking for"));
         search.WaitForAssertion(() => search.Find("[data-testid=header-search-jobs]").TextContent.Should().Contain("billing.invoice-export"));
     }
 
