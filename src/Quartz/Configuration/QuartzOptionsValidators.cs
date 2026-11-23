@@ -855,7 +855,8 @@ internal sealed class QuartzOptionsValidator : IValidateOptions<QuartzOptions>
 }
 
 /// <summary>
-/// The one pair of <see cref="SchedulingOptions" /> values that cannot both be meant.
+/// The one pair of <see cref="SchedulingOptions" /> values that cannot both be meant, and the groups
+/// <see cref="SchedulingOptions.PruneUndeclaredInGroups" /> may not own.
 /// </summary>
 /// <remarks>
 /// <see cref="SchedulingOptions.IgnoreDuplicates" /> is read only when
@@ -880,6 +881,17 @@ internal sealed class SchedulingOptionsValidator : IValidateOptions<SchedulingOp
                 + "IgnoreDuplicates alone to pass over duplicates instead — its default of true for "
                 + "OverwriteExistingData is a default rather than a statement, and setting IgnoreDuplicates "
                 + "turns it off — or drop IgnoreDuplicates. Only writing both down is refused.");
+        }
+
+        foreach (string group in options.PruneUndeclaredInGroups)
+        {
+            if (DeclaredContent.RefusalReason(group) is { } reason)
+            {
+                (failures ??= []).Add(
+                    $"SchedulingOptions.PruneUndeclaredInGroups (Quartz:Scheduling:PruneUndeclaredInGroups) lists {reason}. "
+                    + "Every group listed there has the stored jobs and triggers no declaration names deleted at start-up, "
+                    + "so list only the groups your declarations own, by name.");
+            }
         }
 
         return QuartzSchedulerOptionsValidator.Result(failures);

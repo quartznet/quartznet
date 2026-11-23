@@ -98,6 +98,16 @@ internal static class LegacyPropertyKeys
     /// resolves: IANA, such as <c>Europe/Helsinki</c>, or Windows, such as <c>FLE Standard Time</c>.
     /// </summary>
     internal const string SchedulerDefaultTimeZone = "quartz.scheduler.defaultTimeZone";
+
+    /// <summary>
+    /// The groups whose stored jobs and triggers no declaration names are deleted at the first start,
+    /// comma-separated; the flat spelling of <see cref="SchedulingOptions.PruneUndeclaredInGroups" />.
+    /// </summary>
+    /// <remarks>
+    /// A value key, as <see cref="SchedulerServedExecutionGroups" /> is. A group whose name holds a comma
+    /// needs the typed option.
+    /// </remarks>
+    internal const string SchedulerPruneUndeclaredInGroups = "quartz.scheduler.pruneUndeclaredInGroups";
     internal const string SchedulerContextPrefix = "quartz.context.key";
     internal const string ThreadPoolPrefix = "quartz.threadPool";
     internal const string ThreadPoolType = "quartz.threadPool.type";
@@ -189,6 +199,7 @@ internal static class LegacyPropertyKeys
         SchedulerRefusedExecutionGroups,
         SchedulerDefaultMisfireHandling,
         SchedulerDefaultTimeZone,
+        SchedulerPruneUndeclaredInGroups,
         SchedulerContextPrefix,
         ThreadPoolPrefix,
         TimeProviderType,

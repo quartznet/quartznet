@@ -23,6 +23,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Quartz.Configuration;
 using Quartz.Diagnostics;
 using Quartz.Impl.Triggers;
 using Quartz.Impl;
@@ -369,6 +370,14 @@ internal sealed class QuartzScheduler
             {
                 await resources.JobStore.SchedulerStarted(cancellationToken).ConfigureAwait(false);
                 await StartPlugins(cancellationToken).ConfigureAwait(false);
+
+                // After the plugins, whose scheduling files are declarations too, and before the loop is
+                // unpaused below, so this node never fires what the prune deletes (#4415).
+                if (resources.DeclaredContent is { } declared)
+                {
+                    UndeclaredContentPruner pruner = new(Scheduler, declared, resources.LoggerFactory.CreateLogger<UndeclaredContentPruner>());
+                    await pruner.Prune(cancellationToken).ConfigureAwait(false);
+                }
             }
             catch (SchedulerStartRefusedException)
             {

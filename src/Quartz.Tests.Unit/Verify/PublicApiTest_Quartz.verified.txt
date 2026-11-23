@@ -2106,6 +2106,7 @@ namespace Quartz
         public SchedulingOptions() { }
         public bool IgnoreDuplicates { get; set; }
         public bool OverwriteExistingData { get; set; }
+        public System.Collections.Generic.List<string> PruneUndeclaredInGroups { get; }
         public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
     }
     public enum SchemaProvisioning

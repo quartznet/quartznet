@@ -103,4 +103,42 @@ public sealed class SchedulingOptions
     /// schedule that has already run.
     /// </remarks>
     public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
+
+    /// <summary>
+    /// The groups the declarations own: at the scheduler's first start, every stored job and trigger in
+    /// them that no declaration names is deleted. Empty by default, and nothing is pruned.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A group listed here is owned. The scope is every stored job in an owned group, with all its
+    /// triggers; every stored trigger in an owned group, whatever its job's group; and every trigger of a
+    /// declared job in an owned group, whatever the trigger's group. What a declaration names is kept:
+    /// <c>AddJob</c>, <c>AddTrigger</c> and <c>ScheduleJob</c> inside <c>AddQuartz(…)</c>, the
+    /// <c>Quartz:Schedule</c> section, a trigger switched off with <c>-</c>, a key
+    /// <see cref="IgnoreDuplicates" /> passed over, and every job and trigger a scheduling file loaded at
+    /// start-up. A pending manual firing (<c>TriggerJob</c>) is kept, and so are the triggers the scheduler
+    /// keeps for itself: recovery, fail-over, start-up runs and backfills.
+    /// </para>
+    /// <para>
+    /// It runs only on a store that persists, once, at the first <c>Start</c>: after the plugins have
+    /// started, so a scheduling file's content counts, and before the scheduler fires anything. Each
+    /// deletion is logged as a warning. A scheduling file that fails to load leaves what it declares
+    /// unknown, so nothing is pruned at that start.
+    /// </para>
+    /// <para>
+    /// Pruning belongs to a deploy that runs one version: a node starting with older declarations stores
+    /// what they name again, and the next start of a newer node removes it. Nodes that declare different
+    /// content by design must own different groups.
+    /// </para>
+    /// <para>
+    /// A blank name, <c>*</c>, and the groups that hold the scheduler's own firings
+    /// (<see cref="SchedulerConstants.DefaultRecoveryGroup" />, <see cref="SchedulerConstants.DefaultFailOverGroup" />,
+    /// <see cref="SchedulerConstants.ScheduledJobGroup" />, <see cref="SchedulerConstants.StartupGroup" /> and
+    /// any group starting <see cref="SchedulerConstants.BackfillGroupPrefix" />) are refused at start-up.
+    /// </para>
+    /// <para>
+    /// Get-only, like every collection on a Quartz options type: add to it.
+    /// </para>
+    /// </remarks>
+    public List<string> PruneUndeclaredInGroups { get; } = [];
 }

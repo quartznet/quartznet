@@ -152,6 +152,7 @@ internal static class QuartzPropertyBridge
         services.Configure<InMemoryJobStoreOptions>(name, options => MapInMemoryJobStore(options, parser));
         services.Configure<AdoJobStoreOptions>(name, options => MapAdoJobStore(options, parser));
         services.Configure<ClusteringOptions>(name, options => MapClustering(options, parser));
+        services.Configure<QuartzOptions>(name, options => MapScheduling(options.Scheduling, parser));
 
         ApplyDataSourceOptions(services, parser);
         RegisterExecutionHistory(services, parser, schedulerName);
@@ -297,6 +298,11 @@ internal static class QuartzPropertyBridge
         Reconfigure<InMemoryJobStoreOptions>(services, name, MapInMemoryJobStore);
         Reconfigure<AdoJobStoreOptions>(services, name, MapAdoJobStore);
         Reconfigure<ClusteringOptions>(services, name, MapClustering);
+
+        // QuartzOptions is where the deferred keys are, so it reads them off itself, once every callback
+        // has written to it, rather than resolving itself from inside its own configuration.
+        services.PostConfigure<QuartzOptions>(name, options =>
+            MapScheduling(options.Scheduling, new PropertyReader(QuartzConfigurationHelper.ToNameValueCollection(options.Properties))));
 
         // What UseClustering() does for a scheduler clustered in code, for one clustered by a key. A
         // post-configure step, as there, so an InstanceId set in the configuration callback counts as
@@ -632,6 +638,18 @@ internal static class QuartzPropertyBridge
                 options.Context[key] = value;
             }
         }
+    }
+
+    /// <summary>
+    /// The one flat key of <see cref="QuartzOptions.Scheduling" />.
+    /// </summary>
+    /// <remarks>
+    /// Run once with the properties <c>AddQuartz</c> was given and again with the bag the options were
+    /// resolved with, so a group is added only when it is not listed yet.
+    /// </remarks>
+    private static void MapScheduling(SchedulingOptions options, PropertyReader parser)
+    {
+        parser.Names(LegacyPropertyKeys.SchedulerPruneUndeclaredInGroups, name => AddIfAbsent(options.PruneUndeclaredInGroups, name));
     }
 
     /// <summary>

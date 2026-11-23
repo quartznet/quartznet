@@ -252,6 +252,9 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
             var message = "Could not schedule jobs and triggers from JSON file " + jobFile.FileName + ": " + e.Message;
             var schedulerException = new SchedulerException(message, e);
 
+            // What the file declares is not known, so the first start must not prune against it.
+            Configuration.DeclaredContent.Of(Scheduler)?.CouldNotRead(jobFile.FileName);
+
             logger.FileProcessingFailed(jobFile.FileName, e);
 
             // No keys: the file names many jobs and triggers, and the failure is the file rather than
