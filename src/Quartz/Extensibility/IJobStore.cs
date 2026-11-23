@@ -1192,8 +1192,8 @@ public interface IJobStore
     /// <remarks>
     /// <para>
     /// The scheduler asks this when the store says it is time to, and interrupts each of the firings named
-    /// that it is running and has not interrupted yet. A request stays recorded until its firing completes,
-    /// so the same id may be answered more than once.
+    /// that it is running and has not interrupted yet. Since 4.9 it does not ask while it runs no firing. A
+    /// request stays recorded until its firing completes, so the same id may be answered more than once.
     /// </para>
     /// <para>
     /// A default interface member, added in 4.6. The default answers an empty list.

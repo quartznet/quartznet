@@ -3795,10 +3795,20 @@ internal sealed class QuartzScheduler
     /// check-in. A firing whose token is already cancelled has been interrupted, by this or anything else,
     /// and is passed over, so it is interrupted and announced once. A request for a firing this node is not
     /// running yet — its fire committed, its job not started — is acted on by a later read.
+    /// <para>
+    /// A node running no firing does not read: every request it could answer names a firing it runs, so the
+    /// read could deliver nothing (#4410). A firing that starts after this check is read for at the next
+    /// check-in, as one that has not started yet is.
+    /// </para>
     /// </remarks>
     /// <returns>How many firings were interrupted.</returns>
     internal async ValueTask<int> DeliverInterruptRequests(CancellationToken cancellationToken = default)
     {
+        if (jobMgr.NumJobsCurrentlyExecuting == 0)
+        {
+            return 0;
+        }
+
         List<string> requested = await resources.JobStore.GetInterruptRequests(cancellationToken).ConfigureAwait(false);
 
         int delivered = 0;
