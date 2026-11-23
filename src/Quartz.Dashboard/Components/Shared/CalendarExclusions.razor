@@ -1,0 +1,176 @@
+@using Quartz
+@using Quartz.Impl.Calendar
+
+@* One calendar's own rules, read through its type's members: a holiday calendar's dates, an annual calendar's
+   days of the year, a weekly or monthly calendar's days, a daily calendar's range, a cron calendar's expression
+   and what it excludes next. Its time zone is said beside them, because every day and time here is read in it.
+   A type of the application's own is named and not read: its rules are its code's. The base calendars it is
+   layered over are the page's to draw, each with one of these. *@
+<div class="qz-calendar-exclusions" data-testid="calendar-exclusions">
+    <table class="qz-table qz-calendar-facts" data-testid="calendar-facts">
+        <tbody>
+            <tr>
+                <th>Type</th>
+                <td data-testid="calendar-kind">@CalendarReading.Describe(_kind) <span class="qz-muted qz-mono">@Calendar.GetType().Name</span></td>
+            </tr>
+            @if (!string.IsNullOrWhiteSpace(Calendar.Description))
+            {
+                <tr>
+                    <th>Description</th>
+                    <td>@Calendar.Description</td>
+                </tr>
+            }
+            <tr>
+                <th>Time zone</th>
+                <td data-testid="calendar-time-zone">
+                    @if (_timeZone is { } timeZone)
+                    {
+                        <span class="qz-mono">@timeZone.Id</span>
+                        <span class="qz-muted"> — the calendar's days and times are read in this zone</span>
+                    }
+                    else
+                    {
+                        <span class="qz-muted">Not reported: the type does not derive from BaseCalendar.</span>
+                    }
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="qz-calendar-rules" data-testid="calendar-rules">
+        @switch (Calendar)
+        {
+            case HolidayCalendar holiday:
+                List<DateOnly> dates = holiday.DaysExcluded.Order().ToList();
+                if (dates.Count == 0)
+                {
+                    <p>Excludes no dates.</p>
+                }
+                else
+                {
+                    <p>Excludes @CalendarReading.Count(dates.Count, "date"), each a whole day:</p>
+                    <ul class="qz-list qz-calendar-dates" data-testid="calendar-holiday-dates">
+                        @foreach (DateOnly date in dates)
+                        {
+                            <li>
+                                <span class="qz-mono">@CalendarReading.FormatDate(date)</span>
+                                <span class="qz-muted">@date.DayOfWeek</span>
+                            </li>
+                        }
+                    </ul>
+                }
+                break;
+
+            case AnnualCalendar annual:
+                List<MonthDay> days = annual.DaysExcluded.Order().ToList();
+                <p data-testid="calendar-annual-summary">@AnnualSummary(days)</p>
+                <AnnualDayGrid Days="@(new HashSet<MonthDay>(days))" ReadOnly="true" />
+                break;
+
+            case WeeklyCalendar weekly:
+                <p data-testid="calendar-weekly-summary">@WeeklySummary(weekly)</p>
+                <ul class="qz-calendar-days" data-testid="calendar-weekly-days">
+                    @foreach (DayOfWeek day in CalendarReading.WeekDays)
+                    {
+                        <li>
+                            <label class="qz-live-filter-item">
+                                <input type="checkbox" checked="@weekly.IsDayExcluded(day)" disabled data-day="@day" />
+                                <span>@day</span>
+                            </label>
+                        </li>
+                    }
+                </ul>
+                break;
+
+            case MonthlyCalendar monthly:
+                <p data-testid="calendar-monthly-summary">@MonthlySummary(monthly)</p>
+                <ul class="qz-calendar-days qz-calendar-month-days" data-testid="calendar-monthly-days">
+                    @for (int day = 1; day <= 31; day++)
+                    {
+                        int dayOfMonth = day;
+                        <li>
+                            <label class="qz-live-filter-item">
+                                <input type="checkbox" checked="@monthly.IsDayExcluded(dayOfMonth)" disabled data-day="@dayOfMonth" />
+                                <span>@dayOfMonth</span>
+                            </label>
+                        </li>
+                    }
+                </ul>
+                break;
+
+            case DailyCalendar daily:
+                <p data-testid="calendar-daily-range">
+                    @(daily.InvertTimeRange ? "Excludes every time of day except " : "Excludes ")<strong class="qz-mono">@CalendarReading.FormatTime(daily.TimeRange.Start)</strong> through <strong class="qz-mono">@CalendarReading.FormatTime(daily.TimeRange.End)</strong>@(daily.InvertTimeRange ? "." : " every day.")
+                </p>
+                <p class="qz-muted" data-testid="calendar-daily-inverted">Inverted: @(daily.InvertTimeRange ? "yes, the range is the part of the day included" : "no, the range is the part of the day excluded")</p>
+                break;
+
+            case CronCalendar cron:
+                <p>
+                    Excludes every second its expression matches:
+                    <code class="qz-mono" data-testid="calendar-cron-expression">@cron.CronExpression.CronExpressionString</code>
+                </p>
+                <h3>Excluded next</h3>
+                <CronCalendarPreview Expression="@cron.CronExpression.CronExpressionString" TimeZone="@cron.TimeZone" From="@From" />
+                break;
+
+            default:
+                if (_kind == CalendarKind.Base)
+                {
+                    <p data-testid="calendar-base-only">Excludes nothing of its own: a base calendar carries a time zone and the calendar it is layered over.</p>
+                }
+                else
+                {
+                    <p data-testid="calendar-custom">
+                        A calendar type of the application's own, <code class="qz-mono">@Calendar.GetType().FullName</code>.
+                        The dashboard does not read its rules; they are its code's, and it is edited there.
+                    </p>
+                }
+                break;
+        }
+    </div>
+</div>
+
+@code {
+    private CalendarKind _kind;
+    private TimeZoneInfo? _timeZone;
+
+    /// <summary>The calendar to describe: the one stored under the page's name, or one of its base calendars.</summary>
+    [Parameter]
+    [EditorRequired]
+    public ICalendar Calendar { get; set; } = null!;
+
+    /// <summary>The instant a cron calendar's next exclusions are read from: when the page read the calendar.</summary>
+    [Parameter]
+    [EditorRequired]
+    public DateTimeOffset From { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        _kind = CalendarReading.KindOf(Calendar);
+        _timeZone = CalendarReading.TimeZoneOf(Calendar);
+    }
+
+    private static string AnnualSummary(List<MonthDay> days)
+    {
+        return days.Count == 0
+            ? "Excludes no day of the year."
+            : "Excludes " + CalendarReading.JoinWords(days.Select(CalendarReading.FormatMonthDay).ToList()) + ", every year.";
+    }
+
+    private static string WeeklySummary(WeeklyCalendar weekly)
+    {
+        List<string> days = CalendarReading.WeekDays.Where(weekly.IsDayExcluded).Select(static day => day.ToString()).ToList();
+        return days.Count == 0
+            ? "Excludes no day of the week."
+            : "Excludes " + CalendarReading.JoinWords(days) + ", every week.";
+    }
+
+    private static string MonthlySummary(MonthlyCalendar monthly)
+    {
+        List<string> days = monthly.DaysExcluded.Order().Select(static day => day.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        return days.Count == 0
+            ? "Excludes no day of the month."
+            : (days.Count == 1 ? "Excludes day " : "Excludes days ") + CalendarReading.JoinWords(days) + " of every month. A day a month does not have excludes nothing in it.";
+    }
+}

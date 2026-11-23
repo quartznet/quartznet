@@ -1,5 +1,4 @@
 @page "/quartz/calendars/{CalendarName}"
-@using System.Reflection
 @using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
@@ -41,19 +40,27 @@
                 <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete calendar</button>
             </div>
         }
-        <p>Type: <strong>@_calendar.GetType().Name</strong></p>
+        <CalendarExclusions Calendar="@_calendar" From="@_readAt" />
 
-        <table class="qz-table">
-            <tbody>
-                @foreach (CalendarProperty property in _properties)
+        @if (_baseChain.Count > 0)
+        {
+            <section class="qz-section qz-calendar-chain" data-testid="calendar-base-chain">
+                <h2>Base calendars</h2>
+                <p class="qz-muted">
+                    A time is excluded when this calendar or any calendar under it excludes it. Each base calendar is a
+                    copy stored inside this one, not a link to a calendar stored under another name: replacing that
+                    calendar does not change this one.
+                </p>
+                @for (int index = 0; index < _baseChain.Count; index++)
                 {
-                    <tr>
-                        <th>@property.Name</th>
-                        <td>@property.Value</td>
-                    </tr>
+                    ICalendar baseCalendar = _baseChain[index];
+                    <section class="qz-calendar-chain-item" data-testid="calendar-base">
+                        <h3>@(index + 1). @CalendarReading.Describe(CalendarReading.KindOf(baseCalendar))</h3>
+                        <CalendarExclusions Calendar="@baseCalendar" From="@_readAt" />
+                    </section>
                 }
-            </tbody>
-        </table>
+            </section>
+        }
     }
 </div>
 
@@ -67,7 +74,13 @@
     private bool _isLoading = true;
     private string? _error;
     private ICalendar? _calendar;
-    private readonly List<CalendarProperty> _properties = [];
+
+    /// <summary>The calendars the one on screen is layered over, nearest first.</summary>
+    private List<ICalendar> _baseChain = [];
+
+    /// <summary>When the calendar on screen was read: the instant a cron calendar's next exclusions are read from.</summary>
+    private DateTimeOffset _readAt;
+
     private bool _showDeleteConfirm;
 
     /// <summary>
@@ -109,7 +122,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        // Another calendar's properties are not ones to keep.
+        // Another calendar's rules are not ones to keep.
         ClearCalendar();
         await LoadDataAsync();
     }
@@ -152,9 +165,9 @@
             await Authorization.LoadOperations(schedulerName, cancellationToken);
             ICalendar calendar = await Api.GetCalendar(schedulerName, CalendarName, cancellationToken);
             _calendar = calendar;
-            _properties.Clear();
-            BuildPropertyRows(calendar);
-            _lastUpdatedAt = Clock.GetUtcNow();
+            _baseChain = CalendarReading.BaseChainOf(calendar);
+            _readAt = Clock.GetUtcNow();
+            _lastUpdatedAt = _readAt;
             _staleReason = null;
         }
         catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
@@ -209,21 +222,9 @@
     private void ClearCalendar()
     {
         _calendar = null;
-        _properties.Clear();
+        _baseChain = [];
         _lastUpdatedAt = null;
         _staleReason = null;
-    }
-
-    private void BuildPropertyRows(ICalendar calendar)
-    {
-        Type type = calendar.GetType();
-        PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
-        foreach (PropertyInfo propertyInfo in properties)
-        {
-            object? value = propertyInfo.GetValue(calendar);
-            string valueString = value?.ToString() ?? string.Empty;
-            _properties.Add(new CalendarProperty(propertyInfo.Name, valueString));
-        }
     }
 
     private void PromptDelete()
@@ -281,6 +282,4 @@
         _cancellation.Cancel();
         _cancellation.Dispose();
     }
-
-    private sealed record CalendarProperty(string Name, string Value);
 }

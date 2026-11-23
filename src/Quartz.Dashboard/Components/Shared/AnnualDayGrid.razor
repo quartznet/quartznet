@@ -1,0 +1,77 @@
+@using Quartz
+
+@* An annual calendar's days as a grid, a month to a row: a checkbox per day, February counting 29. Read-only on
+   Calendar Detail, where a checked box is an excluded day; the editor's ticks change Days in place. *@
+<div class="qz-calendar-year-scroll">
+    <table class="qz-calendar-year" data-testid="calendar-annual-grid">
+        <thead>
+            <tr>
+                <th scope="col"><span class="qz-sr-only">Month</span></th>
+                @for (int day = 1; day <= 31; day++)
+                {
+                    <th scope="col">@day</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @for (int month = 1; month <= 12; month++)
+            {
+                int rowMonth = month;
+                <tr>
+                    <th scope="row">@CalendarReading.MonthName(rowMonth)</th>
+                    @for (int day = 1; day <= 31; day++)
+                    {
+                        int cellDay = day;
+                        if (cellDay > CalendarReading.DaysIn(rowMonth))
+                        {
+                            <td class="qz-calendar-year-none"></td>
+                        }
+                        else
+                        {
+                            MonthDay monthDay = new(rowMonth, cellDay);
+                            bool excluded = Days.Contains(monthDay);
+                            string label = CalendarReading.FormatMonthDay(monthDay);
+                            <td class="@(excluded ? "qz-calendar-year-excluded" : null)">
+                                <input type="checkbox"
+                                       title="@label"
+                                       aria-label="@label"
+                                       data-month-day="@monthDay.ToString()"
+                                       checked="@excluded"
+                                       disabled="@ReadOnly"
+                                       @onchange="args => Toggle(monthDay, args)" />
+                            </td>
+                        }
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    /// <summary>The days excluded every year. The editor's ticks add to it and take from it.</summary>
+    [Parameter]
+    [EditorRequired]
+    public ISet<MonthDay> Days { get; set; } = new HashSet<MonthDay>();
+
+    /// <summary>Whether the grid only shows the days, which is what Calendar Detail draws.</summary>
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    private void Toggle(MonthDay day, ChangeEventArgs args)
+    {
+        if (ReadOnly)
+        {
+            return;
+        }
+
+        if (args.Value is true)
+        {
+            Days.Add(day);
+        }
+        else
+        {
+            Days.Remove(day);
+        }
+    }
+}
