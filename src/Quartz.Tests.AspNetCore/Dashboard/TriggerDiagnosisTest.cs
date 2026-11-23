@@ -102,7 +102,7 @@ public class TriggerDiagnosisTest
     [Test]
     public void APausedTriggerGroupIsWhatHoldsAPausedTriggerBack()
     {
-        TriggerDiagnosisFacts facts = Facts(Trigger(), TriggerState.Paused) with { PausedTriggerGroups = Answered(Set("nightly")) };
+        TriggerDiagnosisFacts facts = Facts(Trigger(), TriggerState.Paused) with { PausedTriggerGroups = Answered(Paused("nightly")) };
 
         DiagnosisCheck check = Check(Evaluate(facts), "Trigger group");
 
@@ -116,7 +116,7 @@ public class TriggerDiagnosisTest
     {
         TriggerDiagnosisFacts facts = Facts(Trigger(), TriggerState.Paused) with
         {
-            PausedTriggerGroups = Answered(Set("nightly")),
+            PausedTriggerGroups = Answered(Paused("nightly")),
             TriggerGroupPause = Answered<PauseInfo?>(new PauseInfo("vendor outage", "alice", Now.AddHours(-3))),
         };
 
@@ -140,7 +140,7 @@ public class TriggerDiagnosisTest
     [Test]
     public void APausedGroupBesideAResumedTriggerIsWorthKnowingOnly()
     {
-        TriggerDiagnosisFacts facts = Facts(Trigger()) with { PausedTriggerGroups = Answered(Set("nightly")) };
+        TriggerDiagnosisFacts facts = Facts(Trigger()) with { PausedTriggerGroups = Answered(Paused("nightly")) };
 
         Check(Evaluate(facts), "Trigger group").Verdict.Should().Be(DiagnosisVerdict.Info,
             "the trigger was resumed on its own, so the group's pause holds only what is stored into it later");
@@ -151,7 +151,7 @@ public class TriggerDiagnosisTest
     {
         TriggerDiagnosisFacts facts = Facts(Trigger(), TriggerState.Paused) with
         {
-            PausedJobGroups = Answered(Set("batch")),
+            PausedJobGroups = Answered(Paused("batch")),
             JobGroupPause = Answered<PauseInfo?>(new PauseInfo("quarter close", "finance", Now.AddDays(-1))),
         };
 
@@ -339,8 +339,8 @@ public class TriggerDiagnosisTest
     }
 
     /// <summary>
-    /// Nodes publish nothing about what they serve, so the check speaks for the node that answered and never
-    /// says that no node serves the group.
+    /// Nodes publish nothing about what they serve, so on a clustered store the check speaks for the node that
+    /// answered: it never says that no node serves the group, nor that one does.
     /// </summary>
     [Test]
     public void AGroupThisNodeDoesNotServeIsSaidOfThisNodeOnly()
@@ -354,8 +354,85 @@ public class TriggerDiagnosisTest
         DiagnosisCheck check = Check(Evaluate(facts), "Execution group");
 
         check.Verdict.Should().Be(DiagnosisVerdict.Warning);
-        check.Text.Should().Be("'gpu': this node does not serve it, so the trigger fires on a node that does.");
-        check.Text.Should().NotContain("no node");
+        check.Text.Should().Be("'gpu': this node does not serve it: only a node that serves it fires it.");
+        check.Text.Should().NotContain("no node").And.NotContain("fires on a node that does");
+        check.LinkPath.Should().Be("cluster");
+    }
+
+    /// <summary>
+    /// A store that is not clustered is this one node, so a group it refuses never runs (event 1093): the one
+    /// thing stopping the trigger, not a note about other nodes.
+    /// </summary>
+    [Test]
+    public void AGroupAnUnclusteredSchedulerDoesNotServeNeverRuns()
+    {
+        ITrigger trigger = Trigger(builder => builder.WithExecutionGroup("gpu"));
+        TriggerDiagnosisFacts facts = Facts(trigger) with
+        {
+            Scheduler = Answered(Scheduler(SchedulerStatus.Running) with { Clustered = false, RefusedExecutionGroups = ["gpu"] }),
+        };
+
+        DiagnosisCheck check = Check(Evaluate(facts), "Execution group");
+
+        check.Verdict.Should().Be(DiagnosisVerdict.Problem);
+        check.Text.Should().Be("'gpu': this scheduler does not serve it, and its store is not clustered, so nothing runs it.");
+        check.HoldsBack.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// The paused groups are one page: with more paused than it holds, a group missing from it may be one of the
+    /// rest, and the check says it cannot tell rather than that the group is not paused.
+    /// </summary>
+    [Test]
+    public void AGroupMissingFromAPartialPageOfPausedGroupsCannotBeTold()
+    {
+        PausedGroupPage partial = new(new HashSet<string>(Enumerable.Range(0, 250).Select(index => "g" + index.ToString("000", CultureInfo.InvariantCulture)), StringComparer.Ordinal), HasMore: true);
+        TriggerDiagnosisFacts facts = Facts(Trigger()) with
+        {
+            PausedTriggerGroups = Answered(partial),
+            PausedJobGroups = Answered(partial),
+        };
+
+        List<DiagnosisCheck> checks = Evaluate(facts);
+
+        Check(checks, "Trigger group").Verdict.Should().Be(DiagnosisVerdict.Unknown);
+        Check(checks, "Trigger group").Text.Should().Be(
+            "More than 250 trigger groups are paused, and 'nightly' is not among the first 250 by name, so whether it is paused cannot be told from here.");
+        Check(checks, "Job group").Verdict.Should().Be(DiagnosisVerdict.Unknown);
+        Check(checks, "Job group").Text.Should().StartWith("More than 250 job groups are paused, and 'batch' is not among the first 250");
+
+        Check(Evaluate(facts with { PausedTriggerGroups = Answered(partial with { Names = [.. partial.Names, "nightly"] }) }), "Trigger group")
+            .Text.Should().StartWith("'nightly' is paused", "a group the page holds is paused, however many the page left out");
+    }
+
+    /// <summary>
+    /// The group's firings are one page, as the execution-groups panel counts them: with more in flight than it
+    /// holds, the count is a floor, and below the limit whether the group is at it cannot be told.
+    /// </summary>
+    [Test]
+    public void APartialPageOfFiringsIsAFloorOnTheGroupsCount()
+    {
+        ITrigger trigger = Trigger(builder => builder.WithExecutionGroup("gpu"));
+        TriggerDiagnosisFacts facts = Facts(trigger) with
+        {
+            Limits = Answered(new ExecutionLimitsDto(new Dictionary<string, DashboardExecutionLimit> { ["gpu"] = new(4, ExecutionLimitScope.Cluster) })),
+            GroupFirings = Answered(new PagedResult<FireInstanceDto>(
+                [Firing("f1", NodeA, Now) with { ExecutionGroup = "gpu" }, Firing("f2", NodeA, Now) with { ExecutionGroup = "cpu" }],
+                HasMore: true,
+                TotalCount: 400)),
+        };
+
+        DiagnosisCheck below = Check(Evaluate(facts), "Execution group");
+        below.Verdict.Should().Be(DiagnosisVerdict.Unknown);
+        below.Text.Should().Be(
+            "'gpu': at least 1 of 4 across the cluster in flight, counted from the first 2 firings; more are in flight, so whether it is at its limit cannot be told from here.");
+
+        TriggerDiagnosisFacts full = facts with
+        {
+            Limits = Answered(new ExecutionLimitsDto(new Dictionary<string, DashboardExecutionLimit> { ["gpu"] = new(1, ExecutionLimitScope.Cluster) })),
+        };
+        Check(Evaluate(full), "Execution group").Text.Should().Be(
+            "'gpu': at its limit, at least 1 of 1 across the cluster in flight, so the trigger waits for a slot.");
     }
 
     [Test]
@@ -462,7 +539,7 @@ public class TriggerDiagnosisTest
     [Test]
     public void AReadThatFailedLeavesItsCheckUnknownAndTheOthersStanding()
     {
-        TriggerDiagnosisFacts facts = Facts(Trigger()) with { PausedJobGroups = new Answer<HashSet<string>>(null, "timed out", Unsupported: false) };
+        TriggerDiagnosisFacts facts = Facts(Trigger()) with { PausedJobGroups = new Answer<PausedGroupPage>(null, "timed out", Unsupported: false) };
 
         List<DiagnosisCheck> checks = Evaluate(facts);
 
@@ -491,18 +568,28 @@ public class TriggerDiagnosisTest
         Evaluate(facts).Should().OnlyContain(check => check.Verdict == DiagnosisVerdict.Ok);
     }
 
+    /// <summary>
+    /// Every conditional read at once: both groups paused, a firing of the job running past the trigger's next
+    /// fire time, a limit governing its group, and the trigger in error. Eleven reads is the most there are.
+    /// </summary>
     [Test]
-    public async Task ATroubledTriggerReadsAtMostNine()
+    public async Task ATroubledTriggerReadsAtMostEleven()
     {
         IQuartzApiClient api = FakeApi();
+        A.CallTo(() => api.QueryTriggerGroups(SchedulerName, A<DashboardGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerGroupDto>([new TriggerGroupDto("nightly", Paused: true)], HasMore: false, TotalCount: 1));
         A.CallTo(() => api.QueryJobGroups(SchedulerName, A<DashboardGroupQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<JobGroupDto>([new JobGroupDto("batch", Paused: true)], HasMore: false, TotalCount: 1));
+        A.CallTo(() => api.QueryFireInstances(SchedulerName, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+            .Returns(Page(Firing("fire-1", NodeA, Now.AddMinutes(-3))));
+        A.CallTo(() => api.GetJobDetail(SchedulerName, A<JobKeyDto>._, A<CancellationToken>._)).Returns(Job(concurrentExecutionDisallowed: true));
         A.CallTo(() => api.GetExecutionLimits(SchedulerName, A<CancellationToken>._))
             .Returns(new ExecutionLimitsDto(new Dictionary<string, DashboardExecutionLimit> { ["*"] = new(4, ExecutionLimitScope.Cluster) }));
 
-        await TriggerDiagnosis.Read(api, Subject(Trigger(builder => builder.WithExecutionGroup("gpu")), TriggerState.Error));
+        await TriggerDiagnosis.Read(api, Subject(Trigger(builder => builder.WithExecutionGroup("gpu"), next: Now.AddMinutes(-1)), TriggerState.Error));
 
-        Fake.GetCalls(api).Should().HaveCount(9, "the job group's pause, the group's firings and the last run are read only when they matter");
+        Fake.GetCalls(api).Should().HaveCount(11,
+            "both groups' pauses, the job, the group's firings and the last run are read only when they matter, and here they all do");
     }
 
     [Test]
@@ -589,8 +676,8 @@ public class TriggerDiagnosisTest
         return new TriggerDiagnosisFacts(Subject(trigger, state, pause, continuationParentExists, window))
         {
             Scheduler = Answered(Scheduler(SchedulerStatus.Running)),
-            PausedTriggerGroups = Answered(Set()),
-            PausedJobGroups = Answered(Set()),
+            PausedTriggerGroups = Answered(Paused()),
+            PausedJobGroups = Answered(Paused()),
             JobFirings = Answered(Page()),
             Limits = Answered(new ExecutionLimitsDto([])),
             Misfires = Answered(new PagedResult<DashboardMisfireEntry>([], HasMore: false, TotalCount: 0)),
@@ -604,7 +691,7 @@ public class TriggerDiagnosisTest
 
     private static Answer<T> Answered<T>(T value) => new(value, Error: null, Unsupported: false);
 
-    private static HashSet<string> Set(params string[] names) => new(names, StringComparer.Ordinal);
+    private static PausedGroupPage Paused(params string[] names) => new(new HashSet<string>(names, StringComparer.Ordinal), HasMore: false);
 
     private static PagedResult<FireInstanceDto> Page(params FireInstanceDto[] firings) => new([.. firings], HasMore: false, TotalCount: firings.Length);
 

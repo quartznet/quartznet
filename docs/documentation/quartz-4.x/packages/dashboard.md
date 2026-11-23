@@ -374,14 +374,18 @@ and gives a verdict for each: ✓ fine, ℹ worth knowing, ⚠ may hold it back,
 | Misfires | The history records misfires of this trigger: how many, the latest and why | Its misfires on History |
 | Retry | Shown when a retry of a failed occurrence is pending, and when it is due | |
 
-- **The page reads about eight things** on load and on **Refresh**, never on a timer and never per row: the
+- **The page makes six to eleven reads** on load and on **Refresh**, never on a timer and never per row: the
   scheduler, the paused groups, a paused group's record, the job's firings (with
   `DashboardFireInstanceQuery.Job`), the job itself when a running firing may hold the trigger, the execution
   limits, the group's firings when a limit governs it, the trigger's misfires, and its last run when it is in
   error.
 - **"This node does not serve it", never "no node does."** Nodes publish nothing about what they serve, so the
   check speaks for the node that answered. A window and a cluster of targets say nothing about routing.
-- **A read that fails leaves its check `?`**, and the other checks stand.
+- **A read that fails leaves its check `?`**, and the other checks stand. So does a page that cannot answer:
+  with more than 250 paused groups, a group not among the first 250 is `?`, and with more than a page of
+  firings in flight a group's count is a floor.
+- **A group this node does not serve**: on a clustered store only a node that serves it fires it, and the
+  check claims no such node exists. On a store that is not clustered nothing runs it, and the check is ✗.
 - *Interrupt* and *Reset error state* keep their own operations: hidden in read-only mode and below the
   [role](#operator-roles) each needs. An accepted *Interrupt* shows a toast, the checks are read again, and the
   button reads *Interrupt requested* while the firing is still listed: a job stops when it next checks its
