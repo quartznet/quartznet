@@ -167,17 +167,18 @@ updates:
           - "*.Analyzers"
           - "Meziantou.Analyzer"
           - "Microsoft.CodeAnalysis*"
-      # EF Core and the providers Quartz.EntityFrameworkCore's tests build its model under, on one patch line.
-      # Declared ahead of database-providers, whose Npgsql* would otherwise take the PostgreSQL provider. The
-      # one shipped floor, Microsoft.EntityFrameworkCore.Relational, is ignored above.
+      # EF Core and the providers Quartz.EntityFrameworkCore's tests build its model under that take EF Core at a
+      # patch of its own line, so they move together. Declared ahead of database-providers, whose Npgsql* would
+      # otherwise take the PostgreSQL provider. The one shipped floor, Microsoft.EntityFrameworkCore.Relational, is
+      # ignored above.
       entity-framework-core:
         patterns:
           - "Microsoft.EntityFrameworkCore*"
           - "Npgsql.EntityFrameworkCore*"
           - "MySql.EntityFrameworkCore"
-          - "Oracle.EntityFrameworkCore"
-          - "FirebirdSql.EntityFrameworkCore*"
-      # ADO.NET providers and other data store clients used by the job stores.
+      # ADO.NET providers and other data store clients used by the job stores. Oracle's and Firebird's EF Core
+      # providers are here rather than above: each takes EF Core by a range but its driver at the version it was
+      # released with, so a provider bump that needs a newer driver arrives in the same pull request, and restores.
       database-providers:
         patterns:
           - "Microsoft.Data.SqlClient"
@@ -186,7 +187,9 @@ updates:
           - "MySqlConnector"
           - "Npgsql*"
           - "Oracle.ManagedDataAccess*"
+          - "Oracle.EntityFrameworkCore"
           - "FirebirdSql.Data.FirebirdClient"
+          - "FirebirdSql.EntityFrameworkCore*"
           - "StackExchange.Redis"
       logging:
         patterns:

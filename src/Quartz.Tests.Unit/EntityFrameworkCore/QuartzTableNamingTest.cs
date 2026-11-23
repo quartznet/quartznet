@@ -171,11 +171,12 @@ public sealed class QuartzTableNamingTest
 
     /// <summary>
     /// A prefix that makes a name longer than the database takes is refused before anything runs, naming the name
-    /// and the longest prefix that fits: EF Core passes a name it is given through, PostgreSQL would cut it
-    /// silently, and Firebird refuse it half-way through a migration.
+    /// and the longest prefix that fits, in bytes, and in characters where the two differ: EF Core passes a name it
+    /// is given through, PostgreSQL would cut it silently, and Firebird refuse it half-way through a migration.
     /// </summary>
-    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "QRTZ_X_", "*IDX_QRTZ_X_FT_INST_JOB_REQ_RCVRY 32 bytes long, and Firebird takes 31 (Firebird 3's limit*at most 6 characters*")]
-    [TestCase("Npgsql.EntityFrameworkCore.PostgreSQL", "P234567890123456789012345678901234567890_", "*66 bytes long, and PostgreSQL takes 63. Use a prefix of at most 38 characters*")]
+    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "QRTZ_X_", "*IDX_QRTZ_X_FT_INST_JOB_REQ_RCVRY 32 bytes long, and Firebird takes 31 bytes (Firebird 3's limit*at most 6 bytes of UTF-8, which is 6 characters of ASCII.*")]
+    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "QRTZÄ_", "*IDX_QRTZÄ_FT_INST_JOB_REQ_RCVRY 32 bytes long*at most 6 bytes*('QRTZÄ_' is 6 characters and 7 bytes).*")]
+    [TestCase("Npgsql.EntityFrameworkCore.PostgreSQL", "P234567890123456789012345678901234567890_", "*66 bytes long, and PostgreSQL takes 63 bytes. Use a prefix of at most 38 bytes of UTF-8*")]
     public void APrefixThatMakesANameTooLongIsRefused(string provider, string prefix, string message)
     {
         ModelBuilder modelBuilder = new();

@@ -54,6 +54,28 @@ public sealed class OracleAndFirebirdProviderTest
     }
 
     /// <summary>
+    /// On Oracle, Quartz's tables and EF Core's <c>__EFMigrationsHistory</c> are created unqualified, and the
+    /// provider looks for the history table in <c>USER_TABLES</c>: all of it lands in the schema of the user the
+    /// migration logs in as. A store whose prefix names another owner is therefore migrated connected as that
+    /// owner, not through <c>ALTER SESSION SET CURRENT_SCHEMA</c>, under which the check and the create would
+    /// look at different schemas.
+    /// </summary>
+    [Test]
+    public async Task OracleMigratesIntoTheSchemaOfTheUserItLogsInAs()
+    {
+        await using EntityFrameworkCoreContext oracle = EntityFrameworkCoreContext.Quartz("oracle");
+        IHistoryRepository history = oracle.GetService<IHistoryRepository>();
+
+        static string Lf(string script) => script.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        Lf(history.GetCreateScript()).Should().Contain("CREATE TABLE \n\"__EFMigrationsHistory\"")
+            .And.NotContain("\".\"__EFMigrationsHistory\"");
+        history.GetCreateIfNotExistsScript().Should().Contain("from USER_TABLES where TABLE_NAME = '__EFMigrationsHistory'");
+        Lf(oracle.Database.GenerateCreateScript()).Should().Contain("CREATE TABLE \n\"QRTZ_TRIGGERS\"")
+            .And.NotContain("\".\"QRTZ_", "no table is qualified by an owner");
+    }
+
+    /// <summary>
     /// Firebird's provider cannot write an idempotent script: <c>dotnet ef migrations script --idempotent</c> fails.
     /// </summary>
     [Test]

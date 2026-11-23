@@ -78,7 +78,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 * Every name is folded as the database folds the store's unquoted ones: to lower case on PostgreSQL, to upper
   case on Oracle and Firebird.
 * A prefix that makes a name longer than the database takes is refused before anything runs: on Firebird that is
-  31 bytes, so a prefix of at most 6 characters.
+  31 bytes, so a prefix of at most 6 bytes of UTF-8, 6 characters of ASCII.
 * Two schedulers with two prefixes can share one model: call `AddQuartzTables` once for each.
 
 ## The first migration
@@ -178,12 +178,13 @@ dotnet ef migrations add UpgradeQuartz
 | Oracle | |
 |---|---|
 | `Migrate()` takes no lock | The provider's migration lock does nothing, so nothing stops two nodes from migrating at once. Apply migrations from one process: a deployment step, `dotnet ef database update` or a migration bundle, not `Migrate()` in every node's startup |
-| The schema | The tables go in the session's schema; `Schema` is refused |
+| The schema | The tables go in the schema of the user the migration logs in as, and so does `__EFMigrationsHistory`; `Schema` is refused |
+| A store whose `TablePrefix` names another owner, `OWNER.QRTZ_` | Keep the model's `TablePrefix` as `QRTZ_`, and apply the migrations connected as that owner. Not through `ALTER SESSION SET CURRENT_SCHEMA`: the provider looks for its history table in the login user's `USER_TABLES` |
 | Flags | `VARCHAR2(1)`, as in the script, so the provider's 23ai `BOOLEAN` is never used. Oracle 21c needs no `UseOracleSQLCompatibility` for these tables |
 
 | Firebird | |
 |---|---|
-| Names | Held to 31 bytes, Firebird 3's limit, whichever server opens the database: a prefix of at most 6 characters |
+| Names | Held to 31 bytes, Firebird 3's limit, whichever server opens the database: a prefix of at most 6 bytes of UTF-8, 6 characters of ASCII |
 | `migrations script --idempotent` | Not supported by the provider. Script a range of migrations, `script <from> <to>`, or use a migration bundle |
 | Index directions | One per index, so `IDX_QRTZ_T_NFT_ST` is the script's three columns without `PRIORITY DESC`; the provider refuses mixed directions |
 | The schema | The tables go in the connection's database; `Schema` is refused |

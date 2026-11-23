@@ -117,12 +117,17 @@ internal sealed class QuartzTableNaming
             return;
         }
 
-        int beyondThePrefix = length - Encoding.UTF8.GetByteCount(TablePrefix);
+        // Every limit here is in bytes of UTF-8, which is what Firebird 3 and PostgreSQL count, and a byte count is
+        // never below the character count the others use. A prefix's characters and bytes differ outside ASCII.
+        int prefixBytes = Encoding.UTF8.GetByteCount(TablePrefix);
+        int allowed = dialect.MaxIdentifierLength - (length - prefixBytes);
         string note = dialect == QuartzDialect.Firebird ? " (Firebird 3's limit, which every Firebird database is held to)" : "";
+        string size = prefixBytes == TablePrefix.Length ? "" : $" ('{prefix}' is {TablePrefix.Length} characters and {prefixBytes} bytes)";
 
         throw new ArgumentException(
             $"QuartzTablesOptions.TablePrefix '{prefix}' makes the name {longest} {length} bytes long, and {dialect.Label} takes "
-            + $"{dialect.MaxIdentifierLength}{note}. Use a prefix of at most {dialect.MaxIdentifierLength - beyondThePrefix} characters.",
+            + $"{dialect.MaxIdentifierLength} bytes{note}. Use a prefix of at most {allowed} bytes of UTF-8, which is {allowed} "
+            + $"characters of ASCII{size}.",
             parameterName);
     }
 

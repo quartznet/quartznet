@@ -88,7 +88,10 @@ internal sealed class QuartzDialect
         deleteTriggers: QuartzSchema.SqliteDeleteTriggers,
         hasAppAnyModel: true);
 
-    // The tables go in the session's own schema, as the scripts and the Weasel package put them.
+    // The tables, and EF Core's __EFMigrationsHistory, are created unqualified, so they go in the schema of the user
+    // the migration logs in as; the provider looks for the history table in USER_TABLES. The scripts put them in
+    // the session's schema too. Quartz.Weasel.Oracle also takes an owner from a prefix such as OWNER.QRTZ_; here
+    // the store's tables in another owner's schema are migrated connected as that owner.
     internal static readonly QuartzDialect Oracle = new(
         "Oracle",
         QuartzSchema.Oracle,
@@ -180,6 +183,12 @@ internal sealed class QuartzDialect
     /// The delete rule of a foreign key the script declares without one, as the database records it: NO ACTION,
     /// except on Firebird, which records the script's keys as RESTRICT and EF Core's NO ACTION as NO ACTION.
     /// </summary>
+    /// <remarks>
+    /// With Restrict, Firebird's provider writes no delete rule, so the key's reads back as the script's RESTRICT;
+    /// it still writes <c>ON UPDATE NO ACTION</c>, where the script's key reads back RESTRICT for updates too.
+    /// Firebird enforces the two alike, Quartz never updates a key column, and the schema comparison the tests make
+    /// reads the delete rule alone.
+    /// </remarks>
     internal DeleteBehavior PlainDelete { get; }
 
     /// <summary>The table of this name, which every caller names from the model itself.</summary>
