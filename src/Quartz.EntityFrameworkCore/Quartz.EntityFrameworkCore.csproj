@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Quartz</RootNamespace>
+    <Title>Quartz.NET Entity Framework Core Schema</Title>
+    <Description>Quartz.NET Entity Framework Core integration - the ADO.NET job store's tables in an application's own DbContext model, so dotnet ef migrations creates them and adds what each Quartz release adds; $(Description)</Description>
+    <PackageTags>$(PackageTags);entityframeworkcore;efcore;ef-core;migrations;dbcontext</PackageTags>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <!--
+      Off so that the nuspec carries the Microsoft.EntityFrameworkCore.Relational floor and nothing of EF Core's
+      own graph. Pinned, the framework extensions EF Core asks for would be copied in as dependencies of this
+      package's own, and the floor a consumer inherits would be wider than the one reference it needs.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The relational package alone: every call the model and the two migration extensions make is in it, and
+      the dialect is read from the provider's name rather than from its assembly, so no provider's version or
+      licence reaches a consumer.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+  </ItemGroup>
+
+</Project>

@@ -1,6 +1,7 @@
 using JasperFx;
 
 using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -123,6 +124,22 @@ public static class PackageReadmeSamples
 
             #endregion
         }
+    }
+
+    public static class EntityFrameworkCoreSchema
+    {
+        #region sample_readme_efcore
+
+        public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+        {
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                // the dialect follows the provider; then: dotnet ef migrations add AddQuartz
+                modelBuilder.AddQuartzTables(Database.ProviderName);
+            }
+        }
+
+        #endregion
     }
 
     public static class WeaselSchema

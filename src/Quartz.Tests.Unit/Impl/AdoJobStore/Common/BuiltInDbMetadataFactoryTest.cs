@@ -19,9 +19,10 @@ public sealed class BuiltInDbMetadataFactoryTest
     /// <remarks>
     /// MySqlConnector, Oracle's managed driver and FirebirdClient are not among them: Weasel.MySql,
     /// Weasel.Oracle and Weasel.Firebird depend on them, and this assembly tests the Quartz.Weasel packages
-    /// built on those.
+    /// built on those. Nor is MySql.Data: Oracle's MySql.EntityFrameworkCore depends on it, and this assembly
+    /// builds Quartz.EntityFrameworkCore's MySQL model under that provider.
     /// </remarks>
-    private static readonly string[] unreferencedDrivers = ["MySql", "SQLite", "SystemDataSqlClient"];
+    private static readonly string[] unreferencedDrivers = ["SQLite", "SystemDataSqlClient"];
 
     [TestCaseSource(nameof(unreferencedDrivers))]
     public void ADriverThisApplicationDoesNotReferenceStillDescribesItself(string providerName)
@@ -58,7 +59,6 @@ public sealed class BuiltInDbMetadataFactoryTest
     /// A missing driver is the first error a new persistent store usually meets, so it names the package
     /// to add rather than the provider alone, and keeps the loader's exception for the details.
     /// </summary>
-    [TestCase("MySql", "MySql.Data")]
     [TestCase("SQLite", "System.Data.SQLite.Core")]
     [TestCase("SystemDataSqlClient", "System.Data.SqlClient")]
     public void ADriverWhoseAssemblyIsMissingNamesThePackageToAdd(string providerName, string package)

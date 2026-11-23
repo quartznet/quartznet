@@ -1,0 +1,19 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public static class QuartzMigrationBuilderExtensions
+    {
+        public static Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder CompleteQuartzSchema(this Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder migrationBuilder, System.Action<Quartz.QuartzTablesOptions>? configure = null) { }
+        public static Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder MoveQuartzTablesFromAppAny(this Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder migrationBuilder, System.Action<Quartz.QuartzTablesOptions>? configure = null) { }
+    }
+    public static class QuartzModelBuilderExtensions
+    {
+        public static Microsoft.EntityFrameworkCore.ModelBuilder AddQuartzTables(this Microsoft.EntityFrameworkCore.ModelBuilder modelBuilder, string? providerName, System.Action<Quartz.QuartzTablesOptions>? configure = null) { }
+    }
+    public sealed class QuartzTablesOptions
+    {
+        public QuartzTablesOptions() { }
+        public string? Schema { get; set; }
+        public string TablePrefix { get; set; }
+    }
+}

@@ -73,6 +73,8 @@ updates:
       # holds every version above the floor, 11.0.0 included.
       - dependency-name: "Microsoft.AspNetCore.SignalR.Client"
         versions: [">= 10.0.1"]
+      - dependency-name: "Microsoft.EntityFrameworkCore.Relational"
+        versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.Configuration.Binder"
         versions: [">= 10.0.1"]
       - dependency-name: "Microsoft.Extensions.DependencyInjection"
@@ -127,6 +129,10 @@ updates:
       # in the same change. Security updates are not affected by an ignore. The WolverineFx rows themselves
       # move by hand for the example (6.64.2, #4244), while Quartz.Tests.Integration keeps 6.45.0 with a
       # VersionOverride that goes when the floor moves.
+      # Quartz.EntityFrameworkCore's tests build AppAny.Quartz.EntityFrameworkCore.Migrations' 0.6.3 model, which
+      # MoveQuartzTablesFromAppAny is written for, and diff it against Quartz's. A later AppAny is a new move to
+      # describe and test, not a bump.
+      - dependency-name: "AppAny.*"
       - dependency-name: "Marten"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-name: "WolverineFx*"
@@ -161,6 +167,14 @@ updates:
           - "*.Analyzers"
           - "Meziantou.Analyzer"
           - "Microsoft.CodeAnalysis*"
+      # EF Core and the providers Quartz.EntityFrameworkCore's tests build its model under, on one patch line.
+      # Declared ahead of database-providers, whose Npgsql* would otherwise take the PostgreSQL provider. The
+      # one shipped floor, Microsoft.EntityFrameworkCore.Relational, is ignored above.
+      entity-framework-core:
+        patterns:
+          - "Microsoft.EntityFrameworkCore*"
+          - "Npgsql.EntityFrameworkCore*"
+          - "MySql.EntityFrameworkCore"
       # ADO.NET providers and other data store clients used by the job stores.
       database-providers:
         patterns:

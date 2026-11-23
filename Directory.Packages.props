@@ -39,6 +39,16 @@
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="$(AspireVersion)" />
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="$(AspireVersion)" />
     <PackageVersion Include="Aspire.Npgsql" Version="$(AspireVersion)" />
+    <!--
+      The community package Quartz.EntityFrameworkCore succeeds on 4.x (MIT), referenced by the tests alone:
+      they build its 0.6.3 model to diff it against Quartz's, and create its schema to move it. No code is taken
+      from it. The provider packages also have an older 3.x line that sorts above 0.6.3, so the version is exact.
+    -->
+    <PackageVersion Include="AppAny.Quartz.EntityFrameworkCore.Migrations" Version="0.6.3" />
+    <PackageVersion Include="AppAny.Quartz.EntityFrameworkCore.Migrations.MySql" Version="0.6.3" />
+    <PackageVersion Include="AppAny.Quartz.EntityFrameworkCore.Migrations.PostgreSQL" Version="0.6.3" />
+    <PackageVersion Include="AppAny.Quartz.EntityFrameworkCore.Migrations.SQLite" Version="0.6.3" />
+    <PackageVersion Include="AppAny.Quartz.EntityFrameworkCore.Migrations.SqlServer" Version="0.6.3" />
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="AwesomeAssertions.Analyzers" Version="9.0.8" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.16.0-preview.2" />
@@ -81,6 +91,14 @@
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.15" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
     <!--
+      Quartz.EntityFrameworkCore's tests, which build its model under each provider it has one for and run the
+      migrations against the containers. The shipped package references Microsoft.EntityFrameworkCore.Relational
+      alone, floored below, so none of these reaches a nuspec. One line for the EF Core family, at the patch the
+      competitor benchmark measured TickerQ on.
+    -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <!--
       The current stable line, 11.x since #4277. It once spent a while on 11.0.0-preview.*, while .NET 10
       was itself in preview and Dependabot kept it walking that line, which no shipped package took,
       because only the tests, the examples and the trim canary reference it. PackageDependencyTest is
@@ -95,6 +113,12 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.CrashDump" Version="2.5.3" />
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.3" />
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.3" />
+    <!--
+      Oracle's MySQL provider, the only one for EF Core 10, and a test reference alone: GPL-2.0 with the
+      Universal FOSS Exception, and it brings MySql.Data. Quartz.EntityFrameworkCore reads the provider's name
+      and never references it.
+    -->
+    <PackageVersion Include="MySql.EntityFrameworkCore" Version="10.0.12" />
     <PackageVersion Include="NCrontab" Version="3.4.0" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="6.3.0" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.8.0" />
@@ -103,6 +127,7 @@
     <PackageVersion Include="NUnit3TestAdapter" Version="6.3.1" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <PackageVersion Include="Npgsql.DependencyInjection" Version="10.0.3" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
@@ -202,6 +227,12 @@
       extensions floored here at 10.0.0, which is why Quartz.Dashboard.Agent does not pin transitively.
     -->
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
+    <!--
+      Quartz.EntityFrameworkCore's one dependency. Every model and migration call it makes is in the relational
+      package, so no provider is a dependency. EF Core 10.0.0 asks for 10.0.0 of the framework extensions it
+      takes, the floors here, so the package restores in an application pinned at any 10.x.
+    -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.0" />
@@ -276,9 +307,10 @@
 
   <!--
     The other .NET schedulers Quartz is compared to, referenced by src/Quartz.Benchmark.Competitors and
-    by nothing else. That project is not in Quartz.slnx and packs nothing, so none of these ids reaches a
-    nuspec, a restore graph that ships, or Sonar — PackageDependencyTest walks packable projects, and
-    there is no packable project here to walk.
+    by nothing else. The EF Core providers TickerQ runs on are with the test rows above, because
+    Quartz.EntityFrameworkCore's tests use them too. That project is not in Quartz.slnx and packs nothing,
+    so none of these ids reaches a nuspec, a restore graph that ships, or Sonar — PackageDependencyTest
+    walks packable projects, and there is no packable project here to walk.
 
     They are versions rather than a floating range for the reason every other row is: a published number
     has to say which build of the other library produced it. They are declared here rather than in the
@@ -291,8 +323,6 @@
     <PackageVersion Include="Hangfire.Core" Version="1.8.25" />
     <PackageVersion Include="Hangfire.InMemory" Version="1.0.0" />
     <PackageVersion Include="Hangfire.PostgreSql" Version="1.21.1" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="TickerQ" Version="10.4.0" />
     <PackageVersion Include="TickerQ.EntityFrameworkCore" Version="10.4.0" />
   </ItemGroup>

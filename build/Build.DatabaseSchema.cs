@@ -30,7 +30,8 @@ using Serilog;
 /// <para>
 /// The same model is also rendered as the Weasel tables the <c>Quartz.Weasel.*</c> dialect packages
 /// register — <c>Build.DatabaseSchema.Weasel.cs</c> — so the schema Weasel migrates towards is the one
-/// these scripts create.
+/// these scripts create, and as the table definitions <c>Quartz.EntityFrameworkCore</c> adds to an
+/// application's <c>DbContext</c> — <c>Build.DatabaseSchema.EntityFrameworkCore.cs</c>.
 /// </para>
 /// <para>
 /// The output is checked in, so <c>dotnet fallout GenerateSchema</c> must leave the working tree clean
@@ -50,7 +51,7 @@ partial class Build
     AbsolutePath SchemaDirectory => SourceDirectory / "Quartz" / "Impl" / "AdoJobStore" / "Schema";
 
     Target GenerateSchema => _ => _
-        .Description("Regenerates the embedded schema scripts and the Weasel table models from the model in build/Build.DatabaseSchema.cs")
+        .Description("Regenerates the embedded schema scripts, the Weasel table models and the Entity Framework Core model from the model in build/Build.DatabaseSchema.cs")
         .Executes(() =>
         {
             List<(AbsolutePath File, string Content)> generated = GeneratedSchemaFiles();
@@ -61,12 +62,12 @@ partial class Build
                 file.WriteAllText(Normalize(content));
             }
 
-            Log.Information("Generated {Count} schema files: the scripts under {Directory} and the Weasel models",
+            Log.Information("Generated {Count} schema files: the scripts under {Directory}, the Weasel models and the Entity Framework Core model",
                 generated.Count, SchemaDirectory);
         });
 
     Target VerifySchema => _ => _
-        .Description("Fails when the embedded schema scripts or the Weasel table models differ from what GenerateSchema produces")
+        .Description("Fails when the embedded schema scripts, the Weasel table models or the Entity Framework Core model differ from what GenerateSchema produces")
         .Executes(() =>
         {
             List<string> stale = [];
@@ -91,13 +92,14 @@ partial class Build
         });
 
     /// <summary>
-    /// Every file <see cref="GenerateSchema" /> writes: the embedded scripts, and the Weasel table models
-    /// the dialect packages carry.
+    /// Every file <see cref="GenerateSchema" /> writes: the embedded scripts, the Weasel table models
+    /// the dialect packages carry, and the table definitions of <c>Quartz.EntityFrameworkCore</c>.
     /// </summary>
     List<(AbsolutePath File, string Content)> GeneratedSchemaFiles() =>
     [
         .. BuildSchemaScripts().Select(x => (SchemaDirectory / x.Path, x.Content)),
         .. BuildWeaselModels().Select(x => (SourceDirectory / x.Path, x.Content)),
+        .. BuildEntityFrameworkCoreModels().Select(x => (SourceDirectory / x.Path, x.Content)),
     ];
 
     // ---------------------------------------------------------------------------------------
