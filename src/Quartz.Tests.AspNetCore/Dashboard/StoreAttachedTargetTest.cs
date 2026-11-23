@@ -411,11 +411,11 @@ public sealed class StoreAttachedTargetTest
 
         await using DashboardHost dashboard = await DashboardHost.Attached(database);
 
-        SchedulerEventSources.For(dashboard.Provider, ClusterScheduler).Should().BeNull(
+        SchedulerEventLookup.For(dashboard.Provider, ClusterScheduler).Should().BeNull(
             "a database carries a schedule, not a feed of what happened to it - and answering with this "
             + "process's own broker would show another cluster's name over this process's firings");
 
-        SchedulerEventSources.For(dashboard.Provider, "local").Should().NotBeNull(
+        SchedulerEventLookup.For(dashboard.Provider, "local").Should().NotBeNull(
             "a scheduler of this process still has the one the container registered");
     }
 
