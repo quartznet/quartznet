@@ -180,6 +180,46 @@ public sealed class StoreAttachedWindowEndpointsTest
                 "the refusal is the dashboard's, word for word, because it is decided by the same rule");
     }
 
+    /// <summary>
+    /// The window through its target (#4218): <c>?target=prod</c> serves everything the store is — reads,
+    /// and changes every node is bound by — and refuses what belongs to one process, as the bare name does.
+    /// </summary>
+    [Test]
+    public async Task AWindowThroughItsTargetServesTheStoreAndRefusesWhatBelongsToOneProcess()
+    {
+        await using ServiceProvider node = await Node();
+        await using AttachedStore store = await AttachedApplication();
+        using HttpClient client = factory!.CreateClient();
+
+        using HttpResponseMessage details = await client.GetAsync($"schedulers/{Window}?target=prod");
+        details.StatusCode.Should().Be(HttpStatusCode.OK, await details.Content.ReadAsStringAsync());
+        details.Headers.GetValues(HttpApiConstants.TargetHeader).Should().Equal(["prod"]);
+
+        using HttpResponseMessage jobs = await client.GetAsync($"schedulers/{Window}/jobs?target=prod");
+        (await jobs.Content.ReadAsStringAsync()).Should().Contain("nightly", "a window reads the shared tables");
+
+        using HttpResponseMessage paused = await client.PostAsync($"schedulers/{Window}/triggers/nightly/at-midnight/pause?target=prod", content: null);
+        paused.StatusCode.Should().Be(HttpStatusCode.OK, await paused.Content.ReadAsStringAsync());
+        (await Scalar("SELECT TRIGGER_STATE FROM QRTZ_TRIGGERS WHERE TRIGGER_NAME = 'at-midnight'")).Should().Be("PAUSED",
+            "a pause is a write to the shared tables, which whichever node picks the trigger up honours");
+
+        using HttpResponseMessage start = await client.PostAsync($"schedulers/{Window}/start?target=prod", content: null);
+        using HttpResponseMessage standby = await client.PostAsync($"schedulers/{Window}/standby?target=prod", content: null);
+        using HttpResponseMessage shutdown = await client.PostAsync($"schedulers/{Window}/shutdown?target=prod", content: null);
+        await ShouldBeRefused(start, "start", "the target names the same window the bare name does");
+        await ShouldBeRefused(standby, "stand");
+        await ShouldBeRefused(shutdown, "shut");
+
+        using HttpResponseMessage history = await client.GetAsync($"schedulers/{Window}/history/executions?target=prod");
+        history.StatusCode.Should().Be(HttpStatusCode.BadRequest, "the store was attached without UseExecutionHistory");
+        (await history.Content.ReadAsStringAsync()).Should().Contain("keeps no execution history");
+
+        using HttpResponseMessage events = await client.GetAsync($"schedulers/{Window}/events?target=prod");
+        events.StatusCode.Should().Be(HttpStatusCode.NotImplemented,
+            "a database carries a schedule rather than a feed of what happened to it, and this process's broker is not the window's");
+        (await events.Content.ReadAsStringAsync()).Should().Contain("no event stream");
+    }
+
     [Test]
     public async Task ASchedulerOfThisProcessIsStillStarted()
     {

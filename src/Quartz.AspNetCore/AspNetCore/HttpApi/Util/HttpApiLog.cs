@@ -21,6 +21,8 @@
 
 using Microsoft.Extensions.Logging;
 
+using Quartz.HttpApiContract;
+
 namespace Quartz.AspNetCore.HttpApi.Util;
 
 /// <summary>
@@ -33,12 +35,17 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// <c>LogEventCatalogTest</c> in <c>Quartz.Tests.AspNetCore</c> makes a change to one a reviewed diff.
 /// </para>
 /// <para>
-/// Seven of the ten are raised while turning an exception into the problem details a request is answered
+/// Seven of them are raised while turning an exception into the problem details a request is answered
 /// with, and the level says who has to act: a request the caller got wrong, or one for something the
 /// server does not keep, is Debug, a scheduler or a configured rule that refused is Warning, and anything
 /// else is a server fault at Error. One answers no request at all — there is nobody left to answer. One is
 /// the only one a request that went right raises, and the only one at Information: it is the record of
-/// who changed what. The last is its sibling for a caller whose role did not allow the operation.
+/// who changed what. Its sibling is for a caller whose role did not allow the operation.
+/// </para>
+/// <para>
+/// From 4.9 three more say why a target a request named did not serve it — not reachable, not in time,
+/// or what it answered — naming the target and never its address, and one says that something recording
+/// operator actions failed.
 /// </para>
 /// </remarks>
 internal static partial class HttpApiLog
@@ -126,4 +133,36 @@ internal static partial class HttpApiLog
     /// </remarks>
     [LoggerMessage(EventId = 9009, Level = LogLevel.Warning, Message = "Api user {User} was refused {Operation} on scheduler {SchedulerName}: it needs {Access}")]
     public static partial void OperationRefused(this ILogger logger, string user, string operation, string schedulerName, SchedulerAccess access);
+
+    /// <remarks>
+    /// Warning: a request named a target that nothing answered for — an agent that is not connected, a
+    /// refused connection, a name that did not resolve — and the caller was answered <c>503</c>. The reason
+    /// is a class, <c>HttpRequestException (ConnectionError)</c>, never the transport's message, which names
+    /// the target's address. Added in 4.9.
+    /// </remarks>
+    [LoggerMessage(EventId = 9010, Level = LogLevel.Warning, Message = "Target {Target} is not reachable for {Operation} on scheduler {SchedulerName}: {Reason}")]
+    public static partial void TargetUnavailable(this ILogger logger, string target, string operation, string schedulerName, string reason);
+
+    /// <remarks>
+    /// Warning: a target did not answer within its transport's timeout, and the caller was answered
+    /// <c>504</c> — on a mutating route, with the warning that the change may have been applied. Added in 4.9.
+    /// </remarks>
+    [LoggerMessage(EventId = 9011, Level = LogLevel.Warning, Message = "Target {Target} did not answer {Operation} on scheduler {SchedulerName} in time: {Reason}")]
+    public static partial void TargetTimedOut(this ILogger logger, string target, string operation, string schedulerName, string reason);
+
+    /// <remarks>
+    /// A target answered and did not serve the request: <c>Refused</c>, its <c>403</c>, at Warning, since a
+    /// rule at the target said no; <c>CredentialRefused</c>, its <c>401</c> to this host's credential, and
+    /// <c>Failed</c>, a fault or an unreadable answer, at Error, since the host's configuration or the target
+    /// needs looking at. The level is given per call, so the catalogue lists it as <c>None</c>. Added in 4.9.
+    /// </remarks>
+    [LoggerMessage(EventId = 9012, Message = "Target {Target} did not serve {Operation} on scheduler {SchedulerName}: {Fault}, {Reason}")]
+    public static partial void TargetFailed(this ILogger logger, LogLevel level, string target, string operation, string schedulerName, TargetFault fault, string reason);
+
+    /// <remarks>
+    /// Error: something that records operator actions — the dashboard's Action Log — threw while recording
+    /// one. The action itself was done and audited as <c>9007</c> or <c>9009</c>. Added in 4.9.
+    /// </remarks>
+    [LoggerMessage(EventId = 9013, Level = LogLevel.Error, Message = "Recording an operator action with {Recorder} failed")]
+    public static partial void RecorderFailed(this ILogger logger, string recorder, Exception exception);
 }

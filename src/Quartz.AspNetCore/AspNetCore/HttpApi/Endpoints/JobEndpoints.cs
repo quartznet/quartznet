@@ -103,6 +103,8 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -128,7 +130,7 @@ internal static class JobEndpoints
             NameEquals = nameEquals
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.QueryJobs(scheduler, listing, cancellationToken));
     }
 
@@ -137,11 +139,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         KeyDto[] request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertKeysToFetch(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.FetchJobs(scheduler, request, cancellationToken));
     }
 
@@ -150,11 +154,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, async scheduler =>
         {
             JobKey jobKey = new(jobName, jobGroup);
             return await SchedulerOperations.GetJobDetails(scheduler, jobKey, cancellationToken).ConfigureAwait(false)
@@ -167,11 +173,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.CheckJobExists(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
 
@@ -180,11 +188,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.GetJobTriggers(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
 
@@ -193,6 +203,8 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -222,7 +234,7 @@ internal static class JobEndpoints
             NameEquals = nameEquals
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.QueryFireInstances(scheduler, listing, jobName, jobGroup, schedulerInstanceId, cancellationToken));
     }
 
@@ -240,13 +252,14 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         CancellationToken cancellationToken = default)
     {
         PauseDetails? details = EndpointHelper.PauseDetailsFor(request, httpContext);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.PauseJob(scheduler, new JobKey(jobName, jobGroup), details, cancellationToken));
     }
 
@@ -262,6 +275,7 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         string? groupContains = null,
         string? groupEndsWith = null,
@@ -271,7 +285,7 @@ internal static class JobEndpoints
     {
         PauseDetails? details = EndpointHelper.PauseDetailsFor(request, httpContext);
         ListingParameters groups = ListingParameters.Groups(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.PauseJobs(scheduler, groups, details, cancellationToken));
     }
 
@@ -288,12 +302,13 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         JobKeySetPauseRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
         PauseDetails? details = EndpointHelper.KeySetPauseDetailsFor(request, httpContext);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.PauseJobKeys(scheduler, request, details, cancellationToken));
     }
 
@@ -302,11 +317,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResumeJob(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
 
@@ -315,6 +332,8 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string? groupContains = null,
         string? groupEndsWith = null,
         string? groupStartsWith = null,
@@ -322,7 +341,7 @@ internal static class JobEndpoints
         CancellationToken cancellationToken = default)
     {
         ListingParameters groups = ListingParameters.Groups(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResumeJobs(scheduler, groups, cancellationToken));
     }
 
@@ -331,11 +350,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         JobKeySetRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResumeJobKeys(scheduler, request, cancellationToken));
     }
 
@@ -353,6 +374,7 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         TriggerJobRequest? request = null,
@@ -363,7 +385,7 @@ internal static class JobEndpoints
             return refusal;
         }
 
-        return await EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+        return await EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.TriggerJob(scheduler, new JobKey(jobName, jobGroup), request, cancellationToken)).ConfigureAwait(false);
     }
 
@@ -372,11 +394,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.InterruptJob(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
 
@@ -385,10 +409,12 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.InterruptJobInstance(scheduler, fireInstanceId, cancellationToken));
     }
 
@@ -397,11 +423,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.DeleteJob(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
 
@@ -418,11 +446,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         DeleteJobsRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.DeleteJobs(scheduler, request, cancellationToken));
     }
 
@@ -439,6 +469,8 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string? groupContains = null,
         string? groupEndsWith = null,
         string? groupStartsWith = null,
@@ -446,7 +478,7 @@ internal static class JobEndpoints
         CancellationToken cancellationToken = default)
     {
         ListingParameters groups = ListingParameters.Groups(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.DeleteJobsByGroup(scheduler, groups, cancellationToken));
     }
 
@@ -455,11 +487,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         AddJobRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.AddJob(scheduler, request, dto => RequestedJobDetail.From(dto, endpointHelper.IsJobTypeAllowed), cancellationToken));
     }
 
@@ -468,6 +502,8 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -486,7 +522,7 @@ internal static class JobEndpoints
             NameEquals = nameEquals
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.QueryJobGroups(scheduler, listing, paused, cancellationToken));
     }
 
@@ -495,10 +531,12 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.IsJobGroupPaused(scheduler, jobGroup, cancellationToken));
     }
 }

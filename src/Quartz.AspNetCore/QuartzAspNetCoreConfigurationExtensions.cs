@@ -204,6 +204,13 @@ public static class QuartzAspNetCoreConfigurationExtensions
             }
         }
 
+        // Outside both policies, so that every answer to a request naming a target carries the echo a client
+        // checks for, a refusal included, and a malformed target is refused before a policy is asked about it.
+        foreach (RouteHandlerBuilder endpoint in allEndpoints)
+        {
+            endpoint.RequireTargetScope();
+        }
+
         QuartzApiConventionBuilder conventionBuilder = new(allEndpoints);
 
         // Says "Quartz mapped this" on every route, which is what QuartzEndpointAuthorizationGuard reads

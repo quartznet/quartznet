@@ -48,6 +48,12 @@ internal enum ProblemKind
     /// <summary>The scheduler refused: <c>400</c>, naming its exception.</summary>
     SchedulerFault,
 
+    /// <summary>
+    /// A target the request was relayed to did not serve it: <c>503</c>, <c>504</c>, <c>502</c> or
+    /// <c>403</c>, naming no exception. Added in 4.9.
+    /// </summary>
+    TargetFault,
+
     /// <summary>A fault the caller cannot act on: <c>500</c>.</summary>
     Fault,
 }
@@ -124,6 +130,11 @@ internal static class ProblemDetailsFactory
             // refusal as though it were a scheduler fault.
             ForbiddenException => new ProblemClassification(
                 HttpStatusCode.Forbidden, exception.Message, ExceptionType: null, ProblemKind.Forbidden),
+
+            // The target's fault rather than this server's or the caller's: the status says which, and the
+            // detail is already free of the target's address.
+            TargetFaultException fault => new ProblemClassification(
+                fault.Status, fault.Message, ExceptionType: null, ProblemKind.TargetFault),
 
             SchedulerException => new ProblemClassification(
                 HttpStatusCode.BadRequest, exception.Message, exception.GetType().Name, ProblemKind.SchedulerFault),

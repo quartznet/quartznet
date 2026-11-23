@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Net;
+
 namespace Quartz.HttpApiContract;
 
 /// <summary>
@@ -45,8 +47,12 @@ internal sealed class NotFoundException : Exception
 
     /// <summary>
     /// The refusal for a bare name that only targets hold, which names them: the scheduler exists in
-    /// this process's listing, under keys the API cannot address.
+    /// this process's listing, under keys a request reaches by naming the target with <c>?target=</c>.
     /// </summary>
+    /// <remarks>
+    /// Still <c>Unknown scheduler</c> first, which is what <c>HttpClientExtensions.EnsureSuccess</c> reads:
+    /// a bare name never reaches a targeted scheduler, so no request to it can succeed.
+    /// </remarks>
     public static NotFoundException ForScheduler(string schedulerName, IReadOnlyList<string> targetsHolding)
     {
         if (targetsHolding.Count == 0)
@@ -56,8 +62,8 @@ internal sealed class NotFoundException : Exception
 
         return new NotFoundException(
             $"Unknown scheduler {schedulerName}: the name is held only by "
-            + $"{(targetsHolding.Count == 1 ? "target" : "targets")} {string.Join(", ", targetsHolding)}, "
-            + "which this API does not address by name.");
+            + $"{(targetsHolding.Count == 1 ? "target" : "targets")} {string.Join(", ", targetsHolding)}. "
+            + $"Name one with ?{HttpApiConstants.TargetQueryParameter}={targetsHolding[0]}.");
     }
 
     public static NotFoundException ForCalendar(string calendarName) => new($"Unknown calendar {calendarName}");
@@ -128,4 +134,89 @@ internal sealed class ForbiddenException : Exception
     /// something fixed, and the test that pins the wire shape names it rather than repeating it.
     /// </summary>
     public const string ReadOnlyDetail = "The Quartz HTTP API is configured as read-only.";
+}
+
+/// <summary>
+/// Why a target a request was relayed to did not serve it, which decides the status the carrier answers.
+/// </summary>
+internal enum TargetFault
+{
+    /// <summary>Nothing answered: an agent not connected, a refused connection, a name that did not resolve. <c>503</c>.</summary>
+    Unavailable,
+
+    /// <summary>No answer within the transport's timeout, which is not the caller giving up. <c>504</c>.</summary>
+    TimedOut,
+
+    /// <summary>The target refused the credential this host reaches it with: its <c>401</c>. <c>502</c>.</summary>
+    CredentialRefused,
+
+    /// <summary>The target refused the operation: its <c>403</c>, an agent's <c>MaxAccess</c> or its own policy. <c>403</c>.</summary>
+    Refused,
+
+    /// <summary>The target answered a fault, or a body this host could not read. <c>502</c>.</summary>
+    Failed,
+}
+
+/// <summary>
+/// A request for a scheduler behind a target that the target did not serve, raised by the carrier that
+/// relayed it so that <see cref="ProblemDetailsFactory" /> answers with the status the fault is.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Without it a target's <c>403</c> reached the caller as the <c>400</c> a scheduler's own refusal is, and an
+/// unreachable target as a <c>500</c>. The status says whose problem it is: <c>503</c> and <c>504</c> the
+/// target's reachability, <c>502</c> what the target answered, <c>403</c> a rule at the target.
+/// </para>
+/// <para>
+/// The detail is fixed text naming the target, and never the target's address, which a transport's own
+/// exception carries and which is the host's business; the one thing repeated from the target is the
+/// detail of its <c>403</c>, which names the operation and the level it needs. It carries no
+/// <c>Quartz-ExceptionType</c>, for the reason a refusal does not: nothing the caller can rethrow failed.
+/// </para>
+/// </remarks>
+internal sealed class TargetFaultException : Exception
+{
+    /// <param name="target">The target the request named.</param>
+    /// <param name="kind">Why the target did not serve it.</param>
+    /// <param name="detail">What the caller is told.</param>
+    /// <param name="mayHaveApplied">
+    /// Whether a change may have reached the target although no answer did — a mutation that timed out —
+    /// which the detail then says, so a caller reads before retrying.
+    /// </param>
+    /// <param name="reason">
+    /// What failed, as a class rather than a message — <c>HttpRequestException (ConnectionError)</c>,
+    /// <c>HTTP 401</c> — for the host's log, which is never told the target's address either.
+    /// </param>
+    public TargetFaultException(string target, TargetFault kind, string detail, bool mayHaveApplied, string? reason = null)
+        : base(mayHaveApplied ? detail + " " + MayHaveAppliedSentence : detail)
+    {
+        Target = target;
+        Kind = kind;
+        MayHaveApplied = mayHaveApplied;
+        Reason = reason ?? kind.ToString();
+    }
+
+    /// <summary>
+    /// What a mutation that timed out adds to its detail.
+    /// </summary>
+    public const string MayHaveAppliedSentence = "The change may or may not have been applied; read before retrying.";
+
+    public string Target { get; }
+
+    public TargetFault Kind { get; }
+
+    public bool MayHaveApplied { get; }
+
+    public string Reason { get; }
+
+    /// <summary>
+    /// The status the fault is answered with.
+    /// </summary>
+    public HttpStatusCode Status => Kind switch
+    {
+        TargetFault.Unavailable => HttpStatusCode.ServiceUnavailable,
+        TargetFault.TimedOut => HttpStatusCode.GatewayTimeout,
+        TargetFault.Refused => HttpStatusCode.Forbidden,
+        _ => HttpStatusCode.BadGateway,
+    };
 }
