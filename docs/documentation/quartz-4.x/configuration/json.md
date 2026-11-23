@@ -476,6 +476,11 @@ Run before scheduling. All fields are optional:
 | `DeleteJobs` | Array of `{ "Name": "...", "Group": "..." }` objects. Group is optional. |
 | `DeleteTriggers` | Array of `{ "Name": "...", "Group": "..." }` objects. Group is optional. |
 
+These are the file's own deletes, run each time the file is read. To delete what the file no longer
+declares, own the group with
+[`PruneUndeclaredInGroups`](../how-tos/rescheduling-jobs.md#removing-what-the-code-no-longer-declares): the
+jobs and triggers a file loads at start-up count as declared.
+
 ### ProcessingDirectives
 
 | Field | Default | Description |

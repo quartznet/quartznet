@@ -47,6 +47,8 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `SchedulerJobExtensions.TriggerJob(this IScheduler, JobKey, JobDataMap?, TriggerKey, CancellationToken)` | Fires a stored job now under a trigger key the caller names. A key already stored throws `ObjectAlreadyExistsException`. See [Naming the trigger's key](how-tos/one-off-job.md#naming-the-trigger-s-key) |
 | `FiringResult` | `sealed record`: `TriggerKey`, `Status`, `Outcome`, `Execution`, `Misfire`, `Message`, all `init`. What a wait answers |
 | `FiringWaitStatus` | Enum `Ended`, `Pending`, `Unknown`: where a wait stood when it answered. `Ended` is `0` |
+| `SchedulingOptions.PruneUndeclaredInGroups` | `List<string>`, empty: the groups the declarations own. At the first start on a persistent store, a stored job or trigger there that no declaration names is deleted. Bound from `Quartz:Scheduling:PruneUndeclaredInGroups` and the flat key `quartz.scheduler.pruneUndeclaredInGroups`. See [Removing what the code no longer declares](how-tos/rescheduling-jobs.md#removing-what-the-code-no-longer-declares) |
+| Log events `4034`, `4035`, `4036` | A job deleted and a trigger unscheduled by that prune (warnings), and a prune that failed (error). See [Log Events](log-events.md) |
 
 | Changed | What to check |
 |---|---|

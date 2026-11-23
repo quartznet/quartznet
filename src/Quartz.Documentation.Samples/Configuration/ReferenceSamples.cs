@@ -196,6 +196,15 @@ public static class ReferenceSamples
         #endregion
     }
 
+    public static void PruningUndeclaredContent(IServiceCollection services)
+    {
+        #region sample_reference_prune_undeclared
+
+        services.Configure<QuartzOptions>(options => options.Scheduling.PruneUndeclaredInGroups.Add("reports"));
+
+        #endregion
+    }
+
     public static void JobFactory(IServiceCollection services)
     {
         #region sample_reference_job_factory
