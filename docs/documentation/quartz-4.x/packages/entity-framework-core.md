@@ -17,9 +17,11 @@ Without EF Core migrations, use [`ProvisionSchema()`](../tutorial/job-stores.md#
 | SQL Server | `Microsoft.EntityFrameworkCore.SqlServer` |
 | MySQL | `MySql.EntityFrameworkCore` (Oracle's); `Pomelo.EntityFrameworkCore.MySql` once it supports EF Core 10 |
 | SQLite | `Microsoft.EntityFrameworkCore.Sqlite` |
+| Oracle | `Oracle.EntityFrameworkCore` |
+| Firebird 3, 4 and 5 | `FirebirdSql.EntityFrameworkCore.Firebird` |
 
 The package depends on `Microsoft.EntityFrameworkCore.Relational` 10.0.0 or later and on no provider: the
-dialect is read from the provider's name. Oracle and Firebird have no model yet.
+dialect is read from the provider's name.
 
 ```shell
 dotnet add package Quartz.EntityFrameworkCore
@@ -73,7 +75,10 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
-* On PostgreSQL every name is folded to lower case, as PostgreSQL folds the store's unquoted ones.
+* Every name is folded as the database folds the store's unquoted ones: to lower case on PostgreSQL, to upper
+  case on Oracle and Firebird.
+* A prefix that makes a name longer than the database takes is refused before anything runs: on Firebird that is
+  31 bytes, so a prefix of at most 6 characters.
 * Two schedulers with two prefixes can share one model: call `AddQuartzTables` once for each.
 
 ## The first migration
@@ -103,7 +108,7 @@ public partial class AddQuartz : Migration
 |---|---|
 | SQLite | the four delete triggers that clear a trigger's detail rows on a connection that does not enforce foreign keys |
 | MySQL | `IDX_QRTZ_T_NFT_ST` again, with `PRIORITY DESC`, which Oracle's provider leaves out |
-| PostgreSQL, SQL Server | nothing |
+| PostgreSQL, SQL Server, Oracle, Firebird | nothing |
 
 It is safe to run again: the triggers are created only where missing, and the index is replaced by itself.
 
@@ -156,11 +161,12 @@ dotnet ef migrations add UpgradeQuartz
 
 ## Limits
 
-* Constraint names are EF Core's: `PK_<table>` and `FK_<table>_<referenced>_<columns>`, cut to the database's
-  identifier length. The store never names a constraint.
-* A database the scripts created keeps the scripts' constraint names, such as `FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS`
-  on SQL Server and `qrtz_triggers_pkey` on PostgreSQL, which differ from the snapshot's. Harmless while
-  Quartz's migrations only add.
+* Constraint names are EF Core's on PostgreSQL, SQL Server, MySQL and SQLite: `PK_<table>` and
+  `FK_<table>_<referenced>_<columns>`, cut to the database's identifier length. Oracle and Firebird get the
+  scripts' own, such as `QRTZ_TRIGGER_TO_JOBS_FK` and `FK_QRTZ_TRIGGERS_1`. The store never names a constraint.
+* On the first four, a database the scripts created keeps the scripts' constraint names, such as
+  `FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS` on SQL Server and `qrtz_triggers_pkey` on PostgreSQL, which differ from the
+  snapshot's. Harmless while Quartz's migrations only add.
 * SQL Server writes a default as `CAST(0 AS bit)` where the script writes `0`. Same value.
 * On SQLite, a migration of yours that changes a column of a Quartz table rebuilds the table, which drops
   its triggers. End it with `CompleteQuartzSchema()`. Quartz's own migrations never rebuild a table.
@@ -169,6 +175,19 @@ dotnet ef migrations add UpgradeQuartz
   puts back.
 * EF Core 11 targets `net11.0` only. The package is built against EF Core 10 and runs on 11.
 
+| Oracle | |
+|---|---|
+| `Migrate()` takes no lock | The provider's migration lock does nothing, so nothing stops two nodes from migrating at once. Apply migrations from one process: a deployment step, `dotnet ef database update` or a migration bundle, not `Migrate()` in every node's startup |
+| The schema | The tables go in the session's schema; `Schema` is refused |
+| Flags | `VARCHAR2(1)`, as in the script, so the provider's 23ai `BOOLEAN` is never used. Oracle 21c needs no `UseOracleSQLCompatibility` for these tables |
+
+| Firebird | |
+|---|---|
+| Names | Held to 31 bytes, Firebird 3's limit, whichever server opens the database: a prefix of at most 6 characters |
+| `migrations script --idempotent` | Not supported by the provider. Script a range of migrations, `script <from> <to>`, or use a migration bundle |
+| Index directions | One per index, so `IDX_QRTZ_T_NFT_ST` is the script's three columns without `PRIORITY DESC`; the provider refuses mixed directions |
+| The schema | The tables go in the connection's database; `Schema` is refused |
+
 ## Moving off AppAny
 
 [AppAny.Quartz.EntityFrameworkCore.Migrations](https://github.com/appany/AppAny.Quartz.EntityFrameworkCore.Migrations)
@@ -176,6 +195,7 @@ brought EF Core migrations to Quartz.NET first; thanks to its authors for buildi
 package succeeds it on Quartz 4.9. An application on Quartz 3.x keeps AppAny.
 
 The tables have the same names, so the move renames nothing, and it rebuilds no table. It is one migration.
+AppAny never had Oracle or Firebird, so `MoveQuartzTablesFromAppAny` refuses them.
 
 1. Upgrade AppAny to 0.6.3 and migrate. Earlier versions have other indexes.
 2. Replace AppAny's `modelBuilder.AddQuartz(q => q.UseSqlServer())` with `AddQuartzTables`, keeping AppAny's
