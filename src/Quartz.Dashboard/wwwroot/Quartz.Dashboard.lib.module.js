@@ -68,6 +68,84 @@ export function afterWebStarted() {
         }
     };
 
+    window.quartzDashboardDialog = window.quartzDashboardDialog || (function () {
+        // The elements that opened the dialogs still open, newest last: a dialog opened from a dialog returns
+        // focus to the first one when it closes.
+        const openers = [];
+        const tabbable = "a[href], button:not([disabled]), input:not([disabled]):not([type='hidden']), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
+
+        const controls = function (dialog) {
+            return Array.from(dialog.querySelectorAll(tabbable)).filter(function (element) {
+                return element.getClientRects().length > 0;
+            });
+        };
+
+        return {
+            /**
+             * ModalDialog's first render: remembers what had focus, then moves focus into the dialog, to the
+             * element marked data-autofocus or to the dialog itself.
+             */
+            open: function (dialog) {
+                openers.push(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+                if (!dialog) {
+                    return;
+                }
+
+                const preferred = dialog.querySelector("[data-autofocus]");
+                (preferred || dialog).focus();
+            },
+
+            /** Tab past the dialog's last control, onto the closing guard: back to its first. */
+            focusFirst: function (dialog) {
+                if (!dialog) {
+                    return;
+                }
+
+                const items = controls(dialog);
+                (items[0] || dialog).focus();
+            },
+
+            /** Shift+Tab before the dialog's first control, onto the opening guard: round to its last. */
+            focusLast: function (dialog) {
+                if (!dialog) {
+                    return;
+                }
+
+                const items = controls(dialog);
+                (items[items.length - 1] || dialog).focus();
+            },
+
+            /** The dialog went: focus returns to what opened it, if that is still on the page. */
+            close: function () {
+                const opener = openers.pop();
+                if (opener && opener.isConnected) {
+                    opener.focus();
+                }
+            }
+        };
+    })();
+
+    window.quartzDashboardKeys = window.quartzDashboardKeys || {
+        /**
+         * A grid that moves focus with the arrow keys in C#: the keys must not also scroll the page. Blazor cannot
+         * prevent a default for some keys and not others, so the element does it for those keys alone.
+         */
+        holdArrowKeys: function (element) {
+            if (!element || element.__qzHoldArrowKeys) {
+                return;
+            }
+
+            const keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"];
+            element.__qzHoldArrowKeys = function (event) {
+                if (keys.indexOf(event.key) >= 0) {
+                    event.preventDefault();
+                }
+            };
+
+            element.addEventListener("keydown", element.__qzHoldArrowKeys);
+        }
+    };
+
     window.quartzDashboardVisibility = window.quartzDashboardVisibility || (function () {
         const observers = new Map();
         let lastId = 0;

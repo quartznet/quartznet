@@ -26,8 +26,13 @@
 
     --qz-color-text: #0f172a;
     --qz-color-text-secondary: #475569;
-    --qz-color-text-muted: #94a3b8;
+    /* At least 4.5:1 on every background a page draws text on: 5.19:1 on the surface, 4.73:1 on surface-alt.
+       Still lighter than the secondary text, which is 7.58:1. */
+    --qz-color-text-muted: #5f6e84;
     --qz-color-text-inverse: #ffffff;
+    /* A link with no class of its own: 6.70:1 on the surface, 6.12:1 on surface-alt. */
+    --qz-color-link: #1d4ed8;
+    --qz-color-link-hover: #1e40af;
 
     --qz-color-success: #16a34a;
     --qz-color-success-bg: #dcfce7;
@@ -123,8 +128,12 @@
 
         --qz-color-text: #f1f5f9;
         --qz-color-text-secondary: #94a3b8;
-        --qz-color-text-muted: #64748b;
+        /* 4.76:1 on the surface and 5.81:1 on the page; the secondary text is 5.71:1 and 6.96:1. */
+        --qz-color-text-muted: #8794a9;
         --qz-color-text-inverse: #0f172a;
+        /* 5.75:1 on the surface; the browser's own link blue is 1.9:1 there. */
+        --qz-color-link: #60a5fa;
+        --qz-color-link-hover: #93c5fd;
 
         --qz-color-success: #22c55e;
         --qz-color-success-bg: #14532d;
@@ -179,8 +188,13 @@ body{
 
     --qz-color-text: #0f172a;
     --qz-color-text-secondary: #475569;
-    --qz-color-text-muted: #94a3b8;
+    /* At least 4.5:1 on every background a page draws text on: 5.19:1 on the surface, 4.73:1 on surface-alt.
+       Still lighter than the secondary text, which is 7.58:1. */
+    --qz-color-text-muted: #5f6e84;
     --qz-color-text-inverse: #ffffff;
+    /* A link with no class of its own: 6.70:1 on the surface, 6.12:1 on surface-alt. */
+    --qz-color-link: #1d4ed8;
+    --qz-color-link-hover: #1e40af;
 
     --qz-color-success: #16a34a;
     --qz-color-success-bg: #dcfce7;
@@ -229,8 +243,12 @@ body{
 
     --qz-color-text: #f1f5f9;
     --qz-color-text-secondary: #94a3b8;
-    --qz-color-text-muted: #64748b;
+    /* 4.76:1 on the surface and 5.81:1 on the page; the secondary text is 5.71:1 and 6.96:1. */
+    --qz-color-text-muted: #8794a9;
     --qz-color-text-inverse: #0f172a;
+    /* 5.75:1 on the surface; the browser's own link blue is 1.9:1 there. */
+    --qz-color-link: #60a5fa;
+    --qz-color-link-hover: #93c5fd;
 
     --qz-color-success: #22c55e;
     --qz-color-success-bg: #14532d;
@@ -284,6 +302,31 @@ body{
 .qz-dashboard *::before,
 .qz-dashboard *::after {
     box-sizing: border-box;
+}
+
+/* A link with no class of its own: in the theme's link colour, never the browser's blue and purple, which are
+   1.9:1 on the dark theme. :where() keeps each rule at no specificity, so a link with a class of its own keeps
+   the look that class gives it. */
+:where(.qz-dashboard) :where(a, a:visited) {
+    color: var(--qz-color-link);
+}
+
+:where(.qz-dashboard) :where(a:hover) {
+    color: var(--qz-color-link-hover);
+}
+
+:where(.qz-dashboard) :where(a:focus-visible) {
+    outline: 2px solid var(--qz-color-primary);
+    outline-offset: 2px;
+    border-radius: var(--qz-radius-sm);
+}
+
+/* FocusOnNavigate focuses a page's heading as it opens, for a screen reader, and a dialog takes focus itself as
+   it opens. Neither can be reached with Tab, so neither draws the ring a keyboard user follows; everything Tab
+   reaches keeps it. */
+:where(.qz-dashboard) :is(h1, h2, h3)[tabindex="-1"]:focus,
+:where(.qz-dashboard) [role="dialog"][tabindex="-1"]:focus {
+    outline: none;
 }
 
 /* Viewport-tall shell: .qz-content scrolls (sticky axis pins there; scrollbar stays in the chrome). */
@@ -1160,7 +1203,7 @@ body{
 }
 
 .qz-table td > a {
-    color: var(--qz-color-primary);
+    color: var(--qz-color-link);
     text-decoration: none;
 }
 
@@ -1321,6 +1364,16 @@ body{
     justify-content: flex-end;
     align-items: center;
     gap: var(--qz-space-sm);
+}
+
+/* The two stops either side of a dialog that keep Tab inside it: focusable, and not seen. */
+.qz-focus-guard {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 /* The pause prompt's reason field sits between the message and the buttons. */
@@ -3072,7 +3125,7 @@ body{
 }
 
 .qz-list a {
-    color: var(--qz-color-primary);
+    color: var(--qz-color-link);
     text-decoration: none;
 }
 
