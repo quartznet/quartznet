@@ -610,6 +610,67 @@ public sealed class CalendarEditorTest
             "No day of the week is ticked: saved like this, the calendar excludes nothing."));
     }
 
+    /// <summary>
+    /// The listing reads each calendar once for its type, eight at a time and no more than 200 of them, as the
+    /// dashboard page says: a scheduler with 250 calendars costs 200 reads, never 250 at once.
+    /// </summary>
+    [Test]
+    public void TheTypesAreReadEightAtATimeAndNoMoreThanTwoHundred()
+    {
+        TaskCompletionSource<ICalendar> held = GivenTypeReadsHeld(250, out Func<int> reads);
+
+        IRenderedComponent<Calendars> page = context.Render<Calendars>();
+
+        page.WaitForAssertion(() => reads().Should().Be(8, "eight reads are out at once, and the rest wait for one to end"));
+        held.SetResult(new WeeklyCalendar());
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-row]").Should().HaveCount(250), TimeSpan.FromSeconds(5));
+        reads().Should().Be(200, "no more than 200 calendars are read for their type");
+        page.Find("[data-testid=calendar-types-capped]").TextContent.Should().Be("The type is read for the first 200 calendars only.");
+        List<string> types = page.FindAll("[data-testid=calendar-type]").Select(cell => cell.TextContent).ToList();
+        types.Take(200).Should().OnlyContain(type => type == "Weekly");
+        types.Skip(200).Should().OnlyContain(type => type == "—", "a calendar past the limit is listed without its type");
+    }
+
+    /// <summary>
+    /// Leaving the page stops the type reads: the reads already out finish, and none of those still waiting starts.
+    /// </summary>
+    [Test]
+    public async Task LeavingThePageStopsTheTypeReads()
+    {
+        TaskCompletionSource<ICalendar> held = GivenTypeReadsHeld(250, out Func<int> reads);
+        IRenderedComponent<Calendars> page = context.Render<Calendars>();
+        page.WaitForAssertion(() => reads().Should().Be(8));
+
+        await context.DisposeComponentsAsync();
+        held.SetResult(new WeeklyCalendar());
+
+        for (int check = 0; check < 20; check++)
+        {
+            await Task.Delay(10);
+            reads().Should().Be(8, "the reads still waiting when the page went are not made");
+        }
+    }
+
+    /// <summary>
+    /// The scheduler holds <paramref name="count" /> calendars, and every read of one waits on the source answered,
+    /// so a case decides when the reads end. <paramref name="reads" /> says how many have been made.
+    /// </summary>
+    private TaskCompletionSource<ICalendar> GivenTypeReadsHeld(int count, out Func<int> reads)
+    {
+        GivenCalendarNames(Enumerable.Range(1, count).Select(index => "calendar-" + index.ToString("000", System.Globalization.CultureInfo.InvariantCulture)).ToArray());
+        TaskCompletionSource<ICalendar> held = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        int made = 0;
+        A.CallTo(() => context.Api.GetCalendar(TestData.SchedulerName, A<string>._, A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            {
+                Interlocked.Increment(ref made);
+                return new ValueTask<ICalendar>(held.Task);
+            });
+        reads = () => Volatile.Read(ref made);
+        return held;
+    }
+
     private IRenderedComponent<Calendars> RenderListing()
     {
         IRenderedComponent<Calendars> page = context.Render<Calendars>();

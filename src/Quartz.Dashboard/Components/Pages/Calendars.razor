@@ -255,9 +255,7 @@
         }
     }
 
-    /// <summary>
-    /// Empties the listing, for a scheduler of which there is nothing read to keep showing.
-    /// </summary>
+    /// <summary>Opens the form to create a calendar, and stops picking out the row the last one saved.</summary>
     private void StartCreating()
     {
         _creating = true;
@@ -290,6 +288,9 @@
         }
     }
 
+    /// <summary>
+    /// Empties the listing, for a scheduler of which there is nothing read to keep showing.
+    /// </summary>
     private void ClearListing()
     {
         _calendarNames.Clear();
