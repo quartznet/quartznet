@@ -74,13 +74,12 @@ internal sealed class UndeclaredContentPruner
         {
             if (declared.Unread.Count > 0)
             {
-                string unread = string.Join(", ", declared.Unread.Select(static x => $"'{x}'"));
                 logger.UndeclaredContentPruneFailed(
                     scheduler.SchedulerName,
                     OwnedGroups(),
                     new SchedulerException(
-                        $"The scheduling file(s) {unread} did not load, so what they declare is not known and nothing was pruned. "
-                        + "Once the files load, the next start prunes."));
+                        $"These scheduling files were not read, so what they declare is not known and nothing was pruned: {string.Join(", ", declared.Unread)}. "
+                        + "Once every file listed is read, the next start prunes; to remove what a file declares, take the file out of the list."));
                 return;
             }
 
@@ -174,8 +173,13 @@ internal sealed class UndeclaredContentPruner
 
     /// <summary>
     /// Adds the triggers of a listing that no declaration names to the candidates, less those that go with
-    /// an undeclared job and those in a group the prune never touches.
+    /// an undeclared job, those in a group the prune never touches, and the pending one-offs.
     /// </summary>
+    /// <remarks>
+    /// A trigger of a job in <see cref="SchedulerConstants.ScheduledJobGroup" /> is a one-off the one-call
+    /// <c>ScheduleJob&lt;TJob, TInput&gt;</c> stored, by construction: a caller's request, as a manual firing
+    /// is, in whatever group the caller named. It carries no manual mark, which would record its run as manual.
+    /// </remarks>
     private void Consider(
         PagedResult<TriggerHeader> listing,
         string ownedGroup,
@@ -184,7 +188,10 @@ internal sealed class UndeclaredContentPruner
     {
         foreach (TriggerHeader header in listing.Items)
         {
-            if (declared.Names(header.Key) || declared.NeverPrunes(header.Key) || undeclaredJobs.ContainsKey(header.JobKey))
+            if (declared.Names(header.Key)
+                || declared.NeverPrunes(header.Key)
+                || undeclaredJobs.ContainsKey(header.JobKey)
+                || string.Equals(header.JobKey.Group, SchedulerConstants.ScheduledJobGroup, StringComparison.Ordinal))
             {
                 continue;
             }

@@ -134,24 +134,33 @@ In `appsettings.json`, `Quartz:Scheduling:PruneUndeclaredInGroups` is an array; 
 }
 ```
 
-| Deleted at the first start, unless a declaration names it | Kept |
-|---|---|
-| A stored job in an owned group, with all its triggers | Everything else in the store |
-| A stored trigger in an owned group, whatever its job's group | A pending manual firing (`TriggerJob`) |
-| A trigger of a declared job in an owned group, whatever the trigger's group | The scheduler's own triggers: recovery, fail-over, `RunAtStartup`, backfills |
+Deleted at the first start, unless a declaration names it:
+
+* a stored job in an owned group, with all its triggers;
+* a stored trigger in an owned group, whatever its job's group;
+* a trigger of a declared job in an owned group, whatever the trigger's group.
+
+Kept, whatever group it is in:
+
+* a pending manual firing (`TriggerJob`);
+* a pending one-off of `ScheduleJob<TJob, TInput>`;
+* the scheduler's own triggers: recovery, fail-over, `RunAtStartup`, backfills.
 
 * **Declarations** are the `AddJob`, `AddTrigger` and `ScheduleJob` registrations, `AddDeclaredJobs`, the
   `Quartz:Schedule` section, and every job and trigger an XML or JSON scheduling file loads at start-up. A
   key `IgnoreDuplicates` passed over and a trigger
-  [switched off](../tutorial/declaring-jobs-with-attributes.md#switching-one-trigger-off) with `-` count.
+  [switched off](../tutorial/declaring-jobs-with-attributes.md#switching-one-trigger-off) with `-` count,
+  and a declared trigger declares its job.
 * **A persistent store, the first `Start` only.** It runs after the plugins have started and before the
   scheduler fires anything, so a stale trigger that is due never fires on that node. `Start` after `Standby`
   prunes nothing, and the in-memory store never does.
 * **Each deletion is a warning**: event `4034` for a job, whose triggers go with it, and `4035` for a
   trigger. Scheduler listeners hear `JobDeleted` and `JobUnscheduled`, as from any delete. The execution
   history keeps its rows.
-* **A failure is logged and the start goes on**: event `4036`, an error. A scheduling file that does not
-  load is one: what it declares is not known, so nothing is pruned at that start.
+* **A failure is logged and the start goes on**: event `4036`, an error. A scheduling file that is listed
+  and not found, does not load, or is not read because its plugin failed to start is one: what it declares
+  is not known, so nothing is pruned at that start. To remove what a file declares, take the file out of
+  `Files`.
 * **A running firing is not waited for.** It completes against the deleted trigger, as after any
   `DeleteJob`.
 * **Refused at start-up**: a blank name, `*`, `RECOVERING_JOBS`, `FAILED_OVER_JOBS`, `QRTZ_SCHEDULED`,

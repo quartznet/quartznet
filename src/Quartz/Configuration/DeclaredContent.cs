@@ -135,7 +135,10 @@ internal sealed class DeclaredContent
     /// <summary>
     /// Records that a declaration could not be read, so the prune deletes nothing at this start.
     /// </summary>
-    /// <param name="source">What could not be read, such as a scheduling file's name.</param>
+    /// <param name="source">
+    /// What could not be read and why, as the prune's log line names it: a scheduling file's name, quoted, and
+    /// <c>(not found)</c> when it was not there.
+    /// </param>
     public void CouldNotRead(string source)
     {
         lock (gate)

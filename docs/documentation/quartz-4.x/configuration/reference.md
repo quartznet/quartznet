@@ -671,8 +671,9 @@ services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates
 - every stored trigger in a listed group, whatever its job's group;
 - every trigger of a declared job in a listed group, whatever the trigger's group.
 
-Pending manual firings and the scheduler's own triggers are kept. Pruning belongs to a deploy that runs one
-version: a node starting with older declarations stores again what they name. See
+Pending manual firings, pending one-offs of `ScheduleJob<TJob, TInput>` and the scheduler's own triggers
+are kept. Pruning belongs to a deploy that runs one version: a node starting with older declarations stores
+again what they name. See
 [Removing what the code no longer declares](../how-tos/rescheduling-jobs.md#removing-what-the-code-no-longer-declares).
 
 <!-- snippet: sample_reference_prune_undeclared -->
