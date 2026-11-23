@@ -203,6 +203,7 @@ namespace Quartz.Dashboard.Services
         public string InstanceId { get; init; }
         public bool IsCurrentNode { get; init; }
         public System.DateTimeOffset? LastCheckInUtc { get; init; }
+        public string? QuartzVersion { get; init; }
         public Quartz.ClusterNodeState State { get; init; }
     }
     public readonly record struct DashboardExecutionLimit : System.IEquatable<Quartz.Dashboard.Services.DashboardExecutionLimit>

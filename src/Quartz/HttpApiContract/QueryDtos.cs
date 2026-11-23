@@ -280,6 +280,12 @@ internal sealed record ClusterNodeDto(
     ClusterNodeState State,
     bool IsCurrentNode)
 {
+    /// <summary>
+    /// <see cref="ClusterNode.QuartzVersion" />. Absent from a host older than 4.9, which a reader cannot tell
+    /// from a row no node stamped.
+    /// </summary>
+    public string? QuartzVersion { get; init; }
+
     public static ClusterNodeDto Create(ClusterNode node)
     {
         ArgumentNullException.ThrowIfNull(node);
@@ -290,7 +296,10 @@ internal sealed record ClusterNodeDto(
             CheckInInterval: node.CheckInInterval,
             State: node.State,
             IsCurrentNode: node.IsCurrentNode
-        );
+        )
+        {
+            QuartzVersion = node.QuartzVersion
+        };
     }
 
     public ClusterNode AsClusterNode()
@@ -301,7 +310,10 @@ internal sealed record ClusterNodeDto(
             CheckInInterval,
             State,
             IsCurrentNode
-        );
+        )
+        {
+            QuartzVersion = QuartzVersion
+        };
     }
 }
 

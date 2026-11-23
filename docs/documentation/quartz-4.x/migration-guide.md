@@ -49,6 +49,8 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `FiringWaitStatus` | Enum `Ended`, `Pending`, `Unknown`: where a wait stood when it answered. `Ended` is `0` |
 | `SchedulingOptions.PruneUndeclaredInGroups` | `List<string>`, empty: the groups the declarations own. At the first start on a persistent store, a stored job or trigger there that no declaration names is deleted. Bound from `Quartz:Scheduling:PruneUndeclaredInGroups` and the flat key `quartz.scheduler.pruneUndeclaredInGroups`. See [Removing what the code no longer declares](how-tos/rescheduling-jobs.md#removing-what-the-code-no-longer-declares) |
 | Log events `4034`, `4035`, `4036` | A job deleted and a trigger unscheduled by that prune (warnings), and a prune that failed (error). See [Log Events](log-events.md) |
+| `ClusterNode.QuartzVersion` | `string?`, `init`: the version a node stamped its check-in row with, `4.9.0`. `null` for a row a node older than 4.6 wrote, and on a store that keeps no check-in rows. The HTTP API sends it as `quartzVersion` on `…/nodes`. See [Cluster](packages/dashboard.md#cluster) |
+| `ClusterNodeDto.QuartzVersion` | `Quartz.Dashboard`, `string?`, `init`: `ClusterNode.QuartzVersion`, carried over. `null` from a host older than 4.9 |
 
 | Changed | What to check |
 |---|---|

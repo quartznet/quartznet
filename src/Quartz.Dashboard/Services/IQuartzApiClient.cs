@@ -1485,7 +1485,19 @@ public sealed record ClusterNodeDto(
     DateTimeOffset? LastCheckInUtc,
     TimeSpan? CheckInInterval,
     ClusterNodeState State,
-    bool IsCurrentNode);
+    bool IsCurrentNode)
+{
+    /// <summary>
+    /// The Quartz version the node stamped its check-in row with, <c>4.9.0</c>, or <see langword="null" /> when
+    /// there is no stamp: a row a node older than 4.6 wrote, a store that keeps no check-in rows, or a host older
+    /// than 4.9, which sends none. The Cluster page tells these apart.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ClusterNode.QuartzVersion" />, carried over. A non-positional <c>init</c> property, as
+    /// <see cref="FireInstanceDto.Progress" /> is, so the record's constructor is unchanged. Added in 4.9.
+    /// </remarks>
+    public string? QuartzVersion { get; init; }
+}
 
 /// <summary>
 /// A trigger to schedule, and the job it fires when that job is not already stored.

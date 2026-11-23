@@ -2700,6 +2700,35 @@ public class AdoJobStoreBaseTest
         other.IsCurrentNode.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Each node's version is the one its row was stamped with (#4411), so the Cluster page can say which
+    /// node a rolling upgrade has not reached. A row a node older than 4.6 wrote has no stamp, and the node
+    /// answering, which has no row yet, carries the version its first check-in stamps.
+    /// </summary>
+    [Test]
+    public async Task QueryClusterNodes_ShouldCarryEachRowsQuartzVersion()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.LastCheckin = ClusterNow;
+
+        GivenSchedulerStates(
+            new SchedulerStateRecord("upgraded-node", ClusterNow, CheckinInterval) { QuartzVersion = "4.9.0" },
+            new SchedulerStateRecord("old-node", ClusterNow, CheckinInterval));
+
+        List<ClusterNode> nodes = await jobStoreSupport.CallQueryClusterNodes(conn);
+
+        using (new AssertionScope())
+        {
+            nodes.Single(x => x.InstanceId == "upgraded-node").QuartzVersion.Should().Be("4.9.0",
+                "the version is what the node stamped its row with at its last check-in");
+            nodes.Single(x => x.InstanceId == "old-node").QuartzVersion.Should().BeNull(
+                "a node older than 4.6 never writes the column, and the listing does not invent a version for it");
+            nodes.Single(x => x.IsCurrentNode).QuartzVersion.Should().Be(SchedulerNodeVersion.Current,
+                "the node answering has no row yet, and its version is the one it is about to stamp");
+        }
+    }
+
     [Test]
     public async Task QueryClusterNodes_ShouldListTheCurrentNodeFirstEvenBeforeItHasARow()
     {
