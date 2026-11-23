@@ -163,10 +163,64 @@ public sealed class CalendarEditorTest
         page.Find("#calendar-daily-end").Change("09:00");
         Save(page);
 
-        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-editor-errors] li").Select(item => item.TextContent).Should().Equal(
-            "A calendar needs a name: triggers refer to it by that name.",
-            "The range must start before it ends, and may not cross midnight."));
+        page.WaitForAssertion(() => page.Find("#calendar-name-error").TextContent.Should().Be("A calendar needs a name: triggers refer to it by that name."));
+        page.Find("#calendar-dailyrange-error").TextContent.Should().Be("The range must start before it ends, and may not cross midnight.");
+        page.FindAll("[data-testid=calendar-editor-errors]").Should().BeEmpty("the banner is for what the scheduler refused; a field's mistake is said beside it");
         sent.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// A field the save found wrong is marked invalid and names its message, which is announced: a screen reader
+    /// hears what is wrong and where, and the field's border says it to the eye.
+    /// </summary>
+    [Test]
+    public void AFieldASaveFoundWrongIsMarkedInvalidAndNamesItsMessage()
+    {
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        Fill(page, "", "Daily");
+        page.Find("#calendar-time-zone").Change("Mars/Olympus_Mons");
+        page.Find("#calendar-daily-start").Change("17:00");
+        page.Find("#calendar-daily-end").Change("09:00");
+        Save(page);
+
+        page.WaitForAssertion(() => page.Find("#calendar-name").GetAttribute("aria-invalid").Should().Be("true"));
+        AssertDescribedBy(page, "#calendar-name", "calendar-name-error", "A calendar needs a name");
+        AssertDescribedBy(page, "#calendar-time-zone", "calendar-timezone-error", "Time zone 'Mars/Olympus_Mons' is not one");
+        AssertDescribedBy(page, "#calendar-daily-start", "calendar-dailyrange-error", "The range must start before it ends");
+        AssertDescribedBy(page, "#calendar-daily-end", "calendar-dailyrange-error", "The range must start before it ends");
+        page.Find("#calendar-description").HasAttribute("aria-invalid").Should().BeFalse("nothing is wrong with the description");
+
+        page.Find("#calendar-kind").Change("Cron");
+        page.Find("#calendar-cron").Input("not a cron");
+        page.WaitForAssertion(() => AssertDescribedBy(page, "#calendar-cron", "calendar-cron-error", "Invalid cron expression"));
+    }
+
+    /// <summary>
+    /// What a save found wrong is about the form as it was: a change of type, or any edit, takes it away, so a
+    /// holiday calendar does not say its daily range is missing.
+    /// </summary>
+    [Test]
+    public void ASaveErrorGoesWhenTheTypeChangesOrTheFormIsEdited()
+    {
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        Fill(page, "business-hours", "Daily");
+        Save(page);
+        page.WaitForAssertion(() => page.FindAll(".qz-field-error").Select(error => error.TextContent).Should().Equal(
+            "A daily calendar needs a range start.", "A daily calendar needs a range end."));
+
+        page.Find("#calendar-kind").Change("Holiday");
+
+        page.WaitForAssertion(() => page.FindAll(".qz-field-error").Should().BeEmpty("the daily range is not part of a holiday calendar"));
+
+        page.Find("#calendar-kind").Change("Daily");
+        Save(page);
+        page.WaitForAssertion(() => page.FindAll(".qz-field-error").Should().NotBeEmpty());
+        page.Find("#calendar-description").Change("Office hours");
+
+        page.WaitForAssertion(() => page.FindAll(".qz-field-error").Should().BeEmpty("the form the save was about has been edited"));
+        page.FindAll("[aria-invalid]").Should().BeEmpty();
     }
 
     [Test]
@@ -230,7 +284,7 @@ public sealed class CalendarEditorTest
         page.Find("#calendar-time-zone").GetAttribute("value").Should().Be(kathmandu.Id, "the editor starts in the zone the calendar reports");
         page.FindAll("#calendar-name").Should().BeEmpty("an edit keeps the name it is stored under");
         page.FindAll("#calendar-kind").Should().BeEmpty("an edit keeps the type");
-        page.Find("[data-testid=calendar-editor-base-kept]").TextContent.Should().Contain("1 calendar under it");
+        page.Find("[data-testid=calendar-editor-base-kept]").TextContent.Should().Be("The calendar under it is kept as it is.");
 
         AddHoliday(page, "2026-12-26");
         Save(page);
@@ -467,11 +521,69 @@ public sealed class CalendarEditorTest
         page.FindAll("thead th").Select(cell => cell.TextContent.Trim()).Take(2).Should().Equal("Name", "Type");
     }
 
+    /// <summary>
+    /// The listing comes first: the form to create a calendar opens on asking, closes once it has saved, and the new
+    /// calendar's row is picked out and scrolled to, so a phone does not scroll three screens to find either.
+    /// </summary>
+    [Test]
+    public void TheListingComesFirstAndTheFormOpensOnAskingAndClosesAfterASave()
+    {
+        IRenderedComponent<Calendars> page = context.Render<Calendars>();
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-new]").TextContent.Trim().Should().Be("New calendar"));
+        page.FindAll("[data-testid=calendar-editor]").Should().BeEmpty("the form is closed until asked for");
+
+        page.Find("[data-testid=calendar-new]").Click();
+        Fill(page, "office-holidays", "Holiday");
+        AddHoliday(page, "2026-12-25");
+        GivenCalendarNames("existing", "office-holidays");
+        Save(page);
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-editor]").Should().BeEmpty("the form closes once it has saved"));
+        IElement row = page.FindAll("[data-testid=calendar-row]").Single(candidate => candidate.TextContent.Contains("office-holidays", StringComparison.Ordinal));
+        row.ClassList.Should().Contain("qz-row-new");
+        page.WaitForAssertion(() => context.JSInterop.Invocations.Should().Contain(invocation =>
+            invocation.Identifier == "quartzDashboardDom.revealById" && Equals(invocation.Arguments[0], row.Id)));
+        context.Toasts.Messages.Should().Contain(toast => toast.Message == "Created calendar office-holidays.");
+        page.Find("[data-testid=calendar-new]");
+    }
+
+    [Test]
+    public void TheFormCanBeClosedWithoutSaving()
+    {
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        page.Find("[data-testid=calendar-cancel]").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-editor]").Should().BeEmpty());
+        sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public void TheDeleteQuestionsButtonSaysWhatItDoes()
+    {
+        IRenderedComponent<Calendars> page = context.Render<Calendars>();
+        page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-row] button").First(button => button.TextContent.Trim() == "Delete").Click());
+
+        page.WaitForAssertion(() => page.Find(".qz-confirm-dialog button.qz-button-danger").TextContent.Trim().Should().Be("Delete",
+            "the button says the action it takes, not Confirm"));
+    }
+
     private IRenderedComponent<Calendars> RenderListing()
     {
         IRenderedComponent<Calendars> page = context.Render<Calendars>();
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-new]").Click());
         page.WaitForAssertion(() => page.Find("[data-testid=calendar-editor]"));
         return page;
+    }
+
+    private static void AssertDescribedBy(IRenderedComponent<Calendars> page, string input, string messageId, string message)
+    {
+        IElement field = page.Find(input);
+        field.GetAttribute("aria-invalid").Should().Be("true", input + " is the field the message is about");
+        field.GetAttribute("aria-describedby").Should().Be(messageId);
+        IElement said = page.Find("#" + messageId);
+        said.GetAttribute("role").Should().Be("alert", "the message is announced as it appears");
+        said.TextContent.Should().StartWith(message);
     }
 
     private static void AddHoliday<T>(IRenderedComponent<T> page, string date) where T : IComponent

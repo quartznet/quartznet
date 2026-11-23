@@ -218,7 +218,9 @@
                                                @onchange="args => ToggleSelection(triggerKey, args)" />
                                     </td>
                                 }
-                                <td class="qz-col-key">
+                                @* A key pressed on a control in the row is that control's, as the selection box's already is: only
+                                   a key pressed on the row itself opens the trigger. *@
+                                <td class="qz-col-key" @onkeydown:stopPropagation="true">
                                     <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
                                     @if (trigger.ContinuesAfter is { } parent)
                                     {
@@ -246,12 +248,12 @@
                                         <span class="qz-muted">&mdash;</span>
                                     }
                                 </td>
-                                <td class="qz-col-details">
+                                <td class="qz-col-details" @onkeydown:stopPropagation="true">
                                     <a class="qz-details-link" href="@GetTriggerPath(triggerGroup, triggerName)" @onclick:stopPropagation="true">View details</a>
                                 </td>
                                 @if (HasRowActions)
                                 {
-                                    <td class="qz-col-actions">
+                                    <td class="qz-col-actions" @onkeydown:stopPropagation="true">
                                         <div class="qz-actions" @onclick:stopPropagation="true">
                                             @if (CanPause)
                                             {
@@ -285,12 +287,14 @@
 
 <ConfirmDialog IsOpen="@_showUnscheduleConfirm"
                Title="Unschedule trigger"
+               ConfirmText="Unschedule"
                Message="@($"Unschedule {_pendingTriggerKey}?")"
                OnConfirm="ConfirmUnscheduleAsync"
                OnCancel="CancelUnscheduleAsync" />
 
 <ConfirmDialog IsOpen="@_showBulkUnscheduleConfirm"
                Title="Unschedule selected triggers"
+               ConfirmText="Unschedule"
                Message="@($"Unschedule {_selected.Count} selected trigger(s)? A job left with no trigger and no durability goes with them.")"
                OnConfirm="UnscheduleSelectionAsync"
                OnCancel="CancelBulkUnscheduleAsync" />

@@ -16,18 +16,12 @@
 <section class="qz-section qz-calendar-editor" data-testid="calendar-editor">
     <h2>@(IsNew ? "New calendar" : "Edit calendar")</h2>
 
-    @if (_errors.Count > 0 || !string.IsNullOrWhiteSpace(_refusal))
+    @* What the scheduler refused. What is wrong with a field is said beside that field, which it marks invalid. *@
+    @if (!string.IsNullOrWhiteSpace(_refusal))
     {
         <div class="qz-form-errors" role="alert" data-testid="calendar-editor-errors">
             <ul>
-                @foreach (string error in _errors)
-                {
-                    <li>@error</li>
-                }
-                @if (!string.IsNullOrWhiteSpace(_refusal))
-                {
-                    <li>@_refusal</li>
-                }
+                <li>@_refusal</li>
             </ul>
         </div>
     }
@@ -37,11 +31,17 @@
         {
             <div class="qz-form-group">
                 <label class="qz-form-label" for="calendar-name">Calendar name</label>
-                <input id="calendar-name" class="qz-input" @bind="_name" />
+                <input id="calendar-name"
+                       class="qz-input"
+                       aria-invalid="@InvalidAttribute(CalendarField.Name)"
+                       aria-describedby="@DescribedBy(CalendarField.Name)"
+                       @bind="_name"
+                       @bind:after="OnFormEdited" />
+                <FieldError Id="@ErrorId(CalendarField.Name)" Message="@ErrorOf(CalendarField.Name)" />
             </div>
             <div class="qz-form-group">
                 <label class="qz-form-label" for="calendar-kind">Type</label>
-                <select id="calendar-kind" class="qz-select" @bind="_form.Kind">
+                <select id="calendar-kind" class="qz-select" @bind="_form.Kind" @bind:after="OnFormEdited">
                     @foreach (CalendarKind kind in CalendarReading.EditableKinds)
                     {
                         <option value="@kind">@CalendarReading.Describe(kind)</option>
@@ -51,7 +51,7 @@
         }
         <div class="qz-form-group">
             <label class="qz-form-label" for="calendar-description">Description</label>
-            <input id="calendar-description" class="qz-input" @bind="_form.Description" />
+            <input id="calendar-description" class="qz-input" @bind="_form.Description" @bind:after="OnFormEdited" />
         </div>
         <div class="qz-form-group">
             <label class="qz-form-label" for="calendar-time-zone">Time zone</label>
@@ -59,7 +59,11 @@
                    class="qz-input qz-input-mono"
                    list="calendar-time-zones"
                    title="The zone the calendar's days and times are read in, by its system id"
-                   @bind="_form.TimeZoneId" />
+                   aria-invalid="@InvalidAttribute(CalendarField.TimeZone)"
+                   aria-describedby="@DescribedBy(CalendarField.TimeZone)"
+                   @bind="_form.TimeZoneId"
+                   @bind:after="OnFormEdited" />
+            <FieldError Id="@ErrorId(CalendarField.TimeZone)" Message="@ErrorOf(CalendarField.TimeZone)" />
             <datalist id="calendar-time-zones">
                 @foreach (TimeZoneInfo timeZone in TimeZones)
                 {
@@ -90,7 +94,7 @@
                             string label = CalendarReading.FormatDate(holiday);
                             <li>
                                 <span><span class="qz-mono">@label</span> <span class="qz-muted">@holiday.DayOfWeek</span></span>
-                                <button type="button" class="qz-button" aria-label="@("Remove " + label)" data-date="@label" @onclick="() => _form.HolidayDays.Remove(holiday)">Remove</button>
+                                <button type="button" class="qz-button" aria-label="@("Remove " + label)" data-date="@label" @onclick="() => RemoveHoliday(holiday)">Remove</button>
                             </li>
                         }
                     </ul>
@@ -111,7 +115,7 @@
 
             case CalendarKind.Annual:
                 <p class="qz-muted">Tick the days excluded every year. The arrow keys move between days and Space ticks one.</p>
-                <AnnualDayGrid Days="@_form.AnnualDays" />
+                <AnnualDayGrid Days="@_form.AnnualDays" OnChange="OnFormEdited" />
                 break;
 
             case CalendarKind.Weekly:
@@ -158,15 +162,32 @@
                 <div class="qz-live-filter-grid">
                     <div class="qz-form-group">
                         <label class="qz-form-label" for="calendar-daily-start">Range start</label>
-                        <input id="calendar-daily-start" class="qz-input" type="time" step="1" value="@_form.DailyStart" @onchange="args => _form.DailyStart = args.Value?.ToString() ?? string.Empty" />
+                        <input id="calendar-daily-start"
+                               class="qz-input"
+                               type="time"
+                               step="1"
+                               aria-invalid="@InvalidAttribute(CalendarField.DailyStart, CalendarField.DailyRange)"
+                               aria-describedby="@DescribedBy(CalendarField.DailyStart, CalendarField.DailyRange)"
+                               value="@_form.DailyStart"
+                               @onchange="args => OnDailyChanged(start: args.Value?.ToString())" />
+                        <FieldError Id="@ErrorId(CalendarField.DailyStart)" Message="@ErrorOf(CalendarField.DailyStart)" />
                     </div>
                     <div class="qz-form-group">
                         <label class="qz-form-label" for="calendar-daily-end">Range end</label>
-                        <input id="calendar-daily-end" class="qz-input" type="time" step="1" value="@_form.DailyEnd" @onchange="args => _form.DailyEnd = args.Value?.ToString() ?? string.Empty" />
+                        <input id="calendar-daily-end"
+                               class="qz-input"
+                               type="time"
+                               step="1"
+                               aria-invalid="@InvalidAttribute(CalendarField.DailyEnd, CalendarField.DailyRange)"
+                               aria-describedby="@DescribedBy(CalendarField.DailyEnd, CalendarField.DailyRange)"
+                               value="@_form.DailyEnd"
+                               @onchange="args => OnDailyChanged(end: args.Value?.ToString())" />
+                        <FieldError Id="@ErrorId(CalendarField.DailyEnd)" Message="@ErrorOf(CalendarField.DailyEnd)" />
+                        <FieldError Id="@ErrorId(CalendarField.DailyRange)" Message="@ErrorOf(CalendarField.DailyRange)" />
                     </div>
                 </div>
                 <label class="qz-live-filter-item" for="calendar-daily-invert">
-                    <input id="calendar-daily-invert" type="checkbox" class="qz-check" @bind="_form.DailyInvert" />
+                    <input id="calendar-daily-invert" type="checkbox" class="qz-check" @bind="_form.DailyInvert" @bind:after="OnFormEdited" />
                     <span>Inverted: the range is the part of the day included</span>
                 </label>
                 break;
@@ -177,14 +198,12 @@
                     <input id="calendar-cron"
                            class="qz-input qz-input-mono"
                            placeholder="* * 0-6 ? * *"
-                           aria-describedby="calendar-cron-error"
+                           aria-invalid="@(CronError is null ? null : "true")"
+                           aria-describedby="@(CronError is null ? null : "calendar-cron-error")"
                            @bind="_form.CronExpression"
                            @bind:event="oninput"
                            @bind:after="OnCronExpressionChanged" />
-                    @if (CronError is { } cronError)
-                    {
-                        <p id="calendar-cron-error" class="qz-field-error" role="alert" data-testid="calendar-cron-error">@cronError</p>
-                    }
+                    <FieldError Id="calendar-cron-error" Message="@CronError" TestId="calendar-cron-error" />
                 </div>
                 @if (CronError is null && _form.CronExpression.Trim().Length > 0 && _form.TryResolveTimeZone() is { } previewZone)
                 {
@@ -194,6 +213,8 @@
                 break;
         }
 
+        <FieldError Id="@ErrorId(CalendarField.Rules)" Message="@ErrorOf(CalendarField.Rules)" TestId="calendar-rules-error" />
+
         @if (_form.ExcludesNothing)
         {
             <p class="qz-form-warning" role="status" data-testid="calendar-editor-excludes-nothing">@ExcludesNothingText</p>
@@ -202,7 +223,7 @@
 
     @if (!IsNew && _calendarBaseCount > 0)
     {
-        <p class="qz-muted" data-testid="calendar-editor-base-kept">The @CalendarReading.Count(_calendarBaseCount, "calendar") under it are kept as they are.</p>
+        <p class="qz-muted" data-testid="calendar-editor-base-kept">@BaseKeptText</p>
     }
 
     <div class="qz-actions qz-group-actions">
@@ -211,7 +232,7 @@
         {
             <button type="button" class="qz-button" data-testid="calendar-reset" @onclick="Reset">Reset</button>
         }
-        else
+        @if (!IsNew || OnCancel.HasDelegate)
         {
             <button type="button" class="qz-button" data-testid="calendar-cancel" @onclick="CancelAsync">Cancel</button>
         }
@@ -220,7 +241,7 @@
 
 @if (_pending is { } pending)
 {
-    <ModalDialog LabelledBy="qz-calendar-replace-title" TestId="calendar-replace-dialog" OnCancel="CancelReplace">
+    <ModalDialog Class="qz-calendar-replace-dialog" LabelledBy="qz-calendar-replace-title" TestId="calendar-replace-dialog" OnCancel="CancelReplace">
         <h3 id="qz-calendar-replace-title">Replace calendar @pending.Name?</h3>
         <p data-testid="calendar-replace-used-by">@UsedByText(pending)</p>
         @if (pending.UsedBy != 0)
@@ -249,7 +270,8 @@
     private CalendarForm _form = CalendarForm.ForNew();
     private ICalendar? _formFor;
     private string _name = string.Empty;
-    private List<string> _errors = [];
+    /// <summary>What the last save found wrong, by the field it is about. Any edit clears it.</summary>
+    private Dictionary<CalendarField, string> _fieldErrors = [];
     private string? _refusal;
     private bool _saving;
     private int _calendarBaseCount;
@@ -335,7 +357,7 @@
         _formFor = Calendar;
         _form = CalendarForm.From(Calendar);
         _calendarBaseCount = CalendarReading.BaseChainOf(Calendar).Count;
-        _errors = [];
+        _fieldErrors = [];
         _refusal = null;
         _cronMissing = null;
     }
@@ -345,7 +367,7 @@
     /// </summary>
     private async Task SaveAsync()
     {
-        _errors = [];
+        _fieldErrors = [];
         _refusal = null;
         _cronMissing = null;
 
@@ -358,11 +380,14 @@
         string name = IsNew ? _name.Trim() : CalendarName ?? string.Empty;
         if (name.Length == 0)
         {
-            _errors.Add("A calendar needs a name: triggers refer to it by that name.");
+            _fieldErrors[CalendarField.Name] = "A calendar needs a name: triggers refer to it by that name.";
         }
 
         CalendarFormResult result = _form.Build();
-        _errors.AddRange(result.Errors);
+        foreach (CalendarFieldError error in result.FieldErrors)
+        {
+            _fieldErrors.TryAdd(error.Field, error.Message);
+        }
 
         // A wrong expression is already said beside the field, as it is typed; only a missing one needs the save.
         if (_form.CronExpressionError() is null)
@@ -370,7 +395,7 @@
             _cronMissing = result.CronExpressionError;
         }
 
-        if (_errors.Count > 0 || result.Calendar is null)
+        if (_fieldErrors.Count > 0 || result.Calendar is null)
         {
             return;
         }
@@ -473,7 +498,7 @@
     {
         _name = string.Empty;
         _form = CalendarForm.ForNew(_form.Kind);
-        _errors = [];
+        _fieldErrors = [];
         _refusal = null;
         _cronMissing = null;
         _holidayToAdd = null;
@@ -484,6 +509,32 @@
     private void OnCronExpressionChanged()
     {
         _cronMissing = null;
+        OnFormEdited();
+    }
+
+    /// <summary>
+    /// Any change to the form: what the last save said is about a form that is no longer there, so it goes. A type
+    /// changed from Daily to Holiday no longer says the daily range is missing.
+    /// </summary>
+    private void OnFormEdited()
+    {
+        _fieldErrors = [];
+        _refusal = null;
+    }
+
+    private void OnDailyChanged(string? start = null, string? end = null)
+    {
+        if (start is not null)
+        {
+            _form.DailyStart = start;
+        }
+
+        if (end is not null)
+        {
+            _form.DailyEnd = end;
+        }
+
+        OnFormEdited();
     }
 
     private void AddHoliday()
@@ -492,7 +543,14 @@
         {
             _form.HolidayDays.Add(date);
             _holidayToAdd = null;
+            OnFormEdited();
         }
+    }
+
+    private void RemoveHoliday(DateOnly date)
+    {
+        _form.HolidayDays.Remove(date);
+        OnFormEdited();
     }
 
     /// <summary>Adds the pasted dates, and keeps the lines that were not dates in the box, said beside it.</summary>
@@ -500,14 +558,33 @@
     {
         _holidayRejected = _form.AddHolidayDates(_holidayPaste);
         _holidayPaste = string.Join("\n", _holidayRejected);
+        OnFormEdited();
     }
+
+    private string? ErrorOf(CalendarField field) => _fieldErrors.GetValueOrDefault(field);
+
+    private static string ErrorId(CalendarField field) => "calendar-" + field.ToString().ToLowerInvariant() + "-error";
+
+    /// <summary><c>true</c> while any of the fields has something said about it, and no attribute otherwise.</summary>
+    private string? InvalidAttribute(params CalendarField[] fields) => fields.Any(_fieldErrors.ContainsKey) ? "true" : null;
+
+    /// <summary>The ids of the messages said about the fields, for the input's aria-describedby.</summary>
+    private string? DescribedBy(params CalendarField[] fields)
+    {
+        string ids = string.Join(" ", fields.Where(_fieldErrors.ContainsKey).Select(ErrorId));
+        return ids.Length == 0 ? null : ids;
+    }
+
+    private string BaseKeptText => _calendarBaseCount == 1
+        ? "The calendar under it is kept as it is."
+        : "The " + _calendarBaseCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " calendars under it are kept as they are.";
 
     private Task CancelAsync()
     {
         return OnCancel.InvokeAsync();
     }
 
-    private static void Toggle<T>(HashSet<T> days, T day, ChangeEventArgs args)
+    private void Toggle<T>(HashSet<T> days, T day, ChangeEventArgs args)
     {
         if (args.Value is true)
         {
@@ -517,6 +594,8 @@
         {
             days.Remove(day);
         }
+
+        OnFormEdited();
     }
 
     public void Dispose()

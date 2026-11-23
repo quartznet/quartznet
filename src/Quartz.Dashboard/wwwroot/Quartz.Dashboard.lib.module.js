@@ -355,6 +355,16 @@ export function afterWebStarted() {
         },
 
         /**
+         * Scrolls the element with this id into view, as little as it takes: the row a save just added.
+         */
+        revealById: function (id) {
+            const element = id ? document.getElementById(id) : null;
+            if (element && typeof element.scrollIntoView === "function") {
+                element.scrollIntoView({ block: "nearest" });
+            }
+        },
+
+        /**
          * Put .qz-content back at the top after a path change. Query-only navigations keep the offset.
          */
         resetScrollTop: function (element) {

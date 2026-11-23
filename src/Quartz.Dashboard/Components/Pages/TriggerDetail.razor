@@ -249,6 +249,7 @@
 
 <ConfirmDialog IsOpen="@_showUnscheduleConfirm"
                Title="Unschedule trigger"
+               ConfirmText="Unschedule"
                Message="@($"Unschedule {DisplayValueHelper.FormatKey(Group, Name)}?")"
                OnConfirm="UnscheduleAsync"
                OnCancel="CancelUnscheduleAsync" />

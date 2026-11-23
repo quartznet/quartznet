@@ -11,6 +11,7 @@
 @inject ToastService Toasts
 @inject DashboardActionLog ActionLog
 @inject IServiceProvider Services
+@inject IJSRuntime JS
 
 <div class="qz-page">
     <div class="qz-page-header">
@@ -18,10 +19,21 @@
         <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" OnRefresh="RefreshAsync" RefreshDisabled="@_refreshing" />
     </div>
 
+    @* The listing comes first; the form to create a calendar opens on asking, above it, and closes once it has
+       saved, with the new calendar's row picked out. *@
     @if (CanAdd)
     {
-        @* A name the listing holds is a replace, and the editor asks about it as one. *@
-        <CalendarEditor ExistingNames="@_calendarNames" OnSaved="OnCalendarSavedAsync" />
+        @if (_creating)
+        {
+            @* A name the listing holds is a replace, and the editor asks about it as one. *@
+            <CalendarEditor ExistingNames="@_calendarNames" OnSaved="OnCalendarSavedAsync" OnCancel="StopCreating" />
+        }
+        else
+        {
+            <div class="qz-actions qz-group-actions">
+                <button type="button" class="qz-button qz-button-primary" data-testid="calendar-new" @onclick="StartCreating">New calendar</button>
+            </div>
+        }
     }
 
     @if (_isLoading)
@@ -50,10 +62,12 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (string calendarName in _calendarNames)
+                @for (int index = 0; index < _calendarNames.Count; index++)
                 {
+                    string calendarName = _calendarNames[index];
                     CalendarType type = TypeOf(calendarName);
-                    <tr>
+                    bool justSaved = string.Equals(calendarName, _justSaved, StringComparison.Ordinal);
+                    <tr id="@RowId(index)" class="@(justSaved ? "qz-row-new" : null)" data-testid="calendar-row">
                         <td><a href="@GetCalendarPath(calendarName)">@calendarName</a></td>
                         <td data-testid="calendar-type" title="@type.Reason">@type.Text</td>
                         @if (CanDelete)
@@ -75,6 +89,7 @@
 
 <ConfirmDialog IsOpen="@_showDeleteConfirm"
                Title="Delete calendar"
+               ConfirmText="Delete"
                Message="@($"Delete {_pendingCalendarName}? This cannot be undone.")"
                OnConfirm="ConfirmDeleteAsync"
                OnCancel="CancelDeleteAsync" />
@@ -87,6 +102,15 @@
     private const int TypeReadConcurrency = 8;
 
     private readonly List<string> _calendarNames = [];
+
+    /// <summary>Whether the form to create a calendar is open.</summary>
+    private bool _creating;
+
+    /// <summary>The calendar the form last saved, whose row is picked out until the form is opened again.</summary>
+    private string? _justSaved;
+
+    /// <summary>Whether the next render scrolls to the row of the calendar just saved.</summary>
+    private bool _revealSaved;
 
     /// <summary>Each listed calendar's type, by name, read with the names.</summary>
     private Dictionary<string, CalendarType> _types = new(StringComparer.Ordinal);
@@ -227,6 +251,38 @@
     /// <summary>
     /// Empties the listing, for a scheduler of which there is nothing read to keep showing.
     /// </summary>
+    private void StartCreating()
+    {
+        _creating = true;
+        _justSaved = null;
+    }
+
+    private void StopCreating()
+    {
+        _creating = false;
+    }
+
+    private static string RowId(int index) => "qz-calendar-row-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_revealSaved && _justSaved is { } saved)
+        {
+            _revealSaved = false;
+            int index = _calendarNames.IndexOf(saved);
+            if (index >= 0)
+            {
+                try
+                {
+                    await JS.InvokeVoidAsync("quartzDashboardDom.revealById", RowId(index));
+                }
+                catch (JSDisconnectedException)
+                {
+                }
+            }
+        }
+    }
+
     private void ClearListing()
     {
         _calendarNames.Clear();
@@ -281,10 +337,16 @@
         return types;
     }
 
-    /// <summary>A calendar was stored: the listing is read again, so a new name is on it.</summary>
-    private Task OnCalendarSavedAsync(string calendarName)
+    /// <summary>
+    /// A calendar was stored: the form closes, the listing is read again so a new name is on it, and its row is picked
+    /// out and scrolled to.
+    /// </summary>
+    private async Task OnCalendarSavedAsync(string calendarName)
     {
-        return LoadDataAsync();
+        _creating = false;
+        _justSaved = calendarName;
+        await LoadDataAsync();
+        _revealSaved = true;
     }
 
     private void PromptDelete(string calendarName)

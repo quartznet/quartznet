@@ -93,10 +93,12 @@
                                 role="link"
                                 @onclick="() => NavigateToJob(jobGroup, jobName)"
                                 @onkeydown="args => OnJobRowKeyDown(args, jobGroup, jobName)">
-                                <td class="qz-col-key">
+                                @* A key pressed on a control in the row is that control's: Enter on Delete deletes, it does not
+                                   also open the job. Only a key pressed on the row itself navigates. *@
+                                <td class="qz-col-key" @onkeydown:stopPropagation="true">
                                     <KeyBadge GroupName="@jobGroup" ItemName="@jobName" />
                                 </td>
-                                <td class="qz-col-details">
+                                <td class="qz-col-details" @onkeydown:stopPropagation="true">
                                     <a class="qz-details-link" href="@GetJobDetailPath(jobGroup, jobName)" @onclick:stopPropagation="true">View details</a>
                                 </td>
                                 @if (_statusesShown)
@@ -125,7 +127,7 @@
                                             <span class="qz-muted">&#8212;</span>
                                         }
                                     </td>
-                                    <td class="qz-col-failing qz-job-failing">
+                                    <td class="qz-col-failing qz-job-failing" @onkeydown:stopPropagation="true">
                                         @if (status is { ConsecutiveFailures: > 0 })
                                         {
                                             <a class="qz-failing-badge"
@@ -137,7 +139,7 @@
                                 }
                                 @if (HasRowActions)
                                 {
-                                    <td class="qz-col-actions">
+                                    <td class="qz-col-actions" @onkeydown:stopPropagation="true">
                                         <div class="qz-actions" @onclick:stopPropagation="true">
                                             @if (CanPause)
                                             {
@@ -174,6 +176,7 @@
 
 <ConfirmDialog IsOpen="@_showDeleteConfirm"
                Title="Delete job"
+               ConfirmText="Delete"
                Message="@($"Delete {_pendingDeleteKey}? This cannot be undone.")"
                OnConfirm="ConfirmDeleteAsync"
                OnCancel="CancelDeleteAsync" />

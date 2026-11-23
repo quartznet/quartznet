@@ -1660,7 +1660,7 @@ body{
 }
 
 .qz-details-link {
-    color: var(--qz-color-primary);
+    color: var(--qz-color-link);
     font-size: var(--qz-font-size-sm);
     font-weight: 600;
     text-decoration: none;
@@ -4320,8 +4320,49 @@ body{
     }
 }
 
+/* The summary, the checks and what follows them sit an even step apart. */
+.qz-calendar-rules {
+    display: flex;
+    flex-direction: column;
+    gap: var(--qz-space-sm);
+}
+
 .qz-calendar-rules > p {
     margin: 0;
+}
+
+.qz-calendar-chain {
+    margin-top: var(--qz-space-md);
+}
+
+/* Calendar Detail: the calendar's name follows the title, the title staying where every page has it. */
+.qz-page-header.qz-calendar-detail-header {
+    margin-bottom: 0;
+}
+
+.qz-calendar-detail-header h1 {
+    margin-bottom: 0;
+}
+
+.qz-page > h2.qz-calendar-name {
+    margin-top: 0;
+}
+
+/* The Replace question's three actions fit on one row from 480 px up; below that they stack. */
+.qz-confirm-dialog.qz-calendar-replace-dialog {
+    max-width: 560px;
+}
+
+/* A field the last save found wrong. The danger colour is 3.89:1 or better against both surfaces, above the
+   3:1 a control's boundary needs. */
+.qz-input[aria-invalid="true"],
+.qz-select[aria-invalid="true"] {
+    border-color: var(--qz-color-danger);
+}
+
+/* The row of the calendar the form has just saved. */
+.qz-calendars-table tr.qz-row-new td {
+    background-color: var(--qz-color-primary-light);
 }
 
 .qz-calendar-dates li {
@@ -4331,7 +4372,7 @@ body{
 .qz-calendar-days {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--qz-space-xs) var(--qz-space-md);
+    gap: var(--qz-space-sm) var(--qz-space-md);
     list-style: none;
     margin: 0;
     padding: 0;
@@ -4377,10 +4418,11 @@ body{
     background-color: var(--qz-color-surface-alt);
 }
 
-/* The dashboard's own check: a box with a solid fill and a white tick when it is checked, the same in the
-   editor and on the read-only page, in both themes. Its unchecked border is the muted token, 4.7:1 or better
-   against the surface; checked, the tick on the primary fill is 3.7:1 or better. */
-.qz-check {
+/* The dashboard's own check, on every checkbox it draws: a box with a solid fill and a white tick when it is
+   checked, the same in an editor and on a read-only page, in both themes, where the browser's own box is a
+   plain white square on the dark one. Its unchecked border is the muted token, 4.7:1 or better against the
+   surface; checked, the tick on the primary fill is 3.7:1 or better. */
+:where(.qz-dashboard) input[type="checkbox"] {
     appearance: none;
     flex: none;
     display: inline-grid;
@@ -4395,7 +4437,7 @@ body{
     vertical-align: middle;
 }
 
-.qz-check::before {
+:where(.qz-dashboard) input[type="checkbox"]::before {
     content: "";
     width: 10px;
     height: 5px;
@@ -4405,23 +4447,23 @@ body{
     opacity: 0;
 }
 
-.qz-check:checked {
+:where(.qz-dashboard) input[type="checkbox"]:checked {
     background-color: var(--qz-color-primary);
     border-color: var(--qz-color-primary);
 }
 
-.qz-check:checked::before {
+:where(.qz-dashboard) input[type="checkbox"]:checked::before {
     opacity: 1;
 }
 
-.qz-check:focus-visible {
+:where(.qz-dashboard) input[type="checkbox"]:focus-visible {
     outline: 2px solid var(--qz-color-primary);
     outline-offset: 2px;
 }
 
 /* Read-only checks keep their colours, so an excluded day reads as one; only the pointer says they are not
    for changing. */
-.qz-check:disabled {
+:where(.qz-dashboard) input[type="checkbox"]:disabled {
     cursor: default;
     opacity: 1;
 }
@@ -4429,7 +4471,7 @@ body{
 .qz-calendar-editor-rules {
     display: flex;
     flex-direction: column;
-    gap: var(--qz-space-sm);
+    gap: var(--qz-space-md);
     margin-top: var(--qz-space-md);
 }
 
@@ -4480,7 +4522,7 @@ body{
 }
 
 .qz-calendars-table td {
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 /* What is wrong with one field, beside it. The danger colour is 3.89:1 on the dark theme's surface, so the
