@@ -124,6 +124,7 @@ public class ClientAccessSweepTest
             "QueryExecutions",
             "QueryFireInstances",
             "QueryJobGroups",
+            "QueryJobRunStatuses",
             "QueryJobs",
             "QueryMisfires",
             "QueryTriggerGroups",

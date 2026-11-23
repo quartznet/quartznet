@@ -997,6 +997,19 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return [.. page.Items];
     }
 
+    /// <inheritdoc cref="GetJobRunStatus" />
+    public async ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        await AuthorizeKey(query.SchedulerName, cancellationToken).ConfigureAwait(false);
+
+        (IExecutionHistoryStore store, string schedulerName) = HistoryFor(query.SchedulerName);
+        return await store
+            .QueryJobRunStatuses(query with { SchedulerName = schedulerName }, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     /// <remarks>
     /// Read from the store the history is read from, as the listing is, so a chart counts the rows its page
     /// lists. A scheduler in another process is counted by its host.
