@@ -19,7 +19,6 @@
 
 #endregion
 
-using System.Buffers;
 using System.Text;
 
 namespace Quartz.EntityFrameworkCore;
@@ -42,8 +41,6 @@ namespace Quartz.EntityFrameworkCore;
 /// </remarks>
 internal sealed class QuartzTableNaming
 {
-    private static readonly SearchValues<char> notInAPrefix = SearchValues.Create(".[]\"`' \t\r\n");
-
     private readonly QuartzDialect dialect;
 
     private QuartzTableNaming(QuartzDialect dialect, string tablePrefix, string? schema)
@@ -68,13 +65,16 @@ internal sealed class QuartzTableNaming
         QuartzTablesOptions options = new();
         configure?.Invoke(options);
 
+        // What an unquoted identifier can hold, because the store writes the prefix into its SQL unquoted, and so does
+        // CompleteQuartzSchema into SQLite's trigger statements.
         string? prefix = options.TablePrefix;
-        if (prefix is null || prefix.AsSpan().ContainsAny(notInAPrefix))
+        if (prefix is null || !prefix.All(c => char.IsLetterOrDigit(c) || c is '_' or '$' or '#'))
         {
             throw new ArgumentException(
-                $"QuartzTablesOptions.TablePrefix '{prefix}' is not a table prefix. Give the prefix alone, without a schema "
-                + "or quotes, and put the schema in QuartzTablesOptions.Schema: a job store whose TablePrefix is "
-                + "'quartz.QRTZ_' has Schema = \"quartz\" and TablePrefix = \"QRTZ_\" here.",
+                $"QuartzTablesOptions.TablePrefix '{prefix}' is not a table prefix: it may hold letters, digits, '_', '$' "
+                + "and '#', as an unquoted identifier does. Give the prefix alone and put the schema in "
+                + "QuartzTablesOptions.Schema: a job store whose TablePrefix is 'quartz.QRTZ_' has Schema = \"quartz\" and "
+                + "TablePrefix = \"QRTZ_\" here.",
                 nameof(configure));
         }
 

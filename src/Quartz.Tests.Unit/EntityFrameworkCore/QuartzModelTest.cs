@@ -126,11 +126,31 @@ public sealed class QuartzModelTest
     }
 
     /// <summary>
-    /// The releases that changed the schema since 4.0, which are the ones the model knows something was added by.
+    /// The releases since 4.0 with a <c>database/migrations</c> folder, oldest first: the ones that changed the schema.
+    /// </summary>
+    private static string[] ReleasesWithAMigration()
+    {
+        DirectoryInfo migrations = new(Path.Combine(RepositoryRoot.Find().FullName, "database", "migrations"));
+        migrations.Exists.Should().BeTrue("the premise: the migrations are under database/migrations");
+
+        return [.. migrations.GetDirectories()
+            .Select(d => Version.TryParse(d.Name, out Version? version) ? version : null)
+            .OfType<Version>()
+            .Where(v => v > new Version(4, 0))
+            .Order()
+            .Select(v => v.ToString())];
+    }
+
+    /// <summary>
+    /// Each release with a migration since 4.0, and the one before it: the releases the model's <c>AddedBy</c> marks
+    /// have to be exactly these, so a release that ships a migration without marking what it added, or marks a
+    /// release no migration ships, fails here.
     /// </summary>
     private static IEnumerable<TestCaseData> ReleaseBoundaries()
     {
-        string[] releases = [.. QuartzDialect.PostgreSql.Tables
+        string[] releases = ReleasesWithAMigration();
+
+        string[] marked = [.. QuartzDialect.PostgreSql.Tables
             .SelectMany(t => new[] { t.AddedBy }
                 .Concat(t.Columns.Select(c => c.AddedBy))
                 .Concat(t.Indexes.Select(i => i.AddedBy)))
@@ -138,8 +158,9 @@ public sealed class QuartzModelTest
             .Distinct()
             .OrderBy(Version.Parse)];
 
-        releases.Should().Equal(["4.2", "4.3", "4.4", "4.6", "4.7"],
-            "the premise: these are the releases with a database/migrations folder since 4.0, and the model marks what each added");
+        marked.Should().Equal(releases,
+            "every release since 4.0 with a database/migrations folder marks what it added with AddedBy in "
+            + "build/Build.DatabaseSchema.cs, and every AddedBy names such a release");
 
         string previous = "4.0";
         foreach (string release in releases)
@@ -186,16 +207,21 @@ public sealed class QuartzModelTest
             $"database/migrations/{release} is what a database the scripts created runs, and the model's difference has to be that");
     }
 
-    /// <summary>The model as of the newest release with a migration is the model: nothing since is unmarked.</summary>
+    /// <summary>
+    /// The model as of the newest release with a migration is the model: nothing is marked as added by a release
+    /// after it.
+    /// </summary>
     [TestCaseSource(nameof(Dialects))]
-    public async Task NothingIsAddedAfterTheLastMarkedRelease(string dialect)
+    public async Task NothingIsAddedAfterTheNewestMigration(string dialect)
     {
-        await using EntityFrameworkCoreContext marked = EntityFrameworkCoreContext.QuartzAsOf(dialect, "4.7");
+        string newest = ReleasesWithAMigration()[^1];
+
+        await using EntityFrameworkCoreContext asOfNewest = EntityFrameworkCoreContext.QuartzAsOf(dialect, newest);
         await using EntityFrameworkCoreContext current = EntityFrameworkCoreContext.Quartz(dialect);
 
-        current.DifferencesFrom(marked).Should().BeEmpty(
-            "everything a release adds carries its AddedBy, so a column added without one would reach an upgraded database "
-            + "through no migration");
+        current.DifferencesFrom(asOfNewest).Should().BeEmpty(
+            $"what the model marks as added after {newest} has no database/migrations folder, so a database the scripts "
+            + "created would never get it");
     }
 
     private static readonly Regex AddedColumn = new(
