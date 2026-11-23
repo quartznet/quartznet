@@ -50,10 +50,6 @@
             </div>
         }
         <div class="qz-form-group">
-            <label class="qz-form-label" for="calendar-description">Description</label>
-            <input id="calendar-description" class="qz-input" @bind="_form.Description" @bind:after="OnFormEdited" />
-        </div>
-        <div class="qz-form-group">
             <label class="qz-form-label" for="calendar-time-zone">Time zone</label>
             <input id="calendar-time-zone"
                    class="qz-input qz-input-mono"
@@ -71,6 +67,12 @@
                 }
             </datalist>
         </div>
+    </div>
+
+    @* A row of its own: a description is a sentence, and a grid cell would cut it off. *@
+    <div class="qz-form-group qz-calendar-description">
+        <label class="qz-form-label" for="calendar-description">Description</label>
+        <input id="calendar-description" class="qz-input" @bind="_form.Description" @bind:after="OnFormEdited" />
     </div>
 
     <div class="qz-calendar-editor-rules" data-testid="calendar-editor-rules">
@@ -115,47 +117,68 @@
 
             case CalendarKind.Annual:
                 <p class="qz-muted">Tick the days excluded every year. The arrow keys move between days and Space ticks one.</p>
-                <AnnualDayGrid Days="@_form.AnnualDays" OnChange="OnFormEdited" />
+                <div class="qz-day-group"
+                     role="group"
+                     aria-label="Days excluded every year"
+                     aria-invalid="@InvalidAttribute(CalendarField.Rules)"
+                     aria-describedby="@DescribedBy(CalendarField.Rules)"
+                     data-testid="calendar-editor-days">
+                    <AnnualDayGrid Days="@_form.AnnualDays" OnChange="OnFormEdited" />
+                </div>
                 break;
 
             case CalendarKind.Weekly:
                 <p class="qz-muted">Tick the days excluded every week.</p>
-                <ul class="qz-calendar-days" data-testid="calendar-editor-weekly-days">
-                    @foreach (DayOfWeek day in CalendarReading.WeekDays)
-                    {
-                        DayOfWeek weekDay = day;
-                        <li>
-                            <label class="qz-live-filter-item">
-                                <input type="checkbox"
-                                       class="qz-check"
-                                       data-day="@weekDay"
-                                       checked="@_form.WeeklyDays.Contains(weekDay)"
-                                       @onchange="args => Toggle(_form.WeeklyDays, weekDay, args)" />
-                                <span>@weekDay</span>
-                            </label>
-                        </li>
-                    }
-                </ul>
+                <div class="qz-day-group"
+                     role="group"
+                     aria-label="Days excluded every week"
+                     aria-invalid="@InvalidAttribute(CalendarField.Rules)"
+                     aria-describedby="@DescribedBy(CalendarField.Rules)"
+                     data-testid="calendar-editor-days">
+                    <ul class="qz-calendar-days" data-testid="calendar-editor-weekly-days">
+                        @foreach (DayOfWeek day in CalendarReading.WeekDays)
+                        {
+                            DayOfWeek weekDay = day;
+                            <li>
+                                <label class="qz-live-filter-item">
+                                    <input type="checkbox"
+                                           class="qz-check"
+                                           data-day="@weekDay"
+                                           checked="@_form.WeeklyDays.Contains(weekDay)"
+                                           @onchange="args => Toggle(_form.WeeklyDays, weekDay, args)" />
+                                    <span>@weekDay</span>
+                                </label>
+                            </li>
+                        }
+                    </ul>
+                </div>
                 break;
 
             case CalendarKind.Monthly:
                 <p class="qz-muted">Tick the days excluded every month. A day a month does not have excludes nothing in it.</p>
-                <ul class="qz-calendar-days qz-calendar-month-days" data-testid="calendar-editor-monthly-days">
-                    @for (int day = 1; day <= 31; day++)
-                    {
-                        int dayOfMonth = day;
-                        <li>
-                            <label class="qz-live-filter-item">
-                                <input type="checkbox"
-                                       class="qz-check"
-                                       data-day="@dayOfMonth"
-                                       checked="@_form.MonthlyDays.Contains(dayOfMonth)"
-                                       @onchange="args => Toggle(_form.MonthlyDays, dayOfMonth, args)" />
-                                <span>@dayOfMonth</span>
-                            </label>
-                        </li>
-                    }
-                </ul>
+                <div class="qz-day-group"
+                     role="group"
+                     aria-label="Days excluded every month"
+                     aria-invalid="@InvalidAttribute(CalendarField.Rules)"
+                     aria-describedby="@DescribedBy(CalendarField.Rules)"
+                     data-testid="calendar-editor-days">
+                    <ul class="qz-calendar-days qz-calendar-month-days" data-testid="calendar-editor-monthly-days">
+                        @for (int day = 1; day <= 31; day++)
+                        {
+                            int dayOfMonth = day;
+                            <li>
+                                <label class="qz-live-filter-item">
+                                    <input type="checkbox"
+                                           class="qz-check"
+                                           data-day="@dayOfMonth"
+                                           checked="@_form.MonthlyDays.Contains(dayOfMonth)"
+                                           @onchange="args => Toggle(_form.MonthlyDays, dayOfMonth, args)" />
+                                    <span>@dayOfMonth</span>
+                                </label>
+                            </li>
+                        }
+                    </ul>
+                </div>
                 break;
 
             case CalendarKind.Daily:
@@ -223,7 +246,7 @@
 
     @if (!IsNew && _calendarBaseCount > 0)
     {
-        <p class="qz-muted" data-testid="calendar-editor-base-kept">@BaseKeptText</p>
+        <p class="qz-muted qz-calendar-editor-note" data-testid="calendar-editor-base-kept">@BaseKeptText</p>
     }
 
     <div class="qz-actions qz-group-actions">

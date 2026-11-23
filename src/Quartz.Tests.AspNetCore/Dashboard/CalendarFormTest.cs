@@ -146,8 +146,8 @@ public sealed class CalendarFormTest
         form.CronExpressionError().Should().BeNull("a blank field is not wrong until it is saved");
 
         form.CronExpression = "every Monday";
-        form.Build().CronExpressionError.Should().StartWith("Invalid cron expression: ");
-        form.CronExpressionError().Should().StartWith("Invalid cron expression: ", "the editor says it as the expression is typed");
+        form.Build().CronExpressionError.Should().StartWith("Not a valid cron expression: ");
+        form.CronExpressionError().Should().StartWith("Not a valid cron expression: ", "the editor says it as the expression is typed");
 
         form.CronExpression = "* * 0-6 ? * *";
         form.TimeZoneId = Kathmandu.Id;

@@ -193,7 +193,7 @@ public sealed class CalendarEditorTest
 
         page.Find("#calendar-kind").Change("Cron");
         page.Find("#calendar-cron").Input("not a cron");
-        page.WaitForAssertion(() => AssertDescribedBy(page, "#calendar-cron", "calendar-cron-error", "Invalid cron expression"));
+        page.WaitForAssertion(() => AssertDescribedBy(page, "#calendar-cron", "calendar-cron-error", "Not a valid cron expression"));
     }
 
     /// <summary>
@@ -376,15 +376,15 @@ public sealed class CalendarEditorTest
         page.Find("#calendar-cron").Input("not a cron");
         Save(page);
 
-        page.WaitForAssertion(() => CountOf(page.Find("[data-testid=calendar-editor]").TextContent, "Invalid cron expression").Should().Be(1,
+        page.WaitForAssertion(() => CountOf(page.Find("[data-testid=calendar-editor]").TextContent, "Not a valid cron expression").Should().Be(1,
             "the message is said beside the expression and nowhere else"));
-        page.Find("[data-testid=calendar-cron-error]").TextContent.Should().StartWith("Invalid cron expression: ");
+        page.Find("[data-testid=calendar-cron-error]").TextContent.Should().StartWith("Not a valid cron expression: ");
         page.FindAll("[data-testid=calendar-editor-errors]").Should().BeEmpty();
         sent.Should().BeEmpty();
 
         page.Find("#calendar-cron").Input("* * 2-3 ? * *");
 
-        page.WaitForAssertion(() => page.Find("[data-testid=calendar-editor]").TextContent.Should().NotContain("Invalid cron expression",
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-editor]").TextContent.Should().NotContain("Not a valid cron expression",
             "the expression parses now, so nothing is wrong with it"));
         page.FindAll("[data-testid=calendar-cron-spans] li").Should().NotBeEmpty("a valid expression is previewed");
     }
@@ -401,7 +401,7 @@ public sealed class CalendarEditorTest
         page.WaitForAssertion(() => page.Find("[data-testid=calendar-cron-error]").TextContent.Should().StartWith("A cron calendar needs an expression"));
         page.Find("#calendar-cron").Input("* * 2");
 
-        page.WaitForAssertion(() => page.Find("[data-testid=calendar-cron-error]").TextContent.Should().StartWith("Invalid cron expression"));
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-cron-error]").TextContent.Should().StartWith("Not a valid cron expression"));
         page.Find("#calendar-cron").Input("* * 2-3 ? * *");
         page.WaitForAssertion(() => page.FindAll("[data-testid=calendar-cron-error]").Should().BeEmpty());
     }
@@ -566,6 +566,48 @@ public sealed class CalendarEditorTest
 
         page.WaitForAssertion(() => page.Find(".qz-confirm-dialog button.qz-button-danger").TextContent.Trim().Should().Be("Delete",
             "the button says the action it takes, not Confirm"));
+    }
+
+    /// <summary>
+    /// "Every day excluded" is about the days ticked as a whole: the group of day checks is the field that is marked
+    /// invalid and names the message, as any other field the save found wrong is.
+    /// </summary>
+    [TestCase("Weekly", "[data-testid=calendar-editor-weekly-days] input", "A weekly calendar that excludes every day")]
+    [TestCase("Monthly", "[data-testid=calendar-editor-monthly-days] input", "A monthly calendar that excludes every day")]
+    public void TickingEveryDayMarksTheDayGroupInvalid(string kind, string checks, string message)
+    {
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        Fill(page, "every-day", kind);
+        foreach (AngleSharp.Dom.IElement check in page.FindAll(checks).Where(check => !check.HasAttribute("checked")).ToList())
+        {
+            page.Find(checks + "[data-day='" + check.GetAttribute("data-day") + "']").Change(true);
+        }
+
+        Save(page);
+
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-editor-days]").GetAttribute("aria-invalid").Should().Be("true"));
+        IElement group = page.Find("[data-testid=calendar-editor-days]");
+        group.GetAttribute("role").Should().Be("group");
+        group.GetAttribute("aria-describedby").Should().Be("calendar-rules-error");
+        IElement said = page.Find("#calendar-rules-error");
+        said.GetAttribute("role").Should().Be("alert");
+        said.TextContent.Should().StartWith(message);
+        sent.Should().BeEmpty();
+    }
+
+    [Test]
+    public void AWeeklyCalendarWithNoDayTickedIsWarnedAboutBeforeItIsSaved()
+    {
+        IRenderedComponent<Calendars> page = RenderListing();
+
+        Fill(page, "no-days", "Weekly");
+        page.FindAll("[data-testid=calendar-editor-excludes-nothing]").Should().BeEmpty("a new weekly calendar starts with the weekend ticked");
+        page.Find("[data-testid=calendar-editor-weekly-days] input[data-day=Saturday]").Change(false);
+        page.Find("[data-testid=calendar-editor-weekly-days] input[data-day=Sunday]").Change(false);
+
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-editor-excludes-nothing]").TextContent.Should().Be(
+            "No day of the week is ticked: saved like this, the calendar excludes nothing."));
     }
 
     private IRenderedComponent<Calendars> RenderListing()

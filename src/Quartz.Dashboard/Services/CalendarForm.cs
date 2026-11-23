@@ -214,7 +214,7 @@ internal sealed class CalendarForm
         }
         catch (FormatException ex)
         {
-            return "Invalid cron expression: " + ex.Message;
+            return "Not a valid cron expression: " + ex.Message;
         }
     }
 
@@ -388,7 +388,7 @@ internal sealed class CalendarForm
         }
         catch (FormatException ex)
         {
-            error = "Invalid cron expression: " + ex.Message;
+            error = "Not a valid cron expression: " + ex.Message;
             return null;
         }
     }
