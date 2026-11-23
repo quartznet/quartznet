@@ -4200,3 +4200,96 @@ body{
         display: inline;
     }
 }
+
+/* ==========================================================================
+   28. Calendars
+   ========================================================================== */
+
+.qz-calendar-exclusions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--qz-space-sm);
+}
+
+.qz-calendar-facts th {
+    width: 9rem;
+    text-align: left;
+}
+
+.qz-calendar-rules > p {
+    margin: 0;
+}
+
+.qz-calendar-dates li {
+    justify-content: flex-start;
+}
+
+.qz-calendar-days {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--qz-space-xs) var(--qz-space-md);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.qz-calendar-month-days li {
+    min-width: 3.5rem;
+}
+
+/* An annual calendar is 12 rows of 31 days: it scrolls sideways in a narrow card rather than squeezing. */
+.qz-calendar-year-scroll {
+    overflow-x: auto;
+}
+
+.qz-calendar-year {
+    border-collapse: collapse;
+    font-size: var(--qz-font-size-xs);
+}
+
+.qz-calendar-year th,
+.qz-calendar-year td {
+    padding: 1px 2px;
+    text-align: center;
+    border: 1px solid var(--qz-color-border);
+}
+
+.qz-calendar-year th[scope="row"] {
+    text-align: left;
+    padding-right: var(--qz-space-sm);
+    white-space: nowrap;
+}
+
+.qz-calendar-year input[type="checkbox"] {
+    margin: 0;
+}
+
+.qz-calendar-year-excluded {
+    background-color: var(--qz-color-danger-bg);
+}
+
+.qz-calendar-year-none {
+    background-color: var(--qz-color-surface-alt);
+}
+
+.qz-calendar-chain-item {
+    margin-top: var(--qz-space-md);
+    padding-left: var(--qz-space-md);
+    border-left: 3px solid var(--qz-color-border-strong);
+}
+
+.qz-calendar-editor {
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+    padding: var(--qz-space-md);
+}
+
+.qz-calendar-editor textarea {
+    min-height: 8rem;
+    font-family: var(--qz-font-mono, monospace);
+}
+
+.qz-calendar-cron-preview .qz-list li {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
