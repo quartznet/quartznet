@@ -574,6 +574,114 @@ public sealed class ExecutionHistoryPluginTest
     }
 
     // ---------------------------------------------------------------------------------------------
+    // Whether the firing finalized its trigger
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// A store that keeps trigger statuses is told, with each execution, whether the trigger may fire again: a
+    /// one-off's only firing and the last of a series finalize it; a retried attempt and a trigger that measures
+    /// its interval from completion do not.
+    /// </summary>
+    /// <remarks>
+    /// On a running scheduler, because the answer is read off the trigger after the run shell has completed it,
+    /// which a hand-built context cannot show.
+    /// </remarks>
+    [Test]
+    public async Task TheRecorderSaysWhetherTheFiringFinalizedItsTrigger()
+    {
+        FinalizationRecordingStore recording = new();
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddSingleton<IExecutionHistoryStore>(recording);
+        services.AddQuartzExecutionHistory();
+        services.AddQuartz(q => q.ConfigureScheduler(options =>
+        {
+            options.InstanceName = "finalized-" + Guid.NewGuid().ToString("N");
+            options.InstanceId = "one";
+        }));
+
+        await using ServiceProvider container = services.BuildServiceProvider();
+        IScheduler scheduler = await Start(container);
+
+        IJobDetail succeeding = JobBuilder.Create<RecordingJob>().WithIdentity("succeeding", "plugin").StoreDurably().Build();
+        IJobDetail throwing = JobBuilder.Create<ThrowingJob>().WithIdentity("throwing", "plugin").StoreDurably().Build();
+        await scheduler.AddJob(succeeding);
+        await scheduler.AddJob(throwing);
+
+        TimeSpan interval = TimeSpan.FromMilliseconds(50);
+        await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("one-off", "plugin").ForJob(succeeding).StartNow().Build());
+        await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("series", "plugin").ForJob(succeeding).StartNow()
+            .WithSimpleSchedule(x => x.WithInterval(interval).WithRepeatCount(2)).Build());
+        await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("retried", "plugin").ForJob(throwing).StartNow()
+            .WithRetryPolicy(RetryPolicy.Fixed(1, interval)).Build());
+        await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("fixed-delay", "plugin").ForJob(succeeding).StartNow()
+            .WithSimpleSchedule(x => x.WithInterval(interval).RepeatForever().MeasureIntervalFromCompletion()).Build());
+
+        await Eventually(() => Task.FromResult(
+            recording.Flags("one-off").Count >= 1
+            && recording.Flags("series").Count >= 3
+            && recording.Flags("retried").Count >= 2
+            && recording.Flags("fixed-delay").Count >= 2
+                ? "recorded"
+                : null));
+
+        await scheduler.Shutdown(waitForJobsToComplete: true);
+
+        recording.Flags("one-off").Should().Equal([true], "a one-off's only firing leaves its trigger nothing to fire");
+        recording.Flags("series").Should().Equal([false, false, true],
+            "a series is finalized by its last firing alone");
+        recording.Flags("retried").Should().Equal([false, true],
+            "a retry sets the trigger's next fire time before the listeners are told, so the first attempt keeps it");
+        recording.Flags("fixed-delay").Should().AllSatisfy(finalized => finalized.Should().Be(false,
+            "a trigger that measures from completion holds a provisional next fire time while its firing runs"));
+    }
+
+    /// <summary>
+    /// The history store <see cref="TheRecorderSaysWhetherTheFiringFinalizedItsTrigger" /> reads: it records what
+    /// the recorder told it, by trigger, in fire order.
+    /// </summary>
+    private sealed class FinalizationRecordingStore : IExecutionHistoryStore, ITriggerStatusHistoryStore
+    {
+        private readonly ConcurrentQueue<(ExecutionHistoryEntry Entry, bool? Finalized)> recorded = new();
+
+        /// <summary>What the recorder said of each firing of the trigger; <see langword="null" /> where it said nothing.</summary>
+        public List<bool?> Flags(string triggerName) => recorded
+            .Where(x => x.Entry.TriggerName == triggerName)
+            .OrderBy(x => x.Entry.FiredAtUtc)
+            .Select(x => x.Finalized)
+            .ToList();
+
+        public ValueTask AddExecution(ExecutionHistoryEntry entry, bool triggerFinalized, CancellationToken cancellationToken = default)
+        {
+            recorded.Enqueue((entry, triggerFinalized));
+            return default;
+        }
+
+        public ValueTask AddExecution(ExecutionHistoryEntry entry, CancellationToken cancellationToken = default)
+        {
+            recorded.Enqueue((entry, null));
+            return default;
+        }
+
+        public ValueTask<PagedResult<ExecutionHistoryEntry>> QueryExecutions(ExecutionHistoryQuery query, CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<PagedResult<ExecutionHistoryEntry>>(new PagedResult<ExecutionHistoryEntry>([], HasMore: false));
+        }
+
+        public ValueTask AddMisfire(MisfireHistoryEntry entry, CancellationToken cancellationToken = default) => default;
+
+        public ValueTask<PagedResult<MisfireHistoryEntry>> QueryMisfires(MisfireHistoryQuery query, CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<PagedResult<MisfireHistoryEntry>>(new PagedResult<MisfireHistoryEntry>([], HasMore: false));
+        }
+
+        public ValueTask<int> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<int>(0);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
 
     private static InMemoryExecutionHistoryStore Store() => new(Options.Create(new ExecutionHistoryOptions()), new FakeTimeProvider(now));
 

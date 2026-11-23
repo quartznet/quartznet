@@ -38,10 +38,12 @@ namespace Quartz.Impl;
 /// </para>
 /// <para>
 /// Beside the rows it keeps a <see cref="JobRunStatus" /> per job, folded from every execution it
-/// records and kept however the rows are trimmed.
+/// records, and a <see cref="TriggerRunStatus" /> per trigger, folded from every execution but a manual one
+/// and one after which its trigger is finalized. Both are kept however the rows are trimmed, each up to
+/// <see cref="ExecutionHistoryOptions.MaxEntriesPerScheduler" /> per scheduler.
 /// </para>
 /// </remarks>
-internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
+internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore, ITriggerStatusHistoryStore
 {
     private readonly ConcurrentDictionary<string, ExecutionFeed> executionsByScheduler = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, List<MisfireHistoryEntry>> misfiresByScheduler = new(StringComparer.OrdinalIgnoreCase);
@@ -61,7 +63,16 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         this.timeProvider = timeProvider ?? TimeProvider.System;
     }
 
+    /// <remarks>
+    /// Folds the entry into its trigger's status as well, unless it was a manual run: a recorder that cannot say
+    /// whether the trigger was finalized is taken to mean it was not.
+    /// </remarks>
     public ValueTask AddExecution(ExecutionHistoryEntry entry, CancellationToken cancellationToken = default)
+    {
+        return AddExecution(entry, triggerFinalized: false, cancellationToken);
+    }
+
+    public ValueTask AddExecution(ExecutionHistoryEntry entry, bool triggerFinalized, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
@@ -79,7 +90,7 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         lock (feed)
         {
             feed.Entries.Add(named);
-            feed.Fold(named, bounds.MaxEntriesPerScheduler);
+            feed.Fold(named, bounds.MaxEntriesPerScheduler, triggerFinalized);
             CapJob(feed.Entries, named, bounds.MaxEntriesPerJob);
             TrimExecutions(feed.Entries, bounds);
         }
@@ -329,6 +340,47 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
         return new ValueTask<JobRunStatus?>((JobRunStatus?) null);
     }
 
+    public ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        List<TriggerRunStatus> statuses = [];
+        if (executionsByScheduler.TryGetValue(query.SchedulerName, out ExecutionFeed? feed))
+        {
+            lock (feed)
+            {
+                if (query.Triggers is null)
+                {
+                    statuses.AddRange(feed.TriggerStatuses.Values);
+                }
+                else
+                {
+                    // Looked up rather than scanned, and each named once however often the caller named it.
+                    foreach (TriggerKey trigger in new HashSet<TriggerKey>(query.Triggers))
+                    {
+                        if (feed.TriggerStatuses.TryGetValue(trigger, out TriggerRunStatus? status))
+                        {
+                            statuses.Add(status);
+                        }
+                    }
+                }
+            }
+        }
+
+        IEnumerable<TriggerRunStatus> filtered = statuses;
+        if (query.Failing is { } failing)
+        {
+            filtered = filtered.Where(status => (status.ConsecutiveFailures > 0) == failing);
+        }
+
+        List<TriggerRunStatus> ordered = filtered
+            .OrderBy(static status => status.Trigger.Group, StringComparer.Ordinal)
+            .ThenBy(static status => status.Trigger.Name, StringComparer.Ordinal)
+            .ToList();
+
+        return new ValueTask<PagedResult<TriggerRunStatus>>(Page(ordered, query));
+    }
+
     private static bool IsJob(ExecutionHistoryEntry entry, JobKey job)
     {
         return string.Equals(entry.JobName, job.Name, StringComparison.Ordinal)
@@ -544,11 +596,11 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
     }
 
     /// <summary>
-    /// One scheduler's executions and the per-job statuses folded from them, locked as one.
+    /// One scheduler's executions and the per-job and per-trigger statuses folded from them, locked as one.
     /// </summary>
     /// <remarks>
-    /// One lock for both, so a status never counts a row the feed has not received yet, and a reader of
-    /// either sees the same moment.
+    /// One lock for all three, so a status never counts a row the feed has not received yet, and a reader of
+    /// any sees the same moment.
     /// </remarks>
     private sealed class ExecutionFeed
     {
@@ -556,28 +608,44 @@ internal sealed class InMemoryExecutionHistoryStore : IExecutionHistoryStore
 
         public Dictionary<JobKey, JobRunStatus> Statuses { get; } = [];
 
+        public Dictionary<TriggerKey, TriggerRunStatus> TriggerStatuses { get; } = [];
+
         /// <summary>
-        /// Folds one row into its job's status, then drops the statuses of the jobs that ran longest ago
-        /// until at most <paramref name="maxStatuses" /> remain.
+        /// Folds one row into its job's status, and into its trigger's unless the run was manual or
+        /// <paramref name="triggerFinalized" />; then drops the statuses that ran longest ago until at most
+        /// <paramref name="maxStatuses" /> of each kind remain.
         /// </summary>
-        public void Fold(ExecutionHistoryEntry entry, int maxStatuses)
+        public void Fold(ExecutionHistoryEntry entry, int maxStatuses, bool triggerFinalized)
         {
             JobKey job = new(entry.JobName, entry.JobGroup);
             Statuses.TryGetValue(job, out JobRunStatus? current);
             Statuses[job] = JobRunStatusFold.Apply(current, entry);
+            Bound(Statuses, maxStatuses, static status => status.LastFiredAtUtc);
 
-            while (Statuses.Count > Math.Max(maxStatuses, 0))
+            if (!triggerFinalized && !entry.Manual)
             {
-                JobRunStatus? stalest = null;
-                foreach (JobRunStatus status in Statuses.Values)
+                TriggerKey trigger = new(entry.TriggerName, entry.TriggerGroup);
+                TriggerStatuses.TryGetValue(trigger, out TriggerRunStatus? currentTrigger);
+                TriggerStatuses[trigger] = TriggerRunStatusFold.Apply(currentTrigger, entry);
+                Bound(TriggerStatuses, maxStatuses, static status => status.LastFiredAtUtc);
+            }
+        }
+
+        private static void Bound<TKey, TStatus>(Dictionary<TKey, TStatus> statuses, int maxStatuses, Func<TStatus, DateTimeOffset> lastFiredAt)
+            where TKey : notnull
+        {
+            while (statuses.Count > Math.Max(maxStatuses, 0))
+            {
+                KeyValuePair<TKey, TStatus>? stalest = null;
+                foreach (KeyValuePair<TKey, TStatus> status in statuses)
                 {
-                    if (stalest is null || status.LastFiredAtUtc < stalest.LastFiredAtUtc)
+                    if (stalest is null || lastFiredAt(status.Value) < lastFiredAt(stalest.Value.Value))
                     {
                         stalest = status;
                     }
                 }
 
-                Statuses.Remove(stalest!.Job);
+                statuses.Remove(stalest!.Value.Key);
             }
         }
     }

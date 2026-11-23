@@ -162,6 +162,11 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// it has the same key in whichever store it lands and a reader can ask for it alone. The job's status
     /// repeats the row's message. Its input is recorded only with
     /// <see cref="ExecutionHistoryOptions.RecordInput" />; see <see cref="RecordedInput" />.
+    /// <para>
+    /// A store that keeps trigger statuses is told whether the firing finalized its trigger, by the test the
+    /// scheduler reports <see cref="ISchedulerListener.TriggerFinalized" /> by. The trigger has completed by now,
+    /// so a retry has set its next fire time and a one-off's last attempt has none.
+    /// </para>
     /// </remarks>
     public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
     {
@@ -190,7 +195,9 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
                 firing.RecordedExecution = entry;
             }
 
-            return store.AddExecution(entry, cancellationToken);
+            return store is ITriggerStatusHistoryStore triggerStatuses
+                ? triggerStatuses.AddExecution(entry, triggerFinalized: !context.Trigger.MayFireAgain, cancellationToken)
+                : store.AddExecution(entry, cancellationToken);
         }
         catch (ObjectDisposedException)
         {
