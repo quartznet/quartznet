@@ -551,8 +551,9 @@ is running.
 
 ### Nothing is firing
 
-Work the store is holding back was never acquired, so it is not in `QRTZ_FIRED_TRIGGERS`. Check, in this
-order:
+Work the store is holding back was never acquired, so it is not in `QRTZ_FIRED_TRIGGERS`. On the dashboard,
+from 4.9, a trigger's page runs these checks for that trigger:
+[Why isn't it firing?](packages/dashboard.md#why-isn-t-it-firing). By hand, check in this order:
 
 1. **Standby.** `IScheduler.Status` says so. The health check reports *degraded*, not unhealthy, which an
    HTTP probe reads as healthy, because ASP.NET Core maps degraded to 200 — see

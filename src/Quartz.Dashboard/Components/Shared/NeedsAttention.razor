@@ -87,7 +87,7 @@
 </section>
 
 @code {
-    /// <summary>How late a waiting trigger is before it counts: the due backlog's cutoff, and Trigger Detail's.</summary>
+    /// <summary>How late a waiting trigger is before it counts: the execution-groups panel's cutoff, and Trigger Detail's.</summary>
     private static readonly int OverdueMinutes = (int) TriggerDiagnosis.OverdueAfter.TotalMinutes;
 
     /// <summary>How many failing jobs the panel lists: the ones failing the most times in a row.</summary>
@@ -190,8 +190,8 @@
             int? overdue;
             try
             {
-                // "Due" is what the due-backlog gauges count: a waiting trigger past its fire time, here by more
-                // than the cutoff. Take = 0 counts without listing.
+                // "Due" is a waiting trigger past its fire time, as the due-backlog gauges of #4401 count it, here
+                // by more than the cutoff. Take = 0 counts without listing.
                 PagedResult<TriggerHeaderDto> late = await Api.QueryTriggers(
                     schedulerName,
                     new DashboardTriggerQuery { State = TriggerState.Normal, NextFireTimeBefore = cutoff, Take = 0 },

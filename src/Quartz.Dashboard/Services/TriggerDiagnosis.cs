@@ -46,7 +46,8 @@ internal static class TriggerDiagnosis
 {
     /// <summary>
     /// How far past its fire time a waiting trigger has to be before it is called overdue: five minutes, the
-    /// due backlog's cutoff and the execution-groups panel's.
+    /// execution-groups panel's cutoff. "Due" is a waiting trigger past its fire time, as the due-backlog gauges
+    /// of #4401 count it, so the two agree.
     /// </summary>
     public static readonly TimeSpan OverdueAfter = TimeSpan.FromMinutes(5);
 

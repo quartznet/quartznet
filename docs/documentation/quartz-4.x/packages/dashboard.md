@@ -39,6 +39,9 @@ Fifteen pages, listed under [The pages](#the-pages).
   anyone may change anything. See [Production hardening](#production-hardening).
 - **A time zone picker and a theme toggle** in the header. Absolute times render in the picked zone; ages such
   as a last check-in or last fire are also shown relative.
+- **Triage**, from 4.9: a trigger's page says [why it isn't firing](#why-isn-t-it-firing), the Overview lists what
+  [needs attention](#needs-attention), the [Cluster](#cluster) page shows each node's Quartz version, and the
+  header [finds a job or trigger by name](#finding-a-job-or-trigger-by-name).
 - **A collapsible sidebar.** Its toggle folds it to an icon rail. The choice is kept per browser in
   `qz_sidebar_collapsed`, beside the theme and time zone.
 
@@ -202,7 +205,8 @@ A page reads again on a timer or when you ask it to:
 | Page | Reads again |
 |---|---|
 | Currently Executing, Execution History, and the Overview's executing count | Every second |
-| Cluster, and the Overview's other tiles and execution groups | Every five seconds |
+| Cluster, and the Overview's other tiles, execution groups, and *Needs attention*'s failing jobs and overdue count | Every five seconds |
+| The Overview's runs of the last 24 hours | Every 30 seconds |
 | Timeline | On its Jobs and Triggers refresh intervals |
 | Jobs, Triggers, Calendars, Schedulers, and one job, trigger or calendar | When you press **Refresh**, beside *Last updated* |
 
@@ -237,10 +241,40 @@ shutdown. Beside the totals (jobs, triggers, firings in flight, triggers in erro
   limit's scope, firings in flight and remaining headroom — and, on a node that routes, whether the group is
   served here and how many of its triggers are overdue; see [Execution groups](#execution-groups).
 
-The **Nodes** tile shows the node count and, when any exist, the number not `Alive`, turning red then. It links
-to the Cluster page. A non-clustered scheduler shows `1`.
+The **Nodes** tile shows the node count and, when any exist, the number not `Alive`, turning red then. From 4.9 it
+adds *mixed versions*, in amber, while the live nodes run different Quartz versions. It links to the Cluster page.
+A non-clustered scheduler shows `1`.
 
 The page ends with recent [Action Log](#action-log) entries.
+
+### Needs attention
+
+From 4.9, the Overview answers "is anything wrong right now?" in one panel. Each part is one read, never one per
+row.
+
+| Part | Shows | Read |
+|---|---|---|
+| Overdue triggers | How many `Normal` (waiting) triggers are more than 5 minutes past their next fire time, linking to the Triggers page narrowed to them | `QueryTriggers` with `State = Normal`, `NextFireTimeBefore` and `Take = 0`, every five seconds |
+| Failing jobs | The 10 jobs failing the most [times in a row](#job-run-status), with *failing ×N* linking to their failed runs and the last failure's time and message | `QueryJobRunStatuses` with `Failing = true`, every five seconds |
+| Runs, last 24 hours | The [run statistics](#run-statistics) chart for the day: runs, success rate and failures | `QueryExecutionStatistics`, every 30 seconds, History's cadence |
+
+- **"Overdue" is a waiting trigger more than 5 minutes past its fire time**, the cutoff the execution-groups
+  panel and *Why isn't it firing?* use too.
+- **The failing jobs are ranked from the first 250 by name** when more than 250 are failing; the sentence above
+  the table says so.
+- **A part whose source cannot answer is left out**, as the Jobs page leaves out its columns: a history that
+  keeps no per-job status, a source that counts no runs, a host older than 4.3 for the overdue count.
+- It works the same in process, over HTTP, through an agent and on a window.
+
+### Finding a job or trigger by name
+
+From 4.9, the header's search box finds a job or trigger on any page. Type at least two characters.
+
+- It searches the selected scheduler's job names and trigger names (`NameContains`), up to 8 of each.
+- Each result links to its page. *See all* opens the Jobs or Triggers listing filtered by the same text.
+- It reads once typing pauses for 300 ms. A keystroke cancels the read still in flight, so a slow target answers
+  only the last text. *Escape* or following a result closes the list.
+- Over a slow HTTP target the read is bounded by the target's client timeout.
 
 ### Jobs, Triggers and Calendars
 
@@ -311,6 +345,34 @@ From 4.7, every trigger's page lists its next ten fire times, whatever the trigg
   trigger and its calendar instead.
 - The cron editor's preview is separate: it shows the expression being edited, before it is saved, and only
   once it differs from the saved one. Read-only mode has no editor and no preview.
+
+### Why isn't it firing?
+
+From 4.9, every trigger's page works through the checks of [Nothing is firing](../operations.md#nothing-is-firing)
+and gives a verdict for each: ✓ fine, ℹ worth knowing, ⚠ may hold it back, ✗ holds it back, ? could not be told.
+The line above the checks counts the ⚠ and ✗ findings.
+
+| Check | Holds it back when | Link or action |
+|---|---|---|
+| Scheduler | It is in standby, not started or shut down. A window's status comes from the cluster's check-ins | Overview |
+| Trigger | It is paused (by whom, when, why), blocked, complete, or in error. In error, the cause: a deleted parent, or the last run's failure | The failed run; *Reset error state* |
+| Trigger group, Job group | The group is paused, with the job group's record | The listing narrowed to the group |
+| Its job's firings | The trigger is `BLOCKED`: the firing that holds its job, its node and since when | *Interrupt*; Currently Executing |
+| Next fire | There is none (its end time passed), or a waiting trigger is more than 5 minutes past it | |
+| Execution group | Its limit is 0 or reached, or **this node** does not serve the group | Currently Executing; Cluster |
+| Misfires | The history records misfires of this trigger: how many, the latest and why | Its misfires on History |
+| Retry | Shown when a retry of a failed occurrence is pending, and when it is due | |
+
+- **The page reads about eight things** on load and on **Refresh**, never on a timer and never per row: the
+  scheduler, the paused groups, the job group's record when paused, the job's firings (with
+  `DashboardFireInstanceQuery.Job`), the execution limits, the group's firings when a limit governs it, the
+  trigger's misfires, and its last run when it is in error.
+- **"This node does not serve it", never "no node does."** Nodes publish nothing about what they serve, so the
+  check speaks for the node that answered. A window and a cluster of targets say nothing about routing.
+- **A read that fails leaves its check `?`**, and the other checks stand.
+- *Interrupt* and *Reset error state* keep their own operations: hidden in read-only mode and below the
+  [role](#operator-roles) each needs.
+- It works the same in process, over HTTP, through an agent and on a window.
 
 ### Editing a trigger
 
@@ -464,12 +526,21 @@ Rows are sorted by target, this process first, then by name.
 `/quartz/cluster` has one row per node of the selected scheduler's cluster, refreshed every five seconds, with
 the last refresh time in the header so a stalled page is visible.
 
-- Columns: instance id, state, last check-in, check-in interval, firings held `Acquired` and `Executing`, and
+- Columns: instance id, state, Quartz version, last check-in, check-in interval, firings held `Acquired` and `Executing`, and
   **Serves**: `all`, `only reports, (no execution group)` or `all but gpu`, from the node's
   [routing](../tutorial/execution-groups.md#routing-which-node-serves-a-group). Nodes publish nothing to the
   store, so for a single target only the answering node has an entry and the rest show a dash; for a cluster
   behind several targets, each member's.
 - The answering node is marked *(this node)*.
+- **Version**, from 4.9: what the node stamped its check-in row with (`ClusterNode.QuartzVersion`).
+  - *older than 4.6*: the row has no stamp; nodes stamp it from 4.6.
+  - *not reported*: the host answering is older than 4.9 and sends no versions.
+  - A store with no check-in rows shows the answering node's own version, and a dash for the rest.
+- **A banner while the live nodes run different versions** names each version's nodes and what the older ones
+  cost: while a node older than 4.6 is live, every round of work that allows concurrent execution takes
+  `TRIGGER_ACCESS` (event `3517`), and an interrupt request for its firings is never answered (`3520`). A 4.6
+  node beside newer ones makes every SQL Server round take the lock. See
+  [Upgrading a running deployment](../migration-guide.md#upgrading-a-running-deployment).
 - The state (`Alive`, `Overdue` or `Failed`) is `IScheduler.QueryClusterNodes()`'s verdict, from the same
   predicate the store's recovery sweep uses. Meanings, and why a `Failed` node is listed briefly and then
   vanishes: [Check-in, node states and failover](../operations.md#check-in-node-states-and-failover) and
