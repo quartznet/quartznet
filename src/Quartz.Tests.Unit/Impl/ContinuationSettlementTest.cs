@@ -760,7 +760,9 @@ public sealed class ContinuationSettlementTest
         await MakeAwait(left.Key, right.Key);
         await MakeAwait(right.Key, left.Key);
 
-        Func<Task> schedule = async () => await ScheduleContinuation("late", left.Key, ContinuationCondition.OnSuccess);
+        // On the thread pool: Microsoft.Data.Sqlite completes synchronously, so an endless walk run inline
+        // would hang the run before CompleteWithinAsync could fail it.
+        Func<Task> schedule = () => Task.Run(async () => await ScheduleContinuation("late", left.Key, ContinuationCondition.OnSuccess));
 
         await schedule.Should().CompleteWithinAsync(TimeSpan.FromSeconds(30),
             "the walk stops at a trigger it has passed already rather than going round a loop the new trigger is not part of");
