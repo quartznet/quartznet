@@ -15,10 +15,14 @@ dotnet add package Quartz.Aspire.Hosting
 
 In the AppHost project. The workers keep [Quartz.Aspire](aspire.md), the client integration, for their store.
 
+::: tip
+Aspire 13.6.5 or later. The package is built against `Aspire.Hosting` 13.6.5, the lowest release outside
+GHSA-f7vh-h5g3-7jrh, and runs on Aspire 17.
+:::
+
 ## Usage
 
-<!-- Not a compiled sample: the generated Projects class comes from an AppHost project. The same calls are
-     compiled in src/Quartz.Examples.Aspire.AppHost. -->
+<!-- Not a compiled sample: AppHost calls. The same calls are compiled in src/Quartz.Examples.Aspire.AppHost. -->
 
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
@@ -28,12 +32,18 @@ var quartzDb = builder.AddPostgres("postgres").AddDatabase("quartz");
 var dashboard = builder.AddQuartzDashboard("quartz-dashboard")
     .WithAttachedStore(quartzDb);
 
-builder.AddProject<Projects.Orders_Worker>("orders")
+builder.AddDotnetProject("orders", "../Orders.Worker/Orders.Worker.csproj")
     .WithReference(quartzDb)
     .WithReference(dashboard);
 
 builder.Build().Run();
 ```
+
+| Call | Aspire |
+|---|---|
+| `AddQuartzDashboard`, `WithAttachedStore`, `WithReference(dashboard)` | 13.6.5 or later, 17 included |
+| `AddDotnetProject(name, path)`, from `Aspire.Hosting.Dotnet` | 17 |
+| `AddProject<Projects.Orders_Worker>(name)`, with a `ProjectReference` to the worker | 13; obsolete from 17 (`CS0618`) |
 
 The worker dials in with [`UseDashboardAgent()`](dashboard-agent.md#from-configuration), which reads what
 `WithReference(dashboard)` sets:
@@ -87,8 +97,9 @@ configured with: `Provider` (inferred when unset), `TablePrefix`, `Serializer`, 
 | `{name}-admin-token` | 32 letters and digits, secret | The administrator's sign-in token |
 | `{name}-agent-token` | 32 letters and digits, secret | The token agents present |
 
-- Generated values are kept in the AppHost's user secrets, under `Parameters:{name}-admin-token`. Set one there, or
-  pass a parameter of your own as `adminToken` or `agentToken`, to choose it.
+- Generated values are kept in the AppHost's secrets, under `Parameters:{name}-admin-token`: in
+  `~/.aspire/secrets/<apphost>/<environment>.json` on Aspire 17, in its user secrets before. Set one there, or pass
+  a parameter of your own as `adminToken` or `agentToken`, to choose it.
 - **The resource's URL is `/login?t=<admin token>`.** The resource sets `AllowTokenInUrl` on the dashboard; nothing
   else does. The dashboard moves the browser on to an address without the token.
 
