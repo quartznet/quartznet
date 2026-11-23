@@ -38,7 +38,8 @@ public sealed class QuartzTablesOptions
     /// <remarks>
     /// The names are folded as the database folds the store's unquoted ones: to lower case on PostgreSQL, to upper
     /// case on Oracle and Firebird, so <c>QRTZ_</c> and <c>qrtz_</c> name the same tables there. A prefix that makes
-    /// a name longer than the database takes is refused; on Firebird that is 31 bytes, so at most six characters.
+    /// a name longer than the database takes is refused; on Firebird that is 31 bytes, so a prefix of at most six
+    /// bytes of UTF-8, six characters of ASCII.
     /// </remarks>
     public string TablePrefix { get; set; } = "QRTZ_";
 
