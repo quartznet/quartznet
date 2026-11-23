@@ -33,6 +33,24 @@ public sealed class SchemaDbContext(DbContextOptions<SchemaDbContext> options) :
     }
 }
 
+public sealed class FirebirdDbContext(DbContextOptions<FirebirdDbContext> options) : DbContext(options)
+{
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        #region sample_efcore_firebird_names
+
+        // IDX_QRTZ_REPORTING_FT_INST_JOB_REQ_RCVRY is 40 bytes, past Firebird 3's 31
+        modelBuilder.AddQuartzTables(Database.ProviderName, tables =>
+        {
+            tables.TablePrefix = "QRTZ_REPORTING_";
+            // only for a database Firebird 3 never opens
+            tables.MaxIdentifierLength = 63;
+        });
+
+        #endregion
+    }
+}
+
 /// <summary>
 /// Samples for docs/documentation/quartz-4.x/packages/entity-framework-core.md.
 /// </summary>

@@ -104,8 +104,8 @@ internal sealed class QuartzDialect
         HasAppAnyModel = false,
     };
 
-    // 31 bytes is Firebird 3's limit. Firebird 4 and 5 take 63, but a model cannot know which server opens the
-    // database, so every Firebird database is held to the lower one.
+    // 31 bytes is Firebird 3's limit. Firebird 4 and 5 take 63 characters, but a model cannot know which server
+    // opens the database, so a Firebird database is held to the lower one until the application says the higher.
     internal static readonly QuartzDialect Firebird = new()
     {
         Label = "Firebird",
@@ -113,6 +113,7 @@ internal sealed class QuartzDialect
         IdentifierCase = QuartzIdentifierCase.Upper,
         SupportsSchemas = false,
         MaxIdentifierLength = 31,
+        RaisedMaxIdentifierLength = 63,
         HasAppAnyModel = false,
         PlainDelete = DeleteBehavior.Restrict,
     };
@@ -129,7 +130,7 @@ internal sealed class QuartzDialect
         ("FirebirdSql.EntityFrameworkCore.Firebird", Firebird),
     ];
 
-    // Each row sets its properties by name: the six every database differs in are required, and the three most
+    // Each row sets its properties by name: the six every database differs in are required, and the four most
     // databases share have defaults.
     private QuartzDialect()
     {
@@ -152,9 +153,17 @@ internal sealed class QuartzDialect
 
     /// <summary>
     /// The longest identifier the database takes, in bytes: where EF Core cuts the names it makes up, and past
-    /// which a name the model gives is refused.
+    /// which a name the model gives is refused, unless <see cref="RaisedMaxIdentifierLength" /> lets the
+    /// application say more.
     /// </summary>
     internal required int MaxIdentifierLength { get; init; }
+
+    /// <summary>
+    /// The most <c>QuartzTablesOptions.MaxIdentifierLength</c> may be, where the database's later versions take
+    /// longer names than <see cref="MaxIdentifierLength" />: Firebird 4's and 5's 63. <see langword="null" /> where
+    /// every version has one limit, which the option cannot change.
+    /// </summary>
+    internal int? RaisedMaxIdentifierLength { get; init; }
 
     /// <summary>Whether an index with a descending column has to be created again after EF Core created it.</summary>
     internal bool RebuildsDescendingIndexes { get; init; }
