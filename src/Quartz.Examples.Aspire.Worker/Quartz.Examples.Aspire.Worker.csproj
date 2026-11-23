@@ -27,6 +27,8 @@
       its connections from it, rather than opening its own from the connection string.
     -->
     <PackageReference Include="Aspire.Npgsql" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Npgsql.DependencyInjection" />
   </ItemGroup>
 
 </Project>
