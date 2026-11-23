@@ -113,6 +113,7 @@ file whose suffix matches your database: `_sqlServer`, `_postgres`, `_mysql_inno
 | [`4.6`](migrations/4.6) | `add_trigger_misfire_threshold_<db>.sql`: `MISFIRE_THRESHOLD` on `QRTZ_TRIGGERS`, a trigger's own misfire threshold in milliseconds (#4070) | **Required on 4.6+**, safe during a mixed 4.5/4.6 window; a 4.5 node ignores the column, so give a trigger a threshold only once every node is 4.6 | all | `main` only |
 | [`4.6`](migrations/4.6) | `add_execution_history_lookup_indexes_<db>.sql`: `IDX_QRTZ_EH_FIRE_INST` and `IDX_QRTZ_EH_TRIG_TIME` on `QRTZ_EXECUTION_HISTORY`, a firing's outcome and a trigger's history read by seek rather than scan (#4072) | **Optional**, performance only; changes nothing on a database without the history table, except on SQLite; safe under a mixed cluster | all | `main` only |
 | [`4.7`](migrations/4.7) | `add_trigger_fixed_delay_<db>.sql`: `FIXED_DELAY` on `QRTZ_TRIGGERS`, a simple trigger whose interval is measured from the previous run's completion (#4140) | **Required on 4.7+**, safe during a mixed 4.6/4.7 window; a 4.6 node ignores the column, so measure from completion only once every node is 4.7 | all | `main` only |
+| [`4.9`](migrations/4.9) | `add_trigger_status_<db>.sql`: the `QRTZ_TRIGGER_STATUS` table, each trigger's rollup of its own firings beside each job's (#4243) | **Optional**: needed only with `UseExecutionHistory()`; safe under a mixed cluster, since a 4.8 node never touches it | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -270,6 +271,21 @@ them. Run it when you want a cluster-wide execution history, at any time, or nev
 - **Make a trigger measure from completion only once every node is 4.7.** A 4.6 node ignores the column
   and runs the trigger at a fixed rate, beside a running firing of it.
 - A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have the column.
+
+### Upgrading 4.8 → 4.9
+
+[`migrations/4.9`](migrations/4.9) holds this file. 4.8 changed no schema, so a 4.7 database takes the same step.
+
+| File | Status | What |
+|---|---|---|
+| `add_trigger_status_<db>.sql` | Optional | The `QRTZ_TRIGGER_STATUS` table: one row per trigger, with `QRTZ_JOB_STATUS`'s columns, folded from that trigger's own firings. Needed only with `UseExecutionHistory()`, which refuses to start without it. |
+
+- **Run it at any time; it creates a table and alters nothing.** A history created before 4.4 needs
+  `4.4/add_execution_outcome_<db>.sql` as well.
+- **Safe under a mixed cluster.** A 4.8 node never touches the table, so the trigger rollup counts only 4.9
+  nodes' firings until every node is 4.9. Until then a trigger's last run can be older than its previous
+  fire time, and a 4.8 node's success does not clear its failing count.
+- A fresh install from [`tables/`](tables), and `ProvisionSchema()`, already have the table.
 
 ## Where these files moved
 

@@ -142,6 +142,27 @@ CREATE TABLE qrtz_scheduler_state (
 );
 
 
+CREATE TABLE qrtz_trigger_status (
+    sched_name text NOT NULL,
+    trigger_group text NOT NULL,
+    trigger_name text NOT NULL,
+    consecutive_failures integer NOT NULL DEFAULT 0,
+    failure_count bigint NOT NULL DEFAULT 0,
+    first_fired_time bigint NOT NULL,
+    last_entry_id text,
+    last_failure_message text,
+    last_failure_time bigint,
+    last_fired_time bigint NOT NULL,
+    last_instance_name text NOT NULL,
+    last_result integer NOT NULL,
+    last_run_time bigint NOT NULL,
+    last_success_time bigint,
+    last_summary text,
+    run_count bigint NOT NULL DEFAULT 0,
+    CONSTRAINT "PK_qrtz_trigger_status" PRIMARY KEY (sched_name, trigger_group, trigger_name)
+);
+
+
 CREATE TABLE qrtz_triggers (
     sched_name text NOT NULL,
     trigger_name text NOT NULL,

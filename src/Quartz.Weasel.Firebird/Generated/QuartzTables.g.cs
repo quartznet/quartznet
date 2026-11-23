@@ -259,6 +259,26 @@ internal static partial class QuartzTables
         naming.PrimaryKey(jobStatus);
         objects.Add(jobStatus);
 
+        Table triggerStatus = naming.Table("TRIGGER_STATUS");
+        triggerStatus.AddColumn("SCHED_NAME", "VARCHAR(120)").NotNull().AsPrimaryKey();
+        triggerStatus.AddColumn("TRIGGER_GROUP", "VARCHAR(150)").NotNull().AsPrimaryKey();
+        triggerStatus.AddColumn("TRIGGER_NAME", "VARCHAR(150)").NotNull().AsPrimaryKey();
+        triggerStatus.AddColumn("FIRST_FIRED_TIME", "BIGINT").NotNull();
+        triggerStatus.AddColumn("LAST_FIRED_TIME", "BIGINT").NotNull();
+        triggerStatus.AddColumn("LAST_RESULT", "INTEGER").NotNull();
+        triggerStatus.AddColumn("LAST_RUN_TIME", "BIGINT").NotNull();
+        triggerStatus.AddColumn("LAST_INSTANCE_NAME", "VARCHAR(200)").NotNull();
+        triggerStatus.AddColumn("LAST_ENTRY_ID", "VARCHAR(140)").DefaultValueByExpression("NULL");
+        triggerStatus.AddColumn("LAST_SUMMARY", "VARCHAR(1000)").DefaultValueByExpression("NULL");
+        triggerStatus.AddColumn("LAST_SUCCESS_TIME", "BIGINT").DefaultValueByExpression("NULL");
+        triggerStatus.AddColumn("LAST_FAILURE_TIME", "BIGINT").DefaultValueByExpression("NULL");
+        triggerStatus.AddColumn("LAST_FAILURE_MESSAGE", "VARCHAR(1000)").DefaultValueByExpression("NULL");
+        triggerStatus.AddColumn("CONSECUTIVE_FAILURES", "INTEGER").NotNull().DefaultValueByExpression("0");
+        triggerStatus.AddColumn("RUN_COUNT", "BIGINT").NotNull().DefaultValueByExpression("0");
+        triggerStatus.AddColumn("FAILURE_COUNT", "BIGINT").NotNull().DefaultValueByExpression("0");
+        naming.PrimaryKey(triggerStatus);
+        objects.Add(triggerStatus);
+
         // Index names Quartz has created and 4.x no longer does. The tables are add-only, so without these
         // Weasel would keep them for ever; database/migrations/4.0 drops the same names.
         objects.Add(naming.RetiredIndex("JOB_DETAILS", "J_GRP"));

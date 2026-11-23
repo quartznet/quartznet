@@ -487,9 +487,65 @@ partial class Build
 
             // --- 4.7: whether a simple trigger measures its interval from completion, which a firing round reads ---
             files.Add(($"4.7/add_trigger_fixed_delay_{d}.sql", Build47TriggerFixedDelayScript(d)));
+
+            // --- 4.9: each trigger's rollup, beside each job's, which only UseExecutionHistory() needs ---
+            files.Add(($"4.9/add_trigger_status_{d}.sql", Build49TriggerStatusScript(d)));
         }
 
         return files;
+    }
+
+    /// <summary>
+    /// Each trigger's rollup of its own firings, beside each job's, which only a store keeping its execution
+    /// history in the database reads and writes (#4243).
+    /// </summary>
+    /// <remarks>
+    /// A table alone, and the table as created, so it needs no history table to exist first and can be run
+    /// beside 4.9's other migrations in any order.
+    /// </remarks>
+    static string Build49TriggerStatusScript(string dialect)
+    {
+        List<string> extra =
+        [
+            "QRTZ_TRIGGER_STATUS keeps one row per trigger, with QRTZ_JOB_STATUS's columns: its first",
+            "and last firing, the last run's result, summary, run time and node, when it last",
+            "succeeded and last failed, and three counters. The store writes it with each history",
+            "row, in the same transaction, after the job's row, from every firing of the trigger's",
+            "own key but one after which the trigger is finalized: a one-off, the last firing of a",
+            "series, a manual run, a backfill and a recovery leave no row.",
+            "",
+            "It has no foreign key: a 4.8 node deleting a trigger must not trip on a row it has",
+            "never heard of. The history's sweep deletes the row of a trigger that is gone once its",
+            "last run is older than the longest retention. The primary key is its only index.",
+        ];
+
+        if (dialect == "oracle")
+        {
+            extra.AddRange([
+                "",
+                "Oracle only: LAST_SUMMARY and LAST_FAILURE_MESSAGE are VARCHAR2(4000), four times the",
+                "1,000 characters they hold, because VARCHAR2 counts bytes.",
+            ]);
+        }
+
+        string header = Header(dialect, "add QRTZ_TRIGGER_STATUS", "4.9.0", "#4243",
+            [
+                "4.9  OPTIONAL. Only UsePersistentStore(s => s.UseExecutionHistory()) reads or writes",
+                "     it, and a store configured so refuses to start without it. No other scheduler",
+                "     touches it.",
+                "",
+                "     Safe under a mixed cluster: a 4.8 node never touches it, so it counts only 4.9",
+                "     nodes' firings until every node is 4.9.",
+                "",
+                "4.4  A database without QRTZ_JOB_STATUS also needs",
+                $"     ../4.4/add_execution_outcome_{dialect}.sql to keep its history in the database.",
+                "",
+                "3.x  Not applicable.",
+            ],
+            extra);
+
+        return header
+            + "\n\n" + CreateTable(dialect, TableTriggerStatus, HistoryTableBody(dialect, TableTriggerStatus));
     }
 
     /// <summary>

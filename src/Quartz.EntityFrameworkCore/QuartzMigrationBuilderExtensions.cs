@@ -77,6 +77,7 @@ public static class QuartzMigrationBuilderExtensions
     /// It repairs what that schema has wrong: the three execution-history indexes it never created, everywhere;
     /// on SQL Server, the <c>NOT NULL</c> on <c>QRTZ_SIMPROP_TRIGGERS.STR_PROP_1</c> to <c>STR_PROP_3</c>,
     /// which Quartz writes <c>NULL</c> to, and the 150-character <c>QRTZ_FIRED_TRIGGERS.INSTANCE_NAME</c>.
+    /// It creates what Quartz added since: <c>QRTZ_TRIGGER_STATUS</c>, which 4.9's execution history keeps.
     /// </para>
     /// <para>
     /// It converges what the database changes in place, never narrowing a column: on SQL Server,

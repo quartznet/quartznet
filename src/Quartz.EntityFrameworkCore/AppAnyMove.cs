@@ -20,6 +20,7 @@
 #endregion
 
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
 namespace Quartz.EntityFrameworkCore;
 
@@ -48,11 +49,34 @@ namespace Quartz.EntityFrameworkCore;
 /// Only 0.6.3 is described. An earlier AppAny model has different indexes, and its users upgrade to 0.6.3 and
 /// migrate before they move.
 /// </para>
+/// <para>
+/// What 0.6.3 lacks is written out by name, here and in <see cref="MissingIndexes" />, never derived from what the
+/// model marks as added by a release: see <see cref="MissingTables" />.
+/// </para>
 /// </remarks>
 internal static class AppAnyMove
 {
     /// <summary>The execution-history indexes AppAny 0.6.3 does not create, on every dialect.</summary>
     internal static readonly string[] MissingIndexes = ["EH_JOB_TIME", "EH_FIRE_INST", "EH_TRIG_TIME"];
+
+    /// <summary>
+    /// The tables AppAny 0.6.3 does not create, on every dialect: each is created as this package models it, with its
+    /// primary key, which is the only index any of them has.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Named, not derived from the release that added each table. The move is a migration of the application's own,
+    /// so a fresh database that applies the application's migrations from the start runs it again, after AppAny's and
+    /// before the ones scaffolded since. A list derived from the model would then also create a table a later release
+    /// added, and that release's migration would create it a second time.
+    /// </para>
+    /// <para>
+    /// So the list holds only what Quartz added after AppAny 0.6.3 and before this package's first release:
+    /// <c>TRIGGER_STATUS</c>, 4.9's. A table a later release adds reaches a moved schema as it reaches any other,
+    /// through the migration the application scaffolds for that release, and never joins this list.
+    /// </para>
+    /// </remarks>
+    internal static readonly string[] MissingTables = ["TRIGGER_STATUS"];
 
     /// <summary>A column AppAny declares otherwise, as AppAny declares it.</summary>
     internal sealed record AppAnyColumn(string Table, string Column, string StoreType, QuartzColumnKind Kind, bool Nullable);
@@ -135,6 +159,11 @@ internal static class AppAnyMove
             }
         }
 
+        foreach (string table in MissingTables)
+        {
+            CreateTable(migrationBuilder, naming, dialect.Table(table));
+        }
+
         foreach (QuartzTableDefinition table in dialect.Tables)
         {
             foreach (QuartzIndexDefinition index in table.Indexes.Where(i => MissingIndexes.Contains(i.Suffix)))
@@ -165,10 +194,52 @@ internal static class AppAnyMove
         };
     }
 
+    /// <summary>
+    /// Creates a table AppAny lacks as the model declares it, its primary key named as EF Core names one it is not
+    /// told the name of, or as the script names it where the model says.
+    /// </summary>
+    private static void CreateTable(MigrationBuilder migrationBuilder, QuartzTableNaming naming, QuartzTableDefinition table)
+    {
+        string name = naming.Table(table.Name);
+        CreateTableOperation operation = new()
+        {
+            Name = name,
+            Schema = naming.Schema,
+            PrimaryKey = new AddPrimaryKeyOperation
+            {
+                Name = table.PrimaryKeyName is { } primaryKeyName ? naming.Constraint(primaryKeyName) : "PK_" + name,
+                Table = name,
+                Schema = naming.Schema,
+                Columns = [.. table.PrimaryKey.Select(naming.Column)],
+            },
+        };
+
+        foreach (QuartzColumnDefinition column in table.Columns)
+        {
+            operation.Columns.Add(new AddColumnOperation
+            {
+                Name = naming.Column(column.Name),
+                Table = name,
+                Schema = naming.Schema,
+                ClrType = ClrType(column.Kind),
+                ColumnType = column.StoreType,
+                IsNullable = column.Nullable,
+                DefaultValue = column.DefaultValue,
+            });
+        }
+
+        migrationBuilder.Operations.Add(operation);
+    }
+
     private static Type ClrType(QuartzColumnKind kind) => kind switch
     {
         QuartzColumnKind.String => typeof(string),
+        QuartzColumnKind.Int16 => typeof(short),
+        QuartzColumnKind.Int32 => typeof(int),
+        QuartzColumnKind.Int64 => typeof(long),
         QuartzColumnKind.Boolean => typeof(bool),
-        _ => throw new InvalidOperationException($"the move describes no AppAny column of kind {kind}"),
+        QuartzColumnKind.Decimal => typeof(decimal),
+        QuartzColumnKind.Binary => typeof(byte[]),
+        _ => throw new InvalidOperationException($"the move has no CLR type for a column of kind {kind}"),
     };
 }

@@ -24,6 +24,7 @@ BEGIN
     DROP TABLE IF EXISTS qrtz_execution_history;
     DROP TABLE IF EXISTS qrtz_misfire_history;
     DROP TABLE IF EXISTS qrtz_job_status;
+    DROP TABLE IF EXISTS qrtz_trigger_status;
     SET client_min_messages = NOTICE;
   END IF;
 END $$;
@@ -273,6 +274,27 @@ CREATE TABLE qrtz_job_status
     run_count BIGINT NOT NULL DEFAULT 0,
     failure_count BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (sched_name, job_group, job_name)
+);
+
+CREATE TABLE qrtz_trigger_status
+  (
+    sched_name TEXT NOT NULL,
+    trigger_group TEXT NOT NULL,
+    trigger_name TEXT NOT NULL,
+    first_fired_time BIGINT NOT NULL,
+    last_fired_time BIGINT NOT NULL,
+    last_result INTEGER NOT NULL,
+    last_run_time BIGINT NOT NULL,
+    last_instance_name TEXT NOT NULL,
+    last_entry_id TEXT NULL,
+    last_summary TEXT NULL,
+    last_success_time BIGINT NULL,
+    last_failure_time BIGINT NULL,
+    last_failure_message TEXT NULL,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    run_count BIGINT NOT NULL DEFAULT 0,
+    failure_count BIGINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (sched_name, trigger_group, trigger_name)
 );
 
 CREATE INDEX idx_qrtz_j_g_n ON qrtz_job_details (sched_name, job_group, job_name);
