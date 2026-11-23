@@ -645,13 +645,15 @@ store.UseSystemTextJsonSerializer(json =>
 ## Scheduling
 
 `SchedulingOptions`, bound from `Quartz:Scheduling`: what happens when jobs and triggers registered in
-code, or declared in a file, already exist in the store under the same names.
+code, or declared in a file, already exist in the store under the same names, and to the stored ones no
+declaration names.
 
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `OverwriteExistingData` | bool | `true` | A registration replaces the stored job or trigger of the same name. Setting `IgnoreDuplicates` turns this default off. |
 | `IgnoreDuplicates` | bool | `false` | An existing name is skipped instead of throwing. Turns `OverwriteExistingData` off; setting both explicitly is refused at startup. |
 | `ScheduleTriggerRelativeToReplacedTrigger` | bool | `false` | A replaced trigger's next fire time is computed from the old trigger's last fire time, not from now. |
+| `PruneUndeclaredInGroups` | `List<string>` | empty | The groups the declarations own. At the first start on a persistent store, a stored job or trigger in their scope that no declaration names is deleted. Added in 4.9 |
 
 These compare a file or registration with the store. None of them covers one scheduling data file that
 declares the same job or trigger key twice, which is always an error — see
@@ -660,6 +662,22 @@ declares the same job or trigger key twice, which is always an error — see
 <!-- snippet: sample_reference_scheduling_options -->
 ```csharp
 services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates = true);
+```
+<!-- endSnippet -->
+
+`PruneUndeclaredInGroups` owns:
+
+- every stored job in a listed group, with its triggers;
+- every stored trigger in a listed group, whatever its job's group;
+- every trigger of a declared job in a listed group, whatever the trigger's group.
+
+Pending manual firings and the scheduler's own triggers are kept. Pruning belongs to a deploy that runs one
+version: a node starting with older declarations stores again what they name. See
+[Removing what the code no longer declares](../how-tos/rescheduling-jobs.md#removing-what-the-code-no-longer-declares).
+
+<!-- snippet: sample_reference_prune_undeclared -->
+```csharp
+services.Configure<QuartzOptions>(options => options.Scheduling.PruneUndeclaredInGroups.Add("reports"));
 ```
 <!-- endSnippet -->
 
@@ -906,6 +924,7 @@ above and produces the same result.
 | `quartz.scheduler.refusedExecutionGroups` | `Scheduler:RefusedExecutionGroups`, or `RefuseExecutionGroups(…)` — the same spellings. Added in 4.6 |
 | `quartz.scheduler.defaultMisfireHandling` | `Scheduler:DefaultMisfireHandling` — `SmartPolicy`, `IgnoreMisfires`, `FireAndProceed` or `DoNothing`. See [The scheduler's default instruction](../tutorial/more-about-triggers.md#the-scheduler-s-default-instruction). Added in 4.6 |
 | `quartz.scheduler.defaultTimeZone` | `Scheduler:DefaultTimeZone`, or `UseDefaultTimeZone(…)` — an IANA or Windows id. See [The scheduler's default time zone](../tutorial/more-about-triggers.md#the-scheduler-s-default-time-zone). Added in 4.7 |
+| `quartz.scheduler.pruneUndeclaredInGroups` | `Scheduling:PruneUndeclaredInGroups` — comma-separated, entries trimmed. See [Scheduling](#scheduling). Added in 4.9 |
 | `quartz.context.key.NAME` | `Scheduler:Context:NAME` |
 | `quartz.executionLimit.GROUP`, `quartz.clusterExecutionLimit.GROUP` | `UseExecutionLimits(…)`; in `appsettings.json`, `ExecutionLimit:GROUP` and `ClusterExecutionLimit:GROUP`, where `tenant:*` is a prefix. See [Configuring execution limits](../tutorial/execution-groups.md#configuring-execution-limits) |
 | `quartz.threadPool.maxConcurrency` (or `threadCount`) | `ThreadPool:MaxConcurrency` |

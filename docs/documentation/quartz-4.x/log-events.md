@@ -297,6 +297,9 @@ matching on its text is not.
 | 4031 | Warning | `Quartz` | `"Scheduler '{SchedulerName}' runs under the generated instance id '{SchedulerInstanceId}', which changes at every start, yet {PinnedTriggerCount} declared trigger(s) are pinned to a named node: {TriggerKeys}. A pin matches only a node whose instance id is the name it carries, which a generated id never is. Set InstanceId (quartz.scheduler.instanceId) on each node a pin names, or pin with PreferredNode.Auto"` |
 | 4032 | Information | `Quartz` | `"Trigger '{TriggerKey}' is switched off: '{Source}' is '-', so it is not scheduled. A copy already stored was unscheduled: {Unscheduled}"` |
 | 4033 | Error | `Quartz` | `"Scheduler '{SchedulerName}' failed to shut down while it was being disposed; the failure is logged rather than thrown, so a container disposing it goes on to its other services"` |
+| 4034 | Warning | `Quartz` | `"Scheduler '{SchedulerName}' deleted job '{JobKey}' and its triggers: no declaration names it, and PruneUndeclaredInGroups lists its group '{OwnedGroup}'"` |
+| 4035 | Warning | `Quartz` | `"Scheduler '{SchedulerName}' unscheduled trigger '{TriggerKey}' of job '{JobKey}': no declaration names it, and PruneUndeclaredInGroups lists the group '{OwnedGroup}'"` |
+| 4036 | Error | `Quartz` | `"Scheduler '{SchedulerName}' did not finish pruning the jobs and triggers no declaration names in the groups {OwnedGroups}; nothing else is deleted at this start, and the start goes on"` |
 | 5000 | Information | `Quartz` | `"Parsing XML file: {FileName} with systemId: {SystemId}"` |
 | 5001 | Information | `Quartz` | `"Parsing XML from stream with systemId: {SystemId}"` |
 | 5002 | Debug | `Quartz` | `"Found {JobGroupCount} delete job group commands."` |

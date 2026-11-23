@@ -88,6 +88,11 @@ Once the schema is ahead of every node, replace them one at a time. As each goes
   [relative scheduling](how-tos/rescheduling-jobs.md#what-a-start-keeps) on, a start leaves the stored
   trigger as it is, another node's acquisition included. A start never puts back a fire time another node
   fired while it re-applied the trigger.
+- **Pruning belongs to a deploy that runs one version** (4.9). With
+  [`PruneUndeclaredInGroups`](how-tos/rescheduling-jobs.md#removing-what-the-code-no-longer-declares), a
+  node's first start deletes what its declarations no longer name in the owned groups. While old and new
+  nodes overlap, an old node's start stores again what the new code removed, and the next new node's start
+  removes it, each removal logged as `4034` or `4035`. Nodes of different roles must own different groups.
 
 ### Rolling 4.3 to 4.4
 

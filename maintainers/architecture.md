@@ -56,6 +56,10 @@ to typed options and registrations by `QuartzPropertyBridge`, which is the only 
 them; `LegacyPropertyKeys` holds the key strings and rejects a misspelled one. A new setting is therefore
 a typed option plus a bridge entry, never a string read somewhere else.
 
+With `SchedulingOptions.PruneUndeclaredInGroups` set on a persistent store, the first `Start` prunes what
+no declaration names, after `StartPlugins` and before the loop is unpaused, against the keys
+`DeclaredContent` recorded as each processor applied its declarations (#4415).
+
 A scheduler the application does not shut down itself is shut down by Quartz. The hosted service does it
 inside the host's shutdown window, and `StandaloneSchedulerFactory` before it disposes its container.
 Otherwise the container's disposal does it, through `ShutdownOnContainerDisposal`, without waiting for

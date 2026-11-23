@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Quartz.Documentation.Samples.HowTos;
@@ -39,6 +40,40 @@ public static class ReschedulingJobsSamples
             // the old trigger was gone; store the new one on its own terms
             await scheduler.ScheduleJob(replacement, cancellationToken: cancellationToken);
         }
+
+        #endregion
+    }
+
+    public static void PruningWhatTheCodeNoLongerDeclares(IServiceCollection services, string connectionString)
+    {
+        #region sample_rescheduling_prune_undeclared
+
+        services.AddQuartz(q =>
+        {
+            q.UsePersistentStore(store => store.UseSqlServer(connectionString));
+
+            q.AddJob<ImportJob>(job => job.WithIdentity("import", "imports"));
+            q.AddTrigger(trigger => trigger
+                .WithIdentity("import-hourly", "imports")
+                .ForJob("import", "imports")
+                .WithCronSchedule("0 0 * * * ?"));
+        });
+
+        // "imports" is the declarations' own: at the first start, a stored job or trigger there that none
+        // of them names is deleted.
+        services.Configure<QuartzOptions>(options => options.Scheduling.PruneUndeclaredInGroups.Add("imports"));
+
+        #endregion
+    }
+
+    public static async ValueTask WhatAPruneWouldDelete(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        #region sample_rescheduling_prune_check
+
+        // What "imports" holds now. A key here that no declaration names is deleted at the first start
+        // with the option on, and so is a trigger in another group that fires a declared job of "imports".
+        List<JobKey> jobs = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("imports"), cancellationToken);
+        List<TriggerKey> triggers = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("imports"), cancellationToken);
 
         #endregion
     }

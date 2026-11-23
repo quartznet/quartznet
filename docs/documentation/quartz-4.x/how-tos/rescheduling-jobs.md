@@ -95,6 +95,87 @@ registration, and each scheduling file, over the trigger the store holds. The tr
   A trigger that fires between the read and the replace eight times in a row is left as stored, with warning
   `5038`; the start goes on, and the registration applies at the next start.
 
+## Removing what the code no longer declares
+
+A start stores what the declarations name and deletes nothing, so a job or trigger renamed or removed in
+code keeps firing from a persistent store. From 4.9, `SchedulingOptions.PruneUndeclaredInGroups` lists the
+groups the declarations own. At the first start, a stored job or trigger there that no declaration names is
+deleted:
+
+<!-- snippet: sample_rescheduling_prune_undeclared -->
+```csharp
+services.AddQuartz(q =>
+{
+    q.UsePersistentStore(store => store.UseSqlServer(connectionString));
+
+    q.AddJob<ImportJob>(job => job.WithIdentity("import", "imports"));
+    q.AddTrigger(trigger => trigger
+        .WithIdentity("import-hourly", "imports")
+        .ForJob("import", "imports")
+        .WithCronSchedule("0 0 * * * ?"));
+});
+
+// "imports" is the declarations' own: at the first start, a stored job or trigger there that none
+// of them names is deleted.
+services.Configure<QuartzOptions>(options => options.Scheduling.PruneUndeclaredInGroups.Add("imports"));
+```
+<!-- endSnippet -->
+
+In `appsettings.json`, `Quartz:Scheduling:PruneUndeclaredInGroups` is an array; the flat key
+`quartz.scheduler.pruneUndeclaredInGroups` is comma-separated.
+
+```json
+{
+  "Quartz": {
+    "Scheduling": {
+      "PruneUndeclaredInGroups": [ "imports" ]
+    }
+  }
+}
+```
+
+| Deleted at the first start, unless a declaration names it | Kept |
+|---|---|
+| A stored job in an owned group, with all its triggers | Everything else in the store |
+| A stored trigger in an owned group, whatever its job's group | A pending manual firing (`TriggerJob`) |
+| A trigger of a declared job in an owned group, whatever the trigger's group | The scheduler's own triggers: recovery, fail-over, `RunAtStartup`, backfills |
+
+* **Declarations** are the `AddJob`, `AddTrigger` and `ScheduleJob` registrations, `AddDeclaredJobs`, the
+  `Quartz:Schedule` section, and every job and trigger an XML or JSON scheduling file loads at start-up. A
+  key `IgnoreDuplicates` passed over and a trigger
+  [switched off](../tutorial/declaring-jobs-with-attributes.md#switching-one-trigger-off) with `-` count.
+* **A persistent store, the first `Start` only.** It runs after the plugins have started and before the
+  scheduler fires anything, so a stale trigger that is due never fires on that node. `Start` after `Standby`
+  prunes nothing, and the in-memory store never does.
+* **Each deletion is a warning**: event `4034` for a job, whose triggers go with it, and `4035` for a
+  trigger. Scheduler listeners hear `JobDeleted` and `JobUnscheduled`, as from any delete. The execution
+  history keeps its rows.
+* **A failure is logged and the start goes on**: event `4036`, an error. A scheduling file that does not
+  load is one: what it declares is not known, so nothing is pruned at that start.
+* **A running firing is not waited for.** It completes against the deleted trigger, as after any
+  `DeleteJob`.
+* **Refused at start-up**: a blank name, `*`, `RECOVERING_JOBS`, `FAILED_OVER_JOBS`, `QRTZ_SCHEDULED`,
+  `QRTZ_STARTUP` and any group starting `backfill:`.
+
+::: warning One version at a time
+Pruning belongs to a deploy that runs one version. During a rolling deploy, a node starting with older
+declarations stores again what they name, and the next start of a newer node removes it. Each removal is
+logged. Nodes that declare different content by design, such as two roles, must own different groups, or
+each prunes the other's at every start.
+:::
+
+An operator's job in an owned group is deleted at the next start. Before turning the option on, list what
+the owned groups hold and compare it with the code:
+
+<!-- snippet: sample_rescheduling_prune_check -->
+```csharp
+// What "imports" holds now. A key here that no declaration names is deleted at the first start
+// with the option on, and so is a trigger in another group that fires a declared job of "imports".
+List<JobKey> jobs = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("imports"), cancellationToken);
+List<TriggerKey> triggers = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("imports"), cancellationToken);
+```
+<!-- endSnippet -->
+
 ## Changing metadata in place: UpdateTriggerDetails
 
 `UpdateTriggerDetails` patches a stored trigger; fire times and state are kept (paused stays paused, due in
