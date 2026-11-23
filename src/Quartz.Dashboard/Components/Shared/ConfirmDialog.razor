@@ -1,18 +1,23 @@
+@* Asks before something that cannot be undone. Focus goes to the dialog itself rather than to Confirm, so Enter
+   pressed out of habit confirms nothing. *@
 @if (IsOpen)
 {
-    <div class="qz-confirm-overlay">
-        <div class="qz-confirm-dialog">
-            <h3>@Title</h3>
-            <p>@Message</p>
-            <div class="qz-confirm-actions">
-                <button type="button" class="qz-button qz-button-danger" @onclick="ConfirmAsync">Confirm</button>
-                <button type="button" class="qz-button" @onclick="CancelAsync">Cancel</button>
-            </div>
+    <ModalDialog LabelledBy="@_titleId" OnCancel="CancelAsync">
+        <h3 id="@_titleId">@Title</h3>
+        <p>@Message</p>
+        <div class="qz-confirm-actions">
+            <button type="button" class="qz-button qz-button-danger" @onclick="ConfirmAsync">Confirm</button>
+            <button type="button" class="qz-button" @onclick="CancelAsync">Cancel</button>
         </div>
-    </div>
+    </ModalDialog>
 }
 
 @code {
+    private static int s_lastId;
+
+    /// <summary>The heading's id, which names the dialog; one per instance, as a page can hold several.</summary>
+    private readonly string _titleId = "qz-confirm-title-" + Interlocked.Increment(ref s_lastId).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     [Parameter]
     public bool IsOpen { get; set; }
 

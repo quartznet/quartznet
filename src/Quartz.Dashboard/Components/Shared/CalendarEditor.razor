@@ -175,31 +175,29 @@
 
 @if (_pending is { } pending)
 {
-    <div class="qz-confirm-overlay">
-        <div class="qz-confirm-dialog" role="dialog" aria-labelledby="qz-calendar-replace-title" data-testid="calendar-replace-dialog">
-            <h3 id="qz-calendar-replace-title">Replace calendar @pending.Name?</h3>
-            <p data-testid="calendar-replace-used-by">@UsedByText(pending)</p>
-            @if (pending.UsedBy != 0)
+    <ModalDialog LabelledBy="qz-calendar-replace-title" TestId="calendar-replace-dialog" OnCancel="CancelReplace">
+        <h3 id="qz-calendar-replace-title">Replace calendar @pending.Name?</h3>
+        <p data-testid="calendar-replace-used-by">@UsedByText(pending)</p>
+        @if (pending.UsedBy != 0)
+        {
+            <p class="qz-muted">
+                Updating recomputes each one's next fire time against the new calendar. Without it, each keeps the
+                next fire time it has now, even one the new calendar excludes.
+            </p>
+        }
+        <div class="qz-confirm-actions">
+            @if (pending.UsedBy == 0)
             {
-                <p class="qz-muted">
-                    Updating recomputes each one's next fire time against the new calendar. Without it, each keeps the
-                    next fire time it has now, even one the new calendar excludes.
-                </p>
+                <button type="button" class="qz-button qz-button-primary" data-testid="calendar-replace-only" @onclick="() => ReplaceAsync(updateTriggers: false)">Replace calendar</button>
             }
-            <div class="qz-confirm-actions">
-                @if (pending.UsedBy == 0)
-                {
-                    <button type="button" class="qz-button qz-button-primary" data-testid="calendar-replace-only" @onclick="() => ReplaceAsync(updateTriggers: false)">Replace calendar</button>
-                }
-                else
-                {
-                    <button type="button" class="qz-button qz-button-primary" data-testid="calendar-replace-update" @onclick="() => ReplaceAsync(updateTriggers: true)">Replace and update triggers</button>
-                    <button type="button" class="qz-button" data-testid="calendar-replace-only" @onclick="() => ReplaceAsync(updateTriggers: false)">Replace only</button>
-                }
-                <button type="button" class="qz-button" data-testid="calendar-replace-cancel" @onclick="CancelReplace">Cancel</button>
-            </div>
+            else
+            {
+                <button type="button" class="qz-button qz-button-primary" data-testid="calendar-replace-update" @onclick="() => ReplaceAsync(updateTriggers: true)">Replace and update triggers</button>
+                <button type="button" class="qz-button" data-testid="calendar-replace-only" @onclick="() => ReplaceAsync(updateTriggers: false)">Replace only</button>
+            }
+            <button type="button" class="qz-button" data-testid="calendar-replace-cancel" @onclick="CancelReplace">Cancel</button>
         </div>
-    </div>
+    </ModalDialog>
 }
 
 @code {

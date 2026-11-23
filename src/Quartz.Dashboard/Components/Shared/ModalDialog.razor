@@ -1,0 +1,93 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@* The frame every dashboard dialog draws in, and what makes it modal for a keyboard: focus moves into the dialog
+   as it opens (to the element marked data-autofocus, or the dialog itself), Tab and Shift+Tab wrap inside it
+   through the two guards either side, Escape is the dialog's Cancel, and focus goes back to the element that
+   opened it when it closes. The parent renders it while the dialog is open and drops it to close it. *@
+<div class="qz-confirm-overlay" data-testid="modal-overlay" @onkeydown="OnKeyDownAsync">
+    <span class="qz-focus-guard" tabindex="0" aria-hidden="true" data-testid="modal-guard-start" @onfocus="FocusLastAsync"></span>
+    <div @ref="_dialog"
+         class="qz-confirm-dialog @Class"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="@LabelledBy"
+         tabindex="-1"
+         data-testid="@TestId">
+        @ChildContent
+    </div>
+    <span class="qz-focus-guard" tabindex="0" aria-hidden="true" data-testid="modal-guard-end" @onfocus="FocusFirstAsync"></span>
+</div>
+
+@code {
+    private ElementReference _dialog;
+
+    /// <summary>The dialog's content: its heading, its fields and its actions.</summary>
+    [Parameter]
+    [EditorRequired]
+    public RenderFragment ChildContent { get; set; } = null!;
+
+    /// <summary>Classes beside <c>qz-confirm-dialog</c>, for a dialog with a layout of its own.</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>The id of the element that names the dialog, its heading.</summary>
+    [Parameter]
+    public string? LabelledBy { get; set; }
+
+    [Parameter]
+    public string? TestId { get; set; }
+
+    /// <summary>Raised by Escape: what the dialog's own Cancel does.</summary>
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CallAsync("quartzDashboardDialog.open", _dialog);
+        }
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key is "Escape" or "Esc")
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+
+    /// <summary>Tab past the last control lands on the closing guard, which sends focus to the first.</summary>
+    private Task FocusFirstAsync() => CallAsync("quartzDashboardDialog.focusFirst", _dialog);
+
+    /// <summary>Shift+Tab before the first control lands on the opening guard, which sends focus to the last.</summary>
+    private Task FocusLastAsync() => CallAsync("quartzDashboardDialog.focusLast", _dialog);
+
+    public async ValueTask DisposeAsync()
+    {
+        await CallAsync("quartzDashboardDialog.close");
+    }
+
+    /// <summary>
+    /// A focus move, which a circuit that has gone, or a page still prerendering, cannot make. Neither is a failure
+    /// of the dialog.
+    /// </summary>
+    private async Task CallAsync(string identifier, params object?[] arguments)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(identifier, arguments);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+            // JavaScript interop is not available while prerendering.
+        }
+    }
+}

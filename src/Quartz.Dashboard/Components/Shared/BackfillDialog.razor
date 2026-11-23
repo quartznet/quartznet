@@ -13,56 +13,54 @@
    SchedulerBackfillExtensions.Backfill. The range is read on the clock the dashboard shows. *@
 @if (IsOpen)
 {
-    <div class="qz-confirm-overlay">
-        <div class="qz-confirm-dialog qz-backfill-dialog" role="dialog" aria-labelledby="qz-backfill-dialog-title" data-testid="backfill-dialog">
-            <h3 id="qz-backfill-dialog-title">Backfill @Target</h3>
-            <p>One firing of the job for each time the trigger had from <em>From</em> up to, not including, <em>To</em>. Times are in @Scheduler.SelectedTimeZoneId.</p>
+    <ModalDialog Class="qz-backfill-dialog" LabelledBy="qz-backfill-dialog-title" TestId="backfill-dialog" OnCancel="CancelAsync">
+        <h3 id="qz-backfill-dialog-title">Backfill @Target</h3>
+        <p>One firing of the job for each time the trigger had from <em>From</em> up to, not including, <em>To</em>. Times are in @Scheduler.SelectedTimeZoneId.</p>
 
-            @if (_errors.Count > 0)
-            {
-                <div class="qz-form-errors" role="alert" data-testid="backfill-errors">
-                    <ul>
-                        @foreach (string error in _errors)
-                        {
-                            <li>@error</li>
-                        }
-                    </ul>
-                </div>
-            }
+        @if (_errors.Count > 0)
+        {
+            <div class="qz-form-errors" role="alert" data-testid="backfill-errors">
+                <ul>
+                    @foreach (string error in _errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            </div>
+        }
 
-            <div class="qz-form-group">
-                <label class="qz-form-label" for="backfill-from">From</label>
-                <input id="backfill-from" class="qz-input" type="datetime-local" step="1" value="@_fromInput" @onchange="OnFromChanged" />
-            </div>
-            <div class="qz-form-group">
-                <label class="qz-form-label" for="backfill-to">To</label>
-                <input id="backfill-to" class="qz-input" type="datetime-local" step="1" value="@_toInput" @onchange="OnToChanged" />
-            </div>
-            <div class="qz-form-group">
-                <label class="qz-form-label" for="backfill-spacing">Spacing</label>
-                <input id="backfill-spacing"
-                       class="qz-input qz-input-mono"
-                       placeholder="00:00:00"
-                       title="hh:mm:ss between one firing's start and the next; zero starts them all now"
-                       value="@_spacingInput"
-                       @onchange="OnSpacingChanged" />
-            </div>
-            <div class="qz-form-group">
-                <label class="qz-form-label" for="backfill-max-slots">Max slots</label>
-                <input id="backfill-max-slots" class="qz-input" inputmode="numeric" value="@_maxSlotsInput" @onchange="OnMaxSlotsChanged" />
-            </div>
-
-            @if (_preview is { } preview)
-            {
-                <p class="qz-muted" data-testid="backfill-preview">@preview</p>
-            }
-
-            <div class="qz-confirm-actions">
-                <button type="button" class="qz-button qz-button-primary qz-backfill-confirm" disabled="@_submitting" @onclick="SubmitAsync">Backfill</button>
-                <button type="button" class="qz-button qz-backfill-cancel" @onclick="CancelAsync">Cancel</button>
-            </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="backfill-from">From</label>
+            <input id="backfill-from" class="qz-input" type="datetime-local" step="1" data-autofocus value="@_fromInput" @onchange="OnFromChanged" />
         </div>
-    </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="backfill-to">To</label>
+            <input id="backfill-to" class="qz-input" type="datetime-local" step="1" value="@_toInput" @onchange="OnToChanged" />
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="backfill-spacing">Spacing</label>
+            <input id="backfill-spacing"
+                   class="qz-input qz-input-mono"
+                   placeholder="00:00:00"
+                   title="hh:mm:ss between one firing's start and the next; zero starts them all now"
+                   value="@_spacingInput"
+                   @onchange="OnSpacingChanged" />
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="backfill-max-slots">Max slots</label>
+            <input id="backfill-max-slots" class="qz-input" inputmode="numeric" value="@_maxSlotsInput" @onchange="OnMaxSlotsChanged" />
+        </div>
+
+        @if (_preview is { } preview)
+        {
+            <p class="qz-muted" data-testid="backfill-preview">@preview</p>
+        }
+
+        <div class="qz-confirm-actions">
+            <button type="button" class="qz-button qz-button-primary qz-backfill-confirm" disabled="@_submitting" @onclick="SubmitAsync">Backfill</button>
+            <button type="button" class="qz-button qz-backfill-cancel" @onclick="CancelAsync">Cancel</button>
+        </div>
+    </ModalDialog>
 }
 
 @code {
