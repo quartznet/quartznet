@@ -149,6 +149,12 @@ public sealed class StoreAttachedTargetTest
 
         List<JobRunStatus> statuses = await client.GetJobRunStatuses(window.Key, [new JobKeyDto("batch", "import")]);
         statuses.Should().ContainSingle().Which.RunCount.Should().Be(1);
+
+        // The Overview's failing jobs read a window's statuses by its key too (#4411).
+        (await client.QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = window.Key }))
+            .Items.Should().ContainSingle().Which.Job.Name.Should().Be("import");
+        (await client.QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = window.Key, Failing = true }))
+            .Items.Should().BeEmpty("the one run recorded succeeded");
     }
 
     /// <summary>

@@ -708,6 +708,31 @@ public interface IQuartzApiClient
     }
 
     /// <summary>
+    /// One page of the scheduler's per-job run statuses, by job group and then name, as
+    /// <see cref="Extensibility.IExecutionHistoryStore.QueryJobRunStatuses" /> answers it: narrowed to some jobs,
+    /// or to the failing ones with <see cref="JobRunStatusQuery.Failing" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Overview's <em>Needs attention</em> reads, with <see cref="JobRunStatusQuery.Failing" /> set, for
+    /// the jobs failing in a row. <see cref="JobRunStatusQuery.SchedulerName" /> is the scheduler's key, as every
+    /// page spells it. A history that keeps no per-job status raises <see cref="NotSupportedException" />, and the
+    /// panel leaves the part out. Over HTTP and through an agent it is the <c>…/history/job-status</c> route.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.9. The default reports the datum as unavailable with
+    /// <see cref="NotSupportedException" />, as <see cref="GetJobRunStatus" />'s does.
+    /// </para>
+    /// </remarks>
+    /// <param name="query">Which statuses to return, and how many.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<PagedResult<JobRunStatus>>(new NotSupportedException(
+            "This dashboard's data source cannot list jobs' run statuses: its IQuartzApiClient does not implement QueryJobRunStatuses."));
+    }
+
+    /// <summary>
     /// The scheduler's runs, counted by result and timed in buckets of fire time, as
     /// <see cref="Extensibility.IExecutionHistoryStore.QueryExecutionStatistics" /> answers it.
     /// </summary>

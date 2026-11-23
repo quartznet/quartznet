@@ -1,0 +1,320 @@
+@using System.Globalization
+@using Microsoft.Extensions.DependencyInjection
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Services
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject IServiceProvider Services
+
+@* "Anything wrong right now?" on one screen (#4411). The overdue count and the failing jobs are one read each,
+   so they follow the overview's five seconds; the day's run statistics count a day of history and follow
+   History's thirty. A part whose source cannot answer is left out, as the Jobs page leaves out its columns. *@
+<section class="qz-section qz-needs-attention" data-testid="needs-attention">
+    <AutoRefresh Every="TimeSpan.FromSeconds(5)" Refresh="RefreshAsync" />
+    <AutoRefresh Every="StatisticsRefreshInterval" Refresh="RefreshStatisticsAsync" />
+    <h2>Needs attention</h2>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+
+    @if (_overdue is int overdue)
+    {
+        <p data-testid="needs-attention-overdue" class="@(overdue == 0 ? "qz-muted" : null)">
+            @if (overdue == 0)
+            {
+                <text>No waiting trigger is more than @OverdueMinutes minutes past its fire time.</text>
+            }
+            else
+            {
+                <a href="@OverdueLink">@Count(overdue, "waiting trigger", "waiting triggers")</a>@OverdueSentence(overdue)
+            }
+        </p>
+    }
+
+    @if (_failingAvailable)
+    {
+        <div data-testid="needs-attention-failing">
+            @if (_failing.Count == 0)
+            {
+                <p class="qz-muted">No job is failing.</p>
+            }
+            else
+            {
+                <p>@FailingSentence</p>
+                <table class="qz-table">
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Failing</th>
+                            <th>Last failure</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (JobRunStatus status in _failing)
+                        {
+                            <tr>
+                                <td><a class="qz-details-link" href="@JobPath(status.Job)">@DisplayValueHelper.FormatKey(status.Job.Group, status.Job.Name)</a></td>
+                                <td><a class="qz-failing-badge" href="@FailuresPath(status.Job)">failing ×@status.ConsecutiveFailures.ToString(CultureInfo.InvariantCulture)</a></td>
+                                <td>
+                                    @Scheduler.FormatInSelectedTimeZone(status.LastFailedAtUtc, "u")
+                                    @if (status.LastFailureMessage is { Length: > 0 } message)
+                                    {
+                                        <span class="qz-muted" title="@message">&nbsp;@message</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    }
+
+    @if (_statistics is { } statistics)
+    {
+        <RunStatisticsChart Statistics="@statistics.Statistics"
+                            From="@statistics.From"
+                            Before="@statistics.Before"
+                            Scope="@statistics.Window.Scope"
+                            Title="Runs, last 24 hours"
+                            HeadingId="needs-attention-runs" />
+    }
+</section>
+
+@code {
+    /// <summary>How late a waiting trigger is before it counts: the due backlog's cutoff, and Trigger Detail's.</summary>
+    private static readonly int OverdueMinutes = (int) TriggerDiagnosis.OverdueAfter.TotalMinutes;
+
+    /// <summary>How many failing jobs the panel lists: the ones failing the most times in a row.</summary>
+    internal const int FailingShown = 10;
+
+    /// <summary>History's cadence, which the day's statistics follow.</summary>
+    private static readonly TimeSpan StatisticsRefreshInterval = TimeSpan.FromSeconds(30);
+
+    private int? _overdue;
+    private DateTimeOffset _overdueCutoff;
+    private bool _failingAvailable;
+    private readonly List<JobRunStatus> _failing = [];
+    private int _failingTotal;
+    private bool _failingCountedPartly;
+    private RunStatisticsView? _statistics;
+    private string? _error;
+    private bool _loading;
+    private bool _loadingStatistics;
+    private string? _loadedSchedulerName;
+
+    /// <summary>
+    /// Cancelled when the panel goes with its page, which stops the read in flight.
+    /// </summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    [Parameter]
+    public string? SchedulerName { get; set; }
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    private string OverdueLink => DashboardLink.To(
+        Options.Value,
+        "triggers?state=" + TriggerState.Normal + "&before=" + Uri.EscapeDataString(_overdueCutoff.ToString("O", CultureInfo.InvariantCulture)));
+
+    private string FailingSentence
+    {
+        get
+        {
+            string sentence = Count(_failingTotal, "job is", "jobs are") + " failing";
+            if (_failingTotal > _failing.Count)
+            {
+                sentence += "; these are the " + _failing.Count.ToString(CultureInfo.InvariantCulture) + " failing the most times in a row";
+                if (_failingCountedPartly)
+                {
+                    sentence += ", of the first " + PagedQuery.DefaultTake.ToString(CultureInfo.InvariantCulture) + " by name";
+                }
+            }
+
+            return sentence + ".";
+        }
+    }
+
+    /// <remarks>
+    /// Guarded on the scheduler, as the execution-groups panel is: the overview renders every second for its
+    /// executing count, and each render would otherwise be three more reads.
+    /// </remarks>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.Equals(_loadedSchedulerName, SchedulerName, StringComparison.Ordinal) && _loadedSchedulerName is not null)
+        {
+            return;
+        }
+
+        _loadedSchedulerName = SchedulerName;
+        _overdue = null;
+        _failingAvailable = false;
+        _failing.Clear();
+        _statistics = null;
+        await LoadDataAsync();
+        await LoadStatisticsAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        await LoadDataAsync();
+        StateHasChanged();
+    }
+
+    private async Task RefreshStatisticsAsync()
+    {
+        await LoadStatisticsAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>The overdue count and the failing jobs: one read each.</summary>
+    private async Task LoadDataAsync()
+    {
+        string? schedulerName = SchedulerName;
+        if (_loading || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            CancellationToken cancellationToken = _cancellation.Token;
+            DateTimeOffset cutoff = Clock.GetUtcNow() - TriggerDiagnosis.OverdueAfter;
+
+            int? overdue;
+            try
+            {
+                // "Due" is what the due-backlog gauges count: a waiting trigger past its fire time, here by more
+                // than the cutoff. Take = 0 counts without listing.
+                PagedResult<TriggerHeaderDto> late = await Api.QueryTriggers(
+                    schedulerName,
+                    new DashboardTriggerQuery { State = TriggerState.Normal, NextFireTimeBefore = cutoff, Take = 0 },
+                    cancellationToken);
+                overdue = late.TotalCount ?? late.Items.Count;
+            }
+            catch (NotSupportedException)
+            {
+                // A host older than 4.3 cannot filter on the next fire time.
+                overdue = null;
+            }
+
+            bool failingAvailable;
+            PagedResult<JobRunStatus>? failing;
+            try
+            {
+                failing = await Api.QueryJobRunStatuses(
+                    new JobRunStatusQuery { SchedulerName = schedulerName, Failing = true, IncludeTotalCount = true },
+                    cancellationToken);
+                failingAvailable = true;
+            }
+            catch (NotSupportedException)
+            {
+                // A history that keeps no per-job status: the part is left out.
+                failing = null;
+                failingAvailable = false;
+            }
+
+            _overdue = overdue;
+            _overdueCutoff = cutoff;
+            _failingAvailable = failingAvailable;
+            _failing.Clear();
+            if (failing is not null)
+            {
+                // The store orders by key; the panel ranks by how many occurrences in a row have failed.
+                _failing.AddRange(failing.Items
+                    .OrderByDescending(static status => status.ConsecutiveFailures)
+                    .ThenByDescending(static status => status.LastFailedAtUtc)
+                    .Take(FailingShown));
+                _failingTotal = failing.TotalCount ?? failing.Items.Count;
+                _failingCountedPartly = failing.HasMore;
+            }
+
+            _error = null;
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+            // The overview was left. A read nobody is waiting for is not a failure.
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>The last 24 hours' runs, one read, at History's cadence.</summary>
+    private async Task LoadStatisticsAsync()
+    {
+        string? schedulerName = SchedulerName;
+        if (_loadingStatistics || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        _loadingStatistics = true;
+        try
+        {
+            _statistics = await RunStatisticsWindow.LastDay.Read(
+                Api,
+                new ExecutionStatisticsQuery { SchedulerName = schedulerName },
+                Clock.GetUtcNow(),
+                _cancellation.Token);
+        }
+        catch (NotSupportedException)
+        {
+            // A source that cannot count runs: the part is left out.
+            _statistics = null;
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loadingStatistics = false;
+        }
+    }
+
+    private string JobPath(JobKey job)
+    {
+        return DashboardLink.To(Options.Value, "jobs/" + Uri.EscapeDataString(job.Group) + "/" + Uri.EscapeDataString(job.Name));
+    }
+
+    /// <summary>The job's failed runs on History, exactly that job's, as the Jobs page's badge links.</summary>
+    private string FailuresPath(JobKey job)
+    {
+        return DashboardLink.To(
+            Options.Value,
+            "history?outcome=failed&jobGroup=" + Uri.EscapeDataString(job.Group) + "&jobName=" + Uri.EscapeDataString(job.Name) + "&result=failed");
+    }
+
+    private static string OverdueSentence(int overdue)
+    {
+        return overdue == 1
+            ? " is more than " + OverdueMinutes.ToString(CultureInfo.InvariantCulture) + " minutes past its fire time."
+            : " are more than " + OverdueMinutes.ToString(CultureInfo.InvariantCulture) + " minutes past their fire time.";
+    }
+
+    private static string Count(int count, string one, string many)
+    {
+        return count == 1 ? "1 " + one : count.ToString(CultureInfo.InvariantCulture) + " " + many;
+    }
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
+    }
+}

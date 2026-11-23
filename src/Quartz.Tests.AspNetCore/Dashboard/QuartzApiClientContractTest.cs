@@ -708,6 +708,13 @@ public sealed class QuartzApiClientContractTest
             "by job group and then name, and a job with no recorded run is absent");
         statuses[0].LastResult.Should().Be(JobRunResult.Skipped);
         statuses[0].SchedulerName.Should().Be(scheduler.SchedulerName);
+
+        // The Overview's failing jobs (#4411): one read of the statuses failing in a row, by the scheduler's key.
+        PagedResult<JobRunStatus> failing = await client.QueryJobRunStatuses(
+            new JobRunStatusQuery { SchedulerName = key, Failing = true, IncludeTotalCount = true });
+        failing.Items.Should().ContainSingle().Which.Job.Name.Should().Be("sick");
+        failing.Items[0].ConsecutiveFailures.Should().Be(2);
+        failing.TotalCount.Should().Be(1);
     }
 
     /// <summary>
