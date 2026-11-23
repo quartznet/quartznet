@@ -3,7 +3,6 @@ using FakeItEasy;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
-using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
 using Quartz.Impl;
 
@@ -13,7 +12,7 @@ namespace Quartz.Tests.AspNetCore.Dashboard;
 /// Which source a key's events are read from, on the one case where reading the key and resolving it
 /// could disagree.
 /// </summary>
-public sealed class SchedulerEventSourcesTest
+public sealed class SchedulerEventLookupTest
 {
     /// <summary>
     /// A scheduler of this process named <c>x/y</c> beside a target <c>x</c> fronting a scheduler <c>y</c>:
@@ -41,9 +40,9 @@ public sealed class SchedulerEventSourcesTest
         services.AddSingleton<ISchedulerEventSource>(broker);
         using ServiceProvider provider = services.BuildServiceProvider();
 
-        SchedulerEventSources.For(provider, "x/y").Should().BeSameAs(broker,
+        SchedulerEventLookup.For(provider, "x/y").Should().BeSameAs(broker,
             "the key resolves to the scheduler of this process, and showing target x's events under it would attribute another scheduler's firings to it");
-        SchedulerEventSources.For(provider, "x/other").Should().BeSameAs(targetsOwn,
+        SchedulerEventLookup.For(provider, "x/other").Should().BeSameAs(targetsOwn,
             "a key no local scheduler is named like is the target's scheduler");
     }
 }

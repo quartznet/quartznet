@@ -1,3 +1,4 @@
+using Quartz.Configuration;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
 using Quartz.Tests.AspNetCore.Support;
@@ -39,9 +40,9 @@ public sealed class DashboardAgentTest
         AgentWorker w1 = await dashboard.StartAgent("w1");
         AgentWorker w2 = await dashboard.StartAgent("w2");
 
-        ISchedulerEventSource? source = SchedulerEventSources.For(dashboard.App.Services, w1.Key);
+        ISchedulerEventSource? source = SchedulerEventLookup.For(dashboard.App.Services, w1.Key);
         source.Should().NotBeNull("an agent's events are read through the tunnel");
-        ISchedulerEventSource? other = SchedulerEventSources.For(dashboard.App.Services, w2.Key);
+        ISchedulerEventSource? other = SchedulerEventLookup.For(dashboard.App.Services, w2.Key);
 
         using CancellationTokenSource subscription = new();
         IAsyncEnumerator<SchedulerEvent> events = source!.Subscribe(w1.Scheduler.SchedulerName, subscription.Token).GetAsyncEnumerator(CancellationToken.None);

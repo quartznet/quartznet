@@ -1,6 +1,7 @@
 @page "/quartz/live"
 @using System.Globalization
 @using Quartz
+@using Quartz.Configuration
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
 @using Quartz.Extensibility
@@ -174,7 +175,7 @@
             return;
         }
 
-        ISchedulerEventSource? source = SchedulerEventSources.For(Services, schedulerName);
+        ISchedulerEventSource? source = SchedulerEventLookup.For(Services, schedulerName);
         if (source is null)
         {
             // A window is the one case with a reason of its own, and it is not a misconfiguration:

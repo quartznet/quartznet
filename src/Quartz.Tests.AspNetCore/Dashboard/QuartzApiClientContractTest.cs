@@ -3,6 +3,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.Configuration;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
 using Quartz.Impl;
@@ -788,7 +789,7 @@ public sealed class QuartzApiClientContractTest
     [Test]
     public async Task TheEventsAreWatchedFromTheProcessTheSchedulerRunsIn()
     {
-        ISchedulerEventSource? source = SchedulerEventSources.For(provider, key);
+        ISchedulerEventSource? source = SchedulerEventLookup.For(provider, key);
         source.Should().NotBeNull("a dashboard reads the events of whatever scheduler it renders");
 
         using CancellationTokenSource subscription = new();

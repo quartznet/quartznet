@@ -1,4 +1,5 @@
 #region License
+
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -15,22 +16,22 @@
  * under the License.
  *
  */
+
 #endregion
 
 using Microsoft.Extensions.DependencyInjection;
 
-using Quartz.Configuration;
 using Quartz.Extensibility;
 using Quartz.Impl;
 
-namespace Quartz.Dashboard.Services;
+namespace Quartz.Configuration;
 
 /// <summary>
 /// Where one scheduler's live events are read from.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The same decision <c>InProcessQuartzApiClient</c> makes about a scheduler's history, for the same
+/// The same decision <see cref="ExecutionHistoryLookup" /> makes about a scheduler's history, for the same
 /// reason: a scheduler reached through a target has a reader of that target's stream, and the target is
 /// what says the scheduler is somewhere else. A key naming a target asks the target, through
 /// <see cref="SchedulerTargets" />; a bare key asks for the reader an untargeted
@@ -38,12 +39,13 @@ namespace Quartz.Dashboard.Services;
 /// process's own broker, which <c>AddQuartzSchedulerEvents()</c> registered.
 /// </para>
 /// <para>
-/// One place, because two things read it: the page a visitor is looking at, and the forwarder that feeds
-/// the dashboard's hub for clients of an application's own. They must agree about which stream a
-/// scheduler's key means.
+/// One place, because three things read it: the dashboard page a visitor is looking at, the forwarder that
+/// feeds the dashboard's hub for clients of an application's own, and the HTTP API's event route asked
+/// with <c>?target=</c>. They must agree about which stream a scheduler's key means, so the rule is in
+/// core beside <see cref="ExecutionHistoryLookup" />, which decides the same thing about history.
 /// </para>
 /// </remarks>
-internal static class SchedulerEventSources
+internal static class SchedulerEventLookup
 {
     /// <summary>
     /// The source <paramref name="schedulerKey" />'s events are read from, or <see langword="null" />
@@ -82,7 +84,7 @@ internal static class SchedulerEventSources
         // A window has none, and the container's own broker is emphatically not it: the events in it
         // are this process's schedulers', and showing them under a window's name would attribute
         // another cluster's firings to a scheduler that has never run anything here. A shared database
-        // carries no event feed — that is what an HTTP or agent target is for.
+        // carries no event feed â€” that is what an HTTP or agent target is for.
         if (serviceProvider.GetService<AttachedStores>()?.IsWindow(schedulerName) == true)
         {
             return null;
