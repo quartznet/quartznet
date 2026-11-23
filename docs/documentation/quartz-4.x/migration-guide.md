@@ -35,6 +35,12 @@ The compiler finds most of the 3.x → 4.0 work.
 
 An application on 4.8 compiles on 4.9 unchanged.
 
+| Added | What it is |
+|---|---|
+| Package `Quartz.EntityFrameworkCore`: `QuartzModelBuilderExtensions.AddQuartzTables(this ModelBuilder, string? providerName, Action<QuartzTablesOptions>?)`, `QuartzTablesOptions` (`TablePrefix`, `Schema`) | The job store's tables in an application's own EF Core model, so `dotnet ef migrations add` creates and upgrades them. PostgreSQL, SQL Server, MySQL and SQLite. See [Entity Framework Core](packages/entity-framework-core.md) |
+| `QuartzMigrationBuilderExtensions.CompleteQuartzSchema(this MigrationBuilder, Action<QuartzTablesOptions>?)` | What the model cannot say: SQLite's delete triggers, MySQL's descending index column. See [The first migration](packages/entity-framework-core.md#the-first-migration) |
+| `QuartzMigrationBuilderExtensions.MoveQuartzTablesFromAppAny(this MigrationBuilder, Action<QuartzTablesOptions>?)` | The one migration from AppAny.Quartz.EntityFrameworkCore.Migrations 0.6.3. See [Moving off AppAny](packages/entity-framework-core.md#moving-off-appany) |
+
 | Changed | What to check |
 |---|---|
 | `ServiceProvider.Dispose()` on a container that resolved `IScheduler` (#4387) | Works, and shuts the scheduler down: the `IScheduler` a container injects implements `IDisposable` as well, which blocks on the shutdown. Before, it implemented only `IAsyncDisposable`, so `Dispose()` threw `InvalidOperationException` ("type only implements IAsyncDisposable") and left the scheduler running. `await using` is still the better choice: the shutdown is asynchronous, and `Dispose()` blocks a thread on it. See [A container holding a scheduler is disposed asynchronously](#a-container-holding-a-scheduler-is-disposed-asynchronously) |
