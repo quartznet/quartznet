@@ -86,17 +86,22 @@ public class NodeVersionsTest
         mixed.Should().NotBeNull();
         mixed.Groups.Select(group => group.Version).Should().Equal(["older than 4.6", "4.5.2", "4.9.0"]);
         mixed.Costs.Should().ContainSingle().Which.Should()
-            .StartWith("While nodes late, old are live")
+            .StartWith("While nodes late (4.5.2), old (older than 4.6) are live")
             .And.Contain("takes TRIGGER_ACCESS")
             .And.Contain("never answered");
     }
 
+    /// <summary>
+    /// What a difference among nodes of 4.6 or later costs depends on the database, which the dashboard does
+    /// not know, so the banner names the versions and claims no cost.
+    /// </summary>
     [Test]
-    public void A46NodeBesideNewerOnesCostsSqlServerRounds()
+    public void A46NodeBesideNewerOnesClaimsNoCost()
     {
         MixedVersions mixed = NodeVersions.Mixed([Node("a", "4.6.3"), Node("b", "4.9.0")], reports: true)!;
 
-        mixed.Costs.Should().ContainSingle().Which.Should().Be("On SQL Server, every round takes TRIGGER_ACCESS while node a is live.");
+        mixed.Groups.Select(group => group.Version).Should().Equal(["4.6.3", "4.9.0"]);
+        mixed.Costs.Should().BeEmpty();
     }
 
     [Test]

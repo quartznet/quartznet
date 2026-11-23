@@ -40,7 +40,6 @@ internal static class NodeVersions
     internal const string NotReported = "not reported";
 
     private static readonly Version LockFreeRoundsSince = new(4, 6);
-    private static readonly Version SqlServerLockFreeRoundsSince = new(4, 7);
 
     /// <summary>
     /// Whether <paramref name="nodes" /> say which version their nodes run, so that a row without a stamp is a
@@ -84,6 +83,11 @@ internal static class NodeVersions
     /// one, or the listing does not say. A failed node is not live, and a node with neither a row nor a stamp
     /// is no cluster's.
     /// </summary>
+    /// <remarks>
+    /// Only what holds on every supported database is said: while a node older than 4.6 is live, rounds take
+    /// <c>TRIGGER_ACCESS</c> and its firings' interrupt requests go unanswered. What a newer difference costs
+    /// depends on the database, which the dashboard does not know, so it says nothing about it.
+    /// </remarks>
     /// <param name="nodes">The listing.</param>
     /// <param name="reports">What <see cref="Reports" /> answered for it.</param>
     public static MixedVersions? Mixed(IReadOnlyCollection<ClusterNodeDto> nodes, bool reports)
@@ -95,9 +99,7 @@ internal static class NodeVersions
         }
 
         SortedDictionary<string, List<string>> byVersion = new(Comparer<string>.Create(CompareVersions));
-        List<string> olderThan46 = [];
-        List<string> on46 = [];
-        bool any47OrLater = false;
+        List<(string InstanceId, string Version)> olderThan46 = [];
 
         foreach (ClusterNodeDto node in nodes)
         {
@@ -115,18 +117,9 @@ internal static class NodeVersions
 
             members.Add(node.InstanceId);
 
-            Version? parsed = Parse(version);
-            if (parsed is null || parsed < LockFreeRoundsSince)
+            if (Parse(version) is not { } parsed || parsed < LockFreeRoundsSince)
             {
-                olderThan46.Add(node.InstanceId);
-            }
-            else if (parsed < SqlServerLockFreeRoundsSince)
-            {
-                on46.Add(node.InstanceId);
-            }
-            else
-            {
-                any47OrLater = true;
+                olderThan46.Add((node.InstanceId, version));
             }
         }
 
@@ -143,11 +136,6 @@ internal static class NodeVersions
                 + (olderThan46.Count == 1 ? "it" : "them") + " is recorded but never answered.");
         }
 
-        if (on46.Count > 0 && any47OrLater)
-        {
-            costs.Add($"On SQL Server, every round takes TRIGGER_ACCESS while {Nodes(on46)} {(on46.Count == 1 ? "is" : "are")} live.");
-        }
-
         List<NodeVersionGroup> groups = new(byVersion.Count);
         foreach (KeyValuePair<string, List<string>> entry in byVersion)
         {
@@ -158,10 +146,11 @@ internal static class NodeVersions
         return new MixedVersions(groups, costs);
     }
 
-    private static string Nodes(List<string> instanceIds)
+    /// <summary>The older nodes, each with the version it runs: <c>node b (4.5.2)</c>.</summary>
+    private static string Nodes(List<(string InstanceId, string Version)> nodes)
     {
-        instanceIds.Sort(StringComparer.Ordinal);
-        return (instanceIds.Count == 1 ? "node " : "nodes ") + string.Join(", ", instanceIds);
+        nodes.Sort(static (left, right) => string.CompareOrdinal(left.InstanceId, right.InstanceId));
+        return (nodes.Count == 1 ? "node " : "nodes ") + string.Join(", ", nodes.Select(static node => node.InstanceId + " (" + node.Version + ")"));
     }
 
     /// <summary>
@@ -205,8 +194,8 @@ internal static class NodeVersions
 /// The live nodes of a cluster, by the version they run, and what the difference costs.
 /// </summary>
 /// <param name="Groups">Each version and the nodes running it, oldest first.</param>
-/// <param name="Costs">What the older nodes cost the cluster while they are live; empty when the difference
-/// costs nothing the dashboard knows of.</param>
+/// <param name="Costs">What the older nodes cost the cluster while they are live, on every database; empty when
+/// every live node is 4.6 or later.</param>
 internal sealed record MixedVersions(IReadOnlyList<NodeVersionGroup> Groups, IReadOnlyList<string> Costs);
 
 /// <summary>One version, and the live nodes that run it.</summary>

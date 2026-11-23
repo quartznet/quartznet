@@ -155,42 +155,41 @@
 
         @if (_diagnosisFacts is not null)
         {
-            @* Every check an operator works through, read once on load and on Refresh: never on a timer. *@
+            @* Every check an operator works through, read once on load and on Refresh: never on a timer. With
+               nothing found it is one line, the checks behind a toggle; otherwise the findings come first, the
+               worst at the top, and the checks that passed are behind the toggle. *@
             List<DiagnosisCheck> checks = TriggerDiagnosis.Evaluate(_diagnosisFacts, FormatDate);
-            int holdingBack = checks.Count(static check => check.HoldsBack);
+            List<DiagnosisCheck> findings = checks
+                .Where(static check => check.HoldsBack)
+                .OrderBy(static check => check.Verdict == DiagnosisVerdict.Problem ? 0 : 1)
+                .ToList();
+            List<DiagnosisCheck> others = checks.Where(static check => !check.HoldsBack).ToList();
             <section class="qz-section qz-diagnosis" data-testid="trigger-diagnosis">
                 <h2>Why isn't it firing?</h2>
-                <p class="qz-muted" data-testid="trigger-diagnosis-summary">
-                    @(holdingBack == 0
-                        ? "Nothing found that holds it back."
-                        : holdingBack == 1 ? "One finding may hold it back." : holdingBack + " findings may hold it back.")
-                </p>
-                <table class="qz-table qz-diagnosis-table">
-                    <tbody>
-                        @foreach (DiagnosisCheck check in checks)
-                        {
-                            <tr class="qz-diagnosis-@check.Verdict.ToString().ToLowerInvariant()" data-check="@check.Name">
-                                <th scope="row">@check.Name</th>
-                                <td class="qz-diagnosis-verdict" title="@check.Verdict">@VerdictGlyph(check.Verdict)</td>
-                                <td>
-                                    <span class="qz-diagnosis-text">@check.Text</span>
-                                    @if (check.LinkPath is not null)
-                                    {
-                                        <a class="qz-details-link" href="@DashboardLink.To(Options.Value, check.LinkPath)">@check.LinkText</a>
-                                    }
-                                    @if (check.Action == DiagnosisAction.Interrupt && check.FireInstanceId is { } fireInstanceId && CanInterrupt)
-                                    {
-                                        <button type="button" class="qz-button qz-diagnosis-interrupt" @onclick="() => InterruptFiringAsync(fireInstanceId)">Interrupt</button>
-                                    }
-                                    @if (check.Action == DiagnosisAction.ResetError && CanReset)
-                                    {
-                                        <button type="button" class="qz-button qz-diagnosis-reset" @onclick="ResetFromErrorAsync">Reset error state</button>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                @if (findings.Count == 0)
+                {
+                    <details class="qz-diagnosis-details" data-testid="trigger-diagnosis-checks">
+                        <summary>
+                            <span data-testid="trigger-diagnosis-summary">Nothing found that stops this trigger firing.</span>
+                            <span class="qz-muted qz-diagnosis-toggle">Show the @others.Count checks</span>
+                        </summary>
+                        @CheckTable(others)
+                    </details>
+                }
+                else
+                {
+                    <p data-testid="trigger-diagnosis-summary">
+                        @(findings.Count == 1 ? "One finding may stop this trigger firing." : findings.Count + " findings may stop this trigger firing.")
+                    </p>
+                    <div data-testid="trigger-diagnosis-findings">@CheckTable(findings)</div>
+                    @if (others.Count > 0)
+                    {
+                        <details class="qz-diagnosis-details" data-testid="trigger-diagnosis-checks">
+                            <summary><span class="qz-muted qz-diagnosis-toggle">Show the @others.Count other checks</span></summary>
+                            @CheckTable(others)
+                        </details>
+                    }
+                }
             </section>
         }
 
@@ -349,11 +348,14 @@
     /// </summary>
     private bool IsPreviewingAnEdit => !string.Equals(_editedCronExpression.Trim(), _cronExpression, StringComparison.Ordinal);
 
-    protected override async Task OnInitializedAsync()
+    /// <remarks>
+    /// Subscribes only: <see cref="OnParametersSetAsync" /> reads, and it runs on the first render too. Reading
+    /// here as well read the trigger and its diagnosis twice on every visit.
+    /// </remarks>
+    protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
         Scheduler.OnDisplayChanged += OnDisplayChanged;
-        await LoadDataAsync();
     }
 
     /// <summary>The time zone changed: draw the page's times again in it, and read nothing.</summary>
@@ -362,13 +364,28 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
+    /// <remarks>
+    /// Reads when the page is about another trigger than the one it read: on the first render, and on a
+    /// navigation to another trigger's page. A render of the same trigger reads nothing; Refresh, an action and
+    /// a change of scheduler read again by their own paths.
+    /// </remarks>
     protected override async Task OnParametersSetAsync()
     {
+        if (_loadedKey == TriggerKey)
+        {
+            return;
+        }
+
+        _loadedKey = TriggerKey;
+
         // Another trigger's details are not ones to keep as stale.
         _lastUpdatedAt = null;
         _staleReason = null;
         await LoadDataAsync();
     }
+
+    /// <summary>The trigger the page last read on its parameters, so a render of the same one reads nothing.</summary>
+    private TriggerKeyDto? _loadedKey;
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
@@ -573,6 +590,37 @@
             actionName: "ResumeTrigger",
             target: DisplayValueHelper.FormatKey(Group, Name));
     }
+
+    /// <summary>The diagnosis's checks as rows: the verdict, the finding, and its link or action.</summary>
+    private RenderFragment CheckTable(IReadOnlyList<DiagnosisCheck> checks) => __builder =>
+    {
+        <table class="qz-table qz-diagnosis-table">
+            <tbody>
+                @foreach (DiagnosisCheck check in checks)
+                {
+                    <tr class="qz-diagnosis-@check.Verdict.ToString().ToLowerInvariant()" data-check="@check.Name">
+                        <th scope="row">@check.Name</th>
+                        <td class="qz-diagnosis-verdict" title="@check.Verdict">@VerdictGlyph(check.Verdict)</td>
+                        <td>
+                            <span class="qz-diagnosis-text">@check.Text</span>
+                            @if (check.LinkPath is not null)
+                            {
+                                <a class="qz-details-link" href="@DashboardLink.To(Options.Value, check.LinkPath)">@check.LinkText</a>
+                            }
+                            @if (check.Action == DiagnosisAction.Interrupt && check.FireInstanceId is { } fireInstanceId && CanInterrupt)
+                            {
+                                <button type="button" class="qz-button qz-diagnosis-interrupt" @onclick="() => InterruptFiringAsync(fireInstanceId)">Interrupt</button>
+                            }
+                            @if (check.Action == DiagnosisAction.ResetError && CanReset)
+                            {
+                                <button type="button" class="qz-button qz-diagnosis-reset" @onclick="ResetFromErrorAsync">Reset error state</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
 
     /// <summary>
     /// The diagnosis's <em>Interrupt</em>: the firing that holds a blocked trigger's job.

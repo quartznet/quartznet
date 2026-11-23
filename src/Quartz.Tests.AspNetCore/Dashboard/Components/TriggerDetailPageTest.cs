@@ -386,8 +386,12 @@ public class TriggerDetailPageTest
 
         page.WaitForAssertion(() => page.Find("tr[data-check=\"Its job's firings\"]").TextContent.Should()
             .Contain("One running: on node node-b since 2026-10-05 13:00:00"));
-        page.Find("[data-testid=trigger-diagnosis-summary]").TextContent.Trim().Should().Be("2 findings may hold it back.",
+        page.Find("[data-testid=trigger-diagnosis-summary]").TextContent.Trim().Should().Be("2 findings may stop this trigger firing.",
             "the trigger is blocked, and the firing is what blocks it");
+        page.FindAll("[data-testid=trigger-diagnosis-findings] tr").Select(row => row.GetAttribute("data-check")).Should()
+            .Equal(["Trigger", "Its job's firings"], "the findings open the section, ahead of the checks that passed");
+        page.Find("details[data-testid=trigger-diagnosis-checks]").HasAttribute("open").Should().BeFalse("the checks that passed are behind the toggle");
+        page.FindAll("details[data-testid=trigger-diagnosis-checks] tr").Should().HaveCount(7);
         A.CallTo(() => context.Api.QueryFireInstances(TestData.SchedulerName, A<DashboardFireInstanceQuery>.That.Matches(query =>
                 query.Job == new JobKeyDto("CronJobGroup", "CronJobKey")), A<CancellationToken>._))
             .MustHaveHappened();
@@ -406,8 +410,49 @@ public class TriggerDetailPageTest
         IRenderedComponent<TriggerDetail> page = Render();
 
         page.WaitForAssertion(() => page.Find("[data-testid=trigger-diagnosis-summary]").TextContent.Trim()
-            .Should().Be("Nothing found that holds it back."));
-        page.FindAll("[data-testid=trigger-diagnosis] tbody tr").Should().HaveCount(9);
+            .Should().Be("Nothing found that stops this trigger firing."));
+
+        // One line, and every check behind the toggle beside it.
+        AngleSharp.Dom.IElement checks = page.Find("details[data-testid=trigger-diagnosis-checks]");
+        checks.HasAttribute("open").Should().BeFalse("with nothing found the section is one line until it is opened");
+        checks.QuerySelector("summary")!.TextContent.Should().Contain("Nothing found that stops this trigger firing.").And.Contain("Show the 9 checks");
+        checks.QuerySelectorAll("tbody tr").Should().HaveCount(9);
+        page.FindAll("[data-testid=trigger-diagnosis-findings]").Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// The first render reads the trigger once, and its diagnosis with it: the page read everything twice, once
+    /// as it was initialized and once as its parameters were set.
+    /// </summary>
+    [Test]
+    public void TheFirstRenderReadsTheTriggerOnce()
+    {
+        GivenTrigger(Scheduled(CronTrigger("0 0 12 * * ?")));
+
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=trigger-diagnosis]"));
+        A.CallTo(() => context.Api.GetTrigger(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => context.Api.GetExecutionLimits(TestData.SchedulerName, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// A render of the same trigger reads nothing; a navigation to another trigger's page reads that one.
+    /// </summary>
+    [Test]
+    public void AnotherTriggersPageReadsThatTrigger()
+    {
+        GivenTrigger(Scheduled(CronTrigger("0 0 12 * * ?")));
+        IRenderedComponent<TriggerDetail> page = Render();
+        page.WaitForAssertion(() => page.Find("[data-testid=trigger-diagnosis]"));
+
+        page.Render(parameters => parameters.Add(x => x.Group, TriggerGroup).Add(x => x.Name, TriggerName));
+        page.Render(parameters => parameters.Add(x => x.Group, TriggerGroup).Add(x => x.Name, "OtherTrigger"));
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.GetTrigger(TestData.SchedulerName, new TriggerKeyDto(TriggerGroup, "OtherTrigger"), A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+        A.CallTo(() => context.Api.GetTrigger(TestData.SchedulerName, new TriggerKeyDto(TriggerGroup, TriggerName), A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
     }
 
     /// <summary>
