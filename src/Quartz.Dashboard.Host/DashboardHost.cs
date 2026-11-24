@@ -69,28 +69,7 @@ internal static class DashboardHost
     {
         builder.Configuration.Sources.Insert(0, new MemoryConfigurationSource { InitialData = Defaults });
 
-        // A request's address is logged at Information by the hosting layer, and an address can carry a token
-        // (?t=, or a mistyped one). Held at Warning whatever the configuration says: the host never logs a token.
-        // A rule that names a provider outranks one that does not, so a rule with no provider would lose to
-        // Logging:Console:LogLevel:Default=Information. A rule for every provider the configuration names, and for
-        // none, comes after the configured ones, and the last rule that matches decides among equals.
-        builder.Services.PostConfigure<LoggerFilterOptions>(options =>
-        {
-            string?[] providers = [.. options.Rules.Select(rule => rule.ProviderName).Distinct(StringComparer.Ordinal)];
-            if (!providers.Contains(null))
-            {
-                providers = [.. providers, null];
-            }
-
-            foreach (string? provider in providers)
-            {
-                options.Rules.Add(new LoggerFilterRule(provider, "Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning, filter: null));
-
-                // The MCP SDK writes whole JSON-RPC messages at Debug and Trace, and a message's arguments can carry a
-                // confirmation token. Held at Information, so no level of configuration puts one in the host's log.
-                options.Rules.Add(new LoggerFilterRule(provider, "ModelContextProtocol", LogLevel.Information, filter: null));
-            }
-        });
+        builder.Services.PostConfigure<LoggerFilterOptions>(ClampTokenBearingCategories);
 
         DashboardHostPlan plan = DashboardHostPlan.Read(builder.Configuration);
         string dashboardPath = DashboardPath(plan.Settings.DashboardPath);
@@ -222,6 +201,70 @@ internal static class DashboardHost
         }
 
         app.MapQuartzDashboard();
+    }
+
+    /// <summary>
+    /// The categories whose lines can carry a token, and the lowest level each is let through at, whatever the
+    /// configuration says.
+    /// </summary>
+    /// <remarks>
+    /// The hosting layer logs a request's address at Information, and an address can carry a token (<c>?t=</c>, or a
+    /// mistyped one). The MCP SDK writes whole JSON-RPC messages at Debug and Trace, and a message's arguments can
+    /// carry a confirmation token.
+    /// </remarks>
+    private static readonly (string Category, LogLevel Floor)[] Clamped =
+    [
+        ("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning),
+        ("ModelContextProtocol", LogLevel.Information),
+    ];
+
+    /// <summary>
+    /// Holds every clamped category at its floor, however the configuration names it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two ways round a rule for the category, and each is closed. A rule that names a provider outranks one that does
+    /// not, so a rule with no provider would lose to <c>Logging:Console:LogLevel:Default=Information</c>: a rule is added
+    /// for every provider the configuration names, and for none, after the configured ones, and the last rule that
+    /// matches decides among equals. A rule for a longer category outranks a shorter one, so
+    /// <c>Logging:LogLevel:ModelContextProtocol.Server=Trace</c> would win over a rule for <c>ModelContextProtocol</c>:
+    /// every configured rule for a category under a clamped one is raised to the floor.
+    /// </para>
+    /// <para>
+    /// Run as the last configuration of the options, after the configuration's own rules are read.
+    /// </para>
+    /// </remarks>
+    internal static void ClampTokenBearingCategories(LoggerFilterOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        for (int i = 0; i < options.Rules.Count; i++)
+        {
+            LoggerFilterRule rule = options.Rules[i];
+            foreach ((string category, LogLevel floor) in Clamped)
+            {
+                if (rule.CategoryName is { } name
+                    && name.StartsWith(category, StringComparison.OrdinalIgnoreCase)
+                    && (rule.LogLevel is null || rule.LogLevel < floor))
+                {
+                    options.Rules[i] = new LoggerFilterRule(rule.ProviderName, name, floor, rule.Filter);
+                }
+            }
+        }
+
+        string?[] providers = [.. options.Rules.Select(rule => rule.ProviderName).Distinct(StringComparer.Ordinal)];
+        if (!providers.Contains(null))
+        {
+            providers = [.. providers, null];
+        }
+
+        foreach (string? provider in providers)
+        {
+            foreach ((string category, LogLevel floor) in Clamped)
+            {
+                options.Rules.Add(new LoggerFilterRule(provider, category, floor, filter: null));
+            }
+        }
     }
 
     /// <summary>

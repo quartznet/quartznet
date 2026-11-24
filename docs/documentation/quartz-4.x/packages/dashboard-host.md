@@ -182,8 +182,9 @@ a scheduler by its key: `orders/OrdersScheduler`.
   `reschedule` and `unschedule`; every holder of that token is one caller.
 - The [operator roles](dashboard.md#operator-roles) apply, `Roles:Operations` overrides included, and an agent's
   `MaxAccess` is a ceiling.
-- The MCP SDK's own logs are held at `Information` whatever `Logging` says: below it, the SDK writes whole JSON-RPC
-  messages, and a message can carry a confirmation token.
+- Every `ModelContextProtocol` category is held at `Information` whatever `Logging` says: a longer category such as
+  `Logging:LogLevel:ModelContextProtocol.Server=Trace`, and a per-provider setting, included. Below `Information` the
+  SDK writes whole JSON-RPC messages, and a message can carry a confirmation token.
 - Each change and each refused change is an [Action Log](dashboard.md#action-log) entry with *Via MCP*, the user and
   the client's name.
 - A confirmation token is protected by the host's Data Protection keys: set `DataProtection:KeysPath` so a restart, or
