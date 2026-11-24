@@ -2909,6 +2909,18 @@ body{
     white-space: nowrap;
 }
 
+/* A key and its origin tag on one line: at 1024 px and below the column wrapped to five lines. The table scrolls
+   inside its card instead. */
+.qz-action-log-scheduler {
+    white-space: nowrap;
+}
+
+/* The message, a pause's reason or a refusal's level, keeps a readable measure: at 1440 px it wrapped a word a
+   line while the narrower columns kept their space. */
+.qz-action-log-message {
+    min-width: 16rem;
+}
+
 /* ==========================================================================
    18. EMPTY STATE
    ========================================================================== */
