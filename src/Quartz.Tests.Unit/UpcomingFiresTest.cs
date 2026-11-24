@@ -190,6 +190,25 @@ public sealed class UpcomingFiresTest
         A.CallTo(() => scheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
+    /// <summary>
+    /// A refusal is read by a person on every carrier, so its instants say the minute in UTC, the second only when there
+    /// is one, and never a round-trip timestamp.
+    /// </summary>
+    [Test]
+    public async Task ARefusalSaysItsInstantsReadably()
+    {
+        IScheduler scheduler = await Scheduler();
+        clock.Advance(TimeSpan.FromSeconds(30));
+
+        UpcomingFiresOutcome past = await UpcomingFires.Query(scheduler, new UpcomingFiresQuery(now.AddDays(-3), now.AddHours(-14), null, 10), CancellationToken.None);
+        UpcomingFiresOutcome tooLong = await UpcomingFires.Query(scheduler, new UpcomingFiresQuery(now.AddHours(1), now.AddDays(9), null, 10), CancellationToken.None);
+
+        past.Refusal.Should().Be(
+            "The window ends at 2026-11-24 10:00 UTC, which is not after the scheduler's current time, 2026-11-25 00:00:30 UTC. "
+            + "The agenda lists what will fire; History lists what ran.");
+        tooLong.Refusal.Should().Be("The window from 2026-11-25 01:00 UTC to 2026-12-04 00:00 UTC is longer than 7 days: narrow it.");
+    }
+
     [Test]
     public async Task AWindowEndingMoreThanThirtyDaysAheadIsRefused()
     {

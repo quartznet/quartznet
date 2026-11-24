@@ -317,7 +317,7 @@
 <ConfirmDialog IsOpen="@_showBulkUnscheduleConfirm"
                Title="Unschedule selected triggers"
                ConfirmText="Unschedule"
-               Message="@($"Unschedule {_selected.Count} selected trigger(s)? A job left with no trigger and no durability goes with them.")"
+               Message="@($"Unschedule {TriggerSelectionActions.Triggers(_selected.Count, "selected")}? A job left with no trigger and no durability goes with them.")"
                OnConfirm="UnscheduleSelectionAsync"
                OnCancel="CancelBulkUnscheduleAsync" />
 
@@ -1147,7 +1147,7 @@
     {
         int count = _selected.Count;
         _pauseTitle = "Pause selected triggers";
-        _pauseMessage = "Pause " + count.ToString(CultureInfo.InvariantCulture) + " selected trigger(s)?";
+        _pauseMessage = "Pause " + TriggerSelectionActions.Triggers(count, "selected") + "?";
         _pauseAction = PauseSelectionAsync;
     }
 

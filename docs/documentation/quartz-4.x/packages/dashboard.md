@@ -805,9 +805,9 @@ selection of them: *what fires tonight between 02:00 and 04:00, and should I pau
 
 | What | How |
 |---|---|
-| Window | *Next hour*, *Rest of today*, *Next 24 hours* (the default), *Next 7 days*, or **From** and **To**, read in the header's time zone. At most 7 days, ending within the next 30. The end is excluded |
+| Window | *Next hour*, *Rest of today*, *Next 24 hours* (the default), *Next 7 days*, or **From** and **To**, read in the header's time zone. At most 7 days, ending within the next 30. The end is excluded. A window outside these is refused on the page, in the header's zone, and nothing is listed until it is fixed |
 | Filter | **Trigger group**, contains |
-| Address | `from`, `to` and `group` are in the URL, so a reload or a shared link shows the same window |
+| Address | A preset is `preset=` in the URL (`next-hour`, `rest-of-today`, `next-24-hours`, `next-7-days`), computed again from now on a reload or a shared link. A typed window is `from` and `to`, kept as they are. `group` is kept with either |
 | Reads | On load, on a change and on **Refresh**. Never on a timer: one read computes over every due trigger |
 | Hours | The header's zone, as the header says: *Times in Europe/Helsinki (UTC+02:00)*. A repeated autumn hour is two hours, each labelled with its offset; a skipped spring hour has none |
 | Rows | Time, trigger, job, the schedule in words, state, execution group |
@@ -821,10 +821,12 @@ preferred member. A data source of your own that does not implement `QueryUpcomi
 **Caps.** At most 1,000 fires. When a cap cuts the list, the page says where: *Showing the first 1,000 fires, up to
 Tue 03:14. Later fires in the window are not listed: narrow the window or filter by group.* More than 10,000 triggers
 due in the window is refused, naming the group filter. A trigger whose calendar is missing is left out and counted.
+An empty window under a group filter names the filter and offers **Clear group**.
 
 **Pause selected** and **Resume selected**, with Operate, act on the selected fires' triggers, each once: *2 triggers
-selected (3 fires)*. **Select this hour** selects an hour's fires. The pause asks for a reason and says the triggers
-stay paused until resumed: nothing resumes them when the window ends, and on resume each trigger's misfire
+selected (3 fires)*. They stay at the top of the listing as it scrolls. **Select this hour** selects an hour's fires.
+The pause names the triggers, the first 10 and how many more, asks for a reason and says the triggers stay paused
+until resumed: nothing resumes them when the window ends, and on resume each trigger's misfire
 instruction decides what happens to the fires it missed. Both are the Triggers listing's key-set calls, with an
 Action Log entry per trigger. There is no *pause until*.
 

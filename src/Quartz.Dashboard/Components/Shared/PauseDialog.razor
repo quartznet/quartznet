@@ -7,6 +7,7 @@
     <ModalDialog Class="qz-pause-dialog" LabelledBy="qz-pause-dialog-title" OnCancel="CancelAsync">
         <h3 id="qz-pause-dialog-title">@Title</h3>
         <p>@Message</p>
+        @ChildContent
         @if (!string.IsNullOrEmpty(Note))
         {
             <p class="qz-pause-dialog-note">@Note</p>
@@ -38,6 +39,12 @@
 
     [Parameter]
     public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// What the pause applies to, shown under the question, or nothing: the Agenda lists the triggers it pauses.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
 
     /// <summary>
     /// What the pause goes on to mean, said under the question, or nothing.

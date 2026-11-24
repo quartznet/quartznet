@@ -596,7 +596,7 @@ public class TriggersPageTest
         Select(page, "nightly.trigger-2");
         page.WaitForAssertion(() => page.Find(".qz-bulk-count").TextContent.Should().Be("2 selected"));
         page.Find(".qz-bulk-pause").Click();
-        page.WaitForAssertion(() => page.Markup.Should().Contain("Pause 2 selected trigger(s)?",
+        page.WaitForAssertion(() => page.Markup.Should().Contain("Pause 2 selected triggers?",
             "the prompt is asked once, for the whole batch"));
         page.ConfirmPause();
 
@@ -608,14 +608,14 @@ public class TriggersPageTest
         page.WaitForAssertion(() =>
         {
             IElement result = page.Find("[data-testid=trigger-bulk-result]");
-            result.TextContent.Should().Contain("Paused 1 of 2 selected trigger(s).");
+            result.TextContent.Should().Contain("Paused 1 of 2 selected triggers.");
             result.TextContent.Should().Contain("nightly.trigger-2",
                 "the row the batch did not reach is the one somebody has to go and look at");
             result.TextContent.Should().Contain("no longer exists or was already paused");
         });
         A.CallTo(() => context.Api.PauseTriggerWith(A<string>._, A<TriggerKeyDto>._, A<PauseDetails>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        context.Toasts.Messages[^1].Message.Should().Be("Paused 1 of 2 selected trigger(s).");
+        context.Toasts.Messages[^1].Message.Should().Be("Paused 1 of 2 selected triggers.");
         context.ActionLog.GetLatest(2).Should().BeEquivalentTo(
             [
                 new { Action = "PauseTrigger", Target = "nightly.trigger-2", Succeeded = false },
@@ -656,7 +656,7 @@ public class TriggersPageTest
         // Over HTTP a call per row is a request and a store transaction per row.
         A.CallTo(() => context.Api.PauseTriggerWith(A<string>._, A<TriggerKeyDto>._, A<PauseDetails>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected trigger(s)."));
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected triggers."));
         context.ActionLog.GetLatest(2).Should().BeEquivalentTo(
             [
                 new { Action = "PauseTrigger", Target = "nightly.trigger-2", Succeeded = true, Message = "one of 2 selected; reason: disk full on the export host" },
@@ -707,7 +707,7 @@ public class TriggersPageTest
             .MustHaveHappenedTwiceExactly());
         A.CallTo(() => context.Api.PauseTriggers(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected trigger(s)."));
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected triggers."));
         page.FindAll("[data-testid=trigger-bulk-result]").Should().BeEmpty("every row was reached, so there is nothing to follow up");
     }
 
@@ -730,12 +730,12 @@ public class TriggersPageTest
         page.WaitForAssertion(() =>
         {
             IElement result = page.Find("[data-testid=trigger-bulk-result]");
-            result.TextContent.Should().Contain("Paused 0 of 2 selected trigger(s).");
+            result.TextContent.Should().Contain("Paused 0 of 2 selected triggers.");
             result.TextContent.Should().Contain("nightly.trigger-1");
             result.TextContent.Should().Contain("nightly.trigger-2");
             result.TextContent.Should().Contain("the store refused", "a failure says what the scheduler said");
         });
-        context.Toasts.Messages[^1].Message.Should().Be("Paused 0 of 2 selected trigger(s). 2 failed.");
+        context.Toasts.Messages[^1].Message.Should().Be("Paused 0 of 2 selected triggers. 2 failed.");
     }
 
     [Test]
@@ -752,7 +752,7 @@ public class TriggersPageTest
         page.WaitForAssertion(() => A.CallTo(() => context.Api.ResumeTriggers(
                 TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>.That.Matches(keys => keys.Count == 2), A<CancellationToken>._))
             .MustHaveHappenedOnceExactly());
-        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Resumed 2 of 2 selected trigger(s)."));
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Resumed 2 of 2 selected triggers."));
     }
 
     [Test]
@@ -766,7 +766,7 @@ public class TriggersPageTest
         page.Find("input.qz-select-group").Change(true);
         page.Find(".qz-bulk-unschedule").Click();
 
-        page.WaitForAssertion(() => page.Markup.Should().Contain("Unschedule 2 selected trigger(s)?"));
+        page.WaitForAssertion(() => page.Markup.Should().Contain("Unschedule 2 selected triggers?"));
         A.CallTo(() => context.Api.UnscheduleJobs(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
 
@@ -792,10 +792,10 @@ public class TriggersPageTest
         page.WaitForAssertion(() =>
         {
             IElement result = page.Find("[data-testid=trigger-bulk-result]");
-            result.TextContent.Should().Contain("Resumed 0 of 2 selected trigger(s).");
+            result.TextContent.Should().Contain("Resumed 0 of 2 selected triggers.");
             result.QuerySelectorAll("li").Should().HaveCount(2, "one request, so a refusal is the whole batch's");
         });
-        context.Toasts.Messages[^1].Message.Should().Be("Resumed 0 of 2 selected trigger(s). 2 failed.");
+        context.Toasts.Messages[^1].Message.Should().Be("Resumed 0 of 2 selected triggers. 2 failed.");
         context.ActionLog.GetLatest(2).Should().OnlyContain(entry => !entry.Succeeded && entry.Message!.Contains("read-only"));
     }
 
