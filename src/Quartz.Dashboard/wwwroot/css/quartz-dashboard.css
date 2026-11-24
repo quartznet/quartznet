@@ -558,7 +558,9 @@ body{
     white-space: nowrap;
 }
 
-.qz-header-select {
+/* Scoped to the header so it outranks .qz-scheduler-select's 180px, which comes later: the theme select keeps
+   to 110px, and at 1440 the header keeps to one row. */
+.qz-header .qz-header-select {
     min-width: 110px;
     max-width: 320px;
 }
