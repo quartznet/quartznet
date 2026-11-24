@@ -173,6 +173,48 @@ internal static class ExecutionHistoryLookup
         return true;
     }
 
+    /// <summary>
+    /// The store that holds the history of a scheduler a carrier has already resolved, or <see langword="null" />
+    /// with <paramref name="refusal" /> saying why there is none: the one rule the HTTP API's history routes and
+    /// MCP's history tools read by.
+    /// </summary>
+    /// <remarks>
+    /// A scheduler reached through a target's proxy, for a call that named the target, keeps its history where
+    /// the target does, read by the name and the target as a pair, so a scheduler of this process named like the
+    /// joined key is not read instead. Everything else — a scheduler of this process, a window — is read by its
+    /// own spelling of its name, which is the key its store is registered under.
+    /// </remarks>
+    /// <param name="services">The container, or a scope of it.</param>
+    /// <param name="shared">The container's unkeyed history store.</param>
+    /// <param name="scheduler">The scheduler the call resolved to.</param>
+    /// <param name="targeted">Whether the call named the scheduler's target.</param>
+    /// <param name="refusal">Why there is no store, when there is none.</param>
+    public static IExecutionHistoryStore? ForResolved(
+        IServiceProvider services,
+        IExecutionHistoryStore shared,
+        IScheduler scheduler,
+        bool targeted,
+        out string? refusal)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(shared);
+        ArgumentNullException.ThrowIfNull(scheduler);
+
+        if (targeted && scheduler is IProxyScheduler { Target: { } proxyTarget })
+        {
+            SchedulerRef pair = new(scheduler.SchedulerName, proxyTarget);
+            if (TryFindTargeted(services, pair, out IExecutionHistoryStore? targetedStore, out refusal))
+            {
+                return targetedStore;
+            }
+
+            refusal = $"The target '{proxyTarget}', which '{pair.Key}' is reached through, keeps no execution history this process can read.";
+            return null;
+        }
+
+        return Find(services, services.GetService<AttachedStores>(), shared, scheduler.SchedulerName, out _, out refusal);
+    }
+
     private static string WindowWithoutHistory(string target, string schedulerName)
     {
         return $"The store attached as '{target}', which '{schedulerName}' is a window onto, keeps no execution "

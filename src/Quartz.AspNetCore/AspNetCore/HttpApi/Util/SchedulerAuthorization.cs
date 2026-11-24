@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -91,23 +93,42 @@ internal static class SchedulerAuthorization
         SchedulerRef key,
         CancellationToken cancellationToken = default)
     {
+        // The route value is the name as given and the query the target: a scheduler of this process whose
+        // name contains '/' is still the bare name the handler always knew, with no target.
+        return IsAuthorized(context.User, context.RequestServices, policyName, key, cancellationToken);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="user" /> may act on <paramref name="key" />: the question every carrier of the
+    /// operation catalogue asks the same policy, whether or not it has an <see cref="HttpContext" /> to ask it
+    /// from. Added in 4.9, for MCP.
+    /// </summary>
+    public static ValueTask<bool> IsAuthorized(
+        ClaimsPrincipal user,
+        IServiceProvider services,
+        string? policyName,
+        SchedulerRef key,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(key);
+
         if (string.IsNullOrWhiteSpace(policyName))
         {
             return new ValueTask<bool>(true);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return Evaluate(context, policyName, key);
+        return Evaluate(user, services, policyName, key);
 
-        static async ValueTask<bool> Evaluate(HttpContext context, string policyName, SchedulerRef key)
+        static async ValueTask<bool> Evaluate(ClaimsPrincipal user, IServiceProvider services, string policyName, SchedulerRef key)
         {
             // Resolved per request rather than injected: IAuthorizationService is transient, and an API
             // with no policy configured must keep working in a container that has none registered.
-            IAuthorizationService authorizationService = context.RequestServices.GetRequiredService<IAuthorizationService>();
-            // The route value is the name as given and the query the target: a scheduler of this process whose
-            // name contains '/' is still the bare name the handler always knew, with no target.
+            IAuthorizationService authorizationService = services.GetRequiredService<IAuthorizationService>();
             AuthorizationResult result = await authorizationService
-                .AuthorizeAsync(context.User, new SchedulerResource(key.SchedulerName) { Target = key.Target }, policyName)
+                .AuthorizeAsync(user, new SchedulerResource(key.SchedulerName) { Target = key.Target }, policyName)
                 .ConfigureAwait(false);
 
             return result.Succeeded;
