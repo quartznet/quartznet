@@ -37,9 +37,9 @@
     }
     else
     {
-        @* Scrolls inside its card rather than pushing the page wider: the Via column takes the table past a
-           narrow viewport, as the dashboard's other wide tables do. *@
-        <div class="qz-table-scroll" data-testid="action-log-scroll">
+        @* Scrolls inside its card rather than pushing the page wider, as the dashboard's other wide tables do; the
+           card's border is drawn around the scroller, so the scrollbar sits inside it. *@
+        <div class="qz-table-scroll qz-action-log-scroll" data-testid="action-log-scroll">
             <table class="qz-table">
                 <thead>
                     <tr>
@@ -63,22 +63,28 @@
                                    user, who is the identity the action was authorized for. *@
                                 <span class="qz-tag @ViaClass(entry.Via)"
                                       data-testid="action-log-via"
-                                      title="@(entry.Client is null ? null : $"Client, as stated: {entry.Client}")">@ViaLabel(entry.Via)</span>
+                                      title="@(entry.Client is null ? null : ClientTitle(entry.Client))">@ViaLabel(entry.Via)</span>
+                                @* One line, cut short when long; the whole name is in the tooltip, and "as stated"
+                                   is read out rather than shown, so the column stays a badge wide. *@
                                 @if (entry.Client is { } client)
                                 {
-                                    <div class="qz-muted qz-action-log-client" style="font-size: var(--qz-font-size-xs);">@client (as stated)</div>
+                                    <div class="qz-muted qz-action-log-client" title="@ClientTitle(client)">@client<span class="qz-sr-only"> (as stated)</span></div>
                                 }
                             </td>
                             <td class="qz-action-log-scheduler">
-                                @entry.SchedulerName
+                                @* The key is cut short past the column's width; the cell's text is still the whole
+                                   key, which is what a screen reader reads, and the tooltip shows it. *@
+                                <div class="qz-action-log-scheduler-line">
+                                    <span class="qz-action-log-scheduler-name" title="@entry.SchedulerName">@entry.SchedulerName</span>
 
-                                @* Where the scheduler was, as the listing had it when the action was taken.
-                                   An action on a remote scheduler ran in another process, which is what
-                                   decides where to look for the rest of the story about it. *@
-                                @if (entry.Origin is { } origin)
-                                {
-                                    <span class="qz-tag">@origin.ToString()</span>
-                                }
+                                    @* Where the scheduler was, as the listing had it when the action was taken.
+                                       An action on a remote scheduler ran in another process, which is what
+                                       decides where to look for the rest of the story about it. *@
+                                    @if (entry.Origin is { } origin)
+                                    {
+                                        <span class="qz-tag qz-action-log-origin">@origin.ToString()</span>
+                                    }
+                                </div>
                             </td>
                             <td class="qz-action-log-user">@(entry.User ?? "—")</td>
                             <td>@entry.Action</td>
@@ -153,6 +159,8 @@
         OperatorChannel.Mcp => "MCP",
         _ => "Dashboard",
     };
+
+    private static string ClientTitle(string client) => $"Client, as stated: {client}";
 
     private static string ViaClass(OperatorChannel channel) => channel switch
     {
