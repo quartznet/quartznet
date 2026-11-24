@@ -922,6 +922,18 @@
     color: var(--qz-color-text-muted);
 }
 
+/* A table that keeps its columns and scrolls inside its card when the card is narrower than it. */
+.qz-table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* A browser makes a scroller a Tab stop; it gets the ring the dashboard's buttons and links have, not the browser's. */
+.qz-table-scroll:focus-visible {
+    outline: 2px solid var(--qz-color-primary);
+    outline-offset: 2px;
+}
+
 /* ==========================================================================
    11. PAGINATION
    ========================================================================== */
@@ -974,6 +986,11 @@
     justify-content: center;
     z-index: 1000;
     animation: qz-fade-in var(--qz-transition-base);
+}
+
+/* A dialog keeps a margin from the window's edges on a phone. */
+.qz-confirm-overlay {
+    padding: var(--qz-space-md);
 }
 
 .qz-dialog,
@@ -1055,9 +1072,37 @@
 
 .qz-confirm-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     align-items: center;
     gap: var(--qz-space-sm);
+}
+
+/* On a phone a dialog's actions stack, each as wide as the dialog, rather than run off its edge. */
+@media (max-width: 480px) {
+    .qz-confirm-dialog {
+        padding: var(--qz-space-md);
+    }
+
+    .qz-confirm-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .qz-confirm-actions > .qz-button {
+        width: 100%;
+        white-space: normal;
+    }
+}
+
+/* The two stops either side of a dialog that keep Tab inside it: focusable, and not seen. */
+.qz-focus-guard {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 /* ==========================================================================
@@ -1246,6 +1291,49 @@
 .qz-entity-table td.qz-col-actions .qz-actions {
     justify-content: flex-end;
     white-space: nowrap;
+}
+
+/* The key takes what the fixed columns leave, which in a narrow card was nothing: its header ran into the next one
+   and the actions off the card's edge. It keeps 12rem, and a card narrower than the table scrolls it, in
+   .qz-table-scroll. A read-only dashboard has no actions column to count. */
+.qz-jobs-table {
+    min-width: calc(140px + 12rem);
+}
+
+.qz-jobs-table:has(th.qz-col-actions) {
+    min-width: calc(140px + 340px + 12rem);
+}
+
+/* The Triggers listing's columns are as wide as what they hold, with the Execution group's heading on two lines and
+   room for three actions on one row, so the table fits a 1280 window with the key above its 12rem. In a narrower card
+   it scrolls. */
+.qz-triggers-table th.qz-col-state,
+.qz-triggers-table td.qz-col-state {
+    width: 140px;
+}
+
+.qz-triggers-table th.qz-col-execution-group,
+.qz-triggers-table td.qz-col-execution-group {
+    width: 128px;
+    white-space: normal;
+}
+
+.qz-triggers-table th.qz-col-details,
+.qz-triggers-table td.qz-col-details {
+    width: 120px;
+}
+
+.qz-triggers-table th.qz-col-actions,
+.qz-triggers-table td.qz-col-actions {
+    width: 320px;
+}
+
+.qz-triggers-table {
+    min-width: calc(140px + 128px + 120px + 12rem);
+}
+
+.qz-triggers-table:has(th.qz-col-actions) {
+    min-width: calc(140px + 128px + 120px + 320px + 12rem);
 }
 
 /* ==========================================================================

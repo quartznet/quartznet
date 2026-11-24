@@ -49,68 +49,70 @@
                         <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
                     </div>
                 }
-                <table class="qz-table qz-entity-table">
-                    <thead>
-                        <tr>
-                            <th class="qz-col-key">Trigger</th>
-                            <th class="qz-col-state">State</th>
-                            <th>Execution Group</th>
-                            <th class="qz-col-details">Details</th>
-                            @if (!IsReadOnly)
-                            {
-                                <th class="qz-col-actions">Actions</th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (object trigger in group)
-                        {
-                            string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                            string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                            string state = GetState(triggerGroup, triggerName);
-                            <tr class="qz-row-link"
-                                tabindex="0"
-                                role="link"
-                                @onclick="() => NavigateToTrigger(triggerGroup, triggerName)"
-                                @onkeydown="args => OnTriggerRowKeyDown(args, triggerGroup, triggerName)">
-                                @* A key pressed on a control in the row is that control's: Enter on Unschedule unschedules, it
-                                   does not also open the trigger. Only a key pressed on the row itself navigates. *@
-                                <td class="qz-col-key" @onkeydown:stopPropagation="true">
-                                    <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
-                                </td>
-                                <td class="qz-col-state">
-                                    <StateIndicator State="@state" />
-                                </td>
-                                <td>
-                                    @{
-                                        string execGroup = DisplayValueHelper.GetString(trigger, "ExecutionGroup");
-                                    }
-                                    @if (!string.IsNullOrEmpty(execGroup))
-                                    {
-                                        <span class="qz-badge">@execGroup</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="qz-muted">&mdash;</span>
-                                    }
-                                </td>
-                                <td class="qz-col-details" @onkeydown:stopPropagation="true">
-                                    <a class="qz-details-link" href="@GetTriggerPath(triggerGroup, triggerName)" @onclick:stopPropagation="true">View details</a>
-                                </td>
+                <div class="qz-table-scroll">
+                    <table class="qz-table qz-entity-table qz-triggers-table">
+                        <thead>
+                            <tr>
+                                <th class="qz-col-key">Trigger</th>
+                                <th class="qz-col-state">State</th>
+                                <th class="qz-col-execution-group">Execution Group</th>
+                                <th class="qz-col-details">Details</th>
                                 @if (!IsReadOnly)
                                 {
-                                    <td class="qz-col-actions" @onkeydown:stopPropagation="true">
-                                        <div class="qz-actions" @onclick:stopPropagation="true">
-                                            <button type="button" class="qz-button" @onclick="() => PauseTrigger(triggerGroup, triggerName)">Pause</button>
-                                            <button type="button" class="qz-button" @onclick="() => ResumeTrigger(triggerGroup, triggerName)">Resume</button>
-                                            <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptUnschedule(triggerGroup, triggerName)">Unschedule</button>
-                                        </div>
-                                    </td>
+                                    <th class="qz-col-actions">Actions</th>
                                 }
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (object trigger in group)
+                            {
+                                string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                                string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                                string state = GetState(triggerGroup, triggerName);
+                                <tr class="qz-row-link"
+                                    tabindex="0"
+                                    role="link"
+                                    @onclick="() => NavigateToTrigger(triggerGroup, triggerName)"
+                                    @onkeydown="args => OnTriggerRowKeyDown(args, triggerGroup, triggerName)">
+                                    @* A key pressed on a control in the row is that control's: Enter on Unschedule unschedules, it
+                                       does not also open the trigger. Only a key pressed on the row itself navigates. *@
+                                    <td class="qz-col-key" @onkeydown:stopPropagation="true">
+                                        <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
+                                    </td>
+                                    <td class="qz-col-state">
+                                        <StateIndicator State="@state" />
+                                    </td>
+                                    <td class="qz-col-execution-group">
+                                        @{
+                                            string execGroup = DisplayValueHelper.GetString(trigger, "ExecutionGroup");
+                                        }
+                                        @if (!string.IsNullOrEmpty(execGroup))
+                                        {
+                                            <span class="qz-badge">@execGroup</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="qz-muted">&mdash;</span>
+                                        }
+                                    </td>
+                                    <td class="qz-col-details" @onkeydown:stopPropagation="true">
+                                        <a class="qz-details-link" href="@GetTriggerPath(triggerGroup, triggerName)" @onclick:stopPropagation="true">View details</a>
+                                    </td>
+                                    @if (!IsReadOnly)
+                                    {
+                                        <td class="qz-col-actions" @onkeydown:stopPropagation="true">
+                                            <div class="qz-actions" @onclick:stopPropagation="true">
+                                                <button type="button" class="qz-button" @onclick="() => PauseTrigger(triggerGroup, triggerName)">Pause</button>
+                                                <button type="button" class="qz-button" @onclick="() => ResumeTrigger(triggerGroup, triggerName)">Resume</button>
+                                                <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptUnschedule(triggerGroup, triggerName)">Unschedule</button>
+                                            </div>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </section>
         }
 
