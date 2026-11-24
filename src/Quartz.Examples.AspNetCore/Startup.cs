@@ -130,7 +130,8 @@ public class Startup
             q.AddPlugin<LoggingTriggerHistoryPlugin>();
 
             // keep what each job logs while it runs: Currently Executing's Show log follows it live, and
-            // Execution Detail shows it once the run ends. Before the other middleware, so what they log is kept too
+            // Execution Detail shows it once the run ends. Called before AddJobTimeout below, whose middleware
+            // then runs inside it, so what the timeout logs when it interrupts a job is kept with that run
             q.UseExecutionLogCapture();
 
             // quickest way to create a job with single trigger is to use ScheduleJob

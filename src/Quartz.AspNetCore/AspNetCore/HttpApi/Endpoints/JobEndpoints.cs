@@ -249,7 +249,8 @@ internal static class JobEndpoints
     /// <c>NotCaptured</c> for a scheduler that does not call <c>UseExecutionLogCapture()</c>, <c>NotRunning</c> under
     /// this node's id for a firing it does not run, or <c>Unreachable</c> through a store window, which no process
     /// here runs. <c>after</c> below 0 or <c>take</c> outside 1 to 1000 is a <c>400</c>; an answer stops before the
-    /// entry that would take it past 64 KB, but carries one entry at least.
+    /// entry that would take it past 64 KB, but carries one entry at least. A scheduler that cannot read a running
+    /// firing's log is a <c>501</c> naming <see cref="NotSupportedException" />.
     /// </remarks>
     [ProducesResponseType(typeof(FireInstanceLogResponse), StatusCodes.Status200OK)]
     private static Task<IResult> GetFireInstanceLog(
@@ -268,9 +269,22 @@ internal static class JobEndpoints
         {
             // A window is a scheduler never started: asked, it would answer "not running" under its own id, and a
             // reader would take that for another node.
-            FireInstanceLogResponse response = resolution.IsWindow
-                ? SchedulerOperations.GetFireInstanceLogThroughAWindow(after, take)
-                : await SchedulerOperations.GetFireInstanceLog(resolution.Scheduler, fireInstanceId, after, take, schedulerInstanceId, cancellationToken).ConfigureAwait(false);
+            if (resolution.IsWindow)
+            {
+                return endpointHelper.JsonResponse(SchedulerOperations.GetFireInstanceLogThroughAWindow(after, take));
+            }
+
+            FireInstanceLogResponse response;
+            try
+            {
+                response = await SchedulerOperations.GetFireInstanceLog(resolution.Scheduler, fireInstanceId, after, take, schedulerInstanceId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (NotSupportedException e)
+            {
+                // A scheduler that cannot read a running firing's log, one this host did not build, or a target
+                // that cannot: a 501 naming why, as a history store that cannot answer is, never a server fault.
+                throw new NotServedException(e);
+            }
 
             return endpointHelper.JsonResponse(response);
         });

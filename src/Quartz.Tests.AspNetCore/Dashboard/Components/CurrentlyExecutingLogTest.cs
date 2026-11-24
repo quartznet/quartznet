@@ -102,12 +102,15 @@ public sealed class CurrentlyExecutingLogTest
         }
     }
 
-    /// <summary>B2: the dialog is named for the job and the trigger, takes focus, and gives it back to Show log.</summary>
+    /// <summary>
+    /// B2: the dialog is named for the job and the trigger, takes focus, and gives it back to Show log, also when the
+    /// page has read again since the row was drawn, as it does every second.
+    /// </summary>
     [Test]
     public void TheDialogIsNamedForTheFiringAndEscapeClosesItGivingFocusBack()
     {
         GivenLog(Running(["line 1"], next: 1));
-        IRenderedComponent<CurrentlyExecuting> page = Open(out string opener);
+        IRenderedComponent<CurrentlyExecuting> page = Open(out string opener, refreshesFirst: 2);
 
         IElement dialog = page.Find("[data-testid=log-dialog]");
         dialog.GetAttribute("role").Should().Be("dialog");
@@ -441,11 +444,23 @@ public sealed class CurrentlyExecutingLogTest
 
     private IRenderedComponent<CurrentlyExecuting> Open() => Open(out _);
 
-    private IRenderedComponent<CurrentlyExecuting> Open(out string opener)
+    /// <param name="opener">The element reference Blazor gave the row's Show log.</param>
+    /// <param name="refreshesFirst">How many of the page's once-a-second reads happen before Show log is pressed.</param>
+    private IRenderedComponent<CurrentlyExecuting> Open(out string opener, int refreshesFirst = 0)
     {
         IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+
+        // As the button was created: the renderer writes the reference only on the render that creates the element.
+        opener = page.WaitForElement("[data-testid=executing-show-log]").GetAttribute("blazor:elementreference")!;
+        for (int refresh = 1; refresh <= refreshesFirst; refresh++)
+        {
+            context.Clock.Advance(TimeSpan.FromSeconds(1));
+            int reads = refresh + 1;
+            page.WaitForAssertion(() => A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+                .MustHaveHappened(reads, Times.OrMore));
+        }
+
         IElement button = page.WaitForElement("[data-testid=executing-show-log]");
-        opener = button.GetAttribute("blazor:elementreference")!;
         button.Click();
         page.WaitForElement("[data-testid=log-dialog]");
         return page;
