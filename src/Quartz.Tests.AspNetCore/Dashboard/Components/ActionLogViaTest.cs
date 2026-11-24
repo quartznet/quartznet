@@ -105,8 +105,14 @@ public class ActionLogViaTest
         badge.TextContent.Should().Be("MCP");
         badge.ClassList.Should().Contain("qz-tag-via-mcp", "its text colour is the one ViaBadgeTextPassesAAInEveryTheme holds to 4.5:1");
         badge.GetAttribute("title").Should().Be("Client, as stated: claude-code/2.1");
-        page.Find(".qz-action-log-client").TextContent.Should().Be("claude-code/2.1 (as stated)",
-            "the identity is the user; the client's name is what the client says it is");
+
+        // The identity is the user; the client's name is what the client says it is. That is read out and in the
+        // tooltip, not shown: shown, it wrapped the Via column to three lines.
+        IElement line = page.Find(".qz-action-log-client");
+        line.FirstChild!.TextContent.Should().Be("claude-code/2.1", "the line shows the client alone");
+        line.QuerySelector(".qz-sr-only")!.TextContent.Should().Be(" (as stated)");
+        line.TextContent.Should().Be("claude-code/2.1 (as stated)", "what a screen reader reads");
+        line.GetAttribute("title").Should().Be("Client, as stated: claude-code/2.1", "the tooltip shows what the ellipsis cut");
     }
 
     /// <summary>
@@ -126,22 +132,31 @@ public class ActionLogViaTest
 
     /// <summary>
     /// The scheduler column stays on one line and the message keeps a readable width, which the browser check of
-    /// #4432 found wrapping to five lines at 1024 px and a word a line at 1440 px.
+    /// #4432 found wrapping to five lines at 1024 px and a word a line at 1440 px. The line is capped and the key cut
+    /// short, which the browser check of #4435 found holding the table at 1455 px, Status and Message out of view at
+    /// 1440 px; the client stays on one line under its badge, which it found wrapping to three.
     /// </summary>
     [Test]
-    public void TheSchedulerStaysOnOneLineAndTheMessageKeepsItsWidth()
+    public void TheSchedulerIsCutShortOnOneLineAndTheMessageKeepsItsWidth()
     {
         context.ActionLog.Record(TestData.SchedulerName, "PauseTrigger", "reports.nightly", succeeded: true);
 
         IRenderedComponent<ActionLog> page = context.Render<ActionLog>();
 
         page.FindAll("th.qz-action-log-scheduler").Should().ContainSingle();
-        page.FindAll("td.qz-action-log-scheduler").Should().ContainSingle();
+        IElement name = page.Find("td.qz-action-log-scheduler .qz-action-log-scheduler-line > .qz-action-log-scheduler-name");
+        name.TextContent.Should().Be(TestData.SchedulerName, "the cell's text is the whole key, which a screen reader reads");
+        name.GetAttribute("title").Should().Be(TestData.SchedulerName, "the tooltip shows what the ellipsis cut");
         page.FindAll("th.qz-action-log-message").Should().ContainSingle();
         page.FindAll("td.qz-action-log-message").Should().ContainSingle();
 
         string css = File.ReadAllText(HistoryPageTest.DashboardStylesheet());
         Regex.IsMatch(css, @"\.qz-action-log-scheduler\s*\{[^}]*white-space:\s*nowrap").Should().BeTrue();
+        Regex.IsMatch(css, @"\.qz-action-log-scheduler-line\s*\{[^}]*max-width:\s*15rem").Should().BeTrue();
+        Regex.IsMatch(css, @"@media \(max-width: 1599px\)\s*\{\s*\.qz-action-log-scheduler-line\s*\{[^}]*max-width:\s*8rem").Should().BeTrue(
+            "eight columns fit 1440 px beside the sidebar only with the key cut to 8rem");
+        Regex.IsMatch(css, @"\.qz-action-log-scheduler-name\s*\{[^}]*text-overflow:\s*ellipsis").Should().BeTrue();
+        Regex.IsMatch(css, @"\.qz-action-log-client\s*\{[^}]*text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap").Should().BeTrue();
         Regex.IsMatch(css, @"\.qz-action-log-message\s*\{[^}]*min-width:").Should().BeTrue();
     }
 

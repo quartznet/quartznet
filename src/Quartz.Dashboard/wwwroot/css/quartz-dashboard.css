@@ -2909,16 +2909,104 @@ body{
     white-space: nowrap;
 }
 
-/* A key and its origin tag on one line: at 1024 px and below the column wrapped to five lines. The table scrolls
-   inside its card instead. */
+/* A key and its origin tag on one line: at 1024 px and below the column wrapped to five lines. The line is capped,
+   the key cut short with an ellipsis and whole in its tooltip: uncapped, a long key held the table at its own
+   width and pushed Status and Message out of view at 1440 px. Every row's scheduler is the one the header has
+   selected, so this is the column that gives way first. */
 .qz-action-log-scheduler {
     white-space: nowrap;
 }
 
+.qz-action-log-scheduler-line {
+    display: flex;
+    align-items: center;
+    gap: var(--qz-space-xs);
+    max-width: 15rem;
+}
+
+.qz-action-log-scheduler-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qz-action-log-origin {
+    flex: none;
+}
+
+/* The client a caller names, on one line under its badge, no wider than a badge, and cut short when long: wrapped,
+   it took three lines. */
+.qz-action-log-client {
+    max-width: 5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--qz-font-size-xs);
+}
+
 /* The message, a pause's reason or a refusal's level, keeps a readable measure: at 1440 px it wrapped a word a
-   line while the narrower columns kept their space. */
+   line while the narrower columns kept their space. When the table fits, it takes what the others leave. */
 .qz-action-log-message {
-    min-width: 16rem;
+    min-width: 12rem;
+}
+
+/* The card's border goes round the scroller rather than the table, so a horizontal scrollbar is drawn inside the
+   card, in the theme's colours, not as a light strip under it. Positioned, so the text kept for screen readers
+   is placed and clipped inside it. */
+.qz-action-log-scroll {
+    position: relative;
+    background-color: var(--qz-color-surface);
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-lg);
+    box-shadow: var(--qz-shadow-sm);
+    scrollbar-width: thin;
+    scrollbar-color: var(--qz-color-border-strong) var(--qz-color-surface);
+}
+
+.qz-action-log-scroll > .qz-table {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.qz-action-log-scroll .qz-table th,
+.qz-action-log-scroll .qz-table td {
+    padding-left: calc(var(--qz-space-sm) + var(--qz-space-xs));
+    padding-right: calc(var(--qz-space-sm) + var(--qz-space-xs));
+}
+
+/* Eight columns fit 1440 px beside the sidebar only with the key cut to 8rem, and Status fits 1024 px only with
+   narrower padding too. The origin tag is then read out rather than shown: the target's "in another process" or
+   "on a cluster" already says where the action ran. */
+@media (max-width: 1599px) {
+    .qz-action-log-scheduler-line {
+        max-width: 8rem;
+    }
+
+    .qz-action-log-origin {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+
+    .qz-action-log-message {
+        min-width: 10rem;
+    }
+}
+
+@media (max-width: 1279px) {
+    .qz-action-log-scroll .qz-table th,
+    .qz-action-log-scroll .qz-table td {
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
 }
 
 /* ==========================================================================
