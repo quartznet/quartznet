@@ -165,6 +165,24 @@ public sealed partial class AdoExecutionHistoryStoreContractTest
             "the table resolves, so the failure is the database's and the page shows it as stale, not as unsupported");
     }
 
+    /// <summary>
+    /// A read that fails for another reason over a database without the table, a connection lost after it opened,
+    /// propagates as the failed read it is: only the dialect's "no such table" may name the script.
+    /// </summary>
+    [Test]
+    public async Task AReadThatFailsForAnotherReasonIsNotTakenForAMissingTable()
+    {
+        await CreateStore(_ => { });
+        await ExecuteSql("DROP TABLE QRTZ_TRIGGER_STATUS");
+        using AdoExecutionHistoryStore history = StoreOver(new FailingTriggerStatusReadDelegate());
+
+        Func<Task> read = async () => await history.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = SchedulerName });
+
+        (await read.Should().ThrowAsync<SqliteException>(
+                "a database locked by another connection did not say the table is missing, whatever a probe would find"))
+            .Which.SqliteErrorCode.Should().Be(5);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Write-behind
     // ---------------------------------------------------------------------------------------------

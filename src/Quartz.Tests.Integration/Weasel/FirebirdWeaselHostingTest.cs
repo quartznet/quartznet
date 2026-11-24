@@ -73,7 +73,7 @@ public sealed class FirebirdWeaselHostingTest
         await StartScheduleAndStopAsync(builder, "weasel-fb-hosted");
 
         (await database.CountAsync("SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME STARTING WITH 'QRTZ_'"))
-            .Should().Be(15, "Weasel created every table at startup, before the store validated them");
+            .Should().Be(16, "Weasel created every table at startup, before the store validated them");
     }
 
     [Test]
