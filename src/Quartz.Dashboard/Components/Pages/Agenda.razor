@@ -15,6 +15,7 @@
 @inject NavigationManager Navigation
 @inject DashboardActionLog ActionLog
 @inject IServiceProvider Services
+@inject IJSRuntime JS
 
 @* Every fire of every trigger in a window, earliest first, grouped by the hours of the header's time zone. It reads
    on load, on a change and on Refresh, never on a timer: one read can compute over thousands of triggers. *@
@@ -77,7 +78,7 @@
             <div class="qz-agenda-selection-buttons">
                 @if (CanPause)
                 {
-                    <button type="button" class="qz-button qz-bulk-pause" aria-disabled="@NothingSelected" @onclick="PromptPauseSelection">Pause<span class="qz-agenda-bar-word"> selected</span></button>
+                    <button type="button" class="qz-button qz-bulk-pause" aria-disabled="@NothingSelected" @ref="_pauseButton" @onclick="PromptPauseSelection">Pause<span class="qz-agenda-bar-word"> selected</span></button>
                 }
                 @if (CanResume)
                 {
@@ -216,6 +217,7 @@
 </div>
 
 <PauseDialog IsOpen="@_showPause"
+             ReturnFocus="@_pauseButton"
              Title="Pause selected triggers"
              Message="@PauseMessage"
              Note="They stay paused until resumed: nothing resumes them when the window ends. On resume, each trigger's misfire instruction decides what happens to the fires it missed."
@@ -229,11 +231,12 @@
         {
             <li>@DisplayValueHelper.FormatKey(key.Group, key.Name)</li>
         }
-        @if (keys.Count > ListedKeys)
-        {
-            <li class="qz-pause-dialog-more">and @((keys.Count - ListedKeys).ToString("N0", CultureInfo.InvariantCulture)) more</li>
-        }
     </ul>
+    @if (keys.Count > ListedKeys)
+    {
+        @* Under the keys' box rather than in it, so a long key that makes the box scroll never hides how many more. *@
+        <p class="qz-pause-dialog-more" data-testid="agenda-pause-more">and @((keys.Count - ListedKeys).ToString("N0", CultureInfo.InvariantCulture)) more</p>
+    }
 </PauseDialog>
 
 @code {
@@ -282,6 +285,18 @@
 
     /// <summary>Whether the next render moves focus to <see cref="_results" />.</summary>
     private bool _focusResults;
+
+    /// <summary><em>Pause selected</em>, which the pause dialog gives focus back to as it closes.</summary>
+    private ElementReference _pauseButton;
+
+    /// <summary>
+    /// Whether the next render puts the reader back where they were before an action's read: see
+    /// <see cref="ExecuteSelectionAsync" />.
+    /// </summary>
+    private bool _restorePlace;
+
+    /// <summary>The address the page wrote last, which it does not read back as a change.</summary>
+    private string? _writtenAddress;
 
     /// <summary>The window and filter read last, or about to be.</summary>
     private AgendaView? _view;
@@ -357,6 +372,12 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_restorePlace)
+        {
+            _restorePlace = false;
+            await CallAsync("quartzDashboardPlace.restore");
+        }
+
         if (_focusResults)
         {
             // The reader stays where they pressed the control: focus would otherwise scroll a region taller than the
@@ -387,6 +408,12 @@
     /// </remarks>
     protected override async Task OnParametersSetAsync()
     {
+        if (_loaded && _writtenAddress is not null && CurrentAddress() == _writtenAddress)
+        {
+            // The page's own change of address: what it shows already says it.
+            return;
+        }
+
         AgendaView requested = FromAddress();
         if (_loaded && _view is { } current && SameAddress(current, requested))
         {
@@ -431,6 +458,15 @@
     /// </param>
     private async Task LoadDataAsync(bool keepListing = false)
     {
+        // A window typed in, or named by the address, is held to the scheduler's rules before anything is read, so the
+        // reader is told in the page's words and the header's zone. A preset's window is one by construction.
+        if (_view is { Preset: null } typed && WindowProblem(typed.From, typed.To) is { } problem)
+        {
+            _isLoading = false;
+            Refuse(problem);
+            return;
+        }
+
         _isLoading = _result is null || !(_refreshing || keepListing);
         _error = null;
         _refusal = null;
@@ -533,9 +569,9 @@
     }
 
     /// <summary>
-    /// Applies what the inputs say: the window typed in, and the group. Every rule the scheduler holds a window to is
-    /// checked here first, in the header's zone and in the page's words; the scheduler's own refusal is the last
-    /// resort, for a clock that disagrees with this one.
+    /// Applies what the inputs say: the window typed in, and the group. <see cref="LoadDataAsync" /> holds the window to
+    /// the scheduler's rules before it reads, and a window it refuses is still what the address says, so a reload
+    /// shows the same refusal.
     /// </summary>
     private Task ApplyInputsAsync()
     {
@@ -549,46 +585,54 @@
 
         if (!TryReadWallClock(_fromInput, out DateTime fromWallClock) || !TryReadWallClock(_toInput, out DateTime toWallClock))
         {
-            return Refuse("From and To must each be a date and time.");
+            // The inputs name no window, so neither does the address, nor a preset.
+            _view = null;
+            Refuse("From and To must each be a date and time.");
+            WriteAddressWithoutWindow(group);
+            return Task.CompletedTask;
         }
 
         DateTimeOffset from = Scheduler.FromSelectedTimeZone(fromWallClock);
         DateTimeOffset to = Scheduler.FromSelectedTimeZone(toWallClock);
-        DateTimeOffset now = Clock.GetUtcNow();
-        if (to <= from)
-        {
-            return Refuse("To must be after From.");
-        }
-
-        if (to <= now)
-        {
-            return Refuse("To must be later than now, " + FormatWhen(now) + ": the agenda lists what will fire. History lists what ran.");
-        }
-
-        if (to > now + Horizon)
-        {
-            return Refuse("To may be at most 30 days ahead, until " + FormatWhen(now + Horizon) + ".");
-        }
-
-        // A start before now is read as now, as the scheduler reads it.
-        if (to - (from > now ? from : now) > MaxWindow)
-        {
-            return Refuse("The window may be at most 7 days long.");
-        }
-
         return ApplyAsync(new AgendaView(from.ToUniversalTime(), to.ToUniversalTime(), group, null));
     }
 
     /// <summary>
-    /// Says why the window typed in is refused, and stops showing what was listed for the last one: the inputs no
-    /// longer say what the listing is.
+    /// Why the scheduler would refuse this window, in the page's words and the header's zone, or
+    /// <see langword="null" /> for a window it reads. These are all of its rules for a window, so a refusal it makes
+    /// itself is one the page could not foresee, such as one from a clock that disagrees with the dashboard's.
     /// </summary>
-    private Task Refuse(string reason)
+    private string? WindowProblem(DateTimeOffset from, DateTimeOffset to)
+    {
+        DateTimeOffset now = Clock.GetUtcNow();
+        if (to <= from)
+        {
+            return "To must be after From.";
+        }
+
+        if (to <= now)
+        {
+            return "To must be later than now, " + FormatWhen(now) + ": the agenda lists what will fire. History lists what ran.";
+        }
+
+        if (to > now + Horizon)
+        {
+            return "To may be at most 30 days ahead, until " + FormatWhen(now + Horizon) + ".";
+        }
+
+        // A start before now is read as now, as the scheduler reads it.
+        return to - (from > now ? from : now) > MaxWindow ? "The window may be at most 7 days long." : null;
+    }
+
+    /// <summary>
+    /// Says why the window is refused, and stops showing what was listed for the last one: the inputs no longer say
+    /// what the listing is.
+    /// </summary>
+    private void Refuse(string reason)
     {
         _inputError = reason;
         _invalid = true;
         _selected.Clear();
-        return Task.CompletedTask;
     }
 
     private async Task ApplyAsync(AgendaView view)
@@ -667,8 +711,9 @@
             return PresetView(named, group);
         }
 
-        if (TryReadInstant(FromQuery, out DateTimeOffset from) && TryReadInstant(ToQuery, out DateTimeOffset to) && to > from)
+        if (TryReadInstant(FromQuery, out DateTimeOffset from) && TryReadInstant(ToQuery, out DateTimeOffset to))
         {
+            // Read as it is, To before From too: LoadDataAsync refuses a window the scheduler would, in the page's words.
             return new AgendaView(from, to, group, null);
         }
 
@@ -699,18 +744,31 @@
             parts.Add("to=" + Uri.EscapeDataString(view.To.ToUniversalTime().ToString(AddressFormat, CultureInfo.InvariantCulture)));
         }
 
-        if (view.Group.Length > 0)
+        WriteAddress(parts, view.Group);
+    }
+
+    /// <summary>The address while the inputs name no window: the group alone.</summary>
+    private void WriteAddressWithoutWindow(string group)
+    {
+        WriteAddress([], group);
+    }
+
+    private void WriteAddress(List<string> parts, string group)
+    {
+        if (group.Length > 0)
         {
-            parts.Add("group=" + Uri.EscapeDataString(view.Group));
+            parts.Add("group=" + Uri.EscapeDataString(group));
         }
 
-        string target = DashboardLink.To(Options.Value, "agenda?" + string.Join("&", parts));
-        string current = (DashboardLink.ToBaseRelative(Navigation.Uri, Navigation.BaseUri) ?? string.Empty).TrimStart('/');
-        if (!string.Equals(target.TrimStart('/'), current, StringComparison.Ordinal))
+        string target = DashboardLink.To(Options.Value, parts.Count == 0 ? "agenda" : "agenda?" + string.Join("&", parts));
+        _writtenAddress = target.TrimStart('/');
+        if (!string.Equals(_writtenAddress, CurrentAddress(), StringComparison.Ordinal))
         {
             Navigation.NavigateTo(target, replace: true);
         }
     }
+
+    private string CurrentAddress() => (DashboardLink.ToBaseRelative(Navigation.Uri, Navigation.BaseUri) ?? string.Empty).TrimStart('/');
 
     private void ShowInInputs(AgendaView view)
     {
@@ -905,6 +963,11 @@
             return;
         }
 
+        // The read after the action starts from now, so the fires that passed since the last one leave the top of the
+        // listing, above the reader. A browser that anchors the scroll keeps the rows in view where they are; for one
+        // that does not, the rows in view are noted here and the reader is put back after the read.
+        await CallAsync("quartzDashboardPlace.hold", _results, "[data-testid=agenda-fire]");
+
         TriggerSelectionResult result = await action(new TriggerSelectionActions(Api, ActionLog, Toasts), schedulerName, SelectedTriggers);
         _bulkResult = result.Misses.Count == 0 ? null : result;
 
@@ -913,7 +976,30 @@
         // focus moves to the fires' region rather than the page's body.
         _selected.Clear();
         await LoadDataAsync(keepListing: true);
+        _restorePlace = true;
         _focusResults = !ShowsSelectionBar;
+    }
+
+    /// <summary>
+    /// A call into the dashboard's script, which a circuit that has gone, or a page still prerendering, cannot make.
+    /// Neither is a failure of the page: the reader's place is kept when it can be, and is not needed.
+    /// </summary>
+    private async Task CallAsync(string identifier, params object?[] arguments)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(identifier, arguments);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+            // JavaScript interop is not available while prerendering.
+        }
     }
 
     private static string Trim(string? value) => value?.Trim() ?? string.Empty;

@@ -162,6 +162,76 @@ export function afterWebStarted() {
         }
     };
 
+    window.quartzDashboardPlace = window.quartzDashboardPlace || (function () {
+        // The rows in view when a listing was last held, each with where it stood, and the element that scrolls them.
+        let held = null;
+
+        const scrollerOf = function (element) {
+            for (let node = element.parentElement; node; node = node.parentElement) {
+                const overflow = getComputedStyle(node).overflowY;
+                if ((overflow === "auto" || overflow === "scroll") && node.scrollHeight > node.clientHeight) {
+                    return node;
+                }
+            }
+
+            return document.scrollingElement;
+        };
+
+        return {
+            /**
+             * Notes the rows of the region that are in view, and where each stands, before the region is read again:
+             * the Agenda's read after an action drops, from above the reader, the fires that passed since the last one.
+             */
+            hold: function (region, rowSelector) {
+                held = null;
+                if (!region) {
+                    return;
+                }
+
+                const scroller = scrollerOf(region);
+                const top = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
+                const bottom = top + scroller.clientHeight;
+                const rows = [];
+                for (const row of region.querySelectorAll(rowSelector)) {
+                    const box = row.getBoundingClientRect();
+                    if (box.bottom <= top) {
+                        continue;
+                    }
+
+                    if (box.top >= bottom || rows.length === 12) {
+                        break;
+                    }
+
+                    rows.push({ row: row, top: box.top });
+                }
+
+                held = rows.length > 0 ? { scroller: scroller, rows: rows } : null;
+            },
+
+            /**
+             * Puts the first held row still on the page back where it stood. A browser that anchors the scroll has
+             * already kept it there, and nothing moves; one that does not (Safari) would show the reader other rows.
+             */
+            restore: function () {
+                const place = held;
+                held = null;
+                if (!place) {
+                    return;
+                }
+
+                const kept = place.rows.find(function (entry) { return entry.row.isConnected; });
+                if (!kept) {
+                    return;
+                }
+
+                const moved = kept.row.getBoundingClientRect().top - kept.top;
+                if (Math.abs(moved) >= 1) {
+                    place.scroller.scrollTop += moved;
+                }
+            }
+        };
+    })();
+
     window.quartzDashboardLogFollow = window.quartzDashboardLogFollow || (function () {
         const observers = new Map();
         let lastId = 0;
