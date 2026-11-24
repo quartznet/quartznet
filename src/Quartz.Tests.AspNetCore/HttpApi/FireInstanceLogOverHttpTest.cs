@@ -22,10 +22,13 @@
 using System.Net;
 using System.Text.Json;
 
+using FakeItEasy;
+
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using Quartz.Extensibility;
 using Quartz.HttpApiContract;
 using Quartz.Impl;
 using Quartz.Tests.AspNetCore.Support;
@@ -209,6 +212,39 @@ public sealed class FireInstanceLogOverHttpTest
 
         await read.Should().ThrowAsync<NotSupportedException>()
             .WithMessage("This target runs Quartz older than 4.9, which cannot show a running firing's log*");
+    }
+
+    /// <summary>
+    /// A scheduler bound to the host that cannot read a running log, a hand-written one, is not served: a <c>501</c>
+    /// naming <see cref="NotSupportedException" />, as a history store that cannot answer is, never a server fault.
+    /// The client raises it in the host's words, so the dialog stops at once rather than retrying a fault.
+    /// </summary>
+    [Test]
+    public async Task AHandWrittenSchedulerOnTheHostIsNotServedAndTheClientSaysWhy()
+    {
+        TestContentRoot.Apply();
+        WebApplicationFactory<Program> host = new();
+        factories.Add(host);
+
+        string schedulerName = $"hand-written-{Guid.NewGuid():N}";
+        IScheduler handWritten = A.Fake<IScheduler>();
+        A.CallTo(() => handWritten.SchedulerName).Returns(schedulerName);
+        host.Services.GetRequiredService<ISchedulerRepository>().Bind(handWritten);
+        using HttpClient http = host.CreateClient();
+
+        using HttpResponseMessage response = await http.GetAsync($"schedulers/{schedulerName}/jobs/fire-instances/any/log");
+        string body = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotImplemented, body);
+        using JsonDocument problem = JsonDocument.Parse(body);
+        problem.RootElement.GetProperty(HttpApiConstants.ProblemDetailsExceptionType).GetString().Should().Be(nameof(NotSupportedException));
+        problem.RootElement.GetProperty("detail").GetString().Should().StartWith($"Scheduler '{schedulerName}' cannot read a running firing's log");
+
+        await using HttpScheduler client = new(schedulerName, http);
+        Func<Task> read = async () => await FireInstanceLogs.Read(client, new FireInstanceLogRequest("any", 0, 10, null));
+
+        await read.Should().ThrowAsync<NotSupportedException>().WithMessage($"Scheduler '{schedulerName}' cannot read a running firing's log*",
+            "the host's own words, not a fault to retry");
     }
 
     /// <summary>

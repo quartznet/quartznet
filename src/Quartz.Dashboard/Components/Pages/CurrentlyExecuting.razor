@@ -55,7 +55,9 @@
             {
                 @foreach (FireInstanceDto fireInstance in _fireInstances)
                 {
-                    <tr>
+                    @* Keyed by its firing, so a row keeps its elements, and Show log the reference its dialog gives focus
+                       back to, however the listing reorders. *@
+                    <tr @key="fireInstance.FireInstanceId">
                         <td>
                             @if (fireInstance.JobKey is not null)
                             {
@@ -221,9 +223,6 @@
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
             _fireInstances.Clear();
-
-            // Set again as the rows render: a firing that ended keeps no reference here.
-            _logButtons.Clear();
             _hasMore = false;
             _totalCount = 0;
 
@@ -250,9 +249,27 @@
         }
         finally
         {
+            ForgetShowLogButtonsOfFiringsGone();
             _lastUpdatedAt = DateTimeOffset.UtcNow;
             _isLoading = false;
             _loadingInProgress = false;
+        }
+    }
+
+    /// <summary>
+    /// Drops the Show log references of the firings no longer listed, and keeps the rest.
+    /// </summary>
+    /// <remarks>
+    /// Blazor captures an element's reference once, as it creates the element, and each row is keyed by its
+    /// firing, so a listed firing's button, and its reference, outlive every refresh. Clearing them all would
+    /// leave nothing to give focus back to once the page had read again.
+    /// </remarks>
+    private void ForgetShowLogButtonsOfFiringsGone()
+    {
+        HashSet<string> listed = new(_fireInstances.Select(firing => firing.FireInstanceId), StringComparer.Ordinal);
+        foreach (string gone in _logButtons.Keys.Where(id => !listed.Contains(id)).ToList())
+        {
+            _logButtons.Remove(gone);
         }
     }
 

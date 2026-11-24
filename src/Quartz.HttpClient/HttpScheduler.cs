@@ -834,7 +834,9 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     /// <para>
     /// A host older than 4.9, or an agent that does not serve the route, answers <c>404</c> without problem
     /// details, and there is nothing to read the lines from instead: that is <see cref="NotSupportedException" />
-    /// naming 4.9. A host or agent that refuses the route answers <c>403</c>, which is raised as it is.
+    /// naming 4.9. A host whose scheduler cannot read a running log, or a target behind it that does not serve the
+    /// route, answers <c>501</c>: that too is <see cref="NotSupportedException" />, with the host's words. A host or
+    /// agent that refuses the route answers <c>403</c>, which is raised as it is.
     /// </para>
     /// </remarks>
     async ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
@@ -856,6 +858,14 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         if (wire.TryReadRequestRefusal(response, out string? refusal))
         {
             throw new ArgumentException(refusal, nameof(request));
+        }
+
+        // The host serves the route and its scheduler cannot read a running log, or a target behind it does not
+        // serve the route: either way it is not served, in the host's own words.
+        if (response.Status == HttpStatusCode.NotImplemented)
+        {
+            throw new NotSupportedException(
+                wire.ProblemDetail(response) ?? $"The host of scheduler '{SchedulerName}' cannot read a running firing's log.");
         }
 
         try

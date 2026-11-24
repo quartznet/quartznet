@@ -570,11 +570,14 @@ process that serves the route, where the firing runs. Once the run ends they are
 
 - `missed` counts the entries the capture dropped after `after` and before this read: it keeps its newest
   `MaxLines` and `MaxBytes`. `hasMore` says more are kept than this answer carried: read again now.
-- `after` below `0`, or `take` outside 1 to 1000, is a `400`. An unknown scheduler is a `404`.
+- `after` below `0`, or `take` outside 1 to 1000, is a `400`. An unknown scheduler is a `404`. A scheduler that
+  cannot read a running firing's log, one the host did not build, is a `501` naming `NotSupportedException`, as is a
+  target behind the host that does not serve the route.
 - `View`, and served by a `ReadOnly` API. A scheduler that captures shows its running firings' lines to whoever
   may view it, whether or not it keeps history.
 - `HttpScheduler` sends this one request. A host older than 4.9 answers `404` without problem details, and the
-  client raises `NotSupportedException`: nothing can be read in its place.
+  client raises `NotSupportedException`: nothing can be read in its place. A `501` is raised as
+  `NotSupportedException` too, with the host's detail.
 
 To get whole objects for a page of headers, post the keys back:
 

@@ -160,8 +160,8 @@ Every answer carries `asOfUtc`, the server's clock when the read completed, and 
 ## What is never answered
 
 No tool answers a job's or a trigger's data values, a run's recorded input or captured log, while it runs or after,
-its metrics, or the scheduler context. `get_job` and `get_trigger` answer `dataKeys`, the names only. `trigger_job` takes no data: supplying
-data names what a `NativeJob` runs, which is an administrator's.
+its metrics, or the scheduler context. `get_job` and `get_trigger` answer `dataKeys`, the names only.
+`trigger_job` takes no data: supplying data names what a `NativeJob` runs, which is an administrator's.
 
 Free text is cut and says so beside it (`descriptionTruncated: true`): descriptions at 1,000 characters, error
 messages at 2,000, summaries at 1,000, pause reasons at 500.
