@@ -25,13 +25,13 @@ using System.Text;
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
-/// Which of the four <c>QRTZ_JOB_STATUS</c> updates one recorded execution folds in through.
+/// Which of the four run status updates one recorded execution folds in through.
 /// </summary>
 /// <remarks>
 /// Chosen by the store from the execution rather than decided in SQL, because Firebird refuses a
 /// parameter compared with a literal and every dialect spells a boolean differently. Four rather than
 /// three: a failure the trigger retries moves the last failure, and a cancelled run does not, as
-/// <see cref="JobRunStatusFold" /> has it.
+/// <see cref="RunTally" /> has it.
 /// </remarks>
 internal enum JobStatusUpdate
 {
@@ -49,13 +49,18 @@ internal enum JobStatusUpdate
 }
 
 /// <summary>
-/// What a placeholder of a <c>QRTZ_JOB_STATUS</c> update is bound to.
+/// What a placeholder of a run status update is bound to.
 /// </summary>
 internal enum JobStatusValue
 {
     SchedulerName,
-    JobGroup,
-    JobName,
+
+    /// <summary>The group of the status's key: the job's, or the trigger's.</summary>
+    KeyGroup,
+
+    /// <summary>The name of the status's key: the job's, or the trigger's.</summary>
+    KeyName,
+
     FiredTime,
     Result,
     RunTime,
@@ -66,11 +71,71 @@ internal enum JobStatusValue
 }
 
 /// <summary>
-/// One update of <c>QRTZ_JOB_STATUS</c>, the SQL and its placeholders in the order the SQL names them.
+/// A table a run status is kept in, and the key it is kept by: <c>QRTZ_JOB_STATUS</c> by job, or
+/// <c>QRTZ_TRIGGER_STATUS</c> by trigger. The value columns are the same in both.
+/// </summary>
+internal sealed class RunStatusTable
+{
+    /// <summary><c>QRTZ_JOB_STATUS</c>, keyed by the job.</summary>
+    public static readonly RunStatusTable Job = new(
+        AdoConstants.TableJobStatus,
+        AdoConstants.TableJobDetails,
+        "j",
+        AdoConstants.ColumnJobGroup,
+        AdoConstants.ColumnJobName,
+        SqlParameters.JobGroup,
+        SqlParameters.JobName);
+
+    /// <summary><c>QRTZ_TRIGGER_STATUS</c>, keyed by the trigger.</summary>
+    public static readonly RunStatusTable Trigger = new(
+        AdoConstants.TableTriggerStatus,
+        AdoConstants.TableTriggers,
+        "t",
+        AdoConstants.ColumnTriggerGroup,
+        AdoConstants.ColumnTriggerName,
+        SqlParameters.TriggerGroup,
+        SqlParameters.TriggerName);
+
+    private RunStatusTable(string table, string ownerTable, string ownerAlias, string groupColumn, string nameColumn, string groupParameter, string nameParameter)
+    {
+        Table = table;
+        OwnerTable = ownerTable;
+        OwnerAlias = ownerAlias;
+        GroupColumn = groupColumn;
+        NameColumn = nameColumn;
+        GroupParameter = groupParameter;
+        NameParameter = nameParameter;
+    }
+
+    /// <summary>The table, without the prefix.</summary>
+    public string Table { get; }
+
+    /// <summary>
+    /// The table the key belongs to, without the prefix: a status whose key is gone from it is an orphan the
+    /// sweep deletes.
+    /// </summary>
+    public string OwnerTable { get; }
+
+    /// <summary>The alias the orphan sweep reads <see cref="OwnerTable" /> under.</summary>
+    public string OwnerAlias { get; }
+
+    public string GroupColumn { get; }
+
+    public string NameColumn { get; }
+
+    /// <summary>The parameter the key's group is bound to, in every statement but the per-run update.</summary>
+    public string GroupParameter { get; }
+
+    /// <summary>The parameter the key's name is bound to, in every statement but the per-run update.</summary>
+    public string NameParameter { get; }
+}
+
+/// <summary>
+/// One update of a run status table, the SQL and its placeholders in the order the SQL names them.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The fold of <see cref="JobRunStatusFold" />, one row at a time in the database:
+/// The fold of <see cref="RunTally" />, one row at a time in the database:
 /// </para>
 /// <list type="bullet">
 /// <item><description>The counters are incremented in SQL, so two nodes folding into one row lose nothing.</description></item>
@@ -90,9 +155,9 @@ internal enum JobStatusValue
 /// position, and <see cref="Parameters" /> lists them in order for the binder to walk.
 /// </para>
 /// </remarks>
-internal sealed class JobStatusStatement
+internal sealed class RunStatusStatement
 {
-    private JobStatusStatement(string sql, (string Name, JobStatusValue Value)[] parameters)
+    private RunStatusStatement(string sql, (string Name, JobStatusValue Value)[] parameters)
     {
         Sql = sql;
         Parameters = parameters;
@@ -115,12 +180,12 @@ internal sealed class JobStatusStatement
         };
     }
 
-    /// <summary>Builds the update for one kind of execution.</summary>
-    internal static JobStatusStatement Update(JobStatusUpdate kind)
+    /// <summary>Builds the update of one table for one kind of execution.</summary>
+    internal static RunStatusStatement Update(RunStatusTable table, JobStatusUpdate kind)
     {
         Builder sql = new();
 
-        sql.Text("UPDATE ").Text(StdAdoConstants.TablePrefixSubst).Text(AdoConstants.TableJobStatus)
+        sql.Text("UPDATE ").Text(StdAdoConstants.TablePrefixSubst).Text(table.Table)
             .Text(" SET ").Text(AdoConstants.ColumnRunCount).Text(" = ").Text(AdoConstants.ColumnRunCount).Text(" + 1");
 
         if (kind == JobStatusUpdate.FailedFinally)
@@ -163,8 +228,8 @@ internal sealed class JobStatusStatement
         sql.Newest(AdoConstants.ColumnLastFiredTime, static b => b.Parameter(JobStatusValue.FiredTime));
 
         sql.Text(" WHERE ").Text(AdoConstants.ColumnSchedulerName).Text(" = ").Parameter(JobStatusValue.SchedulerName)
-            .Text(" AND ").Text(AdoConstants.ColumnJobGroup).Text(" = ").Parameter(JobStatusValue.JobGroup)
-            .Text(" AND ").Text(AdoConstants.ColumnJobName).Text(" = ").Parameter(JobStatusValue.JobName);
+            .Text(" AND ").Text(table.GroupColumn).Text(" = ").Parameter(JobStatusValue.KeyGroup)
+            .Text(" AND ").Text(table.NameColumn).Text(" = ").Parameter(JobStatusValue.KeyName);
 
         return sql.Build();
     }
@@ -212,6 +277,6 @@ internal sealed class JobStatusStatement
                 .Text(" THEN ").Text(column).Text(" ELSE ").Parameter(value).Text(" END");
         }
 
-        public JobStatusStatement Build() => new(text.ToString(), [.. parameters]);
+        public RunStatusStatement Build() => new(text.ToString(), [.. parameters]);
     }
 }

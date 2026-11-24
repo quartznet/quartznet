@@ -57,7 +57,7 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
     internal const int DefaultCapacity = 16 * DefaultBatchSize;
 
     private readonly Channel<BufferedWrite> queue;
-    private readonly Func<List<ExecutionHistoryEntry>, ValueTask> write;
+    private readonly Func<List<QueuedExecution>, ValueTask> write;
     private readonly TimeSpan interval;
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
@@ -87,7 +87,7 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
     internal ExecutionHistoryWriteBehind(
         TimeSpan interval,
         TimeProvider timeProvider,
-        Func<List<ExecutionHistoryEntry>, ValueTask> write,
+        Func<List<QueuedExecution>, ValueTask> write,
         ILogger logger,
         int batchSize = DefaultBatchSize,
         int capacity = DefaultCapacity)
@@ -116,9 +116,11 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
     /// Queues one execution, or answers <see langword="false" /> when the queue is full or closed and the
     /// caller has to write it itself.
     /// </summary>
-    public bool TryEnqueue(ExecutionHistoryEntry entry)
+    /// <param name="entry">The execution.</param>
+    /// <param name="triggerFinalized">Whether its firing finalized its trigger, which the flush folds by.</param>
+    public bool TryEnqueue(ExecutionHistoryEntry entry, bool triggerFinalized = false)
     {
-        if (!queue.Writer.TryWrite(new BufferedWrite(entry, Written: null)))
+        if (!queue.Writer.TryWrite(new BufferedWrite(entry, triggerFinalized, Written: null)))
         {
             return false;
         }
@@ -149,7 +151,7 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
 
         try
         {
-            await queue.Writer.WriteAsync(new BufferedWrite(Entry: null, written), cancellationToken).ConfigureAwait(false);
+            await queue.Writer.WriteAsync(new BufferedWrite(Entry: null, TriggerFinalized: false, written), cancellationToken).ConfigureAwait(false);
         }
         catch (ChannelClosedException)
         {
@@ -186,7 +188,7 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
     private async Task Run()
     {
         ChannelReader<BufferedWrite> reader = queue.Reader;
-        List<ExecutionHistoryEntry> batch = new(batchSize);
+        List<QueuedExecution> batch = new(batchSize);
 
         // False once the queue is closed and empty.
         while (await reader.WaitToReadAsync().ConfigureAwait(false))
@@ -198,7 +200,7 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
                 if (item.Entry is { } entry)
                 {
                     Interlocked.Decrement(ref buffered);
-                    batch.Add(entry);
+                    batch.Add(new QueuedExecution(entry, item.TriggerFinalized));
 
                     if (batch.Count >= batchSize)
                     {
@@ -245,7 +247,7 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
     }
 
     /// <summary>Hands the batch to the store, reports it lost if the store could not write it, and empties it.</summary>
-    private async ValueTask Write(List<ExecutionHistoryEntry> batch)
+    private async ValueTask Write(List<QueuedExecution> batch)
     {
         if (batch.Count == 0)
         {
@@ -260,7 +262,7 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
         {
             // Nothing is left to try: the store retried what was transient. The firings these rows describe
             // happened, so the loss is reported and the writer carries on with the next batch.
-            foreach (IGrouping<string, ExecutionHistoryEntry> scheduler in batch.GroupBy(static entry => entry.SchedulerName, StringComparer.Ordinal))
+            foreach (IGrouping<string, QueuedExecution> scheduler in batch.GroupBy(static queued => queued.Entry.SchedulerName, StringComparer.Ordinal))
             {
                 logger.ExecutionHistoryWriteBehindFailed(scheduler.Key, scheduler.Count(), failure);
             }
@@ -277,5 +279,13 @@ internal sealed class ExecutionHistoryWriteBehind : IAsyncDisposable
     }
 
     /// <summary>One item in the queue: an execution, or a flush to answer once those before it are written.</summary>
-    private readonly record struct BufferedWrite(ExecutionHistoryEntry? Entry, TaskCompletionSource? Written);
+    private readonly record struct BufferedWrite(ExecutionHistoryEntry? Entry, bool TriggerFinalized, TaskCompletionSource? Written);
 }
+
+/// <summary>
+/// An execution the write-behind queue holds, and whether its firing finalized its trigger, which the recorder
+/// says once and the flush folds by.
+/// </summary>
+/// <param name="Entry">The execution, its <see cref="ExecutionHistoryEntry.EntryId" /> set.</param>
+/// <param name="TriggerFinalized">Whether the trigger that fired may not fire again.</param>
+internal readonly record struct QueuedExecution(ExecutionHistoryEntry Entry, bool TriggerFinalized);

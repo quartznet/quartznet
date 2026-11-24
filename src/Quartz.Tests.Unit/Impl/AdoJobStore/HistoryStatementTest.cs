@@ -128,12 +128,16 @@ public sealed class HistoryStatementTest
             .Be($" ORDER BY {AdoConstants.ColumnMisfireTime} DESC, {AdoConstants.ColumnEntryId} DESC");
     }
 
-    private static readonly JobStatusStatement[] statusUpdates =
+    private static readonly RunStatusStatement[] statusUpdates =
     [
         StdAdoConstants.SqlUpdateJobStatusSucceeded,
         StdAdoConstants.SqlUpdateJobStatusFailedFinally,
         StdAdoConstants.SqlUpdateJobStatusFailedRetried,
-        StdAdoConstants.SqlUpdateJobStatusOther
+        StdAdoConstants.SqlUpdateJobStatusOther,
+        StdAdoConstants.SqlUpdateTriggerStatusSucceeded,
+        StdAdoConstants.SqlUpdateTriggerStatusFailedFinally,
+        StdAdoConstants.SqlUpdateTriggerStatusFailedRetried,
+        StdAdoConstants.SqlUpdateTriggerStatusOther
     ];
 
     /// <summary>
@@ -147,7 +151,7 @@ public sealed class HistoryStatementTest
     [Test]
     public void EveryStatusUpdatePlaceholderIsAParameterOfItsOwnInOrder()
     {
-        foreach (JobStatusStatement statement in statusUpdates)
+        foreach (RunStatusStatement statement in statusUpdates)
         {
             List<string> placeholders = [.. Regex.Matches(statement.Sql, "@([A-Za-z0-9_]+)").Select(match => match.Groups[1].Value)];
 
@@ -169,7 +173,7 @@ public sealed class HistoryStatementTest
     [Test]
     public void EveryStatusUpdateAssignsTheInstantsItComparesAgainstLast()
     {
-        foreach (JobStatusStatement statement in statusUpdates)
+        foreach (RunStatusStatement statement in statusUpdates)
         {
             List<string> assigned = Assignments(statement.Sql);
 
@@ -184,25 +188,75 @@ public sealed class HistoryStatementTest
         }
     }
 
-    [Test]
-    public void EachStatusUpdateMovesWhatItsKindOfRunMoves()
+    [TestCase(AdoConstants.TableJobStatus)]
+    [TestCase(AdoConstants.TableTriggerStatus)]
+    public void EachStatusUpdateMovesWhatItsKindOfRunMoves(string table)
     {
-        Assignments(StdAdoConstants.SqlUpdateJobStatusSucceeded.Sql).Should()
+        // Succeeded, finally failed, retried and other, in that order, for each table.
+        RunStatusStatement[] updates = table == AdoConstants.TableJobStatus ? statusUpdates[..4] : statusUpdates[4..];
+        (RunStatusStatement succeeded, RunStatusStatement failedFinally, RunStatusStatement failedRetried, RunStatusStatement other) =
+            (updates[0], updates[1], updates[2], updates[3]);
+
+        Assignments(succeeded.Sql).Should()
             .Contain([AdoConstants.ColumnLastSuccessTime, AdoConstants.ColumnConsecutiveFailures])
             .And.NotContain([AdoConstants.ColumnFailureCount, AdoConstants.ColumnLastFailureTime]);
 
-        Assignments(StdAdoConstants.SqlUpdateJobStatusFailedFinally.Sql).Should()
+        Assignments(failedFinally.Sql).Should()
             .Contain([AdoConstants.ColumnFailureCount, AdoConstants.ColumnConsecutiveFailures, AdoConstants.ColumnLastFailureTime])
             .And.NotContain(AdoConstants.ColumnLastSuccessTime);
 
-        Assignments(StdAdoConstants.SqlUpdateJobStatusFailedRetried.Sql).Should()
+        Assignments(failedRetried.Sql).Should()
             .Contain(AdoConstants.ColumnLastFailureTime, "a retried failure is still the latest failure")
             .And.NotContain([AdoConstants.ColumnFailureCount, AdoConstants.ColumnConsecutiveFailures, AdoConstants.ColumnLastSuccessTime],
                 "it is not a final one, so it neither counts nor breaks a run of failures");
 
-        Assignments(StdAdoConstants.SqlUpdateJobStatusOther.Sql).Should()
+        Assignments(other.Sql).Should()
             .NotContain([AdoConstants.ColumnFailureCount, AdoConstants.ColumnConsecutiveFailures, AdoConstants.ColumnLastSuccessTime, AdoConstants.ColumnLastFailureTime],
                 "a cancelled run is counted as a run and nothing else");
+    }
+
+    /// <summary>
+    /// Each status table's statements name that table and its own key, never the other's.
+    /// </summary>
+    /// <remarks>
+    /// Both are built from one definition, so what this catches is the definition handed the wrong table: a
+    /// trigger's run folded into its job's row, or a sweep that deletes the job statuses of live triggers.
+    /// </remarks>
+    [Test]
+    public void EachStatusStatementNamesItsOwnTableAndKey()
+    {
+        string[] jobs =
+        [
+            .. statusUpdates.Take(4).Select(statement => statement.Sql),
+            StdAdoConstants.SqlInsertJobStatus,
+            StdAdoConstants.SqlUpdateJobStatusIfUnchanged,
+            StdAdoConstants.SqlSelectJobStatuses,
+            StdAdoConstants.SqlCountJobStatuses,
+            StdAdoConstants.SqlSelectJobStatus,
+            StdAdoConstants.SqlDeleteOrphanedJobStatuses
+        ];
+
+        jobs.Should().AllSatisfy(sql => sql.Should().Contain(AdoConstants.TableJobStatus)
+            .And.NotContain(AdoConstants.TableTriggerStatus)
+            .And.NotContain(AdoConstants.ColumnTriggerName));
+
+        string[] triggers =
+        [
+            .. statusUpdates.Skip(4).Select(statement => statement.Sql),
+            StdAdoConstants.SqlInsertTriggerStatus,
+            StdAdoConstants.SqlUpdateTriggerStatusIfUnchanged,
+            StdAdoConstants.SqlSelectTriggerStatuses,
+            StdAdoConstants.SqlCountTriggerStatuses,
+            StdAdoConstants.SqlDeleteOrphanedTriggerStatuses,
+            StdAdoConstants.SqlProbeTriggerStatus
+        ];
+
+        triggers.Should().AllSatisfy(sql => sql.Should().Contain(AdoConstants.TableTriggerStatus)
+            .And.NotContain(AdoConstants.TableJobStatus)
+            .And.NotContain(AdoConstants.ColumnJobName));
+
+        StdAdoConstants.SqlDeleteOrphanedTriggerStatuses.Should().Contain($"NOT EXISTS (SELECT 1 FROM {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableTriggers} t",
+            "a trigger's status is an orphan once the trigger is gone, whatever its job");
     }
 
     /// <summary>

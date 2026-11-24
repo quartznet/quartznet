@@ -250,6 +250,9 @@ public sealed class MixedVersionClusterPostgresTest
     private const string SelectJobStatus =
         "SELECT job_group, job_name, run_count, last_instance_name FROM qrtzv_job_status WHERE sched_name = @schedulerName";
 
+    private const string SelectTriggerStatus =
+        "SELECT trigger_group, trigger_name, run_count, last_instance_name FROM qrtzv_trigger_status WHERE sched_name = @schedulerName";
+
     private const string SelectTriggerColumns =
         "SELECT trigger_state, overlap_policy, pause_reason, paused_by, paused_at, description, priority, retry_policy, fixed_delay "
         + "FROM qrtzv_triggers WHERE sched_name = @schedulerName AND trigger_group = @group AND trigger_name = @name";
@@ -370,6 +373,7 @@ public sealed class MixedVersionClusterPostgresTest
                 AssertProgressSurvived(runs);
                 AssertEachRunIsInTheHistoryOnce(runs, history);
                 AssertEachNodeWritesTheOutcomeItsJobsReport(runs, history);
+                AssertOnlyTheWorkingTreeKeepsTriggerStatuses(runs, history, migrations);
                 AssertTheWorkingTreeReadsTheHistoryBack(runs, history, throughTheApi);
                 AssertNeitherNodeLocksForTheOther(stamps, releasedRounds, workingTreeRounds, lockFreeRounds);
             }
@@ -1308,6 +1312,48 @@ public sealed class MixedVersionClusterPostgresTest
     }
 
     /// <summary>
+    /// Only the working tree keeps the 4.9 <c>QRTZ_TRIGGER_STATUS</c>: the released node knows no such table, so
+    /// a trigger's status counts the working tree's firings of it and names no other node, and a one-off, which
+    /// its one firing finalizes, has none. The table is the 4.9 migration's, run while the released node is up.
+    /// </summary>
+    /// <remarks>
+    /// A serial trigger repeats until the gate pauses it, so each of its firings leaves it a next one, and every
+    /// firing of it the working tree ran folds into its status; one the released node alone fired has no row.
+    /// </remarks>
+    private static void AssertOnlyTheWorkingTreeKeepsTriggerStatuses(List<Run> runs, HistoryAfter history, List<string> migrations)
+    {
+        migrations.Should().Contain("4.9/add_trigger_status",
+            "the trigger status table is the optional 4.9 migration's, and it runs while the released node is up");
+
+        NoViolations(
+            "trigger status: a one-off's firing finalizes it, so none of the one-offs has a row",
+            history.TriggerStatuses.Keys.Where(x => x.StartsWith("one-off.", StringComparison.Ordinal)));
+
+        NoViolations(
+            "trigger status: every row is the working tree's, since the released node keeps none",
+            history.TriggerStatuses
+                .Where(x => x.Value.LastInstanceName != WorkingTree)
+                .Select(x => $"{x.Key}: LAST_INSTANCE_NAME {x.Value.LastInstanceName}"));
+
+        List<Run> serial = runs.Where(x => x.JobName == "serial").ToList();
+        Dictionary<string, int> firedByWorkingTree = serial
+            .Where(x => x.Node == WorkingTree)
+            .GroupBy(x => x.Trigger, StringComparer.Ordinal)
+            .ToDictionary(x => x.Key, x => x.Count(), StringComparer.Ordinal);
+
+        firedByWorkingTree.Should().NotBeEmpty("the premise: the working tree fired serial triggers of its own and of the race");
+
+        NoViolations(
+            "trigger status: a serial trigger's RUN_COUNT is the working tree's firings of it, and one only the released node fired has no row",
+            serial.Select(x => x.Trigger).Distinct(StringComparer.Ordinal)
+                .Where(trigger => (history.TriggerStatuses.TryGetValue(trigger, out (long RunCount, string LastInstanceName) row) ? row.RunCount : 0)
+                                  != firedByWorkingTree.GetValueOrDefault(trigger))
+                .Select(trigger => $"{trigger}: RUN_COUNT {(history.TriggerStatuses.TryGetValue(trigger, out (long RunCount, string LastInstanceName) row) ? row.RunCount.ToString(CultureInfo.InvariantCulture) : "no row")}; "
+                                   + $"{WorkingTree} fired it {firedByWorkingTree.GetValueOrDefault(trigger)} time(s), "
+                                   + $"{Released} {serial.Count(x => x.Trigger == trigger && x.Node == Released)}"));
+    }
+
+    /// <summary>
     /// The working tree's own store reads both nodes' rows back with the result each carries, and the
     /// status both keep.
     /// </summary>
@@ -1335,6 +1381,16 @@ public sealed class MixedVersionClusterPostgresTest
         api.OneOffStatus.RunCount.Should().Be(runs.Count(x => x.TriggerGroup == "one-off"),
             "the one-off job's status counts both nodes' runs");
         api.OneOffStatus.LastSchedulerInstanceId.Should().BeOneOf(Released, WorkingTree);
+
+        api.TriggerStatuses.Select(x => x.Trigger.ToString()).Should().BeEquivalentTo(history.TriggerStatuses.Keys,
+            "the store reads every trigger status row the working tree wrote");
+        NoViolations(
+            "read back, trigger status: the run count and node its row holds",
+            api.TriggerStatuses
+                .Where(x => !history.TriggerStatuses.TryGetValue(x.Trigger.ToString(), out (long RunCount, string LastInstanceName) row)
+                            || row.RunCount != x.RunCount
+                            || row.LastInstanceName != x.LastSchedulerInstanceId)
+                .Select(x => $"{x.Trigger}: RunCount {x.RunCount}, LastSchedulerInstanceId {x.LastSchedulerInstanceId}"));
     }
 
     /// <summary>
@@ -1556,23 +1612,30 @@ public sealed class MixedVersionClusterPostgresTest
             }
         }
 
+        Dictionary<string, (long RunCount, string LastInstanceName)> statuses = await ReadStatuses(connection, SelectJobStatus);
+        Dictionary<string, (long RunCount, string LastInstanceName)> triggerStatuses = await ReadStatuses(connection, SelectTriggerStatus);
+
+        return new HistoryAfter(rows, statuses, triggerStatuses);
+    }
+
+    /// <summary>A status table's rows, by <c>group.name</c>: the run count and the last node.</summary>
+    private static async Task<Dictionary<string, (long RunCount, string LastInstanceName)>> ReadStatuses(NpgsqlConnection connection, string sql)
+    {
         Dictionary<string, (long RunCount, string LastInstanceName)> statuses = new(StringComparer.Ordinal);
-        await using (NpgsqlCommand command = new(SelectJobStatus, connection))
+        await using NpgsqlCommand command = new(sql, connection);
+        command.Parameters.AddWithValue("schedulerName", SchedulerName);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
         {
-            command.Parameters.AddWithValue("schedulerName", SchedulerName);
-            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                statuses[reader.GetString(0) + "." + reader.GetString(1)] = (reader.GetInt64(2), reader.GetString(3));
-            }
+            statuses[reader.GetString(0) + "." + reader.GetString(1)] = (reader.GetInt64(2), reader.GetString(3));
         }
 
-        return new HistoryAfter(rows, statuses);
+        return statuses;
     }
 
     /// <summary>
     /// The same history as the working tree's own store reads it: every execution, the executions a
-    /// filter on <see cref="JobRunResult.Succeeded" /> selects, and the one-off job's status.
+    /// filter on <see cref="JobRunResult.Succeeded" /> selects, the one-off job's status and every trigger's.
     /// </summary>
     /// <remarks>
     /// The store is built in this process, over the same database, without a scheduler: it is the reader a
@@ -1601,8 +1664,10 @@ public sealed class MixedVersionClusterPostgresTest
         PagedResult<ExecutionHistoryEntry> succeeded = await history.QueryExecutions(
             new ExecutionHistoryQuery { SchedulerName = SchedulerName, Take = PagedQuery.All, Results = [JobRunResult.Succeeded] });
         JobRunStatus oneOff = await history.GetJobRunStatus(SchedulerName, new JobKey("one-off", "gate"));
+        PagedResult<TriggerRunStatus> triggers = await history.QueryTriggerRunStatuses(
+            new TriggerRunStatusQuery { SchedulerName = SchedulerName, Take = PagedQuery.All });
 
-        return new HistoryThroughTheApi([.. all.Items], succeeded.Items.Count, oneOff);
+        return new HistoryThroughTheApi([.. all.Items], succeeded.Items.Count, oneOff, [.. triggers.Items]);
     }
 
     /// <summary>The cluster's <c>QRTZ_SCHEDULER_STATE</c> rows, by instance.</summary>
@@ -1910,14 +1975,19 @@ public sealed class MixedVersionClusterPostgresTest
         bool? Manual,
         string FireInstanceId);
 
-    /// <summary>The history rows, and each job's <c>QRTZ_JOB_STATUS</c> run count and last node.</summary>
+    /// <summary>
+    /// The history rows, and each job's <c>QRTZ_JOB_STATUS</c> and each trigger's <c>QRTZ_TRIGGER_STATUS</c> run
+    /// count and last node.
+    /// </summary>
     private sealed record HistoryAfter(
         List<HistoryRow> Rows,
-        Dictionary<string, (long RunCount, string LastInstanceName)> Statuses);
+        Dictionary<string, (long RunCount, string LastInstanceName)> Statuses,
+        Dictionary<string, (long RunCount, string LastInstanceName)> TriggerStatuses);
 
     /// <summary>What the working tree's history store answers.</summary>
     private sealed record HistoryThroughTheApi(
         List<ExecutionHistoryEntry> Executions,
         int SucceededCount,
-        JobRunStatus OneOffStatus);
+        JobRunStatus OneOffStatus,
+        List<TriggerRunStatus> TriggerStatuses);
 }

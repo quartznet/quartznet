@@ -49,7 +49,9 @@ namespace Quartz.Impl.AdoJobStore;
 /// history write is a record of something that already happened, so it must not be rolled back with
 /// the job's work, must not hold the trigger lock, and must never be the reason a firing fails. A
 /// write that cannot reach the database is logged and dropped. An execution is one transaction on that
-/// connection — its row and its job's <c>QRTZ_JOB_STATUS</c> row commit together or not at all.
+/// connection — its row, its job's <c>QRTZ_JOB_STATUS</c> row and its trigger's <c>QRTZ_TRIGGER_STATUS</c> row
+/// commit together or not at all. A manual run, and a firing after which its trigger is finalized, leave the
+/// trigger's row alone.
 /// </para>
 /// <para>
 /// With <see cref="ExecutionHistoryOptions.WriteBehindInterval" /> set, an execution is queued instead and
@@ -65,7 +67,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// it on every read would mean a window function six dialects spell differently.
 /// </para>
 /// </remarks>
-internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBufferedExecutionHistoryStore, IDisposable, IAsyncDisposable
+internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBufferedExecutionHistoryStore, ITriggerStatusHistoryStore, IDisposable, IAsyncDisposable
 {
     /// <summary>
     /// How many times a flush runs again with its statuses folded because another writer changed one of
@@ -282,15 +284,26 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     private StdAdoDelegate Delegate => (StdAdoDelegate) driverDelegate;
 
     /// <remarks>
+    /// Folds the entry into its trigger's status as well, unless it was a manual run: a recorder that cannot say
+    /// whether the trigger was finalized is taken to mean it was not.
+    /// </remarks>
+    public ValueTask AddExecution(ExecutionHistoryEntry entry, CancellationToken cancellationToken = default)
+    {
+        return AddExecution(entry, triggerFinalized: false, cancellationToken);
+    }
+
+    /// <remarks>
     /// <para>
     /// One transaction on this store's own connection: the row, then the job's status — updated, or
-    /// inserted on the job's first recorded run — then one commit. The commit is the one a row alone
-    /// cost; the status adds a statement, and a second on a job's first run.
+    /// inserted on the job's first recorded run — then the trigger's, unless the run was manual or
+    /// <paramref name="triggerFinalized" />, then one commit. The commit is the one a row alone cost; each
+    /// status adds a statement, and a second on its first run. The job's row is always taken before the
+    /// trigger's, so two writers cannot hold one each and wait for the other.
     /// </para>
     /// <para>
-    /// Two nodes recording a job's first run at once both find no status row, and the second insert
-    /// fails on the key. That transaction is rolled back, which takes its execution row with it, and run
-    /// once more, when the update finds the row; nothing is counted twice.
+    /// Two nodes recording a first run at once both find no status row, and the second insert fails on
+    /// the key. That transaction is rolled back, which takes its execution row with it, and run once more,
+    /// when the update finds the row; nothing is counted twice.
     /// </para>
     /// <para>
     /// With <see cref="ExecutionHistoryOptions.WriteBehindInterval" /> set the execution is queued and this
@@ -298,7 +311,7 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     /// written here as above.
     /// </para>
     /// </remarks>
-    public async ValueTask AddExecution(ExecutionHistoryEntry entry, CancellationToken cancellationToken = default)
+    public async ValueTask AddExecution(ExecutionHistoryEntry entry, bool triggerFinalized, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
@@ -308,7 +321,7 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
         // reader was given; a key of this store's own when nothing did. The status names the same one.
         ExecutionHistoryEntry named = entry.EntryId is null ? entry with { EntryId = NewEntryId() } : entry;
 
-        if (WriteBehind() is { } queue && queue.TryEnqueue(named))
+        if (WriteBehind() is { } queue && queue.TryEnqueue(named, triggerFinalized))
         {
             StartSweeping();
             return;
@@ -316,7 +329,7 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
 
         try
         {
-            await Record(named, cancellationToken).ConfigureAwait(false);
+            await Record(named, triggerFinalized, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception failure) when (!cancellationToken.IsCancellationRequested)
         {
@@ -422,6 +435,44 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
         return Execute(
             conn => Delegate.SelectJobRunStatus(conn, schedulerName, jobKey, cancellationToken),
             cancellationToken);
+    }
+
+    /// <remarks>
+    /// <para>
+    /// Read from <c>QRTZ_TRIGGER_STATUS</c>, which the store keeps beside the rows, and not bounded by age, as the
+    /// job statuses are not. Named triggers are read by key, chunked, and paged here.
+    /// </para>
+    /// <para>
+    /// A store a scheduler validated at startup has the table. A store window's database was never validated, so a
+    /// read that fails there asks whether the table resolves, and a database without it, one not migrated to 4.9,
+    /// answers <see cref="NotSupportedException" /> naming the script. Any other failure propagates.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="NotSupportedException">The database has no <c>QRTZ_TRIGGER_STATUS</c>.</exception>
+    public async ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        try
+        {
+            return await Execute(
+                conn => Delegate.SelectTriggerRunStatuses(conn, query, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbException failure) when (!cancellationToken.IsCancellationRequested)
+        {
+            if (await Execute(conn => Delegate.HasTriggerRunStatusTable(conn, cancellationToken), cancellationToken).ConfigureAwait(false))
+            {
+                throw;
+            }
+
+            throw new NotSupportedException(
+                $"The execution history's database has no {Delegate.TablePrefix}{AdoConstants.TableTriggerStatus} table, so it keeps "
+                + "no per-trigger run status. Run "
+                + AdoJobStoreBase.MigrationScriptName(driverDelegate, AdoConstants.Migration49TriggerStatus)
+                + " against it, as every store that keeps its history there needs from 4.9 on.",
+                failure);
+        }
     }
 
     /// <remarks>
@@ -786,12 +837,21 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
             Tally(await DeleteBelow(
                 conn, misfires: true, schedulerName, Cutoff(now, MisfireWindow(bounds)), budget, cancellationToken).ConfigureAwait(false));
 
-            // 5. The statuses of deleted jobs, once they are past the longest window too.
+            // 5. The statuses of deleted jobs, and 5b of deleted triggers, once they are past the longest window too.
             if (longest > DateTimeOffset.MinValue)
             {
                 if (budget.TryTake())
                 {
                     removed += await Delegate.DeleteOrphanedJobRunStatuses(conn, schedulerName, longest, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    done = false;
+                }
+
+                if (budget.TryTake())
+                {
+                    removed += await Delegate.DeleteOrphanedTriggerRunStatuses(conn, schedulerName, longest, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -1214,16 +1274,17 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     private static string NewEntryId() => Guid.NewGuid().ToString("N");
 
     /// <summary>
-    /// Records one execution and folds it into its job's status, in one transaction of this store's own.
+    /// Records one execution and folds it into its job's status and its trigger's, in one transaction of this
+    /// store's own.
     /// </summary>
-    private async ValueTask Record(ExecutionHistoryEntry entry, CancellationToken cancellationToken)
+    private async ValueTask Record(ExecutionHistoryEntry entry, bool triggerFinalized, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
 
         DbConnection connection = await OpenConnection(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
-            // Twice at most: the second attempt's status insert is not caught, so it commits or throws.
+            // Twice at most: the second attempt's status inserts are not caught, so it commits or throws.
             for (int attempt = 0; attempt < 2; attempt++)
             {
                 // Disposed uncommitted, which rolls it back, on every path but the commit.
@@ -1232,14 +1293,14 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
                 {
                     ConnectionAndTransactionHolder holder = new(connection, transaction, ownsResources: false);
 
-                    if (await RecordIn(holder, entry, lastAttempt: attempt > 0, cancellationToken).ConfigureAwait(false))
+                    if (await RecordIn(holder, entry, triggerFinalized, lastAttempt: attempt > 0, cancellationToken).ConfigureAwait(false))
                     {
                         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                         return;
                     }
 
-                    // Another node inserted the status first. Its row is committed, so the update finds it
-                    // when the unit runs again; the execution row goes with this rollback.
+                    // Another node inserted a status first. Its row is committed, so the update finds it when
+                    // the unit runs again; the execution row goes with this rollback.
                     await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -1247,41 +1308,67 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     }
 
     /// <returns>
-    /// <see langword="false" /> when the status insert failed on a first attempt, which is another node
-    /// recording the job's first run at the same moment; the caller rolls back and runs the unit again.
+    /// <see langword="false" /> when a status insert failed on a first attempt, which is another node
+    /// recording the job's or the trigger's first run at the same moment; the caller rolls back and runs the
+    /// unit again.
     /// </returns>
     private async ValueTask<bool> RecordIn(
         ConnectionAndTransactionHolder conn,
         ExecutionHistoryEntry entry,
+        bool triggerFinalized,
         bool lastAttempt,
         CancellationToken cancellationToken)
     {
         await Delegate.InsertExecutionHistory(conn, entry.EntryId!, entry, cancellationToken).ConfigureAwait(false);
-        return await FoldIn(conn, entry, lastAttempt, cancellationToken).ConfigureAwait(false);
+        return await FoldIn(conn, entry, triggerFinalized, lastAttempt, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Folds one execution into its job's status in the database: the update, or the insert on the job's
-    /// first recorded run.
+    /// Folds one execution into its job's status in the database, then into its trigger's unless the run was
+    /// manual or finalized the trigger: each the update, or the insert on its first recorded run.
     /// </summary>
+    /// <remarks>
+    /// The job's row before the trigger's, which is the order every writer takes them in, so no two writers
+    /// can each hold one and wait for the other.
+    /// </remarks>
     /// <returns>
-    /// <see langword="false" /> when the insert failed and this is not the last attempt; see
+    /// <see langword="false" /> when an insert failed and this is not the last attempt; see
     /// <see cref="RecordIn" />.
     /// </returns>
     private async ValueTask<bool> FoldIn(
         ConnectionAndTransactionHolder conn,
         ExecutionHistoryEntry entry,
+        bool triggerFinalized,
         bool lastAttempt,
         CancellationToken cancellationToken)
     {
-        if (await Delegate.UpdateJobRunStatus(conn, entry, cancellationToken).ConfigureAwait(false) > 0)
+        if (!await FoldInto(JobStatuses, conn, entry, lastAttempt, cancellationToken).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        return !TriggerRunStatusFold.Folds(entry, triggerFinalized)
+               || await FoldInto(TriggerStatuses, conn, entry, lastAttempt, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Folds one execution into its row of one status table: the update, or the insert on a first run.</summary>
+    private async ValueTask<bool> FoldInto<TKey, TStatus>(
+        StatusTable<TKey, TStatus> table,
+        ConnectionAndTransactionHolder conn,
+        ExecutionHistoryEntry entry,
+        bool lastAttempt,
+        CancellationToken cancellationToken)
+        where TKey : Key<TKey>
+        where TStatus : class
+    {
+        if (await table.Update(Delegate, conn, entry, cancellationToken).ConfigureAwait(false) > 0)
         {
             return true;
         }
 
         try
         {
-            await Delegate.InsertJobRunStatus(conn, entry, cancellationToken).ConfigureAwait(false);
+            await table.Insert(Delegate, conn, entry, cancellationToken).ConfigureAwait(false);
             return true;
         }
         catch (DbException) when (!lastAttempt)
@@ -1308,7 +1395,7 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     /// scheduler's own shutdown guards were fixed for (#3892).
     /// </para>
     /// </remarks>
-    private async ValueTask WriteBuffered(List<ExecutionHistoryEntry> batch)
+    private async ValueTask WriteBuffered(List<QueuedExecution> batch)
     {
         // Ended by the return, or by the failure the filter lets through once the retries are spent.
         int retries = 0;
@@ -1342,16 +1429,17 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     }
 
     /// <summary>
-    /// Records a write-behind batch and folds it into its jobs' statuses, in one transaction of this store's
-    /// own.
+    /// Records a write-behind batch and folds it into its jobs' and triggers' statuses, in one transaction of
+    /// this store's own.
     /// </summary>
     /// <remarks>
     /// <para>
     /// The rows first, so the transaction holds its write lock from its first statement — SQLite's whole
-    /// database, and nothing a status read could then deadlock against. Then the statuses, read once for
+    /// database, and nothing a status read could then deadlock against. Then the jobs' statuses, read once for
     /// every job the batch holds, each folded with <see cref="JobRunStatusFold" /> over that job's runs in
     /// the order they were queued, and written back by one update per job that requires <c>RUN_COUNT</c>
-    /// to be unchanged. A job with no status yet gets an insert of its fold.
+    /// to be unchanged. A job with no status yet gets an insert of its fold. Then the triggers' statuses the
+    /// same way, from every run but a manual one and one that finalized its trigger.
     /// </para>
     /// <para>
     /// Another writer that changed a status since the read — another node, or this one writing a run itself
@@ -1359,15 +1447,22 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     /// second insert fail on the key. Either way the transaction is rolled back, rows and all, and run again
     /// from the read. After <see cref="FoldedFlushAttempts" /> such runs the next folds each execution on its
     /// own, as the store does without write-behind: those updates add to the row as it stands, so no other
-    /// writer can make them miss, and the batch is written however busy its jobs' rows are.
+    /// writer can make them miss, and the batch is written however busy its rows are.
     /// </para>
     /// <para>
-    /// The statuses are written in key order, so two nodes flushing the same jobs take their rows in the
-    /// same order and cannot deadlock on them.
+    /// Every job row is written in key order, then every trigger row in key order. A single execution's write
+    /// takes its job's row before its trigger's too, so no writer holds a trigger row while it waits for a job
+    /// row, and two nodes flushing the same keys take them in the same order and cannot deadlock on them.
     /// </para>
     /// </remarks>
-    private async ValueTask WriteBatch(List<ExecutionHistoryEntry> batch, CancellationToken cancellationToken)
+    private async ValueTask WriteBatch(List<QueuedExecution> batch, CancellationToken cancellationToken)
     {
+        List<ExecutionHistoryEntry> entries = new(batch.Count);
+        foreach (QueuedExecution queued in batch)
+        {
+            entries.Add(queued.Entry);
+        }
+
         DbConnection connection = await OpenConnection(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -1386,7 +1481,7 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
                 {
                     ConnectionAndTransactionHolder holder = new(connection, transaction, ownsResources: false);
 
-                    await Delegate.InsertExecutionHistories(holder, batch, cancellationToken).ConfigureAwait(false);
+                    await Delegate.InsertExecutionHistories(holder, entries, cancellationToken).ConfigureAwait(false);
 
                     bool written = folded
                         ? await WriteFoldedStatuses(holder, batch, cancellationToken).ConfigureAwait(false)
@@ -1405,18 +1500,18 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     }
 
     /// <summary>
-    /// Folds each execution of a batch into its status on its own, in the order they were queued.
+    /// Folds each execution of a batch into its statuses on its own, in the order they were queued.
     /// </summary>
     /// <returns><see langword="false" /> when a first-run insert lost a race; see <see cref="FoldIn" />.</returns>
     private async ValueTask<bool> FoldEachIn(
         ConnectionAndTransactionHolder conn,
-        List<ExecutionHistoryEntry> batch,
+        List<QueuedExecution> batch,
         bool lastAttempt,
         CancellationToken cancellationToken)
     {
-        foreach (ExecutionHistoryEntry entry in batch)
+        foreach (QueuedExecution queued in batch)
         {
-            if (!await FoldIn(conn, entry, lastAttempt, cancellationToken).ConfigureAwait(false))
+            if (!await FoldIn(conn, queued.Entry, queued.TriggerFinalized, lastAttempt, cancellationToken).ConfigureAwait(false))
             {
                 return false;
             }
@@ -1426,7 +1521,8 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     }
 
     /// <summary>
-    /// Reads the batch's jobs' statuses, folds each job's runs into its own, and writes each back once.
+    /// Reads the batch's jobs' statuses, folds each job's runs into its own, and writes each back once; then the
+    /// same for the triggers whose statuses the batch moves.
     /// </summary>
     /// <returns>
     /// <see langword="false" /> when a status changed since it was read, or a first-run insert failed: the
@@ -1434,45 +1530,77 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
     /// </returns>
     private async ValueTask<bool> WriteFoldedStatuses(
         ConnectionAndTransactionHolder conn,
-        List<ExecutionHistoryEntry> batch,
+        List<QueuedExecution> batch,
         CancellationToken cancellationToken)
     {
-        // Each job's runs, in the order they were queued, which is the order the fold takes them in.
-        SortedDictionary<StatusKey, List<ExecutionHistoryEntry>> runsByJob = new(StatusKey.Ordinal);
-        foreach (ExecutionHistoryEntry entry in batch)
+        List<ExecutionHistoryEntry> jobRuns = new(batch.Count);
+        List<ExecutionHistoryEntry> triggerRuns = new(batch.Count);
+        foreach (QueuedExecution queued in batch)
         {
-            StatusKey key = new(entry.SchedulerName, new JobKey(entry.JobName, entry.JobGroup));
-            if (!runsByJob.TryGetValue(key, out List<ExecutionHistoryEntry>? runs))
+            jobRuns.Add(queued.Entry);
+            if (TriggerRunStatusFold.Folds(queued.Entry, queued.TriggerFinalized))
             {
-                runsByJob[key] = runs = [];
-            }
-
-            runs.Add(entry);
-        }
-
-        Dictionary<StatusKey, JobRunStatus> current = [];
-        foreach (IGrouping<string, StatusKey> scheduler in runsByJob.Keys.GroupBy(static key => key.SchedulerName, StringComparer.Ordinal))
-        {
-            List<JobKey> jobs = [.. scheduler.Select(static key => key.Job)];
-            Dictionary<JobKey, JobRunStatus> read = await Delegate.SelectJobRunStatusesByKey(
-                conn, scheduler.Key, jobs, cancellationToken).ConfigureAwait(false);
-
-            foreach (KeyValuePair<JobKey, JobRunStatus> status in read)
-            {
-                current[new StatusKey(scheduler.Key, status.Key)] = status.Value;
+                triggerRuns.Add(queued.Entry);
             }
         }
 
-        List<(JobRunStatus Status, long ReadRunCount)> updates = [];
-        List<JobRunStatus> inserts = [];
+        return await WriteFolded(JobStatuses, conn, jobRuns, cancellationToken).ConfigureAwait(false)
+               && await WriteFolded(TriggerStatuses, conn, triggerRuns, cancellationToken).ConfigureAwait(false);
+    }
 
-        foreach ((StatusKey key, List<ExecutionHistoryEntry> runs) in runsByJob)
+    /// <summary>
+    /// Reads the statuses of one table the runs move, folds each key's runs into its own in the order they were
+    /// queued, and writes each back once: the guarded updates in key order, then the inserts.
+    /// </summary>
+    /// <returns><see langword="false" /> as <see cref="WriteFoldedStatuses" /> answers it.</returns>
+    private async ValueTask<bool> WriteFolded<TKey, TStatus>(
+        StatusTable<TKey, TStatus> table,
+        ConnectionAndTransactionHolder conn,
+        List<ExecutionHistoryEntry> runs,
+        CancellationToken cancellationToken)
+        where TKey : Key<TKey>
+        where TStatus : class
+    {
+        if (runs.Count == 0)
         {
-            JobRunStatus? before = current.GetValueOrDefault(key);
-            JobRunStatus? after = before;
-            foreach (ExecutionHistoryEntry run in runs)
+            return true;
+        }
+
+        // Each key's runs, in the order they were queued, which is the order the fold takes them in.
+        SortedDictionary<StatusKey<TKey>, List<ExecutionHistoryEntry>> runsByKey = new(StatusKey<TKey>.Ordinal);
+        foreach (ExecutionHistoryEntry entry in runs)
+        {
+            StatusKey<TKey> key = new(entry.SchedulerName, table.KeyOf(entry));
+            if (!runsByKey.TryGetValue(key, out List<ExecutionHistoryEntry>? ofKey))
             {
-                after = JobRunStatusFold.Apply(after, run);
+                runsByKey[key] = ofKey = [];
+            }
+
+            ofKey.Add(entry);
+        }
+
+        Dictionary<StatusKey<TKey>, TStatus> current = [];
+        foreach (IGrouping<string, StatusKey<TKey>> scheduler in runsByKey.Keys.GroupBy(static key => key.SchedulerName, StringComparer.Ordinal))
+        {
+            List<TKey> keys = [.. scheduler.Select(static key => key.Key)];
+            Dictionary<TKey, TStatus> read = await table.Read(Delegate, conn, scheduler.Key, keys, cancellationToken).ConfigureAwait(false);
+
+            foreach (KeyValuePair<TKey, TStatus> status in read)
+            {
+                current[new StatusKey<TKey>(scheduler.Key, status.Key)] = status.Value;
+            }
+        }
+
+        List<(TStatus Status, long ReadRunCount)> updates = [];
+        List<TStatus> inserts = [];
+
+        foreach ((StatusKey<TKey> key, List<ExecutionHistoryEntry> ofKey) in runsByKey)
+        {
+            TStatus? before = current.GetValueOrDefault(key);
+            TStatus? after = before;
+            foreach (ExecutionHistoryEntry run in ofKey)
+            {
+                after = table.Fold(after, run);
             }
 
             if (before is null)
@@ -1481,25 +1609,25 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
             }
             else
             {
-                updates.Add((after!, before.RunCount));
+                updates.Add((after!, table.RunCount(before)));
             }
         }
 
         if (updates.Count > 0
-            && await Delegate.UpdateJobRunStatusesIfUnchanged(conn, updates, cancellationToken).ConfigureAwait(false) != updates.Count)
+            && await table.UpdateIfUnchanged(Delegate, conn, updates, cancellationToken).ConfigureAwait(false) != updates.Count)
         {
             return false;
         }
 
-        foreach (JobRunStatus first in inserts)
+        foreach (TStatus first in inserts)
         {
             try
             {
-                await Delegate.InsertJobRunStatus(conn, first, cancellationToken).ConfigureAwait(false);
+                await table.InsertFolded(Delegate, conn, first, cancellationToken).ConfigureAwait(false);
             }
             catch (DbException)
             {
-                // Another writer inserted the job's first status since the read, as in RecordIn.
+                // Another writer inserted the first status since the read, as in RecordIn.
                 return false;
             }
         }
@@ -1507,18 +1635,57 @@ internal sealed class AdoExecutionHistoryStore : IExecutionHistoryStore, IBuffer
         return true;
     }
 
-    /// <summary>One job's status row: its scheduler and its key, ordered ordinally by all three.</summary>
-    private readonly record struct StatusKey(string SchedulerName, JobKey Job)
+    /// <summary>The statements and the fold of <c>QRTZ_JOB_STATUS</c>, by job.</summary>
+    private static readonly StatusTable<JobKey, JobRunStatus> JobStatuses = new(
+        KeyOf: static entry => new JobKey(entry.JobName, entry.JobGroup),
+        Fold: JobRunStatusFold.Apply,
+        RunCount: static status => status.RunCount,
+        Update: static (store, conn, entry, cancellationToken) => store.UpdateJobRunStatus(conn, entry, cancellationToken),
+        Insert: static (store, conn, entry, cancellationToken) => store.InsertJobRunStatus(conn, entry, cancellationToken),
+        Read: static (store, conn, schedulerName, keys, cancellationToken) => store.SelectJobRunStatusesByKey(conn, schedulerName, keys, cancellationToken),
+        UpdateIfUnchanged: static (store, conn, writes, cancellationToken) => store.UpdateJobRunStatusesIfUnchanged(conn, writes, cancellationToken),
+        InsertFolded: static (store, conn, status, cancellationToken) => store.InsertJobRunStatus(conn, status, cancellationToken));
+
+    /// <summary>The statements and the fold of <c>QRTZ_TRIGGER_STATUS</c>, by trigger.</summary>
+    private static readonly StatusTable<TriggerKey, TriggerRunStatus> TriggerStatuses = new(
+        KeyOf: static entry => new TriggerKey(entry.TriggerName, entry.TriggerGroup),
+        Fold: TriggerRunStatusFold.Apply,
+        RunCount: static status => status.RunCount,
+        Update: static (store, conn, entry, cancellationToken) => store.UpdateTriggerRunStatus(conn, entry, cancellationToken),
+        Insert: static (store, conn, entry, cancellationToken) => store.InsertTriggerRunStatus(conn, entry, cancellationToken),
+        Read: static (store, conn, schedulerName, keys, cancellationToken) => store.SelectTriggerRunStatusesByKey(conn, schedulerName, keys, cancellationToken),
+        UpdateIfUnchanged: static (store, conn, writes, cancellationToken) => store.UpdateTriggerRunStatusesIfUnchanged(conn, writes, cancellationToken),
+        InsertFolded: static (store, conn, status, cancellationToken) => store.InsertTriggerRunStatus(conn, status, cancellationToken));
+
+    /// <summary>
+    /// One status table as the writes see it: the key an execution folds into, the fold, and the delegate's
+    /// statements for one run and for a flush.
+    /// </summary>
+    private sealed record StatusTable<TKey, TStatus>(
+        Func<ExecutionHistoryEntry, TKey> KeyOf,
+        Func<TStatus?, ExecutionHistoryEntry, TStatus> Fold,
+        Func<TStatus, long> RunCount,
+        Func<StdAdoDelegate, ConnectionAndTransactionHolder, ExecutionHistoryEntry, CancellationToken, ValueTask<int>> Update,
+        Func<StdAdoDelegate, ConnectionAndTransactionHolder, ExecutionHistoryEntry, CancellationToken, ValueTask<int>> Insert,
+        Func<StdAdoDelegate, ConnectionAndTransactionHolder, string, List<TKey>, CancellationToken, ValueTask<Dictionary<TKey, TStatus>>> Read,
+        Func<StdAdoDelegate, ConnectionAndTransactionHolder, List<(TStatus Status, long ReadRunCount)>, CancellationToken, ValueTask<int>> UpdateIfUnchanged,
+        Func<StdAdoDelegate, ConnectionAndTransactionHolder, TStatus, CancellationToken, ValueTask<int>> InsertFolded)
+        where TKey : Key<TKey>
+        where TStatus : class;
+
+    /// <summary>One status row: its scheduler and its key, ordered ordinally by all three.</summary>
+    private readonly record struct StatusKey<TKey>(string SchedulerName, TKey Key)
+        where TKey : Key<TKey>
     {
-        public static readonly IComparer<StatusKey> Ordinal = Comparer<StatusKey>.Create(static (left, right) =>
+        public static readonly IComparer<StatusKey<TKey>> Ordinal = Comparer<StatusKey<TKey>>.Create(static (left, right) =>
         {
             int order = string.CompareOrdinal(left.SchedulerName, right.SchedulerName);
             if (order == 0)
             {
-                order = string.CompareOrdinal(left.Job.Group, right.Job.Group);
+                order = string.CompareOrdinal(left.Key.Group, right.Key.Group);
             }
 
-            return order != 0 ? order : string.CompareOrdinal(left.Job.Name, right.Job.Name);
+            return order != 0 ? order : string.CompareOrdinal(left.Key.Name, right.Key.Name);
         });
     }
 

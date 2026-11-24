@@ -179,35 +179,67 @@ public partial class StdAdoDelegate
     /// Folds one recorded execution into its job's <c>QRTZ_JOB_STATUS</c> row, if the job has one.
     /// </summary>
     /// <remarks>
-    /// The update is chosen by what the execution achieved; see <see cref="JobStatusStatement" />. Run in
+    /// The update is chosen by what the execution achieved; see <see cref="RunStatusStatement" />. Run in
     /// the transaction that inserted the execution, so the row and the status commit together.
     /// </remarks>
     /// <returns>The rows updated: <c>0</c> on the job's first recorded run.</returns>
     /// <param name="conn">The unit of work, which is the history store's own connection and transaction.</param>
     /// <param name="entry">The execution just recorded, its <see cref="ExecutionHistoryEntry.EntryId" /> set.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    internal virtual async ValueTask<int> UpdateJobRunStatus(
+    internal virtual ValueTask<int> UpdateJobRunStatus(
         ConnectionAndTransactionHolder conn,
         ExecutionHistoryEntry entry,
         CancellationToken cancellationToken = default)
     {
-        JobStatusStatement statement = JobStatusStatement.For(entry) switch
-        {
-            JobStatusUpdate.Succeeded => StdAdoConstants.SqlUpdateJobStatusSucceeded,
-            JobStatusUpdate.FailedFinally => StdAdoConstants.SqlUpdateJobStatusFailedFinally,
-            JobStatusUpdate.FailedRetried => StdAdoConstants.SqlUpdateJobStatusFailedRetried,
-            _ => StdAdoConstants.SqlUpdateJobStatusOther
-        };
+        return UpdateRunStatus(conn, RunStatusTable.Job, entry, cancellationToken);
+    }
+
+    /// <summary>
+    /// Folds one recorded execution into its trigger's <c>QRTZ_TRIGGER_STATUS</c> row, if the trigger has one, as
+    /// <see cref="UpdateJobRunStatus" /> folds it into its job's.
+    /// </summary>
+    /// <returns>The rows updated: <c>0</c> on the trigger's first recorded run.</returns>
+    /// <param name="conn">The unit of work, which is the history store's own connection and transaction.</param>
+    /// <param name="entry">The execution just recorded, its <see cref="ExecutionHistoryEntry.EntryId" /> set.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual ValueTask<int> UpdateTriggerRunStatus(
+        ConnectionAndTransactionHolder conn,
+        ExecutionHistoryEntry entry,
+        CancellationToken cancellationToken = default)
+    {
+        return UpdateRunStatus(conn, RunStatusTable.Trigger, entry, cancellationToken);
+    }
+
+    private async ValueTask<int> UpdateRunStatus(
+        ConnectionAndTransactionHolder conn,
+        RunStatusTable table,
+        ExecutionHistoryEntry entry,
+        CancellationToken cancellationToken)
+    {
+        RunStatusStatement statement = StatusUpdate(table, RunStatusStatement.For(entry));
 
         using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(statement.Sql));
 
         // In the order the statement names them: each placeholder is a parameter of its own.
         foreach ((string name, JobStatusValue value) in statement.Parameters)
         {
-            AddCommandParameter(cmd, name, JobStatusParameter(entry, value));
+            AddCommandParameter(cmd, name, RunStatusParameter(entry, table, value));
         }
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>The update of <paramref name="table" /> that folds in one kind of execution.</summary>
+    private static RunStatusStatement StatusUpdate(RunStatusTable table, JobStatusUpdate kind)
+    {
+        bool trigger = ReferenceEquals(table, RunStatusTable.Trigger);
+        return kind switch
+        {
+            JobStatusUpdate.Succeeded => trigger ? StdAdoConstants.SqlUpdateTriggerStatusSucceeded : StdAdoConstants.SqlUpdateJobStatusSucceeded,
+            JobStatusUpdate.FailedFinally => trigger ? StdAdoConstants.SqlUpdateTriggerStatusFailedFinally : StdAdoConstants.SqlUpdateJobStatusFailedFinally,
+            JobStatusUpdate.FailedRetried => trigger ? StdAdoConstants.SqlUpdateTriggerStatusFailedRetried : StdAdoConstants.SqlUpdateJobStatusFailedRetried,
+            _ => trigger ? StdAdoConstants.SqlUpdateTriggerStatusOther : StdAdoConstants.SqlUpdateJobStatusOther
+        };
     }
 
     /// <summary>
@@ -245,7 +277,44 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
-    /// The insert of a job's status, or with <paramref name="readRunCount" /> its update guarded by the
+    /// Creates a trigger's <c>QRTZ_TRIGGER_STATUS</c> row from its first recorded run, as
+    /// <see cref="InsertJobRunStatus(ConnectionAndTransactionHolder, ExecutionHistoryEntry, CancellationToken)" />
+    /// creates a job's, and lost to another node's insert the same way.
+    /// </summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection and transaction.</param>
+    /// <param name="entry">The execution just recorded, its <see cref="ExecutionHistoryEntry.EntryId" /> set.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual ValueTask<int> InsertTriggerRunStatus(
+        ConnectionAndTransactionHolder conn,
+        ExecutionHistoryEntry entry,
+        CancellationToken cancellationToken = default)
+    {
+        return InsertTriggerRunStatus(conn, TriggerRunStatusFold.Apply(current: null, entry), cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates a trigger's <c>QRTZ_TRIGGER_STATUS</c> row with the values given: one run's fold, or a write-behind
+    /// flush's fold of every run of the trigger it holds.
+    /// </summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection and transaction.</param>
+    /// <param name="status">The trigger's status as the fold left it.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual ValueTask<int> InsertTriggerRunStatus(
+        ConnectionAndTransactionHolder conn,
+        TriggerRunStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteHistoryStatement(conn, DescribeTriggerRunStatusWrite(status, readRunCount: null), cancellationToken);
+    }
+
+    private SqlStatement DescribeJobRunStatusWrite(JobRunStatus status, long? readRunCount) => DescribeRunStatusWrite(
+        RunStatusTable.Job, status.SchedulerName, status.Job.Group, status.Job.Name, JobRunStatusFold.Tally(status), readRunCount);
+
+    private SqlStatement DescribeTriggerRunStatusWrite(TriggerRunStatus status, long? readRunCount) => DescribeRunStatusWrite(
+        RunStatusTable.Trigger, status.SchedulerName, status.Trigger.Group, status.Trigger.Name, TriggerRunStatusFold.Tally(status), readRunCount);
+
+    /// <summary>
+    /// The insert of a status, or with <paramref name="readRunCount" /> its update guarded by the
     /// <c>RUN_COUNT</c> a flush read, as data.
     /// </summary>
     /// <remarks>
@@ -253,7 +322,13 @@ public partial class StdAdoDelegate
     /// per-run statements would have left. The insert names the key first and the update last, each in the
     /// order its statement does.
     /// </remarks>
-    private SqlStatement DescribeJobRunStatusWrite(JobRunStatus status, long? readRunCount)
+    private SqlStatement DescribeRunStatusWrite(
+        RunStatusTable table,
+        string schedulerName,
+        string group,
+        string name,
+        in RunTally status,
+        long? readRunCount)
     {
         SqlStatementParameter[] values =
         [
@@ -274,18 +349,21 @@ public partial class StdAdoDelegate
 
         SqlStatementParameter[] key =
         [
-            new(SqlParameters.SchedulerName, status.SchedulerName),
-            new(SqlParameters.JobGroup, status.Job.Group),
-            new(SqlParameters.JobName, status.Job.Name),
+            new(SqlParameters.SchedulerName, schedulerName),
+            new(table.GroupParameter, group),
+            new(table.NameParameter, name),
         ];
 
+        bool trigger = ReferenceEquals(table, RunStatusTable.Trigger);
         if (readRunCount is not { } runCount)
         {
-            return new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlInsertJobStatus), [.. key, .. values]);
+            return new SqlStatement(
+                ReplaceTablePrefix(trigger ? StdAdoConstants.SqlInsertTriggerStatus : StdAdoConstants.SqlInsertJobStatus),
+                [.. key, .. values]);
         }
 
         return new SqlStatement(
-            ReplaceTablePrefix(StdAdoConstants.SqlUpdateJobStatusIfUnchanged),
+            ReplaceTablePrefix(trigger ? StdAdoConstants.SqlUpdateTriggerStatusIfUnchanged : StdAdoConstants.SqlUpdateJobStatusIfUnchanged),
             [.. values, .. key, new SqlStatementParameter(SqlParameters.StatusReadRunCount, runCount)]);
     }
 
@@ -307,14 +385,15 @@ public partial class StdAdoDelegate
         }
     }
 
-    /// <summary>What one placeholder of a <c>QRTZ_JOB_STATUS</c> update is bound to.</summary>
-    private object? JobStatusParameter(ExecutionHistoryEntry entry, JobStatusValue value)
+    /// <summary>What one placeholder of a run status update is bound to.</summary>
+    private object? RunStatusParameter(ExecutionHistoryEntry entry, RunStatusTable table, JobStatusValue value)
     {
+        bool trigger = ReferenceEquals(table, RunStatusTable.Trigger);
         return value switch
         {
             JobStatusValue.SchedulerName => entry.SchedulerName,
-            JobStatusValue.JobGroup => entry.JobGroup,
-            JobStatusValue.JobName => entry.JobName,
+            JobStatusValue.KeyGroup => trigger ? entry.TriggerGroup : entry.JobGroup,
+            JobStatusValue.KeyName => trigger ? entry.TriggerName : entry.JobName,
             JobStatusValue.FiredTime => GetDbDateTimeValue(entry.FiredAtUtc),
             JobStatusValue.Result => (int) entry.EffectiveResult,
             JobStatusValue.RunTime => entry.Duration.Ticks,
@@ -323,7 +402,7 @@ public partial class StdAdoDelegate
             JobStatusValue.Summary => CutToColumn(entry.Summary, AdoConstants.ColumnLastSummary, JobRunReport.MaxSummaryLength),
             JobStatusValue.FailureMessage => CutToColumn(
                 entry.ExceptionMessage ?? entry.Summary, AdoConstants.ColumnLastFailureMessage, MaxErrorMessageLength),
-            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Not a value a job status update binds.")
+            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Not a value a run status update binds.")
         };
     }
 
@@ -350,7 +429,7 @@ public partial class StdAdoDelegate
             : null;
     }
 
-    /// <summary>Reads one page of a scheduler's run statuses, by job group and then name.</summary>
+    /// <summary>Reads one page of a scheduler's job run statuses, by job group and then name.</summary>
     /// <param name="conn">The unit of work, which is the history store's own connection.</param>
     /// <param name="query">Which statuses to return, and how many.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
@@ -359,77 +438,124 @@ public partial class StdAdoDelegate
         JobRunStatusQuery query,
         CancellationToken cancellationToken = default)
     {
-        string failing = query.Failing switch
-        {
-            true => StdAdoConstants.SqlJobStatusFailing,
-            false => StdAdoConstants.SqlJobStatusNotFailing,
-            null => ""
-        };
+        string failing = FailingPredicate(query.Failing);
+        string schedulerName = query.SchedulerName;
 
         if (query.Jobs is { } jobs)
         {
-            return await SelectJobRunStatusesOf(conn, query, jobs, failing, cancellationToken).ConfigureAwait(false);
+            List<JobRunStatus> found = await ReadJobRunStatusesOf(
+                conn, schedulerName, Deduplicate(jobs), failing, cancellationToken).ConfigureAwait(false);
+
+            return PageOfStatuses(found, query, static status => status.Job);
         }
 
+        return await SelectRunStatusPage(
+            conn,
+            query,
+            schedulerName,
+            StdAdoConstants.SqlSelectJobStatuses + failing + StdAdoConstants.SqlOrderByJobStatus,
+            StdAdoConstants.SqlCountJobStatuses + failing,
+            reader => ReadJobRunStatus(reader, schedulerName),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Reads one page of a scheduler's trigger run statuses, by trigger group and then name.</summary>
+    /// <remarks>
+    /// <see cref="TriggerRunStatusQuery.Triggers" /> is read by key, chunked as every batch read by key is, and
+    /// paged here; without it the page is the database's.
+    /// </remarks>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="query">Which statuses to return, and how many.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<PagedResult<TriggerRunStatus>> SelectTriggerRunStatuses(
+        ConnectionAndTransactionHolder conn,
+        TriggerRunStatusQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        string failing = FailingPredicate(query.Failing);
         string schedulerName = query.SchedulerName;
 
-        if (IsCountOnly(query))
+        if (query.Triggers is { } triggers)
         {
-            return CountOnlyResult<JobRunStatus>(query, await CountHistory(
-                conn, StdAdoConstants.SqlCountJobStatuses + failing, schedulerName, [], cancellationToken).ConfigureAwait(false));
+            List<TriggerRunStatus> found = await ReadTriggerRunStatusesOf(
+                conn, schedulerName, Deduplicate(triggers), failing, cancellationToken).ConfigureAwait(false);
+
+            return PageOfStatuses(found, query, static status => status.Trigger);
         }
 
-        List<JobRunStatus> items;
+        return await SelectRunStatusPage(
+            conn,
+            query,
+            schedulerName,
+            StdAdoConstants.SqlSelectTriggerStatuses + failing + StdAdoConstants.SqlOrderByTriggerStatus,
+            StdAdoConstants.SqlCountTriggerStatuses + failing,
+            reader => ReadTriggerRunStatus(reader, schedulerName),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static string FailingPredicate(bool? failing) => failing switch
+    {
+        true => StdAdoConstants.SqlRunStatusFailing,
+        false => StdAdoConstants.SqlRunStatusNotFailing,
+        null => ""
+    };
+
+    /// <summary>One page of a status table read by the database's own paging, and the count when asked for.</summary>
+    private async ValueTask<PagedResult<T>> SelectRunStatusPage<T>(
+        ConnectionAndTransactionHolder conn,
+        PagedQuery query,
+        string schedulerName,
+        string selectSql,
+        string countSql,
+        Func<DbDataReader, T> read,
+        CancellationToken cancellationToken)
+    {
+        if (IsCountOnly(query))
+        {
+            return CountOnlyResult<T>(query, await CountHistory(
+                conn, countSql, schedulerName, [], cancellationToken).ConfigureAwait(false));
+        }
+
+        List<T> items;
         bool hasMore;
 
-        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(
-                   StdAdoConstants.SqlSelectJobStatuses + failing + StdAdoConstants.SqlOrderByJobStatus, query))))
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(selectSql, query))))
         {
             AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             BindPaging(cmd, query);
 
-            (items, hasMore) = await ReadPage(
-                cmd, query, reader => ReadJobRunStatus(reader, schedulerName), cancellationToken).ConfigureAwait(false);
+            (items, hasMore) = await ReadPage(cmd, query, read, cancellationToken).ConfigureAwait(false);
         }
 
         int? totalCount = null;
         if (query.IncludeTotalCount)
         {
-            totalCount = await CountHistory(
-                conn, StdAdoConstants.SqlCountJobStatuses + failing, schedulerName, [], cancellationToken).ConfigureAwait(false);
+            totalCount = await CountHistory(conn, countSql, schedulerName, [], cancellationToken).ConfigureAwait(false);
         }
 
-        return new PagedResult<JobRunStatus>(items, hasMore, totalCount);
+        return new PagedResult<T>(items, hasMore, totalCount);
     }
 
     /// <summary>
-    /// The statuses of the jobs a query names, read by key and paged here.
+    /// The page a query asks for of statuses read by key, ordered by group and then name here: the rows are at
+    /// most one per key asked for, so the page cannot be the database's.
     /// </summary>
-    /// <remarks>
-    /// A key-set predicate, chunked as every batch read by key is, so the page cannot be the database's:
-    /// the rows are at most one per key asked for, and they are ordered and paged once all are read.
-    /// </remarks>
-    private async ValueTask<PagedResult<JobRunStatus>> SelectJobRunStatusesOf(
-        ConnectionAndTransactionHolder conn,
-        JobRunStatusQuery query,
-        IReadOnlyCollection<JobKey> jobs,
-        string failing,
-        CancellationToken cancellationToken)
+    private static PagedResult<T> PageOfStatuses<T, TKey>(List<T> found, PagedQuery query, Func<T, TKey> keyOf)
+        where TKey : Key<TKey>
     {
-        List<JobRunStatus> found = await ReadJobRunStatusesOf(
-            conn, query.SchedulerName, Deduplicate(jobs), failing, cancellationToken).ConfigureAwait(false);
-
-        found.Sort(static (left, right) =>
+        found.Sort((left, right) =>
         {
-            int byGroup = string.CompareOrdinal(left.Job.Group, right.Job.Group);
-            return byGroup != 0 ? byGroup : string.CompareOrdinal(left.Job.Name, right.Job.Name);
+            TKey leftKey = keyOf(left);
+            TKey rightKey = keyOf(right);
+            int byGroup = string.CompareOrdinal(leftKey.Group, rightKey.Group);
+            return byGroup != 0 ? byGroup : string.CompareOrdinal(leftKey.Name, rightKey.Name);
         });
 
         int skip = Math.Min(query.Skip, found.Count);
         int take = Math.Min(query.Take, found.Count - skip);
-        List<JobRunStatus> page = found.GetRange(skip, take);
+        List<T> page = found.GetRange(skip, take);
 
-        return new PagedResult<JobRunStatus>(page, skip + page.Count < found.Count, query.IncludeTotalCount ? found.Count : null);
+        return new PagedResult<T>(page, skip + page.Count < found.Count, query.IncludeTotalCount ? found.Count : null);
     }
 
     /// <summary>
@@ -471,6 +597,51 @@ public partial class StdAdoDelegate
             while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 found.Add(ReadJobRunStatus(rs, schedulerName));
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    /// The statuses of <paramref name="requested" />, in no order, as <see cref="ReadJobRunStatusesOf" /> reads a
+    /// job's: a trigger key-set predicate, chunked.
+    /// </summary>
+    /// <param name="conn">The unit of work.</param>
+    /// <param name="schedulerName">The scheduler the triggers belong to.</param>
+    /// <param name="requested">The triggers, each once.</param>
+    /// <param name="failing">A predicate on the failure streak to append, or an empty string.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask<List<TriggerRunStatus>> ReadTriggerRunStatusesOf(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        List<TriggerKey> requested,
+        string failing,
+        CancellationToken cancellationToken)
+    {
+        List<TriggerRunStatus> found = [];
+
+        for (int offset = 0; offset < requested.Count; offset += AdoUtil.MaxTriggerKeysPerPredicate)
+        {
+            int length = Math.Min(AdoUtil.MaxTriggerKeysPerPredicate, requested.Count - offset);
+            int paddedCount = AdoUtil.RoundUpTriggerKeyCount(length);
+
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
+                StdAdoConstants.SqlSelectTriggerStatuses + failing + " AND " + AdoUtil.BuildTriggerKeyPredicate(paddedCount)));
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+
+            for (int i = 0; i < paddedCount; i++)
+            {
+                // Padded by repeating the chunk's last key: the predicate is a disjunction.
+                TriggerKey key = requested[offset + Math.Min(i, length - 1)];
+                AddCommandParameter(cmd, AdoUtil.TriggerKeyNameParameter(i), key.Name);
+                AddCommandParameter(cmd, AdoUtil.TriggerKeyGroupParameter(i), key.Group);
+            }
+
+            using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                found.Add(ReadTriggerRunStatus(rs, schedulerName));
             }
         }
 
@@ -1046,6 +1217,50 @@ public partial class StdAdoDelegate
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Whether the database has <c>QRTZ_TRIGGER_STATUS</c>: asked only after a status read failed, by a store whose
+    /// database was never validated, a store window's.
+    /// </summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<bool> HasTriggerRunStatusTable(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlProbeTriggerStatus));
+
+        try
+        {
+            using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch (DbException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Deletes the run statuses of triggers that no longer exist and last fired before an instant.
+    /// </summary>
+    /// <param name="conn">The unit of work, which is the history store's own connection.</param>
+    /// <param name="schedulerName">The scheduler whose statuses to delete.</param>
+    /// <param name="cutoff">The longest retention window's cutoff.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<int> DeleteOrphanedTriggerRunStatuses(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        DateTimeOffset cutoff,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteOrphanedTriggerStatuses));
+
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.HistoryCutoff, GetDbDateTimeValue(cutoff));
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Building the reads
     // ---------------------------------------------------------------------------------------------
@@ -1426,14 +1641,23 @@ public partial class StdAdoDelegate
 
     private JobRunStatus ReadJobRunStatus(DbDataReader rs, string schedulerName)
     {
-        return new JobRunStatus(
-            SchedulerName: schedulerName,
-            Job: new JobKey(rs.GetString(1), rs.GetString(0)),
-            LastFiredAtUtc: GetDateTimeFromDbValue(rs.GetValue(3)) ?? DateTimeOffset.MinValue,
-            // Not GetInt32: Oracle hands back a decimal for a NUMBER column.
-            LastResult: (JobRunResult) Convert.ToInt32(rs.GetValue(4), CultureInfo.InvariantCulture))
+        return JobRunStatusFold.Status(schedulerName, new JobKey(rs.GetString(1), rs.GetString(0)), ReadRunTally(rs));
+    }
+
+    private TriggerRunStatus ReadTriggerRunStatus(DbDataReader rs, string schedulerName)
+    {
+        return TriggerRunStatusFold.Status(schedulerName, new TriggerKey(rs.GetString(1), rs.GetString(0)), ReadRunTally(rs));
+    }
+
+    /// <summary>The run fields of a status row, which every status read selects after the key's group and name.</summary>
+    private RunTally ReadRunTally(DbDataReader rs)
+    {
+        return new RunTally
         {
             FirstFiredAtUtc = GetDateTimeFromDbValue(rs.GetValue(2)) ?? DateTimeOffset.MinValue,
+            LastFiredAtUtc = GetDateTimeFromDbValue(rs.GetValue(3)) ?? DateTimeOffset.MinValue,
+            // Not GetInt32: Oracle hands back a decimal for a NUMBER column.
+            LastResult = (JobRunResult) Convert.ToInt32(rs.GetValue(4), CultureInfo.InvariantCulture),
             LastDuration = TimeSpan.FromTicks(Convert.ToInt64(rs.GetValue(5), CultureInfo.InvariantCulture)),
             LastSchedulerInstanceId = rs.GetString(6),
             LastEntryId = ReadOptionalString(rs, 7),
