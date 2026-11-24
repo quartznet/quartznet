@@ -125,6 +125,27 @@ public class ActionLogViaTest
     }
 
     /// <summary>
+    /// The scheduler column stays on one line and the message keeps a readable width, which the browser check of
+    /// #4432 found wrapping to five lines at 1024 px and a word a line at 1440 px.
+    /// </summary>
+    [Test]
+    public void TheSchedulerStaysOnOneLineAndTheMessageKeepsItsWidth()
+    {
+        context.ActionLog.Record(TestData.SchedulerName, "PauseTrigger", "reports.nightly", succeeded: true);
+
+        IRenderedComponent<ActionLog> page = context.Render<ActionLog>();
+
+        page.FindAll("th.qz-action-log-scheduler").Should().ContainSingle();
+        page.FindAll("td.qz-action-log-scheduler").Should().ContainSingle();
+        page.FindAll("th.qz-action-log-message").Should().ContainSingle();
+        page.FindAll("td.qz-action-log-message").Should().ContainSingle();
+
+        string css = File.ReadAllText(HistoryPageTest.DashboardStylesheet());
+        Regex.IsMatch(css, @"\.qz-action-log-scheduler\s*\{[^}]*white-space:\s*nowrap").Should().BeTrue();
+        Regex.IsMatch(css, @"\.qz-action-log-message\s*\{[^}]*min-width:").Should().BeTrue();
+    }
+
+    /// <summary>
     /// The Via badges' text is at least 4.5:1 against their tint in every theme: 12 px text is normal text to
     /// WCAG AA. The info and warning colours themselves are not (4.24:1 and 2.74:1 in light, 3.13:1 for info in
     /// dark), so each badge has a text colour of its own.
