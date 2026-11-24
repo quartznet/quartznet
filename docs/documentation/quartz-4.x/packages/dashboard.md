@@ -433,16 +433,17 @@ From 4.9, *Edit schedule* on a trigger's page reschedules a trigger of any of th
 - **Only the schedule changes.** The trigger is cloned, so its calendar, node pin, priority, data map and type are
   kept (#3294). A trigger of another type, one that derives from none of the five, is refused, and the editor
   says so.
-- **The edit is previewed before it is saved**: the schedule in words and the next five fires, in the trigger's
-  time zone and less what its calendar excludes. The preview shows only while the edit differs from the saved
-  schedule.
+- **The schedule is previewed beside its fields**: in words, with its next five fires, each in the trigger's own
+  time zone with its offset, less what its calendar excludes. The preview says whether it is the saved schedule or
+  an edit not saved yet.
 - **A wrong field is said beside it**: an expression or rule that does not parse, a window that ends before it
   starts, no day ticked, an unknown time zone, a schedule that does not fire again.
 - **Save asks first.** The dialog says the trigger is replaced: its previous fire time, its count of fires and a
   pending retry are reset, and the replacement takes the state its group gives it. See
   [Rescheduling Jobs](../how-tos/rescheduling-jobs.md).
 - **A pause is kept.** A trigger paused on its own would come back unpaused, so the dashboard pauses it again,
-  with its reason and who asked. A trigger its group keeps paused is left alone.
+  with its reason and who asked. The pause is dated when it is set again: no operation carries a pause's time over.
+  A trigger its group keeps paused is left alone.
 - **The first fire is the edited schedule's first after now**, less what the calendar excludes, so a start long
   gone is not stored as a misfire. A simple trigger starts at that first fire, and its repeat count counts from
   there.
@@ -477,7 +478,7 @@ From 4.9, *Add trigger* on a job's page stores a new trigger of that job, of any
 | Name, group | the trigger's key; the group is the job's until another is typed |
 | Description | text |
 | Kind and schedule | the fields of [Rescheduling a trigger](#rescheduling-a-trigger), for the kind chosen |
-| Starts | a date and time in the dashboard's time zone; blank is now |
+| Starts | a date and time in the trigger's time zone, or the dashboard's for a simple trigger; blank is now |
 | Calendar | a calendar name, suggested from the scheduler's |
 | Priority | a whole number, `5` by default |
 | Misfire instruction | the kind's family of instructions, by name |
@@ -486,9 +487,10 @@ From 4.9, *Add trigger* on a job's page stores a new trigger of that job, of any
 - **The first fire is the schedule's first after now**, and the trigger starts at it. A start behind now keeps its
   phase, so *every other day at 06:00 from the 1st* stays on the same days.
 - **A duplicate is the trigger's copy** under a new key, `-copy` by default: its schedule and everything else it
-  carries, its execution group and node pin among them, while its kind is kept. The page then moves to the copy.
-- **A refusal is shown in the form**, which stays open: a key already in use, a calendar the scheduler does not
-  hold.
+  carries, its execution group and node pin among them, while its kind is kept. It starts now, and the `QRTZ_` entries
+  Quartz writes into a map, a trace parent among them, are left out. The page then moves to the copy.
+- **A refusal is shown in the form**, which stays open: a key already in use on the name field, a calendar the
+  scheduler does not hold above the fields.
 - **Every add is in the [Action Log](#action-log)** as `ScheduleTrigger`, with its schedule in words and its job.
 - **No job is created.** A job built from a type name runs whatever that type does, `NativeJob` included, and an
   agent refuses one by default. Store the job in code; the dashboard adds triggers to it.

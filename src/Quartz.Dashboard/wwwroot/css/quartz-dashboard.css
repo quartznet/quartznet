@@ -1564,6 +1564,15 @@ body{
     outline-offset: 2px;
 }
 
+/* A filled button's ring in the page's text colour: a primary-blue ring two pixels off a primary-blue button reads as
+   a halo of the button itself, faintest on the dark theme. */
+.qz-btn-primary:focus-visible,
+.qz-button-primary:focus-visible,
+.qz-btn-danger:focus-visible,
+.qz-button-danger:focus-visible {
+    outline-color: var(--qz-color-text);
+}
+
 .qz-btn:disabled,
 .qz-button:disabled {
     opacity: 0.5;
@@ -3206,6 +3215,83 @@ body{
     gap: var(--qz-space-sm);
 }
 
+/* A long value wraps rather than widen the table past its card. */
+.qz-job-data-table .qz-job-data-value-cell {
+    overflow-wrap: anywhere;
+}
+
+/* The editable map keeps its key and value readable: each input has room for a word before the table squeezes it. */
+.qz-job-data-edit .qz-job-data-key,
+.qz-job-data-edit .qz-job-data-value {
+    width: 100%;
+    min-width: 8rem;
+}
+
+/* Below 600 px each entry stacks inside its own block: the key and the value a row each, the type beside Remove, each
+   field under its label (#4412). The header row is for the wide table and goes. */
+@media (max-width: 600px) {
+    .qz-job-data-edit,
+    .qz-job-data-edit tbody {
+        display: block;
+    }
+
+    .qz-job-data-edit thead {
+        display: none;
+    }
+
+    .qz-job-data-edit tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "key key"
+            "value value"
+            "type remove";
+        gap: var(--qz-space-xs) var(--qz-space-sm);
+        padding: var(--qz-space-sm);
+        border-bottom: 1px solid var(--qz-color-border);
+    }
+
+    .qz-job-data-edit td {
+        display: block;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+    }
+
+    .qz-job-data-edit td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: var(--qz-space-xs);
+        color: var(--qz-color-text-secondary);
+        font-size: var(--qz-font-size-xs);
+        font-weight: var(--qz-font-weight-medium);
+    }
+
+    .qz-job-data-edit .qz-job-data-key-cell {
+        grid-area: key;
+    }
+
+    .qz-job-data-edit .qz-job-data-value-cell {
+        grid-area: value;
+    }
+
+    .qz-job-data-edit .qz-job-data-type-cell {
+        grid-area: type;
+    }
+
+    .qz-job-data-edit .qz-job-data-remove-cell {
+        grid-area: remove;
+        align-self: end;
+    }
+
+    .qz-job-data-edit .qz-job-data-key,
+    .qz-job-data-edit .qz-job-data-value,
+    .qz-job-data-edit .qz-job-data-type {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
 /* ==========================================================================
    22. TOOLTIP
    ========================================================================== */
@@ -3453,6 +3539,32 @@ body{
 }
 
 .qz-schedule-kind {
+    margin: 0 0 var(--qz-space-sm);
+}
+
+/* The editors measure their own width, so an interval and its unit can take two columns where the card has them. */
+.qz-schedule-editor,
+.qz-add-trigger {
+    container-type: inline-size;
+}
+
+/* An interval, its unit and what is wrong with it need more than one 180 px column: two, wherever two fit. */
+@container (min-width: 440px) {
+    .qz-schedule-fields .qz-schedule-pair {
+        grid-column: span 2;
+    }
+}
+
+.qz-add-trigger-intro {
+    margin: 0 0 var(--qz-space-md);
+}
+
+/* The preview ends a gap above the buttons under it, rather than flush against them. */
+.qz-schedule-preview {
+    margin-bottom: var(--qz-space-md);
+}
+
+.qz-schedule-preview > p {
     margin: 0 0 var(--qz-space-sm);
 }
 

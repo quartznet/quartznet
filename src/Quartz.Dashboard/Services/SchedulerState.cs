@@ -292,7 +292,10 @@ internal sealed class SchedulerState
         OnRefreshed?.Invoke(this, EventArgs.Empty);
     }
 
-    private TimeZoneInfo ResolveSelectedTimeZone()
+    /// <summary>
+    /// The zone the dashboard shows times in, or the machine's when the one selected is not known here.
+    /// </summary>
+    public TimeZoneInfo ResolveSelectedTimeZone()
     {
         try
         {

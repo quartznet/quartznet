@@ -67,7 +67,7 @@
                     break;
 
                 case ScheduleKind.Simple:
-                    <div class="qz-form-group">
+                    <div class="qz-form-group qz-schedule-pair">
                         <label class="qz-form-label" for="@Id("simple-interval")">Every</label>
                         <div class="qz-schedule-interval">
                             <input id="@Id("simple-interval")"
@@ -118,7 +118,7 @@
                     break;
 
                 case ScheduleKind.CalendarInterval:
-                    <div class="qz-form-group">
+                    <div class="qz-form-group qz-schedule-pair">
                         <label class="qz-form-label" for="@Id("calendar-interval")">Every</label>
                         <div class="qz-schedule-interval">
                             <input id="@Id("calendar-interval")"
@@ -182,7 +182,7 @@
                                @onchange="args => SetDailyWindow(end: args.Value?.ToString())" />
                         <FieldError Id="@ErrorId(ScheduleField.DailyEnd)" Message="@ErrorOf(ScheduleField.DailyEnd)" />
                     </div>
-                    <div class="qz-form-group">
+                    <div class="qz-form-group qz-schedule-pair">
                         <label class="qz-form-label" for="@Id("daily-interval")">Every</label>
                         <div class="qz-schedule-interval">
                             <input id="@Id("daily-interval")"
@@ -273,6 +273,7 @@
                            aria-invalid="@Invalid(ScheduleField.TimeZone)"
                            aria-describedby="@DescribedBy(ScheduleField.TimeZone)"
                            @bind="form.TimeZoneId"
+                           @bind:event="oninput"
                            @bind:after="EditedAsync" />
                     <datalist id="@Id("time-zones")">
                         @foreach (TimeZoneInfo timeZone in TimeZones)

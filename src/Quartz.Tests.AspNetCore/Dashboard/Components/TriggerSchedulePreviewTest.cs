@@ -59,18 +59,18 @@ public sealed class TriggerSchedulePreviewTest
 
         page.WaitForAssertion(() => FireTimes(page).Should().Equal(
             [
-                "2026-10-06 03:15:00 +00:00",
-                "2026-10-07 03:15:00 +00:00",
-                "2026-10-08 03:15:00 +00:00",
-                "2026-10-09 03:15:00 +00:00",
-                "2026-10-10 03:15:00 +00:00",
+                "2026-10-06 09:00:00 +05:45",
+                "2026-10-07 09:00:00 +05:45",
+                "2026-10-08 09:00:00 +05:45",
+                "2026-10-09 09:00:00 +05:45",
+                "2026-10-10 09:00:00 +05:45",
             ],
-            "09:00 in Kathmandu is 03:15 UTC, and the trigger fires at 09:00 in its own zone, not the dashboard host's"));
+            "the trigger fires at 09:00 in its own zone, and the list says so in that zone, with its offset, whatever zone the dashboard shows"));
         page.Find("[data-testid=schedule-preview-fires] li .qz-muted").TextContent.Should().Be("(in 12h)",
             "an upcoming fire is ahead of now, so it is said as how long until it rather than how long ago");
         page.Find("[data-testid=schedule-preview-basis]").TextContent.Should().Be(
-            $"Read in {kathmandu.Id}, the trigger's time zone.",
-            "the expression's hours are the trigger's zone's, which the times in the list are not");
+            $"Times in {kathmandu.Id}, the trigger's time zone.",
+            "the list names the zone its times are in");
     }
 
     [Test]
@@ -94,7 +94,7 @@ public sealed class TriggerSchedulePreviewTest
             ],
             "the trigger's calendar excludes 6 October, so the scheduler will not fire it then"));
         page.Find("[data-testid=schedule-preview-basis]").TextContent.Should().Be(
-            "Read in UTC, the trigger's time zone, less what calendar 'holidays' excludes.");
+            "Times in UTC, the trigger's time zone, less what calendar 'holidays' excludes.");
     }
 
     /// <summary>
@@ -120,23 +120,24 @@ public sealed class TriggerSchedulePreviewTest
     }
 
     /// <summary>
-    /// The saved schedule's fires are <em>Upcoming fires</em>, so a preview of it would be the same list
-    /// twice, under a heading that says something else.
+    /// The editor says what its schedule does from the start, beside its fields, and says whether that is the saved
+    /// schedule or an edit: on a narrow screen <em>Upcoming fires</em> is far above it.
     /// </summary>
     [Test]
-    public void TheSavedExpressionIsNotPreviewed()
+    public void TheSavedScheduleIsPreviewedAndSaidToBeTheSavedOne()
     {
         GivenTrigger(Cron(Saved, TimeZoneInfo.Utc));
 
         IRenderedComponent<TriggerDetail> page = Render();
 
         page.WaitForAssertion(() => page.Find("#trigger-cron-expression").GetAttribute("value").Should().Be(Saved));
-        page.Markup.Should().Contain("Upcoming fires", "the saved schedule's fires are listed there");
-        page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty("nothing has been edited, so a preview would repeat Upcoming fires");
+        FireTimes(page).Should().StartWith("2026-10-06 11:00:00 +00:00", "the saved schedule's fires are previewed at open");
+        page.FindAll("[data-testid=schedule-preview-saved]").Should().ContainSingle();
+        page.FindAll("[data-testid=schedule-preview-unsaved]").Should().BeEmpty();
 
         Edit(page, "  " + Saved + " ");
 
-        page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty(
+        page.FindAll("[data-testid=schedule-preview-unsaved]").Should().BeEmpty(
             "the editor's expression, trimmed, is still the saved one");
     }
 
@@ -160,7 +161,7 @@ public sealed class TriggerSchedulePreviewTest
         GivenTrigger(Cron(Saved, TimeZoneInfo.Utc));
         IRenderedComponent<TriggerDetail> page = Render();
         page.WaitForAssertion(() => page.Find("#trigger-cron-expression").GetAttribute("value").Should().Be(Saved));
-        page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty("nothing has been edited yet");
+        page.FindAll("[data-testid=schedule-preview-unsaved]").Should().BeEmpty("nothing has been edited yet");
 
         Edit(page, "0 30 6 * * ?");
 
@@ -181,9 +182,10 @@ public sealed class TriggerSchedulePreviewTest
 
         page.Find("button.qz-schedule-reset").Click();
 
-        page.WaitForAssertion(() => page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty(
-            "resetting the editor puts the saved expression back, whose fires are Upcoming fires"));
+        page.WaitForAssertion(() => page.FindAll("[data-testid=schedule-preview-saved]").Should().ContainSingle(
+            "resetting the editor puts the saved expression back"));
         page.FindAll("[data-testid=schedule-preview-unsaved]").Should().BeEmpty();
+        FireTimes(page).Should().StartWith("2026-10-06 11:00:00 +00:00");
     }
 
     [Test]

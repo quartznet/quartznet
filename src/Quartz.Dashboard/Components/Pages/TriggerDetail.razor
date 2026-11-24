@@ -81,6 +81,7 @@
                     <button type="button"
                             class="qz-button qz-trigger-duplicate"
                             disabled="@_duplicating"
+                            @ref="_duplicateOpener"
                             @onclick="StartDuplicating">Duplicate…</button>
                 }
                 @if (CanUnschedule)
@@ -368,6 +369,11 @@
 
     /// <summary>Whether the Duplicate form is open.</summary>
     private bool _duplicating;
+
+    private ElementReference _duplicateOpener;
+
+    /// <summary>Whether the Duplicate button takes focus back after the next render, its form having been cancelled.</summary>
+    private bool _focusDuplicateOpener;
 
     private bool CanReschedule => Can(Routes.RescheduleJob);
 
@@ -763,6 +769,29 @@
     private void CancelDuplicating()
     {
         _duplicating = false;
+        _focusDuplicateOpener = true;
+    }
+
+    /// <remarks>
+    /// The Duplicate button takes focus back when its form is cancelled, once it is enabled again. A copy that is stored
+    /// moves to the copy's page, whose heading takes focus as every page's does.
+    /// </remarks>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusDuplicateOpener)
+        {
+            return;
+        }
+
+        _focusDuplicateOpener = false;
+        try
+        {
+            await _duplicateOpener.FocusAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // A circuit that has gone, or a page still prerendering, has nothing to focus.
+        }
     }
 
     /// <summary>The copy is stored: the page moves to it.</summary>

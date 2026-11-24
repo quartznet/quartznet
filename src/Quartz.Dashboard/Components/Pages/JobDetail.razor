@@ -181,7 +181,7 @@
         @if (CanSchedule)
         {
             <div class="qz-actions qz-group-actions">
-                <button type="button" class="qz-button qz-add-trigger-open" disabled="@_adding" @onclick="StartAdding">Add trigger</button>
+                <button type="button" class="qz-button qz-add-trigger-open" disabled="@_adding" @ref="_addOpener" @onclick="StartAdding">Add trigger</button>
             </div>
         }
         @if (_adding && CanSchedule)
@@ -212,9 +212,19 @@
                         string triggerState = trigger.State?.ToString() ?? "Unknown";
                         <tr>
                             <td>
-                                <a href="@GetTriggerPath(triggerGroup, triggerName)">
-                                    <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
-                                </a>
+                                @if (_focusTrigger is { } added && added.Group == triggerGroup && added.Name == triggerName)
+                                {
+                                    @* The trigger just added, which takes focus from the form that closed. *@
+                                    <a href="@GetTriggerPath(triggerGroup, triggerName)" data-testid="added-trigger-link" @ref="_addedTriggerLink">
+                                        <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
+                                    </a>
+                                }
+                                else
+                                {
+                                    <a href="@GetTriggerPath(triggerGroup, triggerName)">
+                                        <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
+                                    </a>
+                                }
                             </td>
                             <td>@(triggerType is { Length: > 0 } ? triggerType : "—")</td>
                             <td class="qz-col-schedule"><ScheduleCell Trigger="@trigger" /></td>
@@ -333,6 +343,22 @@
 
     /// <summary>Whether the Add trigger form is open.</summary>
     private bool _adding;
+
+    private ElementReference _addOpener;
+    private ElementReference _addedTriggerLink;
+
+    /// <summary>The trigger just added, whose link takes focus once the job's triggers are drawn again.</summary>
+    private TriggerKeyDto? _focusTrigger;
+
+    /// <summary>Where focus goes after the next render, once the form that had it has closed.</summary>
+    private FocusAfterAdd _pendingFocus;
+
+    private enum FocusAfterAdd
+    {
+        None,
+        Opener,
+        AddedTrigger,
+    }
 
     private JobKeyDto JobKey => new(Group, Name);
 
@@ -760,13 +786,39 @@
     private void CancelAdding()
     {
         _adding = false;
+        _pendingFocus = FocusAfterAdd.Opener;
     }
 
-    /// <summary>The trigger is stored: the form closes, and the job's triggers are read again, the new one among them.</summary>
+    /// <summary>
+    /// The trigger is stored: the form closes, the job's triggers are read again, the new one among them, and its link
+    /// takes focus; the opener does when the listing does not show it.
+    /// </summary>
     private async Task OnTriggerAddedAsync(TriggerKeyDto key)
     {
         _adding = false;
         await LoadDataAsync();
+        _focusTrigger = _triggers.Any(trigger => trigger.Group == key.Group && trigger.Name == key.Name) ? key : null;
+        _pendingFocus = _focusTrigger is null ? FocusAfterAdd.Opener : FocusAfterAdd.AddedTrigger;
+    }
+
+    /// <summary>Focus never falls to the page's body when the form that had it closes.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        FocusAfterAdd pending = _pendingFocus;
+        if (pending == FocusAfterAdd.None)
+        {
+            return;
+        }
+
+        _pendingFocus = FocusAfterAdd.None;
+        try
+        {
+            await (pending == FocusAfterAdd.AddedTrigger ? _addedTriggerLink : _addOpener).FocusAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // A circuit that has gone, or a page still prerendering, has nothing to focus.
+        }
     }
 
     public void Dispose()

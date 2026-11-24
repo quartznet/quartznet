@@ -16,7 +16,7 @@
    here: a job built from a type name is remote code execution with NativeJob, and an agent refuses one. *@
 <section class="qz-section qz-add-trigger" data-testid="add-trigger">
     <h2>@(Source is null ? "Add trigger" : "Duplicate trigger")</h2>
-    <p class="qz-muted" data-testid="add-trigger-job">
+    <p class="qz-muted qz-add-trigger-intro" data-testid="add-trigger-job">
         @(Source is null
             ? "A new trigger of job " + DisplayValueHelper.FormatKey(Job.Group, Job.Name) + "."
             : "A copy of " + DisplayValueHelper.FormatKey(Source.Key.Group, Source.Key.Name) + ", a new trigger of job " + DisplayValueHelper.FormatKey(Job.Group, Job.Name) + ".")
@@ -36,13 +36,15 @@
             <label class="qz-form-label" for="add-trigger-name">Name</label>
             <input id="add-trigger-name"
                    class="qz-input"
-                   data-autofocus
-                   aria-invalid="@(_nameError is null ? null : "true")"
-                   aria-describedby="@(_nameError is null ? null : "add-trigger-name-error")"
+                   autocomplete="off"
+                   aria-invalid="@(NameError is null ? null : "true")"
+                   aria-describedby="@(NameError is null ? null : "add-trigger-name-error")"
+                   @ref="_nameInput"
                    @bind="_name"
                    @bind:event="oninput"
-                   @bind:after="Edited" />
-            <FieldError Id="add-trigger-name-error" Message="@_nameError" TestId="add-trigger-name-error" />
+                   @bind:after="Edited"
+                   @onfocusout="OnNameLeft" />
+            <FieldError Id="add-trigger-name-error" Message="@NameError" TestId="add-trigger-name-error" />
         </div>
         <div class="qz-form-group">
             <label class="qz-form-label" for="add-trigger-group">Group</label>
@@ -63,12 +65,12 @@
                    class="qz-input"
                    type="datetime-local"
                    step="1"
-                   title="When the schedule is measured from, in @Scheduler.SelectedTimeZoneId: blank is now. A time already behind now keeps its phase, and the first fire is the schedule's first after now"
+                   title="When the schedule is measured from: blank is now. A time already behind now keeps its phase, and the first fire is the schedule's first after now"
                    aria-invalid="@(_startsError is null ? null : "true")"
                    aria-describedby="@(_startsError is null ? "add-trigger-starts-hint" : "add-trigger-starts-hint add-trigger-starts-error")"
                    value="@_starts"
                    @onchange="OnStartsChanged" />
-            <span id="add-trigger-starts-hint" class="qz-muted">In @Scheduler.SelectedTimeZoneId; blank is now.</span>
+            <span id="add-trigger-starts-hint" class="qz-muted" data-testid="add-trigger-starts-hint">@StartsHint</span>
             <FieldError Id="add-trigger-starts-error" Message="@_startsError" />
         </div>
     </div>
@@ -123,7 +125,7 @@
                      CalendarUnreadable="@_calendarUnreadable" />
 
     <div class="qz-actions qz-group-actions">
-        <button type="button" class="qz-button qz-button-primary qz-add-trigger-save" disabled="@(_saving || _readingCalendar)" @onclick="AddAsync">Add trigger</button>
+        <button type="button" class="qz-button qz-button-primary qz-add-trigger-save" disabled="@(_saving || _readingCalendar)" @onclick="AddAsync">@(Source is null ? "Add trigger" : "Duplicate trigger")</button>
         <button type="button" class="qz-button qz-add-trigger-cancel" @onclick="CancelAsync">Cancel</button>
     </div>
 </section>
@@ -142,6 +144,19 @@
     private List<string> _calendarNames = [];
 
     private string? _nameError;
+
+    /// <summary>
+    /// Whether the name's error may be shown: once the field has been left or a save asked for, not while the reader
+    /// has not got to it yet.
+    /// </summary>
+    private bool _nameTouched;
+
+    /// <summary>The key the scheduler said is taken, said on the name field for as long as the form asks for it.</summary>
+    private TriggerKey? _takenKey;
+
+    private ElementReference _nameInput;
+    private bool _focusName = true;
+
     private string? _priorityError;
     private string? _startsError;
     private string? _refusal;
@@ -178,6 +193,22 @@
     public EventCallback OnCancel { get; set; }
 
     internal override string IdPrefix => "add-trigger";
+
+    /// <summary>The prefix of the data-map keys Quartz writes itself, which a copy does not carry: a trace parent, a backfill's slot.</summary>
+    private const string InternalKeyPrefix = "QRTZ_";
+
+    private string? NameError => _nameTouched || _takenKey is not null ? _nameError : null;
+
+    /// <summary>
+    /// The zone a start is read in: the schedule's own for a kind that has one, the dashboard's for a simple trigger.
+    /// </summary>
+    private TimeZoneInfo StartsZone => Form is { HasTimeZone: true } form && form.TryResolveTimeZone() is { } zone
+        ? zone
+        : Scheduler.ResolveSelectedTimeZone();
+
+    private string StartsHint => Form is { HasTimeZone: true }
+        ? "In " + StartsZone.Id + ", the trigger's time zone; blank is now."
+        : "In " + StartsZone.Id + ", the dashboard's time zone; blank is now.";
 
     private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
 
@@ -221,10 +252,15 @@
             _priority = source.Priority.ToString(CultureInfo.InvariantCulture);
             _calendarName = source.CalendarName ?? string.Empty;
             _misfire = source.MisfireInstructionCode.ToString(CultureInfo.InvariantCulture);
-            _starts = Scheduler.ConvertToSelectedTimeZone(source.StartTimeUtc).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture);
+
+            // Blank: a copy starts now. The source's own start is usually long gone.
+            _starts = string.Empty;
             foreach (KeyValuePair<string, object?> entry in source.JobDataMap)
             {
-                _dataMap[entry.Key] = entry.Value;
+                if (!entry.Key.StartsWith(InternalKeyPrefix, StringComparison.Ordinal))
+                {
+                    _dataMap[entry.Key] = entry.Value;
+                }
             }
         }
         else
@@ -233,6 +269,34 @@
         }
 
         await ReadCalendarAsync();
+        Rebuild();
+    }
+
+    /// <summary>The form opens with the caret in its first field, the name.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusName)
+        {
+            _focusName = false;
+            await FocusNameAsync();
+        }
+    }
+
+    private async Task FocusNameAsync()
+    {
+        try
+        {
+            await _nameInput.FocusAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // A circuit that has gone, or a page still prerendering, has nothing to focus.
+        }
+    }
+
+    private void OnNameLeft()
+    {
+        _nameTouched = true;
         Rebuild();
     }
 
@@ -324,6 +388,10 @@
         {
             _nameError = "A trigger needs a name: with its group, it is the trigger's key.";
         }
+        else if (_takenKey is { } taken && taken.Equals(new TriggerKey(name, group.Length == 0 ? TriggerKey.DefaultGroup : group)))
+        {
+            _nameError = "A trigger with this name already exists in this group.";
+        }
 
         // The preview is of a trigger, so one without a name yet is previewed under a stand-in.
         template.Key = new TriggerKey(name.Length == 0 ? "new" : name, group.Length == 0 ? TriggerKey.DefaultGroup : group);
@@ -367,7 +435,8 @@
         {
             if (DateTime.TryParseExact(_starts.Trim(), InputFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime wallClock))
             {
-                start = Scheduler.FromSelectedTimeZone(wallClock);
+                TimeZoneInfo zone = StartsZone;
+                start = new DateTimeOffset(wallClock, zone.GetUtcOffset(wallClock));
             }
             else
             {
@@ -399,9 +468,15 @@
             return;
         }
 
+        _nameTouched = true;
         Rebuild();
         if (_nameError is not null || _priorityError is not null || _startsError is not null || _build?.Trigger is not { } trigger)
         {
+            if (_nameError is not null)
+            {
+                await FocusNameAsync();
+            }
+
             return;
         }
 
@@ -416,6 +491,14 @@
             ActionLog.Record(schedulerName, "ScheduleTrigger", target, succeeded: true, detail);
             Toasts.Success("Added trigger " + target + " to job " + job + ".");
             await OnAdded.InvokeAsync(key);
+        }
+        catch (ObjectAlreadyExistsException ex)
+        {
+            // Said on the name, which is what the reader changes, rather than as the store's own words about options.
+            _takenKey = trigger.Key;
+            ActionLog.Failed(schedulerName, "ScheduleTrigger", target, ex, detail: detail);
+            Rebuild();
+            await FocusNameAsync();
         }
         catch (Exception ex)
         {
