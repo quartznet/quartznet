@@ -159,6 +159,69 @@ public sealed class HostMcpTest
         host.Logs.Entries.Should().NotContain(entry => entry.Message.Contains(token, StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// The SDK's categories are held at Information even where the configuration names a longer one of them, which
+    /// would otherwise win over a rule for the prefix (#4245 review).
+    /// </summary>
+    [Test]
+    public async Task TheSdksLongerCategoriesAreHeldAtInformationToo()
+    {
+        await using HostUnderTest host = HostUnderTest.WithTokens(Settings(new()
+        {
+            ["Quartz:Dashboard:Mcp:ReadOnly"] = "false",
+            ["Logging:LogLevel:Default"] = "Trace",
+            ["Logging:LogLevel:ModelContextProtocol.Server"] = "Trace",
+            ["Logging:LogLevel:ModelContextProtocol.AspNetCore"] = "Trace",
+            ["Logging:LogLevel:ModelContextProtocol.Protocol"] = "Trace",
+        }));
+        McpClient admin = await Connect(host, HostUnderTest.AdministratorToken);
+
+        JsonElement preview = McpTestHost.Answer(await McpTestHost.Call(admin, "unschedule", new { scheduler = Window, group = "nightly", name = "at-midnight" }));
+        string token = preview.GetProperty("confirmationToken").GetString()!;
+        await McpTestHost.Call(admin, "unschedule", new { scheduler = Window, group = "nightly", name = "at-midnight", confirmationToken = token });
+
+        host.Logs.Entries.Should().NotContain(entry => entry.Category.StartsWith("ModelContextProtocol", StringComparison.Ordinal) && entry.Level < Microsoft.Extensions.Logging.LogLevel.Information,
+            "a configured ModelContextProtocol.Server=Trace is longer than the clamp's own category, and must not reopen the message dumps");
+        host.Logs.Entries.Should().NotContain(entry => entry.Message.Contains(token, StringComparison.Ordinal));
+    }
+
+    [Test]
+    public async Task ATokenInTheAddressIsRefusedAndNeverLogged()
+    {
+        await using HostUnderTest host = HostUnderTest.WithTokens(Settings(new() { ["Quartz:Dashboard:Authentication:AllowTokenInUrl"] = "true" }));
+        using HttpClient client = host.Factory.CreateClient(new() { AllowAutoRedirect = false });
+
+        using HttpRequestMessage request = new(HttpMethod.Post, Path + "?t=" + HostUnderTest.AdministratorToken)
+        {
+            Content = Json("""{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"""),
+        };
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+        using HttpResponseMessage response = await client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized, "the endpoint never reads a token from the address, and a challenge is never a redirect");
+        host.Logs.Entries.Should().NotContain(entry => entry.Message.Contains(HostUnderTest.AdministratorToken, StringComparison.Ordinal),
+            "the host never logs a token, and an address can carry one");
+    }
+
+    [Test]
+    public async Task ATokenInTheAddressIsRefusedBesideAValidBearer()
+    {
+        await using HostUnderTest host = HostUnderTest.WithTokens(Settings());
+        using HttpClient script = Bearer(host, HostUnderTest.OperatorToken);
+
+        using HttpRequestMessage request = new(HttpMethod.Post, Path + "?t=" + HostUnderTest.AdministratorToken)
+        {
+            Content = Json("""{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"""),
+        };
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+        using HttpResponseMessage response = await script.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        host.Logs.Entries.Should().NotContain(entry => entry.Message.Contains(HostUnderTest.AdministratorToken, StringComparison.Ordinal));
+    }
+
     private Dictionary<string, string?> Settings(Dictionary<string, string?>? more = null, bool enabled = true)
     {
         Dictionary<string, string?> settings = new(StringComparer.Ordinal)
