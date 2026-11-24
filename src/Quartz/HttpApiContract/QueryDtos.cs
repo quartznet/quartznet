@@ -266,6 +266,30 @@ internal sealed record FireInstanceDto(
 }
 
 /// <summary>
+/// One read of a running firing's log on the wire: <see cref="FireInstanceLog" />, the state travelling as its name
+/// (#4437).
+/// </summary>
+internal sealed record FireInstanceLogResponse(
+    FireInstanceLogState Status,
+    string? SchedulerInstanceId,
+    string[] Entries,
+    long Next,
+    long Missed,
+    bool HasMore)
+{
+    public static FireInstanceLogResponse Create(FireInstanceLog log)
+    {
+        ArgumentNullException.ThrowIfNull(log);
+        return new FireInstanceLogResponse(log.State, log.SchedulerInstanceId, log.Entries, log.Next, log.Missed, log.HasMore);
+    }
+
+    public FireInstanceLog AsLog()
+    {
+        return new FireInstanceLog(Status, SchedulerInstanceId, Entries ?? [], Next, Missed, HasMore);
+    }
+}
+
+/// <summary>
 /// One scheduler node on the wire.
 /// </summary>
 /// <remarks>

@@ -63,6 +63,7 @@ public sealed class WireCarrierEquivalenceTest
     private ServedRequests served = null!;
     private RecordingTransport transport = null!;
     private HttpScheduler scheduler = null!;
+    private IScheduler answering = null!;
 
     [SetUp]
     public void SetUp()
@@ -80,7 +81,8 @@ public sealed class WireCarrierEquivalenceTest
             repository.Remove(bound.SchedulerName);
         }
 
-        repository.Bind(AnsweringScheduler());
+        answering = AnsweringScheduler();
+        repository.Bind(new LogAnsweringScheduler(answering));
 
         httpClient = host.CreateClient();
         transport = new RecordingTransport(new HttpWireTransport(httpClient));
@@ -91,6 +93,7 @@ public sealed class WireCarrierEquivalenceTest
     public async Task TearDown()
     {
         await scheduler.DisposeAsync();
+        await answering.DisposeAsync();
         httpClient.Dispose();
         await host.DisposeAsync();
         await root.DisposeAsync();
@@ -285,7 +288,7 @@ public sealed class WireCarrierEquivalenceTest
         await using ServiceProvider provider = services.BuildServiceProvider();
 
         AgentCarrier carrier = new(
-            AnsweringScheduler(),
+            new LogAnsweringScheduler(AnsweringScheduler()),
             provider,
             new DashboardAgentOptions { IsJobTypeAllowed = _ => true },
             NullLogger.Instance);
@@ -404,8 +407,6 @@ public sealed class WireCarrierEquivalenceTest
     public async Task AMatcherValueWithACharacterThatMeansSomethingInAQueryReachesTheSchedulerAsWritten(string character)
     {
         string value = $"night{character}shift";
-        IScheduler answering = host.Services.GetRequiredService<ISchedulerRepository>().Lookup(TestData.SchedulerName)!;
-
         await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(value));
         await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameStartsWith(value) });
 
@@ -600,6 +601,8 @@ public sealed class WireCarrierEquivalenceTest
         ["GetTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTrigger], s => s.GetTrigger(names.Trigger).AsTask()),
         ["GetTriggerState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTriggerState], s => s.GetTriggerState(names.Trigger).AsTask()),
         ["GetUpcomingFireTimes(TriggerKey, Int32, CancellationToken)"] = new([SchedulerRoutes.GetTriggerFireTimes], s => ((IUpcomingFireTimesScheduler) s).GetUpcomingFireTimes(names.Trigger, 10).AsTask()),
+        ["ReadFireInstanceLog(FireInstanceLogRequest, CancellationToken)"] = new([SchedulerRoutes.GetFireInstanceLog], s => ((IFireInstanceLogScheduler) s).ReadFireInstanceLog(
+            new FireInstanceLogRequest(names.FireInstanceId, After: 2, Take: 10, SchedulerInstanceId: "node-b")).AsTask()),
         ["QueryDescribedTriggers(TriggerQuery, CancellationToken)"] = new([SchedulerRoutes.QueryTriggers], s => ((IScheduleDescribingScheduler) s).QueryDescribedTriggers(new TriggerQuery { Job = names.Job }).AsTask()),
         ["ResetTriggerFromErrorState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerFromErrorState], s => s.ResetTriggerFromErrorState(names.Trigger).AsTask()),
         ["ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerKeysFromErrorState], s => s.ResetTriggersFromErrorState([names.Trigger]).AsTask()),
@@ -668,13 +671,14 @@ public sealed class WireCarrierEquivalenceTest
     /// <summary>
     /// The members <see cref="HttpScheduler" /> implements itself, named as the contract declares them: every
     /// one of <see cref="IScheduler" />'s it does not leave to a default body, and
-    /// <see cref="IBackfillingScheduler.Backfill" />, <see cref="IUpcomingFireTimesScheduler.GetUpcomingFireTimes" /> and
-    /// <see cref="IScheduleDescribingScheduler.QueryDescribedTriggers" />, the internal contracts the backfill and
-    /// fire-times extensions and the described trigger listing send to it.
+    /// <see cref="IBackfillingScheduler.Backfill" />, <see cref="IUpcomingFireTimesScheduler.GetUpcomingFireTimes" />,
+    /// <see cref="IScheduleDescribingScheduler.QueryDescribedTriggers" /> and
+    /// <see cref="IFireInstanceLogScheduler.ReadFireInstanceLog" />, the internal contracts the backfill and fire-times
+    /// extensions, the described trigger listing and a running firing's log send to it.
     /// </summary>
     private static IEnumerable<MethodInfo> ImplementedMembers()
     {
-        foreach (Type contract in (Type[]) [typeof(IScheduler), typeof(IBackfillingScheduler), typeof(IUpcomingFireTimesScheduler), typeof(IScheduleDescribingScheduler)])
+        foreach (Type contract in (Type[]) [typeof(IScheduler), typeof(IBackfillingScheduler), typeof(IUpcomingFireTimesScheduler), typeof(IScheduleDescribingScheduler), typeof(IFireInstanceLogScheduler)])
         {
             InterfaceMapping map = typeof(HttpScheduler).GetInterfaceMap(contract);
             for (int i = 0; i < map.TargetMethods.Length; i++)
@@ -727,6 +731,28 @@ public sealed class WireCarrierEquivalenceTest
         A.CallTo(() => fake.TimeProvider).Returns(TimeProvider.System);
         A.CallTo(() => fake.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(new List<ITrigger>());
         return fake;
+    }
+
+    /// <summary>
+    /// The answering scheduler, reading a running firing's log as the scheduler Quartz builds does, which a fake
+    /// cannot: the capability is internal to a strong-named assembly the fakes' proxies cannot see into.
+    /// </summary>
+    /// <remarks>
+    /// A decorator, so everything else is the fake's, as it was with the fake bound alone: the decorator's other
+    /// capabilities end in the fake and compose over it.
+    /// </remarks>
+    private sealed class LogAnsweringScheduler(IScheduler inner) : DelegatingScheduler(inner), IFireInstanceLogScheduler
+    {
+        ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
+        {
+            return new ValueTask<FireInstanceLog>(new FireInstanceLog(
+                FireInstanceLogState.Running,
+                request.SchedulerInstanceId ?? "node-a",
+                ["2026-11-24T10:00:00.000Z info Job: one more line"],
+                request.After + 1,
+                Missed: 0,
+                HasMore: false));
+        }
     }
 
     /// <summary>

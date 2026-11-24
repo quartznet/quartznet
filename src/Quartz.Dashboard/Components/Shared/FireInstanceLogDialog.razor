@@ -1,0 +1,455 @@
+@using System.Globalization
+@using System.Text
+@using Microsoft.Extensions.DependencyInjection
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Services
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject IServiceProvider Services
+
+@* Follows one running firing's log (#4437): every two seconds while it is open, the lines after the last one it has,
+   read in the process running the firing. It holds its own copy of the row, so the page's refresh dropping a finished
+   firing leaves it open; and its own timer, which the dialog closing, or the page going, stops. *@
+<ModalDialog Class="qz-log-dialog" LabelledBy="qz-log-dialog-title" TestId="log-dialog" ReturnFocus="ReturnFocus" OnCancel="CloseAsync">
+    @if (_phase != Phase.Stopped)
+    {
+        <AutoRefresh Every="PollInterval" Refresh="TickAsync" />
+    }
+
+    <h3 id="qz-log-dialog-title">Log of @JobLabel · @TriggerLabel</h3>
+    <p class="qz-log-dialog-meta" data-testid="log-meta">
+        Node <strong>@Firing.SchedulerInstanceId</strong> · fired @Scheduler.FormatInSelectedTimeZone(Firing.FireTimeUtc, "u") · run time @RunTime
+    </p>
+
+    <p class="qz-log-dialog-status" role="status" data-testid="log-status">
+        @switch (_outcome)
+        {
+            case Outcome.None when _lastError is not null:
+                <span>The last read failed, and the next one is in two seconds: @_lastError</span>
+                break;
+            case Outcome.None when _phase == Phase.HandingOver:
+                <span>The run ended. Looking for its execution page…</span>
+                break;
+            case Outcome.None when _received == 0 && _updatedAt is null:
+                <span>Reading…</span>
+                break;
+            case Outcome.None when _received == 0:
+                <span>Nothing logged yet · updated @UpdatedAt</span>
+                break;
+            case Outcome.None:
+                <span>Following · @LineCount · updated @UpdatedAt</span>
+                break;
+            case Outcome.Ended:
+                <span>
+                    The run ended. Its log, as recorded, is on its
+                    <a class="qz-details-link" data-testid="log-execution-link" href="@ExecutionPath">execution page</a>.
+                </span>
+                break;
+            case Outcome.EndedWithoutRow:
+                <span>
+                    The run ended, and its execution is not in the history yet. The trigger's
+                    <a class="qz-details-link" data-testid="log-past-runs-link" href="@PastRunsPath">Past runs</a> list it once it is.
+                </span>
+                break;
+            case Outcome.EndedWithoutHistory:
+                <span>This scheduler keeps no history, so the log is not kept after the run.</span>
+                break;
+            case Outcome.NotCaptured:
+                <span>
+                    This scheduler keeps no log lines of its firings. Call <code>UseExecutionLogCapture()</code> on it to
+                    follow a firing here and to keep its log on its execution page.
+                </span>
+                break;
+            case Outcome.OtherNode:
+                <span>@Firing.SchedulerInstanceId runs this firing, and this target reaches @_answeringNode. Open @(Firing.SchedulerInstanceId)'s target to follow its log.</span>
+                break;
+            case Outcome.Unreachable when _answeringNode is null:
+                <span>
+                    No process this dashboard reaches runs this firing: the scheduler is read through its store. Its log is
+                    on its execution page once it ends.
+                </span>
+                break;
+            case Outcome.Unreachable:
+                <span>
+                    @_answeringNode runs this firing, and no member target of this cluster fronts it, so its log cannot be
+                    followed here. Its log is on its execution page once it ends.
+                </span>
+                break;
+            case Outcome.NotSupported:
+                <span>@_lastError</span>
+                break;
+            case Outcome.Failed:
+                <span>Stopped after @MaxFailures failed reads in a row: @_lastError</span>
+                break;
+        }
+    </p>
+
+    <div class="qz-log-follow" data-testid="log-scroller">
+        <pre class="qz-execution-log" tabindex="0" aria-label="Log lines" data-testid="log-lines">@LogText</pre>
+    </div>
+
+    <div class="qz-confirm-actions">
+        @if (_outcome == Outcome.Failed)
+        {
+            <button type="button" class="qz-button qz-button-primary" data-testid="log-retry" @onclick="RetryAsync">Retry</button>
+        }
+        <button type="button" class="qz-button" data-testid="log-close" @onclick="CloseAsync">Close</button>
+    </div>
+</ModalDialog>
+
+@code {
+    /// <summary>How often the dialog reads while it follows the firing, and while it looks for its execution page.</summary>
+    internal static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
+
+    /// <summary>Pages read at once, after the tick's first, while the answer says the reader is behind.</summary>
+    internal const int MaxExtraPages = 4;
+
+    /// <summary>Failed reads in a row after which the dialog stops and offers Retry.</summary>
+    internal const int MaxFailures = 3;
+
+    /// <summary>Reads of the history, two seconds apart, for the execution of a firing that ended: it may be written behind.</summary>
+    internal const int MaxHistoryReads = 5;
+
+    /// <summary>The newest entries the dialog keeps, which bounds one circuit's memory for a long run.</summary>
+    internal const int MaxLines = 2000;
+
+    internal const string EarlierLinesMarker = "[earlier lines are on the execution page once the run ends]";
+
+    private enum Phase
+    {
+        Following,
+        HandingOver,
+        Stopped,
+    }
+
+    private enum Outcome
+    {
+        None,
+        Ended,
+        EndedWithoutRow,
+        EndedWithoutHistory,
+        NotCaptured,
+        OtherNode,
+        Unreachable,
+        NotSupported,
+        Failed,
+    }
+
+    private readonly List<string> _lines = [];
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>
+    /// The token of <see cref="_cancellation" />, taken once: a read that ends after the dialog went must not reach
+    /// for the disposed source.
+    /// </summary>
+    private CancellationToken _token;
+
+    private Phase _phase = Phase.Following;
+    private Outcome _outcome = Outcome.None;
+    private bool _trimmed;
+    private string? _text;
+    private long _next;
+    private long _received;
+    private int _failures;
+    private int _historyReads;
+    private bool _busy;
+    private string? _lastError;
+    private string? _answeringNode;
+    private string? _executionId;
+    private DateTimeOffset? _updatedAt;
+    private DateTimeOffset? _endedAt;
+
+    /// <summary>
+    /// The row the dialog was opened from, as it was then: the page's refresh does not reach it.
+    /// </summary>
+    [Parameter]
+    [EditorRequired]
+    public FireInstanceDto Firing { get; set; } = null!;
+
+    /// <summary>The key of the scheduler the firing belongs to, as the page was showing it.</summary>
+    [Parameter]
+    [EditorRequired]
+    public string SchedulerName { get; set; } = null!;
+
+    /// <summary>The control that opened the dialog, which focus goes back to as it closes.</summary>
+    [Parameter]
+    public ElementReference? ReturnFocus { get; set; }
+
+    /// <summary>Raised by Close and Escape; the page drops the dialog.</summary>
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    private string JobLabel => Firing.JobKey is { } job ? DisplayValueHelper.FormatKey(job.Group, job.Name) : "—";
+
+    private string TriggerLabel => DisplayValueHelper.FormatKey(Firing.TriggerKey.Group, Firing.TriggerKey.Name);
+
+    private string LineCount => _received == 1 ? "1 line" : _received.ToString(CultureInfo.InvariantCulture) + " lines";
+
+    private string UpdatedAt => _updatedAt is { } at
+        ? Scheduler.ConvertToSelectedTimeZone(at).ToString("HH:mm:ss", CultureInfo.InvariantCulture)
+        : string.Empty;
+
+    private string RunTime
+    {
+        get
+        {
+            TimeSpan runTime = (_endedAt ?? Clock.GetUtcNow()) - Firing.FireTimeUtc;
+            return DisplayValueHelper.FormatClock(runTime < TimeSpan.Zero ? TimeSpan.Zero : runTime);
+        }
+    }
+
+    private string ExecutionPath => DashboardLink.To(Options.Value, "history/" + Uri.EscapeDataString(_executionId ?? string.Empty));
+
+    private string PastRunsPath => DashboardLink.HistoryOfTrigger(Options.Value, Firing.TriggerKey.Group, Firing.TriggerKey.Name);
+
+    /// <summary>
+    /// What the log shows: the lines read so far, oldest first, as Razor-encoded text, never markup.
+    /// </summary>
+    private string LogText
+    {
+        get
+        {
+            if (_text is null)
+            {
+                StringBuilder text = new();
+                if (_trimmed)
+                {
+                    text.Append(EarlierLinesMarker);
+                }
+
+                foreach (string line in _lines)
+                {
+                    if (text.Length > 0)
+                    {
+                        text.Append('\n');
+                    }
+
+                    text.Append(line);
+                }
+
+                _text = text.ToString();
+            }
+
+            return _text;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _token = _cancellation.Token;
+        await TickAsync();
+    }
+
+    /// <summary>
+    /// One tick: a read of the log while the dialog follows the firing, or of the history once it has ended. A tick
+    /// that comes while a read is still in flight does nothing.
+    /// </summary>
+    private async Task TickAsync()
+    {
+        if (_busy || _phase == Phase.Stopped || _token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            if (_phase == Phase.Following)
+            {
+                await FollowAsync();
+            }
+            else
+            {
+                await FindExecutionAsync();
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Reads the lines after the last one the dialog has, and once more at once, up to <see cref="MaxExtraPages" />
+    /// times, while the answer says it is behind.
+    /// </summary>
+    private async Task FollowAsync()
+    {
+        for (int read = 0; read <= MaxExtraPages; read++)
+        {
+            FireInstanceLogDto answer;
+            try
+            {
+                answer = await Api.GetFireInstanceLog(SchedulerName, new DashboardFireInstanceLogQuery
+                {
+                    FireInstanceId = Firing.FireInstanceId,
+                    After = _next,
+                    SchedulerInstanceId = Firing.SchedulerInstanceId,
+                }, _token);
+            }
+            catch (OperationCanceledException) when (_token.IsCancellationRequested)
+            {
+                // The dialog closed, or its page went: nobody is waiting for the answer.
+                return;
+            }
+            catch (NotSupportedException ex)
+            {
+                // A host older than 4.9, or a data source that cannot read a running log: nothing to retry.
+                _lastError = ex.Message;
+                Stop(Outcome.NotSupported);
+                return;
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                if (++_failures >= MaxFailures)
+                {
+                    Stop(Outcome.Failed);
+                }
+
+                return;
+            }
+
+            _failures = 0;
+            _lastError = null;
+            _updatedAt = Clock.GetUtcNow();
+
+            switch (answer.Status)
+            {
+                case FireInstanceLogStatus.Running:
+                    Append(answer);
+                    if (!answer.HasMore)
+                    {
+                        return;
+                    }
+
+                    continue;
+
+                case FireInstanceLogStatus.NotCaptured:
+                    Stop(Outcome.NotCaptured);
+                    return;
+
+                case FireInstanceLogStatus.NotRunning when answer.SchedulerInstanceId is not null
+                                                           && !string.Equals(answer.SchedulerInstanceId, Firing.SchedulerInstanceId, StringComparison.OrdinalIgnoreCase):
+                    // Another node answered: this target does not reach the one running the firing, and asking it
+                    // again will not change that.
+                    _answeringNode = answer.SchedulerInstanceId;
+                    Stop(Outcome.OtherNode);
+                    return;
+
+                case FireInstanceLogStatus.NotRunning:
+                    // The firing's own node no longer runs it, or the store lists it no more: it ended. Its log is
+                    // on its execution page once the history has its row, which may be written behind.
+                    _phase = Phase.HandingOver;
+                    _endedAt = _updatedAt;
+                    await FindExecutionAsync();
+                    return;
+
+                default:
+                    _answeringNode = answer.SchedulerInstanceId;
+                    Stop(Outcome.Unreachable);
+                    return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Looks for the execution of the firing that ended, up to <see cref="MaxHistoryReads" /> times, a tick apart.
+    /// </summary>
+    private async Task FindExecutionAsync()
+    {
+        _historyReads++;
+        try
+        {
+            PagedResult<DashboardHistoryEntry> page = await Api.QueryExecutions(new DashboardHistoryQuery
+            {
+                SchedulerName = SchedulerName,
+                FireInstanceId = Firing.FireInstanceId,
+                Take = 1,
+            }, _token);
+
+            if (page.Items.FirstOrDefault()?.EntryId is { Length: > 0 } entryId)
+            {
+                _executionId = entryId;
+                Stop(Outcome.Ended);
+                return;
+            }
+        }
+        catch (OperationCanceledException) when (_token.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (NotSupportedException)
+        {
+            Stop(Outcome.EndedWithoutHistory);
+            return;
+        }
+        catch (Exception)
+        {
+            // Counted as a read that found nothing: the next tick asks again.
+        }
+
+        if (_historyReads >= MaxHistoryReads)
+        {
+            Stop(Outcome.EndedWithoutRow);
+        }
+    }
+
+    /// <summary>
+    /// Keeps the answer's entries, after a line that says how many the capture dropped before they could be read.
+    /// </summary>
+    private void Append(FireInstanceLogDto answer)
+    {
+        if (answer.Missed > 0)
+        {
+            _lines.Add(answer.Missed == 1
+                ? "[1 line was dropped before it could be shown: the capture keeps only its newest lines]"
+                : string.Create(CultureInfo.InvariantCulture, $"[{answer.Missed} lines were dropped before they could be shown: the capture keeps only its newest lines]"));
+        }
+
+        _lines.AddRange(answer.Entries);
+        _received += answer.Entries.Count;
+        _next = answer.Next;
+
+        if (_lines.Count > MaxLines)
+        {
+            _lines.RemoveRange(0, _lines.Count - MaxLines);
+            _trimmed = true;
+        }
+
+        _text = null;
+    }
+
+    private void Stop(Outcome outcome)
+    {
+        _outcome = outcome;
+        _phase = Phase.Stopped;
+    }
+
+    /// <summary>
+    /// Follows the firing again after the dialog stopped on failed reads, reading at once.
+    /// </summary>
+    private async Task RetryAsync()
+    {
+        _failures = 0;
+        _lastError = null;
+        _outcome = Outcome.None;
+        _phase = Phase.Following;
+        await TickAsync();
+    }
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
+    }
+}

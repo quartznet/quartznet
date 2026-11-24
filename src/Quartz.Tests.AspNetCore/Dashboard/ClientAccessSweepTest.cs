@@ -108,6 +108,7 @@ public class ClientAccessSweepTest
             "GetCalendarNames",
             "GetExecution",
             "GetExecutionLimits",
+            "GetFireInstanceLog",
             "GetJobDetail",
             "GetJobGroupPause",
             "GetJobRunStatus",

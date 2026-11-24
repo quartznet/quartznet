@@ -1423,6 +1423,43 @@ body{
     margin-bottom: var(--qz-space-md);
 }
 
+/* A running firing's log (#4437): wider than a prompt, as wide as the window less its margin on a phone. */
+.qz-confirm-dialog.qz-log-dialog {
+    max-width: 760px;
+}
+
+.qz-log-dialog .qz-log-dialog-meta,
+.qz-log-dialog .qz-log-dialog-status {
+    margin: var(--qz-space-xs) 0;
+    overflow-wrap: anywhere;
+}
+
+.qz-log-dialog .qz-log-dialog-status {
+    color: var(--qz-color-text);
+}
+
+/* The log stays on its newest line while the reader is there, and keeps a reader who scrolled up where they are:
+   a column-reverse scroller starts at its bottom and holds its place from there as lines are added below. */
+.qz-log-follow {
+    display: flex;
+    flex-direction: column-reverse;
+    overflow: auto;
+    max-height: 60vh;
+    margin: var(--qz-space-sm) 0 var(--qz-space-md);
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-surface-alt);
+}
+
+.qz-log-follow > .qz-execution-log {
+    margin: 0;
+    max-height: none;
+    overflow: visible;
+    border: none;
+    border-radius: 0;
+    overflow-wrap: anywhere;
+}
+
 /* What a pause recorded, beside the paused state it explains: the paused states' amber, as a note. It wraps
    between words whatever its container says, and inside a word only when one alone is wider than it. */
 .qz-pause-note {

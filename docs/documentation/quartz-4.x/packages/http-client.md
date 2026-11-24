@@ -267,7 +267,7 @@ an event kind or a body member, and a 4.4 client keeps working.
 | a trigger's `continuationCondition` | reads `null` |
 | `ScheduleTrigger`'s `outcome` | reads `null`, returned as `ScheduleOutcome.Created` |
 | a listed trigger's, firing's or node's `state`; a misfire's `reason`; a job status's `lastResult` | leaves that item out of the listing; `totalCount` still counts it |
-| `GetTriggerState`, `GetTriggerPause` (`state`), `GetJobRunStatus` (`lastResult`) | throws `JsonException` naming the value |
+| `GetTriggerState`, `GetTriggerPause` (`state`), `GetJobRunStatus` (`lastResult`), a running firing's log (`status`, from 4.9) | throws `JsonException` naming the value |
 | `GetExecutionLimits` (`scope`) | throws `JsonException`, so a limit is never dropped or written back changed |
 | any body, as a member | skips the member, whatever `UnmappedMemberHandling` your options set |
 

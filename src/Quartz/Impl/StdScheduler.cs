@@ -35,7 +35,7 @@ namespace Quartz.Impl;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSource, IFiringWaitingScheduler, IStartupDeclarationsScheduler
+internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSource, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IFireInstanceLogScheduler
 {
     internal readonly QuartzScheduler scheduler;
 
@@ -726,6 +726,16 @@ internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSo
     {
         ArgumentNullException.ThrowIfNull(triggerKey);
         return new ValueTask<bool?>(scheduler.resources.DeclaredContent?.StoresAgainAtNextStart(triggerKey));
+    }
+
+    /// <summary>
+    /// Read from the proxied <see cref="QuartzScheduler" />'s own running firings, which is where their capture
+    /// buffers are (#4437).
+    /// </summary>
+    ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return new ValueTask<FireInstanceLog>(scheduler.ReadFireInstanceLog(request));
     }
 
     /// <summary>

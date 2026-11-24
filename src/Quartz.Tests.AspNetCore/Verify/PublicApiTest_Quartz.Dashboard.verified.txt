@@ -212,6 +212,14 @@ namespace Quartz.Dashboard.Services
         public int? MaxConcurrent { get; init; }
         public Quartz.ExecutionLimitScope Scope { get; init; }
     }
+    public sealed record DashboardFireInstanceLogQuery : System.IEquatable<Quartz.Dashboard.Services.DashboardFireInstanceLogQuery>
+    {
+        public DashboardFireInstanceLogQuery() { }
+        public long After { get; init; }
+        public required string FireInstanceId { get; init; }
+        public string? SchedulerInstanceId { get; init; }
+        public int Take { get; init; }
+    }
     public sealed record DashboardFireInstanceQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardFireInstanceQuery>
     {
         public DashboardFireInstanceQuery() { }
@@ -326,6 +334,23 @@ namespace Quartz.Dashboard.Services
         public Quartz.FireInstanceState State { get; init; }
         public Quartz.Dashboard.Services.TriggerKeyDto TriggerKey { get; init; }
     }
+    public sealed record FireInstanceLogDto : System.IEquatable<Quartz.Dashboard.Services.FireInstanceLogDto>
+    {
+        public FireInstanceLogDto(Quartz.Dashboard.Services.FireInstanceLogStatus Status, string? SchedulerInstanceId, System.Collections.Generic.List<string> Entries, long Next) { }
+        public System.Collections.Generic.List<string> Entries { get; init; }
+        public bool HasMore { get; init; }
+        public long Missed { get; init; }
+        public long Next { get; init; }
+        public string? SchedulerInstanceId { get; init; }
+        public Quartz.Dashboard.Services.FireInstanceLogStatus Status { get; init; }
+    }
+    public enum FireInstanceLogStatus
+    {
+        Running = 0,
+        NotCaptured = 1,
+        NotRunning = 2,
+        Unreachable = 3,
+    }
     public interface IDashboardHistoryStore
     {
         System.Threading.Tasks.ValueTask AddExecution(Quartz.Dashboard.Services.DashboardHistoryEntry entry, System.Threading.CancellationToken cancellationToken = default);
@@ -346,6 +371,7 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> GetCalendarNames(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.DashboardHistoryEntry?> GetExecution(string schedulerName, string entryId, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.ExecutionLimitsDto> GetExecutionLimits(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.FireInstanceLogDto> GetFireInstanceLog(string schedulerName, Quartz.Dashboard.Services.DashboardFireInstanceLogQuery query, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.JobDetailDto> GetJobDetail(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PauseInfo?> GetJobGroupPause(string schedulerName, string groupName, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.JobRunStatus?> GetJobRunStatus(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default); // default implementation

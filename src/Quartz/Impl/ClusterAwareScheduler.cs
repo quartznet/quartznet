@@ -69,7 +69,7 @@ internal sealed record ClusterMember(string Target, IScheduler Scheduler, string
 /// <see cref="IAsyncDisposable.DisposeAsync" /> pointedly does not shut down the scheduler it stands for.
 /// </para>
 /// </remarks>
-internal sealed class ClusterAwareScheduler : DelegatingScheduler, IProxyScheduler
+internal sealed class ClusterAwareScheduler : DelegatingScheduler, IProxyScheduler, IFireInstanceLogScheduler
 {
     private readonly ClusterMember[] members;
 
@@ -297,6 +297,40 @@ internal sealed class ClusterAwareScheduler : DelegatingScheduler, IProxySchedul
             cancellationToken).ConfigureAwait(false);
 
         return answered.Contains(true);
+    }
+
+    /// <summary>
+    /// Reads a running firing's log from the one member whose node runs it (#4437).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Re-implemented rather than forwarded to the preferred member: the lines are in the process running the
+    /// firing, and an interrupt's way of recording a request for a peer has no counterpart for a read. The node is
+    /// the request's <see cref="FireInstanceLogRequest.SchedulerInstanceId" />, the row's own, which the dashboard
+    /// always sends, so each poll is one request. Without it the store says which node owns the firing, read
+    /// through the preferred member as an interrupt to an older member reads it.
+    /// </para>
+    /// <para>
+    /// A store that lists no such firing answers <see cref="FireInstanceLogState.NotRunning" /> with no node, and a
+    /// node no member fronts <see cref="FireInstanceLogState.Unreachable" /> naming it. Every member is never asked:
+    /// only one process can answer.
+    /// </para>
+    /// </remarks>
+    async ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
+    {
+        FireInstanceLogs.Check(request);
+
+        string? node = request.SchedulerInstanceId
+                       ?? await OwnerOf(request.FireInstanceId, cancellationToken).ConfigureAwait(false);
+        if (node is null)
+        {
+            return FireInstanceLogs.NotRunning(node: null, request.After);
+        }
+
+        ClusterMember? owning = members.FirstOrDefault(member => string.Equals(member.InstanceId, node, StringComparison.OrdinalIgnoreCase));
+        return owning is null
+            ? FireInstanceLogs.Unreachable(node, request.After)
+            : await FireInstanceLogs.Read(owning.Scheduler, request with { SchedulerInstanceId = node }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

@@ -398,6 +398,9 @@ internal sealed class AgentCarrier
         handlers[SchedulerRoutes.QueryFireInstances] = call => call.Json(SchedulerOperations.QueryFireInstances(
             call.Scheduler, call.Listing(call.Query.Get("state")).WithMatchers(call.Query), call.Query.Get(JobNameValue), call.Query.Get(JobGroupValue),
             call.Query.Get(SchedulerInstanceIdParameter), call.Token));
+        handlers[SchedulerRoutes.GetFireInstanceLog] = call => call.Json(SchedulerOperations.GetFireInstanceLog(
+            call.Scheduler, call.Values["fireInstanceId"], call.Query.GetLong("after", 0), call.Query.GetInt("take", FireInstanceLogs.DefaultTake),
+            call.Query.Get(SchedulerInstanceIdParameter), call.Token));
         handlers[SchedulerRoutes.PauseJob] = call => call.Json(SchedulerOperations.PauseJob(call.Scheduler, call.JobKey(), call.PauseDetails(), call.Token));
         handlers[SchedulerRoutes.PauseJobs] = call => call.Json(SchedulerOperations.PauseJobs(call.Scheduler, call.Groups(), call.PauseDetails(), call.Token));
         handlers[SchedulerRoutes.PauseJobKeys] = call =>

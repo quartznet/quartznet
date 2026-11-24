@@ -8,7 +8,7 @@ next: false
 
 All of this ships in Quartz's own packages; none of it needs a third-party package.
 
-* **Dashboard and HTTP API.** Fourteen pages and sixty-six routes —
+* **Dashboard and HTTP API.** Fifteen pages and seventy-five routes —
   [dashboard](packages/dashboard.md), [HTTP API](packages/http-api.md). Both are
   [fail-closed](packages/dashboard.md#production-hardening): a mapping that authorizes nothing refuses
   to start.

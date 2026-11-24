@@ -102,7 +102,7 @@ builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 
 ## Every endpoint
 
-Seventy-two routes in four groups.
+Seventy-five routes in four groups.
 
 - `{ApiPath}` is `/quartz-api` unless changed. `{name}` is the scheduler; every route but the first has one.
 - Every route with `{name}` is subject to [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when set.
@@ -113,7 +113,7 @@ Seventy-two routes in four groups.
   `{ applied }` is the one-flag form; `{ groups }` / `{ jobs }` / `{ triggers }` are the group-matcher and
   key-set forms; *paged* is the [paged envelope](#listing-endpoints-are-paged).
 
-### Schedulers — 22
+### Schedulers — 24
 
 | Method | Path | Answers |
 |---|---|---|
@@ -142,7 +142,7 @@ Seventy-two routes in four groups.
 | `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; replaces the whole set |
 | `DELETE` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; same as posting an empty set |
 
-### Jobs — 21
+### Jobs — 22
 
 Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 
@@ -154,6 +154,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/jobs/{jobGroup}/{jobName}/exists` | `{ exists }` |
 | `GET` | `…/jobs/{jobGroup}/{jobName}/triggers` | Every trigger pointing at that job |
 | `GET` | `…/jobs/fire-instances` | paged fire instances ([below](#fire-instances)) |
+| `GET` | `…/jobs/fire-instances/{fireInstanceId}/log` | The lines a running firing logged after `?after=`, read where it runs ([below](#a-running-firing-s-log)) |
 | `POST` | `…/jobs/{jobGroup}/{jobName}/pause` | `{ applied }`; optional [reason body](#a-pause-can-say-why) |
 | `POST` | `…/jobs/pause` | `{ groups }`; group matcher in the query string; optional reason body |
 | `POST` | `…/jobs/keys/pause` | `{ jobs }`; key set in the body, with an optional [reason](#a-pause-can-say-why) |
@@ -534,6 +535,46 @@ Caveats for a UI:
 `applied` does not say the job has stopped. Cancellation is cooperative, and a remote one lands within one
 check-in interval. See [Interrupting a firing on another node](../tutorial/advanced-enterprise-features.md#interrupting-a-firing-on-another-node).
 Before 4.6 both were node-local on the server.
+
+### A running firing's log
+
+From 4.9. `GET …/jobs/fire-instances/{fireInstanceId}/log?after=12&take=500&schedulerInstanceId=node-b` answers the
+lines a running firing has logged after the reader's cursor. They are the ones
+[`UseExecutionLogCapture()`](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines) keeps, read in the
+process that serves the route, where the firing runs. Once the run ends they are on
+`GET …/history/executions/{entryId}` as `log`.
+
+```json
+{
+  "status": "Running",
+  "schedulerInstanceId": "node-b",
+  "entries": ["2026-11-24T10:00:01.000Z info Reports.ExportJob: Step 13 of 20"],
+  "next": 13,
+  "missed": 0,
+  "hasMore": false
+}
+```
+
+| Query | Meaning |
+|---|---|
+| `after` | How many entries the reader has: the `next` of its last answer, `0` at first. One entry is one log call, with its exception |
+| `take` | `500` by default, from `1` to `1000`. `MaxPageSize` does not apply: the answer stops before the entry that would take it past 64 KB, and carries one entry at least |
+| `schedulerInstanceId` | The node the firing's row names. A [cluster of targets](dashboard.md#a-cluster-behind-several-targets) asks that node alone |
+
+| `status` | When | `schedulerInstanceId` |
+|---|---|---|
+| `Running` | The firing runs here and the scheduler captures; no entries yet is still `Running` | this node |
+| `NotCaptured` | The firing runs here and the scheduler does not call `UseExecutionLogCapture()` | this node |
+| `NotRunning` | This node runs no firing of that id: it ended, or runs on another node | this node |
+| `Unreachable` | Through a [store-attached target](#what-a-store-attached-target-serves): no process here runs it | `null` |
+
+- `missed` counts the entries the capture dropped after `after` and before this read: it keeps its newest
+  `MaxLines` and `MaxBytes`. `hasMore` says more are kept than this answer carried: read again now.
+- `after` below `0`, or `take` outside 1 to 1000, is a `400`. An unknown scheduler is a `404`.
+- `View`, and served by a `ReadOnly` API. A scheduler that captures shows its running firings' lines to whoever
+  may view it, whether or not it keeps history.
+- `HttpScheduler` sends this one request. A host older than 4.9 answers `404` without problem details, and the
+  client raises `NotSupportedException`: nothing can be read in its place.
 
 To get whole objects for a page of headers, post the keys back:
 
@@ -1342,6 +1383,9 @@ builder.Services.AddQuartzHttpApi(options => options.OperationAuthorizationPolic
   `ReadOnly` and the handler, so no body is read and no scheduler looked up. Each is logged as event `9009` at
   `Warning`, with the user.
 - `GET {ApiPath}/schedulers` lists the schedulers the caller may view.
+- A handler that refuses `GetExecution` by name to keep captured logs from a caller refuses `GetFireInstanceLog`
+  too: from 4.9 it reads the same lines while the firing runs. `SchedulerRoles.Operations` cannot move a read, so
+  this takes a handler of your own reading `SchedulerResource.Operation`.
 - `SchedulerRoles.Operations` moves an operation that changes something to `Operate` or `Administer`. A name the
   API does not publish, a read, or `View` is refused when the policy is built.
 - The policies compose: `SchedulerAuthorizationPolicy` decides which schedulers a caller reaches, this one what
@@ -1461,6 +1505,7 @@ POST /quartz-api/schedulers/reporting/triggers/nightly/at-midnight/pause?target=
 | Reads: details, jobs, triggers, groups, states, pauses, calendars, fire times, fire instances, cluster nodes | Served from the shared tables |
 | History, misfires, statistics, run statuses | Served when the store was attached with `UseExecutionHistory()`; otherwise `400` saying so |
 | `GET …/events` | `501`: a database carries no event feed |
+| `GET …/jobs/fire-instances/{fireInstanceId}/log` | `Unreachable`: no process here runs the firing |
 | Pause, resume, trigger now, interrupt, reset from error, schedule, reschedule, unschedule, backfill, add or delete a job, calendars, `Clear` | Served: writes to the shared tables, honoured by whichever node picks the work up |
 | `Start`, `Standby`, `Shutdown` | `400`: they belong to one process. The bare name refuses them alike |
 

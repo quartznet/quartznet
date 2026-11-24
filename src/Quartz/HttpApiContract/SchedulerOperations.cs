@@ -557,6 +557,47 @@ internal static class SchedulerOperations
     }
 
     /// <summary>
+    /// The entries a running firing has logged after the reader's cursor, read in the process running it, as
+    /// <see cref="FireInstanceLogs.Read" /> reads them (#4437).
+    /// </summary>
+    /// <exception cref="InvalidRequestException"><paramref name="after" /> is negative, or <paramref name="take" /> is not from 1 to 1000.</exception>
+    public static async ValueTask<FireInstanceLogResponse> GetFireInstanceLog(
+        IScheduler scheduler,
+        string fireInstanceId,
+        long after,
+        int take,
+        string? schedulerInstanceId,
+        CancellationToken cancellationToken)
+    {
+        if (FireInstanceLogs.Refusal(after, take) is { } refusal)
+        {
+            throw new InvalidRequestException(refusal);
+        }
+
+        FireInstanceLog log = await FireInstanceLogs.Read(
+            scheduler,
+            new FireInstanceLogRequest(fireInstanceId, after, take, schedulerInstanceId),
+            cancellationToken).ConfigureAwait(false);
+
+        return FireInstanceLogResponse.Create(log);
+    }
+
+    /// <summary>
+    /// What a running firing's log read answers through a store window: no process this one reaches runs the
+    /// firing, so nothing is asked (#4437). The request is refused as the read would refuse it.
+    /// </summary>
+    /// <exception cref="InvalidRequestException"><paramref name="after" /> is negative, or <paramref name="take" /> is not from 1 to 1000.</exception>
+    public static FireInstanceLogResponse GetFireInstanceLogThroughAWindow(long after, int take)
+    {
+        if (FireInstanceLogs.Refusal(after, take) is { } refusal)
+        {
+            throw new InvalidRequestException(refusal);
+        }
+
+        return FireInstanceLogResponse.Create(FireInstanceLogs.Unreachable(node: null, after));
+    }
+
+    /// <summary>
     /// Pauses a job's triggers. Details that say nothing are the reasonless pause.
     /// </summary>
     public static async ValueTask<OperationAppliedResponse> PauseJob(IScheduler scheduler, JobKey jobKey, PauseDetails? details, CancellationToken cancellationToken)

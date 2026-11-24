@@ -227,6 +227,35 @@ public sealed class StoreAttachedWindowEndpointsTest
         (await events.Content.ReadAsStringAsync()).Should().Contain("no event stream");
     }
 
+    /// <summary>
+    /// A running firing's log is read where the firing runs, and a window runs nothing (#4437): the route answers
+    /// <c>Unreachable</c> by the bare name and through the target, asking the window nothing. Asked, it would say it
+    /// runs no such firing under its own id, which a reader would take for another node.
+    /// </summary>
+    [Test]
+    public async Task ARunningFiringsLogThroughAWindowIsUnreachable()
+    {
+        await using ServiceProvider node = await Node();
+        await using AttachedStore store = await AttachedApplication();
+        using HttpClient client = factory!.CreateClient();
+
+        foreach (string query in (string[]) ["?after=4", "?after=4&target=prod"])
+        {
+            using HttpResponseMessage response = await client.GetAsync($"schedulers/{Window}/jobs/fire-instances/running-elsewhere/log{query}");
+            string body = await response.Content.ReadAsStringAsync();
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK, body);
+            using JsonDocument answer = JsonDocument.Parse(body);
+            answer.RootElement.GetProperty("status").GetString().Should().Be("Unreachable", query);
+            answer.RootElement.GetProperty("schedulerInstanceId").ValueKind.Should().Be(JsonValueKind.Null,
+                "the window is no node, and names none");
+            answer.RootElement.GetProperty("next").GetInt64().Should().Be(4, "the reader's cursor comes back as it went");
+        }
+
+        using HttpResponseMessage refused = await client.GetAsync($"schedulers/{Window}/jobs/fire-instances/running-elsewhere/log?take=0");
+        refused.StatusCode.Should().Be(HttpStatusCode.BadRequest, "a window refuses what any carrier refuses");
+    }
+
     [Test]
     public async Task ASchedulerOfThisProcessIsStillStarted()
     {

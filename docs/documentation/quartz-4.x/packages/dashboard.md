@@ -176,7 +176,8 @@ An implementation must follow the interface's two promises to render like the sh
 default body reports the datum as unavailable, like `CannotReport`; override it when your source can answer.
 `GetJobRunStatus`, `GetJobRunStatuses` and `QueryExecutionStatistics` (4.4), and `QueryJobRunStatuses` and
 `QueryTriggerRunStatuses` (4.9), throw `NotSupportedException` by default, and the pages leave out what they would
-show. `GetUpcomingFireTimes` (4.7) computes from `GetTrigger` and `GetCalendar` by default.
+show. `GetUpcomingFireTimes` (4.7) computes from `GetTrigger` and `GetCalendar` by default. `GetFireInstanceLog`
+(4.9) throws `NotSupportedException` by default, and Currently Executing's *Show log* says so in its words.
 
 ## The pages
 
@@ -205,6 +206,7 @@ A page reads again on a timer or when you ask it to:
 | Page | Reads again |
 |---|---|
 | Currently Executing, Execution History, and the Overview's executing count | Every second |
+| Currently Executing's *Show log* dialog | Every two seconds while it is open |
 | Cluster, and the Overview's other tiles, execution groups, and *Needs attention*'s failing jobs and overdue count | Every five seconds |
 | The Overview's runs of the last 24 hours | Every 30 seconds |
 | Timeline | On its Jobs and Triggers refresh intervals |
@@ -635,9 +637,37 @@ progress. It is the fire-instance listing, so **with a persistent job store it c
 - Each interrupt is recorded in the [Action Log](#action-log) with the fire instance and node, whether or not the
   firing was still running.
 - *Past runs* opens the trigger's [execution history](#execution-history). A firing gets its own execution page
-  once it finishes: the history row is written then.
+  once it finishes; while it runs, *Show log* follows its log.
 - A row that never goes away: a firing whose node died stays until another node's check-in sweep takes it over.
   See [Fired triggers: backlog or leak](../operations.md#fired-triggers-backlog-or-leak).
+
+#### Following a running firing's log
+
+From 4.9, *Show log* on a row opens a dialog that reads the lines the firing logged since its last read, every two
+seconds while it is open. The lines are the ones
+[`UseExecutionLogCapture()`](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines) keeps, read in the
+process running the firing: this one, the host behind an HTTP target, or the agent.
+
+| The dialog says | When | Then |
+|---|---|---|
+| *Following · 12 lines · updated 14:02:31* | The firing runs and its scheduler captures | It reads again in two seconds. Behind, it reads up to four more pages at once |
+| *Nothing logged yet* | The firing runs and has logged nothing | It reads again in two seconds |
+| *[7 lines were dropped before they could be shown: …]*, in the log | The capture dropped them between two reads: it keeps its newest `MaxLines` and `MaxBytes` | Raise `ExecutionLogCaptureOptions.MaxLines` for a job that logs faster |
+| *The run ended. Its log, as recorded, is on its execution page* | The firing's own node runs it no more | It reads the history by fire instance id up to five times, two seconds apart, for a row written behind. No row: the trigger's *Past runs*. No history: *This scheduler keeps no history, so the log is not kept after the run.* |
+| *This scheduler keeps no log lines of its firings…* | The scheduler does not call `UseExecutionLogCapture()` | It stops |
+| *node-b runs this firing, and this target reaches node-a…* | The target is not the node running the firing, as behind a load balancer | It stops. Open node-b's own target |
+| *No process this dashboard reaches runs this firing…* | A [store-attached window](#what-a-window-can-and-cannot-do), or a cluster node no member target fronts | It stops |
+| *This target runs Quartz older than 4.9…* | The host or agent has no such route | It stops |
+| *Stopped after 3 failed reads in a row* | Three reads in a row failed | **Retry** reads again |
+
+- The lines read so far stay when it stops. Past 2,000 it keeps the newest, under
+  *[earlier lines are on the execution page once the run ends]*.
+- The log stays on its newest line; scrolled up, it keeps your place.
+- A retry is a new firing, with its own row and *Show log*.
+- It needs `View`, as Execution Detail does: a scheduler that captures shows its running firings' lines to
+  whoever may view it, whether or not it keeps history.
+- Closing it, or leaving the page, stops it reading. It is not in the Action Log.
+- A [cluster of targets](#a-cluster-behind-several-targets) asks the member fronting the row's node, alone.
 
 ### Schedulers
 
@@ -1188,7 +1218,7 @@ The window writes no check-in row and is never listed as a node; the Cluster pag
 | Jobs, triggers, calendars, groups, paused groups: read, added, edited and deleted | `Start`, `Standby`, `Shutdown` |
 | Pause, resume, reschedule, edit in place, backfill, unschedule, trigger now, bulk actions | Live Logs and the live event stream |
 | Interrupting a job or a firing, from 4.7 | The node's own figures: instance id, running since, jobs executed |
-| Currently Executing, from `QRTZ_FIRED_TRIGGERS` | |
+| Currently Executing, from `QRTZ_FIRED_TRIGGERS` | A running firing's log: *Show log* says no process here runs it |
 | Cluster, from the nodes' check-ins | |
 | Execution History and the misfire tile, when the cluster keeps history in the database | |
 
@@ -1257,6 +1287,7 @@ What goes where:
 | Jobs, triggers, calendars, pause, resume, trigger now, reschedule, bulk, delete, cluster nodes | The preferred member: the first, by target, that answered the last round |
 | `Interrupt` (job) | From 4.7, the preferred member, or the next if it fails, plus every member older than 4.6; `true` if any interrupted or recorded a request. With no member at 4.6, every member |
 | Interrupt a firing | From 4.7, with every member at 4.6, as `Interrupt`. Otherwise the member whose node owns the firing, per the store; every member when none does |
+| A running firing's log | From 4.9, the member fronting the row's node; without one, the node that owns the firing, per the store. `Unreachable` when no member fronts it |
 | Execution limits, set | Every member, in target order; the first failure names the members already set |
 | Execution limits, read | The preferred member's |
 | Status | `Running` if any member is, else `Standby` if any, else what the rest say; `Unknown` when none answered |
@@ -1683,6 +1714,7 @@ builder.Services.AddQuartzDashboard(options =>
 | Control | Operation | Role |
 |---|---|---|
 | Every page, the scheduler picker, the live events | a read | `View` |
+| Show log | `GetFireInstanceLog` | `View` |
 | Start, Standby | `Start`, `Standby` | `Operate` |
 | Pause all, Resume all | `PauseAll`, `ResumeAll` | `Operate` |
 | Pause, Resume, on a job, a trigger, a group or a selection | `PauseJob`, `ResumeJob`, `PauseTrigger`, `ResumeTrigger`, `PauseJobs`, `ResumeJobs`, `PauseTriggers`, `ResumeTriggers`, `PauseJobKeys`, `PauseTriggerKeys`, `ResumeTriggerKeys` | `Operate` |
@@ -1734,7 +1766,7 @@ Unset, every visitor may do everything `ReadOnly` allows, as in earlier releases
 `ReadOnly = true` hides every mutating control: pause, resume, trigger-now, trigger-with-overrides, reschedule,
 edit details, reset-from-error-state, unschedule, interrupt, delete, the listings' selection checkboxes, calendar
 create, edit and replace, and the scheduler's start, stand-by, pause-all, resume-all and shutdown. Every listing, filter,
-detail page and live view remains.
+detail page and live view remains, Currently Executing's *Show log* among them.
 
 - It is one setting per process, not per scheduler or per visitor. For different powers per visitor, use
   [operator roles](#operator-roles), under which `ReadOnly` is the ceiling. `SchedulerAuthorizationPolicy` limits
@@ -1942,6 +1974,9 @@ shell without `ASPNETCORE_ENVIRONMENT`.
   `ClusterDetectionInterval`, and a member that dies between rounds answers with its error until then.
 - **A store-attached target cannot do anything node-local**, and its liveness is inferred; see
   [What a window can and cannot do](#what-a-window-can-and-cannot-do).
+- **A running firing's log is read only from the node running it**: through the target fronting that node, never a
+  window, and only from a scheduler that calls `UseExecutionLogCapture()`. See
+  [Following a running firing's log](#following-a-running-firing-s-log).
 - **Neither Live Logs nor the Action Log is the record.** Live Logs keeps a hundred events from page open; the
   Action Log keeps 250 from this process's dashboard. Neither survives a restart or is lossless; use
   [metrics](opentelemetry-integration.md) for anything you need to go back to. The `ILogger` copy of Action Log

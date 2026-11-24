@@ -485,6 +485,50 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <remarks>
+    /// <para>
+    /// A read, so the visitor needs only to see the scheduler, as for Execution Detail, which shows the same lines
+    /// once the run ends. The scheduler reads them where the firing runs: this process, the host behind an HTTP
+    /// target, the agent, or the cluster member fronting the firing's node.
+    /// </para>
+    /// <para>
+    /// A window answers <see cref="FireInstanceLogStatus.Unreachable" /> and is asked nothing (#4437). It is a
+    /// scheduler this process never started: asked, it would answer "not running" under its own id, which the page
+    /// would read as another node running the firing.
+    /// </para>
+    /// </remarks>
+    public async ValueTask<FireInstanceLogDto> GetFireInstanceLog(string schedulerName, DashboardFireInstanceLogQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentException.ThrowIfNullOrWhiteSpace(query.FireInstanceId, nameof(query));
+        if (FireInstanceLogs.Refusal(query.After, query.Take) is { } refusal)
+        {
+            throw new ArgumentException(refusal, nameof(query));
+        }
+
+        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        FireInstanceLog log = resolved.IsWindow
+            ? FireInstanceLogs.Unreachable(node: null, query.After)
+            : await FireInstanceLogs.Read(
+                resolved.Scheduler,
+                new FireInstanceLogRequest(query.FireInstanceId, query.After, query.Take, query.SchedulerInstanceId),
+                cancellationToken).ConfigureAwait(false);
+
+        return new FireInstanceLogDto(StatusOf(log.State), log.SchedulerInstanceId, [.. log.Entries], log.Next)
+        {
+            Missed = log.Missed,
+            HasMore = log.HasMore,
+        };
+
+        static FireInstanceLogStatus StatusOf(FireInstanceLogState state) => state switch
+        {
+            FireInstanceLogState.Running => FireInstanceLogStatus.Running,
+            FireInstanceLogState.NotCaptured => FireInstanceLogStatus.NotCaptured,
+            FireInstanceLogState.NotRunning => FireInstanceLogStatus.NotRunning,
+            _ => FireInstanceLogStatus.Unreachable,
+        };
+    }
+
     public async ValueTask<bool> DeleteJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.DeleteJob, cancellationToken).ConfigureAwait(false);

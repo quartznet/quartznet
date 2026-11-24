@@ -107,6 +107,10 @@ internal static class SchedulerRoutes
     public static readonly WireRoute CheckJobExists = Route(nameof(CheckJobExists), Get, Job + "/exists");
     public static readonly WireRoute GetJobTriggers = Route(nameof(GetJobTriggers), Get, Job + "/triggers");
     public static readonly WireRoute QueryFireInstances = Route(nameof(QueryFireInstances), Get, Jobs + "/fire-instances");
+
+    // From 4.9. Read in the process running the firing; a 4.8 host answers 404 without problem details, and
+    // HttpScheduler says that host cannot show a running firing's log.
+    public static readonly WireRoute GetFireInstanceLog = Route(nameof(GetFireInstanceLog), Get, Jobs + "/fire-instances/{fireInstanceId}/log");
     public static readonly WireRoute PauseJob = Route(nameof(PauseJob), Post, Job + "/pause", mutates: true, Operate);
     public static readonly WireRoute PauseJobs = Route(nameof(PauseJobs), Post, Jobs + "/pause", mutates: true, Operate);
     public static readonly WireRoute PauseJobKeys = Route(nameof(PauseJobKeys), Post, Jobs + "/keys/pause", mutates: true, Operate);

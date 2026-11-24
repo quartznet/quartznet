@@ -29,6 +29,7 @@
         <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
     }
 
+    <div class="qz-table-scroll">
     <table class="qz-table">
         <thead>
             <tr>
@@ -40,10 +41,7 @@
                 <th>Run Time</th>
                 <th>Progress</th>
                 <th>History</th>
-                @if (ShowInterrupt)
-                {
-                    <th>Actions</th>
-                }
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -115,21 +113,38 @@
                                title="This firing gets an execution page of its own once it finishes"
                                href="@GetHistoryPathForTrigger(fireInstance.TriggerKey)">Past runs</a>
                         </td>
-                        @if (ShowInterrupt)
-                        {
-                            <td>
-                                <button type="button" class="qz-button qz-button-danger" @onclick="() => InterruptAsync(fireInstance.FireInstanceId)">Interrupt</button>
-                            </td>
-                        }
+                        <td>
+                            <div class="qz-actions">
+                                @* A read, so every visitor who sees the scheduler gets it, read-only too: the lines are
+                                   the ones Execution Detail shows once the run ends. *@
+                                <button type="button"
+                                        class="qz-button"
+                                        data-testid="executing-show-log"
+                                        @ref="_logButtons[fireInstance.FireInstanceId]"
+                                        @onclick="() => OpenLog(fireInstance)">Show log</button>
+                                @if (ShowInterrupt)
+                                {
+                                    <button type="button" class="qz-button qz-button-danger" @onclick="() => InterruptAsync(fireInstance.FireInstanceId)">Interrupt</button>
+                                }
+                            </div>
+                        </td>
                     </tr>
                 }
             }
         </tbody>
     </table>
+    </div>
 
     @if (_hasMore)
     {
         <p class="qz-muted">Showing the first @_fireInstances.Count of @_totalCount executions.</p>
+    }
+
+    @* Outside the table, with its own copy of the row: the refresh a second from now drops a firing that has ended,
+       and the dialog stays to say so and point to its execution page. *@
+    @if (_logFiring is { } firing && _logScheduler is { } logScheduler)
+    {
+        <FireInstanceLogDialog Firing="firing" SchedulerName="@logScheduler" ReturnFocus="_logOpener" OnClose="CloseLog" />
     }
 </div>
 
@@ -152,7 +167,15 @@
     /// node running the firing through the firing's row, and says so when that node never reads one.
     /// </summary>
     private bool ShowInterrupt => Authorization.Allows(Scheduler.ActiveSchedulerName, Quartz.HttpApiContract.SchedulerRoutes.InterruptJobInstance);
-    private int TableColumnCount => ShowInterrupt ? 9 : 8;
+    private const int TableColumnCount = 9;
+
+    /// <summary>Each row's Show log, which focus goes back to as its dialog closes.</summary>
+    private readonly Dictionary<string, ElementReference> _logButtons = new(StringComparer.Ordinal);
+
+    /// <summary>The firing whose log is open, as its row was when Show log was pressed; null while none is.</summary>
+    private FireInstanceDto? _logFiring;
+    private string? _logScheduler;
+    private ElementReference? _logOpener;
 
     protected override async Task OnInitializedAsync()
     {
@@ -163,6 +186,8 @@
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        // A firing of the scheduler the page no longer shows.
+        _logFiring = null;
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -196,6 +221,9 @@
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
             _fireInstances.Clear();
+
+            // Set again as the rows render: a firing that ended keeps no reference here.
+            _logButtons.Clear();
             _hasMore = false;
             _totalCount = 0;
 
@@ -275,6 +303,23 @@
             // role is one of these too, because the button was offered when the page last asked.
             Toasts.Error(ex.Message);
         }
+    }
+
+    private void OpenLog(FireInstanceDto fireInstance)
+    {
+        if (string.IsNullOrWhiteSpace(Scheduler.ActiveSchedulerName))
+        {
+            return;
+        }
+
+        _logScheduler = Scheduler.ActiveSchedulerName;
+        _logOpener = _logButtons.TryGetValue(fireInstance.FireInstanceId, out ElementReference opener) ? opener : null;
+        _logFiring = fireInstance;
+    }
+
+    private void CloseLog()
+    {
+        _logFiring = null;
     }
 
     private string GetHistoryPathForTrigger(TriggerKeyDto triggerKey)
