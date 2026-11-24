@@ -3963,12 +3963,14 @@ body{
    25b. EDITING AND ACTING ON A SELECTION
    ========================================================================== */
 
+/* The deeper red of the pair on its tint, as the failing badge, which reaches AA in both themes: the plain one did not
+   at this size (3.95:1 light, 4.29:1 dark). */
 .qz-form-errors {
     padding: var(--qz-space-sm) var(--qz-space-md);
     border: 1px solid var(--qz-color-danger);
     border-radius: var(--qz-radius-md);
     background-color: var(--qz-color-danger-bg);
-    color: var(--qz-color-danger);
+    color: var(--qz-color-danger-hover);
     font-size: var(--qz-font-size-sm);
     margin: 0 0 var(--qz-space-md);
 }
@@ -4193,14 +4195,104 @@ body{
     background-color: var(--qz-color-surface-alt);
 }
 
-.qz-agenda-select-hour {
-    margin-right: var(--qz-space-sm);
-    vertical-align: middle;
+/* The box, the hour and its count in a row with a gap of their own: a margin on the box loses to the table's. */
+.qz-agenda-hour-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--qz-space-xs) var(--qz-space-sm);
 }
 
 .qz-agenda-hour-count {
-    margin-left: var(--qz-space-sm);
     font-weight: var(--qz-font-weight-normal);
+}
+
+/* The time is each row's header, for a screen reader, and looks like the cells beside it. */
+.qz-agenda-table tbody th.qz-agenda-col-time {
+    width: var(--qz-agenda-time);
+    min-width: 0;
+    border-right: none;
+    background-color: transparent;
+    color: var(--qz-color-text);
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: var(--qz-font-weight-normal);
+    vertical-align: middle;
+}
+
+/* The selection bar: always there while fires are listed, so ticking a box moves nothing, and pinned to the top of
+   the content pane, so its count and actions stay in view however far down the listing a box was ticked. */
+.qz-agenda-selection-bar {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--qz-space-xs) var(--qz-space-md);
+    padding: var(--qz-space-xs) var(--qz-space-sm);
+    border: 1px solid var(--qz-color-primary);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-surface);
+    box-shadow: var(--qz-shadow-sm);
+}
+
+.qz-agenda-selection-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--qz-space-xs);
+}
+
+/* Nothing to act on: said by the look and by aria-disabled, while the button keeps its place and its focus. */
+.qz-agenda-selection-bar .qz-button[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* On a phone the bar stays two short lines: the count, then the three buttons in a row, each named by its verb with
+   the rest of its name kept for a screen reader. */
+@media (max-width: 480px) {
+    .qz-agenda-selection-buttons {
+        flex-wrap: nowrap;
+        width: 100%;
+    }
+
+    .qz-agenda-selection-buttons .qz-button {
+        flex: 1 1 0;
+        padding-left: var(--qz-space-xs);
+        padding-right: var(--qz-space-xs);
+    }
+
+    .qz-agenda-bar-word {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+}
+
+/* The triggers a pause takes, one key a line and wrapped anywhere: a one-off trigger's key has no word to break at. */
+.qz-pause-dialog-keys {
+    max-height: 12rem;
+    overflow-y: auto;
+    margin: 0 0 var(--qz-space-sm);
+    padding-left: var(--qz-space-md);
+    font-family: var(--qz-font-mono);
+    font-size: var(--qz-font-size-sm);
+    overflow-wrap: anywhere;
+}
+
+.qz-pause-dialog-keys .qz-pause-dialog-more {
+    font-family: var(--qz-font-family);
+    list-style: none;
+    margin-left: calc(-1 * var(--qz-space-md));
 }
 
 /* A fixed layout: the checkbox, the time, the state and the execution group keep their widths whatever a row holds,

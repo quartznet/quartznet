@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using AngleSharp.Dom;
 
 using Bunit;
@@ -68,7 +70,7 @@ public sealed class AgendaPageTest
 
         page.WaitForAssertion(() => page.TextOfAll("[data-testid=agenda-hour-label]").Should().Equal(["Mon 5 Oct, 14:00", "Mon 5 Oct, 15:00"]));
         page.TextOfAll(".qz-agenda-hour-count").Should().Equal(["2 fires", "1 fire"]);
-        page.TextOfAll("td.qz-agenda-col-time").Should().Equal(["14:30:00", "14:45:00", "15:10:00"]);
+        page.TextOfAll(".qz-agenda-time").Should().Equal(["14:30:00", "14:45:00", "15:10:00"]);
     }
 
     /// <summary>
@@ -87,7 +89,7 @@ public sealed class AgendaPageTest
 
         page.WaitForAssertion(() => page.TextOfAll("[data-testid=agenda-hour-label]").Should().Equal(
             ["Sun 25 Oct, 03:00 (UTC+03:00)", "Sun 25 Oct, 03:00 (UTC+02:00)", "Sun 25 Oct, 04:00 (UTC+02:00)"]));
-        page.TextOfAll("td.qz-agenda-col-time").Should().Equal(["03:15:00", "03:15:00", "04:15:00"]);
+        page.TextOfAll(".qz-agenda-time").Should().Equal(["03:15:00", "03:15:00", "04:15:00"]);
     }
 
     [Test]
@@ -109,6 +111,9 @@ public sealed class AgendaPageTest
         paused.QuerySelector("td.qz-agenda-col-execution-group")!.TextContent.Trim().Should().Be("batch");
         page.FindAll("[data-testid=agenda-fire]")[1].QuerySelector(".qz-agenda-only-next")!.TextContent
             .Should().Contain("Only the next fire is known");
+        IElement header = paused.QuerySelector("th[scope=row]")!;
+        Normalized(header).Should().Be("Mon 5 Oct, 14:33:00", "the time heads its row, with its day for a screen reader, so each cell is heard with its hour");
+        header.QuerySelector(".qz-sr-only")!.TextContent.Should().Be("Mon 5 Oct, ");
     }
 
     [Test]
@@ -132,6 +137,26 @@ public sealed class AgendaPageTest
 
         page.WaitForAssertion(() => Normalized(page.Find("[data-testid=agenda-empty]")).Should().Be("Nothing fires between Mon 5 Oct 14:23 and Tue 6 Oct 14:23."));
         page.FindAll("table").Should().BeEmpty("an empty window is a sentence, not an empty table");
+        page.FindAll("[data-testid=agenda-window]").Should().BeEmpty("the sentence is said once, not as a count of none first");
+        page.FindAll(".qz-agenda-clear-group").Should().BeEmpty("there is no group filter to clear");
+        page.FindAll("[data-testid=agenda-bulk-actions]").Should().BeEmpty("with nothing listed there is nothing to select");
+    }
+
+    [Test]
+    public void AnEmptyWindowUnderAGroupFilterNamesItAndOffersToClearIt()
+    {
+        GivenFires([]);
+        context.Navigate("/quartz/agenda?preset=next-hour&group=zzzz");
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+
+        page.WaitForAssertion(() => Normalized(page.Find("[data-testid=agenda-empty]")).Should().Be(
+            "Nothing fires between Mon 5 Oct 14:23 and Mon 5 Oct 15:23 in trigger groups containing 'zzzz'."));
+        page.Find(".qz-agenda-clear-group").Click();
+
+        page.WaitForAssertion(() => Queried()[^1].Should().Match<DashboardUpcomingFiresQuery>(query =>
+            query.GroupContains == null && query.To == now.AddHours(1)));
+        context.CurrentUri.Should().EndWith("agenda?preset=next-hour", "the window stays the preset, over every group");
+        page.Find("#agenda-group").GetAttribute("value").Should().BeEmpty();
     }
 
     /// <summary>
@@ -159,6 +184,8 @@ public sealed class AgendaPageTest
         page.Find(".qz-pause-dialog-note").TextContent.Should().Be(
             "They stay paused until resumed: nothing resumes them when the window ends. On resume, each trigger's misfire instruction decides what happens to the fires it missed.");
         page.Find(".qz-pause-dialog p").TextContent.Should().Be("Pause 2 triggers (3 fires)?");
+        page.TextOfAll("[data-testid=agenda-pause-keys] li").Should().Equal(["reports.hourly", "reports.nightly"],
+            "the dialog says which triggers it pauses, each once");
         page.ConfirmPause("database maintenance");
 
         page.WaitForAssertion(() => A.CallTo(() => context.Api.PauseTriggersWith(
@@ -167,7 +194,7 @@ public sealed class AgendaPageTest
                 A<PauseDetails>.That.Matches(details => details.Reason == "database maintenance"),
                 A<CancellationToken>._))
             .MustHaveHappenedOnceExactly());
-        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected trigger(s)."));
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected triggers."));
         context.ActionLog.GetLatest(2).Should().BeEquivalentTo(
             [
                 new { Action = "PauseTrigger", Target = "reports.nightly", Succeeded = true, Message = "one of 2 selected; reason: database maintenance" },
@@ -178,7 +205,58 @@ public sealed class AgendaPageTest
         // Read again, so the rows show what the pause did.
         page.WaitForAssertion(() => A.CallTo(() => context.Api.QueryUpcomingFires(A<string>._, A<DashboardUpcomingFiresQuery>._, A<CancellationToken>._))
             .MustHaveHappenedTwiceExactly());
-        page.FindAll("[data-testid=agenda-bulk-actions]").Should().BeEmpty("the selection is spent once it has been acted on");
+        page.Find("[data-testid=agenda-selection-count]").TextContent.Should().Be("No fires selected", "the selection is spent once it has been acted on");
+        page.Find(".qz-bulk-pause").GetAttribute("aria-disabled").Should().Be("true",
+            "the button stays where it was, with the focus the dialog gave back to it, and says it has nothing to act on");
+    }
+
+    /// <summary>
+    /// The dialog names the triggers a pause takes, the first ten and how many more, so the operator sees what the
+    /// count stands for.
+    /// </summary>
+    [Test]
+    public void ThePauseDialogNamesTheFirstTenTriggersAndHowManyMore()
+    {
+        List<UpcomingFireDto> fires = [.. Enumerable.Range(1, 12).Select(i => Fire(new TriggerKeyDto("batch", "MT_64134849303892925" + i.ToString("D2", CultureInfo.InvariantCulture)), now.AddMinutes(10 + i)))];
+        GivenFires(fires);
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+        page.WaitForElement("input.qz-agenda-select-hour");
+        foreach (IElement box in page.FindAll("input.qz-agenda-select-hour").ToList())
+        {
+            box.Change(true);
+        }
+
+        page.WaitForAssertion(() => page.Find("[data-testid=agenda-selection-count]").TextContent.Should().Be("12 triggers selected (12 fires)"));
+        page.Find(".qz-bulk-pause").Click();
+
+        page.WaitForAssertion(() => page.TextOfAll("[data-testid=agenda-pause-keys] li").Should().HaveCount(11));
+        List<string> listed = page.TextOfAll("[data-testid=agenda-pause-keys] li");
+        listed.Take(10).Should().Equal(fires.Take(10).Select(fire => "batch." + fire.Trigger.Name));
+        listed[^1].Should().Be("and 2 more");
+    }
+
+    /// <summary>
+    /// The bar is there before the first box is ticked, so ticking it moves no row, and its count is announced.
+    /// </summary>
+    [Test]
+    public void TheSelectionBarIsThereBeforeTheFirstBoxAndItsCountIsAStatus()
+    {
+        GivenFires([Fire(nightly, now.AddMinutes(10)), Fire(hourly, now.AddMinutes(20))]);
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=agenda-selection-count]").TextContent.Should().Be("No fires selected"));
+        page.Find("[data-testid=agenda-selection-count]").GetAttribute("role").Should().Be("status");
+        page.FindAll("[data-testid=agenda-bulk-actions] button").Select(button => button.GetAttribute("aria-disabled")).Should().AllBe("true");
+        page.FindAll("[data-testid=agenda-bulk-actions] button").Should().OnlyContain(button => !button.HasAttribute("disabled"),
+            "a disabled button leaves the focus order, and the focus with it");
+
+        page.Find(".qz-bulk-pause").Click();
+        page.FindAll(".qz-pause-dialog").Should().BeEmpty("there is nothing to pause");
+
+        page.FindAll("input.qz-agenda-select-fire")[0].Change(true);
+
+        page.WaitForAssertion(() => page.Find("[data-testid=agenda-selection-count]").TextContent.Should().Be("1 trigger selected (1 fire)"));
+        page.FindAll("[data-testid=agenda-bulk-actions] button").Should().OnlyContain(button => !button.HasAttribute("aria-disabled"));
     }
 
     [Test]
@@ -204,28 +282,30 @@ public sealed class AgendaPageTest
     }
 
     /// <summary>
-    /// <em>Clear selection</em> removes the bar it is on, so focus moves to the fires rather than fall to the body.
+    /// <em>Clear selection</em> stays where it was, saying it has nothing to act on, so the focus on it stays too
+    /// rather than fall to the page's body.
     /// </summary>
     [Test]
-    public void ClearingTheSelectionMovesFocusToTheFires()
+    public void ClearingTheSelectionKeepsTheButtonAndItsFocus()
     {
         GivenFires([Fire(nightly, now.AddMinutes(10))]);
         IRenderedComponent<Agenda> page = context.Render<Agenda>();
-        string results = ReferenceOf(page.WaitForElement("[data-testid=agenda-results]"));
         page.WaitForElement("input.qz-agenda-select-fire").Change(true);
+        page.WaitForAssertion(() => page.Find(".qz-bulk-clear").HasAttribute("aria-disabled").Should().BeFalse());
 
-        page.WaitForElement(".qz-bulk-clear").Click();
+        page.Find(".qz-bulk-clear").Click();
 
-        page.WaitForAssertion(() => page.FindAll("[data-testid=agenda-bulk-actions]").Should().BeEmpty());
-        page.WaitForAssertion(() => LastFocused().Should().Be(results));
+        page.WaitForAssertion(() => page.Find("[data-testid=agenda-selection-count]").TextContent.Should().Be("No fires selected"));
+        page.Find(".qz-bulk-clear").GetAttribute("aria-disabled").Should().Be("true");
+        Focused().Should().BeEmpty("the button that had the focus is still there, so nothing moves it");
     }
 
     /// <summary>
-    /// A pause empties the selection, which removes the bar its button was on: focus moves to the fires, which stay on
-    /// screen while they are read again, rather than give way to a spinner.
+    /// A pause empties the selection; the bar and its button stay, and the fires stay on screen while they are read
+    /// again, rather than give way to a spinner.
     /// </summary>
     [Test]
-    public void APauseMovesFocusToTheFiresWhichStayOnScreenWhileTheyAreReadAgain()
+    public void APauseKeepsTheFiresAndTheBarOnScreenWhileTheyAreReadAgain()
     {
         TaskCompletionSource<UpcomingFiresDto> reread = new();
         List<UpcomingFireDto> fires = [Fire(nightly, now.AddMinutes(10)), Fire(hourly, now.AddMinutes(20))];
@@ -237,13 +317,14 @@ public sealed class AgendaPageTest
         A.CallTo(() => context.Api.PauseTriggersWith(TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>._, A<PauseDetails>._, A<CancellationToken>._))
             .ReturnsLazily((string _, IReadOnlyCollection<TriggerKeyDto> keys, PauseDetails? _, CancellationToken _) => keys.ToList());
         IRenderedComponent<Agenda> page = context.Render<Agenda>();
-        string results = ReferenceOf(page.WaitForElement("[data-testid=agenda-results]"));
         page.WaitForElement("input.qz-agenda-select-hour").Change(true);
 
         page.WaitForElement(".qz-bulk-pause").Click();
         page.ConfirmPause();
 
-        page.WaitForAssertion(() => LastFocused().Should().Be(results));
+        page.WaitForAssertion(() => page.Find("[data-testid=agenda-selection-count]").TextContent.Should().Be("No fires selected"));
+        page.FindAll("[data-testid=agenda-bulk-actions] .qz-bulk-pause").Should().ContainSingle("the button the dialog gives focus back to is still there");
+        Focused().Should().BeEmpty();
         page.FindAll("[data-testid=agenda-fire]").Should().HaveCount(2, "the fires stay on screen while the agenda is read again");
         page.FindAll(".qz-loading-spinner").Should().BeEmpty();
 
@@ -310,12 +391,12 @@ public sealed class AgendaPageTest
     public void ARefusalIsShownInItsOwnWords()
     {
         A.CallTo(() => context.Api.QueryUpcomingFires(A<string>._, A<DashboardUpcomingFiresQuery>._, A<CancellationToken>._))
-            .Throws(new ArgumentException("More than 10,000 triggers are due before 2026-10-06T14:23:00.0000000+00:00: narrow the window or filter by trigger group.", "query"));
+            .Throws(new ArgumentException("More than 10,000 triggers are due before 2026-10-06 14:23 UTC: narrow the window or filter by trigger group.", "query"));
 
         IRenderedComponent<Agenda> page = context.Render<Agenda>();
 
         page.WaitForAssertion(() => page.Find("[data-testid=agenda-refusal]").TextContent.Should().Be(
-            "More than 10,000 triggers are due before 2026-10-06T14:23:00.0000000+00:00: narrow the window or filter by trigger group.",
+            "More than 10,000 triggers are due before 2026-10-06 14:23 UTC: narrow the window or filter by trigger group.",
             "the scheduler's words, without the parameter the exception names"));
     }
 
@@ -353,11 +434,15 @@ public sealed class AgendaPageTest
     [TestCase("2026-10-06T04:00", "2026-10-06T02:00", "To must be after From.")]
     [TestCase("2026-10-06T02:00", "2026-10-14T02:00", "The window may be at most 7 days long.")]
     [TestCase("tomorrow", "2026-10-06T02:00", "From and To must each be a date and time.")]
+    [TestCase("2026-10-01T00:00", "2026-10-02T00:00", "To must be later than now, Mon 5 Oct 14:23: the agenda lists what will fire. History lists what ran.")]
+    [TestCase("2026-11-10T00:00", "2026-11-11T00:00", "To may be at most 30 days ahead, until Wed 4 Nov 14:23.")]
+    [TestCase("2026-10-01T00:00", "2026-10-12T15:00", "The window may be at most 7 days long.")]
     public void AWindowThePageCanRefuseIsRefusedInlineWithoutARead(string from, string to, string words)
     {
-        GivenFires([]);
+        GivenFires([Fire(nightly, now.AddMinutes(10))]);
         IRenderedComponent<Agenda> page = context.Render<Agenda>();
         page.WaitForAssertion(() => Queried().Should().ContainSingle());
+        page.WaitForElement("[data-testid=agenda-listing]");
 
         page.Find("#agenda-from").Change(from);
         page.Find("#agenda-to").Change(to);
@@ -365,6 +450,16 @@ public sealed class AgendaPageTest
 
         page.WaitForAssertion(() => page.Find("[data-testid=agenda-input-error]").TextContent.Should().Be(words));
         Queried().Should().ContainSingle("nothing was asked of the scheduler for a window the page could refuse itself");
+        page.FindAll("[data-testid=agenda-listing]").Should().BeEmpty("what was listed for the last window would read as the refused one's");
+        page.FindAll("[data-testid=agenda-bulk-actions]").Should().BeEmpty();
+        page.Find("[data-testid=agenda-invalid]").TextContent.Should().Contain("Nothing is listed");
+        page.FindAll("[aria-pressed=true]").Should().BeEmpty("no preset is what the inputs say");
+
+        page.Find("[data-preset=next-hour]").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=agenda-input-error]").Should().BeEmpty());
+        page.WaitForElement("[data-testid=agenda-listing]");
+        page.Find("[data-preset=next-hour]").GetAttribute("aria-pressed").Should().Be("true");
     }
 
     [Test]
@@ -396,9 +491,49 @@ public sealed class AgendaPageTest
 
         IRenderedComponent<Agenda> page = context.Render<Agenda>();
 
-        page.WaitForAssertion(() => context.CurrentUri.Should().EndWith("agenda?from=2026-10-05T14%3A23%3A00Z&to=2026-10-06T14%3A23%3A00Z",
-            "a reload restores the window on screen"));
+        page.WaitForAssertion(() => context.CurrentUri.Should().EndWith("agenda?preset=next-24-hours",
+            "a reload or a bookmark computes the preset's window again from now, so it never goes stale"));
         Queried().Should().ContainSingle("writing the address reads nothing again");
+        page.Find("[data-preset=next-24-hours]").GetAttribute("aria-pressed").Should().Be("true");
+    }
+
+    [Test]
+    public void APresetInTheAddressIsComputedFromNowAndPressed()
+    {
+        GivenFires([]);
+        context.Navigate("/quartz/agenda?preset=next-hour&group=reports");
+
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+
+        page.WaitForAssertion(() => Queried().Should().ContainSingle().Which.Should().Match<DashboardUpcomingFiresQuery>(query =>
+            query.From == now && query.To == now.AddHours(1) && query.GroupContains == "reports"));
+        page.Find("[data-preset=next-hour]").GetAttribute("aria-pressed").Should().Be("true");
+        context.CurrentUri.Should().EndWith("agenda?preset=next-hour&group=reports", "the address keeps the preset, not a window");
+
+        context.Clock.Advance(TimeSpan.FromHours(2));
+        page.Find("[data-testid=refresh]").Click();
+
+        // A preset's window is computed again from now.
+        page.WaitForAssertion(() => Queried()[^1].Should().Match<DashboardUpcomingFiresQuery>(query =>
+            query.From == now.AddHours(2) && query.To == now.AddHours(3)));
+    }
+
+    [Test]
+    public void ChoosingAPresetWritesItIntoTheAddressAndATypedWindowWritesTheWindow()
+    {
+        GivenFires([]);
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+        page.WaitForAssertion(() => Queried().Should().ContainSingle());
+
+        page.Find("[data-preset=next-7-days]").Click();
+        page.WaitForAssertion(() => context.CurrentUri.Should().EndWith("agenda?preset=next-7-days"));
+
+        page.Find("#agenda-from").Change("2026-10-06T00:00");
+        page.Find("#agenda-to").Change("2026-10-06T06:00");
+        page.Find(".qz-agenda-apply").Click();
+
+        page.WaitForAssertion(() => context.CurrentUri.Should().EndWith("agenda?from=2026-10-06T00%3A00%3A00Z&to=2026-10-06T06%3A00%3A00Z"));
+        page.FindAll("[aria-pressed=true]").Should().BeEmpty();
     }
 
     /// <summary>

@@ -46,6 +46,18 @@ internal sealed class TriggerSelectionActions
     }
 
     /// <summary>
+    /// A count of triggers in words, with the noun that agrees with it: <c>1 trigger</c>, <c>2 selected triggers</c>.
+    /// </summary>
+    /// <param name="count">How many.</param>
+    /// <param name="adjective">A word that comes between the count and the noun, or <see langword="null" />.</param>
+    public static string Triggers(int count, string? adjective = null)
+    {
+        string number = count.ToString("N0", CultureInfo.InvariantCulture);
+        string noun = count == 1 ? "trigger" : "triggers";
+        return adjective is null ? number + " " + noun : number + " " + adjective + " " + noun;
+    }
+
+    /// <summary>
     /// The keys in the order a listing shows them: group, then name.
     /// </summary>
     public static List<TriggerKeyDto> Sorted(IEnumerable<TriggerKeyDto> keys)
@@ -154,7 +166,7 @@ internal sealed class TriggerSelectionActions
         }
 
         string summary = verb + " " + applied.Count.ToString(CultureInfo.InvariantCulture) + " of "
-            + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected trigger(s).";
+            + Triggers(keys.Count, "selected") + ".";
 
         if (misses.Count == 0)
         {

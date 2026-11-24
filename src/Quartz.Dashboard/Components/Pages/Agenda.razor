@@ -31,9 +31,10 @@
             @foreach (AgendaPreset preset in Presets)
             {
                 AgendaPreset chosen = preset;
+                bool pressed = ActivePreset == chosen;
                 <button type="button"
-                        class="@("qz-button qz-agenda-preset " + (_preset == chosen ? "qz-button-primary" : string.Empty))"
-                        aria-pressed="@(_preset == chosen ? "true" : "false")"
+                        class="@("qz-button qz-agenda-preset " + (pressed ? "qz-button-primary" : string.Empty))"
+                        aria-pressed="@(pressed ? "true" : "false")"
                         data-preset="@chosen.Id"
                         @onclick="() => ChoosePresetAsync(chosen)">@chosen.Label</button>
             }
@@ -66,19 +67,24 @@
         execution-group limits, standby and which node fires are not taken into account.
     </p>
 
-    @if (CanSelect && _selected.Count > 0)
+    @if (ShowsSelectionBar)
     {
-        <div class="qz-actions qz-group-actions qz-bulk-actions" data-testid="agenda-bulk-actions">
-            <span class="qz-bulk-count" data-testid="agenda-selection-count">@SelectionSummary</span>
-            @if (CanPause)
-            {
-                <button type="button" class="qz-button qz-bulk-pause" @onclick="PromptPauseSelection">Pause selected</button>
-            }
-            @if (CanResume)
-            {
-                <button type="button" class="qz-button qz-bulk-resume" @onclick="ResumeSelectionAsync">Resume selected</button>
-            }
-            <button type="button" class="qz-button qz-bulk-clear" @onclick="ClearSelection">Clear selection</button>
+        @* Always there while fires are listed, so ticking the first box moves no row, and sticky, so the count and the
+           actions stay in view however far down the listing a box was ticked. Its buttons stay too, and say they have
+           nothing to act on rather than vanishing from under the focus. *@
+        <div class="qz-agenda-selection-bar" data-testid="agenda-bulk-actions">
+            <span class="qz-bulk-count" role="status" data-testid="agenda-selection-count">@SelectionSummary</span>
+            <div class="qz-agenda-selection-buttons">
+                @if (CanPause)
+                {
+                    <button type="button" class="qz-button qz-bulk-pause" aria-disabled="@NothingSelected" @onclick="PromptPauseSelection">Pause<span class="qz-agenda-bar-word"> selected</span></button>
+                }
+                @if (CanResume)
+                {
+                    <button type="button" class="qz-button qz-bulk-resume" aria-disabled="@NothingSelected" @onclick="ResumeSelectionAsync">Resume<span class="qz-agenda-bar-word"> selected</span></button>
+                }
+                <button type="button" class="qz-button qz-bulk-clear" aria-disabled="@NothingSelected" @onclick="ClearSelection">Clear<span class="qz-agenda-bar-word"> selection</span></button>
+            </div>
         </div>
     }
 
@@ -99,10 +105,15 @@
         </div>
     }
 
-    @* Where focus goes when the control that had it is gone: the selection bar's buttons and the result's Dismiss
-       remove themselves, and focus must not fall to the page's body. *@
+    @* Where focus goes when the control that had it is gone: the result's Dismiss removes itself, and focus must not
+       fall to the page's body. *@
     <section class="qz-agenda-results" tabindex="-1" aria-label="Fires" data-testid="agenda-results" @ref="_results">
-    @if (_isLoading)
+    @if (_invalid)
+    {
+        @* The inputs say a window the page refused, so what was listed for the last one would read as theirs. *@
+        <p class="qz-muted" data-testid="agenda-invalid">Nothing is listed until the window is one the agenda can show.</p>
+    }
+    else if (_isLoading)
     {
         <LoadingSpinner />
     }
@@ -120,9 +131,22 @@
     }
     else if (_result is { } result)
     {
-        <p class="qz-agenda-window" data-testid="agenda-window">
-            @FireCount(result.Fires.Count) from @FormatWhen(result.FromUtc) to @FormatWhen(result.ToUtc)
-        </p>
+        @if (result.Fires.Count == 0)
+        {
+            <p class="qz-muted" data-testid="agenda-empty">Nothing fires between @FormatWhen(result.FromUtc) and @FormatWhen(result.ToUtc)@GroupWords.</p>
+            @if (_view is { Group.Length: > 0 })
+            {
+                <div class="qz-actions qz-group-actions">
+                    <button type="button" class="qz-button qz-agenda-clear-group" @onclick="ClearGroupAsync">Clear group</button>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="qz-agenda-window" data-testid="agenda-window">
+                @FireCount(result.Fires.Count) from @FormatWhen(result.FromUtc) to @FormatWhen(result.ToUtc)@GroupWords
+            </p>
+        }
 
         @if (result.Cut)
         {
@@ -135,24 +159,21 @@
         @if (result.TriggersNotComputed > 0)
         {
             <p class="qz-agenda-not-computed" role="status" data-testid="agenda-not-computed">
-                @TriggerCount(result.TriggersNotComputed) due in the window could not be computed: the calendar named is
-                missing, or the trigger's type cannot be advanced. Their fires are not listed.
+                @TriggerSelectionActions.Triggers(result.TriggersNotComputed) due in the window could not be computed: the
+                calendar named is missing, or the trigger's type cannot be advanced. Their fires are not listed.
             </p>
         }
 
-        @if (result.Fires.Count == 0)
+        @if (result.Fires.Count > 0)
         {
-            <p class="qz-muted" data-testid="agenda-empty">Nothing fires between @FormatWhen(result.FromUtc) and @FormatWhen(result.ToUtc).</p>
-        }
-        else
-        {
-            List<AgendaHour> hours = Hours(result);
+            List<AgendaHour> hours = HoursOf(result);
             bool showOffsets = hours.Select(static hour => hour.Start.Offset).Distinct().Skip(1).Any();
+            bool canSelect = CanSelect;
             <div class="qz-table-scroll qz-agenda-listing" data-testid="agenda-listing">
-                <table class="@(CanSelect ? "qz-table qz-agenda-table qz-agenda-selectable" : "qz-table qz-agenda-table")">
+                <table class="@(canSelect ? "qz-table qz-agenda-table qz-agenda-selectable" : "qz-table qz-agenda-table")">
                     <thead>
                         <tr>
-                            @if (CanSelect)
+                            @if (canSelect)
                             {
                                 <th class="qz-col-select"><span class="qz-sr-only">Select</span></th>
                             }
@@ -166,76 +187,24 @@
                     </thead>
                     @foreach (AgendaHour hour in hours)
                     {
-                        string hourLabel = HourLabel(hour, showOffsets);
                         <tbody @key="hour.Start.UtcTicks" data-testid="agenda-hour">
-                            @* The heading spans the columns before the schedule, and a cell of its own stands under the schedule's, so
-                               no row spans a column the listing hides when it is narrow: a cell spanning it would keep it in the
-                               layout, empty, taking its share of the width from the keys. *@
-                            <tr class="qz-agenda-hour">
-                                <th colspan="@(CanSelect ? 4 : 3)" scope="rowgroup">
-                                    @if (CanSelect)
-                                    {
-                                        <input type="checkbox"
-                                               class="qz-agenda-select-hour"
-                                               aria-label="@("Select this hour: every fire at " + hourLabel)"
-                                               checked="@AllSelected(hour)"
-                                               @onchange="args => ToggleHour(hour, args)" />
-                                    }
-                                    <span class="qz-agenda-hour-label" data-testid="agenda-hour-label">@hourLabel</span>
-                                    <span class="qz-muted qz-agenda-hour-count">@FireCount(hour.Fires.Count)</span>
-                                </th>
-                                <td class="qz-agenda-col-schedule"></td>
-                                <td colspan="2"></td>
-                            </tr>
+                            <AgendaHourHeading Label="@HourLabel(hour, showOffsets)"
+                                               Count="@FireCount(hour.Fires.Count)"
+                                               AllSelected="@AllSelected(hour)"
+                                               CanSelect="@canSelect"
+                                               OnToggle="@(selected => ToggleHour(hour, selected))" />
                             @foreach (UpcomingFireDto fire in hour.Fires)
                             {
                                 FireRef reference = new(fire.Trigger, fire.FireTimeUtc);
-                                <tr @key="reference" data-testid="agenda-fire">
-                                    @if (CanSelect)
-                                    {
-                                        <td class="qz-col-select">
-                                            <input type="checkbox"
-                                                   class="qz-agenda-select-fire"
-                                                   aria-label="@("Select " + DisplayValueHelper.FormatKey(fire.Trigger.Group, fire.Trigger.Name) + " at " + FormatTime(fire.FireTimeUtc))"
-                                                   checked="@_selected.Contains(reference)"
-                                                   @onchange="args => ToggleFire(reference, args)" />
-                                        </td>
-                                    }
-                                    <td class="qz-agenda-col-time qz-table-cell-mono">@FormatTime(fire.FireTimeUtc)</td>
-                                    <td class="qz-agenda-col-key">
-                                        <a href="@TriggerPath(fire.Trigger)"><KeyBadge GroupName="@fire.Trigger.Group" ItemName="@fire.Trigger.Name" /></a>
-                                        @* Shown in place of the Schedule column on a listing too narrow for both. *@
-                                        <div class="qz-agenda-schedule-inline">@(string.IsNullOrEmpty(fire.ScheduleDescription) ? "—" : fire.ScheduleDescription)</div>
-                                    </td>
-                                    <td class="qz-agenda-col-key">
-                                        <a href="@JobPath(fire.Job)"><KeyBadge GroupName="@fire.Job.Group" ItemName="@fire.Job.Name" /></a>
-                                    </td>
-                                    <td class="qz-agenda-col-schedule">
-                                        @if (string.IsNullOrEmpty(fire.ScheduleDescription))
-                                        {
-                                            <span class="qz-muted">&mdash;</span>
-                                        }
-                                        else
-                                        {
-                                            @fire.ScheduleDescription
-                                        }
-                                        @if (fire.OnlyTheNext)
-                                        {
-                                            <div class="qz-muted qz-agenda-only-next">Only the next fire is known: each run waits for the one before it to complete.</div>
-                                        }
-                                    </td>
-                                    <td class="qz-agenda-col-state"><StateIndicator State="@fire.State.ToString()" /></td>
-                                    <td class="qz-agenda-col-execution-group">
-                                        @if (!string.IsNullOrEmpty(fire.ExecutionGroup))
-                                        {
-                                            <span class="qz-badge">@fire.ExecutionGroup</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="qz-muted">&mdash;</span>
-                                        }
-                                    </td>
-                                </tr>
+                                <AgendaFireRow @key="reference"
+                                               Fire="@fire"
+                                               Selected="@_selected.Contains(reference)"
+                                               CanSelect="@canSelect"
+                                               Time="@FormatTime(fire.FireTimeUtc)"
+                                               Day="@FormatDay(fire.FireTimeUtc)"
+                                               TriggerHref="@TriggerPath(fire.Trigger)"
+                                               JobHref="@JobPath(fire.Job)"
+                                               OnToggle="@(selected => ToggleFire(reference, selected))" />
                             }
                         </tbody>
                     }
@@ -251,11 +220,31 @@
              Message="@PauseMessage"
              Note="They stay paused until resumed: nothing resumes them when the window ends. On resume, each trigger's misfire instruction decides what happens to the fires it missed."
              OnConfirm="PauseSelectionAsync"
-             OnCancel="CancelPause" />
+             OnCancel="CancelPause">
+    @{
+        List<TriggerKeyDto> keys = SelectedTriggers;
+    }
+    <ul class="qz-pause-dialog-keys" data-testid="agenda-pause-keys">
+        @foreach (TriggerKeyDto key in keys.Take(ListedKeys))
+        {
+            <li>@DisplayValueHelper.FormatKey(key.Group, key.Name)</li>
+        }
+        @if (keys.Count > ListedKeys)
+        {
+            <li class="qz-pause-dialog-more">and @((keys.Count - ListedKeys).ToString("N0", CultureInfo.InvariantCulture)) more</li>
+        }
+    </ul>
+</PauseDialog>
 
 @code {
     /// <summary>The longest window, the Timeline's.</summary>
     private static readonly TimeSpan MaxWindow = TimeSpan.FromDays(7);
+
+    /// <summary>How far ahead a window may end.</summary>
+    private static readonly TimeSpan Horizon = TimeSpan.FromDays(30);
+
+    /// <summary>How many of the triggers a pause takes the dialog names before it says how many more.</summary>
+    private const int ListedKeys = 10;
 
     private static readonly string[] InputFormats = ["yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ss"];
 
@@ -283,6 +272,11 @@
     private TriggerSelectionResult? _bulkResult;
     private bool _showPause;
 
+    /// <summary>The fires grouped by hour, for <see cref="_hoursFor" /> in <see cref="_hoursZone" />.</summary>
+    private List<AgendaHour> _hours = [];
+    private UpcomingFiresDto? _hoursFor;
+    private string? _hoursZone;
+
     /// <summary>The region the fires are listed in, which takes focus when the control that had it is gone.</summary>
     private ElementReference _results;
 
@@ -292,20 +286,28 @@
     /// <summary>The window and filter read last, or about to be.</summary>
     private AgendaView? _view;
 
-    /// <summary>The preset the window came from, or <see langword="null" /> for a window typed in.</summary>
-    private AgendaPreset? _preset = Next24Hours;
+    /// <summary>Whether the inputs hold a window the page refused: nothing is listed, and no preset is pressed.</summary>
+    private bool _invalid;
 
     private string _fromInput = string.Empty;
     private string _toInput = string.Empty;
     private string _groupInput = string.Empty;
     private string? _inputError;
 
-    /// <summary>The window's start, as an instant in UTC, so the link means the same moment in every zone.</summary>
+    /// <summary>
+    /// The window's preset, which a reload or a bookmark computes again from now, so a saved link never goes stale.
+    /// It wins over <see cref="FromQuery" /> and <see cref="ToQuery" />.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "preset")]
+    public string? PresetQuery { get; set; }
+
+    /// <summary>A window typed in: its start, as an instant in UTC, so the link means the same moment in every zone.</summary>
     [Parameter]
     [SupplyParameterFromQuery(Name = "from")]
     public string? FromQuery { get; set; }
 
-    /// <summary>The window's end, excluded.</summary>
+    /// <summary>A window typed in: its end, excluded.</summary>
     [Parameter]
     [SupplyParameterFromQuery(Name = "to")]
     public string? ToQuery { get; set; }
@@ -324,6 +326,14 @@
     /// <summary>Fires can be selected when a bulk action is the visitor's to take; never read-only.</summary>
     private bool CanSelect => !Options.Value.ReadOnly && (CanPause || CanResume);
 
+    private bool ShowsSelectionBar => CanSelect && !_invalid && _result is { Fires.Count: > 0 };
+
+    /// <summary>The selection bar's buttons say they have nothing to act on, without leaving the focus order.</summary>
+    private string? NothingSelected => _selected.Count == 0 ? "true" : null;
+
+    /// <summary>The preset the listing shows, or <see langword="null" /> for a window typed in or refused.</summary>
+    private AgendaPreset? ActivePreset => _invalid ? null : Presets.FirstOrDefault(preset => preset.Id == _view?.Preset);
+
     private string ZoneLabel
     {
         get
@@ -334,11 +344,16 @@
         }
     }
 
+    /// <summary>What the listing's sentence adds for a group filter: nothing without one.</summary>
+    private string GroupWords => _view is { Group.Length: > 0 } view ? " in trigger groups containing '" + view.Group + "'" : string.Empty;
+
     private List<TriggerKeyDto> SelectedTriggers => TriggerSelectionActions.Sorted(_selected.Select(static fire => fire.Trigger).Distinct());
 
-    private string SelectionSummary => TriggerCount(SelectedTriggers.Count) + " selected (" + FireCount(_selected.Count) + ")";
+    private string SelectionSummary => _selected.Count == 0
+        ? "No fires selected"
+        : TriggerSelectionActions.Triggers(SelectedTriggers.Count) + " selected (" + FireCount(_selected.Count) + ")";
 
-    private string PauseMessage => "Pause " + TriggerCount(SelectedTriggers.Count) + " (" + FireCount(_selected.Count) + ")?";
+    private string PauseMessage => "Pause " + TriggerSelectionActions.Triggers(SelectedTriggers.Count) + " (" + FireCount(_selected.Count) + ")?";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -365,17 +380,20 @@
 
     /// <remarks>
     /// The window is read from the address every time the router hands the page new parameters, and the fires are
-    /// read again only when it differs from what is shown: a change made here writes the address itself.
+    /// read again only when the address names another view: a change made here writes the address itself, and a
+    /// preset names the same view whenever it is computed.
     /// </remarks>
     protected override async Task OnParametersSetAsync()
     {
         AgendaView requested = FromAddress();
-        if (_loaded && requested == _view)
+        if (_loaded && _view is { } current && SameAddress(current, requested))
         {
             return;
         }
 
         _loaded = true;
+        _invalid = false;
+        _inputError = null;
         _view = requested;
         ShowInInputs(requested);
         _selected.Clear();
@@ -472,13 +490,23 @@
     }
 
     /// <summary>
-    /// The Refresh button: the same window read again. The page reads nothing on its own after it has loaded.
+    /// The Refresh button: the same view read again, a preset's window from now. The page reads nothing on its own
+    /// after it has loaded.
     /// </summary>
     private async Task RefreshAsync()
     {
         if (_refreshing)
         {
             return;
+        }
+
+        if (_view is { Preset: { } presetId } view && Presets.FirstOrDefault(preset => preset.Id == presetId) is { } current)
+        {
+            _view = PresetView(current, view.Group);
+            if (!_invalid)
+            {
+                ShowInInputs(_view);
+            }
         }
 
         _refreshing = true;
@@ -499,19 +527,19 @@
 
     private Task ChoosePresetAsync(AgendaPreset preset)
     {
-        _inputError = null;
-        _preset = preset;
         return ApplyAsync(PresetView(preset, Trim(_groupInput)));
     }
 
     /// <summary>
-    /// Applies what the inputs say: the window typed in, and the group. A window that ends before it starts or is
-    /// longer than seven days is refused here, without a read.
+    /// Applies what the inputs say: the window typed in, and the group. Every rule the scheduler holds a window to is
+    /// checked here first, in the header's zone and in the page's words; the scheduler's own refusal is the last
+    /// resort, for a clock that disagrees with this one.
     /// </summary>
     private Task ApplyInputsAsync()
     {
         string group = Trim(_groupInput);
-        if (_view is { } current && _preset is { } preset && _fromInput == InputText(current.From) && _toInput == InputText(current.To))
+        if (!_invalid && _view is { Preset: { } presetId } current && _fromInput == InputText(current.From) && _toInput == InputText(current.To)
+            && Presets.FirstOrDefault(preset => preset.Id == presetId) is { } preset)
         {
             // Only the group changed: the preset's window, from now.
             return ApplyAsync(PresetView(preset, group));
@@ -519,37 +547,70 @@
 
         if (!TryReadWallClock(_fromInput, out DateTime fromWallClock) || !TryReadWallClock(_toInput, out DateTime toWallClock))
         {
-            _inputError = "From and To must each be a date and time.";
-            return Task.CompletedTask;
+            return Refuse("From and To must each be a date and time.");
         }
 
         DateTimeOffset from = Scheduler.FromSelectedTimeZone(fromWallClock);
         DateTimeOffset to = Scheduler.FromSelectedTimeZone(toWallClock);
+        DateTimeOffset now = Clock.GetUtcNow();
         if (to <= from)
         {
-            _inputError = "To must be after From.";
-            return Task.CompletedTask;
+            return Refuse("To must be after From.");
         }
 
-        if (to - from > MaxWindow)
+        if (to <= now)
         {
-            _inputError = "The window may be at most 7 days long.";
-            return Task.CompletedTask;
+            return Refuse("To must be later than now, " + FormatWhen(now) + ": the agenda lists what will fire. History lists what ran.");
         }
 
-        _inputError = null;
-        _preset = null;
-        return ApplyAsync(new AgendaView(from.ToUniversalTime(), to.ToUniversalTime(), group));
+        if (to > now + Horizon)
+        {
+            return Refuse("To may be at most 30 days ahead, until " + FormatWhen(now + Horizon) + ".");
+        }
+
+        // A start before now is read as now, as the scheduler reads it.
+        if (to - (from > now ? from : now) > MaxWindow)
+        {
+            return Refuse("The window may be at most 7 days long.");
+        }
+
+        return ApplyAsync(new AgendaView(from.ToUniversalTime(), to.ToUniversalTime(), group, null));
+    }
+
+    /// <summary>
+    /// Says why the window typed in is refused, and stops showing what was listed for the last one: the inputs no
+    /// longer say what the listing is.
+    /// </summary>
+    private Task Refuse(string reason)
+    {
+        _inputError = reason;
+        _invalid = true;
+        _selected.Clear();
+        return Task.CompletedTask;
     }
 
     private async Task ApplyAsync(AgendaView view)
     {
+        _inputError = null;
+        _invalid = false;
         _bulkResult = null;
         _selected.Clear();
         _view = view;
         ShowInInputs(view);
         WriteAddress(view);
         await LoadDataAsync();
+    }
+
+    /// <summary>The empty state's <em>Clear group</em>: the same window over every group.</summary>
+    private Task ClearGroupAsync()
+    {
+        if (_view is not { } view)
+        {
+            return Task.CompletedTask;
+        }
+
+        AgendaPreset? preset = Presets.FirstOrDefault(candidate => candidate.Id == view.Preset);
+        return ApplyAsync(preset is not null ? PresetView(preset, string.Empty) : view with { Group = string.Empty });
     }
 
     private void OnFromChanged(ChangeEventArgs args)
@@ -590,38 +651,52 @@
             to = now.AddHours(24);
         }
 
-        return new AgendaView(now, to, group);
+        return new AgendaView(now, to, group, preset.Id);
     }
 
     /// <summary>
-    /// The view the address names. A window it does not name, or names unreadably, is the next 24 hours.
+    /// The view the address names: a preset, computed from now; else a window typed in; else the next 24 hours.
     /// </summary>
     private AgendaView FromAddress()
     {
         string group = Trim(GroupQuery);
-        if (TryReadInstant(FromQuery, out DateTimeOffset from) && TryReadInstant(ToQuery, out DateTimeOffset to) && to > from)
+        if (Presets.FirstOrDefault(preset => string.Equals(preset.Id, PresetQuery, StringComparison.OrdinalIgnoreCase)) is { } named)
         {
-            if (_view is { } current && current.From == from && current.To == to)
-            {
-                // The address this page wrote: the preset it came from still names it.
-                return current with { Group = group };
-            }
-
-            _preset = null;
-            return new AgendaView(from, to, group);
+            return PresetView(named, group);
         }
 
-        _preset = Next24Hours;
+        if (TryReadInstant(FromQuery, out DateTimeOffset from) && TryReadInstant(ToQuery, out DateTimeOffset to) && to > from)
+        {
+            return new AgendaView(from, to, group, null);
+        }
+
         return PresetView(Next24Hours, group);
+    }
+
+    /// <summary>
+    /// Whether two views are what one address names: the same preset and group, computed at any time, or the same
+    /// window typed in and group.
+    /// </summary>
+    private static bool SameAddress(AgendaView left, AgendaView right)
+    {
+        return left.Preset is not null
+            ? left.Preset == right.Preset && left.Group == right.Group
+            : right.Preset is null && left.From == right.From && left.To == right.To && left.Group == right.Group;
     }
 
     private void WriteAddress(AgendaView view)
     {
-        List<string> parts =
-        [
-            "from=" + Uri.EscapeDataString(view.From.ToUniversalTime().ToString(AddressFormat, CultureInfo.InvariantCulture)),
-            "to=" + Uri.EscapeDataString(view.To.ToUniversalTime().ToString(AddressFormat, CultureInfo.InvariantCulture))
-        ];
+        List<string> parts = [];
+        if (view.Preset is { } preset)
+        {
+            parts.Add("preset=" + Uri.EscapeDataString(preset));
+        }
+        else
+        {
+            parts.Add("from=" + Uri.EscapeDataString(view.From.ToUniversalTime().ToString(AddressFormat, CultureInfo.InvariantCulture)));
+            parts.Add("to=" + Uri.EscapeDataString(view.To.ToUniversalTime().ToString(AddressFormat, CultureInfo.InvariantCulture)));
+        }
+
         if (view.Group.Length > 0)
         {
             parts.Add("group=" + Uri.EscapeDataString(view.Group));
@@ -667,10 +742,17 @@
 
     /// <summary>
     /// The fires grouped by the hours of the header's zone, each keyed by its start in UTC: a repeated autumn hour is
-    /// two hours, one per offset, and a skipped spring hour is none.
+    /// two hours, one per offset, and a skipped spring hour is none. Worked out once per answer and zone, not per
+    /// render: a box ticked renders the page again.
     /// </summary>
-    private List<AgendaHour> Hours(UpcomingFiresDto result)
+    private List<AgendaHour> HoursOf(UpcomingFiresDto result)
     {
+        string zoneId = Scheduler.SelectedTimeZoneId;
+        if (ReferenceEquals(_hoursFor, result) && _hoursZone == zoneId)
+        {
+            return _hours;
+        }
+
         TimeZoneInfo zone = Scheduler.ResolveSelectedTimeZone();
         List<AgendaHour> hours = [];
         foreach (UpcomingFireDto fire in result.Fires)
@@ -685,6 +767,9 @@
             hours[^1].Fires.Add(fire);
         }
 
+        _hours = hours;
+        _hoursFor = result;
+        _hoursZone = zoneId;
         return hours;
     }
 
@@ -702,16 +787,13 @@
 
     private string FormatTime(DateTimeOffset fireTimeUtc) => Scheduler.FormatInSelectedTimeZone(fireTimeUtc, "HH:mm:ss");
 
+    private string FormatDay(DateTimeOffset fireTimeUtc) => Scheduler.FormatInSelectedTimeZone(fireTimeUtc, "ddd d MMM");
+
     private string FormatWhen(DateTimeOffset value) => Scheduler.FormatInSelectedTimeZone(value, "ddd d MMM HH:mm");
 
     private static string FireCount(int count)
     {
         return count.ToString("N0", CultureInfo.InvariantCulture) + (count == 1 ? " fire" : " fires");
-    }
-
-    private static string TriggerCount(int count)
-    {
-        return count.ToString("N0", CultureInfo.InvariantCulture) + (count == 1 ? " trigger" : " triggers");
     }
 
     /// <summary>
@@ -740,9 +822,9 @@
         return hour.Fires.TrueForAll(fire => _selected.Contains(new FireRef(fire.Trigger, fire.FireTimeUtc)));
     }
 
-    private void ToggleFire(FireRef fire, ChangeEventArgs args)
+    private void ToggleFire(FireRef fire, bool selected)
     {
-        if (args.Value is true)
+        if (selected)
         {
             _selected.Add(fire);
         }
@@ -752,12 +834,12 @@
         }
     }
 
-    private void ToggleHour(AgendaHour hour, ChangeEventArgs args)
+    private void ToggleHour(AgendaHour hour, bool selected)
     {
         foreach (UpcomingFireDto fire in hour.Fires)
         {
             FireRef reference = new(fire.Trigger, fire.FireTimeUtc);
-            if (args.Value is true)
+            if (selected)
             {
                 _selected.Add(reference);
             }
@@ -769,12 +851,11 @@
     }
 
     /// <summary>
-    /// Empties the selection, which removes the bar holding the button that asked: focus moves to the fires.
+    /// Empties the selection. The button stays where it is, saying it has nothing to act on, so focus stays on it.
     /// </summary>
     private void ClearSelection()
     {
         _selected.Clear();
-        _focusResults = true;
     }
 
     /// <summary>
@@ -788,7 +869,10 @@
 
     private void PromptPauseSelection()
     {
-        _showPause = true;
+        if (_selected.Count > 0)
+        {
+            _showPause = true;
+        }
     }
 
     private void CancelPause()
@@ -822,11 +906,12 @@
         TriggerSelectionResult result = await action(new TriggerSelectionActions(Api, ActionLog, Toasts), schedulerName, SelectedTriggers);
         _bulkResult = result.Misses.Count == 0 ? null : result;
 
-        // The selection is spent, and the bar that held the button goes with it: focus moves to the fires, which stay
-        // on screen while they are read again with what the action did.
+        // The selection is spent, and the bar keeps the button that asked, so focus stays on it while the fires stay on
+        // screen and are read again with what the action did. Should the read leave nothing listed, the bar goes, and
+        // focus moves to the fires' region rather than the page's body.
         _selected.Clear();
-        _focusResults = true;
         await LoadDataAsync(keepListing: true);
+        _focusResults = !ShowsSelectionBar;
     }
 
     private static string Trim(string? value) => value?.Trim() ?? string.Empty;
@@ -834,8 +919,11 @@
     /// <summary>A window preset: what the address and the button say.</summary>
     private sealed record AgendaPreset(string Id, string Label);
 
-    /// <summary>What the page reads: the window, in UTC, and the trigger group fragment.</summary>
-    private sealed record AgendaView(DateTimeOffset From, DateTimeOffset To, string Group);
+    /// <summary>
+    /// What the page reads: the window, in UTC, the trigger group fragment, and the preset the window was computed
+    /// from, or <see langword="null" /> for one typed in.
+    /// </summary>
+    private sealed record AgendaView(DateTimeOffset From, DateTimeOffset To, string Group, string? Preset);
 
     /// <summary>One hour of the header's zone, from its start, and the fires in it.</summary>
     private sealed record AgendaHour(DateTimeOffset Start, List<UpcomingFireDto> Fires);

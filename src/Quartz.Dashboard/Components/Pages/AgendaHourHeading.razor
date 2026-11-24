@@ -1,0 +1,73 @@
+@* One hour's heading row on the Agenda: its label, its count and, for an operator, the box that selects the hour. A
+   component of its own for the reason AgendaFireRow is one.
+
+   The heading spans the columns before the schedule, and a cell of its own stands under the schedule's, so no row
+   spans a column the listing hides when it is narrow: a cell spanning it would keep it in the layout, empty, taking
+   its share of the width from the keys. *@
+<tr class="qz-agenda-hour">
+    <th colspan="@(CanSelect ? 4 : 3)" scope="rowgroup">
+        <div class="qz-agenda-hour-heading">
+            @if (CanSelect)
+            {
+                <input type="checkbox"
+                       class="qz-agenda-select-hour"
+                       aria-label="@("Select this hour: every fire at " + Label)"
+                       checked="@AllSelected"
+                       @onchange="OnChange" />
+            }
+            <span class="qz-agenda-hour-label" data-testid="agenda-hour-label">@Label</span>
+            <span class="qz-muted qz-agenda-hour-count">@Count</span>
+        </div>
+    </th>
+    <td class="qz-agenda-col-schedule"></td>
+    <td colspan="2"></td>
+</tr>
+
+@code {
+    private HeadingState _rendered;
+
+    /// <summary>The hour, in the header's zone, with its offset when the window has more than one.</summary>
+    [Parameter]
+    public string Label { get; set; } = string.Empty;
+
+    /// <summary>How many fires the hour holds, in words.</summary>
+    [Parameter]
+    public string Count { get; set; } = string.Empty;
+
+    /// <summary>Whether every fire of the hour is in the selection.</summary>
+    [Parameter]
+    public bool AllSelected { get; set; }
+
+    [Parameter]
+    public bool CanSelect { get; set; }
+
+    /// <summary>Raised with whether the box is now ticked.</summary>
+    [Parameter]
+    public EventCallback<bool> OnToggle { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (_rendered.Label is null)
+        {
+            _rendered = Current();
+        }
+    }
+
+    protected override bool ShouldRender()
+    {
+        HeadingState current = Current();
+        if (current == _rendered)
+        {
+            return false;
+        }
+
+        _rendered = current;
+        return true;
+    }
+
+    private HeadingState Current() => new(Label, Count, AllSelected, CanSelect);
+
+    private Task OnChange(ChangeEventArgs args) => OnToggle.InvokeAsync(args.Value is true);
+
+    private readonly record struct HeadingState(string? Label, string Count, bool AllSelected, bool CanSelect);
+}

@@ -102,26 +102,37 @@ internal static class UpcomingFires
 
         if (query.To <= now)
         {
-            return $"The window ends at {query.To:O}, which is not after the scheduler's current time {now:O}. The agenda lists what will fire; History lists what ran.";
+            return $"The window ends at {Readable(query.To)}, which is not after the scheduler's current time, {Readable(now)}. The agenda lists what will fire; History lists what ran.";
         }
 
         if (query.From is { } from && from >= query.To)
         {
-            return $"The window must end after it starts: {query.To:O} is not after {from:O}.";
+            return $"The window must end after it starts: {Readable(query.To)} is not after {Readable(from)}.";
         }
 
         if (query.To > now + Horizon)
         {
-            return $"The window ends at {query.To:O}, more than {Horizon.TotalDays.ToString(CultureInfo.InvariantCulture)} days after the scheduler's current time {now:O}.";
+            return $"The window ends at {Readable(query.To)}, more than {Horizon.TotalDays.ToString(CultureInfo.InvariantCulture)} days after the scheduler's current time, {Readable(now)}.";
         }
 
         DateTimeOffset start = Start(now, query);
         if (query.To - start > MaxWindow)
         {
-            return $"The window from {start:O} to {query.To:O} is longer than {MaxWindow.TotalDays.ToString(CultureInfo.InvariantCulture)} days: narrow it.";
+            return $"The window from {Readable(start)} to {Readable(query.To)} is longer than {MaxWindow.TotalDays.ToString(CultureInfo.InvariantCulture)} days: narrow it.";
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// An instant as a refusal says it, in UTC and to the minute, or to the second when it has seconds:
+    /// <c>2026-11-21 10:00 UTC</c>. Every carrier relays the words as they are, so they are read by people.
+    /// </summary>
+    internal static string Readable(DateTimeOffset value)
+    {
+        DateTimeOffset utc = value.ToUniversalTime();
+        string format = utc.Second == 0 && utc.Millisecond == 0 ? "yyyy-MM-dd HH:mm" : "yyyy-MM-dd HH:mm:ss";
+        return utc.ToString(format, CultureInfo.InvariantCulture) + " UTC";
     }
 
     /// <summary>
@@ -159,7 +170,7 @@ internal static class UpcomingFires
         if (headers is null)
         {
             return new UpcomingFiresOutcome(null,
-                $"More than {MaxTriggers.ToString("N0", CultureInfo.InvariantCulture)} triggers are due before {to:O}: narrow the window or filter by trigger group.");
+                $"More than {MaxTriggers.ToString("N0", CultureInfo.InvariantCulture)} triggers are due before {Readable(to)}: narrow the window or filter by trigger group.");
         }
 
         Merge merge = new(scheduler, headers, from, to, cancellationToken);
