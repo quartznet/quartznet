@@ -4,6 +4,8 @@ using Bunit;
 
 using FakeItEasy;
 
+using Microsoft.AspNetCore.Components;
+
 using Quartz.Dashboard.Components.Layout;
 using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Services;
@@ -201,6 +203,74 @@ public sealed class AgendaPageTest
             .MustHaveHappenedOnceExactly());
     }
 
+    /// <summary>
+    /// <em>Clear selection</em> removes the bar it is on, so focus moves to the fires rather than fall to the body.
+    /// </summary>
+    [Test]
+    public void ClearingTheSelectionMovesFocusToTheFires()
+    {
+        GivenFires([Fire(nightly, now.AddMinutes(10))]);
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+        string results = ReferenceOf(page.WaitForElement("[data-testid=agenda-results]"));
+        page.WaitForElement("input.qz-agenda-select-fire").Change(true);
+
+        page.WaitForElement(".qz-bulk-clear").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=agenda-bulk-actions]").Should().BeEmpty());
+        page.WaitForAssertion(() => LastFocused().Should().Be(results));
+    }
+
+    /// <summary>
+    /// A pause empties the selection, which removes the bar its button was on: focus moves to the fires, which stay on
+    /// screen while they are read again, rather than give way to a spinner.
+    /// </summary>
+    [Test]
+    public void APauseMovesFocusToTheFiresWhichStayOnScreenWhileTheyAreReadAgain()
+    {
+        TaskCompletionSource<UpcomingFiresDto> reread = new();
+        List<UpcomingFireDto> fires = [Fire(nightly, now.AddMinutes(10)), Fire(hourly, now.AddMinutes(20))];
+        int reads = 0;
+        A.CallTo(() => context.Api.QueryUpcomingFires(A<string>._, A<DashboardUpcomingFiresQuery>._, A<CancellationToken>._))
+            .ReturnsLazily(() => ++reads == 1
+                ? ValueTask.FromResult(new UpcomingFiresDto(now, now.AddHours(24), fires))
+                : new ValueTask<UpcomingFiresDto>(reread.Task));
+        A.CallTo(() => context.Api.PauseTriggersWith(TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>._, A<PauseDetails>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, IReadOnlyCollection<TriggerKeyDto> keys, PauseDetails? _, CancellationToken _) => keys.ToList());
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+        string results = ReferenceOf(page.WaitForElement("[data-testid=agenda-results]"));
+        page.WaitForElement("input.qz-agenda-select-hour").Change(true);
+
+        page.WaitForElement(".qz-bulk-pause").Click();
+        page.ConfirmPause();
+
+        page.WaitForAssertion(() => LastFocused().Should().Be(results));
+        page.FindAll("[data-testid=agenda-fire]").Should().HaveCount(2, "the fires stay on screen while the agenda is read again");
+        page.FindAll(".qz-loading-spinner").Should().BeEmpty();
+
+        reread.SetResult(new UpcomingFiresDto(now, now.AddHours(24), [.. fires.Select(fire => fire with { State = TriggerState.Paused })]));
+        page.WaitForAssertion(() => page.TextOfAll("td.qz-agenda-col-state").Should().Equal(["Paused", "Paused"]));
+    }
+
+    [Test]
+    public void DismissingTheResultMovesFocusToTheFires()
+    {
+        GivenFires([Fire(nightly, now.AddMinutes(10))]);
+        A.CallTo(() => context.Api.ResumeTriggers(TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKeyDto>());
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+        string results = ReferenceOf(page.WaitForElement("[data-testid=agenda-results]"));
+        page.WaitForElement("input.qz-agenda-select-fire").Change(true);
+        page.WaitForElement(".qz-bulk-resume").Click();
+        page.WaitForElement("[data-testid=agenda-bulk-result]");
+        int focusedSoFar = Focused().Count;
+
+        page.Find(".qz-bulk-result-dismiss").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=agenda-bulk-result]").Should().BeEmpty());
+        page.WaitForAssertion(() => Focused().Should().HaveCount(focusedSoFar + 1));
+        LastFocused().Should().Be(results);
+    }
+
     [Test]
     public void AReadOnlyDashboardOffersNoSelection()
     {
@@ -358,6 +428,28 @@ public sealed class AgendaPageTest
         List<string> labels = menu.TextOfAll(".qz-nav-link-text");
         labels.IndexOf("Agenda").Should().Be(labels.IndexOf("Timeline") + 1);
         menu.FindAll("a.qz-nav-active").Select(link => link.TextContent.Trim()).Should().Equal(["Agenda"]);
+    }
+
+    /// <summary>The ids of the elements <c>FocusAsync</c> was asked to focus, in order.</summary>
+    private List<string> Focused()
+    {
+        return context.JSInterop.Invocations
+            .Where(invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus")
+            .Select(invocation => ((ElementReference) invocation.Arguments[0]!).Id)
+            .ToList();
+    }
+
+    private string LastFocused() => Focused().Should().NotBeEmpty().And.Subject.Last();
+
+    /// <summary>
+    /// The id an element's <c>@ref</c> is focused by, read off its first render: a later render of the element does not
+    /// carry it again.
+    /// </summary>
+    private static string ReferenceOf(IElement element)
+    {
+        string? id = element.GetAttribute("blazor:elementreference");
+        id.Should().NotBeNullOrEmpty();
+        return id!;
     }
 
     private List<DashboardUpcomingFiresQuery> Queried()
