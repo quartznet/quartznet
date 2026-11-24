@@ -147,6 +147,45 @@ await scheduler.TriggerJob(new JobKey("nightly-report", "reports"));
 ```
 <!-- endSnippet -->
 
+### Through the dashboard host
+
+From 4.9 the [dashboard host](dashboard-host.md#the-http-api), or any application that maps the HTTP API over
+targets of its own, serves each target's schedulers through its API. Address one by the key the host lists:
+
+<!-- snippet: sample_httpclient_gateway_target -->
+```csharp
+// A scheduler the dashboard host lists as w1/QuartzScheduler, through the host's HTTP API
+builder.Services.AddHttpClient("quartz-host", client =>
+{
+    client.BaseAddress = new Uri("https://quartz.example.com/quartz-api/");
+    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "<operator token>");
+});
+builder.Services.AddQuartzHttpClient(options =>
+{
+    options.SchedulerName = "QuartzScheduler";
+    options.GatewayTarget = "w1";       // sent as ?target=w1 on every request
+    options.HttpClientName = "quartz-host";
+});
+
+// or directly, by the key the host lists
+IScheduler scheduler = new HttpScheduler(new SchedulerRef("QuartzScheduler", "w1"), hostApi);
+await scheduler.PauseJob(new JobKey("nightly-report", "reports"));
+```
+<!-- endSnippet -->
+
+- `GatewayTarget` is the host's name for the target, sent as `?target=` on every request of the scheduler, its
+  [history](#history) and its [events](#events). It is not `Target`, which is this process's own label for the
+  registration and is never sent. It cannot contain `/` or `+`.
+- `new HttpScheduler(SchedulerRef, …)` reads the key as the host lists it. A key without a target is the host's
+  own scheduler, as the constructor that takes a name.
+- **A success without `Quartz-Target` naming the target is refused** with `HttpClientException`. A host older
+  than 4.9 ignores `?target=` and answers for a scheduler of its own with the bare name; the check stops that
+  answer being taken for the target's. A failure keeps its own meaning: a `401` or an unmapped route cannot carry
+  the header.
+- The host's statuses for a target that does not serve a request — `503`, `504`, `502`, `403` — are in
+  [When the target does not serve it](http-api.md#when-the-target-does-not-serve-it). Each reaches the caller as
+  `HttpClientException`, whose `InnerException` is an `HttpRequestException` carrying the status.
+
 ## Authentication
 
 The client has no authentication of its own. Configure the `HttpClient` as for any other API:
@@ -451,6 +490,8 @@ name, a response without problem details, an unreadable body.
 - For a `500`, `detail` is a fixed sentence, *"The scheduler failed to handle the request. The failure is
   recorded in the server's log."*, not the exception's message. `IncludeStackTraceInProblemDetails` restores the
   message.
+- From 4.9, one raised for a status carries an `HttpRequestException` as its `InnerException`, with the status in
+  `StatusCode` and the server's `detail` as its message. The outer message is unchanged.
 
 The 3.x-compatible listings (`GetJobKeys`, `GetTriggerKeys`, `GetCalendarNames`, `GetJobGroupNames`,
 `GetTriggerGroupNames`, `GetPausedTriggerGroups`) request every match. The server returns at most

@@ -40,6 +40,7 @@ Open `/quartz` and sign in with the token. Every key below is under `Quartz:Dash
 | `/quartz` | The dashboard (`DashboardPath`). `/` redirects here |
 | `/login`, `/logout` | Sign-in and sign-out (`Token` mode) |
 | `/quartz/agents` | The agent hub, when an agent token is set |
+| `/quartz-api` | The [HTTP API](#the-http-api) for every scheduler the dashboard shows, when `HttpApi:Enabled` (4.9) |
 | `/healthz` | Anonymous liveness: `200 Healthy` while the process answers. It asks no target and no database |
 
 ## Authentication
@@ -124,6 +125,39 @@ calls `UseDashboardAgent()` with `Quartz:DashboardAgent:Endpoint`, `Token` and `
 **Run one instance while the host accepts agents.** Their connections and the answers in flight are in that
 process's memory.
 
+## The HTTP API
+
+From 4.9, `HttpApi:Enabled=true` serves the scheduler [HTTP API](http-api.md) for every scheduler the dashboard
+shows, at one path. A request names a scheduler behind a target with `?target=`:
+`GET /quartz-api/schedulers/OrdersScheduler/jobs?target=orders`. Addressing, the store-attached routes and the
+error statuses are in [Through the dashboard host](http-api.md#through-the-dashboard-host-target).
+
+| Key | Default | What it is |
+|---|---|---|
+| `HttpApi:Enabled` | `false` | Serve the API. Off, because a new write surface on a running deployment is asked for |
+| `HttpApi:Path` | `/quartz-api` | Where. Not `/`, the dashboard's path, `/login`, `/logout` or `/healthz`, nor under them |
+| `HttpApi:ReadOnly` | the host's `ReadOnly` | Refuse every change through the API |
+| `AllowedOrigins:<n>` | none | Origins a browser may call the API from, as `scheme://host[:port]` |
+| `Authentication:ApiAudience` | — | `OpenIdConnect` mode: the audience a bearer token must carry. Required with the API |
+
+**Bearer only.** The API never reads the sign-in cookie, so a page of another site cannot borrow a visitor's
+session, and it never reads `?t=`. An unauthenticated call is `401` with `WWW-Authenticate: Bearer`, never a
+redirect.
+
+| Mode | The bearer |
+|---|---|
+| `Token` | A role's token: `Authorization: Bearer <Tokens:Operator>`, at that role. A refused token is logged as `9410`, without its value |
+| `OpenIdConnect` | A JWT from `Authority` whose `aud` is `ApiAudience`, its roles in `RoleClaimType` and mapped by `Roles:*`. A pipeline gets one with the client-credentials grant |
+| `Unsecured` | None: every caller is the anonymous visitor, at `UnsecuredAccess` |
+
+- The [operator roles](dashboard.md#operator-roles) apply as for the dashboard's buttons, `Roles:Operations`
+  overrides included.
+- **Every request with an `Origin` header is refused with `403`** unless the origin is in `AllowedOrigins`. A
+  script sends none. In `Unsecured` mode this is what stops a DNS-rebinding page; bind such a host to loopback too.
+- Each change and each refusal is an entry in the [Action Log](dashboard.md#action-log) with *Via HTTP API*, and an
+  audit line, `9007` or `9009`.
+- A target sees the host's credential, as it does for a visitor: see [Limitations](#limitations).
+
 ## The dashboard and the process
 
 | Key | Default | What it is |
@@ -138,7 +172,7 @@ process's memory.
 - **Telemetry**: with `OTEL_EXPORTER_OTLP_ENDPOINT` set, Quartz's spans and instruments, ASP.NET Core's
   instruments and the logs go to that collector. ASP.NET Core's request spans are not exported: a span carries the
   address, and an address can carry a token.
-- **Logs**: events `9400` to `9409`, listed in [Log Events](../log-events.md). `9400` says at start what the host
+- **Logs**: events `9400` to `9410`, listed in [Log Events](../log-events.md). `9400` says at start what the host
   serves, and `9402` each reason it will not start.
 - **Behind a reverse proxy**, set `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` so the cookie and the OpenID Connect
   redirect see the original scheme and host.
@@ -165,7 +199,6 @@ gh attestation verify oci://ghcr.io/quartznet/quartz-dashboard:4.8 --owner quart
 
 - **One instance while it accepts agents**, as above.
 - **Store-attached targets read Quartz's own job data types**, as above.
-- **No HTTP API.** The host serves the dashboard only; the fleet API through the host is
-  [#4218](https://github.com/quartznet/quartznet/issues/4218).
-- **The operator's identity is not forwarded.** An HTTP target sees the target's `BearerToken`, and an agent the
-  agent token, whoever is signed in. A visitor's rights are the lower of their role and what the target allows.
+- **The operator's identity is not forwarded**, from the dashboard or from the [HTTP API](#the-http-api). An HTTP
+  target sees the target's `BearerToken`, and an agent the agent token, whoever is signed in. A caller's rights are
+  the lower of their role and what the target allows; who did what is in the host's Action Log and audit lines.

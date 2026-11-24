@@ -106,6 +106,8 @@ Seventy-two routes in four groups.
 
 - `{ApiPath}` is `/quartz-api` unless changed. `{name}` is the scheduler; every route but the first has one.
 - Every route with `{name}` is subject to [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when set.
+- From 4.9, every route with `{name}` also takes `?target=`, naming a scheduler behind a target of the host; see
+  [Through the dashboard host](#through-the-dashboard-host-target).
 - An unknown scheduler is `404` on every route.
 - **Answers** uses the [response-shape conventions](#response-shape-conventions): *empty* is `200` with no body;
   `{ applied }` is the one-flag form; `{ groups }` / `{ jobs }` / `{ triggers }` are the group-matcher and
@@ -1395,6 +1397,69 @@ builder.Services.AddQuartzHttpApi(options =>
   scheduler only. The [dashboard](dashboard.md#narrowing-which-job-types-may-be-named) has its own
   `QuartzDashboardOptions.IsJobTypeAllowed`, configured separately.
 
+## Through the dashboard host: `?target=`
+
+From 4.9 a host that fronts other processes serves each target's schedulers through its one API: the
+[dashboard host](dashboard-host.md#the-http-api), or any application that registers targets with
+`AddQuartzHttpClient(options => options.Target = "w1")`, agents or attached stores, and maps this API. A request
+names the target in the query; the route keeps the scheduler's own name:
+
+```http
+GET  /quartz-api/schedulers/QuartzScheduler/jobs?target=w1
+POST /quartz-api/schedulers/reporting/triggers/nightly/at-midnight/pause?target=prod
+```
+
+- Without `target` a request is for the host's own scheduler of that name, as before 4.9. A name only targets hold
+  is `404`, naming the `?target=` that would reach it.
+- `target` blank, given twice, or containing `/` is `400`.
+- `GET {ApiPath}/schedulers` lists every target's schedulers, each with `target`, `members` and `lastSeenUtc`.
+- The host answers with its own handler, run against the `HttpScheduler` it reaches the target with — over HTTP
+  or an agent's connection — or the window onto an attached store. No bytes are relayed, so the host must know
+  any custom trigger or calendar type: register its serializer in the host.
+- **Every answer to a request with `target` carries `Quartz-Target: <target>`**, percent-encoded. A host older
+  than 4.9 ignores `?target=` and answers for its own scheduler of the bare name; check the header.
+  `HttpScheduler` with a [gateway target](http-client.md#through-the-dashboard-host) checks it itself.
+
+### Who may do what through a target
+
+- Both policies are asked with `SchedulerResource { SchedulerName, Target }` before anything is resolved or sent. A
+  refused caller gets the same `403` for a target that exists and one that does not, and the listing is filtered
+  per name and target.
+- **The target sees the host's credential**, not the caller's: an HTTP target its `BearerToken`, an agent the agent
+  token. The caller's identity is not forwarded. What they did is in the host's audit line, `9007` naming the key,
+  and in its dashboard's [Action Log](dashboard.md#action-log). A pause without `requestedBy` is recorded at the
+  target in the caller's name.
+- An agent's `MaxAccess` and the target's own policies still apply; their refusal is `403`.
+
+### What a store-attached target serves
+
+| Routes | Through `?target=<store>` |
+|---|---|
+| Reads: details, jobs, triggers, groups, states, pauses, calendars, fire times, fire instances, cluster nodes | Served from the shared tables |
+| History, misfires, statistics, run statuses | Served when the store was attached with `UseExecutionHistory()`; otherwise `400` saying so |
+| `GET …/events` | `501`: a database carries no event feed |
+| Pause, resume, trigger now, interrupt, reset from error, schedule, reschedule, unschedule, backfill, add or delete a job, calendars, `Clear` | Served: writes to the shared tables, honoured by whichever node picks the work up |
+| `Start`, `Standby`, `Shutdown` | `400`: they belong to one process. The bare name refuses them alike |
+
+### When the target does not serve it
+
+| Situation | Status | `detail` |
+|---|---|---|
+| Unknown target, or no such scheduler behind it | `404` | `Unknown scheduler w1/QuartzScheduler` |
+| Nothing answered: an agent offline, a refused connection, a name that did not resolve | `503` | `Target 'w1' is not reachable.` |
+| No answer within the transport's timeout | `504` | `Target 'w1' did not answer in time.` A mutating route adds: *The change may or may not have been applied; read before retrying.* |
+| The target refused the host's credential (`401`) | `502` | `Target 'w1' refused this host's credential.` |
+| The target refused the operation (`403`) | `403` | `Target 'w1' refused:` and the target's own detail |
+| The target's scheduler refused (`400` with `Quartz-ExceptionType`) | `400` | As the target answered |
+| A route the target is too old to serve | `501` | Names `NotSupportedException` |
+| The target failed (`5xx`), or answered something unreadable | `502` | `Target 'w1' failed.` |
+
+- No `detail` carries the target's address. The host logs `9010` (not reachable), `9011` (timed out) and `9012`
+  (what it answered), naming the target and the reason's class, never the address.
+- None of these names a `Quartz-ExceptionType`.
+- **There is no gateway timeout of its own.** An agent's `OperationTimeout` (30 s) or an HTTP target's `Timeout`
+  applies; keep an HTTP target's at or below 30 s. The caller's cancellation reaches the target.
+
 ## Calling it from .NET
 
 `Quartz.HttpClient` is the client half of this contract. Its `HttpScheduler` implements `IScheduler` over these
@@ -1468,8 +1533,11 @@ AOT host answers them without it. A native canary runs the server and the client
   - `{Operation}` is the endpoint's name; `{Route}` is the request path, which spells the target key.
   - One line per request, after the handler, for `2xx` answers only. A refusal is `9005`, or `9009` for a
     caller's role; a failure is `9003` or `9004`.
-  - It is this process's log. API actions are not in the [dashboard](dashboard.md#action-log)'s Action Log, and
-    dashboard actions are not here. All events: [Log Events](../log-events.md).
+  - For a request with `?target=`, `{SchedulerName}` is the key, `w1/QuartzScheduler`: the route is the path and
+    leaves the query out.
+  - It is this process's log. From 4.9, a process that maps the [dashboard](dashboard.md#action-log) also enters
+    every API change and role refusal in its Action Log, with *Via HTTP API*; dashboard actions are not here. All
+    events: [Log Events](../log-events.md).
 - Set `ReadOnly` where nothing should write through the API, such as a process that only feeds a dashboard,
   monitoring or reports; see [Serving reads only](#serving-reads-only).
 - Leave `MaxPageSize` set, so one request cannot load an unbounded result.
