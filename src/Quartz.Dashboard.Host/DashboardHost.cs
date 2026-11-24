@@ -190,10 +190,11 @@ internal static class DashboardHost
 
         if (plan.ServesHttpApi)
         {
-            // Bearer only, and a browser request from an origin not listed is refused before anything else: the
-            // cookie a visitor signed in with is never what lets a request in here.
-            new QuartzRequestGuard(plan.Settings.AllowedOrigins).Apply(
-                app.MapQuartzHttpApi(plan.HttpApiPath).RequireAuthorization(HostAuthentication.ApiPolicy));
+            // Bearer only, never a token in the address, and a browser request from an origin not listed is refused
+            // before anything else: the cookie a visitor signed in with is never what lets a request in here.
+            IEndpointConventionBuilder api = app.MapQuartzHttpApi(plan.HttpApiPath).RequireAuthorization(HostAuthentication.ApiPolicy);
+            HostAuthentication.RefuseTokenInAddress(api);
+            new QuartzRequestGuard(plan.Settings.AllowedOrigins).Apply(api);
         }
 
         app.MapQuartzDashboard();

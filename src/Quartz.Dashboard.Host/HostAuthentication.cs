@@ -174,6 +174,36 @@ internal static class HostAuthentication
     }
 
     /// <summary>
+    /// Refuses every API request whose address carries <c>?t=</c>, with <c>401</c>, whatever else it carries.
+    /// </summary>
+    /// <remarks>
+    /// The API never reads a token from the address, and an address is what a failure is logged with: the
+    /// API's <c>9003</c> and <c>9004</c> write the request's URL, query included, and a caller who sent a valid
+    /// bearer would otherwise get that far with a role token in the query. Refused before the handler, with
+    /// nothing logged, so the value goes nowhere. Applied to the mapping after it is authorized, in every mode.
+    /// </remarks>
+    public static void RefuseTokenInAddress(IEndpointConventionBuilder api)
+    {
+        api.Add(endpointBuilder =>
+        {
+            RequestDelegate next = endpointBuilder.RequestDelegate
+                ?? throw new InvalidOperationException($"Endpoint {endpointBuilder.DisplayName} has null RequestDelegate");
+
+            endpointBuilder.RequestDelegate = context =>
+            {
+                if (!context.Request.Query.ContainsKey(TokenQuery))
+                {
+                    return next(context);
+                }
+
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Headers.WWWAuthenticate = "Bearer";
+                return Task.CompletedTask;
+            };
+        });
+    }
+
+    /// <summary>
     /// The scheme the HTTP API signs a caller in with: the bearer scheme, or <c>Unsecured</c> mode's anonymous
     /// caller. Never the cookie.
     /// </summary>

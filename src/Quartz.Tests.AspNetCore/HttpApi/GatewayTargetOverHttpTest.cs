@@ -346,6 +346,67 @@ public sealed class GatewayTargetOverHttpTest
         asked.Should().Contain(resource => resource.Target == Target, "the listing asks each registration with its target");
     }
 
+    /// <summary>
+    /// A policy that refuses a target is asked about it in the target's own spelling, so changing the case of
+    /// <c>?target=</c> does not step round it: targets resolve ignoring case.
+    /// </summary>
+    [TestCase("w1")]
+    [TestCase("W1")]
+    public async Task APolicyRefusingATargetCannotBeSteppedRoundByItsCase(string spelling)
+    {
+        List<string?> asked = [];
+
+        HttpClient gateway = await Gateway(
+            services =>
+            {
+                // Written as a careless policy is: an ordinal comparison.
+                services.AddAuthorizationBuilder().AddPolicy("NotW1", policy => policy.RequireAssertion(context =>
+                {
+                    SchedulerResource resource = (SchedulerResource) context.Resource!;
+                    lock (asked)
+                    {
+                        asked.Add(resource.Target);
+                    }
+
+                    return resource.Target != "w1";
+                }));
+                services.AddQuartzHttpApi(options => options.SchedulerAuthorizationPolicy = "NotW1");
+            },
+            app => app.MapQuartzHttpApi("/quartz-api").AllowAnonymous());
+
+        using HttpResponseMessage response = await gateway.GetAsync($"{SchedulerUrl}?target={spelling}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden, "?target=W1 reaches w1, so it is refused as w1 is");
+        asked.Should().Equal(["w1"], "the policy is asked about the target as it is registered, however the request spelled it");
+    }
+
+    /// <summary>
+    /// A scheduler of this process named like the joined key — <c>w1/TestScheduler</c> — is not the one a
+    /// request naming target <c>w1</c> reaches: the policy was asked about the target's scheduler, and the pair
+    /// resolves as given.
+    /// </summary>
+    [Test]
+    public async Task ALocalSchedulerNamedLikeTheJoinedKeyIsNotTheTargetsScheduler()
+    {
+        HttpClient gateway = await Gateway();
+
+        IScheduler local = A.Fake<IScheduler>();
+        A.CallTo(() => local.SchedulerName).Returns($"{Target}/{TestData.SchedulerName}");
+        A.CallTo(() => local.GetMetadata(A<CancellationToken>._)).Returns(TestData.Metadata);
+        gateways[^1].Services.GetRequiredService<ISchedulerRepository>().Bind(local);
+
+        using HttpResponseMessage details = await gateway.GetAsync($"{SchedulerUrl}?target={Target}");
+        using HttpResponseMessage paused = await gateway.PostAsync($"{SchedulerUrl}/pause-all?target={Target}", content: null);
+        using HttpResponseMessage history = await gateway.GetAsync($"{SchedulerUrl}/history/executions?target={Target}");
+
+        details.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await details.Content.ReadAsStringAsync()).Should().Contain(TestData.Wire.Metadata.SchedulerInstanceId,
+            "the details are the worker's, behind target w1, not the local scheduler's named like the joined key");
+        A.CallTo(() => workerScheduler.PauseAll(A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => local.PauseAll(A<CancellationToken>._)).MustNotHaveHappened();
+        history.StatusCode.Should().Be(HttpStatusCode.OK, "the target's history is read by the pair too");
+    }
+
     [Test]
     public async Task TheOperationPolicyResourceCarriesTheTarget()
     {

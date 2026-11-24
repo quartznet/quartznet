@@ -82,6 +82,27 @@ public sealed class AllowedOriginsTest
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden, "an opaque origin, another host, scheme or port is not the one listed");
     }
 
+    /// <summary>
+    /// The origin is refused before either policy is asked: the caller the page borrowed is not logged as
+    /// having reached for an operation their role does not allow.
+    /// </summary>
+    [Test]
+    public async Task ARefusedOriginIsAnsweredBeforeThePoliciesRun()
+    {
+        using HttpClient client = await Start(
+            services => services.AddRoleAuthorization(),
+            options => options.OperationAuthorizationPolicy = RoleAuthenticationExtensions.OperatorRolesPolicy,
+            "https://ops.example.com");
+
+        using HttpRequestMessage request = FormPost("https://evil.example");
+        request.Headers.Add(RoleAuthenticationHandler.RoleHeaderName, RoleAuthenticationExtensions.Viewer);
+        using HttpResponseMessage response = await client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        logs.WithEventId(9005).Should().ContainSingle("the origin refusal");
+        logs.WithEventId(9009).Should().BeEmpty("a viewer may not shut down, but the operation policy was never asked");
+    }
+
     [Test]
     public async Task WithoutTheOptionNothingChanges()
     {
@@ -106,13 +127,20 @@ public sealed class AllowedOriginsTest
         start.Should().ThrowAsync<OptionsValidationException>().WithMessage("*AllowedOrigins*").GetAwaiter().GetResult();
     }
 
-    private async Task<HttpClient> Start(params string[] allowedOrigins)
+    private Task<HttpClient> Start(params string[] allowedOrigins) => Start(null, null, allowedOrigins);
+
+    private async Task<HttpClient> Start(Action<IServiceCollection>? services, Action<QuartzHttpApiOptions>? configure, params string[] allowedOrigins)
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders().AddProvider(logs);
         builder.Services.AddQuartz();
-        builder.Services.AddQuartzHttpApi(options => options.AllowedOrigins.AddRange(allowedOrigins));
+        services?.Invoke(builder.Services);
+        builder.Services.AddQuartzHttpApi(options =>
+        {
+            options.AllowedOrigins.AddRange(allowedOrigins);
+            configure?.Invoke(options);
+        });
 
         app = builder.Build();
 
