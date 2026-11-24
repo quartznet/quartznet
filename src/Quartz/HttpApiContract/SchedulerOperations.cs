@@ -886,7 +886,14 @@ internal static class SchedulerOperations
         {
             throw new InvalidRequestException(
                 $"take must be at most {maxTake.ToString(CultureInfo.InvariantCulture)}, the server's MaxPageSize, was {parsed.ToString(CultureInfo.InvariantCulture)}. "
-                + "Narrow the window or filter by trigger group, or raise MaxPageSize.");
+                + $"Ask for '{HttpApiConstants.AllItems}' to take as many as the server answers, or raise MaxPageSize.");
+        }
+
+        // Refused here, with the most this carrier answers, rather than by the computation with the most any does.
+        if (parsed < 1)
+        {
+            throw new InvalidRequestException(
+                $"take must be from 1 to {maxTake.ToString(CultureInfo.InvariantCulture)}, was {parsed.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         return parsed;

@@ -13,7 +13,7 @@ tool and the `ghcr.io/quartznet/quartz-dashboard` image. See [Dashboard Host](da
 
 ## Features
 
-Fifteen pages, listed under [The pages](#the-pages).
+Sixteen pages, listed under [The pages](#the-pages).
 
 - **Reads the schedulers in its own container**, through the container's `IQuartzApiClient`: usually the
   schedulers this process runs, with nothing to configure. A scheduler in *another* process is registered with
