@@ -251,7 +251,28 @@ public class SharedComponentsTest
 
         badge.Find(".qz-key-badge-value").TextContent.Should().Be("reports.nightly");
         badge.Find(".qz-key-badge").GetAttribute("title").Should().Be("reports.nightly",
-            "a key too long for its column is still readable on hover");
+            "the whole key is on hover as well");
+    }
+
+    /// <summary>
+    /// A listing never cuts a key short: one too long for its column wraps, first after the group's dot, which the
+    /// badge marks as a break opportunity, then inside the name. Two keys that differ only at their end stay apart.
+    /// </summary>
+    [Test]
+    public void AListingWrapsAKeyItCannotFitRatherThanCuttingIt()
+    {
+        IRenderedComponent<KeyBadge> badge = context.Render<KeyBadge>(parameters => parameters
+            .Add(x => x.GroupName, "demo")
+            .Add(x => x.ItemName, "demoBlockingJobTrigger2"));
+
+        badge.Find(".qz-key-badge-value").InnerHtml.Should().Be("demo.<wbr>demoBlockingJobTrigger2",
+            "the line breaks after the group's dot before it breaks inside the name");
+        badge.Find(".qz-key-badge-value").TextContent.Should().Be("demo.demoBlockingJobTrigger2", "the break adds no text");
+
+        string listingKey = Rule(File.ReadAllText(HistoryPageTest.DashboardStylesheet()), ".qz-entity-table td.qz-col-key .qz-key-badge-value");
+        listingKey.Should().Contain("white-space: normal;").And.Contain("overflow-wrap: anywhere;",
+            "the Jobs and Triggers listings wrap a key, inside its name when it must, and never end it with an ellipsis");
+        listingKey.Should().Contain("text-overflow: clip;");
     }
 
     [Test]

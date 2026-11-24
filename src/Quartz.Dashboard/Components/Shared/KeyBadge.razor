@@ -1,7 +1,8 @@
 @inject Microsoft.JSInterop.IJSRuntime JsRuntime
 
 <span class="qz-key-badge" title="@FullKey">
-    <span class="qz-key-badge-value">@FullKey</span>
+    @* A break opportunity after the group's dot, so a listing that wraps a long key breaks it there first. *@
+    <span class="qz-key-badge-value">@GroupPart<wbr />@NamePart</span>
     <button type="button"
             class="qz-key-badge-copy"
             aria-label="Copy key"
@@ -22,6 +23,12 @@
     public string ItemName { get; set; } = string.Empty;
 
     private string FullKey => DisplayValueHelper.FormatKey(GroupName, ItemName);
+
+    /// <summary>The group and its dot, as <see cref="FullKey" /> begins.</summary>
+    private string GroupPart => FullKey[..(FullKey.Length - NamePart.Length)];
+
+    /// <summary>The name, as <see cref="FullKey" /> ends.</summary>
+    private string NamePart => string.IsNullOrWhiteSpace(ItemName) ? "(unknown)" : ItemName;
 
     protected override void OnParametersSet()
     {

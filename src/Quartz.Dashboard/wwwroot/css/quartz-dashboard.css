@@ -1723,6 +1723,15 @@ body{
     max-width: 100%;
 }
 
+/* A listing never cuts a key short: one too long for its column wraps, first after the group's dot, then inside the
+   name, so two keys that differ only at the end are never read as one. The copy button stays beside it, and the
+   badge's title still holds the whole key. A key on a page of its own keeps one line. */
+.qz-entity-table td.qz-col-key .qz-key-badge-value {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+}
+
 .qz-entity-table td.qz-col-actions {
     text-align: right;
 }
