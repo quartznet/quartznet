@@ -4504,13 +4504,8 @@ body{
     padding-bottom: 6rem;
 }
 
-/* The listing scrolls inside its card rather than clip its actions, and on a phone its cells give up padding so it
-   seldom has to. */
-.qz-calendars-listing {
-    max-width: 100%;
-    overflow-x: auto;
-}
-
+/* The listing scrolls inside its card, in .qz-table-scroll, rather than clip its actions; on a phone its cells give
+   up padding so it seldom has to. */
 @media (max-width: 480px) {
     .qz-calendars-table th,
     .qz-calendars-table td {
