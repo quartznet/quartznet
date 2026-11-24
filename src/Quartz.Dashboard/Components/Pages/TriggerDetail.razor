@@ -45,7 +45,7 @@
             <a class="qz-details-link" href="@GetHistoryPathForTrigger(Group, Name)">View execution history</a>
         </div>
 
-        @if (CanPause || CanResume || CanReset || CanEdit || CanBackfill || CanUnschedule)
+        @if (CanPause || CanResume || CanReset || CanEdit || CanBackfill || CanSchedule || CanUnschedule)
         {
             <div class="qz-actions">
                 @if (CanPause)
@@ -76,6 +76,13 @@
                             title="@_backfillUnavailable"
                             @onclick="PromptBackfill">Backfill…</button>
                 }
+                @if (CanSchedule)
+                {
+                    <button type="button"
+                            class="qz-button qz-trigger-duplicate"
+                            disabled="@_duplicating"
+                            @onclick="StartDuplicating">Duplicate…</button>
+                }
                 @if (CanUnschedule)
                 {
                     <button type="button" class="qz-button qz-button-danger" @onclick="PromptUnschedule">Unschedule</button>
@@ -102,6 +109,14 @@
                                   OnSaved="OnDetailsSavedAsync"
                                   OnUnavailable="OnEditingUnavailable"
                                   OnCancel="CancelEditing" />
+        }
+
+        @if (_duplicating && CanSchedule)
+        {
+            <AddTriggerForm Job="@(new JobKeyDto(_trigger.JobKey.Group, _trigger.JobKey.Name))"
+                            Source="@_trigger"
+                            OnAdded="OnDuplicatedAsync"
+                            OnCancel="CancelDuplicating" />
         }
 
         @if (_diagnosisFacts is not null)
@@ -348,6 +363,12 @@
 
     private bool CanUnschedule => Can(Routes.UnscheduleJob);
 
+    /// <summary>Storing a copy of the trigger, which an operation policy asks at Administer (#4412).</summary>
+    private bool CanSchedule => Can(Routes.ScheduleJob);
+
+    /// <summary>Whether the Duplicate form is open.</summary>
+    private bool _duplicating;
+
     private bool CanReschedule => Can(Routes.RescheduleJob);
 
     private TriggerKeyDto TriggerKey => new(Group, Name);
@@ -400,6 +421,7 @@
         // What one scheduler's source could not do says nothing about the next one's.
         _editUnavailable = null;
         _editing = false;
+        _duplicating = false;
         _backfillUnavailable = null;
         _showBackfill = false;
         _lastUpdatedAt = null;
@@ -731,6 +753,23 @@
         }
 
         return preferredNode.Node ?? "—";
+    }
+
+    private void StartDuplicating()
+    {
+        _duplicating = true;
+    }
+
+    private void CancelDuplicating()
+    {
+        _duplicating = false;
+    }
+
+    /// <summary>The copy is stored: the page moves to it.</summary>
+    private void OnDuplicatedAsync(TriggerKeyDto key)
+    {
+        _duplicating = false;
+        Navigation.NavigateTo(GetTriggerPath(key.Group, key.Name));
     }
 
     private void StartEditing()

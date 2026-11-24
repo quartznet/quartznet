@@ -239,6 +239,26 @@ public class Startup
                 .WithCalendarName(calendarName)
             );
 
+            // the two remaining kinds, so the dashboard's schedule editor can be tried on all five: every two hours
+            // in a zone of its own, and the last weekday of each month at 18:00
+            q.AddTrigger(t => t
+                .WithIdentity("Calendar Interval Trigger")
+                .ForJob(jobKey)
+                .StartAt(DateTimeOffset.UtcNow.AddMinutes(1))
+                .WithCalendarIntervalSchedule(x => x
+                    .WithInterval(2, IntervalUnit.Hour)
+                    .InTimeZone(TimeZoneInfo.Utc))
+                .WithDescription("my awesome calendar interval trigger")
+            );
+
+            q.AddTrigger(t => t
+                .WithIdentity("Recurrence Trigger")
+                .ForJob(jobKey)
+                .StartNow()
+                .WithRecurrenceSchedule("FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1;BYHOUR=18;BYMINUTE=0;BYSECOND=0")
+                .WithDescription("my awesome recurrence trigger")
+            );
+
             // one calendar of each built-in type, which the dashboard's Calendars page shows and edits
             AddSampleCalendars(q);
 
