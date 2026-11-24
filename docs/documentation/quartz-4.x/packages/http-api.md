@@ -1427,6 +1427,10 @@ POST /quartz-api/schedulers/reporting/triggers/nightly/at-midnight/pause?target=
 - Both policies are asked with `SchedulerResource { SchedulerName, Target }` before anything is resolved or sent. A
   refused caller gets the same `403` for a target that exists and one that does not, and the listing is filtered
   per name and target.
+- The target is asked about in its own spelling: `?target=W1` is asked about as `w1`. A store window named by its bare
+  name, with no `?target=`, is asked about with its store's target: a policy refusing `prod` refuses
+  `…/schedulers/alpha` as it refuses `…/schedulers/alpha?target=prod`. [MCP](mcp.md#roles) and the dashboard ask by
+  the same rule.
 - **The target sees the host's credential**, not the caller's: an HTTP target its `BearerToken`, an agent the agent
   token. The caller's identity is not forwarded. What they did is in the host's audit line, `9007` naming the key,
   and in its dashboard's [Action Log](dashboard.md#action-log). A pause without `requestedBy` is recorded at the

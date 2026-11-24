@@ -124,7 +124,8 @@ looked up:
 4. The target's ceiling: an [agent's](dashboard-agent.md#what-the-agent-accepts) `MaxAccess` refuses what the agent
    would.
 
-A target is asked about in its own spelling, so `W1` is checked as `w1`. A refused caller cannot tell a missing
+A target is asked about in its own spelling, so `W1` is checked as `w1`, and a store window named by its bare name is
+asked about with its store's target: `alpha` is checked as `prod/alpha`. A refused caller cannot tell a missing
 scheduler from a forbidden one. `tools/list` offers only the tools the caller can call on some scheduler they may see.
 That list is a convenience; `tools/call` is the check.
 

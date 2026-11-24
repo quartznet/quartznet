@@ -64,56 +64,18 @@ internal static class TargetedRequest
     }
 
     /// <summary>
-    /// The key the request names: the route's scheduler name, and the target when the query gives one — in the
-    /// target's own spelling.
+    /// The key the request names, as every policy is asked about it: the route's scheduler name and the query's
+    /// target, by <see cref="SchedulerLookup.PolicyKey" />.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// Targets match ignoring case, so <c>?target=W1</c> reaches the scheduler behind <c>w1</c>. A policy is
-    /// asked with this key, so it is asked about <c>w1</c> however the caller spelled it: one written as
-    /// <c>Target != "w1"</c> cannot be stepped round by changing the case.
-    /// </para>
-    /// <para>
-    /// The spelling is the registered target's, else that of the window or the proxy holding the scheduler
-    /// under the target — the one resolution would act on. A target nothing holds stays as typed, so the answer
-    /// a refused caller gets says nothing about which targets exist.
-    /// </para>
+    /// Targets match ignoring case, so <c>?target=W1</c> reaches the scheduler behind <c>w1</c>, and the key carries
+    /// <c>w1</c> however the caller spelled it. A request with no <c>?target=</c> whose name is a window onto an
+    /// attached store reaches the scheduler behind that store's target, and the key carries the target: a policy
+    /// refusing <c>prod</c> refuses <c>…/schedulers/alpha</c> as it refuses <c>…/schedulers/alpha?target=prod</c>.
     /// </remarks>
     public static SchedulerRef Key(HttpContext context, string schedulerName)
     {
-        return new SchedulerRef(schedulerName, Canonical(context.RequestServices, schedulerName, Target(context)));
-    }
-
-    /// <summary>
-    /// <paramref name="target" /> in the spelling the container holds it in, or as given when it holds none.
-    /// </summary>
-    internal static string? Canonical(IServiceProvider services, string schedulerName, string? target)
-    {
-        if (target is null)
-        {
-            return null;
-        }
-
-        if (services.GetService<SchedulerTargets>()?.Find(target) is { } registered)
-        {
-            return registered.Name;
-        }
-
-        if (services.GetService<SchedulerWindowRegistry>()?.TargetOf(schedulerName) is { } window
-            && string.Equals(window, target, StringComparison.OrdinalIgnoreCase))
-        {
-            return window;
-        }
-
-        foreach (IScheduler scheduler in services.GetService<ISchedulerRepository>()?.LookupByName(schedulerName) ?? [])
-        {
-            if (scheduler is IProxyScheduler { Target: { } proxyTarget } && string.Equals(proxyTarget, target, StringComparison.OrdinalIgnoreCase))
-            {
-                return proxyTarget;
-            }
-        }
-
-        return target;
+        return SchedulerLookup.PolicyKey(context.RequestServices, new SchedulerRef(schedulerName, Target(context)));
     }
 
     /// <summary>
