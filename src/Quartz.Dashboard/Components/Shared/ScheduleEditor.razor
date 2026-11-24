@@ -44,16 +44,21 @@
         @ScheduleInputs(kindSelectable: false)
         <FieldError Id="@ErrorId(ScheduleField.Schedule)" Message="@ErrorOf(ScheduleField.Schedule)" TestId="schedule-error" />
 
-        @* The edit, once it is not the saved schedule: the saved one is Upcoming fires above. *@
+        @* From the start, so the editor says what its schedule does beside its fields, wherever Upcoming fires is on a
+           narrow screen; whether it is the saved schedule or an edit is said above the list. *@
+        <h3>Next fires</h3>
         @if (IsEdited)
         {
-            <h3>Upcoming fires of the edit</h3>
             <p class="qz-muted" data-testid="schedule-preview-unsaved">Of the edited schedule, which is not saved yet.</p>
-            <SchedulePreview Trigger="@_build?.Trigger"
-                             Calendar="@_calendar"
-                             CalendarName="@Trigger.CalendarName"
-                             CalendarUnreadable="@_calendarUnreadable" />
         }
+        else
+        {
+            <p class="qz-muted" data-testid="schedule-preview-saved">Of the saved schedule.</p>
+        }
+        <SchedulePreview Trigger="@_build?.Trigger"
+                         Calendar="@_calendar"
+                         CalendarName="@Trigger.CalendarName"
+                         CalendarUnreadable="@_calendarUnreadable" />
 
         <div class="qz-actions qz-group-actions">
             <button type="button" class="qz-button qz-button-primary qz-schedule-save" disabled="@(_saving || _readingCalendar)" @onclick="PromptSave">Save schedule</button>
@@ -66,13 +71,17 @@
 {
     <ModalDialog Class="qz-reschedule-dialog" LabelledBy="qz-reschedule-title" TestId="reschedule-dialog" OnCancel="CancelSave">
         <h3 id="qz-reschedule-title">Reschedule @DisplayValueHelper.FormatKey(Trigger.Key.Group, Trigger.Key.Name)?</h3>
-        <p data-testid="reschedule-schedule">@(pending.DescribeSchedule() ?? ScheduleForm.Describe(Form!.Kind)), first at @Scheduler.FormatInSelectedTimeZone(pending.NextFireTimeUtc, "u").</p>
+        <p data-testid="reschedule-schedule">@(pending.DescribeSchedule() ?? ScheduleForm.Describe(Form!.Kind)), first at @FirstFireText(pending).</p>
         <ul class="qz-reschedule-effects" data-testid="reschedule-effects">
             <li>The trigger is replaced: its previous fire time, its count of fires and a pending retry are reset.</li>
-            <li>A replaced trigger takes the state its group gives it, so a paused trigger can come back unpaused.</li>
             @if (State == TriggerState.Paused)
             {
-                <li data-testid="reschedule-keeps-pause">This one is paused: the dashboard pauses it again@(Pause?.Reason is { Length: > 0 } reason ? ", with its reason: " + reason : "").</li>
+                @* Only the line that applies: a trigger that is not paused stays as it is. *@
+                <li data-testid="reschedule-keeps-pause">
+                    It is paused, and a replacement takes the state its group gives it, so it would come back unpaused.
+                    The dashboard pauses it again@(PauseKept). The pause is dated now: no operation carries a pause's
+                    time over.
+                </li>
             }
         </ul>
         <DeclaredAtStartupNote Declared="@DeclaredAtStartup" />
@@ -125,6 +134,34 @@
     public EventCallback OnSaved { get; set; }
 
     private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    /// <summary>What the pause set again keeps of the one the trigger has: its reason and who asked.</summary>
+    private string PauseKept => (Pause?.Reason, Pause?.RequestedBy) switch
+    {
+        ({ Length: > 0 } reason, { Length: > 0 } who) => " with its reason (" + reason + ") and who asked (" + who + ")",
+        ({ Length: > 0 } reason, _) => " with its reason (" + reason + ")",
+        (_, { Length: > 0 } who) => " with who asked (" + who + ")",
+        _ => string.Empty,
+    };
+
+    /// <summary>The first fire in the zone the schedule is read in, with its offset, as the preview lists it.</summary>
+    private string FirstFireText(ITrigger trigger)
+    {
+        if (trigger.NextFireTimeUtc is not { } first)
+        {
+            return "—";
+        }
+
+        TimeZoneInfo zone = trigger switch
+        {
+            ICronTrigger cron => cron.TimeZone,
+            ICalendarIntervalTrigger calendar => calendar.TimeZone,
+            IDailyTimeIntervalTrigger daily => daily.TimeZone,
+            IRecurrenceTrigger recurrence => recurrence.TimeZone,
+            _ => Scheduler.ResolveSelectedTimeZone(),
+        };
+        return TimeZoneInfo.ConvertTime(first, zone).ToString("yyyy-MM-dd HH:mm:ss zzz", System.Globalization.CultureInfo.InvariantCulture);
+    }
 
     private TriggerKeyDto TriggerKey => new(Trigger.Key.Group, Trigger.Key.Name);
 

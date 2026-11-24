@@ -10,25 +10,28 @@
         }
         else
         {
-            <table class="qz-table">
-                <thead>
-                    <tr>
-                        <th>Key</th>
-                        <th>Type</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (JobDataMapEntry entry in _entries)
-                    {
+            @* Scrolls inside its card on a narrow screen rather than past it, and a long value wraps. *@
+            <div class="qz-table-scroll">
+                <table class="qz-table qz-job-data-table">
+                    <thead>
                         <tr>
-                            <td>@entry.Key</td>
-                            <td>@entry.ValueType</td>
-                            <td>@entry.ValueText</td>
+                            <th>Key</th>
+                            <th>Type</th>
+                            <th>Value</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (JobDataMapEntry entry in _entries)
+                        {
+                            <tr>
+                                <td>@entry.Key</td>
+                                <td>@entry.ValueType</td>
+                                <td class="qz-job-data-value-cell">@entry.ValueText</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     }
     else if (DataMap is not null)
@@ -39,51 +42,60 @@
         }
         else
         {
-            <table class="qz-table">
-                <thead>
-                    <tr>
-                        <th>Key</th>
-                        <th>Type</th>
-                        <th>Value</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (int i = 0; i < _entries.Count; i++)
-                    {
-                        int index = i;
+            @* Below 600 px each entry stacks, the key and the value a row each and the type beside Remove, each with
+               its label, rather than squeeze four columns into a phone (#4412). *@
+            <div class="qz-table-scroll">
+                <table class="qz-table qz-job-data-table qz-job-data-edit">
+                    <thead>
                         <tr>
-                            <td>
-                                <input class="qz-input qz-job-data-key"
-                                       value="@_entries[index].Key"
-                                       @oninput="args => UpdateKey(index, args)" />
-                            </td>
-                            <td>
-                                <select class="qz-select qz-job-data-type"
-                                        value="@_entries[index].ValueType"
-                                        @onchange="args => UpdateType(index, args)">
-                                    @foreach (string typeOption in TypeOptions)
-                                    {
-                                        <option value="@typeOption">@typeOption</option>
-                                    }
-                                </select>
-                            </td>
-                            <td>
-                                <input class="qz-input qz-job-data-value"
-                                       value="@_entries[index].ValueText"
-                                       @oninput="args => UpdateValue(index, args)" />
-                            </td>
-                            <td>
-                                <button type="button"
-                                        class="qz-button qz-button-danger"
-                                        @onclick="() => RemoveEntry(index)">
-                                    Remove
-                                </button>
-                            </td>
+                            <th>Key</th>
+                            <th>Type</th>
+                            <th>Value</th>
+                            <th><span class="qz-sr-only">Actions</span></th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < _entries.Count; i++)
+                        {
+                            int index = i;
+                            string ordinal = (index + 1).ToString(CultureInfo.InvariantCulture);
+                            <tr>
+                                <td class="qz-job-data-key-cell" data-label="Key">
+                                    <input class="qz-input qz-job-data-key"
+                                           aria-label="@("Key of entry " + ordinal)"
+                                           value="@_entries[index].Key"
+                                           @oninput="args => UpdateKey(index, args)" />
+                                </td>
+                                <td class="qz-job-data-type-cell" data-label="Type">
+                                    <select class="qz-select qz-job-data-type"
+                                            aria-label="@("Type of entry " + ordinal)"
+                                            value="@_entries[index].ValueType"
+                                            @onchange="args => UpdateType(index, args)">
+                                        @foreach (string typeOption in TypeOptions)
+                                        {
+                                            <option value="@typeOption">@typeOption</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td class="qz-job-data-value-cell" data-label="Value">
+                                    <input class="qz-input qz-job-data-value"
+                                           aria-label="@("Value of entry " + ordinal)"
+                                           value="@_entries[index].ValueText"
+                                           @oninput="args => UpdateValue(index, args)" />
+                                </td>
+                                <td class="qz-job-data-remove-cell">
+                                    <button type="button"
+                                            class="qz-button qz-button-danger"
+                                            aria-label="@("Remove entry " + ordinal + (_entries[index].Key is { Length: > 0 } key ? ", " + key : string.Empty))"
+                                            @onclick="() => RemoveEntry(index)">
+                                        Remove
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
 
         @* Offered on an empty map too: a map with nothing in it is exactly the one an editor has to be able

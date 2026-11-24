@@ -307,7 +307,7 @@ public class TriggerDetailPageTest
         {
             string effects = page.Find("[data-testid=reschedule-effects]").TextContent;
             effects.Should().Contain("its previous fire time, its count of fires and a pending retry are reset");
-            effects.Should().Contain("a paused trigger can come back unpaused");
+            effects.Should().NotContain("unpaused", "a trigger that is not paused stays as it is, so only the line that applies is said");
         });
         page.FindAll("[data-testid=reschedule-keeps-pause]").Should().BeEmpty("this trigger is not paused");
         A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
@@ -382,7 +382,8 @@ public class TriggerDetailPageTest
         page.Find("#trigger-simple-interval").Input("30");
         page.Find("button.qz-schedule-save").Click();
 
-        page.WaitForAssertion(() => page.Find("[data-testid=reschedule-keeps-pause]").TextContent.Should().Contain("vendor outage"));
+        page.WaitForAssertion(() => page.Find("[data-testid=reschedule-keeps-pause]").TextContent.Should()
+            .Contain("with its reason (vendor outage) and who asked (alice)").And.Contain("come back unpaused"));
         page.Find("[data-testid=reschedule-confirm]").Click();
 
         // The replacement took the state its group gives it, Normal, so the pause the operator set is set again.
