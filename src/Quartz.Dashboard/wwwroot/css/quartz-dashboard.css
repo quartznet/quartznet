@@ -1778,7 +1778,8 @@ body{
 }
 
 /* With the sidebar a rail, the fixed columns take 600px and the key would get what is left, which on a phone
-   is nothing. The key keeps 160px and the table scrolls inside the content panel instead. */
+   is nothing. The key keeps 160px and the table scrolls inside its card, in .qz-table-scroll, rather than take the
+   content panel sideways with it. */
 @media (max-width: 1024px) {
     .qz-jobs-table {
         min-width: 760px;

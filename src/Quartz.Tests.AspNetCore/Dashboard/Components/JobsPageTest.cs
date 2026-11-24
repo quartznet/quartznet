@@ -50,6 +50,22 @@ public class JobsPageTest
             "a paused group is the first thing to know about it, and only GetJobGroups reports it");
     }
 
+    /// <summary>
+    /// Each group's table sits in the shared in-card scroller, so a phone scrolls the table and not the whole content
+    /// panel: the table keeps 760px below a 1024px window.
+    /// </summary>
+    [Test]
+    public void EachGroupsTableScrollsInsideItsCard()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 2));
+
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.FindAll("table.qz-jobs-table").Should().ContainSingle();
+        page.Find("table.qz-jobs-table").ParentElement!.ClassList.Should().Contain("qz-table-scroll",
+            "the table's parent is what scrolls, inside the group's card");
+    }
+
     [Test]
     public void ThePagerAsksForTheSliceThePageNumberNames()
     {
