@@ -486,6 +486,63 @@ public class TriggerDetailPageTest
         pending.SetResult();
     }
 
+    /// <summary>
+    /// The first fire is computed again when the reschedule is confirmed: one computed when Save schedule was pressed
+    /// is behind now once the dialog has been open a while, and RescheduleJob keeps it, so the store would fire the
+    /// trigger at once as a misfire.
+    /// </summary>
+    [Test]
+    public void AConfirmLeftOpenPostsTheFirstFireAfterTheConfirm()
+    {
+        GivenTrigger(TriggerOfKind("Simple"));
+        RescheduleRequest? sent = null;
+        A.CallTo(() => context.Api.RescheduleJob(TestData.SchedulerName, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
+            .Invokes((string _, TriggerKeyDto _, RescheduleRequest request, CancellationToken _) => sent = request);
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        // Every 30 minutes from 09:00 a year ago: at 14:23 the first fire is 14:30.
+        page.Find("#trigger-simple-interval").Input("30");
+        page.Find("button.qz-schedule-save").Click();
+        page.WaitForElement("[data-testid=reschedule-confirm]");
+
+        context.Clock.Advance(TimeSpan.FromMinutes(20));
+        page.Find("[data-testid=reschedule-confirm]").Click();
+
+        page.WaitForAssertion(() => sent.Should().NotBeNull());
+        sent!.NewTrigger.NextFireTimeUtc.Should().Be(new DateTimeOffset(2026, 10, 5, 15, 0, 0, TimeSpan.Zero),
+            "the dialog was confirmed at 14:43, so the first fire is the 15:00 slot, not the 14:30 one Save computed");
+        sent.NewTrigger.StartTimeUtc.Should().Be(sent.NewTrigger.NextFireTimeUtc!.Value);
+    }
+
+    /// <summary>
+    /// A trigger its group keeps paused stays paused through a reschedule, and the dialog says that rather than that it
+    /// is paused again.
+    /// </summary>
+    [Test]
+    public void TheDialogSaysAGroupPausedTriggerStaysPaused()
+    {
+        GivenTrigger(TriggerOfKind("Simple"));
+        A.CallTo(() => context.Api.GetTriggerState(TestData.SchedulerName, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(TriggerState.Paused);
+        A.CallTo(() => context.Api.QueryTriggerGroups(TestData.SchedulerName, A<DashboardGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerGroupDto>([new TriggerGroupDto(TriggerGroup, Paused: true)], HasMore: false, TotalCount: 1));
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.Find("#trigger-simple-interval").Input("30");
+        page.Find("button.qz-schedule-save").Click();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=reschedule-group-paused]").TextContent.Trim().Should()
+            .Be("Its group is paused, so it stays paused."));
+        page.FindAll("[data-testid=reschedule-keeps-pause]").Should().BeEmpty("nothing is paused again, so the dialog does not say it is");
+
+        page.Find("[data-testid=reschedule-confirm]").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+        A.CallTo(() => context.Api.PauseTriggerWith(A<string>._, A<TriggerKeyDto>._, A<PauseDetails>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
     [Test]
     public void SavingAnUnchangedScheduleSendsNothing()
     {

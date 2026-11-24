@@ -478,6 +478,40 @@ public sealed class TriggerDetailsEditorTest
             .MustHaveHappenedOnceExactly());
     }
 
+    /// <summary>
+    /// A key only Quartz writes is refused on an entry the reader typed, beside it, and never overwrites Quartz's own
+    /// value, whichever row comes later.
+    /// </summary>
+    [Test]
+    public void AKeyQuartzWritesIsRefusedAndNeverOverwritesItsEntry()
+    {
+        GivenTrigger(CronTrigger(map => map["QRTZ_TRACEPARENT"] = "00-original"));
+        IRenderedComponent<TriggerDetail> page = OpenEditor();
+
+        page.Find("[data-testid=trigger-editor] .qz-job-data-key").Input("QRTZ_TRACEPARENT");
+
+        page.WaitForAssertion(() =>
+        {
+            IElement error = page.Find("[data-testid=trigger-editor] [data-testid=job-data-key-error]");
+            error.TextContent.Should().Be("Keys starting with QRTZ_ are set by Quartz.");
+            IElement key = page.Find("[data-testid=trigger-editor] .qz-job-data-key");
+            key.GetAttribute("aria-invalid").Should().Be("true");
+            key.GetAttribute("aria-describedby").Should().Be(error.Id);
+        });
+
+        page.Find(".qz-trigger-editor-save").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.UpdateTriggerDetails(
+                TestData.SchedulerName,
+                TriggerKey,
+                A<TriggerDetailsUpdate>.That.Matches(update =>
+                    update.HasJobDataMap
+                    && (string?) update.JobDataMap!["QRTZ_TRACEPARENT"] == "00-original"
+                    && !update.JobDataMap.ContainsKey("region")),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+    }
+
     [Test]
     public void SaveSaysItIsSavingAndSendsOnce()
     {
