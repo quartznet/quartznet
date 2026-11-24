@@ -361,7 +361,8 @@ PagedResult<ExecutionHistoryEntry> page = await history.QueryExecutions(new Exec
 - Read-only: history is recorded where jobs run, so `AddExecution` and `AddMisfire` throw
   `NotSupportedException`.
 - Every read also throws `NotSupportedException` when the target's API predates the history routes (it answers
-  `404`), so a caller can show "this target serves no history".
+  `404`), or its history store cannot answer the read (it answers `501`, and the message is the host's), so a
+  caller can show "this target serves no history".
 - A `404` naming an unknown scheduler still arrives as `HttpClientException`.
 - From 4.9, [`TriggerJobAndWait` and `WaitForFiring`](../how-tos/one-off-job.md#trigger-it-and-wait-for-the-outcome)
   on `HttpScheduler` poll these routes and the trigger's state; the host must keep a history, and be 4.6 or

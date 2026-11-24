@@ -313,6 +313,50 @@ public sealed class WireCarrierEquivalenceTest
     }
 
     /// <summary>
+    /// A history store that cannot read its rows is answered <c>501</c> by the agent carrier on every route that
+    /// reads them, as the HTTP API answers it, and the HTTP-backed store raises that as
+    /// <see cref="NotSupportedException" /> in the store's words.
+    /// </summary>
+    [Test]
+    public async Task ARowReadTheStoreCannotAnswerIsNotServedByTheAgentCarrierAsByTheApi()
+    {
+        const string Refusal = "AcmeHistoryStore only records.";
+        IExecutionHistoryStore recordsOnly = A.Fake<IExecutionHistoryStore>();
+        A.CallTo(() => recordsOnly.QueryExecutions(A<ExecutionHistoryQuery>._, A<CancellationToken>._)).Throws(() => new NotSupportedException(Refusal));
+        A.CallTo(() => recordsOnly.GetExecution(A<string>._, A<string>._, A<CancellationToken>._)).Throws(() => new NotSupportedException(Refusal));
+        A.CallTo(() => recordsOnly.QueryMisfires(A<MisfireHistoryQuery>._, A<CancellationToken>._)).Throws(() => new NotSupportedException(Refusal));
+        A.CallTo(() => recordsOnly.CountMisfires(A<string>._, A<DateTimeOffset>._, A<CancellationToken>._)).Throws(() => new NotSupportedException(Refusal));
+
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddSingleton(recordsOnly);
+        services.AddSingleton<SystemTextJsonSerializerRegistry>();
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        AgentCarrier carrier = new(answering, provider, new DashboardAgentOptions(), NullLogger.Instance);
+        CarrierTransport inMemory = new(carrier);
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, inMemory);
+
+        Func<Task>[] reads =
+        [
+            async () => await remote.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = TestData.SchedulerName }),
+            async () => await remote.GetExecution(TestData.SchedulerName, "entry-1"),
+            async () => await remote.QueryMisfires(new MisfireHistoryQuery { SchedulerName = TestData.SchedulerName }),
+            async () => await remote.CountMisfires(TestData.SchedulerName, DateTimeOffset.UtcNow.AddHours(-1)),
+        ];
+
+        foreach (Func<Task> read in reads)
+        {
+            await read.Should().ThrowAsync<NotSupportedException>().WithMessage(Refusal);
+        }
+
+        inMemory.Answered.Select(answer => answer.Route).Should().Equal(
+            [SchedulerRoutes.QueryExecutionHistory, SchedulerRoutes.GetExecution, SchedulerRoutes.QueryMisfireHistory, SchedulerRoutes.CountMisfires]);
+        inMemory.Answered.Should().OnlyContain(answer => answer.Status == (int) HttpStatusCode.NotImplemented && answer.Detail == Refusal,
+            string.Join(", ", inMemory.Answered.Select(answer => $"{answer.Route.Name} -> {answer.Status} {answer.Detail}")));
+    }
+
+    /// <summary>
     /// The same sweep with a character in every name and group that means something in a URL (#3917).
     /// Escaped, each arrives as written. A <c>/</c> cannot: every member that would put it in a path refuses
     /// before sending anything, and every member that carries its keys in the body still works.
