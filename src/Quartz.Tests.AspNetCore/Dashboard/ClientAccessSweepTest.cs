@@ -130,6 +130,7 @@ public class ClientAccessSweepTest
             "QueryJobs",
             "QueryMisfires",
             "QueryTriggerGroups",
+            "QueryTriggerRunStatuses",
             "QueryTriggers",
         ];
 

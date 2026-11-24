@@ -860,6 +860,133 @@ public class HttpExecutionHistoryStoreTest
             "a proxy in front of the host may have replaced the body, and the status alone still says it");
     }
 
+    [Test]
+    public async Task TriggerStatusesAreListedFromTheTriggerStatusRoute()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            {
+              "items": [
+                {
+                  "trigger": { "name": "hourly", "group": "reports" },
+                  "lastFiredAtUtc": "2026-09-01T12:00:00+00:00",
+                  "lastResult": "Failed",
+                  "lastFailureMessage": "the upstream system is down",
+                  "consecutiveFailures": 3,
+                  "runCount": 40
+                }
+              ],
+              "hasMore": true,
+              "totalCount": 9
+            }
+            """);
+
+        PagedResult<TriggerRunStatus> page = await Store().QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = "Remote",
+            Failing = true,
+            Take = 1,
+            IncludeTotalCount = true
+        });
+
+        handler.Requests.Should().Equal(
+            ["GET http://localhost:8080/schedulers/Remote/history/trigger-status?take=1&includeTotalCount=true&failing=true"],
+            "a query that names no triggers is one GET, the host paging and filtering");
+
+        TriggerRunStatus status = page.Items.Should().ContainSingle().Subject;
+        status.SchedulerName.Should().Be("Remote");
+        status.Trigger.Should().Be(new TriggerKey("hourly", "reports"));
+        status.LastFailureMessage.Should().Be("the upstream system is down");
+        status.ConsecutiveFailures.Should().Be(3);
+        page.HasMore.Should().BeTrue();
+        page.TotalCount.Should().Be(9);
+    }
+
+    [Test]
+    public async Task NamedTriggersAreFetchedInBatchesAndPagedHere()
+    {
+        handler.Respond(HttpStatusCode.OK, """
+            [
+              { "trigger": { "name": "b", "group": "g" }, "lastFiredAtUtc": "2026-09-01T12:00:00+00:00", "lastResult": "Failed", "consecutiveFailures": 1 },
+              { "trigger": { "name": "a", "group": "g" }, "lastFiredAtUtc": "2026-09-01T12:00:00+00:00", "lastResult": "Failed", "consecutiveFailures": 2 },
+              { "trigger": { "name": "c", "group": "g" }, "lastFiredAtUtc": "2026-09-01T12:00:00+00:00", "lastResult": "Succeeded" }
+            ]
+            """);
+
+        PagedResult<TriggerRunStatus> page = await Store().QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = "Remote",
+            Triggers = [new TriggerKey("a", "g"), new TriggerKey("b", "g"), new TriggerKey("c", "g"), new TriggerKey("a", "g")],
+            Failing = true,
+            Take = 1,
+            IncludeTotalCount = true
+        });
+
+        handler.Requests.Should().Equal(["POST http://localhost:8080/schedulers/Remote/history/trigger-status/fetch"]);
+        handler.LastRequestBody.Should().Be("""{"triggers":[{"name":"a","group":"g"},{"name":"b","group":"g"},{"name":"c","group":"g"}]}""",
+            "the keys travel in the body, each once");
+
+        page.Items.Should().ContainSingle().Which.Trigger.Name.Should().Be("a",
+            "the fetch answers every named trigger, so the failing filter and the page are applied here, by group and then name");
+        page.HasMore.Should().BeTrue();
+        page.TotalCount.Should().Be(2);
+
+        handler.Requests.Clear();
+        TriggerKey[] many = Enumerable.Range(0, 1001).Select(index => new TriggerKey("trigger" + index, "bulk")).ToArray();
+        await Store().QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = "Remote", Triggers = many });
+
+        handler.Requests.Should().HaveCount(2, "the host takes at most a thousand keys at once");
+    }
+
+    [Test]
+    public async Task AnEmptySetOfTriggersListsNothingWithoutAsking()
+    {
+        PagedResult<TriggerRunStatus> page = await Store().QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = "Remote",
+            Triggers = [],
+            IncludeTotalCount = true
+        });
+
+        page.Items.Should().BeEmpty();
+        page.TotalCount.Should().Be(0);
+        handler.Requests.Should().BeEmpty("an empty set is a question with no answer, so nothing is sent");
+    }
+
+    /// <summary>
+    /// A host that predates the trigger status routes, any host before 4.9, answers them <c>404</c> without problem
+    /// details, and the refusal names the release the reader has to upgrade the host to.
+    /// </summary>
+    [Test]
+    public async Task AHostThatPredatesTheTriggerStatusRoutesSaysItKeepsNoTriggerStatus()
+    {
+        handler.Respond(HttpStatusCode.NotFound, body: "");
+
+        Func<Task> query = async () => await Store().QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = "Remote" });
+        Func<Task> fetch = async () => await Store().QueryTriggerRunStatuses(
+            new TriggerRunStatusQuery { SchedulerName = "Remote", Triggers = [new TriggerKey("hourly", "reports")] });
+
+        await query.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*per-trigger run status*older than 4.9*");
+        await fetch.Should().ThrowAsync<NotSupportedException>().WithMessage("*older than 4.9*");
+    }
+
+    [Test]
+    public async Task AHostWhoseStoreKeepsNoTriggerStatusSaysSo()
+    {
+        handler.Respond(HttpStatusCode.NotImplemented, """
+            {
+              "title": "Not Implemented",
+              "status": 501,
+              "detail": "AcmeHistoryStore keeps no per-trigger run status.",
+              "Quartz-ExceptionType": "NotSupportedException"
+            }
+            """);
+
+        Func<Task> act = async () => await Store().QueryTriggerRunStatuses(
+            new TriggerRunStatusQuery { SchedulerName = "Remote", Triggers = [new TriggerKey("hourly", "reports")] });
+
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("AcmeHistoryStore keeps no per-trigger run status.");
+    }
+
     /// <summary>
     /// The run statistics are read from their own route once the host is known to be 4.4, with every filter
     /// and the bucket size in the query string.

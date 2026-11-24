@@ -338,6 +338,50 @@ internal static class SchedulerOperations
     }
 
     /// <summary>
+    /// One page of the per-trigger run statuses <paramref name="history" /> keeps for the scheduler, by trigger
+    /// group and then name; with <paramref name="failing" />, only the failing triggers or only the rest.
+    /// </summary>
+    /// <exception cref="NotSupportedException">The store keeps no per-trigger status.</exception>
+    public static async ValueTask<PagedResultDto<TriggerRunStatusDto>> QueryTriggerRunStatuses(
+        IScheduler scheduler,
+        IExecutionHistoryStore history,
+        ListingParameters listing,
+        bool? failing,
+        CancellationToken cancellationToken)
+    {
+        TriggerRunStatusQuery query = listing.Page(new TriggerRunStatusQuery
+        {
+            SchedulerName = scheduler.SchedulerName,
+            Failing = failing
+        });
+
+        PagedResult<TriggerRunStatus> page = await history.QueryTriggerRunStatuses(query, cancellationToken).ConfigureAwait(false);
+        return new PagedResultDto<TriggerRunStatusDto>(page.Items.Select(TriggerRunStatusDto.Create).ToArray(), page.HasMore, page.TotalCount);
+    }
+
+    /// <summary>
+    /// The run statuses of the triggers the request names, by trigger group and then name. A trigger with no
+    /// recorded run is absent: the one read a listing makes for its page.
+    /// </summary>
+    /// <exception cref="NotSupportedException">The store keeps no per-trigger status.</exception>
+    public static async ValueTask<TriggerRunStatusDto[]> FetchTriggerRunStatuses(
+        IScheduler scheduler,
+        IExecutionHistoryStore history,
+        TriggerKeySetRequest request,
+        CancellationToken cancellationToken)
+    {
+        TriggerRunStatusQuery query = new()
+        {
+            SchedulerName = scheduler.SchedulerName,
+            Triggers = request.Triggers.Select(x => x.AsTriggerKey()).ToArray(),
+            Take = PagedQuery.All
+        };
+
+        PagedResult<TriggerRunStatus> page = await history.QueryTriggerRunStatuses(query, cancellationToken).ConfigureAwait(false);
+        return page.Items.Select(TriggerRunStatusDto.Create).ToArray();
+    }
+
+    /// <summary>
     /// <paramref name="scheduler" />'s runs, counted by result and timed in buckets of fire time, read from
     /// <paramref name="history" /> and narrowed as the history listing narrows its page.
     /// </summary>

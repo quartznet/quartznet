@@ -16,6 +16,8 @@ View       CountMisfires                   GET    schedulers/{schedulerName}/his
 View       QueryJobRunStatuses             GET    schedulers/{schedulerName}/history/job-status
 View       GetJobRunStatus                 GET    schedulers/{schedulerName}/history/job-status/{jobGroup}/{jobName}
 View       FetchJobRunStatuses             POST   schedulers/{schedulerName}/history/job-status/fetch
+View       QueryTriggerRunStatuses         GET    schedulers/{schedulerName}/history/trigger-status
+View       FetchTriggerRunStatuses         POST   schedulers/{schedulerName}/history/trigger-status/fetch
 View       QueryExecutionStatistics        GET    schedulers/{schedulerName}/history/statistics
 View       GetExecutionLimits              GET    schedulers/{schedulerName}/execution-limits
 Administer SetExecutionLimits              POST   schedulers/{schedulerName}/execution-limits

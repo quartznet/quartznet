@@ -83,7 +83,17 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     private static readonly Unserved RunStatus = new(
         "keeps no per-job run status",
         "serves no per-job run status",
+        "4.4",
         "read its jobs' run statuses");
+
+    /// <summary>
+    /// What a per-trigger status read says a host does not serve.
+    /// </summary>
+    private static readonly Unserved TriggerStatus = new(
+        "keeps no per-trigger run status",
+        "serves no per-trigger run status",
+        "4.9",
+        "read its triggers' run statuses");
 
     /// <summary>
     /// What a statistics read says a host does not serve.
@@ -91,6 +101,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     private static readonly Unserved RunStatistics = new(
         "cannot count its runs over time",
         "serves no run statistics",
+        "4.4",
         "count its runs over time");
 
     private readonly string schedulerName;
@@ -414,13 +425,67 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     }
 
     /// <summary>
-    /// Not supported yet: no route serves the target's per-trigger run statuses.
+    /// One page of the target's per-trigger run statuses: <c>GET …/history/trigger-status</c>, or, for a query
+    /// that names its triggers, <c>POST …/history/trigger-status/fetch</c>.
     /// </summary>
-    /// <exception cref="NotSupportedException">Always.</exception>
-    public ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// The fetch answers every named trigger's status in one list, so a query that names its triggers is filtered
+    /// by <see cref="TriggerRunStatusQuery.Failing" />, ordered by group and then name, and paged here. It is sent
+    /// in batches of at most a thousand keys, the most the host takes at once. An empty set of triggers lists
+    /// nothing, and is answered without asking.
+    /// </remarks>
+    /// <exception cref="NotSupportedException">
+    /// The target keeps no per-trigger status: its host is older than 4.9, or its history store keeps none.
+    /// </exception>
+    public async ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
     {
-        throw new NotSupportedException(
-            $"The scheduler '{schedulerName}' is reached over HTTP, and this client reads no per-trigger run status.");
+        ArgumentNullException.ThrowIfNull(query);
+
+        if (query.Triggers is null)
+        {
+            QueryStringBuilder parameters = new();
+            parameters.AddPaging(query);
+            if (query.Failing is { } failing)
+            {
+                parameters.Add("failing", failing);
+            }
+
+            PagedResultDto<TriggerRunStatusDto> page = await ReadServed<PagedResultDto<TriggerRunStatusDto>, TriggerKeySetRequest>(
+                    At(SchedulerRoutes.QueryTriggerRunStatuses).WithQuery(parameters.ToString()), body: null, TriggerStatus, cancellationToken)
+                .ConfigureAwait(false) ?? throw new HttpClientException("Could not deserialize response");
+
+            return new PagedResult<TriggerRunStatus>(page.Items.Select(x => x.AsTriggerRunStatus(schedulerName)).ToList(), page.HasMore, page.TotalCount);
+        }
+
+        if (query.Triggers.Count == 0)
+        {
+            return Nothing<TriggerRunStatus>(query);
+        }
+
+        List<TriggerRunStatus> statuses = [];
+        KeyDto[] keys = query.Triggers.Distinct().Select(KeyDto.Create).ToArray();
+        foreach (KeyDto[] batch in keys.Chunk(MaxKeysPerFetch))
+        {
+            TriggerRunStatusDto[] fetched = await ReadServed<TriggerRunStatusDto[], TriggerKeySetRequest>(
+                    At(SchedulerRoutes.FetchTriggerRunStatuses), new TriggerKeySetRequest(batch), TriggerStatus, cancellationToken)
+                .ConfigureAwait(false) ?? [];
+
+            statuses.AddRange(fetched.Select(x => x.AsTriggerRunStatus(schedulerName)));
+        }
+
+        IEnumerable<TriggerRunStatus> filtered = statuses
+            .OrderBy(static status => status.Trigger.Group, StringComparer.Ordinal)
+            .ThenBy(static status => status.Trigger.Name, StringComparer.Ordinal);
+
+        if (query.Failing is { } wanted)
+        {
+            filtered = filtered.Where(status => (status.ConsecutiveFailures > 0) == wanted);
+        }
+
+        List<TriggerRunStatus> ordered = filtered.ToList();
+        int skip = Math.Min(query.Skip, ordered.Count);
+        List<TriggerRunStatus> items = ordered.Skip(skip).Take(query.Take).ToList();
+        return new PagedResult<TriggerRunStatus>(items, skip + items.Count < ordered.Count, query.IncludeTotalCount ? ordered.Count : null);
     }
 
     /// <summary>
@@ -500,7 +565,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
 
         parameters.Add("bucket", query.BucketSize.ToString("c", CultureInfo.InvariantCulture));
 
-        ExecutionStatisticsDto statistics = await ReadServed<ExecutionStatisticsDto>(
+        ExecutionStatisticsDto statistics = await ReadServed<ExecutionStatisticsDto, JobKeySetRequest>(
                 At(SchedulerRoutes.QueryExecutionStatistics).WithQuery(parameters.ToString()), body: null, RunStatistics, cancellationToken)
             .ConfigureAwait(false) ?? throw new HttpClientException("Could not deserialize response");
 
@@ -513,19 +578,21 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// </summary>
     private ValueTask<T?> ReadStatus<T>(WireRequest request, JobKeySetRequest? body, CancellationToken cancellationToken) where T : class
     {
-        return ReadServed<T>(request, body, RunStatus, cancellationToken);
+        return ReadServed<T, JobKeySetRequest>(request, body, RunStatus, cancellationToken);
     }
 
     /// <summary>
-    /// Sends one read of a 4.4 route and reads its answer: <see langword="null" /> for a <c>404</c> with
-    /// problem details, which names a thing the host does not have.
+    /// Sends one read of a route a release added and reads its answer: <see langword="null" /> for a <c>404</c>
+    /// with problem details, which names a thing the host does not have.
     /// </summary>
     /// <remarks>
     /// Two answers are the target saying it does not serve the read, and both are raised as
     /// <see cref="NotSupportedException" />: the <c>404</c> without problem details of a host that predates
     /// the route, and the <c>501</c> of a host whose history store cannot answer it, whose detail says why.
     /// </remarks>
-    private async ValueTask<T?> ReadServed<T>(WireRequest request, JobKeySetRequest? body, Unserved unserved, CancellationToken cancellationToken) where T : class
+    private async ValueTask<T?> ReadServed<T, TBody>(WireRequest request, TBody? body, Unserved unserved, CancellationToken cancellationToken)
+        where T : class
+        where TBody : class
     {
         WireResponse response = body is null
             ? await wire.Exchange(request, cancellationToken).ConfigureAwait(false)
@@ -546,7 +613,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
         {
             throw new NotSupportedException(
                 $"The scheduler '{schedulerName}' is reached over HTTP and the target {unserved.Serves}: "
-                + "it answered 404 without problem details for the route, which a Quartz HTTP API older than 4.4 does. "
+                + $"it answered 404 without problem details for the route, which a Quartz HTTP API older than {unserved.Since} does. "
                 + $"Upgrade the scheduler's host to {unserved.UpgradeTo}.",
                 exception);
         }
@@ -605,11 +672,12 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             + $"{why}. Upgrade the scheduler's host to {minimum.ToString(2)} or later {upgradeTo}.");
     }
 
-    /// <summary>The words a refusal of a 4.4 read uses, so each read says what it was.</summary>
+    /// <summary>The words a refusal of a read a release added uses, so each read says what it was.</summary>
     /// <param name="Keeps">What a host's store that cannot answer does not do: "keeps no …".</param>
     /// <param name="Serves">What a host that predates the route does not serve: "serves no …".</param>
+    /// <param name="Since">The release that added the route, which an older host predates.</param>
     /// <param name="UpgradeTo">What upgrading the host lets the caller do.</param>
-    private sealed record Unserved(string Keeps, string Serves, string UpgradeTo);
+    private sealed record Unserved(string Keeps, string Serves, string Since, string UpgradeTo);
 
     private static void AddJob(QueryStringBuilder parameters, JobKey? job)
     {

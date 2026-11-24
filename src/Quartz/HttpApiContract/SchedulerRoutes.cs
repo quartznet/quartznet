@@ -87,6 +87,11 @@ internal static class SchedulerRoutes
     public static readonly WireRoute GetJobRunStatus = Route(nameof(GetJobRunStatus), Get, History + "/job-status/{jobGroup}/{jobName}");
     public static readonly WireRoute FetchJobRunStatuses = Route(nameof(FetchJobRunStatuses), Post, History + "/job-status/fetch");
 
+    // From 4.9, beside the job statuses. A host older than 4.9 answers 404 without problem details, which tells a
+    // reader the host keeps no trigger status.
+    public static readonly WireRoute QueryTriggerRunStatuses = Route(nameof(QueryTriggerRunStatuses), Get, History + "/trigger-status");
+    public static readonly WireRoute FetchTriggerRunStatuses = Route(nameof(FetchTriggerRunStatuses), Post, History + "/trigger-status/fetch");
+
     // From 4.4, as the statuses are. A 4.3 host answers 404 without problem details; the HTTP client reads
     // the host's version first and does not ask one.
     public static readonly WireRoute QueryExecutionStatistics = Route(nameof(QueryExecutionStatistics), Get, History + "/statistics");

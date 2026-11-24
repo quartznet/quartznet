@@ -82,6 +82,13 @@ internal static class SchedulerEndpoints
         yield return builder.MapPost(options.PatternFor(SchedulerRoutes.FetchJobRunStatuses), FetchJobRunStatuses)
             .WithQuartzDefaults(SchedulerRoutes.FetchJobRunStatuses, "Get the run statuses of a set of jobs");
 
+        yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryTriggerRunStatuses), QueryTriggerRunStatuses)
+            .WithQuartzDefaults(SchedulerRoutes.QueryTriggerRunStatuses, "Query the scheduler's per-trigger run statuses");
+
+        // A read that takes a body, as the job statuses' fetch is.
+        yield return builder.MapPost(options.PatternFor(SchedulerRoutes.FetchTriggerRunStatuses), FetchTriggerRunStatuses)
+            .WithQuartzDefaults(SchedulerRoutes.FetchTriggerRunStatuses, "Get the run statuses of a set of triggers");
+
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryExecutionStatistics), QueryExecutionStatistics)
             .WithQuartzDefaults(SchedulerRoutes.QueryExecutionStatistics, "Count and time the scheduler's runs in buckets of fire time");
 
@@ -723,6 +730,71 @@ internal static class SchedulerEndpoints
         EndpointHelper.AssertKeysToFetch(request.Jobs);
 
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.FetchJobRunStatuses(
+            scheduler,
+            HistoryFor(httpContext, historyStore, target, scheduler),
+            request,
+            cancellationToken)));
+    }
+
+    /// <summary>
+    /// One page of this scheduler's per-trigger run statuses, by trigger group and then name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// From 4.9. Kept by the history store beside the job statuses, folded by their rule from the firings of each
+    /// trigger's own key, other than one after which the trigger is finalized. <c>failing=true</c> lists the
+    /// triggers whose latest occurrences failed for good, and <c>failing=false</c> the rest.
+    /// </para>
+    /// <para>
+    /// A store that keeps no trigger status answers <c>501</c>, naming <see cref="NotSupportedException" />. A host
+    /// older than 4.9 has no such route and answers <c>404</c> without problem details.
+    /// </para>
+    /// </remarks>
+    [ProducesResponseType(typeof(PagedResultDto<TriggerRunStatusDto>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryTriggerRunStatuses(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
+        string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
+        int skip = 0,
+        [Description(EndpointHelper.TakeDescription)] string? take = null,
+        bool includeTotalCount = false,
+        [Description("true for the triggers failing now, false for the rest")] bool? failing = null,
+        CancellationToken cancellationToken = default)
+    {
+        ListingParameters listing = endpointHelper.Listing(skip, take, includeTotalCount);
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.QueryTriggerRunStatuses(
+            scheduler,
+            HistoryFor(httpContext, historyStore, target, scheduler),
+            listing,
+            failing,
+            cancellationToken)));
+    }
+
+    /// <summary>
+    /// The run statuses of the triggers the body names, by trigger group and then name — at most
+    /// <see cref="EndpointHelper.MaxKeysToFetch" /> of them. A trigger with no recorded run is absent.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="QueryTriggerRunStatuses" path="/remarks" />
+    /// </remarks>
+    [ProducesResponseType(typeof(TriggerRunStatusDto[]), StatusCodes.Status200OK)]
+    private static Task<IResult> FetchTriggerRunStatuses(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
+        string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
+        TriggerKeySetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertIsValid(request);
+        EndpointHelper.AssertKeysToFetch(request.Triggers);
+
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.FetchTriggerRunStatuses(
             scheduler,
             HistoryFor(httpContext, historyStore, target, scheduler),
             request,

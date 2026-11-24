@@ -956,6 +956,39 @@ public sealed class QuartzApiClientContractTest
     }
 
     /// <summary>
+    /// The per-trigger run statuses read the same through the client over every carrier: one read naming a page's
+    /// triggers, from the store the history is read from, and for a remote one through
+    /// <c>…/history/trigger-status/fetch</c>.
+    /// </summary>
+    [Test]
+    public async Task TriggerRunStatusesAreReadThroughTheClientForAPagesTriggers()
+    {
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await history.AddExecution(Execution(start, "report", triggerName: "daily") with { Result = JobRunResult.Succeeded });
+        await history.AddExecution(Failure(start, "report") with { TriggerName = "hourly" });
+        await history.AddExecution(Failure(start.AddMinutes(1), "report") with { TriggerName = "hourly" });
+
+        TriggerKey[] page = [new("hourly", "contract"), new("daily", "contract"), new("never-fired", "contract")];
+
+        PagedResult<TriggerRunStatus> statuses = await client.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = key,
+            Triggers = page,
+            Take = PagedQuery.All
+        });
+
+        statuses.Items.Select(status => status.Trigger.Name).Should().Equal(["daily", "hourly"],
+            "by trigger group and then name, and a trigger with no recorded run is absent");
+        statuses.Items[0].LastResult.Should().Be(JobRunResult.Succeeded);
+        statuses.Items[0].SchedulerName.Should().Be(scheduler.SchedulerName);
+        statuses.Items[1].ConsecutiveFailures.Should().Be(2, "one job, and only its hourly schedule is failing");
+        statuses.Items[1].LastFailureMessage.Should().Be("the upstream system is down");
+
+        (await client.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = key, Triggers = page, Failing = true }))
+            .Items.Should().ContainSingle().Which.Trigger.Name.Should().Be("hourly");
+    }
+
+    /// <summary>
     /// The run statistics read the same through the client over both carriers: from the store the history is
     /// read from, and for the HTTP carrier through <c>…/history/statistics</c> once the host has said it is 4.4.
     /// </summary>

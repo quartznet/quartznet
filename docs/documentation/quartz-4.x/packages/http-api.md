@@ -1311,7 +1311,7 @@ builder.Services.AddQuartzHttpApi(options => options.OperationAuthorizationPolic
 
 | Role | Operations |
 |---|---|
-| `View` | Every `GET`, and the three reads that take a body of keys: `FetchJobs`, `FetchTriggers`, `FetchJobRunStatuses` |
+| `View` | Every `GET`, and the four reads that take a body of keys: `FetchJobs`, `FetchTriggers`, `FetchJobRunStatuses`, `FetchTriggerRunStatuses` |
 | `Operate` | `Start`, `Standby`, `PauseAll`, `ResumeAll`, `PauseJob`, `PauseJobs`, `PauseJobKeys`, `ResumeJob`, `ResumeJobs`, `ResumeJobKeys`, `PauseTrigger`, `PauseTriggers`, `PauseTriggerKeys`, `ResumeTrigger`, `ResumeTriggers`, `ResumeTriggerKeys`, `ResetTriggerFromErrorState`, `ResetTriggerKeysFromErrorState`, `InterruptJob`, `InterruptJobInstance`, `BackfillTrigger`, and `TriggerJob` without job data |
 | `Administer` | `Shutdown`, `Clear`, `SetExecutionLimits`, `ClearExecutionLimits`, `AddJob`, `DeleteJob`, `DeleteJobs`, `DeleteJobsByGroup`, `ScheduleJob`, `ScheduleJobs`, `UnscheduleJob`, `UnscheduleJobs`, `UnscheduleJobsByGroup`, `RescheduleJob`, `UpdateTriggerDetails`, `AddCalendar`, `DeleteCalendar`, and `TriggerJob` with job data |
 
