@@ -301,6 +301,32 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
     }
 
     /// <summary>
+    /// The shipped statement names each candidate's job, so a batch reads in full only the first candidate
+    /// of a job that disallows concurrent execution, and leaves the rest waiting (#4173).
+    /// </summary>
+    [Test]
+    public async Task ABatchReadsInFullOnlyTheFirstCandidateOfASerialJob()
+    {
+        await ScheduleSerialTriggers(3);
+        await ScheduleOrdinaryTriggers(1);
+        CountingSqliteDelegate.Reset();
+
+        // A window wide enough for the ordinary trigger, a second behind the job's, to join the batch.
+        List<IOperableTrigger> acquired = await storeB.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = due.AddMinutes(1),
+            MaxCount = 4,
+            TimeWindow = TimeSpan.FromMinutes(1),
+        });
+
+        acquired.Select(x => x.Key.Name).Should().Equal(["serial-1", "ordinary-1"], "one trigger of the job a batch");
+        CountingSqliteDelegate.RowsRead.Should().Equal(["serial-1,ordinary-1"],
+            "the job's later candidates are refused on the job the acquisition read named, unread");
+        (await StateOf("serial-2")).Should().Be("WAITING");
+        (await StateOf("serial-3")).Should().Be("WAITING");
+    }
+
+    /// <summary>
     /// What a clustered round that took nothing asks (#3988): how many triggers pinned to its node a
     /// firing on another node holds <c>BLOCKED</c>. Its read never returns them, and only its node may
     /// fire them, so it is the one node the end of that firing has to reach.
@@ -674,6 +700,7 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
     public sealed class CountingSqliteDelegate : SQLiteDelegate
     {
         private static readonly List<int> acquisitionReadCounts = [];
+        private static readonly List<string> rowsRead = [];
 
         /// <summary>The <c>MaxCount</c> of every acquisition read, in order.</summary>
         public static List<int> AcquisitionReadCounts
@@ -683,6 +710,18 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
                 lock (acquisitionReadCounts)
                 {
                     return [.. acquisitionReadCounts];
+                }
+            }
+        }
+
+        /// <summary>The keys of every read of the candidates' rows, comma-joined, in order.</summary>
+        public static List<string> RowsRead
+        {
+            get
+            {
+                lock (rowsRead)
+                {
+                    return [.. rowsRead];
                 }
             }
         }
@@ -698,6 +737,11 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
             lock (acquisitionReadCounts)
             {
                 acquisitionReadCounts.Clear();
+            }
+
+            lock (rowsRead)
+            {
+                rowsRead.Clear();
             }
 
             DropFirstCandidateOnce = false;
@@ -721,6 +765,11 @@ public sealed class AcquisitionBehindExecutingJobSqliteTest
             IReadOnlyCollection<TriggerKey> triggerKeys,
             CancellationToken cancellationToken = default)
         {
+            lock (rowsRead)
+            {
+                rowsRead.Add(string.Join(",", triggerKeys.Select(key => key.Name)));
+            }
+
             if (DropFirstCandidateOnce)
             {
                 DropFirstCandidateOnce = false;

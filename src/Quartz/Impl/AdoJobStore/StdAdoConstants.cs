@@ -537,7 +537,9 @@ internal static class StdAdoConstants
     // time is what such a round claims each row by before reading it in full, and the policy is, with
     // IS_NONCONCURRENT, what decides whether the round may take no lock at all. Both are the row's own
     // columns and cost the statement nothing it was not already reading. So is FIXED_DELAY,
-    // which holds the trigger while it runs as BufferOne does and so takes the lock too (#4140).
+    // which holds the trigger while it runs as BufferOne does and so takes the lock too (#4140). So are
+    // JOB_NAME and JOB_GROUP, which the join reads anyway: a pass reads in full only the first candidate of a
+    // job that disallows concurrent execution, and refuses its later ones on the job they name (#4173).
     //
     // NotMisfiredPredicate is the exact complement of MisfiredPredicate's two arms, and has to stay that
     // way: @noEarlierThan is the very now - MisfireThreshold the sweep asks about for a row with no
@@ -547,7 +549,7 @@ internal static class StdAdoConstants
     // applying the policy it asked for.
     private static string SelectNextTriggerToAcquire(string exclusionClause, string executionGroupClause, SqlRowLimit rowLimit) =>
         rowLimit.Enclose(Invariant($@"SELECT{rowLimit.AfterSelect}
-                t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, jd.{AdoConstants.ColumnIsNonConcurrent}, t.{AdoConstants.ColumnExecutionGroup}, t.{AdoConstants.ColumnNextFireTime}, t.{AdoConstants.ColumnOverlapPolicy}, t.{AdoConstants.ColumnFixedDelay}
+                t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, jd.{AdoConstants.ColumnIsNonConcurrent}, t.{AdoConstants.ColumnExecutionGroup}, t.{AdoConstants.ColumnNextFireTime}, t.{AdoConstants.ColumnOverlapPolicy}, t.{AdoConstants.ColumnFixedDelay}, t.{AdoConstants.ColumnJobName}, t.{AdoConstants.ColumnJobGroup}
               FROM
                 {TablePrefixSubst}{AdoConstants.TableTriggers} t
               JOIN

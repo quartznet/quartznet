@@ -116,6 +116,17 @@ public readonly record struct TriggerAcquireResult(TriggerKey TriggerKey, string
     internal string? LimitTriggerGroup { get; init; }
 
     /// <summary>
+    /// The job the trigger fires, as its row names it, or <see langword="null" /> when the delegate did not
+    /// read it.
+    /// </summary>
+    /// <remarks>
+    /// Internal: only the store reads it, to refuse a later candidate of a job that disallows concurrent
+    /// execution on its job alone, without reading its row in full (#4173). Every dialect Quartz ships reads
+    /// it; a candidate without it has its row read, as before.
+    /// </remarks>
+    internal JobKey? JobKey { get; init; }
+
+    /// <summary>
     /// Whether the trigger measures its interval from the previous run's completion, as its row's
     /// <c>FIXED_DELAY</c> says (#4140).
     /// </summary>

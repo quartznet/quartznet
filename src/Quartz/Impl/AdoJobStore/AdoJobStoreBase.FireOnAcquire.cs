@@ -802,6 +802,7 @@ internal abstract partial class AdoJobStoreBase
         Dictionary<TriggerKey, IOperableTrigger> rows = await ReadAcquisitionCandidates(
             conn,
             results.FindAll(candidate => took.Contains(candidate.TriggerKey)),
+            leftOut: null,
             round,
             cancellationToken).ConfigureAwait(false);
 
