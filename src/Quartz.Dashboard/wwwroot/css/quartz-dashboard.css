@@ -1744,7 +1744,9 @@ body{
 /* The Jobs listing carries three run-status columns beside four actions, which the widths above - sized
    for the Triggers listing - cannot hold at 1280px: the key took what was left, which was nothing, and
    the actions ran off the edge. Here the status columns are narrower and wrap, the actions take two rows
-   until there is room for one, and the key keeps the rest. */
+   until the key keeps 18rem beside one, and each narrower step gives the key a column's width again: Last
+   success below 1440px, Details below 1280px, since the whole row opens the job. The key never has much under
+   18rem, and a key longer than that wraps rather than being cut. */
 .qz-jobs-table th.qz-col-details,
 .qz-jobs-table td.qz-col-details {
     width: 116px;
@@ -1772,22 +1774,28 @@ body{
     white-space: normal;
 }
 
-@media (min-width: 1440px) {
+@media (min-width: 1600px) {
     .qz-jobs-table th.qz-col-actions,
     .qz-jobs-table td.qz-col-actions {
         width: 400px;
     }
 }
 
-/* Narrower than that, the last success gives its width to the key; the job's own page shows it. */
-@media (max-width: 1279px) {
+/* The job's own page shows what these steps hide. */
+@media (max-width: 1439px) {
     .qz-jobs-table .qz-col-last-success {
         display: none;
     }
 }
 
-/* With the sidebar a rail, the fixed columns take 600px and the key would get what is left, which on a phone
-   is nothing. The key keeps 160px and the table scrolls inside its card, in .qz-table-scroll, rather than take the
+@media (max-width: 1279px) {
+    .qz-jobs-table .qz-col-details {
+        display: none;
+    }
+}
+
+/* With the sidebar a rail, the fixed columns take 484px and the key would get what is left, which on a phone
+   is nothing. The key keeps 276px and the table scrolls inside its card, in .qz-table-scroll, rather than take the
    content panel sideways with it. */
 @media (max-width: 1024px) {
     .qz-jobs-table {
