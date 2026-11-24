@@ -515,6 +515,45 @@ public sealed class QuartzApiClientContractTest
         await scheduler.DeleteJob(jobKey);
     }
 
+    /// <summary>
+    /// <em>Add trigger</em>'s trigger of every kind, posted through the client with no job, is stored for the job it
+    /// names, whichever process the scheduler runs in (#4412).
+    /// </summary>
+    [TestCase("Cron")]
+    [TestCase("Simple")]
+    [TestCase("CalendarInterval")]
+    [TestCase("DailyTimeInterval")]
+    [TestCase("Recurrence")]
+    public async Task ATriggerOfEveryKindIsAddedToAStoredJobThroughTheClient(string kindName)
+    {
+        ScheduleKind kind = Enum.Parse<ScheduleKind>(kindName);
+        JobKey jobKey = new("added-to", "every-kind");
+        TriggerKey triggerKey = new("added-" + kindName, "every-kind");
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(), new AddJobOptions { Replace = true });
+
+        IOperableTrigger template = ScheduleForm.NewTrigger(kind);
+        template.Key = triggerKey;
+        template.JobKey = jobKey;
+        template.Priority = 9;
+        template.StartTimeUtc = DateTimeOffset.UtcNow;
+        template.JobDataMap = new JobDataMap { ["colour"] = "green" };
+        ScheduleBuild build = ScheduleForm.ForNew(kind, TimeZoneInfo.Utc.Id).Apply(template, null, TimeProvider.System, startAtFirstFire: true);
+        build.Errors.Should().BeEmpty();
+
+        await client.ScheduleJob(key, new ScheduleJobRequest(build.Trigger!, Job: null));
+
+        ITrigger? stored = await scheduler.GetTrigger(triggerKey);
+        stored.Should().NotBeNull();
+        ScheduleForm.KindOf(stored!).Should().Be(kind);
+        stored!.JobKey.Should().Be(jobKey, "the trigger is added to the stored job, and no job travels with it");
+        stored.Priority.Should().Be(9);
+        stored.JobDataMap["colour"].Should().Be("green");
+        ScheduleForm.From(stored)!.SameScheduleAs(ScheduleForm.ForNew(kind, TimeZoneInfo.Utc.Id)).Should().BeTrue();
+        stored.NextFireTimeUtc.Should().NotBeNull();
+
+        await scheduler.DeleteJob(jobKey);
+    }
+
     [Test]
     public async Task ATriggerIsEditedFilteredAndActedOnAsASetThroughTheClient()
     {

@@ -288,7 +288,7 @@ detail page.
 
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
-| **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete |
+| **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete; from 4.9, [*Add trigger*](#adding-a-trigger) |
 | **Triggers**: from 4.8, [the schedule in words, and next and previous fire](#the-schedule-and-fire-times); state, execution group | from 4.7, its [upcoming fires](#upcoming-fires); from 4.8, the schedule in words beside its expression; the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a [schedule editor](#rescheduling-a-trigger) (for every kind from 4.9, cron before) and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
 | **Calendars**: names; from 4.9, each one's type | from 4.9, [the calendar's own rules](#calendars), its time zone, the calendars under it and how many triggers use it | from 4.9, [create or edit](#calendars) a calendar of any of the six built-in types; delete |
 
@@ -466,6 +466,33 @@ lasts until the next start.** The schedule editor, its *Reschedule* dialog and *
   `IQuartzApiClient.IsTriggerDeclaredAtStartup`. A window, a host or agent older than 4.9, and an
   `IQuartzApiClient` of your own that does not implement it, say nothing.
 - A trigger a scheduling file adds on a rescan, after the first start, is not counted.
+
+### Adding a trigger
+
+From 4.9, *Add trigger* on a job's page stores a new trigger of that job, of any of the five kinds, through
+`ScheduleJob` with no job. *Duplicate…* on a trigger's page opens the same form, filled from that trigger.
+
+| Field | Takes |
+|---|---|
+| Name, group | the trigger's key; the group is the job's until another is typed |
+| Description | text |
+| Kind and schedule | the fields of [Rescheduling a trigger](#rescheduling-a-trigger), for the kind chosen |
+| Starts | a date and time in the dashboard's time zone; blank is now |
+| Calendar | a calendar name, suggested from the scheduler's |
+| Priority | a whole number, `5` by default |
+| Misfire instruction | the kind's family of instructions, by name |
+| `JobDataMap` | the trigger's entries |
+
+- **The first fire is the schedule's first after now**, and the trigger starts at it. A start behind now keeps its
+  phase, so *every other day at 06:00 from the 1st* stays on the same days.
+- **A duplicate is the trigger's copy** under a new key, `-copy` by default: its schedule and everything else it
+  carries, its execution group and node pin among them, while its kind is kept. The page then moves to the copy.
+- **A refusal is shown in the form**, which stays open: a key already in use, a calendar the scheduler does not
+  hold.
+- **Every add is in the [Action Log](#action-log)** as `ScheduleTrigger`, with its schedule in words and its job.
+- **No job is created.** A job built from a type name runs whatever that type does, `NativeJob` included, and an
+  agent refuses one by default. Store the job in code; the dashboard adds triggers to it.
+- It works the same in process, over HTTP and through an agent, at the `Administer` [role](#operator-roles).
 
 ### Backfilling a trigger
 
@@ -1628,6 +1655,7 @@ builder.Services.AddQuartzDashboard(options =>
 | Trigger with overrides, Run again with the run's input | `TriggerJob` with job data | `Administer` |
 | Edit details | `UpdateTriggerDetails` | `Administer` |
 | Save schedule | `RescheduleJob` | `Administer` |
+| Add trigger, Duplicate | `ScheduleJob` | `Administer` |
 | Unschedule, Unschedule selected | `UnscheduleJob`, `UnscheduleJobs` | `Administer` |
 | Delete a job | `DeleteJob` | `Administer` |
 | Create, edit or replace a calendar, Delete a calendar | `AddCalendar`, `DeleteCalendar` | `Administer` |
@@ -1894,8 +1922,8 @@ shell without `ASPNETCORE_ENVIRONMENT`.
   operation from `SchedulerResource`.
 - **The misfire tile and Cluster page show what the store can answer**: a dash for no misfire feed, one node for a
   store with no check-in state. Neither is a count of zero.
-- **Typed editors are narrow**: job-data overrides, from 4.3 a trigger's details and, from 4.9, schedules of the
-  five built-in trigger kinds and calendars of the six built-in types. Building an arbitrary trigger from the UI is not offered, and a
-  calendar's base calendars are kept rather than edited.
+- **Typed editors are narrow**: job-data overrides, from 4.3 a trigger's details and, from 4.9, triggers of the
+  five built-in kinds for a stored job and calendars of the six built-in types. A job is never created from the UI,
+  a trigger of a type of your own is not rescheduled, and a calendar's base calendars are kept rather than edited.
 - **It is a scheduler console, not a workflow tool.** Job dependencies, DAGs and business-process visualisation
   are outside what Quartz models.

@@ -178,6 +178,16 @@
         }
 
         <h2>Associated triggers</h2>
+        @if (CanSchedule)
+        {
+            <div class="qz-actions qz-group-actions">
+                <button type="button" class="qz-button qz-add-trigger-open" disabled="@_adding" @onclick="StartAdding">Add trigger</button>
+            </div>
+        }
+        @if (_adding && CanSchedule)
+        {
+            <AddTriggerForm Job="@JobKey" OnAdded="OnTriggerAddedAsync" OnCancel="CancelAdding" />
+        }
         @if (_triggers.Count == 0)
         {
             <p class="qz-muted">No associated triggers.</p>
@@ -318,6 +328,12 @@
 
     private bool CanDelete => Can(Quartz.HttpApiContract.SchedulerRoutes.DeleteJob);
 
+    /// <summary>Adding a trigger to the job, which an operation policy asks at Administer (#4412).</summary>
+    private bool CanSchedule => Can(Quartz.HttpApiContract.SchedulerRoutes.ScheduleJob);
+
+    /// <summary>Whether the Add trigger form is open.</summary>
+    private bool _adding;
+
     private JobKeyDto JobKey => new(Group, Name);
 
     private JobDataMap? JobDataMap => _job?.JobDataMap;
@@ -344,6 +360,7 @@
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        _adding = false;
         ClearJob();
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
@@ -733,6 +750,23 @@
 
         clone.ClearDirtyFlag();
         return clone;
+    }
+
+    private void StartAdding()
+    {
+        _adding = true;
+    }
+
+    private void CancelAdding()
+    {
+        _adding = false;
+    }
+
+    /// <summary>The trigger is stored: the form closes, and the job's triggers are read again, the new one among them.</summary>
+    private async Task OnTriggerAddedAsync(TriggerKeyDto key)
+    {
+        _adding = false;
+        await LoadDataAsync();
     }
 
     public void Dispose()

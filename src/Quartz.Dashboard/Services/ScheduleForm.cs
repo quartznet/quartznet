@@ -334,7 +334,13 @@ internal sealed class ScheduleForm
     /// </param>
     /// <param name="calendar">The calendar the trigger names, as read, or <see langword="null" />.</param>
     /// <param name="clock">What now is.</param>
-    public ScheduleBuild Apply(ITrigger template, ICalendar? calendar, TimeProvider clock)
+    /// <param name="startAtFirstFire">
+    /// Whether the trigger starts at its first fire whatever its kind, as a new one must: <c>ScheduleJob</c> counts
+    /// the first fire from the start, so a start behind now would be stored as a misfire. A reschedule keeps the
+    /// start, which a calendar interval or a recurrence counts its phase from; <c>RescheduleJob</c> keeps the first fire
+    /// it is given.
+    /// </param>
+    public ScheduleBuild Apply(ITrigger template, ICalendar? calendar, TimeProvider clock, bool startAtFirstFire = false)
     {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(clock);
@@ -428,7 +434,7 @@ internal sealed class ScheduleForm
 
         // Measured from its start, so it starts at its first fire: otherwise the scheduler moves a start that is
         // behind it up to the moment it stores the trigger, and every fire after the first moves with it.
-        if (copy is SimpleTriggerImpl)
+        if (copy is SimpleTriggerImpl || startAtFirstFire)
         {
             copy.StartTimeUtc = firstFire;
         }

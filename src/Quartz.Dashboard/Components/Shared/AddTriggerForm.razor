@@ -1,0 +1,444 @@
+@using System.Globalization
+@using Microsoft.Extensions.DependencyInjection
+@using Quartz
+@using Quartz.Dashboard.Services
+@using Quartz.Extensibility
+@inherits ScheduleFormComponent
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject ToastService Toasts
+@inject DashboardActionLog ActionLog
+@inject IServiceProvider Services
+
+@* A new trigger of a stored job, of any of the five kinds, stored through ScheduleJob with no job (#4412): Job Detail's
+   Add trigger, and Trigger Detail's Duplicate, which starts the form from the trigger on the page. No job is created
+   here: a job built from a type name is remote code execution with NativeJob, and an agent refuses one. *@
+<section class="qz-section qz-add-trigger" data-testid="add-trigger">
+    <h2>@(Source is null ? "Add trigger" : "Duplicate trigger")</h2>
+    <p class="qz-muted" data-testid="add-trigger-job">
+        @(Source is null
+            ? "A new trigger of job " + DisplayValueHelper.FormatKey(Job.Group, Job.Name) + "."
+            : "A copy of " + DisplayValueHelper.FormatKey(Source.Key.Group, Source.Key.Name) + ", a new trigger of job " + DisplayValueHelper.FormatKey(Job.Group, Job.Name) + ".")
+    </p>
+
+    @if (!string.IsNullOrWhiteSpace(_refusal))
+    {
+        <div class="qz-form-errors" role="alert" data-testid="add-trigger-errors">
+            <ul>
+                <li>@_refusal</li>
+            </ul>
+        </div>
+    }
+
+    <div class="qz-live-filter-grid qz-schedule-fields">
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="add-trigger-name">Name</label>
+            <input id="add-trigger-name"
+                   class="qz-input"
+                   data-autofocus
+                   aria-invalid="@(_nameError is null ? null : "true")"
+                   aria-describedby="@(_nameError is null ? null : "add-trigger-name-error")"
+                   @bind="_name"
+                   @bind:event="oninput"
+                   @bind:after="Edited" />
+            <FieldError Id="add-trigger-name-error" Message="@_nameError" TestId="add-trigger-name-error" />
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="add-trigger-group">Group</label>
+            <input id="add-trigger-group" class="qz-input" @bind="_group" @bind:after="Edited" />
+        </div>
+        <div class="qz-form-group qz-schedule-wide">
+            <label class="qz-form-label" for="add-trigger-description">Description</label>
+            <input id="add-trigger-description" class="qz-input" @bind="_description" />
+        </div>
+    </div>
+
+    <h3>Schedule</h3>
+    @ScheduleInputs(kindSelectable: true)
+    <div class="qz-live-filter-grid qz-schedule-fields">
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="add-trigger-starts">Starts</label>
+            <input id="add-trigger-starts"
+                   class="qz-input"
+                   type="datetime-local"
+                   step="1"
+                   title="When the schedule is measured from, in @Scheduler.SelectedTimeZoneId: blank is now. A time already behind now keeps its phase, and the first fire is the schedule's first after now"
+                   aria-invalid="@(_startsError is null ? null : "true")"
+                   aria-describedby="@(_startsError is null ? "add-trigger-starts-hint" : "add-trigger-starts-hint add-trigger-starts-error")"
+                   value="@_starts"
+                   @onchange="OnStartsChanged" />
+            <span id="add-trigger-starts-hint" class="qz-muted">In @Scheduler.SelectedTimeZoneId; blank is now.</span>
+            <FieldError Id="add-trigger-starts-error" Message="@_startsError" />
+        </div>
+    </div>
+    <FieldError Id="@ErrorId(ScheduleField.Schedule)" Message="@ErrorOf(ScheduleField.Schedule)" TestId="schedule-error" />
+
+    <h3>Firing</h3>
+    <div class="qz-live-filter-grid qz-schedule-fields">
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="add-trigger-calendar">Calendar</label>
+            <input id="add-trigger-calendar"
+                   class="qz-input"
+                   list="add-trigger-calendars"
+                   placeholder="(none)"
+                   @bind="_calendarName"
+                   @bind:after="OnCalendarChangedAsync" />
+            <datalist id="add-trigger-calendars">
+                @foreach (string calendarName in _calendarNames)
+                {
+                    <option value="@calendarName"></option>
+                }
+            </datalist>
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="add-trigger-priority">Priority</label>
+            <input id="add-trigger-priority"
+                   class="qz-input"
+                   inputmode="numeric"
+                   aria-invalid="@(_priorityError is null ? null : "true")"
+                   aria-describedby="@(_priorityError is null ? null : "add-trigger-priority-error")"
+                   @bind="_priority"
+                   @bind:after="Edited" />
+            <FieldError Id="add-trigger-priority-error" Message="@_priorityError" />
+        </div>
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="add-trigger-misfire">Misfire instruction</label>
+            <select id="add-trigger-misfire" class="qz-select" @bind="_misfire" @bind:after="Edited">
+                @foreach (MisfireOption option in MisfireOptions)
+                {
+                    <option value="@option.Code">@option.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <h3>JobDataMap</h3>
+    <JobDataMapEditor DataMap="@_dataMap" ReadOnly="false" />
+
+    <h3>Upcoming fires</h3>
+    <SchedulePreview Trigger="@_build?.Trigger"
+                     Calendar="@_calendar"
+                     CalendarName="@BlankToNull(_calendarName)"
+                     CalendarUnreadable="@_calendarUnreadable" />
+
+    <div class="qz-actions qz-group-actions">
+        <button type="button" class="qz-button qz-button-primary qz-add-trigger-save" disabled="@(_saving || _readingCalendar)" @onclick="AddAsync">Add trigger</button>
+        <button type="button" class="qz-button qz-add-trigger-cancel" @onclick="CancelAsync">Cancel</button>
+    </div>
+</section>
+
+@code {
+    private static readonly string[] InputFormats = ["yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ss"];
+
+    private string _name = string.Empty;
+    private string _group = string.Empty;
+    private string _description = string.Empty;
+    private string _priority = "5";
+    private string _calendarName = string.Empty;
+    private string _misfire = "0";
+    private string _starts = string.Empty;
+    private JobDataMap _dataMap = new();
+    private List<string> _calendarNames = [];
+
+    private string? _nameError;
+    private string? _priorityError;
+    private string? _startsError;
+    private string? _refusal;
+    private bool _saving;
+
+    private ScheduleBuild? _build;
+    private bool _started;
+
+    private ICalendar? _calendar;
+    private string? _calendarUnreadable;
+    private bool _readingCalendar;
+
+    /// <summary>Cancelled when the form goes with its page, which stops the reads in flight.</summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>The stored job the trigger fires.</summary>
+    [Parameter]
+    [EditorRequired]
+    public JobKeyDto Job { get; set; } = null!;
+
+    /// <summary>
+    /// The trigger to start from, for <em>Duplicate</em>: its schedule, calendar, priority, misfire instruction, data
+    /// map and description, and, while its kind is kept, everything else it carries. <see langword="null" /> for a new
+    /// trigger.
+    /// </summary>
+    [Parameter]
+    public ITrigger? Source { get; set; }
+
+    /// <summary>Raised with the new trigger's key once it is stored.</summary>
+    [Parameter]
+    public EventCallback<TriggerKeyDto> OnAdded { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    internal override string IdPrefix => "add-trigger";
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    private IReadOnlyList<MisfireOption> MisfireOptions => TriggerDetailsForm.OptionsFor(Form?.Kind ?? ScheduleKind.Cron);
+
+    protected override async Task OnInitializedAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            // Suggestions only: the field takes any name, and the scheduler refuses one it does not hold.
+            _calendarNames = await Api.GetCalendarNames(schedulerName, _cancellation.Token);
+        }
+        catch (Exception) when (!_cancellation.IsCancellationRequested)
+        {
+            _calendarNames = [];
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_started)
+        {
+            return;
+        }
+
+        _started = true;
+        string zone = Scheduler.SelectedTimeZoneId;
+        _group = Job.Group;
+        if (Source is { } source && ScheduleForm.From(source) is { } copied)
+        {
+            Form = copied;
+            _name = source.Key.Name + "-copy";
+            _group = source.Key.Group;
+            _description = source.Description ?? string.Empty;
+            _priority = source.Priority.ToString(CultureInfo.InvariantCulture);
+            _calendarName = source.CalendarName ?? string.Empty;
+            _misfire = source.MisfireInstructionCode.ToString(CultureInfo.InvariantCulture);
+            _starts = Scheduler.ConvertToSelectedTimeZone(source.StartTimeUtc).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture);
+            foreach (KeyValuePair<string, object?> entry in source.JobDataMap)
+            {
+                _dataMap[entry.Key] = entry.Value;
+            }
+        }
+        else
+        {
+            Form = ScheduleForm.ForNew(ScheduleKind.Cron, zone);
+        }
+
+        await ReadCalendarAsync();
+        Rebuild();
+    }
+
+    internal override void OnScheduleEdited()
+    {
+        // A kind of another family has other instructions; its smart policy is the one every family has.
+        if (!MisfireOptions.Any(option => option.Code.ToString(CultureInfo.InvariantCulture) == _misfire))
+        {
+            _misfire = "0";
+        }
+
+        Edited();
+    }
+
+    private void Edited()
+    {
+        _refusal = null;
+        Rebuild();
+    }
+
+    private void OnStartsChanged(ChangeEventArgs args)
+    {
+        _starts = args.Value?.ToString() ?? string.Empty;
+        Edited();
+    }
+
+    private async Task OnCalendarChangedAsync()
+    {
+        await ReadCalendarAsync();
+        Edited();
+    }
+
+    /// <summary>
+    /// The calendar the form names, read when the name changes: the first fire is computed against it, as the scheduler
+    /// would. One that cannot be read leaves the preview without it, and the scheduler refuses one it does not hold.
+    /// </summary>
+    private async Task ReadCalendarAsync()
+    {
+        _calendar = null;
+        _calendarUnreadable = null;
+        string? calendarName = BlankToNull(_calendarName);
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (calendarName is null || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        _readingCalendar = true;
+        try
+        {
+            _calendar = await Api.GetCalendar(schedulerName, calendarName, _cancellation.Token);
+        }
+        catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _calendarUnreadable = ex.Message;
+        }
+        finally
+        {
+            _readingCalendar = false;
+        }
+    }
+
+    /// <summary>
+    /// The trigger the form asks for, built on every change so the preview follows it; what is wrong is said beside the
+    /// field it is about.
+    /// </summary>
+    private void Rebuild()
+    {
+        _build = null;
+        Errors = [];
+        _nameError = null;
+        _priorityError = null;
+        _startsError = null;
+        if (Form is null)
+        {
+            return;
+        }
+
+        IOperableTrigger template = Source is { } source && ScheduleForm.KindOf(source) == Form.Kind && source is IOperableTrigger operable
+            ? (IOperableTrigger) operable.Clone()
+            : ScheduleForm.NewTrigger(Form.Kind);
+
+        string name = _name.Trim();
+        string group = _group.Trim();
+        if (name.Length == 0)
+        {
+            _nameError = "A trigger needs a name: with its group, it is the trigger's key.";
+        }
+
+        // The preview is of a trigger, so one without a name yet is previewed under a stand-in.
+        template.Key = new TriggerKey(name.Length == 0 ? "new" : name, group.Length == 0 ? TriggerKey.DefaultGroup : group);
+        template.JobKey = new JobKey(Job.Name, Job.Group);
+        template.Description = BlankToNull(_description);
+        template.CalendarName = BlankToNull(_calendarName);
+
+        if (!int.TryParse(_priority.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int priority))
+        {
+            _priorityError = "Priority must be a whole number.";
+        }
+        else
+        {
+            template.Priority = priority;
+        }
+
+        // The select offers the family's own instructions only, which a trigger of the family takes.
+        if (int.TryParse(_misfire, NumberStyles.Integer, CultureInfo.InvariantCulture, out int misfire))
+        {
+            try
+            {
+                template.MisfireInstructionCode = misfire;
+            }
+            catch (ArgumentException)
+            {
+                _misfire = "0";
+                template.MisfireInstructionCode = 0;
+            }
+        }
+
+        JobDataMap map = new();
+        foreach (KeyValuePair<string, object?> entry in _dataMap)
+        {
+            map[entry.Key] = entry.Value;
+        }
+
+        template.JobDataMap = map;
+
+        DateTimeOffset start = Clock.GetUtcNow();
+        if (_starts.Trim().Length > 0)
+        {
+            if (DateTime.TryParseExact(_starts.Trim(), InputFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime wallClock))
+            {
+                start = Scheduler.FromSelectedTimeZone(wallClock);
+            }
+            else
+            {
+                _startsError = "The start is a date and time, or blank for now.";
+            }
+        }
+
+        try
+        {
+            template.StartTimeUtc = start;
+        }
+        catch (ArgumentException ex)
+        {
+            _startsError = ex.Message;
+        }
+
+        _build = Form.Apply(template, _calendar, Clock, startAtFirstFire: true);
+        foreach (ScheduleFieldError error in _build.Errors)
+        {
+            Errors.TryAdd(error.Field, error.Message);
+        }
+    }
+
+    private async Task AddAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (_saving || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        Rebuild();
+        if (_nameError is not null || _priorityError is not null || _startsError is not null || _build?.Trigger is not { } trigger)
+        {
+            return;
+        }
+
+        TriggerKeyDto key = new(trigger.Key.Group, trigger.Key.Name);
+        string target = DisplayValueHelper.FormatKey(key.Group, key.Name);
+        string job = DisplayValueHelper.FormatKey(Job.Group, Job.Name);
+        string detail = (trigger.DescribeSchedule() ?? ScheduleForm.Describe(Form!.Kind)) + "; job " + job + (Source is null ? string.Empty : "; a copy of " + DisplayValueHelper.FormatKey(Source.Key.Group, Source.Key.Name));
+        _saving = true;
+        try
+        {
+            await Api.ScheduleJob(schedulerName, new ScheduleJobRequest(trigger, Job: null));
+            ActionLog.Record(schedulerName, "ScheduleTrigger", target, succeeded: true, detail);
+            Toasts.Success("Added trigger " + target + " to job " + job + ".");
+            await OnAdded.InvokeAsync(key);
+        }
+        catch (Exception ex)
+        {
+            _refusal = ex.Message;
+            ActionLog.Failed(schedulerName, "ScheduleTrigger", target, ex, detail: detail);
+            if (ex is OperationRefusedException)
+            {
+                Toasts.Error(ex.Message);
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private Task CancelAsync() => OnCancel.InvokeAsync();
+
+    private static string? BlankToNull(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    public void Dispose()
+    {
+        _cancellation.Cancel();
+        _cancellation.Dispose();
+    }
+}
