@@ -131,6 +131,45 @@ public class ActionLogViaTest
     }
 
     /// <summary>
+    /// A scroller a browser makes a Tab stop is a region with a name and the dashboard's own focus ring: the browser
+    /// check of #4435 found an unnamed scrollable region with the browser's white ring at 1024 px.
+    /// </summary>
+    [Test]
+    public void TheScrollerIsANamedRegionAKeyboardReaches()
+    {
+        context.ActionLog.Record(TestData.SchedulerName, "PauseTrigger", "reports.nightly", succeeded: true);
+
+        IRenderedComponent<ActionLog> page = context.Render<ActionLog>();
+
+        IElement scroller = page.Find("[data-testid=action-log-scroll]");
+        scroller.GetAttribute("role").Should().Be("region");
+        scroller.GetAttribute("aria-label").Should().Be("Action log");
+        scroller.GetAttribute("tabindex").Should().Be("0", "a keyboard scrolls it only once it can be focused");
+
+        string css = File.ReadAllText(HistoryPageTest.DashboardStylesheet());
+        Regex.IsMatch(css, @"\.qz-table-scroll:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--qz-color-primary\)").Should().BeTrue(
+            "every table scroller gets the ring the dashboard's buttons and links have");
+    }
+
+    /// <summary>
+    /// An action with no message shows the muted dash other empty cells show, not a blank cell.
+    /// </summary>
+    [Test]
+    public void AnEmptyMessageIsAMutedDash()
+    {
+        context.ActionLog.Record(TestData.SchedulerName, "ResumeTrigger", "reports.nightly", succeeded: true);
+        context.ActionLog.Record(TestData.SchedulerName, "PauseTrigger", "reports.nightly", succeeded: true, message: "reason: deploy");
+
+        IRenderedComponent<ActionLog> page = context.Render<ActionLog>();
+
+        IReadOnlyList<IElement> messages = page.FindAll("td.qz-action-log-message");
+        messages.Should().HaveCount(2);
+        messages[0].TextContent.Should().Be("reason: deploy", "the newest entry first");
+        messages[0].QuerySelector(".qz-muted").Should().BeNull();
+        messages[1].QuerySelector("span.qz-muted")!.TextContent.Should().Be("—");
+    }
+
+    /// <summary>
     /// The scheduler column stays on one line and the message keeps a readable width, which the browser check of
     /// #4432 found wrapping to five lines at 1024 px and a word a line at 1440 px. The line is capped and the key cut
     /// short, which the browser check of #4435 found holding the table at 1455 px, Status and Message out of view at
@@ -158,6 +197,8 @@ public class ActionLogViaTest
         Regex.IsMatch(css, @"\.qz-action-log-scheduler-name\s*\{[^}]*text-overflow:\s*ellipsis").Should().BeTrue();
         Regex.IsMatch(css, @"\.qz-action-log-client\s*\{[^}]*text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap").Should().BeTrue();
         Regex.IsMatch(css, @"\.qz-action-log-message\s*\{[^}]*min-width:").Should().BeTrue();
+        Regex.IsMatch(css, @"@media \(max-width: 1439px\)\s*\{\s*\.qz-action-log-message\s*\{[^}]*min-width:\s*15rem").Should().BeTrue(
+            "below 1440 px the table scrolls anyway, and at 10rem the message showed 50 px and wrapped a refusal to seven lines");
     }
 
     /// <summary>

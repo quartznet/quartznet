@@ -38,8 +38,13 @@
     else
     {
         @* Scrolls inside its card rather than pushing the page wider, as the dashboard's other wide tables do; the
-           card's border is drawn around the scroller, so the scrollbar sits inside it. *@
-        <div class="qz-table-scroll qz-action-log-scroll" data-testid="action-log-scroll">
+           card's border is drawn around the scroller, so the scrollbar sits inside it. A browser makes a scroller a
+           Tab stop, so it is a region with a name, which a keyboard reaches to scroll it. *@
+        <div class="qz-table-scroll qz-action-log-scroll"
+             data-testid="action-log-scroll"
+             role="region"
+             aria-label="Action log"
+             tabindex="0">
             <table class="qz-table">
                 <thead>
                     <tr>
@@ -109,7 +114,16 @@
                                 }
                             </td>
                             <td><StateIndicator State="@(entry.Refused ? "Refused" : entry.Succeeded ? "Complete" : "Error")" /></td>
-                            <td class="qz-action-log-message">@(entry.Message ?? string.Empty)</td>
+                            <td class="qz-action-log-message">
+                                @if (string.IsNullOrEmpty(entry.Message))
+                                {
+                                    <span class="qz-muted">&mdash;</span>
+                                }
+                                else
+                                {
+                                    @entry.Message
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
