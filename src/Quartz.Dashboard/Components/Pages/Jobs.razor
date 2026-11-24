@@ -133,6 +133,7 @@
                                             <a class="qz-failing-badge"
                                                href="@GetFailuresPath(jobGroup, jobName)"
                                                title="@status.LastFailureMessage"
+                                               aria-label="@DisplayValueHelper.FormatFailingLinkLabel(status.ConsecutiveFailures, DisplayValueHelper.FormatKey(jobGroup, jobName))"
                                                @onclick:stopPropagation="true">@DisplayValueHelper.FormatFailing(status.ConsecutiveFailures)</a>
                                         }
                                     </td>

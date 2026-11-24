@@ -253,6 +253,7 @@
                                     {
                                         @* Shown in place of the Last run column on a listing too narrow for both. *@
                                         <div class="qz-last-run-inline">
+                                            <span class="qz-last-run-caption">Last run</span>
                                             <TriggerRunCell Status="@_runStatuses.GetValueOrDefault(triggerKey)"
                                                             Now="@_lastUpdatedAt.GetValueOrDefault()"
                                                             FailuresHref="@GetFailuresPath(triggerGroup, triggerName)" />

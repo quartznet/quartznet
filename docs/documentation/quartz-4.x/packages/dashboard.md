@@ -329,13 +329,16 @@ open gives the listing about 1120 px. The trigger's page shows everything a step
 
 | Listing narrower than | Without [*Last run*](#trigger-run-status) | With it |
 |---|---|---|
-| 1440 px | | Execution group and Details are hidden |
+| 1704 px | | The actions take two rows |
+| 1440 px | The actions take two rows | Execution group and Details are hidden |
+| 1340 px | | Previous fire is hidden |
 | 1300 px | Execution group and Details are hidden | |
-| 1210 px | | Previous fire is hidden |
-| 1080 px | Previous fire is hidden | *Last run* moves under the state |
+| 1080 px | Previous fire is hidden | *Last run* moves under the state, captioned |
 | 920 px | The schedule moves under the trigger's key; below 748 px the table scrolls inside its card | The same |
 
-*Last run* adds 132 px, so with it each step comes earlier. It never goes: it says whether the schedule still works.
+*Last run* adds 132 px, which the trigger's key, the one column that cannot wrap, would otherwise give. So with it the
+actions keep two rows longer, and Previous fire, whose firing the last run dates too, goes first. *Last run* never
+goes: it says whether the schedule still works.
 
 ### Upcoming fires
 

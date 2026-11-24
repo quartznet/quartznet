@@ -62,7 +62,7 @@
                         {
                             <tr>
                                 <td><a class="qz-details-link" href="@JobPath(status.Job)">@DisplayValueHelper.FormatKey(status.Job.Group, status.Job.Name)</a></td>
-                                <td><a class="qz-failing-badge" href="@FailuresPath(status.Job)">failing ×@status.ConsecutiveFailures.ToString(CultureInfo.InvariantCulture)</a></td>
+                                <td><a class="qz-failing-badge" href="@FailuresPath(status.Job)" aria-label="@DisplayValueHelper.FormatFailingLinkLabel(status.ConsecutiveFailures, status.Job.ToString())">failing ×@status.ConsecutiveFailures.ToString(CultureInfo.InvariantCulture)</a></td>
                                 <td>
                                     <span class="qz-needs-attention-when">@Scheduler.FormatInSelectedTimeZone(status.LastFailedAtUtc, "u")</span>
                                     @if (status.LastFailureMessage is { Length: > 0 } message)

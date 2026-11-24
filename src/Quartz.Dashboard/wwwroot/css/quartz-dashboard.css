@@ -1869,12 +1869,21 @@ body{
     margin-top: var(--qz-space-xs);
 }
 
+/* Under the state, the last run is a second status: its caption says which, where the column's header said it. */
+.qz-triggers-table .qz-last-run-caption {
+    display: block;
+    color: var(--qz-color-text-secondary);
+    font-size: var(--qz-font-size-xs);
+}
+
 .qz-trigger-failing {
     margin-top: 2px;
 }
 
-/* A listing with a last-run column needs 132px more at every step, so each step below comes 140px earlier with
-   it than without: a scheduler whose history keeps no trigger status lays out as 4.8 did. */
+/* A listing with a last-run column needs 132px more, which the key would otherwise give, and the key is the one
+   column that cannot wrap. So with it the actions keep two rows until the key still has 280px beside them on one,
+   and Previous fire, whose firing the last run also dates, goes first: from 1340px down the key is as wide as
+   without the column. A scheduler whose history keeps no trigger status lays out as 4.8 did. */
 @container qz-triggers-listing (min-width: 1440px) {
     .qz-triggers-table:not(.qz-with-last-run) th.qz-col-actions,
     .qz-triggers-table:not(.qz-with-last-run) td.qz-col-actions {
@@ -1882,7 +1891,7 @@ body{
     }
 }
 
-@container qz-triggers-listing (min-width: 1560px) {
+@container qz-triggers-listing (min-width: 1704px) {
     .qz-triggers-table.qz-with-last-run th.qz-col-actions,
     .qz-triggers-table.qz-with-last-run td.qz-col-actions {
         width: 340px;
@@ -1911,7 +1920,7 @@ body{
     }
 }
 
-@container qz-triggers-listing (max-width: 1209px) {
+@container qz-triggers-listing (max-width: 1339px) {
     .qz-triggers-table.qz-with-last-run .qz-col-previous-fire {
         display: none;
     }

@@ -49,6 +49,33 @@ internal static class DisplayValueHelper
     }
 
     /// <summary>
+    /// The accessible name of a failing badge that links to the failures: the badge's own text first, as a
+    /// speech user says it, then whose runs failed and where the link goes.
+    /// </summary>
+    /// <param name="consecutiveFailures">How many occurrences in a row have failed for good.</param>
+    /// <param name="key">The job's or trigger's key, <c>group.name</c>.</param>
+    public static string FormatFailingLinkLabel(int consecutiveFailures, string key)
+    {
+        string runs = consecutiveFailures == 1
+            ? "the last run of " + key + " failed. Open it in History"
+            : "the last " + consecutiveFailures.ToString(CultureInfo.InvariantCulture) + " runs of " + key + " failed. Open them in History";
+        return FormatFailing(consecutiveFailures) + ": " + runs;
+    }
+
+    /// <summary>
+    /// How long a run took, as the Triggers listing shows it beside its result: <see cref="FormatDuration" />, except
+    /// that a run shorter than a millisecond is <c>&lt; 1 ms</c>, whose fraction says nothing to read at a glance.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="FormatDuration" /> keeps the fraction: the run statistics chart labels its axis and its
+    /// percentiles with it, and the History page's rows and cards agree with the chart beside them.
+    /// </remarks>
+    public static string FormatRunDuration(TimeSpan duration)
+    {
+        return duration > TimeSpan.Zero && duration < TimeSpan.FromMilliseconds(1) ? "< 1 ms" : FormatDuration(duration);
+    }
+
+    /// <summary>
     /// A duration in the largest unit that keeps it readable: sub-second runs in milliseconds, anything up to
     /// a minute in seconds, anything longer spelled out; <c>n/a</c> for none.
     /// </summary>
