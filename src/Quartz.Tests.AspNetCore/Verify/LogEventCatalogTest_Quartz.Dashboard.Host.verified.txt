@@ -18,3 +18,5 @@
     "Store-attached target {Target} reads a {Provider} database with the {Serializer} serializer"
 9409  Information  DashboardHostLog.AcceptingAgents
     "Accepting agents at {HubPath}. Run one instance of the host while it accepts agents"
+9410  Warning  DashboardHostLog.BearerRefused
+    "A bearer token presented to the HTTP API was refused: it matched no role"

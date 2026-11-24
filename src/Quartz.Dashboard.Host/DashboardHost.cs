@@ -41,6 +41,7 @@ using OpenTelemetry.Trace;
 
 using Oracle.ManagedDataAccess.Client;
 
+using Quartz.AspNetCore;
 using Quartz.Diagnostics;
 
 namespace Quartz.Dashboard.Host;
@@ -145,6 +146,18 @@ internal static class DashboardHost
             AddHttpTarget(builder.Services, target);
         }
 
+        if (plan.ServesHttpApi)
+        {
+            // The API for the whole fleet: a request names a scheduler behind a target with ?target=, and is held
+            // to the same operator roles as the dashboard's own buttons (#4218).
+            builder.Services.AddQuartzHttpApi(options =>
+            {
+                options.ApiPath = plan.HttpApiPath;
+                options.ReadOnly = plan.Settings.HttpApi.ReadOnly ?? plan.Settings.ReadOnly ?? false;
+                options.OperationAuthorizationPolicy = HostAuthentication.OperationPolicy;
+            });
+        }
+
         return plan;
     }
 
@@ -174,6 +187,15 @@ internal static class DashboardHost
         app.MapGet("/", (HttpContext context) => Results.Redirect(context.Request.PathBase + dashboardPath)).AllowAnonymous();
 
         app.MapHostAuthentication(plan, dashboardPath);
+
+        if (plan.ServesHttpApi)
+        {
+            // Bearer only, and a browser request from an origin not listed is refused before anything else: the
+            // cookie a visitor signed in with is never what lets a request in here.
+            new QuartzRequestGuard(plan.Settings.AllowedOrigins).Apply(
+                app.MapQuartzHttpApi(plan.HttpApiPath).RequireAuthorization(HostAuthentication.ApiPolicy));
+        }
+
         app.MapQuartzDashboard();
     }
 
