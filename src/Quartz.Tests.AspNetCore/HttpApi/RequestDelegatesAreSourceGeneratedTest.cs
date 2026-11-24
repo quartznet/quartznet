@@ -20,7 +20,7 @@ namespace Quartz.Tests.AspNetCore.HttpApi;
 /// <para>
 /// Losing the property would be loud today, because nothing suppresses those warnings and
 /// <c>TreatWarningsAsErrors</c> is on. This test is for the case that is not loud: the generator
-/// declining one call site, or a future one it cannot express, which leaves the other 56 intercepted and
+/// declining one call site, or a future one it cannot express, which leaves the other 75 intercepted and
 /// says nothing about the one it dropped.
 /// </para>
 /// </remarks>
