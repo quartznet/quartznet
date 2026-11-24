@@ -170,7 +170,7 @@
                 @* The listing's own scroll container, whose width the columns answer to: a narrow card hides the
                    lower-priority columns and then scrolls the table inside itself, never the page. *@
                 <div class="qz-triggers-listing" data-testid="triggers-listing">
-                <table class="qz-table qz-entity-table qz-triggers-table">
+                <table class="@(_runStatusesShown ? "qz-table qz-entity-table qz-triggers-table qz-with-last-run" : "qz-table qz-entity-table qz-triggers-table")">
                     <thead>
                         <tr>
                             @if (CanSelect)
@@ -188,6 +188,10 @@
                             <th class="qz-col-schedule">Schedule</th>
                             <th class="qz-col-fire qz-col-next-fire">Next fire</th>
                             <th class="qz-col-fire qz-col-previous-fire">Previous fire</th>
+                            @if (_runStatusesShown)
+                            {
+                                <th class="qz-col-last-run">Last run</th>
+                            }
                             <th class="qz-col-state">State</th>
                             <th class="qz-col-execution-group">Execution Group</th>
                             <th class="qz-col-details">Details</th>
@@ -234,9 +238,26 @@
                                 <td class="qz-col-schedule"><ScheduleCell Trigger="@trigger" /></td>
                                 <td class="qz-col-fire qz-col-next-fire"><FireTimeCell Time="@trigger.NextFireTimeUtc" Now="@_lastUpdatedAt.GetValueOrDefault()" Upcoming="true" /></td>
                                 <td class="qz-col-fire qz-col-previous-fire"><FireTimeCell Time="@trigger.PreviousFireTimeUtc" Now="@_lastUpdatedAt.GetValueOrDefault()" /></td>
+                                @if (_runStatusesShown)
+                                {
+                                    <td class="qz-col-last-run">
+                                        <TriggerRunCell Status="@_runStatuses.GetValueOrDefault(triggerKey)"
+                                                        Now="@_lastUpdatedAt.GetValueOrDefault()"
+                                                        FailuresHref="@GetFailuresPath(triggerGroup, triggerName)" />
+                                    </td>
+                                }
                                 <td class="qz-col-state">
                                     <StateIndicator State="@(trigger.State?.ToString())" />
                                     <PauseNote Pause="@trigger.Pause" />
+                                    @if (_runStatusesShown)
+                                    {
+                                        @* Shown in place of the Last run column on a listing too narrow for both. *@
+                                        <div class="qz-last-run-inline">
+                                            <TriggerRunCell Status="@_runStatuses.GetValueOrDefault(triggerKey)"
+                                                            Now="@_lastUpdatedAt.GetValueOrDefault()"
+                                                            FailuresHref="@GetFailuresPath(triggerGroup, triggerName)" />
+                                        </div>
+                                    }
                                 </td>
                                 <td class="qz-col-execution-group">
                                     @if (!string.IsNullOrEmpty(trigger.ExecutionGroup))
@@ -344,6 +365,15 @@
     /// row's "in 3m" and "3m ago" count from it, so a stale listing's rows still agree with its time.
     /// </summary>
     private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>The run status of each trigger on the page that has one, read with the page.</summary>
+    private readonly Dictionary<TriggerKeyDto, TriggerRunStatus> _runStatuses = [];
+
+    /// <summary>
+    /// Whether the data source keeps trigger statuses, so the Last run column is shown: a source that keeps none,
+    /// or a host older than 4.9, leaves it out.
+    /// </summary>
+    private bool _runStatusesShown;
 
     /// <summary>
     /// Why the last read failed while there was a listing to keep, or <see langword="null" />.
@@ -592,6 +622,9 @@
             _triggers.Clear();
             _triggers.AddRange(page.Items);
             _totalTriggers = totalCount;
+
+            await LoadRunStatusesAsync(schedulerName, cancellationToken);
+
             _lastUpdatedAt = Clock.GetUtcNow();
             _staleReason = null;
         }
@@ -647,9 +680,63 @@
     private void ClearListing()
     {
         _triggers.Clear();
+        _runStatuses.Clear();
+        _runStatusesShown = false;
         _totalTriggers = 0;
         _lastUpdatedAt = null;
         _staleReason = null;
+    }
+
+    /// <summary>
+    /// Reads the run status of every trigger on the page in one call, never one per row.
+    /// </summary>
+    /// <remarks>
+    /// A data source that keeps no per-trigger status — a history store of the application's own, a scheduler in
+    /// another process whose host is older than 4.9, or a database without <c>QRTZ_TRIGGER_STATUS</c> — raises
+    /// <see cref="NotSupportedException" />, and the column is left out. Any other failure is the listing's, as
+    /// the Jobs page's statuses are.
+    /// </remarks>
+    private async Task LoadRunStatusesAsync(string schedulerName, CancellationToken cancellationToken)
+    {
+        if (_triggers.Count == 0)
+        {
+            _runStatuses.Clear();
+            return;
+        }
+
+        try
+        {
+            PagedResult<TriggerRunStatus> statuses = await Api.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+            {
+                SchedulerName = schedulerName,
+                Triggers = [.. _triggers.Select(static trigger => new TriggerKey(trigger.Name, trigger.Group))],
+                Take = PagedQuery.All
+            }, cancellationToken);
+
+            _runStatuses.Clear();
+            foreach (TriggerRunStatus status in statuses.Items)
+            {
+                _runStatuses[new TriggerKeyDto(status.Trigger.Group, status.Trigger.Name)] = status;
+            }
+
+            _runStatusesShown = true;
+        }
+        catch (NotSupportedException)
+        {
+            _runStatuses.Clear();
+            _runStatusesShown = false;
+        }
+    }
+
+    /// <summary>
+    /// The trigger's final failures on the History page: that trigger only, failed results only, the ones that
+    /// gave up.
+    /// </summary>
+    private string GetFailuresPath(string group, string name)
+    {
+        return DashboardLink.To(
+            Options.Value,
+            "history?outcome=failed&triggerGroup=" + Uri.EscapeDataString(group) + "&triggerName=" + Uri.EscapeDataString(name) + "&result=failed");
     }
 
     /// <summary>

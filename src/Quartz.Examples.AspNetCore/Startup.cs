@@ -216,6 +216,33 @@ public class Startup
                 .WithDescription("A second trigger of the same job, blocked while the first one's firing runs")
             );
 
+            // one job on three schedules, so the Triggers page shows each schedule's own last run: the nightly one
+            // succeeds, the hourly one fails every time, both every 20s, and the later one has not fired yet
+            JobKey flakyReport = new("flakyReport", "demo");
+            q.AddJob<DemoFlakyReportJob>(j => j
+                .WithIdentity(flakyReport)
+                .WithDescription("One job, one healthy and one failing schedule: the Triggers page tells them apart"));
+
+            q.AddTrigger(t => t
+                .WithIdentity("flakyReportNightly", "demo")
+                .ForJob(flakyReport)
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(20)).RepeatForever())
+                .UsingJobData(DemoFlakyReportJob.FailKey, false));
+
+            q.AddTrigger(t => t
+                .WithIdentity("flakyReportHourly", "demo")
+                .ForJob(flakyReport)
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(20)).RepeatForever())
+                .UsingJobData(DemoFlakyReportJob.FailKey, true));
+
+            q.AddTrigger(t => t
+                .WithIdentity("flakyReportLater", "demo")
+                .ForJob(flakyReport)
+                .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever()));
+
             // async disposable dependencies
             q.ScheduleJob<AsyncDisposableJob>(
                 triggerConfigurator => triggerConfigurator
