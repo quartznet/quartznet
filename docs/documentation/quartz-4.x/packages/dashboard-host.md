@@ -41,6 +41,7 @@ Open `/quartz` and sign in with the token. Every key below is under `Quartz:Dash
 | `/login`, `/logout` | Sign-in and sign-out (`Token` mode) |
 | `/quartz/agents` | The agent hub, when an agent token is set |
 | `/quartz-api` | The [HTTP API](#the-http-api) for every scheduler the dashboard shows, when `HttpApi:Enabled` (4.9) |
+| `/quartz-mcp` | The [MCP endpoint](#mcp-endpoint) for every scheduler the dashboard shows, when `Mcp:Enabled` (4.9) |
 | `/healthz` | Anonymous liveness: `200 Healthy` while the process answers. It asks no target and no database |
 
 ## Authentication
@@ -162,6 +163,31 @@ redirect.
 - Each change and each refusal is an entry in the [Action Log](dashboard.md#action-log) with *Via HTTP API*, and an
   audit line, `9007` or `9009`.
 - A target sees the host's credential, as it does for a visitor: see [Limitations](#limitations).
+
+## MCP endpoint
+
+From 4.9, `Mcp:Enabled=true` serves the [MCP endpoint](mcp.md) for every scheduler the dashboard shows. A tool names
+a scheduler by its key: `orders/OrdersScheduler`.
+
+| Key | Default | What it is |
+|---|---|---|
+| `Mcp:Enabled` | `false` | Serve the endpoint. Off, because a new surface for an agent is asked for |
+| `Mcp:Path` | `/quartz-mcp` | Where. Not the host's own paths, nor the API's, nor under either |
+| `Mcp:ReadOnly` | `true` | Refuse every change. Not the host's `ReadOnly`: an agent writes only where it is said in so many words |
+| `AllowedOrigins:<n>` | none | Shared with the API: origins a browser may call from |
+| `Authentication:ApiAudience` | — | `OpenIdConnect` mode: the audience a bearer token must carry. Required with the endpoint |
+
+- **The same bearers as the API**, by mode, and the same refusals: never the sign-in cookie, never `?t=`, and `401`
+  rather than a redirect. A role's token in `Token` mode is a stable identity, so an administrator's token is offered
+  `reschedule` and `unschedule`; every holder of that token is one caller.
+- The [operator roles](dashboard.md#operator-roles) apply, `Roles:Operations` overrides included, and an agent's
+  `MaxAccess` is a ceiling.
+- The MCP SDK's own logs are held at `Information` whatever `Logging` says: below it, the SDK writes whole JSON-RPC
+  messages, and a message can carry a confirmation token.
+- Each change and each refused change is an [Action Log](dashboard.md#action-log) entry with *Via MCP*, the user and
+  the client's name.
+- A confirmation token is protected by the host's Data Protection keys: set `DataProtection:KeysPath` so a restart, or
+  a second instance, reads the tokens the first issued.
 
 ## The dashboard and the process
 
