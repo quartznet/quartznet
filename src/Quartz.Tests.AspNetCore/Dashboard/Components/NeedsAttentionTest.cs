@@ -67,6 +67,8 @@ public class NeedsAttentionTest
         rows.Should().NotContain(["reports.job-01", "reports.job-02"]);
         panel.Find("[data-testid=needs-attention-failing] .qz-failing-badge").GetAttribute("href").Should()
             .Be("quartz/history?outcome=failed&jobGroup=reports&jobName=job-12&result=failed");
+        panel.Find("[data-testid=needs-attention-failing] .qz-failing-badge").GetAttribute("aria-label").Should()
+            .Be("failing ×12: the last 12 runs of reports.job-12 failed. Open them in History");
 
         A.CallTo(() => context.Api.QueryJobRunStatuses(
                 A<JobRunStatusQuery>.That.Matches(query => query.SchedulerName == TestData.SchedulerName && query.Failing == true && query.IncludeTotalCount),

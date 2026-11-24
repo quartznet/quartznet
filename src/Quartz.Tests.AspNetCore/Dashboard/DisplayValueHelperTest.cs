@@ -35,4 +35,30 @@ public sealed class DisplayValueHelperTest
         DisplayValueHelper.FormatClock(TimeSpan.FromSeconds(seconds)).Should().Be(expected,
             "hh:mm:ss alone writes the hours component, so 26 hours would read as 2");
     }
+
+    [TestCase(0.043, "< 1 ms")]
+    [TestCase(0.999, "< 1 ms")]
+    [TestCase(1, "1 ms")]
+    [TestCase(40, "40 ms")]
+    [TestCase(4070, "4.07 s")]
+    [TestCase(0, "n/a")]
+    public void ARunsDurationUnderAMillisecondReadsAsUnderOne(double milliseconds, string expected)
+    {
+        DisplayValueHelper.FormatRunDuration(TimeSpan.FromMilliseconds(milliseconds)).Should().Be(expected,
+            "a fraction of a millisecond is noise beside a run that took seconds; anything longer reads as everywhere else");
+    }
+
+    [Test]
+    public void AFormatterThatChartsDurationsKeepsTheFraction()
+    {
+        DisplayValueHelper.FormatDuration(TimeSpan.FromMilliseconds(0.5)).Should().Be("0.5 ms",
+            "the run statistics chart labels a sub-millisecond axis with it");
+    }
+
+    [TestCase(1, "failing ×1: the last run of demo.hourly failed. Open it in History")]
+    [TestCase(6, "failing ×6: the last 6 runs of demo.hourly failed. Open them in History")]
+    public void AFailingBadgesLinkIsNamedByWhatItShowsThenWhoseRunsAndWhereItGoes(int failures, string expected)
+    {
+        DisplayValueHelper.FormatFailingLinkLabel(failures, "demo.hourly").Should().Be(expected);
+    }
 }

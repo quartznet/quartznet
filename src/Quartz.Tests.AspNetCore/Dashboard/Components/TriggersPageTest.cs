@@ -886,6 +886,8 @@ public class TriggersPageTest
         badge.GetAttribute("title").Should().Be("the feed is down", "the badge says what the last failure said");
         badge.GetAttribute("href").Should().EndWith("history?outcome=failed&triggerGroup=nightly&triggerName=trigger-1&result=failed",
             "the badge opens the trigger's final failures, not the trigger's own page");
+        badge.GetAttribute("aria-label").Should().Be("failing ×3: the last 3 runs of nightly.trigger-1 failed. Open them in History",
+            "the link's name starts with what it shows, then says whose runs and where it goes");
         page.FindAll("td.qz-col-last-run .qz-failing-badge").Should().ContainSingle("a trigger that has not failed has no badge");
     }
 
@@ -904,7 +906,30 @@ public class TriggersPageTest
 
         page.Find("table.qz-triggers-table").ClassList.Should().Contain("qz-with-last-run",
             "the listing's narrow steps come earlier with the column than without it");
-        Text(page.Find("td.qz-col-state .qz-last-run-inline")).Should().Be(Text(page.Find("td.qz-col-last-run")));
+        Text(page.Find("td.qz-col-state .qz-last-run-inline .qz-last-run-caption")).Should().Be("Last run",
+            "under the state the last run is a second status, so it says which, as the column's header did");
+        page.FindAll("td.qz-col-last-run .qz-last-run-caption").Should().BeEmpty("the column has its header");
+        Text(page.Find("td.qz-col-state .qz-last-run-inline .qz-trigger-last-run")).Should().Be(Text(page.Find("td.qz-col-last-run .qz-trigger-last-run")));
+        Text(page.Find("td.qz-col-state .qz-last-run-inline .qz-trigger-failing")).Should().Be(Text(page.Find("td.qz-col-last-run .qz-trigger-failing")));
+    }
+
+    /// <summary>
+    /// A run shorter than a millisecond reads as under one, not as a fraction beside the seconds of the next row.
+    /// </summary>
+    [Test]
+    public void ARunShorterThanAMillisecondReadsAsUnderOne()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        GivenRunStatuses(
+            RunStatus("trigger-1", now.AddMinutes(-2), JobRunResult.Succeeded) with { LastDuration = TimeSpan.FromMilliseconds(0.043) },
+            RunStatus("trigger-2", now.AddMinutes(-2), JobRunResult.Failed) with { LastDuration = TimeSpan.FromSeconds(4.07) });
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("td.qz-col-last-run .qz-trigger-last-run").Select(Text).Should().Equal(
+            "Succeeded < 1 ms 2m ago",
+            "Failed 4.07 s 2m ago");
     }
 
     [Test]

@@ -579,6 +579,8 @@ public class JobsPageTest
         failing.TextContent.Should().Be("failing ×3");
         failing.GetAttribute("href").Should().EndWith("history?outcome=failed&jobGroup=reports&jobName=job-2&result=failed",
             "the badge opens the History page on that job's failures that gave up");
+        failing.GetAttribute("aria-label").Should().Be("failing ×3: the last 3 runs of reports.job-2 failed. Open them in History",
+            "the link's name starts with what it shows, then says whose runs and where it goes");
 
         A.CallTo(() => context.Api.GetJobRunStatuses(
                 TestData.SchedulerName,
