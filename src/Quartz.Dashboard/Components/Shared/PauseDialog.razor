@@ -4,7 +4,7 @@
    pauses without one, as the button did before it asked. *@
 @if (IsOpen)
 {
-    <ModalDialog Class="qz-pause-dialog" LabelledBy="qz-pause-dialog-title" ReturnFocus="ReturnFocus" OnCancel="CancelAsync">
+    <ModalDialog Class="qz-pause-dialog" LabelledBy="qz-pause-dialog-title" ReturnFocus="ReturnFocus" ReturnFocusFallback="ReturnFocusFallback" OnCancel="CancelAsync">
         <h3 id="qz-pause-dialog-title">@Title</h3>
         <p>@Message</p>
         @ChildContent
@@ -40,6 +40,13 @@
     /// </summary>
     [Parameter]
     public ElementReference? ReturnFocus { get; set; }
+
+    /// <summary>
+    /// Where focus goes as the dialog closes when <see cref="ReturnFocus" /> has left the page by then, or
+    /// <see langword="null" /> for none: see <see cref="ModalDialog.ReturnFocusFallback" />.
+    /// </summary>
+    [Parameter]
+    public ElementReference? ReturnFocusFallback { get; set; }
 
     [Parameter]
     public string Title { get; set; } = "Pause";

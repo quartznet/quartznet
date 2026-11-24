@@ -313,6 +313,7 @@
 
 <ConfirmDialog IsOpen="@_showUnscheduleConfirm"
                ReturnFocus="@_unscheduleOpener"
+               ReturnFocusFallback="@_results"
                Title="Unschedule trigger"
                ConfirmText="Unschedule"
                Message="@($"Unschedule {_pendingTriggerKey}?")"
@@ -321,6 +322,7 @@
 
 <ConfirmDialog IsOpen="@_showBulkUnscheduleConfirm"
                ReturnFocus="@_bulkUnscheduleButton"
+               ReturnFocusFallback="@_results"
                Title="Unschedule selected triggers"
                ConfirmText="Unschedule"
                Message="@($"Unschedule {TriggerSelectionActions.Triggers(_selected.Count, "selected")}? A job left with no trigger and no durability goes with them.")"
@@ -329,6 +331,7 @@
 
 <PauseDialog IsOpen="@(_pauseAction is not null)"
              ReturnFocus="@_pauseOpener"
+             ReturnFocusFallback="@_results"
              Title="@_pauseTitle"
              Message="@_pauseMessage"
              OnConfirm="ConfirmPauseAsync"
@@ -1115,6 +1118,12 @@
             "Trigger " + DisplayValueHelper.FormatKey(group, name) + " was not unscheduled - it no longer exists.",
             actionName: "UnscheduleTrigger",
             target: DisplayValueHelper.FormatKey(group, name));
+
+        // The dialog closed before the call, while the row was listed, so it gave focus back to the row's Unschedule.
+        // The read after the call took the row away: the button is gone, or, the rows being drawn again in place, now
+        // unschedules the trigger listed after it. Focus goes on to the listing, as the dialog's fallback sends it when
+        // the row has gone before the dialog closes.
+        _focusResults = !_triggers.Exists(trigger => trigger.Group == group && trigger.Name == name);
     }
 
     private Task CancelUnscheduleAsync()
