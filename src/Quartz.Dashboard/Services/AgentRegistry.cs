@@ -390,6 +390,7 @@ internal sealed class AgentRegistry
                 Events = (_, _) => entry.Events,
                 History = (_, _) => entry.History,
                 Liveness = () => entry.Liveness(Now, Options),
+                MaxAccess = () => entry.MaxAccess,
             });
         }
         catch (SchedulerConfigException exception)
