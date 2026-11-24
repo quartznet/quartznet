@@ -462,12 +462,14 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            // exactly what TriggerDetail.razor does: read the trigger, then edit its cron expression
+            // exactly what the schedule editor does: read the trigger, then edit its cron expression
             ITrigger detail = await client.GetTrigger(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
-            TriggerPayloadBuilder.TryWithCronExpression(detail, "0 0 2 * * ?", out ITrigger? newTrigger)
-                .Should().BeTrue();
+            ScheduleForm form = ScheduleForm.From(detail)!;
+            form.CronExpression = "0 0 2 * * ?";
+            ScheduleBuild build = form.Apply(detail, calendar: null, TimeProvider.System);
+            build.Errors.Should().BeEmpty();
 
-            await client.RescheduleJob(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), new RescheduleRequest(newTrigger!));
+            await client.RescheduleJob(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), new RescheduleRequest(build.Trigger!));
 
             ITrigger? updated = await scheduler.GetTrigger(triggerKey);
             CronTriggerImpl cronTrigger = updated.Should().BeOfType<CronTriggerImpl>().Subject;

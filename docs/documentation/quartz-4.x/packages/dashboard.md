@@ -289,7 +289,7 @@ detail page.
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
 | **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete |
-| **Triggers**: from 4.8, [the schedule in words, and next and previous fire](#the-schedule-and-fire-times); state, execution group | from 4.7, its [upcoming fires](#upcoming-fires); from 4.8, the schedule in words beside its expression; the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
+| **Triggers**: from 4.8, [the schedule in words, and next and previous fire](#the-schedule-and-fire-times); state, execution group | from 4.7, its [upcoming fires](#upcoming-fires); from 4.8, the schedule in words beside its expression; the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a [schedule editor](#rescheduling-a-trigger) (for every kind from 4.9, cron before) and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
 | **Calendars**: names; from 4.9, each one's type | from 4.9, [the calendar's own rules](#calendars), its time zone, the calendars under it and how many triggers use it | from 4.9, [create or edit](#calendars) a calendar of any of the six built-in types; delete |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
@@ -302,9 +302,8 @@ detail page.
   group* lifts a group pause however it was made. *Trigger group* still fires each job: a scheduler has no
   group-level trigger.
 - *Reset error state* clears an `ERROR` trigger once its cause is fixed.
-- The cron reschedule editor previews the next five fires of the expression being edited, before it is saved,
-  in the trigger's time zone and less what its calendar excludes. The preview shows only while the edited
-  expression differs from the saved one.
+- The schedule editor previews the next five fires of the edited schedule before it is saved. See
+  [Rescheduling a trigger](#rescheduling-a-trigger).
 
 ### The schedule and fire times
 
@@ -395,7 +394,7 @@ and gives a verdict for each: ✓ fine, ℹ worth knowing, ⚠ may hold it back,
 ### Editing a trigger
 
 From 4.3, *Edit details* on a trigger's page edits it in place through `IScheduler.UpdateTriggerDetails`. Fire
-times and state are kept; the cron editor is the one that reschedules.
+times and state are kept; the [schedule editor](#rescheduling-a-trigger) is the one that reschedules.
 
 | Field | Takes |
 |---|---|
@@ -418,10 +417,43 @@ times and state are kept; the cron editor is the one that reschedules.
 - An `IQuartzApiClient` of your own that does not implement `UpdateTriggerDetails` answers its default,
   `NotSupportedException`. The button is then disabled with that reason.
 
+### Rescheduling a trigger
+
+From 4.9, *Edit schedule* on a trigger's page reschedules a trigger of any of the five built-in kinds through
+`RescheduleJob`. Before 4.9, only a cron trigger could be.
+
+| Kind | Fields |
+|---|---|
+| Cron | the expression; the time zone |
+| Simple | the interval and its unit; how many times it repeats after the first fire, or forever; whether the interval is measured from completion |
+| Calendar interval | the interval and its unit, seconds to years; the time zone; whether to keep the hour of day across daylight saving, and to skip a day that hour does not exist on |
+| Daily time interval | the window, from and until, as times; the days; the interval in seconds, minutes or hours; how many times it repeats each day, blank until the window ends; the time zone |
+| Recurrence | the RFC 5545 `RRULE`; the time zone |
+
+- **Only the schedule changes.** The trigger is cloned, so its calendar, node pin, priority, data map and type are
+  kept (#3294). A trigger of another type, one that derives from none of the five, is refused, and the editor
+  says so.
+- **The edit is previewed before it is saved**: the schedule in words and the next five fires, in the trigger's
+  time zone and less what its calendar excludes. The preview shows only while the edit differs from the saved
+  schedule.
+- **A wrong field is said beside it**: an expression or rule that does not parse, a window that ends before it
+  starts, no day ticked, an unknown time zone, a schedule that does not fire again.
+- **Save asks first.** The dialog says the trigger is replaced: its previous fire time, its count of fires and a
+  pending retry are reset, and the replacement takes the state its group gives it. See
+  [Rescheduling Jobs](../how-tos/rescheduling-jobs.md).
+- **A pause is kept.** A trigger paused on its own would come back unpaused, so the dashboard pauses it again,
+  with its reason and who asked. A trigger its group keeps paused is left alone.
+- **The first fire is the edited schedule's first after now**, less what the calendar excludes, so a start long
+  gone is not stored as a misfire. A simple trigger starts at that first fire, and its repeat count counts from
+  there.
+- **Every save is in the [Action Log](#action-log)** as `RescheduleTrigger`, with the schedule before and after
+  in words.
+- It works the same in process, over HTTP and through an agent, at the `Administer` [role](#operator-roles).
+
 ### A trigger declared at start-up
 
 From 4.9, every editor of a trigger the scheduler's start-up declares says: **Declared at start-up: this change
-lasts until the next start.** The cron editor and *Edit details* show it.
+lasts until the next start.** The schedule editor, its *Reschedule* dialog and *Edit details* show it.
 
 - **Why.** With `OverwriteExistingData` on, the default, every start stores each `AddTrigger` and `ScheduleJob`
   registration, and each scheduling file, over the stored trigger. See
@@ -1862,8 +1894,8 @@ shell without `ASPNETCORE_ENVIRONMENT`.
   operation from `SchedulerResource`.
 - **The misfire tile and Cluster page show what the store can answer**: a dash for no misfire feed, one node for a
   store with no check-in state. Neither is a count of zero.
-- **Typed editors are narrow**: cron trigger reschedules, job-data overrides, from 4.3 a trigger's details and,
-  from 4.9, calendars of the six built-in types. Building an arbitrary trigger from the UI is not offered, and a
+- **Typed editors are narrow**: job-data overrides, from 4.3 a trigger's details and, from 4.9, schedules of the
+  five built-in trigger kinds and calendars of the six built-in types. Building an arbitrary trigger from the UI is not offered, and a
   calendar's base calendars are kept rather than edited.
 - **It is a scheduler console, not a workflow tool.** Job dependencies, DAGs and business-process visualisation
   are outside what Quartz models.

@@ -10,9 +10,8 @@ using Quartz.Tests.AspNetCore.Support;
 namespace Quartz.Tests.AspNetCore.Dashboard.Components;
 
 /// <summary>
-/// The Trigger Detail page's <em>Upcoming cron fires</em>: the next five fires of the expression in the
-/// editor, as the trigger would have them once rescheduled to it, shown only once that expression is not the
-/// saved one.
+/// The Trigger Detail page's <em>Upcoming fires of the edit</em>: the next five fires of the schedule in the editor,
+/// as the trigger would have them once rescheduled to it, shown only once that schedule is not the saved one.
 /// </summary>
 /// <remarks>
 /// The context's clock reads 14:23 UTC on Monday 5 October 2026, and the dashboard shows times in UTC, so
@@ -20,7 +19,7 @@ namespace Quartz.Tests.AspNetCore.Dashboard.Components;
 /// trigger built without one takes from the machine's clock, is behind the context's. Each trigger is saved
 /// at 11:00 and edited to the expression whose fires the test reads.
 /// </remarks>
-public sealed class TriggerCronPreviewTest
+public sealed class TriggerSchedulePreviewTest
 {
     private const string TriggerGroup = "reports";
     private const string TriggerName = "nightly";
@@ -67,9 +66,9 @@ public sealed class TriggerCronPreviewTest
                 "2026-10-10 03:15:00 +00:00",
             ],
             "09:00 in Kathmandu is 03:15 UTC, and the trigger fires at 09:00 in its own zone, not the dashboard host's"));
-        page.Find(".qz-cron-next-fires li .qz-muted").TextContent.Should().Be("(in 12h)",
+        page.Find("[data-testid=schedule-preview-fires] li .qz-muted").TextContent.Should().Be("(in 12h)",
             "an upcoming fire is ahead of now, so it is said as how long until it rather than how long ago");
-        page.Find("[data-testid=cron-next-fires-basis]").TextContent.Should().Be(
+        page.Find("[data-testid=schedule-preview-basis]").TextContent.Should().Be(
             $"Read in {kathmandu.Id}, the trigger's time zone.",
             "the expression's hours are the trigger's zone's, which the times in the list are not");
     }
@@ -94,12 +93,12 @@ public sealed class TriggerCronPreviewTest
                 "2026-10-11 12:00:00 +00:00",
             ],
             "the trigger's calendar excludes 6 October, so the scheduler will not fire it then"));
-        page.Find("[data-testid=cron-next-fires-basis]").TextContent.Should().Be(
+        page.Find("[data-testid=schedule-preview-basis]").TextContent.Should().Be(
             "Read in UTC, the trigger's time zone, less what calendar 'holidays' excludes.");
     }
 
     /// <summary>
-    /// A calendar the page cannot read leaves the preview as the expression alone, said under the list,
+    /// A calendar the page cannot read leaves the preview as the schedule alone, said under the list,
     /// rather than failing a page whose every other part was read.
     /// </summary>
     [Test]
@@ -114,14 +113,14 @@ public sealed class TriggerCronPreviewTest
 
         page.WaitForAssertion(() => FireTimes(page).Should().HaveCount(5)
             .And.StartWith("2026-10-06 12:00:00 +00:00"));
-        page.Find("[data-testid=cron-next-fires-calendar]").TextContent.Should().Be(
+        page.Find("[data-testid=schedule-preview-calendar]").TextContent.Should().Be(
             "Calendar 'holidays' could not be read, so these times include any it excludes. "
             + "Calendar 'holidays' was not found in scheduler 'TestScheduler'.");
         page.FindAll(".qz-error-alert").Should().BeEmpty("the trigger was read, and the preview without its calendar still says something true");
     }
 
     /// <summary>
-    /// The saved expression's fires are <em>Upcoming fires</em>, so a preview of it would be the same list
+    /// The saved schedule's fires are <em>Upcoming fires</em>, so a preview of it would be the same list
     /// twice, under a heading that says something else.
     /// </summary>
     [Test]
@@ -133,12 +132,11 @@ public sealed class TriggerCronPreviewTest
 
         page.WaitForAssertion(() => page.Find("#trigger-cron-expression").GetAttribute("value").Should().Be(Saved));
         page.Markup.Should().Contain("Upcoming fires", "the saved schedule's fires are listed there");
-        page.Markup.Should().NotContain("Upcoming cron fires", "nothing has been edited, so a preview would repeat Upcoming fires");
-        page.FindAll(".qz-cron-next-fires").Should().BeEmpty();
+        page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty("nothing has been edited, so a preview would repeat Upcoming fires");
 
         Edit(page, "  " + Saved + " ");
 
-        page.FindAll(".qz-cron-next-fires").Should().BeEmpty(
+        page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty(
             "the editor's expression, trimmed, is still the saved one");
     }
 
@@ -153,8 +151,7 @@ public sealed class TriggerCronPreviewTest
         page.WaitForAssertion(() => page.Markup.Should().Contain("Upcoming fires",
             "a read-only dashboard still lists the saved schedule's fires"));
         page.FindAll("#trigger-cron-expression").Should().BeEmpty("a read-only dashboard has no editor");
-        page.Markup.Should().NotContain("Upcoming cron fires", "with no editor there is no edited expression to preview");
-        page.FindAll(".qz-cron-next-fires").Should().BeEmpty();
+        page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty("with no editor there is no edited schedule to preview");
     }
 
     [Test]
@@ -163,7 +160,7 @@ public sealed class TriggerCronPreviewTest
         GivenTrigger(Cron(Saved, TimeZoneInfo.Utc));
         IRenderedComponent<TriggerDetail> page = Render();
         page.WaitForAssertion(() => page.Find("#trigger-cron-expression").GetAttribute("value").Should().Be(Saved));
-        page.FindAll(".qz-cron-next-fires").Should().BeEmpty("nothing has been edited yet");
+        page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty("nothing has been edited yet");
 
         Edit(page, "0 30 6 * * ?");
 
@@ -176,19 +173,21 @@ public sealed class TriggerCronPreviewTest
                 "2026-10-10 06:30:00 +00:00",
             ],
             "the preview is there to show what the edited expression means before anybody saves it"));
-        page.Find("[data-testid=cron-preview-unsaved]").TextContent.Should().Be("Of the edited expression, which is not saved yet.");
+        page.Find("[data-testid=schedule-preview-unsaved]").TextContent.Should().Be("Of the edited schedule, which is not saved yet.");
+        page.Find("[data-testid=schedule-preview-description]").TextContent.Should().Be("Every day at 06:30 (UTC)",
+            "the edit is said in words, as the saved schedule is");
         A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
 
-        page.FindAll("button").Single(button => button.TextContent.Trim() == "Reset").Click();
+        page.Find("button.qz-schedule-reset").Click();
 
-        page.WaitForAssertion(() => page.FindAll(".qz-cron-next-fires").Should().BeEmpty(
+        page.WaitForAssertion(() => page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty(
             "resetting the editor puts the saved expression back, whose fires are Upcoming fires"));
-        page.FindAll("[data-testid=cron-preview-unsaved]").Should().BeEmpty();
+        page.FindAll("[data-testid=schedule-preview-unsaved]").Should().BeEmpty();
     }
 
     [Test]
-    public void AnEditedExpressionThatDoesNotParseShowsTheErrorInPlaceOfTheList()
+    public void AnEditedExpressionThatDoesNotParseSaysWhyBesideTheFieldAndListsNothing()
     {
         GivenTrigger(Cron(Saved, TimeZoneInfo.Utc));
         IRenderedComponent<TriggerDetail> page = Render();
@@ -197,40 +196,41 @@ public sealed class TriggerCronPreviewTest
 
         page.WaitForAssertion(() =>
         {
-            page.Find(".qz-cron-next-fires .qz-error-alert").TextContent.Should().StartWith("Invalid cron expression: ",
+            page.Find("[data-testid=schedule-cron-error]").TextContent.Should().StartWith("Invalid cron expression: ",
                 "an expression that does not parse has no fire times, and the reader needs to know why");
+            page.FindAll("[data-testid=schedule-preview-none]").Should().ContainSingle();
             FireTimes(page).Should().BeEmpty("the saved expression's fires would read as the edited one's");
         });
     }
 
     /// <summary>
-    /// The save parses the expression too, and an exception out of a click handler ends the circuit.
+    /// The save builds the schedule too, and posts nothing it could not build: the reason is already beside the field.
     /// </summary>
     [Test]
-    public void SavingAnExpressionThatDoesNotParseSaysWhyAndPostsNothing()
+    public void SavingAnExpressionThatDoesNotParsePostsNothing()
     {
         GivenTrigger(Cron(Saved, TimeZoneInfo.Utc));
         IRenderedComponent<TriggerDetail> page = Render();
 
         Edit(page, "0 0 25 * * ?");
-        page.Find("button.qz-button-primary").Click();
+        page.Find("button.qz-schedule-save").Click();
 
-        page.WaitForAssertion(() => context.Toasts.Messages.Should().ContainSingle()
-            .Which.Message.Should().StartWith("Invalid cron expression: ",
-                "the reader is told why nothing was saved, as the preview already told them why it shows nothing"));
+        page.WaitForAssertion(() => page.Find("[data-testid=schedule-cron-error]"));
+        page.FindAll("[data-testid=reschedule-dialog]").Should().BeEmpty("nothing valid was built, so there is nothing to confirm");
         A.CallTo(() => context.Api.RescheduleJob(A<string>._, A<TriggerKeyDto>._, A<RescheduleRequest>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
     [Test]
-    public void ATriggerThatHasEndedHasNoUpcomingFires()
+    public void ATriggerThatHasEndedIsNotRescheduled()
     {
         GivenTrigger(Cron(Saved, TimeZoneInfo.Utc, endAt: new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero)));
 
         IRenderedComponent<TriggerDetail> page = Render();
         Edit(page, "0 0 12 * * ?");
 
-        page.WaitForAssertion(() => page.Find(".qz-cron-next-fires").TextContent.Should().Contain("No upcoming fire times.",
+        page.WaitForAssertion(() => page.Find("[data-testid=schedule-error]").TextContent.Should().Be(
+            "This schedule does not fire again after now.",
             "the trigger's end time is part of its schedule, and it has passed"));
         FireTimes(page).Should().BeEmpty();
     }
@@ -249,7 +249,7 @@ public sealed class TriggerCronPreviewTest
 
     /// <summary>
     /// A cron trigger of a type the page cannot clone has a schedule only its own type knows how to
-    /// advance, so the page says it cannot preview it rather than guess with a stand-in.
+    /// advance, so the page offers no editor and no preview rather than guess with a stand-in.
     /// </summary>
     [Test]
     public void ATriggerThePageCannotCloneIsNotPreviewed()
@@ -260,10 +260,9 @@ public sealed class TriggerCronPreviewTest
         GivenTrigger(foreignCronTrigger);
 
         IRenderedComponent<TriggerDetail> page = Render();
-        Edit(page, "0 0 12 * * ?");
 
-        page.WaitForAssertion(() => page.Find(".qz-cron-next-fires").TextContent.Trim().Should()
-            .Be("The dashboard cannot preview this trigger's fire times."));
+        page.WaitForAssertion(() => page.Find("[data-testid=schedule-editor-refused]"));
+        page.FindAll("[data-testid=schedule-preview]").Should().BeEmpty();
     }
 
     private static ITrigger Cron(
@@ -285,13 +284,13 @@ public sealed class TriggerCronPreviewTest
 
     private static List<string> FireTimes(IRenderedComponent<TriggerDetail> page)
     {
-        return [.. page.FindAll(".qz-cron-next-fires li > span:first-child").Select(time => time.TextContent)];
+        return [.. page.FindAll("[data-testid=schedule-preview-fires] li > span:first-child").Select(time => time.TextContent)];
     }
 
     /// <summary>Types <paramref name="expression" /> into the cron editor, once the page has rendered it.</summary>
     private static void Edit(IRenderedComponent<TriggerDetail> page, string expression)
     {
-        page.WaitForElement("#trigger-cron-expression").Change(expression);
+        page.WaitForElement("#trigger-cron-expression").Input(expression);
     }
 
     private void GivenTrigger(ITrigger trigger)
