@@ -373,6 +373,8 @@ public class SharedComponentsTest
             "below 1280px Details gives the key its width, since the whole row opens the job");
         css.Should().MatchRegex(@"@media \(max-width: 1439px\) \{\s*\.qz-jobs-table \.qz-col-last-success \{\s*display: none;",
             "below 1440px Last success does, so the key keeps about 18rem");
+        css.Should().MatchRegex(@"@media \(min-width: 768px\) and \(max-width: 939px\) \{\s*\.qz-jobs-table \{\s*min-width: 0;",
+            "from a 768px window the table fits its card, its action buttons stacked, rather than scrolling in it");
         NarrowMinWidth(css, 1024, ".qz-history-table").Should().BeGreaterThanOrEqualTo(584 + 2 * 120,
             "the job's and the trigger's keys keep their width and the table scrolls instead");
 
