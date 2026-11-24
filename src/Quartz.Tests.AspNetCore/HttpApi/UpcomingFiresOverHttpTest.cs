@@ -143,6 +143,29 @@ public sealed class UpcomingFiresOverHttpTest
 
         above.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await above.Content.ReadAsStringAsync()).Should().Contain("the server's MaxPageSize");
+
+        using HttpResponseMessage none = await api.Get(Window(start, start.AddHours(2)) + "&take=0");
+        none.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await none.Content.ReadAsStringAsync()).Should().Contain("take must be from 1 to 2, was 0", "the refusal names the most this server answers");
+    }
+
+    /// <summary>
+    /// The dashboard asks for the most fires an answer holds, and a host whose page cap is lower answers as many as
+    /// it allows, cut, rather than refuse a request no narrower window could make acceptable.
+    /// </summary>
+    [Test]
+    public async Task HttpSchedulerAskingForTheMostIsAnsweredWithAsManyAsTheHostAllows()
+    {
+        Api api = await StartApi(maxPageSize: 2);
+        RequestCounter counter = new();
+        await using HttpScheduler client = new(api.SchedulerName, api.Factory.CreateDefaultClient(counter));
+
+        UpcomingFiresOutcome outcome = await UpcomingFires.Query(client, new UpcomingFiresQuery(start, start.AddHours(2), null, UpcomingFires.MaxTake), CancellationToken.None);
+
+        outcome.Refusal.Should().BeNull("the most is a request for as many as the host answers");
+        outcome.Result!.Fires.Should().HaveCount(2);
+        outcome.Result.CutAtUtc.Should().Be(start.AddMinutes(50), "the cut says where the host's cap fell");
+        counter.Requests.Should().ContainSingle().Which.Should().Contain("take=all");
     }
 
     [Test]

@@ -888,6 +888,8 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     /// <para>
     /// The answers are an in-process call's: the host's refusal, with the host's words and decided by the host's
     /// clock, comes back as the outcome's refusal, which the dashboard raises as an <see cref="ArgumentException" />.
+    /// The most fires an answer holds is asked for as <c>all</c>, so a host with a lower <c>MaxPageSize</c> answers
+    /// that many, cut.
     /// </para>
     /// <para>
     /// A host older than 4.9, or an agent that does not serve the route, answers <c>404</c> without problem details.
@@ -907,7 +909,17 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
             parameters.Add("from", from.ToString("O", CultureInfo.InvariantCulture));
         }
         parameters.Add("to", query.To.ToString("O", CultureInfo.InvariantCulture));
-        parameters.Add("take", query.Take);
+
+        // The most an answer holds travels as all, as a listing's every match does: a host whose MaxPageSize is
+        // lower answers as many as it allows, cut, where the number would be refused.
+        if (query.Take >= UpcomingFires.MaxTake)
+        {
+            parameters.Add("take", HttpApiConstants.AllItems);
+        }
+        else
+        {
+            parameters.Add("take", query.Take);
+        }
         if (!string.IsNullOrEmpty(query.GroupContains))
         {
             parameters.Add("groupContains", query.GroupContains);
