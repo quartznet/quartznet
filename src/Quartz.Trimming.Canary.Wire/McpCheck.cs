@@ -58,6 +58,7 @@ internal static class McpCheck
             ("tools-list", () => ToolsList(siteRoot, cancellationToken)),
             ("list-jobs", () => ListJobs(siteRoot, cancellationToken)),
             ("pause-trigger", () => PauseTrigger(host, siteRoot, cancellationToken)),
+            ("reschedule-confirmed", () => RescheduleConfirmed(host, siteRoot, cancellationToken)),
         ];
 
         return CanarySteps.Run("mcp", steps);
@@ -126,6 +127,38 @@ internal static class McpCheck
         Expect(pause is { Reason: "canary pause", RequestedBy: "canary via MCP" }, $"the pause recorded {pause?.Reason} by {pause?.RequestedBy}.");
 
         return "pause_trigger pauses the trigger under the operation policy, and the pause says why and who, via MCP";
+    }
+
+    /// <summary>
+    /// A destructive tool's two calls: the preview, whose confirmation token Data Protection protects with its
+    /// time-limited protector, and the confirmed call, which unprotects the token, reads the payload back through
+    /// <c>McpJsonContext</c>, checks it against the call and the trigger's state, and applies.
+    /// </summary>
+    private static async Task<string> RescheduleConfirmed(IServiceProvider host, Uri siteRoot, CancellationToken cancellationToken)
+    {
+        const string Cron = "0 0 3 * * ?";
+        string arguments = $"\"scheduler\":\"{Program.SchedulerName}\",\"group\":\"{JobGroup}\",\"name\":\"{TriggerName}\",\"cronExpression\":\"{Cron}\",\"timeZone\":\"UTC\"";
+
+        JsonElement preview = Answer(await Call(siteRoot, ToolCall(4, "reschedule", "{" + arguments + "}"), cancellationToken).ConfigureAwait(false), "reschedule preview");
+        Expect(preview.GetProperty("applied").GetBoolean() == false, $"the preview applied something: {preview}");
+        string token = preview.GetProperty("confirmationToken").GetString()
+                       ?? throw new CanaryFailedException($"the preview carries no confirmation token: {preview}");
+
+        IScheduler scheduler = await host.GetRequiredService<ISchedulerFactory>().GetScheduler(cancellationToken).ConfigureAwait(false);
+        TriggerKey key = new(TriggerName, JobGroup);
+        Expect(await scheduler.GetTrigger(key, cancellationToken).ConfigureAwait(false) is ISimpleTrigger, "the preview changed the trigger.");
+
+        string confirm = ToolCall(5, "reschedule", "{" + arguments + ",\"confirmationToken\":\"" + token + "\"}");
+        JsonElement applied = Answer(await Call(siteRoot, confirm, cancellationToken).ConfigureAwait(false), "reschedule confirmed");
+        Expect(applied.GetProperty("applied").GetBoolean(), $"the confirmed reschedule was not applied: {applied}");
+
+        ITrigger? rescheduled = await scheduler.GetTrigger(key, cancellationToken).ConfigureAwait(false);
+        Expect(rescheduled is ICronTrigger { CronExpressionString: Cron }, $"the trigger is {rescheduled?.GetType().Name} after the confirmed reschedule.");
+
+        JsonElement replay = await Call(siteRoot, confirm, cancellationToken).ConfigureAwait(false);
+        Expect(replay.TryGetProperty("isError", out JsonElement isError) && isError.ValueKind == JsonValueKind.True, $"a replayed confirmation was not refused: {replay}");
+
+        return "reschedule previews with a Data Protection token, applies when confirmed with it, and refuses the token a second time";
     }
 
     /// <summary>

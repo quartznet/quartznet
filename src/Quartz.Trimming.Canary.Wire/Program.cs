@@ -90,7 +90,7 @@ internal static class Program
         }
 
         Console.WriteLine(passed
-            ? "Quartz.Trimming.Canary.Wire: a scheduler served by Quartz.AspNetCore under an operation policy is scheduled, read, paused, resumed, triggered, watched and asked for its history through Quartz.HttpClient, which also reads a newer host's names, and refuses a viewer a change; Quartz.Mcp lists its tools, lists the jobs and pauses a trigger over JSON-RPC; and a second scheduler dials out through Quartz.Dashboard.Agent, registers, heartbeats, is read, scheduled, triggered and watched down the tunnel, refuses what it was told to, and says goodbye."
+            ? "Quartz.Trimming.Canary.Wire: a scheduler served by Quartz.AspNetCore under an operation policy is scheduled, read, paused, resumed, triggered, watched and asked for its history through Quartz.HttpClient, which also reads a newer host's names, and refuses a viewer a change; Quartz.Mcp lists its tools, lists the jobs, pauses a trigger and reschedules it with a confirmation token over JSON-RPC; and a second scheduler dials out through Quartz.Dashboard.Agent, registers, heartbeats, is read, scheduled, triggered and watched down the tunnel, refuses what it was told to, and says goodbye."
             : "Quartz.Trimming.Canary.Wire: a step failed.");
 
         return passed ? 0 : 1;
