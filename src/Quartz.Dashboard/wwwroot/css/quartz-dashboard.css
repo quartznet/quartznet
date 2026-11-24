@@ -673,6 +673,12 @@
     text-overflow: ellipsis;
 }
 
+/* The badge marks a break opportunity between each two of a key's words, and Chromium breaks at a <wbr> even under
+   white-space: nowrap. A key keeps one line except in a listing, which switches them back on. */
+.qz-key-badge-value wbr {
+    display: none;
+}
+
 .qz-key-badge-copy {
     border: 0;
     border-left: 1px solid var(--qz-color-border);
@@ -1291,6 +1297,10 @@
     white-space: normal;
     overflow-wrap: anywhere;
     text-overflow: clip;
+}
+
+.qz-entity-table td.qz-col-key .qz-key-badge-value wbr {
+    display: inline;
 }
 
 .qz-entity-table td.qz-col-actions {

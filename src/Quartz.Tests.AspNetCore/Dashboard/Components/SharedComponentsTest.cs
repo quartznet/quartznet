@@ -62,6 +62,22 @@ public class SharedComponentsTest
     }
 
     /// <summary>
+    /// Every key badge carries its break opportunities, and Chromium breaks at a <c>&lt;wbr&gt;</c> even under
+    /// <c>white-space: nowrap</c>: History's keys wrapped into columns narrower than a word and lost its end to an
+    /// ellipsis. The stylesheet switches them off, and back on in the Jobs and Triggers listings.
+    /// </summary>
+    [Test]
+    public void OnlyAListingBreaksAKeyBetweenItsWords()
+    {
+        string css = File.ReadAllText(DashboardStylesheet());
+
+        Rule(css, ".qz-key-badge-value wbr").Should().Contain("display: none;",
+            "a key outside a listing keeps one line, which Chromium does not grant a <wbr> under nowrap");
+        Rule(css, ".qz-entity-table td.qz-col-key .qz-key-badge-value wbr").Should().Contain("display: inline;",
+            "a listing breaks a long key between its words");
+    }
+
+    /// <summary>
     /// Where a key may break: after a separator, which stays on the line it ends; before a capital that follows a
     /// lower-case letter or a digit; and before the last capital of an upper-case run, so an acronym stays whole.
     /// </summary>
