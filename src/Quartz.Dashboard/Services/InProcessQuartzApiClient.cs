@@ -1032,6 +1032,23 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     }
 
     /// <remarks>
+    /// Read from the store the history is read from, as the job statuses are: a scheduler in another process is
+    /// answered by its host, in one request for the page's triggers. A store that keeps no trigger status raises
+    /// <see cref="NotSupportedException" />, as the interface's default does.
+    /// </remarks>
+    public async ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        await AuthorizeKey(query.SchedulerName, cancellationToken).ConfigureAwait(false);
+
+        (IExecutionHistoryStore store, string schedulerName) = HistoryFor(query.SchedulerName);
+        return await store
+            .QueryTriggerRunStatuses(query with { SchedulerName = schedulerName }, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <remarks>
     /// Read from the store the history is read from, as the listing is, so a chart counts the rows its page
     /// lists. A scheduler in another process is counted by its host.
     /// </remarks>

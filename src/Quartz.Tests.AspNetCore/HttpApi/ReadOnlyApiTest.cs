@@ -82,6 +82,9 @@ public sealed class ReadOnlyApiTest
             await Row(HttpMethod.Post, $"{SchedulerUrl}/history/job-status/fetch", HttpStatusCode.OK,
                 requestJson: """{"jobs":[{"name":"existing","group":"group"}]}""",
                 because: "reading a set of jobs' run statuses changes nothing, so a dashboard fed by a read-only API can show them");
+            await Row(HttpMethod.Post, $"{SchedulerUrl}/history/trigger-status/fetch", HttpStatusCode.OK,
+                requestJson: """{"triggers":[{"name":"existing","group":"group"}]}""",
+                because: "and neither does reading a page of triggers' run statuses, which the Triggers listing does on every load");
         }
     }
 
@@ -136,7 +139,7 @@ public sealed class ReadOnlyApiTest
     }
 
     /// <summary>
-    /// Every route that is not a <c>GET</c> is marked as a mutation, or is one of the three reads that
+    /// Every route that is not a <c>GET</c> is marked as a mutation, or is one of the four reads that
     /// take a body.
     /// </summary>
     /// <remarks>
@@ -170,9 +173,10 @@ public sealed class ReadOnlyApiTest
             [
                 "POST /quartz-api/schedulers/{schedulerName}/jobs/fetch",
                 "POST /quartz-api/schedulers/{schedulerName}/triggers/fetch",
-                "POST /quartz-api/schedulers/{schedulerName}/history/job-status/fetch"
+                "POST /quartz-api/schedulers/{schedulerName}/history/job-status/fetch",
+                "POST /quartz-api/schedulers/{schedulerName}/history/trigger-status/fetch"
             ],
-            "the three fetches are the only routes that take a body without changing anything - every other "
+            "the four fetches are the only routes that take a body without changing anything - every other "
             + "non-GET route has to carry the marker, or QuartzHttpApiOptions.ReadOnly leaves it writable");
     }
 

@@ -336,19 +336,28 @@ internal sealed class ExecutionHistoryStoreOverDashboardStore : IExecutionHistor
     /// <exception cref="NotSupportedException">Always.</exception>
     public ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
     {
-        throw NoJobRunStatus();
+        throw NoRunStatus("per-job");
     }
 
     /// <inheritdoc cref="QueryJobRunStatuses" />
     public ValueTask<JobRunStatus?> GetJobRunStatus(string schedulerName, JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        throw NoJobRunStatus();
+        throw NoRunStatus("per-job");
     }
 
-    private NotSupportedException NoJobRunStatus()
+    /// <summary>
+    /// Not supported: an <see cref="IDashboardHistoryStore" /> keeps no per-trigger status.
+    /// </summary>
+    /// <exception cref="NotSupportedException">Always.</exception>
+    public ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        throw NoRunStatus("per-trigger");
+    }
+
+    private NotSupportedException NoRunStatus(string kind)
     {
         return new NotSupportedException(
             $"The execution history is kept by the application's {nameof(IDashboardHistoryStore)}, {inner.GetType().Name}, "
-            + $"which keeps no per-job run status. Register an {nameof(IExecutionHistoryStore)} instead to read one.");
+            + $"which keeps no {kind} run status. Register an {nameof(IExecutionHistoryStore)} instead to read one.");
     }
 }

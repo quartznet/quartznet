@@ -772,6 +772,31 @@ public interface IQuartzApiClient
     }
 
     /// <summary>
+    /// One page of the scheduler's per-trigger run statuses — each trigger's last run, and how many of its
+    /// occurrences in a row have failed — by trigger group and then name, as
+    /// <see cref="Extensibility.IExecutionHistoryStore.QueryTriggerRunStatuses" /> answers it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Triggers page reads, once per page and per refresh, naming the page's triggers in
+    /// <see cref="TriggerRunStatusQuery.Triggers" />, for its last-run column. A trigger with no recorded run is
+    /// absent. A history that keeps no per-trigger status, or a host older than 4.9, raises
+    /// <see cref="NotSupportedException" />, and the page leaves the column out.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.9. The default reports the datum as unavailable with
+    /// <see cref="NotSupportedException" />.
+    /// </para>
+    /// </remarks>
+    /// <param name="query">Which statuses to return, and how many.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<PagedResult<TriggerRunStatus>>(new NotSupportedException(
+            "This dashboard's data source cannot read triggers' run statuses: its IQuartzApiClient does not implement QueryTriggerRunStatuses."));
+    }
+
+    /// <summary>
     /// The scheduler's runs, counted by result and timed in buckets of fire time, as
     /// <see cref="Extensibility.IExecutionHistoryStore.QueryExecutionStatistics" /> answers it.
     /// </summary>

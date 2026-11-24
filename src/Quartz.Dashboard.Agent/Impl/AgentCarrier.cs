@@ -366,6 +366,14 @@ internal sealed class AgentCarrier
             AssertKeysToFetch(request.Jobs);
             return call.Json(Served(() => SchedulerOperations.FetchJobRunStatuses(call.Scheduler, call.Carrier.History(), request, call.Token)));
         };
+        handlers[SchedulerRoutes.QueryTriggerRunStatuses] = call => call.Json(Served(() => SchedulerOperations.QueryTriggerRunStatuses(
+            call.Scheduler, call.Carrier.History(), call.Listing(), call.Query.GetNullableBool("failing"), call.Token)));
+        handlers[SchedulerRoutes.FetchTriggerRunStatuses] = call =>
+        {
+            TriggerKeySetRequest request = call.Body<TriggerKeySetRequest>();
+            AssertKeysToFetch(request.Triggers);
+            return call.Json(Served(() => SchedulerOperations.FetchTriggerRunStatuses(call.Scheduler, call.Carrier.History(), request, call.Token)));
+        };
         handlers[SchedulerRoutes.QueryExecutionStatistics] = call => call.Json(Served(() => SchedulerOperations.QueryExecutionStatistics(
             call.Scheduler, call.Carrier.History(), call.Query.Get(SchedulerInstanceIdParameter), call.Query.Get("jobContains"),
             call.Query.Get("triggerContains"), call.Query.GetNullableBool("failedFinally"), call.HistoryFilters(),

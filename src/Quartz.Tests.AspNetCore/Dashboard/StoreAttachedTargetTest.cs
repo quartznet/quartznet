@@ -196,6 +196,14 @@ public sealed class StoreAttachedTargetTest
             .Items.Should().ContainSingle().Which.Job.Name.Should().Be("import");
         (await client.QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = window.Key, Failing = true }))
             .Items.Should().BeEmpty("the one run recorded succeeded");
+
+        PagedResult<TriggerRunStatus> triggers = await client.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = window.Key,
+            Triggers = [new TriggerKey("at-midnight", "nightly")]
+        });
+        triggers.Items.Should().ContainSingle("the trigger statuses are keyed by the scheduler's own name too")
+            .Which.SchedulerName.Should().Be(ClusterScheduler);
     }
 
     /// <summary>
@@ -254,6 +262,37 @@ public sealed class StoreAttachedTargetTest
         checks.Single(check => check.Name == "Job group").Text.Should().StartWith("'batch' is paused by finance at").And.Contain("(quarter close)");
         checks.Single(check => check.Name == "Its job's firings").Text.Should().StartWith("One running: on node " + NodeA,
             "the job filter finds the firing the node wrote for this job, and not node-b's of another");
+    }
+
+    /// <summary>
+    /// A window whose database has no trigger status table, which the window validated when it opened but which is
+    /// gone now: the read says so with <see cref="NotSupportedException" />, which the Triggers listing answers by
+    /// leaving its last-run column out, rather than failing the page.
+    /// </summary>
+    [Test]
+    public async Task AWindowOntoADatabaseWithoutTheTriggerStatusTableSaysWhichScriptCreatesIt()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+        SchedulerHeaderDto window = (await dashboard.Client.GetSchedulers()).Should().ContainSingle(x => x.SchedulerName == ClusterScheduler).Subject;
+
+        using (SqliteConnection connection = new(database.ConnectionString))
+        {
+            connection.Open();
+            using SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE QRTZ_TRIGGER_STATUS";
+            command.ExecuteNonQuery();
+        }
+
+        Func<Task> read = async () => await dashboard.Client.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = window.Key,
+            Triggers = [new TriggerKey("at-midnight", "nightly")]
+        });
+
+        await read.Should().ThrowAsync<NotSupportedException>().WithMessage("*QRTZ_TRIGGER_STATUS*4.9/add_trigger_status_sqlite.sql*");
     }
 
     [Test]

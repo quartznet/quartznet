@@ -98,6 +98,7 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(PagedResultDto<string>))]
 [JsonSerializable(typeof(PagedResultDto<TriggerGroupDto>))]
 [JsonSerializable(typeof(PagedResultDto<TriggerHeaderDto>))]
+[JsonSerializable(typeof(PagedResultDto<TriggerRunStatusDto>))]
 [JsonSerializable(typeof(ProblemDetailsDto))]
 [JsonSerializable(typeof(RescheduleJobResponse))]
 [JsonSerializable(typeof(ScheduleJobResponse))]
@@ -107,6 +108,8 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(SchedulerEventKind))]
 [JsonSerializable(typeof(SchedulerHeaderDto[]))]
 [JsonSerializable(typeof(TriggerFireTimesResponse))]
+[JsonSerializable(typeof(TriggerRunStatusDto))]
+[JsonSerializable(typeof(TriggerRunStatusDto[]))]
 [JsonSerializable(typeof(TriggerStateDto))]
 
 // The dashboard agent's hub payloads, which carry the bodies above as bytes.

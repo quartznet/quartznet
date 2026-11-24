@@ -77,6 +77,7 @@ public class WireFormatSourceGenerationTest
         yield return typeof(PagedResultDto<string>);
         yield return typeof(PagedResultDto<TriggerGroupDto>);
         yield return typeof(PagedResultDto<TriggerHeaderDto>);
+        yield return typeof(PagedResultDto<TriggerRunStatusDto>);
     }
 
     [TestCaseSource(nameof(ContractTypes))]

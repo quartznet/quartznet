@@ -279,6 +279,22 @@ public class NewerHostNamesTest
     }
 
     [Test]
+    public async Task ATriggerRunStatusWhoseResultThisClientDoesNotKnowIsLeftOut()
+    {
+        handler.Respond($"[{TriggerStatus("a", "TimedOut")}, {TriggerStatus("b", "Failed")}]");
+
+        PagedResult<TriggerRunStatus> page = await History().QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = "Remote",
+            Triggers = [new TriggerKey("a", "g"), new TriggerKey("b", "g")]
+        });
+
+        page.Items.Should().ContainSingle().Which.Trigger.Should().Be(new TriggerKey("b", "g"),
+            "a result this client cannot name would be read as some other result, so the row is left out");
+        LeftOut().Should().ContainSingle().Which.Message.Should().Contain("Left a trigger run status out");
+    }
+
+    [Test]
     public async Task OneJobRunStatusWhoseResultThisClientDoesNotKnowFailsTheRead()
     {
         handler.Respond(Status("a", "TimedOut"));
@@ -405,6 +421,10 @@ public class NewerHostNamesTest
 
     private static string Status(string job, string lastResult) => $$"""
         { "job": { "name": "{{job}}", "group": "g" }, "lastFiredAtUtc": "2026-10-05T00:00:00+00:00", "lastResult": "{{lastResult}}" }
+        """;
+
+    private static string TriggerStatus(string trigger, string lastResult) => $$"""
+        { "trigger": { "name": "{{trigger}}", "group": "g" }, "lastFiredAtUtc": "2026-10-05T00:00:00+00:00", "lastResult": "{{lastResult}}" }
         """;
 
     private static string SchedulerDetails(string status) => $$"""

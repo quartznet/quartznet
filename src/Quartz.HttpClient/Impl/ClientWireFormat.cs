@@ -95,6 +95,7 @@ internal static class ClientWireFormat
         options.Converters.Add(new ListingItemsConverter<ClusterNodeDto>(unknownNames, "cluster node"));
         options.Converters.Add(new ListingItemsConverter<MisfireHistoryEntryDto>(unknownNames, "misfire"));
         options.Converters.Add(new ListingItemsConverter<JobRunStatusDto>(unknownNames, "job run status"));
+        options.Converters.Add(new ListingItemsConverter<TriggerRunStatusDto>(unknownNames, "trigger run status"));
         options.Converters.Add(new ListingItemsConverter<SchedulerHeaderDto>(unknownNames, "scheduler"));
 
         return options.ConfigureWireFormat(registry);

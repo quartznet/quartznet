@@ -689,6 +689,108 @@ public sealed class HistoryEndpointsTest
         await read.Should().ThrowAsync<NotSupportedException>().WithMessage("*keeps no per-job run status*");
     }
 
+    [Test]
+    public async Task TriggerStatusesAreListedByTriggerAndCanBeNarrowedToTheFailingOnes()
+    {
+        await SeedTriggerStatuses();
+
+        PagedResultDto<TriggerRunStatusDto> all = await Read<PagedResultDto<TriggerRunStatusDto>>(
+            $"{SchedulerUrl}/history/trigger-status?includeTotalCount=true");
+        all.Items.Select(status => status.Trigger.Name).Should().Equal(["daily", "hourly"], "statuses are listed by group and then name");
+        all.TotalCount.Should().Be(2);
+
+        TriggerRunStatusDto failing = (await Read<PagedResultDto<TriggerRunStatusDto>>($"{SchedulerUrl}/history/trigger-status?failing=true"))
+            .Items.Should().ContainSingle().Subject;
+        failing.Trigger.Name.Should().Be("hourly", "one schedule of the job is failing and the other is not");
+        failing.ConsecutiveFailures.Should().Be(2);
+        failing.LastFailureMessage.Should().Be("the upstream system is down");
+
+        PagedResultDto<TriggerRunStatusDto> first = await Read<PagedResultDto<TriggerRunStatusDto>>($"{SchedulerUrl}/history/trigger-status?take=1");
+        first.Items.Should().ContainSingle().Which.Trigger.Name.Should().Be("daily");
+        first.HasMore.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ASetOfTriggersHasItsStatusesFetchedInOneRequestOfAtMostAThousandKeys()
+    {
+        await SeedTriggerStatuses();
+
+        string thousand = string.Join(",", Enumerable.Range(0, 999).Select(index => $$"""{"name":"trigger{{index}}","group":"DummyTriggerGroup"}""")
+            .Append("""{"name":"hourly","group":"DummyTriggerGroup"}"""));
+        using StringContent keys = new("{\"triggers\":[" + thousand + "]}", System.Text.Encoding.UTF8, "application/json");
+        using HttpResponseMessage response = await client.PostAsync($"{SchedulerUrl}/history/trigger-status/fetch", keys);
+
+        response.EnsureSuccessStatusCode();
+        TriggerRunStatusDto[] statuses = JsonSerializer.Deserialize<TriggerRunStatusDto[]>(
+            await response.Content.ReadAsStringAsync(),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web).ConfigureWireFormat(new SystemTextJsonSerializerRegistry()))!;
+        statuses.Should().ContainSingle("a thousand keys is what one request takes, and a trigger with no recorded run is left out")
+            .Which.Trigger.Name.Should().Be("hourly");
+
+        string tooMany = string.Join(",", Enumerable.Range(0, 1001).Select(index => $$"""{"name":"trigger{{index}}","group":"g"}"""));
+        using StringContent body = new("{\"triggers\":[" + tooMany + "]}", System.Text.Encoding.UTF8, "application/json");
+        using HttpResponseMessage refused = await client.PostAsync($"{SchedulerUrl}/history/trigger-status/fetch", body);
+
+        refused.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest, "one request reads at most a thousand statuses, as a bulk fetch does");
+    }
+
+    /// <summary>
+    /// Through the HTTP-backed store, as a dashboard fronting the scheduler reads it: a page's triggers by key, and
+    /// the failing ones.
+    /// </summary>
+    [Test]
+    public async Task TheHttpBackedStoreReadsTriggerStatuses()
+    {
+        await SeedTriggerStatuses();
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, client);
+
+        PagedResult<TriggerRunStatus> named = await remote.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = TestData.SchedulerName,
+            Triggers = [new TriggerKey("hourly", "DummyTriggerGroup"), new TriggerKey("daily", "DummyTriggerGroup"), new TriggerKey("never-fired", "DummyTriggerGroup")]
+        });
+        named.Items.Select(status => status.Trigger.Name).Should().Equal(["daily", "hourly"]);
+        named.Items[1].ConsecutiveFailures.Should().Be(2);
+
+        (await remote.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = TestData.SchedulerName, Failing = true }))
+            .Items.Should().ContainSingle().Which.Trigger.Name.Should().Be("hourly");
+    }
+
+    /// <summary>
+    /// A host whose history store keeps no trigger status answers <c>501</c> naming
+    /// <see cref="NotSupportedException" />, which the HTTP-backed store raises again as that.
+    /// </summary>
+    [Test]
+    public async Task AStoreThatKeepsNoTriggerStatusIsAnsweredNotImplemented()
+    {
+        IExecutionHistoryStore rowsOnly = A.Fake<IExecutionHistoryStore>();
+        A.CallTo(() => rowsOnly.QueryTriggerRunStatuses(A<TriggerRunStatusQuery>._, A<CancellationToken>._)).CallsBaseMethod();
+
+        WebApplicationFactory<Program> factory = factories[0].WithWebHostBuilder(builder => builder.ConfigureTestServices(
+            services => services.AddSingleton(rowsOnly)));
+        factories.Add(factory);
+        using HttpClient rowsOnlyClient = factory.CreateClient();
+        BindAnsweringScheduler(factory);
+
+        using HttpResponseMessage response = await rowsOnlyClient.GetAsync($"{SchedulerUrl}/history/trigger-status");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotImplemented);
+        using (JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()))
+        {
+            body.RootElement.GetProperty(HttpApiConstants.ProblemDetailsExceptionType).GetString().Should().Be(nameof(NotSupportedException));
+            body.RootElement.GetProperty("detail").GetString().Should().Contain("keeps no per-trigger run status");
+        }
+
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, rowsOnlyClient);
+        Func<Task> read = async () => await remote.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = TestData.SchedulerName,
+            Triggers = [new TriggerKey("hourly", "DummyTriggerGroup")]
+        });
+        await read.Should().ThrowAsync<NotSupportedException>().WithMessage("*keeps no per-trigger run status*");
+    }
+
     /// <summary>
     /// The run statistics route counts what the history holds, narrowed as the listing is, in buckets of
     /// the size asked for.
@@ -908,6 +1010,17 @@ public sealed class HistoryEndpointsTest
         await history.AddExecution(Run(start, "sick", JobRunResult.Succeeded));
         await history.AddExecution(Run(start.AddMinutes(1), "sick", JobRunResult.Failed));
         await history.AddExecution(Run(start.AddMinutes(2), "sick", JobRunResult.Failed));
+    }
+
+    /// <summary>
+    /// One job, <c>report</c>, on two schedules: <c>daily</c> succeeded, and <c>hourly</c> failed for good twice.
+    /// </summary>
+    private async Task SeedTriggerStatuses()
+    {
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await history.AddExecution(Run(start, "report", JobRunResult.Succeeded) with { TriggerName = "daily" });
+        await history.AddExecution(Run(start, "report", JobRunResult.Failed) with { TriggerName = "hourly" });
+        await history.AddExecution(Run(start.AddMinutes(1), "report", JobRunResult.Failed) with { TriggerName = "hourly" });
     }
 
     /// <summary>
