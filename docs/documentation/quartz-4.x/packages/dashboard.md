@@ -781,9 +781,12 @@ this". From 4.4, a pause given a reason carries it in the message as `reason: â€
 
 - **Via** (4.9) says which surface: *Dashboard* for this dashboard's buttons, *HTTP API* for a request to the
   [HTTP API](http-api.md) mapped in the same process, including the [dashboard host's](dashboard-host.md#the-http-api),
-  and *MCP* for an MCP tool. Every API change and every refusal for a role is entered, with the caller's name and
-  the operation's name (`PauseTrigger`). A client that names itself is shown under the badge *as stated*: the
-  identity is the user. The **Via** filter above the table reads one surface alone.
+  and *MCP* for a tool of the [MCP endpoint](mcp.md). Every API change and every refusal for a role is entered, with
+  the caller's name and the operation's name (`PauseTrigger`); an MCP change and an MCP change refused are entered the
+  same way, and a read through MCP is not. A client that names itself is shown under the badge *as stated*, and in
+  the badge's tooltip: MCP's `clientInfo` (`claude-code/2.1`), or the `User-Agent`'s first product token. The client
+  is the client's own claim and decides nothing; the identity is the user. The **Via** filter above the table reads
+  one surface alone.
 - An API entry's message is what the dashboard's own button would have written: a pause's `reason: â€¦`, a
   backfill's range and slots, *with job data* on a trigger-now that carried some. An answer of `{ "applied": false }`,
   an interrupt that found nothing running, is entered as not done, as the dashboard enters one.

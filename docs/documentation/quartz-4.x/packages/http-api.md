@@ -1331,7 +1331,9 @@ builder.Services.AddQuartzHttpApi(options => options.OperationAuthorizationPolic
   they may do there, and `ReadOnly` bounds everybody.
 - A handler of your own is an `AuthorizationHandler<TRequirement, SchedulerResource>` reading
   `SchedulerResource.Operation` and `SchedulerResource.Access`. The [dashboard](dashboard.md#operator-roles) asks
-  its own `OperationAuthorizationPolicy` with the same resource, so one policy serves both.
+  its own `OperationAuthorizationPolicy` with the same resource, so one policy serves both. The
+  [MCP endpoint](mcp.md#roles) (4.9) asks the same policy by these route names, so an override moves an MCP tool
+  where it moves the route.
 - Setting it without authorization services in the container fails at startup. It authorizes and never
   authenticates: add `RequireAuthenticatedUser()` to the policy, or `RequireAuthorization()` on the mapping, to
   challenge an anonymous caller with a `401`.

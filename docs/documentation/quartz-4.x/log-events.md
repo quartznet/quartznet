@@ -456,6 +456,11 @@ matching on its text is not.
 | 9408 | Information | `Quartz.Dashboard.Host` | `"Store-attached target {Target} reads a {Provider} database with the {Serializer} serializer"` |
 | 9409 | Information | `Quartz.Dashboard.Host` | `"Accepting agents at {HubPath}. Run one instance of the host while it accepts agents"` |
 | 9410 | Warning | `Quartz.Dashboard.Host` | `"A bearer token presented to the HTTP API was refused: it matched no role"` |
+| 9500 | Information | `Quartz.Mcp` | `"MCP user {User} ({Client}) performed {Tool} on scheduler {SchedulerKey}: {Subject}"` |
+| 9501 | Warning | `Quartz.Mcp` | `"MCP user {User} was refused {Tool} on scheduler {SchedulerKey}: {Reason}"` |
+| 9502 | Warning | `Quartz.Mcp` | `"MCP user {User} was refused the confirmation of {Tool} on scheduler {SchedulerKey}: {Reason}"` |
+| 9503 | Warning | `Quartz.Mcp` | `"MCP user {User} was rate limited calling {Tool} on scheduler {SchedulerKey}: retry after {RetryAfterSeconds} s"` |
+| 9504 | Warning | `Quartz.Mcp` | `"MCP request refused: {Reason}"` |
 | 10000 | Information | `Quartz.Weasel` | `"Applied the schema changes scheduler '{SchedulerName}' needs to {Database} ({Difference})"` |
 | 10001 | Debug | `Quartz.Weasel` | `"The schema of scheduler '{SchedulerName}' in {Database} already matches the model"` |
 | 10002 | Information | `Quartz.Weasel` | `"Not applying the schema of scheduler '{SchedulerName}' at startup, because AutoCreate is {AutoCreate}; the store still validates it"` |
