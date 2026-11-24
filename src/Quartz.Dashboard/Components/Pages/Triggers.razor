@@ -359,7 +359,7 @@
     private string? _pendingGroup;
     private string? _pendingName;
     private string _pendingTriggerKey = string.Empty;
-    private BulkResult? _bulkResult;
+    private TriggerSelectionResult? _bulkResult;
 
     /// <summary>
     /// When the listing on screen was read, or <see langword="null" /> while it holds nothing read. Each
@@ -1143,20 +1143,6 @@
         _bulkResult = null;
     }
 
-    /// <summary>
-    /// The selection in a stable order: the order the listing shows keys in, group then name.
-    /// </summary>
-    private List<TriggerKeyDto> SelectedKeys()
-    {
-        List<TriggerKeyDto> keys = [.. _selected];
-        keys.Sort(static (left, right) =>
-        {
-            int byGroup = string.CompareOrdinal(left.Group, right.Group);
-            return byGroup != 0 ? byGroup : string.CompareOrdinal(left.Name, right.Name);
-        });
-        return keys;
-    }
-
     private void PromptPauseSelection()
     {
         int count = _selected.Count;
@@ -1168,28 +1154,14 @@
     /// <summary>
     /// Pauses the selection, with the one reason the prompt asked for once.
     /// </summary>
-    /// <remarks>
-    /// One call whatever the prompt was told — over HTTP one <c>…/triggers/keys/pause</c> request, carrying
-    /// the reason when there is one. A pause that says nothing is the reasonless key-set pause.
-    /// </remarks>
     private Task PauseSelectionAsync(string? reason)
     {
-        PauseDetails details = ActionLog.PauseDetailsFor(reason);
-        return ExecuteBulkAsync(
-            "PauseTrigger",
-            "Paused",
-            "not paused - it no longer exists or was already paused",
-            (schedulerName, keys) => Api.PauseTriggersWith(schedulerName, keys, details),
-            DashboardActionLog.PauseNote(details));
+        return ExecuteBulkAsync((actions, schedulerName, keys) => actions.Pause(schedulerName, keys, reason));
     }
 
     private Task ResumeSelectionAsync()
     {
-        return ExecuteBulkAsync(
-            "ResumeTrigger",
-            "Resumed",
-            "not resumed - it no longer exists or was not paused",
-            (schedulerName, keys) => Api.ResumeTriggers(schedulerName, keys));
+        return ExecuteBulkAsync((actions, schedulerName, keys) => actions.Resume(schedulerName, keys));
     }
 
     private void PromptUnscheduleSelection()
@@ -1200,11 +1172,7 @@
     private async Task UnscheduleSelectionAsync()
     {
         _showBulkUnscheduleConfirm = false;
-        await ExecuteBulkAsync(
-            "UnscheduleTrigger",
-            "Unscheduled",
-            "not unscheduled - it no longer exists",
-            (schedulerName, keys) => Api.UnscheduleJobs(schedulerName, keys));
+        await ExecuteBulkAsync((actions, schedulerName, keys) => actions.Unschedule(schedulerName, keys));
     }
 
     private Task CancelBulkUnscheduleAsync()
@@ -1214,81 +1182,19 @@
     }
 
     /// <summary>
-    /// Runs one bulk action over the selection and reports it: a toast for the count, a panel for the keys
-    /// it did not reach and why, and an action-log entry per key in the shape the single-row action
-    /// records — so "who paused this trigger" finds a bulk pause under the trigger's own key, with the
-    /// reason it was given in <paramref name="note" />.
+    /// Runs one bulk action over the selection through <see cref="TriggerSelectionActions" />, which reports it,
+    /// keeps the keys it did not reach on the page, and reads the listing again.
     /// </summary>
-    private async Task ExecuteBulkAsync(
-        string actionName,
-        string verb,
-        string missedReason,
-        Func<string, List<TriggerKeyDto>, ValueTask<List<TriggerKeyDto>>> operation,
-        string? note = null)
+    private async Task ExecuteBulkAsync(Func<TriggerSelectionActions, string, List<TriggerKeyDto>, Task<TriggerSelectionResult>> action)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
-        List<TriggerKeyDto> keys = SelectedKeys();
-        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName) || keys.Count == 0)
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName) || _selected.Count == 0)
         {
             return;
         }
 
-        string batch = DashboardActionLog.MessageOf("one of " + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected", note)!;
-
-        HashSet<TriggerKeyDto> applied;
-        Exception? failure = null;
-        try
-        {
-            applied = [.. await operation(schedulerName, keys)];
-        }
-        catch (Exception ex)
-        {
-            // The key-set call is one request and one store transaction, so a refusal is the whole
-            // batch's: nothing it names was applied.
-            applied = [];
-            failure = ex;
-        }
-
-        List<(TriggerKeyDto Key, string Reason)> misses = [];
-        foreach (TriggerKeyDto key in keys)
-        {
-            string target = DisplayValueHelper.FormatKey(key.Group, key.Name);
-            if (applied.Contains(key))
-            {
-                ActionLog.Record(schedulerName, actionName, target, succeeded: true, batch);
-            }
-            else if (failure is not null)
-            {
-                misses.Add((key, failure.Message));
-                ActionLog.Failed(schedulerName, actionName, target, failure, batch);
-            }
-            else
-            {
-                misses.Add((key, missedReason));
-                ActionLog.Record(schedulerName, actionName, target, succeeded: false, batch + "; " + missedReason);
-            }
-        }
-
-        string summary = verb + " " + applied.Count.ToString(CultureInfo.InvariantCulture) + " of "
-            + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected trigger(s).";
-
-        if (misses.Count == 0)
-        {
-            _bulkResult = null;
-            Toasts.Success(summary);
-        }
-        else
-        {
-            _bulkResult = new BulkResult(summary, misses);
-            if (failure is not null)
-            {
-                Toasts.Error(summary + " " + keys.Count.ToString(CultureInfo.InvariantCulture) + " failed.");
-            }
-            else
-            {
-                Toasts.Info(summary);
-            }
-        }
+        TriggerSelectionResult result = await action(new TriggerSelectionActions(Api, ActionLog, Toasts), schedulerName, [.. _selected]);
+        _bulkResult = result.Misses.Count == 0 ? null : result;
 
         _selected.Clear();
         await LoadDataAsync();
@@ -1387,8 +1293,4 @@
         public bool IsEmpty => this == None;
     }
 
-    /// <summary>
-    /// What a bulk action reports once it is done: the count, and each key it did not reach with why.
-    /// </summary>
-    private sealed record BulkResult(string Summary, List<(TriggerKeyDto Key, string Reason)> Misses);
 }
