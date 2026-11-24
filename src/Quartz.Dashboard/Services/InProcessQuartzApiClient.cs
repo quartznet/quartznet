@@ -668,6 +668,51 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                ?? throw new KeyNotFoundException($"Trigger '{triggerKey.Group}.{triggerKey.Name}' was not found in scheduler '{schedulerName}'.");
     }
 
+    /// <remarks>
+    /// <see cref="UpcomingFires.Query" /> over whichever scheduler the name resolves to: a store window computes in
+    /// this process from the shared tables, and a scheduler in another process — an HTTP target, an agent, a
+    /// cluster's preferred member — in its own, in the one request <c>HttpScheduler</c> sends. A refusal is raised
+    /// with the words every carrier uses for it.
+    /// </remarks>
+    public async ValueTask<UpcomingFiresDto> QueryUpcomingFires(string schedulerName, DashboardUpcomingFiresQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        UpcomingFiresOutcome outcome = await UpcomingFires.Query(
+            scheduler,
+            new UpcomingFiresQuery(query.From, query.To, query.GroupContains, query.Take),
+            cancellationToken).ConfigureAwait(false);
+
+        if (outcome.Refusal is { } refusal)
+        {
+            throw new ArgumentException(refusal, nameof(query));
+        }
+
+        UpcomingFiresResult result = outcome.Result!;
+        List<UpcomingFireDto> fires = new(result.Fires.Count);
+        foreach (UpcomingFire fire in result.Fires)
+        {
+            fires.Add(new UpcomingFireDto(
+                fire.FireTimeUtc,
+                new TriggerKeyDto(fire.TriggerKey.Group, fire.TriggerKey.Name),
+                new JobKeyDto(fire.JobKey.Group, fire.JobKey.Name),
+                fire.State)
+            {
+                ExecutionGroup = fire.ExecutionGroup,
+                ScheduleDescription = fire.ScheduleDescription,
+                OnlyTheNext = fire.OnlyTheNext
+            });
+        }
+
+        return new UpcomingFiresDto(result.FromUtc, result.ToUtc, fires)
+        {
+            Cut = result.CutAtUtc is not null,
+            CutAtUtc = result.CutAtUtc,
+            TriggersNotComputed = result.TriggersNotComputed
+        };
+    }
+
     public async ValueTask<bool> PauseTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseTrigger, cancellationToken).ConfigureAwait(false);

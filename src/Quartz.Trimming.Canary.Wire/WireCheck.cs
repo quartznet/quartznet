@@ -26,6 +26,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
+using Quartz.Impl;
 
 using static Quartz.Trimming.Canary.Wire.CanarySteps;
 
@@ -74,6 +75,7 @@ internal static class WireCheck
             ("schedule", () => Schedule(scheduler, cancellationToken)),
             ("read-back", () => ReadBack(scheduler, cancellationToken)),
             ("not-found", () => NotFound(scheduler, cancellationToken)),
+            ("agenda", () => Agenda(scheduler, cancellationToken)),
             ("events-open", () => OpenEvents(scheduler, subscription, cancellationToken)),
             ("pause", () => Pause(scheduler, cancellationToken)),
             ("resume", () => Resume(scheduler, cancellationToken)),
@@ -153,6 +155,48 @@ internal static class WireCheck
         Expect(job is null, $"a job that was never scheduled came back as {job?.Key}.");
 
         return $"{absent} reads back as null, out of a 404 with problem details";
+    }
+
+    /// <summary>
+    /// Every fire of the canary's triggers in an hour, read off the <c>upcoming-fires</c> route: the answer and each of
+    /// its fires cross the wire through the contract's generated metadata, which a trimmed or native client has.
+    /// </summary>
+    private static async Task<string> Agenda(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        Expect(scheduler is IUpcomingFiresScheduler, $"the client's scheduler is a {scheduler.GetType().FullName}, which does not send the route.");
+
+        TriggerKey key = new("wire-agenda", TriggerKey.Group);
+        DateTimeOffset start = Clock.GetUtcNow().AddHours(1);
+        ITrigger trigger = TriggerBuilder.Create(Clock)
+            .WithIdentity(key)
+            .ForJob(JobKey)
+            .StartAt(start)
+            .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromMinutes(10)).WithRepeatCount(2))
+            .Build();
+        await scheduler.ScheduleJob(trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            UpcomingFiresOutcome outcome = await UpcomingFires.Query(
+                scheduler,
+                new UpcomingFiresQuery(start, start.AddHours(1), TriggerKey.Group, 10),
+                cancellationToken).ConfigureAwait(false);
+
+            Expect(outcome.Refusal is null, $"the host refused the agenda: {outcome.Refusal}");
+            UpcomingFiresResult result = outcome.Result!;
+            Expect(result.Fires.Count == 3, $"the agenda listed {result.Fires.Count} fire(s), not the trigger's three.");
+            Expect(result.Fires.TrueForAll(fire => fire.TriggerKey.Equals(key) && fire.JobKey.Equals(JobKey)), "a fire came back naming another trigger or job.");
+            Expect(result.Fires[0].FireTimeUtc == start, $"the first fire came back at {result.Fires[0].FireTimeUtc:O}, not {start:O}.");
+            Expect(result.Fires[0].State == TriggerState.Normal, $"the trigger came back {result.Fires[0].State}.");
+            Expect(!string.IsNullOrEmpty(result.Fires[0].ScheduleDescription), "the fire came back without its schedule in words.");
+            Expect(result.CutAtUtc is null, "the agenda says it was cut, though it holds every fire in the window.");
+
+            return $"{key} fires three times in the hour from {start:O}, read in one request with its state and schedule";
+        }
+        finally
+        {
+            await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>

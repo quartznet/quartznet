@@ -491,6 +491,37 @@ public sealed class StoreAttachedTargetTest
     }
 
     /// <summary>
+    /// A window computes the agenda in this process, from the tables the nodes share, and lists what the node itself
+    /// would (#4438).
+    /// </summary>
+    [Test]
+    public async Task AWindowListsTheSameAgendaAsTheNode()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        IScheduler nodeScheduler = await node.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        DateTimeOffset start = new DateTimeOffset(now.UtcTicks - now.UtcTicks % TimeSpan.TicksPerMinute, TimeSpan.Zero).AddMinutes(10);
+        await nodeScheduler.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity("every-20", "nightly")
+            .ForJob(new JobKey("nightly", "batch"))
+            .StartAt(start.AddMinutes(30))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(20)).RepeatForever())
+            .Build());
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+        UpcomingFiresDto window = await dashboard.Client.QueryUpcomingFires(ClusterScheduler, new DashboardUpcomingFiresQuery { From = start, To = start.AddHours(2) });
+        Quartz.Impl.UpcomingFiresOutcome atTheNode = await Quartz.Impl.UpcomingFires.Query(
+            nodeScheduler, new Quartz.Impl.UpcomingFiresQuery(start, start.AddHours(2), null, 1000), CancellationToken.None);
+
+        window.Fires.Select(fire => (fire.FireTimeUtc, fire.Trigger.Group, fire.Trigger.Name)).Should().Equal(
+            atTheNode.Result!.Fires.Select(fire => (fire.FireTimeUtc, fire.TriggerKey.Group, fire.TriggerKey.Name)),
+            "the window reads the node's triggers out of the database they share");
+        window.Fires.Select(fire => fire.FireTimeUtc - start).Should().Equal(
+            [TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(50), TimeSpan.FromMinutes(70), TimeSpan.FromMinutes(90), TimeSpan.FromMinutes(110)]);
+    }
+
+    /// <summary>
     /// A window onto a store attached without <c>UseExecutionHistory()</c> says there is no history
     /// there, naming the store and the window, rather than showing this process's own history.
     /// </summary>

@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Globalization;
+
 using Quartz.Extensibility;
 using Quartz.Impl;
 
@@ -820,6 +822,74 @@ internal static class SchedulerOperations
 
         List<DateTimeOffset>? fireTimes = await scheduler.GetUpcomingFireTimes(triggerKey, count, cancellationToken).ConfigureAwait(false);
         return fireTimes is null ? null : new TriggerFireTimesResponse([.. fireTimes]);
+    }
+
+    /// <summary>
+    /// Every fire of every trigger in [<paramref name="from" />, <paramref name="to" />), earliest first, as
+    /// <see cref="UpcomingFires.Query" /> computes it where the scheduler is.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="maxPageSize" /> is the carrier's page cap, which lowers the most fires an answer holds as it
+    /// does a listing's page: an absent <paramref name="take" /> is that many, and a larger one is refused naming the
+    /// option. Zero is no cap beyond <see cref="UpcomingFires.MaxTake" />.
+    /// </remarks>
+    /// <exception cref="InvalidRequestException">
+    /// <paramref name="to" /> is missing, <paramref name="take" /> is out of range, or the window is refused: it does
+    /// not end after now, is longer than seven days, or ends more than thirty days ahead.
+    /// </exception>
+    public static async ValueTask<UpcomingFiresResponse> QueryUpcomingFires(
+        IScheduler scheduler,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        string? take,
+        string? groupContains,
+        int maxPageSize,
+        CancellationToken cancellationToken)
+    {
+        if (to is null)
+        {
+            throw new InvalidRequestException("to is required: the end of the window, excluded");
+        }
+
+        UpcomingFiresQuery query = new(from, to.Value, groupContains, UpcomingFiresTake(take, maxPageSize));
+        UpcomingFiresOutcome outcome = await UpcomingFires.Query(scheduler, query, cancellationToken).ConfigureAwait(false);
+        if (outcome.Refusal is { } refusal)
+        {
+            throw new InvalidRequestException(refusal);
+        }
+
+        return UpcomingFiresResponse.Create(outcome.Result!);
+    }
+
+    /// <summary>
+    /// How many fires an agenda answers: <paramref name="take" />, or the most the carrier allows when it is absent
+    /// or <c>all</c>, as a listing's page is read.
+    /// </summary>
+    /// <exception cref="InvalidRequestException">
+    /// <paramref name="take" /> is neither a number nor <c>all</c>, or is above <paramref name="maxPageSize" />.
+    /// </exception>
+    private static int UpcomingFiresTake(string? take, int maxPageSize)
+    {
+        int maxTake = maxPageSize > 0 ? Math.Min(UpcomingFires.MaxTake, maxPageSize) : UpcomingFires.MaxTake;
+        if (string.IsNullOrWhiteSpace(take) || string.Equals(take, HttpApiConstants.AllItems, StringComparison.OrdinalIgnoreCase))
+        {
+            return maxTake;
+        }
+
+        if (!int.TryParse(take, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+        {
+            throw new InvalidRequestException(
+                $"take must be a number from 1 to {maxTake.ToString(CultureInfo.InvariantCulture)}, or '{HttpApiConstants.AllItems}' for as many as the server answers");
+        }
+
+        if (parsed > maxTake && maxTake < UpcomingFires.MaxTake)
+        {
+            throw new InvalidRequestException(
+                $"take must be at most {maxTake.ToString(CultureInfo.InvariantCulture)}, the server's MaxPageSize, was {parsed.ToString(CultureInfo.InvariantCulture)}. "
+                + "Narrow the window or filter by trigger group, or raise MaxPageSize.");
+        }
+
+        return parsed;
     }
 
     public static async ValueTask<OperationAppliedResponse> ResetTriggerFromErrorState(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken)

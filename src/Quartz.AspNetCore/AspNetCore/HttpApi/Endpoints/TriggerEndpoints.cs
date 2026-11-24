@@ -72,6 +72,9 @@ internal static class TriggerEndpoints
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryTriggerGroups), QueryTriggerGroups)
             .WithQuartzDefaults(SchedulerRoutes.QueryTriggerGroups, "Query trigger groups");
 
+        yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryUpcomingFires), QueryUpcomingFires)
+            .WithQuartzDefaults(SchedulerRoutes.QueryUpcomingFires, "Get every fire of every trigger between two times");
+
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.IsTriggerGroupPaused), IsTriggerGroupPaused)
             .WithQuartzDefaults(SchedulerRoutes.IsTriggerGroupPaused, "Is trigger group paused");
 
@@ -441,6 +444,34 @@ internal static class TriggerEndpoints
 
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.QueryTriggerGroups(scheduler, listing, paused, cancellationToken));
+    }
+
+    /// <summary>
+    /// Every fire of every trigger in [<c>from</c>, <c>to</c>), earliest first, computed on this host with each
+    /// trigger's calendar applied — <c>?to=…&amp;from=…&amp;take=1000&amp;groupContains=…</c>.
+    /// </summary>
+    /// <remarks>
+    /// <c>{ "fromUtc", "toUtc", "fires": [...], "cut", "cutAtUtc", "triggersNotComputed" }</c>. A <c>from</c> that is
+    /// absent or before now is now. A window that does not end after now, is longer than seven days or ends more
+    /// than thirty days ahead, a <c>take</c> outside 1 to 1000 or above <c>MaxPageSize</c>, or more than 10,000
+    /// triggers due before <c>to</c> is a <c>400</c> with the reason. An absent <c>take</c>, or <c>all</c>, is the
+    /// most the server answers: 1000, or <c>MaxPageSize</c> when that is lower.
+    /// </remarks>
+    [ProducesResponseType(typeof(UpcomingFiresResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryUpcomingFires(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
+        [Description("The window's start; now when absent or earlier")] DateTimeOffset? from = null,
+        [Description("The window's end, excluded; at most seven days after the start and thirty days ahead")] DateTimeOffset? to = null,
+        [Description(EndpointHelper.TakeDescription)] string? take = null,
+        [Description("Only triggers whose group contains this")] string? groupContains = null,
+        CancellationToken cancellationToken = default)
+    {
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
+            scheduler => SchedulerOperations.QueryUpcomingFires(scheduler, from, to, take, groupContains, endpointHelper.MaxPageSize, cancellationToken));
     }
 
     [ProducesResponseType(typeof(GroupPausedResponse), StatusCodes.Status200OK)]

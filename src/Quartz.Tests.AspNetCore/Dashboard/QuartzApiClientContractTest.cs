@@ -799,6 +799,95 @@ public sealed class QuartzApiClientContractTest
             "the trigger's own zone and calendar decide its fire times, whichever carrier the page reads them through");
     }
 
+    /// <summary>
+    /// The agenda is computed where the triggers are stored and reads the same through every carrier: the fires of
+    /// every trigger in the window, earliest first and ties by key, with the window's end excluded (#4438).
+    /// </summary>
+    [Test]
+    public async Task TheAgendaIsReadThroughTheClient()
+    {
+        DateTimeOffset start = await ScheduleAgendaTriggers();
+
+        UpcomingFiresDto agenda = await client.QueryUpcomingFires(key, new DashboardUpcomingFiresQuery { From = start, To = start.AddHours(2) });
+
+        agenda.FromUtc.Should().Be(start, "the start asked for is after every carrier's now");
+        agenda.ToUtc.Should().Be(start.AddHours(2));
+        agenda.Fires.Select(fire => (fire.FireTimeUtc - start, fire.Trigger.Name)).Should().Equal(
+            [
+                (TimeSpan.FromMinutes(30), "a-first"),
+                (TimeSpan.FromMinutes(50), "a-first"),
+                (TimeSpan.FromMinutes(50), "b-second"),
+                (TimeSpan.FromMinutes(70), "a-first"),
+                (TimeSpan.FromMinutes(70), "b-second"),
+                (TimeSpan.FromMinutes(90), "a-first"),
+                (TimeSpan.FromMinutes(90), "b-second"),
+                (TimeSpan.FromMinutes(110), "a-first"),
+                (TimeSpan.FromMinutes(110), "b-second"),
+            ],
+            "earliest first, a tie by trigger group then name, and nothing at the window's end");
+        agenda.Fires.Should().AllSatisfy(fire =>
+        {
+            fire.Trigger.Group.Should().Be("agenda-contract");
+            fire.Job.Should().Be(new JobKeyDto("agenda-contract", "agenda-job"));
+            fire.State.Should().Be(TriggerState.Normal);
+            fire.ScheduleDescription.Should().Be("Every 20 minutes");
+            fire.OnlyTheNext.Should().BeFalse();
+        });
+        agenda.Cut.Should().BeFalse();
+        agenda.CutAtUtc.Should().BeNull();
+        agenda.TriggersNotComputed.Should().Be(0);
+    }
+
+    [Test]
+    public async Task AnAgendaThatReachesItsTakeSaysWhereItWasCut()
+    {
+        DateTimeOffset start = await ScheduleAgendaTriggers();
+
+        UpcomingFiresDto agenda = await client.QueryUpcomingFires(key, new DashboardUpcomingFiresQuery { From = start, To = start.AddHours(2), Take = 3 });
+
+        agenda.Fires.Should().HaveCount(3);
+        agenda.Cut.Should().BeTrue();
+        agenda.CutAtUtc.Should().Be(start.AddMinutes(50), "fires at or after the last one listed may be missing");
+    }
+
+    /// <summary>
+    /// A refusal has one wording on every path: the scheduler's own words, raised as an argument the page shows.
+    /// </summary>
+    [Test]
+    public async Task AnAgendaWindowLongerThanSevenDaysIsRefusedInTheSameWordsThroughEveryCarrier()
+    {
+        DateTimeOffset start = TimeProvider.System.GetUtcNow().AddHours(1);
+
+        Func<Task> act = () => client.QueryUpcomingFires(key, new DashboardUpcomingFiresQuery { From = start, To = start.AddDays(8) }).AsTask();
+
+        (await act.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should().Contain("is longer than 7 days: narrow it.");
+    }
+
+    /// <summary>
+    /// Two triggers every 20 minutes, from half an hour and from 50 minutes after a start a few minutes ahead of the
+    /// system clock, which every carrier's scheduler runs on.
+    /// </summary>
+    private async Task<DateTimeOffset> ScheduleAgendaTriggers()
+    {
+        DateTimeOffset now = TimeProvider.System.GetUtcNow();
+        DateTimeOffset start = new DateTimeOffset(now.UtcTicks - now.UtcTicks % TimeSpan.TicksPerMinute, TimeSpan.Zero).AddMinutes(10);
+
+        JobKey jobKey = new("agenda-job", "agenda-contract");
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build());
+        foreach ((string name, int minutes) in ((string, int)[]) [("b-second", 50), ("a-first", 30)])
+        {
+            await scheduler.ScheduleJob(TriggerBuilder.Create()
+                .WithIdentity(name, "agenda-contract")
+                .ForJob(jobKey)
+                .StartAt(start.AddMinutes(minutes))
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(20)).RepeatForever())
+                .Build());
+        }
+
+        return start;
+    }
+
     [Test]
     public async Task TheFireTimesOfAMissingTriggerAreReportedAsAMissingKey()
     {

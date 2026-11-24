@@ -10,7 +10,7 @@ namespace Quartz.Impl;
 /// Every member is <c>virtual</c>, and a member added to <see cref="IScheduler" /> lands here as one
 /// more forwarder — which is what keeps a decorator in somebody else's codebase compiling.
 /// </remarks>
-public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IFireInstanceLogScheduler
+public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IUpcomingFiresScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IFireInstanceLogScheduler
 {
     private readonly IScheduler scheduler;
 
@@ -553,6 +553,23 @@ public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingF
         return EndsIn<IUpcomingFireTimesScheduler>()
             ? ((IUpcomingFireTimesScheduler) scheduler).GetUpcomingFireTimes(triggerKey, count, cancellationToken)
             : UpcomingFireTimes.Compose(this, triggerKey, count, cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists every fire in a window in one request where the scheduler is, when the scheduler this wrapping ends
+    /// in can, and otherwise composes them over this decorator.
+    /// </summary>
+    /// <remarks>
+    /// Forwarded for the reason <see cref="IBackfillingScheduler.Backfill" /> is, and decided the same way, so a
+    /// cluster's wrapped <c>HttpScheduler</c> asks its host once rather than reading every due trigger back.
+    /// </remarks>
+    ValueTask<UpcomingFiresOutcome> IUpcomingFiresScheduler.QueryUpcomingFires(
+        UpcomingFiresQuery query,
+        CancellationToken cancellationToken)
+    {
+        return EndsIn<IUpcomingFiresScheduler>()
+            ? ((IUpcomingFiresScheduler) scheduler).QueryUpcomingFires(query, cancellationToken)
+            : UpcomingFires.Compose(this, query, cancellationToken);
     }
 
     /// <summary>

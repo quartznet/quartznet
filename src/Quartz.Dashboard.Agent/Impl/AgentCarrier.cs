@@ -457,6 +457,14 @@ internal sealed class AgentCarrier
         handlers[SchedulerRoutes.GetTriggerFireTimes] = call => call.JsonOrNotFound(
             SchedulerOperations.GetTriggerFireTimes(call.Scheduler, call.TriggerKey(), call.Query.GetInt("count", UpcomingFireTimes.DefaultCount), call.Token),
             () => NotFoundException.ForTrigger(call.TriggerKey()));
+        handlers[SchedulerRoutes.QueryUpcomingFires] = call => call.Json(SchedulerOperations.QueryUpcomingFires(
+            call.Scheduler,
+            call.Query.GetDateTimeOffset("from"),
+            call.Query.GetDateTimeOffset("to"),
+            call.Query.Get("take"),
+            call.Query.Get("groupContains"),
+            call.Carrier.options.MaxPageSize,
+            call.Token));
         handlers[SchedulerRoutes.ResetTriggerFromErrorState] = call => call.Json(SchedulerOperations.ResetTriggerFromErrorState(call.Scheduler, call.TriggerKey(), call.Token));
         handlers[SchedulerRoutes.ResetTriggerKeysFromErrorState] = call => call.Json(SchedulerOperations.ResetTriggerKeysFromErrorState(call.Scheduler, call.Body<TriggerKeySetRequest>(), call.Token));
         handlers[SchedulerRoutes.PauseTrigger] = call => call.Json(SchedulerOperations.PauseTrigger(call.Scheduler, call.TriggerKey(), call.PauseDetails(), call.Token));

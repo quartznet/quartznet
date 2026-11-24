@@ -59,6 +59,7 @@ Operate    ResumeTrigger                   POST   schedulers/{schedulerName}/tri
 Operate    ResumeTriggers                  POST   schedulers/{schedulerName}/triggers/resume
 Operate    ResumeTriggerKeys               POST   schedulers/{schedulerName}/triggers/keys/resume
 View       QueryTriggerGroups              GET    schedulers/{schedulerName}/triggers/groups
+View       QueryUpcomingFires              GET    schedulers/{schedulerName}/triggers/upcoming-fires
 View       IsTriggerGroupPaused            GET    schedulers/{schedulerName}/triggers/groups/{triggerGroup}/paused
 Administer ScheduleJob                     POST   schedulers/{schedulerName}/triggers/schedule
 Administer ScheduleJobs                    POST   schedulers/{schedulerName}/triggers/schedule-multiple

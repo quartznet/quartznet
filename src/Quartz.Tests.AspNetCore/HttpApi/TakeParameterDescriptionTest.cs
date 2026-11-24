@@ -53,10 +53,10 @@ public class TakeParameterDescriptionTest
     {
         ParameterInfo[] takeParameters = TakeParameters();
 
-        takeParameters.Should().HaveCount(6,
+        takeParameters.Should().HaveCount(7,
             "there are six listing endpoints — jobs, job groups, fire instances, triggers, trigger groups "
-            + "and calendars — and a seventh appearing here means a listing was added whose take needs "
-            + "the same description");
+            + "and calendars — and the agenda, whose take MaxPageSize bounds as it bounds a listing's page; "
+            + "an eighth appearing here means a listing was added whose take needs the same description");
 
         using (new AssertionScope())
         {

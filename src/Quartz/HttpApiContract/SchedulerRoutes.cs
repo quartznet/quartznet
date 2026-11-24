@@ -150,6 +150,12 @@ internal static class SchedulerRoutes
     public static readonly WireRoute ResumeTriggers = Route(nameof(ResumeTriggers), Post, Triggers + "/resume", mutates: true, Operate);
     public static readonly WireRoute ResumeTriggerKeys = Route(nameof(ResumeTriggerKeys), Post, Triggers + "/keys/resume", mutates: true, Operate);
     public static readonly WireRoute QueryTriggerGroups = Route(nameof(QueryTriggerGroups), Get, Triggers + "/groups");
+
+    // From 4.9: every fire of every trigger in a window, beside the groups. Two segments after the scheduler, so no
+    // trigger's own route, which has three, can match it. A host older than 4.9 answers 404 without problem
+    // details, and HttpScheduler composes the answer from the host's other routes.
+    public static readonly WireRoute QueryUpcomingFires = Route(nameof(QueryUpcomingFires), Get, Triggers + "/upcoming-fires");
+
     public static readonly WireRoute IsTriggerGroupPaused = Route(nameof(IsTriggerGroupPaused), Get, Triggers + "/groups/{triggerGroup}/paused");
     public static readonly WireRoute ScheduleJob = Route(nameof(ScheduleJob), Post, Triggers + "/schedule", mutates: true, Administer);
     public static readonly WireRoute ScheduleJobs = Route(nameof(ScheduleJobs), Post, Triggers + "/schedule-multiple", mutates: true, Administer);
