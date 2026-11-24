@@ -149,7 +149,7 @@
             List<AgendaHour> hours = Hours(result);
             bool showOffsets = hours.Select(static hour => hour.Start.Offset).Distinct().Skip(1).Any();
             <div class="qz-table-scroll qz-agenda-listing" data-testid="agenda-listing">
-                <table class="qz-table qz-agenda-table">
+                <table class="@(CanSelect ? "qz-table qz-agenda-table qz-agenda-selectable" : "qz-table qz-agenda-table")">
                     <thead>
                         <tr>
                             @if (CanSelect)
