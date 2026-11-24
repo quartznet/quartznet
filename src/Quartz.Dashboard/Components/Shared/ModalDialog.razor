@@ -51,13 +51,28 @@
     [Parameter]
     public ElementReference? ReturnFocus { get; set; }
 
+    /// <summary>
+    /// Where focus goes as the dialog closes when <see cref="ReturnFocus" /> has left the page by then: a dialog opened
+    /// from a row a refresh may take away gives the page's heading, so focus never falls to the body.
+    /// </summary>
+    [Parameter]
+    public ElementReference? ReturnFocusFallback { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            if (ReturnFocus is { } opener)
+            if (ReturnFocus is { } opener && ReturnFocusFallback is { } fallback)
             {
-                await CallAsync("quartzDashboardDialog.open", _dialog, opener);
+                await CallAsync("quartzDashboardDialog.open", _dialog, opener, fallback);
+            }
+            else if (ReturnFocus is { } onlyOpener)
+            {
+                await CallAsync("quartzDashboardDialog.open", _dialog, onlyOpener);
+            }
+            else if (ReturnFocusFallback is { } onlyFallback)
+            {
+                await CallAsync("quartzDashboardDialog.open", _dialog, null, onlyFallback);
             }
             else
             {

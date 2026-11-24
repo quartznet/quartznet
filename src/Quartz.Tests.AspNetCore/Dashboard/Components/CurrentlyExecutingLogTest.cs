@@ -29,6 +29,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 
 using Quartz.Dashboard.Components.Pages;
+using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Services;
 using Quartz.Impl;
 using Quartz.Tests.AspNetCore.Support;
@@ -118,12 +119,76 @@ public sealed class CurrentlyExecutingLogTest
         page.Find("[data-testid=log-meta]").TextContent.Should().Contain("node-a").And.Contain("run time");
 
         JSRuntimeInvocation open = context.JSInterop.Invocations.Last(invocation => invocation.Identifier == "quartzDashboardDialog.open");
-        open.Arguments.Should().HaveCount(2, "the dialog is handed the control focus goes back to");
+        open.Arguments.Should().HaveCount(3, "the dialog is handed the control focus goes back to, and the heading for when its row has gone");
         ((ElementReference) open.Arguments[1]!).Id.Should().Be(opener, "focus goes back to the row's own Show log");
 
         page.Find("[data-testid=modal-overlay]").KeyDown(new KeyboardEventArgs { Key = "Escape" });
 
         page.WaitForAssertion(() => page.FindAll("[data-testid=log-dialog]").Should().BeEmpty("Escape closes it"));
+        context.JSInterop.Invocations.Should().Contain(invocation => invocation.Identifier == "quartzDashboardDialog.close");
+    }
+
+    /// <summary>
+    /// A firing listed above the opener's row after the dialog's row was drawn: focus goes back to that firing's own
+    /// Show log, because each row keeps its elements with its firing rather than with its place in the listing.
+    /// </summary>
+    /// <remarks>
+    /// Rows kept by position would hand the new firing the button drawn for the one below it, whose reference was
+    /// captured for that other firing, and the new firing would have none of its own.
+    /// </remarks>
+    [Test]
+    public void AFiringListedAboveAnotherGivesFocusBackToItsOwnShowLog()
+    {
+        GivenLog(Running(["line 1"], next: 1));
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+        page.WaitForElement("[data-testid=executing-show-log]");
+
+        GivenRows(Row("fire-0", "node-a", trigger: "arrived"), Row(Firing, "node-a"));
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+        IElement arrived = null!;
+        page.WaitForAssertion(() =>
+        {
+            IReadOnlyList<IElement> rows = page.FindAll("tbody tr");
+            rows.Should().HaveCount(2);
+            rows[0].TextContent.Should().Contain("nightly.arrived");
+            arrived = rows[0].QuerySelector("[data-testid=executing-show-log]")!;
+        });
+        string created = arrived.GetAttribute("blazor:elementreference")!;
+        created.Should().NotBeNullOrEmpty("the arriving firing's row is drawn new, with a button of its own");
+
+        arrived.Click();
+
+        page.WaitForAssertion(() =>
+        {
+            JSRuntimeInvocation open = context.JSInterop.Invocations.Last(invocation => invocation.Identifier == "quartzDashboardDialog.open");
+            open.Arguments.Should().HaveCount(3, "the arriving firing's Show log is what focus goes back to");
+            ((ElementReference) open.Arguments[1]!).Id.Should().Be(created);
+        });
+    }
+
+    /// <summary>
+    /// The opener's row gone by the time the dialog closes: the dialog was handed the page's heading to give focus to
+    /// instead, so it never falls to the body.
+    /// </summary>
+    [Test]
+    public void WhenTheOpenersRowHasGoneFocusFallsBackToTheHeading()
+    {
+        GivenLog(Running(["line 1"], next: 1));
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+        string heading = page.Find("h1").GetAttribute("blazor:elementreference")!;
+        page.Find("h1").GetAttribute("tabindex").Should().Be("-1", "focusable from code, and not in the Tab order");
+        page.WaitForElement("[data-testid=executing-show-log]").Click();
+        page.WaitForElement("[data-testid=log-dialog]");
+
+        GivenRows();
+        context.Clock.Advance(TimeSpan.FromSeconds(1));
+        page.WaitForAssertion(() => page.Markup.Should().Contain("No jobs currently executing."));
+        page.Find("[data-testid=modal-overlay]").KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=log-dialog]").Should().BeEmpty());
+        JSRuntimeInvocation open = context.JSInterop.Invocations.Last(invocation => invocation.Identifier == "quartzDashboardDialog.open");
+        ((ElementReference) open.Arguments[2]!).Id.Should().Be(heading,
+            "the dialog's close gives focus to the heading when the opener is no longer on the page");
         context.JSInterop.Invocations.Should().Contain(invocation => invocation.Identifier == "quartzDashboardDialog.close");
     }
 
@@ -152,12 +217,87 @@ public sealed class CurrentlyExecutingLogTest
     }
 
     [Test]
-    public void ARunningFiringThatHasLoggedNothingSaysSo()
+    public void ARunningFiringThatHasLoggedNothingSaysSoAndDrawsNoEmptyBox()
     {
         GivenLog(Running([], next: 0));
         IRenderedComponent<CurrentlyExecuting> page = Open();
 
-        page.WaitForAssertion(() => Status(page).Should().Be("Nothing logged yet · updated 14:23:00"));
+        page.WaitForAssertion(() =>
+        {
+            Status(page).Should().Be("Nothing logged yet · updated 14:23:00");
+            page.FindAll("[data-testid=log-scroller]").Should().BeEmpty("there is no line to put in a box yet");
+        });
+    }
+
+    [Test]
+    public void TheLogBoxAppearsWithTheFirstLine()
+    {
+        GivenLogs(Running([], next: 0), Running(["the first line"], next: 1));
+        IRenderedComponent<CurrentlyExecuting> page = Open();
+        page.WaitForAssertion(() => page.FindAll("[data-testid=log-scroller]").Should().BeEmpty());
+
+        context.Clock.Advance(TimeSpan.FromSeconds(2));
+
+        page.WaitForAssertion(() =>
+        {
+            Lines(page).Should().Equal(["the first line"]);
+            page.Find("[data-testid=log-lines]").GetAttribute("tabindex").Should().Be("0", "the arrow keys scroll it");
+        });
+    }
+
+    /// <summary>
+    /// The live region holds the state alone: the count of lines and the time of the read change every two seconds,
+    /// and a screen reader would read each change out.
+    /// </summary>
+    [Test]
+    public void OnlyTheStateIsInTheLiveRegion()
+    {
+        GivenLogs(Running(["line 1"], next: 1), Running(["line 2"], next: 2));
+        IRenderedComponent<CurrentlyExecuting> page = Open();
+        context.Clock.Advance(TimeSpan.FromSeconds(2));
+
+        page.WaitForAssertion(() =>
+        {
+            Status(page).Should().Be("Following · 2 lines · updated 14:23:02");
+            page.Find("[data-testid=log-status] [role=status]").TextContent.Trim().Should().Be("Following");
+            page.FindAll("[role=status]").Should().ContainSingle("one live region, the state's");
+        });
+    }
+
+    /// <summary>
+    /// 4: a reader who scrolls up is not followed, and is told what arrived below; Jump to latest scrolls down and
+    /// follows again.
+    /// </summary>
+    [Test]
+    public async Task AReaderWhoScrolledUpIsToldWhatArrivedBelowAndCanJumpToIt()
+    {
+        GivenLogs(Running(["line 1", "line 2"], next: 2), Running(["line 3"], next: 3));
+        IRenderedComponent<CurrentlyExecuting> page = Open();
+        page.WaitForAssertion(() => Lines(page).Should().HaveCount(2));
+        context.JSInterop.Invocations.Should().Contain(invocation => invocation.Identifier == "quartzDashboardLogFollow.observe",
+            "the browser says when the reader scrolls off the newest line");
+        page.FindAll("[data-testid=log-jump]").Should().BeEmpty("a reader on the newest line has nothing to jump to");
+
+        IRenderedComponent<FireInstanceLogDialog> dialog = page.FindComponent<FireInstanceLogDialog>();
+        await dialog.InvokeAsync(() => dialog.Instance.OnFollowingChanged(following: false));
+
+        page.WaitForAssertion(() => Status(page).Should().Be("Paused · 0 new lines below"));
+        context.Clock.Advance(TimeSpan.FromSeconds(2));
+        page.WaitForAssertion(() =>
+        {
+            Status(page).Should().Be("Paused · 1 new line below");
+            page.Find("[data-testid=log-status] [role=status]").TextContent.Trim().Should().Be("Paused");
+            Lines(page).Should().Equal(["line 1", "line 2", "line 3"], "the lines still arrive while the reader is up");
+        });
+
+        page.Find("[data-testid=log-jump]").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            context.JSInterop.Invocations.Should().Contain(invocation => invocation.Identifier == "quartzDashboardLogFollow.toLatest");
+            Status(page).Should().Be("Following · 3 lines · updated 14:23:02");
+            page.FindAll("[data-testid=log-jump]").Should().BeEmpty();
+        });
     }
 
     /// <summary>B4: an answer that says the reader is behind is followed at once, at most four more times a tick.</summary>
@@ -231,24 +371,59 @@ public sealed class CurrentlyExecutingLogTest
         A.CallTo(() => context.Api.QueryExecutions(A<DashboardHistoryQuery>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
-    /// <summary>B7: the firing's own node no longer runs it: the dialog finds its execution page, and keeps its lines.</summary>
+    /// <summary>
+    /// B7: the firing's own node no longer runs it, and the history row it wrote carries the log: the dialog shows the
+    /// log as recorded, the lines logged after its last read among them, and the run time the row recorded.
+    /// </summary>
     [Test]
-    public void AFiringThatEndedLinksToItsExecutionPage()
+    public void AFiringThatEndedShowsItsLogAsRecorded()
     {
-        GivenLogs(Running(["the last line"], next: 1), NotRunning("node-a", next: 1));
-        A.CallTo(() => context.Api.QueryExecutions(
-                A<DashboardHistoryQuery>.That.Matches(query => query.FireInstanceId == Firing && query.Take == 1), A<CancellationToken>._))
-            .Returns(TestData.Dashboard.Page<DashboardHistoryEntry>([TestData.Dashboard.HistoryEntry(TimeSpan.FromSeconds(20)) with { EntryId = "entry-9" }]));
+        GivenLogs(Running(["Step 19 of 20"], next: 1), NotRunning("node-a", next: 1));
+        GivenExecution(TestData.Dashboard.HistoryEntry(TimeSpan.FromMilliseconds(20_170)) with
+        {
+            EntryId = "entry-9",
+            Log = "Step 1 of 20\nStep 19 of 20\nStep 20 of 20",
+        });
         IRenderedComponent<CurrentlyExecuting> page = Open();
 
         context.Clock.Advance(TimeSpan.FromSeconds(2));
 
         page.WaitForAssertion(() =>
         {
-            Status(page).Should().Be("The run ended. Its log, as recorded, is on its execution page.");
+            Status(page).Should().Be("The run ended. This is its log as recorded. Open its execution page");
             page.Find("[data-testid=log-execution-link]").GetAttribute("href").Should().Be("quartz/history/entry-9");
-            Lines(page).Should().Equal(["the last line"], "the lines read so far stay in the dialog");
+            Lines(page).Should().Equal(["Step 1 of 20", "Step 19 of 20", "Step 20 of 20"],
+                "the line logged after the last read went with the firing's buffer, and the row has it");
+            page.Find("[data-testid=log-meta]").TextContent.Should().Contain("run time 20.17 s", "the run time the row recorded");
         });
+    }
+
+    /// <summary>
+    /// B7, a history whose listing leaves the log out, as the database's does: the read lines stay, and the notice says
+    /// the full log, with what came after the last read, is on the execution page.
+    /// </summary>
+    [Test]
+    public void AFiringThatEndedWithNoLogInItsRowLinksToItsExecutionPage()
+    {
+        GivenLogs(Running(["the last line read"], next: 1), NotRunning("node-a", next: 1));
+        GivenExecution(TestData.Dashboard.HistoryEntry(TimeSpan.FromSeconds(20)) with { EntryId = "entry-9" });
+        IRenderedComponent<CurrentlyExecuting> page = Open();
+
+        context.Clock.Advance(TimeSpan.FromSeconds(2));
+
+        page.WaitForAssertion(() =>
+        {
+            Status(page).Should().Be("The run ended. Its full log, with the lines logged after the last read, is on its execution page.");
+            page.Find("[data-testid=log-execution-link]").GetAttribute("href").Should().Be("quartz/history/entry-9");
+            Lines(page).Should().Equal(["the last line read"], "the lines read so far stay in the dialog");
+        });
+    }
+
+    private void GivenExecution(DashboardHistoryEntry entry)
+    {
+        A.CallTo(() => context.Api.QueryExecutions(
+                A<DashboardHistoryQuery>.That.Matches(query => query.FireInstanceId == Firing && query.Take == 1), A<CancellationToken>._))
+            .Returns(TestData.Dashboard.Page<DashboardHistoryEntry>([entry]));
     }
 
     [Test]
@@ -487,11 +662,11 @@ public sealed class CurrentlyExecutingLogTest
             });
     }
 
-    private static FireInstanceDto Row(string fireInstanceId, string node)
+    private static FireInstanceDto Row(string fireInstanceId, string node, string trigger = "trigger-1")
     {
         return new FireInstanceDto(
             fireInstanceId,
-            new TriggerKeyDto("nightly", "trigger-1"),
+            new TriggerKeyDto("nightly", trigger),
             new JobKeyDto("reports", "job-1"),
             node,
             FireInstanceState.Executing,
@@ -512,8 +687,8 @@ public sealed class CurrentlyExecutingLogTest
 
     private static string[] Lines(IRenderedComponent<CurrentlyExecuting> page)
     {
-        string text = page.Find("[data-testid=log-lines]").TextContent;
-        return text.Length == 0 ? [] : text.Split('\n');
+        IElement? lines = page.FindAll("[data-testid=log-lines]").SingleOrDefault();
+        return lines is null || lines.TextContent.Length == 0 ? [] : lines.TextContent.Split('\n');
     }
 
     private static string Status(IRenderedComponent<CurrentlyExecuting> page)

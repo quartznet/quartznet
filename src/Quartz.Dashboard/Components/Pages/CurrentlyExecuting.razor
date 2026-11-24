@@ -14,7 +14,8 @@
 <div class="qz-page">
     <AutoRefresh Every="TimeSpan.FromSeconds(1)" Refresh="RefreshAsync" />
     <div class="qz-page-header">
-        <h1>Currently Executing</h1>
+        @* Focusable from code alone: where a closing log dialog gives focus back when its row has gone. *@
+        <h1 tabindex="-1" @ref="_heading">Currently Executing</h1>
         <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Auto-refreshes every 1s</span>
         <LastUpdated At="@_lastUpdatedAt" />
     </div>
@@ -30,18 +31,18 @@
     }
 
     <div class="qz-table-scroll">
-    <table class="qz-table">
+    <table class="qz-table qz-executing-table">
         <thead>
             <tr>
-                <th>Job</th>
-                <th>Trigger</th>
+                <th class="qz-col-key">Job</th>
+                <th class="qz-col-key">Trigger</th>
                 <th>Node</th>
-                <th>Execution Group</th>
-                <th>Fire Time</th>
-                <th>Run Time</th>
+                <th class="qz-col-group">Execution Group</th>
+                <th class="qz-col-time">Fire Time</th>
+                <th class="qz-col-time">Run Time</th>
                 <th>Progress</th>
                 <th>History</th>
-                <th>Actions</th>
+                <th class="qz-col-actions">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -58,7 +59,7 @@
                     @* Keyed by its firing, so a row keeps its elements, and Show log the reference its dialog gives focus
                        back to, however the listing reorders. *@
                     <tr @key="fireInstance.FireInstanceId">
-                        <td>
+                        <td class="qz-col-key">
                             @if (fireInstance.JobKey is not null)
                             {
                                 <KeyBadge GroupName="@fireInstance.JobKey.Group" ItemName="@fireInstance.JobKey.Name" />
@@ -68,11 +69,17 @@
                                 <span class="qz-muted">&#8212;</span>
                             }
                         </td>
-                        <td><KeyBadge GroupName="@fireInstance.TriggerKey.Group" ItemName="@fireInstance.TriggerKey.Name" /></td>
-                        <td>@fireInstance.SchedulerInstanceId</td>
-                        <td>@(string.IsNullOrEmpty(fireInstance.ExecutionGroup) ? "—" : fireInstance.ExecutionGroup)</td>
-                        <td>@FormatFireTime(fireInstance.FireTimeUtc)</td>
+                        <td class="qz-col-key"><KeyBadge GroupName="@fireInstance.TriggerKey.Group" ItemName="@fireInstance.TriggerKey.Name" /></td>
                         <td>
+                            @fireInstance.SchedulerInstanceId
+                            @if (!string.IsNullOrEmpty(fireInstance.ExecutionGroup))
+                            {
+                                <div class="qz-executing-group-inline qz-muted">@fireInstance.ExecutionGroup</div>
+                            }
+                        </td>
+                        <td class="qz-col-group">@(string.IsNullOrEmpty(fireInstance.ExecutionGroup) ? "—" : fireInstance.ExecutionGroup)</td>
+                        <td class="qz-col-time"><span class="qz-executing-fired"><span>@FireDate(fireInstance.FireTimeUtc)</span> <span>@FireTimeOfDay(fireInstance.FireTimeUtc)</span></span></td>
+                        <td class="qz-col-time">
                             @FormatRunTime(fireInstance.FireTimeUtc)
                             @if (fireInstance.InterruptRequestedUtc is { } requestedAt)
                             {
@@ -115,7 +122,7 @@
                                title="This firing gets an execution page of its own once it finishes"
                                href="@GetHistoryPathForTrigger(fireInstance.TriggerKey)">Past runs</a>
                         </td>
-                        <td>
+                        <td class="qz-col-actions">
                             <div class="qz-actions">
                                 @* A read, so every visitor who sees the scheduler gets it, read-only too: the lines are
                                    the ones Execution Detail shows once the run ends. *@
@@ -146,7 +153,7 @@
        and the dialog stays to say so and point to its execution page. *@
     @if (_logFiring is { } firing && _logScheduler is { } logScheduler)
     {
-        <FireInstanceLogDialog Firing="firing" SchedulerName="@logScheduler" ReturnFocus="_logOpener" OnClose="CloseLog" />
+        <FireInstanceLogDialog Firing="firing" SchedulerName="@logScheduler" ReturnFocus="_logOpener" ReturnFocusFallback="_heading" OnClose="CloseLog" />
     }
 </div>
 
@@ -178,6 +185,9 @@
     private FireInstanceDto? _logFiring;
     private string? _logScheduler;
     private ElementReference? _logOpener;
+
+    /// <summary>The page's heading: where focus goes when a closing log dialog's row has left the listing.</summary>
+    private ElementReference _heading;
 
     protected override async Task OnInitializedAsync()
     {
@@ -347,6 +357,22 @@
     private string FormatFireTime(DateTimeOffset? fireTime)
     {
         return Scheduler.FormatInSelectedTimeZone(fireTime, "u");
+    }
+
+    /// <summary>The fire time's date, the part before its first space, which a narrow table puts on a line of its own.</summary>
+    private string FireDate(DateTimeOffset fireTime)
+    {
+        string text = FormatFireTime(fireTime);
+        int space = text.IndexOf(' ', StringComparison.Ordinal);
+        return space < 0 ? text : text[..space];
+    }
+
+    /// <summary>The fire time's time of day and offset, the part after its first space.</summary>
+    private string FireTimeOfDay(DateTimeOffset fireTime)
+    {
+        string text = FormatFireTime(fireTime);
+        int space = text.IndexOf(' ', StringComparison.Ordinal);
+        return space < 0 ? string.Empty : text[(space + 1)..];
     }
 
     private static string FormatRunTime(DateTimeOffset? fireTime)

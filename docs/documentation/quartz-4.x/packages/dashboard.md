@@ -651,9 +651,10 @@ process running the firing: this one, the host behind an HTTP target, or the age
 | The dialog says | When | Then |
 |---|---|---|
 | *Following · 12 lines · updated 14:02:31* | The firing runs and its scheduler captures | It reads again in two seconds. Behind, it reads up to four more pages at once |
-| *Nothing logged yet* | The firing runs and has logged nothing | It reads again in two seconds |
+| *Nothing logged yet* | The firing runs and has logged nothing | It reads again in two seconds. The log's box appears with the first line |
+| *Paused · 4 new lines below* and **Jump to latest** | You scrolled up off the newest line | It keeps reading and keeps your place. **Jump to latest**, or scrolling back down, follows again |
 | *[7 lines were dropped before they could be shown: …]*, in the log | The capture dropped them between two reads: it keeps its newest `MaxLines` and `MaxBytes` | Raise `ExecutionLogCaptureOptions.MaxLines` for a job that logs faster |
-| *The run ended. Its log, as recorded, is on its execution page* | The firing's own node runs it no more | It reads the history by fire instance id up to five times, two seconds apart, for a row written behind. No row: the trigger's *Past runs*. No history: *This scheduler keeps no history, so the log is not kept after the run.* |
+| *The run ended. This is its log as recorded.* | The firing's own node runs it no more | It reads the history by fire instance id up to five times, two seconds apart, for a row written behind, and shows the row's log in full, the lines logged after its last read among them, with the run time it recorded. A listing that leaves the log out, as [database history](../tutorial/job-stores.md#execution-history-in-the-database)'s does: *Its full log, with the lines logged after the last read, is on its execution page*. No row: the trigger's *Past runs*. No history: *This scheduler keeps no history, so the log is not kept after the run.* |
 | *This scheduler keeps no log lines of its firings…* | The scheduler does not call `UseExecutionLogCapture()` | It stops |
 | *node-b runs this firing, and this target reaches node-a…* | The target is not the node running the firing, as behind a load balancer | It stops. Open node-b's own target |
 | *No process this dashboard reaches runs this firing…* | A [store-attached window](#what-a-window-can-and-cannot-do), or a cluster node no member target fronts | It stops |
@@ -662,7 +663,9 @@ process running the firing: this one, the host behind an HTTP target, or the age
 
 - The lines read so far stay when it stops. Past 2,000 it keeps the newest, under
   *[earlier lines are on the execution page once the run ends]*.
-- The log stays on its newest line; scrolled up, it keeps your place.
+- The log stays on its newest line; scrolled up, it keeps your place. Screen readers hear the state change, not
+  every line or count.
+- Closing it gives focus back to the row's *Show log*, or to the page's heading when the row has gone.
 - A retry is a new firing, with its own row and *Show log*.
 - It needs `View`, as Execution Detail does: a scheduler that captures shows its running firings' lines to
   whoever may view it, whether or not it keeps history.
