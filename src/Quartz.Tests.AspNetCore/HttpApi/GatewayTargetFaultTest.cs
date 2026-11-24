@@ -66,6 +66,41 @@ public sealed class GatewayTargetFaultTest
             "the log says what failed as a class, and never where the target is");
     }
 
+    /// <summary>
+    /// "Not reachable" is said only when nothing was sent. A failure after the request went — an answer that
+    /// ended early, one that was not HTTP — may have followed a change the target made, so it is a bad gateway,
+    /// and a change says it may have been applied: a retry of a trigger-now that ran would fire it twice.
+    /// </summary>
+    [TestCase(HttpRequestError.ConnectionError, HttpStatusCode.ServiceUnavailable, false)]
+    [TestCase(HttpRequestError.NameResolutionError, HttpStatusCode.ServiceUnavailable, false)]
+    [TestCase(HttpRequestError.SecureConnectionError, HttpStatusCode.ServiceUnavailable, false)]
+    [TestCase(HttpRequestError.ResponseEnded, HttpStatusCode.BadGateway, true)]
+    [TestCase(HttpRequestError.InvalidResponse, HttpStatusCode.BadGateway, true)]
+    [TestCase(HttpRequestError.HttpProtocolError, HttpStatusCode.BadGateway, true)]
+    [TestCase(HttpRequestError.Unknown, HttpStatusCode.BadGateway, true)]
+    public async Task OnlyAFailureBeforeTheRequestWasSentIsNotReachable(HttpRequestError error, HttpStatusCode status, bool mayHaveApplied)
+    {
+        await StartGateway((_, _) => throw new HttpRequestException(error, $"The connection to {Address} failed."));
+
+        using HttpResponseMessage change = await client.PostAsync($"{SchedulerUrl}/jobs/reports/nightly/trigger?target={Target}", content: null);
+        using HttpResponseMessage read = await client.GetAsync($"{SchedulerUrl}?target={Target}");
+
+        change.StatusCode.Should().Be(status);
+        string changeBody = await change.Content.ReadAsStringAsync();
+        if (mayHaveApplied)
+        {
+            changeBody.Should().Contain($"Target '{Target}' failed.").And.Contain(TargetFaultException.MayHaveAppliedSentence,
+                "the request went, so the trigger-now may have run and a retry would fire it again");
+        }
+        else
+        {
+            changeBody.Should().Contain($"Target '{Target}' is not reachable.").And.NotContain("may or may not", "nothing was sent");
+        }
+
+        read.StatusCode.Should().Be(status);
+        (await read.Content.ReadAsStringAsync()).Should().NotContain("may or may not", "a read changed nothing").And.NotContain("worker-7");
+    }
+
     [Test]
     public async Task ATargetThatRefusesTheHostsCredentialIsABadGateway()
     {
