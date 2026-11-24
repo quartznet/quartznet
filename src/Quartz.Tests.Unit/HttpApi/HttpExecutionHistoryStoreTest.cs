@@ -225,6 +225,43 @@ public class HttpExecutionHistoryStoreTest
     }
 
     /// <summary>
+    /// A host whose history store cannot read its rows answers <c>501</c>: the target serves no history, as one
+    /// without the routes does, and the host's detail says why.
+    /// </summary>
+    [Test]
+    public async Task AHostWhoseStoreCannotReadItsRowsSaysSo()
+    {
+        handler.Respond(HttpStatusCode.NotImplemented, """
+            {
+              "title": "Not Implemented",
+              "status": 501,
+              "detail": "AcmeHistoryStore only records.",
+              "Quartz-ExceptionType": "NotSupportedException"
+            }
+            """);
+
+        Func<Task> listing = async () => await Store().QueryExecutions(new ExecutionHistoryQuery { SchedulerName = "Remote" });
+        Func<Task> single = async () => await Store().GetExecution("Remote", "entry-1");
+
+        await listing.Should().ThrowAsync<NotSupportedException>().WithMessage("AcmeHistoryStore only records.",
+            "a 501 is the host saying it cannot answer, not a fault, and its words are what a page shows");
+        await single.Should().ThrowAsync<NotSupportedException>().WithMessage("AcmeHistoryStore only records.");
+    }
+
+    [Test]
+    public async Task ANotImplementedWithoutProblemDetailsStillSaysTheHostKeepsNoHistory()
+    {
+        handler.Respond(HttpStatusCode.NotImplemented, body: "");
+
+        Func<Task> misfires = async () => await Store().QueryMisfires(new MisfireHistoryQuery { SchedulerName = "Remote" });
+        Func<Task> single = async () => await Store().GetExecution("Remote", "entry-1");
+
+        await misfires.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*keeps no history it can read*",
+            "a proxy in front of the host may have replaced the body, and the status alone still says it");
+        await single.Should().ThrowAsync<NotSupportedException>().WithMessage("*'Remote'*keeps no history it can read*");
+    }
+
+    /// <summary>
     /// The other <c>404</c> — the one that names an unknown scheduler — is a mistake rather than a
     /// missing capability, and still arrives as itself.
     /// </summary>

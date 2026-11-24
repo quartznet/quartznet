@@ -916,6 +916,76 @@ public sealed class HistoryEndpointsTest
         await read.Should().ThrowAsync<NotSupportedException>().WithMessage("AcmeHistoryStore cannot count.");
     }
 
+    /// <summary>
+    /// A store that cannot read its rows answers <c>501</c> naming <see cref="NotSupportedException" /> on each
+    /// route that reads them, as the status and statistics routes answer theirs. Before 4.9 these answered
+    /// <c>500</c>, which a client cannot tell from a server fault.
+    /// </summary>
+    [TestCase("history/executions")]
+    [TestCase("history/executions/entry-1")]
+    [TestCase("history/misfires")]
+    [TestCase("history/misfires/count?since=2026-01-01T00:00:00Z")]
+    public async Task AStoreThatCannotReadItsRowsIsAnsweredNotImplemented(string route)
+    {
+        using HttpClient recordsOnlyClient = ClientOverRecordsOnlyStore();
+
+        using HttpResponseMessage response = await recordsOnlyClient.GetAsync($"{SchedulerUrl}/{route}");
+
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotImplemented,
+            "the server is working; the store it reads from cannot answer, which is neither a fault nor a missing route");
+        using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        body.RootElement.GetProperty(HttpApiConstants.ProblemDetailsExceptionType).GetString().Should().Be(nameof(NotSupportedException));
+        body.RootElement.GetProperty("detail").GetString().Should().Be(RecordsOnlyRefusal);
+    }
+
+    /// <summary>
+    /// The HTTP-backed store raises that <c>501</c> as <see cref="NotSupportedException" />, in the host's words,
+    /// from each read of the rows: "this target serves no history", which a caller can render.
+    /// </summary>
+    [Test]
+    public async Task TheHttpBackedStoreRaisesARowReadTheHostCannotAnswerAsNotSupported()
+    {
+        using HttpClient recordsOnlyClient = ClientOverRecordsOnlyStore();
+        HttpExecutionHistoryStore remote = new(TestData.SchedulerName, recordsOnlyClient);
+
+        Func<Task>[] reads =
+        [
+            async () => await remote.QueryExecutions(new ExecutionHistoryQuery { SchedulerName = TestData.SchedulerName }),
+            async () => await remote.GetExecution(TestData.SchedulerName, "entry-1"),
+            async () => await remote.QueryMisfires(new MisfireHistoryQuery { SchedulerName = TestData.SchedulerName }),
+            async () => await remote.CountMisfires(TestData.SchedulerName, DateTimeOffset.UtcNow.AddHours(-1)),
+        ];
+
+        foreach (Func<Task> read in reads)
+        {
+            await read.Should().ThrowAsync<NotSupportedException>().WithMessage(RecordsOnlyRefusal);
+        }
+    }
+
+    private const string RecordsOnlyRefusal = "AcmeHistoryStore only records; read the history where it is kept.";
+
+    /// <summary>
+    /// A client of a host whose history store records and cannot read back a row.
+    /// </summary>
+    private HttpClient ClientOverRecordsOnlyStore()
+    {
+        IExecutionHistoryStore recordsOnly = A.Fake<IExecutionHistoryStore>();
+        A.CallTo(() => recordsOnly.QueryExecutions(A<ExecutionHistoryQuery>._, A<CancellationToken>._))
+            .Throws(() => new NotSupportedException(RecordsOnlyRefusal));
+        A.CallTo(() => recordsOnly.GetExecution(A<string>._, A<string>._, A<CancellationToken>._))
+            .Throws(() => new NotSupportedException(RecordsOnlyRefusal));
+        A.CallTo(() => recordsOnly.QueryMisfires(A<MisfireHistoryQuery>._, A<CancellationToken>._))
+            .Throws(() => new NotSupportedException(RecordsOnlyRefusal));
+        A.CallTo(() => recordsOnly.CountMisfires(A<string>._, A<DateTimeOffset>._, A<CancellationToken>._))
+            .Throws(() => new NotSupportedException(RecordsOnlyRefusal));
+
+        WebApplicationFactory<Program> factory = factories[0].WithWebHostBuilder(builder => builder.ConfigureTestServices(
+            services => services.AddSingleton(recordsOnly)));
+        factories.Add(factory);
+        BindAnsweringScheduler(factory);
+        return factory.CreateClient();
+    }
+
     /// <summary>Records the path of every request it passes on.</summary>
     private sealed class RecordingHandler : DelegatingHandler
     {

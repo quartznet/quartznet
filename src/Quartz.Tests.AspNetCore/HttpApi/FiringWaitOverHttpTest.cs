@@ -1,6 +1,10 @@
+using FakeItEasy;
+
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.Extensibility;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -83,7 +87,26 @@ public sealed class FiringWaitOverHttpTest
         (await host.GetTriggersOfJob(jobKey)).Should().BeEmpty("the client read the host's history before it stored the trigger");
     }
 
-    private async Task<(IScheduler Host, HttpScheduler Client)> Create(bool withoutHistoryRoutes = false)
+    /// <summary>
+    /// A host whose history store cannot read its rows answers the history routes <c>501</c>; the client reads
+    /// that as the host keeping no history it can read, in the host's words, rather than as a server fault.
+    /// </summary>
+    [Test]
+    public async Task AHostWhoseStoreCannotReadItsHistoryIsRefusedBeforeAnythingIsStored()
+    {
+        IExecutionHistoryStore recordsOnly = A.Fake<IExecutionHistoryStore>();
+        A.CallTo(() => recordsOnly.QueryExecutions(A<ExecutionHistoryQuery>._, A<CancellationToken>._))
+            .Throws(() => new NotSupportedException("AcmeHistoryStore only records."));
+        (IScheduler host, HttpScheduler client) = await Create(historyStore: recordsOnly);
+        await host.Start();
+
+        Func<Task> act = async () => await client.TriggerJobAndWait(jobKey, waitLimit);
+
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("AcmeHistoryStore only records.");
+        (await host.GetTriggersOfJob(jobKey)).Should().BeEmpty("the client read the host's history before it stored the trigger");
+    }
+
+    private async Task<(IScheduler Host, HttpScheduler Client)> Create(bool withoutHistoryRoutes = false, IExecutionHistoryStore? historyStore = null)
     {
         TestContentRoot.Apply();
 
@@ -92,8 +115,14 @@ public sealed class FiringWaitOverHttpTest
 
         string schedulerName = $"{SchedulerName}-{factories.Count}";
         WebApplicationFactory<Program> application = root.WithWebHostBuilder(builder =>
+        {
             builder.ConfigureServices(services => services.AddQuartz(schedulerName, quartz =>
-                quartz.ConfigureScheduler(options => options.IdleWaitTime = TimeSpan.FromSeconds(1)))));
+                quartz.ConfigureScheduler(options => options.IdleWaitTime = TimeSpan.FromSeconds(1))));
+            if (historyStore is not null)
+            {
+                builder.ConfigureTestServices(services => services.AddSingleton(historyStore));
+            }
+        });
         factories.Add(application);
 
         IScheduler scheduler = await application.Services

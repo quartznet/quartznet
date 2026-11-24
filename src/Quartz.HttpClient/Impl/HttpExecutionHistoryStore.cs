@@ -45,7 +45,8 @@ namespace Quartz.Impl;
 /// reported as <see cref="NotSupportedException" /> too — "this target serves no history" is a fact a
 /// caller can render, where an exception about a missing route is not. It is not confused with the
 /// <c>404</c> that names an unknown scheduler: that one carries problem details and arrives as
-/// <see cref="HttpClientException" />, which still propagates.
+/// <see cref="HttpClientException" />, which still propagates. A host whose history store cannot answer a read
+/// answers <c>501</c>, which is raised as <see cref="NotSupportedException" /> in the host's words.
 /// </para>
 /// <para>
 /// A host ignores the query parameters it does not know, and would answer a filtered read with rows the
@@ -76,6 +77,11 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// The most keys one status fetch may carry, as the host enforces it.
     /// </summary>
     private const int MaxKeysPerFetch = 1000;
+
+    /// <summary>
+    /// What a read of the rows says a host does not do, when its store cannot answer and the host gave no words.
+    /// </summary>
+    private const string KeepsNoHistory = "keeps no history it can read";
 
     /// <summary>
     /// What a per-job status read says a host does not serve.
@@ -263,17 +269,20 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     /// the recorded input; a 4.3 host sends no input, so its rows read as having none. A
     /// row the target does not have answers <see langword="null" />; a target older than 4.3, which has no
     /// such route, answers <see cref="NotSupportedException" />, as a target with no history routes at
-    /// all does.
+    /// all does, and so does a host whose store cannot answer the read.
     /// </remarks>
     public async ValueTask<ExecutionHistoryEntry?> GetExecution(string schedulerName, string entryId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(entryId);
 
-        ExecutionHistoryEntryDto? result;
+        WireResponse response = await wire.Exchange(
+            SchedulerRoutes.GetExecution.For(this.schedulerName, entryId), cancellationToken).ConfigureAwait(false);
+        ThrowIfNotServed(response, KeepsNoHistory);
+
+        bool found;
         try
         {
-            result = await wire.SendAndReadOrNull<ExecutionHistoryEntryDto>(
-                SchedulerRoutes.GetExecution.For(this.schedulerName, entryId), cancellationToken).ConfigureAwait(false);
+            found = wire.EnsureSuccess(response, throwOnNotFound: false);
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {
@@ -284,7 +293,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
                 exception);
         }
 
-        return result?.AsExecutionHistoryEntry(this.schedulerName);
+        return found ? wire.Read<ExecutionHistoryEntryDto>(response).AsExecutionHistoryEntry(this.schedulerName) : null;
     }
 
     /// <remarks>
@@ -598,12 +607,7 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
             ? await wire.Exchange(request, cancellationToken).ConfigureAwait(false)
             : await wire.Exchange(request, body, cancellationToken).ConfigureAwait(false);
 
-        if (response.Status == HttpStatusCode.NotImplemented)
-        {
-            throw new NotSupportedException(
-                wire.ProblemDetail(response)
-                ?? $"The scheduler '{schedulerName}' is reached over HTTP and its host {unserved.Keeps}.");
-        }
+        ThrowIfNotServed(response, unserved.Keeps);
 
         try
         {
@@ -616,6 +620,22 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
                 + $"it answered 404 without problem details for the route, which a Quartz HTTP API older than {unserved.Since} does. "
                 + $"Upgrade the scheduler's host to {unserved.UpgradeTo}.",
                 exception);
+        }
+    }
+
+    /// <summary>
+    /// Raises the <c>501</c> of a host that serves the route and whose history store cannot answer the read
+    /// as the <see cref="NotSupportedException" /> it is, in the host's words when it sent any.
+    /// </summary>
+    /// <param name="response">The host's answer.</param>
+    /// <param name="keeps">What the host does not do, for an answer without words: "keeps no …".</param>
+    private void ThrowIfNotServed(WireResponse response, string keeps)
+    {
+        if (response.Status == HttpStatusCode.NotImplemented)
+        {
+            throw new NotSupportedException(
+                wire.ProblemDetail(response)
+                ?? $"The scheduler '{schedulerName}' is reached over HTTP and its host {keeps}.");
         }
     }
 
@@ -753,21 +773,25 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
     }
 
     /// <summary>
-    /// Reads one history body, turning "this server has no such route" into "this target serves no
-    /// history".
+    /// Reads one history body, turning "this server has no such route" and "this host's store cannot
+    /// answer" into "this target serves no history".
     /// </summary>
     /// <remarks>
     /// An unmatched route answers <c>404</c> with no body at all, which
     /// <c>HttpClientExtensions.EnsureSuccess</c> surfaces as <see cref="HttpRequestException" /> because
     /// there are no problem details to read. That is exactly what a host older than these routes answers, and it is a
     /// capability rather than a failure — the dashboard renders it as "the target serves no history"
-    /// beside a misfire tile showing a dash rather than a zero.
+    /// beside a misfire tile showing a dash rather than a zero. A host whose store cannot answer the read
+    /// answers <c>501</c> naming <see cref="NotSupportedException" />, which is the same fact in the host's words.
     /// </remarks>
     private async ValueTask<T> Read<T>(WireRequest request, CancellationToken cancellationToken)
     {
+        WireResponse response = await wire.Exchange(request, cancellationToken).ConfigureAwait(false);
+        ThrowIfNotServed(response, KeepsNoHistory);
+
         try
         {
-            return await wire.SendAndRead<T>(request, cancellationToken).ConfigureAwait(false);
+            wire.EnsureSuccess(response);
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {
@@ -777,6 +801,8 @@ internal sealed class HttpExecutionHistoryStore : IExecutionHistoryStore
                 + "scheduler's host to serve its execution history.",
                 exception);
         }
+
+        return wire.Read<T>(response);
     }
 
     private static NotSupportedException RecordedElsewhere(string member)

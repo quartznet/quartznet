@@ -340,20 +340,20 @@ internal sealed class AgentCarrier
         handlers[SchedulerRoutes.GetClusterNodes] = call => call.Json(SchedulerOperations.GetClusterNodes(call.Scheduler, call.Token));
 
         // History
-        handlers[SchedulerRoutes.QueryExecutionHistory] = call => call.Json(SchedulerOperations.QueryExecutionHistory(
+        handlers[SchedulerRoutes.QueryExecutionHistory] = call => call.Json(Served(() => SchedulerOperations.QueryExecutionHistory(
             call.Scheduler, call.Carrier.History(), call.Listing(), call.Query.Get(SchedulerInstanceIdParameter), call.Query.Get("jobContains"),
-            call.Query.Get("triggerContains"), call.Query.GetNullableBool("failedFinally"), call.HistoryFilters(), call.Token));
+            call.Query.Get("triggerContains"), call.Query.GetNullableBool("failedFinally"), call.HistoryFilters(), call.Token)));
         handlers[SchedulerRoutes.GetExecution] = call => call.JsonOrNotFound(
-            SchedulerOperations.GetExecution(call.Scheduler, call.Carrier.History(), call.Values["entryId"], call.Token),
+            Served(() => SchedulerOperations.GetExecution(call.Scheduler, call.Carrier.History(), call.Values["entryId"], call.Token)),
             () => NotFoundException.ForExecution(call.Values["entryId"]));
-        handlers[SchedulerRoutes.QueryMisfireHistory] = call => call.Json(SchedulerOperations.QueryMisfireHistory(
+        handlers[SchedulerRoutes.QueryMisfireHistory] = call => call.Json(Served(() => SchedulerOperations.QueryMisfireHistory(
             call.Scheduler, call.Carrier.History(), call.Listing(), call.Query.Get(SchedulerInstanceIdParameter), call.Query.Get("triggerContains"),
-            call.HistoryFilters(), call.Token));
+            call.HistoryFilters(), call.Token)));
         handlers[SchedulerRoutes.CountMisfires] = call =>
         {
             DateTimeOffset since = call.Query.GetDateTimeOffset("since")
                 ?? throw new InvalidRequestException("since is required: a count with no window is a count of everything the store still holds");
-            return call.Json(SchedulerOperations.CountMisfires(call.Scheduler, call.Carrier.History(), since, call.Token));
+            return call.Json(Served(() => SchedulerOperations.CountMisfires(call.Scheduler, call.Carrier.History(), since, call.Token)));
         };
         handlers[SchedulerRoutes.QueryJobRunStatuses] = call => call.Json(Served(() => SchedulerOperations.QueryJobRunStatuses(
             call.Scheduler, call.Carrier.History(), call.Listing(), call.Query.GetNullableBool("failing"), call.Token)));
@@ -515,8 +515,8 @@ internal sealed class AgentCarrier
     }
 
     /// <summary>
-    /// A status or statistics read, with a store's <see cref="NotSupportedException" /> answered as the
-    /// <c>501</c> it is rather than as a server fault.
+    /// A history read or a running firing's log, with a <see cref="NotSupportedException" /> answered as the
+    /// <c>501</c> it is rather than as a server fault, as the HTTP API answers it.
     /// </summary>
     private static async ValueTask<T> Served<T>(Func<ValueTask<T>> read)
     {

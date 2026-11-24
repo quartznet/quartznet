@@ -470,6 +470,10 @@ internal static class SchedulerEndpoints
     /// From 4.6, <c>triggerGroup</c> with <c>triggerName</c> narrows to one trigger exactly, and
     /// <c>fireInstanceId</c> to one firing. A host before 4.6 ignores all three.
     /// </para>
+    /// <para>
+    /// A store that cannot answer the read answers <c>501</c>, naming <see cref="NotSupportedException" />, here
+    /// as on every history route. Before 4.9 the execution and misfire routes answered <c>500</c>.
+    /// </para>
     /// </remarks>
     [ProducesResponseType(typeof(PagedResultDto<ExecutionHistoryEntryDto>), StatusCodes.Status200OK)]
     private static Task<IResult> QueryExecutionHistory(
@@ -509,7 +513,7 @@ internal static class SchedulerEndpoints
             Results = results
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => SchedulerOperations.QueryExecutionHistory(
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.QueryExecutionHistory(
             scheduler,
             HistoryFor(httpContext, historyStore, target, scheduler),
             listing,
@@ -518,7 +522,7 @@ internal static class SchedulerEndpoints
             triggerContains,
             failedFinally,
             filters,
-            cancellationToken));
+            cancellationToken)));
     }
 
     private const string ResultsDescription = "Only these results: Succeeded, Failed, Cancelled, Skipped. Repeated or comma-separated";
@@ -553,7 +557,7 @@ internal static class SchedulerEndpoints
         CancellationToken cancellationToken = default)
     {
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, async scheduler =>
-            await SchedulerOperations.GetExecution(scheduler, HistoryFor(httpContext, historyStore, target, scheduler), entryId, cancellationToken).ConfigureAwait(false)
+            await Served(() => SchedulerOperations.GetExecution(scheduler, HistoryFor(httpContext, historyStore, target, scheduler), entryId, cancellationToken)).ConfigureAwait(false)
             ?? throw NotFoundException.ForExecution(entryId));
     }
 
@@ -602,14 +606,14 @@ internal static class SchedulerEndpoints
             Reasons = reasons
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => SchedulerOperations.QueryMisfireHistory(
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.QueryMisfireHistory(
             scheduler,
             HistoryFor(httpContext, historyStore, target, scheduler),
             listing,
             schedulerInstanceId,
             triggerContains,
             filters,
-            cancellationToken));
+            cancellationToken)));
     }
 
     /// <summary>
@@ -636,11 +640,11 @@ internal static class SchedulerEndpoints
             throw new BadHttpRequestException("since is required: a count with no window is a count of everything the store still holds");
         }
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => SchedulerOperations.CountMisfires(
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.CountMisfires(
             scheduler,
             HistoryFor(httpContext, historyStore, target, scheduler),
             since.Value,
-            cancellationToken));
+            cancellationToken)));
     }
 
     /// <summary>
@@ -865,8 +869,8 @@ internal static class SchedulerEndpoints
     }
 
     /// <summary>
-    /// A status or statistics read, with a store's <see cref="NotSupportedException" /> answered as the
-    /// <c>501</c> it is rather than as a server fault.
+    /// A history read, with a store's <see cref="NotSupportedException" /> answered as the <c>501</c> it is
+    /// rather than as a server fault.
     /// </summary>
     private static async ValueTask<T> Served<T>(Func<ValueTask<T>> read)
     {

@@ -413,8 +413,8 @@ A client maps Quartz exception names (`SchedulerException`, `JobPersistenceExcep
 `ObjectAlreadyExistsException`, …) back to typed exceptions and treats other values as opaque; `HttpScheduler`
 does this. `Quartz-ExceptionStackTrace` is added only when `IncludeStackTraceInProblemDetails` is on.
 
-A `501` carries the same members, naming `NotSupportedException`: the history store keeps no
-[run status](#job-run-status).
+A `501` carries the same members, naming `NotSupportedException`: what serves the route cannot answer it, such
+as a history store that [cannot read its rows](#execution-history) or keeps no [run status](#job-run-status).
 
 A **`500` carries neither `Quartz-ExceptionType` nor the exception's message**, because a driver's message can
 name the server, database, login or constraint. `detail` is a fixed sentence; the real message is logged:
@@ -875,7 +875,9 @@ Which history a route reads follows the [dashboard's rule](dashboard.md#executio
 
 To keep history elsewhere, register your own `IExecutionHistoryStore` before `AddQuartzHttpApi()`. The shipped
 registration is a `TryAdd`, and `UseExecutionHistory()` replaces only the in-memory default. A dashboard in the
-same process reads the same store.
+same process reads the same store. A read your store throws `NotSupportedException` from is answered `501` on
+every history route, naming `NotSupportedException`, with the store's message as `detail`;
+`HttpExecutionHistoryStore` raises it again as that.
 
 ### Run statistics
 
