@@ -867,9 +867,10 @@ public class TriggersPageTest
     }
 
     /// <summary>
-    /// Each dialog is handed the control that opened it, which focus goes back to as it closes. Without one, focus goes
-    /// back to whatever had it as the dialog opened: after a click that moves no focus, as Safari's on a button, that is
-    /// the page's heading, and focusing the heading scrolls the page back to its top.
+    /// Each dialog is handed the control that opened it, which focus goes back to as it closes, and the listing, which
+    /// focus goes to instead when that control has left the page by then. Without the control, focus goes back to
+    /// whatever had it as the dialog opened: after a click that moves no focus, as Safari's on a button, that is the
+    /// page's heading, and focusing the heading scrolls the page back to its top.
     /// </summary>
     [TestCase("Pause selected")]
     [TestCase("Unschedule selected")]
@@ -880,6 +881,7 @@ public class TriggersPageTest
     {
         GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
         IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        string listing = ReferenceOf(page.Find("[data-testid=trigger-results]"));
         page.WaitForElement("input.qz-select-trigger");
         if (opener.EndsWith(" selected", StringComparison.Ordinal))
         {
@@ -894,8 +896,38 @@ public class TriggersPageTest
 
         page.WaitForAssertion(() => Invoked("quartzDashboardDialog.open").Should().ContainSingle());
         IReadOnlyList<object?> arguments = Invoked("quartzDashboardDialog.open")[0].Arguments;
-        arguments.Should().HaveCount(2, "the dialog is handed the control focus goes back to");
+        arguments.Should().HaveCount(3, "the dialog is handed the control focus goes back to, and where it goes should that have gone");
         ((ElementReference) arguments[1]!).Id.Should().Be(control);
+        ((ElementReference) arguments[2]!).Id.Should().Be(listing);
+    }
+
+    /// <summary>
+    /// A row's Unschedule closes its dialog before the call, so focus goes back to the row's button, and the read after
+    /// it takes the row away: focus goes on to the listing rather than fall to the page's body, or stay on a button that
+    /// now unschedules another trigger.
+    /// </summary>
+    [Test]
+    public void ConfirmingARowsUnscheduleMovesFocusToTheListingOnceItsRowHasGone()
+    {
+        List<TriggerHeaderDto> listed = [.. TestData.Dashboard.TriggerHeaders("nightly", 3)];
+        GivenTriggers(listed);
+        TaskCompletionSource<bool> unscheduled = new();
+        A.CallTo(() => context.Api.UnscheduleJob(TestData.SchedulerName, new TriggerKeyDto("nightly", "trigger-2"), A<CancellationToken>._))
+            .Returns(new ValueTask<bool>(unscheduled.Task));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        string listing = ReferenceOf(page.Find("[data-testid=trigger-results]"));
+        page.WaitForElement("input.qz-select-trigger[aria-label='Select nightly.trigger-2']")
+            .Closest("tr")!.QuerySelectorAll("td.qz-col-actions button").First(button => button.TextContent.Trim() == "Unschedule").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+        page.WaitForAssertion(() => page.FindAll(".qz-confirm-dialog").Should().BeEmpty("the dialog closes before the call, while the row is still listed"));
+        int focusedSoFar = Focused().Count;
+
+        listed.RemoveAt(1);
+        unscheduled.SetResult(true);
+
+        page.WaitForAssertion(() => page.FindAll("input.qz-select-trigger[aria-label='Select nightly.trigger-2']").Should().BeEmpty());
+        page.WaitForAssertion(() => Focused().Should().HaveCount(focusedSoFar + 1));
+        LastFocused().Should().Be(listing);
     }
 
     private static IElement Opener(IRenderedComponent<Triggers> page, string opener)

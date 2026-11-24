@@ -2,7 +2,7 @@
    pressed out of habit confirms nothing. *@
 @if (IsOpen)
 {
-    <ModalDialog LabelledBy="@_titleId" ReturnFocus="ReturnFocus" OnCancel="CancelAsync">
+    <ModalDialog LabelledBy="@_titleId" ReturnFocus="ReturnFocus" ReturnFocusFallback="ReturnFocusFallback" OnCancel="CancelAsync">
         <h3 id="@_titleId">@Title</h3>
         <p>@Message</p>
         <div class="qz-confirm-actions">
@@ -27,6 +27,13 @@
     /// </summary>
     [Parameter]
     public ElementReference? ReturnFocus { get; set; }
+
+    /// <summary>
+    /// Where focus goes as the dialog closes when <see cref="ReturnFocus" /> has left the page by then, or
+    /// <see langword="null" /> for none: see <see cref="ModalDialog.ReturnFocusFallback" />.
+    /// </summary>
+    [Parameter]
+    public ElementReference? ReturnFocusFallback { get; set; }
 
     [Parameter]
     public string Title { get; set; } = "Confirm action";
