@@ -113,6 +113,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
+    <!-- The MCP endpoint for the fleet, mapped when Quartz:Dashboard:Mcp:Enabled says so (#4245). -->
+    <ProjectReference Include="..\Quartz.Mcp\Quartz.Mcp.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
   </ItemGroup>
 

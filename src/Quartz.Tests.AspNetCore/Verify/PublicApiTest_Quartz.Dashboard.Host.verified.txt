@@ -1,3 +1,4 @@
 ﻿[assembly: Microsoft.AspNetCore.Mvc.ApplicationParts.ApplicationPart("Quartz.AspNetCore")]
 [assembly: Microsoft.AspNetCore.Mvc.ApplicationParts.ApplicationPart("Quartz.Dashboard")]
+[assembly: Microsoft.AspNetCore.Mvc.ApplicationParts.ApplicationPart("Quartz.Mcp")]
 [assembly: System.Resources.NeutralResourcesLanguage("en-US")]
