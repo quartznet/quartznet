@@ -635,21 +635,47 @@ public sealed class CalendarEditorTest
     /// <summary>
     /// Leaving the page stops the type reads: the reads already out finish, and none of those still waiting starts.
     /// </summary>
+    /// <remarks>
+    /// The race this holds: a cancelled wait for a slot can still be handed one, by a read that ends before the
+    /// semaphore has taken the cancelled waiter off its queue. CI saw 12 and 16 reads here. Every read is therefore
+    /// checked as it is made, for a page that had already gone, which no timing can hide; and the count is read once
+    /// it has stopped moving.
+    /// </remarks>
     [Test]
     public async Task LeavingThePageStopsTheTypeReads()
     {
-        TaskCompletionSource<ICalendar> held = GivenTypeReadsHeld(250, out Func<int> reads);
+        TaskCompletionSource<ICalendar> held = GivenTypeReadsHeld(250, out Func<int> reads, out Func<int> readsAfterLeaving);
         IRenderedComponent<Calendars> page = context.Render<Calendars>();
         page.WaitForAssertion(() => reads().Should().Be(8));
 
         await context.DisposeComponentsAsync();
         held.SetResult(new WeeklyCalendar());
 
-        for (int check = 0; check < 20; check++)
+        (await Settled(reads)).Should().Be(8, "the reads still waiting when the page went are not made");
+        readsAfterLeaving().Should().Be(0, "no read is made with the page's token already cancelled");
+    }
+
+    /// <summary>
+    /// <paramref name="count" /> once it has not moved for 200 ms, or after two seconds: what is left to run after
+    /// the reads are released is the reads' own continuations, which take far less.
+    /// </summary>
+    private static async Task<int> Settled(Func<int> count)
+    {
+        int last = count();
+        System.Diagnostics.Stopwatch quiet = System.Diagnostics.Stopwatch.StartNew();
+        System.Diagnostics.Stopwatch total = System.Diagnostics.Stopwatch.StartNew();
+        while (quiet.ElapsedMilliseconds < 200 && total.ElapsedMilliseconds < 2000)
         {
             await Task.Delay(10);
-            reads().Should().Be(8, "the reads still waiting when the page went are not made");
+            int now = count();
+            if (now != last)
+            {
+                last = now;
+                quiet.Restart();
+            }
         }
+
+        return last;
     }
 
     /// <summary>
@@ -658,16 +684,29 @@ public sealed class CalendarEditorTest
     /// </summary>
     private TaskCompletionSource<ICalendar> GivenTypeReadsHeld(int count, out Func<int> reads)
     {
+        return GivenTypeReadsHeld(count, out reads, out _);
+    }
+
+    /// <param name="readsAfterLeaving">How many reads were made with the page's token already cancelled.</param>
+    private TaskCompletionSource<ICalendar> GivenTypeReadsHeld(int count, out Func<int> reads, out Func<int> readsAfterLeaving)
+    {
         GivenCalendarNames(Enumerable.Range(1, count).Select(index => "calendar-" + index.ToString("000", System.Globalization.CultureInfo.InvariantCulture)).ToArray());
         TaskCompletionSource<ICalendar> held = new(TaskCreationOptions.RunContinuationsAsynchronously);
         int made = 0;
+        int madeAfterLeaving = 0;
         A.CallTo(() => context.Api.GetCalendar(TestData.SchedulerName, A<string>._, A<CancellationToken>._))
-            .ReturnsLazily(() =>
+            .ReturnsLazily((string _, string _, CancellationToken token) =>
             {
                 Interlocked.Increment(ref made);
+                if (token.IsCancellationRequested)
+                {
+                    Interlocked.Increment(ref madeAfterLeaving);
+                }
+
                 return new ValueTask<ICalendar>(held.Task);
             });
         reads = () => Volatile.Read(ref made);
+        readsAfterLeaving = () => Volatile.Read(ref madeAfterLeaving);
         return held;
     }
 

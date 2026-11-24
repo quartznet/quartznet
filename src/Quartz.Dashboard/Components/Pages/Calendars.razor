@@ -324,6 +324,11 @@
             await gate.WaitAsync(cancellationToken);
             try
             {
+                // A cancelled wait can still be handed the slot: SemaphoreSlim takes a cancelled waiter off its
+                // queue only after the cancellation, and a read that ends in between gives its slot to that waiter.
+                // So the page having gone is asked again here, before any read, and a waiter that finds it gone
+                // gives the slot back without reading.
+                cancellationToken.ThrowIfCancellationRequested();
                 ICalendar calendar = await Api.GetCalendar(schedulerName, name, cancellationToken);
                 return (name, new CalendarType(CalendarReading.ShortName(calendar), null));
             }
@@ -410,9 +415,11 @@
 
     public void Dispose()
     {
+        // First, so no read the page started outlives it by a single step: a type read still waiting for its turn
+        // finds the token cancelled and does not read.
+        _cancellation.Cancel();
         Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
         Scheduler.OnDisplayChanged -= OnDisplayChanged;
-        _cancellation.Cancel();
         _cancellation.Dispose();
     }
 
