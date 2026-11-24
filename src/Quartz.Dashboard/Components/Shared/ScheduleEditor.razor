@@ -79,7 +79,12 @@
         <p data-testid="reschedule-schedule">@(pending.DescribeSchedule() ?? ScheduleForm.Describe(Form!.Kind)), first at @FirstFireText(pending).</p>
         <ul class="qz-reschedule-effects" data-testid="reschedule-effects">
             <li>The trigger is replaced: its previous fire time, its count of fires and a pending retry are reset.</li>
-            @if (State == TriggerState.Paused)
+            @if (State == TriggerState.Paused && GroupKeepsPaused)
+            {
+                @* Only the line that applies: a replacement takes the state its group gives it, which is paused here. *@
+                <li data-testid="reschedule-group-paused">Its group is paused, so it stays paused.</li>
+            }
+            else if (State == TriggerState.Paused)
             {
                 @* Only the line that applies: a trigger that is not paused stays as it is. *@
                 <li data-testid="reschedule-keeps-pause">
@@ -160,6 +165,13 @@
     /// <summary>What the trigger's pause recorded, which the pause it is given again keeps.</summary>
     [Parameter]
     public PauseInfo? Pause { get; set; }
+
+    /// <summary>
+    /// Whether the trigger's group, or its job's, is paused as the page read it, so a replacement stays paused and
+    /// nothing has to be set again. The save still asks the trigger's state after the reschedule before it pauses.
+    /// </summary>
+    [Parameter]
+    public bool GroupKeepsPaused { get; set; }
 
     /// <summary>Raised once a reschedule has been applied, so the page can read the trigger again.</summary>
     [Parameter]
@@ -320,12 +332,22 @@
     private async Task ConfirmAsync()
     {
         // Closed before the call rather than after it, so a second click sends nothing.
-        if (!_confirming || _build?.Trigger is not { } trigger)
+        if (!_confirming)
         {
             return;
         }
 
         _confirming = false;
+
+        // Built again now: the first fire was computed when Save schedule was pressed, and a dialog left open past it
+        // would post a first fire behind now, which RescheduleJob keeps and the store fires at once as a misfire. What
+        // has gone wrong since - the schedule no longer fires again - is said beside the fields, and nothing is sent.
+        Rebuild();
+        if (_build?.Trigger is not { } trigger)
+        {
+            return;
+        }
+
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (string.IsNullOrWhiteSpace(schedulerName))
         {

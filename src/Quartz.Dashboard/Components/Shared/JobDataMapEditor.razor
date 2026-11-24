@@ -75,10 +75,17 @@
                             {
                                 <tr>
                                     <td class="qz-job-data-key-cell" data-label="Key">
+                                        @{
+                                            bool reserved = IsReserved(_entries[index]);
+                                            string keyErrorId = _idPrefix + "-key-error-" + ordinal;
+                                        }
                                         <input class="qz-input qz-job-data-key"
                                                aria-label="@("Key of entry " + ordinal)"
+                                               aria-invalid="@(reserved ? "true" : null)"
+                                               aria-describedby="@(reserved ? keyErrorId : null)"
                                                value="@_entries[index].Key"
                                                @oninput="args => UpdateKey(index, args)" />
+                                        <FieldError Id="@keyErrorId" Message="@(reserved ? ReservedKeyText : null)" TestId="job-data-key-error" />
                                     </td>
                                     <td class="qz-job-data-type-cell" data-label="Type">
                                         <select class="qz-select qz-job-data-type"
@@ -124,6 +131,15 @@
 
     /// <summary>The prefix of the keys Quartz writes into a map itself, which the editor shows and keeps but does not edit.</summary>
     private const string QuartzKeyPrefix = "QRTZ_";
+
+    /// <summary>What is said beside a key an entry may not take.</summary>
+    private const string ReservedKeyText = "Keys starting with QRTZ_ are set by Quartz.";
+
+    private static int s_lastId;
+
+    /// <summary>What goes before this editor's ids: a page can hold two editable maps.</summary>
+    private readonly string _idPrefix = "qz-job-data-" + Interlocked.Increment(ref s_lastId).ToString(CultureInfo.InvariantCulture);
+
     private readonly List<JobDataMapEntry> _entries = [];
     private JobDataMap? _loadedFrom;
 
@@ -278,7 +294,9 @@
         DataMap.Clear();
         foreach (JobDataMapEntry entry in _entries)
         {
-            if (string.IsNullOrWhiteSpace(entry.Key))
+            // A key Quartz writes itself is refused on an entry the reader typed: said beside it, and never written,
+            // so it cannot stand in for Quartz's own value whatever order the rows are in.
+            if (string.IsNullOrWhiteSpace(entry.Key) || IsReserved(entry))
             {
                 continue;
             }
@@ -286,6 +304,10 @@
             DataMap[entry.Key] = entry.Edited ? ParseValue(entry.ValueType, entry.ValueText) : entry.OriginalValue;
         }
     }
+
+    /// <summary>Whether an entry the reader can edit has been given a key only Quartz writes.</summary>
+    private static bool IsReserved(JobDataMapEntry entry)
+        => !entry.SetByQuartz && entry.Key.StartsWith(QuartzKeyPrefix, StringComparison.Ordinal);
 
     private static object ParseValue(string valueType, string valueText)
     {

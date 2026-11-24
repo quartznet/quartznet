@@ -78,7 +78,7 @@ internal sealed record ScheduleBuild(IOperableTrigger? Trigger, List<ScheduleFie
 /// <remarks>
 /// <para>
 /// <see cref="Apply" /> clones the trigger it is given and changes only its schedule, as
-/// <c>TriggerPayloadBuilder.TryWithCronExpression</c> did for cron alone: the calendar, the node pin, the data map
+/// the cron editor's clone did for cron alone before 4.9: the calendar, the node pin, the data map
 /// and the runtime type are kept, which is what #3294 lost when the page assembled triggers from what it showed.
 /// A trigger of a type the form cannot rebuild faithfully is not offered one at all: <see cref="From" /> answers
 /// <see langword="null" />.

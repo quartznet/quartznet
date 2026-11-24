@@ -246,6 +246,7 @@
                             DeclaredAtStartup="@_declaredAtStartup"
                             State="@_triggerState"
                             Pause="@_pause"
+                            GroupKeepsPaused="@GroupKeepsPaused"
                             OnSaved="OnRescheduledAsync" />
         }
     }
@@ -393,6 +394,14 @@
     }
 
     private bool CanReschedule => Can(Routes.RescheduleJob);
+
+    /// <summary>
+    /// Whether the trigger's group or its job's is paused, as the diagnosis read them: a replacement of the trigger then
+    /// stays paused, which the reschedule dialog says.
+    /// </summary>
+    private bool GroupKeepsPaused => _trigger is { } trigger && _diagnosisFacts is { } facts
+        && (facts.PausedTriggerGroups.Value?.Names.Contains(trigger.Key.Group) == true
+            || facts.PausedJobGroups.Value?.Names.Contains(trigger.JobKey.Group) == true);
 
     private TriggerKeyDto TriggerKey => new(Group, Name);
 
