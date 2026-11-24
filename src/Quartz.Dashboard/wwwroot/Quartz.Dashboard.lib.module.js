@@ -82,11 +82,13 @@ export function afterWebStarted() {
 
         return {
             /**
-             * ModalDialog's first render: remembers what had focus, then moves focus into the dialog, to the
-             * element marked data-autofocus or to the dialog itself.
+             * ModalDialog's first render: remembers what focus goes back to - the opener it was handed, or else what
+             * had focus - then moves focus into the dialog, to the element marked data-autofocus or to the dialog itself.
              */
-            open: function (dialog) {
-                openers.push(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+            open: function (dialog, returnTo) {
+                openers.push(returnTo instanceof HTMLElement
+                    ? returnTo
+                    : (document.activeElement instanceof HTMLElement ? document.activeElement : null));
                 if (!dialog) {
                     return;
                 }

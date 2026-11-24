@@ -18,7 +18,7 @@
 
 <div class="qz-page">
     <div class="qz-page-header">
-        <h1>Trigger Detail</h1>
+        <h1 tabindex="-1" @ref="_heading">Trigger Detail</h1>
         @* Not while the details editor is open: a read hands it a new trigger, which starts its form again. *@
         <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" OnRefresh="RefreshAsync" RefreshDisabled="@(_refreshing || _editing)" />
     </div>
@@ -64,6 +64,7 @@
                 {
                     <button type="button"
                             class="qz-button qz-trigger-edit"
+                            @ref="_editOpener"
                             disabled="@(_editing || _editUnavailable is not null)"
                             title="@_editUnavailable"
                             @onclick="StartEditing">Edit details</button>
@@ -371,9 +372,25 @@
     private bool _duplicating;
 
     private ElementReference _duplicateOpener;
+    private ElementReference _editOpener;
+    private ElementReference _heading;
 
-    /// <summary>Whether the Duplicate button takes focus back after the next render, its form having been cancelled.</summary>
-    private bool _focusDuplicateOpener;
+    /// <summary>Where focus goes after the next render: never to the page's body when what had it goes.</summary>
+    private PageFocus _pendingFocus;
+
+    private enum PageFocus
+    {
+        None,
+
+        /// <summary>The heading, as a page opened by navigation has it: here, another trigger's page, the copy's among them.</summary>
+        Heading,
+
+        /// <summary>Edit details, enabled again once its editor has closed.</summary>
+        EditOpener,
+
+        /// <summary>Duplicate, enabled again once its form has been cancelled.</summary>
+        DuplicateOpener,
+    }
 
     private bool CanReschedule => Can(Routes.RescheduleJob);
 
@@ -407,6 +424,13 @@
         if (_loadedKey == TriggerKey)
         {
             return;
+        }
+
+        // The router's FocusOnNavigate moves focus to the heading only when the page type changes, and another trigger's
+        // page is this same page: a move to it, a stored duplicate's among them, focuses the heading here.
+        if (_loadedKey is not null)
+        {
+            _pendingFocus = PageFocus.Heading;
         }
 
         _loadedKey = TriggerKey;
@@ -769,24 +793,32 @@
     private void CancelDuplicating()
     {
         _duplicating = false;
-        _focusDuplicateOpener = true;
+        _pendingFocus = PageFocus.DuplicateOpener;
     }
 
     /// <remarks>
-    /// The Duplicate button takes focus back when its form is cancelled, once it is enabled again. A copy that is stored
-    /// moves to the copy's page, whose heading takes focus as every page's does.
+    /// The Duplicate and Edit details buttons take focus back when their forms close, once they are enabled again. A
+    /// copy that is stored moves to the copy's page, whose heading takes focus. The heading waits for the trigger to be
+    /// read, so a reader of the page hears it once it has something under it.
     /// </remarks>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_focusDuplicateOpener)
+        PageFocus pending = _pendingFocus;
+        if (pending == PageFocus.None || _isLoading)
         {
             return;
         }
 
-        _focusDuplicateOpener = false;
+        _pendingFocus = PageFocus.None;
         try
         {
-            await _duplicateOpener.FocusAsync();
+            ElementReference target = pending switch
+            {
+                PageFocus.Heading => _heading,
+                PageFocus.EditOpener => _editOpener,
+                _ => _duplicateOpener,
+            };
+            await target.FocusAsync();
         }
         catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or TaskCanceledException)
         {
@@ -814,12 +846,14 @@
     private void CancelEditing()
     {
         _editing = false;
+        _pendingFocus = PageFocus.EditOpener;
     }
 
     private async Task OnDetailsSavedAsync()
     {
         _editing = false;
         await LoadDataAsync();
+        _pendingFocus = PageFocus.EditOpener;
     }
 
     private void OnEditingUnavailable(string reason)

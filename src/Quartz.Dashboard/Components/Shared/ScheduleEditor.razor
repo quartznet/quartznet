@@ -37,7 +37,7 @@
         }
         else if (_nothingChanged)
         {
-            <p class="qz-muted" data-testid="schedule-editor-unchanged">Nothing was changed, so nothing was saved.</p>
+            <p class="qz-muted qz-schedule-status" data-testid="schedule-editor-unchanged">Nothing was changed, so nothing was saved.</p>
         }
 
         <p class="qz-muted qz-schedule-kind" data-testid="schedule-editor-kind">@ScheduleForm.Describe(Form.Kind) trigger</p>
@@ -49,11 +49,11 @@
         <h3>Next fires</h3>
         @if (IsEdited)
         {
-            <p class="qz-muted" data-testid="schedule-preview-unsaved">Of the edited schedule, which is not saved yet.</p>
+            <p class="qz-muted qz-schedule-status" data-testid="schedule-preview-unsaved">Of the edited schedule, which is not saved yet.</p>
         }
         else
         {
-            <p class="qz-muted" data-testid="schedule-preview-saved">Of the saved schedule.</p>
+            <p class="qz-muted qz-schedule-status" data-testid="schedule-preview-saved">Of the saved schedule.</p>
         }
         <SchedulePreview Trigger="@_build?.Trigger"
                          Calendar="@_calendar"
@@ -61,7 +61,12 @@
                          CalendarUnreadable="@_calendarUnreadable" />
 
         <div class="qz-actions qz-group-actions">
-            <button type="button" class="qz-button qz-button-primary qz-schedule-save" disabled="@(_saving || _readingCalendar)" @onclick="PromptSave">Save schedule</button>
+            <button type="button"
+                    class="qz-button qz-button-primary qz-schedule-save"
+                    disabled="@(_saving || _readingCalendar)"
+                    aria-busy="@(_saving ? "true" : null)"
+                    @ref="_saveButton"
+                    @onclick="PromptSave">@(_saving ? "Rescheduling…" : "Save schedule")</button>
             <button type="button" class="qz-button qz-schedule-reset" @onclick="Reset">Reset</button>
         </div>
     }
@@ -69,7 +74,7 @@
 
 @if (_confirming && _build?.Trigger is { } pending)
 {
-    <ModalDialog Class="qz-reschedule-dialog" LabelledBy="qz-reschedule-title" TestId="reschedule-dialog" OnCancel="CancelSave">
+    <ModalDialog Class="qz-reschedule-dialog" LabelledBy="qz-reschedule-title" TestId="reschedule-dialog" ReturnFocus="@_saveButton" OnCancel="CancelSave">
         <h3 id="qz-reschedule-title">Reschedule @DisplayValueHelper.FormatKey(Trigger.Key.Group, Trigger.Key.Name)?</h3>
         <p data-testid="reschedule-schedule">@(pending.DescribeSchedule() ?? ScheduleForm.Describe(Form!.Kind)), first at @FirstFireText(pending).</p>
         <ul class="qz-reschedule-effects" data-testid="reschedule-effects">
@@ -100,6 +105,33 @@
     private bool _nothingChanged;
     private bool _saving;
     private bool _confirming;
+
+    /// <summary>Save schedule, which the dialog it opens gives focus back to when it closes.</summary>
+    private ElementReference _saveButton;
+
+    /// <summary>
+    /// Whether Save schedule takes focus after the next render: a confirmed save closes the dialog while the button is
+    /// disabled, which cannot take focus, so it is given focus once the save has ended.
+    /// </summary>
+    private bool _focusSave;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusSave || _saving)
+        {
+            return;
+        }
+
+        _focusSave = false;
+        try
+        {
+            await _saveButton.FocusAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // A circuit that has gone, or a page still prerendering, has nothing to focus.
+        }
+    }
 
     /// <summary>Whether the next read of the trigger starts the form again, which a save asks for.</summary>
     private bool _restart;
@@ -329,6 +361,7 @@
         finally
         {
             _saving = false;
+            _focusSave = true;
         }
     }
 

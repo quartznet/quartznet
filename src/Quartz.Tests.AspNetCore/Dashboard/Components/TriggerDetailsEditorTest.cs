@@ -428,6 +428,90 @@ public sealed class TriggerDetailsEditorTest
             .MustNotHaveHappened();
     }
 
+    /// <summary>
+    /// Edit details is disabled while its editor is open, so focus goes into the editor as it opens and back to the
+    /// button as it closes, never to the page's body.
+    /// </summary>
+    [Test]
+    public void OpeningPutsTheCaretInDescriptionAndClosingGivesFocusBackToTheButton()
+    {
+        GivenTrigger(CronTrigger());
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        // Read before the button is disabled: bunit drops the attribute from its markup when it draws the button again.
+        string opener = page.WaitForElement("button.qz-trigger-edit").GetAttribute("blazor:elementreference")!;
+        page.Find("button.qz-trigger-edit").Click();
+
+        page.WaitForAssertion(() => LastFocused().ShouldBeElementReferenceTo(page.Find("#trigger-edit-description")));
+
+        page.Find(".qz-trigger-editor-cancel").Click();
+
+        page.WaitForAssertion(() => ((Microsoft.AspNetCore.Components.ElementReference) LastFocused()).Id.Should().Be(opener));
+        page.Find("button.qz-trigger-edit").HasAttribute("disabled").Should().BeFalse();
+    }
+
+    /// <summary>
+    /// What Quartz wrote into a trigger's map itself is shown, but neither edited nor removed, and a save keeps it.
+    /// </summary>
+    [Test]
+    public void AQuartzEntryIsShownReadOnlyAndKeptWhenTheMapIsSaved()
+    {
+        GivenTrigger(CronTrigger(map => map["QRTZ_TRACEPARENT"] = "00-cccc2442226788653bbb57522d846b38-d43f6ee775e60e4a-03"));
+        IRenderedComponent<TriggerDetail> page = OpenEditor();
+
+        IElement internalRow = page.Find("[data-testid=trigger-editor] [data-testid=job-data-internal]");
+        internalRow.TextContent.Should().Contain("QRTZ_TRACEPARENT").And.Contain("Set by Quartz");
+        internalRow.QuerySelectorAll("input, select, button").Should().BeEmpty("Quartz's own entry is neither edited nor removed here");
+        page.FindAll("[data-testid=trigger-editor] .qz-job-data-key").Select(input => input.GetAttribute("value")).Should().Equal(["region"]);
+
+        page.Find("[data-testid=trigger-editor] .qz-job-data-remove-cell button").Click();
+        page.Find(".qz-trigger-editor-save").Click();
+
+        page.WaitForAssertion(() => A.CallTo(() => context.Api.UpdateTriggerDetails(
+                TestData.SchedulerName,
+                TriggerKey,
+                A<TriggerDetailsUpdate>.That.Matches(update =>
+                    update.HasJobDataMap
+                    && update.JobDataMap!.ContainsKey("QRTZ_TRACEPARENT")
+                    && !update.JobDataMap.ContainsKey("region")),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly());
+    }
+
+    [Test]
+    public void SaveSaysItIsSavingAndSendsOnce()
+    {
+        GivenTrigger(CronTrigger());
+        TaskCompletionSource<bool> pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        A.CallTo(() => context.Api.UpdateTriggerDetails(A<string>._, A<TriggerKeyDto>._, A<TriggerDetailsUpdate>._, A<CancellationToken>._))
+            .Returns(new ValueTask<bool>(pending.Task));
+        IRenderedComponent<TriggerDetail> page = OpenEditor();
+
+        page.Find("#trigger-edit-priority").Change("7");
+        page.Find(".qz-trigger-editor-save").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            IElement save = page.Find(".qz-trigger-editor-save");
+            save.TextContent.Trim().Should().Be("Saving…");
+            save.HasAttribute("disabled").Should().BeTrue();
+            save.GetAttribute("aria-busy").Should().Be("true");
+        });
+        page.Find(".qz-trigger-editor-save").Click();
+        A.CallTo(() => context.Api.UpdateTriggerDetails(A<string>._, A<TriggerKeyDto>._, A<TriggerDetailsUpdate>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        pending.SetResult(true);
+    }
+
+    private object LastFocused()
+    {
+        return context.JSInterop.Invocations
+            .Where(invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus")
+            .Last()
+            .Arguments[0]!;
+    }
+
     private IRenderedComponent<TriggerDetail> OpenEditor()
     {
         IRenderedComponent<TriggerDetail> page = Render();

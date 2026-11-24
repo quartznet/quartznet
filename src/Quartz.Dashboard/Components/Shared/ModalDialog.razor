@@ -44,11 +44,25 @@
     [Parameter]
     public EventCallback OnCancel { get; set; }
 
+    /// <summary>
+    /// The element focus goes back to when the dialog closes: the control that opened it. Without one, it is whatever had
+    /// focus as the dialog opened, which a click that moved no focus leaves on the page's heading or its body.
+    /// </summary>
+    [Parameter]
+    public ElementReference? ReturnFocus { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await CallAsync("quartzDashboardDialog.open", _dialog);
+            if (ReturnFocus is { } opener)
+            {
+                await CallAsync("quartzDashboardDialog.open", _dialog, opener);
+            }
+            else
+            {
+                await CallAsync("quartzDashboardDialog.open", _dialog);
+            }
         }
     }
 

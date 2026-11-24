@@ -37,7 +37,7 @@
     <div class="qz-live-filter-grid">
         <div class="qz-form-group">
             <label class="qz-form-label" for="trigger-edit-description">Description</label>
-            <input id="trigger-edit-description" class="qz-input" @bind="_form.Description" />
+            <input id="trigger-edit-description" class="qz-input" @ref="_descriptionInput" @bind="_form.Description" />
         </div>
         <div class="qz-form-group">
             <label class="qz-form-label" for="trigger-edit-priority">Priority</label>
@@ -147,7 +147,11 @@
     <JobDataMapEditor DataMap="@_form.JobDataMap" ReadOnly="false" />
 
     <div class="qz-actions qz-group-actions">
-        <button type="button" class="qz-button qz-button-primary qz-trigger-editor-save" disabled="@_saving" @onclick="SaveAsync">Save details</button>
+        <button type="button"
+                class="qz-button qz-button-primary qz-trigger-editor-save"
+                disabled="@_saving"
+                aria-busy="@(_saving ? "true" : null)"
+                @onclick="SaveAsync">@(_saving ? "Saving…" : "Save details")</button>
         <button type="button" class="qz-button qz-trigger-editor-cancel" @onclick="CancelAsync">Cancel</button>
     </div>
 </section>
@@ -160,6 +164,9 @@
     private string? _refusal;
     private bool _nothingChanged;
     private bool _saving;
+
+    /// <summary>The first field, which takes focus as the editor opens: the button that opened it is disabled while it is open.</summary>
+    private ElementReference _descriptionInput;
 
     /// <summary>
     /// Cancelled when the editor goes with its page, which stops the calendar listing in flight. A save
@@ -219,6 +226,23 @@
         }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            await _descriptionInput.FocusAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // A circuit that has gone, or a page still prerendering, has nothing to focus.
+        }
+    }
+
     public void Dispose()
     {
         _cancellation.Cancel();
@@ -249,6 +273,11 @@
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
         if (Options.Value.ReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        if (_saving)
         {
             return;
         }
