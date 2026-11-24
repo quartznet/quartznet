@@ -35,7 +35,7 @@ namespace Quartz.Impl;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSource, IFiringWaitingScheduler
+internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSource, IFiringWaitingScheduler, IStartupDeclarationsScheduler
 {
     internal readonly QuartzScheduler scheduler;
 
@@ -716,6 +716,16 @@ internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSo
     ValueTask<FiringWatch> IFiringWaitingScheduler.Watch(TriggerKey triggerKey, CancellationToken cancellationToken)
     {
         return new ValueTask<FiringWatch>(scheduler.Watch(triggerKey, this));
+    }
+
+    /// <summary>
+    /// Answered from the record the proxied <see cref="QuartzScheduler" />'s declarations were kept in, which a
+    /// scheduler the container did not build has none of.
+    /// </summary>
+    ValueTask<bool?> IStartupDeclarationsScheduler.IsDeclaredAtStartup(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        return new ValueTask<bool?>(scheduler.resources.DeclaredContent?.StoresAgainAtNextStart(triggerKey));
     }
 
     /// <summary>

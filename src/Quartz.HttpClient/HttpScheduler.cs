@@ -68,7 +68,7 @@ namespace Quartz;
 /// listing reports such a scheduler as <see cref="SchedulerOrigin.Remote" />.
 /// </para>
 /// </remarks>
-public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler
+public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler
 {
     /// <summary>The first version whose schedule routes store a trigger paused.</summary>
     private static readonly Version FirstStoringPausedVersion = new(4, 4);
@@ -1178,6 +1178,18 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     {
         var result = await wire.SendAndRead<TriggerStateDto>(At(SchedulerRoutes.GetTriggerState, triggerKey), cancellationToken).ConfigureAwait(false);
         return result.Pause?.AsPauseInfo();
+    }
+
+    /// <summary>
+    /// Read off the trigger's state route, which a 4.9 host answers with it beside the state, and an older one, or
+    /// an older agent, without it: <see langword="null" /> then.
+    /// </summary>
+    async ValueTask<bool?> IStartupDeclarationsScheduler.IsDeclaredAtStartup(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+
+        TriggerStateDto result = await wire.SendAndRead<TriggerStateDto>(At(SchedulerRoutes.GetTriggerState, triggerKey), cancellationToken).ConfigureAwait(false);
+        return result.DeclaredAtStartup;
     }
 
     /// <inheritdoc />

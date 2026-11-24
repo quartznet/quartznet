@@ -650,6 +650,21 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return await scheduler.GetTriggerPause(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <remarks>
+    /// A window cannot say. This dashboard built it over the store, and it declares nothing, while what each node
+    /// declares is the node's own.
+    /// </remarks>
+    public async ValueTask<bool?> IsTriggerDeclaredAtStartup(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
+    {
+        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        if (resolved.IsWindow)
+        {
+            return null;
+        }
+
+        return await StartupDeclarations.IsDeclaredAtStartup(resolved.Scheduler, AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask<bool> ResumeTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.ResumeTrigger, cancellationToken).ConfigureAwait(false);

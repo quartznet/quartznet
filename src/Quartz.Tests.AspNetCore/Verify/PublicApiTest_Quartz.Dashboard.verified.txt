@@ -360,6 +360,7 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<System.DateTimeOffset>> GetUpcomingFireTimes(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, int count, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<bool> Interrupt(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> InterruptFireInstance(string schedulerName, string fireInstanceId, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool?> IsTriggerDeclaredAtStartup(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask PauseAll(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseAllWith(string schedulerName, Quartz.PauseDetails? details, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<bool> PauseJob(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);

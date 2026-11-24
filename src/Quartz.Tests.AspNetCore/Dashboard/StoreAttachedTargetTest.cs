@@ -122,6 +122,22 @@ public sealed class StoreAttachedTargetTest
     }
 
     /// <summary>
+    /// A window declares nothing itself, and what each node declares is the node's own, so it cannot say whether
+    /// the next start stores a trigger again (#4412).
+    /// </summary>
+    [Test]
+    public async Task AWindowCannotSayWhetherATriggerIsDeclared()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+
+        (await dashboard.Client.IsTriggerDeclaredAtStartup(ClusterScheduler, new TriggerKeyDto("nightly", "at-midnight"))).Should().BeNull(
+            "false would say an edit lasts, which only the node that declares the trigger knows");
+    }
+
+    /// <summary>
     /// The pages address a window by its key, <c>test/reporting</c>, and the history tables are keyed by
     /// the scheduler's own name, <c>reporting</c>: every history read has to ask the store for the name.
     /// </summary>

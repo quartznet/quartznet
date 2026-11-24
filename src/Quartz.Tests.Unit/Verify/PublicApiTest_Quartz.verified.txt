@@ -3987,6 +3987,7 @@ namespace Quartz.Impl
         // explicit interface implementation: Quartz.Impl.IBackfillingScheduler.Backfill(Quartz.TriggerKey, System.DateTimeOffset, System.DateTimeOffset, Quartz.BackfillOptions, System.Threading.CancellationToken)
         // explicit interface implementation: Quartz.Impl.IFiringWaitingScheduler.Watch(Quartz.TriggerKey, System.Threading.CancellationToken)
         // explicit interface implementation: Quartz.Impl.IScheduleDescribingScheduler.QueryDescribedTriggers(Quartz.TriggerQuery, System.Threading.CancellationToken)
+        // explicit interface implementation: Quartz.Impl.IStartupDeclarationsScheduler.IsDeclaredAtStartup(Quartz.TriggerKey, System.Threading.CancellationToken)
         // explicit interface implementation: Quartz.Impl.IUpcomingFireTimesScheduler.GetUpcomingFireTimes(Quartz.TriggerKey, int, System.Threading.CancellationToken)
         public DelegatingScheduler(Quartz.IScheduler scheduler) { }
         public virtual Quartz.SchedulerContext Context { get; }

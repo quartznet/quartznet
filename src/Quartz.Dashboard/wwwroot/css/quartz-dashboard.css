@@ -3441,6 +3441,18 @@ body{
     padding: var(--qz-space-md);
 }
 
+/* An editor's warning that the next start stores the declared trigger again (#4412): the page's own text on the
+   warning background, which keeps it at AA where the warning colour alone would not be. */
+.qz-declared-note {
+    margin: 0 0 var(--qz-space-md);
+    padding: var(--qz-space-sm) var(--qz-space-md);
+    border: 1px solid var(--qz-color-warning);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-warning-bg);
+    color: var(--qz-color-text);
+    font-size: var(--qz-font-size-sm);
+}
+
 .qz-col-select {
     width: 2.25rem;
     text-align: center;

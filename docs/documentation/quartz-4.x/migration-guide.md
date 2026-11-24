@@ -57,6 +57,7 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `HttpClientOptions.GatewayTarget` | The host's target a scheduler is behind, sent as `?target=` on every request; a success without the `Quartz-Target` echo is refused. See [Through the dashboard host](packages/http-client.md#through-the-dashboard-host) |
 | `HttpScheduler(SchedulerRef scheduler, HttpClient, JsonSerializerOptions?, SystemTextJsonSerializerRegistry?)` | The same, by the key the host lists: `new HttpScheduler(new SchedulerRef("QuartzScheduler", "w1"), httpClient)` |
 | `QuartzHttpApiOptions.AllowedOrigins` | The origins a browser may call the HTTP API from; any other `Origin` is refused with `403`. Empty, the default, checks nothing. For an API authenticated by a cookie. See [Refusing cross-site requests](packages/http-api.md#refusing-cross-site-requests) |
+| `IQuartzApiClient.IsTriggerDeclaredAtStartup(schedulerName, triggerKey)` | `Quartz.Dashboard`. Default interface member, `bool?`: whether the scheduler's start-up declarations store the trigger again at the next start, over a change made to it (#4412). The default answers `null`, and the editors then warn of nothing. The HTTP API sends it as `declaredAtStartup` on the trigger's `…/state`; a host older than 4.9 does not. See [A trigger declared at start-up](packages/dashboard.md#a-trigger-declared-at-start-up) |
 
 | Changed | What to check |
 |---|---|

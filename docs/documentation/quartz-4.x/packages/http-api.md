@@ -176,7 +176,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/fetch` | Whole triggers for a page of keys, at most 1000 |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}` | The trigger |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}/exists` | `{ exists }` |
-| `GET` | `…/triggers/{triggerGroup}/{triggerName}/state` | `{ state, pause }`; `state` is the `TriggerState` name |
+| `GET` | `…/triggers/{triggerGroup}/{triggerName}/state` | `{ state, pause, declaredAtStartup }`; `state` is the `TriggerState` name. `declaredAtStartup`, from 4.9: whether the next start stores the trigger again over a change made to it; `null` when the scheduler cannot say. See [A trigger declared at start-up](dashboard.md#a-trigger-declared-at-start-up) |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}/fire-times` | `{ fireTimesUtc }`; `?count=` 1 to 100, `10` by default; [below](#upcoming-fire-times). From 4.7 |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/reset-from-error-state` | `{ applied }` |
 | `POST` | `…/triggers/keys/reset-from-error-state` | `{ triggers }` |

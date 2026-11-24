@@ -468,6 +468,31 @@ public interface IQuartzApiClient
     }
 
     /// <summary>
+    /// Whether the scheduler's start-up declarations name the trigger and store it again at its next start, so a
+    /// reschedule or an edit made since lasts until then; <see langword="null" /> when the source cannot say.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="true" /> for a trigger an <c>AddTrigger</c> or <c>ScheduleJob</c> registration, or a
+    /// scheduling file, declares with <see cref="SchedulingOptions.OverwriteExistingData" /> on, the default, and for
+    /// any declared trigger in a store that keeps nothing across starts. <see langword="false" /> for one added at
+    /// run time, from the dashboard among others, and for one whose declaration does not store over a stored copy.
+    /// A store window, a host or agent older than 4.9, and a scheduler the container did not build cannot say.
+    /// </para>
+    /// <para>
+    /// What Trigger Detail's editors warn with. A default interface member, added in 4.9, whose default reports the
+    /// datum as unavailable: <see langword="null" />.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler holding the trigger.</param>
+    /// <param name="triggerKey">The trigger to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<bool?> IsTriggerDeclaredAtStartup(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<bool?>((bool?) null);
+    }
+
+    /// <summary>
     /// Edits the trigger in place, as <see cref="IScheduler.UpdateTriggerDetails" /> does: only what
     /// <paramref name="update" /> names changes, and the fire times and the state are kept. Returns
     /// <see langword="true" /> when the trigger existed and was updated, <see langword="false" /> when

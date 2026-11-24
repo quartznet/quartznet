@@ -701,7 +701,7 @@ internal static class SchedulerOperations
     }
 
     /// <summary>
-    /// The trigger's state, and what its pause recorded when it is paused.
+    /// The trigger's state, what its pause recorded when it is paused, and whether the next start stores it again.
     /// </summary>
     public static async ValueTask<TriggerStateDto> GetTriggerState(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken)
     {
@@ -712,7 +712,12 @@ internal static class SchedulerOperations
             ? await scheduler.GetTriggerPause(triggerKey, cancellationToken).ConfigureAwait(false)
             : null;
 
-        return new TriggerStateDto(state, PauseDto.Create(pause));
+        // Asked only of a trigger there is: there is nothing to edit otherwise (#4412).
+        bool? declaredAtStartup = state == TriggerState.None
+            ? null
+            : await StartupDeclarations.IsDeclaredAtStartup(scheduler, triggerKey, cancellationToken).ConfigureAwait(false);
+
+        return new TriggerStateDto(state, PauseDto.Create(pause), declaredAtStartup);
     }
 
     /// <summary>

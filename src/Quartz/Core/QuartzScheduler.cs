@@ -372,11 +372,16 @@ internal sealed class QuartzScheduler
                 await StartPlugins(cancellationToken).ConfigureAwait(false);
 
                 // After the plugins, whose scheduling files are declarations too, and before the loop is
-                // unpaused below, so this node never fires what the prune deletes (#4415).
-                if (resources.DeclaredContent is { } declared)
+                // unpaused below, so this node never fires what the prune deletes (#4415). The record is
+                // closed either way: what it holds from here on is what this start declared (#4412).
+                if (resources.DeclaredContent is { Prunes: true } declared)
                 {
                     UndeclaredContentPruner pruner = new(Scheduler, declared, resources.LoggerFactory.CreateLogger<UndeclaredContentPruner>());
                     await pruner.Prune(cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    resources.DeclaredContent?.Close();
                 }
             }
             catch (SchedulerStartRefusedException)
