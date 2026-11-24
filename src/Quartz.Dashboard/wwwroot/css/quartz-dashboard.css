@@ -4279,20 +4279,21 @@ body{
 }
 
 /* The triggers a pause takes, one key a line and wrapped anywhere: a one-off trigger's key has no word to break at. */
+/* The ten keys the dialog names at most, whole, however many lines a long one wraps to: no scroller of its own, so
+   none is hidden below a fold, and how many more is said right under them. The dialog scrolls should it outgrow the
+   window. */
 .qz-pause-dialog-keys {
-    max-height: 12rem;
-    overflow-y: auto;
     margin: 0 0 var(--qz-space-sm);
     padding-left: var(--qz-space-md);
     font-family: var(--qz-font-mono);
     font-size: var(--qz-font-size-sm);
+    line-height: 1.5;
     overflow-wrap: anywhere;
 }
 
-.qz-pause-dialog-keys .qz-pause-dialog-more {
-    font-family: var(--qz-font-family);
-    list-style: none;
-    margin-left: calc(-1 * var(--qz-space-md));
+.qz-pause-dialog .qz-pause-dialog-more {
+    margin: 0 0 var(--qz-space-sm);
+    font-size: var(--qz-font-size-sm);
 }
 
 /* A fixed layout: the checkbox, the time, the state and the execution group keep their widths whatever a row holds,

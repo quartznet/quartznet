@@ -229,10 +229,66 @@ public sealed class AgendaPageTest
         page.WaitForAssertion(() => page.Find("[data-testid=agenda-selection-count]").TextContent.Should().Be("12 triggers selected (12 fires)"));
         page.Find(".qz-bulk-pause").Click();
 
-        page.WaitForAssertion(() => page.TextOfAll("[data-testid=agenda-pause-keys] li").Should().HaveCount(11));
-        List<string> listed = page.TextOfAll("[data-testid=agenda-pause-keys] li");
-        listed.Take(10).Should().Equal(fires.Take(10).Select(fire => "batch." + fire.Trigger.Name));
-        listed[^1].Should().Be("and 2 more");
+        page.WaitForAssertion(() => page.TextOfAll("[data-testid=agenda-pause-keys] li").Should().Equal(fires.Take(10).Select(fire => "batch." + fire.Trigger.Name)));
+        page.Find("[data-testid=agenda-pause-more]").TextContent.Trim().Should().Be("and 2 more");
+        page.FindAll("[data-testid=agenda-pause-keys] [data-testid=agenda-pause-more]").Should().BeEmpty(
+            "how many more is said under the keys' box, never scrolled out of sight inside it");
+    }
+
+    /// <summary>
+    /// The pause dialog gives focus back to <em>Pause selected</em>, named, rather than to whatever had focus as it
+    /// opened: a click that moves no focus, as Safari's on a button, leaves that on the page's heading, and focusing the
+    /// heading as the dialog closes scrolls the listing back to its top.
+    /// </summary>
+    [Test]
+    public void ThePauseDialogGivesFocusBackToPauseSelected()
+    {
+        GivenFires([Fire(nightly, now.AddMinutes(10))]);
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+        string pauseSelected = ReferenceOf(page.WaitForElement(".qz-bulk-pause"));
+        page.Find("input.qz-agenda-select-fire").Change(true);
+
+        page.WaitForAssertion(() => page.Find(".qz-bulk-pause").HasAttribute("aria-disabled").Should().BeFalse());
+        page.Find(".qz-bulk-pause").Click();
+
+        page.WaitForAssertion(() => Invoked("quartzDashboardDialog.open").Should().ContainSingle());
+        IReadOnlyList<object?> arguments = Invoked("quartzDashboardDialog.open")[0].Arguments;
+        arguments.Should().HaveCount(2, "the dialog is handed the control focus goes back to");
+        ((ElementReference) arguments[1]!).Id.Should().Be(pauseSelected);
+    }
+
+    /// <summary>
+    /// An action's read drops, from above the reader, the fires that passed since the last read. The rows in view are
+    /// noted before it and the reader is put back after it, for a browser that does not anchor the scroll.
+    /// </summary>
+    [Test]
+    public void AnActionHoldsTheReadersPlaceAcrossTheReadAgain()
+    {
+        TaskCompletionSource<UpcomingFiresDto> reread = new();
+        List<UpcomingFireDto> fires = [Fire(nightly, now.AddMinutes(10)), Fire(hourly, now.AddMinutes(20))];
+        int reads = 0;
+        A.CallTo(() => context.Api.QueryUpcomingFires(A<string>._, A<DashboardUpcomingFiresQuery>._, A<CancellationToken>._))
+            .ReturnsLazily(() => ++reads == 1
+                ? ValueTask.FromResult(new UpcomingFiresDto(now, now.AddHours(24), fires))
+                : new ValueTask<UpcomingFiresDto>(reread.Task));
+        A.CallTo(() => context.Api.ResumeTriggers(TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, IReadOnlyCollection<TriggerKeyDto> keys, CancellationToken _) => keys.ToList());
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+        string results = ReferenceOf(page.WaitForElement("[data-testid=agenda-results]"));
+        page.WaitForElement("input.qz-agenda-select-fire").Change(true);
+
+        page.WaitForElement(".qz-bulk-resume").Click();
+
+        page.WaitForAssertion(() => Invoked("quartzDashboardPlace.hold").Should().ContainSingle());
+        IReadOnlyList<object?> hold = Invoked("quartzDashboardPlace.hold")[0].Arguments;
+        ((ElementReference) hold[0]!).Id.Should().Be(results);
+        hold[1].Should().Be("[data-testid=agenda-fire]");
+        Invoked("quartzDashboardPlace.restore").Should().BeEmpty("the fires have not been read again yet");
+
+        reread.SetResult(new UpcomingFiresDto(now, now.AddHours(24), [fires[1]]));
+
+        page.WaitForAssertion(() => Invoked("quartzDashboardPlace.restore").Should().ContainSingle());
+        page.FindAll("[data-testid=agenda-fire]").Should().ContainSingle("the fire that passed is no longer listed");
     }
 
     /// <summary>
@@ -462,6 +518,83 @@ public sealed class AgendaPageTest
         page.Find("[data-preset=next-hour]").GetAttribute("aria-pressed").Should().Be("true");
     }
 
+    /// <summary>
+    /// A window the address names is held to the same rules before anything is read, and refused in the page's words
+    /// and the header's zone, never in the scheduler's UTC. Helsinki is UTC+03:00 on 5 October and UTC+02:00 in November.
+    /// </summary>
+    [TestCase("2026-10-01T09:00:00Z", "2026-10-01T11:00:00Z", "2026-10-01T12:00", "To must be later than now, Mon 5 Oct 17:23: the agenda lists what will fire. History lists what ran.")]
+    [TestCase("2026-10-06T00:00:00Z", "2026-10-05T23:00:00Z", "2026-10-06T03:00", "To must be after From.")]
+    [TestCase("2026-11-10T00:00:00Z", "2026-11-11T00:00:00Z", "2026-11-10T02:00", "To may be at most 30 days ahead, until Wed 4 Nov 16:23.")]
+    [TestCase("2026-10-06T00:00:00Z", "2026-10-14T00:00:00Z", "2026-10-06T03:00", "The window may be at most 7 days long.")]
+    public void AWindowInTheAddressThePageCanRefuseIsRefusedInTheHeadersZoneWithoutARead(string from, string to, string fromInput, string words)
+    {
+        context.SchedulerState.SelectedTimeZoneId = "Europe/Helsinki";
+        GivenFires([Fire(nightly, now.AddMinutes(10))]);
+        string address = "agenda?from=" + Uri.EscapeDataString(from) + "&to=" + Uri.EscapeDataString(to);
+        context.Navigate("/quartz/" + address);
+
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=agenda-input-error]").TextContent.Should().Be(words));
+        page.Find("[data-testid=agenda-input-error]").TextContent.Should().NotContain("UTC", "the header names the zone every time on the page is in");
+        page.Find("#agenda-from").GetAttribute("value").Should().Be(fromInput, "the inputs show the window the address names, in the header's zone");
+        Queried().Should().BeEmpty("nothing was asked of the scheduler for a window the page could refuse itself");
+        page.Find("[data-testid=agenda-invalid]").TextContent.Should().Contain("Nothing is listed");
+        page.FindAll("[aria-pressed=true]").Should().BeEmpty("the address names no preset");
+        context.CurrentUri.Should().EndWith(address, "the address keeps the window it named");
+    }
+
+    /// <summary>
+    /// A window typed in ends; Refresh holds it to the rules again before reading, and says so in the header's zone.
+    /// </summary>
+    [Test]
+    public void RefreshingAWindowThatHasEndedSaysSoInTheHeadersZoneWithoutARead()
+    {
+        context.SchedulerState.SelectedTimeZoneId = "Europe/Helsinki";
+        GivenFires([Fire(nightly, now.AddMinutes(10))]);
+        context.Navigate("/quartz/agenda?from=2026-10-05T14:00:00Z&to=2026-10-05T15:00:00Z");
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+        page.WaitForElement("[data-testid=agenda-listing]");
+
+        context.Clock.Advance(TimeSpan.FromHours(1));
+        page.Find("[data-testid=refresh]").Click();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=agenda-input-error]").TextContent.Should().Be(
+            "To must be later than now, Mon 5 Oct 18:23: the agenda lists what will fire. History lists what ran."));
+        Queried().Should().ContainSingle("the ended window was not asked for again");
+        page.FindAll("[data-testid=agenda-listing]").Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// A window the page refuses is what the address says while it is on screen, so a reload shows the same refusal,
+    /// not the preset the page was on before.
+    /// </summary>
+    [Test]
+    public void ARefusedWindowIsWrittenIntoTheAddressAsTyped()
+    {
+        GivenFires([Fire(nightly, now.AddMinutes(10))]);
+        IRenderedComponent<Agenda> page = context.Render<Agenda>();
+        page.WaitForAssertion(() => context.CurrentUri.Should().EndWith("agenda?preset=next-24-hours"));
+
+        page.Find("#agenda-from").Change("2026-10-06T04:00");
+        page.Find("#agenda-to").Change("2026-10-06T02:00");
+        page.Find(".qz-agenda-apply").Click();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=agenda-input-error]").TextContent.Should().Be("To must be after From."));
+        context.CurrentUri.Should().EndWith("agenda?from=2026-10-06T04%3A00%3A00Z&to=2026-10-06T02%3A00%3A00Z");
+        page.Find("#agenda-from").GetAttribute("value").Should().Be("2026-10-06T04:00", "the inputs keep what was typed");
+        Queried().Should().ContainSingle();
+
+        page.Find("#agenda-from").Change(string.Empty);
+        page.Find(".qz-agenda-apply").Click();
+
+        page.WaitForAssertion(() => page.Find("[data-testid=agenda-input-error]").TextContent.Should().Be("From and To must each be a date and time."));
+        context.CurrentUri.Should().EndWith("agenda", "an input that says no time names no window and no preset");
+        page.Find("[data-testid=agenda-input-error]").TextContent.Should().Be("From and To must each be a date and time.",
+            "the page's own change of address leaves the refusal on screen");
+        Queried().Should().ContainSingle();
+    }
+
     [Test]
     public void TheWindowAndTheGroupRoundTripThroughTheAddress()
     {
@@ -575,6 +708,12 @@ public sealed class AgendaPageTest
     }
 
     private string LastFocused() => Focused().Should().NotBeEmpty().And.Subject.Last();
+
+    /// <summary>The calls of one JavaScript function, in order.</summary>
+    private List<JSRuntimeInvocation> Invoked(string identifier)
+    {
+        return context.JSInterop.Invocations.Where(invocation => invocation.Identifier == identifier).ToList();
+    }
 
     /// <summary>
     /// The id an element's <c>@ref</c> is focused by, read off its first render: a later render of the element does not
