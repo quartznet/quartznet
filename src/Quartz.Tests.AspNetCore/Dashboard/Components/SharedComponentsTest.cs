@@ -339,9 +339,13 @@ public class SharedComponentsTest
             "the Jobs page's group heading shares a row with the group's state, and breaks the same way");
 
         // With the column no wider than the viewport, a fixed-layout table's key columns get what its fixed
-        // columns leave, which on a phone is nothing: below 1280px Jobs fixes 600px and History 584px.
-        NarrowMinWidth(css, 1024, ".qz-jobs-table").Should().BeGreaterThanOrEqualTo(600 + 160,
+        // columns leave, which on a phone is nothing: below 1280px Jobs fixes 484px and History 584px.
+        NarrowMinWidth(css, 1024, ".qz-jobs-table").Should().BeGreaterThanOrEqualTo(484 + 276,
             "the job's key and its Copy button keep their width and the table scrolls instead");
+        css.Should().MatchRegex(@"@media \(max-width: 1279px\) \{\s*\.qz-jobs-table \.qz-col-details \{\s*display: none;",
+            "below 1280px Details gives the key its width, since the whole row opens the job");
+        css.Should().MatchRegex(@"@media \(max-width: 1439px\) \{\s*\.qz-jobs-table \.qz-col-last-success \{\s*display: none;",
+            "below 1440px Last success does, so the key keeps about 18rem");
         NarrowMinWidth(css, 1024, ".qz-history-table").Should().BeGreaterThanOrEqualTo(584 + 2 * 120,
             "the job's and the trigger's keys keep their width and the table scrolls instead");
 
