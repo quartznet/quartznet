@@ -237,6 +237,47 @@ history off, or with runs spread over many jobs, nothing waits. See
 [The execution history's status row](../operations.md#the-execution-history-s-status-row).
 :::
 
+## Read a trigger's status
+
+From 4.9, the history keeps a `TriggerRunStatus` per trigger beside the job's: `JobRunStatus`'s members, keyed by
+`Trigger`, folded by the same rule. One job with two schedules can then show one failing and one working.
+
+<!-- snippet: sample_trigger_run_status -->
+```csharp
+// One read for every trigger a page lists, as the dashboard's Triggers listing makes it.
+PagedResult<TriggerRunStatus> statuses = await history.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+{
+    SchedulerName = schedulerName,
+    Triggers = [new TriggerKey("hourly", "billing"), new TriggerKey("nightly", "billing")]
+});
+
+foreach (TriggerRunStatus status in statuses.Items)
+{
+    if (status.ConsecutiveFailures > 0)
+    {
+        Console.WriteLine($"{status.Trigger} failing {status.ConsecutiveFailures}x: {status.LastFailureMessage}");
+    }
+}
+```
+<!-- endSnippet -->
+
+| What it counts | |
+|---|---|
+| The firings of the trigger's own key | A replace or reschedule under the same key keeps the status |
+| Not a firing after which the trigger is finalized | A one-off's only firing and the last of a series leave none |
+| Not a manual run, a backfill or a recovery | Each runs under a trigger of its own. A successful *Run again* clears the job's `ConsecutiveFailures`, not the trigger's |
+| Not a 4.8 node's firings | During a rolling upgrade a status counts the 4.9 nodes' firings only |
+
+* `TriggerRunStatusQuery` pages by trigger group, then name. `Triggers` names the triggers; `Failing = true` lists
+  `ConsecutiveFailures > 0`.
+
+| Store | Statuses |
+|---|---|
+| In-memory history | At most `MaxEntriesPerScheduler` per scheduler, counted apart from the job statuses. The trigger that ran longest ago goes first |
+| [Database history](../tutorial/job-stores.md#execution-history-in-the-database) | One per trigger, in `QRTZ_TRIGGER_STATUS`, committed with each row after the job's. Deleted once its trigger is gone and its last run is older than the longest age |
+| The one [`AddQuartzHttpClient`](../packages/http-client.md) registers | The host's, when it is 4.9 or later and its store keeps them; otherwise `NotSupportedException` |
+| An `IDashboardHistoryStore` of your own | `NotSupportedException` |
+
 ## Filter the history
 
 <!-- snippet: sample_job_outcome_query -->
@@ -445,5 +486,8 @@ or under the scheduler's name for a named scheduler.
 * `QueryJobRunStatuses` and `GetJobRunStatus` are default interface members. The first throws
   `NotSupportedException`; the second asks the first for one job. Implement `QueryJobRunStatuses` to keep
   a status beside the rows, updated as each row is recorded.
+* `QueryTriggerRunStatuses`, from 4.9, is a default interface member that throws `NotSupportedException`, and the
+  dashboard's Triggers listing then leaves its *Last run* column out. Your store decides which firings it folds;
+  the recorder does not tell it whether a firing finalized its trigger.
 * `QueryExecutionStatistics` is a default interface member that counts through `QueryExecutions`, up to
   10,000 rows. Implement it to count where the rows are kept. See [Count runs over time](#count-runs-over-time).

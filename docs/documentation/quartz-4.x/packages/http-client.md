@@ -379,6 +379,7 @@ From 4.4:
 | `ExecutionHistoryQuery.Trigger`, `FireInstanceId`; `MisfireHistoryQuery.Trigger`; `ExecutionStatisticsQuery.Trigger`, `FireInstanceId` | From 4.6. The same query parameters; `NotSupportedException` against a host before 4.6 |
 | `QueryMisfires` | Names every `MisfireReason`, so `Vetoed` rows are [listed](http-api.md#vetoes-are-listed-when-asked-for) |
 | `QueryJobRunStatuses`, `GetJobRunStatus` | The [`…/history/job-status` routes](http-api.md#job-run-status); `NotSupportedException` when the host keeps no status |
+| `QueryTriggerRunStatuses` | From 4.9. The [`…/history/trigger-status` routes](http-api.md#trigger-run-status), named triggers in fetches of 1000 paged here; `NotSupportedException` when the host is older than 4.9 or keeps no status |
 | `QueryExecutionStatistics` | [`…/history/statistics`](http-api.md#run-statistics); `NotSupportedException` against a host before 4.4, which is not asked |
 | `ExecutionHistoryEntry.MetricsJson` | A JSON object, handed back as the text the recorder wrote |
 

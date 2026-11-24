@@ -101,6 +101,28 @@ public sealed class JobOutcomesSamples
         _ = failing;
     }
 
+    public static async Task ReadingTriggerStatuses(IExecutionHistoryStore history, string schedulerName)
+    {
+        #region sample_trigger_run_status
+
+        // One read for every trigger a page lists, as the dashboard's Triggers listing makes it.
+        PagedResult<TriggerRunStatus> statuses = await history.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = schedulerName,
+            Triggers = [new TriggerKey("hourly", "billing"), new TriggerKey("nightly", "billing")]
+        });
+
+        foreach (TriggerRunStatus status in statuses.Items)
+        {
+            if (status.ConsecutiveFailures > 0)
+            {
+                Console.WriteLine($"{status.Trigger} failing {status.ConsecutiveFailures}x: {status.LastFailureMessage}");
+            }
+        }
+
+        #endregion
+    }
+
     public static void AlertingWhenAJobStopsSucceeding(IHostApplicationBuilder builder)
     {
         #region sample_job_outcome_health_check
