@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Options;
 
+using Quartz.Configuration;
 using Quartz.HttpApiContract;
 
 namespace Quartz.Dashboard.Services;
@@ -61,7 +62,7 @@ internal sealed class SchedulerAuthorization
     private readonly IAuthorizationService authorizationService;
     private readonly AuthenticationStateProvider authenticationStateProvider;
     private readonly SchedulerState? schedulerState;
-    private readonly AgentRegistry? agents;
+    private readonly SchedulerTargets? targets;
 
     /// <summary>
     /// The operation policy's answers for this circuit's visitor, by scheduler, operation and level.
@@ -75,22 +76,23 @@ internal sealed class SchedulerAuthorization
     /// The circuit's listing, when there is one: a key the listing carries is asked about by the halves
     /// the listing has for it. The hub, whose caller is a connection, has none and reads the key.
     /// </param>
-    /// <param name="agents">
-    /// The agents this dashboard accepts, whose <c>MaxAccess</c> bounds what a visitor may do on their
-    /// schedulers; <see langword="null" /> where there is no registry to ask.
+    /// <param name="targets">
+    /// The targets this dashboard reaches schedulers through, whose ceiling — an agent's <c>MaxAccess</c> —
+    /// bounds what a visitor may do on their schedulers; <see langword="null" /> where there is no registry
+    /// to ask.
     /// </param>
     public SchedulerAuthorization(
         IOptions<QuartzDashboardOptions> options,
         IAuthorizationService authorizationService,
         AuthenticationStateProvider authenticationStateProvider,
         SchedulerState? schedulerState = null,
-        AgentRegistry? agents = null)
+        SchedulerTargets? targets = null)
     {
         this.options = options;
         this.authorizationService = authorizationService;
         this.authenticationStateProvider = authenticationStateProvider;
         this.schedulerState = schedulerState;
-        this.agents = agents;
+        this.targets = targets;
     }
 
     /// <summary>
@@ -306,14 +308,15 @@ internal sealed class SchedulerAuthorization
     }
 
     /// <summary>
-    /// The most the scheduler <paramref name="resource" /> names lets anybody do: an agent's
-    /// <c>MaxAccess</c>, and <see cref="SchedulerAccess.Administer" /> for every other scheduler, whose
-    /// bound — an HTTP target's own policy — the dashboard cannot read.
+    /// The most the scheduler <paramref name="resource" /> names lets anybody do: its target's
+    /// <see cref="SchedulerTarget.Ceiling" /> — an agent's <c>MaxAccess</c> — and
+    /// <see cref="SchedulerAccess.Administer" /> for every other scheduler, whose bound — an HTTP target's
+    /// own policy — the dashboard cannot read. MCP reads the same ceiling.
     /// </summary>
     private SchedulerAccess Ceiling(SchedulerResource resource)
     {
-        return resource.Target is { } target && agents?.Find(target) is { } agent
-            ? agent.MaxAccess
+        return resource.Target is { } target && targets?.Find(target) is { } found
+            ? found.Ceiling
             : SchedulerAccess.Administer;
     }
 
