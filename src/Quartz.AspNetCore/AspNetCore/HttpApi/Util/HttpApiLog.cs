@@ -43,9 +43,9 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 /// who changed what. Its sibling is for a caller whose role did not allow the operation.
 /// </para>
 /// <para>
-/// From 4.9 three more say why a target a request named did not serve it — not reachable, not in time,
-/// or what it answered — naming the target and never its address, and one says that something recording
-/// operator actions failed.
+/// From 4.9 four more say why a target a request named did not serve it — not reachable, not in time, refused,
+/// or failed — naming the target and never its address, and one says that something recording operator
+/// actions failed.
 /// </para>
 /// </remarks>
 internal static partial class HttpApiLog
@@ -151,13 +151,19 @@ internal static partial class HttpApiLog
     public static partial void TargetTimedOut(this ILogger logger, string target, string operation, string schedulerName, string reason);
 
     /// <remarks>
-    /// A target answered and did not serve the request: <c>Refused</c>, its <c>403</c>, at Warning, since a
-    /// rule at the target said no; <c>CredentialRefused</c>, its <c>401</c> to this host's credential, and
-    /// <c>Failed</c>, a fault or an unreadable answer, at Error, since the host's configuration or the target
-    /// needs looking at. The level is given per call, so the catalogue lists it as <c>None</c>. Added in 4.9.
+    /// Warning: a target refused the request, its <c>403</c> — a rule at the target said no, an agent's
+    /// <c>MaxAccess</c> or its own policy — and the caller was answered <c>403</c>. Added in 4.9.
     /// </remarks>
-    [LoggerMessage(EventId = 9012, Message = "Target {Target} did not serve {Operation} on scheduler {SchedulerName}: {Fault}, {Reason}")]
-    public static partial void TargetFailed(this ILogger logger, LogLevel level, string target, string operation, string schedulerName, TargetFault fault, string reason);
+    [LoggerMessage(EventId = 9012, Level = LogLevel.Warning, Message = "Target {Target} refused {Operation} on scheduler {SchedulerName}: {Reason}")]
+    public static partial void TargetRefused(this ILogger logger, string target, string operation, string schedulerName, string reason);
+
+    /// <remarks>
+    /// Error: a target did not serve the request — it refused this host's credential (its <c>401</c>), answered
+    /// a fault, or broke off after the request went — and the caller was answered <c>502</c>. The host's
+    /// configuration or the target needs looking at. Added in 4.9.
+    /// </remarks>
+    [LoggerMessage(EventId = 9014, Level = LogLevel.Error, Message = "Target {Target} did not serve {Operation} on scheduler {SchedulerName}: {Fault}, {Reason}")]
+    public static partial void TargetFailed(this ILogger logger, string target, string operation, string schedulerName, TargetFault fault, string reason);
 
     /// <remarks>
     /// Error: something that records operator actions — the dashboard's Action Log — threw while recording

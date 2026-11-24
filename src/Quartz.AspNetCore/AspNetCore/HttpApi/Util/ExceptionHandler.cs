@@ -75,7 +75,7 @@ internal sealed class ExceptionHandler
     }
 
     /// <summary>
-    /// Logs a target's fault as <c>9010</c>, <c>9011</c> or <c>9012</c>, naming the target and the reason's
+    /// Logs a target's fault as <c>9010</c>, <c>9011</c>, <c>9012</c> or <c>9014</c>, naming the target and the reason's
     /// class, and neither the target's address nor the request's.
     /// </summary>
     private void LogTargetFault(TargetFaultException fault, HttpContext context)
@@ -93,8 +93,11 @@ internal sealed class ExceptionHandler
             case TargetFault.TimedOut:
                 logger.TargetTimedOut(fault.Target, operation, schedulerKey, fault.Reason);
                 break;
+            case TargetFault.Refused:
+                logger.TargetRefused(fault.Target, operation, schedulerKey, fault.Reason);
+                break;
             default:
-                logger.TargetFailed(fault.Kind == TargetFault.Refused ? LogLevel.Warning : LogLevel.Error, fault.Target, operation, schedulerKey, fault.Kind, fault.Reason);
+                logger.TargetFailed(fault.Target, operation, schedulerKey, fault.Kind, fault.Reason);
                 break;
         }
     }
