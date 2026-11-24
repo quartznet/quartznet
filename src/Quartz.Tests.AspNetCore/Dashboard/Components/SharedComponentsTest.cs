@@ -384,6 +384,21 @@ public class SharedComponentsTest
             "on a wide screen a long description's own width would wrap a row that fits");
     }
 
+    /// <summary>
+    /// At 1440px with the sidebar open the header keeps to one row because the time zone and theme selects keep
+    /// to the header's 110px floor. Unscoped, that floor ties the shared picker style's 180px, which comes later
+    /// and wins, and the theme holds "System" in 180px.
+    /// </summary>
+    [Test]
+    public void TheHeadersSelectsKeepToTheHeadersFloorRatherThanThePickerStyles()
+    {
+        string css = File.ReadAllText(HistoryPageTest.DashboardStylesheet());
+
+        Rule(css, ".qz-scheduler-select").Should().Contain("min-width: 180px;");
+        Rule(css, ".qz-header .qz-header-select").Should().Contain("min-width: 110px;",
+            "two classes outrank the picker style's one wherever it comes in the stylesheet");
+    }
+
     private static int NarrowMinWidth(string css, int breakpoint, string selector)
     {
         Match rule = Regex.Match(css, @"@media \(max-width: " + breakpoint + @"px\) \{\s*" + Regex.Escape(selector) + @" \{\s*min-width: (\d+)px;");
