@@ -45,9 +45,11 @@ internal sealed class DueTriggerBacklog
 
     /// <summary>
     /// Every group the store has reported, so one whose backlog clears drops to zero rather than
-    /// vanishing. Only the misfire handler's thread touches it.
+    /// vanishing. Seeded with the ungrouped bucket, so a scheduler with nothing due still reports a
+    /// series: that is its usual state, and no data would read as a stalled store. Only the misfire
+    /// handler's thread touches it.
     /// </summary>
-    private readonly HashSet<string?> groupsSeen = [];
+    private readonly HashSet<string?> groupsSeen = [null];
 
     private volatile Snapshot? current;
 

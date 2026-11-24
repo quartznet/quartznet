@@ -88,20 +88,31 @@ public sealed class DueTriggerGaugeSqliteTest
     public async Task BuildStore()
     {
         clock = new FakeTimeProvider(epoch);
-        statements = new CountingSqliteDelegate();
         meters = new Meters(meterFactory: null);
-        store = new LocalTransactionJobStore(TestJobStores.Dependencies(
-            timeProvider: clock,
+        store = await StoreOn(clock);
+        storeShutDown = false;
+    }
+
+    /// <summary>
+    /// A store on <paramref name="storeClock" />, initialized and with its backlog registered as a start
+    /// registers it, but not started, so no misfire loop races an assertion.
+    /// </summary>
+    private async Task<LocalTransactionJobStore> StoreOn(TimeProvider storeClock)
+    {
+        statements = new CountingSqliteDelegate();
+        LocalTransactionJobStore built = new(TestJobStores.Dependencies(
+            timeProvider: storeClock,
             schedulerOptions: TestJobStores.SchedulerOptions(instanceName: SchedulerName, instanceId: SchedulerId),
             storeOptions: TestJobStores.StoreOptions(DataSourceName, configure: x => x.MisfireHandlerFrequency = frequency),
             dbProvider: dbProvider,
             driverDelegate: statements));
 
-        store.Meters = meters;
-        storeShutDown = false;
+        built.Meters = meters;
 
-        await store.Initialize(TestJobStores.Identity(instanceName: SchedulerName, instanceId: SchedulerId));
-        await store.Clear();
+        await built.Initialize(TestJobStores.Identity(instanceName: SchedulerName, instanceId: SchedulerId));
+        await built.Clear();
+        built.StartDueTriggerBacklog();
+        return built;
     }
 
     [TearDown]
@@ -186,19 +197,62 @@ public sealed class DueTriggerGaugeSqliteTest
     }
 
     [Test]
-    public async Task TheBacklogIsCountedAtMostOncePerMisfireHandlerInterval()
+    public async Task ASchedulerWithNothingDueReportsZeroWithoutAGroup()
+    {
+        await ScheduleDue("later", executionGroup: null, TimeSpan.FromSeconds(-60));
+        Listen();
+
+        await store.RecoverMisfires(Guid.NewGuid());
+
+        CollectedMeasurement<long> count = CollectDue().Should().ContainSingle(
+            "nothing due is a healthy scheduler's usual state, and it reports a series rather than no data").Which;
+        count.Value.Should().Be(0);
+        count.Tags.Should().NotContainKey(ActivityTags.ExecutionGroup);
+        CollectDueAge().Should().ContainSingle().Which.Value.Should().Be(0);
+    }
+
+    [Test]
+    public async Task ARegularPassCountsEvenALittleSoonerThanOneInterval()
     {
         await ScheduleDue("t", executionGroup: null, TimeSpan.FromSeconds(10));
         Listen();
 
         await store.RecoverMisfires(Guid.NewGuid());
-        clock.Advance(TimeSpan.FromSeconds(10));
+        clock.Advance(frequency - TimeSpan.FromMilliseconds(1));
         await store.RecoverMisfires(Guid.NewGuid());
-        statements.DueQueries.Should().Be(1, "a pass that reruns within the interval, as one with misfires left does after 50 ms, reuses the count");
 
-        clock.Advance(frequency);
+        statements.DueQueries.Should().Be(2,
+            "passes are spaced from their start, so one can open its connection a little sooner than an interval after the last count");
+    }
+
+    [Test]
+    public async Task ARerunAfterFiftyMillisecondsReusesTheCount()
+    {
+        await ScheduleDue("t", executionGroup: null, TimeSpan.FromSeconds(10));
+        Listen();
+
         await store.RecoverMisfires(Guid.NewGuid());
-        statements.DueQueries.Should().Be(2);
+        clock.Advance(TimeSpan.FromMilliseconds(50));
+        await store.RecoverMisfires(Guid.NewGuid());
+
+        statements.DueQueries.Should().Be(1, "a pass that left misfires behind reruns after 50 ms, and that rerun is not a new count");
+    }
+
+    [Test]
+    public async Task APassAfterTheClockMovedBackCounts()
+    {
+        SettableClock settable = new(epoch);
+        await store.Shutdown();
+        store = await StoreOn(settable);
+
+        await ScheduleDue("t", executionGroup: null, TimeSpan.FromSeconds(10));
+        Listen();
+
+        await store.RecoverMisfires(Guid.NewGuid());
+        settable.UtcNow = epoch - TimeSpan.FromHours(1);
+        await store.RecoverMisfires(Guid.NewGuid());
+
+        statements.DueQueries.Should().Be(2, "a clock that moved back would otherwise stop the count for the length of the jump");
     }
 
     [Test]
@@ -223,15 +277,15 @@ public sealed class DueTriggerGaugeSqliteTest
         Listen();
 
         await store.RecoverMisfires(Guid.NewGuid());
-        ByGroup(CollectDue()).Should().Equal(new Dictionary<string, long> { ["a"] = 1 });
+        ByGroup(CollectDue()).Should().BeEquivalentTo(new Dictionary<string, long> { ["a"] = 1, [Ungrouped] = 0 });
 
         await store.DeleteTrigger(key);
         clock.Advance(frequency);
         await store.RecoverMisfires(Guid.NewGuid());
 
-        ByGroup(CollectDue()).Should().Equal(new Dictionary<string, long> { ["a"] = 0 },
+        ByGroup(CollectDue()).Should().BeEquivalentTo(new Dictionary<string, long> { ["a"] = 0, [Ungrouped] = 0 },
             "the series drops to zero rather than vanishing, so missing data only ever means no current count");
-        ByGroup(CollectDueAge()).Should().Equal(new Dictionary<string, double> { ["a"] = 0 });
+        ByGroup(CollectDueAge()).Should().BeEquivalentTo(new Dictionary<string, double> { ["a"] = 0, [Ungrouped] = 0 });
     }
 
     [Test]
@@ -312,6 +366,14 @@ public sealed class DueTriggerGaugeSqliteTest
             : "../../../../../database/tables/tables_sqlite.sql";
 
         return File.ReadAllText(path);
+    }
+
+    /// <summary>A clock a test can move back, which <see cref="FakeTimeProvider" /> refuses to.</summary>
+    private sealed class SettableClock(DateTimeOffset start) : TimeProvider
+    {
+        public DateTimeOffset UtcNow { get; set; } = start;
+
+        public override DateTimeOffset GetUtcNow() => UtcNow;
     }
 
     /// <summary>The shipped SQLite delegate, counting the due-backlog queries.</summary>

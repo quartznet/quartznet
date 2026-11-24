@@ -1463,6 +1463,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
             }
         }
 
+        StartDueTriggerBacklog();
         misfireHandler = new MisfireHandler(this, LoggerFactory.CreateLogger<MisfireHandler>());
         misfireHandler.Initialize();
         schedulerRunning = true;

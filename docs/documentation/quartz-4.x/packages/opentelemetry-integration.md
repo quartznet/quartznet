@@ -314,11 +314,14 @@ before any job starts: a stalled cluster, or an execution group at its limit.
 
 - **Aggregate with `max`, never `sum`.** Every node counts the whole scheduler's backlog, not only the groups it
   serves, and reports it under its own `quartz.scheduler.id`. A sum multiplies the backlog by the number of nodes.
-- **Counted in the misfire pass.** The store counts at most once per `MisfireHandlerFrequency`, which defaults to
-  the misfire threshold. The gauges report that count, measured when it was taken. For fresher numbers, lower
+- **Counted in the misfire pass.** The store counts once per pass, every `MisfireHandlerFrequency`, which defaults
+  to the misfire threshold. The quick reruns of a pass that left misfires behind do not count again. The gauges report that count, measured when it was taken. For fresher numbers, lower
   `MisfireHandlerFrequency`: the misfire pass then runs as often.
 - **No data means no current count.** A count older than two intervals is not reported, so a store that has
-  stopped passing shows as missing data, not as its last value. A group whose backlog clears reports `0`.
+  stopped passing shows as missing data, not as its last value.
+- **The series without `quartz.execution.group` is always there**, `0` when nothing is due, which is a healthy
+  scheduler's usual state. A group's series appears with its first due trigger and reports `0` once its backlog
+  clears.
 - **Paused, blocked and acquired triggers are not counted.** A paused or blocked trigger waits on purpose, and
   an acquired one is about to fire.
 - **The query runs only while something collects either gauge.** To collect the `Quartz` meter without it,

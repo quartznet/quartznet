@@ -640,44 +640,64 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// The backlog the due-trigger gauges read, created at the first count and registered with
-    /// <see cref="Meters" /> until shutdown. Only the misfire handler's thread writes these.
+    /// The backlog the due-trigger gauges read, registered with <see cref="Meters" /> from the
+    /// scheduler's start until its shutdown.
     /// </summary>
     private DueTriggerBacklog? dueTriggerBacklog;
 
+    /// <summary>When the backlog was last counted. Only the misfire handler's thread touches it.</summary>
     private DateTimeOffset dueTriggersLastCountedUtc = DateTimeOffset.MinValue;
 
     /// <summary>
-    /// Counts the scheduler's due backlog for the due-trigger gauges (#4401), at most once per
-    /// <see cref="MisfireHandlerFrequency" /> and only while something collects them.
+    /// Creates the backlog the due-trigger gauges read and registers it, as the misfire handler is
+    /// created, so that <see cref="Shutdown" /> always finds it to unregister: a first count still
+    /// running when shutdown stops waiting for the handler must not register one after.
+    /// </summary>
+    /// <remarks>Internal so a test can drive a store it has not started.</remarks>
+    internal void StartDueTriggerBacklog()
+    {
+        if (dueTriggerBacklog is not null)
+        {
+            return;
+        }
+
+        dueTriggerBacklog = new DueTriggerBacklog(InstanceName, InstanceId, timeProvider, MisfireHandlerFrequency * 2);
+        Meters.RegisterDueTriggers(dueTriggerBacklog);
+    }
+
+    /// <summary>
+    /// Counts the scheduler's due backlog for the due-trigger gauges (#4401), once per misfire pass and
+    /// only while something collects them.
     /// </summary>
     /// <remarks>
-    /// The pass reruns after 50 ms while misfires remain, hence the interval check. A snapshot older than
-    /// two intervals is not reported, so a handler that stops passing shows as missing data rather than
-    /// as its last count.
+    /// <para>
+    /// The interval check only stops the 50 ms reruns of a pass that left misfires behind. Passes are
+    /// spaced from their start and this runs after the connection opens, so a regular pass can come a
+    /// little sooner than one interval after the last count; checking against half an interval still
+    /// counts it. A count older than two intervals is not reported, so a skipped regular pass would blank
+    /// the gauges.
+    /// </para>
+    /// <para>
+    /// A negative interval is a clock that moved back, and counts at once, as
+    /// <see cref="MisfireHandler.ComputeTimeToSleep" /> refuses to sleep through the jump.
+    /// </para>
     /// </remarks>
     private async ValueTask CountDueTriggers(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
     {
-        if (!Meters.TriggersDueEnabled || Delegate is not StdAdoDelegate shipped)
+        if (dueTriggerBacklog is null || !Meters.TriggersDueEnabled || Delegate is not StdAdoDelegate shipped)
         {
             return;
         }
 
         DateTimeOffset now = timeProvider.GetUtcNow();
-        if (now - dueTriggersLastCountedUtc < MisfireHandlerFrequency)
+        TimeSpan sinceLastCount = now - dueTriggersLastCountedUtc;
+        if (sinceLastCount >= TimeSpan.Zero && sinceLastCount < MisfireHandlerFrequency / 2)
         {
             return;
         }
 
         List<DueTriggers> due = await shipped.SelectDueTriggersByExecutionGroup(conn, now, cancellationToken).ConfigureAwait(false);
         dueTriggersLastCountedUtc = now;
-
-        if (dueTriggerBacklog is null)
-        {
-            dueTriggerBacklog = new DueTriggerBacklog(InstanceName, InstanceId, timeProvider, MisfireHandlerFrequency * 2);
-            Meters.RegisterDueTriggers(dueTriggerBacklog);
-        }
-
         dueTriggerBacklog.Publish(now, due);
     }
 

@@ -168,7 +168,9 @@ public sealed class DueTriggerGaugePostgresTest
                 driverDelegate: new PostgreSQLDelegate()));
 
             await store.Initialize(new SchedulerIdentity { SchedulerName = SchedulerName, InstanceId = instanceId });
-            return new Node(instanceId, store);
+            Node node = new(instanceId, store);
+            store.StartDueTriggerBacklog();
+            return node;
         }
 
         public void Collect()
