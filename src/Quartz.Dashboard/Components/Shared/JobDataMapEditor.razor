@@ -10,25 +10,29 @@
         }
         else
         {
-            <table class="qz-table">
-                <thead>
-                    <tr>
-                        <th>Key</th>
-                        <th>Type</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (JobDataMapEntry entry in _entries)
-                    {
+            @* Below 600 px each entry stacks, its key and type above its value, so a long value has the row's width
+               rather than a column's; wider, a long value wraps in its column. *@
+            <div class="qz-table-scroll">
+                <table class="qz-table qz-job-data-table qz-job-data-view">
+                    <thead>
                         <tr>
-                            <td>@entry.Key</td>
-                            <td>@entry.ValueType</td>
-                            <td>@entry.ValueText</td>
+                            <th>Key</th>
+                            <th>Type</th>
+                            <th>Value</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (JobDataMapEntry entry in _entries)
+                        {
+                            <tr>
+                                <td class="qz-job-data-key-cell" data-label="Key">@entry.Key</td>
+                                <td class="qz-job-data-type-cell" data-label="Type">@entry.ValueType</td>
+                                <td class="qz-job-data-value-cell" data-label="Value">@entry.ValueText</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     }
     else if (DataMap is not null)
@@ -39,51 +43,81 @@
         }
         else
         {
-            <table class="qz-table">
-                <thead>
-                    <tr>
-                        <th>Key</th>
-                        <th>Type</th>
-                        <th>Value</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (int i = 0; i < _entries.Count; i++)
-                    {
-                        int index = i;
+            @* Below 600 px each entry stacks, the key and the value a row each and the type beside Remove, each with
+               its label, rather than squeeze four columns into a phone (#4412). *@
+            <div class="qz-table-scroll">
+                <table class="qz-table qz-job-data-table qz-job-data-edit">
+                    <thead>
                         <tr>
-                            <td>
-                                <input class="qz-input qz-job-data-key"
-                                       value="@_entries[index].Key"
-                                       @oninput="args => UpdateKey(index, args)" />
-                            </td>
-                            <td>
-                                <select class="qz-select qz-job-data-type"
-                                        value="@_entries[index].ValueType"
-                                        @onchange="args => UpdateType(index, args)">
-                                    @foreach (string typeOption in TypeOptions)
-                                    {
-                                        <option value="@typeOption">@typeOption</option>
-                                    }
-                                </select>
-                            </td>
-                            <td>
-                                <input class="qz-input qz-job-data-value"
-                                       value="@_entries[index].ValueText"
-                                       @oninput="args => UpdateValue(index, args)" />
-                            </td>
-                            <td>
-                                <button type="button"
-                                        class="qz-button qz-button-danger"
-                                        @onclick="() => RemoveEntry(index)">
-                                    Remove
-                                </button>
-                            </td>
+                            <th>Key</th>
+                            <th>Type</th>
+                            <th>Value</th>
+                            <th><span class="qz-sr-only">Actions</span></th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < _entries.Count; i++)
+                        {
+                            int index = i;
+                            string ordinal = (index + 1).ToString(CultureInfo.InvariantCulture);
+                            @if (_entries[index].SetByQuartz)
+                            {
+                                @* What Quartz wrote itself - a trace parent, a backfill's slot - is shown, kept on save as it
+                                   was read, and neither edited nor removed here. *@
+                                <tr class="qz-job-data-internal" data-testid="job-data-internal">
+                                    <td class="qz-job-data-key-cell" data-label="Key"><span class="qz-mono">@_entries[index].Key</span></td>
+                                    <td class="qz-job-data-type-cell" data-label="Type">@_entries[index].ValueType</td>
+                                    <td class="qz-job-data-value-cell" data-label="Value"><span class="qz-mono">@_entries[index].ValueText</span></td>
+                                    <td class="qz-job-data-remove-cell"><span class="qz-muted">Set by Quartz</span></td>
+                                </tr>
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td class="qz-job-data-key-cell" data-label="Key">
+                                        @{
+                                            bool reserved = IsReserved(_entries[index]);
+                                            string keyErrorId = _idPrefix + "-key-error-" + ordinal;
+                                        }
+                                        <input class="qz-input qz-job-data-key"
+                                               aria-label="@("Key of entry " + ordinal)"
+                                               aria-invalid="@(reserved ? "true" : null)"
+                                               aria-describedby="@(reserved ? keyErrorId : null)"
+                                               value="@_entries[index].Key"
+                                               @oninput="args => UpdateKey(index, args)" />
+                                        <FieldError Id="@keyErrorId" Message="@(reserved ? ReservedKeyText : null)" TestId="job-data-key-error" />
+                                    </td>
+                                    <td class="qz-job-data-type-cell" data-label="Type">
+                                        <select class="qz-select qz-job-data-type"
+                                                aria-label="@("Type of entry " + ordinal)"
+                                                value="@_entries[index].ValueType"
+                                                @onchange="args => UpdateType(index, args)">
+                                            @foreach (string typeOption in TypeOptions)
+                                            {
+                                                <option value="@typeOption">@typeOption</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td class="qz-job-data-value-cell" data-label="Value">
+                                        <input class="qz-input qz-job-data-value"
+                                               aria-label="@("Value of entry " + ordinal)"
+                                               value="@_entries[index].ValueText"
+                                               @oninput="args => UpdateValue(index, args)" />
+                                    </td>
+                                    <td class="qz-job-data-remove-cell">
+                                        <button type="button"
+                                                class="qz-button qz-button-danger"
+                                                aria-label="@("Remove entry " + ordinal + (_entries[index].Key is { Length: > 0 } key ? ", " + key : string.Empty))"
+                                                @onclick="() => RemoveEntry(index)">
+                                            Remove
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
 
         @* Offered on an empty map too: a map with nothing in it is exactly the one an editor has to be able
@@ -94,6 +128,18 @@
 
 @code {
     private static readonly IReadOnlyList<string> TypeOptions = ["string", "int", "long", "double", "bool", "datetime"];
+
+    /// <summary>The prefix of the keys Quartz writes into a map itself, which the editor shows and keeps but does not edit.</summary>
+    private const string QuartzKeyPrefix = "QRTZ_";
+
+    /// <summary>What is said beside a key an entry may not take.</summary>
+    private const string ReservedKeyText = "Keys starting with QRTZ_ are set by Quartz.";
+
+    private static int s_lastId;
+
+    /// <summary>What goes before this editor's ids: a page can hold two editable maps.</summary>
+    private readonly string _idPrefix = "qz-job-data-" + Interlocked.Increment(ref s_lastId).ToString(CultureInfo.InvariantCulture);
+
     private readonly List<JobDataMapEntry> _entries = [];
     private JobDataMap? _loadedFrom;
 
@@ -133,7 +179,8 @@
                 Key = pair.Key,
                 ValueType = valueType,
                 ValueText = FormatValue(pair.Value),
-                OriginalValue = pair.Value
+                OriginalValue = pair.Value,
+                SetByQuartz = pair.Key.StartsWith(QuartzKeyPrefix, StringComparison.Ordinal)
             });
         }
     }
@@ -222,7 +269,7 @@
 
     private void RemoveEntry(int index)
     {
-        if (index < 0 || index >= _entries.Count)
+        if (index < 0 || index >= _entries.Count || _entries[index].SetByQuartz)
         {
             return;
         }
@@ -247,7 +294,9 @@
         DataMap.Clear();
         foreach (JobDataMapEntry entry in _entries)
         {
-            if (string.IsNullOrWhiteSpace(entry.Key))
+            // A key Quartz writes itself is refused on an entry the reader typed: said beside it, and never written,
+            // so it cannot stand in for Quartz's own value whatever order the rows are in.
+            if (string.IsNullOrWhiteSpace(entry.Key) || IsReserved(entry))
             {
                 continue;
             }
@@ -255,6 +304,10 @@
             DataMap[entry.Key] = entry.Edited ? ParseValue(entry.ValueType, entry.ValueText) : entry.OriginalValue;
         }
     }
+
+    /// <summary>Whether an entry the reader can edit has been given a key only Quartz writes.</summary>
+    private static bool IsReserved(JobDataMapEntry entry)
+        => !entry.SetByQuartz && entry.Key.StartsWith(QuartzKeyPrefix, StringComparison.Ordinal);
 
     private static object ParseValue(string valueType, string valueText)
     {
@@ -305,6 +358,11 @@
         /// The value the map held when it was read, which is what an entry nobody edited writes back.
         /// </summary>
         public object? OriginalValue { get; init; }
+
+        /// <summary>
+        /// Whether Quartz wrote the entry itself, under a <c>QRTZ_</c> key: read-only, and kept as it was read.
+        /// </summary>
+        public bool SetByQuartz { get; init; }
 
         /// <summary>
         /// Whether the row's type or value was touched, so its text is what the map should now hold.

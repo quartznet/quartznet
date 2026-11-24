@@ -215,6 +215,9 @@ the dashboard sends can widen them; the dashboard's own `ReadOnly` hides its but
   every refusal (`9304`).
 - With `IsJobTypeAllowed` unset, everything else works: triggering, pausing, rescheduling and deleting a job the
   scheduler already holds, and scheduling a trigger for one.
+- A predicate that refuses `GetExecution` to keep captured logs from the dashboard refuses `GetFireInstanceLog` too:
+  from 4.9 it reads the same lines while the firing runs, on the worker. A predicate that allows operations by name,
+  rather than refusing them, already refuses it.
 - The predicate sees the job type name as the request wrote it, and nothing resolves it first. One type has more
   than one spelling, so match on the namespace: `name.StartsWith("Acme.Jobs.", StringComparison.Ordinal)`.
 - The default is the opposite of `QuartzHttpApiOptions.IsJobTypeAllowed`'s, because the HTTP API is on the

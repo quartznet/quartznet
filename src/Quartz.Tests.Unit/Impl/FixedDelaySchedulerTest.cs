@@ -34,8 +34,17 @@ namespace Quartz.Tests.Unit.Impl;
 /// beside itself, where at a fixed rate it starts at 0, 1 and 2.
 /// </summary>
 /// <remarks>
+/// <para>
 /// <c>FixedDelayStoreTest</c> holds the stores to the hold and the fire time on a clock it owns. These
 /// ask only what the scheduler thread adds: that what the store measures is the gap a job sees.
+/// </para>
+/// <para>
+/// The gaps a job sees are on the real clock, and a loaded machine only lengthens them, so their lower bounds
+/// are tight and their upper bound five seconds loose. What tells the two modes apart is when each run was due,
+/// which no load moves: one
+/// interval after the previous run ended, or one interval after the previous run was due. The control asserts
+/// the second where the first test asserts the first.
+/// </para>
 /// </remarks>
 [TestFixture(OverlapStoreKind.InMemory)]
 [TestFixture(OverlapStoreKind.Sqlite)]
@@ -76,13 +85,16 @@ public sealed class FixedDelaySchedulerTest
     [Test]
     public async Task EachRunStartsAnIntervalAfterThePreviousOneCompletedAndNeverBesideIt()
     {
-        List<(TimeSpan Start, TimeSpan End)> runs = await RunThreeTimes(measureIntervalFromCompletion: true);
+        List<TimedRun> runs = await RunThreeTimes(measureIntervalFromCompletion: true);
 
         for (int i = 1; i < runs.Count; i++)
         {
+            (runs[i].ScheduledUtc - runs[i - 1].EndUtc).Should().BeGreaterThanOrEqualTo(interval - clockGrain,
+                $"run {i + 1} is due an interval after run {i} completed");
+
             TimeSpan gap = runs[i].Start - runs[i - 1].End;
             gap.Should().BeGreaterThanOrEqualTo(interval - clockGrain,
-                $"run {i + 1} is due an interval after run {i} completed, and not before");
+                "and starts no sooner: the gap the store measured is the one the job sees");
             gap.Should().BeLessThan(interval + TimeSpan.FromSeconds(5), "and is not held back long past it, whatever else the machine is doing");
         }
 
@@ -92,15 +104,20 @@ public sealed class FixedDelaySchedulerTest
     }
 
     [Test]
-    public async Task AtAFixedRateEachRunStartsAnIntervalAfterThePreviousOneStarted()
+    public async Task AtAFixedRateEachRunIsDueAnIntervalAfterThePreviousOneWasDue()
     {
-        List<(TimeSpan Start, TimeSpan End)> runs = await RunThreeTimes(measureIntervalFromCompletion: false);
+        List<TimedRun> runs = await RunThreeTimes(measureIntervalFromCompletion: false);
 
-        (runs[2].Start - runs[0].Start).Should().BeLessThan(2 * (interval + runTime) - 2 * clockGrain,
-            "the control: at a fixed rate the runs start at about 0, 1 and 2 seconds, sooner than measuring from completion could");
+        for (int i = 1; i < runs.Count; i++)
+        {
+            (runs[i].ScheduledUtc - runs[i - 1].ScheduledUtc).Should().Be(interval,
+                $"at a fixed rate run {i + 1} is due an interval after run {i} was due, however late either started");
+            (runs[i].ScheduledUtc - runs[i - 1].EndUtc).Should().BeLessThan(interval - clockGrain,
+                $"the control: run {i + 1} is due before an interval has passed since run {i} ended, which measuring from completion never is");
+        }
     }
 
-    private async Task<List<(TimeSpan Start, TimeSpan End)>> RunThreeTimes(bool measureIntervalFromCompletion)
+    private async Task<List<TimedRun>> RunThreeTimes(bool measureIntervalFromCompletion)
     {
         await using ServiceProvider container = BuildContainer();
         IScheduler scheduler = await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
@@ -131,7 +148,8 @@ public sealed class FixedDelaySchedulerTest
             await scheduler.Shutdown(waitForJobsToComplete: true);
         }
 
-        return [.. TimedJob.Runs.OrderBy(x => x.Start).Take(3)];
+        // In due order: at a fixed rate two late firings can start in either order.
+        return [.. TimedJob.Runs.OrderBy(x => x.ScheduledUtc).ThenBy(x => x.Start).Take(3)];
     }
 
     private ServiceProvider BuildContainer()
@@ -160,7 +178,13 @@ public sealed class FixedDelaySchedulerTest
     }
 
     /// <summary>
-    /// Runs for <see cref="runTime" />, recording when each run started and ended on one monotonic clock.
+    /// One run of <see cref="TimedJob" />: when its trigger had it due and when it ended on the clock the store
+    /// reads, and when it started and ended on one monotonic clock.
+    /// </summary>
+    public readonly record struct TimedRun(DateTimeOffset ScheduledUtc, DateTimeOffset EndUtc, TimeSpan Start, TimeSpan End);
+
+    /// <summary>
+    /// Runs for <see cref="runTime" />, recording each run as a <see cref="TimedRun" />.
     /// </summary>
     public sealed class TimedJob : IJob
     {
@@ -168,7 +192,7 @@ public sealed class FixedDelaySchedulerTest
         private static int running;
         private static int maxConcurrent;
 
-        public static ConcurrentBag<(TimeSpan Start, TimeSpan End)> Runs { get; private set; } = [];
+        public static ConcurrentBag<TimedRun> Runs { get; private set; } = [];
 
         public static int MaxConcurrent => Volatile.Read(ref maxConcurrent);
 
@@ -195,7 +219,9 @@ public sealed class FixedDelaySchedulerTest
             finally
             {
                 Interlocked.Decrement(ref running);
-                Runs.Add((start, TimeProvider.System.GetElapsedTime(origin)));
+                TimeSpan end = TimeProvider.System.GetElapsedTime(origin);
+                DateTimeOffset endUtc = TimeProvider.System.GetUtcNow();
+                Runs.Add(new TimedRun(context.ScheduledFireTimeUtc.GetValueOrDefault(), endUtc, start, end));
             }
         }
     }

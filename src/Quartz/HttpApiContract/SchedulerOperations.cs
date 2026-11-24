@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Globalization;
+
 using Quartz.Extensibility;
 using Quartz.Impl;
 
@@ -57,9 +59,14 @@ internal static class SchedulerOperations
     /// Every scheduler the container knows about that <paramref name="isVisible" /> lets the caller see,
     /// ordered by name. A registration nothing has built is listed with a null status.
     /// </summary>
+    /// <remarks>
+    /// The predicate is asked with each registration's key — its name and the target it is reached through —
+    /// so that a policy deciding by target decides the listing the way it decides a request that names
+    /// the target.
+    /// </remarks>
     public static async ValueTask<SchedulerHeaderDto[]> GetAllSchedulers(
         ISchedulerRegistry schedulerRegistry,
-        Func<string, CancellationToken, ValueTask<bool>> isVisible,
+        Func<SchedulerRef, CancellationToken, ValueTask<bool>> isVisible,
         CancellationToken cancellationToken)
     {
         List<SchedulerRegistration> registrations = await schedulerRegistry.QuerySchedulers(cancellationToken).ConfigureAwait(false);
@@ -67,7 +74,7 @@ internal static class SchedulerOperations
         List<SchedulerHeaderDto> result = new(registrations.Count);
         foreach (SchedulerRegistration registration in registrations)
         {
-            if (!await isVisible(registration.Name, cancellationToken).ConfigureAwait(false))
+            if (!await isVisible(new SchedulerRef(registration.Name, registration.Target), cancellationToken).ConfigureAwait(false))
             {
                 continue;
             }
@@ -333,6 +340,50 @@ internal static class SchedulerOperations
     }
 
     /// <summary>
+    /// One page of the per-trigger run statuses <paramref name="history" /> keeps for the scheduler, by trigger
+    /// group and then name; with <paramref name="failing" />, only the failing triggers or only the rest.
+    /// </summary>
+    /// <exception cref="NotSupportedException">The store keeps no per-trigger status.</exception>
+    public static async ValueTask<PagedResultDto<TriggerRunStatusDto>> QueryTriggerRunStatuses(
+        IScheduler scheduler,
+        IExecutionHistoryStore history,
+        ListingParameters listing,
+        bool? failing,
+        CancellationToken cancellationToken)
+    {
+        TriggerRunStatusQuery query = listing.Page(new TriggerRunStatusQuery
+        {
+            SchedulerName = scheduler.SchedulerName,
+            Failing = failing
+        });
+
+        PagedResult<TriggerRunStatus> page = await history.QueryTriggerRunStatuses(query, cancellationToken).ConfigureAwait(false);
+        return new PagedResultDto<TriggerRunStatusDto>(page.Items.Select(TriggerRunStatusDto.Create).ToArray(), page.HasMore, page.TotalCount);
+    }
+
+    /// <summary>
+    /// The run statuses of the triggers the request names, by trigger group and then name. A trigger with no
+    /// recorded run is absent: the one read a listing makes for its page.
+    /// </summary>
+    /// <exception cref="NotSupportedException">The store keeps no per-trigger status.</exception>
+    public static async ValueTask<TriggerRunStatusDto[]> FetchTriggerRunStatuses(
+        IScheduler scheduler,
+        IExecutionHistoryStore history,
+        TriggerKeySetRequest request,
+        CancellationToken cancellationToken)
+    {
+        TriggerRunStatusQuery query = new()
+        {
+            SchedulerName = scheduler.SchedulerName,
+            Triggers = request.Triggers.Select(x => x.AsTriggerKey()).ToArray(),
+            Take = PagedQuery.All
+        };
+
+        PagedResult<TriggerRunStatus> page = await history.QueryTriggerRunStatuses(query, cancellationToken).ConfigureAwait(false);
+        return page.Items.Select(TriggerRunStatusDto.Create).ToArray();
+    }
+
+    /// <summary>
     /// <paramref name="scheduler" />'s runs, counted by result and timed in buckets of fire time, read from
     /// <paramref name="history" /> and narrowed as the history listing narrows its page.
     /// </summary>
@@ -505,6 +556,47 @@ internal static class SchedulerOperations
 
         PagedResult<FireInstance> page = await scheduler.QueryFireInstances(query, cancellationToken).ConfigureAwait(false);
         return new PagedResultDto<FireInstanceDto>(page.Items.Select(FireInstanceDto.Create).ToArray(), page.HasMore, page.TotalCount);
+    }
+
+    /// <summary>
+    /// The entries a running firing has logged after the reader's cursor, read in the process running it, as
+    /// <see cref="FireInstanceLogs.Read" /> reads them (#4437).
+    /// </summary>
+    /// <exception cref="InvalidRequestException"><paramref name="after" /> is negative, or <paramref name="take" /> is not from 1 to 1000.</exception>
+    public static async ValueTask<FireInstanceLogResponse> GetFireInstanceLog(
+        IScheduler scheduler,
+        string fireInstanceId,
+        long after,
+        int take,
+        string? schedulerInstanceId,
+        CancellationToken cancellationToken)
+    {
+        if (FireInstanceLogs.Refusal(after, take) is { } refusal)
+        {
+            throw new InvalidRequestException(refusal);
+        }
+
+        FireInstanceLog log = await FireInstanceLogs.Read(
+            scheduler,
+            new FireInstanceLogRequest(fireInstanceId, after, take, schedulerInstanceId),
+            cancellationToken).ConfigureAwait(false);
+
+        return FireInstanceLogResponse.Create(log);
+    }
+
+    /// <summary>
+    /// What a running firing's log read answers through a store window: no process this one reaches runs the
+    /// firing, so nothing is asked (#4437). The request is refused as the read would refuse it.
+    /// </summary>
+    /// <exception cref="InvalidRequestException"><paramref name="after" /> is negative, or <paramref name="take" /> is not from 1 to 1000.</exception>
+    public static FireInstanceLogResponse GetFireInstanceLogThroughAWindow(long after, int take)
+    {
+        if (FireInstanceLogs.Refusal(after, take) is { } refusal)
+        {
+            throw new InvalidRequestException(refusal);
+        }
+
+        return FireInstanceLogResponse.Create(FireInstanceLogs.Unreachable(node: null, after));
     }
 
     /// <summary>
@@ -696,7 +788,7 @@ internal static class SchedulerOperations
     }
 
     /// <summary>
-    /// The trigger's state, and what its pause recorded when it is paused.
+    /// The trigger's state, what its pause recorded when it is paused, and whether the next start stores it again.
     /// </summary>
     public static async ValueTask<TriggerStateDto> GetTriggerState(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken)
     {
@@ -707,7 +799,12 @@ internal static class SchedulerOperations
             ? await scheduler.GetTriggerPause(triggerKey, cancellationToken).ConfigureAwait(false)
             : null;
 
-        return new TriggerStateDto(state, PauseDto.Create(pause));
+        // Asked only of a trigger there is: there is nothing to edit otherwise (#4412).
+        bool? declaredAtStartup = state == TriggerState.None
+            ? null
+            : await StartupDeclarations.IsDeclaredAtStartup(scheduler, triggerKey, cancellationToken).ConfigureAwait(false);
+
+        return new TriggerStateDto(state, PauseDto.Create(pause), declaredAtStartup);
     }
 
     /// <summary>
@@ -725,6 +822,81 @@ internal static class SchedulerOperations
 
         List<DateTimeOffset>? fireTimes = await scheduler.GetUpcomingFireTimes(triggerKey, count, cancellationToken).ConfigureAwait(false);
         return fireTimes is null ? null : new TriggerFireTimesResponse([.. fireTimes]);
+    }
+
+    /// <summary>
+    /// Every fire of every trigger in [<paramref name="from" />, <paramref name="to" />), earliest first, as
+    /// <see cref="UpcomingFires.Query" /> computes it where the scheduler is.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="maxPageSize" /> is the carrier's page cap, which lowers the most fires an answer holds as it
+    /// does a listing's page: an absent <paramref name="take" /> is that many, and a larger one is refused naming the
+    /// option. Zero is no cap beyond <see cref="UpcomingFires.MaxTake" />.
+    /// </remarks>
+    /// <exception cref="InvalidRequestException">
+    /// <paramref name="to" /> is missing, <paramref name="take" /> is out of range, or the window is refused: it does
+    /// not end after now, is longer than seven days, or ends more than thirty days ahead.
+    /// </exception>
+    public static async ValueTask<UpcomingFiresResponse> QueryUpcomingFires(
+        IScheduler scheduler,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        string? take,
+        string? groupContains,
+        int maxPageSize,
+        CancellationToken cancellationToken)
+    {
+        if (to is null)
+        {
+            throw new InvalidRequestException("to is required: the end of the window, excluded");
+        }
+
+        UpcomingFiresQuery query = new(from, to.Value, groupContains, UpcomingFiresTake(take, maxPageSize));
+        UpcomingFiresOutcome outcome = await UpcomingFires.Query(scheduler, query, cancellationToken).ConfigureAwait(false);
+        if (outcome.Refusal is { } refusal)
+        {
+            throw new InvalidRequestException(refusal);
+        }
+
+        return UpcomingFiresResponse.Create(outcome.Result!);
+    }
+
+    /// <summary>
+    /// How many fires an agenda answers: <paramref name="take" />, or the most the carrier allows when it is absent
+    /// or <c>all</c>, as a listing's page is read.
+    /// </summary>
+    /// <exception cref="InvalidRequestException">
+    /// <paramref name="take" /> is neither a number nor <c>all</c>, or is above <paramref name="maxPageSize" />.
+    /// </exception>
+    private static int UpcomingFiresTake(string? take, int maxPageSize)
+    {
+        int maxTake = maxPageSize > 0 ? Math.Min(UpcomingFires.MaxTake, maxPageSize) : UpcomingFires.MaxTake;
+        if (string.IsNullOrWhiteSpace(take) || string.Equals(take, HttpApiConstants.AllItems, StringComparison.OrdinalIgnoreCase))
+        {
+            return maxTake;
+        }
+
+        if (!int.TryParse(take, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+        {
+            throw new InvalidRequestException(
+                $"take must be a number from 1 to {maxTake.ToString(CultureInfo.InvariantCulture)}, or '{HttpApiConstants.AllItems}' for as many as the server answers");
+        }
+
+        if (parsed > maxTake && maxTake < UpcomingFires.MaxTake)
+        {
+            throw new InvalidRequestException(
+                $"take must be at most {maxTake.ToString(CultureInfo.InvariantCulture)}, the server's MaxPageSize, was {parsed.ToString(CultureInfo.InvariantCulture)}. "
+                + $"Ask for '{HttpApiConstants.AllItems}' to take as many as the server answers, or raise MaxPageSize.");
+        }
+
+        // Refused here, with the most this carrier answers, rather than by the computation with the most any does.
+        if (parsed < 1)
+        {
+            throw new InvalidRequestException(
+                $"take must be from 1 to {maxTake.ToString(CultureInfo.InvariantCulture)}, was {parsed.ToString(CultureInfo.InvariantCulture)}.");
+        }
+
+        return parsed;
     }
 
     public static async ValueTask<OperationAppliedResponse> ResetTriggerFromErrorState(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken)

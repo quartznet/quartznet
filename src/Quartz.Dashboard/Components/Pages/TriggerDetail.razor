@@ -18,7 +18,7 @@
 
 <div class="qz-page">
     <div class="qz-page-header">
-        <h1>Trigger Detail</h1>
+        <h1 tabindex="-1" @ref="_heading">Trigger Detail</h1>
         @* Not while the details editor is open: a read hands it a new trigger, which starts its form again. *@
         <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" OnRefresh="RefreshAsync" RefreshDisabled="@(_refreshing || _editing)" />
     </div>
@@ -45,7 +45,7 @@
             <a class="qz-details-link" href="@GetHistoryPathForTrigger(Group, Name)">View execution history</a>
         </div>
 
-        @if (CanPause || CanResume || CanReset || CanEdit || CanBackfill || CanUnschedule)
+        @if (CanPause || CanResume || CanReset || CanEdit || CanBackfill || CanSchedule || CanUnschedule)
         {
             <div class="qz-actions">
                 @if (CanPause)
@@ -64,6 +64,7 @@
                 {
                     <button type="button"
                             class="qz-button qz-trigger-edit"
+                            @ref="_editOpener"
                             disabled="@(_editing || _editUnavailable is not null)"
                             title="@_editUnavailable"
                             @onclick="StartEditing">Edit details</button>
@@ -75,6 +76,14 @@
                             disabled="@(_backfillUnavailable is not null)"
                             title="@_backfillUnavailable"
                             @onclick="PromptBackfill">Backfill…</button>
+                }
+                @if (CanSchedule)
+                {
+                    <button type="button"
+                            class="qz-button qz-trigger-duplicate"
+                            disabled="@_duplicating"
+                            @ref="_duplicateOpener"
+                            @onclick="StartDuplicating">Duplicate…</button>
                 }
                 @if (CanUnschedule)
                 {
@@ -98,12 +107,72 @@
         @if (_editing && CanEdit)
         {
             <TriggerDetailsEditor Trigger="@_trigger"
+                                  DeclaredAtStartup="@_declaredAtStartup"
                                   OnSaved="OnDetailsSavedAsync"
                                   OnUnavailable="OnEditingUnavailable"
                                   OnCancel="CancelEditing" />
         }
 
-        <table class="qz-table">
+        @if (_duplicating && CanSchedule)
+        {
+            <AddTriggerForm Job="@(new JobKeyDto(_trigger.JobKey.Group, _trigger.JobKey.Name))"
+                            Source="@_trigger"
+                            OnAdded="OnDuplicatedAsync"
+                            OnCancel="CancelDuplicating" />
+        }
+
+        @if (_diagnosisFacts is not null)
+        {
+            @* Every check an operator works through, read once on load and on Refresh: never on a timer. With
+               nothing found it is one line, the checks behind a toggle; otherwise the findings come first, the
+               worst at the top, and the checks that passed are behind the toggle. *@
+            List<DiagnosisCheck> checks = TriggerDiagnosis.Evaluate(_diagnosisFacts, FormatDate);
+            List<DiagnosisCheck> findings = checks
+                .Where(static check => check.HoldsBack)
+                .OrderBy(static check => check.Verdict == DiagnosisVerdict.Problem ? 0 : 1)
+                .ToList();
+            List<DiagnosisCheck> others = checks.Where(static check => !check.HoldsBack).ToList();
+            <section class="qz-section qz-diagnosis" data-testid="trigger-diagnosis">
+                <h2>Why isn't it firing?</h2>
+                @if (findings.Count == 0)
+                {
+                    <p class="qz-diagnosis-line">
+                        <span data-testid="trigger-diagnosis-summary">Nothing found that stops this trigger firing.</span>
+                        <button type="button"
+                                class="qz-diagnosis-toggle"
+                                data-testid="trigger-diagnosis-toggle"
+                                aria-expanded="@(_checksShown ? "true" : "false")"
+                                aria-controls="trigger-diagnosis-checks"
+                                @onclick="ToggleChecks">@(_checksShown ? "Hide the checks" : "Show the " + others.Count + " checks")</button>
+                    </p>
+                }
+                else
+                {
+                    <p data-testid="trigger-diagnosis-summary">
+                        @(findings.Count == 1 ? "One finding may stop this trigger firing." : findings.Count + " findings may stop this trigger firing.")
+                    </p>
+                    <div class="qz-table-scroll" data-testid="trigger-diagnosis-findings">@CheckTable(findings)</div>
+                    @if (others.Count > 0)
+                    {
+                        <p class="qz-diagnosis-line">
+                            <button type="button"
+                                    class="qz-diagnosis-toggle"
+                                    data-testid="trigger-diagnosis-toggle"
+                                    aria-expanded="@(_checksShown ? "true" : "false")"
+                                    aria-controls="trigger-diagnosis-checks"
+                                    @onclick="ToggleChecks">@(_checksShown ? "Hide the other checks" : "Show the " + others.Count + " other checks")</button>
+                        </p>
+                    }
+                }
+                @if (_checksShown && others.Count > 0)
+                {
+                    <div id="trigger-diagnosis-checks" class="qz-table-scroll" data-testid="trigger-diagnosis-checks">@CheckTable(others)</div>
+                }
+            </section>
+        }
+
+        <div class="qz-table-scroll">
+        <table class="qz-table qz-properties-table">
             <tbody>
                 <tr><th>Type</th><td>@TriggerDisplay.TypeName(_trigger)</td></tr>
                 <tr><th>Execution Group</th><td>@(_trigger.ExecutionGroup is { Length: > 0 } executionGroup ? executionGroup : "\u2014")</td></tr>
@@ -152,43 +221,40 @@
                 }
             </tbody>
         </table>
+        </div>
 
         @* Every trigger type's, computed by its scheduler and read through the client, so a scheduler reached
            over HTTP or through an agent shows the same panel. *@
         <h2>Upcoming fires</h2>
+        @if (_triggerState == TriggerState.Paused)
+        {
+            @* A paused trigger keeps its schedule, so the list below is still its schedule's times: it fires none of
+               them until it is resumed, and its misfire instruction then decides what it missed. *@
+            <p class="qz-muted" data-testid="upcoming-fires-paused">
+                Paused: these are its schedule's times, and it fires none of them until it is resumed.
+            </p>
+        }
         <UpcomingFires TriggerKey="@TriggerKey" Trigger="@_trigger" Count="10" />
 
         <h2>JobDataMap</h2>
         <JobDataMapEditor DataMap="@TriggerDataMap" ReadOnly="true" />
 
-        @if (CanReschedule && !string.IsNullOrWhiteSpace(_cronExpression))
+        @* Every kind's reschedule, which previews its edit beside its fields; read-only mode has none. *@
+        @if (CanReschedule)
         {
-            <section class="qz-section">
-                <h2>Edit cron schedule</h2>
-                <div class="qz-form-group">
-                    <label class="qz-form-label" for="trigger-cron-expression">Cron expression</label>
-                    <input id="trigger-cron-expression" class="qz-input qz-input-mono" @bind="_editedCronExpression" />
-                </div>
-                <div class="qz-actions qz-group-actions">
-                    <button type="button" class="qz-button qz-button-primary" @onclick="RescheduleCronAsync">Save schedule</button>
-                    <button type="button" class="qz-button" @onclick="ResetCronEditAsync">Reset</button>
-                </div>
-            </section>
-        }
-
-        @* The editor's expression, once it is not the saved one: the saved schedule is Upcoming fires above, and
-           read-only mode has no editor to preview. *@
-        @if (CanReschedule && !string.IsNullOrWhiteSpace(_cronExpression) && IsPreviewingAnEdit)
-        {
-            <h2>Upcoming cron fires</h2>
-            <p class="qz-muted" data-testid="cron-preview-unsaved">Of the edited expression, which is not saved yet.</p>
-            <CronNextFires Trigger="@_trigger" Expression="@_editedCronExpression" Count="5" />
+            <ScheduleEditor Trigger="@_trigger"
+                            DeclaredAtStartup="@_declaredAtStartup"
+                            State="@_triggerState"
+                            Pause="@_pause"
+                            GroupKeepsPaused="@GroupKeepsPaused"
+                            OnSaved="OnRescheduledAsync" />
         }
     }
 </div>
 
 <ConfirmDialog IsOpen="@_showUnscheduleConfirm"
                Title="Unschedule trigger"
+               ConfirmText="Unschedule"
                Message="@($"Unschedule {DisplayValueHelper.FormatKey(Group, Name)}?")"
                OnConfirm="UnscheduleAsync"
                OnCancel="CancelUnscheduleAsync" />
@@ -217,10 +283,14 @@
     private bool _showPausePrompt;
     private bool _continuationParentExists;
     private bool _showUnscheduleConfirm;
-    private string? _cronExpression;
-    private string _editedCronExpression = string.Empty;
     private string _misfireName = string.Empty;
     private bool _editing;
+
+    /// <summary>
+    /// Whether the next start stores this trigger again over what an editor saves, which every editor on the page
+    /// warns of; <see langword="null" /> when the source cannot say, and for a visitor who may edit nothing.
+    /// </summary>
+    private bool? _declaredAtStartup;
 
     /// <summary>
     /// Why this page's data source cannot edit a trigger in place, once it has said so, or
@@ -282,29 +352,69 @@
 
     private bool CanReset => Can(Routes.ResetTriggerFromErrorState);
 
+    private bool CanInterrupt => Can(Routes.InterruptJobInstance);
+
+    /// <summary>
+    /// What the diagnosis read on load or on Refresh, or <see langword="null" /> before it has; judged again on
+    /// each render, which reads nothing, so a change of time zone redraws it.
+    /// </summary>
+    private TriggerDiagnosisFacts? _diagnosisFacts;
+
     private bool CanEdit => Can(Routes.UpdateTriggerDetails);
 
     private bool CanBackfill => Can(Routes.BackfillTrigger);
 
     private bool CanUnschedule => Can(Routes.UnscheduleJob);
 
+    /// <summary>Storing a copy of the trigger, which an operation policy asks at Administer (#4412).</summary>
+    private bool CanSchedule => Can(Routes.ScheduleJob);
+
+    /// <summary>Whether the Duplicate form is open.</summary>
+    private bool _duplicating;
+
+    private ElementReference _duplicateOpener;
+    private ElementReference _editOpener;
+    private ElementReference _heading;
+
+    /// <summary>Where focus goes after the next render: never to the page's body when what had it goes.</summary>
+    private PageFocus _pendingFocus;
+
+    private enum PageFocus
+    {
+        None,
+
+        /// <summary>The heading, as a page opened by navigation has it: here, another trigger's page, the copy's among them.</summary>
+        Heading,
+
+        /// <summary>Edit details, enabled again once its editor has closed.</summary>
+        EditOpener,
+
+        /// <summary>Duplicate, enabled again once its form has been cancelled.</summary>
+        DuplicateOpener,
+    }
+
     private bool CanReschedule => Can(Routes.RescheduleJob);
+
+    /// <summary>
+    /// Whether the trigger's group or its job's is paused, as the diagnosis read them: a replacement of the trigger then
+    /// stays paused, which the reschedule dialog says.
+    /// </summary>
+    private bool GroupKeepsPaused => _trigger is { } trigger && _diagnosisFacts is { } facts
+        && (facts.PausedTriggerGroups.Value?.Names.Contains(trigger.Key.Group) == true
+            || facts.PausedJobGroups.Value?.Names.Contains(trigger.JobKey.Group) == true);
 
     private TriggerKeyDto TriggerKey => new(Group, Name);
 
     private JobDataMap? TriggerDataMap => _trigger?.JobDataMap;
 
-    /// <summary>
-    /// Whether the editor holds an expression the trigger is not running with, which is the only time the
-    /// page previews one: until then the preview would repeat <em>Upcoming fires</em>.
-    /// </summary>
-    private bool IsPreviewingAnEdit => !string.Equals(_editedCronExpression.Trim(), _cronExpression, StringComparison.Ordinal);
-
-    protected override async Task OnInitializedAsync()
+    /// <remarks>
+    /// Subscribes only: <see cref="OnParametersSetAsync" /> reads, and it runs on the first render too. Reading
+    /// here as well read the trigger and its diagnosis twice on every visit.
+    /// </remarks>
+    protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
         Scheduler.OnDisplayChanged += OnDisplayChanged;
-        await LoadDataAsync();
     }
 
     /// <summary>The time zone changed: draw the page's times again in it, and read nothing.</summary>
@@ -313,19 +423,44 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
+    /// <remarks>
+    /// Reads when the page is about another trigger than the one it read: on the first render, and on a
+    /// navigation to another trigger's page. A render of the same trigger reads nothing; Refresh, an action and
+    /// a change of scheduler read again by their own paths.
+    /// </remarks>
     protected override async Task OnParametersSetAsync()
     {
+        if (_loadedKey == TriggerKey)
+        {
+            return;
+        }
+
+        // The router's FocusOnNavigate moves focus to the heading only when the page type changes, and another trigger's
+        // page is this same page: a move to it, a stored duplicate's among them, focuses the heading here.
+        if (_loadedKey is not null)
+        {
+            _pendingFocus = PageFocus.Heading;
+        }
+
+        _loadedKey = TriggerKey;
+        _checksShown = false;
+        _interruptsRequested.Clear();
+
         // Another trigger's details are not ones to keep as stale.
         _lastUpdatedAt = null;
         _staleReason = null;
         await LoadDataAsync();
     }
 
+    /// <summary>The trigger the page last read on its parameters, so a render of the same one reads nothing.</summary>
+    private TriggerKeyDto? _loadedKey;
+
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
         // What one scheduler's source could not do says nothing about the next one's.
         _editUnavailable = null;
         _editing = false;
+        _duplicating = false;
         _backfillUnavailable = null;
         _showBackfill = false;
         _lastUpdatedAt = null;
@@ -353,6 +488,8 @@
                 _trigger = null;
                 _triggerState = TriggerState.None;
                 _pause = null;
+                _declaredAtStartup = null;
+                _diagnosisFacts = null;
                 _lastUpdatedAt = null;
                 _staleReason = null;
                 return;
@@ -373,20 +510,28 @@
             bool continuationParentExists = trigger.Continuation.Parent is { } continuationParent
                 && await Api.GetTriggerState(schedulerName, new TriggerKeyDto(continuationParent.Group, continuationParent.Name), cancellationToken) != TriggerState.None;
 
-            // A refresh keeps an expression the reader is editing; every other read starts the editor again from
-            // the trigger's own.
-            bool keepEdit = _refreshing && IsPreviewingAnEdit;
+            bool? declaredAtStartup = CanEdit || CanReschedule
+                ? await ReadDeclaredAtStartup(schedulerName, cancellationToken)
+                : null;
+
+            SchedulerHeaderDto? header = Scheduler.Find(schedulerName);
+            TriggerDiagnosisFacts diagnosis = await TriggerDiagnosis.Read(
+                Api,
+                new DiagnosisSubject(schedulerName, trigger, triggerState, pause, continuationParentExists, Clock.GetUtcNow())
+                {
+                    IsWindow = header?.IsWindow == true,
+                    IsCluster = header?.IsCluster == true,
+                },
+                cancellationToken);
+
+            // The schedule editor keeps an edit the reader is making across a refresh, and starts again otherwise.
             _trigger = trigger;
             _triggerState = triggerState;
             _pause = pause;
-            _cronExpression = (trigger as ICronTrigger)?.CronExpressionString;
-            if (!keepEdit)
-            {
-                _editedCronExpression = _cronExpression ?? string.Empty;
-            }
-
             _misfireName = TriggerDetailsForm.MisfireNameOf(trigger);
+            _declaredAtStartup = declaredAtStartup;
             _continuationParentExists = continuationParentExists;
+            _diagnosisFacts = diagnosis;
             _lastUpdatedAt = Clock.GetUtcNow();
             _staleReason = null;
         }
@@ -405,6 +550,22 @@
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Whether the next start stores this trigger again, or <see langword="null" /> when the source cannot say. It is
+    /// the editors' warning and nothing else, so a read that fails costs the warning rather than the page.
+    /// </summary>
+    private async Task<bool?> ReadDeclaredAtStartup(string schedulerName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await Api.IsTriggerDeclaredAtStartup(schedulerName, TriggerKey, cancellationToken);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
         }
     }
 
@@ -513,6 +674,95 @@
             target: DisplayValueHelper.FormatKey(Group, Name));
     }
 
+    /// <summary>
+    /// Whether the diagnosis's passed checks are shown; behind the toggle until asked for, and kept as asked across
+    /// a refresh.
+    /// </summary>
+    private bool _checksShown;
+
+    private void ToggleChecks()
+    {
+        _checksShown = !_checksShown;
+    }
+
+    /// <summary>The diagnosis's checks as rows: the verdict, the finding, and its link or action.</summary>
+    private RenderFragment CheckTable(IReadOnlyList<DiagnosisCheck> checks) => __builder =>
+    {
+        <table class="qz-table qz-diagnosis-table">
+            <tbody>
+                @foreach (DiagnosisCheck check in checks)
+                {
+                    <tr class="qz-diagnosis-@check.Verdict.ToString().ToLowerInvariant()" data-check="@check.Name">
+                        <th scope="row">@check.Name</th>
+                        <td class="qz-diagnosis-verdict" title="@check.Verdict">@VerdictGlyph(check.Verdict)</td>
+                        <td>
+                            <span class="qz-diagnosis-text">@check.Text</span>
+                            @if (check.LinkPath is not null)
+                            {
+                                <a class="qz-details-link" href="@DashboardLink.To(Options.Value, check.LinkPath)">@check.LinkText</a>
+                            }
+                            @if (check.Action == DiagnosisAction.Interrupt && check.FireInstanceId is { } fireInstanceId && CanInterrupt)
+                            {
+                                @if (_interruptsRequested.Contains(fireInstanceId))
+                                {
+                                    @* Said where the button was, for as long as the firing is listed: the toast fades, and a
+                                       job stops only when it next looks at its cancellation token. *@
+                                    <span class="qz-muted qz-diagnosis-interrupt-requested" data-testid="diagnosis-interrupt-requested">Interrupt requested</span>
+                                }
+                                else
+                                {
+                                    <button type="button" class="qz-button qz-diagnosis-interrupt" aria-label="@("Interrupt firing " + fireInstanceId)" @onclick="() => InterruptFiringAsync(fireInstanceId)">Interrupt</button>
+                                }
+                            }
+                            @if (check.Action == DiagnosisAction.ResetError && CanReset)
+                            {
+                                <button type="button" class="qz-button qz-diagnosis-reset" @onclick="ResetFromErrorAsync">Reset error state</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
+
+    /// <summary>
+    /// The diagnosis's <em>Interrupt</em>: the firing that holds a blocked trigger's job.
+    /// </summary>
+    /// <remarks>
+    /// The request is acknowledged twice: a toast, and the button giving way to <em>Interrupt requested</em> once the
+    /// page has read the diagnosis again, since the firing may well still be listed while its job winds down.
+    /// </remarks>
+    private async Task InterruptFiringAsync(string fireInstanceId)
+    {
+        _interruptsRequested.Add(fireInstanceId);
+        bool requested = await ExecuteMutatingActionAsync(
+            () => Api.InterruptFireInstance(Scheduler.ActiveSchedulerName!, fireInstanceId),
+            "Interrupt requested for firing " + fireInstanceId + ": it stops when its job next checks its cancellation token.",
+            "Firing " + fireInstanceId + " was not interrupted - it had already finished.",
+            actionName: "InterruptFireInstance",
+            target: fireInstanceId);
+
+        if (!requested)
+        {
+            _interruptsRequested.Remove(fireInstanceId);
+        }
+    }
+
+    /// <summary>The firings this page asked to stop, which show <em>Interrupt requested</em> in place of the button.</summary>
+    private readonly HashSet<string> _interruptsRequested = new(StringComparer.Ordinal);
+
+    private static string VerdictGlyph(DiagnosisVerdict verdict)
+    {
+        return verdict switch
+        {
+            DiagnosisVerdict.Ok => "✓",
+            DiagnosisVerdict.Info => "ℹ",
+            DiagnosisVerdict.Warning => "⚠",
+            DiagnosisVerdict.Problem => "✗",
+            _ => "?",
+        };
+    }
+
     private Task ResetFromErrorAsync()
     {
         return ExecuteMutatingActionAsync(
@@ -523,49 +773,10 @@
             target: DisplayValueHelper.FormatKey(Group, Name));
     }
 
-    private async Task RescheduleCronAsync()
+    /// <summary>The schedule editor has rescheduled the trigger, and paused it again where it was paused.</summary>
+    private async Task OnRescheduledAsync()
     {
-        string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (!CanReschedule || string.IsNullOrWhiteSpace(schedulerName))
-        {
-            return;
-        }
-
-        string cronExpression = _editedCronExpression.Trim();
-        if (string.IsNullOrWhiteSpace(cronExpression))
-        {
-            Toasts.Error("Cron expression is required.");
-            return;
-        }
-
-        ITrigger? newTrigger;
-        try
-        {
-            if (_trigger is null || !TriggerPayloadBuilder.TryWithCronExpression(_trigger, cronExpression, out newTrigger))
-            {
-                Toasts.Error("This trigger cannot be rescheduled from the dashboard.");
-                return;
-            }
-        }
-        catch (FormatException ex)
-        {
-            // Said the way the preview says it. Thrown out of a click handler, it would end the circuit.
-            Toasts.Error("Invalid cron expression: " + ex.Message);
-            return;
-        }
-
-        RescheduleRequest request = new(newTrigger);
-        _ = await ExecuteMutatingActionAsync(
-            () => Api.RescheduleJob(schedulerName, TriggerKey, request),
-            "Rescheduled trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
-            actionName: "RescheduleTrigger",
-            target: DisplayValueHelper.FormatKey(Group, Name));
-    }
-
-    private Task ResetCronEditAsync()
-    {
-        _editedCronExpression = _cronExpression ?? string.Empty;
-        return Task.CompletedTask;
+        await LoadDataAsync();
     }
 
     private static string DisplayPreferredNode(PreferredNode preferredNode)
@@ -583,6 +794,54 @@
         return preferredNode.Node ?? "—";
     }
 
+    private void StartDuplicating()
+    {
+        _duplicating = true;
+    }
+
+    private void CancelDuplicating()
+    {
+        _duplicating = false;
+        _pendingFocus = PageFocus.DuplicateOpener;
+    }
+
+    /// <remarks>
+    /// The Duplicate and Edit details buttons take focus back when their forms close, once they are enabled again. A
+    /// copy that is stored moves to the copy's page, whose heading takes focus. The heading waits for the trigger to be
+    /// read, so a reader of the page hears it once it has something under it.
+    /// </remarks>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        PageFocus pending = _pendingFocus;
+        if (pending == PageFocus.None || _isLoading)
+        {
+            return;
+        }
+
+        _pendingFocus = PageFocus.None;
+        try
+        {
+            ElementReference target = pending switch
+            {
+                PageFocus.Heading => _heading,
+                PageFocus.EditOpener => _editOpener,
+                _ => _duplicateOpener,
+            };
+            await target.FocusAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // A circuit that has gone, or a page still prerendering, has nothing to focus.
+        }
+    }
+
+    /// <summary>The copy is stored: the page moves to it.</summary>
+    private void OnDuplicatedAsync(TriggerKeyDto key)
+    {
+        _duplicating = false;
+        Navigation.NavigateTo(GetTriggerPath(key.Group, key.Name));
+    }
+
     private void StartEditing()
     {
         if (!CanEdit || _trigger is null)
@@ -596,12 +855,14 @@
     private void CancelEditing()
     {
         _editing = false;
+        _pendingFocus = PageFocus.EditOpener;
     }
 
     private async Task OnDetailsSavedAsync()
     {
         _editing = false;
         await LoadDataAsync();
+        _pendingFocus = PageFocus.EditOpener;
     }
 
     private void OnEditingUnavailable(string reason)
@@ -667,34 +928,6 @@
     {
         _showUnscheduleConfirm = false;
         return Task.CompletedTask;
-    }
-
-    private async Task<bool> ExecuteMutatingActionAsync(
-        Func<ValueTask> operation,
-        string successMessage,
-        string actionName,
-        string target)
-    {
-        string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
-        {
-            return false;
-        }
-
-        try
-        {
-            await operation();
-            ActionLog.Record(schedulerName, actionName, target, succeeded: true);
-            Toasts.Success(successMessage);
-            await LoadDataAsync();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            ActionLog.Failed(schedulerName, actionName, target, ex);
-            Toasts.Error(ex.Message);
-            return false;
-        }
     }
 
     private async Task<bool> ExecuteMutatingActionAsync(

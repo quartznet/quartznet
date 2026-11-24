@@ -3,8 +3,10 @@ using System.Text.Json.Serialization.Metadata;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.Configuration;
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
 using Quartz.Impl;
@@ -39,6 +41,11 @@ internal sealed class EndpointHelper
     /// receive this type, so an option one of them needs costs no second injection.
     /// </remarks>
     public Func<string, bool>? IsJobTypeAllowed { get; }
+
+    /// <summary>
+    /// <see cref="QuartzHttpApiOptions.MaxPageSize" />, which also lowers how many fires an agenda answers.
+    /// </summary>
+    public int MaxPageSize => maxPageSize;
 
     /// <summary>
     /// The one place the API turns a response into JSON. Generic because every caller already has the
@@ -141,7 +148,9 @@ internal sealed class EndpointHelper
             return null;
         }
 
-        return request.AsPauseDetails(AuthenticatedUser(context));
+        PauseDetails details = request.AsPauseDetails(AuthenticatedUser(context));
+        AuditNote.Add(context, AuditNote.PauseReason(details));
+        return details;
     }
 
     /// <summary>
@@ -154,13 +163,17 @@ internal sealed class EndpointHelper
     /// </remarks>
     public static PauseDetails? KeySetPauseDetailsFor(TriggerKeySetPauseRequest request, HttpContext context)
     {
-        return request.AsPauseDetails(AuthenticatedUser(context));
+        PauseDetails? details = request.AsPauseDetails(AuthenticatedUser(context));
+        AuditNote.Add(context, AuditNote.PauseReason(details));
+        return details;
     }
 
     /// <inheritdoc cref="KeySetPauseDetailsFor(TriggerKeySetPauseRequest, HttpContext)" />
     public static PauseDetails? KeySetPauseDetailsFor(JobKeySetPauseRequest request, HttpContext context)
     {
-        return request.AsPauseDetails(AuthenticatedUser(context));
+        PauseDetails? details = request.AsPauseDetails(AuthenticatedUser(context));
+        AuditNote.Add(context, AuditNote.PauseReason(details));
+        return details;
     }
 
     /// <summary>
@@ -186,51 +199,126 @@ internal sealed class EndpointHelper
     }
 
     /// <summary>
-    /// Runs <paramref name="action" /> against the scheduler the route names, or answers <c>404</c>.
+    /// Runs <paramref name="action" /> against the scheduler the route and the query name, or answers <c>404</c>.
     /// </summary>
-    /// <remarks>
-    /// A route value is a bare name, and a bare name resolves to the scheduler reached through no target:
-    /// one of this process, a window, or an <c>AddQuartzHttpClient</c> registration without a target.
-    /// A name held only by targets is not found, and the refusal names the targets — the API has no way
-    /// to address a targeted scheduler in 4.5, and answering with an arbitrary one of them would act on
-    /// a process the caller did not name.
-    /// </remarks>
-    public static async Task<IResult> ExecuteWithScheduler(
+    /// <inheritdoc cref="ExecuteWithResolution" path="/remarks" />
+    public static Task<IResult> ExecuteWithScheduler(
         string schedulerName,
+        string? target,
+        HttpContext context,
         ISchedulerRepository schedulerRepository,
         Func<IScheduler, ValueTask<IResult>> action)
     {
-        SchedulerRef key = new(schedulerName);
-        SchedulerResolution? resolved = SchedulerLookup.Resolve(schedulerRepository, windows: null, key);
+        return ExecuteWithResolution(schedulerName, target, context, schedulerRepository, resolution => action(resolution.Scheduler));
+    }
+
+    /// <summary>
+    /// Runs <paramref name="action" /> against what the route and the query name resolve to, or answers
+    /// <c>404</c>: for a route that has to know whether the scheduler is a window, or what its key is.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The key is the route's name and, from 4.9, the query's <c>target</c>, and it resolves by the rule the
+    /// dashboard's client resolves one by: <see cref="SchedulerLookup.Resolve" />, with this container's
+    /// windows. A bare key resolves to the scheduler reached through no target — one of this process, a
+    /// window, or an <c>AddQuartzHttpClient</c> registration without a target — as it always did, and a name
+    /// held only by targets is refused naming them. A targeted key resolves to the proxy behind that target
+    /// or the window onto the store attached under it, and the handler runs against that, so a request
+    /// through a target is served by the same code as one to this process, the dashboard's own path: no
+    /// bytes are relayed.
+    /// </para>
+    /// <para>
+    /// A targeted proxy's failures are its target's: <see cref="TargetFaults" /> answers an unreachable one
+    /// <c>503</c>, one that timed out <c>504</c>, its refusals <c>403</c> and its faults <c>502</c>, and never
+    /// with the target's address. Authorization has already run by the time this does, so a caller who may
+    /// not see a key learns nothing about whether it exists.
+    /// </para>
+    /// </remarks>
+    public static async Task<IResult> ExecuteWithResolution(
+        string schedulerName,
+        string? target,
+        HttpContext context,
+        ISchedulerRepository schedulerRepository,
+        Func<SchedulerResolution, ValueTask<IResult>> action)
+    {
+        SchedulerRef key = new(schedulerName, target);
+        SchedulerWindowRegistry? windows = context.RequestServices.GetService<SchedulerWindowRegistry>();
+
+        // A target given in the query is the pair the policies were asked about: a scheduler of this process
+        // named like the joined key is not it, so the pair resolves as given rather than as one key.
+        SchedulerResolution? resolved = target is null
+            ? SchedulerLookup.Resolve(schedulerRepository, windows, key)
+            : SchedulerLookup.Targeted(schedulerRepository, windows, key);
         if (resolved is null)
         {
-            throw NotFoundException.ForScheduler(schedulerName, SchedulerLookup.TargetsHolding(schedulerRepository, schedulerName));
+            // Still "Unknown scheduler", which HttpScheduler reads as a scheduler no request can reach.
+            throw target is null
+                ? NotFoundException.ForScheduler(schedulerName, SchedulerLookup.TargetsHolding(schedulerRepository, schedulerName))
+                : NotFoundException.ForScheduler(key.Key);
         }
 
-        return await action(resolved.Scheduler).ConfigureAwait(false);
+        if (target is null || resolved.Scheduler is not IProxyScheduler)
+        {
+            return await action(resolved).ConfigureAwait(false);
+        }
+
+        Exception fault;
+        try
+        {
+            return await action(resolved).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (TargetFaults.Translate(exception, resolved.Ref, IsMutation(context), context.RequestAborted) is { } translated)
+        {
+            // The answer the fault is, in place of what the transport raised: that names the target's
+            // address, and the answer only its name.
+            fault = translated;
+        }
+
+        throw fault;
     }
 
     public Task<IResult> ExecuteWithJsonResponse<T>(
         string schedulerName,
+        string? target,
+        HttpContext context,
         ISchedulerRepository schedulerRepository,
         Func<IScheduler, ValueTask<T>> action) where T : notnull
     {
-        return ExecuteWithScheduler(schedulerName, schedulerRepository, async scheduler =>
+        return ExecuteWithScheduler(schedulerName, target, context, schedulerRepository, async scheduler =>
         {
             var response = await action(scheduler).ConfigureAwait(false);
+
+            // An answer that says nothing was applied is entered as not done, as the dashboard enters a pause
+            // or an interrupt that did not land.
+            if (response is OperationAppliedResponse { Applied: false })
+            {
+                AuditNote.NotApplied(context);
+            }
+
             return JsonResponse(response);
         });
     }
 
     public static Task<IResult> ExecuteWithOkResponse(
         string schedulerName,
+        string? target,
+        HttpContext context,
         ISchedulerRepository schedulerRepository,
         Func<IScheduler, ValueTask> action)
     {
-        return ExecuteWithScheduler(schedulerName, schedulerRepository, async scheduler =>
+        return ExecuteWithScheduler(schedulerName, target, context, schedulerRepository, async scheduler =>
         {
             await action(scheduler).ConfigureAwait(false);
             return Results.Ok();
         });
+    }
+
+    /// <summary>
+    /// Whether the endpoint changes something, as <see cref="QuartzMutationMetadata" /> says — which a
+    /// timed-out answer from a target then may have done.
+    /// </summary>
+    private static bool IsMutation(HttpContext context)
+    {
+        return context.GetEndpoint()?.Metadata.GetMetadata<QuartzMutationMetadata>() is not null;
     }
 }

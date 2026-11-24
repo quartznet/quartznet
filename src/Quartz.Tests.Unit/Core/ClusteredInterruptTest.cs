@@ -162,16 +162,56 @@ public sealed class ClusteredInterruptTest
     public async Task APollPassesOverARequestForAFiringThisNodeIsNotRunning()
     {
         await Build(clustered: true);
+        await scheduler.Start();
+        Started local = await RunLongJob();
         store.Pending.Add("fired-elsewhere");
 
         QuartzScheduler quartz = ((StdScheduler) scheduler).scheduler;
         (await quartz.DeliverInterruptRequests()).Should().Be(0, "nothing of that firing runs here yet");
+
+        store.Reads.Should().Be(1, "a node running a firing reads its requests");
+        LongJob.Cancelled.IsCompleted.Should().BeFalse("the request names another firing than the one running here");
+        quartz.NumberOfJobsExecutingHere.Should().Be(1, $"firing {local.FireInstanceId} is still running");
+    }
+
+    [Test]
+    public async Task AnIdleNodeDoesNotReadItsInterruptRequests()
+    {
+        await Build(clustered: true);
+        await scheduler.Start();
+        store.Pending.Add("fired-elsewhere");
+
+        QuartzScheduler quartz = ((StdScheduler) scheduler).scheduler;
+        (await quartz.DeliverInterruptRequests()).Should().Be(0);
+
+        store.Reads.Should().Be(0, "a request is answered to the node running its firing, and this node runs none (#4410)");
+    }
+
+    [Test]
+    public async Task ANodeStopsReadingOnceItsLastFiringHasEnded()
+    {
+        await Build(clustered: true);
+        await scheduler.Start();
+        Started local = await RunLongJob();
+        QuartzScheduler quartz = ((StdScheduler) scheduler).scheduler;
+
+        store.Pending.Add(local.FireInstanceId);
+        (await quartz.DeliverInterruptRequests()).Should().Be(1, "the request names the firing this node runs");
+        (await LongJob.Cancelled.WaitAsync(waitLimit)).Should().Be(local.FireInstanceId);
+        await WaitUntil(() => quartz.NumberOfJobsExecutingHere == 0);
+        int readsWhileRunning = store.Reads;
+
+        (await quartz.DeliverInterruptRequests()).Should().Be(0);
+
+        store.Reads.Should().Be(readsWhileRunning, "the node runs nothing now, so the request still on the store is not read again");
     }
 
     [Test]
     public async Task APollThatFailsLetsTheNextOneRun()
     {
         await Build(clustered: true);
+        await scheduler.Start();
+        Started local = await RunLongJob();
         store.FailNextRead = true;
         QuartzScheduler quartz = ((StdScheduler) scheduler).scheduler;
 
@@ -179,8 +219,6 @@ public sealed class ClusteredInterruptTest
         await store.ReadAttempted.Task.WaitAsync(waitLimit);
 
         // The failed read let go of the single-flight guard, so the next check-in's poll reads again.
-        await scheduler.Start();
-        Started local = await RunLongJob();
         store.Pending.Add(local.FireInstanceId);
         await WaitUntil(() =>
         {

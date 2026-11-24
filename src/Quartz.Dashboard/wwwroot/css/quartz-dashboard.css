@@ -26,8 +26,13 @@
 
     --qz-color-text: #0f172a;
     --qz-color-text-secondary: #475569;
-    --qz-color-text-muted: #94a3b8;
+    /* At least 4.5:1 on every background a page draws text on: 5.19:1 on the surface, 4.73:1 on surface-alt.
+       Still lighter than the secondary text, which is 7.58:1. */
+    --qz-color-text-muted: #5f6e84;
     --qz-color-text-inverse: #ffffff;
+    /* A link with no class of its own: 6.70:1 on the surface, 6.12:1 on surface-alt. */
+    --qz-color-link: #1d4ed8;
+    --qz-color-link-hover: #1e40af;
 
     --qz-color-success: #16a34a;
     --qz-color-success-bg: #dcfce7;
@@ -38,6 +43,10 @@
     --qz-color-danger-hover: #b91c1c;
     --qz-color-info: #2563eb;
     --qz-color-info-bg: #dbeafe;
+    /* Text on the Action Log's Via badges, darker than the info and warning colours so 12 px text on their
+       tints passes WCAG AA (>= 4.5:1): #1d4ed8 on #dbeafe is 5.49:1, #854d0e on #fef9c3 is 6.38:1. */
+    --qz-via-api-text: #1d4ed8;
+    --qz-via-mcp-text: #854d0e;
     --qz-color-executing: #7c3aed;
     --qz-color-executing-bg: #ede9fe;
     --qz-color-awaiting: #0d9488;
@@ -123,8 +132,12 @@
 
         --qz-color-text: #f1f5f9;
         --qz-color-text-secondary: #94a3b8;
-        --qz-color-text-muted: #64748b;
+        /* 4.76:1 on the surface and 5.81:1 on the page; the secondary text is 5.71:1 and 6.96:1. */
+        --qz-color-text-muted: #8794a9;
         --qz-color-text-inverse: #0f172a;
+        /* 5.75:1 on the surface; the browser's own link blue is 1.9:1 there. */
+        --qz-color-link: #60a5fa;
+        --qz-color-link-hover: #93c5fd;
 
         --qz-color-success: #22c55e;
         --qz-color-success-bg: #14532d;
@@ -135,6 +148,9 @@
         --qz-color-danger-hover: #f87171;
         --qz-color-info: #3b82f6;
         --qz-color-info-bg: #1e3a5f;
+        /* Lighter on the dark tints: #93c5fd on #1e3a5f is 6.38:1, #eab308 on #422006 is 7.60:1. */
+        --qz-via-api-text: #93c5fd;
+        --qz-via-mcp-text: #eab308;
         --qz-color-executing: #a78bfa;
         --qz-color-executing-bg: #3b0764;
         --qz-color-awaiting: #2dd4bf;
@@ -179,8 +195,13 @@ body{
 
     --qz-color-text: #0f172a;
     --qz-color-text-secondary: #475569;
-    --qz-color-text-muted: #94a3b8;
+    /* At least 4.5:1 on every background a page draws text on: 5.19:1 on the surface, 4.73:1 on surface-alt.
+       Still lighter than the secondary text, which is 7.58:1. */
+    --qz-color-text-muted: #5f6e84;
     --qz-color-text-inverse: #ffffff;
+    /* A link with no class of its own: 6.70:1 on the surface, 6.12:1 on surface-alt. */
+    --qz-color-link: #1d4ed8;
+    --qz-color-link-hover: #1e40af;
 
     --qz-color-success: #16a34a;
     --qz-color-success-bg: #dcfce7;
@@ -191,6 +212,10 @@ body{
     --qz-color-danger-hover: #b91c1c;
     --qz-color-info: #2563eb;
     --qz-color-info-bg: #dbeafe;
+    /* Text on the Action Log's Via badges, darker than the info and warning colours so 12 px text on their
+       tints passes WCAG AA (>= 4.5:1): #1d4ed8 on #dbeafe is 5.49:1, #854d0e on #fef9c3 is 6.38:1. */
+    --qz-via-api-text: #1d4ed8;
+    --qz-via-mcp-text: #854d0e;
     --qz-color-executing: #7c3aed;
     --qz-color-executing-bg: #ede9fe;
     --qz-color-awaiting: #0d9488;
@@ -229,8 +254,12 @@ body{
 
     --qz-color-text: #f1f5f9;
     --qz-color-text-secondary: #94a3b8;
-    --qz-color-text-muted: #64748b;
+    /* 4.76:1 on the surface and 5.81:1 on the page; the secondary text is 5.71:1 and 6.96:1. */
+    --qz-color-text-muted: #8794a9;
     --qz-color-text-inverse: #0f172a;
+    /* 5.75:1 on the surface; the browser's own link blue is 1.9:1 there. */
+    --qz-color-link: #60a5fa;
+    --qz-color-link-hover: #93c5fd;
 
     --qz-color-success: #22c55e;
     --qz-color-success-bg: #14532d;
@@ -241,6 +270,9 @@ body{
     --qz-color-danger-hover: #f87171;
     --qz-color-info: #3b82f6;
     --qz-color-info-bg: #1e3a5f;
+    /* Lighter on the dark tints: #93c5fd on #1e3a5f is 6.38:1, #eab308 on #422006 is 7.60:1. */
+    --qz-via-api-text: #93c5fd;
+    --qz-via-mcp-text: #eab308;
     --qz-color-executing: #a78bfa;
     --qz-color-executing-bg: #3b0764;
     --qz-color-awaiting: #2dd4bf;
@@ -284,6 +316,31 @@ body{
 .qz-dashboard *::before,
 .qz-dashboard *::after {
     box-sizing: border-box;
+}
+
+/* A link with no class of its own: in the theme's link colour, never the browser's blue and purple, which are
+   1.9:1 on the dark theme. :where() keeps each rule at no specificity, so a link with a class of its own keeps
+   the look that class gives it. */
+:where(.qz-dashboard) :where(a, a:visited) {
+    color: var(--qz-color-link);
+}
+
+:where(.qz-dashboard) :where(a:hover) {
+    color: var(--qz-color-link-hover);
+}
+
+:where(.qz-dashboard) :where(a:focus-visible) {
+    outline: 2px solid var(--qz-color-primary);
+    outline-offset: 2px;
+    border-radius: var(--qz-radius-sm);
+}
+
+/* FocusOnNavigate focuses a page's heading as it opens, for a screen reader, and a dialog takes focus itself as
+   it opens. Neither can be reached with Tab, so neither draws the ring a keyboard user follows; everything Tab
+   reaches keeps it. */
+:where(.qz-dashboard) :is(h1, h2, h3)[tabindex="-1"]:focus,
+:where(.qz-dashboard) [role="dialog"][tabindex="-1"]:focus {
+    outline: none;
 }
 
 /* Viewport-tall shell: .qz-content scrolls (sticky axis pins there; scrollbar stays in the chrome). */
@@ -1160,7 +1217,7 @@ body{
 }
 
 .qz-table td > a {
-    color: var(--qz-color-primary);
+    color: var(--qz-color-link);
     text-decoration: none;
 }
 
@@ -1237,6 +1294,11 @@ body{
     justify-content: center;
     z-index: 1000;
     animation: qz-fade-in var(--qz-transition-base);
+}
+
+/* A dialog keeps a margin from the window's edges on a phone. */
+.qz-confirm-overlay {
+    padding: var(--qz-space-md);
 }
 
 .qz-dialog,
@@ -1318,9 +1380,37 @@ body{
 
 .qz-confirm-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     align-items: center;
     gap: var(--qz-space-sm);
+}
+
+/* On a phone a dialog's actions stack, each as wide as the dialog, rather than run off its edge. */
+@media (max-width: 480px) {
+    .qz-confirm-dialog {
+        padding: var(--qz-space-md);
+    }
+
+    .qz-confirm-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .qz-confirm-actions > .qz-button {
+        width: 100%;
+        white-space: normal;
+    }
+}
+
+/* The two stops either side of a dialog that keep Tab inside it: focusable, and not seen. */
+.qz-focus-guard {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 /* The pause prompt's reason field sits between the message and the buttons. */
@@ -1331,6 +1421,220 @@ body{
 /* The backfill dialog's four fields, the same way. */
 .qz-backfill-dialog .qz-form-group {
     margin-bottom: var(--qz-space-md);
+}
+
+/* A running firing's log (#4437): wider than a prompt, as wide as the window less its margin on a phone. The dialog is
+   never taller than the window's dynamic height less the overlay's margin, so Close stays on screen on any phone, and
+   the log takes what the heading, the status and the buttons leave: one scroller, the log's. */
+.qz-confirm-dialog.qz-log-dialog {
+    display: flex;
+    flex-direction: column;
+    max-width: 760px;
+    max-height: calc(100vh - 2 * var(--qz-space-md));
+    max-height: calc(100dvh - 2 * var(--qz-space-md));
+}
+
+.qz-log-dialog > * {
+    flex-shrink: 0;
+}
+
+/* The title wraps between words, and inside a key with no break, such as a TriggerJob key's digits, as the last resort. */
+.qz-log-dialog > h3 {
+    overflow-wrap: anywhere;
+}
+
+.qz-log-dialog .qz-log-dialog-meta {
+    margin: var(--qz-space-xs) 0;
+    overflow-wrap: anywhere;
+}
+
+.qz-log-dialog .qz-log-dialog-statusbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--qz-space-xs) var(--qz-space-sm);
+    margin: var(--qz-space-xs) 0;
+}
+
+.qz-log-dialog .qz-log-dialog-status {
+    flex: 1 1 16rem;
+    margin: 0;
+    color: var(--qz-color-text);
+    overflow-wrap: anywhere;
+}
+
+.qz-log-dialog .qz-log-dialog-progress {
+    color: var(--qz-color-text-secondary);
+}
+
+/* Told apart from the sentence around it by more than its colour. */
+.qz-log-dialog .qz-log-dialog-link {
+    color: var(--qz-color-link);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* The log stays on its newest line while the reader is there, and keeps a reader who scrolled up where they are:
+   a column-reverse scroller starts at its bottom and holds its place from there as lines are added below. */
+.qz-log-follow {
+    display: flex;
+    flex-direction: column-reverse;
+    overflow: auto;
+    max-height: 60vh;
+    margin: var(--qz-space-sm) 0 var(--qz-space-md);
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-surface-alt);
+}
+
+.qz-log-dialog > .qz-log-follow {
+    flex: 0 1 auto;
+    min-height: 4.5rem;
+}
+
+.qz-log-follow > .qz-execution-log {
+    margin: 0;
+    max-height: none;
+    overflow: visible;
+    border: none;
+    border-radius: 0;
+    overflow-wrap: anywhere;
+}
+
+/* The dashboard's ring, on the box the arrow keys scroll rather than on the text inside it, which it would clip. */
+.qz-log-follow > .qz-execution-log:focus {
+    outline: none;
+}
+
+.qz-log-follow:has(> .qz-execution-log:focus-visible) {
+    outline: 2px solid var(--qz-color-primary);
+    outline-offset: 2px;
+}
+
+/* Currently Executing: a fixed layout, every column sized but Job and Trigger, which take what is left and never less
+   than 12rem each. A key wraps where it breaks, after the group's dot and between words, and inside a run with no break,
+   such as a TriggerJob key's digits, as the last resort. Narrowest first: the fire time on two lines, each whole, and
+   the buttons stacked; the table is then never narrower than its fixed columns and two key floors, and below that it
+   scrolls inside its card rather than crush a key. As the card widens, each step below is taken only where both keys
+   keep their floor after it: the buttons side by side, then the fire time on one line, then the execution group's own
+   column. The card's own width decides, so the sidebar and a page scrollbar move nothing but the keys. */
+.qz-executing-scroll {
+    container: qz-executing / inline-size;
+}
+
+/* 60.125rem: the fixed columns below, 36rem, two key floors of 12rem, and the table's two 1px borders. */
+.qz-executing-table {
+    table-layout: fixed;
+    min-width: 60.125rem;
+}
+
+.qz-executing-table th,
+.qz-executing-table td {
+    padding-left: var(--qz-space-sm);
+    padding-right: var(--qz-space-sm);
+}
+
+.qz-executing-table td.qz-col-key .qz-key-badge {
+    max-width: 100%;
+}
+
+.qz-executing-table td.qz-col-key .qz-key-badge-value {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+}
+
+.qz-executing-table .qz-col-node {
+    width: 7.5rem;
+    overflow-wrap: anywhere;
+}
+
+.qz-executing-table .qz-col-group {
+    display: none;
+    width: 7rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.qz-executing-table .qz-col-fired {
+    width: 7rem;
+}
+
+.qz-executing-table .qz-col-runtime {
+    width: 4.75rem;
+}
+
+.qz-executing-table td.qz-col-runtime .qz-state-indicator {
+    white-space: normal;
+}
+
+.qz-executing-table .qz-col-progress {
+    width: 5.5rem;
+}
+
+/* The bar takes its cell's width here, rather than the 140px it asks for elsewhere. */
+.qz-executing-table .qz-progress {
+    min-width: 0;
+}
+
+.qz-executing-table .qz-progress-message {
+    overflow-wrap: anywhere;
+}
+
+.qz-executing-table .qz-col-history {
+    width: 4.5rem;
+    white-space: nowrap;
+}
+
+.qz-executing-table .qz-col-actions {
+    width: 6.75rem;
+    white-space: nowrap;
+}
+
+.qz-executing-table td.qz-col-actions .qz-actions {
+    flex-wrap: wrap;
+}
+
+.qz-executing-table .qz-executing-fired > span {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+/* The execution group under the node, until it has its own column. */
+.qz-executing-table .qz-executing-group-inline {
+    display: block;
+    font-size: var(--qz-font-size-xs);
+    overflow-wrap: anywhere;
+}
+
+/* Show log and Interrupt side by side: fixed columns of 42rem, with two key floors and the borders. */
+@container qz-executing (min-width: 66.125rem) {
+    .qz-executing-table.qz-executing-table-interrupt .qz-col-actions {
+        width: 12.75rem;
+    }
+
+    .qz-executing-table td.qz-col-actions .qz-actions {
+        flex-wrap: nowrap;
+    }
+}
+
+/* The fire time on one line: fixed columns of 46.25rem, with two key floors and the borders. */
+@container qz-executing (min-width: 70.375rem) {
+    .qz-executing-table .qz-col-fired {
+        width: 11.25rem;
+        white-space: nowrap;
+    }
+}
+
+/* The execution group in a column of its own: fixed columns of 53.25rem, with two key floors and the borders. */
+@container qz-executing (min-width: 77.375rem) {
+    .qz-executing-table .qz-col-group {
+        display: table-cell;
+    }
+
+    .qz-executing-table .qz-executing-group-inline {
+        display: none;
+    }
 }
 
 /* What a pause recorded, beside the paused state it explains: the paused states' amber, as a note. It wraps
@@ -1396,20 +1700,28 @@ body{
     vertical-align: bottom;
 }
 
-/* A job whose latest occurrences failed for good, and how many in a row. */
-.qz-failing-badge {
+/* A job or trigger whose latest occurrences failed for good, and how many in a row. The deeper red of the pair, which
+   reaches AA on its tint in both themes (5.3:1 light, 5.8:1 dark), and named on a table cell's link too, whose
+   own colour would otherwise win. */
+.qz-failing-badge,
+.qz-table td > a.qz-failing-badge {
     display: inline-block;
     padding: 1px 8px;
     border-radius: var(--qz-radius-sm);
     background-color: var(--qz-color-danger-bg);
-    color: var(--qz-color-danger);
+    color: var(--qz-color-danger-hover);
     font-size: var(--qz-font-size-sm);
     font-weight: 600;
     text-decoration: none;
     white-space: nowrap;
 }
 
-/* The History page's result filter: one box per result, in a row. */
+/* The History page's result filter: one box per result, in a row. The filter grid gives it a row of its own,
+   since four themed checks and their words are wider than one of its columns. */
+.qz-form-group:has(> .qz-result-filter) {
+    grid-column: 1 / -1;
+}
+
 .qz-result-filter {
     display: flex;
     flex-wrap: wrap;
@@ -1464,6 +1776,15 @@ body{
 .qz-button:focus-visible {
     outline: 2px solid var(--qz-color-primary);
     outline-offset: 2px;
+}
+
+/* A filled button's ring in the page's text colour: a primary-blue ring two pixels off a primary-blue button reads as
+   a halo of the button itself, faintest on the dark theme. */
+.qz-btn-primary:focus-visible,
+.qz-button-primary:focus-visible,
+.qz-btn-danger:focus-visible,
+.qz-button-danger:focus-visible {
+    outline-color: var(--qz-color-text);
 }
 
 .qz-btn:disabled,
@@ -1567,7 +1888,7 @@ body{
 }
 
 .qz-details-link {
-    color: var(--qz-color-primary);
+    color: var(--qz-color-link);
     font-size: var(--qz-font-size-sm);
     font-weight: 600;
     text-decoration: none;
@@ -1616,6 +1937,15 @@ body{
     max-width: 100%;
 }
 
+/* A listing never cuts a key short: one too long for its column wraps, first after the group's dot, then inside the
+   name, so two keys that differ only at the end are never read as one. The copy button stays beside it, and the
+   badge's title still holds the whole key. A key on a page of its own keeps one line. */
+.qz-entity-table td.qz-col-key .qz-key-badge-value {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+}
+
 .qz-entity-table td.qz-col-actions {
     text-align: right;
 }
@@ -1628,7 +1958,9 @@ body{
 /* The Jobs listing carries three run-status columns beside four actions, which the widths above - sized
    for the Triggers listing - cannot hold at 1280px: the key took what was left, which was nothing, and
    the actions ran off the edge. Here the status columns are narrower and wrap, the actions take two rows
-   until there is room for one, and the key keeps the rest. */
+   until the key keeps 18rem beside one, and each narrower step gives the key a column's width again: Last
+   success below 1440px, Details below 1280px, since the whole row opens the job. The key never has much under
+   18rem, and a key longer than that wraps rather than being cut. */
 .qz-jobs-table th.qz-col-details,
 .qz-jobs-table td.qz-col-details {
     width: 116px;
@@ -1656,25 +1988,54 @@ body{
     white-space: normal;
 }
 
-@media (min-width: 1440px) {
+@media (min-width: 1600px) {
     .qz-jobs-table th.qz-col-actions,
     .qz-jobs-table td.qz-col-actions {
         width: 400px;
     }
 }
 
-/* Narrower than that, the last success gives its width to the key; the job's own page shows it. */
-@media (max-width: 1279px) {
+/* The job's own page shows what these steps hide. */
+@media (max-width: 1439px) {
     .qz-jobs-table .qz-col-last-success {
         display: none;
     }
 }
 
-/* With the sidebar a rail, the fixed columns take 600px and the key would get what is left, which on a phone
-   is nothing. The key keeps 160px and the table scrolls inside the content panel instead. */
+@media (max-width: 1279px) {
+    .qz-jobs-table .qz-col-details {
+        display: none;
+    }
+}
+
+/* With the sidebar a rail, the fixed columns take 484px and the key would get what is left, which on a phone
+   is nothing. The key keeps 276px and the table scrolls inside its card, in .qz-table-scroll, rather than take the
+   content panel sideways with it. */
 @media (max-width: 1024px) {
     .qz-jobs-table {
         min-width: 760px;
+    }
+}
+
+/* From a 768px window until the 760px table fits its card, the four action buttons stack in a 120px column instead
+   of two rows of two, so the table fits with every column, the key at 234px or more. Below 768px it scrolls in its
+   card. The upper bound leaves room for a classic scrollbar. */
+@media (min-width: 768px) and (max-width: 939px) {
+    .qz-jobs-table {
+        min-width: 0;
+    }
+
+    .qz-jobs-table th.qz-col-actions,
+    .qz-jobs-table td.qz-col-actions {
+        width: 120px;
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
+
+    .qz-jobs-table td.qz-col-actions .qz-actions {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
     }
 }
 
@@ -1740,6 +2101,39 @@ body{
     column-gap: var(--qz-space-xs);
 }
 
+/* The last run, as wide as a fire time and wrapping as one does: the result, the duration and how long ago each a
+   piece of its own, and the failing badge on a line under them. Under the state instead once the listing is too
+   narrow for both columns, as the schedule goes under the key. */
+.qz-triggers-table th.qz-col-last-run,
+.qz-triggers-table td.qz-col-last-run,
+.qz-triggers-table .qz-last-run-inline {
+    font-size: var(--qz-font-size-sm);
+    white-space: normal;
+}
+
+.qz-triggers-table th.qz-col-last-run,
+.qz-triggers-table td.qz-col-last-run {
+    width: 132px;
+    padding-left: var(--qz-space-sm);
+    padding-right: var(--qz-space-sm);
+}
+
+.qz-triggers-table .qz-last-run-inline {
+    display: none;
+    margin-top: var(--qz-space-xs);
+}
+
+/* Under the state, the last run is a second status: its caption says which, where the column's header said it. */
+.qz-triggers-table .qz-last-run-caption {
+    display: block;
+    color: var(--qz-color-text-secondary);
+    font-size: var(--qz-font-size-xs);
+}
+
+.qz-trigger-failing {
+    margin-top: 2px;
+}
+
 @container qz-triggers-listing (min-width: 1440px) {
     .qz-triggers-table th.qz-col-actions,
     .qz-triggers-table td.qz-col-actions {
@@ -1747,8 +2141,8 @@ body{
     }
 }
 
-/* Every column needs 1272px with the key and the schedule at their floors. The trigger's own page shows what
-   each step hides. */
+/* Every column needs 1272px with the key and the schedule at their floors. The trigger's own page shows what each
+   step hides. */
 @container qz-triggers-listing (max-width: 1299px) {
     .qz-triggers-table .qz-col-details,
     .qz-triggers-table .qz-col-execution-group {
@@ -1759,6 +2153,63 @@ body{
 @container qz-triggers-listing (max-width: 1079px) {
     .qz-triggers-table .qz-col-previous-fire {
         display: none;
+    }
+}
+
+/* A listing with a last-run column lays out its own way; one whose history keeps no trigger status lays out as 4.8
+   did. The last run dates the trigger's latest firing, as Previous fire did, and the whole row opens the trigger, as
+   Details did, so both go at every width. The width they leave goes to the key, the one column that cannot wrap, and
+   to the actions, which keep one row (300px) down to an 860px listing: the key has 18rem beside them from 1200px, and
+   below that the schedule moves under the key and leaves it the schedule's width as well. */
+.qz-triggers-table.qz-with-last-run .qz-col-details,
+.qz-triggers-table.qz-with-last-run .qz-col-previous-fire {
+    display: none;
+}
+
+@container qz-triggers-listing (min-width: 860px) {
+    .qz-triggers-table.qz-with-last-run th.qz-col-actions,
+    .qz-triggers-table.qz-with-last-run td.qz-col-actions {
+        width: 300px;
+    }
+}
+
+@container qz-triggers-listing (min-width: 1440px) {
+    .qz-triggers-table.qz-with-last-run th.qz-col-actions,
+    .qz-triggers-table.qz-with-last-run td.qz-col-actions {
+        width: 340px;
+    }
+}
+
+@container qz-triggers-listing (min-width: 1200px) and (max-width: 1439px) {
+    .qz-triggers-table.qz-with-last-run th.qz-col-key {
+        width: 18rem;
+    }
+}
+
+@container qz-triggers-listing (max-width: 1439px) {
+    .qz-triggers-table.qz-with-last-run .qz-col-execution-group {
+        display: none;
+    }
+}
+
+@container qz-triggers-listing (max-width: 1199px) {
+    .qz-triggers-table.qz-with-last-run .qz-col-schedule {
+        display: none;
+    }
+
+    .qz-triggers-table.qz-with-last-run .qz-schedule-inline {
+        display: block;
+    }
+}
+
+/* The last run never goes: it is what says whether the schedule still works. It moves under the state. */
+@container qz-triggers-listing (max-width: 1079px) {
+    .qz-triggers-table.qz-with-last-run .qz-col-last-run {
+        display: none;
+    }
+
+    .qz-triggers-table.qz-with-last-run .qz-last-run-inline {
+        display: block;
     }
 }
 
@@ -2053,9 +2504,10 @@ body{
    here hold the value labels on the left, the last time label on the right and the time axis beneath. Only
    the plot stretches, so a wide page widens the time axis and nothing else. The labels are sized in rem,
    like the rest of the dashboard, so the gutters that hold them are too: a larger browser font grows both. */
+/* The top padding is the "Runs" title's row, clear of the top tick's label under it. */
 .qz-run-chart-panel {
     position: relative;
-    padding: 1.25rem 1.75rem 0.75rem 4rem;
+    padding: 2rem 1.75rem 0.75rem 4rem;
 }
 
 .qz-run-chart-panel-durations {
@@ -2107,6 +2559,26 @@ body{
    browser font, and with it wider labels, gives way sooner. */
 @container (max-width: 35rem) {
     .qz-run-chart-time:nth-child(even) {
+        display: none;
+    }
+}
+
+/* Narrower still, as on a phone, two labels are all that fit: the first, and the one halfway along. The fourth
+   is even, so the rule above hid it; this one, later and as specific, shows it again. */
+@container (max-width: 26rem) {
+    .qz-run-chart-time:not(:first-child):not(:nth-child(4)) {
+        display: none;
+    }
+
+    .qz-run-chart-time:nth-child(4) {
+        display: block;
+    }
+}
+
+/* A chart this narrow, as in a card on a 320 px phone, has a plot of under 100 px: one label, the window's start.
+   On a 390 px phone the same card's content box is about 220 px wide and keeps two. */
+@container (max-width: 11rem) {
+    .qz-run-chart-time:nth-child(4) {
         display: none;
     }
 }
@@ -2306,6 +2778,298 @@ body{
     margin-bottom: var(--qz-space-md);
 }
 
+/* The header's search: a box, and the list of what it found under it. The highlighted result is the one
+   the arrow keys reached, drawn as a hovered one is. */
+.qz-header-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--qz-space-sm);
+    min-width: 0;
+}
+
+.qz-header-search-input {
+    width: 16rem;
+    min-width: 0;
+}
+
+.qz-header-search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 50;
+    min-width: 22rem;
+    max-width: min(32rem, calc(100vw - 2 * var(--qz-space-md)));
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: var(--qz-space-xs);
+    border: 1px solid var(--qz-color-border-strong);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-surface);
+    box-shadow: var(--qz-shadow-md, 0 8px 24px rgba(15, 23, 42, 0.15));
+}
+
+.qz-header-search-results > p {
+    margin: var(--qz-space-xs) var(--qz-space-sm);
+}
+
+.qz-header-search-heading {
+    margin: var(--qz-space-sm) var(--qz-space-sm) var(--qz-space-xs);
+    font-size: var(--qz-font-size-xs);
+    font-weight: var(--qz-font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--qz-color-text-secondary);
+}
+
+.qz-header-search-option {
+    display: block;
+    padding: var(--qz-space-xs) var(--qz-space-sm);
+    border-radius: var(--qz-radius-sm);
+    color: var(--qz-color-text);
+    font-size: var(--qz-font-size-sm);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+/* The shared link colour once the dashboard has one (#4427 adds --qz-color-link at AA in both themes); the
+   primary colour until then. */
+.qz-header-search-option.qz-header-search-see-all {
+    color: var(--qz-color-link, var(--qz-color-primary));
+    font-weight: 600;
+}
+
+/* The theme's text colour on the hover tint, in both themes: the link blue on the dark tint is 2.8:1. */
+.qz-header-search-option:hover,
+.qz-header-search-option.qz-header-search-option-active {
+    background-color: var(--qz-color-surface-hover);
+    color: var(--qz-color-text);
+}
+
+.qz-header-search-option.qz-header-search-option-active {
+    box-shadow: inset 3px 0 0 var(--qz-color-primary);
+}
+
+/* Narrow: the search takes a row of its own under the scheduler picker, the box as wide as the row. */
+@media (max-width: 768px) {
+    .qz-header-left {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .qz-header-search {
+        flex: 1 1 100%;
+    }
+
+    .qz-header-search-label {
+        display: none;
+    }
+
+    .qz-header-search-input {
+        flex: 1 1 auto;
+        width: auto;
+    }
+
+    .qz-header-search-results {
+        right: 0;
+        min-width: 0;
+        max-width: none;
+    }
+}
+
+/* A table that keeps its columns and scrolls inside its card when the card is narrower than it. */
+.qz-table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* A browser makes a scroller a Tab stop; it gets the ring the dashboard's buttons and links have, not the browser's. */
+.qz-table-scroll:focus-visible {
+    outline: 2px solid var(--qz-color-primary);
+    outline-offset: 2px;
+}
+
+/* The Overview's Needs attention: the failing jobs beside the day's runs where both fit, else stacked. */
+.qz-needs-attention-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--qz-space-md);
+    align-items: stretch;
+}
+
+@media (min-width: 1280px) {
+    .qz-needs-attention-columns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* The chart's card fills its column, so the two columns end together and the section ends under them. */
+.qz-needs-attention-runs {
+    display: flex;
+    flex-direction: column;
+}
+
+.qz-needs-attention-columns .qz-run-chart {
+    flex: 1 1 auto;
+    margin: 0;
+}
+
+.qz-needs-attention-when {
+    white-space: nowrap;
+}
+
+/* Two lines of the failure at most; the whole of it is the title, and on the job's failed runs. */
+.qz-needs-attention-message {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+    .qz-needs-attention-message {
+        display: none;
+    }
+}
+
+/* Very narrow: each failing job is its name with its badge under it, and the last failure's time goes too, so
+   nothing scrolls sideways at 320 px. */
+@media (max-width: 480px) {
+    .qz-needs-attention-table thead,
+    .qz-needs-attention-table td:nth-child(3) {
+        display: none;
+    }
+
+    .qz-needs-attention-table,
+    .qz-needs-attention-table tbody,
+    .qz-needs-attention-table tr,
+    .qz-needs-attention-table td {
+        display: block;
+    }
+
+    .qz-needs-attention-table tr {
+        padding: var(--qz-space-xs) 0;
+        border-bottom: 1px solid var(--qz-color-border);
+    }
+
+    .qz-needs-attention-table tr:last-child {
+        border-bottom: none;
+    }
+
+    .qz-needs-attention-table td {
+        border: none;
+        padding-top: 2px;
+        padding-bottom: 2px;
+        overflow-wrap: anywhere;
+    }
+}
+
+/* Trigger Detail's properties: the values wrap, so a long key, type or JobDataMap value stays inside the card. */
+.qz-properties-table th,
+.qz-properties-table td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.qz-properties-table th {
+    width: 40%;
+}
+
+/* Trigger Detail's "Why isn't it firing?" */
+.qz-diagnosis-table {
+    table-layout: fixed;
+}
+
+.qz-diagnosis-table th {
+    width: 11rem;
+    overflow-wrap: anywhere;
+}
+
+.qz-diagnosis-table td.qz-diagnosis-verdict {
+    width: 2.5rem;
+    text-align: center;
+    font-weight: 600;
+}
+
+.qz-diagnosis-table td:last-child {
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.qz-diagnosis-ok .qz-diagnosis-verdict { color: var(--qz-color-success); }
+.qz-diagnosis-info .qz-diagnosis-verdict { color: var(--qz-color-info); }
+.qz-diagnosis-warning .qz-diagnosis-verdict { color: var(--qz-color-warning); }
+.qz-diagnosis-problem .qz-diagnosis-verdict { color: var(--qz-color-danger); }
+.qz-diagnosis-unknown .qz-diagnosis-verdict { color: var(--qz-color-text-muted); }
+
+.qz-diagnosis-line {
+    margin: var(--qz-space-sm) 0;
+}
+
+/* The toggle reads as a link: it opens and closes what is under it, and says which it will do. */
+.qz-diagnosis-toggle {
+    margin-left: var(--qz-space-sm);
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--qz-color-link, var(--qz-color-primary));
+    font: inherit;
+    font-size: var(--qz-font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.qz-diagnosis-line > .qz-diagnosis-toggle:first-child {
+    margin-left: 0;
+}
+
+.qz-diagnosis-toggle:hover {
+    text-decoration: underline;
+}
+
+.qz-diagnosis-table .qz-details-link,
+.qz-diagnosis-table .qz-button {
+    margin-left: var(--qz-space-sm);
+}
+
+/* Narrow: each check is the verdict and its name on one line, the finding under them, the full width. */
+@media (max-width: 640px) {
+    .qz-diagnosis-table,
+    .qz-diagnosis-table tbody {
+        display: block;
+    }
+
+    .qz-diagnosis-table tr {
+        display: grid;
+        grid-template-columns: 2rem minmax(0, 1fr);
+        border-bottom: 1px solid var(--qz-color-border);
+    }
+
+    .qz-diagnosis-table th,
+    .qz-diagnosis-table td {
+        border: none;
+    }
+
+    .qz-diagnosis-table th {
+        grid-column: 2;
+        grid-row: 1;
+        width: auto;
+    }
+
+    .qz-diagnosis-table td.qz-diagnosis-verdict {
+        grid-column: 1;
+        grid-row: 1;
+        width: auto;
+    }
+
+    .qz-diagnosis-table td:last-child {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+}
+
 /* ==========================================================================
    16. ALERTS
    ========================================================================== */
@@ -2468,6 +3232,139 @@ body{
     background-color: var(--qz-color-primary-light);
     border-color: var(--qz-color-primary);
     color: var(--qz-color-primary);
+}
+
+/* The Action Log's Via badge: which surface an action came through. The page's own buttons keep the plain
+   tag, so the entries a script or an agent made are the ones that stand out. */
+.qz-tag-via-api {
+    background-color: var(--qz-color-info-bg);
+    border-color: var(--qz-color-info);
+    color: var(--qz-via-api-text);
+}
+
+.qz-tag-via-mcp {
+    background-color: var(--qz-color-warning-bg);
+    border-color: var(--qz-color-warning);
+    color: var(--qz-via-mcp-text);
+}
+
+/* The Action Log's one filter sits the page's own gap above the table, not three gaps. */
+.qz-action-log-filters,
+.qz-action-log-filters .qz-form-group {
+    margin-bottom: 0;
+}
+
+/* A timestamp on one line: wrapped, it takes four on a narrow screen. */
+.qz-action-log-time {
+    white-space: nowrap;
+}
+
+/* A key and its origin tag on one line: at 1024 px and below the column wrapped to five lines. The line is capped,
+   the key cut short with an ellipsis and whole in its tooltip: uncapped, a long key held the table at its own
+   width and pushed Status and Message out of view at 1440 px. Every row's scheduler is the one the header has
+   selected, so this is the column that gives way first. */
+.qz-action-log-scheduler {
+    white-space: nowrap;
+}
+
+.qz-action-log-scheduler-line {
+    display: flex;
+    align-items: center;
+    gap: var(--qz-space-xs);
+    max-width: 15rem;
+}
+
+.qz-action-log-scheduler-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qz-action-log-origin {
+    flex: none;
+}
+
+/* The client a caller names, on one line under its badge, no wider than a badge, and cut short when long: wrapped,
+   it took three lines. */
+.qz-action-log-client {
+    max-width: 5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--qz-font-size-xs);
+}
+
+/* The message, a pause's reason or a refusal's level, keeps a readable measure: at 1440 px it wrapped a word a
+   line while the narrower columns kept their space. When the table fits, it takes what the others leave. */
+.qz-action-log-message {
+    min-width: 12rem;
+}
+
+/* The card's border goes round the scroller rather than the table, so a horizontal scrollbar is drawn inside the
+   card, in the theme's colours, not as a light strip under it. Positioned, so the text kept for screen readers
+   is placed and clipped inside it. */
+.qz-action-log-scroll {
+    position: relative;
+    background-color: var(--qz-color-surface);
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-lg);
+    box-shadow: var(--qz-shadow-sm);
+    scrollbar-width: thin;
+    scrollbar-color: var(--qz-color-border-strong) var(--qz-color-surface);
+}
+
+.qz-action-log-scroll > .qz-table {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.qz-action-log-scroll .qz-table th,
+.qz-action-log-scroll .qz-table td {
+    padding-left: calc(var(--qz-space-sm) + var(--qz-space-xs));
+    padding-right: calc(var(--qz-space-sm) + var(--qz-space-xs));
+}
+
+/* Eight columns fit 1440 px beside the sidebar only with the key cut to 8rem, and Status fits 1024 px only with
+   narrower padding too. The origin tag is then read out rather than shown: the target's "in another process" or
+   "on a cluster" already says where the action ran. */
+@media (max-width: 1599px) {
+    .qz-action-log-scheduler-line {
+        max-width: 8rem;
+    }
+
+    .qz-action-log-origin {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+
+    .qz-action-log-message {
+        min-width: 10rem;
+    }
+}
+
+/* Below 1440 px the table scrolls anyway, so the message keeps a readable measure there and is scrolled to: at 10rem
+   only 50 px of it showed at 1024 px, and a refusal wrapped to seven lines. Status, before it, still shows at 1024 px. */
+@media (max-width: 1439px) {
+    .qz-action-log-message {
+        min-width: 15rem;
+    }
+}
+
+@media (max-width: 1279px) {
+    .qz-action-log-scroll .qz-table th,
+    .qz-action-log-scroll .qz-table td {
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
 }
 
 /* ==========================================================================
@@ -2762,7 +3659,7 @@ body{
 }
 
 .qz-list a {
-    color: var(--qz-color-primary);
+    color: var(--qz-color-link);
     text-decoration: none;
 }
 
@@ -2770,19 +3667,95 @@ body{
     text-decoration: underline;
 }
 
-.qz-cron-next-fires {
-    margin-top: var(--qz-space-sm);
-}
-
-.qz-cron-next-fires .qz-list li {
-    justify-content: space-between;
-    flex-wrap: wrap;
-}
-
 .qz-job-data-map-editor {
     display: flex;
     flex-direction: column;
     gap: var(--qz-space-sm);
+}
+
+/* A long value wraps rather than widen the table past its card. */
+.qz-job-data-table .qz-job-data-value-cell {
+    overflow-wrap: anywhere;
+}
+
+/* The editable map keeps its key and value readable: each input has room for a word before the table squeezes it. */
+.qz-job-data-edit .qz-job-data-key,
+.qz-job-data-edit .qz-job-data-value {
+    width: 100%;
+    min-width: 8rem;
+}
+
+/* Below 600 px each entry stacks inside its own block, the editor's and the read-only table's alike: the key and the
+   value a row each at the block's full width, the type beside Remove, each field under its label (#4412). The header
+   row is for the wide table and goes, and nothing scrolls sideways. */
+@media (max-width: 600px) {
+    .qz-job-data-table,
+    .qz-job-data-table tbody {
+        display: block;
+    }
+
+    .qz-job-data-table thead {
+        display: none;
+    }
+
+    .qz-job-data-table tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "key key"
+            "value value"
+            "type remove";
+        gap: var(--qz-space-xs) var(--qz-space-sm);
+        padding: var(--qz-space-sm);
+        border-bottom: 1px solid var(--qz-color-border);
+    }
+
+    .qz-job-data-table td {
+        display: block;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .qz-job-data-table td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: var(--qz-space-xs);
+        color: var(--qz-color-text-secondary);
+        font-size: var(--qz-font-size-xs);
+        font-weight: var(--qz-font-weight-medium);
+    }
+
+    .qz-job-data-table .qz-job-data-key-cell {
+        grid-area: key;
+    }
+
+    .qz-job-data-table .qz-job-data-value-cell {
+        grid-area: value;
+    }
+
+    .qz-job-data-table .qz-job-data-type-cell {
+        grid-area: type;
+    }
+
+    .qz-job-data-table .qz-job-data-remove-cell {
+        grid-area: remove;
+        align-self: end;
+    }
+
+    .qz-job-data-edit .qz-job-data-key,
+    .qz-job-data-edit .qz-job-data-value,
+    .qz-job-data-edit .qz-job-data-type {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+/* What Quartz wrote into a map itself: shown, and set apart from what can be edited. */
+.qz-job-data-internal td {
+    color: var(--qz-color-text-secondary);
+    overflow-wrap: anywhere;
 }
 
 /* ==========================================================================
@@ -2990,12 +3963,14 @@ body{
    25b. EDITING AND ACTING ON A SELECTION
    ========================================================================== */
 
+/* The deeper red of the pair on its tint, as the failing badge, which reaches AA in both themes: the plain one did not
+   at this size (3.95:1 light, 4.29:1 dark). */
 .qz-form-errors {
     padding: var(--qz-space-sm) var(--qz-space-md);
     border: 1px solid var(--qz-color-danger);
     border-radius: var(--qz-radius-md);
     background-color: var(--qz-color-danger-bg);
-    color: var(--qz-color-danger);
+    color: var(--qz-color-danger-hover);
     font-size: var(--qz-font-size-sm);
     margin: 0 0 var(--qz-space-md);
 }
@@ -3009,6 +3984,136 @@ body{
     border: 1px solid var(--qz-color-border);
     border-radius: var(--qz-radius-md);
     padding: var(--qz-space-md);
+}
+
+/* An editor's warning that the next start stores the declared trigger again (#4412): the page's own text on the
+   warning background, which keeps it at AA where the warning colour alone would not be. */
+.qz-declared-note {
+    margin: 0 0 var(--qz-space-md);
+    padding: var(--qz-space-sm) var(--qz-space-md);
+    border: 1px solid var(--qz-color-warning);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-warning-bg);
+    color: var(--qz-color-text);
+    font-size: var(--qz-font-size-sm);
+}
+
+/* The schedule editors (#4412): Trigger Detail's reschedule and the Add trigger form, framed as Edit details is. */
+.qz-schedule-editor,
+.qz-add-trigger {
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+    padding: var(--qz-space-md);
+}
+
+.qz-schedule-kind {
+    margin: 0 0 var(--qz-space-sm);
+}
+
+/* The editors measure their own width, so an interval and its unit can take two columns where the card has them. */
+.qz-schedule-editor,
+.qz-add-trigger {
+    container-type: inline-size;
+}
+
+/* An interval, its unit and what is wrong with it need more than one 180 px column: two, wherever two fit. */
+@container (min-width: 440px) {
+    .qz-schedule-fields .qz-schedule-pair {
+        grid-column: span 2;
+    }
+}
+
+.qz-add-trigger-intro {
+    margin: 0 0 var(--qz-space-md);
+}
+
+/* The start's hint names a zone, which a 180 px column breaks over three lines: the field takes the row, and its
+   input keeps a date-and-time's width. */
+.qz-add-trigger-starts .qz-input {
+    max-width: 18rem;
+}
+
+/* A status line above the fields - nothing changed, a refusal - stands a gap above what follows it. */
+.qz-schedule-status {
+    margin: 0 0 var(--qz-space-sm);
+}
+
+/* The preview ends a gap above the buttons under it, rather than flush against them. */
+.qz-schedule-preview {
+    margin-bottom: var(--qz-space-md);
+}
+
+.qz-schedule-preview > p {
+    margin: 0 0 var(--qz-space-sm);
+}
+
+/* An expression, a rule, the days and the checkbox pairs take the whole row: a grid cell would cut them off. */
+.qz-schedule-fields .qz-schedule-wide {
+    grid-column: 1 / -1;
+}
+
+/* Two checkboxes of one setting, side by side while they fit. */
+.qz-schedule-checks {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--qz-space-sm) var(--qz-space-md);
+}
+
+/* A number and its unit side by side, the number taking what the unit leaves. */
+.qz-schedule-interval {
+    display: flex;
+    gap: var(--qz-space-xs);
+    min-width: 0;
+}
+
+.qz-schedule-interval .qz-input {
+    flex: 1 1 4rem;
+    min-width: 0;
+}
+
+.qz-schedule-interval .qz-select {
+    flex: 0 1 auto;
+}
+
+.qz-schedule-preview .qz-list li {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: var(--qz-space-xs);
+}
+
+.qz-schedule-preview-description {
+    margin: 0 0 var(--qz-space-sm);
+    font-weight: var(--qz-font-weight-medium);
+}
+
+/* What a reschedule resets, as a list the dialog's reader can take in at a glance. */
+.qz-reschedule-effects {
+    margin: var(--qz-space-sm) 0 var(--qz-space-md);
+    padding-left: var(--qz-space-lg);
+    color: var(--qz-color-text-secondary);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-reschedule-effects li + li {
+    margin-top: var(--qz-space-xs);
+}
+
+.qz-confirm-dialog.qz-reschedule-dialog {
+    max-width: 480px;
+}
+
+/* On a phone every field takes the row, and the grid's 180px minimum no longer pushes past a 320px screen. */
+@media (max-width: 480px) {
+    .qz-schedule-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .qz-schedule-editor,
+    .qz-add-trigger {
+        padding: var(--qz-space-sm);
+    }
 }
 
 .qz-col-select {
@@ -3047,6 +4152,268 @@ body{
 
 .qz-job-filters .qz-search-filter {
     max-width: 20rem;
+}
+
+/* The Agenda: one table for the whole window, an hour of the header's zone to a row group, so every hour's columns
+   line up. It scrolls inside its card, in .qz-table-scroll, never the page. */
+.qz-agenda-zone,
+.qz-agenda-fidelity {
+    margin: 0 0 var(--qz-space-sm);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-agenda-window {
+    margin: 0 0 var(--qz-space-sm);
+    font-weight: var(--qz-font-weight-medium);
+}
+
+.qz-agenda-cut,
+.qz-agenda-not-computed {
+    margin: 0 0 var(--qz-space-md);
+    padding: var(--qz-space-sm) var(--qz-space-md);
+    border: 1px solid var(--qz-color-warning);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-warning-bg);
+    color: var(--qz-color-text);
+    font-size: var(--qz-font-size-sm);
+}
+
+/* An hour's heading is a row of the table, not one of the key-value tables' row headers. */
+.qz-agenda-table tbody tr.qz-agenda-hour th {
+    width: auto;
+    min-width: 0;
+    border-right: none;
+    text-transform: none;
+    letter-spacing: normal;
+    vertical-align: middle;
+    font-size: var(--qz-font-size-sm);
+    font-weight: var(--qz-font-weight-semibold);
+    color: var(--qz-color-text);
+}
+
+.qz-agenda-table tbody tr.qz-agenda-hour td {
+    background-color: var(--qz-color-surface-alt);
+}
+
+/* The box, the hour and its count in a row with a gap of their own: a margin on the box loses to the table's. */
+.qz-agenda-hour-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--qz-space-xs) var(--qz-space-sm);
+}
+
+.qz-agenda-hour-count {
+    font-weight: var(--qz-font-weight-normal);
+}
+
+/* The time is each row's header, for a screen reader, and looks like the cells beside it. */
+.qz-agenda-table tbody th.qz-agenda-col-time {
+    width: var(--qz-agenda-time);
+    min-width: 0;
+    border-right: none;
+    background-color: transparent;
+    color: var(--qz-color-text);
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: var(--qz-font-weight-normal);
+    vertical-align: middle;
+}
+
+/* The selection bar: always there while fires are listed, so ticking a box moves nothing, and pinned to the top of
+   the content pane, so its count and actions stay in view however far down the listing a box was ticked. */
+.qz-agenda-selection-bar {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--qz-space-xs) var(--qz-space-md);
+    padding: var(--qz-space-xs) var(--qz-space-sm);
+    border: 1px solid var(--qz-color-primary);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-surface);
+    box-shadow: var(--qz-shadow-sm);
+}
+
+.qz-agenda-selection-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--qz-space-xs);
+}
+
+/* Nothing to act on: said by the look and by aria-disabled, while the button keeps its place and its focus. */
+.qz-agenda-selection-bar .qz-button[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* On a phone the bar stays two short lines: the count, then the three buttons in a row, each named by its verb with
+   the rest of its name kept for a screen reader. */
+@media (max-width: 480px) {
+    .qz-agenda-selection-buttons {
+        flex-wrap: nowrap;
+        width: 100%;
+    }
+
+    .qz-agenda-selection-buttons .qz-button {
+        flex: 1 1 0;
+        padding-left: var(--qz-space-xs);
+        padding-right: var(--qz-space-xs);
+    }
+
+    .qz-agenda-bar-word {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+}
+
+/* The triggers a pause takes, one key a line and wrapped anywhere: a one-off trigger's key has no word to break at. */
+/* The ten keys the dialog names at most, whole, however many lines a long one wraps to: no scroller of its own, so
+   none is hidden below a fold, and how many more is said right under them. The dialog scrolls should it outgrow the
+   window. */
+.qz-pause-dialog-keys {
+    margin: 0 0 var(--qz-space-sm);
+    padding-left: var(--qz-space-md);
+    font-family: var(--qz-font-mono);
+    font-size: var(--qz-font-size-sm);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.qz-pause-dialog .qz-pause-dialog-more {
+    margin: 0 0 var(--qz-space-sm);
+    font-size: var(--qz-font-size-sm);
+}
+
+/* A fixed layout: the checkbox, the time, the state and the execution group keep their widths whatever a row holds,
+   and the trigger, the job and the schedule share what they leave. A key longer than its share wraps inside it,
+   first between its words and at any character as the last resort, rather than push the table wider: an
+   automatic layout sizes a column by its longest unbreakable word, which a one-off trigger's MT_ name is.
+   The table never gets narrower than its fixed columns and a floor for each shared one: below that it scrolls inside
+   its card, rather than squeeze the keys to nothing while the fixed columns keep their widths. */
+.qz-agenda-listing {
+    container: qz-agenda-listing / inline-size;
+}
+
+.qz-agenda-table {
+    --qz-agenda-select: 2.75rem;
+    --qz-agenda-time: 6.5rem;
+    --qz-agenda-state: 9rem;
+    --qz-agenda-execution-group: 8.5rem;
+    --qz-agenda-key-floor: 12rem;
+    --qz-agenda-schedule-floor: 10rem;
+    --qz-agenda-fixed: calc(var(--qz-agenda-time) + var(--qz-agenda-state) + var(--qz-agenda-execution-group));
+    table-layout: fixed;
+    min-width: calc(var(--qz-agenda-fixed) + 2 * var(--qz-agenda-key-floor) + var(--qz-agenda-schedule-floor));
+}
+
+.qz-agenda-table.qz-agenda-selectable {
+    --qz-agenda-fixed: calc(var(--qz-agenda-select) + var(--qz-agenda-time) + var(--qz-agenda-state) + var(--qz-agenda-execution-group));
+}
+
+.qz-agenda-table thead th {
+    white-space: normal;
+}
+
+.qz-agenda-table th.qz-col-select,
+.qz-agenda-table td.qz-col-select {
+    width: var(--qz-agenda-select);
+    padding-left: var(--qz-space-sm);
+    padding-right: var(--qz-space-sm);
+}
+
+.qz-agenda-table th.qz-agenda-col-time,
+.qz-agenda-table td.qz-agenda-col-time {
+    width: var(--qz-agenda-time);
+    white-space: nowrap;
+}
+
+.qz-agenda-table th.qz-agenda-col-state,
+.qz-agenda-table td.qz-agenda-col-state {
+    width: var(--qz-agenda-state);
+    white-space: nowrap;
+}
+
+.qz-agenda-table th.qz-agenda-col-execution-group,
+.qz-agenda-table td.qz-agenda-col-execution-group {
+    width: var(--qz-agenda-execution-group);
+    overflow-wrap: anywhere;
+}
+
+.qz-agenda-table td.qz-agenda-col-schedule,
+.qz-agenda-table .qz-agenda-schedule-inline {
+    overflow-wrap: anywhere;
+}
+
+.qz-agenda-table .qz-agenda-schedule-inline {
+    display: none;
+    margin-top: var(--qz-space-xs);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-agenda-table td.qz-agenda-col-key > a {
+    display: inline-block;
+    max-width: 100%;
+}
+
+/* Below a 1000px listing three shares would leave a key too little room: the schedule moves under the trigger's key,
+   and the two keys share what the fixed columns leave, down to their floor. */
+@container qz-agenda-listing (max-width: 999px) {
+    .qz-agenda-table {
+        min-width: calc(var(--qz-agenda-fixed) + 2 * var(--qz-agenda-key-floor));
+    }
+
+    .qz-agenda-table th.qz-agenda-col-schedule,
+    .qz-agenda-table td.qz-agenda-col-schedule {
+        display: none;
+    }
+
+    .qz-agenda-table .qz-agenda-schedule-inline {
+        display: block;
+    }
+}
+
+/* A listing focus comes to when the control that had it removed itself, on the Agenda and the Triggers listing; the
+   ring says where it went. */
+.qz-focus-region:focus {
+    outline: none;
+}
+
+.qz-focus-region:focus-visible {
+    outline: 2px solid var(--qz-color-primary);
+    outline-offset: 4px;
+}
+
+/* Lays the Triggers listing's groups and pagination out as they were as children of the page. */
+.qz-triggers-results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--qz-space-md);
+}
+
+/* A key is never cut short: it wraps between its words, and as a link it is underlined, not told apart by colour. */
+.qz-agenda-table td.qz-agenda-col-key .qz-key-badge-value {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    color: var(--qz-color-link);
+    text-decoration: underline;
+}
+
+.qz-agenda-only-next {
+    margin-top: 2px;
+    font-size: var(--qz-font-size-xs);
 }
 
 /* ==========================================================================
@@ -3852,3 +5219,344 @@ body{
     }
 }
 
+/* ==========================================================================
+   28. Calendars
+   ========================================================================== */
+
+.qz-calendar-exclusions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--qz-space-sm);
+}
+
+/* The facts tables wrap their values on a phone rather than run past the card: a zone id, a type name and an
+   explanation share the value column, and the label column gives up the table's 160-pixel floor. */
+.qz-calendar-facts {
+    table-layout: fixed;
+}
+
+.qz-table.qz-calendar-facts tbody th {
+    width: 9rem;
+    min-width: 0;
+    text-align: left;
+}
+
+.qz-calendar-facts td {
+    overflow-wrap: break-word;
+}
+
+@media (max-width: 480px) {
+    .qz-table.qz-calendar-facts tbody th {
+        width: 6.5rem;
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
+
+    .qz-calendar-facts td {
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
+
+    .qz-calendar-chain-item {
+        padding-left: var(--qz-space-sm);
+    }
+}
+
+/* The summary, the checks and what follows them sit an even step apart. */
+.qz-calendar-rules {
+    display: flex;
+    flex-direction: column;
+    gap: var(--qz-space-sm);
+}
+
+.qz-calendar-rules > p {
+    margin: 0;
+}
+
+.qz-calendar-chain {
+    margin-top: var(--qz-space-md);
+}
+
+/* Calendar Detail: the calendar's name follows the title, the title staying where every page has it. */
+.qz-page-header.qz-calendar-detail-header {
+    margin-bottom: 0;
+}
+
+.qz-calendar-detail-header h1 {
+    margin-bottom: 0;
+}
+
+.qz-page > h2.qz-calendar-name {
+    margin-top: 0;
+}
+
+/* The Replace question's three actions fit on one row from 480 px up; below that they stack. */
+.qz-confirm-dialog.qz-calendar-replace-dialog {
+    max-width: 560px;
+}
+
+/* A field the last save found wrong. The danger colour is 3.89:1 or better against both surfaces, above the
+   3:1 a control's boundary needs. */
+.qz-input[aria-invalid="true"],
+.qz-select[aria-invalid="true"] {
+    border-color: var(--qz-color-danger);
+}
+
+/* The row of the calendar the form has just saved. */
+.qz-calendars-table tr.qz-row-new td {
+    background-color: var(--qz-color-primary-light);
+}
+
+.qz-calendar-dates li {
+    justify-content: flex-start;
+}
+
+.qz-calendar-days {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--qz-space-sm) var(--qz-space-md);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.qz-calendar-month-days li {
+    min-width: 3.5rem;
+}
+
+/* An annual calendar is 12 rows of 31 days: on a phone it scrolls sideways inside a box of its own, whose border
+   says where the grid ends, and a swipe that reaches the grid's end does not carry on to the page. */
+.qz-calendar-year-scroll {
+    width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+}
+
+.qz-calendar-year {
+    border-collapse: collapse;
+    border-style: hidden;
+    font-size: var(--qz-font-size-xs);
+}
+
+.qz-calendar-year th,
+.qz-calendar-year td {
+    padding: 3px;
+    text-align: center;
+    border: 1px solid var(--qz-color-border);
+}
+
+.qz-calendar-year td {
+    width: 28px;
+    height: 28px;
+}
+
+.qz-calendar-year th[scope="row"] {
+    text-align: left;
+    padding-right: var(--qz-space-sm);
+    white-space: nowrap;
+}
+
+.qz-calendar-year-excluded {
+    background-color: var(--qz-color-primary-light);
+}
+
+.qz-calendar-year-none {
+    background-color: var(--qz-color-surface-alt);
+}
+
+/* The dashboard's own check, on every checkbox it draws: a box with a solid fill and a white tick when it is
+   checked, the same in an editor and on a read-only page, in both themes, where the browser's own box is a
+   plain white square on the dark one. Its unchecked border is the muted token, 4.7:1 or better against the
+   surface; checked, the tick on the primary fill is 3.7:1 or better. */
+:where(.qz-dashboard) input[type="checkbox"] {
+    appearance: none;
+    flex: none;
+    display: inline-grid;
+    place-content: center;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    border: 2px solid var(--qz-color-text-muted);
+    border-radius: var(--qz-radius-sm);
+    background-color: var(--qz-color-surface);
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+:where(.qz-dashboard) input[type="checkbox"]::before {
+    content: "";
+    width: 10px;
+    height: 5px;
+    border-left: 2px solid #ffffff;
+    border-bottom: 2px solid #ffffff;
+    transform: translateY(-1px) rotate(-45deg);
+    opacity: 0;
+}
+
+:where(.qz-dashboard) input[type="checkbox"]:checked {
+    background-color: var(--qz-color-primary);
+    border-color: var(--qz-color-primary);
+}
+
+:where(.qz-dashboard) input[type="checkbox"]:checked::before {
+    opacity: 1;
+}
+
+:where(.qz-dashboard) input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--qz-color-primary);
+    outline-offset: 2px;
+}
+
+/* Read-only checks keep their colours, so an excluded day reads as one; only the pointer says they are not
+   for changing. */
+:where(.qz-dashboard) input[type="checkbox"]:disabled {
+    cursor: default;
+    opacity: 1;
+}
+
+.qz-calendar-editor-rules {
+    display: flex;
+    flex-direction: column;
+    gap: var(--qz-space-md);
+    margin-top: var(--qz-space-md);
+}
+
+.qz-calendar-editor-rules > p,
+.qz-calendar-editor-rules .qz-form-group > p {
+    margin: 0;
+}
+
+.qz-calendar-editor .qz-actions {
+    margin-top: var(--qz-space-md);
+}
+
+.qz-calendar-add-date {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--qz-space-sm);
+}
+
+/* The field's own bottom margin would leave Add below it rather than level with it. */
+.qz-calendar-add-date .qz-form-group {
+    margin-bottom: 0;
+}
+
+.qz-calendar-paste > summary {
+    cursor: pointer;
+    color: var(--qz-color-text-secondary);
+}
+
+.qz-calendar-paste[open] > summary {
+    margin-bottom: var(--qz-space-sm);
+}
+
+.qz-calendar-paste .qz-form-group {
+    margin-bottom: var(--qz-space-sm);
+}
+
+/* A warning about what is about to be saved: the page's own text on the warning background, which keeps it at
+   AA where the warning colour alone would not be. */
+.qz-form-warning {
+    margin: 0;
+    padding: var(--qz-space-sm) var(--qz-space-md);
+    border: 1px solid var(--qz-color-warning);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-warning-bg);
+    color: var(--qz-color-text);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-calendars-table td {
+    overflow-wrap: break-word;
+}
+
+/* Room under the listing, so the row a save has just added can be scrolled up clear of the toast that says so,
+   even when it is the last row. */
+.qz-calendars-page {
+    padding-bottom: 6rem;
+}
+
+/* The listing scrolls inside its card, in .qz-table-scroll, rather than clip its actions; on a phone its cells give
+   up padding so it seldom has to. */
+@media (max-width: 480px) {
+    .qz-calendars-table th,
+    .qz-calendars-table td {
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
+}
+
+/* The type is shown in its column, or on a phone under the name, the column giving its width to the actions. */
+.qz-calendar-type-inline {
+    display: none;
+    font-size: var(--qz-font-size-xs);
+}
+
+@media (max-width: 400px) {
+    .qz-calendars-table .qz-col-type {
+        display: none;
+    }
+
+    .qz-calendar-type-inline {
+        display: block;
+    }
+
+    .qz-calendars-table .qz-button {
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
+}
+
+/* The days a calendar ticks, as one group: the field a "too many days" message is about, outlined like any other
+   field the save found wrong. */
+.qz-day-group {
+    min-width: 0;
+    border-radius: var(--qz-radius-sm);
+}
+
+.qz-day-group[aria-invalid="true"] {
+    outline: 2px solid var(--qz-color-danger);
+    outline-offset: 4px;
+}
+
+.qz-calendar-description {
+    margin-top: var(--qz-space-xs);
+}
+
+.qz-calendar-editor-note {
+    margin: var(--qz-space-md) 0 0;
+}
+
+/* What is wrong with one field, beside it. The danger colour is 3.89:1 on the dark theme's surface, so the
+   text takes its darker or lighter step: 6.47:1 light, 5.29:1 dark. */
+.qz-field-error {
+    margin: var(--qz-space-xs) 0 0;
+    color: var(--qz-color-danger-hover);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-calendar-chain-item {
+    margin-top: var(--qz-space-md);
+    padding-left: var(--qz-space-md);
+    border-left: 3px solid var(--qz-color-border-strong);
+}
+
+.qz-calendar-editor {
+    border: 1px solid var(--qz-color-border);
+    border-radius: var(--qz-radius-md);
+    padding: var(--qz-space-md);
+}
+
+.qz-calendar-editor textarea {
+    min-height: 8rem;
+    font-family: var(--qz-font-mono, monospace);
+}
+
+.qz-calendar-cron-preview .qz-list li {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}

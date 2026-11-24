@@ -47,7 +47,7 @@ public sealed class QuartzTableNamingTest
 
         IRelationalModel model = context.DesignModel.GetRelationalModel();
 
-        model.Tables.Should().HaveCount(15).And.AllSatisfy(t =>
+        model.Tables.Should().HaveCount(16).And.AllSatisfy(t =>
         {
             t.Schema.Should().Be("jobs");
             t.Name.Should().StartWith("APP_");
@@ -82,7 +82,7 @@ public sealed class QuartzTableNamingTest
             model.AddQuartzTables(database.ProviderName, t => t.TablePrefix = "QRTZ2_");
         });
 
-        context.DesignModel.GetRelationalModel().Tables.Should().HaveCount(30,
+        context.DesignModel.GetRelationalModel().Tables.Should().HaveCount(32,
             "two schedulers' stores can keep their tables in one database under two prefixes, and so in one model");
     }
 
@@ -158,30 +158,110 @@ public sealed class QuartzTableNamingTest
     {
         await using EntityFrameworkCoreContext context = EntityFrameworkCoreContext.Quartz("firebird");
 
-        IRelationalModel model = context.DesignModel.GetRelationalModel();
-        IEnumerable<string> names = model.Tables.Select(t => t.Name)
-            .Concat(model.Tables.SelectMany(t => t.Columns.Select(c => c.Name)))
-            .Concat(model.Tables.SelectMany(t => t.Indexes.Select(i => i.Name!)))
-            .Concat(model.Tables.Select(t => t.PrimaryKey!.Name))
-            .Concat(model.Tables.SelectMany(t => t.ForeignKeyConstraints.Select(f => f.Name)));
+        IEnumerable<string> names = EveryName(context.DesignModel.GetRelationalModel());
 
         names.Should().AllSatisfy(n => System.Text.Encoding.UTF8.GetByteCount(n).Should().BeLessThanOrEqualTo(31, n));
         names.Max(n => n.Length).Should().Be(30, "IDX_QRTZ_FT_INST_JOB_REQ_RCVRY is the longest");
+    }
+
+    /// <summary>Every name a model gives the database: tables, columns, indexes and keys.</summary>
+    private static IEnumerable<string> EveryName(IRelationalModel model) => model.Tables.Select(t => t.Name)
+        .Concat(model.Tables.SelectMany(t => t.Columns.Select(c => c.Name)))
+        .Concat(model.Tables.SelectMany(t => t.Indexes.Select(i => i.Name!)))
+        .Concat(model.Tables.Select(t => t.PrimaryKey!.Name))
+        .Concat(model.Tables.SelectMany(t => t.ForeignKeyConstraints.Select(f => f.Name)));
+
+    /// <summary>
+    /// Firebird 4 and 5 take 63, which <c>MaxIdentifierLength</c> says for a database Firebird 3 never opens. The
+    /// seven-character prefix the default refuses then names the tables, under any limit that holds its longest
+    /// name, and so does the longest prefix 63 leaves room for, 38 characters. The provider writes each name as it
+    /// is given, and <c>CompleteQuartzSchema</c> takes the same options.
+    /// </summary>
+    [TestCase("QRTZ63_", 32, 32)]
+    [TestCase("QRTZ63_", 63, 32)]
+    [TestCase("QUARTZ_FOR_FIREBIRD_4_AND_5_REPORTING_", 63, 63)]
+    public async Task ARaisedLimitLetsFirebirdTakeALongerPrefix(string prefix, int limit, int longest)
+    {
+        Action<QuartzTablesOptions> configure = t =>
+        {
+            t.TablePrefix = prefix;
+            t.MaxIdentifierLength = limit;
+        };
+
+        await using EntityFrameworkCoreContext context = EntityFrameworkCoreContext.Quartz("firebird", configure);
+
+        IEnumerable<string> names = EveryName(context.DesignModel.GetRelationalModel());
+        string index = $"IDX_{prefix}FT_INST_JOB_REQ_RCVRY";
+
+        names.Should().Contain([prefix + "TRIGGERS", index]);
+        names.Max(n => n.Length).Should().Be(longest, index + " is the longest");
+        context.Database.GenerateCreateScript().Should().Contain($"\"{index}\"");
+
+        Action complete = () => new MigrationBuilder("FirebirdSql.EntityFrameworkCore.Firebird").CompleteQuartzSchema(configure);
+        complete.Should().NotThrow();
+    }
+
+    /// <summary>
+    /// The limit is Firebird 3's 31 or up to Firebird 4's 63: nothing shorter, which would refuse the default
+    /// prefix's own names for no server, and nothing longer, which no Firebird takes.
+    /// </summary>
+    [TestCase(-1)]
+    [TestCase(0)]
+    [TestCase(30)]
+    [TestCase(64)]
+    public void AnIdentifierLengthFirebirdDoesNotHaveIsRefused(int limit)
+    {
+        ModelBuilder modelBuilder = new();
+
+        Action add = () => modelBuilder.AddQuartzTables("FirebirdSql.EntityFrameworkCore.Firebird", t => t.MaxIdentifierLength = limit);
+        Action complete = () => new MigrationBuilder("FirebirdSql.EntityFrameworkCore.Firebird").CompleteQuartzSchema(t => t.MaxIdentifierLength = limit);
+
+        add.Should().Throw<ArgumentException>().WithParameterName("configure")
+            .WithMessage($"QuartzTablesOptions.MaxIdentifierLength is {limit}; on Firebird it is 31, Firebird 3's limit, or up to 63 for a database only Firebird 4 or later opens.*");
+        complete.Should().Throw<ArgumentException>().WithParameterName("configure");
+    }
+
+    /// <summary>
+    /// Every other database has one identifier limit, so the length is refused there rather than ignored, as a
+    /// schema is where there are none; PostgreSQL's own limit, 63, is refused like any other value.
+    /// </summary>
+    [TestCase("Npgsql.EntityFrameworkCore.PostgreSQL", "PostgreSQL")]
+    [TestCase("Microsoft.EntityFrameworkCore.SqlServer", "SQL Server")]
+    [TestCase("MySql.EntityFrameworkCore", "MySQL")]
+    [TestCase("Microsoft.EntityFrameworkCore.Sqlite", "SQLite")]
+    [TestCase("Oracle.EntityFrameworkCore", "Oracle")]
+    public void AnIdentifierLengthIsRefusedWhereTheDatabaseHasOneLimit(string provider, string label)
+    {
+        ModelBuilder modelBuilder = new();
+
+        Action add = () => modelBuilder.AddQuartzTables(provider, t => t.MaxIdentifierLength = 63);
+
+        add.Should().Throw<ArgumentException>().WithParameterName("configure")
+            .WithMessage($"QuartzTablesOptions.MaxIdentifierLength is for Firebird*{label} has one limit*leave it unset.*");
     }
 
     /// <summary>
     /// A prefix that makes a name longer than the database takes is refused before anything runs, naming the name
     /// and the longest prefix that fits, in bytes, and in characters where the two differ: EF Core passes a name it
     /// is given through, PostgreSQL would cut it silently, and Firebird refuse it half-way through a migration.
+    /// On Firebird the limit is Firebird 3's unless <c>MaxIdentifierLength</c> raises it, which the refusal says
+    /// while there is a longer limit to raise it to.
     /// </summary>
-    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "QRTZ_X_", "*IDX_QRTZ_X_FT_INST_JOB_REQ_RCVRY 32 bytes long, and Firebird takes 31 bytes (Firebird 3's limit*at most 6 bytes of UTF-8, which is 6 characters of ASCII.*")]
-    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "QRTZÄ_", "*IDX_QRTZÄ_FT_INST_JOB_REQ_RCVRY 32 bytes long*at most 6 bytes*('QRTZÄ_' is 6 characters and 7 bytes).*")]
-    [TestCase("Npgsql.EntityFrameworkCore.PostgreSQL", "P234567890123456789012345678901234567890_", "*66 bytes long, and PostgreSQL takes 63 bytes. Use a prefix of at most 38 bytes of UTF-8*")]
-    public void APrefixThatMakesANameTooLongIsRefused(string provider, string prefix, string message)
+    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "QRTZ_X_", null, "*IDX_QRTZ_X_FT_INST_JOB_REQ_RCVRY 32 bytes long, and Firebird takes 31 bytes (Firebird 3's limit, which is the default). Use a prefix of at most 6 bytes of UTF-8, which is 6 characters of ASCII. For a database only Firebird 4 or later opens, set QuartzTablesOptions.MaxIdentifierLength to 63.*")]
+    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "QRTZÄ_", null, "*IDX_QRTZÄ_FT_INST_JOB_REQ_RCVRY 32 bytes long*at most 6 bytes*('QRTZÄ_' is 6 characters and 7 bytes). For a database only Firebird 4*")]
+    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "QRTZ_X_", 31, "*32 bytes long, and QuartzTablesOptions.MaxIdentifierLength is 31 bytes. Use a prefix of at most 6 bytes*set QuartzTablesOptions.MaxIdentifierLength to 63.*")]
+    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "QRTZ_REPORTING_", 39, "*IDX_QRTZ_REPORTING_FT_INST_JOB_REQ_RCVRY 40 bytes long, and QuartzTablesOptions.MaxIdentifierLength is 39 bytes. Use a prefix of at most 14 bytes*set QuartzTablesOptions.MaxIdentifierLength to 63.*")]
+    [TestCase("FirebirdSql.EntityFrameworkCore.Firebird", "QUARTZ_FOR_FIREBIRD_4_AND_5_REPORTINGS_", 63, "*64 bytes long, and QuartzTablesOptions.MaxIdentifierLength is 63 bytes. Use a prefix of at most 38 bytes of UTF-8, which is 38 characters of ASCII. (Parameter 'configure')")]
+    [TestCase("Npgsql.EntityFrameworkCore.PostgreSQL", "P234567890123456789012345678901234567890_", null, "*66 bytes long, and PostgreSQL takes 63 bytes. Use a prefix of at most 38 bytes of UTF-8, which is 38 characters of ASCII. (Parameter 'configure')")]
+    public void APrefixThatMakesANameTooLongIsRefused(string provider, string prefix, int? limit, string message)
     {
         ModelBuilder modelBuilder = new();
 
-        Action add = () => modelBuilder.AddQuartzTables(provider, t => t.TablePrefix = prefix);
+        Action add = () => modelBuilder.AddQuartzTables(provider, t =>
+        {
+            t.TablePrefix = prefix;
+            t.MaxIdentifierLength = limit;
+        });
 
         add.Should().Throw<ArgumentException>().WithParameterName("configure").WithMessage(message);
     }

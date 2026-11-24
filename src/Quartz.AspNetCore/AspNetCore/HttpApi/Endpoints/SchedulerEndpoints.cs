@@ -13,6 +13,7 @@ using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.Configuration;
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
+using Quartz.Impl;
 
 namespace Quartz.AspNetCore.HttpApi.Endpoints;
 
@@ -81,6 +82,13 @@ internal static class SchedulerEndpoints
         yield return builder.MapPost(options.PatternFor(SchedulerRoutes.FetchJobRunStatuses), FetchJobRunStatuses)
             .WithQuartzDefaults(SchedulerRoutes.FetchJobRunStatuses, "Get the run statuses of a set of jobs");
 
+        yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryTriggerRunStatuses), QueryTriggerRunStatuses)
+            .WithQuartzDefaults(SchedulerRoutes.QueryTriggerRunStatuses, "Query the scheduler's per-trigger run statuses");
+
+        // A read that takes a body, as the job statuses' fetch is.
+        yield return builder.MapPost(options.PatternFor(SchedulerRoutes.FetchTriggerRunStatuses), FetchTriggerRunStatuses)
+            .WithQuartzDefaults(SchedulerRoutes.FetchTriggerRunStatuses, "Get the run statuses of a set of triggers");
+
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryExecutionStatistics), QueryExecutionStatistics)
             .WithQuartzDefaults(SchedulerRoutes.QueryExecutionStatistics, "Count and time the scheduler's runs in buckets of fire time");
 
@@ -127,26 +135,30 @@ internal static class SchedulerEndpoints
 
         SchedulerHeaderDto[] result = await SchedulerOperations.GetAllSchedulers(
             schedulerRegistry,
-            (name, token) => IsListed(httpContext, policyName, operationPolicyName, name, token),
+            (key, token) => IsListed(httpContext, policyName, operationPolicyName, key, token),
             cancellationToken).ConfigureAwait(false);
 
         return endpointHelper.JsonResponse(result);
     }
 
     /// <summary>
-    /// Whether the listing names <paramref name="schedulerName" /> to this caller: one they may see, and
-    /// may view under the operation policy when there is one.
+    /// Whether the listing names <paramref name="key" /> to this caller: one they may see, and may view under
+    /// the operation policy when there is one.
     /// </summary>
+    /// <remarks>
+    /// Asked with the registration's target, so that a policy deciding by target lists what it would let a
+    /// request with <c>?target=</c> reach.
+    /// </remarks>
     private static async ValueTask<bool> IsListed(
         HttpContext httpContext,
         string? policyName,
         string? operationPolicyName,
-        string schedulerName,
+        SchedulerRef key,
         CancellationToken cancellationToken)
     {
-        return await SchedulerAuthorization.IsAuthorized(httpContext, policyName, schedulerName, cancellationToken).ConfigureAwait(false)
+        return await SchedulerAuthorization.IsAuthorized(httpContext, policyName, key, cancellationToken).ConfigureAwait(false)
                && await OperationAuthorization.IsAllowed(
-                   httpContext, operationPolicyName, schedulerName, SchedulerRoutes.GetAllSchedulers, SchedulerAccess.View, cancellationToken).ConfigureAwait(false);
+                   httpContext, operationPolicyName, key, SchedulerRoutes.GetAllSchedulers, SchedulerAccess.View, cancellationToken).ConfigureAwait(false);
     }
 
     [ProducesResponseType(typeof(SchedulerDto), StatusCodes.Status200OK)]
@@ -154,9 +166,11 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.GetSchedulerDetails(scheduler, cancellationToken));
     }
 
@@ -165,9 +179,11 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => ValueTask.FromResult(SchedulerOperations.GetSchedulerContext(scheduler)));
     }
 
@@ -179,7 +195,8 @@ internal static class SchedulerEndpoints
     /// <remarks>
     /// A store-attached window is refused — see <see cref="EnsureNotAWindow" /> — before a delayed start
     /// is queued, since a start refused on the task that waits out the delay would already have answered
-    /// <c>200</c>.
+    /// <c>200</c>. It is refused alike by its bare name and through <c>?target=</c>, which resolve to the
+    /// same window.
     /// </remarks>
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> Start(
@@ -187,6 +204,7 @@ internal static class SchedulerEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         TimeSpan? delay,
         CancellationToken cancellationToken = default)
     {
@@ -195,10 +213,12 @@ internal static class SchedulerEndpoints
             throw new BadHttpRequestException("delay must not be negative");
         }
 
-        EnsureNotAWindow(httpContext, schedulerName, "start a scheduler");
-
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
-            scheduler => SchedulerOperations.Start(scheduler, delay, cancellationToken));
+        return EndpointHelper.ExecuteWithResolution(schedulerName, target, httpContext, schedulerRepository, async resolution =>
+        {
+            EnsureNotAWindow(resolution, "start a scheduler");
+            await SchedulerOperations.Start(resolution.Scheduler, delay, cancellationToken).ConfigureAwait(false);
+            return Results.Ok();
+        });
     }
 
     /// <remarks>
@@ -210,12 +230,15 @@ internal static class SchedulerEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         CancellationToken cancellationToken = default)
     {
-        EnsureNotAWindow(httpContext, schedulerName, "stand a scheduler down");
-
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
-            scheduler => SchedulerOperations.Standby(scheduler, cancellationToken));
+        return EndpointHelper.ExecuteWithResolution(schedulerName, target, httpContext, schedulerRepository, async resolution =>
+        {
+            EnsureNotAWindow(resolution, "stand a scheduler down");
+            await SchedulerOperations.Standby(resolution.Scheduler, cancellationToken).ConfigureAwait(false);
+            return Results.Ok();
+        });
     }
 
     /// <remarks>
@@ -227,13 +250,16 @@ internal static class SchedulerEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         bool waitForJobsToComplete = false,
         CancellationToken cancellationToken = default)
     {
-        EnsureNotAWindow(httpContext, schedulerName, "shut a scheduler down");
-
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
-            scheduler => SchedulerOperations.Shutdown(scheduler, waitForJobsToComplete, cancellationToken));
+        return EndpointHelper.ExecuteWithResolution(schedulerName, target, httpContext, schedulerRepository, async resolution =>
+        {
+            EnsureNotAWindow(resolution, "shut a scheduler down");
+            await SchedulerOperations.Shutdown(resolution.Scheduler, waitForJobsToComplete, cancellationToken).ConfigureAwait(false);
+            return Results.Ok();
+        });
     }
 
     /// <summary>
@@ -250,21 +276,22 @@ internal static class SchedulerEndpoints
     /// shutdown would unbind the window for good, since its name has already been decided about and is
     /// never rediscovered. The dashboard's client refuses the same three for the same reason, and this
     /// decides "window" the way it does: <see cref="SchedulerWindowRegistry" /> is the one place that
-    /// fact is recorded.
+    /// fact is recorded, and the resolution reads it from there for a bare name and a targeted key alike.
     /// </para>
     /// <para>
     /// A <see cref="SchedulerException" />, so the answer is the <c>400</c> a scheduler's own refusal is
-    /// and <c>HttpScheduler</c> rethrows it as the exception an in-process caller would get. The registry
-    /// is asked for rather than injected, so a container without one — nothing attached a store — is a
-    /// scheduler of this process as it always was.
+    /// and <c>HttpScheduler</c> rethrows it as the exception an in-process caller would get. A container
+    /// whose registry records no window — nothing attached a store — resolves a scheduler of this process,
+    /// as it always did.
     /// </para>
     /// </remarks>
-    private static void EnsureNotAWindow(HttpContext httpContext, string schedulerName, string what)
+    private static void EnsureNotAWindow(SchedulerResolution resolution, string what)
     {
-        if (httpContext.RequestServices.GetService<SchedulerWindowRegistry>()?.TargetOf(schedulerName) is { } target)
+        if (resolution.IsWindow)
         {
+            string schedulerName = resolution.Scheduler.SchedulerName;
             throw new SchedulerException(
-                $"Cannot {what} through a window: '{schedulerName}' is read through the store attached as '{target}', "
+                $"Cannot {what} through a window: '{schedulerName}' is read through the store attached as '{resolution.Ref.Target}', "
                 + "not run by this process, and nothing in a shared database carries an instruction to a node. Reach "
                 + "the node itself — its own HTTP API, or an agent — for anything that belongs to one process.");
         }
@@ -275,9 +302,11 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.Clear(scheduler, cancellationToken));
     }
 
@@ -295,11 +324,12 @@ internal static class SchedulerEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         CancellationToken cancellationToken = default)
     {
         PauseDetails? details = EndpointHelper.PauseDetailsFor(request, httpContext);
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.PauseAll(scheduler, details, cancellationToken));
     }
 
@@ -308,9 +338,11 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResumeAll(scheduler, cancellationToken));
     }
 
@@ -323,9 +355,11 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.GetClusterNodes(scheduler, cancellationToken));
     }
 
@@ -348,9 +382,11 @@ internal static class SchedulerEndpoints
     /// this scheduler is refused before a single frame is written.
     /// </para>
     /// <para>
-    /// The events are this process's: they come from the broker the schedulers here publish into, which is
-    /// where <c>AddQuartzSchedulerEvents()</c> points them. The route is <em>not</em> a proxy for a
-    /// scheduler somewhere else, for the reason the history routes are not one either.
+    /// Without <c>target</c> the events are this process's: they come from the broker the schedulers here
+    /// publish into, which is where <c>AddQuartzSchedulerEvents()</c> points them. From 4.9 a request with
+    /// <c>target</c> reads the target's own stream — an HTTP target's event route, an agent's feed — as the
+    /// dashboard's Live Logs page does, through <see cref="SchedulerEventLookup" />. A window has none, since
+    /// a database carries a schedule rather than a feed of what happened to it, and is answered <c>501</c>.
     /// </para>
     /// <para>
     /// There is no replay and no <c>Last-Event-ID</c> handling: a subscription carries what happens after
@@ -366,14 +402,17 @@ internal static class SchedulerEndpoints
         TimeProvider timeProvider,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithScheduler(schedulerName, schedulerRepository, scheduler =>
+        return EndpointHelper.ExecuteWithResolution(schedulerName, target, httpContext, schedulerRepository, resolution =>
         {
+            IScheduler scheduler = resolution.Scheduler;
+
             // The scheduler's own spelling of its name, so a route that named it in another case still
             // subscribes to the events it publishes.
             IAsyncEnumerable<SseItem<SchedulerEvent>> frames = SchedulerEventStream.Read(
-                eventSource,
+                EventsFor(httpContext, eventSource, target, resolution),
                 scheduler.SchedulerName,
                 apiOptions.Value.EventStreamHeartbeatInterval,
                 timeProvider,
@@ -381,6 +420,26 @@ internal static class SchedulerEndpoints
 
             return ValueTask.FromResult<IResult>(TypedResults.ServerSentEvents(frames));
         });
+    }
+
+    /// <summary>
+    /// The source a request's events are read from: this process's broker for a bare key, as before 4.9,
+    /// and the target's own stream for a key with a target.
+    /// </summary>
+    /// <exception cref="NotServedException">The target has no event stream: a window onto a store.</exception>
+    private static ISchedulerEventSource EventsFor(HttpContext httpContext, ISchedulerEventSource broker, string? target, SchedulerResolution resolution)
+    {
+        if (target is null)
+        {
+            return broker;
+        }
+
+        ISchedulerEventSource? source = resolution.IsWindow ? null : SchedulerEventLookup.ForTargeted(httpContext.RequestServices, resolution.Ref);
+        return source
+               ?? throw new NotServedException(new NotSupportedException(
+                   $"The scheduler '{resolution.Ref.Key}' has no event stream here: a window onto a store attached to this "
+                   + "host reads a database, which carries a schedule rather than a feed of what happened to it. Stream the "
+                   + "events of a node through its own HTTP API or agent."));
     }
 
     /// <summary>
@@ -419,6 +478,7 @@ internal static class SchedulerEndpoints
         IExecutionHistoryStore historyStore,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -449,9 +509,9 @@ internal static class SchedulerEndpoints
             Results = results
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => SchedulerOperations.QueryExecutionHistory(
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => SchedulerOperations.QueryExecutionHistory(
             scheduler,
-            HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+            HistoryFor(httpContext, historyStore, target, scheduler),
             listing,
             schedulerInstanceId,
             jobContains,
@@ -488,11 +548,12 @@ internal static class SchedulerEndpoints
         IExecutionHistoryStore historyStore,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string entryId,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
-            await SchedulerOperations.GetExecution(scheduler, HistoryFor(httpContext, historyStore, scheduler.SchedulerName), entryId, cancellationToken).ConfigureAwait(false)
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, async scheduler =>
+            await SchedulerOperations.GetExecution(scheduler, HistoryFor(httpContext, historyStore, target, scheduler), entryId, cancellationToken).ConfigureAwait(false)
             ?? throw NotFoundException.ForExecution(entryId));
     }
 
@@ -518,6 +579,7 @@ internal static class SchedulerEndpoints
         IExecutionHistoryStore historyStore,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -540,9 +602,9 @@ internal static class SchedulerEndpoints
             Reasons = reasons
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => SchedulerOperations.QueryMisfireHistory(
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => SchedulerOperations.QueryMisfireHistory(
             scheduler,
-            HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+            HistoryFor(httpContext, historyStore, target, scheduler),
             listing,
             schedulerInstanceId,
             triggerContains,
@@ -565,6 +627,7 @@ internal static class SchedulerEndpoints
         IExecutionHistoryStore historyStore,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         DateTimeOffset? since = null,
         CancellationToken cancellationToken = default)
     {
@@ -573,9 +636,9 @@ internal static class SchedulerEndpoints
             throw new BadHttpRequestException("since is required: a count with no window is a count of everything the store still holds");
         }
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => SchedulerOperations.CountMisfires(
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => SchedulerOperations.CountMisfires(
             scheduler,
-            HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+            HistoryFor(httpContext, historyStore, target, scheduler),
             since.Value,
             cancellationToken));
     }
@@ -601,6 +664,7 @@ internal static class SchedulerEndpoints
         IExecutionHistoryStore historyStore,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -608,9 +672,9 @@ internal static class SchedulerEndpoints
         CancellationToken cancellationToken = default)
     {
         ListingParameters listing = endpointHelper.Listing(skip, take, includeTotalCount);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => Served(() => SchedulerOperations.QueryJobRunStatuses(
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.QueryJobRunStatuses(
             scheduler,
-            HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+            HistoryFor(httpContext, historyStore, target, scheduler),
             listing,
             failing,
             cancellationToken)));
@@ -629,15 +693,16 @@ internal static class SchedulerEndpoints
         IExecutionHistoryStore historyStore,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
         JobKey jobKey = new(jobName, jobGroup);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, async scheduler =>
             await Served(() => SchedulerOperations.GetJobRunStatus(
                 scheduler,
-                HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+                HistoryFor(httpContext, historyStore, target, scheduler),
                 jobKey,
                 cancellationToken)).ConfigureAwait(false)
             ?? throw NotFoundException.ForJobRunStatus(jobKey));
@@ -657,15 +722,81 @@ internal static class SchedulerEndpoints
         IExecutionHistoryStore historyStore,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         JobKeySetRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
         EndpointHelper.AssertKeysToFetch(request.Jobs);
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => Served(() => SchedulerOperations.FetchJobRunStatuses(
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.FetchJobRunStatuses(
             scheduler,
-            HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+            HistoryFor(httpContext, historyStore, target, scheduler),
+            request,
+            cancellationToken)));
+    }
+
+    /// <summary>
+    /// One page of this scheduler's per-trigger run statuses, by trigger group and then name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// From 4.9. Kept by the history store beside the job statuses, folded by their rule from the firings of each
+    /// trigger's own key, other than one after which the trigger is finalized. <c>failing=true</c> lists the
+    /// triggers whose latest occurrences failed for good, and <c>failing=false</c> the rest.
+    /// </para>
+    /// <para>
+    /// A store that keeps no trigger status answers <c>501</c>, naming <see cref="NotSupportedException" />. A host
+    /// older than 4.9 has no such route and answers <c>404</c> without problem details.
+    /// </para>
+    /// </remarks>
+    [ProducesResponseType(typeof(PagedResultDto<TriggerRunStatusDto>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryTriggerRunStatuses(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
+        string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
+        int skip = 0,
+        [Description(EndpointHelper.TakeDescription)] string? take = null,
+        bool includeTotalCount = false,
+        [Description("true for the triggers failing now, false for the rest")] bool? failing = null,
+        CancellationToken cancellationToken = default)
+    {
+        ListingParameters listing = endpointHelper.Listing(skip, take, includeTotalCount);
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.QueryTriggerRunStatuses(
+            scheduler,
+            HistoryFor(httpContext, historyStore, target, scheduler),
+            listing,
+            failing,
+            cancellationToken)));
+    }
+
+    /// <summary>
+    /// The run statuses of the triggers the body names, by trigger group and then name — at most
+    /// <see cref="EndpointHelper.MaxKeysToFetch" /> of them. A trigger with no recorded run is absent.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="QueryTriggerRunStatuses" path="/remarks" />
+    /// </remarks>
+    [ProducesResponseType(typeof(TriggerRunStatusDto[]), StatusCodes.Status200OK)]
+    private static Task<IResult> FetchTriggerRunStatuses(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        IExecutionHistoryStore historyStore,
+        HttpContext httpContext,
+        string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
+        TriggerKeySetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertIsValid(request);
+        EndpointHelper.AssertKeysToFetch(request.Triggers);
+
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.FetchTriggerRunStatuses(
+            scheduler,
+            HistoryFor(httpContext, historyStore, target, scheduler),
             request,
             cancellationToken)));
     }
@@ -693,6 +824,7 @@ internal static class SchedulerEndpoints
         IExecutionHistoryStore historyStore,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string? schedulerInstanceId = null,
         string? jobContains = null,
         string? triggerContains = null,
@@ -720,9 +852,9 @@ internal static class SchedulerEndpoints
             Results = results
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => Served(() => SchedulerOperations.QueryExecutionStatistics(
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => Served(() => SchedulerOperations.QueryExecutionStatistics(
             scheduler,
-            HistoryFor(httpContext, historyStore, scheduler.SchedulerName),
+            HistoryFor(httpContext, historyStore, target, scheduler),
             schedulerInstanceId,
             jobContains,
             triggerContains,
@@ -757,7 +889,8 @@ internal static class SchedulerEndpoints
     /// scheduler has one history whichever of them is asked: a window reads the database it is a window
     /// onto, a scheduler with a store of its own reads that one, and everything else reads
     /// <paramref name="shared" />. Asked with the scheduler's own spelling of its name, which is the key
-    /// its store is registered under.
+    /// its store is registered under, and from 4.9 with the request's target, which names the target's
+    /// history: what the target recorded, read where it keeps it.
     /// </para>
     /// <para>
     /// A window whose store keeps no history here is refused rather than answered with this process's
@@ -765,12 +898,13 @@ internal static class SchedulerEndpoints
     /// <c>400</c> the API answers a scheduler's refusals with.
     /// </para>
     /// </remarks>
-    private static IExecutionHistoryStore HistoryFor(HttpContext httpContext, IExecutionHistoryStore shared, string schedulerName)
+    private static IExecutionHistoryStore HistoryFor(HttpContext httpContext, IExecutionHistoryStore shared, string? target, IScheduler scheduler)
     {
-        IServiceProvider services = httpContext.RequestServices;
-
-        // The route value is a bare name, so the name the store is asked for is the one given.
-        return ExecutionHistoryLookup.Find(services, services.GetService<AttachedStores>(), shared, schedulerName, out _, out string? refusal)
+        // A scheduler reached through a target's proxy keeps its history where the target does, read by the
+        // name and the target as a pair; everything else — a scheduler of this process, a window, whether or not
+        // the request named the window's target — is read by its name, as before 4.9. MCP's history tools read by
+        // the same rule.
+        return ExecutionHistoryLookup.ForResolved(httpContext.RequestServices, shared, scheduler, targeted: target is not null, out string? refusal)
             ?? throw new SchedulerException(refusal!);
     }
 
@@ -779,9 +913,11 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.GetExecutionLimits(scheduler, cancellationToken));
     }
 
@@ -790,12 +926,14 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         [FromBody] SetExecutionLimitsRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
 
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.SetExecutionLimits(scheduler, request, cancellationToken));
     }
 
@@ -804,9 +942,11 @@ internal static class SchedulerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ClearExecutionLimits(scheduler, cancellationToken));
     }
 }

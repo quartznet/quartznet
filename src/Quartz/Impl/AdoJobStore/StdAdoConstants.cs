@@ -2021,23 +2021,34 @@ internal static class StdAdoConstants
         Invariant($"SELECT {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName} FROM {TablePrefixSubst}{AdoConstants.TableExecutionHistory} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}{SqlExecutionHistoryNotFailed} GROUP BY {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName} HAVING COUNT(*) > @{SqlParameters.HistoryJobCap} ORDER BY {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}");
 
     // -----------------------------------------------------------------------------------------
-    // JOB_STATUS
+    // JOB_STATUS and TRIGGER_STATUS
     //
-    // One row per job, written by AdoExecutionHistoryStore in the transaction that records the
-    // execution, on the history's own connection. The updates are JobStatusStatement's, generated
-    // per kind of execution; the insert is the first run's fold, bound whole.
+    // One row per job, and one per trigger, written by AdoExecutionHistoryStore in the transaction that
+    // records the execution, on the history's own connection. The two tables have the same value
+    // columns and differ in their key, so every statement is built once for each from RunStatusTable.
+    // The updates are RunStatusStatement's, generated per kind of execution; the insert is the first
+    // run's fold, bound whole.
     // -----------------------------------------------------------------------------------------
 
-    public static readonly JobStatusStatement SqlUpdateJobStatusSucceeded = JobStatusStatement.Update(JobStatusUpdate.Succeeded);
+    public static readonly RunStatusStatement SqlUpdateJobStatusSucceeded = RunStatusStatement.Update(RunStatusTable.Job, JobStatusUpdate.Succeeded);
 
-    public static readonly JobStatusStatement SqlUpdateJobStatusFailedFinally = JobStatusStatement.Update(JobStatusUpdate.FailedFinally);
+    public static readonly RunStatusStatement SqlUpdateJobStatusFailedFinally = RunStatusStatement.Update(RunStatusTable.Job, JobStatusUpdate.FailedFinally);
 
-    public static readonly JobStatusStatement SqlUpdateJobStatusFailedRetried = JobStatusStatement.Update(JobStatusUpdate.FailedRetried);
+    public static readonly RunStatusStatement SqlUpdateJobStatusFailedRetried = RunStatusStatement.Update(RunStatusTable.Job, JobStatusUpdate.FailedRetried);
 
-    public static readonly JobStatusStatement SqlUpdateJobStatusOther = JobStatusStatement.Update(JobStatusUpdate.Other);
+    public static readonly RunStatusStatement SqlUpdateJobStatusOther = RunStatusStatement.Update(RunStatusTable.Job, JobStatusUpdate.Other);
 
-    public static readonly string SqlInsertJobStatus =
-        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableJobStatus} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnFirstFiredTime}, {AdoConstants.ColumnLastFiredTime}, {AdoConstants.ColumnLastResult}, {AdoConstants.ColumnLastRunTime}, {AdoConstants.ColumnLastInstanceName}, {AdoConstants.ColumnLastEntryId}, {AdoConstants.ColumnLastSummary}, {AdoConstants.ColumnLastSuccessTime}, {AdoConstants.ColumnLastFailureTime}, {AdoConstants.ColumnLastFailureMessage}, {AdoConstants.ColumnConsecutiveFailures}, {AdoConstants.ColumnRunCount}, {AdoConstants.ColumnFailureCount}) VALUES (@{SqlParameters.SchedulerName}, @{SqlParameters.JobGroup}, @{SqlParameters.JobName}, @{SqlParameters.StatusFirstFiredTime}, @{SqlParameters.StatusLastFiredTime}, @{SqlParameters.StatusLastResult}, @{SqlParameters.StatusLastRunTime}, @{SqlParameters.StatusLastInstanceName}, @{SqlParameters.StatusLastEntryId}, @{SqlParameters.StatusLastSummary}, @{SqlParameters.StatusLastSuccessTime}, @{SqlParameters.StatusLastFailureTime}, @{SqlParameters.StatusLastFailureMessage}, @{SqlParameters.StatusConsecutiveFailures}, @{SqlParameters.StatusRunCount}, @{SqlParameters.StatusFailureCount})");
+    public static readonly RunStatusStatement SqlUpdateTriggerStatusSucceeded = RunStatusStatement.Update(RunStatusTable.Trigger, JobStatusUpdate.Succeeded);
+
+    public static readonly RunStatusStatement SqlUpdateTriggerStatusFailedFinally = RunStatusStatement.Update(RunStatusTable.Trigger, JobStatusUpdate.FailedFinally);
+
+    public static readonly RunStatusStatement SqlUpdateTriggerStatusFailedRetried = RunStatusStatement.Update(RunStatusTable.Trigger, JobStatusUpdate.FailedRetried);
+
+    public static readonly RunStatusStatement SqlUpdateTriggerStatusOther = RunStatusStatement.Update(RunStatusTable.Trigger, JobStatusUpdate.Other);
+
+    public static readonly string SqlInsertJobStatus = RunStatusInsert(RunStatusTable.Job);
+
+    public static readonly string SqlInsertTriggerStatus = RunStatusInsert(RunStatusTable.Trigger);
 
     /// <summary>
     /// A job's whole status, as a write-behind flush folded it, written only if <c>RUN_COUNT</c> is still
@@ -2048,35 +2059,44 @@ internal static class StdAdoConstants
     /// changed since the read matches nothing, and the flush reads and folds again. The values come before
     /// the key, in the order the statement names them, for the providers that bind by position.
     /// </remarks>
-    public static readonly string SqlUpdateJobStatusIfUnchanged =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableJobStatus} SET {AdoConstants.ColumnFirstFiredTime} = @{SqlParameters.StatusFirstFiredTime}, {AdoConstants.ColumnLastFiredTime} = @{SqlParameters.StatusLastFiredTime}, {AdoConstants.ColumnLastResult} = @{SqlParameters.StatusLastResult}, {AdoConstants.ColumnLastRunTime} = @{SqlParameters.StatusLastRunTime}, {AdoConstants.ColumnLastInstanceName} = @{SqlParameters.StatusLastInstanceName}, {AdoConstants.ColumnLastEntryId} = @{SqlParameters.StatusLastEntryId}, {AdoConstants.ColumnLastSummary} = @{SqlParameters.StatusLastSummary}, {AdoConstants.ColumnLastSuccessTime} = @{SqlParameters.StatusLastSuccessTime}, {AdoConstants.ColumnLastFailureTime} = @{SqlParameters.StatusLastFailureTime}, {AdoConstants.ColumnLastFailureMessage} = @{SqlParameters.StatusLastFailureMessage}, {AdoConstants.ColumnConsecutiveFailures} = @{SqlParameters.StatusConsecutiveFailures}, {AdoConstants.ColumnRunCount} = @{SqlParameters.StatusRunCount}, {AdoConstants.ColumnFailureCount} = @{SqlParameters.StatusFailureCount} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName} AND {AdoConstants.ColumnRunCount} = @{SqlParameters.StatusReadRunCount}");
+    public static readonly string SqlUpdateJobStatusIfUnchanged = RunStatusUpdateIfUnchanged(RunStatusTable.Job);
 
-    /// <summary>The columns every status read selects, in the order <c>ReadJobRunStatus</c> reads them.</summary>
-    private const string JobStatusColumns =
-        $"{AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnFirstFiredTime}, {AdoConstants.ColumnLastFiredTime}, {AdoConstants.ColumnLastResult}, {AdoConstants.ColumnLastRunTime}, {AdoConstants.ColumnLastInstanceName}, {AdoConstants.ColumnLastEntryId}, {AdoConstants.ColumnLastSummary}, {AdoConstants.ColumnLastSuccessTime}, {AdoConstants.ColumnLastFailureTime}, {AdoConstants.ColumnLastFailureMessage}, {AdoConstants.ColumnConsecutiveFailures}, {AdoConstants.ColumnRunCount}, {AdoConstants.ColumnFailureCount}";
+    /// <summary>A trigger's whole status, guarded as <see cref="SqlUpdateJobStatusIfUnchanged" /> is.</summary>
+    public static readonly string SqlUpdateTriggerStatusIfUnchanged = RunStatusUpdateIfUnchanged(RunStatusTable.Trigger);
 
-    /// <summary>A scheduler's statuses; the caller appends the query's predicates and the ordering.</summary>
-    public static readonly string SqlSelectJobStatuses =
-        Invariant($"SELECT {JobStatusColumns} FROM {TablePrefixSubst}{AdoConstants.TableJobStatus} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+    /// <summary>A scheduler's job statuses; the caller appends the query's predicates and the ordering.</summary>
+    public static readonly string SqlSelectJobStatuses = RunStatusSelect(RunStatusTable.Job);
+
+    /// <summary>A scheduler's trigger statuses; the caller appends the query's predicates and the ordering.</summary>
+    public static readonly string SqlSelectTriggerStatuses = RunStatusSelect(RunStatusTable.Trigger);
 
     public static readonly string SqlCountJobStatuses =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableJobStatus} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
 
+    public static readonly string SqlCountTriggerStatuses =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableTriggerStatus} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+
     /// <summary>One job's status, by the table's key.</summary>
     public static readonly string SqlSelectJobStatus =
-        Invariant($"SELECT {JobStatusColumns} FROM {TablePrefixSubst}{AdoConstants.TableJobStatus} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName}");
+        Invariant($"{SqlSelectJobStatuses} AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.JobGroup} AND {AdoConstants.ColumnJobName} = @{SqlParameters.JobName}");
 
-    /// <summary>The jobs whose last occurrence failed for good: <c>JobRunStatusQuery.Failing = true</c>.</summary>
-    public static readonly string SqlJobStatusFailing =
+    /// <summary>
+    /// The statuses whose last occurrence failed for good: <c>Failing = true</c> on either status query.
+    /// </summary>
+    public static readonly string SqlRunStatusFailing =
         Invariant($" AND {AdoConstants.ColumnConsecutiveFailures} > 0");
 
-    /// <summary>Their complement: <c>JobRunStatusQuery.Failing = false</c>.</summary>
-    public static readonly string SqlJobStatusNotFailing =
+    /// <summary>Their complement: <c>Failing = false</c>.</summary>
+    public static readonly string SqlRunStatusNotFailing =
         Invariant($" AND {AdoConstants.ColumnConsecutiveFailures} = 0");
 
     /// <summary>Group, then name, as every paged query is ordered.</summary>
     public static readonly string SqlOrderByJobStatus =
         Invariant($" ORDER BY {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}");
+
+    /// <summary>Group, then name, as every paged query is ordered.</summary>
+    public static readonly string SqlOrderByTriggerStatus =
+        Invariant($" ORDER BY {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnTriggerName}");
 
     /// <summary>
     /// The statuses of jobs that no longer exist and have not run within the longest retention window.
@@ -2085,8 +2105,39 @@ internal static class StdAdoConstants
     /// A correlated <c>NOT EXISTS</c> on <c>QRTZ_JOB_DETAILS</c>'s key. The outer table is named rather than
     /// aliased: a <c>DELETE</c> target takes an alias in some dialects only.
     /// </remarks>
-    public static readonly string SqlDeleteOrphanedJobStatuses =
-        Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableJobStatus} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnLastFiredTime} < @{SqlParameters.HistoryCutoff} AND NOT EXISTS (SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} j WHERE j.{AdoConstants.ColumnSchedulerName} = {TablePrefixSubst}{AdoConstants.TableJobStatus}.{AdoConstants.ColumnSchedulerName} AND j.{AdoConstants.ColumnJobGroup} = {TablePrefixSubst}{AdoConstants.TableJobStatus}.{AdoConstants.ColumnJobGroup} AND j.{AdoConstants.ColumnJobName} = {TablePrefixSubst}{AdoConstants.TableJobStatus}.{AdoConstants.ColumnJobName})");
+    public static readonly string SqlDeleteOrphanedJobStatuses = RunStatusDeleteOrphaned(RunStatusTable.Job);
+
+    /// <summary>
+    /// The statuses of triggers that no longer exist and have not run within the longest retention window: a
+    /// correlated <c>NOT EXISTS</c> on <c>QRTZ_TRIGGERS</c>' key, as <see cref="SqlDeleteOrphanedJobStatuses" />.
+    /// </summary>
+    public static readonly string SqlDeleteOrphanedTriggerStatuses = RunStatusDeleteOrphaned(RunStatusTable.Trigger);
+
+    /// <summary>
+    /// Whether <c>QRTZ_TRIGGER_STATUS</c> resolves, asked after a status read failed: <c>WHERE 1 = 0</c>, as the
+    /// startup probes ask it.
+    /// </summary>
+    public static readonly string SqlProbeTriggerStatus =
+        Invariant($"SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableTriggerStatus} WHERE 1 = 0");
+
+    /// <summary>
+    /// The columns every status read selects, the key's group and name first, in the order
+    /// <c>ReadRunTally</c> reads them.
+    /// </summary>
+    private static string RunStatusColumns(RunStatusTable table) =>
+        Invariant($"{table.GroupColumn}, {table.NameColumn}, {AdoConstants.ColumnFirstFiredTime}, {AdoConstants.ColumnLastFiredTime}, {AdoConstants.ColumnLastResult}, {AdoConstants.ColumnLastRunTime}, {AdoConstants.ColumnLastInstanceName}, {AdoConstants.ColumnLastEntryId}, {AdoConstants.ColumnLastSummary}, {AdoConstants.ColumnLastSuccessTime}, {AdoConstants.ColumnLastFailureTime}, {AdoConstants.ColumnLastFailureMessage}, {AdoConstants.ColumnConsecutiveFailures}, {AdoConstants.ColumnRunCount}, {AdoConstants.ColumnFailureCount}");
+
+    private static string RunStatusInsert(RunStatusTable table) =>
+        Invariant($"INSERT INTO {TablePrefixSubst}{table.Table} ({AdoConstants.ColumnSchedulerName}, {table.GroupColumn}, {table.NameColumn}, {AdoConstants.ColumnFirstFiredTime}, {AdoConstants.ColumnLastFiredTime}, {AdoConstants.ColumnLastResult}, {AdoConstants.ColumnLastRunTime}, {AdoConstants.ColumnLastInstanceName}, {AdoConstants.ColumnLastEntryId}, {AdoConstants.ColumnLastSummary}, {AdoConstants.ColumnLastSuccessTime}, {AdoConstants.ColumnLastFailureTime}, {AdoConstants.ColumnLastFailureMessage}, {AdoConstants.ColumnConsecutiveFailures}, {AdoConstants.ColumnRunCount}, {AdoConstants.ColumnFailureCount}) VALUES (@{SqlParameters.SchedulerName}, @{table.GroupParameter}, @{table.NameParameter}, @{SqlParameters.StatusFirstFiredTime}, @{SqlParameters.StatusLastFiredTime}, @{SqlParameters.StatusLastResult}, @{SqlParameters.StatusLastRunTime}, @{SqlParameters.StatusLastInstanceName}, @{SqlParameters.StatusLastEntryId}, @{SqlParameters.StatusLastSummary}, @{SqlParameters.StatusLastSuccessTime}, @{SqlParameters.StatusLastFailureTime}, @{SqlParameters.StatusLastFailureMessage}, @{SqlParameters.StatusConsecutiveFailures}, @{SqlParameters.StatusRunCount}, @{SqlParameters.StatusFailureCount})");
+
+    private static string RunStatusUpdateIfUnchanged(RunStatusTable table) =>
+        Invariant($"UPDATE {TablePrefixSubst}{table.Table} SET {AdoConstants.ColumnFirstFiredTime} = @{SqlParameters.StatusFirstFiredTime}, {AdoConstants.ColumnLastFiredTime} = @{SqlParameters.StatusLastFiredTime}, {AdoConstants.ColumnLastResult} = @{SqlParameters.StatusLastResult}, {AdoConstants.ColumnLastRunTime} = @{SqlParameters.StatusLastRunTime}, {AdoConstants.ColumnLastInstanceName} = @{SqlParameters.StatusLastInstanceName}, {AdoConstants.ColumnLastEntryId} = @{SqlParameters.StatusLastEntryId}, {AdoConstants.ColumnLastSummary} = @{SqlParameters.StatusLastSummary}, {AdoConstants.ColumnLastSuccessTime} = @{SqlParameters.StatusLastSuccessTime}, {AdoConstants.ColumnLastFailureTime} = @{SqlParameters.StatusLastFailureTime}, {AdoConstants.ColumnLastFailureMessage} = @{SqlParameters.StatusLastFailureMessage}, {AdoConstants.ColumnConsecutiveFailures} = @{SqlParameters.StatusConsecutiveFailures}, {AdoConstants.ColumnRunCount} = @{SqlParameters.StatusRunCount}, {AdoConstants.ColumnFailureCount} = @{SqlParameters.StatusFailureCount} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {table.GroupColumn} = @{table.GroupParameter} AND {table.NameColumn} = @{table.NameParameter} AND {AdoConstants.ColumnRunCount} = @{SqlParameters.StatusReadRunCount}");
+
+    private static string RunStatusSelect(RunStatusTable table) =>
+        Invariant($"SELECT {RunStatusColumns(table)} FROM {TablePrefixSubst}{table.Table} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName}");
+
+    private static string RunStatusDeleteOrphaned(RunStatusTable table) =>
+        Invariant($"DELETE FROM {TablePrefixSubst}{table.Table} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnLastFiredTime} < @{SqlParameters.HistoryCutoff} AND NOT EXISTS (SELECT 1 FROM {TablePrefixSubst}{table.OwnerTable} {table.OwnerAlias} WHERE {table.OwnerAlias}.{AdoConstants.ColumnSchedulerName} = {TablePrefixSubst}{table.Table}.{AdoConstants.ColumnSchedulerName} AND {table.OwnerAlias}.{table.GroupColumn} = {TablePrefixSubst}{table.Table}.{table.GroupColumn} AND {table.OwnerAlias}.{table.NameColumn} = {TablePrefixSubst}{table.Table}.{table.NameColumn})");
 
     // -----------------------------------------------------------------------------------------
     // Run statistics

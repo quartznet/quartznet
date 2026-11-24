@@ -262,6 +262,9 @@ From 4.7, a configured value of `-` switches the trigger off, as Spring's `CRON_
 * Only `-` itself, surrounding spaces aside: `--` or `-00:10:00` is a value the parser refuses.
 * The [`Quartz:Schedule` section](../configuration/json.md#switching-a-trigger-off) takes the same spelling.
 
+Removing an attribute, or renaming its trigger, deletes nothing from a persistent store unless the group is
+owned: see [Removing what the code no longer declares](../how-tos/rescheduling-jobs.md#removing-what-the-code-no-longer-declares).
+
 ## One scheduler out of several
 
 `AddDeclaredJobs()` registers on the builder it is called on. To give a

@@ -23,6 +23,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.AspNetCore;
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.Util;
 
@@ -227,6 +228,28 @@ public sealed class QuartzHttpApiOptions
     /// </remarks>
     public TimeSpan EventStreamHeartbeatInterval { get; set; } = SchedulerEventStream.DefaultHeartbeatInterval;
 
+    /// <summary>
+    /// The origins a browser may call the API from, as <c>scheme://host[:port]</c> — <c>https://ops.example.com</c>.
+    /// Empty, the default, checks nothing. Added in 4.9.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When it lists any, a request whose <c>Origin</c> header is present and not listed is refused with
+    /// <c>403</c> problem details, before anything else the endpoint does. A request with no <c>Origin</c> —
+    /// a script, a pipeline, <c>HttpScheduler</c> — is never affected, and neither is a same-origin page's
+    /// <c>GET</c>, which a browser sends without one; list the API's own origin when a page of it posts.
+    /// </para>
+    /// <para>
+    /// It is for an API authenticated by something a browser sends on its own, a cookie above all. Routes such
+    /// as <c>POST …/shutdown</c> take no body, so a plain HTML form on any page the operator visits reaches
+    /// them without a CORS preflight, carrying the cookie wherever it is <c>SameSite=None</c> or the page is
+    /// on a sibling of the API's site. A bearer token or an API key header is not sent that way; listing the
+    /// origins is the defence for an API that cannot use one. Opt-in, because refusing <c>Origin</c> by
+    /// default would break the single-page applications and CORS callers that use the API today.
+    /// </para>
+    /// </remarks>
+    public List<string> AllowedOrigins { get; } = [];
+
     internal string TrimmedApiPath => ApiPath.TrimEnd('/');
 
     /// <summary>
@@ -291,6 +314,14 @@ internal sealed class QuartzHttpApiOptionsValidator : IValidateOptions<QuartzHtt
                 TimerLimits.MaxDelay,
                 "The event route waits it out between frames, and a wait longer than this is refused by the "
                 + "timer rather than by the route - which would fail the request rather than the startup."));
+        }
+
+        foreach (string origin in options.AllowedOrigins)
+        {
+            if (QuartzRequestGuard.Problem(origin) is { } problem)
+            {
+                return ValidateOptionsResult.Fail($"{nameof(QuartzHttpApiOptions.AllowedOrigins)}: {problem}");
+            }
         }
 
         // A policy name with no IAuthorizationService behind it is a security setting that silently does

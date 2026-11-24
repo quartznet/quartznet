@@ -50,14 +50,22 @@ internal sealed class QuartzDashboardHub : Hub<IQuartzDashboardHubClient>
     /// </remarks>
     public override Task OnConnectedAsync()
     {
-        logger.HubConnected(Context.ConnectionId, UserName());
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.HubConnected(Context.ConnectionId, UserName());
+        }
+
         return base.OnConnectedAsync();
     }
 
     /// <inheritdoc cref="OnConnectedAsync" />
     public override Task OnDisconnectedAsync(Exception? exception)
     {
-        logger.HubDisconnected(Context.ConnectionId, UserName());
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.HubDisconnected(Context.ConnectionId, UserName());
+        }
+
         return base.OnDisconnectedAsync(exception);
     }
 

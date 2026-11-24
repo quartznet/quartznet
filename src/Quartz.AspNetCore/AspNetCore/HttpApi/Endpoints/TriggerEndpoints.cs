@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -71,6 +72,9 @@ internal static class TriggerEndpoints
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryTriggerGroups), QueryTriggerGroups)
             .WithQuartzDefaults(SchedulerRoutes.QueryTriggerGroups, "Query trigger groups");
 
+        yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryUpcomingFires), QueryUpcomingFires)
+            .WithQuartzDefaults(SchedulerRoutes.QueryUpcomingFires, "Get every fire of every trigger between two times");
+
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.IsTriggerGroupPaused), IsTriggerGroupPaused)
             .WithQuartzDefaults(SchedulerRoutes.IsTriggerGroupPaused, "Is trigger group paused");
 
@@ -116,6 +120,8 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -154,7 +160,7 @@ internal static class TriggerEndpoints
             throw new BadHttpRequestException("Both jobName and jobGroup must be given to filter by job");
         }
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler => SchedulerOperations.QueryTriggers(
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, scheduler => SchedulerOperations.QueryTriggers(
             scheduler,
             listing,
             hasJobName ? new JobKey(jobName!, jobGroup!) : null,
@@ -169,11 +175,13 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         KeyDto[] request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertKeysToFetch(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.FetchTriggers(scheduler, request, cancellationToken));
     }
 
@@ -182,11 +190,13 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, async scheduler =>
         {
             TriggerKey triggerKey = new(triggerName, triggerGroup);
             return await SchedulerOperations.GetTrigger(scheduler, triggerKey, cancellationToken).ConfigureAwait(false)
@@ -199,11 +209,13 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.CheckTriggerExists(scheduler, new TriggerKey(triggerName, triggerGroup), cancellationToken));
     }
 
@@ -212,11 +224,13 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.GetTriggerState(scheduler, new TriggerKey(triggerName, triggerGroup), cancellationToken));
     }
 
@@ -235,12 +249,14 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         [Description("How many fire times to answer, from 1 to 100")] int count = UpcomingFireTimes.DefaultCount,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, async scheduler =>
         {
             TriggerKey triggerKey = new(triggerName, triggerGroup);
             return await SchedulerOperations.GetTriggerFireTimes(scheduler, triggerKey, count, cancellationToken).ConfigureAwait(false)
@@ -253,11 +269,13 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResetTriggerFromErrorState(scheduler, new TriggerKey(triggerName, triggerGroup), cancellationToken));
     }
 
@@ -266,11 +284,13 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         TriggerKeySetRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResetTriggerKeysFromErrorState(scheduler, request, cancellationToken));
     }
 
@@ -288,13 +308,14 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         CancellationToken cancellationToken = default)
     {
         PauseDetails? details = EndpointHelper.PauseDetailsFor(request, httpContext);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.PauseTrigger(scheduler, new TriggerKey(triggerName, triggerGroup), details, cancellationToken));
     }
 
@@ -310,6 +331,7 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         string? groupContains = null,
         string? groupEndsWith = null,
@@ -319,7 +341,7 @@ internal static class TriggerEndpoints
     {
         PauseDetails? details = EndpointHelper.PauseDetailsFor(request, httpContext);
         ListingParameters groups = ListingParameters.Groups(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.PauseTriggers(scheduler, groups, details, cancellationToken));
     }
 
@@ -337,12 +359,13 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         TriggerKeySetPauseRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
         PauseDetails? details = EndpointHelper.KeySetPauseDetailsFor(request, httpContext);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.PauseTriggerKeys(scheduler, request, details, cancellationToken));
     }
 
@@ -351,11 +374,13 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResumeTrigger(scheduler, new TriggerKey(triggerName, triggerGroup), cancellationToken));
     }
 
@@ -364,6 +389,8 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string? groupContains = null,
         string? groupEndsWith = null,
         string? groupStartsWith = null,
@@ -371,7 +398,7 @@ internal static class TriggerEndpoints
         CancellationToken cancellationToken = default)
     {
         ListingParameters groups = ListingParameters.Groups(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResumeTriggers(scheduler, groups, cancellationToken));
     }
 
@@ -380,11 +407,13 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         TriggerKeySetRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResumeTriggerKeys(scheduler, request, cancellationToken));
     }
 
@@ -393,6 +422,8 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -411,8 +442,36 @@ internal static class TriggerEndpoints
             NameEquals = nameEquals
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.QueryTriggerGroups(scheduler, listing, paused, cancellationToken));
+    }
+
+    /// <summary>
+    /// Every fire of every trigger in [<c>from</c>, <c>to</c>), earliest first, computed on this host with each
+    /// trigger's calendar applied — <c>?to=…&amp;from=…&amp;take=1000&amp;groupContains=…</c>.
+    /// </summary>
+    /// <remarks>
+    /// <c>{ "fromUtc", "toUtc", "fires": [...], "cut", "cutAtUtc", "triggersNotComputed" }</c>. A <c>from</c> that is
+    /// absent or before now is now. A window that does not end after now, is longer than seven days or ends more
+    /// than thirty days ahead, a <c>take</c> outside 1 to 1000 or above <c>MaxPageSize</c>, or more than 10,000
+    /// triggers due before <c>to</c> is a <c>400</c> with the reason. An absent <c>take</c>, or <c>all</c>, is the
+    /// most the server answers: 1000, or <c>MaxPageSize</c> when that is lower.
+    /// </remarks>
+    [ProducesResponseType(typeof(UpcomingFiresResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryUpcomingFires(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
+        [Description("The window's start; now when absent or earlier")] DateTimeOffset? from = null,
+        [Description("The window's end, excluded; at most seven days after the start and thirty days ahead")] DateTimeOffset? to = null,
+        [Description(EndpointHelper.TakeDescription)] string? take = null,
+        [Description("Only triggers whose group contains this")] string? groupContains = null,
+        CancellationToken cancellationToken = default)
+    {
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
+            scheduler => SchedulerOperations.QueryUpcomingFires(scheduler, from, to, take, groupContains, endpointHelper.MaxPageSize, cancellationToken));
     }
 
     [ProducesResponseType(typeof(GroupPausedResponse), StatusCodes.Status200OK)]
@@ -420,10 +479,12 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.IsTriggerGroupPaused(scheduler, triggerGroup, cancellationToken));
     }
 
@@ -434,12 +495,13 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         ScheduleJobRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
         string? user = EndpointHelper.AuthenticatedUser(httpContext);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ScheduleJob(scheduler, request, dto => RequestedJobDetail.From(dto, endpointHelper.IsJobTypeAllowed), user, cancellationToken));
     }
 
@@ -450,12 +512,13 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         ScheduleJobsRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
         string? user = EndpointHelper.AuthenticatedUser(httpContext);
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ScheduleJobs(scheduler, request, dto => RequestedJobDetail.From(dto, endpointHelper.IsJobTypeAllowed), user, cancellationToken));
     }
 
@@ -464,11 +527,13 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.UnscheduleJob(scheduler, new TriggerKey(triggerName, triggerGroup), cancellationToken));
     }
 
@@ -486,11 +551,13 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         UnscheduleJobsRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.UnscheduleJobs(scheduler, request, cancellationToken));
     }
 
@@ -508,6 +575,8 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string? groupContains = null,
         string? groupEndsWith = null,
         string? groupStartsWith = null,
@@ -515,7 +584,7 @@ internal static class TriggerEndpoints
         CancellationToken cancellationToken = default)
     {
         ListingParameters groups = ListingParameters.Groups(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.UnscheduleJobsByGroup(scheduler, groups, cancellationToken));
     }
 
@@ -525,13 +594,15 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         RescheduleJobRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.RescheduleJob(scheduler, new TriggerKey(triggerName, triggerGroup), request, cancellationToken));
     }
 
@@ -553,13 +624,15 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         UpdateTriggerDetailsRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.UpdateTriggerDetails(scheduler, new TriggerKey(triggerName, triggerGroup), request, cancellationToken));
     }
 
@@ -577,17 +650,24 @@ internal static class TriggerEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string triggerGroup,
         string triggerName,
         BackfillRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, async scheduler =>
         {
             TriggerKey triggerKey = new(triggerName, triggerGroup);
-            return await SchedulerOperations.BackfillTrigger(scheduler, triggerKey, request, cancellationToken).ConfigureAwait(false)
-                   ?? throw NotFoundException.ForTrigger(triggerKey);
+            BackfillResponse result = await SchedulerOperations.BackfillTrigger(scheduler, triggerKey, request, cancellationToken).ConfigureAwait(false)
+                                      ?? throw NotFoundException.ForTrigger(triggerKey);
+
+            // The dashboard's own words for a backfill it ran.
+            AuditNote.Add(httpContext, string.Create(CultureInfo.InvariantCulture,
+                $"{AuditNote.Utc(request.From!.Value)} to {AuditNote.Utc(request.To!.Value)}: {result.SlotsFound} slots, {result.Scheduled} scheduled, {result.AlreadyScheduled} already scheduled"));
+            return result;
         });
     }
 }

@@ -4,6 +4,8 @@ using Bunit;
 
 using FakeItEasy;
 
+using Microsoft.AspNetCore.Components;
+
 using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Services;
 using Quartz.Tests.AspNetCore.Support;
@@ -596,7 +598,7 @@ public class TriggersPageTest
         Select(page, "nightly.trigger-2");
         page.WaitForAssertion(() => page.Find(".qz-bulk-count").TextContent.Should().Be("2 selected"));
         page.Find(".qz-bulk-pause").Click();
-        page.WaitForAssertion(() => page.Markup.Should().Contain("Pause 2 selected trigger(s)?",
+        page.WaitForAssertion(() => page.Markup.Should().Contain("Pause 2 selected triggers?",
             "the prompt is asked once, for the whole batch"));
         page.ConfirmPause();
 
@@ -608,14 +610,14 @@ public class TriggersPageTest
         page.WaitForAssertion(() =>
         {
             IElement result = page.Find("[data-testid=trigger-bulk-result]");
-            result.TextContent.Should().Contain("Paused 1 of 2 selected trigger(s).");
+            result.TextContent.Should().Contain("Paused 1 of 2 selected triggers.");
             result.TextContent.Should().Contain("nightly.trigger-2",
                 "the row the batch did not reach is the one somebody has to go and look at");
             result.TextContent.Should().Contain("no longer exists or was already paused");
         });
         A.CallTo(() => context.Api.PauseTriggerWith(A<string>._, A<TriggerKeyDto>._, A<PauseDetails>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        context.Toasts.Messages[^1].Message.Should().Be("Paused 1 of 2 selected trigger(s).");
+        context.Toasts.Messages[^1].Message.Should().Be("Paused 1 of 2 selected triggers.");
         context.ActionLog.GetLatest(2).Should().BeEquivalentTo(
             [
                 new { Action = "PauseTrigger", Target = "nightly.trigger-2", Succeeded = false },
@@ -656,7 +658,7 @@ public class TriggersPageTest
         // Over HTTP a call per row is a request and a store transaction per row.
         A.CallTo(() => context.Api.PauseTriggerWith(A<string>._, A<TriggerKeyDto>._, A<PauseDetails>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected trigger(s)."));
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected triggers."));
         context.ActionLog.GetLatest(2).Should().BeEquivalentTo(
             [
                 new { Action = "PauseTrigger", Target = "nightly.trigger-2", Succeeded = true, Message = "one of 2 selected; reason: disk full on the export host" },
@@ -707,7 +709,7 @@ public class TriggersPageTest
             .MustHaveHappenedTwiceExactly());
         A.CallTo(() => context.Api.PauseTriggers(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected trigger(s)."));
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Paused 2 of 2 selected triggers."));
         page.FindAll("[data-testid=trigger-bulk-result]").Should().BeEmpty("every row was reached, so there is nothing to follow up");
     }
 
@@ -730,12 +732,12 @@ public class TriggersPageTest
         page.WaitForAssertion(() =>
         {
             IElement result = page.Find("[data-testid=trigger-bulk-result]");
-            result.TextContent.Should().Contain("Paused 0 of 2 selected trigger(s).");
+            result.TextContent.Should().Contain("Paused 0 of 2 selected triggers.");
             result.TextContent.Should().Contain("nightly.trigger-1");
             result.TextContent.Should().Contain("nightly.trigger-2");
             result.TextContent.Should().Contain("the store refused", "a failure says what the scheduler said");
         });
-        context.Toasts.Messages[^1].Message.Should().Be("Paused 0 of 2 selected trigger(s). 2 failed.");
+        context.Toasts.Messages[^1].Message.Should().Be("Paused 0 of 2 selected triggers. 2 failed.");
     }
 
     [Test]
@@ -752,7 +754,7 @@ public class TriggersPageTest
         page.WaitForAssertion(() => A.CallTo(() => context.Api.ResumeTriggers(
                 TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>.That.Matches(keys => keys.Count == 2), A<CancellationToken>._))
             .MustHaveHappenedOnceExactly());
-        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Resumed 2 of 2 selected trigger(s)."));
+        page.WaitForAssertion(() => context.Toasts.Messages[^1].Message.Should().Be("Resumed 2 of 2 selected triggers."));
     }
 
     [Test]
@@ -766,7 +768,7 @@ public class TriggersPageTest
         page.Find("input.qz-select-group").Change(true);
         page.Find(".qz-bulk-unschedule").Click();
 
-        page.WaitForAssertion(() => page.Markup.Should().Contain("Unschedule 2 selected trigger(s)?"));
+        page.WaitForAssertion(() => page.Markup.Should().Contain("Unschedule 2 selected triggers?"));
         A.CallTo(() => context.Api.UnscheduleJobs(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
 
@@ -792,11 +794,186 @@ public class TriggersPageTest
         page.WaitForAssertion(() =>
         {
             IElement result = page.Find("[data-testid=trigger-bulk-result]");
-            result.TextContent.Should().Contain("Resumed 0 of 2 selected trigger(s).");
+            result.TextContent.Should().Contain("Resumed 0 of 2 selected triggers.");
             result.QuerySelectorAll("li").Should().HaveCount(2, "one request, so a refusal is the whole batch's");
         });
-        context.Toasts.Messages[^1].Message.Should().Be("Resumed 0 of 2 selected trigger(s). 2 failed.");
+        context.Toasts.Messages[^1].Message.Should().Be("Resumed 0 of 2 selected triggers. 2 failed.");
         context.ActionLog.GetLatest(2).Should().OnlyContain(entry => !entry.Succeeded && entry.Message!.Contains("read-only"));
+    }
+
+    /// <summary>
+    /// Clear selection takes the bar it stands in away, so focus goes to the listing rather than fall to the body.
+    /// </summary>
+    [Test]
+    public void ClearingTheSelectionMovesFocusToTheListing()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        string listing = ReferenceOf(page.Find("[data-testid=trigger-results]"));
+        Select(page, "nightly.trigger-1");
+        page.WaitForElement(".qz-bulk-clear");
+        int focusedSoFar = Focused().Count;
+
+        page.Find(".qz-bulk-clear").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=trigger-bulk-actions]").Should().BeEmpty());
+        page.WaitForAssertion(() => Focused().Should().HaveCount(focusedSoFar + 1));
+        LastFocused().Should().Be(listing);
+    }
+
+    /// <summary>
+    /// Dismiss removes the result it stands in, so focus goes to the listing rather than fall to the body.
+    /// </summary>
+    [Test]
+    public void DismissingTheResultMovesFocusToTheListing()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        A.CallTo(() => context.Api.ResumeTriggers(A<string>._, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKeyDto>());
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        string listing = ReferenceOf(page.Find("[data-testid=trigger-results]"));
+        page.Find("input.qz-select-group").Change(true);
+        page.Find(".qz-bulk-resume").Click();
+        page.WaitForElement("[data-testid=trigger-bulk-result]");
+        int focusedSoFar = Focused().Count;
+
+        page.Find(".qz-bulk-result-dismiss").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=trigger-bulk-result]").Should().BeEmpty());
+        page.WaitForAssertion(() => Focused().Should().HaveCount(focusedSoFar + 1));
+        LastFocused().Should().Be(listing);
+    }
+
+    /// <summary>
+    /// A bulk action spends the selection, which takes the bar and the button pressed with it, so focus goes to the
+    /// listing as it is read again.
+    /// </summary>
+    [Test]
+    public void ABulkActionMovesFocusToTheListingAsItsBarGoes()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2, TriggerState.Paused));
+        A.CallTo(() => context.Api.ResumeTriggers(TestData.SchedulerName, A<IReadOnlyCollection<TriggerKeyDto>>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, IReadOnlyCollection<TriggerKeyDto> keys, CancellationToken _) => keys.ToList());
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        string listing = ReferenceOf(page.Find("[data-testid=trigger-results]"));
+        page.Find("input.qz-select-group").Change(true);
+        int focusedSoFar = Focused().Count;
+
+        page.Find(".qz-bulk-resume").Click();
+
+        page.WaitForAssertion(() => page.FindAll("[data-testid=trigger-bulk-actions]").Should().BeEmpty());
+        page.WaitForAssertion(() => Focused().Should().HaveCount(focusedSoFar + 1));
+        LastFocused().Should().Be(listing);
+    }
+
+    /// <summary>
+    /// Each dialog is handed the control that opened it, which focus goes back to as it closes, and the listing, which
+    /// focus goes to instead when that control has left the page by then. Without the control, focus goes back to
+    /// whatever had it as the dialog opened: after a click that moves no focus, as Safari's on a button, that is the
+    /// page's heading, and focusing the heading scrolls the page back to its top.
+    /// </summary>
+    [TestCase("Pause selected")]
+    [TestCase("Unschedule selected")]
+    [TestCase("a row's Pause")]
+    [TestCase("a row's Unschedule")]
+    [TestCase("Pause group")]
+    public void EachDialogIsHandedTheControlThatOpenedIt(string opener)
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        string listing = ReferenceOf(page.Find("[data-testid=trigger-results]"));
+        page.WaitForElement("input.qz-select-trigger");
+        if (opener.EndsWith(" selected", StringComparison.Ordinal))
+        {
+            Select(page, "nightly.trigger-1");
+            page.WaitForElement("[data-testid=trigger-bulk-actions]");
+        }
+
+        // Read off the control's first render, the only one that carries its reference.
+        string? control = Opener(page, opener).GetAttribute("blazor:elementreference");
+
+        Opener(page, opener).Click();
+
+        page.WaitForAssertion(() => Invoked("quartzDashboardDialog.open").Should().ContainSingle());
+        IReadOnlyList<object?> arguments = Invoked("quartzDashboardDialog.open")[0].Arguments;
+        arguments.Should().HaveCount(3, "the dialog is handed the control focus goes back to, and where it goes should that have gone");
+        ((ElementReference) arguments[1]!).Id.Should().Be(control);
+        ((ElementReference) arguments[2]!).Id.Should().Be(listing);
+    }
+
+    /// <summary>
+    /// A row's Unschedule closes its dialog before the call, so focus goes back to the row's button, and the read after
+    /// it takes the row away: focus goes on to the listing rather than fall to the page's body, or stay on a button that
+    /// now unschedules another trigger.
+    /// </summary>
+    [Test]
+    public void ConfirmingARowsUnscheduleMovesFocusToTheListingOnceItsRowHasGone()
+    {
+        List<TriggerHeaderDto> listed = [.. TestData.Dashboard.TriggerHeaders("nightly", 3)];
+        GivenTriggers(listed);
+        TaskCompletionSource<bool> unscheduled = new();
+        A.CallTo(() => context.Api.UnscheduleJob(TestData.SchedulerName, new TriggerKeyDto("nightly", "trigger-2"), A<CancellationToken>._))
+            .Returns(new ValueTask<bool>(unscheduled.Task));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        string listing = ReferenceOf(page.Find("[data-testid=trigger-results]"));
+        page.WaitForElement("input.qz-select-trigger[aria-label='Select nightly.trigger-2']")
+            .Closest("tr")!.QuerySelectorAll("td.qz-col-actions button").First(button => button.TextContent.Trim() == "Unschedule").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+        page.WaitForAssertion(() => page.FindAll(".qz-confirm-dialog").Should().BeEmpty("the dialog closes before the call, while the row is still listed"));
+        int focusedSoFar = Focused().Count;
+
+        listed.RemoveAt(1);
+        unscheduled.SetResult(true);
+
+        page.WaitForAssertion(() => page.FindAll("input.qz-select-trigger[aria-label='Select nightly.trigger-2']").Should().BeEmpty());
+        page.WaitForAssertion(() => Focused().Should().HaveCount(focusedSoFar + 1));
+        LastFocused().Should().Be(listing);
+    }
+
+    /// <summary>
+    /// A selected trigger that a row's Unschedule takes away leaves the selection with its row: the bar counts what is
+    /// listed, and Pause selected asks about that alone, rather than counting the trigger that has gone and reporting
+    /// it not reached.
+    /// </summary>
+    [Test]
+    public void ATriggerThatLeavesTheListingLeavesTheSelection()
+    {
+        List<TriggerHeaderDto> listed = [.. TestData.Dashboard.TriggerHeaders("nightly", 3)];
+        GivenTriggers(listed);
+        A.CallTo(() => context.Api.UnscheduleJob(TestData.SchedulerName, new TriggerKeyDto("nightly", "trigger-2"), A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            {
+                listed.RemoveAt(1);
+                return new ValueTask<bool>(true);
+            });
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+        Select(page, "nightly.trigger-1");
+        Select(page, "nightly.trigger-2");
+        page.WaitForAssertion(() => page.Find(".qz-bulk-count").TextContent.Should().Be("2 selected"));
+
+        page.Find("input.qz-select-trigger[aria-label='Select nightly.trigger-2']")
+            .Closest("tr")!.QuerySelectorAll("td.qz-col-actions button").First(button => button.TextContent.Trim() == "Unschedule").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        page.WaitForAssertion(() => page.FindAll("input.qz-select-trigger[aria-label='Select nightly.trigger-2']").Should().BeEmpty());
+        page.Find(".qz-bulk-count").TextContent.Should().Be("1 selected", "the unscheduled trigger left the selection with its row");
+        page.Find("input.qz-select-trigger[aria-label='Select nightly.trigger-1']").HasAttribute("checked").Should().BeTrue();
+
+        page.Find(".qz-bulk-pause").Click();
+
+        page.WaitForAssertion(() => page.Markup.Should().Contain("Pause 1 selected trigger?"));
+    }
+
+    private static IElement Opener(IRenderedComponent<Triggers> page, string opener)
+    {
+        return opener switch
+        {
+            "Pause selected" => page.Find(".qz-bulk-pause"),
+            "Unschedule selected" => page.Find(".qz-bulk-unschedule"),
+            "a row's Pause" => page.FindAll("td.qz-col-actions button").First(button => button.TextContent.Trim() == "Pause"),
+            "a row's Unschedule" => page.FindAll("td.qz-col-actions button").First(button => button.TextContent.Trim() == "Unschedule"),
+            _ => page.FindAll(".qz-section > .qz-group-actions button").Single(button => button.TextContent.Trim() == "Pause group")
+        };
     }
 
     [Test]
@@ -844,9 +1021,219 @@ public class TriggersPageTest
         page.FindAll(".qz-filter-apply").Should().ContainSingle("filtering is reading, not writing");
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Each trigger's last run (#4243)
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// A row says what its trigger's last run achieved, how long it took and how long ago it fired, with the fire
+    /// time, the node and the summary on hover; and how many of its occurrences in a row have failed for good, linking
+    /// to those failures.
+    /// </summary>
+    [Test]
+    public void ARowShowsItsTriggersLastRunAndHowManyOccurrencesInARowFailed()
+    {
+        context.SchedulerState.SelectedTimeZoneId = "America/Chicago";
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        GivenRunStatuses(
+            RunStatus("trigger-1", now.AddMinutes(-2), JobRunResult.Failed) with
+            {
+                LastDuration = TimeSpan.FromSeconds(1.5),
+                LastSchedulerInstanceId = "node-a",
+                LastSummary = "3 invoices did not reconcile",
+                LastFailureMessage = "the feed is down",
+                ConsecutiveFailures = 3
+            },
+            RunStatus("trigger-2", now.AddHours(-3), JobRunResult.Succeeded) with { LastDuration = TimeSpan.FromMilliseconds(40) });
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("th").Select(th => th.TextContent.Trim()).Should().ContainInOrder("Previous fire", "Last run", "State");
+        page.FindAll("td.qz-col-last-run .qz-trigger-last-run").Select(Text).Should().Equal(
+            "Failed 1.5 s 2m ago",
+            "Succeeded 40 ms 3h ago");
+        page.FindAll("td.qz-col-last-run .qz-trigger-failing").Select(Text).Should().Equal("failing ×3");
+
+        IElement summary = page.Find("td.qz-col-last-run .qz-trigger-last-run");
+        summary.GetAttribute("title").Should().Be("Fired 2026-10-05 09:21:00 -05:00, on node-a: 3 invoices did not reconcile",
+            "the fire time is in the dashboard's zone, as every time on the page is");
+
+        IElement badge = page.Find("td.qz-col-last-run .qz-failing-badge");
+        badge.GetAttribute("title").Should().Be("the feed is down", "the badge says what the last failure said");
+        badge.GetAttribute("href").Should().EndWith("history?outcome=failed&triggerGroup=nightly&triggerName=trigger-1&result=failed",
+            "the badge opens the trigger's final failures, not the trigger's own page");
+        badge.GetAttribute("aria-label").Should().Be("failing ×3: the last 3 runs of nightly.trigger-1 failed. Open them in History",
+            "the link's name starts with what it shows, then says whose runs and where it goes");
+        page.FindAll("td.qz-col-last-run .qz-failing-badge").Should().ContainSingle("a trigger that has not failed has no badge");
+    }
+
+    /// <summary>
+    /// The last run is under the state too, shown there once the listing is too narrow for its column, as the
+    /// schedule is under the key.
+    /// </summary>
+    [Test]
+    public void TheLastRunIsUnderTheStateForANarrowListing()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+        GivenRunStatuses(RunStatus("trigger-1", now.AddMinutes(-2), JobRunResult.Failed) with { ConsecutiveFailures = 1 });
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.Find("table.qz-triggers-table").ClassList.Should().Contain("qz-with-last-run",
+            "the listing's narrow steps come earlier with the column than without it");
+        Text(page.Find("td.qz-col-state .qz-last-run-inline .qz-last-run-caption")).Should().Be("Last run",
+            "under the state the last run is a second status, so it says which, as the column's header did");
+        page.FindAll("td.qz-col-last-run .qz-last-run-caption").Should().BeEmpty("the column has its header");
+        Text(page.Find("td.qz-col-state .qz-last-run-inline .qz-trigger-last-run")).Should().Be(Text(page.Find("td.qz-col-last-run .qz-trigger-last-run")));
+        Text(page.Find("td.qz-col-state .qz-last-run-inline .qz-trigger-failing")).Should().Be(Text(page.Find("td.qz-col-last-run .qz-trigger-failing")));
+    }
+
+    /// <summary>
+    /// A run shorter than a millisecond reads as under one, not as a fraction beside the seconds of the next row.
+    /// </summary>
+    [Test]
+    public void ARunShorterThanAMillisecondReadsAsUnderOne()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        GivenRunStatuses(
+            RunStatus("trigger-1", now.AddMinutes(-2), JobRunResult.Succeeded) with { LastDuration = TimeSpan.FromMilliseconds(0.043) },
+            RunStatus("trigger-2", now.AddMinutes(-2), JobRunResult.Failed) with { LastDuration = TimeSpan.FromSeconds(4.07) });
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("td.qz-col-last-run .qz-trigger-last-run").Select(Text).Should().Equal(
+            "Succeeded < 1 ms 2m ago",
+            "Failed 4.07 s 2m ago");
+    }
+
+    [Test]
+    public void ATriggerWithNoRecordedRunShowsADashThatSaysSo()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+        GivenRunStatuses();
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        IElement dash = page.Find("td.qz-col-last-run .qz-trigger-no-run");
+        dash.TextContent.Trim().Should().Be("—");
+        dash.GetAttribute("title").Should().Be("No run of this trigger has been recorded");
+    }
+
+    /// <summary>
+    /// A data source that keeps no trigger status — a history of the application's own, a host older than 4.9 —
+    /// leaves the column out, and the listing lays out as it did before it.
+    /// </summary>
+    [Test]
+    public void ASourceThatKeepsNoTriggerStatusLeavesTheColumnOut()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("th.qz-col-last-run").Should().BeEmpty();
+        page.FindAll(".qz-last-run-inline").Should().BeEmpty();
+        page.Find("table.qz-triggers-table").ClassList.Should().NotContain("qz-with-last-run");
+        page.FindAll(".qz-error-alert").Should().BeEmpty("a source without the datum is not a page that failed to load");
+    }
+
+    /// <summary>
+    /// The statuses are read once per load and once per refresh, for the page's triggers in one call: never one
+    /// read per row.
+    /// </summary>
+    [Test]
+    public void TheStatusesAreReadOncePerLoadAndPerRefreshForThePagesTriggers()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 3));
+        List<TriggerRunStatusQuery> reads = GivenRunStatuses();
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.WaitForAssertion(() => reads.Should().ContainSingle());
+        reads[0].Triggers.Should().BeEquivalentTo(
+            [new TriggerKey("trigger-1", "nightly"), new TriggerKey("trigger-2", "nightly"), new TriggerKey("trigger-3", "nightly")],
+            "the one read names every trigger on the page");
+        reads[0].SchedulerName.Should().Be(context.SchedulerState.ActiveSchedulerName);
+
+        page.Find("[data-testid=refresh]").Click();
+
+        page.WaitForAssertion(() => reads.Should().HaveCount(2, "a refresh reads the page's statuses once more, and only once"));
+    }
+
+    /// <summary>
+    /// A read of the statuses that fails, once the listing has been read, marks the listing stale as a failed read of
+    /// the listing does, and keeps what was shown.
+    /// </summary>
+    [Test]
+    public void AStatusReadThatFailsOnARefreshMarksTheListingStale()
+    {
+        DateTimeOffset now = context.Clock.GetUtcNow();
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+        GivenRunStatuses(RunStatus("trigger-1", now.AddMinutes(-2), JobRunResult.Succeeded));
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        A.CallTo(() => context.Api.QueryTriggerRunStatuses(A<TriggerRunStatusQuery>._, A<CancellationToken>._))
+            .Throws(new InvalidOperationException("the history is not answering"));
+        page.Find("[data-testid=refresh]").Click();
+
+        page.WaitForAssertion(() =>
+        {
+            page.Find("[data-testid=stale-marker]").GetAttribute("title").Should().Be(
+                "The last refresh failed: the history is not answering");
+            page.FindAll("td.qz-col-last-run .qz-trigger-last-run").Should().ContainSingle("the statuses read before stay on screen");
+        });
+    }
+
+    private List<TriggerRunStatusQuery> GivenRunStatuses(params TriggerRunStatus[] statuses)
+    {
+        List<TriggerRunStatusQuery> reads = [];
+        A.CallTo(() => context.Api.QueryTriggerRunStatuses(A<TriggerRunStatusQuery>._, A<CancellationToken>._))
+            .ReturnsLazily((TriggerRunStatusQuery query, CancellationToken _) =>
+            {
+                reads.Add(query);
+                List<TriggerRunStatus> named = statuses.Where(status => query.Triggers is null || query.Triggers.Contains(status.Trigger)).ToList();
+                return new ValueTask<PagedResult<TriggerRunStatus>>(new PagedResult<TriggerRunStatus>(named, HasMore: false));
+            });
+
+        return reads;
+    }
+
+    private TriggerRunStatus RunStatus(string triggerName, DateTimeOffset firedAt, JobRunResult result) =>
+        new(context.SchedulerState.ActiveSchedulerName!, new TriggerKey(triggerName, "nightly"), firedAt, result);
+
     private static void Select(IRenderedComponent<Triggers> page, string key)
     {
         page.Find("input.qz-select-trigger[aria-label='Select " + key + "']").Change(true);
+    }
+
+    /// <summary>The ids of the elements focus was moved to, in order.</summary>
+    private List<string> Focused()
+    {
+        return context.JSInterop.Invocations
+            .Where(invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus")
+            .Select(invocation => ((ElementReference) invocation.Arguments[0]!).Id)
+            .ToList();
+    }
+
+    private string LastFocused() => Focused().Should().NotBeEmpty().And.Subject.Last();
+
+    /// <summary>The calls of one JavaScript function, in order.</summary>
+    private List<JSRuntimeInvocation> Invoked(string identifier)
+    {
+        return context.JSInterop.Invocations.Where(invocation => invocation.Identifier == identifier).ToList();
+    }
+
+    /// <summary>
+    /// The id an element's <c>@ref</c> is focused by, read off its first render: a later render of the element does not
+    /// carry it again.
+    /// </summary>
+    private static string ReferenceOf(IElement element)
+    {
+        string? id = element.GetAttribute("blazor:elementreference");
+        id.Should().NotBeNullOrEmpty();
+        return id!;
     }
 
     /// <summary>

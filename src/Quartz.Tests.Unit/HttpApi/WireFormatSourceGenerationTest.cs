@@ -58,6 +58,8 @@ public class WireFormatSourceGenerationTest
         typeof(NotFoundException),
         typeof(NotServedException),
         typeof(ForbiddenException),
+        typeof(TargetFaultException),
+        typeof(TargetFault),
         typeof(ProblemClassification),
         typeof(ProblemKind)
     ];
@@ -75,6 +77,7 @@ public class WireFormatSourceGenerationTest
         yield return typeof(PagedResultDto<string>);
         yield return typeof(PagedResultDto<TriggerGroupDto>);
         yield return typeof(PagedResultDto<TriggerHeaderDto>);
+        yield return typeof(PagedResultDto<TriggerRunStatusDto>);
     }
 
     [TestCaseSource(nameof(ContractTypes))]

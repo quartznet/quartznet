@@ -117,6 +117,7 @@ export const sidebarEn: SidebarConfig = [
           "/documentation/quartz-4.x/packages/dashboard",
           "/documentation/quartz-4.x/packages/dashboard-agent",
           "/documentation/quartz-4.x/packages/dashboard-host",
+          "/documentation/quartz-4.x/packages/mcp",
           "/documentation/quartz-4.x/packages/entity-framework-core",
           "/documentation/quartz-4.x/packages/hosted-services-integration",
           "/documentation/quartz-4.x/packages/microsoft-di-integration",

@@ -59,7 +59,10 @@ internal sealed class AgentWireTransport : IWireTransport
         DateTimeOffset now = registry.Now;
         if (entry.IsOffline(now, registry.Options))
         {
+            // A connection error, as a refused socket is: nothing was sent, so a carrier relaying this request can
+            // say the target is not reachable rather than that a change may have been made.
             throw new HttpRequestException(
+                HttpRequestError.ConnectionError,
                 $"Agent '{entry.Target}' has been offline since {(entry.OfflineSinceUtc ?? entry.LastSeenUtc).ToString("O", CultureInfo.InvariantCulture)}.");
         }
 

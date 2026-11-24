@@ -220,6 +220,11 @@ public abstract class ExecutionOutcomeRoundTripTest
             status.Should().NotBeNull();
             status.LastSummary.Should().Be(kept, "LAST_SUMMARY is cut as SUMMARY is, after the {0} run", entryId);
             status.LastFailureMessage.Should().Be(kept, "LAST_FAILURE_MESSAGE is cut as ERROR_MESSAGE is, after the {0} run", entryId);
+
+            TriggerRunStatus triggerStatus = await TriggerStatus(store, "failing");
+            triggerStatus.Should().NotBeNull();
+            triggerStatus.LastSummary.Should().Be(kept, "the trigger's LAST_SUMMARY is cut as its job's is, after the {0} run", entryId);
+            triggerStatus.LastFailureMessage.Should().Be(kept, "and its LAST_FAILURE_MESSAGE, after the {0} run", entryId);
         }
     }
 
@@ -313,6 +318,91 @@ public abstract class ExecutionOutcomeRoundTripTest
     }
 
     /// <summary>
+    /// A trigger's 4.9 status row is inserted by its first firing and updated by every later one, ends where
+    /// <see cref="TriggerRunStatusFold" /> ends, and leaves out a manual run and a firing that finalized the
+    /// trigger; the read binds the named keys, the failing filter and this dialect's paging.
+    /// </summary>
+    [Test]
+    public async Task TheTriggerStatusIsUpsertedAndFoldsAsTheFoldDoesAndIsReadByKey()
+    {
+        using AdoExecutionHistoryStore store = await CreateStore(_ => { });
+        ITriggerStatusHistoryStore recorder = store;
+
+        (ExecutionHistoryEntry Run, bool Finalized)[] runs =
+        [
+            (Fired("hourly", "h1", Now.AddMinutes(-10), JobRunResult.Succeeded) with { Summary = "first" }, false),
+            (Fired("hourly", "h2", Now.AddMinutes(-9), JobRunResult.Failed) with { RetryScheduled = true, ExceptionMessage = "retrying" }, false),
+            (Fired("hourly", "h3", Now.AddMinutes(-8), JobRunResult.Failed) with { ExceptionMessage = "gave up" }, false),
+            (Fired("nightly", "n1", Now.AddMinutes(-7), JobRunResult.Succeeded), false),
+            (Fired("hourly", "h4", Now.AddMinutes(-2), JobRunResult.Failed) with { SchedulerInstanceId = "node-b", ExceptionMessage = "still down" }, false),
+            (Fired("hourly", "h5", Now.AddMinutes(-5), JobRunResult.Failed) with { ExceptionMessage = "completed late" }, false),
+            (Fired("hourly", "manual", Now.AddMinutes(-1), JobRunResult.Succeeded) with { Manual = true }, false),
+            (Fired("one-off", "o1", Now.AddMinutes(-1), JobRunResult.Failed), true),
+            (Fired("hourly", "h6", Now.AddMinutes(-20), JobRunResult.Succeeded) with { Result = null, Summary = "a 4.3 row" }, false)
+        ];
+
+        Dictionary<string, TriggerRunStatus> folded = [];
+        foreach ((ExecutionHistoryEntry run, bool finalized) in runs)
+        {
+            if (TriggerRunStatusFold.Folds(run, finalized))
+            {
+                folded[run.TriggerName] = TriggerRunStatusFold.Apply(folded.GetValueOrDefault(run.TriggerName), run);
+            }
+
+            await recorder.AddExecution(run, finalized);
+
+            (await TriggerStatus(store, run.TriggerName)).Should().BeEquivalentTo(folded.GetValueOrDefault(run.TriggerName),
+                "the trigger row the database keeps is the fold's, after {0}", run.EntryId);
+        }
+
+        TriggerRunStatus hourly = folded["hourly"];
+        hourly.ConsecutiveFailures.Should().Be(2,
+            "the premise: the manual success did not reset the run of failures, and the late failure and the old success did not move it");
+        hourly.LastSchedulerInstanceId.Should().Be("node-b");
+
+        (await TriggerNames(store, new TriggerRunStatusQuery { SchedulerName = schedulerName })).Should().Equal(["hourly", "nightly"],
+            "the one-off's firing finalized it, so it has no row");
+        (await TriggerNames(store, new TriggerRunStatusQuery { SchedulerName = schedulerName, Failing = true })).Should().Equal(["hourly"]);
+        (await TriggerNames(store, new TriggerRunStatusQuery { SchedulerName = schedulerName, Failing = false })).Should().Equal(["nightly"]);
+        (await TriggerNames(store, new TriggerRunStatusQuery
+        {
+            SchedulerName = schedulerName,
+            Triggers = [new TriggerKey("nightly", "outcome"), new TriggerKey("hourly", "elsewhere"), new TriggerKey("one-off", "outcome")]
+        })).Should().Equal(["nightly"], "each named key binds its group and name together");
+
+        PagedResult<TriggerRunStatus> page = await store.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = schedulerName,
+            Triggers = [new TriggerKey("nightly", "outcome"), new TriggerKey("hourly", "outcome")],
+            Skip = 1,
+            Take = 1,
+            IncludeTotalCount = true
+        });
+        page.Items.Should().ContainSingle().Which.Trigger.Name.Should().Be("nightly", "the page is in group and name order");
+        page.TotalCount.Should().Be(2);
+        page.HasMore.Should().BeFalse();
+
+        (await store.GetJobRunStatus(schedulerName, new JobKey("report", "outcome"))).RunCount.Should().Be(runs.Length,
+            "the job's status counts every run, the manual and the finalizing one too");
+    }
+
+    /// <summary>
+    /// A database without the 4.9 table, as a store window over one nobody migrated sees it: this dialect's driver
+    /// reports the missing table in the words the store recognises, so the read names the script rather than failing
+    /// as if the database had gone away.
+    /// </summary>
+    [Test]
+    public async Task AReadOverADatabaseWithoutTheTriggerStatusTableNamesTheScript()
+    {
+        using AdoExecutionHistoryStore store = await CreateStore(_ => { }, tablePrefix: "QRTZNONE_");
+
+        Func<Task> read = async () => await store.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = schedulerName });
+
+        (await read.Should().ThrowAsync<NotSupportedException>("no table of that prefix exists, and the driver says so in its own words"))
+            .WithMessage("*QRTZNONE_TRIGGER_STATUS*4.9/add_trigger_status_*");
+    }
+
+    /// <summary>
     /// Every sweep statement runs on this dialect and deletes what it should: the longest window, a
     /// shorter window for its results, the per-job cap, the misfire feed and the statuses of deleted jobs.
     /// </summary>
@@ -357,6 +447,9 @@ public abstract class ExecutionOutcomeRoundTripTest
             SchedulerName = schedulerName,
             Jobs = [new JobKey("capped", "outcome"), new JobKey("deleted", "outcome")]
         })).Should().Equal(["capped"]);
+
+        (await TriggerNames(store, new TriggerRunStatusQuery { SchedulerName = schedulerName })).Should().Equal(["capped", "tiered"],
+            "the deleted trigger's status is past the longest window with no trigger behind it, and goes as its job's does");
     }
 
     /// <summary>
@@ -482,20 +575,23 @@ public abstract class ExecutionOutcomeRoundTripTest
         [
             Run("folded", "r1", Now.AddMinutes(-10), JobRunResult.Succeeded) with { Summary = "first" },
             Run("other", "o1", Now.AddMinutes(-9), JobRunResult.Skipped),
-            Run("folded", "r2", Now.AddMinutes(-9), JobRunResult.Failed) with { RetryScheduled = true, ExceptionMessage = "retrying" },
-            Run("folded", "r3", Now.AddMinutes(-8), JobRunResult.Failed) with { ExceptionMessage = "gave up" },
+            Run("folded", "r2", Now.AddMinutes(-9), JobRunResult.Failed) with { TriggerName = "folded-hourly", RetryScheduled = true, ExceptionMessage = "retrying" },
+            Run("folded", "r3", Now.AddMinutes(-8), JobRunResult.Failed) with { TriggerName = "folded-hourly", ExceptionMessage = "gave up" },
             Run("folded", "r4", Now.AddMinutes(-2), JobRunResult.Skipped) with { SchedulerInstanceId = "node-b" },
             Run("other", "o2", Now.AddMinutes(-3), JobRunResult.Failed) with { ExceptionMessage = "refused" },
             Run("folded", "r5", Now.AddMinutes(-5), JobRunResult.Failed) with { ExceptionMessage = "completed late" },
-            Run("folded", "r6", Now.AddMinutes(-1), JobRunResult.Cancelled),
+            Run("folded", "r6", Now.AddMinutes(-1), JobRunResult.Cancelled) with { TriggerName = "folded-hourly" },
             Run("folded", "r7", Now.AddMinutes(-1), JobRunResult.Failed) with { Summary = "reported, same instant" },
-            Run("folded", "r8", Now.AddMinutes(-20), JobRunResult.Succeeded) with { Result = null, Summary = "a 4.3 row" }
+            Run("folded", "r8", Now.AddMinutes(-20), JobRunResult.Succeeded) with { Result = null, Summary = "a 4.3 row" },
+            Run("folded", "one-off", Now, JobRunResult.Failed) with { TriggerName = "folded-once" },
+            Run("folded", "manual", Now, JobRunResult.Succeeded) with { TriggerName = "MT_folded", Manual = true }
         ];
 
         for (int i = 0; i < runs.Length; i++)
         {
-            await perRun.AddExecution(runs[i]);
-            await behind.AddExecution(runs[i] with { SchedulerName = behindScheduler });
+            bool finalized = runs[i].TriggerName == "folded-once";
+            await perRun.AddExecution(runs[i], finalized);
+            await behind.AddExecution(runs[i] with { SchedulerName = behindScheduler }, finalized);
 
             if (i == 2)
             {
@@ -516,6 +612,13 @@ public abstract class ExecutionOutcomeRoundTripTest
                 options => options.Excluding(status => status.SchedulerName),
                 "a flush leaves {0}'s status where the statements per run leave it", job);
         }
+
+        List<TriggerRunStatus> behindTriggers = (await behind.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = behindScheduler })).Items.ToList();
+        behindTriggers.Select(status => status.Trigger.Name).Should().Equal(["folded", "folded-hourly", "other"]);
+        behindTriggers.Should().BeEquivalentTo(
+            (await perRun.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = schedulerName })).Items,
+            options => options.Excluding(status => status.SchedulerName).WithStrictOrdering(),
+            "a flush leaves each trigger's status where the statements per run leave it, and writes none for a finalizing firing");
 
         List<ExecutionHistoryEntry> written = (await behind.QueryExecutions(Query() with { SchedulerName = behindScheduler })).Items.ToList();
         written.Should().BeEquivalentTo(
@@ -549,6 +652,7 @@ public abstract class ExecutionOutcomeRoundTripTest
         nightly.FailureCount.Should().Be(1);
         nightly.ConsecutiveFailures.Should().Be(0, "the newer run succeeded");
         (await reader.GetJobRunStatus(schedulerName, new JobKey("other", "outcome"))).RunCount.Should().Be(1);
+        (await TriggerStatus(reader, "nightly")).RunCount.Should().Be(2, "and wrote the trigger statuses with them");
     }
 
     /// <summary>
@@ -591,6 +695,10 @@ public abstract class ExecutionOutcomeRoundTripTest
         JobRunStatus status = await nodeA.GetJobRunStatus(schedulerName, new JobKey("contended", "outcome"));
         status.RunCount.Should().Be(2 * Rounds * RunsPerNode, "each node's runs were counted once, whichever flush committed first");
         status.FailureCount.Should().Be(finalFailures);
+
+        TriggerRunStatus triggerStatus = await TriggerStatus(nodeA, "contended");
+        triggerStatus.RunCount.Should().Be(2 * Rounds * RunsPerNode, "the trigger's row is raced for as its job's is, and counts every run once");
+        triggerStatus.FailureCount.Should().Be(finalFailures);
         (await nodeA.QueryExecutions(Query() with { IncludeTotalCount = true, Take = 1 })).TotalCount
             .Should().Be(2 * Rounds * RunsPerNode, "a flush that went round again wrote its rows once");
     }
@@ -632,6 +740,26 @@ public abstract class ExecutionOutcomeRoundTripTest
         return (await store.QueryJobRunStatuses(query)).Items.Select(status => status.Job.Name).ToList();
     }
 
+    /// <summary>One run of the job <c>outcome.report</c>, fired by the trigger <paramref name="triggerName" />.</summary>
+    private ExecutionHistoryEntry Fired(string triggerName, string entryId, DateTimeOffset firedAt, JobRunResult result) =>
+        Run("report", entryId, firedAt, result) with { TriggerName = triggerName };
+
+    private async Task<TriggerRunStatus> TriggerStatus(AdoExecutionHistoryStore store, string triggerName)
+    {
+        PagedResult<TriggerRunStatus> page = await store.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = schedulerName,
+            Triggers = [new TriggerKey(triggerName, "outcome")]
+        });
+
+        return page.Items.Count > 0 ? page.Items[0] : null;
+    }
+
+    private static async Task<List<string>> TriggerNames(AdoExecutionHistoryStore store, TriggerRunStatusQuery query)
+    {
+        return (await store.QueryTriggerRunStatuses(query)).Items.Select(status => status.Trigger.Name).ToList();
+    }
+
     /// <summary>A check-in row for this case's scheduler, replacing any earlier one of the node.</summary>
     private Task CheckIn(string instanceId, DateTimeOffset at)
     {
@@ -651,7 +779,8 @@ public abstract class ExecutionOutcomeRoundTripTest
 
     private async ValueTask<AdoExecutionHistoryStore> CreateStore(
         Action<ExecutionHistoryOptions> configure,
-        AdoJobStoreOptions storeOptions = null)
+        AdoJobStoreOptions storeOptions = null,
+        string tablePrefix = "QRTZ_")
     {
         string connectionString = await PrepareDatabase();
         dbProvider = new DbProvider(DbProviderName, connectionString);
@@ -659,7 +788,7 @@ public abstract class ExecutionOutcomeRoundTripTest
         driverDelegate = CreateDriverDelegate();
         driverDelegate.Initialize(new DriverDelegateContext
         {
-            TablePrefix = "QRTZ_",
+            TablePrefix = tablePrefix,
             SchedulerName = schedulerName,
             InstanceId = "node-a",
             DbProvider = dbProvider,

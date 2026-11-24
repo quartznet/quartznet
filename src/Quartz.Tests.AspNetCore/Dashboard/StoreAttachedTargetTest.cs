@@ -74,6 +74,31 @@ public sealed class StoreAttachedTargetTest
         database.Dispose();
     }
 
+    /// <summary>
+    /// A window is listed under its bare name, and the dashboard's client asks the scheduler policy about it with the
+    /// target its store was attached under, as the HTTP API and MCP do (#4245 review): a policy deciding by target
+    /// decides a window named by its bare name.
+    /// </summary>
+    [Test]
+    public async Task AWindowNamedByItsBareNameIsAskedAboutWithItsStoresTarget()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        TestSchedulerAuthorizationService authorization = new();
+        authorization.Allowed.Add(ClusterScheduler);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(
+            database,
+            services => services.Configure<QuartzDashboardOptions>(options => options.SchedulerAuthorizationPolicy = "Schedulers"),
+            authorization: authorization);
+
+        await dashboard.Client.QueryJobs(ClusterScheduler, new DashboardJobQuery());
+
+        authorization.Asked.Select(static x => x.Resource).OfType<SchedulerResource>()
+            .Should().Contain(resource => resource.SchedulerName == ClusterScheduler && resource.Target == Target)
+            .And.NotContain(resource => resource.SchedulerName == ClusterScheduler && resource.Target == null,
+                "the bare name reaches the scheduler behind the store's target");
+    }
+
     [Test]
     public async Task AWindowShowsTheClustersSchedule()
     {
@@ -122,6 +147,22 @@ public sealed class StoreAttachedTargetTest
     }
 
     /// <summary>
+    /// A window declares nothing itself, and what each node declares is the node's own, so it cannot say whether
+    /// the next start stores a trigger again (#4412).
+    /// </summary>
+    [Test]
+    public async Task AWindowCannotSayWhetherATriggerIsDeclared()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+
+        (await dashboard.Client.IsTriggerDeclaredAtStartup(ClusterScheduler, new TriggerKeyDto("nightly", "at-midnight"))).Should().BeNull(
+            "false would say an edit lasts, which only the node that declares the trigger knows");
+    }
+
+    /// <summary>
     /// The pages address a window by its key, <c>test/reporting</c>, and the history tables are keyed by
     /// the scheduler's own name, <c>reporting</c>: every history read has to ask the store for the name.
     /// </summary>
@@ -149,6 +190,109 @@ public sealed class StoreAttachedTargetTest
 
         List<JobRunStatus> statuses = await client.GetJobRunStatuses(window.Key, [new JobKeyDto("batch", "import")]);
         statuses.Should().ContainSingle().Which.RunCount.Should().Be(1);
+
+        // The Overview's failing jobs read a window's statuses by its key too (#4411).
+        (await client.QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = window.Key }))
+            .Items.Should().ContainSingle().Which.Job.Name.Should().Be("import");
+        (await client.QueryJobRunStatuses(new JobRunStatusQuery { SchedulerName = window.Key, Failing = true }))
+            .Items.Should().BeEmpty("the one run recorded succeeded");
+
+        PagedResult<TriggerRunStatus> triggers = await client.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = window.Key,
+            Triggers = [new TriggerKey("at-midnight", "nightly")]
+        });
+        triggers.Items.Should().ContainSingle("the trigger statuses are keyed by the scheduler's own name too")
+            .Which.SchedulerName.Should().Be(ClusterScheduler);
+    }
+
+    /// <summary>
+    /// A window reads each node's version off its row (#4411), so halfway through a rolling upgrade the
+    /// Cluster page names the node still on the old one and what it costs.
+    /// </summary>
+    [Test]
+    public async Task AWindowReadsEachNodesVersionAndSaysWhatAMixedClusterCosts()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow, version: "4.9.0");
+        WriteCheckIn(ClusterScheduler, "node-b", DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+
+        List<ClusterNodeDto> nodes = await dashboard.Client.QueryClusterNodes(ClusterScheduler);
+        nodes.Single(x => x.InstanceId == NodeA).QuartzVersion.Should().Be("4.9.0");
+        nodes.Single(x => x.InstanceId == "node-b").QuartzVersion.Should().BeNull("node-b's row has no stamp: it is older than 4.6");
+
+        bool reports = NodeVersions.Reports(nodes, isWindow: true);
+        NodeVersions.Label(nodes.Single(x => x.InstanceId == "node-b"), reports, answeringVersion: null).Should().Be("older than 4.6");
+
+        MixedVersions mixed = NodeVersions.Mixed(nodes, reports)!;
+        mixed.Should().NotBeNull("two live nodes run different versions");
+        mixed.Groups.Select(group => group.Version).Should().Equal(["older than 4.6", "4.9.0"], "oldest first");
+        mixed.Costs.Should().ContainSingle().Which.Should().Contain("node node-b").And.Contain("TRIGGER_ACCESS").And.Contain("never answered");
+    }
+
+    /// <summary>
+    /// Trigger Detail's diagnosis reads a window as it reads a scheduler (#4411): the status from the
+    /// cluster's check-ins, the job group's pause from the store, and the firing of the job a node is running,
+    /// through the firing listing's job filter.
+    /// </summary>
+    [Test]
+    public async Task AWindowIsDiagnosedFromTheStoreTheClusterShares()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        IScheduler nodeScheduler = await node.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        await nodeScheduler.PauseJobGroupsWith(GroupMatcher<JobKey>.GroupEquals("batch"), new PauseDetails { Reason = "quarter close", RequestedBy = "finance" });
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow, version: "4.9.0");
+        WriteExecutingFiring("node-a-1", NodeA);
+        WriteExecutingFiring("node-b-1", "node-b", jobName: "other");
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+        SchedulerHeaderDto window = (await dashboard.Client.GetSchedulers()).Single(x => x.SchedulerName == ClusterScheduler);
+        ITrigger trigger = await dashboard.Client.GetTrigger(window.Key, new TriggerKeyDto("nightly", "at-midnight"));
+        TriggerState state = await dashboard.Client.GetTriggerState(window.Key, new TriggerKeyDto("nightly", "at-midnight"));
+
+        TriggerDiagnosisFacts facts = await TriggerDiagnosis.Read(
+            dashboard.Client,
+            new DiagnosisSubject(window.Key, trigger, state, Pause: null, ContinuationParentExists: true, DateTimeOffset.UtcNow) { IsWindow = true });
+        List<DiagnosisCheck> checks = TriggerDiagnosis.Evaluate(facts, value => value?.ToString("u", CultureInfo.InvariantCulture) ?? "-");
+
+        state.Should().Be(TriggerState.Paused, "pausing the job group pauses its triggers");
+        checks.Single(check => check.Name == "Scheduler").Text.Should().Be("Running: a node of the cluster checked in within its interval.");
+        checks.Single(check => check.Name == "Job group").Text.Should().StartWith("'batch' is paused by finance at").And.Contain("(quarter close)");
+        checks.Single(check => check.Name == "Its job's firings").Text.Should().StartWith("One running: on node " + NodeA,
+            "the job filter finds the firing the node wrote for this job, and not node-b's of another");
+    }
+
+    /// <summary>
+    /// A window whose database has no trigger status table, which the window validated when it opened but which is
+    /// gone now: the read says so with <see cref="NotSupportedException" />, which the Triggers listing answers by
+    /// leaving its last-run column out, rather than failing the page.
+    /// </summary>
+    [Test]
+    public async Task AWindowOntoADatabaseWithoutTheTriggerStatusTableSaysWhichScriptCreatesIt()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+        SchedulerHeaderDto window = (await dashboard.Client.GetSchedulers()).Should().ContainSingle(x => x.SchedulerName == ClusterScheduler).Subject;
+
+        using (SqliteConnection connection = new(database.ConnectionString))
+        {
+            connection.Open();
+            using SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE QRTZ_TRIGGER_STATUS";
+            command.ExecuteNonQuery();
+        }
+
+        Func<Task> read = async () => await dashboard.Client.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = window.Key,
+            Triggers = [new TriggerKey("at-midnight", "nightly")]
+        });
+
+        await read.Should().ThrowAsync<NotSupportedException>().WithMessage("*QRTZ_TRIGGER_STATUS*4.9/add_trigger_status_sqlite.sql*");
     }
 
     [Test]
@@ -217,6 +361,32 @@ public sealed class StoreAttachedTargetTest
 
         TriggerState state = await client.GetTriggerState(ClusterScheduler, new TriggerKeyDto("nightly", "at-midnight"));
         state.Should().Be(TriggerState.Paused);
+    }
+
+    /// <summary>
+    /// A running firing's log is read where the firing runs, and a window runs nothing (#4437): the client answers
+    /// <see cref="FireInstanceLogStatus.Unreachable" /> and asks the window nothing. Asked, the window would say it
+    /// runs no such firing under its own id, which the page would read as another node running it.
+    /// </summary>
+    [Test]
+    public async Task AWindowCannotFollowARunningFiringsLog()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+
+        FireInstanceLogDto log = await dashboard.Client.GetFireInstanceLog(ClusterScheduler, new DashboardFireInstanceLogQuery
+        {
+            FireInstanceId = "running-on-node-a",
+            After = 4,
+            SchedulerInstanceId = NodeA,
+        });
+
+        log.Status.Should().Be(FireInstanceLogStatus.Unreachable);
+        log.SchedulerInstanceId.Should().BeNull("the window is no node, and a NotRunning under its id would read as another node");
+        log.Entries.Should().BeEmpty();
+        log.Next.Should().Be(4, "the reader's cursor comes back as it went");
     }
 
     /// <summary>
@@ -321,6 +491,37 @@ public sealed class StoreAttachedTargetTest
     }
 
     /// <summary>
+    /// A window computes the agenda in this process, from the tables the nodes share, and lists what the node itself
+    /// would (#4438).
+    /// </summary>
+    [Test]
+    public async Task AWindowListsTheSameAgendaAsTheNode()
+    {
+        await using ServiceProvider node = await StartNode(ClusterScheduler);
+        IScheduler nodeScheduler = await node.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        DateTimeOffset start = new DateTimeOffset(now.UtcTicks - now.UtcTicks % TimeSpan.TicksPerMinute, TimeSpan.Zero).AddMinutes(10);
+        await nodeScheduler.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity("every-20", "nightly")
+            .ForJob(new JobKey("nightly", "batch"))
+            .StartAt(start.AddMinutes(30))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(20)).RepeatForever())
+            .Build());
+        WriteCheckIn(ClusterScheduler, NodeA, DateTimeOffset.UtcNow);
+
+        await using DashboardHost dashboard = await DashboardHost.Attached(database);
+        UpcomingFiresDto window = await dashboard.Client.QueryUpcomingFires(ClusterScheduler, new DashboardUpcomingFiresQuery { From = start, To = start.AddHours(2) });
+        Quartz.Impl.UpcomingFiresOutcome atTheNode = await Quartz.Impl.UpcomingFires.Query(
+            nodeScheduler, new Quartz.Impl.UpcomingFiresQuery(start, start.AddHours(2), null, 1000), CancellationToken.None);
+
+        window.Fires.Select(fire => (fire.FireTimeUtc, fire.Trigger.Group, fire.Trigger.Name)).Should().Equal(
+            atTheNode.Result!.Fires.Select(fire => (fire.FireTimeUtc, fire.TriggerKey.Group, fire.TriggerKey.Name)),
+            "the window reads the node's triggers out of the database they share");
+        window.Fires.Select(fire => fire.FireTimeUtc - start).Should().Equal(
+            [TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(50), TimeSpan.FromMinutes(70), TimeSpan.FromMinutes(90), TimeSpan.FromMinutes(110)]);
+    }
+
+    /// <summary>
     /// A window onto a store attached without <c>UseExecutionHistory()</c> says there is no history
     /// there, naming the store and the window, rather than showing this process's own history.
     /// </summary>
@@ -347,11 +548,11 @@ public sealed class StoreAttachedTargetTest
 
         await using DashboardHost dashboard = await DashboardHost.Attached(database);
 
-        SchedulerEventSources.For(dashboard.Provider, ClusterScheduler).Should().BeNull(
+        SchedulerEventLookup.For(dashboard.Provider, ClusterScheduler).Should().BeNull(
             "a database carries a schedule, not a feed of what happened to it - and answering with this "
             + "process's own broker would show another cluster's name over this process's firings");
 
-        SchedulerEventSources.For(dashboard.Provider, "local").Should().NotBeNull(
+        SchedulerEventLookup.For(dashboard.Provider, "local").Should().NotBeNull(
             "a scheduler of this process still has the one the container registered");
     }
 
@@ -511,7 +712,7 @@ public sealed class StoreAttachedTargetTest
     /// The row a node writes for a firing it is running, as the node itself would: <c>EXECUTING</c>, with
     /// the job's key. Written by hand for the reason the check-in row is: nothing here runs the job.
     /// </summary>
-    private void WriteExecutingFiring(string entryId, string instanceId)
+    private void WriteExecutingFiring(string entryId, string instanceId, string jobName = "nightly")
     {
         using SqliteConnection connection = new(database.ConnectionString);
         connection.Open();
@@ -519,11 +720,12 @@ public sealed class StoreAttachedTargetTest
         using SqliteCommand command = connection.CreateCommand();
         command.CommandText =
             "INSERT INTO QRTZ_FIRED_TRIGGERS (SCHED_NAME, ENTRY_ID, TRIGGER_NAME, TRIGGER_GROUP, INSTANCE_NAME, FIRED_TIME, SCHED_TIME, PRIORITY, STATE, JOB_NAME, JOB_GROUP, IS_NONCONCURRENT, REQUESTS_RECOVERY) "
-            + "VALUES (@scheduler, @entry, 'at-midnight', 'nightly', @instance, @fired, @fired, 5, 'EXECUTING', 'nightly', 'batch', 0, 0)";
+            + "VALUES (@scheduler, @entry, 'at-midnight', 'nightly', @instance, @fired, @fired, 5, 'EXECUTING', @job, 'batch', 0, 0)";
         command.Parameters.AddWithValue("@scheduler", ClusterScheduler);
         command.Parameters.AddWithValue("@entry", entryId);
         command.Parameters.AddWithValue("@instance", instanceId);
         command.Parameters.AddWithValue("@fired", DateTimeOffset.UtcNow.UtcTicks);
+        command.Parameters.AddWithValue("@job", jobName);
         command.ExecuteNonQuery();
     }
 
@@ -561,7 +763,8 @@ public sealed class StoreAttachedTargetTest
         public static async ValueTask<DashboardHost> Attached(
             SqliteTestDatabase database,
             Action<IServiceCollection>? configure = null,
-            bool history = true)
+            bool history = true,
+            TestSchedulerAuthorizationService? authorization = null)
         {
             ServiceCollection services = new();
             services.AddLogging();
@@ -601,7 +804,7 @@ public sealed class StoreAttachedTargetTest
                 options,
                 provider.GetRequiredService<IExecutionHistoryStore>(),
                 provider,
-                new SchedulerAuthorization(options, new TestSchedulerAuthorizationService(), new TestAuthenticationStateProvider()),
+                new SchedulerAuthorization(options, authorization ?? new TestSchedulerAuthorizationService(), new TestAuthenticationStateProvider()),
                 provider.GetRequiredService<AttachedStores>());
 
             return new DashboardHost(provider, client);

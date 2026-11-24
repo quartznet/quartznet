@@ -3,16 +3,18 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
     <!--
-      Aspire ships its AppHost SDK, its hosting packages and its client integrations as one version,
-      so the example pins all four from one property — including the MSBuild SDK, which the AppHost
-      names with the <Sdk> element form for exactly that reason.
+      Aspire ships its hosting packages and its client integrations as one version, and the AppHost's
+      build fetches the Aspire CLI at the version of Aspire.Hosting.AppHost, so the example takes its four
+      Aspire packages from one property and they cannot disagree. Until Aspire 17 the AppHost also named
+      the Aspire.AppHost.Sdk MSBuild SDK with it, which no PackageVersion can version; 17 made that SDK
+      obsolete (#4370).
 
-      This is the only version in the file that is a property rather than a PackageVersion, and the
-      reason is that the SDK reference is not a PackageReference and so cannot be centrally managed.
-      Note also that `aspire update` does not work in a repository using central package management
-      (microsoft/aspire#15476); move these by hand, or let the `aspire` dependabot group do it.
+      Only the example's rows use it. Quartz.Aspire.Hosting's Aspire.Hosting is a floor, below, and stays
+      where it is when this moves. Note also that `aspire update` does not work in a repository using
+      central package management (microsoft/aspire#15476); move these by hand, or let the `aspire`
+      dependabot group do it.
     -->
-    <AspireVersion>13.6.5</AspireVersion>
+    <AspireVersion>17.0.0</AspireVersion>
     <!--
       The compiler Quartz.Analyzers is written against, and therefore the oldest host that can load it.
       4.12.0 is the .NET 9 SDK's Roslyn and Visual Studio 17.12's, which is as old as a host that can
@@ -21,7 +23,7 @@
       than as the missing diagnostics it is. Raising this raises the floor on every consumer's IDE.
 
       A property with a VersionOverride at each of the two call sites, rather than a PackageVersion row,
-      and this is the second place in the file where central management cannot express what is meant.
+      because central management cannot express what is meant here.
       CentralPackageTransitivePinningEnabled turns a PackageVersion into a demand on every project that
       resolves the id at all, and two already resolve Microsoft.CodeAnalysis above 4.12.0 for reasons of
       their own: BenchmarkDotNet 0.16.0-preview.2 asks Quartz.Benchmark and Quartz.Benchmark.Competitors
@@ -37,6 +39,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="$(AspireVersion)" />
+    <PackageVersion Include="Aspire.Hosting.Dotnet" Version="$(AspireVersion)" />
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="$(AspireVersion)" />
     <PackageVersion Include="Aspire.Npgsql" Version="$(AspireVersion)" />
     <!--
@@ -83,11 +86,19 @@
       Quartz.Tests.Integration keeps Wolverine 6.45.0 with a VersionOverride beside Marten 9.45.0.
     -->
     <PackageVersion Include="Marten" Version="9.45.0" />
-    <PackageVersion Include="MELT" Version="1.1.0" />
+    <PackageVersion Include="MELT" Version="2.0.0" />
     <!--
-      Quartz.Dashboard.Host's sign-in through an identity provider. Current rather than a floor: the host is
-      a tool and a container image, which carry this inside them rather than asking a consumer for it.
+      The MCP client Quartz.Tests.AspNetCore calls Quartz.Mcp with. At the server's floor, and moved with it:
+      ModelContextProtocol.AspNetCore depends on this package at its own version, so a test client ahead of
+      the server would test a pair no consumer has.
     -->
+    <PackageVersion Include="ModelContextProtocol" Version="2.3.1" />
+    <!--
+      Quartz.Dashboard.Host's sign-in through an identity provider, and the bearer token its HTTP API takes
+      from the same one (#4218). Current rather than a floor: the host is a tool and a container image,
+      which carry these inside them rather than asking a consumer for them.
+    -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.15" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.15" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.15" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
@@ -97,8 +108,8 @@
       alone, floored below, so none of these reaches a nuspec. One line for the EF Core family, at the patch the
       competitor benchmark measured TickerQ on.
     -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.15" />
     <!--
       The current stable line, 11.x since #4277. It once spent a while on 11.0.0-preview.*, while .NET 10
       was itself in preview and Dependabot kept it walking that line, which no shipped package took,
@@ -108,8 +119,8 @@
     -->
     <PackageVersion Include="Microsoft.Data.SQLite" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.2" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="11.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="11.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="11.0.1" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CrashDump" Version="2.5.3" />
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.3" />
@@ -131,9 +142,9 @@
     <PackageVersion Include="NUnit" Version="5.0.0" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.15.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="6.3.1" />
-    <PackageVersion Include="Npgsql" Version="10.0.3" />
-    <PackageVersion Include="Npgsql.DependencyInjection" Version="10.0.3" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageVersion Include="Npgsql" Version="10.0.4" />
+    <PackageVersion Include="Npgsql.DependencyInjection" Version="10.0.4" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.4" />
     <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
@@ -256,6 +267,16 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
     <!--
+      Quartz.Mcp's one dependency: the official C# SDK of the Model Context Protocol, which serves its
+      Streamable HTTP transport. 2.3.1 rather than an earlier 2.x: GHSA-x863-g495-4cjc covers every release
+      from 2.0.0-preview.1 below it, binding a stateful session to a principal by NameIdentifier, sub or upn,
+      so two principals with none of them shared one. Quartz.Mcp is stateless always, and still floors the
+      fixed release. It asks for 10.0.13 of the framework abstractions floored here at 10.0.0 and for
+      Microsoft.Extensions.AI.Abstractions 10.11.0, which is why Quartz.Mcp does not pin transitively. The
+      tests' client, ModelContextProtocol above, moves with this row.
+    -->
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.3.1" />
+    <!--
       Named by Quartz.Weasel.MySQL, which talks to MySQL through it: Weasel.MySql 9.39.0 declares
       MySqlConnector 2.4.0, under GHSA-473q-m89c-ghf8, and a direct reference patches a consumer's graph as
       well as ours. 2.6.1 is the version that fixed it. The reference keeps its floor here when Weasel.MySql
@@ -340,6 +361,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.341" />
+    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.342" />
   </ItemGroup>
 </Project>

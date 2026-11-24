@@ -43,15 +43,22 @@ namespace Quartz.Impl;
 internal sealed class HttpWireTransport : IWireTransport
 {
     private readonly HttpClient httpClient;
+    private readonly string? gatewayTarget;
 
-    public HttpWireTransport(HttpClient httpClient)
+    /// <param name="httpClient">The client, whose base address is where the API is mapped.</param>
+    /// <param name="gatewayTarget">
+    /// The host's target the scheduler is behind — <see cref="HttpClientOptions.GatewayTarget" /> — which every
+    /// request names and every success must echo; <see langword="null" /> for the host's own scheduler.
+    /// </param>
+    public HttpWireTransport(HttpClient httpClient, string? gatewayTarget = null)
     {
         this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        this.gatewayTarget = gatewayTarget;
     }
 
     public async ValueTask<WireResponse> Send(WireRequest request, CancellationToken cancellationToken = default)
     {
-        using HttpRequestMessage message = new(HttpMethod.Parse(request.Route.Method), request.Path);
+        using HttpRequestMessage message = new(HttpMethod.Parse(request.Route.Method), GatewayTarget.Append(request.Path, gatewayTarget));
         if (request.Body is not null)
         {
             message.Content = new ByteArrayContent(request.Body)
@@ -61,6 +68,8 @@ internal sealed class HttpWireTransport : IWireTransport
         }
 
         using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        GatewayTarget.EnsureEchoed(response, gatewayTarget);
+
         byte[] body = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
         return new WireResponse(response.StatusCode, body);
     }

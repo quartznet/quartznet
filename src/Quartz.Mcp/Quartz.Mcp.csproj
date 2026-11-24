@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Title>Quartz.NET MCP Server</Title>
+    <Description>Quartz.NET MCP server - an endpoint that lets an AI agent read and operate the schedulers of a process and of its fleet over the Model Context Protocol, under the operator roles; $(Description)</Description>
+    <PackageTags>$(PackageTags);mcp;model-context-protocol;ai;agent;aspnetcore</PackageTags>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Quartz</RootNamespace>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!--
+      The claim, and what it is worth - the same statement Quartz.AspNetCore.csproj makes, and read the same
+      way. IsAotCompatible turns on IsTrimmable and the trim, AOT and single-file analyzers; what it adds is
+      the statement, so the four are spelled out beside it.
+
+      What is proven: Quartz.Trimming.Canary.Wire references this package, is published by ILCompiler as a
+      native executable on every pull request, and is run. It maps the MCP endpoint on Kestrel and calls
+      tools/list, list_jobs and pause_trigger by raw JSON-RPC, then previews a reschedule and confirms it with
+      the Data Protection token the preview answered, every argument, answer and token payload read and written
+      through the generated metadata of McpJsonContext, with reflection-based System.Text.Json switched off.
+
+      Why it holds: the SDK's attribute tools and AIFunctionFactory reflect over a method's parameters, so
+      no tool here is one. Each is an McpServerTool subclass whose input schema JsonSchemaExporter writes
+      from a source-generated JsonTypeInfo, and whose arguments are read with the same metadata. The SDK
+      says IsAotCompatible for itself.
+    -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <!--
+      Off for the reason Quartz.Dashboard.Agent gives. ModelContextProtocol.AspNetCore 2.3.1 asks for
+      10.0.13 of Microsoft.Extensions.Caching, Hosting and Logging abstractions, and pinning them at
+      Quartz's 10.0.0 floors is NU1109. Off, the nuspec says Quartz.AspNetCore and the SDK, and a consumer
+      inherits Quartz's floors through Quartz.
+    -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
+  </ItemGroup>
+
+</Project>

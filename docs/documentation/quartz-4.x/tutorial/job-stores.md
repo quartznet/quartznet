@@ -335,7 +335,8 @@ process, in memory, so a dashboard attached to a cluster through a shared store 
 page: no node wrote to anything it reads.
 
 `UseExecutionHistory()` moves both feeds into the scheduler's own database, so the cluster has one
-history and any node can read all of it:
+history and any node can read all of it. A [wait for a firing](../how-tos/one-off-job.md#trigger-it-and-wait-for-the-outcome)
+on a cluster needs it, because the firing may run on another node:
 
 <!-- snippet: sample_job_stores_execution_history -->
 ```csharp
@@ -360,7 +361,8 @@ builder.Services.AddQuartzExecutionHistory(options =>
 
 The flat key is `quartz.jobStore.executionHistory`.
 
-**The schema needs three tables**, `QRTZ_EXECUTION_HISTORY`, `QRTZ_MISFIRE_HISTORY` and `QRTZ_JOB_STATUS`.
+**The schema needs four tables**, `QRTZ_EXECUTION_HISTORY`, `QRTZ_MISFIRE_HISTORY`, `QRTZ_JOB_STATUS` and, from
+4.9, `QRTZ_TRIGGER_STATUS`.
 
 * A fresh install from `database/tables/` and `ProvisionSchema()` create them.
 * A database created by 4.0 or 4.1 needs
@@ -371,12 +373,16 @@ The flat key is `quartz.jobStore.executionHistory`.
 * A database whose tables came from 4.3 needs
   [`database/migrations/4.4/add_execution_outcome_<db>.sql`](../../database/schema-changes.md#version-4-4),
   which adds the outcome columns and `QRTZ_JOB_STATUS`.
+* A database whose tables came from 4.4 to 4.8 needs
+  [`database/migrations/4.9/add_trigger_status_<db>.sql`](../../database/schema-changes.md#version-4-9),
+  which creates `QRTZ_TRIGGER_STATUS`.
 * An older database needs each script after its own too, oldest first.
 * A store configured this way refuses to start without them and names the scripts to run.
 * Nothing else needs this migration; skip it if you do not call `UseExecutionHistory()`.
 
 **Each execution is one transaction** on the history's own connection: its row, then its job's
-`QRTZ_JOB_STATUS` row, then one commit.
+`QRTZ_JOB_STATUS` row, then its trigger's `QRTZ_TRIGGER_STATUS` row, then one commit. A manual run, and a firing
+after which its trigger is finalized, leave the trigger's row alone.
 
 * The status row is updated, or inserted on the job's first recorded run: one statement more than the row
   alone, two on a first run. The commit count is unchanged.
@@ -418,7 +424,7 @@ builder.Services.AddQuartzExecutionHistory(options =>
 | Property | Value |
 |---|---|
 | flush | every interval, sooner when 256 runs are queued |
-| one flush | one transaction: a row per run, then one `QRTZ_JOB_STATUS` update per job, its runs folded in memory |
+| one flush | one transaction: a row per run, then one `QRTZ_JOB_STATUS` update per job and one `QRTZ_TRIGGER_STATUS` update per trigger, their runs folded in memory, every job row before every trigger row |
 | queue | 4,096 runs; a completion that finds it full writes itself, as with write-behind off |
 | shutdown and disposal | write the queue first, before the connection provider closes |
 | a transient failure | the flush runs again, `MaxTransientRetries` times, `TransientRetryInterval` apart |

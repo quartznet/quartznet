@@ -441,6 +441,20 @@ public interface IQuartzApiClient
     }
 
     /// <summary>
+    /// Why the trigger group is paused, who asked and when, or <see langword="null" /> when it is not paused
+    /// or its pause recorded nothing — what <see cref="IScheduler.GetTriggerGroupPause" /> answers.
+    /// </summary>
+    /// <remarks>
+    /// What Trigger Detail's diagnosis says of a paused trigger group. A default interface member, added in 4.9,
+    /// whose default reports the datum as unavailable: <see langword="null" />, as <see cref="GetJobGroupPause" />'s
+    /// does.
+    /// </remarks>
+    ValueTask<PauseInfo?> GetTriggerGroupPause(string schedulerName, string groupName, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
     /// Why the job group is paused, who asked and when, or <see langword="null" /> when it is not paused
     /// or its pause recorded nothing — what <see cref="IScheduler.GetJobGroupPause" /> answers.
     /// </summary>
@@ -451,6 +465,31 @@ public interface IQuartzApiClient
     ValueTask<PauseInfo?> GetJobGroupPause(string schedulerName, string groupName, CancellationToken cancellationToken = default)
     {
         return new ValueTask<PauseInfo?>((PauseInfo?) null);
+    }
+
+    /// <summary>
+    /// Whether the scheduler's start-up declarations name the trigger and store it again at its next start, so a
+    /// reschedule or an edit made since lasts until then; <see langword="null" /> when the source cannot say.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="true" /> for a trigger an <c>AddTrigger</c> or <c>ScheduleJob</c> registration, or a
+    /// scheduling file, declares with <see cref="SchedulingOptions.OverwriteExistingData" /> on, the default, and for
+    /// any declared trigger in a store that keeps nothing across starts. <see langword="false" /> for one added at
+    /// run time, from the dashboard among others, and for one whose declaration does not store over a stored copy.
+    /// A store window, a host or agent older than 4.9, and a scheduler the container did not build cannot say.
+    /// </para>
+    /// <para>
+    /// What Trigger Detail's editors warn with. A default interface member, added in 4.9, whose default reports the
+    /// datum as unavailable: <see langword="null" />.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler holding the trigger.</param>
+    /// <param name="triggerKey">The trigger to ask about.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<bool?> IsTriggerDeclaredAtStartup(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<bool?>((bool?) null);
     }
 
     /// <summary>
@@ -708,6 +747,56 @@ public interface IQuartzApiClient
     }
 
     /// <summary>
+    /// One page of the scheduler's per-job run statuses, by job group and then name, as
+    /// <see cref="Extensibility.IExecutionHistoryStore.QueryJobRunStatuses" /> answers it: narrowed to some jobs,
+    /// or to the failing ones with <see cref="JobRunStatusQuery.Failing" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Overview's <em>Needs attention</em> reads, with <see cref="JobRunStatusQuery.Failing" /> set, for
+    /// the jobs failing in a row. <see cref="JobRunStatusQuery.SchedulerName" /> is the scheduler's key, as every
+    /// page spells it. A history that keeps no per-job status raises <see cref="NotSupportedException" />, and the
+    /// panel leaves the part out. Over HTTP and through an agent it is the <c>…/history/job-status</c> route.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.9. The default reports the datum as unavailable with
+    /// <see cref="NotSupportedException" />, as <see cref="GetJobRunStatus" />'s does.
+    /// </para>
+    /// </remarks>
+    /// <param name="query">Which statuses to return, and how many.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<PagedResult<JobRunStatus>>(new NotSupportedException(
+            "This dashboard's data source cannot list jobs' run statuses: its IQuartzApiClient does not implement QueryJobRunStatuses."));
+    }
+
+    /// <summary>
+    /// One page of the scheduler's per-trigger run statuses — each trigger's last run, and how many of its
+    /// occurrences in a row have failed — by trigger group and then name, as
+    /// <see cref="Extensibility.IExecutionHistoryStore.QueryTriggerRunStatuses" /> answers it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Triggers page reads, once per page and per refresh, naming the page's triggers in
+    /// <see cref="TriggerRunStatusQuery.Triggers" />, for its last-run column. A trigger with no recorded run is
+    /// absent. A history that keeps no per-trigger status, or a host older than 4.9, raises
+    /// <see cref="NotSupportedException" />, and the page leaves the column out.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.9. The default reports the datum as unavailable with
+    /// <see cref="NotSupportedException" />.
+    /// </para>
+    /// </remarks>
+    /// <param name="query">Which statuses to return, and how many.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<PagedResult<TriggerRunStatus>>(new NotSupportedException(
+            "This dashboard's data source cannot read triggers' run statuses: its IQuartzApiClient does not implement QueryTriggerRunStatuses."));
+    }
+
+    /// <summary>
     /// The scheduler's runs, counted by result and timed in buckets of fire time, as
     /// <see cref="Extensibility.IExecutionHistoryStore.QueryExecutionStatistics" /> answers it.
     /// </summary>
@@ -765,6 +854,76 @@ public interface IQuartzApiClient
             : null;
 
         return UpcomingFireTimes.Compute(trigger, calendar, count);
+    }
+
+    /// <summary>
+    /// The lines a running firing has logged after a cursor, read from the process running it, or the state that
+    /// says why there are none to read: <see cref="FireInstanceLogStatus" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What Currently Executing's <em>Show log</em> polls, every two seconds while its dialog is open. The lines are
+    /// the ones <c>UseExecutionLogCapture()</c> keeps, which Execution Detail shows once the run ends. Over HTTP and
+    /// through an agent it is the <c>…/jobs/fire-instances/{fireInstanceId}/log</c> route; a store window answers
+    /// <see cref="FireInstanceLogStatus.Unreachable" />, and a cluster of targets asks the member fronting
+    /// <see cref="DashboardFireInstanceLogQuery.SchedulerInstanceId" /> alone.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.9. The default reports the datum as unavailable with
+    /// <see cref="NotSupportedException" />, and Currently Executing's <em>Show log</em> says so.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler the firing belongs to.</param>
+    /// <param name="query">The firing, the cursor, the node running it and the page size.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentException"><see cref="DashboardFireInstanceLogQuery.After" /> is negative, or <see cref="DashboardFireInstanceLogQuery.Take" /> is not from 1 to 1000.</exception>
+    ValueTask<FireInstanceLogDto> GetFireInstanceLog(
+        string schedulerName,
+        DashboardFireInstanceLogQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<FireInstanceLogDto>(new NotSupportedException(
+            "This dashboard's data source cannot read a running firing's log: its IQuartzApiClient does not implement GetFireInstanceLog."));
+    }
+
+    /// <summary>
+    /// Every fire of every trigger in [<see cref="DashboardUpcomingFiresQuery.From" />,
+    /// <see cref="DashboardUpcomingFiresQuery.To" />), earliest first, computed where the scheduler's triggers are
+    /// stored, with calendars applied. At most <see cref="DashboardUpcomingFiresQuery.Take" /> fires, and a window of
+    /// at most 7 days within the next 30.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Agenda page reads, once per load, change or <em>Refresh</em>. Every trigger due before the window
+    /// ends is listed, in any state, so a paused trigger's fires are listed with its state. Each trigger's schedule
+    /// advances from its next fire time, in its own time zone, less what its calendar excludes. A simple trigger that
+    /// measures its interval from completion lists only its next fire. The fires are the schedules' times: no
+    /// misfire handling, blocking, execution-group limit or standby is simulated.
+    /// </para>
+    /// <para>
+    /// A window that does not end after now, is longer than 7 days or ends more than 30 days ahead, a
+    /// <see cref="DashboardUpcomingFiresQuery.Take" /> outside 1 to 1,000, or more than 10,000 triggers due before
+    /// the window ends raises <see cref="ArgumentException" /> with the reason. Over HTTP and through an agent it is
+    /// the <c>…/triggers/upcoming-fires</c> route; a host older than 4.9 has none, and the fires are computed in
+    /// this process from the triggers and calendars it answers with.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.9. The default reports the datum as unavailable with
+    /// <see cref="NotSupportedException" />, and the Agenda says so. It does not compose the answer from
+    /// <see cref="GetTrigger" />, which would be a read per trigger.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler whose triggers to list the fires of.</param>
+    /// <param name="query">The window, the trigger group filter and the most fires to answer.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentException">The query is refused; the message says why.</exception>
+    ValueTask<UpcomingFiresDto> QueryUpcomingFires(
+        string schedulerName,
+        DashboardUpcomingFiresQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<UpcomingFiresDto>(new NotSupportedException(
+            "This dashboard's data source cannot list what fires between two times: its IQuartzApiClient does not implement QueryUpcomingFires."));
     }
 
     /// <summary>
@@ -1025,6 +1184,134 @@ public sealed record DashboardFireInstanceQuery : PagedQuery
     /// query lists what is running; <see langword="null" /> lists reserved firings as well.
     /// </summary>
     public FireInstanceState? State { get; init; } = FireInstanceState.Executing;
+
+    /// <summary>
+    /// Lists only the firings of this job, matched exactly, or every job's when null, as
+    /// <see cref="FireInstanceQuery.Job" /> does. A firing that is only <see cref="FireInstanceState.Acquired" />
+    /// has no job recorded yet and never matches. Added in 4.9.
+    /// </summary>
+    /// <remarks>
+    /// What Trigger Detail's diagnosis reads to name the firing that holds a <see cref="TriggerState.Blocked" />
+    /// trigger's job. Over HTTP and through an agent it travels as the route's <c>jobName</c> and <c>jobGroup</c>,
+    /// which hosts have read since 4.0.
+    /// </remarks>
+    public JobKeyDto? Job { get; init; }
+}
+
+/// <summary>
+/// One read of a running firing's log: the lines after the ones the reader has (#4437). Added in 4.9.
+/// </summary>
+public sealed record DashboardFireInstanceLogQuery
+{
+    /// <summary>
+    /// The firing, as <see cref="FireInstanceDto.FireInstanceId" /> names it.
+    /// </summary>
+    public required string FireInstanceId { get; init; }
+
+    /// <summary>
+    /// How many entries the reader already has: the <see cref="FireInstanceLogDto.Next" /> of its last answer, 0 at
+    /// first. One entry is one log call, with its exception.
+    /// </summary>
+    public long After { get; init; }
+
+    /// <summary>
+    /// The node that runs the firing, <see cref="FireInstanceDto.SchedulerInstanceId" />: a cluster of targets asks
+    /// that node alone, and without it the node the store says owns the firing.
+    /// </summary>
+    public string? SchedulerInstanceId { get; init; }
+
+    /// <summary>
+    /// The most entries to answer, from 1 to 1000. An answer also stops before the entry that would take it past
+    /// 64 KB, and carries one entry at least.
+    /// </summary>
+    public int Take { get; init; } = 500;
+}
+
+/// <summary>
+/// Which fires <see cref="IQuartzApiClient.QueryUpcomingFires" /> lists: those in [<see cref="From" />,
+/// <see cref="To" />) of the triggers whose group contains <see cref="GroupContains" />. Added in 4.9.
+/// </summary>
+public sealed record DashboardUpcomingFiresQuery
+{
+    /// <summary>
+    /// The window's start; the scheduler's now when null, and now when earlier.
+    /// </summary>
+    public DateTimeOffset? From { get; init; }
+
+    /// <summary>
+    /// The window's end, excluded: at most 7 days after the start and 30 days after now.
+    /// </summary>
+    public required DateTimeOffset To { get; init; }
+
+    /// <summary>
+    /// Only triggers whose group contains this, as <see cref="DashboardTriggerQuery.GroupContains" />, or every
+    /// trigger when null.
+    /// </summary>
+    public string? GroupContains { get; init; }
+
+    /// <summary>
+    /// The most fires to answer, from 1 to 1000.
+    /// </summary>
+    public int Take { get; init; } = 1000;
+}
+
+/// <summary>
+/// Every fire of every trigger in a window, earliest first, and where the list stops early. Added in 4.9.
+/// </summary>
+/// <param name="FromUtc">The window's start used: the query's, or the scheduler's now when that was later.</param>
+/// <param name="ToUtc">The window's end, excluded.</param>
+/// <param name="Fires">The fires, earliest first; ties by trigger group, then name.</param>
+public sealed record UpcomingFiresDto(
+    DateTimeOffset FromUtc,
+    DateTimeOffset ToUtc,
+    List<UpcomingFireDto> Fires)
+{
+    /// <summary>
+    /// The list stops early, at the most fires asked for or at the computation's step budget: fires at or after
+    /// <see cref="CutAtUtc" /> may be missing.
+    /// </summary>
+    public bool Cut { get; init; }
+
+    /// <summary>
+    /// With <see cref="Cut" />, the time of the last fire listed, or <see cref="FromUtc" /> when none is.
+    /// </summary>
+    public DateTimeOffset? CutAtUtc { get; init; }
+
+    /// <summary>
+    /// Triggers due in the window whose fires could not be computed: a missing calendar, or a type that cannot be
+    /// advanced. Their fires are not listed.
+    /// </summary>
+    public int TriggersNotComputed { get; init; }
+}
+
+/// <summary>
+/// One fire of one trigger, with what a listing shows of the trigger. Added in 4.9.
+/// </summary>
+/// <param name="FireTimeUtc">When it fires, in UTC.</param>
+/// <param name="Trigger">The trigger.</param>
+/// <param name="Job">The job it fires.</param>
+/// <param name="State">The trigger's state when it was read: a paused trigger's fires are listed too.</param>
+public sealed record UpcomingFireDto(
+    DateTimeOffset FireTimeUtc,
+    TriggerKeyDto Trigger,
+    JobKeyDto Job,
+    TriggerState State)
+{
+    /// <summary>
+    /// The trigger's execution group, if any.
+    /// </summary>
+    public string? ExecutionGroup { get; init; }
+
+    /// <summary>
+    /// The trigger's schedule in words, in its own zone, as <c>DescribeSchedule()</c> says it, or
+    /// <see langword="null" /> for a kind it cannot phrase. For display only.
+    /// </summary>
+    public string? ScheduleDescription { get; init; }
+
+    /// <summary>
+    /// The trigger measures its interval from completion, so only its next fire is known.
+    /// </summary>
+    public bool OnlyTheNext { get; init; }
 }
 
 /// <summary>
@@ -1473,6 +1760,62 @@ public sealed record FireInstanceDto(
 }
 
 /// <summary>
+/// One read of a running firing's log, as the dashboard shows it (#4437). Added in 4.9.
+/// </summary>
+/// <param name="Status">Whether there are lines to read where it was asked, and why not when there are none.</param>
+/// <param name="SchedulerInstanceId">
+/// The node that answered; with <see cref="FireInstanceLogStatus.NotRunning" />, <see langword="null" /> when the
+/// store lists no such firing, and with <see cref="FireInstanceLogStatus.Unreachable" /> the node no member fronts.
+/// </param>
+/// <param name="Entries">The entries after the cursor, oldest first, as Execution Detail prints them.</param>
+/// <param name="Next">The <see cref="DashboardFireInstanceLogQuery.After" /> of the next read.</param>
+public sealed record FireInstanceLogDto(
+    FireInstanceLogStatus Status,
+    string? SchedulerInstanceId,
+    List<string> Entries,
+    long Next)
+{
+    /// <summary>
+    /// Entries the capture dropped after <see cref="DashboardFireInstanceLogQuery.After" /> and before this read: it
+    /// keeps only its newest lines, <see cref="ExecutionLogCaptureOptions.MaxLines" /> and
+    /// <see cref="ExecutionLogCaptureOptions.MaxBytes" /> of them.
+    /// </summary>
+    public long Missed { get; init; }
+
+    /// <summary>
+    /// More entries are kept than this answer carried: read again now.
+    /// </summary>
+    public bool HasMore { get; init; }
+}
+
+/// <summary>
+/// Whether a running firing's log can be read where it was asked, and why not when it cannot (#4437). Added in 4.9.
+/// </summary>
+public enum FireInstanceLogStatus
+{
+    /// <summary>
+    /// The firing runs on the node that answered, and that scheduler captures its lines. No entries yet is still this.
+    /// </summary>
+    Running = 0,
+
+    /// <summary>
+    /// The firing runs on the node that answered, and that scheduler does not call <c>UseExecutionLogCapture()</c>.
+    /// </summary>
+    NotCaptured = 1,
+
+    /// <summary>
+    /// The node that answered runs no firing of that id: it ended, or runs on another node. With no node, the store
+    /// lists no such firing.
+    /// </summary>
+    NotRunning = 2,
+
+    /// <summary>
+    /// No process this dashboard reaches runs the firing: a store window, or a cluster node no member target fronts.
+    /// </summary>
+    Unreachable = 3,
+}
+
+/// <summary>
 /// One scheduler node, as the dashboard shows it.
 /// </summary>
 /// <remarks>
@@ -1485,7 +1828,19 @@ public sealed record ClusterNodeDto(
     DateTimeOffset? LastCheckInUtc,
     TimeSpan? CheckInInterval,
     ClusterNodeState State,
-    bool IsCurrentNode);
+    bool IsCurrentNode)
+{
+    /// <summary>
+    /// The Quartz version the node stamped its check-in row with, <c>4.9.0</c>, or <see langword="null" /> when
+    /// there is no stamp: a row a node older than 4.6 wrote, a store that keeps no check-in rows, or a host older
+    /// than 4.9, which sends none. The Cluster page tells these apart.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ClusterNode.QuartzVersion" />, carried over. A non-positional <c>init</c> property, as
+    /// <see cref="FireInstanceDto.Progress" /> is, so the record's constructor is unchanged. Added in 4.9.
+    /// </remarks>
+    public string? QuartzVersion { get; init; }
+}
 
 /// <summary>
 /// A trigger to schedule, and the job it fires when that job is not already stored.

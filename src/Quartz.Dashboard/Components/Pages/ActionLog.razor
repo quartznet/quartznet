@@ -1,4 +1,5 @@
 @page "/quartz/actions"
+@using Quartz.AspNetCore
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
 @implements IDisposable
@@ -8,73 +9,132 @@
 <div class="qz-page">
     <h1>Action Log</h1>
 
+    <div class="qz-live-filters qz-action-log-filters">
+        <div class="qz-live-filter-grid">
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="action-log-via-filter">Via</label>
+                @* Applies on its own, as the History page's dropdowns do. What a script did through this
+                   process's HTTP API is entered here beside what the pages did, so this is how to read
+                   either alone. *@
+                <select id="action-log-via-filter"
+                        class="qz-select"
+                        data-testid="action-log-via-filter"
+                        value="@(_via?.ToString() ?? "")"
+                        @onchange="OnViaChanged">
+                    <option value="">Every surface</option>
+                    @foreach (OperatorChannel channel in Enum.GetValues<OperatorChannel>())
+                    {
+                        <option value="@channel">@ViaLabel(channel)</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
     @if (_entries.Count == 0)
     {
-        <p class="qz-muted">No recorded admin actions yet.</p>
+        <p class="qz-muted">@(_via is null ? "No recorded admin actions yet." : $"No recorded actions through {ViaLabel(_via.Value)} yet.")</p>
     }
     else
     {
-        <table class="qz-table">
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Scheduler</th>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th>Target</th>
-                    <th>Status</th>
-                    <th>Message</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (DashboardActionLogEntry entry in _entries)
-                {
+        @* Scrolls inside its card rather than pushing the page wider, as the dashboard's other wide tables do; the
+           card's border is drawn around the scroller, so the scrollbar sits inside it. A browser makes a scroller a
+           Tab stop, so it is a region with a name, which a keyboard reaches to scroll it. *@
+        <div class="qz-table-scroll qz-action-log-scroll"
+             data-testid="action-log-scroll"
+             role="region"
+             aria-label="Action log"
+             tabindex="0">
+            <table class="qz-table">
+                <thead>
                     <tr>
-                        <td>@Scheduler.FormatInSelectedTimeZone(entry.Timestamp, "u")</td>
-                        <td>
-                            @entry.SchedulerName
-
-                            @* Where the scheduler was, as the listing had it when the action was taken.
-                               An action on a remote scheduler ran in another process, which is what
-                               decides where to look for the rest of the story about it. *@
-                            @if (entry.Origin is { } origin)
-                            {
-                                <span class="qz-tag">@origin.ToString()</span>
-                            }
-                        </td>
-                        <td class="qz-action-log-user">@(entry.User ?? "—")</td>
-                        <td>@entry.Action</td>
-                        <td>
-                            @entry.Target
-
-                            @if (entry.Origin is SchedulerOrigin.Remote or SchedulerOrigin.Agent)
-                            {
-                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">in another process</div>
-                            }
-                            else if (entry.Origin is SchedulerOrigin.Cluster)
-                            {
-                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on a cluster, in whichever node's process</div>
-                            }
-
-                            @* Only for an action that landed on one node: pausing a trigger writes the
-                               store and binds the whole cluster, so naming the node that served the click
-                               would suggest the other nodes were unaffected. *@
-                            @if (entry.NodeLocal)
-                            {
-                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on node @(entry.SchedulerInstanceId ?? "(unknown)")</div>
-                            }
-                        </td>
-                        <td><StateIndicator State="@(entry.Refused ? "Refused" : entry.Succeeded ? "Complete" : "Error")" /></td>
-                        <td>@(entry.Message ?? string.Empty)</td>
+                        <th class="qz-action-log-time">Time</th>
+                        <th>Via</th>
+                        <th class="qz-action-log-scheduler">Scheduler</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th class="qz-action-log-message">Message</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (DashboardActionLogEntry entry in _entries)
+                    {
+                        <tr>
+                            <td class="qz-action-log-time">@Scheduler.FormatInSelectedTimeZone(entry.Timestamp, "u")</td>
+                            <td>
+                                @* The client's name is its own claim, so it is shown as stated and never as the
+                                   user, who is the identity the action was authorized for. *@
+                                <span class="qz-tag @ViaClass(entry.Via)"
+                                      data-testid="action-log-via"
+                                      title="@(entry.Client is null ? null : ClientTitle(entry.Client))">@ViaLabel(entry.Via)</span>
+                                @* One line, cut short when long; the whole name is in the tooltip, and "as stated"
+                                   is read out rather than shown, so the column stays a badge wide. *@
+                                @if (entry.Client is { } client)
+                                {
+                                    <div class="qz-muted qz-action-log-client" title="@ClientTitle(client)">@client<span class="qz-sr-only"> (as stated)</span></div>
+                                }
+                            </td>
+                            <td class="qz-action-log-scheduler">
+                                @* The key is cut short past the column's width; the cell's text is still the whole
+                                   key, which is what a screen reader reads, and the tooltip shows it. *@
+                                <div class="qz-action-log-scheduler-line">
+                                    <span class="qz-action-log-scheduler-name" title="@entry.SchedulerName">@entry.SchedulerName</span>
+
+                                    @* Where the scheduler was, as the listing had it when the action was taken.
+                                       An action on a remote scheduler ran in another process, which is what
+                                       decides where to look for the rest of the story about it. *@
+                                    @if (entry.Origin is { } origin)
+                                    {
+                                        <span class="qz-tag qz-action-log-origin">@origin.ToString()</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="qz-action-log-user">@(entry.User ?? "—")</td>
+                            <td>@entry.Action</td>
+                            <td>
+                                @entry.Target
+
+                                @if (entry.Origin is SchedulerOrigin.Remote or SchedulerOrigin.Agent)
+                                {
+                                    <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">in another process</div>
+                                }
+                                else if (entry.Origin is SchedulerOrigin.Cluster)
+                                {
+                                    <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on a cluster, in whichever node's process</div>
+                                }
+
+                                @* Only for an action that landed on one node: pausing a trigger writes the
+                                   store and binds the whole cluster, so naming the node that served the click
+                                   would suggest the other nodes were unaffected. *@
+                                @if (entry.NodeLocal)
+                                {
+                                    <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on node @(entry.SchedulerInstanceId ?? "(unknown)")</div>
+                                }
+                            </td>
+                            <td><StateIndicator State="@(entry.Refused ? "Refused" : entry.Succeeded ? "Complete" : "Error")" /></td>
+                            <td class="qz-action-log-message">
+                                @if (string.IsNullOrEmpty(entry.Message))
+                                {
+                                    <span class="qz-muted">&mdash;</span>
+                                }
+                                else
+                                {
+                                    @entry.Message
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     }
 </div>
 
 @code {
     private readonly List<DashboardActionLogEntry> _entries = [];
+    private OperatorChannel? _via;
 
     protected override void OnInitialized()
     {
@@ -98,8 +158,30 @@
     private void RefreshEntries()
     {
         _entries.Clear();
-        _entries.AddRange(ActionLogs.GetLatest(Scheduler.ActiveSchedulerName, 100));
+        _entries.AddRange(ActionLogs.GetLatest(Scheduler.ActiveSchedulerName, _via, 100));
     }
+
+    private void OnViaChanged(ChangeEventArgs args)
+    {
+        _via = Enum.TryParse(args.Value?.ToString(), out OperatorChannel channel) ? channel : null;
+        RefreshEntries();
+    }
+
+    private static string ViaLabel(OperatorChannel channel) => channel switch
+    {
+        OperatorChannel.HttpApi => "HTTP API",
+        OperatorChannel.Mcp => "MCP",
+        _ => "Dashboard",
+    };
+
+    private static string ClientTitle(string client) => $"Client, as stated: {client}";
+
+    private static string ViaClass(OperatorChannel channel) => channel switch
+    {
+        OperatorChannel.HttpApi => "qz-tag-via-api",
+        OperatorChannel.Mcp => "qz-tag-via-mcp",
+        _ => "qz-tag-via-dashboard",
+    };
 
     public void Dispose()
     {

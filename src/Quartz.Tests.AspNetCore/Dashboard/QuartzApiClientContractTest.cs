@@ -1,6 +1,9 @@
+using System.Globalization;
+
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.Configuration;
 using Quartz.Dashboard.Services;
 using Quartz.Extensibility;
 using Quartz.Impl;
@@ -252,6 +255,99 @@ public sealed class QuartzApiClientContractTest
             .Which.Message.Should().Contain("no-such-trigger");
     }
 
+    private static IEnumerable<TestCaseData> EveryBuiltInCalendar()
+    {
+        // Kathmandu is UTC+05:45: a zone the wire has to carry by its id, since no default would produce it.
+        TimeZoneInfo kathmandu = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kathmandu");
+        BaseCalendar under = new(kathmandu) { Description = "under" };
+
+        HolidayCalendar holiday = new(under) { TimeZone = kathmandu, Description = "holiday" };
+        holiday.AddExcludedDay(new DateOnly(2030, 12, 25));
+        holiday.AddExcludedDay(new DateOnly(2031, 1, 1));
+        yield return new TestCaseData("contract-holiday", holiday).SetArgDisplayNames("Holiday");
+
+        AnnualCalendar annual = new(under) { TimeZone = kathmandu, Description = "annual" };
+        annual.AddExcludedDay(new MonthDay(2, 29));
+        annual.AddExcludedDay(new MonthDay(12, 25));
+        yield return new TestCaseData("contract-annual", annual).SetArgDisplayNames("Annual");
+
+        WeeklyCalendar weekly = new(under) { TimeZone = kathmandu, Description = "weekly" };
+        weekly.RemoveExcludedDay(DayOfWeek.Saturday);
+        weekly.AddExcludedDay(DayOfWeek.Wednesday);
+        yield return new TestCaseData("contract-weekly", weekly).SetArgDisplayNames("Weekly");
+
+        MonthlyCalendar monthly = new(under) { TimeZone = kathmandu, Description = "monthly" };
+        monthly.AddExcludedDay(1);
+        monthly.AddExcludedDay(31);
+        yield return new TestCaseData("contract-monthly", monthly).SetArgDisplayNames("Monthly");
+
+        DailyCalendar daily = new(new TimeOnly(9, 30), new TimeOnly(17, 0, 0, 250), under) { TimeZone = kathmandu, Description = "daily", InvertTimeRange = true };
+        yield return new TestCaseData("contract-daily", daily).SetArgDisplayNames("Daily");
+
+        CronCalendar cron = new(under, "* * 0-6 ? * MON-FRI", kathmandu) { Description = "cron" };
+        yield return new TestCaseData("contract-cron", cron).SetArgDisplayNames("Cron");
+    }
+
+    /// <summary>
+    /// Each built-in calendar type the dashboard's editor builds is stored through the client and read back as it
+    /// was sent, whichever carrier the scheduler is reached by (#4413): its own rules, its time zone, its
+    /// description and the calendar under it.
+    /// </summary>
+    [TestCaseSource(nameof(EveryBuiltInCalendar))]
+    public async Task EveryBuiltInCalendarTypeIsStoredAndReadBackAsItWasSent(string name, ICalendar calendar)
+    {
+        await client.AddCalendar(key, new AddCalendarRequest(name, calendar, Replace: false, UpdateTriggers: false));
+
+        ICalendar read = await client.GetCalendar(key, name);
+
+        read.Should().BeOfType(calendar.GetType());
+        read.Should().Be(calendar, "the calendar the page shows is the one the editor sent, rules, zone, description and base alike");
+        read.CalendarBase.Should().Be(calendar.CalendarBase);
+    }
+
+    /// <summary>
+    /// What the Replace question on the calendar pages offers: a replace leaves each trigger's next fire time as it
+    /// was unless the triggers are updated, and the count of the triggers that use the calendar is one read with
+    /// no trigger in it. 9:00 UTC every day from 5 October 2030, years ahead of every carrier's clock.
+    /// </summary>
+    [Test]
+    public async Task AReplaceUpdatesTheTriggersThatUseTheCalendarOnlyWhenAskedTo()
+    {
+        JobKey jobKey = new("export", "calendar-contract");
+        TriggerKey triggerKey = new("daily", "calendar-contract");
+        TriggerKeyDto triggerKeyDto = new(triggerKey.Group, triggerKey.Name);
+        DateTimeOffset fifth = new(2030, 10, 5, 9, 0, 0, TimeSpan.Zero);
+        await client.AddCalendar(key, new AddCalendarRequest("contract-days", new HolidayCalendar { TimeZone = TimeZoneInfo.Utc }, Replace: false, UpdateTriggers: false));
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build());
+        await scheduler.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartAt(new DateTimeOffset(2030, 10, 5, 0, 0, 0, TimeSpan.Zero))
+            .WithCalendarName("contract-days")
+            .WithCronSchedule("0 0 9 * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc))
+            .Build());
+        await scheduler.ScheduleJob(TriggerBuilder.Create()
+            .WithIdentity("unrelated", "calendar-contract")
+            .ForJob(jobKey)
+            .StartAt(fifth)
+            .Build());
+
+        PagedResult<TriggerHeaderDto> users = await client.QueryTriggers(key, new DashboardTriggerQuery { CalendarName = "contract-days", Take = 0 });
+        users.TotalCount.Should().Be(1, "one trigger names the calendar");
+        users.Items.Should().BeEmpty("a count reads no trigger");
+
+        HolidayCalendar withoutTheFifth = new() { TimeZone = TimeZoneInfo.Utc };
+        withoutTheFifth.AddExcludedDay(new DateOnly(2030, 10, 5));
+
+        await client.AddCalendar(key, new AddCalendarRequest("contract-days", withoutTheFifth, Replace: true, UpdateTriggers: false));
+        (await client.GetTrigger(key, triggerKeyDto)).NextFireTimeUtc.Should().Be(fifth,
+            "a replace alone leaves the trigger the next fire time it had, though the new calendar excludes it");
+
+        await client.AddCalendar(key, new AddCalendarRequest("contract-days", withoutTheFifth, Replace: true, UpdateTriggers: true));
+        (await client.GetTrigger(key, triggerKeyDto)).NextFireTimeUtc.Should().Be(fifth.AddDays(1),
+            "updating the triggers recomputes the next fire time against the calendar that replaced the old one");
+    }
+
     [Test]
     public async Task AMissingCalendarIsReportedAsAMissingKey()
     {
@@ -349,6 +445,115 @@ public sealed class QuartzApiClientContractTest
     /// the <c>…/keys/pause</c>, <c>…/keys/resume</c> and <c>…/unschedule</c> key-set routes, so a page
     /// fronting a remote scheduler has nothing to disable.
     /// </remarks>
+    /// <summary>
+    /// The schedule editor's trigger of every kind, rescheduled through the client, is stored as the editor built it,
+    /// whichever process the scheduler runs in (#4412). Over HTTP and through the agent it travels as JSON, so every
+    /// kind's schedule has to survive the wire.
+    /// </summary>
+    [TestCase("Cron")]
+    [TestCase("Simple")]
+    [TestCase("CalendarInterval")]
+    [TestCase("DailyTimeInterval")]
+    [TestCase("Recurrence")]
+    public async Task EveryKindTheScheduleEditorBuildsIsRescheduledThroughTheClient(string kindName)
+    {
+        ScheduleKind kind = Enum.Parse<ScheduleKind>(kindName);
+        JobKey jobKey = new("rescheduled", "every-kind");
+        TriggerKey triggerKey = new("t-" + kindName, "every-kind");
+        TriggerKeyDto triggerKeyDto = new(triggerKey.Group, triggerKey.Name);
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(), new AddJobOptions { Replace = true });
+
+        IOperableTrigger template = ScheduleForm.NewTrigger(kind);
+        template.Key = triggerKey;
+        template.JobKey = jobKey;
+        template.StartTimeUtc = DateTimeOffset.UtcNow.AddDays(-30);
+        template.PreferredNode = PreferredNode.For("node-a");
+        await scheduler.ScheduleJob(ScheduleForm.ForNew(kind, TimeZoneInfo.Utc.Id).Apply(template, null, TimeProvider.System).Trigger!);
+
+        ITrigger read = await client.GetTrigger(key, triggerKeyDto);
+        ScheduleForm form = ScheduleForm.From(read)!;
+        switch (kind)
+        {
+            case ScheduleKind.Cron:
+                form.CronExpression = "0 30 6 ? * MON-FRI";
+                break;
+            case ScheduleKind.Simple:
+                form.SimpleInterval = "45";
+                form.RepeatForever = false;
+                form.RepeatCount = "12";
+                break;
+            case ScheduleKind.CalendarInterval:
+                form.CalendarInterval = "3";
+                form.CalendarUnit = IntervalUnit.Week;
+                break;
+            case ScheduleKind.DailyTimeInterval:
+                form.DailyStart = "07:30:00";
+                form.DailyEnd = "19:00:00";
+                form.DailyDays.Remove(DayOfWeek.Friday);
+                form.DailyInterval = "20";
+                form.DailyUnit = IntervalUnit.Minute;
+                break;
+            default:
+                form.RecurrenceRule = "FREQ=MONTHLY;BYMONTHDAY=-1;BYHOUR=23;BYMINUTE=0;BYSECOND=0";
+                break;
+        }
+
+        ScheduleBuild build = form.Apply(read, null, TimeProvider.System);
+        build.Errors.Should().BeEmpty();
+
+        await client.RescheduleJob(key, triggerKeyDto, new RescheduleRequest(build.Trigger!));
+
+        ITrigger? stored = await scheduler.GetTrigger(triggerKey);
+        stored.Should().BeOfType(read.GetType(), "the kind is what it was");
+        ScheduleForm.From(stored!)!.SameScheduleAs(form).Should().BeTrue("the scheduler holds the schedule the editor built");
+        stored!.PreferredNode.Node.Should().Be("node-a", "a reschedule must not unpin the trigger");
+        stored.CalendarName.Should().BeNull();
+        stored.JobKey.Should().Be(jobKey);
+        stored.NextFireTimeUtc.Should().NotBeNull().And.BeOnOrAfter(build.Trigger!.NextFireTimeUtc!.Value.AddSeconds(-1),
+            "the first fire the editor computed is the one stored, not one from the trigger's start a month ago");
+
+        await scheduler.DeleteJob(jobKey);
+    }
+
+    /// <summary>
+    /// <em>Add trigger</em>'s trigger of every kind, posted through the client with no job, is stored for the job it
+    /// names, whichever process the scheduler runs in (#4412).
+    /// </summary>
+    [TestCase("Cron")]
+    [TestCase("Simple")]
+    [TestCase("CalendarInterval")]
+    [TestCase("DailyTimeInterval")]
+    [TestCase("Recurrence")]
+    public async Task ATriggerOfEveryKindIsAddedToAStoredJobThroughTheClient(string kindName)
+    {
+        ScheduleKind kind = Enum.Parse<ScheduleKind>(kindName);
+        JobKey jobKey = new("added-to", "every-kind");
+        TriggerKey triggerKey = new("added-" + kindName, "every-kind");
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(), new AddJobOptions { Replace = true });
+
+        IOperableTrigger template = ScheduleForm.NewTrigger(kind);
+        template.Key = triggerKey;
+        template.JobKey = jobKey;
+        template.Priority = 9;
+        template.StartTimeUtc = DateTimeOffset.UtcNow;
+        template.JobDataMap = new JobDataMap { ["colour"] = "green" };
+        ScheduleBuild build = ScheduleForm.ForNew(kind, TimeZoneInfo.Utc.Id).Apply(template, null, TimeProvider.System, startAtFirstFire: true);
+        build.Errors.Should().BeEmpty();
+
+        await client.ScheduleJob(key, new ScheduleJobRequest(build.Trigger!, Job: null));
+
+        ITrigger? stored = await scheduler.GetTrigger(triggerKey);
+        stored.Should().NotBeNull();
+        ScheduleForm.KindOf(stored!).Should().Be(kind);
+        stored!.JobKey.Should().Be(jobKey, "the trigger is added to the stored job, and no job travels with it");
+        stored.Priority.Should().Be(9);
+        stored.JobDataMap["colour"].Should().Be("green");
+        ScheduleForm.From(stored)!.SameScheduleAs(ScheduleForm.ForNew(kind, TimeZoneInfo.Utc.Id)).Should().BeTrue();
+        stored.NextFireTimeUtc.Should().NotBeNull();
+
+        await scheduler.DeleteJob(jobKey);
+    }
+
     [Test]
     public async Task ATriggerIsEditedFilteredAndActedOnAsASetThroughTheClient()
     {
@@ -459,6 +664,78 @@ public sealed class QuartzApiClientContractTest
     }
 
     /// <summary>
+    /// The header search's two reads (#4411), through every carrier: the jobs and the triggers whose names
+    /// contain the text, eight of each, with the total its <em>See all</em> link counts.
+    /// </summary>
+    [Test]
+    public async Task TheHeaderSearchFindsJobsAndTriggersByNameThroughTheClient()
+    {
+        const string group = "header-search";
+        for (int index = 0; index < 10; index++)
+        {
+            JobKey jobKey = new("invoice-" + index.ToString("00", CultureInfo.InvariantCulture), group);
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<DummyJob>().WithIdentity(jobKey).Build(),
+                TriggerBuilder.Create().WithIdentity(jobKey.Name + "-nightly", group).ForJob(jobKey).StartAt(DateTimeOffset.UtcNow.AddHours(1)).Build());
+        }
+
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<DummyJob>().WithIdentity("payroll", group).Build(),
+            TriggerBuilder.Create().WithIdentity("payroll-monthly", group).StartAt(DateTimeOffset.UtcNow.AddHours(1)).Build());
+
+        PagedResult<JobKeyDto> jobs = await client.QueryJobs(key, new DashboardJobQuery { NameContains = "invoice", Take = 8 });
+        PagedResult<TriggerHeaderDto> triggers = await client.QueryTriggers(key, new DashboardTriggerQuery { NameContains = "invoice", Take = 8 });
+
+        jobs.Items.Should().HaveCount(8).And.OnlyContain(job => job.Name.StartsWith("invoice-", StringComparison.Ordinal));
+        jobs.TotalCount.Should().Be(10);
+        jobs.HasMore.Should().BeTrue();
+        triggers.Items.Should().HaveCount(8).And.OnlyContain(trigger => trigger.Name.EndsWith("-nightly", StringComparison.Ordinal));
+        triggers.TotalCount.Should().Be(10);
+
+        await scheduler.DeleteJobs([.. Enumerable.Range(0, 10).Select(index => new JobKey("invoice-" + index.ToString("00", CultureInfo.InvariantCulture), group)), new JobKey("payroll", group)]);
+    }
+
+    /// <summary>
+    /// Trigger Detail's "Why isn't it firing?" reads the same through every carrier (#4411): the scheduler's
+    /// status, the paused groups and the job group's pause, the job's firings by the job filter, the limits and
+    /// the trigger's misfires, each over the route a page already reads.
+    /// </summary>
+    [Test]
+    public async Task ATriggerIsDiagnosedThroughTheClient()
+    {
+        const string group = "diagnosis";
+        JobKey jobKey = new("nightly", group);
+        TriggerKey triggerKey = new("at-three", group);
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build(),
+            TriggerBuilder.Create().WithIdentity(triggerKey).ForJob(jobKey).StartAt(DateTimeOffset.UtcNow.AddHours(1)).Build());
+        await client.PauseJobGroupWith(key, group, new PauseDetails { Reason = "quarter close", RequestedBy = "alice" });
+        await client.PauseTriggerGroupWith(key, group, new PauseDetails { Reason = "vendor outage", RequestedBy = "bob" });
+        await history.AddMisfire(Misfire(DateTimeOffset.UtcNow.AddMinutes(-5), "at-three") with { TriggerGroup = group, JobKey = jobKey });
+
+        TriggerKeyDto dto = new(group, "at-three");
+        ITrigger trigger = await client.GetTrigger(key, dto);
+        TriggerState state = await client.GetTriggerState(key, dto);
+        TriggerDiagnosisFacts facts = await TriggerDiagnosis.Read(
+            client,
+            new DiagnosisSubject(key, trigger, state, Pause: null, ContinuationParentExists: true, DateTimeOffset.UtcNow));
+        Dictionary<string, DiagnosisCheck> checks = TriggerDiagnosis.Evaluate(facts, value => value?.ToString("u", CultureInfo.InvariantCulture) ?? "-")
+            .ToDictionary(check => check.Name);
+
+        checks["Scheduler"].Verdict.Should().Be(DiagnosisVerdict.Problem, "the fixture's scheduler is never started, on every carrier");
+        checks["Trigger"].Text.Should().StartWith("Paused");
+        checks["Job group"].Text.Should().StartWith("'diagnosis' is paused by alice at").And.Contain("(quarter close)");
+        checks["Trigger group"].Text.Should().StartWith("'diagnosis' is paused by bob at").And.Contain("(vendor outage)");
+        checks["Its job's firings"].Text.Should().Be("None running.");
+        checks["Execution group"].Text.Should().Be("No execution group: unlimited.");
+        checks["Misfires"].Text.Should().StartWith("1 recorded; the latest at");
+        checks.Values.Should().NotContain(check => check.Verdict == DiagnosisVerdict.Unknown, "every read answers through every carrier");
+
+        await client.ResumeTriggerGroup(key, group);
+        await scheduler.DeleteJob(jobKey);
+    }
+
+    /// <summary>
     /// The Trigger Detail page's backfill, through the client: the extension over the scheduler the name
     /// resolves to, which for the HTTP carrier is <see cref="HttpScheduler" /> sending the host's
     /// <c>backfill</c> route.
@@ -520,6 +797,95 @@ public sealed class QuartzApiClientContractTest
         DateTimeOffset nine = new(2030, 10, 5, 3, 15, 0, TimeSpan.Zero);
         fireTimes.Should().Equal([nine, nine.AddDays(1), nine.AddDays(3)],
             "the trigger's own zone and calendar decide its fire times, whichever carrier the page reads them through");
+    }
+
+    /// <summary>
+    /// The agenda is computed where the triggers are stored and reads the same through every carrier: the fires of
+    /// every trigger in the window, earliest first and ties by key, with the window's end excluded (#4438).
+    /// </summary>
+    [Test]
+    public async Task TheAgendaIsReadThroughTheClient()
+    {
+        DateTimeOffset start = await ScheduleAgendaTriggers();
+
+        UpcomingFiresDto agenda = await client.QueryUpcomingFires(key, new DashboardUpcomingFiresQuery { From = start, To = start.AddHours(2) });
+
+        agenda.FromUtc.Should().Be(start, "the start asked for is after every carrier's now");
+        agenda.ToUtc.Should().Be(start.AddHours(2));
+        agenda.Fires.Select(fire => (fire.FireTimeUtc - start, fire.Trigger.Name)).Should().Equal(
+            [
+                (TimeSpan.FromMinutes(30), "a-first"),
+                (TimeSpan.FromMinutes(50), "a-first"),
+                (TimeSpan.FromMinutes(50), "b-second"),
+                (TimeSpan.FromMinutes(70), "a-first"),
+                (TimeSpan.FromMinutes(70), "b-second"),
+                (TimeSpan.FromMinutes(90), "a-first"),
+                (TimeSpan.FromMinutes(90), "b-second"),
+                (TimeSpan.FromMinutes(110), "a-first"),
+                (TimeSpan.FromMinutes(110), "b-second"),
+            ],
+            "earliest first, a tie by trigger group then name, and nothing at the window's end");
+        agenda.Fires.Should().AllSatisfy(fire =>
+        {
+            fire.Trigger.Group.Should().Be("agenda-contract");
+            fire.Job.Should().Be(new JobKeyDto("agenda-contract", "agenda-job"));
+            fire.State.Should().Be(TriggerState.Normal);
+            fire.ScheduleDescription.Should().Be("Every 20 minutes");
+            fire.OnlyTheNext.Should().BeFalse();
+        });
+        agenda.Cut.Should().BeFalse();
+        agenda.CutAtUtc.Should().BeNull();
+        agenda.TriggersNotComputed.Should().Be(0);
+    }
+
+    [Test]
+    public async Task AnAgendaThatReachesItsTakeSaysWhereItWasCut()
+    {
+        DateTimeOffset start = await ScheduleAgendaTriggers();
+
+        UpcomingFiresDto agenda = await client.QueryUpcomingFires(key, new DashboardUpcomingFiresQuery { From = start, To = start.AddHours(2), Take = 3 });
+
+        agenda.Fires.Should().HaveCount(3);
+        agenda.Cut.Should().BeTrue();
+        agenda.CutAtUtc.Should().Be(start.AddMinutes(50), "fires at or after the last one listed may be missing");
+    }
+
+    /// <summary>
+    /// A refusal has one wording on every path: the scheduler's own words, raised as an argument the page shows.
+    /// </summary>
+    [Test]
+    public async Task AnAgendaWindowLongerThanSevenDaysIsRefusedInTheSameWordsThroughEveryCarrier()
+    {
+        DateTimeOffset start = TimeProvider.System.GetUtcNow().AddHours(1);
+
+        Func<Task> act = () => client.QueryUpcomingFires(key, new DashboardUpcomingFiresQuery { From = start, To = start.AddDays(8) }).AsTask();
+
+        (await act.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should().Contain("is longer than 7 days: narrow it.");
+    }
+
+    /// <summary>
+    /// Two triggers every 20 minutes, from half an hour and from 50 minutes after a start a few minutes ahead of the
+    /// system clock, which every carrier's scheduler runs on.
+    /// </summary>
+    private async Task<DateTimeOffset> ScheduleAgendaTriggers()
+    {
+        DateTimeOffset now = TimeProvider.System.GetUtcNow();
+        DateTimeOffset start = new DateTimeOffset(now.UtcTicks - now.UtcTicks % TimeSpan.TicksPerMinute, TimeSpan.Zero).AddMinutes(10);
+
+        JobKey jobKey = new("agenda-job", "agenda-contract");
+        await scheduler.AddJob(JobBuilder.Create<DummyJob>().WithIdentity(jobKey).StoreDurably().Build());
+        foreach ((string name, int minutes) in ((string, int)[]) [("b-second", 50), ("a-first", 30)])
+        {
+            await scheduler.ScheduleJob(TriggerBuilder.Create()
+                .WithIdentity(name, "agenda-contract")
+                .ForJob(jobKey)
+                .StartAt(start.AddMinutes(minutes))
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(20)).RepeatForever())
+                .Build());
+        }
+
+        return start;
     }
 
     [Test]
@@ -669,6 +1035,46 @@ public sealed class QuartzApiClientContractTest
             "by job group and then name, and a job with no recorded run is absent");
         statuses[0].LastResult.Should().Be(JobRunResult.Skipped);
         statuses[0].SchedulerName.Should().Be(scheduler.SchedulerName);
+
+        // The Overview's failing jobs (#4411): one read of the statuses failing in a row, by the scheduler's key.
+        PagedResult<JobRunStatus> failing = await client.QueryJobRunStatuses(
+            new JobRunStatusQuery { SchedulerName = key, Failing = true, IncludeTotalCount = true });
+        failing.Items.Should().ContainSingle().Which.Job.Name.Should().Be("sick");
+        failing.Items[0].ConsecutiveFailures.Should().Be(2);
+        failing.TotalCount.Should().Be(1);
+    }
+
+    /// <summary>
+    /// The per-trigger run statuses read the same through the client over every carrier: one read naming a page's
+    /// triggers, from the store the history is read from, and for a remote one through
+    /// <c>…/history/trigger-status/fetch</c>.
+    /// </summary>
+    [Test]
+    public async Task TriggerRunStatusesAreReadThroughTheClientForAPagesTriggers()
+    {
+        DateTimeOffset start = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await history.AddExecution(Execution(start, "report", triggerName: "daily") with { Result = JobRunResult.Succeeded });
+        await history.AddExecution(Failure(start, "report") with { TriggerName = "hourly" });
+        await history.AddExecution(Failure(start.AddMinutes(1), "report") with { TriggerName = "hourly" });
+
+        TriggerKey[] page = [new("hourly", "contract"), new("daily", "contract"), new("never-fired", "contract")];
+
+        PagedResult<TriggerRunStatus> statuses = await client.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = key,
+            Triggers = page,
+            Take = PagedQuery.All
+        });
+
+        statuses.Items.Select(status => status.Trigger.Name).Should().Equal(["daily", "hourly"],
+            "by trigger group and then name, and a trigger with no recorded run is absent");
+        statuses.Items[0].LastResult.Should().Be(JobRunResult.Succeeded);
+        statuses.Items[0].SchedulerName.Should().Be(scheduler.SchedulerName);
+        statuses.Items[1].ConsecutiveFailures.Should().Be(2, "one job, and only its hourly schedule is failing");
+        statuses.Items[1].LastFailureMessage.Should().Be("the upstream system is down");
+
+        (await client.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = key, Triggers = page, Failing = true }))
+            .Items.Should().ContainSingle().Which.Trigger.Name.Should().Be("hourly");
     }
 
     /// <summary>
@@ -707,7 +1113,7 @@ public sealed class QuartzApiClientContractTest
     [Test]
     public async Task TheEventsAreWatchedFromTheProcessTheSchedulerRunsIn()
     {
-        ISchedulerEventSource? source = SchedulerEventSources.For(provider, key);
+        ISchedulerEventSource? source = SchedulerEventLookup.For(provider, key);
         source.Should().NotBeNull("a dashboard reads the events of whatever scheduler it renders");
 
         using CancellationTokenSource subscription = new();

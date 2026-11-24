@@ -45,12 +45,19 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 internal sealed class MutationAudit
 {
     private readonly ILogger logger;
+    private readonly IOperatorActionRecorder[] recorders;
 
-    public MutationAudit(ILoggerFactory loggerFactory)
+    /// <param name="loggerFactory">Where the audit lines go.</param>
+    /// <param name="recorders">
+    /// Where else an action is recorded: the dashboard's Action Log, in a process that maps it. None in a
+    /// process that does not, which records the log line alone.
+    /// </param>
+    public MutationAudit(ILoggerFactory loggerFactory, IEnumerable<IOperatorActionRecorder>? recorders = null)
     {
         ArgumentNullException.ThrowIfNull(loggerFactory);
 
         logger = loggerFactory.CreateLogger(HttpApiLog.Category);
+        this.recorders = recorders?.ToArray() ?? [];
     }
 
     /// <summary>
@@ -65,7 +72,21 @@ internal sealed class MutationAudit
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        logger.MutationPerformed(UserName(context), Operation(context), SchedulerName(context), context.Request.Path.ToString());
+        string user = UserName(context);
+        string operation = Operation(context);
+        string schedulerKey = SchedulerKey(context);
+
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.MutationPerformed(user, operation, schedulerKey, context.Request.Path.ToString());
+        }
+
+        // What the handler said about the change, in the dashboard's words, and whether the answer said nothing
+        // was applied — which the dashboard's own entries record as not done.
+        Notify(new OperatorAction(OperatorChannel.HttpApi, user, schedulerKey, operation, Subject(context, schedulerKey), Succeeded: !AuditNote.WasNotApplied(context))
+        {
+            Message = AuditNote.Read(context)
+        });
     }
 
     /// <summary>
@@ -80,7 +101,36 @@ internal sealed class MutationAudit
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        logger.OperationRefused(UserName(context), operation, schedulerName, access);
+        string user = UserName(context);
+        logger.OperationRefused(user, operation, schedulerName, access);
+
+        Notify(new OperatorAction(OperatorChannel.HttpApi, user, schedulerName, operation, Subject(context, schedulerName), Succeeded: false)
+        {
+            Refused = true,
+            Message = $"needs {access}"
+        });
+    }
+
+    /// <summary>
+    /// Hands the action to every recorder, none of which may fail the request it describes.
+    /// </summary>
+    /// <remarks>
+    /// After the log line, which is the record that has to exist: a recorder that throws is a bug in the
+    /// recorder, and the change it describes has already been made.
+    /// </remarks>
+    private void Notify(OperatorAction action)
+    {
+        foreach (IOperatorActionRecorder recorder in recorders)
+        {
+            try
+            {
+                recorder.Record(action);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                logger.RecorderFailed(recorder.GetType().Name, exception);
+            }
+        }
     }
 
     /// <summary>
@@ -114,15 +164,56 @@ internal sealed class MutationAudit
     }
 
     /// <summary>
-    /// Which scheduler the request was for, read from the route.
+    /// Which scheduler the request was for: the route's name, and from 4.9 the query's target as the first
+    /// half of the key — <c>w1/QuartzScheduler</c>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Every mutating route the API maps names one — that is what makes the per-scheduler policy a
     /// convention over the route pattern rather than a call in each handler — so the fallback is for a
     /// route of somebody else's that carries the marker without naming a scheduler.
+    /// </para>
+    /// <para>
+    /// The key rather than the name, because the route the line also carries is the path, and the target is
+    /// in the query, which the path leaves out. The template is unchanged; a bare request logs the bare name
+    /// it always did.
+    /// </para>
     /// </remarks>
-    private static string SchedulerName(HttpContext context)
+    private static string SchedulerKey(HttpContext context)
     {
-        return context.Request.RouteValues[SchedulerAuthorization.SchedulerNameRouteValue] as string ?? "(none)";
+        return context.Request.RouteValues[SchedulerAuthorization.SchedulerNameRouteValue] is string schedulerName
+            ? TargetedRequest.Key(context, schedulerName).Key
+            : "(none)";
+    }
+
+    /// <summary>
+    /// What the action was done to, as the route names it: a job or trigger as <c>group.name</c>, a
+    /// group, a calendar, a firing — or the scheduler itself.
+    /// </summary>
+    private static string Subject(HttpContext context, string schedulerKey)
+    {
+        RouteValueDictionary values = context.Request.RouteValues;
+
+        if (values["jobGroup"] is string jobGroup)
+        {
+            return values["jobName"] is string jobName ? jobGroup + "." + jobName : jobGroup;
+        }
+
+        if (values["triggerGroup"] is string triggerGroup)
+        {
+            return values["triggerName"] is string triggerName ? triggerGroup + "." + triggerName : triggerGroup;
+        }
+
+        if (values["calendarName"] is string calendarName)
+        {
+            return calendarName;
+        }
+
+        if (values["fireInstanceId"] is string fireInstanceId)
+        {
+            return fireInstanceId;
+        }
+
+        return schedulerKey;
     }
 }

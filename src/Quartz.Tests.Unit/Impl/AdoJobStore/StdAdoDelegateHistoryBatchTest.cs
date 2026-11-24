@@ -110,6 +110,28 @@ public class StdAdoDelegateHistoryBatchTest
     }
 
     [Test]
+    public async Task TheGuardedTriggerStatusUpdatesGoOutInOneBatchKeyedByTrigger()
+    {
+        StubBatchingConnection connection = new() { RecordsAffected = static _ => 1 };
+        StdAdoDelegate del = Shipped([]);
+
+        int matched = await del.UpdateTriggerRunStatusesIfUnchanged(
+            new ConnectionAndTransactionHolder(connection, null),
+            [(TriggerStatus("hourly", runCount: 7), 6), (TriggerStatus("daily", runCount: 2), 1)]);
+
+        matched.Should().Be(2);
+        StubBatch batch = connection.Batches.Should().ContainSingle().Subject;
+        batch.Commands.Should().HaveCount(2).And.OnlyContain(command =>
+            command.CommandText.StartsWith("UPDATE QRTZ_TRIGGER_STATUS SET", StringComparison.Ordinal)
+            && command.CommandText.Contains("TRIGGER_GROUP = @triggerGroup AND TRIGGER_NAME = @triggerName", StringComparison.Ordinal)
+            && command.CommandText.EndsWith("RUN_COUNT = @statusReadRunCount", StringComparison.Ordinal));
+
+        DbParameter[] parameters = batch.Commands[0].Parameters.Cast<DbParameter>().ToArray();
+        parameters.Single(parameter => parameter.ParameterName == "@triggerName").Value.Should().Be("hourly");
+        parameters[^1].Value.Should().Be(6L, "the guard binds the run count the flush read");
+    }
+
+    [Test]
     public async Task OneGuardedStatusUpdateIsIssuedAsACommand()
     {
         StubBatchingConnection connection = new();
@@ -140,6 +162,14 @@ public class StdAdoDelegateHistoryBatchTest
 
     private static JobRunStatus Status(string jobName, long runCount) =>
         new("INSTANCE", new JobKey(jobName, "reports"), new DateTimeOffset(2026, 10, 18, 12, 0, 0, TimeSpan.Zero), JobRunResult.Succeeded)
+        {
+            FirstFiredAtUtc = new DateTimeOffset(2026, 10, 18, 11, 0, 0, TimeSpan.Zero),
+            LastSchedulerInstanceId = "node-a",
+            RunCount = runCount
+        };
+
+    private static TriggerRunStatus TriggerStatus(string triggerName, long runCount) =>
+        new("INSTANCE", new TriggerKey(triggerName, "reports"), new DateTimeOffset(2026, 10, 18, 12, 0, 0, TimeSpan.Zero), JobRunResult.Succeeded)
         {
             FirstFiredAtUtc = new DateTimeOffset(2026, 10, 18, 11, 0, 0, TimeSpan.Zero),
             LastSchedulerInstanceId = "node-a",

@@ -4,24 +4,28 @@
    pauses without one, as the button did before it asked. *@
 @if (IsOpen)
 {
-    <div class="qz-confirm-overlay">
-        <div class="qz-confirm-dialog qz-pause-dialog" role="dialog" aria-labelledby="qz-pause-dialog-title">
-            <h3 id="qz-pause-dialog-title">@Title</h3>
-            <p>@Message</p>
-            <div class="qz-form-group">
-                <label class="qz-form-label" for="qz-pause-reason">Reason (optional)</label>
-                <input id="qz-pause-reason"
-                       class="qz-input"
-                       maxlength="@PauseDetails.MaxReasonLength"
-                       placeholder="Why is this being paused?"
-                       @bind="_reason" />
-            </div>
-            <div class="qz-confirm-actions">
-                <button type="button" class="qz-button qz-button-primary qz-pause-confirm" @onclick="ConfirmAsync">Pause</button>
-                <button type="button" class="qz-button" @onclick="CancelAsync">Cancel</button>
-            </div>
+    <ModalDialog Class="qz-pause-dialog" LabelledBy="qz-pause-dialog-title" ReturnFocus="ReturnFocus" ReturnFocusFallback="ReturnFocusFallback" OnCancel="CancelAsync">
+        <h3 id="qz-pause-dialog-title">@Title</h3>
+        <p>@Message</p>
+        @ChildContent
+        @if (!string.IsNullOrEmpty(Note))
+        {
+            <p class="qz-pause-dialog-note">@Note</p>
+        }
+        <div class="qz-form-group">
+            <label class="qz-form-label" for="qz-pause-reason">Reason (optional)</label>
+            <input id="qz-pause-reason"
+                   class="qz-input"
+                   maxlength="@PauseDetails.MaxReasonLength"
+                   placeholder="Why is this being paused?"
+                   data-autofocus
+                   @bind="_reason" />
         </div>
-    </div>
+        <div class="qz-confirm-actions">
+            <button type="button" class="qz-button qz-button-primary qz-pause-confirm" @onclick="ConfirmAsync">Pause</button>
+            <button type="button" class="qz-button" @onclick="CancelAsync">Cancel</button>
+        </div>
+    </ModalDialog>
 }
 
 @code {
@@ -30,11 +34,37 @@
     [Parameter]
     public bool IsOpen { get; set; }
 
+    /// <summary>
+    /// The control that opened the dialog, which focus goes back to as it closes, or <see langword="null" /> for
+    /// whatever had focus as it opened: see <see cref="ModalDialog.ReturnFocus" />.
+    /// </summary>
+    [Parameter]
+    public ElementReference? ReturnFocus { get; set; }
+
+    /// <summary>
+    /// Where focus goes as the dialog closes when <see cref="ReturnFocus" /> has left the page by then, or
+    /// <see langword="null" /> for none: see <see cref="ModalDialog.ReturnFocusFallback" />.
+    /// </summary>
+    [Parameter]
+    public ElementReference? ReturnFocusFallback { get; set; }
+
     [Parameter]
     public string Title { get; set; } = "Pause";
 
     [Parameter]
     public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// What the pause applies to, shown under the question, or nothing: the Agenda lists the triggers it pauses.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// What the pause goes on to mean, said under the question, or nothing.
+    /// </summary>
+    [Parameter]
+    public string? Note { get; set; }
 
     /// <summary>
     /// Raised with the reason typed, trimmed, or <see langword="null" /> when none was.

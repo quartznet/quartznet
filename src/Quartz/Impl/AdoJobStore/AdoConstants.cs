@@ -92,7 +92,8 @@ public static class AdoConstants
     [
         (TableExecutionHistory, Migration42History, ExecutionHistoryFeature),
         (TableMisfireHistory, Migration42History, ExecutionHistoryFeature),
-        (TableJobStatus, Migration44ExecutionOutcome, ExecutionHistoryFeature)
+        (TableJobStatus, Migration44ExecutionOutcome, ExecutionHistoryFeature),
+        (TableTriggerStatus, Migration49TriggerStatus, ExecutionHistoryFeature)
     ];
 
     /// <summary>The call that turns on the feature every optional table and column belongs to.</summary>
@@ -175,6 +176,12 @@ public static class AdoConstants
     /// writes it with every trigger, and its firing rounds decide from it whether to take the lock (#4140).
     /// </summary>
     internal const string Migration47TriggerFixedDelay = "4.7/add_trigger_fixed_delay_{0}.sql";
+
+    /// <summary>
+    /// The migration that creates <see cref="TableTriggerStatus" />, each trigger's rollup beside each job's.
+    /// Optional, as the history is (#4243).
+    /// </summary>
+    internal const string Migration49TriggerStatus = "4.9/add_trigger_status_{0}.sql";
 
     /// <summary>
     /// The columns only a feature that is off by default reads or writes, on a table only that feature
@@ -360,6 +367,17 @@ public static class AdoConstants
     /// execution history in the database.
     /// </remarks>
     public const string TableJobStatus = "JOB_STATUS";
+
+    /// <summary>
+    /// The <c>TRIGGER_STATUS</c> table, without the table prefix: one row per trigger, rolled up as
+    /// <see cref="TableJobStatus" /> is, from the firings of that trigger's own key.
+    /// </summary>
+    /// <remarks>
+    /// Created by the optional 4.9 migration, and read and written only by a store keeping its
+    /// execution history in the database. Its columns are <see cref="TableJobStatus" />'s, keyed by
+    /// <see cref="ColumnTriggerGroup" /> and <see cref="ColumnTriggerName" />.
+    /// </remarks>
+    public const string TableTriggerStatus = "TRIGGER_STATUS";
 
     // TableJobDetails columns names
     /// <summary>

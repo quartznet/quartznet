@@ -74,6 +74,8 @@
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
     <ProjectReference Include="..\Quartz.Dashboard.Agent\Quartz.Dashboard.Agent.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
+    <!-- The MCP endpoint over the served scheduler, called by raw JSON-RPC (McpCheck). -->
+    <ProjectReference Include="..\Quartz.Mcp\Quartz.Mcp.csproj" />
   </ItemGroup>
 
   <!--

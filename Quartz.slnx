@@ -68,6 +68,7 @@
   <Project Path="src/Quartz.Benchmark/Quartz.Benchmark.csproj" />
   <Project Path="src/Quartz.HttpClient/Quartz.HttpClient.csproj" />
   <Project Path="src/Quartz.Jobs/Quartz.Jobs.csproj" />
+  <Project Path="src/Quartz.Mcp/Quartz.Mcp.csproj" />
   <Project Path="src/Quartz.Plugins.TimeZoneConverter/Quartz.Plugins.TimeZoneConverter.csproj" />
   <Project Path="src/Quartz.Plugins/Quartz.Plugins.csproj" />
   <Project Path="src/Quartz.Extensions.Redis/Quartz.Extensions.Redis.csproj" />

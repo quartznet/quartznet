@@ -156,6 +156,10 @@ internal sealed class DashboardComponentContext : BunitContext
             .CallsBaseMethod();
         A.CallTo(() => Api.GetJobRunStatuses(A<string>._, A<IReadOnlyCollection<JobKeyDto>>._, A<CancellationToken>._))
             .CallsBaseMethod();
+        A.CallTo(() => Api.QueryJobRunStatuses(A<JobRunStatusQuery>._, A<CancellationToken>._))
+            .CallsBaseMethod();
+        A.CallTo(() => Api.QueryTriggerRunStatuses(A<TriggerRunStatusQuery>._, A<CancellationToken>._))
+            .CallsBaseMethod();
 
         // Nor counts runs over time, so the pages leave the chart out and the History page's stat cards stay
         // over the page, unless a case is about the chart.
@@ -166,6 +170,8 @@ internal sealed class DashboardComponentContext : BunitContext
         A.CallTo(() => Api.GetTriggerPause(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
             .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
         A.CallTo(() => Api.GetJobGroupPause(A<string>._, A<string>._, A<CancellationToken>._))
+            .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
+        A.CallTo(() => Api.GetTriggerGroupPause(A<string>._, A<string>._, A<CancellationToken>._))
             .Returns(new ValueTask<PauseInfo?>((PauseInfo?) null));
 
         // And no calendar by any name, which the in-process client answers as not found. A dummy calendar

@@ -170,10 +170,14 @@ internal sealed class JobRunShell
                     ? SchedulerInstruction.NoInstruction
                     : SchedulerInstruction.SetAllJobTriggersError;
 
-                // NotExecuted: the occurrence never happened, so nothing waiting on this trigger is
-                // settled by it. It keeps waiting for a firing that does.
-                await qs.NotifyJobStoreJobComplete(
+                // NotExecuted: the occurrence never happened, so no continuation waiting on this trigger is
+                // settled by it. It keeps waiting for a firing that does. A wait for the firing ends here,
+                // told why the job never ran.
+                await CompleteFiring(
                     CompletionContext(errorTrigger, jobDetail, instruction, ExecutionOutcome.NotExecuted, failure),
+                    firing: null,
+                    jobException: null,
+                    notExecutedBecause: failure.Message,
                     cancellationToken).ConfigureAwait(false);
                 return;
             }
@@ -229,9 +233,12 @@ internal sealed class JobRunShell
                             await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
 
                             // NotExecuted: a listener abandoned the firing before the job ran, so the
-                            // occurrence did not happen and settles nothing waiting on this trigger.
-                            await qs.NotifyJobStoreJobComplete(
+                            // occurrence did not happen and settles no continuation waiting on this trigger.
+                            await CompleteFiring(
                                 CompletionContext(trigger, jobDetail, SchedulerInstruction.NoInstruction, ExecutionOutcome.NotExecuted, exception: null),
+                                context,
+                                jobException: null,
+                                notExecutedBecause: ListenerAbandonedTheFiring,
                                 cancellationToken).ConfigureAwait(false);
                             break;
                         }
@@ -241,8 +248,11 @@ internal sealed class JobRunShell
                         try
                         {
                             instructionCode = trigger.ExecutionComplete(context, result: null);
-                            await qs.NotifyJobStoreJobVetoed(
+                            await CompleteFiring(
                                 CompletionContext(trigger, jobDetail, instructionCode, ExecutionOutcome.Vetoed, exception: null),
+                                context,
+                                jobException: null,
+                                notExecutedBecause: null,
                                 cancellationToken).ConfigureAwait(false);
 
                             // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
@@ -368,11 +378,14 @@ internal sealed class JobRunShell
                             // turning Debug on, and the retry instant is what tells them when to look.
                             // The policy the firing was retried under, which is the trigger's own only
                             // when it has one: a job type's or the scheduler's is never on the trigger.
-                            logger.TriggerRetryScheduled(
-                                trigger.Key,
-                                trigger.RetryAttempt,
-                                AppliedRetryPolicy(trigger)?.MaxAttempts ?? 0,
-                                trigger.NextFireTimeUtc.GetValueOrDefault());
+                            if (logger.IsEnabled(LogLevel.Information))
+                            {
+                                logger.TriggerRetryScheduled(
+                                    trigger.Key,
+                                    trigger.RetryAttempt,
+                                    AppliedRetryPolicy(trigger)?.MaxAttempts ?? 0,
+                                    trigger.NextFireTimeUtc.GetValueOrDefault());
+                            }
 
                             qs.resources.Meters.TriggerRetryScheduled(qs.resources.Name, qs.resources.InstanceId, trigger);
                         }
@@ -419,8 +432,11 @@ internal sealed class JobRunShell
                     if (!await NotifyJobListenersComplete(qs, context, jobExEx, cancellationToken).ConfigureAwait(false))
                     {
                         await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
-                        await qs.NotifyJobStoreJobComplete(
+                        await CompleteFiring(
                             CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx, handBack),
+                            context,
+                            jobExEx,
+                            notExecutedBecause: null,
                             cancellationToken).ConfigureAwait(false);
                         break;
                     }
@@ -440,14 +456,20 @@ internal sealed class JobRunShell
                     if (!await NotifyTriggerListenersComplete(qs, context, instructionCode, cancellationToken).ConfigureAwait(false))
                     {
                         await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
-                        await qs.NotifyJobStoreJobComplete(
+                        await CompleteFiring(
                             CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx, handBack),
+                            context,
+                            jobExEx,
+                            notExecutedBecause: null,
                             cancellationToken).ConfigureAwait(false);
                         break;
                     }
 
-                    await qs.NotifyJobStoreJobComplete(
+                    await CompleteFiring(
                         CompletionContext(trigger, jobDetail, instructionCode, outcome, jobExEx, handBack),
+                        context,
+                        jobExEx,
+                        notExecutedBecause: null,
                         cancellationToken).ConfigureAwait(false);
 
                     break;
@@ -502,10 +524,155 @@ internal sealed class JobRunShell
                 : SchedulerInstruction.SetAllJobTriggersError;
 
             // NotExecuted, as in the factory failure above: there was no occurrence to settle anything.
-            await qs.NotifyJobStoreJobComplete(
+            await CompleteFiring(
                 CompletionContext(errorTrigger, jobDetail, instruction, ExecutionOutcome.NotExecuted, se),
+                firing: null,
+                jobException: null,
+                notExecutedBecause: se.Message,
                 cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// What a wait is told of a firing a listener abandoned before its job ran.
+    /// </summary>
+    private const string ListenerAbandonedTheFiring =
+        "A trigger or job listener failed as the firing began, so the firing was abandoned before the job ran.";
+
+    /// <summary>
+    /// Hands the store a firing's completion, and answers whoever waits for the firing once the store has it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every exit of a firing that completes it in the store comes through here. The waits on the trigger are
+    /// settled just before the store call and released just after it, in a <c>finally</c>: see
+    /// <see cref="FiringWatches" />. An attempt the trigger answers with another one, and a firing handed back
+    /// for recovery, settle nothing, because the occurrence goes on.
+    /// </para>
+    /// <para>
+    /// With nobody waiting it costs one volatile read and allocates nothing: the answer is only built for a
+    /// key somebody waits on.
+    /// </para>
+    /// </remarks>
+    /// <param name="completion">What the store is told.</param>
+    /// <param name="firing">The firing's context, or <see langword="null" /> when the job was never built.</param>
+    /// <param name="jobException">What the job threw, or <see langword="null" />.</param>
+    /// <param name="notExecutedBecause">Why the job never ran, for a firing that did not run.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private ValueTask CompleteFiring(
+        TriggeredJobCompleteContext completion,
+        JobExecutionContextImpl? firing,
+        JobExecutionException? jobException,
+        string? notExecutedBecause,
+        CancellationToken cancellationToken)
+    {
+        FiringWatches watches = qs!.FiringWatches;
+        if (!watches.Any
+            || completion.Instruction == SchedulerInstruction.RetryTrigger
+            || completion.HandBackForRecovery)
+        {
+            return Store(qs, completion, cancellationToken);
+        }
+
+        return CompleteWatched(watches, completion, firing, jobException, notExecutedBecause, cancellationToken);
+    }
+
+    private async ValueTask CompleteWatched(
+        FiringWatches watches,
+        TriggeredJobCompleteContext completion,
+        JobExecutionContextImpl? firing,
+        JobExecutionException? jobException,
+        string? notExecutedBecause,
+        CancellationToken cancellationToken)
+    {
+        FiringWatches.Settling? settling = watches.Settle(completion.Trigger.Key);
+        if (settling is null)
+        {
+            await Store(qs!, completion, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        try
+        {
+            try
+            {
+                settling.Result = Answer(completion, firing, jobException, notExecutedBecause);
+            }
+            catch (Exception e)
+            {
+                // Building the answer must never cost the firing its completion: the wait is told how the firing
+                // ended without the row, and the error is reported as any other of the firing's is.
+                settling.Result = new FiringResult
+                {
+                    TriggerKey = completion.Trigger.Key,
+                    Status = FiringWaitStatus.Ended,
+                    Outcome = completion.Outcome
+                };
+
+                await qs!.NotifySchedulerListenersError(
+                    ErrorFor(
+                        firedTriggerBundle,
+                        $"Could not build the answer to a wait for the firing of trigger '{completion.Trigger.Key}'; it is answered without its history row.",
+                        new SchedulerException("Building the answer to a wait for a firing failed.", e)),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            await Store(qs!, completion, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            watches.Release(settling);
+        }
+    }
+
+    /// <summary>
+    /// The store call for a firing that is over: the veto's and the completion's are one call, told apart.
+    /// </summary>
+    private static ValueTask Store(QuartzScheduler qs, TriggeredJobCompleteContext completion, CancellationToken cancellationToken)
+    {
+        return completion.Outcome == ExecutionOutcome.Vetoed
+            ? qs.NotifyJobStoreJobVetoed(completion, cancellationToken)
+            : qs.NotifyJobStoreJobComplete(completion, cancellationToken);
+    }
+
+    /// <summary>
+    /// What a wait for the firing is answered with: the row the history recorded, or the one it would record.
+    /// </summary>
+    private FiringResult Answer(
+        TriggeredJobCompleteContext completion,
+        JobExecutionContextImpl? firing,
+        JobExecutionException? jobException,
+        string? notExecutedBecause)
+    {
+        ExecutionOutcome outcome = completion.Outcome;
+        return outcome switch
+        {
+            ExecutionOutcome.NotExecuted => new FiringResult
+            {
+                TriggerKey = completion.Trigger.Key,
+                Status = FiringWaitStatus.Ended,
+                Outcome = outcome,
+                Message = notExecutedBecause
+            },
+            ExecutionOutcome.Vetoed => new FiringResult
+            {
+                TriggerKey = completion.Trigger.Key,
+                Status = FiringWaitStatus.Ended,
+                Outcome = outcome,
+                Misfire = firing is null
+                    ? null
+                    : firing.RecordedMisfire ?? ExecutionHistoryEntries.Vetoed(firing, qs!.resources.TimeProvider.GetUtcNow())
+            },
+            _ => new FiringResult
+            {
+                TriggerKey = completion.Trigger.Key,
+                Status = FiringWaitStatus.Ended,
+                Outcome = outcome,
+                Execution = firing is null
+                    ? null
+                    : firing.RecordedExecution ?? ExecutionHistoryEntries.Execution(firing, jobException, logger, entryId: null)
+            }
+        };
     }
 
     /// <summary>

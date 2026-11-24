@@ -77,4 +77,11 @@ internal static partial class DashboardHostLog
 
     [LoggerMessage(EventId = 9409, Level = LogLevel.Information, Message = "Accepting agents at {HubPath}. Run one instance of the host while it accepts agents")]
     public static partial void AcceptingAgents(this ILogger logger, string hubPath);
+
+    /// <remarks>
+    /// Warning, and without the value: a bearer token presented to the HTTP API in <c>Token</c> mode matched no
+    /// role, and the caller was answered <c>401</c>. Added in 4.9.
+    /// </remarks>
+    [LoggerMessage(EventId = 9410, Level = LogLevel.Warning, Message = "A bearer token presented to the HTTP API was refused: it matched no role")]
+    public static partial void BearerRefused(this ILogger logger);
 }

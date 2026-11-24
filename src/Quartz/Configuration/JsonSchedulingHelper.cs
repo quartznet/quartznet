@@ -672,6 +672,16 @@ internal static class JsonSchedulingHelper
         {
             scheduling.ScheduleTriggerRelativeToReplacedTrigger = ParseBool(relative, nameof(SchedulingOptions.ScheduleTriggerRelativeToReplacedTrigger));
         }
+
+        // An array, appended to rather than replaced: a group a callback or the flat key already listed is
+        // listed once.
+        foreach (IConfigurationSection group in section.GetSection(nameof(SchedulingOptions.PruneUndeclaredInGroups)).GetChildren())
+        {
+            if (group.Value is { } name && !scheduling.PruneUndeclaredInGroups.Contains(name, StringComparer.Ordinal))
+            {
+                scheduling.PruneUndeclaredInGroups.Add(name);
+            }
+        }
     }
 
     private static string? NormalizeEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;

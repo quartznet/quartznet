@@ -276,7 +276,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             logger.UsingJobStore(
                 quartzScheduler.JobStoreType.FullName, quartzScheduler.SupportsPersistence, quartzScheduler.Clustered);
 
-            if (quartzScheduler.ExecutionGroupRouting is { } routing)
+            if (quartzScheduler.ExecutionGroupRouting is { } routing && logger.IsEnabled(LogLevel.Information))
             {
                 // A refused group on a store nobody else shares is a group nothing runs, which is the
                 // one thing an operator reading this line needs to be told.

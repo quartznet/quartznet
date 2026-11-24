@@ -47,6 +47,15 @@ internals behind them.
 - `Quartz.Aspire.Hosting` — the AppHost resource that runs that image. It references `Aspire.Hosting` and
   **nothing of Quartz**: the environment variables it writes are the contract, and `Quartz.Tests.Aspire`
   feeds them to the host's own reader and the agent's.
+- The HTTP API serves a scheduler behind a target with `?target=` (4.9): the key resolves through
+  `SchedulerLookup.Resolve` with the container's windows, and the route's own handler runs against the proxy or
+  window it names. No bytes are relayed. The dashboard host maps the API once, for its whole fleet, bearer only.
+- `Quartz.Mcp` — an MCP endpoint over Streamable HTTP (4.9, #4245), one more carrier of the HTTP API's catalogue:
+  each of its 19 tools names the `SchedulerRoutes` it calls, runs `SchedulerOperations`, and is authorized by the
+  API's two policies with the route's name, then the target's `SchedulerTarget.MaxAccess`. It references
+  `Quartz.AspNetCore`, not `Quartz.Dashboard`, and says `IsAotCompatible`: tools are `McpServerTool` subclasses with
+  schemas from `JsonSchemaExporter`, never `AIFunctionFactory`. Stateless always, read-only by default, and the
+  container's one MCP server: `MapQuartzMcp` refuses to start beside an application's own tools.
 - `UseDashboardAgent` reads `Quartz:DashboardAgent` (a named scheduler's own section first) through the
   binding generator, before any callback.
 
@@ -55,6 +64,10 @@ there is no properties-based `StdSchedulerFactory` any more. Legacy flat `quartz
 to typed options and registrations by `QuartzPropertyBridge`, which is the only place that understands
 them; `LegacyPropertyKeys` holds the key strings and rejects a misspelled one. A new setting is therefore
 a typed option plus a bridge entry, never a string read somewhere else.
+
+With `SchedulingOptions.PruneUndeclaredInGroups` set on a persistent store, the first `Start` prunes what
+no declaration names, after `StartPlugins` and before the loop is unpaused, against the keys
+`DeclaredContent` recorded as each processor applied its declarations (#4415).
 
 A scheduler the application does not shut down itself is shut down by Quartz. The hosted service does it
 inside the host's shutdown window, and `StandaloneSchedulerFactory` before it disposes its container.
@@ -101,8 +114,8 @@ Pluggable serialization for job store persistence:
   and what `net10.0` lacks is backfilled once as a C# 14 extension member: `JsonSerializerOptionsPolyfills`
   backfills `GetTypeInfo<T>()`, which CA2263 asks for on `net11.0`. `PublicApiTest_Quartz.verified.txt` holds
   both assets to one surface. There is no per-target baseline.
-- **The internal surface is the same in both assets too.** Eight shipped packages see Quartz's internals
-  (`AssemblyInfoExtras.cs`), compile against the `net10.0` asset, and in a `net11.0` application run on the
+- **The internal surface is the same in both assets too.** Ten shipped packages, the dashboard host's tool among them,
+  see Quartz's internals (`AssemblyInfoExtras.cs`), compile against the `net10.0` asset, and in a `net11.0` application run on the
   `net11.0` one. An internal member only one asset has throws `MissingMethodException` on .NET 11 alone. So a
   backfill is never guarded on the member, only on its body. On `net11.0` the BCL's own member binds first at
   Quartz's call sites, and the backfill's body forwards to it. `JsonSerializerOptionsPolyfillsTest` names the

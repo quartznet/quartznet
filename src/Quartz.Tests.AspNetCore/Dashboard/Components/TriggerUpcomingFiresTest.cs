@@ -137,7 +137,7 @@ public sealed class TriggerUpcomingFiresTest
         page.WaitForAssertion(() => page.Find("[data-testid=upcoming-fires-unreadable]").TextContent.Should().Be(
             "The upcoming fire times could not be read. The agent does not accept GetTriggerFireTimes."));
         page.FindAll(".qz-error-alert").Should().BeEmpty("the trigger was read, and the rest of its page still says something true");
-        page.Find("table.qz-table").TextContent.Should().Contain("Simple");
+        page.Find("table.qz-properties-table").TextContent.Should().Contain("Simple");
     }
 
     /// <summary>

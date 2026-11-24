@@ -149,6 +149,8 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
     /// <inheritdoc />
     public async ValueTask Start(CancellationToken cancellationToken = default)
     {
+        // How many files were read, so a start that fails part-way can say which were not.
+        int read = 0;
         try
         {
             if (jobFiles.Count > 0)
@@ -186,6 +188,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
                     }
 
                     await ProcessFile(jobFile, cancellationToken).ConfigureAwait(false);
+                    read++;
                 }
             }
         }
@@ -193,6 +196,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         {
             if (FailOnSchedulingError) throw;
             logger.FileWatchStartFailed(ex);
+            CouldNotReadFrom(read);
         }
         finally
         {
@@ -230,9 +234,34 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         return jobTriggerName;
     }
 
+    /// <summary>
+    /// Says that the files from <paramref name="first" /> on were not read, so the first start does not prune
+    /// against what they declare.
+    /// </summary>
+    private void CouldNotReadFrom(int first)
+    {
+        if (Configuration.DeclaredContent.Of(Scheduler) is not { } declared)
+        {
+            return;
+        }
+
+        for (int i = first; i < jobFiles.Count; i++)
+        {
+            declared.CouldNotRead($"'{jobFiles[i].Value.FileName}' (not read: the plugin's start failed)");
+        }
+    }
+
     private async ValueTask ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)
     {
-        if (jobFile is null || !jobFile.FileFound) return;
+        if (jobFile is null) return;
+
+        if (!jobFile.FileFound)
+        {
+            // A file listed and not found declares nothing anyone knows of; taking it out of the list is
+            // how its content is removed.
+            Configuration.DeclaredContent.Of(Scheduler)?.CouldNotRead($"'{jobFile.FileName}' (not found)");
+            return;
+        }
 
         try
         {
@@ -251,6 +280,9 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         {
             var message = "Could not schedule jobs and triggers from JSON file " + jobFile.FileName + ": " + e.Message;
             var schedulerException = new SchedulerException(message, e);
+
+            // What the file declares is not known, so the first start must not prune against it.
+            Configuration.DeclaredContent.Of(Scheduler)?.CouldNotRead($"'{jobFile.FileName}'");
 
             logger.FileProcessingFailed(jobFile.FileName, e);
 

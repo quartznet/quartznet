@@ -134,6 +134,13 @@ dotnet_style_qualification_for_method = false:suggestion
 #prefer properties not to be prefaced with this. or Me. in Visual Basic
 dotnet_style_qualification_for_property = false:suggestion
 
+# The examples log the way an application usually does, with LogInformation and a message template,
+# and an IsEnabled guard around every such line would teach a habit that has nothing to do with Quartz.
+# Everything else keeps CA1873: from the .NET 11 analyzers on it reports only an argument that calls a
+# method or allocates an array, which is work a disabled level should not pay for.
+[src/Quartz.Examples*/**.cs]
+dotnet_diagnostic.CA1873.severity = none
+
 # XML project files
 [*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
 indent_size = 2

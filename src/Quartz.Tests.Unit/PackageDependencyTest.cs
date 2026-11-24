@@ -145,6 +145,7 @@ public class PackageDependencyTest
     private static readonly Dictionary<string, RecordedFloor> RecordedFloors = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Aspire.Hosting"] = new("13.6.5", "it is the lowest release outside GHSA-f7vh-h5g3-7jrh"),
+        ["ModelContextProtocol.AspNetCore"] = new("2.3.1", "it is the lowest release outside GHSA-x863-g495-4cjc, which covers every 2.x from 2.0.0-preview.1 below it"),
         ["MySqlConnector"] = new("2.6.1", "Weasel.MySql 9.39.0 declares 2.4.0, under GHSA-473q-m89c-ghf8, and 2.6.1 fixed it"),
         ["Newtonsoft.Json"] = new("13.0.2", "13.0.1 round-trips a TimeOnly without its seconds (JobDataMapPortabilityTest)"),
         ["OpenTelemetry.Extensions.Hosting"] = new("1.15.3", "it fixed GHSA-g94r-2vxg-569j, which every earlier 1.x brings in through OpenTelemetry.Api"),
@@ -507,7 +508,7 @@ public class PackageDependencyTest
 
     /// <summary>
     /// Substitutes a single <c>$(Name)</c> property reference, which is the only form the file uses —
-    /// Aspire ships its packages and its MSBuild SDK as one version, so they are written as a property.
+    /// Aspire ships its packages as one version, so the example's are written as a property.
     /// </summary>
     private static string Resolve(string version, IReadOnlyDictionary<string, string> properties)
     {

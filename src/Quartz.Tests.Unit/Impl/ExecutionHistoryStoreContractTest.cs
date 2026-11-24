@@ -699,6 +699,52 @@ public sealed class InMemoryExecutionHistoryStoreContractTest : ExecutionHistory
     }
 
     /// <summary>
+    /// The trigger statuses are bounded as the job statuses are, on their own count.
+    /// </summary>
+    [Test]
+    public async Task TheStatusOfTheTriggerThatRanLongestAgoIsDroppedFirst()
+    {
+        IExecutionHistoryStore store = await CreateStore(options => options.MaxEntriesPerScheduler = 2);
+
+        await store.AddExecution(Execution(Start.AddMinutes(-1), "report") with { TriggerName = "b" });
+        await store.AddExecution(Execution(Start.AddMinutes(-5), "report") with { TriggerName = "a" });
+        await store.AddExecution(Execution(Start, "report") with { TriggerName = "c" });
+
+        PagedResult<TriggerRunStatus> page = await store.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = SchedulerName });
+
+        page.Items.Select(status => status.Trigger.Name).Should().Equal(["b", "c"],
+            "a scheduler keeps at most MaxEntriesPerScheduler trigger statuses, and the one to go is the trigger that ran longest ago");
+    }
+
+    /// <summary>
+    /// A finalized firing leaves no trigger status, so one-offs cannot push the recurring triggers' statuses out
+    /// of the bound.
+    /// </summary>
+    [Test]
+    public async Task ABurstOfOneOffsEvictsNoRecurringTriggersStatus()
+    {
+        IExecutionHistoryStore store = await CreateStore(options => options.MaxEntriesPerScheduler = 2000);
+        ITriggerStatusHistoryStore recorder = (ITriggerStatusHistoryStore) store;
+
+        await recorder.AddExecution(Execution(Start.AddMinutes(-10), "report") with { TriggerName = "daily" }, triggerFinalized: false);
+        for (int i = 0; i < 2000; i++)
+        {
+            await recorder.AddExecution(
+                Execution(Start.AddSeconds(i), "report") with { TriggerName = "one-off-" + i },
+                triggerFinalized: true);
+        }
+
+        PagedResult<TriggerRunStatus> page = await store.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = SchedulerName,
+            IncludeTotalCount = true
+        });
+
+        page.Items.Should().ContainSingle("a one-off's trigger is deleted as it completes, so no listing would show its status")
+            .Which.Trigger.Name.Should().Be("daily", "the recurring trigger's status is the one that has to survive");
+    }
+
+    /// <summary>
     /// The in-memory history holds an input to the recorder's cap whoever hands it the row, because that
     /// cap is what bounds its memory.
     /// </summary>
@@ -1382,6 +1428,18 @@ public sealed class ExecutionHistoryStoreDefaultsTest
                 "counts rebuilt from rows the store has trimmed would be wrong, so a store that keeps no status says so")
             .WithMessage("*QueryJobRunStatuses*");
         await single.Should().ThrowAsync<NotSupportedException>("the single read is answered by the listing");
+    }
+
+    [Test]
+    public async Task AStoreWithoutTriggerStatusesSaysSo()
+    {
+        IExecutionHistoryStore store = A.Fake<IExecutionHistoryStore>(options => options.CallsBaseMethods());
+
+        Func<Task> query = async () => await store.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = "Scheduler" });
+
+        await query.Should().ThrowAsync<NotSupportedException>(
+                "a store written before 4.9 keeps no trigger status, and counts rebuilt from trimmed rows would be wrong")
+            .WithMessage("*QueryTriggerRunStatuses*");
     }
 
     [Test]

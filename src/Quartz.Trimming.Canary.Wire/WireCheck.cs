@@ -26,6 +26,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
 using Quartz.HttpApiContract;
+using Quartz.Impl;
 
 using static Quartz.Trimming.Canary.Wire.CanarySteps;
 
@@ -74,10 +75,12 @@ internal static class WireCheck
             ("schedule", () => Schedule(scheduler, cancellationToken)),
             ("read-back", () => ReadBack(scheduler, cancellationToken)),
             ("not-found", () => NotFound(scheduler, cancellationToken)),
+            ("agenda", () => Agenda(scheduler, cancellationToken)),
             ("events-open", () => OpenEvents(scheduler, subscription, cancellationToken)),
             ("pause", () => Pause(scheduler, cancellationToken)),
             ("resume", () => Resume(scheduler, cancellationToken)),
             ("trigger", () => Trigger(scheduler, cancellationToken)),
+            ("running-log", () => RunningLog(scheduler, cancellationToken)),
             ("events", () => Events(subscription, cancellationToken)),
             ("history", () => History(history, cancellationToken)),
             ("statistics", () => Statistics(history, cancellationToken)),
@@ -155,6 +158,48 @@ internal static class WireCheck
     }
 
     /// <summary>
+    /// Every fire of the canary's triggers in an hour, read off the <c>upcoming-fires</c> route: the answer and each of
+    /// its fires cross the wire through the contract's generated metadata, which a trimmed or native client has.
+    /// </summary>
+    private static async Task<string> Agenda(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        Expect(scheduler is IUpcomingFiresScheduler, $"the client's scheduler is a {scheduler.GetType().FullName}, which does not send the route.");
+
+        TriggerKey key = new("wire-agenda", TriggerKey.Group);
+        DateTimeOffset start = Clock.GetUtcNow().AddHours(1);
+        ITrigger trigger = TriggerBuilder.Create(Clock)
+            .WithIdentity(key)
+            .ForJob(JobKey)
+            .StartAt(start)
+            .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromMinutes(10)).WithRepeatCount(2))
+            .Build();
+        await scheduler.ScheduleJob(trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            UpcomingFiresOutcome outcome = await UpcomingFires.Query(
+                scheduler,
+                new UpcomingFiresQuery(start, start.AddHours(1), TriggerKey.Group, 10),
+                cancellationToken).ConfigureAwait(false);
+
+            Expect(outcome.Refusal is null, $"the host refused the agenda: {outcome.Refusal}");
+            UpcomingFiresResult result = outcome.Result!;
+            Expect(result.Fires.Count == 3, $"the agenda listed {result.Fires.Count} fire(s), not the trigger's three.");
+            Expect(result.Fires.TrueForAll(fire => fire.TriggerKey.Equals(key) && fire.JobKey.Equals(JobKey)), "a fire came back naming another trigger or job.");
+            Expect(result.Fires[0].FireTimeUtc == start, $"the first fire came back at {result.Fires[0].FireTimeUtc:O}, not {start:O}.");
+            Expect(result.Fires[0].State == TriggerState.Normal, $"the trigger came back {result.Fires[0].State}.");
+            Expect(!string.IsNullOrEmpty(result.Fires[0].ScheduleDescription), "the fire came back without its schedule in words.");
+            Expect(result.CutAtUtc is null, "the agenda says it was cut, though it holds every fire in the window.");
+
+            return $"{key} fires three times in the hour from {start:O}, read in one request with its state and schedule";
+        }
+        finally
+        {
+            await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     /// Opens the client's subscription to the scheduler's event stream and waits until it is live: a
     /// pause and a resume until the resume's event arrives. The route subscribes before it writes its
     /// first frame, so an event raised once the stream has answered is never missed — but the reader
@@ -217,6 +262,26 @@ internal static class WireCheck
         Expect(run.FiredBy == FiredBy, $"the job ran with fired-by '{run.FiredBy}'.");
 
         return $"{JobKey} ran on the server, with the data it was scheduled with and the data it was triggered with";
+    }
+
+    /// <summary>
+    /// A running firing's log, read through the route that reads it in the host's process (#4437): for a firing
+    /// the host does not run, its answer names the host's node and says so, the state travelling as its name.
+    /// </summary>
+    private static async Task<string> RunningLog(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        string node = (await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false)).SchedulerInstanceId;
+
+        Impl.FireInstanceLog log = await Impl.FireInstanceLogs.Read(
+            scheduler,
+            new Impl.FireInstanceLogRequest("no-such-firing", After: 3, Take: 10, SchedulerInstanceId: null),
+            cancellationToken).ConfigureAwait(false);
+
+        Expect(log.State == Impl.FireInstanceLogState.NotRunning, $"a firing nobody runs came back as {log.State}, not NotRunning.");
+        Expect(log.SchedulerInstanceId == node, $"the answer names the node '{log.SchedulerInstanceId}', not the host's '{node}'.");
+        Expect(log.Entries.Length == 0 && log.Next == 3 && !log.HasMore, $"the answer carried {log.Entries.Length} entries and the cursor {log.Next}.");
+
+        return $"a firing the host does not run reads back as {log.State} on node '{log.SchedulerInstanceId}', the cursor unchanged";
     }
 
     /// <summary>

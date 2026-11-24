@@ -88,6 +88,11 @@ Once the schema is ahead of every node, replace them one at a time. As each goes
   [relative scheduling](how-tos/rescheduling-jobs.md#what-a-start-keeps) on, a start leaves the stored
   trigger as it is, another node's acquisition included. A start never puts back a fire time another node
   fired while it re-applied the trigger.
+- **Pruning belongs to a deploy that runs one version** (4.9). With
+  [`PruneUndeclaredInGroups`](how-tos/rescheduling-jobs.md#removing-what-the-code-no-longer-declares), a
+  node's first start deletes what its declarations no longer name in the owned groups. While old and new
+  nodes overlap, an old node's start stores again what the new code removed, and the next new node's start
+  removes it, each removal logged as `4034` or `4035`. Nodes of different roles must own different groups.
 
 ### Rolling 4.3 to 4.4
 
@@ -333,9 +338,8 @@ node's first check-in after a restart recovers firings another node is still exe
 ### What a check-in is
 
 Each node writes a row to `QRTZ_SCHEDULER_STATE` and updates its timestamp every `CheckinInterval`
-(7.5 seconds by default). There is no heartbeat between nodes and no leader: one node judges another by
-reading the timestamp it wrote and comparing it with its own clock. The one thing these rows elect is
-[who sweeps the execution history](#who-sweeps-the-execution-history).
+(7.5 seconds by default). There is no heartbeat between nodes and [no leader](#why-there-is-no-leader): one
+node judges another by reading the timestamp it wrote and comparing it with its own clock.
 
 - **The first check-in** happens during `Start()`, before firing begins. It treats the node's *own*
   previous row as a failed instance, so whatever the last run left behind is recovered then. Only a fixed
@@ -441,6 +445,29 @@ recovery sweep uses, so the two cannot disagree:
 - `GET {ApiPath}/schedulers` lists every scheduler the process knows, including registrations nothing has
   built, so a scheduler that never started can be told from one that does not exist.
 
+### Why there is no leader
+
+Every node runs every cluster-wide duty, and each is safe however many nodes run it at once. A leader
+would add an election and a failover gap, and make nothing safer.
+
+| Duty | Safe on every node because |
+|---|---|
+| Check-in | Each node writes only its own `QRTZ_SCHEDULER_STATE` row. |
+| Failed-node recovery | It runs under `STATE_ACCESS` and reads the failed rows again under it. The first node recovers; the next finds nothing. |
+| Misfire handling | Handled under `TRIGGER_ACCESS`, so passes run one at a time and a later pass finds the trigger re-armed. Under [routing](tutorial/execution-groups.md#routing-which-node-serves-a-group) a node handles only the groups it serves. |
+| Stale-acquisition sweep | Each node releases only its own `ACQUIRED` rows. |
+| Interrupt relay | A request is written on the firing's own `QRTZ_FIRED_TRIGGERS` row, and only the node running that firing reads it. |
+| Execution-history sweep | Its deletes are idempotent. |
+
+One duty runs on one node, to save work rather than for safety: the execution-history sweep, on the live
+node with the lowest instance id ([below](#who-sweeps-the-execution-history)).
+
+To run something on exactly one node:
+
+- **Work on a schedule:** make it a Quartz job. Each fire time runs on one node of the cluster;
+  `[DisallowConcurrentExecution]` keeps one run from overlapping the next.
+- **One active process:** [Running under an External Leader Election](how-tos/external-leader.md).
+
 ### Who sweeps the execution history
 
 With [`UseExecutionHistory()`](tutorial/job-stores.md#execution-history-in-the-database), one node trims
@@ -524,8 +551,9 @@ is running.
 
 ### Nothing is firing
 
-Work the store is holding back was never acquired, so it is not in `QRTZ_FIRED_TRIGGERS`. Check, in this
-order:
+Work the store is holding back was never acquired, so it is not in `QRTZ_FIRED_TRIGGERS`. On the dashboard,
+from 4.9, a trigger's page runs these checks for that trigger:
+[Why isn't it firing?](packages/dashboard.md#why-isn-t-it-firing). By hand, check in this order:
 
 1. **Standby.** `IScheduler.Status` says so. The health check reports *degraded*, not unhealthy, which an
    HTTP probe reads as healthy, because ASP.NET Core maps degraded to 200 — see
@@ -721,8 +749,10 @@ With several nodes:
   deleted parent is settled. Baseline cost: one count query and one indexed probe per minute per node;
   contended: one lock per minute per node with work.
 - **Every node runs its own cluster manager**: one `SELECT` of the state table and one `UPDATE` per node
-  per `CheckinInterval`. At 7.5 seconds, ten nodes issue 160 statements a minute before any job runs. A
-  shorter interval buys faster failure detection with more of this traffic.
+  per `CheckinInterval`. A node running a firing also reads its interrupt requests after each check-in, one
+  `SELECT` more. At 7.5 seconds, ten idle nodes issue 160 statements a minute, and ten nodes that are all
+  running firings issue 240. Before 4.9 every node read its interrupt requests, idle or not. A shorter
+  interval buys faster failure detection with more of this traffic.
 - **Batching trades round trips for balance.** Since 4.3 a clustered store's automatic `MaxBatchSize` is
   the pool, as on any persistent store. Load can become uneven: a node that acquires ten triggers holds
   them until it can run them. It pays anyway; see the table below. At the shipped window of zero a batch

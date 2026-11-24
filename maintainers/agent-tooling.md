@@ -45,7 +45,7 @@ instruction files: no tool loads them unasked, and the 32,768-byte budget does n
 | `quartz-docs-researcher` | Opus, xhigh | Its own worktree | A page that surveys prior art and recommends practice, as a pull request |
 | `quartz-reviewer` | Opus, xhigh | Read-only | A verdict on a pull request or a hand-off, before it merges |
 | `quartz-ci-triage` | Sonnet, high | Read-only | A diagnosis of a failing check, or a recommendation on a dependency bump |
-| `quartz-ui-verifier` | Sonnet, medium | Report-only | What the dashboard renders in a browser, against an exact checklist |
+| `quartz-ui-verifier` | Sonnet, high | Report-only | What the dashboard renders in a browser against an exact checklist, and how it looks and feels |
 
 ## Who decides, who executes
 
@@ -68,6 +68,8 @@ pushed or merged before Opus has read it.
   the verification commands. A brief that cannot name them is an implementer's task.
 - **A grunt stops on any question the brief leaves open.** The caller answers it and resumes the agent
   with `SendMessage`, which keeps its model.
+- **Every change to a dashboard page or component gets a browser check** by `quartz-ui-verifier`, beside
+  the code review: what renders, and its look and feel and UX. It merges after both pass.
 - **A grunt's branch is validated before it leaves the machine.** Run `quartz-reviewer` on
   `git diff <base>..<branch>`, or read a short diff yourself. Then push it and open the pull request.
 

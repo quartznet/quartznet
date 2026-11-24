@@ -297,6 +297,9 @@ matching on its text is not.
 | 4031 | Warning | `Quartz` | `"Scheduler '{SchedulerName}' runs under the generated instance id '{SchedulerInstanceId}', which changes at every start, yet {PinnedTriggerCount} declared trigger(s) are pinned to a named node: {TriggerKeys}. A pin matches only a node whose instance id is the name it carries, which a generated id never is. Set InstanceId (quartz.scheduler.instanceId) on each node a pin names, or pin with PreferredNode.Auto"` |
 | 4032 | Information | `Quartz` | `"Trigger '{TriggerKey}' is switched off: '{Source}' is '-', so it is not scheduled. A copy already stored was unscheduled: {Unscheduled}"` |
 | 4033 | Error | `Quartz` | `"Scheduler '{SchedulerName}' failed to shut down while it was being disposed; the failure is logged rather than thrown, so a container disposing it goes on to its other services"` |
+| 4034 | Warning | `Quartz` | `"Scheduler '{SchedulerName}' deleted job '{JobKey}' and its triggers: no declaration names it, and PruneUndeclaredInGroups lists its group '{OwnedGroup}'"` |
+| 4035 | Warning | `Quartz` | `"Scheduler '{SchedulerName}' unscheduled trigger '{TriggerKey}' of job '{JobKey}': no declaration names it, and PruneUndeclaredInGroups lists the group '{OwnedGroup}'"` |
+| 4036 | Error | `Quartz` | `"Scheduler '{SchedulerName}' did not finish pruning the jobs and triggers no declaration names in the groups {OwnedGroups}; nothing else is deleted at this start, and the start goes on"` |
 | 5000 | Information | `Quartz` | `"Parsing XML file: {FileName} with systemId: {SystemId}"` |
 | 5001 | Information | `Quartz` | `"Parsing XML from stream with systemId: {SystemId}"` |
 | 5002 | Debug | `Quartz` | `"Found {JobGroupCount} delete job group commands."` |
@@ -408,6 +411,11 @@ matching on its text is not.
 | 9007 | Information | `Quartz.AspNetCore` | `"Api user {User} performed {Operation} on scheduler {SchedulerName}: {Route}"` |
 | 9008 | Debug | `Quartz.AspNetCore` | `"NotSupportedException thrown"` |
 | 9009 | Warning | `Quartz.AspNetCore` | `"Api user {User} was refused {Operation} on scheduler {SchedulerName}: it needs {Access}"` |
+| 9010 | Warning | `Quartz.AspNetCore` | `"Target {Target} is not reachable for {Operation} on scheduler {SchedulerName}: {Reason}"` |
+| 9011 | Warning | `Quartz.AspNetCore` | `"Target {Target} did not answer {Operation} on scheduler {SchedulerName} in time: {Reason}"` |
+| 9012 | Warning | `Quartz.AspNetCore` | `"Target {Target} refused {Operation} on scheduler {SchedulerName}: {Reason}"` |
+| 9013 | Error | `Quartz.AspNetCore` | `"Recording an operator action with {Recorder} failed"` |
+| 9014 | Error | `Quartz.AspNetCore` | `"Target {Target} did not serve {Operation} on scheduler {SchedulerName}: {Fault}, {Reason}"` |
 | 9100 | Information | `Quartz.Dashboard` | `"Dashboard user {User} performed {Action} on {Target} of scheduler {SchedulerName}: {Outcome} (origin {Origin}, node {Node})"` |
 | 9101 | Information | `Quartz.Dashboard` | `"Dashboard user {User} attempted {Action} on {Target} of scheduler {SchedulerName} and it failed: {Reason} (origin {Origin}, node {Node})"` |
 | 9102 | Debug | `Quartz.Dashboard` | `"Dashboard connection {ConnectionId} opened for user {User}"` |
@@ -447,6 +455,12 @@ matching on its text is not.
 | 9407 | Information | `Quartz.Dashboard.Host` | `"HTTP target {Target} reaches scheduler {SchedulerName} at {Address}"` |
 | 9408 | Information | `Quartz.Dashboard.Host` | `"Store-attached target {Target} reads a {Provider} database with the {Serializer} serializer"` |
 | 9409 | Information | `Quartz.Dashboard.Host` | `"Accepting agents at {HubPath}. Run one instance of the host while it accepts agents"` |
+| 9410 | Warning | `Quartz.Dashboard.Host` | `"A bearer token presented to the HTTP API was refused: it matched no role"` |
+| 9500 | Information | `Quartz.Mcp` | `"MCP user {User} ({Client}) performed {Tool} on scheduler {SchedulerKey}: {Subject}"` |
+| 9501 | Warning | `Quartz.Mcp` | `"MCP user {User} was refused {Tool} on scheduler {SchedulerKey}: {Reason}"` |
+| 9502 | Warning | `Quartz.Mcp` | `"MCP user {User} was refused the confirmation of {Tool} on scheduler {SchedulerKey}: {Reason}"` |
+| 9503 | Warning | `Quartz.Mcp` | `"MCP user {User} was rate limited calling {Tool} on scheduler {SchedulerKey}: retry after {RetryAfterSeconds} s"` |
+| 9504 | Warning | `Quartz.Mcp` | `"MCP request refused: {Reason}"` |
 | 10000 | Information | `Quartz.Weasel` | `"Applied the schema changes scheduler '{SchedulerName}' needs to {Database} ({Difference})"` |
 | 10001 | Debug | `Quartz.Weasel` | `"The schema of scheduler '{SchedulerName}' in {Database} already matches the model"` |
 | 10002 | Information | `Quartz.Weasel` | `"Not applying the schema of scheduler '{SchedulerName}' at startup, because AutoCreate is {AutoCreate}; the store still validates it"` |

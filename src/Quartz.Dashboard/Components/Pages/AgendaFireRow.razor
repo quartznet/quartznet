@@ -1,0 +1,118 @@
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Services
+
+@* One fire of the Agenda: a component of its own, so that ticking one row's box renders that row and the selection bar
+   again, not every row of a thousand. Its handler is a method group, which keeps one event handler for the row's
+   life, and it renders only when what it shows changed. The time is the row's header, with its day for a screen
+   reader, so each cell is heard with the hour it belongs to. *@
+<tr data-testid="agenda-fire">
+    @if (CanSelect)
+    {
+        <td class="qz-col-select">
+            <input type="checkbox"
+                   class="qz-agenda-select-fire"
+                   aria-label="@("Select " + DisplayValueHelper.FormatKey(Fire.Trigger.Group, Fire.Trigger.Name) + " at " + Time)"
+                   checked="@Selected"
+                   @onchange="OnChange" />
+        </td>
+    }
+    <th scope="row" class="qz-agenda-col-time qz-table-cell-mono"><span class="qz-sr-only">@Day, </span><span class="qz-agenda-time">@Time</span></th>
+    <td class="qz-agenda-col-key">
+        <a href="@TriggerHref"><KeyBadge GroupName="@Fire.Trigger.Group" ItemName="@Fire.Trigger.Name" /></a>
+        @* Shown in place of the Schedule column on a listing too narrow for both. *@
+        <div class="qz-agenda-schedule-inline">@(string.IsNullOrEmpty(Fire.ScheduleDescription) ? "—" : Fire.ScheduleDescription)</div>
+    </td>
+    <td class="qz-agenda-col-key">
+        <a href="@JobHref"><KeyBadge GroupName="@Fire.Job.Group" ItemName="@Fire.Job.Name" /></a>
+    </td>
+    <td class="qz-agenda-col-schedule">
+        @if (string.IsNullOrEmpty(Fire.ScheduleDescription))
+        {
+            <span class="qz-muted">&mdash;</span>
+        }
+        else
+        {
+            @Fire.ScheduleDescription
+        }
+        @if (Fire.OnlyTheNext)
+        {
+            <div class="qz-muted qz-agenda-only-next">Only the next fire is known: each run waits for the one before it to complete.</div>
+        }
+    </td>
+    <td class="qz-agenda-col-state"><StateIndicator State="@Fire.State.ToString()" /></td>
+    <td class="qz-agenda-col-execution-group">
+        @if (!string.IsNullOrEmpty(Fire.ExecutionGroup))
+        {
+            <span class="qz-badge">@Fire.ExecutionGroup</span>
+        }
+        else
+        {
+            <span class="qz-muted">&mdash;</span>
+        }
+    </td>
+</tr>
+
+@code {
+    private RowState _rendered;
+
+    /// <summary>The fire.</summary>
+    [Parameter, EditorRequired]
+    public UpcomingFireDto Fire { get; set; } = null!;
+
+    /// <summary>Whether the fire is in the selection.</summary>
+    [Parameter]
+    public bool Selected { get; set; }
+
+    /// <summary>Whether the row offers its box: a bulk action is the visitor's to take.</summary>
+    [Parameter]
+    public bool CanSelect { get; set; }
+
+    /// <summary>The fire's time in the header's zone.</summary>
+    [Parameter]
+    public string Time { get; set; } = string.Empty;
+
+    /// <summary>The fire's day in the header's zone, which a screen reader hears before the time.</summary>
+    [Parameter]
+    public string Day { get; set; } = string.Empty;
+
+    [Parameter]
+    public string TriggerHref { get; set; } = string.Empty;
+
+    [Parameter]
+    public string JobHref { get; set; } = string.Empty;
+
+    /// <summary>Raised with whether the box is now ticked.</summary>
+    [Parameter]
+    public EventCallback<bool> OnToggle { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // The first render always happens: what it shows is where the comparison starts.
+        if (_rendered.Fire is null)
+        {
+            _rendered = Current();
+        }
+    }
+
+    /// <remarks>
+    /// The page renders again whenever the selection changes, and hands every row a new callback with it: a row whose
+    /// fire, box, time and links are what it last showed has nothing to send.
+    /// </remarks>
+    protected override bool ShouldRender()
+    {
+        RowState current = Current();
+        if (current == _rendered)
+        {
+            return false;
+        }
+
+        _rendered = current;
+        return true;
+    }
+
+    private RowState Current() => new(Fire, Selected, CanSelect, Time, Day, TriggerHref, JobHref);
+
+    private Task OnChange(ChangeEventArgs args) => OnToggle.InvokeAsync(args.Value is true);
+
+    private readonly record struct RowState(UpcomingFireDto? Fire, bool Selected, bool CanSelect, string Time, string Day, string TriggerHref, string JobHref);
+}

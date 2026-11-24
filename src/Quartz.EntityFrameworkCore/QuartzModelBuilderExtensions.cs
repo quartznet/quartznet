@@ -51,13 +51,17 @@ public static class QuartzModelBuilderExtensions
     /// </remarks>
     /// <param name="modelBuilder">The model being built.</param>
     /// <param name="providerName">The EF Core provider's name: <c>Database.ProviderName</c>.</param>
-    /// <param name="configure">Sets the table prefix and the schema, which must name the job store's tables.</param>
+    /// <param name="configure">
+    /// Sets the table prefix and the schema, which must name the job store's tables, and on Firebird the longest
+    /// name the database takes.
+    /// </param>
     /// <returns>The same model builder, for chaining.</returns>
     /// <exception cref="ArgumentNullException">No provider is configured.</exception>
     /// <exception cref="NotSupportedException">The provider is not one Quartz has a model for.</exception>
     /// <exception cref="ArgumentException">
-    /// The prefix holds what an unquoted identifier cannot or makes a name too long for the database, or the
-    /// schema is set for a database without schemas.
+    /// The prefix holds what an unquoted identifier cannot or makes a name too long for the database, the schema
+    /// is set for a database without schemas, or the identifier length is set for a database other than Firebird
+    /// or outside 31–63.
     /// </exception>
     public static ModelBuilder AddQuartzTables(this ModelBuilder modelBuilder, string? providerName, Action<QuartzTablesOptions>? configure = null)
     {

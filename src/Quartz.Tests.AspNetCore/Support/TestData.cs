@@ -273,8 +273,12 @@ public static class TestData
             LastCheckInUtc: new DateTimeOffset(2024, 5, 6, 7, 8, 5, TimeSpan.Zero),
             CheckInInterval: TimeSpan.FromSeconds(15),
             State: ClusterNodeState.Alive,
-            IsCurrentNode: true);
+            IsCurrentNode: true)
+        {
+            QuartzVersion = "4.9.0"
+        };
 
+        // A row a node older than 4.6 wrote carries no version.
         FailedClusterNode = new ClusterNode(
             InstanceId: "node-b",
             LastCheckInUtc: new DateTimeOffset(2024, 5, 6, 7, 0, 0, TimeSpan.Zero),

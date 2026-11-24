@@ -264,7 +264,7 @@ internal sealed class DashboardHubForwarder : IAsyncDisposable
         try
         {
             // A window onto an attached store has no source, and nothing to forward from.
-            ISchedulerEventSource? source = SchedulerEventSources.For(serviceProvider, schedulerName);
+            ISchedulerEventSource? source = SchedulerEventLookup.For(serviceProvider, schedulerName);
             if (source is null)
             {
                 return Ending.ForGood;

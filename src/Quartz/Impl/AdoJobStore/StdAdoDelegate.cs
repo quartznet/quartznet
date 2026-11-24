@@ -46,6 +46,9 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
 
     private ILogger<StdAdoDelegate> logger = null!;
     private string tablePrefix = AdoConstants.DefaultTablePrefix;
+
+    /// <summary>The table prefix the statements are issued under, as a message names a table.</summary>
+    internal string TablePrefix => tablePrefix;
     private string instanceId = null!;
     private string schedulerName = null!;
     private bool useProperties;

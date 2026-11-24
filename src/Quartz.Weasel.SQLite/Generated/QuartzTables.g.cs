@@ -259,6 +259,26 @@ internal static partial class QuartzTables
         naming.PrimaryKey(jobStatus);
         objects.Add(jobStatus);
 
+        Table triggerStatus = naming.Table("TRIGGER_STATUS");
+        triggerStatus.AddColumn("sched_name", "NVARCHAR(120)").NotNull().AsPrimaryKey();
+        triggerStatus.AddColumn("trigger_group", "NVARCHAR(150)").NotNull().AsPrimaryKey();
+        triggerStatus.AddColumn("trigger_name", "NVARCHAR(150)").NotNull().AsPrimaryKey();
+        triggerStatus.AddColumn("first_fired_time", "BIGINT").NotNull();
+        triggerStatus.AddColumn("last_fired_time", "BIGINT").NotNull();
+        triggerStatus.AddColumn("last_result", "INTEGER").NotNull();
+        triggerStatus.AddColumn("last_run_time", "BIGINT").NotNull();
+        triggerStatus.AddColumn("last_instance_name", "NVARCHAR(200)").NotNull();
+        triggerStatus.AddColumn("last_entry_id", "NVARCHAR(140)");
+        triggerStatus.AddColumn("last_summary", "NVARCHAR(1000)");
+        triggerStatus.AddColumn("last_success_time", "BIGINT");
+        triggerStatus.AddColumn("last_failure_time", "BIGINT");
+        triggerStatus.AddColumn("last_failure_message", "NVARCHAR(1000)");
+        triggerStatus.AddColumn("consecutive_failures", "INTEGER").NotNull().DefaultValueByExpression("0");
+        triggerStatus.AddColumn("run_count", "BIGINT").NotNull().DefaultValueByExpression("0");
+        triggerStatus.AddColumn("failure_count", "BIGINT").NotNull().DefaultValueByExpression("0");
+        naming.PrimaryKey(triggerStatus);
+        objects.Add(triggerStatus);
+
         // The delete triggers stand in for the cascades on a connection that never turns foreign keys on.
         objects.Add(naming.Trigger("DELETE_SIMPLE_TRIGGER", "CREATE TRIGGER IF NOT EXISTS {0}DELETE_SIMPLE_TRIGGER DELETE ON {0}TRIGGERS\nBEGIN\n  DELETE FROM {0}SIMPLE_TRIGGERS WHERE SCHED_NAME=OLD.SCHED_NAME AND TRIGGER_NAME=OLD.TRIGGER_NAME AND TRIGGER_GROUP=OLD.TRIGGER_GROUP;\nEND"));
         objects.Add(naming.Trigger("DELETE_SIMPROP_TRIGGER", "CREATE TRIGGER IF NOT EXISTS {0}DELETE_SIMPROP_TRIGGER DELETE ON {0}TRIGGERS\nBEGIN\n  DELETE FROM {0}SIMPROP_TRIGGERS WHERE SCHED_NAME=OLD.SCHED_NAME AND TRIGGER_NAME=OLD.TRIGGER_NAME AND TRIGGER_GROUP=OLD.TRIGGER_GROUP;\nEND"));

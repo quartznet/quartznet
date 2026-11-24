@@ -50,6 +50,22 @@ public class JobsPageTest
             "a paused group is the first thing to know about it, and only GetJobGroups reports it");
     }
 
+    /// <summary>
+    /// Each group's table sits in the shared in-card scroller, so a phone scrolls the table and not the whole content
+    /// panel: the table keeps 760px below a 1024px window.
+    /// </summary>
+    [Test]
+    public void EachGroupsTableScrollsInsideItsCard()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 2));
+
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.FindAll("table.qz-jobs-table").Should().ContainSingle();
+        page.Find("table.qz-jobs-table").ParentElement!.ClassList.Should().Contain("qz-table-scroll",
+            "the table's parent is what scrolls, inside the group's card");
+    }
+
     [Test]
     public void ThePagerAsksForTheSliceThePageNumberNames()
     {
@@ -579,6 +595,8 @@ public class JobsPageTest
         failing.TextContent.Should().Be("failing ×3");
         failing.GetAttribute("href").Should().EndWith("history?outcome=failed&jobGroup=reports&jobName=job-2&result=failed",
             "the badge opens the History page on that job's failures that gave up");
+        failing.GetAttribute("aria-label").Should().Be("failing ×3: the last 3 runs of reports.job-2 failed. Open them in History",
+            "the link's name starts with what it shows, then says whose runs and where it goes");
 
         A.CallTo(() => context.Api.GetJobRunStatuses(
                 TestData.SchedulerName,

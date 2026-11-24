@@ -106,7 +106,7 @@ public sealed class AgentDisconnectTest
         await using AgentDashboard dashboard = await AgentDashboard.Start();
         AgentWorker worker = await dashboard.StartAgent("w1", instanceId: "node-1");
 
-        ISchedulerEventSource source = SchedulerEventSources.For(dashboard.App.Services, worker.Key)!;
+        ISchedulerEventSource source = SchedulerEventLookup.For(dashboard.App.Services, worker.Key)!;
         using CancellationTokenSource subscription = new();
         IAsyncEnumerator<SchedulerEvent> events = source.Subscribe(worker.Scheduler.SchedulerName, subscription.Token).GetAsyncEnumerator(CancellationToken.None);
         Task<bool> reading = events.MoveNextAsync().AsTask();

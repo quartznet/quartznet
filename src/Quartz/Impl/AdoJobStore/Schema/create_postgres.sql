@@ -257,6 +257,27 @@ CREATE TABLE IF NOT EXISTS {0}job_status (
   primary key (sched_name,job_group,job_name)
 );
 --;;
+-- {0}TRIGGER_STATUS
+CREATE TABLE IF NOT EXISTS {0}trigger_status (
+  sched_name text not null,
+  trigger_group text not null,
+  trigger_name text not null,
+  first_fired_time bigint not null,
+  last_fired_time bigint not null,
+  last_result integer not null,
+  last_run_time bigint not null,
+  last_instance_name text not null,
+  last_entry_id text null,
+  last_summary text null,
+  last_success_time bigint null,
+  last_failure_time bigint null,
+  last_failure_message text null,
+  consecutive_failures integer not null default 0,
+  run_count bigint not null default 0,
+  failure_count bigint not null default 0,
+  primary key (sched_name,trigger_group,trigger_name)
+);
+--;;
 -- IDX_{1}J_G_N
 CREATE INDEX IF NOT EXISTS idx_{1}j_g_n ON {0}job_details (sched_name, job_group, job_name);
 --;;

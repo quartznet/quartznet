@@ -65,11 +65,30 @@
         </p>
     }
 
+    @if (_mixedVersions is { } mixed)
+    {
+        @* The one fact a rolling upgrade has to keep in view: until the last node is upgraded, the older ones
+           change what the cluster does, and nothing else on the page says so. *@
+        <div class="qz-alert qz-alert-warning qz-mixed-versions" role="status" data-testid="cluster-mixed-versions">
+            <div class="qz-alert-content">
+                <strong>The live nodes run different Quartz versions:</strong>
+                @string.Join("; ", mixed.Groups.Select(group => group.Version + " on " + string.Join(", ", group.InstanceIds))).
+                @foreach (string cost in mixed.Costs)
+                {
+                    <span> @cost</span>
+                }
+                <span> Finish the rolling upgrade to end it.</span>
+            </div>
+        </div>
+    }
+
+    <div class="qz-table-scroll">
     <table class="qz-table">
         <thead>
             <tr>
                 <th>Node</th>
                 <th>State</th>
+                <th>Version</th>
                 <th>Last check-in</th>
                 <th>Check-in interval</th>
                 <th>Serves</th>
@@ -106,6 +125,16 @@
                             }
                         </td>
                         <td><StateIndicator State="@node.State.ToString()" /></td>
+                        <td data-testid="cluster-node-version">
+                            @if (NodeVersions.Label(node, _versionsReported, _answeringVersion) is { } version)
+                            {
+                                @version
+                            }
+                            else
+                            {
+                                <span class="qz-muted">&#8212;</span>
+                            }
+                        </td>
                         <td>
                             @if (node.LastCheckInUtc.HasValue)
                             {
@@ -178,6 +207,7 @@
             }
         </tbody>
     </table>
+    </div>
 
     @if (_firingCountsArePartial)
     {
@@ -250,6 +280,18 @@
     /// </summary>
     private readonly Dictionary<string, SchedulerDetailDto> _detailsByNode = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Whether the listing says which version each node runs, so that a row with no stamp is a node older than
+    /// 4.6 rather than a host that sends none.
+    /// </summary>
+    private bool _versionsReported;
+
+    /// <summary>The answering node's own version, for a node with no check-in row to read one from.</summary>
+    private string? _answeringVersion;
+
+    /// <summary>What the live nodes' versions cost when they differ, or <see langword="null" />.</summary>
+    private MixedVersions? _mixedVersions;
+
     private bool IsReadOnly => Options.Value.ReadOnly;
 
     /// <summary>
@@ -267,7 +309,7 @@
             || _memberByNode.Values.Any(member => Can(member, Routes.Start) || Can(member, Routes.Standby)
                 || Can(member, Routes.Shutdown) || Can(member, Routes.InterruptJobInstance)));
 
-    private int ColumnCount => 7 + (_isCluster ? 1 : 0) + (_isCluster && HasNodeActions ? 1 : 0);
+    private int ColumnCount => 8 + (_isCluster ? 1 : 0) + (_isCluster && HasNodeActions ? 1 : 0);
 
     /// <summary>
     /// What a node serves, in a phrase: nothing for a node nobody answered for, <c>all</c> for one that
@@ -393,6 +435,9 @@
         _firingCountsArePartial = false;
         _firingsCounted = 0;
         _isClustered = null;
+        _versionsReported = false;
+        _answeringVersion = null;
+        _mixedVersions = null;
     }
 
     /// <summary>
@@ -411,6 +456,9 @@
         }
 
         _nodes.AddRange(await Api.QueryClusterNodes(schedulerName, cancellationToken));
+        _answeringVersion = _isWindow ? null : scheduler.Version;
+        _versionsReported = NodeVersions.Reports(_nodes, _isWindow);
+        _mixedVersions = NodeVersions.Mixed(_nodes, _versionsReported);
 
         // Both states, because the two columns are what a node is holding and what it is
         // running: a reservation left behind by a node that died is exactly the thing an

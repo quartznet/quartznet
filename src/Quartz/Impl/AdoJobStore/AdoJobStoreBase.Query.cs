@@ -486,7 +486,10 @@ internal abstract partial class AdoJobStoreBase
                 record.CheckinTimestamp,
                 record.CheckinInterval,
                 ClassifyClusterNode(record, now),
-                isCurrentNode);
+                isCurrentNode)
+            {
+                QuartzVersion = record.QuartzVersion
+            };
 
             if (isCurrentNode)
             {
@@ -509,8 +512,12 @@ internal abstract partial class AdoJobStoreBase
         }
 
         // The current node is listed whether or not its row exists yet: it has not written one before its
-        // first check-in, and another node may have swept it away, but it is demonstrably running.
-        currentNode ??= new ClusterNode(InstanceId, LastCheckInUtc: null, CheckInInterval: null, ClusterNodeState.Alive, IsCurrentNode: true);
+        // first check-in, and another node may have swept it away, but it is demonstrably running. Its version is
+        // the one its next check-in stamps.
+        currentNode ??= new ClusterNode(InstanceId, LastCheckInUtc: null, CheckInInterval: null, ClusterNodeState.Alive, IsCurrentNode: true)
+        {
+            QuartzVersion = SchedulerNodeVersion.Current
+        };
         nodes.Insert(0, currentNode);
 
         return nodes;

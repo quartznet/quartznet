@@ -38,6 +38,7 @@
             <p class="qz-muted">@RoutingSentence</p>
         }
 
+        <div class="qz-table-scroll">
         <table class="qz-table">
             <thead>
                 <tr>
@@ -93,6 +94,7 @@
                 }
             </tbody>
         </table>
+        </div>
 
         @if (_hasOverdueUnservedRow)
         {
@@ -365,10 +367,7 @@
         {
             // The scheduler's own resolution, so the panel and the acquisition filter cannot key the
             // same firing differently when UseTriggerGroupWhenUnset is on.
-            string key = AsConfigurationKey(ExecutionLimits.ResolveGroupKey(
-                firing.ExecutionGroup,
-                firing.TriggerKey.Group,
-                limits.UsesTriggerGroupWhenUnset));
+            string key = ExecutionLimitLookup.KeyOf(firing.ExecutionGroup, firing.TriggerKey.Group, limits.UsesTriggerGroupWhenUnset);
 
             inFlight[key] = inFlight.TryGetValue(key, out int count) ? count + 1 : 1;
 
@@ -402,7 +401,7 @@
             // happens to end in '*' is still a group, and is only a rule when the limits say so.
             string? prefix = null;
             bool isPrefix = limits.Limits.ContainsKey(key) && ExecutionLimits.TryReadPrefixKey(key, out prefix);
-            DashboardExecutionLimit? limit = ResolveLimit(limits, key, out string? inheritedFrom);
+            DashboardExecutionLimit? limit = ExecutionLimitLookup.Resolve(limits, key, out string? inheritedFrom);
             bool isRule = isCatchAll || isPrefix;
 
             // The catch-all and a prefix are rules about other groups, which routing has no opinion on.
@@ -453,60 +452,6 @@
         }
 
         return row.Key == ExecutionLimits.DefaultGroupAlias ? 1 : 0;
-    }
-
-    /// <summary>
-    /// The limit that governs one group: its own when it has one, otherwise the longest prefix it starts
-    /// with, otherwise the catch-all — neither of which applies to the ungrouped bucket. The same rule the
-    /// scheduler applies.
-    /// </summary>
-    private static DashboardExecutionLimit? ResolveLimit(ExecutionLimitsDto limits, string key, out string? inheritedFrom)
-    {
-        inheritedFrom = null;
-
-        if (limits.Limits.TryGetValue(key, out DashboardExecutionLimit own))
-        {
-            return own;
-        }
-
-        if (key == ExecutionLimits.DefaultGroupAlias)
-        {
-            return null;
-        }
-
-        string? longest = null;
-        foreach (string candidate in limits.Limits.Keys)
-        {
-            if (ExecutionLimits.TryReadPrefixKey(candidate, out string? prefix)
-                && key.StartsWith(prefix, StringComparison.Ordinal)
-                && (longest is null || candidate.Length > longest.Length))
-            {
-                longest = candidate;
-            }
-        }
-
-        if (longest is not null)
-        {
-            inheritedFrom = longest;
-            return limits.Limits[longest];
-        }
-
-        if (limits.Limits.TryGetValue(ExecutionLimits.OtherGroups, out DashboardExecutionLimit catchAll))
-        {
-            inheritedFrom = ExecutionLimits.OtherGroups;
-            return catchAll;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// The limits arrive keyed the way configuration spells a group; a firing resolves to the key the
-    /// limits hold internally, where the ungrouped bucket is the empty string.
-    /// </summary>
-    private static string AsConfigurationKey(string storageKey)
-    {
-        return storageKey == ExecutionLimits.DefaultGroupKey ? ExecutionLimits.DefaultGroupAlias : storageKey;
     }
 
     private static string LabelFor(string key)

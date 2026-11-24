@@ -63,6 +63,7 @@ public sealed class WireCarrierEquivalenceTest
     private ServedRequests served = null!;
     private RecordingTransport transport = null!;
     private HttpScheduler scheduler = null!;
+    private IScheduler answering = null!;
 
     [SetUp]
     public void SetUp()
@@ -80,7 +81,8 @@ public sealed class WireCarrierEquivalenceTest
             repository.Remove(bound.SchedulerName);
         }
 
-        repository.Bind(AnsweringScheduler());
+        answering = AnsweringScheduler();
+        repository.Bind(new LogAnsweringScheduler(answering));
 
         httpClient = host.CreateClient();
         transport = new RecordingTransport(new HttpWireTransport(httpClient));
@@ -91,6 +93,7 @@ public sealed class WireCarrierEquivalenceTest
     public async Task TearDown()
     {
         await scheduler.DisposeAsync();
+        await answering.DisposeAsync();
         httpClient.Dispose();
         await host.DisposeAsync();
         await root.DisposeAsync();
@@ -200,6 +203,57 @@ public sealed class WireCarrierEquivalenceTest
     }
 
     /// <summary>
+    /// The same sweep through a gateway (#4218): an application that fronts this host as target <c>w1</c> and
+    /// maps the API over it, driven by an <see cref="HttpScheduler" /> built from the key the gateway lists.
+    /// Every member is answered with a success, and every route it sends reaches this host's endpoint of the
+    /// same name, through the gateway's own handler and the <c>HttpScheduler</c> it reaches the target with.
+    /// </summary>
+    [Test]
+    public async Task EveryMemberHttpSchedulerImplementsIsAnsweredThroughAGatewayTarget()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddQuartzHttpClient(options =>
+        {
+            options.SchedulerName = TestData.SchedulerName;
+            options.Target = "w1";
+            options.CreateHttpClient = _ => httpClient;
+        });
+        builder.Services.AddQuartzHttpApi();
+        await using WebApplication gateway = builder.Build();
+        gateway.MapQuartzHttpApi("/quartz-api").AllowAnonymous();
+        await gateway.StartAsync();
+
+        using HttpClient toGateway = gateway.GetTestClient();
+        toGateway.BaseAddress = new Uri(toGateway.BaseAddress!, "quartz-api/");
+        await using HttpScheduler throughGateway = new(new SchedulerRef(TestData.SchedulerName, "w1"), toGateway);
+
+        using (new AssertionScope())
+        {
+            foreach ((string signature, Row row) in OverTheWire(Plain))
+            {
+                served.Clear();
+
+                Func<Task> call = () => row.Invoke(throughGateway);
+                await call.Should().NotThrowAsync($"{signature} is answered with a success through the gateway");
+
+                List<string?> reached = served.Requests.Select(request => request.EndpointName).ToList();
+                if (ReExpressedThroughAGateway.TryGetValue(signature, out string[]? instead))
+                {
+                    reached.Should().Contain(instead, $"{signature} is answered at the gateway over the target's {string.Join(" and ", instead)}");
+                }
+                else
+                {
+                    reached.Should().Contain(row.Routes.Select(route => route.Name),
+                        $"{signature} reaches the target's endpoint for {string.Join(" and ", row.Routes.Select(route => route.Name))} through the gateway");
+                }
+                served.Requests.Should().OnlyContain(request => request.Status >= 200 && request.Status <= 299,
+                    $"the target accepts what the gateway sends on for {signature}");
+            }
+        }
+    }
+
+    /// <summary>
     /// The third reader of the table: the dashboard agent's carrier answers every route the catalogue
     /// holds but the event stream, which goes up its connection as a stream rather than as a request.
     /// </summary>
@@ -234,7 +288,7 @@ public sealed class WireCarrierEquivalenceTest
         await using ServiceProvider provider = services.BuildServiceProvider();
 
         AgentCarrier carrier = new(
-            AnsweringScheduler(),
+            new LogAnsweringScheduler(AnsweringScheduler()),
             provider,
             new DashboardAgentOptions { IsJobTypeAllowed = _ => true },
             NullLogger.Instance);
@@ -353,8 +407,6 @@ public sealed class WireCarrierEquivalenceTest
     public async Task AMatcherValueWithACharacterThatMeansSomethingInAQueryReachesTheSchedulerAsWritten(string character)
     {
         string value = $"night{character}shift";
-        IScheduler answering = host.Services.GetRequiredService<ISchedulerRepository>().Lookup(TestData.SchedulerName)!;
-
         await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(value));
         await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameStartsWith(value) });
 
@@ -549,6 +601,10 @@ public sealed class WireCarrierEquivalenceTest
         ["GetTrigger(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTrigger], s => s.GetTrigger(names.Trigger).AsTask()),
         ["GetTriggerState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.GetTriggerState], s => s.GetTriggerState(names.Trigger).AsTask()),
         ["GetUpcomingFireTimes(TriggerKey, Int32, CancellationToken)"] = new([SchedulerRoutes.GetTriggerFireTimes], s => ((IUpcomingFireTimesScheduler) s).GetUpcomingFireTimes(names.Trigger, 10).AsTask()),
+        ["ReadFireInstanceLog(FireInstanceLogRequest, CancellationToken)"] = new([SchedulerRoutes.GetFireInstanceLog], s => ((IFireInstanceLogScheduler) s).ReadFireInstanceLog(
+            new FireInstanceLogRequest(names.FireInstanceId, After: 2, Take: 10, SchedulerInstanceId: "node-b")).AsTask()),
+        ["QueryUpcomingFires(UpcomingFiresQuery, CancellationToken)"] = new([SchedulerRoutes.QueryUpcomingFires], s => ((IUpcomingFiresScheduler) s).QueryUpcomingFires(
+            new UpcomingFiresQuery(null, TimeProvider.System.GetUtcNow().AddHours(1), "group", 10)).AsTask()),
         ["QueryDescribedTriggers(TriggerQuery, CancellationToken)"] = new([SchedulerRoutes.QueryTriggers], s => ((IScheduleDescribingScheduler) s).QueryDescribedTriggers(new TriggerQuery { Job = names.Job }).AsTask()),
         ["ResetTriggerFromErrorState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerFromErrorState], s => s.ResetTriggerFromErrorState(names.Trigger).AsTask()),
         ["ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerKeysFromErrorState], s => s.ResetTriggersFromErrorState([names.Trigger]).AsTask()),
@@ -559,6 +615,21 @@ public sealed class WireCarrierEquivalenceTest
         ["DeleteCalendar(String, CancellationToken)"] = new([SchedulerRoutes.DeleteCalendar], s => s.DeleteCalendar(names.Calendar).AsTask()),
         ["GetCalendar(String, CancellationToken)"] = new([SchedulerRoutes.GetCalendar], s => s.GetCalendar(names.Calendar).AsTask()),
         ["Exists(String, CancellationToken)"] = new([SchedulerRoutes.CheckCalendarExists], s => s.Exists(names.Calendar).AsTask()),
+    };
+
+    /// <summary>
+    /// The members a gateway's own handler answers over other reads of the target than the route the client
+    /// sent, with the routes it sends instead. The answer is the same: the handler is the one every carrier
+    /// runs, over the <see cref="IScheduler" /> the gateway reaches the target with.
+    /// </summary>
+    private static readonly Dictionary<string, string[]> ReExpressedThroughAGateway = new(StringComparer.Ordinal)
+    {
+        // The backfill is planned where the endpoint runs: the gateway reads the trigger and its calendar from
+        // the target, and schedules the slots there.
+        ["Backfill(TriggerKey, DateTimeOffset, DateTimeOffset, BackfillOptions, CancellationToken)"] =
+            [SchedulerRoutes.GetTrigger.Name, SchedulerRoutes.ScheduleJob.Name],
+        ["GetTriggerGroupPause(String, CancellationToken)"] = [SchedulerRoutes.QueryTriggerGroups.Name],
+        ["GetJobGroupPause(String, CancellationToken)"] = [SchedulerRoutes.QueryJobGroups.Name],
     };
 
     /// <summary>
@@ -588,6 +659,8 @@ public sealed class WireCarrierEquivalenceTest
         [SchedulerRoutes.QueryJobRunStatuses.Name] = "per-job run statuses, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.GetJobRunStatus.Name] = "per-job run statuses, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.FetchJobRunStatuses.Name] = "per-job run statuses, read by HttpExecutionHistoryStore",
+        [SchedulerRoutes.QueryTriggerRunStatuses.Name] = "per-trigger run statuses, read by HttpExecutionHistoryStore",
+        [SchedulerRoutes.FetchTriggerRunStatuses.Name] = "per-trigger run statuses, read by HttpExecutionHistoryStore",
         [SchedulerRoutes.QueryExecutionStatistics.Name] = "run statistics, read by HttpExecutionHistoryStore",
     };
 
@@ -600,13 +673,14 @@ public sealed class WireCarrierEquivalenceTest
     /// <summary>
     /// The members <see cref="HttpScheduler" /> implements itself, named as the contract declares them: every
     /// one of <see cref="IScheduler" />'s it does not leave to a default body, and
-    /// <see cref="IBackfillingScheduler.Backfill" />, <see cref="IUpcomingFireTimesScheduler.GetUpcomingFireTimes" /> and
-    /// <see cref="IScheduleDescribingScheduler.QueryDescribedTriggers" />, the internal contracts the backfill and
-    /// fire-times extensions and the described trigger listing send to it.
+    /// <see cref="IBackfillingScheduler.Backfill" />, <see cref="IUpcomingFireTimesScheduler.GetUpcomingFireTimes" />,
+    /// <see cref="IUpcomingFiresScheduler.QueryUpcomingFires" />, <see cref="IScheduleDescribingScheduler.QueryDescribedTriggers" /> and
+    /// <see cref="IFireInstanceLogScheduler.ReadFireInstanceLog" />, the internal contracts the backfill and fire-times
+    /// extensions, the agenda, the described trigger listing and a running firing's log send to it.
     /// </summary>
     private static IEnumerable<MethodInfo> ImplementedMembers()
     {
-        foreach (Type contract in (Type[]) [typeof(IScheduler), typeof(IBackfillingScheduler), typeof(IUpcomingFireTimesScheduler), typeof(IScheduleDescribingScheduler)])
+        foreach (Type contract in (Type[]) [typeof(IScheduler), typeof(IBackfillingScheduler), typeof(IUpcomingFireTimesScheduler), typeof(IUpcomingFiresScheduler), typeof(IScheduleDescribingScheduler), typeof(IFireInstanceLogScheduler)])
         {
             InterfaceMapping map = typeof(HttpScheduler).GetInterfaceMap(contract);
             for (int i = 0; i < map.TargetMethods.Length; i++)
@@ -659,6 +733,28 @@ public sealed class WireCarrierEquivalenceTest
         A.CallTo(() => fake.TimeProvider).Returns(TimeProvider.System);
         A.CallTo(() => fake.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(new List<ITrigger>());
         return fake;
+    }
+
+    /// <summary>
+    /// The answering scheduler, reading a running firing's log as the scheduler Quartz builds does, which a fake
+    /// cannot: the capability is internal to a strong-named assembly the fakes' proxies cannot see into.
+    /// </summary>
+    /// <remarks>
+    /// A decorator, so everything else is the fake's, as it was with the fake bound alone: the decorator's other
+    /// capabilities end in the fake and compose over it.
+    /// </remarks>
+    private sealed class LogAnsweringScheduler(IScheduler inner) : DelegatingScheduler(inner), IFireInstanceLogScheduler
+    {
+        ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
+        {
+            return new ValueTask<FireInstanceLog>(new FireInstanceLog(
+                FireInstanceLogState.Running,
+                request.SchedulerInstanceId ?? "node-a",
+                ["2026-11-24T10:00:00.000Z info Job: one more line"],
+                request.After + 1,
+                Missed: 0,
+                HasMore: false));
+        }
     }
 
     /// <summary>

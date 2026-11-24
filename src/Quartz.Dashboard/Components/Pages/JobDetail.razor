@@ -62,16 +62,18 @@
             }
         </div>
 
-        <table class="qz-table">
-            <tbody>
-                <tr><th>Type</th><td>@_job.JobType</td></tr>
-                <tr><th>Description</th><td>@_job.Description</td></tr>
-                <tr><th>Durable</th><td>@_job.Durable</td></tr>
-                <tr><th>Requests Recovery</th><td>@_job.RequestsRecovery</td></tr>
-                <tr><th>Disallow Concurrent Execution</th><td>@_job.ConcurrentExecutionDisallowed</td></tr>
-                <tr><th>Persist JobDataAfterExecution</th><td>@_job.PersistJobDataAfterExecution</td></tr>
-            </tbody>
-        </table>
+        <div class="qz-table-scroll">
+            <table class="qz-table">
+                <tbody>
+                    <tr><th>Type</th><td>@_job.JobType</td></tr>
+                    <tr><th>Description</th><td>@_job.Description</td></tr>
+                    <tr><th>Durable</th><td>@_job.Durable</td></tr>
+                    <tr><th>Requests Recovery</th><td>@_job.RequestsRecovery</td></tr>
+                    <tr><th>Disallow Concurrent Execution</th><td>@_job.ConcurrentExecutionDisallowed</td></tr>
+                    <tr><th>Persist JobDataAfterExecution</th><td>@_job.PersistJobDataAfterExecution</td></tr>
+                </tbody>
+            </table>
+        </div>
 
         @if (_statusKept)
         {
@@ -82,62 +84,64 @@
             }
             else
             {
-                <table class="qz-table" data-testid="job-run-status">
-                    <tbody>
-                        <tr>
-                            <th>Last run</th>
-                            <td class="qz-job-status-last-run">
-                                <span class="qz-run-summary">
-                                    <StateIndicator State="@RunResultDisplay.Label(_status.LastResult)" />
-                                    @if (_status.LastEntryId is { Length: > 0 } entryId)
+                <div class="qz-table-scroll">
+                    <table class="qz-table" data-testid="job-run-status">
+                        <tbody>
+                            <tr>
+                                <th>Last run</th>
+                                <td class="qz-job-status-last-run">
+                                    <span class="qz-run-summary">
+                                        <StateIndicator State="@RunResultDisplay.Label(_status.LastResult)" />
+                                        @if (_status.LastEntryId is { Length: > 0 } entryId)
+                                        {
+                                            <a class="qz-details-link" href="@GetExecutionPath(entryId)">@Scheduler.FormatInSelectedTimeZone(_status.LastFiredAtUtc)</a>
+                                        }
+                                        else
+                                        {
+                                            <span>@Scheduler.FormatInSelectedTimeZone(_status.LastFiredAtUtc)</span>
+                                        }
+                                        <span class="qz-muted">on @(_status.LastSchedulerInstanceId ?? "—")</span>
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr><th>Last summary</th><td>@(string.IsNullOrEmpty(_status.LastSummary) ? "—" : _status.LastSummary)</td></tr>
+                            <tr><th>Last success</th><td class="qz-job-status-last-success">@(_status.LastSucceededAtUtc is { } succeeded ? Scheduler.FormatInSelectedTimeZone(succeeded) : "never")</td></tr>
+                            <tr>
+                                <th>Last failure</th>
+                                <td class="qz-job-status-last-failure">
+                                    @if (_status.LastFailedAtUtc is { } failed)
                                     {
-                                        <a class="qz-details-link" href="@GetExecutionPath(entryId)">@Scheduler.FormatInSelectedTimeZone(_status.LastFiredAtUtc)</a>
+                                        <span class="qz-run-summary">
+                                            <span>@Scheduler.FormatInSelectedTimeZone(failed)</span>
+                                            <span class="qz-muted">@_status.LastFailureMessage</span>
+                                        </span>
                                     }
                                     else
                                     {
-                                        <span>@Scheduler.FormatInSelectedTimeZone(_status.LastFiredAtUtc)</span>
+                                        @("never")
                                     }
-                                    <span class="qz-muted">on @(_status.LastSchedulerInstanceId ?? "—")</span>
-                                </span>
-                            </td>
-                        </tr>
-                        <tr><th>Last summary</th><td>@(string.IsNullOrEmpty(_status.LastSummary) ? "—" : _status.LastSummary)</td></tr>
-                        <tr><th>Last success</th><td class="qz-job-status-last-success">@(_status.LastSucceededAtUtc is { } succeeded ? Scheduler.FormatInSelectedTimeZone(succeeded) : "never")</td></tr>
-                        <tr>
-                            <th>Last failure</th>
-                            <td class="qz-job-status-last-failure">
-                                @if (_status.LastFailedAtUtc is { } failed)
-                                {
-                                    <span class="qz-run-summary">
-                                        <span>@Scheduler.FormatInSelectedTimeZone(failed)</span>
-                                        <span class="qz-muted">@_status.LastFailureMessage</span>
-                                    </span>
-                                }
-                                else
-                                {
-                                    @("never")
-                                }
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Failing</th>
-                            <td class="qz-job-status-failing">
-                                @if (_status.ConsecutiveFailures > 0)
-                                {
-                                    <span class="qz-failing-badge">@("failing ×" + _status.ConsecutiveFailures.ToString(System.Globalization.CultureInfo.InvariantCulture))</span>
-                                }
-                                else
-                                {
-                                    @("no")
-                                }
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Recorded</th>
-                            <td class="qz-job-status-counts">@_status.RunCount run(s), @_status.FailureCount failed for good, since @Scheduler.FormatInSelectedTimeZone(_status.FirstFiredAtUtc)</td>
-                        </tr>
-                    </tbody>
-                </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Failing</th>
+                                <td class="qz-job-status-failing">
+                                    @if (_status.ConsecutiveFailures > 0)
+                                    {
+                                        <span class="qz-failing-badge">@("failing ×" + _status.ConsecutiveFailures.ToString(System.Globalization.CultureInfo.InvariantCulture))</span>
+                                    }
+                                    else
+                                    {
+                                        @("no")
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Recorded</th>
+                                <td class="qz-job-status-counts">@_status.RunCount run(s), @_status.FailureCount failed for good, since @Scheduler.FormatInSelectedTimeZone(_status.FirstFiredAtUtc)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             }
         }
 
@@ -178,50 +182,73 @@
         }
 
         <h2>Associated triggers</h2>
+        @if (CanSchedule)
+        {
+            <div class="qz-actions qz-group-actions">
+                <button type="button" class="qz-button qz-add-trigger-open" disabled="@_adding" @ref="_addOpener" @onclick="StartAdding">Add trigger</button>
+            </div>
+        }
+        @if (_adding && CanSchedule)
+        {
+            <AddTriggerForm Job="@JobKey" OnAdded="OnTriggerAddedAsync" OnCancel="CancelAdding" />
+        }
         @if (_triggers.Count == 0)
         {
             <p class="qz-muted">No associated triggers.</p>
         }
         else
         {
-            <table class="qz-table">
-                <thead>
-                    <tr>
-                        <th>Trigger</th>
-                        <th>Type</th>
-                        <th>Schedule</th>
-                        <th>State</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (TriggerHeaderDto trigger in _triggers)
-                    {
-                        string triggerGroup = trigger.Group;
-                        string triggerName = trigger.Name;
-                        string triggerType = trigger.TriggerType ?? string.Empty;
-                        string triggerState = trigger.State?.ToString() ?? "Unknown";
+            <div class="qz-table-scroll">
+                <table class="qz-table">
+                    <thead>
                         <tr>
-                            <td>
-                                <a href="@GetTriggerPath(triggerGroup, triggerName)">
-                                    <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
-                                </a>
-                            </td>
-                            <td>@(triggerType is { Length: > 0 } ? triggerType : "—")</td>
-                            <td class="qz-col-schedule"><ScheduleCell Trigger="@trigger" /></td>
-                            <td>
-                                <StateIndicator State="@triggerState" />
-                                <PauseNote Pause="@trigger.Pause" />
-                            </td>
+                            <th>Trigger</th>
+                            <th>Type</th>
+                            <th>Schedule</th>
+                            <th>State</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (TriggerHeaderDto trigger in _triggers)
+                        {
+                            string triggerGroup = trigger.Group;
+                            string triggerName = trigger.Name;
+                            string triggerType = trigger.TriggerType ?? string.Empty;
+                            string triggerState = trigger.State?.ToString() ?? "Unknown";
+                            <tr>
+                                <td>
+                                    @if (_focusTrigger is { } added && added.Group == triggerGroup && added.Name == triggerName)
+                                    {
+                                        @* The trigger just added, which takes focus from the form that closed. *@
+                                        <a href="@GetTriggerPath(triggerGroup, triggerName)" data-testid="added-trigger-link" @ref="_addedTriggerLink">
+                                            <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <a href="@GetTriggerPath(triggerGroup, triggerName)">
+                                            <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
+                                        </a>
+                                    }
+                                </td>
+                                <td>@(triggerType is { Length: > 0 } ? triggerType : "—")</td>
+                                <td class="qz-col-schedule"><ScheduleCell Trigger="@trigger" /></td>
+                                <td>
+                                    <StateIndicator State="@triggerState" />
+                                    <PauseNote Pause="@trigger.Pause" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     }
 </div>
 
 <ConfirmDialog IsOpen="@_showDeleteConfirm"
                Title="Delete job"
+               ConfirmText="Delete"
                Message="@($"Delete {DisplayValueHelper.FormatKey(Group, Name)}? This cannot be undone.")"
                OnConfirm="DeleteAsync"
                OnCancel="CancelDeleteAsync" />
@@ -317,6 +344,28 @@
 
     private bool CanDelete => Can(Quartz.HttpApiContract.SchedulerRoutes.DeleteJob);
 
+    /// <summary>Adding a trigger to the job, which an operation policy asks at Administer (#4412).</summary>
+    private bool CanSchedule => Can(Quartz.HttpApiContract.SchedulerRoutes.ScheduleJob);
+
+    /// <summary>Whether the Add trigger form is open.</summary>
+    private bool _adding;
+
+    private ElementReference _addOpener;
+    private ElementReference _addedTriggerLink;
+
+    /// <summary>The trigger just added, whose link takes focus once the job's triggers are drawn again.</summary>
+    private TriggerKeyDto? _focusTrigger;
+
+    /// <summary>Where focus goes after the next render, once the form that had it has closed.</summary>
+    private FocusAfterAdd _pendingFocus;
+
+    private enum FocusAfterAdd
+    {
+        None,
+        Opener,
+        AddedTrigger,
+    }
+
     private JobKeyDto JobKey => new(Group, Name);
 
     private JobDataMap? JobDataMap => _job?.JobDataMap;
@@ -343,6 +392,7 @@
 
     private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
+        _adding = false;
         ClearJob();
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
@@ -732,6 +782,49 @@
 
         clone.ClearDirtyFlag();
         return clone;
+    }
+
+    private void StartAdding()
+    {
+        _adding = true;
+    }
+
+    private void CancelAdding()
+    {
+        _adding = false;
+        _pendingFocus = FocusAfterAdd.Opener;
+    }
+
+    /// <summary>
+    /// The trigger is stored: the form closes, the job's triggers are read again, the new one among them, and its link
+    /// takes focus; the opener does when the listing does not show it.
+    /// </summary>
+    private async Task OnTriggerAddedAsync(TriggerKeyDto key)
+    {
+        _adding = false;
+        await LoadDataAsync();
+        _focusTrigger = _triggers.Any(trigger => trigger.Group == key.Group && trigger.Name == key.Name) ? key : null;
+        _pendingFocus = _focusTrigger is null ? FocusAfterAdd.Opener : FocusAfterAdd.AddedTrigger;
+    }
+
+    /// <summary>Focus never falls to the page's body when the form that had it closes.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        FocusAfterAdd pending = _pendingFocus;
+        if (pending == FocusAfterAdd.None)
+        {
+            return;
+        }
+
+        _pendingFocus = FocusAfterAdd.None;
+        try
+        {
+            await (pending == FocusAfterAdd.AddedTrigger ? _addedTriggerLink : _addOpener).FocusAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // A circuit that has gone, or a page still prerendering, has nothing to focus.
+        }
     }
 
     public void Dispose()

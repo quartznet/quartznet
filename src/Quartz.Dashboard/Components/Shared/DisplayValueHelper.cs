@@ -40,6 +40,77 @@ internal static class DisplayValueHelper
     }
 
     /// <summary>
+    /// A key cut into the pieces a listing may break it between, which together are the key exactly: after a
+    /// separator (<c>.</c>, <c>_</c>, <c>-</c>, <c>/</c> or a space), so it stays on the line it ends; before an
+    /// upper-case letter that follows a lower-case letter or a digit; and before the last capital of an upper-case
+    /// run that a lower-case letter follows, so <c>XMLParserJob</c> is <c>XML</c>, <c>Parser</c>, <c>Job</c>.
+    /// </summary>
+    /// <remarks>
+    /// A word longer than its column still breaks, wherever the line runs out: the stylesheet's
+    /// <c>overflow-wrap: anywhere</c> is the last resort, after these.
+    /// </remarks>
+    public static List<string> KeyLineSegments(string key)
+    {
+        List<string> segments = [];
+        int start = 0;
+        for (int i = 1; i < key.Length; i++)
+        {
+            char previous = key[i - 1];
+            char current = key[i];
+            bool afterSeparator = previous is '.' or '_' or '-' or '/' or ' ';
+            bool wordStart = char.IsUpper(current)
+                             && (char.IsLower(previous)
+                                 || char.IsDigit(previous)
+                                 || (char.IsUpper(previous) && i + 1 < key.Length && char.IsLower(key[i + 1])));
+
+            if (afterSeparator || wordStart)
+            {
+                segments.Add(key[start..i]);
+                start = i;
+            }
+        }
+
+        segments.Add(key[start..]);
+        return segments;
+    }
+
+    /// <summary>
+    /// How many occurrences in a row have failed for good, as the Jobs and Triggers listings badge it:
+    /// <c>failing ×3</c>.
+    /// </summary>
+    public static string FormatFailing(int consecutiveFailures)
+    {
+        return "failing ×" + consecutiveFailures.ToString(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// The accessible name of a failing badge that links to the failures: the badge's own text first, as a
+    /// speech user says it, then whose runs failed and where the link goes.
+    /// </summary>
+    /// <param name="consecutiveFailures">How many occurrences in a row have failed for good.</param>
+    /// <param name="key">The job's or trigger's key, <c>group.name</c>.</param>
+    public static string FormatFailingLinkLabel(int consecutiveFailures, string key)
+    {
+        string runs = consecutiveFailures == 1
+            ? "the last run of " + key + " failed. Open it in History"
+            : "the last " + consecutiveFailures.ToString(CultureInfo.InvariantCulture) + " runs of " + key + " failed. Open them in History";
+        return FormatFailing(consecutiveFailures) + ": " + runs;
+    }
+
+    /// <summary>
+    /// How long a run took, as the Triggers listing shows it beside its result: <see cref="FormatDuration" />, except
+    /// that a run shorter than a millisecond is <c>&lt; 1 ms</c>, whose fraction says nothing to read at a glance.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="FormatDuration" /> keeps the fraction: the run statistics chart labels its axis and its
+    /// percentiles with it, and the History page's rows and cards agree with the chart beside them.
+    /// </remarks>
+    public static string FormatRunDuration(TimeSpan duration)
+    {
+        return duration > TimeSpan.Zero && duration < TimeSpan.FromMilliseconds(1) ? "< 1 ms" : FormatDuration(duration);
+    }
+
+    /// <summary>
     /// A duration in the largest unit that keeps it readable: sub-second runs in milliseconds, anything up to
     /// a minute in seconds, anything longer spelled out; <c>n/a</c> for none.
     /// </summary>

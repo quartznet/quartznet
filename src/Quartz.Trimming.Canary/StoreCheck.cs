@@ -174,7 +174,11 @@ internal static class StoreCheck
                 // token, bound by the code the source generator wrote for this call.
                 q.ScheduleJob("canary-delegate", static (ILogger<CanaryJob> log, IJobExecutionContext context, CancellationToken cancellationToken) =>
                 {
-                    log.LogInformation("Delegate job {JobKey} fired", context.JobDetail.Key);
+                    if (log.IsEnabled(LogLevel.Information))
+                    {
+                        log.LogInformation("Delegate job {JobKey} fired", context.JobDetail.Key);
+                    }
+
                     delegateFired.TrySetResult(
                         $"{context.JobDetail.JobType.FullName} with a logger, the firing and {(cancellationToken.CanBeCanceled ? "its token" : "no token")}, {HowCalled()}");
                     return Task.CompletedTask;
@@ -184,7 +188,11 @@ internal static class StoreCheck
                 // reading the delegate's own parameters and invoked through reflection.
                 Delegate reflected = static (ILogger<CanaryJob> log, IJobExecutionContext context, CancellationToken cancellationToken) =>
                 {
-                    log.LogInformation("Delegate job {JobKey} fired", context.JobDetail.Key);
+                    if (log.IsEnabled(LogLevel.Information))
+                    {
+                        log.LogInformation("Delegate job {JobKey} fired", context.JobDetail.Key);
+                    }
+
                     reflectedDelegateFired.TrySetResult(
                         $"{context.JobDetail.JobType.FullName} with a logger, the firing and {(cancellationToken.CanBeCanceled ? "its token" : "no token")}, {HowCalled()}");
                     return Task.CompletedTask;

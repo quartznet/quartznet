@@ -78,6 +78,24 @@ internal sealed class SchedulerTarget
     /// null status leaves the asking to the listing, which is what a live agent answers through.
     /// </remarks>
     public Func<TargetLiveness>? Liveness { get; init; }
+
+    /// <summary>
+    /// The most the target lets this process do on its schedulers, read when it is asked: an agent's
+    /// <c>MaxAccess</c>, which it states in every registration. <see langword="null" /> is
+    /// <see cref="SchedulerAccess.Administer" />, which every target whose bound this process cannot read
+    /// is: an HTTP target decides by its own policy, and refuses there.
+    /// </summary>
+    /// <remarks>
+    /// A ceiling over every carrier rather than a policy: the dashboard hides a control above it, and MCP
+    /// offers no tool above it, so neither sends a request the target is known to refuse. A delegate, because
+    /// an agent that reconnects may state another one.
+    /// </remarks>
+    public Func<SchedulerAccess>? MaxAccess { get; init; }
+
+    /// <summary>
+    /// <see cref="MaxAccess" /> as it stands now.
+    /// </summary>
+    public SchedulerAccess Ceiling => MaxAccess?.Invoke() ?? SchedulerAccess.Administer;
 }
 
 /// <summary>

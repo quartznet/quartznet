@@ -124,7 +124,7 @@ public sealed class FleetIdentityTest
         name.Should().Be(schedulerName, "the store is asked for the scheduler's own name, not the key");
         refusal.Should().BeNull();
 
-        SchedulerEventSources.For(provider, $"B/{schedulerName}").Should()
+        SchedulerEventLookup.For(provider, $"B/{schedulerName}").Should()
             .BeSameAs(provider.GetRequiredKeyedService<ISchedulerEventSource>("B"));
 
         provider.GetRequiredService<SchedulerTargets>().Snapshot().Select(x => x.Name).Should().Equal(["A", "B"]);

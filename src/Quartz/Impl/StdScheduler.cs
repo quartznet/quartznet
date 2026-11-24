@@ -35,7 +35,7 @@ namespace Quartz.Impl;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSource
+internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSource, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IFireInstanceLogScheduler
 {
     internal readonly QuartzScheduler scheduler;
 
@@ -707,6 +707,35 @@ internal sealed partial class StdScheduler : IScheduler, ISharedExecutionGroupSo
         return enlistmentSource is null
             ? scheduler.GetSharedExecutionGroup(jobKey, cancellationToken)
             : WithEnlistment(static (qs, state, ct) => qs.GetSharedExecutionGroup(state, ct), jobKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// Starts a wait on the proxied <see cref="QuartzScheduler" />, which reads the trigger's state through this
+    /// facade.
+    /// </summary>
+    ValueTask<FiringWatch> IFiringWaitingScheduler.Watch(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        return new ValueTask<FiringWatch>(scheduler.Watch(triggerKey, this));
+    }
+
+    /// <summary>
+    /// Answered from the record the proxied <see cref="QuartzScheduler" />'s declarations were kept in, which a
+    /// scheduler the container did not build has none of.
+    /// </summary>
+    ValueTask<bool?> IStartupDeclarationsScheduler.IsDeclaredAtStartup(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        return new ValueTask<bool?>(scheduler.resources.DeclaredContent?.StoresAgainAtNextStart(triggerKey));
+    }
+
+    /// <summary>
+    /// Read from the proxied <see cref="QuartzScheduler" />'s own running firings, which is where their capture
+    /// buffers are (#4437).
+    /// </summary>
+    ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return new ValueTask<FireInstanceLog>(scheduler.ReadFireInstanceLog(request));
     }
 
     /// <summary>

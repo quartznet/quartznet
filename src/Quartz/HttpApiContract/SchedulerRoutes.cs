@@ -87,6 +87,11 @@ internal static class SchedulerRoutes
     public static readonly WireRoute GetJobRunStatus = Route(nameof(GetJobRunStatus), Get, History + "/job-status/{jobGroup}/{jobName}");
     public static readonly WireRoute FetchJobRunStatuses = Route(nameof(FetchJobRunStatuses), Post, History + "/job-status/fetch");
 
+    // From 4.9, beside the job statuses. A host older than 4.9 answers 404 without problem details, which tells a
+    // reader the host keeps no trigger status.
+    public static readonly WireRoute QueryTriggerRunStatuses = Route(nameof(QueryTriggerRunStatuses), Get, History + "/trigger-status");
+    public static readonly WireRoute FetchTriggerRunStatuses = Route(nameof(FetchTriggerRunStatuses), Post, History + "/trigger-status/fetch");
+
     // From 4.4, as the statuses are. A 4.3 host answers 404 without problem details; the HTTP client reads
     // the host's version first and does not ask one.
     public static readonly WireRoute QueryExecutionStatistics = Route(nameof(QueryExecutionStatistics), Get, History + "/statistics");
@@ -102,6 +107,10 @@ internal static class SchedulerRoutes
     public static readonly WireRoute CheckJobExists = Route(nameof(CheckJobExists), Get, Job + "/exists");
     public static readonly WireRoute GetJobTriggers = Route(nameof(GetJobTriggers), Get, Job + "/triggers");
     public static readonly WireRoute QueryFireInstances = Route(nameof(QueryFireInstances), Get, Jobs + "/fire-instances");
+
+    // From 4.9. Read in the process running the firing; a 4.8 host answers 404 without problem details, and
+    // HttpScheduler says that host cannot show a running firing's log.
+    public static readonly WireRoute GetFireInstanceLog = Route(nameof(GetFireInstanceLog), Get, Jobs + "/fire-instances/{fireInstanceId}/log");
     public static readonly WireRoute PauseJob = Route(nameof(PauseJob), Post, Job + "/pause", mutates: true, Operate);
     public static readonly WireRoute PauseJobs = Route(nameof(PauseJobs), Post, Jobs + "/pause", mutates: true, Operate);
     public static readonly WireRoute PauseJobKeys = Route(nameof(PauseJobKeys), Post, Jobs + "/keys/pause", mutates: true, Operate);
@@ -141,6 +150,12 @@ internal static class SchedulerRoutes
     public static readonly WireRoute ResumeTriggers = Route(nameof(ResumeTriggers), Post, Triggers + "/resume", mutates: true, Operate);
     public static readonly WireRoute ResumeTriggerKeys = Route(nameof(ResumeTriggerKeys), Post, Triggers + "/keys/resume", mutates: true, Operate);
     public static readonly WireRoute QueryTriggerGroups = Route(nameof(QueryTriggerGroups), Get, Triggers + "/groups");
+
+    // From 4.9: every fire of every trigger in a window, beside the groups. Two segments after the scheduler, so no
+    // trigger's own route, which has three, can match it. A host older than 4.9 answers 404 without problem
+    // details, and HttpScheduler composes the answer from the host's other routes.
+    public static readonly WireRoute QueryUpcomingFires = Route(nameof(QueryUpcomingFires), Get, Triggers + "/upcoming-fires");
+
     public static readonly WireRoute IsTriggerGroupPaused = Route(nameof(IsTriggerGroupPaused), Get, Triggers + "/groups/{triggerGroup}/paused");
     public static readonly WireRoute ScheduleJob = Route(nameof(ScheduleJob), Post, Triggers + "/schedule", mutates: true, Administer);
     public static readonly WireRoute ScheduleJobs = Route(nameof(ScheduleJobs), Post, Triggers + "/schedule-multiple", mutates: true, Administer);

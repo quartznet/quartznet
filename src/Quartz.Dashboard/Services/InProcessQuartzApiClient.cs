@@ -363,6 +363,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         FireInstanceQuery storeQuery = new()
         {
             TriggerGroup = BuildGroupMatcher<TriggerKey>(query.GroupContains),
+            Job = query.Job is null ? null : AsJobKey(query.Job),
             State = query.State,
             Skip = query.Skip,
             Take = query.Take,
@@ -406,7 +407,10 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 LastCheckInUtc: node.LastCheckInUtc,
                 CheckInInterval: node.CheckInInterval,
                 State: node.State,
-                IsCurrentNode: node.IsCurrentNode));
+                IsCurrentNode: node.IsCurrentNode)
+            {
+                QuartzVersion = node.QuartzVersion
+            });
         }
 
         return items;
@@ -430,6 +434,12 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
         IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseJob, cancellationToken).ConfigureAwait(false);
         return await scheduler.PauseJobWith(AsJobKey(key), details, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<PauseInfo?> GetTriggerGroupPause(string schedulerName, string groupName, CancellationToken cancellationToken = default)
+    {
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        return await scheduler.GetTriggerGroupPause(groupName, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<PauseInfo?> GetJobGroupPause(string schedulerName, string groupName, CancellationToken cancellationToken = default)
@@ -473,6 +483,50 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.InterruptJobInstance, cancellationToken).ConfigureAwait(false);
         return await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <remarks>
+    /// <para>
+    /// A read, so the visitor needs only to see the scheduler, as for Execution Detail, which shows the same lines
+    /// once the run ends. The scheduler reads them where the firing runs: this process, the host behind an HTTP
+    /// target, the agent, or the cluster member fronting the firing's node.
+    /// </para>
+    /// <para>
+    /// A window answers <see cref="FireInstanceLogStatus.Unreachable" /> and is asked nothing (#4437). It is a
+    /// scheduler this process never started: asked, it would answer "not running" under its own id, which the page
+    /// would read as another node running the firing.
+    /// </para>
+    /// </remarks>
+    public async ValueTask<FireInstanceLogDto> GetFireInstanceLog(string schedulerName, DashboardFireInstanceLogQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentException.ThrowIfNullOrWhiteSpace(query.FireInstanceId, nameof(query));
+        if (FireInstanceLogs.Refusal(query.After, query.Take) is { } refusal)
+        {
+            throw new ArgumentException(refusal, nameof(query));
+        }
+
+        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        FireInstanceLog log = resolved.IsWindow
+            ? FireInstanceLogs.Unreachable(node: null, query.After)
+            : await FireInstanceLogs.Read(
+                resolved.Scheduler,
+                new FireInstanceLogRequest(query.FireInstanceId, query.After, query.Take, query.SchedulerInstanceId),
+                cancellationToken).ConfigureAwait(false);
+
+        return new FireInstanceLogDto(StatusOf(log.State), log.SchedulerInstanceId, [.. log.Entries], log.Next)
+        {
+            Missed = log.Missed,
+            HasMore = log.HasMore,
+        };
+
+        static FireInstanceLogStatus StatusOf(FireInstanceLogState state) => state switch
+        {
+            FireInstanceLogState.Running => FireInstanceLogStatus.Running,
+            FireInstanceLogState.NotCaptured => FireInstanceLogStatus.NotCaptured,
+            FireInstanceLogState.NotRunning => FireInstanceLogStatus.NotRunning,
+            _ => FireInstanceLogStatus.Unreachable,
+        };
     }
 
     public async ValueTask<bool> DeleteJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
@@ -614,6 +668,51 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                ?? throw new KeyNotFoundException($"Trigger '{triggerKey.Group}.{triggerKey.Name}' was not found in scheduler '{schedulerName}'.");
     }
 
+    /// <remarks>
+    /// <see cref="UpcomingFires.Query" /> over whichever scheduler the name resolves to: a store window computes in
+    /// this process from the shared tables, and a scheduler in another process — an HTTP target, an agent, a
+    /// cluster's preferred member — in its own, in the one request <c>HttpScheduler</c> sends. A refusal is raised
+    /// with the words every carrier uses for it.
+    /// </remarks>
+    public async ValueTask<UpcomingFiresDto> QueryUpcomingFires(string schedulerName, DashboardUpcomingFiresQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
+        UpcomingFiresOutcome outcome = await UpcomingFires.Query(
+            scheduler,
+            new UpcomingFiresQuery(query.From, query.To, query.GroupContains, query.Take),
+            cancellationToken).ConfigureAwait(false);
+
+        if (outcome.Refusal is { } refusal)
+        {
+            throw new ArgumentException(refusal, nameof(query));
+        }
+
+        UpcomingFiresResult result = outcome.Result!;
+        List<UpcomingFireDto> fires = new(result.Fires.Count);
+        foreach (UpcomingFire fire in result.Fires)
+        {
+            fires.Add(new UpcomingFireDto(
+                fire.FireTimeUtc,
+                new TriggerKeyDto(fire.TriggerKey.Group, fire.TriggerKey.Name),
+                new JobKeyDto(fire.JobKey.Group, fire.JobKey.Name),
+                fire.State)
+            {
+                ExecutionGroup = fire.ExecutionGroup,
+                ScheduleDescription = fire.ScheduleDescription,
+                OnlyTheNext = fire.OnlyTheNext
+            });
+        }
+
+        return new UpcomingFiresDto(result.FromUtc, result.ToUtc, fires)
+        {
+            Cut = result.CutAtUtc is not null,
+            CutAtUtc = result.CutAtUtc,
+            TriggersNotComputed = result.TriggersNotComputed
+        };
+    }
+
     public async ValueTask<bool> PauseTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = await ResolveAllowed(schedulerName, SchedulerRoutes.PauseTrigger, cancellationToken).ConfigureAwait(false);
@@ -638,6 +737,21 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         IScheduler scheduler = await ResolveScheduler(schedulerName, cancellationToken).ConfigureAwait(false);
         return await scheduler.GetTriggerPause(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <remarks>
+    /// A window cannot say. This dashboard built it over the store, and it declares nothing, while what each node
+    /// declares is the node's own.
+    /// </remarks>
+    public async ValueTask<bool?> IsTriggerDeclaredAtStartup(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
+    {
+        SchedulerResolution resolved = await Resolve(schedulerName, cancellationToken).ConfigureAwait(false);
+        if (resolved.IsWindow)
+        {
+            return null;
+        }
+
+        return await StartupDeclarations.IsDeclaredAtStartup(resolved.Scheduler, AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<bool> ResumeTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
@@ -991,6 +1105,36 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             .ConfigureAwait(false);
 
         return [.. page.Items];
+    }
+
+    /// <inheritdoc cref="GetJobRunStatus" />
+    public async ValueTask<PagedResult<JobRunStatus>> QueryJobRunStatuses(JobRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        await AuthorizeKey(query.SchedulerName, cancellationToken).ConfigureAwait(false);
+
+        (IExecutionHistoryStore store, string schedulerName) = HistoryFor(query.SchedulerName);
+        return await store
+            .QueryJobRunStatuses(query with { SchedulerName = schedulerName }, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <remarks>
+    /// Read from the store the history is read from, as the job statuses are: a scheduler in another process is
+    /// answered by its host, in one request for the page's triggers. A store that keeps no trigger status raises
+    /// <see cref="NotSupportedException" />, as the interface's default does.
+    /// </remarks>
+    public async ValueTask<PagedResult<TriggerRunStatus>> QueryTriggerRunStatuses(TriggerRunStatusQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        await AuthorizeKey(query.SchedulerName, cancellationToken).ConfigureAwait(false);
+
+        (IExecutionHistoryStore store, string schedulerName) = HistoryFor(query.SchedulerName);
+        return await store
+            .QueryTriggerRunStatuses(query with { SchedulerName = schedulerName }, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <remarks>

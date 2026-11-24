@@ -366,6 +366,14 @@ internal sealed class AgentCarrier
             AssertKeysToFetch(request.Jobs);
             return call.Json(Served(() => SchedulerOperations.FetchJobRunStatuses(call.Scheduler, call.Carrier.History(), request, call.Token)));
         };
+        handlers[SchedulerRoutes.QueryTriggerRunStatuses] = call => call.Json(Served(() => SchedulerOperations.QueryTriggerRunStatuses(
+            call.Scheduler, call.Carrier.History(), call.Listing(), call.Query.GetNullableBool("failing"), call.Token)));
+        handlers[SchedulerRoutes.FetchTriggerRunStatuses] = call =>
+        {
+            TriggerKeySetRequest request = call.Body<TriggerKeySetRequest>();
+            AssertKeysToFetch(request.Triggers);
+            return call.Json(Served(() => SchedulerOperations.FetchTriggerRunStatuses(call.Scheduler, call.Carrier.History(), request, call.Token)));
+        };
         handlers[SchedulerRoutes.QueryExecutionStatistics] = call => call.Json(Served(() => SchedulerOperations.QueryExecutionStatistics(
             call.Scheduler, call.Carrier.History(), call.Query.Get(SchedulerInstanceIdParameter), call.Query.Get("jobContains"),
             call.Query.Get("triggerContains"), call.Query.GetNullableBool("failedFinally"), call.HistoryFilters(),
@@ -390,6 +398,9 @@ internal sealed class AgentCarrier
         handlers[SchedulerRoutes.QueryFireInstances] = call => call.Json(SchedulerOperations.QueryFireInstances(
             call.Scheduler, call.Listing(call.Query.Get("state")).WithMatchers(call.Query), call.Query.Get(JobNameValue), call.Query.Get(JobGroupValue),
             call.Query.Get(SchedulerInstanceIdParameter), call.Token));
+        handlers[SchedulerRoutes.GetFireInstanceLog] = call => call.Json(Served(() => SchedulerOperations.GetFireInstanceLog(
+            call.Scheduler, call.Values["fireInstanceId"], call.Query.GetLong("after", 0), call.Query.GetInt("take", FireInstanceLogs.DefaultTake),
+            call.Query.Get(SchedulerInstanceIdParameter), call.Token)));
         handlers[SchedulerRoutes.PauseJob] = call => call.Json(SchedulerOperations.PauseJob(call.Scheduler, call.JobKey(), call.PauseDetails(), call.Token));
         handlers[SchedulerRoutes.PauseJobs] = call => call.Json(SchedulerOperations.PauseJobs(call.Scheduler, call.Groups(), call.PauseDetails(), call.Token));
         handlers[SchedulerRoutes.PauseJobKeys] = call =>
@@ -446,6 +457,14 @@ internal sealed class AgentCarrier
         handlers[SchedulerRoutes.GetTriggerFireTimes] = call => call.JsonOrNotFound(
             SchedulerOperations.GetTriggerFireTimes(call.Scheduler, call.TriggerKey(), call.Query.GetInt("count", UpcomingFireTimes.DefaultCount), call.Token),
             () => NotFoundException.ForTrigger(call.TriggerKey()));
+        handlers[SchedulerRoutes.QueryUpcomingFires] = call => call.Json(SchedulerOperations.QueryUpcomingFires(
+            call.Scheduler,
+            call.Query.GetDateTimeOffset("from"),
+            call.Query.GetDateTimeOffset("to"),
+            call.Query.Get("take"),
+            call.Query.Get("groupContains"),
+            call.Carrier.options.MaxPageSize,
+            call.Token));
         handlers[SchedulerRoutes.ResetTriggerFromErrorState] = call => call.Json(SchedulerOperations.ResetTriggerFromErrorState(call.Scheduler, call.TriggerKey(), call.Token));
         handlers[SchedulerRoutes.ResetTriggerKeysFromErrorState] = call => call.Json(SchedulerOperations.ResetTriggerKeysFromErrorState(call.Scheduler, call.Body<TriggerKeySetRequest>(), call.Token));
         handlers[SchedulerRoutes.PauseTrigger] = call => call.Json(SchedulerOperations.PauseTrigger(call.Scheduler, call.TriggerKey(), call.PauseDetails(), call.Token));

@@ -755,6 +755,20 @@ internal class XmlSchedulingDataProcessor
         List<IJobDetail> jobs = new List<IJobDetail>(LoadedJobs);
         List<ITrigger> triggers = new List<ITrigger>(LoadedTriggers);
 
+        // Before anything is stored, so a key passed over below is still recorded as declared: the
+        // first start prunes the owned groups against these, when the scheduler keeps a record. A
+        // declared trigger names its job, so that job is declared too, wherever it was stored from.
+        // With OverwriteExistingData, every start stores these triggers over the stored ones, which is
+        // what the dashboard warns an editor of (#4412).
+        if (Configuration.DeclaredContent.Of(scheduler) is { } record)
+        {
+            record.Declare(
+                jobs.Select(static x => x.Key).Concat(triggers.Select(static x => x.JobKey)),
+                triggers.Select(static x => x.Key),
+                OverwriteExistingData);
+            record.NeverPrune(jobGroupsToNeverDelete, triggerGroupsToNeverDelete);
+        }
+
         logger.AddingJobsAndTriggers(jobs.Count, triggers.Count);
 
         Dictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFullyQualifiedJobNameMap(triggers);
@@ -1065,8 +1079,9 @@ internal class XmlSchedulingDataProcessor
     /// <remarks>
     /// A chain is stored parent first however deep it goes, because each pass stores whatever has its
     /// parent in place by then. What is left when nothing can go waits in a loop — each for another that
-    /// is waiting too — and the first of it is stored anyway: the store's refusal of it, naming the
-    /// parent that does not exist, is the error such a document has earned.
+    /// is waiting too — and the first of it is stored anyway: the store's refusal, naming the parent that
+    /// does not exist or, when the loop's triggers are stored already and only rescheduled, the loop
+    /// (#4416), is the error such a document has earned.
     /// </remarks>
     private async ValueTask ScheduleDeferredContinuations(
         IScheduler scheduler,

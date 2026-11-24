@@ -1,5 +1,4 @@
 @page "/quartz/calendars/{CalendarName}"
-@using System.Reflection
 @using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
@@ -15,7 +14,9 @@
 @inject IServiceProvider Services
 
 <div class="qz-page">
-    <div class="qz-page-header">
+    @* The calendar's name follows the title closely: the header keeps the title where every page has it, and drops
+       the space under it that a page with a section next would need. *@
+    <div class="qz-page-header qz-calendar-detail-header">
         <h1>Calendar Detail</h1>
         <LastUpdated At="@_lastUpdatedAt" StaleReason="@_staleReason" OnRefresh="RefreshAsync" RefreshDisabled="@_refreshing" />
     </div>
@@ -34,31 +35,76 @@
     }
     else
     {
-        <h2>@CalendarName</h2>
-        @if (CanDelete)
+        <h2 class="qz-calendar-name">@CalendarName</h2>
+        <p data-testid="calendar-used-by">
+            @if (_usedBy is 0)
+            {
+                @* Nothing to list, so nothing to link to. *@
+                <span>Not used by any trigger</span>
+            }
+            else if (_usedBy is { } usedBy)
+            {
+                <a href="@TriggersPath">Used by @CalendarReading.Count(usedBy, "trigger")</a>
+            }
+            else
+            {
+                <a href="@TriggersPath">Triggers using it</a>
+                <span class="qz-muted"> — how many could not be read: @_usedByUnreadable</span>
+            }
+        </p>
+        @if (CanEdit || CanDelete)
         {
             <div class="qz-actions qz-group-actions">
-                <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete calendar</button>
+                @if (CanEdit && !_editing)
+                {
+                    <button type="button" class="qz-button qz-button-primary" data-testid="calendar-edit" @onclick="StartEditing">Edit calendar</button>
+                }
+                @if (CanDelete)
+                {
+                    <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete calendar</button>
+                }
             </div>
         }
-        <p>Type: <strong>@_calendar.GetType().Name</strong></p>
+        @if (CanAdd && !CalendarReading.IsEditable(CalendarReading.KindOf(_calendar)))
+        {
+            <p class="qz-muted" data-testid="calendar-not-editable">The dashboard edits the six built-in calendar types; this one is edited in code.</p>
+        }
 
-        <table class="qz-table">
-            <tbody>
-                @foreach (CalendarProperty property in _properties)
+        @if (_editing && CanEdit)
+        {
+            @* The editor holds the type, the zone and the rules, so the view of them is not drawn twice. *@
+            <CalendarEditor Calendar="@_calendar" CalendarName="@CalendarName" UsedBy="@_usedBy" OnSaved="OnCalendarSavedAsync" OnCancel="StopEditing" />
+        }
+        else
+        {
+            <CalendarExclusions Calendar="@_calendar" From="@_readAt" />
+        }
+
+        @if (_baseChain.Count > 0)
+        {
+            <section class="qz-section qz-calendar-chain" data-testid="calendar-base-chain">
+                <h2>Base calendars</h2>
+                <p class="qz-muted">
+                    A time is excluded when this calendar or any calendar under it excludes it. Each base calendar is a
+                    copy stored inside this one, not a link to a calendar stored under another name: replacing that
+                    calendar does not change this one.
+                </p>
+                @for (int index = 0; index < _baseChain.Count; index++)
                 {
-                    <tr>
-                        <th>@property.Name</th>
-                        <td>@property.Value</td>
-                    </tr>
+                    ICalendar baseCalendar = _baseChain[index];
+                    <section class="qz-calendar-chain-item" data-testid="calendar-base">
+                        <h3>@(index + 1). @CalendarReading.Describe(CalendarReading.KindOf(baseCalendar))</h3>
+                        <CalendarExclusions Calendar="@baseCalendar" From="@_readAt" />
+                    </section>
                 }
-            </tbody>
-        </table>
+            </section>
+        }
     }
 </div>
 
 <ConfirmDialog IsOpen="@_showDeleteConfirm"
                Title="Delete calendar"
+               ConfirmText="Delete"
                Message="@($"Delete {CalendarName}? This cannot be undone.")"
                OnConfirm="ConfirmDeleteAsync"
                OnCancel="CancelDeleteAsync" />
@@ -67,8 +113,26 @@
     private bool _isLoading = true;
     private string? _error;
     private ICalendar? _calendar;
-    private readonly List<CalendarProperty> _properties = [];
+
+    /// <summary>The calendars the one on screen is layered over, nearest first.</summary>
+    private List<ICalendar> _baseChain = [];
+
+    /// <summary>When the calendar on screen was read: the instant a cron calendar's next exclusions are read from.</summary>
+    private DateTimeOffset _readAt;
+
     private bool _showDeleteConfirm;
+
+    /// <summary>
+    /// How many triggers name the calendar, counted with the calendar, or <see langword="null" /> when the count
+    /// could not be read: the calendar is still shown.
+    /// </summary>
+    private int? _usedBy;
+
+    /// <summary>Why the count of the triggers that use the calendar could not be read.</summary>
+    private string? _usedByUnreadable;
+
+    /// <summary>Whether the editor is open.</summary>
+    private bool _editing;
 
     /// <summary>
     /// Cancelled when the reader leaves the page, which stops the read in flight: its answer would be thrown away.
@@ -100,17 +164,32 @@
     /// </summary>
     private bool CanDelete => Authorization.Allows(Scheduler.ActiveSchedulerName, Quartz.HttpApiContract.SchedulerRoutes.DeleteCalendar);
 
-    protected override async Task OnInitializedAsync()
+    /// <summary>
+    /// Whether the visitor may replace the calendar: an Administer operation, as creating one is.
+    /// </summary>
+    private bool CanAdd => Authorization.Allows(Scheduler.ActiveSchedulerName, Quartz.HttpApiContract.SchedulerRoutes.AddCalendar);
+
+    /// <summary>Whether the visitor may replace the calendar, and the dashboard edits its type.</summary>
+    private bool CanEdit => CanAdd && _calendar is not null && CalendarReading.IsEditable(CalendarReading.KindOf(_calendar));
+
+    /// <summary>The Triggers listing narrowed to the triggers that name this calendar.</summary>
+    private string TriggersPath => DashboardLink.To(Options.Value, "triggers?calendar=" + Uri.EscapeDataString(CalendarName));
+
+    protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
         Scheduler.OnDisplayChanged += OnDisplayChanged;
-        await LoadDataAsync();
     }
 
+    /// <remarks>
+    /// The one read of a page view: Blazor sets the parameters after initializing, the first time too, so a read
+    /// in both would read the calendar and count its triggers twice.
+    /// </remarks>
     protected override async Task OnParametersSetAsync()
     {
-        // Another calendar's properties are not ones to keep.
+        // Another calendar's rules are not ones to keep, nor an editor opened on them.
         ClearCalendar();
+        _editing = false;
         await LoadDataAsync();
     }
 
@@ -151,10 +230,13 @@
             CancellationToken cancellationToken = _cancellation.Token;
             await Authorization.LoadOperations(schedulerName, cancellationToken);
             ICalendar calendar = await Api.GetCalendar(schedulerName, CalendarName, cancellationToken);
+            (int? usedBy, string? usedByUnreadable) = await CountUsersAsync(schedulerName, cancellationToken);
             _calendar = calendar;
-            _properties.Clear();
-            BuildPropertyRows(calendar);
-            _lastUpdatedAt = Clock.GetUtcNow();
+            _baseChain = CalendarReading.BaseChainOf(calendar);
+            _usedBy = usedBy;
+            _usedByUnreadable = usedByUnreadable;
+            _readAt = Clock.GetUtcNow();
+            _lastUpdatedAt = _readAt;
             _staleReason = null;
         }
         catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
@@ -209,21 +291,48 @@
     private void ClearCalendar()
     {
         _calendar = null;
-        _properties.Clear();
+        _baseChain = [];
+        _usedBy = null;
+        _usedByUnreadable = null;
         _lastUpdatedAt = null;
         _staleReason = null;
     }
 
-    private void BuildPropertyRows(ICalendar calendar)
+    /// <summary>
+    /// How many triggers name the calendar: one count, with no trigger read, on load and on Refresh. A source that
+    /// cannot count leaves the page with the link and the reason, and the calendar is still shown.
+    /// </summary>
+    private async Task<(int? Count, string? Unreadable)> CountUsersAsync(string schedulerName, CancellationToken cancellationToken)
     {
-        Type type = calendar.GetType();
-        PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
-        foreach (PropertyInfo propertyInfo in properties)
+        try
         {
-            object? value = propertyInfo.GetValue(calendar);
-            string valueString = value?.ToString() ?? string.Empty;
-            _properties.Add(new CalendarProperty(propertyInfo.Name, valueString));
+            PagedResult<TriggerHeaderDto> page = await Api.QueryTriggers(
+                schedulerName,
+                new DashboardTriggerQuery { CalendarName = CalendarName, Take = 0 },
+                cancellationToken);
+            return page.TotalCount is { } count ? (count, null) : (null, "the source does not count them.");
         }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            return (null, ex.Message);
+        }
+    }
+
+    private void StartEditing()
+    {
+        _editing = true;
+    }
+
+    private void StopEditing()
+    {
+        _editing = false;
+    }
+
+    /// <summary>The calendar was replaced: the editor closes and the page reads what is stored now.</summary>
+    private async Task OnCalendarSavedAsync(string calendarName)
+    {
+        _editing = false;
+        await LoadDataAsync();
     }
 
     private void PromptDelete()
@@ -281,6 +390,4 @@
         _cancellation.Cancel();
         _cancellation.Dispose();
     }
-
-    private sealed record CalendarProperty(string Name, string Value);
 }

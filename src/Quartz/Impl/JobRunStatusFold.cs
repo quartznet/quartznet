@@ -20,37 +20,10 @@
 namespace Quartz.Impl;
 
 /// <summary>
-/// Folds one recorded execution into its job's <see cref="JobRunStatus" />.
+/// Folds one recorded execution into its job's <see cref="JobRunStatus" />, by <see cref="RunTally" />'s rule.
 /// </summary>
 /// <remarks>
-/// <para>
-/// The one definition of the rollup, so every store that keeps a status keeps the same one. Pure: the
-/// caller serializes the updates to one job.
-/// </para>
-/// <list type="table">
-/// <listheader><term>Result</term><description>What changes</description></listheader>
-/// <item>
-/// <term><see cref="JobRunResult.Succeeded" />, <see cref="JobRunResult.Skipped" /></term>
-/// <description>Runs +1. Consecutive failures reset. Last success moves forward.</description>
-/// </item>
-/// <item>
-/// <term><see cref="JobRunResult.Failed" />, not retried</term>
-/// <description>Runs +1, failures +1, consecutive failures +1. Last failure moves forward.</description>
-/// </item>
-/// <item>
-/// <term><see cref="JobRunResult.Failed" />, retry scheduled</term>
-/// <description>Runs +1. Last failure moves forward.</description>
-/// </item>
-/// <item>
-/// <term><see cref="JobRunResult.Cancelled" /></term>
-/// <description>Runs +1.</description>
-/// </item>
-/// </list>
-/// <para>
-/// The last-run fields and the consecutive failures change only for an execution that fired at or after
-/// the latest one folded so far; one that completes out of order is counted and leaves them alone. The
-/// last success and the last failure keep the later fire time of the two they are offered.
-/// </para>
+/// <inheritdoc cref="RunTally" path="/remarks" />
 /// </remarks>
 internal static class JobRunStatusFold
 {
@@ -58,70 +31,50 @@ internal static class JobRunStatusFold
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        JobRunResult result = entry.EffectiveResult;
-        DateTimeOffset firedAt = entry.FiredAtUtc;
-        bool failed = result == JobRunResult.Failed;
-        bool finalFailure = failed && !entry.RetryScheduled;
+        RunTally tally = current is null ? default : Tally(current);
+        tally.Fold(entry, first: current is null);
 
-        JobRunStatus status = current ?? new JobRunStatus(
-            entry.SchedulerName,
-            new JobKey(entry.JobName, entry.JobGroup),
-            firedAt,
-            result)
-        {
-            FirstFiredAtUtc = firedAt
-        };
-
-        bool newest = current is null || firedAt >= current.LastFiredAtUtc;
-
-        int consecutiveFailures = status.ConsecutiveFailures;
-        if (newest)
-        {
-            if (JobRunClassifier.IsSuccess(result))
-            {
-                consecutiveFailures = 0;
-            }
-            else if (finalFailure)
-            {
-                consecutiveFailures++;
-            }
-        }
-
-        status = status with
-        {
-            RunCount = status.RunCount + 1,
-            FailureCount = finalFailure ? status.FailureCount + 1 : status.FailureCount,
-            ConsecutiveFailures = consecutiveFailures,
-            FirstFiredAtUtc = firedAt < status.FirstFiredAtUtc ? firedAt : status.FirstFiredAtUtc
-        };
-
-        if (newest)
-        {
-            status = status with
-            {
-                LastFiredAtUtc = firedAt,
-                LastResult = result,
-                LastDuration = entry.Duration,
-                LastSchedulerInstanceId = entry.SchedulerInstanceId,
-                LastEntryId = entry.EntryId,
-                LastSummary = entry.Summary
-            };
-        }
-
-        if (JobRunClassifier.IsSuccess(result) && !(firedAt <= status.LastSucceededAtUtc))
-        {
-            status = status with { LastSucceededAtUtc = firedAt };
-        }
-
-        if (failed && !(firedAt < status.LastFailedAtUtc))
-        {
-            status = status with
-            {
-                LastFailedAtUtc = firedAt,
-                LastFailureMessage = entry.ExceptionMessage ?? entry.Summary
-            };
-        }
-
-        return status;
+        return Status(
+            current?.SchedulerName ?? entry.SchedulerName,
+            current?.Job ?? new JobKey(entry.JobName, entry.JobGroup),
+            tally);
     }
+
+    /// <summary>The run fields of a job's status.</summary>
+    internal static RunTally Tally(JobRunStatus status) => new()
+    {
+        LastFiredAtUtc = status.LastFiredAtUtc,
+        LastResult = status.LastResult,
+        LastDuration = status.LastDuration,
+        LastSchedulerInstanceId = status.LastSchedulerInstanceId,
+        LastEntryId = status.LastEntryId,
+        LastSummary = status.LastSummary,
+        LastSucceededAtUtc = status.LastSucceededAtUtc,
+        LastFailedAtUtc = status.LastFailedAtUtc,
+        LastFailureMessage = status.LastFailureMessage,
+        ConsecutiveFailures = status.ConsecutiveFailures,
+        RunCount = status.RunCount,
+        FailureCount = status.FailureCount,
+        FirstFiredAtUtc = status.FirstFiredAtUtc
+    };
+
+    /// <summary>A job's status, from its key and its run fields.</summary>
+    internal static JobRunStatus Status(string schedulerName, JobKey job, in RunTally tally) => new(
+        schedulerName,
+        job,
+        tally.LastFiredAtUtc,
+        tally.LastResult)
+    {
+        LastDuration = tally.LastDuration,
+        LastSchedulerInstanceId = tally.LastSchedulerInstanceId,
+        LastEntryId = tally.LastEntryId,
+        LastSummary = tally.LastSummary,
+        LastSucceededAtUtc = tally.LastSucceededAtUtc,
+        LastFailedAtUtc = tally.LastFailedAtUtc,
+        LastFailureMessage = tally.LastFailureMessage,
+        ConsecutiveFailures = tally.ConsecutiveFailures,
+        RunCount = tally.RunCount,
+        FailureCount = tally.FailureCount,
+        FirstFiredAtUtc = tally.FirstFiredAtUtc
+    };
 }

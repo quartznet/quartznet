@@ -362,7 +362,7 @@ public class RemainingPagesTest
         IRenderedComponent<Calendars> page = context.Render<Calendars>();
 
         page.Markup.Should().Contain("holidays").And.Contain("maintenance");
-        page.Markup.Should().Contain("Create or replace cron calendar");
+        page.Markup.Should().Contain("New calendar");
     }
 
     [Test]
@@ -374,7 +374,8 @@ public class RemainingPagesTest
 
         IRenderedComponent<Calendars> page = context.Render<Calendars>();
 
-        page.Markup.Should().NotContain("Create or replace cron calendar");
+        page.Markup.Should().NotContain("New calendar");
+        page.FindAll("[data-testid=calendar-editor]").Should().BeEmpty();
         page.Markup.Should().Contain("holidays", "reading the calendars is still allowed");
     }
 
@@ -496,7 +497,7 @@ public class RemainingPagesTest
         IRenderedComponent<NavMenu> menu = context.Render<NavMenu>();
 
         menu.FindAll("a").Select(link => link.GetAttribute("href")).Should()
-            .Equal(["quartz", "quartz/jobs", "quartz/triggers", "quartz/calendars", "quartz/executing", "quartz/schedulers", "quartz/cluster", "quartz/history", "quartz/timeline", "quartz/live", "quartz/actions"],
+            .Equal(["quartz", "quartz/jobs", "quartz/triggers", "quartz/calendars", "quartz/executing", "quartz/schedulers", "quartz/cluster", "quartz/history", "quartz/timeline", "quartz/agenda", "quartz/live", "quartz/actions"],
                 "the links are base-relative, so they survive an application path base as well as a "
                 + "custom dashboard path");
     }

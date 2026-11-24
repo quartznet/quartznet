@@ -26,6 +26,7 @@ using AppAny.Quartz.EntityFrameworkCore.Migrations.SQLite;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Tests.Integration.Impl.AdoJobStore;
 using Quartz.Tests.Unit.Weasel;
@@ -141,8 +142,32 @@ public sealed class SqliteMigrationTest
         await using SqliteConnection connection = new(database.ConnectionString);
         await connection.OpenAsync();
 
+        (await Columns(connection, "QRTZA_TRIGGER_STATUS")).Should().Equal(await Columns(connection, "QRTZ_TRIGGER_STATUS"),
+            "AppAny 0.6.3 has no trigger rollup, and the move creates it as the fresh install does");
+
         await MigratedSchemaWorkload.RunAsync(connection, "sqlite", database.ConnectionString, "QRTZA_");
+
+        // A store keeping its history in the database probes the optional tables, and refuses to start without one.
+        ServiceCollection services = new();
+        services.AddQuartz(q =>
+        {
+            q.ConfigureScheduler(options => options.InstanceName = "efcore-appany-history-" + Guid.NewGuid().ToString("N"));
+            q.UsePersistentStore(store =>
+            {
+                store.ConfigureStore(options => options.TablePrefix = "QRTZA_");
+                store.UseSqlite(SqliteFactory.Instance, database.ConnectionString);
+                store.UseExecutionHistory();
+            });
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        Func<Task> start = async () => await (await provider.GetRequiredService<ISchedulerFactory>().GetScheduler()).Shutdown();
+        await start.Should().NotThrowAsync("the moved schema has every table the 4.9 history needs");
     }
+
+    /// <summary>A table's columns, each as SQLite declares it: name, type, NOT NULL, default and key position.</summary>
+    private static Task<List<string>> Columns(SqliteConnection connection, string table) => SqliteSchema.RowsAsync(connection,
+        $"SELECT name || ' ' || type || ' ' || \"notnull\" || ' ' || IFNULL(dflt_value, '') || ' ' || pk FROM pragma_table_info('{table}') ORDER BY cid");
 
     private static async Task<List<string>> Triggers(SqliteTestDatabase database)
     {

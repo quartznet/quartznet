@@ -1385,9 +1385,14 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
     /// whose one placeholder is the dialect token. The answer starts <c>database/migrations/</c>, so a
     /// caller names it as it is.
     /// </param>
-    private string MigrationScriptName(string migration)
+    private string MigrationScriptName(string migration) => MigrationScriptName(Delegate, migration);
+
+    /// <inheritdoc cref="MigrationScriptName(string)" />
+    /// <param name="driverDelegate">The delegate whose dialect names the file.</param>
+    /// <param name="migration">The file-name template, as <see cref="MigrationScriptName(string)" /> takes it.</param>
+    internal static string MigrationScriptName(IDriverDelegate driverDelegate, string migration)
     {
-        string dialect = Delegate switch
+        string dialect = driverDelegate switch
         {
             SqlServerDelegate => "sqlServer",
             PostgreSQLDelegate => "postgres",

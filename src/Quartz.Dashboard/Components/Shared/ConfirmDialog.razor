@@ -1,26 +1,52 @@
+@* Asks before something that cannot be undone. Focus goes to the dialog itself rather than to Confirm, so Enter
+   pressed out of habit confirms nothing. *@
 @if (IsOpen)
 {
-    <div class="qz-confirm-overlay">
-        <div class="qz-confirm-dialog">
-            <h3>@Title</h3>
-            <p>@Message</p>
-            <div class="qz-confirm-actions">
-                <button type="button" class="qz-button qz-button-danger" @onclick="ConfirmAsync">Confirm</button>
-                <button type="button" class="qz-button" @onclick="CancelAsync">Cancel</button>
-            </div>
+    <ModalDialog LabelledBy="@_titleId" ReturnFocus="ReturnFocus" ReturnFocusFallback="ReturnFocusFallback" OnCancel="CancelAsync">
+        <h3 id="@_titleId">@Title</h3>
+        <p>@Message</p>
+        <div class="qz-confirm-actions">
+            <button type="button" class="qz-button qz-button-danger" @onclick="ConfirmAsync">@ConfirmText</button>
+            <button type="button" class="qz-button" @onclick="CancelAsync">Cancel</button>
         </div>
-    </div>
+    </ModalDialog>
 }
 
 @code {
+    private static int s_lastId;
+
+    /// <summary>The heading's id, which names the dialog; one per instance, as a page can hold several.</summary>
+    private readonly string _titleId = "qz-confirm-title-" + Interlocked.Increment(ref s_lastId).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     [Parameter]
     public bool IsOpen { get; set; }
+
+    /// <summary>
+    /// The control that opened the dialog, which focus goes back to as it closes, or <see langword="null" /> for
+    /// whatever had focus as it opened: see <see cref="ModalDialog.ReturnFocus" />.
+    /// </summary>
+    [Parameter]
+    public ElementReference? ReturnFocus { get; set; }
+
+    /// <summary>
+    /// Where focus goes as the dialog closes when <see cref="ReturnFocus" /> has left the page by then, or
+    /// <see langword="null" /> for none: see <see cref="ModalDialog.ReturnFocusFallback" />.
+    /// </summary>
+    [Parameter]
+    public ElementReference? ReturnFocusFallback { get; set; }
 
     [Parameter]
     public string Title { get; set; } = "Confirm action";
 
     [Parameter]
     public string Message { get; set; } = "Are you sure?";
+
+    /// <summary>
+    /// The confirming button's words: the action it takes, <c>Delete</c> or <c>Unschedule</c>, so the reader
+    /// knows what pressing it does without reading the question again.
+    /// </summary>
+    [Parameter]
+    public string ConfirmText { get; set; } = "Confirm";
 
     [Parameter]
     public EventCallback OnConfirm { get; set; }

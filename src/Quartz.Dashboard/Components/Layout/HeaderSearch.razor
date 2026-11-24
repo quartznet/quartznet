@@ -1,0 +1,383 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.Extensions.Options
+@using Microsoft.JSInterop
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Services
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject NavigationManager Navigation
+
+@* "Where is invoice-export?" from any page (#4411): two reads of the listings the pages already make, by name,
+   eight of each. Debounced, from two characters, and a keystroke cancels the read still in flight, so a slow
+   target answers only the last word typed.
+
+   A combobox: focus stays in the box, the arrow keys move a highlight through the results, which the box names
+   with aria-activedescendant, Enter opens the highlighted one, and Escape or leaving the box closes the list.
+   The results take no focus of their own, and a press on them keeps it in the box, so a click lands. *@
+<div class="qz-header-search" role="search">
+    <label class="qz-header-control-label qz-header-search-label" for="@InputId">Search</label>
+    <input @ref="_input"
+           id="@InputId"
+           type="text"
+           class="qz-input qz-header-search-input"
+           placeholder="Find a job or trigger"
+           autocomplete="off"
+           role="combobox"
+           aria-autocomplete="list"
+           aria-label="Jump to a job or trigger by name"
+           aria-expanded="@(_open ? "true" : "false")"
+           aria-controls="@(_open ? ResultsId : null)"
+           aria-activedescendant="@(_open && _active >= 0 ? OptionId(_active) : null)"
+           value="@_term"
+           @oninput="OnInputAsync"
+           @onkeydown="OnKeyDownAsync"
+           @onfocus="OnFocus"
+           @onfocusout="OnFocusOut" />
+
+    @if (_open)
+    {
+        <div id="@ResultsId"
+             class="qz-header-search-results"
+             data-testid="header-search-results"
+             role="@(_options.Count > 0 ? "listbox" : null)"
+             aria-label="@(_options.Count > 0 ? "Jobs and triggers named like '" + _searched + "'" : null)"
+             @onkeydown="OnKeyDownAsync"
+             @onmousedown:preventDefault="true">
+            @if (_error is not null)
+            {
+                <p class="qz-muted">@_error</p>
+            }
+            else if (_options.Count == 0)
+            {
+                <p class="qz-muted" data-testid="header-search-none">No job or trigger has a name containing '@_searched'.</p>
+            }
+            else
+            {
+                @foreach (string section in new[] { JobsSection, TriggersSection })
+                {
+                    string sectionId = InputId + "-" + section.ToLowerInvariant();
+                    if (_options.Exists(option => option.Section == section))
+                    {
+                        <div role="group" aria-labelledby="@sectionId" data-testid="@("header-search-" + section.ToLowerInvariant())">
+                            <div id="@sectionId" class="qz-header-search-heading" role="presentation">@section</div>
+                            @for (int index = 0; index < _options.Count; index++)
+                            {
+                                SearchOption option = _options[index];
+                                if (option.Section != section)
+                                {
+                                    continue;
+                                }
+
+                                <a id="@OptionId(index)"
+                                   role="option"
+                                   tabindex="-1"
+                                   aria-selected="@(index == _active ? "true" : "false")"
+                                   class="@OptionClass(option, index)"
+                                   href="@option.Href">@option.Text</a>
+                            }
+                        </div>
+                    }
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The fewest characters a search is made for: one matches nearly every name.</summary>
+    internal const int MinimumLength = 2;
+
+    /// <summary>How many jobs, and how many triggers, the dropdown lists.</summary>
+    internal const int Shown = 8;
+
+    private const string InputId = "qz-header-search";
+    private const string ResultsId = "qz-header-search-results";
+    private const string JobsSection = "Jobs";
+    private const string TriggersSection = "Triggers";
+
+    private ElementReference _input;
+    private string _term = string.Empty;
+    private string _searched = string.Empty;
+    private bool _open;
+    private string? _error;
+
+    /// <summary>What the list offers, in the order the arrow keys walk it: the jobs, then the triggers, each ending
+    /// with its listing.</summary>
+    private List<SearchOption> _options = [];
+
+    /// <summary>The highlighted option, or -1 for none.</summary>
+    private int _active = -1;
+
+    /// <summary>
+    /// Whether the list was closed by Escape or by focus leaving: a lookup that answers then keeps its results for
+    /// ↓ without opening over the page. Typing, focus or ↓ clears it.
+    /// </summary>
+    private bool _away;
+
+    /// <summary>
+    /// The keystroke's: cancelled by the next one, which ends its wait and the reads it made, and by leaving.
+    /// </summary>
+    private CancellationTokenSource _keystroke = new();
+
+    /// <summary>How long typing has to pause before the reads are made.</summary>
+    [Parameter]
+    public TimeSpan Debounce { get; set; } = TimeSpan.FromMilliseconds(300);
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+    }
+
+    private string OptionClass(SearchOption option, int index)
+    {
+        string css = option.IsSeeAll ? "qz-header-search-option qz-header-search-see-all" : "qz-header-search-option";
+        return index == _active ? css + " qz-header-search-option-active" : css;
+    }
+
+    private static string OptionId(int index) => InputId + "-option-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private async Task OnInputAsync(ChangeEventArgs args)
+    {
+        _term = args.Value?.ToString() ?? string.Empty;
+        _away = false;
+
+        CancellationToken cancellationToken = NextKeystroke();
+        string term = _term.Trim();
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (term.Length < MinimumLength || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            _open = false;
+            _options = [];
+            _active = -1;
+            return;
+        }
+
+        try
+        {
+            await Task.Delay(Debounce, cancellationToken);
+
+            PagedResult<JobKeyDto> jobs = await Api.QueryJobs(
+                schedulerName,
+                new DashboardJobQuery { NameContains = term, Take = Shown },
+                cancellationToken);
+            PagedResult<TriggerHeaderDto> triggers = await Api.QueryTriggers(
+                schedulerName,
+                new DashboardTriggerQuery { NameContains = term, Take = Shown },
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            _options = BuildOptions(term, jobs, triggers);
+            _searched = term;
+            _error = null;
+            _active = -1;
+            _open = !_away;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Another keystroke came, or the reader left: the answer is for a word nobody is looking for.
+        }
+        catch (Exception ex)
+        {
+            _searched = term;
+            _options = [];
+            _active = -1;
+            _error = ex.Message;
+            _open = !_away;
+        }
+    }
+
+    private List<SearchOption> BuildOptions(string term, PagedResult<JobKeyDto> jobs, PagedResult<TriggerHeaderDto> triggers)
+    {
+        List<SearchOption> options = [];
+        foreach (JobKeyDto job in jobs.Items)
+        {
+            options.Add(new SearchOption(
+                JobsSection,
+                DisplayValueHelper.FormatKey(job.Group, job.Name),
+                DashboardLink.To(Options.Value, "jobs/" + Uri.EscapeDataString(job.Group) + "/" + Uri.EscapeDataString(job.Name)),
+                IsSeeAll: false));
+        }
+
+        if (jobs.Items.Count > 0)
+        {
+            options.Add(new SearchOption(
+                JobsSection,
+                SeeAll(jobs.TotalCount ?? jobs.Items.Count, "job"),
+                DashboardLink.To(Options.Value, "jobs?name=" + Uri.EscapeDataString(term)),
+                IsSeeAll: true));
+        }
+
+        foreach (TriggerHeaderDto trigger in triggers.Items)
+        {
+            options.Add(new SearchOption(
+                TriggersSection,
+                DisplayValueHelper.FormatKey(trigger.Group, trigger.Name),
+                DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(trigger.Group) + "/" + Uri.EscapeDataString(trigger.Name)),
+                IsSeeAll: false));
+        }
+
+        if (triggers.Items.Count > 0)
+        {
+            options.Add(new SearchOption(
+                TriggersSection,
+                SeeAll(triggers.TotalCount ?? triggers.Items.Count, "trigger"),
+                DashboardLink.To(Options.Value, "triggers?name=" + Uri.EscapeDataString(term)),
+                IsSeeAll: true));
+        }
+
+        return options;
+    }
+
+    /// <summary>
+    /// The arrow keys move the highlight, wrapping at either end, and reopen a list Escape closed; Enter opens
+    /// the highlighted result; Escape closes the list and keeps the text.
+    /// </summary>
+    private async Task OnKeyDownAsync(KeyboardEventArgs args)
+    {
+        switch (args.Key)
+        {
+            case "ArrowDown":
+            case "ArrowUp":
+                if (_options.Count == 0 || _error is not null)
+                {
+                    return;
+                }
+
+                int step = args.Key == "ArrowDown" ? 1 : -1;
+                if (!_open)
+                {
+                    _away = false;
+                    _open = true;
+                    _active = step > 0 ? 0 : _options.Count - 1;
+                    return;
+                }
+
+                _active = _active < 0
+                    ? (step > 0 ? 0 : _options.Count - 1)
+                    : (_active + step + _options.Count) % _options.Count;
+                return;
+
+            case "Enter":
+                if (_open && _active >= 0 && _active < _options.Count)
+                {
+                    Navigation.NavigateTo(_options[_active].Href);
+                }
+
+                return;
+
+            case "Escape":
+                // Also before a pending lookup answers, so the list it finds does not open over the page.
+                bool wasOpen = _open;
+                Collapse();
+                if (wasOpen)
+                {
+                    await FocusInputAsync();
+                }
+
+                return;
+        }
+    }
+
+    /// <summary>
+    /// Focus left the box, so the list it controls closes. The text stays for when it comes back, and a lookup still
+    /// pending finishes, so ↓ shows what it found.
+    /// </summary>
+    private void OnFocusOut(FocusEventArgs args)
+    {
+        Collapse();
+    }
+
+    private void OnFocus(FocusEventArgs args)
+    {
+        _away = false;
+    }
+
+    private async Task FocusInputAsync()
+    {
+        try
+        {
+            await _input.FocusAsync();
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    /// <summary>A result was followed, or the page changed some other way: the search has done its work.</summary>
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _ = InvokeAsync(() =>
+        {
+            Reset();
+            StateHasChanged();
+        });
+    }
+
+    /// <summary>Another scheduler's names are not this one's.</summary>
+    private void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(() =>
+        {
+            Reset();
+            StateHasChanged();
+        });
+    }
+
+    /// <summary>
+    /// Closes the list, and keeps it closed when a lookup still pending answers; the text, what it found and the
+    /// lookup itself stay, so ↓ opens the list again.
+    /// </summary>
+    private void Collapse()
+    {
+        _away = true;
+        _open = false;
+        _active = -1;
+    }
+
+    /// <summary>Closes the list, stops what is in flight and clears the box.</summary>
+    private void Reset()
+    {
+        NextKeystroke();
+        Collapse();
+        _term = string.Empty;
+        _options = [];
+        _error = null;
+    }
+
+    /// <summary>Cancels the previous keystroke's wait and reads, and hands out the token of the next.</summary>
+    private CancellationToken NextKeystroke()
+    {
+        _keystroke.Cancel();
+        _keystroke.Dispose();
+        _keystroke = new CancellationTokenSource();
+        return _keystroke.Token;
+    }
+
+    private static string SeeAll(int total, string noun)
+    {
+        return total > Shown
+            ? "See all " + total.ToString(System.Globalization.CultureInfo.InvariantCulture) + " " + noun + "s"
+            : "Open the " + noun + "s listing";
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _keystroke.Cancel();
+        _keystroke.Dispose();
+    }
+
+    /// <summary>One result: a job or trigger, or a listing of all of them.</summary>
+    private sealed record SearchOption(string Section, string Text, string Href, bool IsSeeAll);
+}

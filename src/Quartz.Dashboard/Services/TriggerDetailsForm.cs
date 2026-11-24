@@ -434,6 +434,21 @@ internal sealed class TriggerDetailsForm
     private static string FromWhat(bool measureIntervalFromCompletion)
         => measureIntervalFromCompletion ? "completion" : "scheduled time";
 
+    /// <summary>
+    /// The instructions of a schedule kind's family, which a new trigger of that kind is offered.
+    /// </summary>
+    public static List<MisfireOption> OptionsFor(ScheduleKind kind)
+    {
+        return kind switch
+        {
+            ScheduleKind.Simple => OptionsOf<SimpleTriggerMisfireInstruction>(),
+            ScheduleKind.Cron => OptionsOf<CronTriggerMisfireInstruction>(),
+            ScheduleKind.CalendarInterval => OptionsOf<CalendarIntervalTriggerMisfireInstruction>(),
+            ScheduleKind.DailyTimeInterval => OptionsOf<DailyTimeIntervalTriggerMisfireInstruction>(),
+            _ => OptionsOf<RecurrenceTriggerMisfireInstruction>(),
+        };
+    }
+
     private static List<MisfireOption> OptionsFor(ITrigger trigger)
     {
         return trigger switch

@@ -13,7 +13,7 @@ tool and the `ghcr.io/quartznet/quartz-dashboard` image. See [Dashboard Host](da
 
 ## Features
 
-Fifteen pages, listed under [The pages](#the-pages).
+Sixteen pages, listed under [The pages](#the-pages).
 
 - **Reads the schedulers in its own container**, through the container's `IQuartzApiClient`: usually the
   schedulers this process runs, with nothing to configure. A scheduler in *another* process is registered with
@@ -28,7 +28,7 @@ Fifteen pages, listed under [The pages](#the-pages).
   whole cluster, and the pages say which scope they show.
 - **A control panel**, from 4.3: [edit a trigger in place](#editing-a-trigger),
   [backfill it](#backfilling-a-trigger), [filter the listings](#filtering-the-listings) and
-  [act on a selection](#acting-on-a-selection).
+  [act on a selection](#acting-on-a-selection). From 4.9, [create and edit calendars](#calendars) of every built-in type.
 - **Execution history**, installed automatically and bounded by age and count. It is in-memory and per-process
   unless you [give it a store](#execution-history-and-misfires); for a scheduler in another process it is read
   from that process.
@@ -39,6 +39,9 @@ Fifteen pages, listed under [The pages](#the-pages).
   anyone may change anything. See [Production hardening](#production-hardening).
 - **A time zone picker and a theme toggle** in the header. Absolute times render in the picked zone; ages such
   as a last check-in or last fire are also shown relative.
+- **Triage**, from 4.9: a trigger's page says [why it isn't firing](#why-isn-t-it-firing), the Overview lists what
+  [needs attention](#needs-attention), the [Cluster](#cluster) page shows each node's Quartz version, and the
+  header [finds a job or trigger by name](#finding-a-job-or-trigger-by-name).
 - **A collapsible sidebar.** Its toggle folds it to an icon rail. The choice is kept per browser in
   `qz_sidebar_collapsed`, beside the theme and time zone.
 
@@ -171,13 +174,15 @@ An implementation must follow the interface's two promises to render like the sh
 
 **Members added during 4.x arrive as default interface members**, so your implementation keeps compiling. The
 default body reports the datum as unavailable, like `CannotReport`; override it when your source can answer.
-`GetJobRunStatus`, `GetJobRunStatuses` and `QueryExecutionStatistics` (4.4) throw `NotSupportedException` by
-default, and the pages leave out what they would show. `GetUpcomingFireTimes` (4.7) computes from `GetTrigger`
-and `GetCalendar` by default.
+`GetJobRunStatus`, `GetJobRunStatuses` and `QueryExecutionStatistics` (4.4), and `QueryJobRunStatuses`,
+`QueryTriggerRunStatuses` and `QueryUpcomingFires` (4.9), throw `NotSupportedException` by default, and the pages
+leave out what they would show. `GetUpcomingFireTimes` (4.7) computes from `GetTrigger` and `GetCalendar` by
+default; `QueryUpcomingFires` does not, because that would be a read per trigger. `GetFireInstanceLog` (4.9) throws
+`NotSupportedException` by default, and Currently Executing's *Show log* says so in its words.
 
 ## The pages
 
-All fifteen are under `{DashboardPath}` (`/quartz` by default) and render the scheduler selected in the header's
+All sixteen are under `{DashboardPath}` (`/quartz` by default) and render the scheduler selected in the header's
 picker, so switching schedulers keeps you on the same page.
 
 | Page | Route |
@@ -191,6 +196,7 @@ picker, so switching schedulers keeps you on the same page.
 | Cluster | `/quartz/cluster` |
 | Execution History, and one execution | `/quartz/history`, `/quartz/history/{EntryId}` |
 | Timeline | `/quartz/timeline` |
+| Agenda | `/quartz/agenda` |
 | Live Logs | `/quartz/live` |
 | Action Log | `/quartz/actions` |
 
@@ -202,9 +208,11 @@ A page reads again on a timer or when you ask it to:
 | Page | Reads again |
 |---|---|
 | Currently Executing, Execution History, and the Overview's executing count | Every second |
-| Cluster, and the Overview's other tiles and execution groups | Every five seconds |
+| Currently Executing's *Show log* dialog | Every two seconds while it is open |
+| Cluster, and the Overview's other tiles, execution groups, and *Needs attention*'s failing jobs and overdue count | Every five seconds |
+| The Overview's runs of the last 24 hours | Every 30 seconds |
 | Timeline | On its Jobs and Triggers refresh intervals |
-| Jobs, Triggers, Calendars, Schedulers, and one job, trigger or calendar | When you press **Refresh**, beside *Last updated* |
+| Jobs, Triggers, Calendars, Schedulers, Agenda, and one job, trigger or calendar | When you press **Refresh**, beside *Last updated* |
 
 - A timer stops while the browser tab is hidden. The page reads once when the tab is shown again.
 - **Refresh** also reads the scheduler status in the header. So does the Overview, when the status it read
@@ -237,10 +245,45 @@ shutdown. Beside the totals (jobs, triggers, firings in flight, triggers in erro
   limit's scope, firings in flight and remaining headroom — and, on a node that routes, whether the group is
   served here and how many of its triggers are overdue; see [Execution groups](#execution-groups).
 
-The **Nodes** tile shows the node count and, when any exist, the number not `Alive`, turning red then. It links
-to the Cluster page. A non-clustered scheduler shows `1`.
+The **Nodes** tile shows the node count and, when any exist, the number not `Alive`, turning red then. From 4.9 it
+adds *mixed versions*, in amber, while the live nodes run different Quartz versions. It links to the Cluster page.
+A non-clustered scheduler shows `1`.
 
 The page ends with recent [Action Log](#action-log) entries.
+
+### Needs attention
+
+From 4.9, the Overview answers "is anything wrong right now?" in one panel. Each part is one read, never one per
+row.
+
+| Part | Shows | Read |
+|---|---|---|
+| Overdue triggers | How many `Normal` (waiting) triggers are more than 5 minutes past their next fire time, linking to the Triggers page narrowed to them | `QueryTriggers` with `State = Normal`, `NextFireTimeBefore` and `Take = 0`, every five seconds |
+| Failing jobs | The 10 jobs failing the most [times in a row](#job-run-status), with *failing ×N* linking to their failed runs and the last failure's time and message | `QueryJobRunStatuses` with `Failing = true`, every five seconds |
+| Runs, last 24 hours | The [run statistics](#run-statistics) chart for the day: runs, success rate and failures | `QueryExecutionStatistics`, every 30 seconds, History's cadence |
+
+- **"Overdue" is a waiting trigger more than 5 minutes past its fire time**, the cutoff the execution-groups
+  panel and *Why isn't it firing?* use too.
+- **The failing jobs are ranked from the first 250 by name** when more than 250 are failing; the sentence above
+  the table says so.
+- **A part whose source cannot answer is left out**, as the Jobs page leaves out its columns: a history that
+  keeps no per-job status, a source that counts no runs, a host older than 4.3 for the overdue count.
+- It works the same in process, over HTTP, through an agent and on a window.
+
+### Finding a job or trigger by name
+
+From 4.9, the header's search box finds a job or trigger on any page. Type at least two characters.
+
+- It searches the selected scheduler's job names and trigger names (`NameContains`), up to 8 of each.
+- Each result links to its page. *See all* opens the Jobs or Triggers listing filtered by the same text.
+- It reads once typing pauses for 300 ms. A keystroke cancels the read still in flight, so a slow target answers
+  only the last text.
+- From the keyboard: *↓* and *↑* move through the results, *Enter* opens the highlighted one, and *Escape* closes
+  the list and keeps the text. Leaving the box, or following a result, closes it too. A lookup still pending
+  when focus leaves finishes, and *↓* shows what it found. The box is an ARIA combobox, so a screen reader
+  announces the highlighted result.
+- On a screen 768 px wide or less, the box takes a row of its own under the scheduler picker.
+- Over a slow HTTP target the read is bounded by the target's client timeout.
 
 ### Jobs, Triggers and Calendars
 
@@ -249,12 +292,14 @@ detail page.
 
 | Listing | Detail page shows | Actions outside read-only mode |
 |---|---|---|
-| **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete |
-| **Triggers**: from 4.8, [the schedule in words, and next and previous fire](#the-schedule-and-fire-times); state, execution group | from 4.7, its [upcoming fires](#upcoming-fires); from 4.8, the schedule in words beside its expression; the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a cron reschedule editor and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
-| **Calendars**: names | one calendar | create, replace or delete a cron calendar |
+| **Jobs**: job details and keys; from 4.4, each job's [last run, last success and *failing ×N*](#job-run-status) | the `JobDataMap`, the triggers pointing at the job, and its run status | trigger-now with overrides, pause, resume, delete; from 4.9, [*Add trigger*](#adding-a-trigger) |
+| **Triggers**: from 4.8, [the schedule in words, and next and previous fire](#the-schedule-and-fire-times); from 4.9, each trigger's [last run and *failing ×N*](#trigger-run-status); state, execution group | from 4.7, its [upcoming fires](#upcoming-fires); from 4.8, the schedule in words beside its expression; the trigger's `JobDataMap`, priority, calendar, misfire instruction and threshold, whether a simple trigger is measured from completion, preferred node, its [retry policy](../how-tos/retrying-failed-jobs.md), retries made for the current occurrence, its [overlap policy](../how-tos/overlap-policy.md) | pause, resume, unschedule, *reset error state*, a [schedule editor](#rescheduling-a-trigger) (for every kind from 4.9, cron before) and, from 4.3, [*Edit details*](#editing-a-trigger) and [*Backfill…*](#backfilling-a-trigger); on the listing, [bulk actions](#acting-on-a-selection) |
+| **Calendars**: names; from 4.9, each one's type | from 4.9, [the calendar's own rules](#calendars), its time zone, the calendars under it and how many triggers use it | from 4.9, [create or edit](#calendars) a calendar of any of the six built-in types; delete |
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
   query parameter too; see [Filtering the listings](#filtering-the-listings).
+- From 4.9, a listing never cuts a key short. One too long for its column wraps, first after the group's dot, then
+  inside the name, and *Copy* stays beside it.
 - From 4.3, *Pause*, *Pause group* and *Pause all* ask for an optional reason, recorded with the signed-in
   user's name. A paused trigger shows **Paused: reason (by who, when)** on its page and its listing rows, and a
   paused job group shows its record on the Jobs page. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
@@ -263,9 +308,8 @@ detail page.
   group* lifts a group pause however it was made. *Trigger group* still fires each job: a scheduler has no
   group-level trigger.
 - *Reset error state* clears an `ERROR` trigger once its cause is fixed.
-- The cron reschedule editor previews the next five fires of the expression being edited, before it is saved,
-  in the trigger's time zone and less what its calendar excludes. The preview shows only while the edited
-  expression differs from the saved one.
+- The schedule editor previews the next five fires of the edited schedule before it is saved. See
+  [Rescheduling a trigger](#rescheduling-a-trigger).
 
 ### The schedule and fire times
 
@@ -289,11 +333,19 @@ From 4.8, the Triggers listing shows each trigger's schedule in words, in the tr
 A narrower listing gives way in steps, by its own width rather than the window's. A 1440 px window with the sidebar
 open gives the listing about 1120 px. The trigger's page shows everything a step hides.
 
-| Listing narrower than | Change |
-|---|---|
-| 1300 px | Execution group and Details are hidden |
-| 1080 px | Previous fire is hidden |
-| 920 px | The schedule moves under the trigger's key; below 748 px the table scrolls inside its card |
+| Listing narrower than | Without [*Last run*](#trigger-run-status) | With it |
+|---|---|---|
+| any width | | Details and Previous fire are hidden: the whole row opens the trigger, and the last run dates its latest firing |
+| 1440 px | The actions take two rows | Execution group is hidden; the trigger's key keeps 18rem |
+| 1300 px | Execution group and Details are hidden | |
+| 1200 px | | The schedule moves under the trigger's key |
+| 1080 px | Previous fire is hidden | *Last run* moves under the state, captioned |
+| 920 px | The schedule moves under the trigger's key; below 748 px the table scrolls inside its card | Below 748 px the table scrolls inside its card |
+| 860 px | | The actions take two rows |
+
+*Last run* adds 132 px, which the trigger's key, the one column that cannot wrap, would otherwise give. So with it
+Details and Previous fire go at every width, and the width they leave keeps the actions on one row and the key at
+18rem or more. *Last run* never goes: it says whether the schedule still works.
 
 ### Upcoming fires
 
@@ -304,6 +356,8 @@ From 4.7, every trigger's page lists its next ten fire times, whatever the trigg
   [`fire-times` route](http-api.md#upcoming-fire-times).
 - **The times show in the dashboard's time zone**, each with how long until it (`in 12h`).
 - **A trigger that does not fire again** says so: *This trigger does not fire again.*
+- **A paused trigger** says so above the list: these are its schedule's times, and it fires none of them until it
+  is resumed. A trigger in a paused group is paused.
 - **A simple trigger [measured from completion](../tutorial/simpletriggers.md#measured-from-completion)**
   lists its next fire time, then *Then every 30 s after each run completes.*
 - **A source that cannot answer** says so in the panel, and the rest of the page still shows. An agent whose
@@ -312,10 +366,49 @@ From 4.7, every trigger's page lists its next ten fire times, whatever the trigg
 - The cron editor's preview is separate: it shows the expression being edited, before it is saved, and only
   once it differs from the saved one. Read-only mode has no editor and no preview.
 
+### Why isn't it firing?
+
+From 4.9, every trigger's page works through the checks of [Nothing is firing](../operations.md#nothing-is-firing)
+and gives a verdict for each: ✓ fine, ℹ worth knowing, ⚠ may hold it back, ✗ holds it back, ? could not be told.
+
+- **Nothing found**: the section is one line, *Nothing found that stops this trigger firing.*, with the checks
+  behind a toggle beside it.
+- **Something found**: the section opens with the ⚠ and ✗ findings, worst first, and a count. The checks that
+  passed are behind the toggle.
+
+| Check | Holds it back when | Link or action |
+|---|---|---|
+| Scheduler | It is in standby, not started or shut down. A window's status comes from the cluster's check-ins | Overview |
+| Trigger | It is paused (by whom, when, why), blocked, complete, or in error. In error, the cause: a deleted parent, or the last run's failure | The failed run; *Reset error state* |
+| Trigger group, Job group | The group is paused, with its record: who paused it, when and why | The listing narrowed to the group |
+| Its job's firings | The trigger is `BLOCKED`: the firing that holds its job, its node and since when. Or it is held without being `BLOCKED`: its own firing runs, so it reads `EXECUTING`, which outranks `BLOCKED`, its job does not allow concurrent execution, and its next fire time has passed | *Interrupt*; Currently Executing |
+| Next fire | There is none (its end time passed), or a waiting trigger is more than 5 minutes past it | |
+| Execution group | Its limit is 0 or reached, or **this node** does not serve the group | Currently Executing; Cluster |
+| Misfires | The history records misfires of this trigger: how many, the latest and why | Its misfires on History |
+| Retry | Shown when a retry of a failed occurrence is pending, and when it is due | |
+
+- **The page makes six to eleven reads** on load and on **Refresh**, never on a timer and never per row: the
+  scheduler, the paused groups, a paused group's record, the job's firings (with
+  `DashboardFireInstanceQuery.Job`), the job itself when a running firing may hold the trigger, the execution
+  limits, the group's firings when a limit governs it, the trigger's misfires, and its last run when it is in
+  error.
+- **"This node does not serve it", never "no node does."** Nodes publish nothing about what they serve, so the
+  check speaks for the node that answered. A window and a cluster of targets say nothing about routing.
+- **A read that fails leaves its check `?`**, and the other checks stand. So does a page that cannot answer:
+  with more than 250 paused groups, a group not among the first 250 is `?`, and with more than a page of
+  firings in flight a group's count is a floor.
+- **A group this node does not serve**: on a clustered store only a node that serves it fires it, and the
+  check claims no such node exists. On a store that is not clustered nothing runs it, and the check is ✗.
+- *Interrupt* and *Reset error state* keep their own operations: hidden in read-only mode and below the
+  [role](#operator-roles) each needs. An accepted *Interrupt* shows a toast, the checks are read again, and the
+  button reads *Interrupt requested* while the firing is still listed: a job stops when it next checks its
+  cancellation token.
+- It works the same in process, over HTTP, through an agent and on a window.
+
 ### Editing a trigger
 
 From 4.3, *Edit details* on a trigger's page edits it in place through `IScheduler.UpdateTriggerDetails`. Fire
-times and state are kept; the cron editor is the one that reschedules.
+times and state are kept; the [schedule editor](#rescheduling-a-trigger) is the one that reschedules.
 
 | Field | Takes |
 |---|---|
@@ -338,6 +431,85 @@ times and state are kept; the cron editor is the one that reschedules.
 - An `IQuartzApiClient` of your own that does not implement `UpdateTriggerDetails` answers its default,
   `NotSupportedException`. The button is then disabled with that reason.
 
+### Rescheduling a trigger
+
+From 4.9, *Edit schedule* on a trigger's page reschedules a trigger of any of the five built-in kinds through
+`RescheduleJob`. Before 4.9, only a cron trigger could be.
+
+| Kind | Fields |
+|---|---|
+| Cron | the expression; the time zone |
+| Simple | the interval and its unit; how many times it repeats after the first fire, or forever; whether the interval is measured from completion |
+| Calendar interval | the interval and its unit, seconds to years; the time zone; whether to keep the hour of day across daylight saving, and to skip a day that hour does not exist on |
+| Daily time interval | the window, from and until, as times; the days; the interval in seconds, minutes or hours; how many times it repeats each day, blank until the window ends; the time zone |
+| Recurrence | the RFC 5545 `RRULE`; the time zone |
+
+- **Only the schedule changes.** The trigger is cloned, so its calendar, node pin, priority, data map and type are
+  kept (#3294). A trigger of another type, one that derives from none of the five, is refused, and the editor
+  says so.
+- **The schedule is previewed beside its fields**: in words, with its next five fires, each in the trigger's own
+  time zone with its offset, less what its calendar excludes. The preview says whether it is the saved schedule or
+  an edit not saved yet.
+- **A wrong field is said beside it**: an expression or rule that does not parse, a window that ends before it
+  starts, no day ticked, an unknown time zone, a schedule that does not fire again.
+- **Save asks first.** The dialog says the trigger is replaced: its previous fire time, its count of fires and a
+  pending retry are reset, and the replacement takes the state its group gives it. See
+  [Rescheduling Jobs](../how-tos/rescheduling-jobs.md).
+- **A pause is kept.** A trigger paused on its own would come back unpaused, so the dashboard pauses it again,
+  with its reason and who asked. The pause is dated when it is set again: no operation carries a pause's time over.
+  A trigger its group keeps paused is left alone.
+- **The first fire is the edited schedule's first after now**, less what the calendar excludes, so a start long
+  gone is not stored as a misfire. A simple trigger starts at that first fire, and its repeat count counts from
+  there.
+- **Every save is in the [Action Log](#action-log)** as `RescheduleTrigger`, with the schedule before and after
+  in words.
+- It works the same in process, over HTTP and through an agent, at the `Administer` [role](#operator-roles).
+
+### A trigger declared at start-up
+
+From 4.9, every editor of a trigger the scheduler's start-up declares says: **Declared at start-up: this change
+lasts until the next start.** The schedule editor, its *Reschedule* dialog and *Edit details* show it.
+
+- **Why.** With `OverwriteExistingData` on, the default, every start stores each `AddTrigger` and `ScheduleJob`
+  registration, and each scheduling file, over the stored trigger. See
+  [What a start keeps](../how-tos/rescheduling-jobs.md#what-a-start-keeps). To keep a change, make it in the
+  declaration.
+- **Which triggers.** One a declaration names and stores over the stored copy. On the in-memory store, which keeps
+  nothing across starts, any declared trigger. With `IgnoreDuplicates` on a persistent store, the next start keeps
+  the stored trigger, so the edit lasts and nothing is said.
+- **Only when the scheduler can tell.** In process, over HTTP and through an agent, from 4.9:
+  `IQuartzApiClient.IsTriggerDeclaredAtStartup`. A window, a host or agent older than 4.9, and an
+  `IQuartzApiClient` of your own that does not implement it, say nothing.
+- A trigger a scheduling file adds on a rescan, after the first start, is not counted.
+
+### Adding a trigger
+
+From 4.9, *Add trigger* on a job's page stores a new trigger of that job, of any of the five kinds, through
+`ScheduleJob` with no job. *Duplicate…* on a trigger's page opens the same form, filled from that trigger.
+
+| Field | Takes |
+|---|---|
+| Name, group | the trigger's key; the group is the job's until another is typed |
+| Description | text |
+| Kind and schedule | the fields of [Rescheduling a trigger](#rescheduling-a-trigger), for the kind chosen |
+| Starts | a date and time in the trigger's time zone, or the dashboard's for a simple trigger; blank is now |
+| Calendar | a calendar name, suggested from the scheduler's |
+| Priority | a whole number, `5` by default |
+| Misfire instruction | the kind's family of instructions, by name |
+| `JobDataMap` | the trigger's entries |
+
+- **The first fire is the schedule's first after now**, and the trigger starts at it. A start behind now keeps its
+  phase, so *every other day at 06:00 from the 1st* stays on the same days.
+- **A duplicate is the trigger's copy** under a new key, `-copy` by default: its schedule and everything else it
+  carries, its execution group and node pin among them, while its kind is kept. It starts now, and the `QRTZ_` entries
+  Quartz writes into a map, a trace parent among them, are left out. The page then moves to the copy.
+- **A refusal is shown in the form**, which stays open: a key already in use on the name field, a calendar the
+  scheduler does not hold above the fields.
+- **Every add is in the [Action Log](#action-log)** as `ScheduleTrigger`, with its schedule in words and its job.
+- **No job is created.** A job built from a type name runs whatever that type does, `NativeJob` included, and an
+  agent refuses one by default. Store the job in code; the dashboard adds triggers to it.
+- It works the same in process, over HTTP and through an agent, at the `Administer` [role](#operator-roles).
+
 ### Backfilling a trigger
 
 From 4.3, *Backfill…* on a trigger's page runs its schedule over a past range: one firing per slot. See
@@ -357,6 +529,44 @@ From 4.3, *Backfill…* on a trigger's page runs its schedule over a past range:
   sharing the store fires.
 - An `IQuartzApiClient` of your own that does not implement `Backfill` answers its default,
   `NotSupportedException`. The button is then disabled with that reason.
+
+### Calendars
+
+From 4.9, a calendar's page shows its own rules, read through its type, and the Calendars page creates any of the
+six built-in types. Before 4.9 the page listed the calendar's properties as text, and only a cron calendar could be
+created.
+
+| Type | Calendar Detail shows | The editor takes |
+|---|---|---|
+| `HolidayCalendar` | its dates, each with its weekday | a date picker and *Add*, *Remove* beside each date, and several dates pasted one a line as `yyyy-MM-dd` |
+| `AnnualCalendar` | a month-by-day grid of the days excluded every year | ticks in the same grid; February counts 29. The grid is one tab stop: the arrow keys move between days, Home and End to the month's ends, and Space ticks |
+| `WeeklyCalendar` | the days of the week, ticked | ticks; a new one starts with Saturday and Sunday, as the type does |
+| `MonthlyCalendar` | the days of the month, ticked | ticks, 1 to 31 |
+| `DailyCalendar` | the range, and whether it is inverted: the range is then the part of the day included | start and end as two time fields, to the second, and the inversion |
+| `CronCalendar` | the expression, and the next five spans it excludes | the expression, previewed as it is typed |
+
+- **Every calendar says its time zone**, the zone its days and times are read in. The cron spans show in it, with
+  their offset. A new calendar starts in UTC, and the zone is a field of the editor.
+- **The calendars under it** (`CalendarBase`) are drawn below it, level by level. Each is a copy stored inside the
+  calendar, not a link: replacing a calendar stored under another name does not change it. The editor keeps them
+  as they are.
+- **The *Used by N triggers* link** opens the Triggers listing [filtered](#filtering-the-listings) by the calendar.
+  The number is one count, with no trigger read, on load and on **Refresh**. A calendar no trigger uses says
+  *Not used by any trigger*, with no link.
+- **The listing reads each calendar once for its type**, on load and on **Refresh**, eight at a time and no more than
+  200; a scheduler lists names alone. A calendar that cannot be read, such as a custom type the dashboard has no
+  serializer for, shows *unreadable* with the reason on hover.
+- **A holiday, annual, weekly or monthly calendar with nothing ticked** is warned about before it is saved: it
+  would exclude nothing.
+- **Saving over a stored calendar asks first**, and says how many triggers use it. *Replace and update triggers*
+  recomputes each one's next fire time against the new calendar (`AddCalendarRequest.UpdateTriggers`). *Replace
+  only* leaves each the next fire time it has, even one the new calendar excludes.
+- **A calendar type of your own** shows its type name and description, and is edited in code. The page does not
+  read its properties. A plain `BaseCalendar` is the same.
+- **Every save is in the [Action Log](#action-log)** as `CreateCalendar` or `ReplaceCalendar`, with the type and,
+  for a replace, `updateTriggers=true` or `false`.
+- **Creating and replacing are `AddCalendar`**, an `Administer` operation; reading is `View`. Read-only mode hides
+  the editor.
 
 ### Filtering the listings
 
@@ -429,9 +639,40 @@ progress. It is the fire-instance listing, so **with a persistent job store it c
 - Each interrupt is recorded in the [Action Log](#action-log) with the fire instance and node, whether or not the
   firing was still running.
 - *Past runs* opens the trigger's [execution history](#execution-history). A firing gets its own execution page
-  once it finishes: the history row is written then.
+  once it finishes; while it runs, *Show log* follows its log.
 - A row that never goes away: a firing whose node died stays until another node's check-in sweep takes it over.
   See [Fired triggers: backlog or leak](../operations.md#fired-triggers-backlog-or-leak).
+
+#### Following a running firing's log
+
+From 4.9, *Show log* on a row opens a dialog that reads the lines the firing logged since its last read, every two
+seconds while it is open. The lines are the ones
+[`UseExecutionLogCapture()`](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines) keeps, read in the
+process running the firing: this one, the host behind an HTTP target, or the agent.
+
+| The dialog says | When | Then |
+|---|---|---|
+| *Following · 12 lines · updated 14:02:31* | The firing runs and its scheduler captures | It reads again in two seconds. Behind, it reads up to four more pages at once |
+| *Nothing logged yet* | The firing runs and has logged nothing | It reads again in two seconds. The log's box appears with the first line |
+| *Paused · 4 new lines below* and **Jump to latest** | You scrolled up off the newest line | It keeps reading and keeps your place, after the run ends too. **Jump to latest** follows again with focus on the log; so does scrolling back down |
+| *[7 lines were dropped before they could be shown: …]*, in the log | The capture dropped them between two reads: it keeps its newest `MaxLines` and `MaxBytes` | Raise `ExecutionLogCaptureOptions.MaxLines` for a job that logs faster |
+| *The run ended. This is its log as recorded.* | The firing's own node runs it no more | It reads the history by fire instance id up to five times, two seconds apart, for a row written behind, and shows the row's log in full, the lines logged after its last read among them, with the run time it recorded. A listing that leaves the log out, as [database history](../tutorial/job-stores.md#execution-history-in-the-database)'s does: *Its full log, with the lines logged after the last read, is on its execution page*. No row: the trigger's *Past runs*. No history: *This scheduler keeps no history, so the log is not kept after the run.* |
+| *This scheduler keeps no log lines of its firings…* | The scheduler does not call `UseExecutionLogCapture()` | It stops |
+| *node-b runs this firing, and this target reaches node-a…* | The target is not the node running the firing, as behind a load balancer | It stops. Open node-b's own target |
+| *No process this dashboard reaches runs this firing…* | A [store-attached window](#what-a-window-can-and-cannot-do), or a cluster node no member target fronts | It stops |
+| *This target runs Quartz older than 4.9…* | The host or agent has no such route | It stops |
+| *Stopped after 3 failed reads in a row* | Three reads in a row failed | **Retry** reads again |
+
+- The lines read so far stay when it stops. Past 2,000 it keeps the newest, under
+  *[earlier lines are on the execution page once the run ends]*.
+- The log stays on its newest line; scrolled up, it keeps your place. Screen readers hear the state change, not
+  every line or count.
+- Closing it gives focus back to the row's *Show log*, or to the page's heading when the row has gone.
+- A retry is a new firing, with its own row and *Show log*.
+- It needs `View`, as Execution Detail does: a scheduler that captures shows its running firings' lines to
+  whoever may view it, whether or not it keeps history.
+- Closing it, or leaving the page, stops it reading. It is not in the Action Log.
+- A [cluster of targets](#a-cluster-behind-several-targets) asks the member fronting the row's node, alone.
 
 ### Schedulers
 
@@ -464,12 +705,21 @@ Rows are sorted by target, this process first, then by name.
 `/quartz/cluster` has one row per node of the selected scheduler's cluster, refreshed every five seconds, with
 the last refresh time in the header so a stalled page is visible.
 
-- Columns: instance id, state, last check-in, check-in interval, firings held `Acquired` and `Executing`, and
+- Columns: instance id, state, Quartz version, last check-in, check-in interval, firings held `Acquired` and `Executing`, and
   **Serves**: `all`, `only reports, (no execution group)` or `all but gpu`, from the node's
   [routing](../tutorial/execution-groups.md#routing-which-node-serves-a-group). Nodes publish nothing to the
   store, so for a single target only the answering node has an entry and the rest show a dash; for a cluster
   behind several targets, each member's.
 - The answering node is marked *(this node)*.
+- **Version**, from 4.9: what the node stamped its check-in row with (`ClusterNode.QuartzVersion`).
+  - *older than 4.6*: the row has no stamp; nodes stamp it from 4.6.
+  - *not reported*: the host answering is older than 4.9 and sends no versions.
+  - A store with no check-in rows shows the answering node's own version, and a dash for the rest.
+- **A banner while the live nodes run different versions** names each version's nodes. While a node older than
+  4.6 is live, it names that node and its version and says what it costs on every database: every round of work
+  that allows concurrent execution takes `TRIGGER_ACCESS` (event `3517`), and an interrupt request for its
+  firings is never answered (`3520`). It claims nothing that depends on the database. See
+  [Upgrading a running deployment](../migration-guide.md#upgrading-a-running-deployment).
 - The state (`Alive`, `Overdue` or `Failed`) is `IScheduler.QueryClusterNodes()`'s verdict, from the same
   predicate the store's recovery sweep uses. Meanings, and why a `Failed` node is listed briefly and then
   vanishes: [Check-in, node states and failover](../operations.md#check-in-node-states-and-failover) and
@@ -546,6 +796,44 @@ another `from=` was set). An execution page without `from=` falls back to Histor
 **Remote scheduler without history.** If the scheduler runs in another process and its HTTP API does not
 serve execution history, the page shows only that message — no trigger headers or upcoming fires.
 
+The Timeline still reads each row's upcoming fires on its own; it does not use the Agenda's one read.
+
+### Agenda
+
+`/quartz/agenda` (4.9) lists every fire of every trigger in a window, earliest first, grouped by hour, and pauses a
+selection of them: *what fires tonight between 02:00 and 04:00, and should I pause it?*
+
+| What | How |
+|---|---|
+| Window | *Next hour*, *Rest of today*, *Next 24 hours* (the default), *Next 7 days*, or **From** and **To**, read in the header's time zone. At most 7 days, ending within the next 30. The end is excluded. A window outside these is refused on the page, in the header's zone, and nothing is listed until it is fixed |
+| Filter | **Trigger group**, contains |
+| Address | A preset is `preset=` in the URL (`next-hour`, `rest-of-today`, `next-24-hours`, `next-7-days`), computed again from now on a reload or a shared link. A typed window is `from` and `to`, kept as they are. `group` is kept with either |
+| Reads | On load, on a change and on **Refresh**. Never on a timer: one read computes over every due trigger |
+| Hours | The header's zone, as the header says: *Times in Europe/Helsinki (UTC+02:00)*. A repeated autumn hour is two hours, each labelled with its offset; a skipped spring hour has none |
+| Rows | Time, trigger, job, the schedule in words, state, execution group |
+| States | Every trigger due in the window is listed in any state. A paused, blocked or error trigger's fires are listed and say so |
+| Measured from completion | Only the trigger's next fire, which the row says |
+
+**The fires are computed where the triggers are stored**, with calendars applied: by the local scheduler, a store
+window in this process, the host behind an HTTP target, or an agent, in one read. A cluster of targets asks its
+preferred member. A data source of your own that does not implement `QueryUpcomingFires` gets a message instead.
+
+**Caps.** At most 1,000 fires. When a cap cuts the list, the page says where: *Showing the first 1,000 fires, up to
+Tue 03:14. Later fires in the window are not listed: narrow the window or filter by group.* More than 10,000 triggers
+due in the window is refused, naming the group filter. A trigger whose calendar is missing is left out and counted.
+An empty window under a group filter names the filter and offers **Clear group**.
+
+**Pause selected** and **Resume selected**, with Operate, act on the selected fires' triggers, each once: *2 triggers
+selected (3 fires)*. They stay at the top of the listing as it scrolls. **Select this hour** selects an hour's fires.
+The pause names the triggers, the first 10 and how many more, asks for a reason and says the triggers stay paused
+until resumed: nothing resumes them when the window ends, and on resume each trigger's misfire
+instruction decides what happens to the fires it missed. Both are the Triggers listing's key-set calls, with an
+Action Log entry per trigger. There is no *pause until*.
+
+**What it does not simulate.** The agenda lists the schedules' times. Misfire handling of an overdue trigger,
+`[DisallowConcurrentExecution]`, execution-group limits, standby and which node fires are not taken into account.
+An overdue trigger is listed at its schedule's times after the window starts. The list is as of the read.
+
 ### Live Logs
 
 `/quartz/live` shows the scheduler's events as they happen, from Quartz's event stream.
@@ -570,19 +858,33 @@ the container; the page subscribes for the scheduler on screen.
 
 ### Action Log
 
-`/quartz/actions` lists what was done *from this dashboard*, newest first: time, scheduler, user (from 4.3),
-action, target, where it landed, success, and any message. It answers "who paused this" when "who" is the
-dashboard. From 4.4, a pause given a reason carries it in the message as `reason: …`.
+`/quartz/actions` lists what was done *through this process*, newest first: time, the surface it came through,
+scheduler, user (from 4.3), action, target, where it landed, success, and any message. It answers "who paused
+this". From 4.4, a pause given a reason carries it in the message as `reason: …`.
 
-- The store is in-memory and process-wide, holding the last 250 actions across schedulers. The page shows the
-  most recent 100 of those that target the selected scheduler.
-- It records only this process's dashboard. An HTTP API action is logged where the API is mapped, as event
-  `9007`. Other nodes' and other dashboards' actions are not here, and nothing survives a restart.
+- **Via** (4.9) says which surface: *Dashboard* for this dashboard's buttons, *HTTP API* for a request to the
+  [HTTP API](http-api.md) mapped in the same process, including the [dashboard host's](dashboard-host.md#the-http-api),
+  and *MCP* for a tool of the [MCP endpoint](mcp.md). Every API change and every refusal for a role is entered, with
+  the caller's name and the operation's name (`PauseTrigger`); an MCP change and an MCP change refused are entered the
+  same way, and a read through MCP is not. A client that names itself is shown under the badge, on one line cut
+  short when long, and in full in the tooltip as *Client, as stated*: MCP's `clientInfo` (`claude-code/2.1`), or the
+  `User-Agent`'s first product token. A screen reader reads it with *(as stated)*. The client is the client's own
+  claim and decides nothing; the identity is the user. The **Via** filter above the table reads one surface alone.
+- An API entry's message is what the dashboard's own button would have written: a pause's `reason: …`, a
+  backfill's range and slots, *with job data* on a trigger-now that carried some. An answer of `{ "applied": false }`,
+  an interrupt that found nothing running, is entered as not done, as the dashboard enters one.
+- The store is in-memory and process-wide, holding the last 250 actions across schedulers and surfaces. The page
+  shows the most recent 100 of those that target the selected scheduler and pass the filter. A busy script can
+  push the dashboard's own entries out of the 250.
+- Other nodes' and other dashboards' actions are not here, and nothing survives a restart. An API action is also
+  logged as event `9007`, a refusal as `9009`.
 
 **Where each action landed:**
 
 - The scheduler's [origin](#fronting-a-scheduler-in-another-process-over-http) is a tag on the row. `Remote`
-  adds *in another process*: that scheduler performed the action.
+  adds *in another process*: that scheduler performed the action. The scheduler's key is cut short on one line, whole
+  in its tooltip. Below 1600 px the cut is narrower and the tag is read out rather than shown, so that every column
+  fits at 1440 px.
 - A **node-local** action names the node it reached: interrupting a firing, start, stand-by, shutdown.
 - A cluster-wide action (pausing a trigger, deleting a job) names no node: it wrote the store, which binds every
   node.
@@ -959,8 +1261,9 @@ The window writes no check-in row and is never listed as a node; the Cluster pag
 | Jobs, triggers, calendars, groups, paused groups: read, added, edited and deleted | `Start`, `Standby`, `Shutdown` |
 | Pause, resume, reschedule, edit in place, backfill, unschedule, trigger now, bulk actions | Live Logs and the live event stream |
 | Interrupting a job or a firing, from 4.7 | The node's own figures: instance id, running since, jobs executed |
-| Currently Executing, from `QRTZ_FIRED_TRIGGERS` | |
+| Currently Executing, from `QRTZ_FIRED_TRIGGERS` | A running firing's log: *Show log* says no process here runs it |
 | Cluster, from the nodes' check-ins | |
+| Agenda, computed in this process from the shared tables | |
 | Execution History and the misfire tile, when the cluster keeps history in the database | |
 
 - The left column writes the shared tables, and whichever node picks up the work honours it, as in any cluster.
@@ -1025,9 +1328,10 @@ What goes where:
 
 | Operation | Routed to |
 |---|---|
-| Jobs, triggers, calendars, pause, resume, trigger now, reschedule, bulk, delete, cluster nodes | The preferred member: the first, by target, that answered the last round |
+| Jobs, triggers, calendars, pause, resume, trigger now, reschedule, bulk, delete, cluster nodes, Agenda | The preferred member: the first, by target, that answered the last round |
 | `Interrupt` (job) | From 4.7, the preferred member, or the next if it fails, plus every member older than 4.6; `true` if any interrupted or recorded a request. With no member at 4.6, every member |
 | Interrupt a firing | From 4.7, with every member at 4.6, as `Interrupt`. Otherwise the member whose node owns the firing, per the store; every member when none does |
+| A running firing's log | From 4.9, the member fronting the row's node; without one, the node that owns the firing, per the store. `Unreachable` when no member fronts it |
 | Execution limits, set | Every member, in target order; the first failure names the members already set |
 | Execution limits, read | The preferred member's |
 | Status | `Running` if any member is, else `Standby` if any, else what the rest say; `Unknown` when none answered |
@@ -1214,6 +1518,27 @@ occurrences in a row failed for good. See [Read a job's status](../how-tos/job-o
 
 A source that keeps no status (an `IDashboardHistoryStore` of your own, a scheduler in another process whose host
 is older than 4.4) leaves the columns and the panel out.
+
+### Trigger run status
+
+From 4.9, the Triggers listing shows each trigger's own last run, from the status the history keeps per trigger. See
+[Read a trigger's status](../how-tos/job-outcomes.md#read-a-trigger-s-status).
+
+| Shows | |
+|---|---|
+| *Last run* | The result, how long it took and how long ago it fired. Hover for the fire time in the dashboard's time zone, the node and the summary |
+| *failing ×N* | Under it, while the trigger's latest occurrences failed for good. Hover for the last failure's message; it opens that trigger's final failures in History |
+| `—` | No run of this trigger is recorded: it has not fired, or only manual runs, backfills and recoveries ran its job |
+
+- **One read per page and per *Refresh*,** for the page's triggers. Over HTTP it is one `POST …/history/trigger-status/fetch`.
+- **The column is left out** where the source keeps no trigger status: an `IDashboardHistoryStore` of your own, a
+  host older than 4.9, a database without `QRTZ_TRIGGER_STATUS`.
+- **A [store-attached](#store-attached-targets) window** that reads the history (`UseExecutionHistory()`) opens over a
+  database without `QRTZ_TRIGGER_STATUS` once `database/migrations/4.9/add_trigger_status_<db>.sql` has run against
+  it: its scheduler refuses to start without the table, as it did without 4.4's `QRTZ_JOB_STATUS`.
+- **During a rolling upgrade** a 4.8 node's firings are not counted, so *Last run* can be older than *Previous fire*,
+  and a 4.8 node's success leaves the badge.
+- Trigger Detail and Job Detail's table of triggers do not show it.
 
 ### Run statistics
 
@@ -1433,6 +1758,9 @@ builder.Services.AddQuartzDashboard(options =>
 | Control | Operation | Role |
 |---|---|---|
 | Every page, the scheduler picker, the live events | a read | `View` |
+| Show log | `GetFireInstanceLog` | `View` |
+| The Agenda | `QueryUpcomingFires` | `View` |
+| Pause selected, Resume selected, on the Agenda | `PauseTriggerKeys`, `ResumeTriggerKeys` | `Operate` |
 | Start, Standby | `Start`, `Standby` | `Operate` |
 | Pause all, Resume all | `PauseAll`, `ResumeAll` | `Operate` |
 | Pause, Resume, on a job, a trigger, a group or a selection | `PauseJob`, `ResumeJob`, `PauseTrigger`, `ResumeTrigger`, `PauseJobs`, `ResumeJobs`, `PauseTriggers`, `ResumeTriggers`, `PauseJobKeys`, `PauseTriggerKeys`, `ResumeTriggerKeys` | `Operate` |
@@ -1443,9 +1771,10 @@ builder.Services.AddQuartzDashboard(options =>
 | Trigger with overrides, Run again with the run's input | `TriggerJob` with job data | `Administer` |
 | Edit details | `UpdateTriggerDetails` | `Administer` |
 | Save schedule | `RescheduleJob` | `Administer` |
+| Add trigger, Duplicate | `ScheduleJob` | `Administer` |
 | Unschedule, Unschedule selected | `UnscheduleJob`, `UnscheduleJobs` | `Administer` |
 | Delete a job | `DeleteJob` | `Administer` |
-| Create or replace a calendar, Delete a calendar | `AddCalendar`, `DeleteCalendar` | `Administer` |
+| Create, edit or replace a calendar, Delete a calendar | `AddCalendar`, `DeleteCalendar` | `Administer` |
 | Shutdown | `Shutdown` | `Administer` |
 
 - The roles and operations are the HTTP API's; its [Operator roles](http-api.md#operator-roles) lists every one.
@@ -1471,6 +1800,8 @@ builder.Services.AddQuartzDashboard(options =>
   HTTP target applies its own `OperationAuthorizationPolicy` to the dashboard's credential, and its `403` is a
   toast.
 - The visitor's identity is not forwarded: an agent or an HTTP target sees the dashboard, not the visitor.
+- The [HTTP API through the dashboard host](http-api.md#through-the-dashboard-host-target), and MCP, ask the same
+  policy with the same resource, its `Target` set, so one policy decides every surface.
 - The dashboard asks seeing a scheduler as `SchedulerResource(name) { Access = View }`, with no `Operation`, and
   each change with the operation's name and level.
 
@@ -1479,9 +1810,9 @@ Unset, every visitor may do everything `ReadOnly` allows, as in earlier releases
 ### Read-only mode
 
 `ReadOnly = true` hides every mutating control: pause, resume, trigger-now, trigger-with-overrides, reschedule,
-edit details, reset-from-error-state, unschedule, interrupt, delete, the listings' selection checkboxes, calendar
-create and replace, and the scheduler's start, stand-by, pause-all, resume-all and shutdown. Every listing, filter,
-detail page and live view remains.
+edit details, reset-from-error-state, unschedule, interrupt, delete, the listings' and the Agenda's selection
+checkboxes, calendar create, edit and replace, and the scheduler's start, stand-by, pause-all, resume-all and shutdown.
+Every listing, filter, detail page and live view remains, Currently Executing's *Show log* and the Agenda among them.
 
 - It is one setting per process, not per scheduler or per visitor. For different powers per visitor, use
   [operator roles](#operator-roles), under which `ReadOnly` is the ceiling. `SchedulerAuthorizationPolicy` limits
@@ -1689,6 +2020,9 @@ shell without `ASPNETCORE_ENVIRONMENT`.
   `ClusterDetectionInterval`, and a member that dies between rounds answers with its error until then.
 - **A store-attached target cannot do anything node-local**, and its liveness is inferred; see
   [What a window can and cannot do](#what-a-window-can-and-cannot-do).
+- **A running firing's log is read only from the node running it**: through the target fronting that node, never a
+  window, and only from a scheduler that calls `UseExecutionLogCapture()`. See
+  [Following a running firing's log](#following-a-running-firing-s-log).
 - **Neither Live Logs nor the Action Log is the record.** Live Logs keeps a hundred events from page open; the
   Action Log keeps 250 from this process's dashboard. Neither survives a restart or is lossless; use
   [metrics](opentelemetry-integration.md) for anything you need to go back to. The `ILogger` copy of Action Log
@@ -1696,6 +2030,9 @@ shell without `ASPNETCORE_ENVIRONMENT`.
 - **The Timeline reads at most 500 runs, and its name filter at most 500 triggers.** A window with more runs
   shows the latest 500 and says so. The name filter's trigger-name matches stop at 500, so some may be
   missing; its job-name matches are not capped. See [Timeline](#timeline).
+- **The Agenda lists at most 1,000 fires, over a window of at most 7 days and at most 10,000 due triggers**, and
+  says where a cap cuts it. It lists the schedules' times: misfire handling, blocking, execution-group limits,
+  standby and which node fires are not simulated. See [Agenda](#agenda).
 - **History is in-memory and per-process by default**, so a dashboard attached to a cluster shows an empty
   History page. On a persistent store,
   [`UsePersistentStore(store => store.UseExecutionHistory())`](../tutorial/job-stores.md#execution-history-in-the-database)
@@ -1707,7 +2044,8 @@ shell without `ASPNETCORE_ENVIRONMENT`.
   operation from `SchedulerResource`.
 - **The misfire tile and Cluster page show what the store can answer**: a dash for no misfire feed, one node for a
   store with no check-in state. Neither is a count of zero.
-- **Typed editors are narrow**: cron calendars, cron trigger reschedules, job-data overrides and, from 4.3, a
-  trigger's details. Building an arbitrary trigger from the UI is not offered.
+- **Typed editors are narrow**: job-data overrides, from 4.3 a trigger's details and, from 4.9, triggers of the
+  five built-in kinds for a stored job and calendars of the six built-in types. A job is never created from the UI,
+  a trigger of a type of your own is not rescheduled, and a calendar's base calendars are kept rather than edited.
 - **It is a scheduler console, not a workflow tool.** Job dependencies, DAGs and business-process visualisation
   are outside what Quartz models.

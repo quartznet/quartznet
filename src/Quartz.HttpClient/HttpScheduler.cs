@@ -68,12 +68,19 @@ namespace Quartz;
 /// listing reports such a scheduler as <see cref="SchedulerOrigin.Remote" />.
 /// </para>
 /// </remarks>
-public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler
+public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IUpcomingFiresScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IFireInstanceLogScheduler
 {
     /// <summary>The first version whose schedule routes store a trigger paused.</summary>
     private static readonly Version FirstStoringPausedVersion = new(4, 4);
 
     private readonly WireClient wire;
+
+    /// <summary>What the host's history is read over, for a wait for a firing; see <see cref="History" />.</summary>
+    private readonly IWireTransport transport;
+
+    private readonly JsonSerializerOptions? jsonSerializerOptions;
+    private readonly ILogger? logger;
+    private HttpExecutionHistoryStore? history;
 
     /// <summary>Whether the host has been found to be 4.4 or later; see <see cref="RequireStoringPaused" />.</summary>
     private volatile bool hostStoresPaused;
@@ -100,7 +107,34 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null,
         SystemTextJsonSerializerRegistry? serializerRegistry = null)
-        : this(RequireName(schedulerName), OverHttp(httpClient), jsonSerializerOptions, serializerRegistry)
+        : this(RequireName(schedulerName), OverHttp(httpClient, gatewayTarget: null), jsonSerializerOptions, serializerRegistry)
+    {
+    }
+
+    /// <summary>
+    /// A client of the scheduler the host the client calls lists under <paramref name="scheduler" />'s key:
+    /// <c>w1/QuartzScheduler</c> through the dashboard host, or a bare name for the host's own scheduler.
+    /// Added in 4.9.
+    /// </summary>
+    /// <param name="scheduler">
+    /// The key as the host lists it. Its <see cref="SchedulerRef.Target" /> is sent on every request as
+    /// <c>?target=</c> — <see cref="HttpClientOptions.GatewayTarget" /> — and a success that does not echo it
+    /// is refused; a key with no target is the constructor that takes the name.
+    /// </param>
+    /// <param name="httpClient">The client, whose base address is the host's HTTP API.</param>
+    /// <param name="jsonSerializerOptions">Optional serializer options, copied as the other constructor copies them.</param>
+    /// <param name="serializerRegistry">The trigger and calendar serializers to understand.</param>
+    /// <remarks>
+    /// The key is read as the host reads it, so the client and the dashboard spell a scheduler one way.
+    /// <see cref="SchedulerName" /> is the name half: what the host's routes carry, and what this process
+    /// knows the scheduler as.
+    /// </remarks>
+    public HttpScheduler(
+        SchedulerRef scheduler,
+        HttpClient httpClient,
+        JsonSerializerOptions? jsonSerializerOptions = null,
+        SystemTextJsonSerializerRegistry? serializerRegistry = null)
+        : this(RequireName(RequireKey(scheduler).SchedulerName), OverHttp(httpClient, scheduler.Target), jsonSerializerOptions, serializerRegistry)
     {
     }
 
@@ -110,14 +144,19 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     /// <param name="serializerRegistry">The trigger and calendar serializers to understand.</param>
     /// <param name="logger">Where what a newer host sent that this client cannot read is reported.</param>
     /// <param name="target">The target this scheduler is reached through, or <see langword="null" /> for the bare name.</param>
+    /// <param name="gatewayTarget">
+    /// The host's target the scheduler is behind — <see cref="HttpClientOptions.GatewayTarget" /> — or
+    /// <see langword="null" /> for the host's own scheduler.
+    /// </param>
     internal HttpScheduler(
         string schedulerName,
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions,
         SystemTextJsonSerializerRegistry? serializerRegistry,
         ILogger logger,
-        string? target = null)
-        : this(RequireName(schedulerName), OverHttp(httpClient), jsonSerializerOptions, serializerRegistry, logger, target)
+        string? target = null,
+        string? gatewayTarget = null)
+        : this(RequireName(schedulerName), OverHttp(httpClient, gatewayTarget), jsonSerializerOptions, serializerRegistry, logger, target)
     {
     }
 
@@ -152,6 +191,10 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         Target = target;
         Origin = origin;
 
+        this.transport = transport;
+        this.jsonSerializerOptions = jsonSerializerOptions;
+        this.logger = logger;
+
         // The caller's options are borrowed, not owned: adding our converters to their instance would
         // throw once those options had been used for anything (they are read-only from then on), and
         // would add the converters a second time when two clients share one instance.
@@ -176,7 +219,13 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         return schedulerName;
     }
 
-    private static HttpWireTransport OverHttp(HttpClient httpClient)
+    private static SchedulerRef RequireKey(SchedulerRef scheduler)
+    {
+        ArgumentNullException.ThrowIfNull(scheduler);
+        return scheduler;
+    }
+
+    private static HttpWireTransport OverHttp(HttpClient httpClient, string? gatewayTarget)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         if (!httpClient.BaseAddress?.ToString().EndsWith('/') == true)
@@ -184,7 +233,7 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
             throw new ArgumentException("HttpClient's BaseAddress must end in /", nameof(httpClient));
         }
 
-        return new HttpWireTransport(httpClient);
+        return new HttpWireTransport(httpClient, gatewayTarget);
     }
 
     /// <inheritdoc />
@@ -662,6 +711,28 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     }
 
     /// <summary>
+    /// Starts a wait for a firing on the host: no completion there reaches this process, so every poll reads the
+    /// host's history and trigger routes, as a wait on a cluster reads the shared history (#4414).
+    /// </summary>
+    /// <remarks>
+    /// A host that keeps no history, or is older than 4.6, refuses the history read with
+    /// <see cref="NotSupportedException" />, and <c>TriggerJobAndWait</c> asks before it stores anything.
+    /// </remarks>
+    ValueTask<Core.FiringWatch> IFiringWaitingScheduler.Watch(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        return new ValueTask<Core.FiringWatch>(new Core.FiringWatch(triggerKey, this, SchedulerName, History, pollsHistory: true, signal: null));
+    }
+
+    /// <summary>
+    /// The host's history, read over this scheduler's own transport, made at the first wait.
+    /// </summary>
+    private HttpExecutionHistoryStore History =>
+        Volatile.Read(ref history) ?? LazyInitializer.EnsureInitialized(
+            ref history,
+            () => new HttpExecutionHistoryStore(SchedulerName, transport, jsonSerializerOptions, logger));
+
+    /// <summary>
     /// A backfill in one request: the host's <c>backfill</c> route runs it, against the host's clock, and
     /// audits it once.
     /// </summary>
@@ -749,6 +820,130 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         }
 
         return found ? [.. wire.Read<TriggerFireTimesResponse>(response).FireTimesUtc] : null;
+    }
+
+    /// <summary>
+    /// A running firing's log, read by the host: the lines are in the process running the firing, which the host
+    /// is, or reaches (#4437).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A refusal the host made comes back as the <see cref="ArgumentException" /> it would have been, with the
+    /// host's words.
+    /// </para>
+    /// <para>
+    /// A host older than 4.9, or an agent that does not serve the route, answers <c>404</c> without problem
+    /// details, and there is nothing to read the lines from instead: that is <see cref="NotSupportedException" />
+    /// naming 4.9. A host whose scheduler cannot read a running log, or a target behind it that does not serve the
+    /// route, answers <c>501</c>: that too is <see cref="NotSupportedException" />, with the host's words. A host or
+    /// agent that refuses the route answers <c>403</c>, which is raised as it is.
+    /// </para>
+    /// </remarks>
+    async ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
+    {
+        FireInstanceLogs.Check(request);
+
+        QueryStringBuilder query = new();
+        query.Add("after", request.After);
+        query.Add("take", request.Take);
+        if (request.SchedulerInstanceId is not null)
+        {
+            query.Add("schedulerInstanceId", request.SchedulerInstanceId);
+        }
+
+        WireResponse response = await wire.Exchange(
+            SchedulerRoutes.GetFireInstanceLog.For(SchedulerName, request.FireInstanceId).WithQuery(query.ToString()),
+            cancellationToken).ConfigureAwait(false);
+
+        if (wire.TryReadRequestRefusal(response, out string? refusal))
+        {
+            throw new ArgumentException(refusal, nameof(request));
+        }
+
+        // The host serves the route and its scheduler cannot read a running log, or a target behind it does not
+        // serve the route: either way it is not served, in the host's own words.
+        if (response.Status == HttpStatusCode.NotImplemented)
+        {
+            throw new NotSupportedException(
+                wire.ProblemDetail(response) ?? $"The host of scheduler '{SchedulerName}' cannot read a running firing's log.");
+        }
+
+        try
+        {
+            wire.EnsureSuccess(response);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw FireInstanceLogs.HostTooOld();
+        }
+
+        return wire.Read<FireInstanceLogResponse>(response).AsLog();
+    }
+
+    /// <summary>
+    /// Every fire in a window in one request: the host's <c>upcoming-fires</c> route computes them where the
+    /// triggers and their calendars are stored.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The answers are an in-process call's: the host's refusal, with the host's words and decided by the host's
+    /// clock, comes back as the outcome's refusal, which the dashboard raises as an <see cref="ArgumentException" />.
+    /// The most fires an answer holds is asked for as <c>all</c>, so a host with a lower <c>MaxPageSize</c> answers
+    /// that many, cut.
+    /// </para>
+    /// <para>
+    /// A host older than 4.9, or an agent that does not serve the route, answers <c>404</c> without problem details.
+    /// The fires are composed here instead, from the trigger listing, the triggers and the calendars it answers
+    /// with. A host or agent that refuses the route answers <c>403</c>, which is raised rather than worked around.
+    /// </para>
+    /// </remarks>
+    async ValueTask<UpcomingFiresOutcome> IUpcomingFiresScheduler.QueryUpcomingFires(
+        UpcomingFiresQuery query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        QueryStringBuilder parameters = new();
+        if (query.From is { } from)
+        {
+            parameters.Add("from", from.ToString("O", CultureInfo.InvariantCulture));
+        }
+        parameters.Add("to", query.To.ToString("O", CultureInfo.InvariantCulture));
+
+        // The most an answer holds travels as all, as a listing's every match does: a host whose MaxPageSize is
+        // lower answers as many as it allows, cut, where the number would be refused.
+        if (query.Take >= UpcomingFires.MaxTake)
+        {
+            parameters.Add("take", HttpApiConstants.AllItems);
+        }
+        else
+        {
+            parameters.Add("take", query.Take);
+        }
+        if (!string.IsNullOrEmpty(query.GroupContains))
+        {
+            parameters.Add("groupContains", query.GroupContains);
+        }
+
+        WireResponse response = await wire.Exchange(
+            At(SchedulerRoutes.QueryUpcomingFires).WithQuery(parameters.ToString()),
+            cancellationToken).ConfigureAwait(false);
+
+        if (wire.TryReadRequestRefusal(response, out string? refusal))
+        {
+            return new UpcomingFiresOutcome(null, refusal);
+        }
+
+        try
+        {
+            wire.EnsureSuccess(response, throwOnNotFound: true);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            return await UpcomingFires.Compose(this, query, cancellationToken).ConfigureAwait(false);
+        }
+
+        return new UpcomingFiresOutcome(wire.Read<UpcomingFiresResponse>(response).AsResult(), null);
     }
 
     /// <inheritdoc />
@@ -1107,6 +1302,18 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
     {
         var result = await wire.SendAndRead<TriggerStateDto>(At(SchedulerRoutes.GetTriggerState, triggerKey), cancellationToken).ConfigureAwait(false);
         return result.Pause?.AsPauseInfo();
+    }
+
+    /// <summary>
+    /// Read off the trigger's state route, which a 4.9 host answers with it beside the state, and an older one, or
+    /// an older agent, without it: <see langword="null" /> then.
+    /// </summary>
+    async ValueTask<bool?> IStartupDeclarationsScheduler.IsDeclaredAtStartup(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+
+        TriggerStateDto result = await wire.SendAndRead<TriggerStateDto>(At(SchedulerRoutes.GetTriggerState, triggerKey), cancellationToken).ConfigureAwait(false);
+        return result.DeclaredAtStartup;
     }
 
     /// <inheritdoc />

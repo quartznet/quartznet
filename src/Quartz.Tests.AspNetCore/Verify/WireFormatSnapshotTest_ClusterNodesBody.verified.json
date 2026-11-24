@@ -4,20 +4,23 @@
     "lastCheckInUtc": "2024-05-06T07:08:05+00:00",
     "checkInInterval": "00:00:15",
     "state": "Alive",
-    "isCurrentNode": true
+    "isCurrentNode": true,
+    "quartzVersion": "4.9.0"
   },
   {
     "instanceId": "node-b",
     "lastCheckInUtc": "2024-05-06T07:00:00+00:00",
     "checkInInterval": "00:00:15",
     "state": "Failed",
-    "isCurrentNode": false
+    "isCurrentNode": false,
+    "quartzVersion": null
   },
   {
     "instanceId": "node-c",
     "lastCheckInUtc": null,
     "checkInInterval": null,
     "state": "Alive",
-    "isCurrentNode": false
+    "isCurrentNode": false,
+    "quartzVersion": null
   }
 ]

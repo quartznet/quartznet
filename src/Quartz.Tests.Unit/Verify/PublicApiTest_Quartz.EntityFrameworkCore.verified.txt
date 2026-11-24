@@ -13,6 +13,7 @@ namespace Quartz
     public sealed class QuartzTablesOptions
     {
         public QuartzTablesOptions() { }
+        public int? MaxIdentifierLength { get; set; }
         public string? Schema { get; set; }
         public string TablePrefix { get; set; }
     }

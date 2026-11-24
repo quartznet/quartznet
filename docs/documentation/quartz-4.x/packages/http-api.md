@@ -102,16 +102,18 @@ builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 
 ## Every endpoint
 
-Seventy-two routes in four groups.
+Seventy-six routes in four groups.
 
 - `{ApiPath}` is `/quartz-api` unless changed. `{name}` is the scheduler; every route but the first has one.
 - Every route with `{name}` is subject to [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when set.
+- From 4.9, every route with `{name}` also takes `?target=`, naming a scheduler behind a target of the host; see
+  [Through the dashboard host](#through-the-dashboard-host-target).
 - An unknown scheduler is `404` on every route.
 - **Answers** uses the [response-shape conventions](#response-shape-conventions): *empty* is `200` with no body;
   `{ applied }` is the one-flag form; `{ groups }` / `{ jobs }` / `{ triggers }` are the group-matcher and
   key-set forms; *paged* is the [paged envelope](#listing-endpoints-are-paged).
 
-### Schedulers — 22
+### Schedulers — 24
 
 | Method | Path | Answers |
 |---|---|---|
@@ -133,12 +135,14 @@ Seventy-two routes in four groups.
 | `GET` | `{ApiPath}/schedulers/{name}/history/job-status` | *paged* [job run statuses](#job-run-status) |
 | `GET` | `{ApiPath}/schedulers/{name}/history/job-status/{jobGroup}/{jobName}` | One job's run status; `404` when no run is recorded |
 | `POST` | `{ApiPath}/schedulers/{name}/history/job-status/fetch` | The run statuses of up to 1000 jobs; a read |
+| `GET` | `{ApiPath}/schedulers/{name}/history/trigger-status` | *paged* [trigger run statuses](#trigger-run-status), from 4.9 |
+| `POST` | `{ApiPath}/schedulers/{name}/history/trigger-status/fetch` | The run statuses of up to 1000 triggers; a read, from 4.9 |
 | `GET` | `{ApiPath}/schedulers/{name}/history/statistics` | [Runs per bucket](#run-statistics), by result, with duration percentiles |
 | `GET` | `{ApiPath}/schedulers/{name}/execution-limits` | `{ limits, useTriggerGroupWhenUnset }`; `limits` is `null` when nothing is limited. Keys are configuration's: a group, `_`, `*`, or a [prefix](../tutorial/execution-groups.md#per-tenant-limits) such as `tenant:*` |
 | `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; replaces the whole set |
 | `DELETE` | `{ApiPath}/schedulers/{name}/execution-limits` | empty; same as posting an empty set |
 
-### Jobs — 21
+### Jobs — 22
 
 Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 
@@ -150,6 +154,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/jobs/{jobGroup}/{jobName}/exists` | `{ exists }` |
 | `GET` | `…/jobs/{jobGroup}/{jobName}/triggers` | Every trigger pointing at that job |
 | `GET` | `…/jobs/fire-instances` | paged fire instances ([below](#fire-instances)) |
+| `GET` | `…/jobs/fire-instances/{fireInstanceId}/log` | The lines a running firing logged after `?after=`, read where it runs ([below](#a-running-firing-s-log)) |
 | `POST` | `…/jobs/{jobGroup}/{jobName}/pause` | `{ applied }`; optional [reason body](#a-pause-can-say-why) |
 | `POST` | `…/jobs/pause` | `{ groups }`; group matcher in the query string; optional reason body |
 | `POST` | `…/jobs/keys/pause` | `{ jobs }`; key set in the body, with an optional [reason](#a-pause-can-say-why) |
@@ -166,7 +171,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/jobs/groups` | paged job groups; the four `name*` filters, `paused` |
 | `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused, pause }` |
 
-### Triggers — 24
+### Triggers — 25
 
 | Method | Path | Answers |
 |---|---|---|
@@ -174,7 +179,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/fetch` | Whole triggers for a page of keys, at most 1000 |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}` | The trigger |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}/exists` | `{ exists }` |
-| `GET` | `…/triggers/{triggerGroup}/{triggerName}/state` | `{ state, pause }`; `state` is the `TriggerState` name |
+| `GET` | `…/triggers/{triggerGroup}/{triggerName}/state` | `{ state, pause, declaredAtStartup }`; `state` is the `TriggerState` name. `declaredAtStartup`, from 4.9: whether the next start stores the trigger again over a change made to it; `null` when the scheduler cannot say. See [A trigger declared at start-up](dashboard.md#a-trigger-declared-at-start-up) |
 | `GET` | `…/triggers/{triggerGroup}/{triggerName}/fire-times` | `{ fireTimesUtc }`; `?count=` 1 to 100, `10` by default; [below](#upcoming-fire-times). From 4.7 |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/reset-from-error-state` | `{ applied }` |
 | `POST` | `…/triggers/keys/reset-from-error-state` | `{ triggers }` |
@@ -186,6 +191,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/keys/resume` | `{ triggers }` |
 | `GET` | `…/triggers/groups` | paged trigger groups; the four `name*` filters, `paused` |
 | `GET` | `…/triggers/groups/{triggerGroup}/paused` | `{ paused, pause }` |
+| `GET` | `…/triggers/upcoming-fires` | Every fire of every trigger in a window, earliest first; `?to=` required; [below](#upcoming-fires-between-two-times). From 4.9 |
 | `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }`; one job and its trigger. A trigger alone may carry `onConflict` (`Throw`, `Replace`, `Keep`, `KeepEarlier`); the answer then adds `outcome` (`Created`, `Replaced`, `Kept`). See [One-off job](../how-tos/one-off-job.md#scheduling-over-a-firing-that-is-already-there). May store it [paused](#a-trigger-can-be-scheduled-paused) |
 | `POST` | `…/triggers/schedule-multiple` | empty; several jobs and their triggers; may store them [paused](#a-trigger-can-be-scheduled-paused) |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/unschedule` | `{ applied }` |
@@ -531,6 +537,49 @@ Caveats for a UI:
 check-in interval. See [Interrupting a firing on another node](../tutorial/advanced-enterprise-features.md#interrupting-a-firing-on-another-node).
 Before 4.6 both were node-local on the server.
 
+### A running firing's log
+
+From 4.9. `GET …/jobs/fire-instances/{fireInstanceId}/log?after=12&take=500&schedulerInstanceId=node-b` answers the
+lines a running firing has logged after the reader's cursor. They are the ones
+[`UseExecutionLogCapture()`](../how-tos/progress-and-execution-logs.md#keep-a-job-s-log-lines) keeps, read in the
+process that serves the route, where the firing runs. Once the run ends they are on
+`GET …/history/executions/{entryId}` as `log`.
+
+```json
+{
+  "status": "Running",
+  "schedulerInstanceId": "node-b",
+  "entries": ["2026-11-24T10:00:01.000Z info Reports.ExportJob: Step 13 of 20"],
+  "next": 13,
+  "missed": 0,
+  "hasMore": false
+}
+```
+
+| Query | Meaning |
+|---|---|
+| `after` | How many entries the reader has: the `next` of its last answer, `0` at first. One entry is one log call, with its exception |
+| `take` | `500` by default, from `1` to `1000`. `MaxPageSize` does not apply: the answer stops before the entry that would take it past 64 KB, and carries one entry at least |
+| `schedulerInstanceId` | The node the firing's row names. A [cluster of targets](dashboard.md#a-cluster-behind-several-targets) asks that node alone |
+
+| `status` | When | `schedulerInstanceId` |
+|---|---|---|
+| `Running` | The firing runs here and the scheduler captures; no entries yet is still `Running` | this node |
+| `NotCaptured` | The firing runs here and the scheduler does not call `UseExecutionLogCapture()` | this node |
+| `NotRunning` | This node runs no firing of that id: it ended, or runs on another node | this node |
+| `Unreachable` | Through a [store-attached target](#what-a-store-attached-target-serves): no process here runs it | `null` |
+
+- `missed` counts the entries the capture dropped after `after` and before this read: it keeps its newest
+  `MaxLines` and `MaxBytes`. `hasMore` says more are kept than this answer carried: read again now.
+- `after` below `0`, or `take` outside 1 to 1000, is a `400`. An unknown scheduler is a `404`. A scheduler that
+  cannot read a running firing's log, one the host did not build, is a `501` naming `NotSupportedException`, as is a
+  target behind the host that does not serve the route.
+- `View`, and served by a `ReadOnly` API. A scheduler that captures shows its running firings' lines to whoever
+  may view it, whether or not it keeps history.
+- `HttpScheduler` sends this one request. A host older than 4.9 answers `404` without problem details, and the
+  client raises `NotSupportedException`: nothing can be read in its place. A `501` is raised as
+  `NotSupportedException` too, with the host's detail.
+
 To get whole objects for a page of headers, post the keys back:
 
 - `POST {ApiPath}/schedulers/{name}/jobs/fetch`: body is an array of `{ "name": …, "group": … }`; returns job
@@ -661,6 +710,8 @@ missed) is in the container's `IExecutionHistoryStore`, served by eight routes:
 | `GET {ApiPath}/schedulers/{name}/history/job-status` | `skip`, `take`, `includeTotalCount`, `failing` | A page of [run statuses](#job-run-status) |
 | `GET {ApiPath}/schedulers/{name}/history/job-status/{jobGroup}/{jobName}` | none | One job's run status |
 | `POST {ApiPath}/schedulers/{name}/history/job-status/fetch` | body: `{ "jobs": [ { "name", "group" } ] }` | The statuses of those jobs |
+| `GET {ApiPath}/schedulers/{name}/history/trigger-status` | `skip`, `take`, `includeTotalCount`, `failing` | A page of [trigger run statuses](#trigger-run-status) |
+| `POST {ApiPath}/schedulers/{name}/history/trigger-status/fetch` | body: `{ "triggers": [ { "name", "group" } ] }` | The statuses of those triggers |
 | `GET {ApiPath}/schedulers/{name}/history/statistics` | the listing's filters, `jobGroup` alone, `bucket` | [Runs per bucket](#run-statistics) |
 
 ```json
@@ -789,6 +840,18 @@ From 4.4. A status per job, folded from every execution the store records, so it
 | A host before 4.4 | `404` without problem details: no such route |
 
 `HttpExecutionHistoryStore` raises `NotSupportedException` for both.
+
+### Trigger run status
+
+From 4.9. A status per trigger, with the job status's members and `trigger` for `job`. See
+[Read a trigger's status](../how-tos/job-outcomes.md#read-a-trigger-s-status).
+
+| Route | Answers |
+|---|---|
+| `GET …/history/trigger-status` | A page by trigger group, then name. `?failing=true` lists `consecutiveFailures > 0`; `false`, the rest |
+| `POST …/history/trigger-status/fetch` | The statuses of the triggers named, at most 1000; a trigger with no recorded run is absent. A read, served when `ReadOnly` |
+
+A store that keeps none answers `501`, as above. A host before 4.9 answers `404` without problem details.
 
 **`AddQuartzHttpApi()` records the history.** It calls `AddQuartzExecutionHistory()`, which installs one recorder
 into every scheduler in the container and keeps history in an in-memory store bounded by age and count, as the
@@ -1140,6 +1203,57 @@ trigger type: in the trigger's own time zone, less what its calendar excludes, u
 `GetUpcomingFireTimes` on an `HttpScheduler` is this one request. A host older than 4.7 answers the route `404`
 without problem details; `HttpScheduler` then reads the trigger and its calendar and computes the times itself.
 
+## Upcoming fires between two times
+
+From 4.9. `GET …/triggers/upcoming-fires?from=&to=&take=&groupContains=` answers every fire of every trigger in
+[`from`, `to`), earliest first, ties by trigger group then name. It is the dashboard's
+[Agenda](dashboard.md#agenda). The host computes it from its store: each trigger's schedule advances from its next
+fire time, in its own time zone, less what its calendar excludes, up to its end time.
+
+| Parameter | Meaning |
+|---|---|
+| `to` | The window's end, excluded. Required |
+| `from` | The window's start. Absent, or before the scheduler's now, it is now; `fromUtc` says which was used |
+| `take` | The most fires to answer: 1 to 1000, `1000` by default. `MaxPageSize`, when lower, lowers both; `all` is that most |
+| `groupContains` | Only triggers whose group contains this |
+
+```json
+{
+  "fromUtc": "2026-11-25T00:00:00+00:00",
+  "toUtc": "2026-11-25T02:00:00+00:00",
+  "fires": [
+    { "fireTimeUtc": "2026-11-25T00:15:00+00:00", "trigger": { "name": "nightly", "group": "reports" },
+      "job": { "name": "export", "group": "reports" }, "state": "Normal", "executionGroup": null,
+      "scheduleDescription": "Every day at 02:15 (Europe/Helsinki)", "onlyTheNext": false }
+  ],
+  "cut": false,
+  "cutAtUtc": null,
+  "triggersNotComputed": 0
+}
+```
+
+| Case | Answer |
+|---|---|
+| A paused, blocked or error trigger | listed, with its `state` |
+| A trigger with no next fire time | not listed |
+| A simple trigger [measured from completion](../tutorial/simpletriggers.md#measured-from-completion) | its next fire only, `onlyTheNext: true` |
+| A trigger whose calendar is missing, or that cannot be advanced | not listed; counted in `triggersNotComputed` |
+| `take` fires listed and more in the window, or the step budget spent | `cut: true`; `cutAtUtc` is the last fire listed, and fires at or after it may be missing |
+| `to` not after now | `400`: *The agenda lists what will fire; History lists what ran* |
+| `to` more than 30 days ahead, or more than 7 days after the start | `400` |
+| `take` outside 1 to 1000, above `MaxPageSize`, or not a number | `400` |
+| More than 10,000 triggers due before `to` | `400`, naming the group filter |
+| `ReadOnly` | served: a read |
+
+- **The cost is bounded.** The host lists the triggers due before `to` a thousand headers at a time. It reads them a
+  hundred at a time, in order of their next fire time, and only while one could still fire before the earliest
+  fire not yet listed. All their walks share a budget of 1,000,000 steps, each a schedule step or a calendar check.
+- **The fires are the schedules' times.** No misfire handling of an overdue trigger, `[DisallowConcurrentExecution]`,
+  execution-group limit, standby or choice of node is simulated. An overdue trigger is listed at its schedule's times
+  after the window starts. The answer is as of the read: a trigger added while it runs may be missing.
+- Through an `HttpScheduler` it is this one request. A host older than 4.9 answers `404` without problem details;
+  `HttpScheduler` then lists, reads and computes over the host's other routes, on its own clock.
+
 ## Overlap policies
 
 From 4.3. A trigger's [overlap policy](../how-tos/overlap-policy.md) travels by name:
@@ -1237,6 +1351,7 @@ every node and client, then schedule continuations.
 | `OperationAuthorizationPolicy` | none | Policy for every operation, at the operator role it needs; see [Operator roles](#operator-roles) |
 | `IsJobTypeAllowed` | none | Predicate over a request's job type *name*; refused is `403`; see [Narrowing which job types may be named](#narrowing-which-job-types-may-be-named) |
 | `EventStreamHeartbeatInterval` | `00:00:15` | Idle time before the [event stream](#the-event-stream) sends a `Heartbeat` |
+| `AllowedOrigins` | empty | Origins a browser may call from; any other `Origin` is `403`. Empty checks nothing; see [Refusing cross-site requests](#refusing-cross-site-requests) |
 
 - Set `EventStreamHeartbeatInterval` below the idle read timeout of any proxy in front of the API: nginx's
   `proxy_read_timeout` defaults to 60 seconds, Azure's front doors to 90.
@@ -1257,7 +1372,8 @@ services.AddQuartzHttpApi(options => options.ReadOnly = true);
 - Use it where the API only feeds a dashboard, a monitoring tool or a report. Route-level authorization would have
   to name thirty-odd routes.
 - **Mutation is decided per route, not per verb.** The fetches, `POST {ApiPath}/schedulers/{name}/jobs/fetch`,
-  `POST …/triggers/fetch` and `POST …/history/job-status/fetch`, are reads and are served. Every other non-`GET`
+  `POST …/triggers/fetch`, `POST …/history/job-status/fetch` and `POST …/history/trigger-status/fetch`, are reads and
+  are served. Every other non-`GET`
   is refused, including pause, resume, interrupt and reset-from-error-state.
 - It binds only this API. The scheduler keeps firing, and a dashboard mapped beside it has its own
   [`QuartzDashboardOptions.ReadOnly`](dashboard.md#read-only-mode). A dashboard *fronting* this API from another
@@ -1308,7 +1424,7 @@ builder.Services.AddQuartzHttpApi(options => options.OperationAuthorizationPolic
 
 | Role | Operations |
 |---|---|
-| `View` | Every `GET`, and the three reads that take a body of keys: `FetchJobs`, `FetchTriggers`, `FetchJobRunStatuses` |
+| `View` | Every `GET`, and the four reads that take a body of keys: `FetchJobs`, `FetchTriggers`, `FetchJobRunStatuses`, `FetchTriggerRunStatuses` |
 | `Operate` | `Start`, `Standby`, `PauseAll`, `ResumeAll`, `PauseJob`, `PauseJobs`, `PauseJobKeys`, `ResumeJob`, `ResumeJobs`, `ResumeJobKeys`, `PauseTrigger`, `PauseTriggers`, `PauseTriggerKeys`, `ResumeTrigger`, `ResumeTriggers`, `ResumeTriggerKeys`, `ResetTriggerFromErrorState`, `ResetTriggerKeysFromErrorState`, `InterruptJob`, `InterruptJobInstance`, `BackfillTrigger`, and `TriggerJob` without job data |
 | `Administer` | `Shutdown`, `Clear`, `SetExecutionLimits`, `ClearExecutionLimits`, `AddJob`, `DeleteJob`, `DeleteJobs`, `DeleteJobsByGroup`, `ScheduleJob`, `ScheduleJobs`, `UnscheduleJob`, `UnscheduleJobs`, `UnscheduleJobsByGroup`, `RescheduleJob`, `UpdateTriggerDetails`, `AddCalendar`, `DeleteCalendar`, and `TriggerJob` with job data |
 
@@ -1322,16 +1438,52 @@ builder.Services.AddQuartzHttpApi(options => options.OperationAuthorizationPolic
   `ReadOnly` and the handler, so no body is read and no scheduler looked up. Each is logged as event `9009` at
   `Warning`, with the user.
 - `GET {ApiPath}/schedulers` lists the schedulers the caller may view.
+- A handler that refuses `GetExecution` by name to keep captured logs from a caller refuses `GetFireInstanceLog`
+  too: from 4.9 it reads the same lines while the firing runs. `SchedulerRoles.Operations` cannot move a read, so
+  this takes a handler of your own reading `SchedulerResource.Operation`.
 - `SchedulerRoles.Operations` moves an operation that changes something to `Operate` or `Administer`. A name the
   API does not publish, a read, or `View` is refused when the policy is built.
 - The policies compose: `SchedulerAuthorizationPolicy` decides which schedulers a caller reaches, this one what
   they may do there, and `ReadOnly` bounds everybody.
 - A handler of your own is an `AuthorizationHandler<TRequirement, SchedulerResource>` reading
   `SchedulerResource.Operation` and `SchedulerResource.Access`. The [dashboard](dashboard.md#operator-roles) asks
-  its own `OperationAuthorizationPolicy` with the same resource, so one policy serves both.
+  its own `OperationAuthorizationPolicy` with the same resource, so one policy serves both. The
+  [MCP endpoint](mcp.md#roles) (4.9) asks the same policy by these route names, so an override moves an MCP tool
+  where it moves the route.
 - Setting it without authorization services in the container fails at startup. It authorizes and never
   authenticates: add `RequireAuthenticatedUser()` to the policy, or `RequireAuthorization()` on the mapping, to
   challenge an anonymous caller with a `401`.
+
+### Refusing cross-site requests
+
+::: warning
+Do not authenticate the HTTP API with a cookie the browser sends on its own. Routes such as
+`POST …/shutdown`, `start`, `standby`, and pause or resume without a body, take no body, so a plain HTML form on
+any page the operator visits reaches them with no CORS preflight, carrying the cookie wherever it is
+`SameSite=None` or the page is on a sibling of the API's site. Authenticate with a bearer token or an API-key
+header, which a browser does not attach by itself, or set `AllowedOrigins`.
+:::
+
+From 4.9, `AllowedOrigins` lists the origins a browser may call the API from:
+
+<!-- snippet: sample_httpapi_allowed_origins -->
+```csharp
+builder.Services.AddQuartzHttpApi(options =>
+{
+    // The pages that may call the API from a browser, as scheme://host[:port].
+    // A request from any other page is refused with 403; a script sends no Origin and is unaffected.
+    options.AllowedOrigins.Add("https://ops.example.com");
+});
+```
+<!-- endSnippet -->
+
+- A request whose `Origin` header is present and not listed is `403` with problem details, logged as `9005` at
+  `Warning`. It is decided before anything else: before both policies, `ReadOnly` and the body.
+- A request with no `Origin` passes: scripts, pipelines and `HttpScheduler` send none. A same-origin page's `GET`
+  sends none either; list the API's own origin when a page of it posts.
+- The comparison is exact on `scheme://host[:port]`, ignoring case, as a browser writes the header. A default
+  port is left out, and `Origin: null` matches nothing. An entry that is not an origin fails at startup.
+- Empty, the default, checks nothing, so no existing caller changes.
 
 ### Narrowing which job types may be named
 
@@ -1362,6 +1514,76 @@ builder.Services.AddQuartzHttpApi(options =>
 - It is one predicate per process and does not receive the scheduler name, so it cannot allow a type for one
   scheduler only. The [dashboard](dashboard.md#narrowing-which-job-types-may-be-named) has its own
   `QuartzDashboardOptions.IsJobTypeAllowed`, configured separately.
+
+## Through the dashboard host: `?target=`
+
+From 4.9 a host that fronts other processes serves each target's schedulers through its one API: the
+[dashboard host](dashboard-host.md#the-http-api), or any application that registers targets with
+`AddQuartzHttpClient(options => options.Target = "w1")`, agents or attached stores, and maps this API. A request
+names the target in the query; the route keeps the scheduler's own name:
+
+```http
+GET  /quartz-api/schedulers/QuartzScheduler/jobs?target=w1
+POST /quartz-api/schedulers/reporting/triggers/nightly/at-midnight/pause?target=prod
+```
+
+- Without `target` a request is for the host's own scheduler of that name, as before 4.9. A name only targets hold
+  is `404`, naming the `?target=` that would reach it.
+- `target` blank, given twice, or containing `/` is `400`.
+- `GET {ApiPath}/schedulers` lists every target's schedulers, each with `target`, `members` and `lastSeenUtc`.
+- The host answers with its own handler, run against the `HttpScheduler` it reaches the target with — over HTTP
+  or an agent's connection — or the window onto an attached store. No bytes are relayed, so the host must know
+  any custom trigger or calendar type: register its serializer in the host.
+- **Every answer to a request with `target` carries `Quartz-Target: <target>`**, percent-encoded. A host older
+  than 4.9 ignores `?target=` and answers for its own scheduler of the bare name; check the header.
+  `HttpScheduler` with a [gateway target](http-client.md#through-the-dashboard-host) checks it itself.
+
+### Who may do what through a target
+
+- Both policies are asked with `SchedulerResource { SchedulerName, Target }` before anything is resolved or sent. A
+  refused caller gets the same `403` for a target that exists and one that does not, and the listing is filtered
+  per name and target.
+- The target is asked about in its own spelling: `?target=W1` is asked about as `w1`. A store window named by its bare
+  name, with no `?target=`, is asked about with its store's target: a policy refusing `prod` refuses
+  `…/schedulers/alpha` as it refuses `…/schedulers/alpha?target=prod`. [MCP](mcp.md#roles) and the dashboard ask by
+  the same rule.
+- **The target sees the host's credential**, not the caller's: an HTTP target its `BearerToken`, an agent the agent
+  token. The caller's identity is not forwarded. What they did is in the host's audit line, `9007` naming the key,
+  and in its dashboard's [Action Log](dashboard.md#action-log). A pause without `requestedBy` is recorded at the
+  target in the caller's name.
+- An agent's `MaxAccess` and the target's own policies still apply; their refusal is `403`.
+
+### What a store-attached target serves
+
+| Routes | Through `?target=<store>` |
+|---|---|
+| Reads: details, jobs, triggers, groups, states, pauses, calendars, fire times, upcoming fires, fire instances, cluster nodes | Served from the shared tables |
+| History, misfires, statistics, run statuses | Served when the store was attached with `UseExecutionHistory()`; otherwise `400` saying so |
+| `GET …/events` | `501`: a database carries no event feed |
+| `GET …/jobs/fire-instances/{fireInstanceId}/log` | `Unreachable`: no process here runs the firing |
+| Pause, resume, trigger now, interrupt, reset from error, schedule, reschedule, unschedule, backfill, add or delete a job, calendars, `Clear` | Served: writes to the shared tables, honoured by whichever node picks the work up |
+| `Start`, `Standby`, `Shutdown` | `400`: they belong to one process. The bare name refuses them alike |
+
+### When the target does not serve it
+
+| Situation | Status | `detail` |
+|---|---|---|
+| Unknown target, or no such scheduler behind it | `404` | `Unknown scheduler w1/QuartzScheduler` |
+| Nothing was sent: an agent offline, a refused connection, a name that did not resolve, a failed TLS handshake | `503` | `Target 'w1' is not reachable.` |
+| No answer within the transport's timeout | `504` | `Target 'w1' did not answer in time.` A mutating route adds: *The change may or may not have been applied; read before retrying.* |
+| The target refused the host's credential (`401`) | `502` | `Target 'w1' refused this host's credential.` |
+| The target refused the operation (`403`) | `403` | `Target 'w1' refused:` and the target's own detail |
+| The target's scheduler refused (`400` with `Quartz-ExceptionType`) | `400` | As the target answered |
+| A route the target is too old to serve | `501` | Names `NotSupportedException` |
+| The target failed (`5xx`), or answered something unreadable | `502` | `Target 'w1' failed.` |
+| The connection broke after the request went: the answer ended early, was not HTTP, or broke the protocol | `502` | `Target 'w1' failed.` A mutating route adds the *may or may not have been applied* sentence: the target may have run it |
+
+- No `detail` carries the target's address. The host logs `9010` (not reachable), `9011` (timed out), `9012`
+  (refused, `Warning`) and `9014` (failed or refused the credential, `Error`), naming the target and the reason's
+  class, never the address.
+- None of these names a `Quartz-ExceptionType`.
+- **There is no gateway timeout of its own.** An agent's `OperationTimeout` (30 s) or an HTTP target's `Timeout`
+  applies; keep an HTTP target's at or below 30 s. The caller's cancellation reaches the target.
 
 ## Calling it from .NET
 
@@ -1436,8 +1658,11 @@ AOT host answers them without it. A native canary runs the server and the client
   - `{Operation}` is the endpoint's name; `{Route}` is the request path, which spells the target key.
   - One line per request, after the handler, for `2xx` answers only. A refusal is `9005`, or `9009` for a
     caller's role; a failure is `9003` or `9004`.
-  - It is this process's log. API actions are not in the [dashboard](dashboard.md#action-log)'s Action Log, and
-    dashboard actions are not here. All events: [Log Events](../log-events.md).
+  - For a request with `?target=`, `{SchedulerName}` is the key, `w1/QuartzScheduler`: the route is the path and
+    leaves the query out.
+  - It is this process's log. From 4.9, a process that maps the [dashboard](dashboard.md#action-log) also enters
+    every API change and role refusal in its Action Log, with *Via HTTP API*; dashboard actions are not here. All
+    events: [Log Events](../log-events.md).
 - Set `ReadOnly` where nothing should write through the API, such as a process that only feeds a dashboard,
   monitoring or reports; see [Serving reads only](#serving-reads-only).
 - Leave `MaxPageSize` set, so one request cannot load an unbounded result.

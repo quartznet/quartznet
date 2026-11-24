@@ -1,0 +1,120 @@
+@using System.Globalization
+@using Microsoft.Extensions.DependencyInjection
+@using Quartz
+@using Quartz.Dashboard.Services
+@using Quartz.Extensibility
+@using Quartz.Impl.Triggers
+@inject SchedulerState Scheduler
+@inject IServiceProvider Services
+
+@* What a schedule being edited will do once saved: the schedule in words, as the listing and the detail page say it,
+   and its next fires, computed on the trigger a save would post, so in the trigger's own time zone, from its first
+   fire at or after now, until its end, and less what its calendar excludes. Each time is in the zone the schedule is
+   read in, with its offset, so 10:00 in Tokyo reads 10:00 +09:00 whatever zone the dashboard shows; a simple trigger
+   has none, and its times are in the dashboard's. *@
+<div class="qz-schedule-preview" data-testid="schedule-preview">
+    @if (Trigger is null)
+    {
+        <p class="qz-muted" data-testid="schedule-preview-none">Correct the schedule to see when it fires.</p>
+    }
+    else
+    {
+        <p class="qz-schedule-preview-description" data-testid="schedule-preview-description">@Description</p>
+        @if (_fires.Count == 0)
+        {
+            <p class="qz-muted">No upcoming fire times.</p>
+        }
+        else
+        {
+            <ul class="qz-list" data-testid="schedule-preview-fires">
+                @foreach (DateTimeOffset fire in _fires)
+                {
+                    <li>
+                        <span>@FormatFire(fire)</span>
+                        <span class="qz-muted">(@DisplayValueHelper.FormatUntil(fire, _now))</span>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Trigger is ISimpleTrigger { MeasureIntervalFromCompletion: true } fixedDelay)
+        {
+            <p class="qz-muted">Then every @DisplayValueHelper.FormatDuration(fixedDelay.RepeatInterval) after each run completes.</p>
+        }
+
+        <p class="qz-muted" data-testid="schedule-preview-basis">@Basis</p>
+    }
+
+    @if (CalendarUnreadable is { } reason)
+    {
+        <p class="qz-muted" data-testid="schedule-preview-calendar">Calendar '@CalendarName' could not be read, so these times include any it excludes. @reason</p>
+    }
+</div>
+
+@code {
+    private readonly List<DateTimeOffset> _fires = [];
+    private DateTimeOffset _now;
+
+    /// <summary>The trigger a save would post, or <see langword="null" /> while the form is wrong.</summary>
+    [Parameter]
+    public IOperableTrigger? Trigger { get; set; }
+
+    /// <summary>The calendar the trigger names, as the owner read it, or <see langword="null" />.</summary>
+    [Parameter]
+    public ICalendar? Calendar { get; set; }
+
+    [Parameter]
+    public string? CalendarName { get; set; }
+
+    /// <summary>Why the calendar could not be read, when it could not.</summary>
+    [Parameter]
+    public string? CalendarUnreadable { get; set; }
+
+    [Parameter]
+    public int Count { get; set; } = 5;
+
+    private TimeProvider Clock => Services.GetService<TimeProvider>() ?? TimeProvider.System;
+
+    private string Description => Trigger?.DescribeSchedule() ?? TriggerDisplay.TypeName(Trigger!);
+
+    /// <summary>The zone the schedule is read in, or <see langword="null" /> for a simple trigger, which has none.</summary>
+    private TimeZoneInfo? TriggerZone => Trigger switch
+    {
+        ICronTrigger cron => cron.TimeZone,
+        ICalendarIntervalTrigger calendar => calendar.TimeZone,
+        IDailyTimeIntervalTrigger daily => daily.TimeZone,
+        IRecurrenceTrigger recurrence => recurrence.TimeZone,
+        _ => null,
+    };
+
+    /// <summary>The zone the list's times are in: the schedule's own, or the dashboard's for a trigger without one.</summary>
+    private TimeZoneInfo DisplayZone => TriggerZone ?? Scheduler.ResolveSelectedTimeZone();
+
+    private string FormatFire(DateTimeOffset fire)
+        => TimeZoneInfo.ConvertTime(fire, DisplayZone).ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Which zone the times are in, said once, and the calendar they skip: the schedule's hours are its own zone's.
+    /// </summary>
+    private string Basis
+    {
+        get
+        {
+            string zone = TriggerZone is { } own
+                ? "Times in " + own.Id + ", the trigger's time zone"
+                : "Times in " + DisplayZone.Id + ", the dashboard's time zone";
+            return Calendar is null ? zone + "." : zone + ", less what calendar '" + CalendarName + "' excludes.";
+        }
+    }
+
+    /// <summary>Computed on every render: an edit to the form arrives as a new trigger to preview.</summary>
+    protected override void OnParametersSet()
+    {
+        _fires.Clear();
+        _now = Clock.GetUtcNow();
+        if (Trigger is not null)
+        {
+            _fires.AddRange(TriggerFireTimes.Compute(Trigger, Calendar, Count <= 0 ? 1 : Count));
+        }
+    }
+}

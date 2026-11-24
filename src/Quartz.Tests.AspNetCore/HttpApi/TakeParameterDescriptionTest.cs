@@ -42,15 +42,21 @@ public class TakeParameterDescriptionTest
         typeof(TriggerEndpoints)
     ];
 
+    /// <summary>
+    /// The one <c>take</c> that is not a listing's: a running firing's log (#4437) answers at most that many entries,
+    /// from 1 to 1000 and bounded in bytes, so it is a number, has no "all", and <c>MaxPageSize</c> does not apply.
+    /// </summary>
+    private const string RunningLog = "GetFireInstanceLog";
+
     [Test]
     public void EveryTakeParameterCarriesTheDescription()
     {
         ParameterInfo[] takeParameters = TakeParameters();
 
-        takeParameters.Should().HaveCount(6,
+        takeParameters.Should().HaveCount(7,
             "there are six listing endpoints — jobs, job groups, fire instances, triggers, trigger groups "
-            + "and calendars — and a seventh appearing here means a listing was added whose take needs "
-            + "the same description");
+            + "and calendars — and the agenda, whose take MaxPageSize bounds as it bounds a listing's page; "
+            + "an eighth appearing here means a listing was added whose take needs the same description");
 
         using (new AssertionScope())
         {
@@ -84,9 +90,22 @@ public class TakeParameterDescriptionTest
         }
     }
 
-    private static ParameterInfo[] TakeParameters() => endpointClasses
+    /// <summary>
+    /// The running log's <c>take</c> says its own range, and binds as a number: a page of a listing it is not.
+    /// </summary>
+    [Test]
+    public void ARunningLogsTakeIsANumberThatSaysItsRange()
+    {
+        ParameterInfo take = AllTakeParameters().Should().ContainSingle(parameter => parameter.Member.Name == RunningLog).Subject;
+
+        take.ParameterType.Should().Be<int>("the log answers at most that many entries, and has nothing for \"all\" to mean");
+        take.GetCustomAttribute<DescriptionAttribute>()?.Description.Should().Be("How many entries to answer, from 1 to 1000");
+    }
+
+    private static ParameterInfo[] TakeParameters() => [.. AllTakeParameters().Where(parameter => parameter.Member.Name != RunningLog)];
+
+    private static IEnumerable<ParameterInfo> AllTakeParameters() => endpointClasses
         .SelectMany(type => type.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static))
         .SelectMany(method => method.GetParameters())
-        .Where(parameter => parameter.Name == "take")
-        .ToArray();
+        .Where(parameter => parameter.Name == "take");
 }

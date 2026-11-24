@@ -307,5 +307,29 @@ internal static partial class QuartzSchema
             Indexes: [],
             AddedBy: "4.4"),
 
+        new("TRIGGER_STATUS",
+            [
+                new("SCHED_NAME", QuartzColumnKind.String, "nvarchar(120)", Nullable: false),
+                new("TRIGGER_GROUP", QuartzColumnKind.String, "nvarchar(150)", Nullable: false),
+                new("TRIGGER_NAME", QuartzColumnKind.String, "nvarchar(150)", Nullable: false),
+                new("FIRST_FIRED_TIME", QuartzColumnKind.Int64, "bigint", Nullable: false),
+                new("LAST_FIRED_TIME", QuartzColumnKind.Int64, "bigint", Nullable: false),
+                new("LAST_RESULT", QuartzColumnKind.Int32, "int", Nullable: false),
+                new("LAST_RUN_TIME", QuartzColumnKind.Int64, "bigint", Nullable: false),
+                new("LAST_INSTANCE_NAME", QuartzColumnKind.String, "nvarchar(200)", Nullable: false),
+                new("LAST_ENTRY_ID", QuartzColumnKind.String, "nvarchar(140)", Nullable: true),
+                new("LAST_SUMMARY", QuartzColumnKind.String, "nvarchar(1000)", Nullable: true),
+                new("LAST_SUCCESS_TIME", QuartzColumnKind.Int64, "bigint", Nullable: true),
+                new("LAST_FAILURE_TIME", QuartzColumnKind.Int64, "bigint", Nullable: true),
+                new("LAST_FAILURE_MESSAGE", QuartzColumnKind.String, "nvarchar(1000)", Nullable: true),
+                new("CONSECUTIVE_FAILURES", QuartzColumnKind.Int32, "int", Nullable: false, DefaultValue: 0),
+                new("RUN_COUNT", QuartzColumnKind.Int64, "bigint", Nullable: false, DefaultValue: 0L),
+                new("FAILURE_COUNT", QuartzColumnKind.Int64, "bigint", Nullable: false, DefaultValue: 0L),
+            ],
+            PrimaryKey: ["SCHED_NAME", "TRIGGER_GROUP", "TRIGGER_NAME"],
+            ForeignKey: null,
+            Indexes: [],
+            AddedBy: "4.9"),
+
     ];
 }

@@ -48,12 +48,15 @@ public static class QuartzMigrationBuilderExtensions
     /// </para>
     /// </remarks>
     /// <param name="migrationBuilder">The migration being built.</param>
-    /// <param name="configure">The table prefix and the schema, as <c>AddQuartzTables</c> was given them.</param>
+    /// <param name="configure">
+    /// The table prefix, the schema and Firebird's identifier length, as <c>AddQuartzTables</c> was given them.
+    /// </param>
     /// <returns>The same migration builder, for chaining.</returns>
     /// <exception cref="NotSupportedException">The migration's provider is not one Quartz has a model for.</exception>
     /// <exception cref="ArgumentException">
-    /// The prefix holds what an unquoted identifier cannot or makes a name too long for the database, or the
-    /// schema is set for a database without schemas.
+    /// The prefix holds what an unquoted identifier cannot or makes a name too long for the database, the schema
+    /// is set for a database without schemas, or the identifier length is set for a database other than Firebird
+    /// or outside 31–63.
     /// </exception>
     public static MigrationBuilder CompleteQuartzSchema(this MigrationBuilder migrationBuilder, Action<QuartzTablesOptions>? configure = null)
     {
@@ -74,6 +77,7 @@ public static class QuartzMigrationBuilderExtensions
     /// It repairs what that schema has wrong: the three execution-history indexes it never created, everywhere;
     /// on SQL Server, the <c>NOT NULL</c> on <c>QRTZ_SIMPROP_TRIGGERS.STR_PROP_1</c> to <c>STR_PROP_3</c>,
     /// which Quartz writes <c>NULL</c> to, and the 150-character <c>QRTZ_FIRED_TRIGGERS.INSTANCE_NAME</c>.
+    /// It creates what Quartz added since: <c>QRTZ_TRIGGER_STATUS</c>, which 4.9's execution history keeps.
     /// </para>
     /// <para>
     /// It converges what the database changes in place, never narrowing a column: on SQL Server,
@@ -97,8 +101,8 @@ public static class QuartzMigrationBuilderExtensions
     /// has none.
     /// </exception>
     /// <exception cref="ArgumentException">
-    /// The prefix holds what an unquoted identifier cannot or makes a name too long for the database, or the
-    /// schema is set for a database without schemas.
+    /// The prefix holds what an unquoted identifier cannot or makes a name too long for the database, the schema
+    /// is set for a database without schemas, or the identifier length is set, which is Firebird's alone.
     /// </exception>
     public static MigrationBuilder MoveQuartzTablesFromAppAny(this MigrationBuilder migrationBuilder, Action<QuartzTablesOptions>? configure = null)
     {

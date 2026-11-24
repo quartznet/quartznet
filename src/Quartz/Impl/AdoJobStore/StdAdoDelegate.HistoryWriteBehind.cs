@@ -24,8 +24,8 @@ using System.Data.Common;
 namespace Quartz.Impl.AdoJobStore;
 
 // The statements a write-behind flush of AdoExecutionHistoryStore issues: every buffered execution's
-// row, the buffered jobs' statuses read once, and each status written back once, guarded by the
-// RUN_COUNT read. Internal, like the rest of the history's statements.
+// row, the buffered jobs' and triggers' statuses read once, and each status written back once, guarded
+// by the RUN_COUNT read. Internal, like the rest of the history's statements.
 //
 // The rows and the guarded updates go as DbBatch where the round batches - a delegate Quartz ships, on a
 // connection that can - and one command each otherwise, which is Oracle, Firebird and SQLite. A batch
@@ -108,6 +108,62 @@ public partial class StdAdoDelegate
             statements.Add(DescribeJobRunStatusWrite(status, readRunCount));
         }
 
+        return await ExecuteGuardedStatusWrites(conn, statements, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Reads the statuses of the triggers one write-behind flush holds runs of, keyed by trigger; a trigger with
+    /// no recorded run has no entry.
+    /// </summary>
+    /// <param name="conn">The flush's unit of work.</param>
+    /// <param name="schedulerName">The scheduler the triggers belong to.</param>
+    /// <param name="triggers">The triggers.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<Dictionary<TriggerKey, TriggerRunStatus>> SelectTriggerRunStatusesByKey(
+        ConnectionAndTransactionHolder conn,
+        string schedulerName,
+        IReadOnlyCollection<TriggerKey> triggers,
+        CancellationToken cancellationToken = default)
+    {
+        List<TriggerRunStatus> found = await ReadTriggerRunStatusesOf(
+            conn, schedulerName, Deduplicate(triggers), failing: "", cancellationToken).ConfigureAwait(false);
+
+        Dictionary<TriggerKey, TriggerRunStatus> statuses = new(found.Count);
+        foreach (TriggerRunStatus status in found)
+        {
+            statuses[status.Trigger] = status;
+        }
+
+        return statuses;
+    }
+
+    /// <summary>
+    /// Writes each trigger status whose row still has the <c>RUN_COUNT</c> the flush read, and answers how many
+    /// did, as <see cref="UpdateJobRunStatusesIfUnchanged" /> writes the jobs'.
+    /// </summary>
+    /// <param name="conn">The flush's unit of work.</param>
+    /// <param name="writes">Each trigger's folded status, and the run count read with it.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<int> UpdateTriggerRunStatusesIfUnchanged(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<(TriggerRunStatus Status, long ReadRunCount)> writes,
+        CancellationToken cancellationToken = default)
+    {
+        List<SqlStatement> statements = new(writes.Count);
+        foreach ((TriggerRunStatus status, long readRunCount) in writes)
+        {
+            statements.Add(DescribeTriggerRunStatusWrite(status, readRunCount));
+        }
+
+        return await ExecuteGuardedStatusWrites(conn, statements, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Issues guarded status updates, batched where the round batches, and answers the rows they updated.</summary>
+    private async ValueTask<int> ExecuteGuardedStatusWrites(
+        ConnectionAndTransactionHolder conn,
+        List<SqlStatement> statements,
+        CancellationToken cancellationToken)
+    {
         if (statements.Count < 2 || !BatchesRounds(conn))
         {
             int updated = 0;

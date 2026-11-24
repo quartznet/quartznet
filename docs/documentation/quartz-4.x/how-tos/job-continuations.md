@@ -135,6 +135,19 @@ continuation scheduled afterwards has nothing to wait for. **Schedule the contin
 can finish** (with it, or before it is due), **or check the parent's key.** A `ScheduleJobs` batch may
 carry both, in either order.
 
+**A continuation cannot wait for itself.** The same calls refuse a trigger whose chain of parents leads back
+to it, and store nothing:
+
+| Loop | Example |
+|---|---|
+| A trigger that names itself | `a` after `a` |
+| Triggers of one `ScheduleJobs` batch | `a` after `b`, `b` after `a` |
+| A replace or reschedule through stored triggers | `b` after `a` and `c` after `b` are stored, then `a` is replaced to wait after `c` |
+
+The `JobPersistenceException` walks the loop from the trigger refused: `nightly.a -> nightly.c ->
+nightly.b -> nightly.a`. Only an `Awaiting` trigger counts: a released one waits for nothing, and one
+parked in `Error` runs, rather than waits, when it is reset.
+
 ## The outcome table
 
 | Outcome of the parent's firing | Releases | What it is |
@@ -154,12 +167,15 @@ attempt is still `Failed`, but every store skips settling on `SchedulerInstructi
 
 ## When the parent is deleted
 
-When a parent is removed (`UnscheduleJob`, `DeleteJob` or any other trigger deletion) while continuations
-wait, there is no outcome:
+When a parent is removed (`UnscheduleJob`, `DeleteJob` or any other trigger deletion), or replaced by a
+trigger of another key (`RescheduleJob`), while continuations wait, there is no outcome:
 
 * `OnAnyOutcome` continuations are released anyway.
 * Narrower ones are parked in `TriggerState.Error`, with `ISchedulerListener.TriggerInError`, for an
   operator, rather than deleted or left waiting.
+
+After a replace under another key, the in-memory store settles them in the call and the persistent store at
+its next misfire pass.
 
 This does not apply to a continuation *discarded* by its parent's outcome; that [cascades](#the-model).
 
@@ -257,7 +273,7 @@ JSON (`quartz_jobs.json` or the `Quartz:Schedule` section of `appsettings.json`)
 
 * Omitted `Group`: the default group. Omitted condition: `OnSuccess`.
 * The parent is **named, not resolved at read time**: it may come later in the file (parents are stored
-  first) or already be in the store. One in neither is refused when the file is scheduled, as
+  first) or already be in the store. One in neither, or a loop, is refused when the file is scheduled, as
   [above](#the-parent-has-to-exist).
 * An unknown outcome, or a condition with nothing to wait for, is refused when the file is read, naming the
   trigger.

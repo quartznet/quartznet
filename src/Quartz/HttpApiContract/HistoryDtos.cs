@@ -333,6 +333,71 @@ internal sealed record JobRunStatusDto(
 }
 
 /// <summary>
+/// One trigger's run status on the wire: <see cref="TriggerRunStatus" /> without the scheduler's name, which the
+/// route says.
+/// </summary>
+/// <remarks>
+/// Positional, as <see cref="JobRunStatusDto" /> is and for its reason, with its members in the same order after
+/// the key. Each member is <see cref="TriggerRunStatus" />'s of the same name.
+/// </remarks>
+internal sealed record TriggerRunStatusDto(
+    KeyDto Trigger,
+    DateTimeOffset LastFiredAtUtc,
+    JobRunResult LastResult,
+    TimeSpan LastDuration,
+    string? LastSchedulerInstanceId,
+    string? LastEntryId,
+    string? LastSummary,
+    DateTimeOffset? LastSucceededAtUtc,
+    DateTimeOffset? LastFailedAtUtc,
+    string? LastFailureMessage,
+    int ConsecutiveFailures,
+    long RunCount,
+    long FailureCount,
+    DateTimeOffset FirstFiredAtUtc)
+{
+    public static TriggerRunStatusDto Create(TriggerRunStatus status)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+
+        return new TriggerRunStatusDto(
+            KeyDto.Create(status.Trigger),
+            status.LastFiredAtUtc,
+            status.LastResult,
+            status.LastDuration,
+            status.LastSchedulerInstanceId,
+            status.LastEntryId,
+            status.LastSummary,
+            status.LastSucceededAtUtc,
+            status.LastFailedAtUtc,
+            status.LastFailureMessage,
+            status.ConsecutiveFailures,
+            status.RunCount,
+            status.FailureCount,
+            status.FirstFiredAtUtc);
+    }
+
+    /// <inheritdoc cref="ExecutionHistoryEntryDto.AsExecutionHistoryEntry" />
+    public TriggerRunStatus AsTriggerRunStatus(string schedulerName)
+    {
+        return new TriggerRunStatus(schedulerName, Trigger.AsTriggerKey(), LastFiredAtUtc, LastResult)
+        {
+            LastDuration = LastDuration,
+            LastSchedulerInstanceId = LastSchedulerInstanceId,
+            LastEntryId = LastEntryId,
+            LastSummary = LastSummary,
+            LastSucceededAtUtc = LastSucceededAtUtc,
+            LastFailedAtUtc = LastFailedAtUtc,
+            LastFailureMessage = LastFailureMessage,
+            ConsecutiveFailures = ConsecutiveFailures,
+            RunCount = RunCount,
+            FailureCount = FailureCount,
+            FirstFiredAtUtc = FirstFiredAtUtc
+        };
+    }
+}
+
+/// <summary>
 /// A scheduler's runs over time on the wire: <see cref="ExecutionStatistics" />.
 /// </summary>
 /// <remarks>

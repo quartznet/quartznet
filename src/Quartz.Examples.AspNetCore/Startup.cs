@@ -129,6 +129,11 @@ public class Startup
             q.AddPlugin<LoggingJobHistoryPlugin>();
             q.AddPlugin<LoggingTriggerHistoryPlugin>();
 
+            // keep what each job logs while it runs: Currently Executing's Show log follows it live, and
+            // Execution Detail shows it once the run ends. Called before AddJobTimeout below, whose middleware
+            // then runs inside it, so what the timeout logs when it interrupts a job is kept with that run
+            q.UseExecutionLogCapture();
+
             // quickest way to create a job with single trigger is to use ScheduleJob
             q.ScheduleJob<ExampleJob>(trigger => trigger
                 .WithIdentity("Combined Configuration Trigger")
@@ -196,6 +201,53 @@ public class Startup
                     .WithDescription("Intentional failure to demonstrate error history on the timeline")
             );
 
+            // a job that may not run beside itself, running longer than either trigger's interval: while one
+            // trigger's firing runs the other is BLOCKED, and the running one's own next fire waits too, which the
+            // dashboard's "Why isn't it firing?" shows as held by the job's running firing
+            q.ScheduleJob<DemoBlockingJob>(
+                triggerConfigurator => triggerConfigurator
+                    .WithIdentity("demoBlockingJobTrigger", "demo")
+                    .StartNow()
+                    .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever()),
+                jobConfigurator => jobConfigurator
+                    .WithIdentity("demoBlockingJob", "demo")
+                    .WithDescription("Runs 20 s without overlapping, wanted every few seconds by two triggers")
+            );
+            q.AddTrigger(t => t
+                .WithIdentity("demoBlockingJobTrigger2", "demo")
+                .ForJob("demoBlockingJob", "demo")
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(3)).RepeatForever())
+                .WithDescription("A second trigger of the same job, blocked while the first one's firing runs")
+            );
+
+            // one job on three schedules, so the Triggers page shows each schedule's own last run: the nightly one
+            // succeeds, the hourly one fails every time, both every 20s, and the later one has not fired yet
+            JobKey flakyReport = new("flakyReport", "demo");
+            q.AddJob<DemoFlakyReportJob>(j => j
+                .WithIdentity(flakyReport)
+                .WithDescription("One job, one healthy and one failing schedule: the Triggers page tells them apart"));
+
+            q.AddTrigger(t => t
+                .WithIdentity("flakyReportNightly", "demo")
+                .ForJob(flakyReport)
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(20)).RepeatForever())
+                .UsingJobData(DemoFlakyReportJob.FailKey, false));
+
+            q.AddTrigger(t => t
+                .WithIdentity("flakyReportHourly", "demo")
+                .ForJob(flakyReport)
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(20)).RepeatForever())
+                .UsingJobData(DemoFlakyReportJob.FailKey, true));
+
+            q.AddTrigger(t => t
+                .WithIdentity("flakyReportLater", "demo")
+                .ForJob(flakyReport)
+                .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever()));
+
             // async disposable dependencies
             q.ScheduleJob<AsyncDisposableJob>(
                 triggerConfigurator => triggerConfigurator
@@ -218,6 +270,29 @@ public class Startup
                 .WithDescription("my awesome daily time interval trigger")
                 .WithCalendarName(calendarName)
             );
+
+            // the two remaining kinds, so the dashboard's schedule editor can be tried on all five: every two hours
+            // in a zone of its own, and the last weekday of each month at 18:00
+            q.AddTrigger(t => t
+                .WithIdentity("Calendar Interval Trigger")
+                .ForJob(jobKey)
+                .StartAt(DateTimeOffset.UtcNow.AddMinutes(1))
+                .WithCalendarIntervalSchedule(x => x
+                    .WithInterval(2, IntervalUnit.Hour)
+                    .InTimeZone(TimeZoneInfo.Utc))
+                .WithDescription("my awesome calendar interval trigger")
+            );
+
+            q.AddTrigger(t => t
+                .WithIdentity("Recurrence Trigger")
+                .ForJob(jobKey)
+                .StartNow()
+                .WithRecurrenceSchedule("FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1;BYHOUR=18;BYMINUTE=0;BYSECOND=0")
+                .WithDescription("my awesome recurrence trigger")
+            );
+
+            // one calendar of each built-in type, which the dashboard's Calendars page shows and edits
+            AddSampleCalendars(q);
 
             // your own configuration can decide what a scheduler runs: whether there is a schedule at all
             // is decided here, where jobs and triggers are registered, and the schedule itself is read out
@@ -429,6 +504,50 @@ public class Startup
 
             settings.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor(securityScope));
         });
+    }
+
+    /// <summary>
+    /// One calendar of each built-in type, each in a time zone of its own, which the dashboard's Calendars page
+    /// shows and edits. "Business Days" is layered over a copy of "Bank Holidays", so its page shows a base
+    /// calendar too. Only myHolidayCalendar is used by a trigger.
+    /// </summary>
+    private static void AddSampleCalendars(IQuartzBuilder q)
+    {
+        TimeZoneInfo london = TimeZones.FindById("Europe/London");
+        TimeZoneInfo newYork = TimeZones.FindById("America/New_York");
+        AddCalendarOptions replace = new() { Replace = true };
+
+        HolidayCalendar bankHolidays = new() { TimeZone = london, Description = "England and Wales bank holidays, 2026" };
+        foreach (DateOnly date in new DateOnly[] { new(2026, 12, 25), new(2026, 12, 28), new(2026, 8, 31), new(2026, 5, 25), new(2026, 5, 4), new(2026, 4, 6), new(2026, 4, 3), new(2026, 1, 1) })
+        {
+            bankHolidays.AddExcludedDay(date);
+        }
+
+        q.AddCalendar("Bank Holidays", bankHolidays, replace);
+
+        AnnualCalendar annual = new() { TimeZone = london, Description = "The same days every year" };
+        annual.AddExcludedDay(new MonthDay(1, 1));
+        annual.AddExcludedDay(new MonthDay(12, 25));
+        annual.AddExcludedDay(new MonthDay(12, 26));
+        q.AddCalendar("Christmas and New Year", annual, replace);
+
+        // A weekly calendar excludes Saturday and Sunday until told otherwise; its base is a copy of the holidays.
+        WeeklyCalendar businessDays = new(bankHolidays.Clone()) { TimeZone = london, Description = "Weekdays that are not bank holidays" };
+        q.AddCalendar("Business Days", businessDays, replace);
+
+        MonthlyCalendar payroll = new() { TimeZone = newYork, Description = "No batch runs on payroll days, the 1st and the 15th" };
+        payroll.AddExcludedDay(1);
+        payroll.AddExcludedDay(15);
+        q.AddCalendar("Payroll Days", payroll, replace);
+
+        DailyCalendar maintenance = new(new TimeOnly(2, 0), new TimeOnly(4, 0)) { TimeZone = newYork, Description = "Nightly maintenance window" };
+        q.AddCalendar("Maintenance Window", maintenance, replace);
+
+        DailyCalendar officeHours = new(new TimeOnly(9, 0), new TimeOnly(17, 30)) { TimeZone = london, Description = "Only during office hours", InvertTimeRange = true };
+        q.AddCalendar("Office Hours Only", officeHours, replace);
+
+        CronCalendar quietHalfHours = new(baseCalendar: null, "* 0-29 22-23 ? * MON-FRI", newYork) { Description = "The first half of each late-evening hour on weekdays" };
+        q.AddCalendar("Quiet Half Hours", quietHalfHours, replace);
     }
 
     private sealed class CustomTimeProvider : TimeProvider;

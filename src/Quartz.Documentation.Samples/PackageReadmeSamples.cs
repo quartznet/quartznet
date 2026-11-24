@@ -107,6 +107,42 @@ public static class PackageReadmeSamples
         }
     }
 
+    public static class Mcp
+    {
+        public static void Registration(string[] args)
+        {
+            #region sample_readme_mcp
+
+            WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+            builder.AddQuartz();
+            builder.AddQuartzHostedService();
+
+            builder.Services.AddAuthorizationBuilder()
+                .AddPolicy("Quartz.Operations", policy => policy.RequireSchedulerRoles(roles =>
+                {
+                    roles.Viewers.Add("ops-viewer");
+                    roles.Operators.Add("ops-operator");
+                    roles.Administrators.Add("ops-admin");
+                }));
+
+            // Read-only until told otherwise; writing needs the operation policy.
+            builder.Services.AddQuartzMcp(options =>
+            {
+                options.ReadOnly = false;
+                options.OperationAuthorizationPolicy = "Quartz.Operations";
+            });
+
+            WebApplication app = builder.Build();
+
+            app.UseAuthentication();
+            app.UseAuthorization();
+            app.MapQuartzMcp().RequireAuthorization();
+
+            #endregion
+        }
+    }
+
     public static class Redis
     {
         public static void LockHandler(IHostApplicationBuilder builder, string connectionString)

@@ -241,6 +241,23 @@ public class DashboardPageTest
             "the tile is the way to the page that explains it");
     }
 
+    /// <summary>
+    /// A rolling upgrade that has not finished changes what the cluster does, so the tile says so and the
+    /// Cluster page it links to says how (#4411).
+    /// </summary>
+    [Test]
+    public void TheNodesTileSaysWhenTheLiveNodesRunDifferentVersions()
+    {
+        GivenNodes(
+            Node("node-a", ClusterNodeState.Alive) with { QuartzVersion = "4.9.0" },
+            Node("node-b", ClusterNodeState.Alive) with { QuartzVersion = "4.8.1" });
+
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+
+        page.StatCardValue("Nodes").Should().Be("2, mixed versions");
+        page.StatCardClasses("Nodes").Should().Contain("qz-stat-card-warning");
+    }
+
     [Test]
     public void ReadOnlyModeHidesTheSchedulerControls()
     {

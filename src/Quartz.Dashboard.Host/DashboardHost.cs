@@ -41,6 +41,7 @@ using OpenTelemetry.Trace;
 
 using Oracle.ManagedDataAccess.Client;
 
+using Quartz.AspNetCore;
 using Quartz.Diagnostics;
 
 namespace Quartz.Dashboard.Host;
@@ -68,24 +69,7 @@ internal static class DashboardHost
     {
         builder.Configuration.Sources.Insert(0, new MemoryConfigurationSource { InitialData = Defaults });
 
-        // A request's address is logged at Information by the hosting layer, and an address can carry a token
-        // (?t=, or a mistyped one). Held at Warning whatever the configuration says: the host never logs a token.
-        // A rule that names a provider outranks one that does not, so a rule with no provider would lose to
-        // Logging:Console:LogLevel:Default=Information. A rule for every provider the configuration names, and for
-        // none, comes after the configured ones, and the last rule that matches decides among equals.
-        builder.Services.PostConfigure<LoggerFilterOptions>(options =>
-        {
-            string?[] providers = [.. options.Rules.Select(rule => rule.ProviderName).Distinct(StringComparer.Ordinal)];
-            if (!providers.Contains(null))
-            {
-                providers = [.. providers, null];
-            }
-
-            foreach (string? provider in providers)
-            {
-                options.Rules.Add(new LoggerFilterRule(provider, "Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning, filter: null));
-            }
-        });
+        builder.Services.PostConfigure<LoggerFilterOptions>(ClampTokenBearingCategories);
 
         DashboardHostPlan plan = DashboardHostPlan.Read(builder.Configuration);
         string dashboardPath = DashboardPath(plan.Settings.DashboardPath);
@@ -145,6 +129,30 @@ internal static class DashboardHost
             AddHttpTarget(builder.Services, target);
         }
 
+        if (plan.ServesHttpApi)
+        {
+            // The API for the whole fleet: a request names a scheduler behind a target with ?target=, and is held
+            // to the same operator roles as the dashboard's own buttons (#4218).
+            builder.Services.AddQuartzHttpApi(options =>
+            {
+                options.ApiPath = plan.HttpApiPath;
+                options.ReadOnly = plan.Settings.HttpApi.ReadOnly ?? plan.Settings.ReadOnly ?? false;
+                options.OperationAuthorizationPolicy = HostAuthentication.OperationPolicy;
+            });
+        }
+
+        if (plan.ServesMcp)
+        {
+            // An AI agent's endpoint for the whole fleet, held to the operator roles the dashboard's buttons are, and
+            // read-only unless Quartz:Dashboard:Mcp:ReadOnly says otherwise (#4245).
+            builder.Services.AddQuartzMcp(options =>
+            {
+                options.ReadOnly = plan.Settings.Mcp.ReadOnly;
+                options.OperationAuthorizationPolicy = HostAuthentication.OperationPolicy;
+                options.AllowedOrigins.AddRange(plan.Settings.AllowedOrigins);
+            });
+        }
+
         return plan;
     }
 
@@ -174,7 +182,89 @@ internal static class DashboardHost
         app.MapGet("/", (HttpContext context) => Results.Redirect(context.Request.PathBase + dashboardPath)).AllowAnonymous();
 
         app.MapHostAuthentication(plan, dashboardPath);
+
+        if (plan.ServesHttpApi)
+        {
+            // Bearer only, never a token in the address, and a browser request from an origin not listed is refused
+            // before anything else: the cookie a visitor signed in with is never what lets a request in here.
+            IEndpointConventionBuilder api = app.MapQuartzHttpApi(plan.HttpApiPath).RequireAuthorization(HostAuthentication.ApiPolicy);
+            HostAuthentication.RefuseTokenInAddress(api);
+            new QuartzRequestGuard(plan.Settings.AllowedOrigins).Apply(api);
+        }
+
+        if (plan.ServesMcp)
+        {
+            // The same: bearer only and never a token in the address. The origin guard is MapQuartzMcp's own, over the
+            // same AllowedOrigins.
+            IEndpointConventionBuilder mcp = app.MapQuartzMcp(plan.McpPath).RequireAuthorization(HostAuthentication.ApiPolicy);
+            HostAuthentication.RefuseTokenInAddress(mcp);
+        }
+
         app.MapQuartzDashboard();
+    }
+
+    /// <summary>
+    /// The categories whose lines can carry a token, and the lowest level each is let through at, whatever the
+    /// configuration says.
+    /// </summary>
+    /// <remarks>
+    /// The hosting layer logs a request's address at Information, and an address can carry a token (<c>?t=</c>, or a
+    /// mistyped one). The MCP SDK writes whole JSON-RPC messages at Debug and Trace, and a message's arguments can
+    /// carry a confirmation token.
+    /// </remarks>
+    private static readonly (string Category, LogLevel Floor)[] Clamped =
+    [
+        ("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning),
+        ("ModelContextProtocol", LogLevel.Information),
+    ];
+
+    /// <summary>
+    /// Holds every clamped category at its floor, however the configuration names it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two ways round a rule for the category, and each is closed. A rule that names a provider outranks one that does
+    /// not, so a rule with no provider would lose to <c>Logging:Console:LogLevel:Default=Information</c>: a rule is added
+    /// for every provider the configuration names, and for none, after the configured ones, and the last rule that
+    /// matches decides among equals. A rule for a longer category outranks a shorter one, so
+    /// <c>Logging:LogLevel:ModelContextProtocol.Server=Trace</c> would win over a rule for <c>ModelContextProtocol</c>:
+    /// every configured rule for a category under a clamped one is raised to the floor.
+    /// </para>
+    /// <para>
+    /// Run as the last configuration of the options, after the configuration's own rules are read.
+    /// </para>
+    /// </remarks>
+    internal static void ClampTokenBearingCategories(LoggerFilterOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        for (int i = 0; i < options.Rules.Count; i++)
+        {
+            LoggerFilterRule rule = options.Rules[i];
+            foreach ((string category, LogLevel floor) in Clamped)
+            {
+                if (rule.CategoryName is { } name
+                    && name.StartsWith(category, StringComparison.OrdinalIgnoreCase)
+                    && (rule.LogLevel is null || rule.LogLevel < floor))
+                {
+                    options.Rules[i] = new LoggerFilterRule(rule.ProviderName, name, floor, rule.Filter);
+                }
+            }
+        }
+
+        string?[] providers = [.. options.Rules.Select(rule => rule.ProviderName).Distinct(StringComparer.Ordinal)];
+        if (!providers.Contains(null))
+        {
+            providers = [.. providers, null];
+        }
+
+        foreach (string? provider in providers)
+        {
+            foreach ((string category, LogLevel floor) in Clamped)
+            {
+                options.Rules.Add(new LoggerFilterRule(provider, category, floor, filter: null));
+            }
+        }
     }
 
     /// <summary>

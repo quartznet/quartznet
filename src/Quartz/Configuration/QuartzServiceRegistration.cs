@@ -252,6 +252,8 @@ internal static class QuartzServiceRegistration
             // store decorator's.
             bool recordExceptionSpanEvents = ExceptionSignal.RecordsSpanEvents(options.RecordExceptionSpanEvents);
 
+            (JobExecutionDelegate? pipeline, bool capturesExecutionLog) = ComposeJobExecutionPipeline(provider, key);
+
             var resources = new QuartzSchedulerResources
             {
                 Name = instanceName,
@@ -281,7 +283,9 @@ internal static class QuartzServiceRegistration
                 JobStore = Instrument(jobStore, meters, timeProvider, recordExceptionSpanEvents, options.TraceRootStoreOperations),
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
                 SchedulerRepository = provider.GetRequiredService<ISchedulerRepository>(),
-                JobExecutionPipeline = ComposeJobExecutionPipeline(provider, key),
+                JobExecutionPipeline = pipeline,
+                CapturesExecutionLog = capturesExecutionLog,
+                DeclaredContent = DeclaredContent.For(provider.GetSchedulerOptions<QuartzOptions>(key).Scheduling, jobStore),
             };
 
             // Plugins are added by the scheduler factory rather than here, because those named by
@@ -358,16 +362,17 @@ internal static class QuartzServiceRegistration
     /// what the scheduler <em>is</em> rather than content applied to it once it exists: the run shell
     /// reads it out of the resources on every firing, so it has to be there before the first one. Each
     /// middleware is built from this scheduler's own view of the container, so a middleware that takes a
-    /// scheduler's parts is handed that scheduler's.
+    /// scheduler's parts is handed that scheduler's. Whether the chain holds the capture middleware is read here
+    /// too, where the list it is composed of still exists: the composed delegate cannot say it (#4437).
     /// </remarks>
-    private static JobExecutionDelegate? ComposeJobExecutionPipeline(IServiceProvider provider, object? key)
+    private static (JobExecutionDelegate? Pipeline, bool CapturesExecutionLog) ComposeJobExecutionPipeline(IServiceProvider provider, object? key)
     {
         List<JobExecutionMiddlewareRegistration> registrations =
             [.. provider.GetSchedulerServices<JobExecutionMiddlewareRegistration>(key)];
 
         if (registrations.Count == 0)
         {
-            return null;
+            return (null, false);
         }
 
         IServiceProvider scoped = Scoped(provider, key);
@@ -377,7 +382,8 @@ internal static class QuartzServiceRegistration
             middleware.Add(registration.CreateMiddleware(scoped));
         }
 
-        return JobExecutionPipeline.Compose(middleware);
+        bool capturesExecutionLog = middleware.Exists(static m => m is ExecutionLogCaptureMiddleware);
+        return (JobExecutionPipeline.Compose(middleware), capturesExecutionLog);
     }
 
     /// <summary>

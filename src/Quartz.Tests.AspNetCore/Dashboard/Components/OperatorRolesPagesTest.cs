@@ -158,7 +158,26 @@ public class OperatorRolesPagesTest
 
         page.WaitForAssertion(() => page.Markup.Should().Contain("holidays"));
         page.HasButton("Delete").Should().Be(offered);
-        page.Markup.Contains("Create or replace cron calendar", StringComparison.Ordinal).Should().Be(offered);
+        page.FindAll("[data-testid=calendar-new]").Count.Should().Be(offered ? 1 : 0, "creating a calendar is AddCalendar, which is Administer");
+    }
+
+    [TestCase(SchedulerAccess.View, false)]
+    [TestCase(SchedulerAccess.Operate, false)]
+    [TestCase(SchedulerAccess.Administer, true)]
+    public void ACalendarIsAnAdministratorsToEdit(SchedulerAccess role, bool offered)
+    {
+        context.WithOperatorRole(role);
+        A.CallTo(() => context.Api.GetCalendar(A<string>._, "holidays", A<CancellationToken>._))
+            .Returns(new Impl.Calendar.HolidayCalendar { TimeZone = TimeZoneInfo.Utc });
+        A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeaderDto>([], HasMore: false, TotalCount: 0));
+
+        IRenderedComponent<CalendarDetail> page = context.Render<CalendarDetail>(parameters => parameters
+            .Add(x => x.CalendarName, "holidays"));
+
+        page.WaitForAssertion(() => page.Find("[data-testid=calendar-used-by]").TextContent.Should().Contain("Not used by any trigger",
+            "reading who uses a calendar is View"));
+        page.HasButton("Edit calendar").Should().Be(offered, "replacing a calendar is AddCalendar, which is Administer");
     }
 
     /// <summary>

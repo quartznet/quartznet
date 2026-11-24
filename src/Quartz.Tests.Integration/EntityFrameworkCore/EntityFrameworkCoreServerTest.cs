@@ -267,7 +267,8 @@ public sealed class OracleEntityFrameworkCoreTest : EntityFrameworkCoreServerTes
 
 /// <summary>
 /// Firebird, on whichever server the leg runs: 4 by default, 3, 4 or 5 on the image legs, which run this namespace.
-/// The test prefixes are six characters, the longest Firebird 3's 31 bytes leave room for.
+/// The test prefixes are six characters, the longest Firebird 3's 31 bytes leave room for, except where a test
+/// raises the limit.
 /// </summary>
 [Category("db-firebird")]
 public sealed class FirebirdEntityFrameworkCoreTest : EntityFrameworkCoreServerTest
@@ -275,6 +276,52 @@ public sealed class FirebirdEntityFrameworkCoreTest : EntityFrameworkCoreServerT
     private protected override string Dialect => "firebird";
 
     private protected override async Task<IQuartzTestDatabase> CreateDatabaseAsync() => new FirebirdQuartzTestDatabase(await FirebirdWeaselDatabase.CreateAsync("UTF8"));
+
+    /// <summary>
+    /// A database only Firebird 4 or later opens takes 63-character names, which <c>MaxIdentifierLength = 63</c>
+    /// says. Two prefixes, one byte past Firebird 3's six and the longest 63 leaves room for, migrate to the fresh
+    /// install's schema and run the scheduler. Firebird 3 refuses the first name past its 31 bytes and keeps nothing
+    /// of the migration.
+    /// </summary>
+    [TestCase("QRTZ63_")]
+    [TestCase("QUARTZ_FOR_FIREBIRD_4_AND_5_REPORTING_")]
+    public async Task APrefixPastFirebird3sLimitMigratesUnderTheRaisedLimit(string prefix)
+    {
+        Action<QuartzTablesOptions> options = t =>
+        {
+            t.TablePrefix = prefix;
+            t.MaxIdentifierLength = 63;
+        };
+
+        FirebirdWeaselDatabase firebird = await FirebirdWeaselDatabase.CreateAsync("UTF8");
+        await using FirebirdQuartzTestDatabase database = new(firebird);
+        await database.ProvisionAsync("QRTZ_");
+
+        await using (EntityFrameworkCoreContext context = EntityFrameworkCoreContext.Quartz(Dialect, options, database.ConnectionString))
+        {
+            if (await firebird.ServerMajorVersionAsync() == 3)
+            {
+                Func<Task> migrate = () => context.MigrateAsync(options);
+
+                await migrate.Should().ThrowAsync<FbException>().WithMessage("*Name longer than database column size*",
+                    "Firebird 3 refuses a name past its 31 bytes, which is why the limit is raised only for a database it never opens");
+                (await database.ScalarAsync($"SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME STARTING WITH '{prefix}'"))
+                    .Should().Be(0L, "the migration's transaction took back the tables it had created");
+                return;
+            }
+
+            await context.MigrateAsync(options);
+        }
+
+        await using DbConnection connection = await database.OpenAsync();
+
+        (await SchemaSnapshot.ReadAsync(connection, Dialect, prefix)).Should().BeEquivalentTo(
+            await SchemaSnapshot.ReadAsync(connection, Dialect, "QRTZ_"));
+        (await database.ScalarAsync($"SELECT COUNT(*) FROM RDB$INDICES WHERE RDB$INDEX_NAME = 'IDX_{prefix}FT_INST_JOB_REQ_RCVRY'"))
+            .Should().Be(1L, "the longest name is in the catalog whole");
+
+        await MigratedSchemaWorkload.RunAsync(connection, Dialect, database.ConnectionString, prefix);
+    }
 }
 
 /// <summary>A database of a test's own, as the tests here need it, over the Weasel tests' helpers.</summary>

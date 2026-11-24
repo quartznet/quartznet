@@ -1,0 +1,175 @@
+@using Quartz
+@inject IJSRuntime JS
+
+@* An annual calendar's days as a grid, a month to a row: a check per day, February counting 29. Read-only on
+   Calendar Detail, where a filled check is an excluded day. In the editor the grid is one tab stop: the arrow
+   keys move between days (left and right through the year, up and down to the same day of the next month),
+   Home and End go to the month's first and last day, and Space ticks the day focused. *@
+<div class="qz-calendar-year-scroll">
+    <table @ref="_table"
+           class="qz-calendar-year@(ReadOnly ? " qz-calendar-year-readonly" : string.Empty)"
+           data-testid="calendar-annual-grid"
+           @onkeydown="OnKeyDownAsync">
+        <thead>
+            <tr>
+                <th scope="col"><span class="qz-sr-only">Month</span></th>
+                @for (int day = 1; day <= 31; day++)
+                {
+                    <th scope="col">@day</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @for (int month = 1; month <= 12; month++)
+            {
+                int rowMonth = month;
+                <tr>
+                    <th scope="row">@CalendarReading.MonthName(rowMonth)</th>
+                    @for (int day = 1; day <= 31; day++)
+                    {
+                        int cellDay = day;
+                        if (cellDay > CalendarReading.DaysIn(rowMonth))
+                        {
+                            <td class="qz-calendar-year-none"></td>
+                        }
+                        else
+                        {
+                            MonthDay monthDay = new(rowMonth, cellDay);
+                            int index = IndexOf(monthDay);
+                            bool excluded = Days.Contains(monthDay);
+                            string label = CalendarReading.FormatMonthDay(monthDay);
+                            <td class="@(excluded ? "qz-calendar-year-excluded" : null)">
+                                <input @ref="_cells[index]"
+                                       type="checkbox"
+                                       class="qz-check"
+                                       title="@label"
+                                       aria-label="@label"
+                                       data-month-day="@monthDay.ToString()"
+                                       checked="@excluded"
+                                       disabled="@ReadOnly"
+                                       tabindex="@TabIndexOf(index)"
+                                       @onfocus="() => _active = index"
+                                       @onchange="args => Toggle(monthDay, args)" />
+                            </td>
+                        }
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    /// <summary>Every day of a leap year, in order: what a cell's index is an index into.</summary>
+    private static readonly MonthDay[] YearDays = BuildYearDays();
+
+    private static readonly Dictionary<MonthDay, int> YearDayIndexes = YearDays.Select((day, index) => (day, index)).ToDictionary(x => x.day, x => x.index);
+
+    private readonly ElementReference[] _cells = new ElementReference[YearDays.Length];
+    private ElementReference _table;
+
+    /// <summary>The day that holds the grid's one tab stop: the last one focused, January 1 to start with.</summary>
+    private int _active;
+
+    /// <summary>The days excluded every year. The editor's ticks add to it and take from it.</summary>
+    [Parameter]
+    [EditorRequired]
+    public ISet<MonthDay> Days { get; set; } = new HashSet<MonthDay>();
+
+    /// <summary>Whether the grid only shows the days, which is what Calendar Detail draws.</summary>
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    /// <summary>Raised after a tick has changed <see cref="Days" />.</summary>
+    [Parameter]
+    public EventCallback OnChange { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !ReadOnly)
+        {
+            // The arrow keys move focus here, so they must not scroll the page as well.
+            try
+            {
+                await JS.InvokeVoidAsync("quartzDashboardKeys.holdArrowKeys", _table);
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+
+    private string? TabIndexOf(int index) => ReadOnly ? null : index == _active ? "0" : "-1";
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (ReadOnly)
+        {
+            return;
+        }
+
+        int next = Next(_active, args.Key);
+        if (next == _active)
+        {
+            return;
+        }
+
+        _active = next;
+        await _cells[next].FocusAsync();
+    }
+
+    /// <summary>
+    /// Where a key moves focus from the day at <paramref name="index" />: Left and Right a day through the year,
+    /// Up and Down the same day of the month before or after, short months taking their last day, and Home and End
+    /// the month's first and last. A key that moves nowhere answers <paramref name="index" />.
+    /// </summary>
+    private static int Next(int index, string key)
+    {
+        MonthDay current = YearDays[index];
+        return key switch
+        {
+            "ArrowRight" => Math.Min(index + 1, YearDays.Length - 1),
+            "ArrowLeft" => Math.Max(index - 1, 0),
+            "ArrowDown" when current.Month < 12 => IndexOf(new MonthDay(current.Month + 1, Math.Min(current.Day, CalendarReading.DaysIn(current.Month + 1)))),
+            "ArrowUp" when current.Month > 1 => IndexOf(new MonthDay(current.Month - 1, Math.Min(current.Day, CalendarReading.DaysIn(current.Month - 1)))),
+            "Home" => IndexOf(new MonthDay(current.Month, 1)),
+            "End" => IndexOf(new MonthDay(current.Month, CalendarReading.DaysIn(current.Month))),
+            _ => index,
+        };
+    }
+
+    private static int IndexOf(MonthDay day) => YearDayIndexes[day];
+
+    private static MonthDay[] BuildYearDays()
+    {
+        List<MonthDay> days = [];
+        for (int month = 1; month <= 12; month++)
+        {
+            for (int day = 1; day <= CalendarReading.DaysIn(month); day++)
+            {
+                days.Add(new MonthDay(month, day));
+            }
+        }
+
+        return days.ToArray();
+    }
+
+    private Task Toggle(MonthDay day, ChangeEventArgs args)
+    {
+        if (ReadOnly)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (args.Value is true)
+        {
+            Days.Add(day);
+        }
+        else
+        {
+            Days.Remove(day);
+        }
+
+        return OnChange.InvokeAsync();
+    }
+}

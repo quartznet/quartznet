@@ -617,13 +617,15 @@ public sealed class RAMJobStore : IJobStore
 
             // A continuation may wait for a trigger stored beside it in this same call, whichever order
             // the two come in, so its parent is looked for in the batch as well as in the store — and
-            // all of them before anything is added, so a refused one leaves the store as it was.
-            HashSet<TriggerKey> batch = [];
+            // all of them before anything is added, so a refused one leaves the store as it was. The
+            // walk up its chain reads a key the batch stores from the batch, which replaces what the
+            // store holds under it.
+            Dictionary<TriggerKey, IOperableTrigger> batch = new();
             foreach (var triggersByJob in triggersAndJobs)
             {
                 foreach (IOperableTrigger trigger in triggersByJob.Value)
                 {
-                    batch.Add(trigger.Key);
+                    batch[trigger.Key] = trigger;
                 }
             }
 
@@ -826,26 +828,74 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
-    /// Refuses a trigger whose continuation waits for a trigger this store does not hold.
+    /// Refuses a trigger whose continuation waits for a trigger this store does not hold, or whose chain
+    /// of parents leads back to it.
     /// </summary>
     /// <remarks>
-    /// Such a trigger would wait for a firing that can never happen — a misspelled parent, or a
-    /// one-shot parent that has already fired and been deleted — and a trigger held in
-    /// <see cref="StoredTriggerState.Awaiting" /> with nothing to release it is one nobody notices.
+    /// Either would wait for a firing that can never happen — a misspelled parent, a one-shot parent
+    /// that has already fired and been deleted, or a parent that waits, however far up, for this
+    /// trigger (#4416) — and a trigger held in <see cref="StoredTriggerState.Awaiting" /> with nothing to
+    /// release it is one nobody notices. See <see cref="ContinuationChainWalk" />.
     /// </remarks>
     /// <param name="trigger">The trigger about to be stored.</param>
     /// <param name="alsoStored">
-    /// Keys being stored in the same operation, which count as present; <see langword="null" /> when
-    /// there are none.
+    /// Triggers being stored in the same operation, by key, which count as present and are read in
+    /// place of what the store holds under their keys; <see langword="null" /> when there are none.
     /// </param>
-    private void EnsureContinuationParentExistsNoLock(IOperableTrigger trigger, HashSet<TriggerKey>? alsoStored)
+    /// <param name="replaced">
+    /// A stored trigger the operation removes, which counts as absent; <see langword="null" /> when there
+    /// is none.
+    /// </param>
+    private void EnsureContinuationParentExistsNoLock(
+        IOperableTrigger trigger,
+        Dictionary<TriggerKey, IOperableTrigger>? alsoStored,
+        TriggerKey? replaced = null)
     {
-        if (trigger.Continuation.Parent is { } parent
-            && !triggersByKey.ContainsKey(parent)
-            && alsoStored?.Contains(parent) != true)
+        if (trigger.Continuation.Parent is not { } parent)
+        {
+            return;
+        }
+
+        ContinuationChainWalk walk = new(trigger.Key, parent);
+        ContinuationLink link = ContinuationLinkNoLock(parent, alsoStored, replaced);
+        if (!link.Held)
         {
             Throw.ObjectDoesNotExistException(trigger, parent);
         }
+
+        while (link.WaitsFor is { } next && walk.Advance(next))
+        {
+            link = ContinuationLinkNoLock(next, alsoStored, replaced);
+        }
+    }
+
+    /// <summary>
+    /// The trigger under <paramref name="key" /> as the store will hold it once the operation is done,
+    /// and what it waits for.
+    /// </summary>
+    /// <remarks>
+    /// Only a trigger in <see cref="StoredTriggerState.Awaiting" /> waits. A released one has forgotten
+    /// its parent, and one parked in <see cref="StoredTriggerState.Error" /> because its parent was
+    /// deleted still names it but is run, not put back to wait, when it is reset.
+    /// </remarks>
+    private ContinuationLink ContinuationLinkNoLock(
+        TriggerKey key,
+        Dictionary<TriggerKey, IOperableTrigger>? alsoStored,
+        TriggerKey? replaced)
+    {
+        if (alsoStored is not null && alsoStored.TryGetValue(key, out IOperableTrigger? stored))
+        {
+            return new ContinuationLink(Held: true, stored.Continuation.Parent);
+        }
+
+        if (key.Equals(replaced) || !triggersByKey.TryGetValue(key, out TriggerWrapper? tw))
+        {
+            return ContinuationLink.NotHeld;
+        }
+
+        return new ContinuationLink(
+            Held: true,
+            tw.state == StoredTriggerState.Awaiting ? tw.Trigger.Continuation.Parent : null);
     }
 
     /// <summary>
@@ -921,9 +971,10 @@ public sealed class RAMJobStore : IJobStore
     // keeps them, whether in place or through ReplaceTrigger, matching the ADO store, where a replacement
     // leaves the trigger's fired-trigger rows alone and only a removal deletes them (#3759).
     //
-    // keepDependants: whether the triggers awaiting this one survive. A replacement keeps them for the
-    // same reason — the trigger still exists and will still fire — while a removal means the firing they
-    // are waiting for is never going to happen, so they are settled here instead.
+    // keepDependants: whether the triggers awaiting this one survive. A replacement under the same key
+    // keeps them for the same reason — the trigger still exists and will still fire — while a removal, or
+    // a replacement under another key, means the firing they are waiting for is never going to happen, so
+    // they are settled here instead.
     //
     // There is no default for either: every caller says which.
     private bool RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, bool keepExecutions, bool keepDependants, ref PendingSignals pending)
@@ -1197,7 +1248,8 @@ public sealed class RAMJobStore : IJobStore
     /// because a group is keeps the record of its pause. A declared trigger re-applied at a start is the
     /// exception: it keeps an individual pause (#4128), it replaces nothing when the trigger has fired since
     /// the read it was worked out from, and it leaves a trigger it describes exactly as it is, an
-    /// acquisition included (#4324).
+    /// acquisition included (#4324). A replacement under another key settles the continuations that waited
+    /// for the old key as a deletion of it would.
     /// </remarks>
     /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
     /// <param name="trigger">The new trigger.</param>
@@ -1220,10 +1272,20 @@ public sealed class RAMJobStore : IJobStore
                     Throw.JobPersistenceException("New trigger is not related to the same job as the old trigger.");
                 }
 
+                // Likewise a replacement under another key that is taken: refused here rather than by the add
+                // below, because a change of key settles what waited for the old one as the old trigger is
+                // removed, and putting the old trigger back would not undo that.
+                bool keepsKey = trigger.Key.Equals(triggerKey);
+                if (!keepsKey && triggersByKey.ContainsKey(trigger.Key))
+                {
+                    Throw.ObjectAlreadyExistsException(trigger);
+                }
+
                 // Likewise a replacement that would wait for a trigger the store does not hold — a
-                // rescheduled continuation whose parent has gone, parked or not. Put back after a
-                // refusal below, the old trigger would come back awaiting rather than as it was.
-                EnsureContinuationParentExistsNoLock(trigger, alsoStored: null);
+                // rescheduled continuation whose parent has gone, parked or not, or the trigger it
+                // replaces — or for itself through its chain of parents. Put back after a refusal
+                // below, the old trigger would come back awaiting rather than as it was.
+                EnsureContinuationParentExistsNoLock(trigger, alsoStored: null, replaced: triggerKey);
 
                 // A declared trigger re-applied at a start was worked out from a read of this trigger made
                 // outside the lock. Fired since, it is left as the firing left it, and the processor reads it
@@ -1252,13 +1314,18 @@ public sealed class RAMJobStore : IJobStore
                 // running under it, as in the ADO store where a replacement leaves the fired-trigger rows
                 // for the execution's completion, or for recovery, to settle (#3759). Removing through the
                 // shared path means everything else kept per trigger is cleaned up here too.
-                RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: true, keepDependants: true, ref pending);
+                //
+                // The triggers waiting for it keep waiting when the replacement keeps its key, which still
+                // has a trigger to fire. Under a new key nothing holds the old one, so they are settled as a
+                // deleted trigger's are: released when they wait on any outcome, parked in error otherwise.
+                // The ADO store leaves them to its stranded sweep, which settles them the same way at its
+                // next misfire pass; this store has no sweep, and left them waiting for ever.
+                RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: true, keepDependants: keepsKey, ref pending);
 
                 try
                 {
-                    // Checked again now the old trigger has gone, which is what refuses a trigger
-                    // replaced by one that waits for itself.
-                    AddTriggerNoLock(trigger, replace: false, checkContinuationParent: true, ref pending, keepPause, keptPause);
+                    // The parent and the chain were checked above, with the old trigger counted as gone.
+                    AddTriggerNoLock(trigger, replace: false, checkContinuationParent: false, ref pending, keepPause, keptPause);
                 }
                 catch (JobPersistenceException)
                 {

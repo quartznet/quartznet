@@ -145,12 +145,12 @@ internal static class HttpClientExtensions
             // Could probably add separate flag for this in problem details...
             if (problemDetails.Detail.Contains("Unknown scheduler", StringComparison.OrdinalIgnoreCase))
             {
-                throw new HttpClientException($"Scheduler not found. {nameof(HttpScheduler)} might have been configured with wrong scheduler name.");
+                throw new HttpClientException($"Scheduler not found. {nameof(HttpScheduler)} might have been configured with wrong scheduler name.", StatusOf(response, problemDetails.Detail));
             }
 
             if (throwOnNotFound)
             {
-                throw new HttpClientException($"Received response with not found status code: {problemDetails.Detail}");
+                throw new HttpClientException($"Received response with not found status code: {problemDetails.Detail}", StatusOf(response, problemDetails.Detail));
             }
 
             return false;
@@ -180,11 +180,27 @@ internal static class HttpClientExtensions
                 nameof(NoSuchDelegateException) => new NoSuchDelegateException(problemDetails.Detail),
                 nameof(ObjectAlreadyExistsException) => new ObjectAlreadyExistsException(problemDetails.Detail),
                 nameof(ObjectDoesNotExistException) => new ObjectDoesNotExistException(problemDetails.Detail),
-                _ => new HttpClientException($"Received response with bad request status code: {problemDetails.Detail}")
+                _ => new HttpClientException($"Received response with bad request status code: {problemDetails.Detail}", StatusOf(response, problemDetails.Detail))
             };
         }
 
-        throw new HttpClientException($"Received response with status code {response.Status}, error details: {problemDetails.Detail}");
+        throw new HttpClientException($"Received response with status code {response.Status}, error details: {problemDetails.Detail}", StatusOf(response, problemDetails.Detail));
+    }
+
+    /// <summary>
+    /// The status and the server's own detail, as the inner exception of an <see cref="HttpClientException" />
+    /// raised for a status.
+    /// </summary>
+    /// <remarks>
+    /// The BCL's type, because what reads it is a carrier that relays this client's answers — the HTTP API
+    /// serving <c>?target=</c> — and does not reference this package: it tells a target that refused the
+    /// caller (<c>403</c>) from one that refused the host's credential (<c>401</c>) or failed (<c>5xx</c>) by
+    /// <see cref="HttpRequestException.StatusCode" />, and repeats a refusal's detail without this client's
+    /// wording around it. The outer message is unchanged.
+    /// </remarks>
+    private static HttpRequestException StatusOf(WireResponse response, string detail)
+    {
+        return new HttpRequestException(detail, inner: null, response.Status);
     }
 
     /// <summary>

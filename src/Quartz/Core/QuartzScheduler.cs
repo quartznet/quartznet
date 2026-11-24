@@ -23,6 +23,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Quartz.Configuration;
 using Quartz.Diagnostics;
 using Quartz.Impl.Triggers;
 using Quartz.Impl;
@@ -369,6 +370,19 @@ internal sealed class QuartzScheduler
             {
                 await resources.JobStore.SchedulerStarted(cancellationToken).ConfigureAwait(false);
                 await StartPlugins(cancellationToken).ConfigureAwait(false);
+
+                // After the plugins, whose scheduling files are declarations too, and before the loop is
+                // unpaused below, so this node never fires what the prune deletes (#4415). The record is
+                // closed either way: what it holds from here on is what this start declared (#4412).
+                if (resources.DeclaredContent is { Prunes: true } declared)
+                {
+                    UndeclaredContentPruner pruner = new(Scheduler, declared, resources.LoggerFactory.CreateLogger<UndeclaredContentPruner>());
+                    await pruner.Prune(cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    resources.DeclaredContent?.Close();
+                }
             }
             catch (SchedulerStartRefusedException)
             {
@@ -392,7 +406,11 @@ internal sealed class QuartzScheduler
 
         status = SchedulerStatus.Running;
 
-        logger.SchedulerStarted(resources.GetUniqueIdentifier());
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.SchedulerStarted(resources.GetUniqueIdentifier());
+        }
+
         WarnIfSubscribedToTheLegacyDiagnosticListener();
 
         await NotifySchedulerListenersStarted(cancellationToken).ConfigureAwait(false);
@@ -504,7 +522,11 @@ internal sealed class QuartzScheduler
     {
         await resources.JobStore.SchedulerPaused(cancellationToken).ConfigureAwait(false);
         schedThread.TogglePause(pause: true);
-        logger.SchedulerPaused(resources.GetUniqueIdentifier());
+
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.SchedulerPaused(resources.GetUniqueIdentifier());
+        }
     }
 
     /// <summary>
@@ -709,7 +731,10 @@ internal sealed class QuartzScheduler
 
         try
         {
-            logger.SchedulerShuttingDown(resources.GetUniqueIdentifier());
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.SchedulerShuttingDown(resources.GetUniqueIdentifier());
+            }
 
             // Firing stops here, but the scheduler does not pass through standby on its way down and no
             // listener is told that it did: a scheduler being torn down is not one waiting to be started
@@ -805,6 +830,10 @@ internal sealed class QuartzScheduler
                 await resources.ThreadPool.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
             }
 
+            // A firing that completed inside the window above has answered its waits. Past it the plugins, the
+            // history and the job store close, so nothing could answer the rest (#4414).
+            FiringWatches.ShutDown();
+
             // Same reasoning as the pool shutdown above: in hosted shutdown the caller's token is
             // the graceful-deadline token, which by design may already have fired while waiting for
             // jobs. A plugin, job store or listener that honoured it would abort the remaining
@@ -828,11 +857,19 @@ internal sealed class QuartzScheduler
             // this earlier, so the SchedulerShutdown listener still reads Shutdown.
             status = SchedulerStatus.Shutdown;
 
+            // And whatever happened above, no wait for a firing outlives it: a shutdown that threw before its
+            // window was over would otherwise leave one with no timeout waiting for ever. A second call
+            // finds nothing left to fail.
+            FiringWatches.ShutDown();
+
             resources.SchedulerRepository.Remove(resources.Name, resources.InstanceId);
             holdToPreventGc.Clear();
         }
 
-        logger.SchedulerShutdownComplete(resources.GetUniqueIdentifier());
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.SchedulerShutdownComplete(resources.GetUniqueIdentifier());
+        }
     }
 
     /// <summary>
@@ -2731,6 +2768,43 @@ internal sealed class QuartzScheduler
     public IListenerManager ListenerManager => listenerManager;
 
     /// <summary>
+    /// The waits for firings this scheduler's own completions answer (#4414).
+    /// </summary>
+    internal FiringWatches FiringWatches { get; } = new();
+
+    /// <summary>
+    /// Starts a wait for the next final completion of <paramref name="triggerKey" />.
+    /// </summary>
+    /// <param name="triggerKey">The trigger whose firing to wait for.</param>
+    /// <param name="facade">The scheduler the wait reads the trigger's state through.</param>
+    /// <exception cref="SchedulerException">The scheduler has been shut down.</exception>
+    /// <exception cref="NotSupportedException">
+    /// The scheduler is clustered and its recorder writes no history the other nodes share.
+    /// </exception>
+    internal FiringWatch Watch(TriggerKey triggerKey, IScheduler facade)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        ValidateState();
+
+        IExecutionHistoryStore? history = resources.ExecutionHistory?.Invoke();
+        bool clustered = Clustered;
+
+        // A wait that works only when this node happens to run the firing is worse than none: another node's
+        // completion reaches no signal here, so it is read from the history every node writes.
+        if (clustered && history is null or Impl.InMemoryExecutionHistoryStore)
+        {
+            throw new NotSupportedException(
+                $"The scheduler '{SchedulerName}' is clustered, so the firing may run on another node, and its execution history "
+                + "is not one the other nodes write: a wait could not hear how such a firing ended. Call "
+                + "UsePersistentStore(store => store.UseExecutionHistory()) on every node, and run "
+                + "database/migrations/4.2/add_execution_history_<dialect>.sql.");
+        }
+
+        FiringSignal signal = FiringWatches.Watch(triggerKey);
+        return new FiringWatch(triggerKey, facade, SchedulerName, history, pollsHistory: clustered, signal);
+    }
+
+    /// <summary>
     /// Notifies the job store that a vetoed firing is over.
     /// </summary>
     /// <remarks>
@@ -3722,6 +3796,48 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// The entries a firing running on this node has logged after the reader's cursor (#4437).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Looked up as <see cref="InterruptFireInstance" /> looks a firing up, by its fire instance id, and read
+    /// from the capture buffer beside its context, which exists only in this process. A firing this node does
+    /// not run is <see cref="Impl.FireInstanceLogState.NotRunning" /> under this node's id, whatever node the
+    /// request names: the caller tells a firing that ended from one that runs elsewhere by the node that
+    /// answered.
+    /// </para>
+    /// <para>
+    /// A scheduler that does not capture answers <see cref="Impl.FireInstanceLogState.NotCaptured" />, said from
+    /// its middleware rather than from the firing: one that has not reached the capture middleware yet has no
+    /// buffer either, and is <see cref="Impl.FireInstanceLogState.Running" /> with nothing logged.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">The request's cursor or page size is out of range.</exception>
+    internal Impl.FireInstanceLog ReadFireInstanceLog(Impl.FireInstanceLogRequest request)
+    {
+        Impl.FireInstanceLogs.Check(request);
+
+        if (!jobMgr.TryGetExecutingJob(request.FireInstanceId, out IJobExecutionContext? context))
+        {
+            return Impl.FireInstanceLogs.NotRunning(SchedulerInstanceId, request.After);
+        }
+
+        if (!resources.CapturesExecutionLog)
+        {
+            return new Impl.FireInstanceLog(Impl.FireInstanceLogState.NotCaptured, SchedulerInstanceId, [], request.After, Missed: 0, HasMore: false);
+        }
+
+        Diagnostics.ExecutionLogBuffer? buffer = Diagnostics.ExecutionLogCapture.Find(context);
+        if (buffer is null)
+        {
+            return new Impl.FireInstanceLog(Impl.FireInstanceLogState.Running, SchedulerInstanceId, [], request.After, Missed: 0, HasMore: false);
+        }
+
+        Diagnostics.ExecutionLogPage page = buffer.Read(request.After, request.Take, Impl.FireInstanceLogs.MaxAnswerBytes);
+        return new Impl.FireInstanceLog(Impl.FireInstanceLogState.Running, SchedulerInstanceId, page.Entries, page.Next, page.Missed, page.HasMore);
+    }
+
+    /// <summary>
     /// Whether a read of this node's interrupt requests is queued or running, so that a check-in arriving
     /// while one is slow does not start a second beside it.
     /// </summary>
@@ -3781,10 +3897,20 @@ internal sealed class QuartzScheduler
     /// check-in. A firing whose token is already cancelled has been interrupted, by this or anything else,
     /// and is passed over, so it is interrupted and announced once. A request for a firing this node is not
     /// running yet — its fire committed, its job not started — is acted on by a later read.
+    /// <para>
+    /// A node running no firing does not read: every request it could answer names a firing it runs, so the
+    /// read could deliver nothing (#4410). A firing that starts after this check is read for at the next
+    /// check-in, as one that has not started yet is.
+    /// </para>
     /// </remarks>
     /// <returns>How many firings were interrupted.</returns>
     internal async ValueTask<int> DeliverInterruptRequests(CancellationToken cancellationToken = default)
     {
+        if (jobMgr.NumJobsCurrentlyExecuting == 0)
+        {
+            return 0;
+        }
+
         List<string> requested = await resources.JobStore.GetInterruptRequests(cancellationToken).ConfigureAwait(false);
 
         int delivered = 0;

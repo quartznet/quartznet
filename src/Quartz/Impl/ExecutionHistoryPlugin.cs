@@ -23,10 +23,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-using Quartz.Core;
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
-using Quartz.Util;
 
 namespace Quartz.Impl;
 
@@ -78,11 +76,20 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
     /// during that shutdown still has its row written. With the history switched off, as
     /// <see cref="ExecutionHistoryOptions.MaxEntriesPerScheduler" /> of <c>0</c> does, no store is built
     /// until it is switched on.
+    /// <para>
+    /// Hands the scheduler the store it records into, so a wait for a firing reads exactly the history this
+    /// writes, the opt-out included (#4414).
+    /// </para>
     /// </remarks>
     public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         Name = pluginName;
         _ = Store();
+        if (scheduler is StdScheduler std)
+        {
+            std.scheduler.resources.ExecutionHistory = Store;
+        }
+
         scheduler.ListenerManager.AddJobListener(this, Matchers.AllJobs());
         scheduler.ListenerManager.AddTriggerListener(this, Matchers.AllTriggers());
         return default;
@@ -133,17 +140,13 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
                 return default;
             }
 
-            MisfireHistoryEntry entry = new(
-                SchedulerName: context.Scheduler.SchedulerName,
-                SchedulerInstanceId: context.Scheduler.SchedulerInstanceId,
-                TriggerGroup: context.Trigger.Key.Group,
-                TriggerName: context.Trigger.Key.Name,
-                JobKey: context.JobDetail.Key,
-                MisfiredAtUtc: timeProvider.GetUtcNow(),
-                ScheduledFireTimeUtc: context.ScheduledFireTimeUtc)
+            MisfireHistoryEntry entry = ExecutionHistoryEntries.Vetoed(context, timeProvider.GetUtcNow());
+
+            // The row a wait for this firing answers with, so it is the one the history holds.
+            if (context is JobExecutionContextImpl firing)
             {
-                Reason = MisfireReason.Vetoed
-            };
+                firing.RecordedMisfire = entry;
+            }
 
             return store.AddMisfire(entry, cancellationToken);
         }
@@ -155,12 +158,15 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
 
     /// <inheritdoc />
     /// <remarks>
-    /// The row's <see cref="ExecutionHistoryEntry.Result" /> is decided by
-    /// <see cref="JobRunClassifier.Classify" />, and its summary and metrics come from the job's
-    /// <see cref="IJobRunReport" />, if it set one. Its exception message is what the job threw, read
-    /// by <see cref="JobFailure.MessageOf" />: the run shell's wrapper says the same of every failure, and
-    /// the job's status repeats the row's message. Its input is recorded only with
+    /// The row is built by <see cref="ExecutionHistoryEntries.Execution" />, named here by the one recorder, so
+    /// it has the same key in whichever store it lands and a reader can ask for it alone. The job's status
+    /// repeats the row's message. Its input is recorded only with
     /// <see cref="ExecutionHistoryOptions.RecordInput" />; see <see cref="RecordedInput" />.
+    /// <para>
+    /// A store that keeps trigger statuses is told whether the firing finalized its trigger, by the test the
+    /// scheduler reports <see cref="ISchedulerListener.TriggerFinalized" /> by. The trigger has completed by now,
+    /// so a retry has set its next fire time and a one-off's last attempt has none.
+    /// </para>
     /// </remarks>
     public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
     {
@@ -173,46 +179,25 @@ internal sealed class ExecutionHistoryPlugin : ISchedulerPlugin, IJobListener, I
                 return default;
             }
 
-            JobRunClassification run = JobRunClassifier.Classify(context, jobException);
             (string? input, bool inputTooLarge) = RecordedInput(context, bounds);
 
-            ExecutionHistoryEntry entry = new(
-                SchedulerName: context.Scheduler.SchedulerName,
-                SchedulerInstanceId: context.Scheduler.SchedulerInstanceId,
-                JobGroup: context.JobDetail.Key.Group,
-                JobName: context.JobDetail.Key.Name,
-                TriggerGroup: context.Trigger.Key.Group,
-                TriggerName: context.Trigger.Key.Name,
-                FiredAtUtc: context.FireTimeUtc,
-                Duration: context.JobRunTime,
-                Succeeded: JobRunClassifier.IsSuccess(run.Result),
-                ExceptionMessage: jobException is null ? null : JobFailure.MessageOf(jobException))
+            ExecutionHistoryEntry entry = ExecutionHistoryEntries.Execution(
+                context,
+                jobException,
+                Logger,
+                NewEntryId(),
+                input,
+                inputTooLarge);
+
+            // The row a wait for this firing answers with, so its EntryId is the one GetExecution reads.
+            if (context is JobExecutionContextImpl firing)
             {
-                Result = run.Result,
-                Summary = TextCut.ToFit(run.Summary, JobRunReport.MaxSummaryLength),
-                MetricsJson = ExecutionMetricsWriter.Write(run.Metrics, Logger, context.JobDetail.Key),
-                Manual = ManualFiring.IsMarked(context.Trigger),
-                FireInstanceId = context.FireInstanceId,
+                firing.RecordedExecution = entry;
+            }
 
-                // Both are the scheduler's own reading of the firing that has just ended, published on
-                // the context before this notification went out. Together they are what lets a reader
-                // tell one attempt of an occurrence from its last one.
-                RetryAttempt = context.RetryAttempt,
-                RetryScheduled = context.RetryScheduled,
-
-                // Named here, by the one recorder, so the row has the same key in whichever store it
-                // lands and a reader can ask for it alone.
-                EntryId = NewEntryId(),
-
-                // What the job logged, when this scheduler captures: taken now, once the job has
-                // returned, so a line logged after this notification is not the row's.
-                Log = ExecutionLogCapture.Find(context)?.ToText(),
-
-                Input = input,
-                InputTooLarge = inputTooLarge
-            };
-
-            return store.AddExecution(entry, cancellationToken);
+            return store is ITriggerStatusHistoryStore triggerStatuses
+                ? triggerStatuses.AddExecution(entry, triggerFinalized: !context.Trigger.MayFireAgain, cancellationToken)
+                : store.AddExecution(entry, cancellationToken);
         }
         catch (ObjectDisposedException)
         {

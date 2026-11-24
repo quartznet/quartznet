@@ -59,6 +59,7 @@ public sealed class StoreAttachedWindowEndpointsTest
 
     private SqliteTestDatabase database = null!;
     private WebApplicationFactory<Program>? factory;
+    private WebApplicationFactory<Program>? root;
 
     [SetUp]
     public void CreateEmptyDatabase()
@@ -73,6 +74,12 @@ public sealed class StoreAttachedWindowEndpointsTest
         {
             await factory.DisposeAsync();
             factory = null;
+        }
+
+        if (root is not null)
+        {
+            await root.DisposeAsync();
+            root = null;
         }
 
         database.Dispose();
@@ -180,6 +187,75 @@ public sealed class StoreAttachedWindowEndpointsTest
                 "the refusal is the dashboard's, word for word, because it is decided by the same rule");
     }
 
+    /// <summary>
+    /// The window through its target (#4218): <c>?target=prod</c> serves everything the store is — reads,
+    /// and changes every node is bound by — and refuses what belongs to one process, as the bare name does.
+    /// </summary>
+    [Test]
+    public async Task AWindowThroughItsTargetServesTheStoreAndRefusesWhatBelongsToOneProcess()
+    {
+        await using ServiceProvider node = await Node();
+        await using AttachedStore store = await AttachedApplication();
+        using HttpClient client = factory!.CreateClient();
+
+        using HttpResponseMessage details = await client.GetAsync($"schedulers/{Window}?target=prod");
+        details.StatusCode.Should().Be(HttpStatusCode.OK, await details.Content.ReadAsStringAsync());
+        details.Headers.GetValues(HttpApiConstants.TargetHeader).Should().Equal(["prod"]);
+
+        using HttpResponseMessage jobs = await client.GetAsync($"schedulers/{Window}/jobs?target=prod");
+        (await jobs.Content.ReadAsStringAsync()).Should().Contain("nightly", "a window reads the shared tables");
+
+        using HttpResponseMessage paused = await client.PostAsync($"schedulers/{Window}/triggers/nightly/at-midnight/pause?target=prod", content: null);
+        paused.StatusCode.Should().Be(HttpStatusCode.OK, await paused.Content.ReadAsStringAsync());
+        (await Scalar("SELECT TRIGGER_STATE FROM QRTZ_TRIGGERS WHERE TRIGGER_NAME = 'at-midnight'")).Should().Be("PAUSED",
+            "a pause is a write to the shared tables, which whichever node picks the trigger up honours");
+
+        using HttpResponseMessage start = await client.PostAsync($"schedulers/{Window}/start?target=prod", content: null);
+        using HttpResponseMessage standby = await client.PostAsync($"schedulers/{Window}/standby?target=prod", content: null);
+        using HttpResponseMessage shutdown = await client.PostAsync($"schedulers/{Window}/shutdown?target=prod", content: null);
+        await ShouldBeRefused(start, "start", "the target names the same window the bare name does");
+        await ShouldBeRefused(standby, "stand");
+        await ShouldBeRefused(shutdown, "shut");
+
+        using HttpResponseMessage history = await client.GetAsync($"schedulers/{Window}/history/executions?target=prod");
+        history.StatusCode.Should().Be(HttpStatusCode.BadRequest, "the store was attached without UseExecutionHistory");
+        (await history.Content.ReadAsStringAsync()).Should().Contain("keeps no execution history");
+
+        using HttpResponseMessage events = await client.GetAsync($"schedulers/{Window}/events?target=prod");
+        events.StatusCode.Should().Be(HttpStatusCode.NotImplemented,
+            "a database carries a schedule rather than a feed of what happened to it, and this process's broker is not the window's");
+        (await events.Content.ReadAsStringAsync()).Should().Contain("no event stream");
+    }
+
+    /// <summary>
+    /// A running firing's log is read where the firing runs, and a window runs nothing (#4437): the route answers
+    /// <c>Unreachable</c> by the bare name and through the target, asking the window nothing. Asked, it would say it
+    /// runs no such firing under its own id, which a reader would take for another node.
+    /// </summary>
+    [Test]
+    public async Task ARunningFiringsLogThroughAWindowIsUnreachable()
+    {
+        await using ServiceProvider node = await Node();
+        await using AttachedStore store = await AttachedApplication();
+        using HttpClient client = factory!.CreateClient();
+
+        foreach (string query in (string[]) ["?after=4", "?after=4&target=prod"])
+        {
+            using HttpResponseMessage response = await client.GetAsync($"schedulers/{Window}/jobs/fire-instances/running-elsewhere/log{query}");
+            string body = await response.Content.ReadAsStringAsync();
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK, body);
+            using JsonDocument answer = JsonDocument.Parse(body);
+            answer.RootElement.GetProperty("status").GetString().Should().Be("Unreachable", query);
+            answer.RootElement.GetProperty("schedulerInstanceId").ValueKind.Should().Be(JsonValueKind.Null,
+                "the window is no node, and names none");
+            answer.RootElement.GetProperty("next").GetInt64().Should().Be(4, "the reader's cursor comes back as it went");
+        }
+
+        using HttpResponseMessage refused = await client.GetAsync($"schedulers/{Window}/jobs/fire-instances/running-elsewhere/log?take=0");
+        refused.StatusCode.Should().Be(HttpStatusCode.BadRequest, "a window refuses what any carrier refuses");
+    }
+
     [Test]
     public async Task ASchedulerOfThisProcessIsStillStarted()
     {
@@ -224,6 +300,33 @@ public sealed class StoreAttachedWindowEndpointsTest
     }
 
     /// <summary>
+    /// A window is registered under its bare name, so a request naming it without <c>?target=</c> reaches the scheduler
+    /// behind its store's target. Both policies are asked about that target: a policy that refuses <c>prod</c> refuses the
+    /// bare name as it refuses <c>?target=prod</c>, a read and a change alike (#4245 review).
+    /// </summary>
+    [Test]
+    public async Task ABareWindowNameIsAskedAboutWithItsStoresTarget()
+    {
+        await using ServiceProvider node = await Node();
+        await using AttachedStore store = await AttachedApplication(services =>
+        {
+            services.AddAuthorizationBuilder().AddPolicy("NotProd", policy => policy.RequireAssertion(static context =>
+                context.Resource is not SchedulerResource { Target: "prod" }));
+            services.AddQuartzHttpApi(options => options.SchedulerAuthorizationPolicy = "NotProd");
+        });
+        using HttpClient client = factory!.CreateClient();
+
+        using HttpResponseMessage targeted = await client.GetAsync($"schedulers/{Window}/jobs?target=prod");
+        using HttpResponseMessage bareRead = await client.GetAsync($"schedulers/{Window}/jobs");
+        using HttpResponseMessage bareChange = await client.PostAsync($"schedulers/{Window}/triggers/nightly/at-midnight/pause", content: null);
+
+        targeted.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        bareRead.StatusCode.Should().Be(HttpStatusCode.Forbidden, "the bare name reaches prod's scheduler, so the policy is asked about prod");
+        bareChange.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await Scalar("SELECT TRIGGER_STATE FROM QRTZ_TRIGGERS WHERE TRIGGER_NAME = 'at-midnight'")).Should().Be("WAITING", "a refused change reaches no store");
+    }
+
+    /// <summary>
     /// A scheduler of another process, which leaves its job and its trigger in the shared database.
     /// </summary>
     private async ValueTask<ServiceProvider> Node()
@@ -261,10 +364,15 @@ public sealed class StoreAttachedWindowEndpointsTest
     /// The store is attached by hand rather than through <c>AddQuartzDashboard</c>: the dashboard is only
     /// one way a window comes to be in a repository, and the routes under test must not depend on it.
     /// </remarks>
-    private async ValueTask<AttachedStore> AttachedApplication()
+    private async ValueTask<AttachedStore> AttachedApplication(Action<IServiceCollection>? configure = null)
     {
         TestContentRoot.Apply();
         factory = new WebApplicationFactory<Program>();
+        if (configure is not null)
+        {
+            root = factory;
+            factory = root.WithWebHostBuilder(builder => builder.ConfigureServices(configure));
+        }
 
         AttachedStore store = new(
             "prod",

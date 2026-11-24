@@ -266,6 +266,30 @@ internal sealed record FireInstanceDto(
 }
 
 /// <summary>
+/// One read of a running firing's log on the wire: <see cref="FireInstanceLog" />, the state travelling as its name
+/// (#4437).
+/// </summary>
+internal sealed record FireInstanceLogResponse(
+    FireInstanceLogState Status,
+    string? SchedulerInstanceId,
+    string[] Entries,
+    long Next,
+    long Missed,
+    bool HasMore)
+{
+    public static FireInstanceLogResponse Create(FireInstanceLog log)
+    {
+        ArgumentNullException.ThrowIfNull(log);
+        return new FireInstanceLogResponse(log.State, log.SchedulerInstanceId, log.Entries, log.Next, log.Missed, log.HasMore);
+    }
+
+    public FireInstanceLog AsLog()
+    {
+        return new FireInstanceLog(Status, SchedulerInstanceId, Entries ?? [], Next, Missed, HasMore);
+    }
+}
+
+/// <summary>
 /// One scheduler node on the wire.
 /// </summary>
 /// <remarks>
@@ -280,6 +304,12 @@ internal sealed record ClusterNodeDto(
     ClusterNodeState State,
     bool IsCurrentNode)
 {
+    /// <summary>
+    /// <see cref="ClusterNode.QuartzVersion" />. Absent from a host older than 4.9, which a reader cannot tell
+    /// from a row no node stamped.
+    /// </summary>
+    public string? QuartzVersion { get; init; }
+
     public static ClusterNodeDto Create(ClusterNode node)
     {
         ArgumentNullException.ThrowIfNull(node);
@@ -290,7 +320,10 @@ internal sealed record ClusterNodeDto(
             CheckInInterval: node.CheckInInterval,
             State: node.State,
             IsCurrentNode: node.IsCurrentNode
-        );
+        )
+        {
+            QuartzVersion = node.QuartzVersion
+        };
     }
 
     public ClusterNode AsClusterNode()
@@ -301,7 +334,10 @@ internal sealed record ClusterNodeDto(
             CheckInInterval,
             State,
             IsCurrentNode
-        );
+        )
+        {
+            QuartzVersion = QuartzVersion
+        };
     }
 }
 
@@ -327,4 +363,83 @@ internal sealed record TriggerGroupDto(string Name, bool Paused)
     }
 
     public TriggerGroup AsTriggerGroup() => new(Name, Paused);
+}
+
+/// <summary>
+/// Every fire of every trigger in a window, earliest first, and where the list stops early: the
+/// <c>…/triggers/upcoming-fires</c> answer.
+/// </summary>
+/// <remarks>
+/// <see cref="Cut" /> is said beside <see cref="CutAtUtc" /> so that a reader need not know what a missing time
+/// means. Named apart from the dashboard's public <c>UpcomingFiresDto</c>, which the client maps this to.
+/// </remarks>
+internal sealed record UpcomingFiresResponse(
+    DateTimeOffset FromUtc,
+    DateTimeOffset ToUtc,
+    UpcomingFireEntry[] Fires,
+    bool Cut,
+    DateTimeOffset? CutAtUtc,
+    int TriggersNotComputed)
+{
+    public static UpcomingFiresResponse Create(UpcomingFiresResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        return new UpcomingFiresResponse(
+            result.FromUtc,
+            result.ToUtc,
+            result.Fires.Select(UpcomingFireEntry.Create).ToArray(),
+            result.CutAtUtc is not null,
+            result.CutAtUtc,
+            result.TriggersNotComputed);
+    }
+
+    public UpcomingFiresResult AsResult()
+    {
+        return new UpcomingFiresResult(
+            FromUtc,
+            ToUtc,
+            (Fires ?? []).Select(x => x.AsUpcomingFire()).ToList(),
+            Cut ? CutAtUtc ?? FromUtc : null,
+            TriggersNotComputed);
+    }
+}
+
+/// <summary>
+/// One fire in an <see cref="UpcomingFiresResponse" />, with what a listing shows of its trigger.
+/// </summary>
+internal sealed record UpcomingFireEntry(
+    DateTimeOffset FireTimeUtc,
+    KeyDto Trigger,
+    KeyDto Job,
+    TriggerState State,
+    string? ExecutionGroup,
+    string? ScheduleDescription,
+    bool OnlyTheNext)
+{
+    public static UpcomingFireEntry Create(UpcomingFire fire)
+    {
+        ArgumentNullException.ThrowIfNull(fire);
+
+        return new UpcomingFireEntry(
+            fire.FireTimeUtc,
+            KeyDto.Create(fire.TriggerKey),
+            KeyDto.Create(fire.JobKey),
+            fire.State,
+            fire.ExecutionGroup,
+            fire.ScheduleDescription,
+            fire.OnlyTheNext);
+    }
+
+    public UpcomingFire AsUpcomingFire()
+    {
+        return new UpcomingFire(
+            FireTimeUtc,
+            Trigger.AsTriggerKey(),
+            Job.AsJobKey(),
+            State,
+            ExecutionGroup,
+            ScheduleDescription,
+            OnlyTheNext);
+    }
 }

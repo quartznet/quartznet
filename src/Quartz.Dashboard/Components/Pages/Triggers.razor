@@ -103,7 +103,7 @@
             <span class="qz-bulk-count">@_selected.Count selected</span>
             @if (Can(Routes.PauseTriggerKeys))
             {
-                <button type="button" class="qz-button qz-bulk-pause" @onclick="PromptPauseSelection">Pause selected</button>
+                <button type="button" class="qz-button qz-bulk-pause" @ref="_bulkPauseButton" @onclick="PromptPauseSelection">Pause selected</button>
             }
             @if (Can(Routes.ResumeTriggerKeys))
             {
@@ -111,7 +111,7 @@
             }
             @if (Can(Routes.UnscheduleJobs))
             {
-                <button type="button" class="qz-button qz-button-danger qz-bulk-unschedule" @onclick="PromptUnscheduleSelection">Unschedule selected</button>
+                <button type="button" class="qz-button qz-button-danger qz-bulk-unschedule" @ref="_bulkUnscheduleButton" @onclick="PromptUnscheduleSelection">Unschedule selected</button>
             }
             <button type="button" class="qz-button qz-bulk-clear" @onclick="ClearSelection">Clear selection</button>
         </div>
@@ -136,6 +136,9 @@
         </div>
     }
 
+    @* Where focus goes when the control that had it is gone: Clear selection and a bulk action take the bar away,
+       the result's Dismiss removes itself, and focus must not fall to the page's body. *@
+    <section class="qz-focus-region qz-triggers-results" tabindex="-1" aria-label="Listed triggers" data-testid="trigger-results" @ref="_results">
     @if (_isLoading)
     {
         <LoadingSpinner />
@@ -159,7 +162,7 @@
                     <div class="qz-actions qz-group-actions">
                         @if (CanPauseGroup)
                         {
-                            <button type="button" class="qz-button" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
+                            <button type="button" class="qz-button" @ref="_groupPauseButtons[group.Key]" @onclick="() => PromptPauseGroup(group.Key)">Pause group</button>
                         }
                         @if (CanResumeGroup)
                         {
@@ -170,7 +173,7 @@
                 @* The listing's own scroll container, whose width the columns answer to: a narrow card hides the
                    lower-priority columns and then scrolls the table inside itself, never the page. *@
                 <div class="qz-triggers-listing" data-testid="triggers-listing">
-                <table class="qz-table qz-entity-table qz-triggers-table">
+                <table class="@(_runStatusesShown ? "qz-table qz-entity-table qz-triggers-table qz-with-last-run" : "qz-table qz-entity-table qz-triggers-table")">
                     <thead>
                         <tr>
                             @if (CanSelect)
@@ -188,6 +191,10 @@
                             <th class="qz-col-schedule">Schedule</th>
                             <th class="qz-col-fire qz-col-next-fire">Next fire</th>
                             <th class="qz-col-fire qz-col-previous-fire">Previous fire</th>
+                            @if (_runStatusesShown)
+                            {
+                                <th class="qz-col-last-run">Last run</th>
+                            }
                             <th class="qz-col-state">State</th>
                             <th class="qz-col-execution-group">Execution Group</th>
                             <th class="qz-col-details">Details</th>
@@ -218,7 +225,9 @@
                                                @onchange="args => ToggleSelection(triggerKey, args)" />
                                     </td>
                                 }
-                                <td class="qz-col-key">
+                                @* A key pressed on a control in the row is that control's, as the selection box's already is: only
+                                   a key pressed on the row itself opens the trigger. *@
+                                <td class="qz-col-key" @onkeydown:stopPropagation="true">
                                     <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
                                     @if (trigger.ContinuesAfter is { } parent)
                                     {
@@ -232,9 +241,27 @@
                                 <td class="qz-col-schedule"><ScheduleCell Trigger="@trigger" /></td>
                                 <td class="qz-col-fire qz-col-next-fire"><FireTimeCell Time="@trigger.NextFireTimeUtc" Now="@_lastUpdatedAt.GetValueOrDefault()" Upcoming="true" /></td>
                                 <td class="qz-col-fire qz-col-previous-fire"><FireTimeCell Time="@trigger.PreviousFireTimeUtc" Now="@_lastUpdatedAt.GetValueOrDefault()" /></td>
+                                @if (_runStatusesShown)
+                                {
+                                    <td class="qz-col-last-run">
+                                        <TriggerRunCell Status="@_runStatuses.GetValueOrDefault(triggerKey)"
+                                                        Now="@_lastUpdatedAt.GetValueOrDefault()"
+                                                        FailuresHref="@GetFailuresPath(triggerGroup, triggerName)" />
+                                    </td>
+                                }
                                 <td class="qz-col-state">
                                     <StateIndicator State="@(trigger.State?.ToString())" />
                                     <PauseNote Pause="@trigger.Pause" />
+                                    @if (_runStatusesShown)
+                                    {
+                                        @* Shown in place of the Last run column on a listing too narrow for both. *@
+                                        <div class="qz-last-run-inline">
+                                            <span class="qz-last-run-caption">Last run</span>
+                                            <TriggerRunCell Status="@_runStatuses.GetValueOrDefault(triggerKey)"
+                                                            Now="@_lastUpdatedAt.GetValueOrDefault()"
+                                                            FailuresHref="@GetFailuresPath(triggerGroup, triggerName)" />
+                                        </div>
+                                    }
                                 </td>
                                 <td class="qz-col-execution-group">
                                     @if (!string.IsNullOrEmpty(trigger.ExecutionGroup))
@@ -246,16 +273,16 @@
                                         <span class="qz-muted">&mdash;</span>
                                     }
                                 </td>
-                                <td class="qz-col-details">
+                                <td class="qz-col-details" @onkeydown:stopPropagation="true">
                                     <a class="qz-details-link" href="@GetTriggerPath(triggerGroup, triggerName)" @onclick:stopPropagation="true">View details</a>
                                 </td>
                                 @if (HasRowActions)
                                 {
-                                    <td class="qz-col-actions">
+                                    <td class="qz-col-actions" @onkeydown:stopPropagation="true">
                                         <div class="qz-actions" @onclick:stopPropagation="true">
                                             @if (CanPause)
                                             {
-                                                <button type="button" class="qz-button" @onclick="() => PromptPauseTrigger(triggerGroup, triggerName)">Pause</button>
+                                                <button type="button" class="qz-button" @ref="_rowPauseButtons[triggerKey]" @onclick="() => PromptPauseTrigger(triggerGroup, triggerName)">Pause</button>
                                             }
                                             @if (CanResume)
                                             {
@@ -263,7 +290,7 @@
                                             }
                                             @if (CanUnschedule)
                                             {
-                                                <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptUnschedule(triggerGroup, triggerName)">Unschedule</button>
+                                                <button type="button" class="qz-button qz-button-danger" @ref="_rowUnscheduleButtons[triggerKey]" @onclick="() => PromptUnschedule(triggerGroup, triggerName)">Unschedule</button>
                                             }
                                         </div>
                                     </td>
@@ -281,21 +308,30 @@
                     CurrentPage="@_currentPage"
                     OnPageChanged="OnPageChangedAsync" />
     }
+    </section>
 </div>
 
 <ConfirmDialog IsOpen="@_showUnscheduleConfirm"
+               ReturnFocus="@_unscheduleOpener"
+               ReturnFocusFallback="@_results"
                Title="Unschedule trigger"
+               ConfirmText="Unschedule"
                Message="@($"Unschedule {_pendingTriggerKey}?")"
                OnConfirm="ConfirmUnscheduleAsync"
                OnCancel="CancelUnscheduleAsync" />
 
 <ConfirmDialog IsOpen="@_showBulkUnscheduleConfirm"
+               ReturnFocus="@_bulkUnscheduleButton"
+               ReturnFocusFallback="@_results"
                Title="Unschedule selected triggers"
-               Message="@($"Unschedule {_selected.Count} selected trigger(s)? A job left with no trigger and no durability goes with them.")"
+               ConfirmText="Unschedule"
+               Message="@($"Unschedule {TriggerSelectionActions.Triggers(_selected.Count, "selected")}? A job left with no trigger and no durability goes with them.")"
                OnConfirm="UnscheduleSelectionAsync"
                OnCancel="CancelBulkUnscheduleAsync" />
 
 <PauseDialog IsOpen="@(_pauseAction is not null)"
+             ReturnFocus="@_pauseOpener"
+             ReturnFocusFallback="@_results"
              Title="@_pauseTitle"
              Message="@_pauseMessage"
              OnConfirm="ConfirmPauseAsync"
@@ -333,13 +369,43 @@
     private string? _pendingGroup;
     private string? _pendingName;
     private string _pendingTriggerKey = string.Empty;
-    private BulkResult? _bulkResult;
+    private TriggerSelectionResult? _bulkResult;
+
+    /// <summary>The region the triggers are listed in, which takes focus when the control that had it is gone.</summary>
+    private ElementReference _results;
+
+    /// <summary>Whether the next render moves focus to <see cref="_results" />.</summary>
+    private bool _focusResults;
+
+    // The controls that open a dialog, which focus goes back to as it closes. Without one, focus goes back to whatever
+    // had it as the dialog opened: after a click that moves no focus, as Safari's on a button, that is the page's
+    // heading, and focusing the heading scrolls the page back to its top.
+    private readonly Dictionary<TriggerKeyDto, ElementReference> _rowPauseButtons = [];
+    private readonly Dictionary<TriggerKeyDto, ElementReference> _rowUnscheduleButtons = [];
+    private readonly Dictionary<string, ElementReference> _groupPauseButtons = new(StringComparer.Ordinal);
+    private ElementReference _bulkPauseButton;
+    private ElementReference _bulkUnscheduleButton;
+
+    /// <summary>The control that opened the pause dialog: a row's Pause, Pause group or Pause selected.</summary>
+    private ElementReference? _pauseOpener;
+
+    /// <summary>The row's Unschedule that opened the dialog asking about it.</summary>
+    private ElementReference? _unscheduleOpener;
 
     /// <summary>
     /// When the listing on screen was read, or <see langword="null" /> while it holds nothing read. Each
     /// row's "in 3m" and "3m ago" count from it, so a stale listing's rows still agree with its time.
     /// </summary>
     private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>The run status of each trigger on the page that has one, read with the page.</summary>
+    private readonly Dictionary<TriggerKeyDto, TriggerRunStatus> _runStatuses = [];
+
+    /// <summary>
+    /// Whether the data source keeps trigger statuses, so the Last run column is shown: a source that keeps none,
+    /// or a host older than 4.9, leaves it out.
+    /// </summary>
+    private bool _runStatusesShown;
 
     /// <summary>
     /// Why the last read failed while there was a listing to keep, or <see langword="null" />.
@@ -483,6 +549,17 @@
         Take = _pageSize
     };
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusResults)
+        {
+            // The reader stays where they pressed the control: focus would otherwise scroll a region taller than the
+            // pane to its top.
+            _focusResults = false;
+            await _results.FocusAsync(preventScroll: true);
+        }
+    }
+
     protected override void OnInitialized()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
@@ -588,6 +665,13 @@
             _triggers.Clear();
             _triggers.AddRange(page.Items);
             _totalTriggers = totalCount;
+
+            // A trigger no longer listed, unscheduled by its row or gone since the last read, cannot stay selected:
+            // the bar would count it, and an action would report it not reached.
+            _selected.IntersectWith(page.Items.Select(static trigger => new TriggerKeyDto(trigger.Group, trigger.Name)));
+
+            await LoadRunStatusesAsync(schedulerName, cancellationToken);
+
             _lastUpdatedAt = Clock.GetUtcNow();
             _staleReason = null;
         }
@@ -643,9 +727,63 @@
     private void ClearListing()
     {
         _triggers.Clear();
+        _runStatuses.Clear();
+        _runStatusesShown = false;
         _totalTriggers = 0;
         _lastUpdatedAt = null;
         _staleReason = null;
+    }
+
+    /// <summary>
+    /// Reads the run status of every trigger on the page in one call, never one per row.
+    /// </summary>
+    /// <remarks>
+    /// A data source that keeps no per-trigger status — a history store of the application's own, a scheduler in
+    /// another process whose host is older than 4.9, or a database without <c>QRTZ_TRIGGER_STATUS</c> — raises
+    /// <see cref="NotSupportedException" />, and the column is left out. Any other failure is the listing's, as
+    /// the Jobs page's statuses are.
+    /// </remarks>
+    private async Task LoadRunStatusesAsync(string schedulerName, CancellationToken cancellationToken)
+    {
+        if (_triggers.Count == 0)
+        {
+            _runStatuses.Clear();
+            return;
+        }
+
+        try
+        {
+            PagedResult<TriggerRunStatus> statuses = await Api.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+            {
+                SchedulerName = schedulerName,
+                Triggers = [.. _triggers.Select(static trigger => new TriggerKey(trigger.Name, trigger.Group))],
+                Take = PagedQuery.All
+            }, cancellationToken);
+
+            _runStatuses.Clear();
+            foreach (TriggerRunStatus status in statuses.Items)
+            {
+                _runStatuses[new TriggerKeyDto(status.Trigger.Group, status.Trigger.Name)] = status;
+            }
+
+            _runStatusesShown = true;
+        }
+        catch (NotSupportedException)
+        {
+            _runStatuses.Clear();
+            _runStatusesShown = false;
+        }
+    }
+
+    /// <summary>
+    /// The trigger's final failures on the History page: that trigger only, failed results only, the ones that
+    /// gave up.
+    /// </summary>
+    private string GetFailuresPath(string group, string name)
+    {
+        return DashboardLink.To(
+            Options.Value,
+            "history?outcome=failed&triggerGroup=" + Uri.EscapeDataString(group) + "&triggerName=" + Uri.EscapeDataString(name) + "&result=failed");
     }
 
     /// <summary>
@@ -866,6 +1004,7 @@
 
     private void PromptPauseTrigger(string group, string name)
     {
+        _pauseOpener = _rowPauseButtons.TryGetValue(new TriggerKeyDto(group, name), out ElementReference opener) ? opener : null;
         _pauseTitle = "Pause trigger";
         _pauseMessage = "Pause " + DisplayValueHelper.FormatKey(group, name) + "?";
         _pauseAction = reason => PauseTrigger(group, name, reason);
@@ -873,6 +1012,7 @@
 
     private void PromptPauseGroup(string group)
     {
+        _pauseOpener = _groupPauseButtons.TryGetValue(group, out ElementReference opener) ? opener : null;
         _pauseTitle = "Pause trigger group";
         _pauseMessage = "Pause every trigger in " + group + "?";
         _pauseAction = reason => PauseGroup(group, reason);
@@ -952,6 +1092,7 @@
 
     private void PromptUnschedule(string group, string name)
     {
+        _unscheduleOpener = _rowUnscheduleButtons.TryGetValue(new TriggerKeyDto(group, name), out ElementReference opener) ? opener : null;
         _pendingGroup = group;
         _pendingName = name;
         _pendingTriggerKey = DisplayValueHelper.FormatKey(group, name);
@@ -981,6 +1122,12 @@
             "Trigger " + DisplayValueHelper.FormatKey(group, name) + " was not unscheduled - it no longer exists.",
             actionName: "UnscheduleTrigger",
             target: DisplayValueHelper.FormatKey(group, name));
+
+        // The dialog closed before the call, while the row was listed, so it gave focus back to the row's Unschedule.
+        // The read after the call took the row away: the button is gone, or, the rows being drawn again in place, now
+        // unschedules the trigger listed after it. Focus goes on to the listing, as the dialog's fallback sends it when
+        // the row has gone before the dialog closes.
+        _focusResults = !_triggers.Exists(trigger => trigger.Group == group && trigger.Name == name);
     }
 
     private Task CancelUnscheduleAsync()
@@ -1041,63 +1188,40 @@
         };
     }
 
+    /// <summary>Empties the selection, which takes the bar and this button away: focus goes to the listing.</summary>
     private void ClearSelection()
     {
         _selected.Clear();
+        _focusResults = true;
     }
 
+    /// <summary>Puts the result away, and its Dismiss with it: focus goes to the listing.</summary>
     private void DismissBulkResult()
     {
         _bulkResult = null;
-    }
-
-    /// <summary>
-    /// The selection in a stable order: the order the listing shows keys in, group then name.
-    /// </summary>
-    private List<TriggerKeyDto> SelectedKeys()
-    {
-        List<TriggerKeyDto> keys = [.. _selected];
-        keys.Sort(static (left, right) =>
-        {
-            int byGroup = string.CompareOrdinal(left.Group, right.Group);
-            return byGroup != 0 ? byGroup : string.CompareOrdinal(left.Name, right.Name);
-        });
-        return keys;
+        _focusResults = true;
     }
 
     private void PromptPauseSelection()
     {
+        _pauseOpener = _bulkPauseButton;
         int count = _selected.Count;
         _pauseTitle = "Pause selected triggers";
-        _pauseMessage = "Pause " + count.ToString(CultureInfo.InvariantCulture) + " selected trigger(s)?";
+        _pauseMessage = "Pause " + TriggerSelectionActions.Triggers(count, "selected") + "?";
         _pauseAction = PauseSelectionAsync;
     }
 
     /// <summary>
     /// Pauses the selection, with the one reason the prompt asked for once.
     /// </summary>
-    /// <remarks>
-    /// One call whatever the prompt was told — over HTTP one <c>…/triggers/keys/pause</c> request, carrying
-    /// the reason when there is one. A pause that says nothing is the reasonless key-set pause.
-    /// </remarks>
     private Task PauseSelectionAsync(string? reason)
     {
-        PauseDetails details = ActionLog.PauseDetailsFor(reason);
-        return ExecuteBulkAsync(
-            "PauseTrigger",
-            "Paused",
-            "not paused - it no longer exists or was already paused",
-            (schedulerName, keys) => Api.PauseTriggersWith(schedulerName, keys, details),
-            DashboardActionLog.PauseNote(details));
+        return ExecuteBulkAsync((actions, schedulerName, keys) => actions.Pause(schedulerName, keys, reason));
     }
 
     private Task ResumeSelectionAsync()
     {
-        return ExecuteBulkAsync(
-            "ResumeTrigger",
-            "Resumed",
-            "not resumed - it no longer exists or was not paused",
-            (schedulerName, keys) => Api.ResumeTriggers(schedulerName, keys));
+        return ExecuteBulkAsync((actions, schedulerName, keys) => actions.Resume(schedulerName, keys));
     }
 
     private void PromptUnscheduleSelection()
@@ -1108,11 +1232,7 @@
     private async Task UnscheduleSelectionAsync()
     {
         _showBulkUnscheduleConfirm = false;
-        await ExecuteBulkAsync(
-            "UnscheduleTrigger",
-            "Unscheduled",
-            "not unscheduled - it no longer exists",
-            (schedulerName, keys) => Api.UnscheduleJobs(schedulerName, keys));
+        await ExecuteBulkAsync((actions, schedulerName, keys) => actions.Unschedule(schedulerName, keys));
     }
 
     private Task CancelBulkUnscheduleAsync()
@@ -1122,83 +1242,23 @@
     }
 
     /// <summary>
-    /// Runs one bulk action over the selection and reports it: a toast for the count, a panel for the keys
-    /// it did not reach and why, and an action-log entry per key in the shape the single-row action
-    /// records — so "who paused this trigger" finds a bulk pause under the trigger's own key, with the
-    /// reason it was given in <paramref name="note" />.
+    /// Runs one bulk action over the selection through <see cref="TriggerSelectionActions" />, which reports it,
+    /// keeps the keys it did not reach on the page, and reads the listing again.
     /// </summary>
-    private async Task ExecuteBulkAsync(
-        string actionName,
-        string verb,
-        string missedReason,
-        Func<string, List<TriggerKeyDto>, ValueTask<List<TriggerKeyDto>>> operation,
-        string? note = null)
+    private async Task ExecuteBulkAsync(Func<TriggerSelectionActions, string, List<TriggerKeyDto>, Task<TriggerSelectionResult>> action)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
-        List<TriggerKeyDto> keys = SelectedKeys();
-        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName) || keys.Count == 0)
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName) || _selected.Count == 0)
         {
             return;
         }
 
-        string batch = DashboardActionLog.MessageOf("one of " + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected", note)!;
+        TriggerSelectionResult result = await action(new TriggerSelectionActions(Api, ActionLog, Toasts), schedulerName, [.. _selected]);
+        _bulkResult = result.Misses.Count == 0 ? null : result;
 
-        HashSet<TriggerKeyDto> applied;
-        Exception? failure = null;
-        try
-        {
-            applied = [.. await operation(schedulerName, keys)];
-        }
-        catch (Exception ex)
-        {
-            // The key-set call is one request and one store transaction, so a refusal is the whole
-            // batch's: nothing it names was applied.
-            applied = [];
-            failure = ex;
-        }
-
-        List<(TriggerKeyDto Key, string Reason)> misses = [];
-        foreach (TriggerKeyDto key in keys)
-        {
-            string target = DisplayValueHelper.FormatKey(key.Group, key.Name);
-            if (applied.Contains(key))
-            {
-                ActionLog.Record(schedulerName, actionName, target, succeeded: true, batch);
-            }
-            else if (failure is not null)
-            {
-                misses.Add((key, failure.Message));
-                ActionLog.Failed(schedulerName, actionName, target, failure, batch);
-            }
-            else
-            {
-                misses.Add((key, missedReason));
-                ActionLog.Record(schedulerName, actionName, target, succeeded: false, batch + "; " + missedReason);
-            }
-        }
-
-        string summary = verb + " " + applied.Count.ToString(CultureInfo.InvariantCulture) + " of "
-            + keys.Count.ToString(CultureInfo.InvariantCulture) + " selected trigger(s).";
-
-        if (misses.Count == 0)
-        {
-            _bulkResult = null;
-            Toasts.Success(summary);
-        }
-        else
-        {
-            _bulkResult = new BulkResult(summary, misses);
-            if (failure is not null)
-            {
-                Toasts.Error(summary + " " + keys.Count.ToString(CultureInfo.InvariantCulture) + " failed.");
-            }
-            else
-            {
-                Toasts.Info(summary);
-            }
-        }
-
+        // The spent selection takes the bar away, and the button pressed with it.
         _selected.Clear();
+        _focusResults = true;
         await LoadDataAsync();
     }
 
@@ -1295,8 +1355,4 @@
         public bool IsEmpty => this == None;
     }
 
-    /// <summary>
-    /// What a bulk action reports once it is done: the count, and each key it did not reach with why.
-    /// </summary>
-    private sealed record BulkResult(string Summary, List<(TriggerKeyDto Key, string Reason)> Misses);
 }

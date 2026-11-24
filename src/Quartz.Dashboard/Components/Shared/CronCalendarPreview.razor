@@ -1,0 +1,83 @@
+@using Quartz
+
+@* The next spans of time a cron calendar's expression excludes, in the calendar's own time zone: the zone its
+   hours are read in, so a reader checks "9 to 5" against "09:00 to 17:00" rather than converting. Used by
+   Calendar Detail for the stored expression and by the editor for the one being typed. *@
+<div class="qz-calendar-cron-preview" data-testid="calendar-cron-preview">
+    @if (_error is { } error)
+    {
+        <p class="qz-field-error" data-testid="calendar-cron-preview-error">@error</p>
+    }
+    else if (_spans.Count == 0)
+    {
+        <p class="qz-muted">The expression matches no time from now on, so it excludes nothing.</p>
+    }
+    else
+    {
+        <ul class="qz-list" data-testid="calendar-cron-spans">
+            @foreach (ExcludedSpan span in _spans)
+            {
+                <li>
+                    @if (span.End is { } end)
+                    {
+                        <span><span class="qz-mono">@CalendarReading.FormatInZone(span.Start, TimeZone)</span> until <span class="qz-mono">@CalendarReading.FormatInZone(end, TimeZone)</span></span>
+                    }
+                    else
+                    {
+                        <span><span class="qz-mono">@CalendarReading.FormatInZone(span.Start, TimeZone)</span> on, without end: the expression matches every second after it</span>
+                    }
+                </li>
+            }
+        </ul>
+        <p class="qz-muted" data-testid="calendar-cron-preview-basis">Read in @TimeZone.Id, the calendar's time zone. Each span ends at the first second the calendar includes again.</p>
+    }
+</div>
+
+@code {
+    private readonly List<ExcludedSpan> _spans = [];
+    private string? _error;
+
+    /// <summary>The expression to read, as stored or as typed.</summary>
+    [Parameter]
+    [EditorRequired]
+    public string Expression { get; set; } = string.Empty;
+
+    /// <summary>The calendar's time zone, which the expression's fields are read in.</summary>
+    [Parameter]
+    [EditorRequired]
+    public TimeZoneInfo TimeZone { get; set; } = TimeZoneInfo.Utc;
+
+    /// <summary>The instant the spans are read from: the page's clock when it read the calendar.</summary>
+    [Parameter]
+    [EditorRequired]
+    public DateTimeOffset From { get; set; }
+
+    [Parameter]
+    public int Count { get; set; } = 5;
+
+    protected override void OnParametersSet()
+    {
+        _spans.Clear();
+        _error = null;
+
+        string expression = Expression.Trim();
+        if (expression.Length == 0)
+        {
+            _error = "Enter a cron expression to see what it excludes.";
+            return;
+        }
+
+        CronExpression parsed;
+        try
+        {
+            parsed = new CronExpression(expression, TimeZone);
+        }
+        catch (FormatException ex)
+        {
+            _error = "Not a valid cron expression: " + ex.Message;
+            return;
+        }
+
+        _spans.AddRange(CalendarReading.NextExcludedSpans(parsed, From, Count <= 0 ? 1 : Count));
+    }
+}

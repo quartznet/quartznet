@@ -4,6 +4,7 @@ repaired: AppAny's schema has it wrong, and the move changes it
   CreateIndex idx_qrtz_eh_fire_inst on quartz.qrtz_execution_history (sched_name, fire_instance_id)
   CreateIndex idx_qrtz_eh_job_time on quartz.qrtz_execution_history (sched_name, job_group, job_name, fired_time)
   CreateIndex idx_qrtz_eh_trig_time on quartz.qrtz_execution_history (sched_name, trigger_group, trigger_name, fired_time)
+  CreateTable quartz.qrtz_trigger_status
 
 converged: harmless, changed in place with no table rebuilt and no column narrowed
   AddForeignKey FK_qrtz_triggers_qrtz_job_details_sched_name_job_name_job_group on quartz.qrtz_triggers (sched_name, job_name, job_group) -> quartz.qrtz_job_details (sched_name, job_name, job_group) on delete NoAction

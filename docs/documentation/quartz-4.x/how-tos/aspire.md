@@ -17,7 +17,8 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 <!-- endSnippet -->
 
-Documented against **Aspire 13.5**. Settings, the provider table and the connection ladder are on the
+Documented against **Aspire 17**. `Quartz.Aspire` needs no particular Aspire version, and `Quartz.Aspire.Hosting`
+needs 13.6.5 or later. Settings, the provider table and the connection ladder are on the
 [Aspire Integration](../packages/aspire.md) reference page. The scheduler needs no AppHost resource:
 `Quartz.Aspire` only needs a named connection string, from anywhere. The Quartz.NET dashboard does have one, in
 [`Quartz.Aspire.Hosting`](../packages/aspire-hosting.md) (4.8); see [The Quartz dashboard](#the-quartz-dashboard).
@@ -60,15 +61,20 @@ dotnet new aspire-apphost -n AppHost
 dotnet sln add AppHost/AppHost.csproj
 ```
 
-`aspire-service-defaults` creates the ServiceDefaults project. You need a **container runtime** (Docker
-Desktop, Podman), but not the `aspire` CLI or a workload: `Aspire.AppHost.Sdk` brings the dashboard and the
-Developer Control Plane, so `dotnet run` on the AppHost is enough. See
+`aspire-servicedefaults` creates the ServiceDefaults project. You need a **container runtime** (Docker
+Desktop, Podman) and, from Aspire 17, the **Aspire CLI** from [get.aspire.dev](https://get.aspire.dev): it holds
+the dashboard and the Developer Control Plane, and `dotnet run` on the AppHost hands the AppHost to `aspire run`.
+Without an `aspire` on `PATH`, the build fetches the CLI with `dnx`. See
 [getting started](https://aspire.dev/get-started/first-app/).
+
+The AppHost is a `Microsoft.NET.Sdk` project with two packages, `Aspire.Hosting.AppHost` and
+`Aspire.Hosting.Dotnet`. An Aspire 13 AppHost names `Aspire.AppHost.Sdk` instead, which Aspire 17 makes
+obsolete (`ASPIRE012`); see [upgrading](https://aspire.dev/whats-new/upgrade-aspire/).
 
 A Postgres server, a database, and the worker:
 
-<!-- Not a compiled sample: `Aspire.Hosting.PostgreSQL` and the generated `Projects` class come from the
-     AppHost project, neither of which this repository references. -->
+<!-- Not a compiled sample: `Aspire.Hosting.PostgreSQL` and `Aspire.Hosting.Dotnet` are AppHost packages,
+     which the samples project does not reference. -->
 
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
@@ -79,13 +85,16 @@ var postgres = builder.AddPostgres("postgres")
 
 var quartzDb = postgres.AddDatabase("quartz");
 
-builder.AddProject<Projects.Orders_Worker>("orders")
+builder.AddDotnetProject("orders", "../Orders.Worker/Orders.Worker.csproj")
     .WithReference(quartzDb)
     .WaitFor(quartzDb);
 
 builder.Build().Run();
 ```
 
+* `AddDotnetProject` (Aspire 17) takes the worker's path, relative to the AppHost, and builds the worker before
+  starting it. On Aspire 13 the call is `AddProject<Projects.Orders_Worker>("orders")`, with a `ProjectReference`
+  to the worker; Aspire 17 makes it obsolete (`CS0618`).
 * `AddDatabase("quartz")` names the resource and, with no second argument, the database.
 * `WithReference` passes the connection string as `ConnectionStrings__quartz`, read as
   `ConnectionStrings:quartz`: the AppHost name is the name the worker asks for.
@@ -272,15 +281,15 @@ Use the shape Aspire teaches for
 applies the schema and exits, awaited with `WaitForCompletion`. (`AddEFMigrations` shells out to
 `dotnet ef database update`, so it cannot run a hand-written `tables_postgres.sql`.)
 
-<!-- Not a compiled sample: `Aspire.Hosting` and the generated `Projects` class come from the AppHost
-     project, which this repository does not reference. -->
+<!-- Not a compiled sample: AppHost calls, from `Aspire.Hosting` and `Aspire.Hosting.Dotnet`, which the
+     samples project does not reference. -->
 
 ```csharp
-var migrations = builder.AddProject<Projects.Orders_Migrations>("migrations")
+var migrations = builder.AddDotnetProject("migrations", "../Orders.Migrations/Orders.Migrations.csproj")
     .WithReference(quartzDb)
     .WaitFor(quartzDb);
 
-builder.AddProject<Projects.Orders_Worker>("orders")
+builder.AddDotnetProject("orders", "../Orders.Worker/Orders.Worker.csproj")
     .WithReference(quartzDb)
     .WaitForCompletion(migrations);
 ```
@@ -306,7 +315,7 @@ To show it in the dashboard, point the AppHost at the endpoint; the project must
 <!-- Not a compiled sample: `WithHttpHealthCheck` is an `Aspire.Hosting` method. -->
 
 ```csharp
-builder.AddProject<Projects.Orders_Api>("api")
+builder.AddDotnetProject("api", "../Orders.Api/Orders.Api.csproj")
     .WithHttpHealthCheck("/health")
     .WithReference(quartzDb)
     .WaitFor(quartzDb);
@@ -452,13 +461,14 @@ dotnet add AppHost package Quartz.Aspire.Hosting
 dotnet add Orders.Worker package Quartz.Dashboard.Agent
 ```
 
-<!-- Not a compiled sample: the generated Projects class comes from the AppHost project. The same calls are
-     compiled in src/Quartz.Examples.Aspire.AppHost. -->
+`Quartz.Aspire.Hosting` needs Aspire 13.6.5 or later, and runs on 17.
+
+<!-- Not a compiled sample: AppHost calls. The same calls are compiled in src/Quartz.Examples.Aspire.AppHost. -->
 
 ```csharp
 var dashboard = builder.AddQuartzDashboard("quartz-dashboard");
 
-builder.AddProject<Projects.Orders_Worker>("orders")
+builder.AddDotnetProject("orders", "../Orders.Worker/Orders.Worker.csproj")
     .WithReference(quartzDb)
     .WaitFor(quartzDb)
     .WithReference(dashboard);
@@ -482,7 +492,7 @@ builder.AddQuartzHostedService();
 <!-- endSnippet -->
 
 * **The dashboard's URL signs you in.** Open it from the Aspire dashboard's resource list: it carries a generated
-  administrator token, kept in the AppHost's user secrets.
+  administrator token, kept in the AppHost's secrets: `~/.aspire/secrets` on Aspire 17, user secrets before.
 * **The worker dials out**, so nothing waits for the dashboard and the worker opens no port.
 * **Or read the database instead**: `.WithAttachedStore(quartzDb)` on the dashboard shows every scheduler in it,
   with nothing added to the workers. Use one or the other for a scheduler, or it is listed twice.

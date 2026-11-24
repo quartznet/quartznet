@@ -207,6 +207,64 @@ public static class TriggerFireTimes
         return lst;
     }
 
+    /// <summary>
+    /// The fire times of <paramref name="trigger" /> in [<paramref name="from" />, <paramref name="to" />), earliest
+    /// first and one at a time: <see cref="ComputeBetween(IOperableTrigger, ICalendar?, DateTimeOffset, DateTimeOffset)" />'s
+    /// walk on a clone, done lazily, with the end excluded, and each step charged to <paramref name="budget" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A step is one <see cref="IOperableTrigger.Triggered" />, and one calendar check inside it: a trigger skips
+    /// what its calendar excludes in a loop of its own, which a calendar that excludes the whole window would
+    /// otherwise run until the year the triggers give up scheduling at. The walk stops early, with no more times,
+    /// when the budget refuses a step: the caller tells that from the end of the schedule by
+    /// <see cref="FireTimeStepBudget.IsSpent" />.
+    /// </para>
+    /// <para>
+    /// The end is excluded where <see cref="ComputeBetween(IOperableTrigger, ICalendar?, DateTimeOffset, DateTimeOffset)" />
+    /// includes it, so that two windows that meet never list the time they meet at twice. A trigger already
+    /// scheduled walks from its next fire time, as there; one that has none is started at the window.
+    /// </para>
+    /// </remarks>
+    internal static IEnumerable<DateTimeOffset> EnumerateBetween(
+        IOperableTrigger trigger,
+        ICalendar? calendar,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        FireTimeStepBudget budget)
+    {
+        IOperableTrigger t = (IOperableTrigger) trigger.Clone();
+        ICalendar? charged = calendar is null ? null : new StepChargingCalendar(calendar, budget);
+
+        if (t.NextFireTimeUtc is null)
+        {
+            if (t.StartTimeUtc < from || t.StartTimeUtc >= to)
+            {
+                t.StartTimeUtc = from;
+            }
+            if (!t.EndTimeUtc.HasValue || t.EndTimeUtc.Value > to)
+            {
+                t.EndTimeUtc = to;
+            }
+            t.ComputeFirstFireTimeUtc(charged);
+        }
+
+        while (!budget.IsSpent && t.NextFireTimeUtc is { } d && d < to)
+        {
+            if (d >= from)
+            {
+                yield return d;
+            }
+
+            if (!budget.TryTake())
+            {
+                yield break;
+            }
+
+            t.Triggered(charged);
+        }
+    }
+
     /// <inheritdoc cref="Compute(IOperableTrigger, ICalendar?, int)" />
     /// <exception cref="ArgumentException">
     /// <paramref name="trigger" /> is not an <see cref="IOperableTrigger" />, so its schedule cannot be
@@ -256,5 +314,89 @@ public static class TriggerFireTimes
             + "interface adds. Derive the trigger from Quartz.Impl.Triggers.TriggerBase, or compute a "
             + "single step with ITrigger.GetFireTimeAfter.",
             nameof(trigger));
+    }
+}
+
+/// <summary>
+/// How many schedule steps one computation over many triggers may take in all, shared by every walk it makes.
+/// </summary>
+/// <remarks>
+/// It bounds the work of a call that a caller with read access can ask for: a trigger overdue for weeks that fires
+/// every second would otherwise be stepped through every second it missed.
+/// </remarks>
+internal sealed class FireTimeStepBudget
+{
+    private long remaining;
+
+    public FireTimeStepBudget(long steps)
+    {
+        remaining = steps;
+    }
+
+    /// <summary>
+    /// Whether a step was refused: a walk stopped before its schedule ended.
+    /// </summary>
+    public bool IsSpent { get; private set; }
+
+    /// <summary>
+    /// Takes one step, or refuses it, and from then on every other, when none is left.
+    /// </summary>
+    public bool TryTake()
+    {
+        if (remaining <= 0)
+        {
+            IsSpent = true;
+            return false;
+        }
+
+        remaining--;
+        return true;
+    }
+}
+
+/// <summary>
+/// A calendar that charges each check to a <see cref="FireTimeStepBudget" />, and once the budget is spent includes
+/// every time, so that the loop a trigger skips excluded times in ends.
+/// </summary>
+/// <remarks>
+/// The time it then lands on is not a fire time: the walk that handed it to the trigger sees the budget spent and
+/// lists nothing more. It reads its calendar and never changes it.
+/// </remarks>
+internal sealed class StepChargingCalendar : ICalendar
+{
+    private readonly ICalendar calendar;
+    private readonly FireTimeStepBudget budget;
+
+    public StepChargingCalendar(ICalendar calendar, FireTimeStepBudget budget)
+    {
+        this.calendar = calendar;
+        this.budget = budget;
+    }
+
+    public string? Description
+    {
+        get => calendar.Description;
+        set => throw new NotSupportedException("A calendar read to compute fire times is not changed.");
+    }
+
+    public ICalendar? CalendarBase
+    {
+        get => calendar.CalendarBase;
+        set => throw new NotSupportedException("A calendar read to compute fire times is not changed.");
+    }
+
+    public bool IsTimeIncluded(DateTimeOffset timeUtc)
+    {
+        return !budget.TryTake() || calendar.IsTimeIncluded(timeUtc);
+    }
+
+    public DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
+    {
+        return calendar.GetNextIncludedTimeUtc(timeUtc);
+    }
+
+    public ICalendar Clone()
+    {
+        return new StepChargingCalendar(calendar.Clone(), budget);
     }
 }

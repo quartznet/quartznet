@@ -10,7 +10,7 @@ namespace Quartz.Impl;
 /// Every member is <c>virtual</c>, and a member added to <see cref="IScheduler" /> lands here as one
 /// more forwarder — which is what keeps a decorator in somebody else's codebase compiling.
 /// </remarks>
-public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler
+public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IUpcomingFiresScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IFireInstanceLogScheduler
 {
     private readonly IScheduler scheduler;
 
@@ -556,6 +556,23 @@ public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingF
     }
 
     /// <summary>
+    /// Lists every fire in a window in one request where the scheduler is, when the scheduler this wrapping ends
+    /// in can, and otherwise composes them over this decorator.
+    /// </summary>
+    /// <remarks>
+    /// Forwarded for the reason <see cref="IBackfillingScheduler.Backfill" /> is, and decided the same way, so a
+    /// cluster's wrapped <c>HttpScheduler</c> asks its host once rather than reading every due trigger back.
+    /// </remarks>
+    ValueTask<UpcomingFiresOutcome> IUpcomingFiresScheduler.QueryUpcomingFires(
+        UpcomingFiresQuery query,
+        CancellationToken cancellationToken)
+    {
+        return EndsIn<IUpcomingFiresScheduler>()
+            ? ((IUpcomingFiresScheduler) scheduler).QueryUpcomingFires(query, cancellationToken)
+            : UpcomingFires.Compose(this, query, cancellationToken);
+    }
+
+    /// <summary>
     /// Lists the triggers with their schedules described where they are stored, when the scheduler this
     /// wrapping ends in can, and otherwise describes them over this decorator.
     /// </summary>
@@ -574,9 +591,52 @@ public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingF
     }
 
     /// <summary>
+    /// Starts the wait for a firing where the scheduler is, when the scheduler this wrapping ends in can wait.
+    /// </summary>
+    /// <remarks>
+    /// There is nothing to compose it from otherwise: a wait needs to hear a completion, which no
+    /// <see cref="IScheduler" /> member says. The trigger is still stored through this decorator, so every
+    /// override on the way down takes part in that.
+    /// </remarks>
+    ValueTask<Core.FiringWatch> IFiringWaitingScheduler.Watch(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        return EndsIn<IFiringWaitingScheduler>()
+            ? ((IFiringWaitingScheduler) scheduler).Watch(triggerKey, cancellationToken)
+            : throw SchedulerWaitExtensions.CannotWait(InnermostScheduler());
+    }
+
+    /// <summary>
+    /// Asks the scheduler this wrapping ends in, past every decorator: what its declarations store at a start is
+    /// nothing a decorator changes.
+    /// </summary>
+    ValueTask<bool?> IStartupDeclarationsScheduler.IsDeclaredAtStartup(TriggerKey triggerKey, CancellationToken cancellationToken)
+    {
+        return StartupDeclarations.IsDeclaredAtStartup(InnermostScheduler(), triggerKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a running firing's log where the scheduler is, when the scheduler this wrapping ends in can (#4437).
+    /// </summary>
+    /// <remarks>
+    /// There is nothing to compose it from otherwise, as for <see cref="IFiringWaitingScheduler.Watch" />: the lines
+    /// are in the process running the firing, which no <see cref="IScheduler" /> member reads.
+    /// </remarks>
+    ValueTask<FireInstanceLog> IFireInstanceLogScheduler.ReadFireInstanceLog(FireInstanceLogRequest request, CancellationToken cancellationToken)
+    {
+        return EndsIn<IFireInstanceLogScheduler>()
+            ? ((IFireInstanceLogScheduler) scheduler).ReadFireInstanceLog(request, cancellationToken)
+            : ValueTask.FromException<FireInstanceLog>(FireInstanceLogs.CannotRead(InnermostScheduler()));
+    }
+
+    /// <summary>
     /// Whether the scheduler this wrapping ends in, past every decorator, is a <typeparamref name="T" />.
     /// </summary>
-    private bool EndsIn<T>()
+    private bool EndsIn<T>() => InnermostScheduler() is T;
+
+    /// <summary>
+    /// The scheduler this wrapping ends in, past every decorator.
+    /// </summary>
+    private IScheduler InnermostScheduler()
     {
         IScheduler innermost = scheduler;
         while (innermost is DelegatingScheduler delegating)
@@ -584,6 +644,6 @@ public class DelegatingScheduler : IScheduler, IBackfillingScheduler, IUpcomingF
             innermost = delegating.InnerScheduler;
         }
 
-        return innermost is T;
+        return innermost;
     }
 }

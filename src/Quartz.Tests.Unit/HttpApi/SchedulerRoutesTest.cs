@@ -152,7 +152,12 @@ public class SchedulerRoutesTest
     [TestCase("GET", "schedulers/reporting/history/job-status", "QueryJobRunStatuses")]
     [TestCase("GET", "schedulers/reporting/history/job-status/exports/nightly", "GetJobRunStatus")]
     [TestCase("POST", "schedulers/reporting/history/job-status/fetch", "FetchJobRunStatuses")]
+    [TestCase("GET", "schedulers/reporting/history/trigger-status", "QueryTriggerRunStatuses")]
+    [TestCase("POST", "schedulers/reporting/history/trigger-status/fetch", "FetchTriggerRunStatuses")]
     [TestCase("GET", "schedulers/reporting/history/statistics?bucket=01:00:00", "QueryExecutionStatistics")]
+    [TestCase("GET", "schedulers/reporting/jobs/fire-instances", "QueryFireInstances")]
+    [TestCase("GET", "schedulers/reporting/jobs/fire-instances/NON_CLUSTERED638%2F1/log?after=3", "GetFireInstanceLog")]
+    [TestCase("GET", "schedulers/reporting/jobs/fire-instances/f-1/exists", "CheckJobExists")]
     public void MatchRoutesAPathAsAspNetCoreDoes(string method, string path, string routeName)
     {
         string matched = SchedulerRoutes.Match(method, path)?.Route.Name;
@@ -166,6 +171,8 @@ public class SchedulerRoutesTest
     [TestCase("GET", "schedulers//jobs")]
     [TestCase("GET", "")]
     [TestCase("GET", "schedulers/reporting/history/job-status/fetch")]
+    [TestCase("GET", "schedulers/reporting/history/trigger-status/fetch")]
+    [TestCase("GET", "schedulers/reporting/history/trigger-status/exports/nightly")]
     public void MatchAnswersNullForAPathTheTableDoesNotHave(string method, string path)
     {
         SchedulerRoutes.Match(method, path).Should().BeNull($"{method} {path} is no route of the table");

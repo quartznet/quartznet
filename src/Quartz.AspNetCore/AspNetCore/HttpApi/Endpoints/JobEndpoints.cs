@@ -34,6 +34,9 @@ internal static class JobEndpoints
         yield return builder.MapGet(options.PatternFor(SchedulerRoutes.QueryFireInstances), QueryFireInstances)
             .WithQuartzDefaults(SchedulerRoutes.QueryFireInstances, "Query fire instances");
 
+        yield return builder.MapGet(options.PatternFor(SchedulerRoutes.GetFireInstanceLog), GetFireInstanceLog)
+            .WithQuartzDefaults(SchedulerRoutes.GetFireInstanceLog, "Get a running firing's log");
+
         yield return builder.MapPost(options.PatternFor(SchedulerRoutes.PauseJob), PauseJob)
             .WithQuartzDefaults(SchedulerRoutes.PauseJob, "Pause job")
             .WithQuartzMutation(options);
@@ -103,6 +106,8 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -128,7 +133,7 @@ internal static class JobEndpoints
             NameEquals = nameEquals
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.QueryJobs(scheduler, listing, cancellationToken));
     }
 
@@ -137,11 +142,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         KeyDto[] request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertKeysToFetch(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.FetchJobs(scheduler, request, cancellationToken));
     }
 
@@ -150,11 +157,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, async scheduler =>
         {
             JobKey jobKey = new(jobName, jobGroup);
             return await SchedulerOperations.GetJobDetails(scheduler, jobKey, cancellationToken).ConfigureAwait(false)
@@ -167,11 +176,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.CheckJobExists(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
 
@@ -180,11 +191,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.GetJobTriggers(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
 
@@ -193,6 +206,8 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -222,8 +237,57 @@ internal static class JobEndpoints
             NameEquals = nameEquals
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.QueryFireInstances(scheduler, listing, jobName, jobGroup, schedulerInstanceId, cancellationToken));
+    }
+
+    /// <summary>
+    /// The lines a running firing has logged after a cursor, read in this process, where it runs (#4437).
+    /// </summary>
+    /// <remarks>
+    /// <c>{ status, schedulerInstanceId, entries, next, missed, hasMore }</c>. <c>status</c> is <c>Running</c>,
+    /// <c>NotCaptured</c> for a scheduler that does not call <c>UseExecutionLogCapture()</c>, <c>NotRunning</c> under
+    /// this node's id for a firing it does not run, or <c>Unreachable</c> through a store window, which no process
+    /// here runs. <c>after</c> below 0 or <c>take</c> outside 1 to 1000 is a <c>400</c>; an answer stops before the
+    /// entry that would take it past 64 KB, but carries one entry at least. A scheduler that cannot read a running
+    /// firing's log is a <c>501</c> naming <see cref="NotSupportedException" />.
+    /// </remarks>
+    [ProducesResponseType(typeof(FireInstanceLogResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> GetFireInstanceLog(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
+        string fireInstanceId,
+        [Description("How many entries the reader already has: the next of its last answer, 0 at first")] long after = 0,
+        [Description("How many entries to answer, from 1 to 1000")] int take = Quartz.Impl.FireInstanceLogs.DefaultTake,
+        [Description("The node that runs the firing, as its row lists it: a cluster of targets asks that node alone")] string? schedulerInstanceId = null,
+        CancellationToken cancellationToken = default)
+    {
+        return EndpointHelper.ExecuteWithResolution(schedulerName, target, httpContext, schedulerRepository, async resolution =>
+        {
+            // A window is a scheduler never started: asked, it would answer "not running" under its own id, and a
+            // reader would take that for another node.
+            if (resolution.IsWindow)
+            {
+                return endpointHelper.JsonResponse(SchedulerOperations.GetFireInstanceLogThroughAWindow(after, take));
+            }
+
+            FireInstanceLogResponse response;
+            try
+            {
+                response = await SchedulerOperations.GetFireInstanceLog(resolution.Scheduler, fireInstanceId, after, take, schedulerInstanceId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (NotSupportedException e)
+            {
+                // A scheduler that cannot read a running firing's log, one this host did not build, or a target
+                // that cannot: a 501 naming why, as a history store that cannot answer is, never a server fault.
+                throw new NotServedException(e);
+            }
+
+            return endpointHelper.JsonResponse(response);
+        });
     }
 
     /// <summary>
@@ -240,13 +304,14 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         CancellationToken cancellationToken = default)
     {
         PauseDetails? details = EndpointHelper.PauseDetailsFor(request, httpContext);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.PauseJob(scheduler, new JobKey(jobName, jobGroup), details, cancellationToken));
     }
 
@@ -262,6 +327,7 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] PauseRequest? request,
         string? groupContains = null,
         string? groupEndsWith = null,
@@ -271,7 +337,7 @@ internal static class JobEndpoints
     {
         PauseDetails? details = EndpointHelper.PauseDetailsFor(request, httpContext);
         ListingParameters groups = ListingParameters.Groups(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.PauseJobs(scheduler, groups, details, cancellationToken));
     }
 
@@ -288,12 +354,13 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         JobKeySetPauseRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
         PauseDetails? details = EndpointHelper.KeySetPauseDetailsFor(request, httpContext);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.PauseJobKeys(scheduler, request, details, cancellationToken));
     }
 
@@ -302,11 +369,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResumeJob(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
 
@@ -315,6 +384,8 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string? groupContains = null,
         string? groupEndsWith = null,
         string? groupStartsWith = null,
@@ -322,7 +393,7 @@ internal static class JobEndpoints
         CancellationToken cancellationToken = default)
     {
         ListingParameters groups = ListingParameters.Groups(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResumeJobs(scheduler, groups, cancellationToken));
     }
 
@@ -331,11 +402,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         JobKeySetRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.ResumeJobKeys(scheduler, request, cancellationToken));
     }
 
@@ -353,6 +426,7 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         HttpContext httpContext,
         string schedulerName,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         TriggerJobRequest? request = null,
@@ -363,7 +437,12 @@ internal static class JobEndpoints
             return refusal;
         }
 
-        return await EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+        if (SchedulerRoutes.CarriesJobData(request?.JobData))
+        {
+            AuditNote.Add(httpContext, "with job data");
+        }
+
+        return await EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.TriggerJob(scheduler, new JobKey(jobName, jobGroup), request, cancellationToken)).ConfigureAwait(false);
     }
 
@@ -372,11 +451,14 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        AuditNote.IfNotApplied(httpContext, "no firing of the job was running");
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.InterruptJob(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
 
@@ -385,10 +467,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        AuditNote.IfNotApplied(httpContext, "the firing is no longer running");
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.InterruptJobInstance(scheduler, fireInstanceId, cancellationToken));
     }
 
@@ -397,11 +482,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.DeleteJob(scheduler, new JobKey(jobName, jobGroup), cancellationToken));
     }
 
@@ -418,11 +505,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         DeleteJobsRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.DeleteJobs(scheduler, request, cancellationToken));
     }
 
@@ -439,6 +528,8 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string? groupContains = null,
         string? groupEndsWith = null,
         string? groupStartsWith = null,
@@ -446,7 +537,7 @@ internal static class JobEndpoints
         CancellationToken cancellationToken = default)
     {
         ListingParameters groups = ListingParameters.Groups(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.DeleteJobsByGroup(scheduler, groups, cancellationToken));
     }
 
@@ -455,11 +546,13 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         AddJobRequest request,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository,
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.AddJob(scheduler, request, dto => RequestedJobDetail.From(dto, endpointHelper.IsJobTypeAllowed), cancellationToken));
     }
 
@@ -468,6 +561,8 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         int skip = 0,
         [Description(EndpointHelper.TakeDescription)] string? take = null,
         bool includeTotalCount = false,
@@ -486,7 +581,7 @@ internal static class JobEndpoints
             NameEquals = nameEquals
         };
 
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.QueryJobGroups(scheduler, listing, paused, cancellationToken));
     }
 
@@ -495,10 +590,12 @@ internal static class JobEndpoints
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        HttpContext httpContext,
+        [FromQuery(Name = HttpApiConstants.TargetQueryParameter)] string? target,
         string jobGroup,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository,
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository,
             scheduler => SchedulerOperations.IsJobGroupPaused(scheduler, jobGroup, cancellationToken));
     }
 }

@@ -52,6 +52,12 @@ public sealed record SchedulerResource(string SchedulerName)
     /// <see cref="SchedulerRef" /> reads it — or <see langword="null" /> for one of this process, or
     /// one registered without a target. Added in 4.5.
     /// </summary>
+    /// <remarks>
+    /// In the target's own spelling, as it was registered, whatever case a request used: targets match ignoring
+    /// case, so the HTTP API's <c>?target=W1</c> reaches target <c>w1</c> and is asked about as <c>w1</c>. A
+    /// target the container does not hold arrives as the caller typed it. Compare it ignoring case all the same,
+    /// as names are compared.
+    /// </remarks>
     public string? Target { get; init; }
 
     /// <summary>

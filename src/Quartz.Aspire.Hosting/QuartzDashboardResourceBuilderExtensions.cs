@@ -64,7 +64,7 @@ public static class QuartzDashboardResourceBuilderExtensions
     /// The dashboard signs visitors in with <paramref name="adminToken" />, and the resource's URL carries it,
     /// so opening the dashboard from the Aspire dashboard signs the browser in as an administrator. It
     /// accepts workers that present <paramref name="agentToken" />, which <c>WithReference(dashboard)</c>
-    /// hands them. Both are generated secret parameters, kept in the AppHost's user secrets, unless given.
+    /// hands them. Both are generated secret parameters, kept with the AppHost's secrets, unless given.
     /// </para>
     /// <para>
     /// The image is <c>ghcr.io/quartznet/quartz-dashboard</c> at this package's version;

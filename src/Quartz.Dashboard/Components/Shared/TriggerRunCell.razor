@@ -1,0 +1,61 @@
+@using Quartz.Dashboard.Services
+@inject SchedulerState Scheduler
+
+@* A trigger's last recorded run, as the Triggers listing shows it: what it achieved, how long it took and how long
+   before the page was read it fired, with the fire time, the node and the summary on hover; and under it how many of
+   the trigger's occurrences in a row have failed for good, linking to those failures. A trigger with no recorded
+   run is a dash. *@
+@if (Status is { } status)
+{
+    <span class="qz-run-summary qz-trigger-last-run" title="@SummaryTitle(status)">
+        <StateIndicator State="@RunResultDisplay.Label(status.LastResult)" />
+        <span class="qz-muted">@DisplayValueHelper.FormatRunDuration(status.LastDuration)</span>
+        <span class="qz-muted">@DisplayValueHelper.FormatSince(status.LastFiredAtUtc, Now)</span>
+    </span>
+    @if (status.ConsecutiveFailures > 0)
+    {
+        <div class="qz-trigger-failing">
+            <a class="qz-failing-badge"
+               href="@FailuresHref"
+               title="@status.LastFailureMessage"
+               aria-label="@DisplayValueHelper.FormatFailingLinkLabel(status.ConsecutiveFailures, status.Trigger.ToString())"
+               @onclick:stopPropagation="true"
+               @onkeydown:stopPropagation="true">@DisplayValueHelper.FormatFailing(status.ConsecutiveFailures)</a>
+        </div>
+    }
+}
+else
+{
+    <span class="qz-muted qz-trigger-no-run" title="No run of this trigger has been recorded">&#8212;</span>
+}
+
+@code {
+    /// <summary>
+    /// The trigger's run status, or <see langword="null" /> when the history has recorded no run of it.
+    /// </summary>
+    [Parameter]
+    public TriggerRunStatus? Status { get; set; }
+
+    /// <summary>
+    /// When the page read the listing, which how long ago the run fired counts from.
+    /// </summary>
+    [Parameter]
+    public DateTimeOffset Now { get; set; }
+
+    /// <summary>
+    /// The trigger's final failures on the History page, which the failing badge links to.
+    /// </summary>
+    [Parameter]
+    public string? FailuresHref { get; set; }
+
+    private string SummaryTitle(TriggerRunStatus status)
+    {
+        string title = "Fired " + Scheduler.FormatInSelectedTimeZone(status.LastFiredAtUtc);
+        if (!string.IsNullOrEmpty(status.LastSchedulerInstanceId))
+        {
+            title += ", on " + status.LastSchedulerInstanceId;
+        }
+
+        return string.IsNullOrEmpty(status.LastSummary) ? title : title + ": " + status.LastSummary;
+    }
+}

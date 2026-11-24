@@ -68,6 +68,224 @@ export function afterWebStarted() {
         }
     };
 
+    window.quartzDashboardDialog = window.quartzDashboardDialog || (function () {
+        // The elements that opened the dialogs still open, newest last, each with the element focus goes to when
+        // the opener has left the page: a dialog opened from a dialog returns focus to the first one when it closes.
+        const openers = [];
+        const tabbable = "a[href], button:not([disabled]), input:not([disabled]):not([type='hidden']), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
+
+        const controls = function (dialog) {
+            return Array.from(dialog.querySelectorAll(tabbable)).filter(function (element) {
+                return element.getClientRects().length > 0;
+            });
+        };
+
+        return {
+            /**
+             * ModalDialog's first render: remembers what focus goes back to - the opener it was handed, or else what
+             * had focus, and the fallback for an opener that leaves the page - then moves focus into the dialog, to
+             * the element marked data-autofocus or to the dialog itself.
+             */
+            open: function (dialog, returnTo, fallback) {
+                openers.push({
+                    opener: returnTo instanceof HTMLElement
+                        ? returnTo
+                        : (document.activeElement instanceof HTMLElement ? document.activeElement : null),
+                    fallback: fallback instanceof HTMLElement ? fallback : null
+                });
+                if (!dialog) {
+                    return;
+                }
+
+                const preferred = dialog.querySelector("[data-autofocus]");
+                (preferred || dialog).focus();
+            },
+
+            /** Tab past the dialog's last control, onto the closing guard: back to its first. */
+            focusFirst: function (dialog) {
+                if (!dialog) {
+                    return;
+                }
+
+                const items = controls(dialog);
+                (items[0] || dialog).focus();
+            },
+
+            /** Shift+Tab before the dialog's first control, onto the opening guard: round to its last. */
+            focusLast: function (dialog) {
+                if (!dialog) {
+                    return;
+                }
+
+                const items = controls(dialog);
+                (items[items.length - 1] || dialog).focus();
+            },
+
+            /**
+             * The dialog went: focus returns to what opened it, if that is still on the page, and otherwise to the
+             * fallback it was handed, such as the page's heading when the opener's row has gone.
+             */
+            close: function () {
+                const entry = openers.pop();
+                if (!entry) {
+                    return;
+                }
+
+                if (entry.opener && entry.opener.isConnected) {
+                    entry.opener.focus();
+                }
+                else if (entry.fallback && entry.fallback.isConnected) {
+                    entry.fallback.focus();
+                }
+            }
+        };
+    })();
+
+    window.quartzDashboardKeys = window.quartzDashboardKeys || {
+        /**
+         * A grid that moves focus with the arrow keys in C#: the keys must not also scroll the page. Blazor cannot
+         * prevent a default for some keys and not others, so the element does it for those keys alone.
+         */
+        holdArrowKeys: function (element) {
+            if (!element || element.__qzHoldArrowKeys) {
+                return;
+            }
+
+            const keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"];
+            element.__qzHoldArrowKeys = function (event) {
+                if (keys.indexOf(event.key) >= 0) {
+                    event.preventDefault();
+                }
+            };
+
+            element.addEventListener("keydown", element.__qzHoldArrowKeys);
+        }
+    };
+
+    window.quartzDashboardPlace = window.quartzDashboardPlace || (function () {
+        // The rows in view when a listing was last held, each with where it stood, and the element that scrolls them.
+        let held = null;
+
+        const scrollerOf = function (element) {
+            for (let node = element.parentElement; node; node = node.parentElement) {
+                const overflow = getComputedStyle(node).overflowY;
+                if ((overflow === "auto" || overflow === "scroll") && node.scrollHeight > node.clientHeight) {
+                    return node;
+                }
+            }
+
+            return document.scrollingElement;
+        };
+
+        return {
+            /**
+             * Notes the rows of the region that are in view, and where each stands, before the region is read again:
+             * the Agenda's read after an action drops, from above the reader, the fires that passed since the last one.
+             */
+            hold: function (region, rowSelector) {
+                held = null;
+                if (!region) {
+                    return;
+                }
+
+                const scroller = scrollerOf(region);
+                const top = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
+                const bottom = top + scroller.clientHeight;
+                const rows = [];
+                for (const row of region.querySelectorAll(rowSelector)) {
+                    const box = row.getBoundingClientRect();
+                    if (box.bottom <= top) {
+                        continue;
+                    }
+
+                    if (box.top >= bottom || rows.length === 12) {
+                        break;
+                    }
+
+                    rows.push({ row: row, top: box.top });
+                }
+
+                held = rows.length > 0 ? { scroller: scroller, rows: rows } : null;
+            },
+
+            /**
+             * Puts the first held row still on the page back where it stood. A browser that anchors the scroll has
+             * already kept it there, and nothing moves; one that does not (Safari) would show the reader other rows.
+             */
+            restore: function () {
+                const place = held;
+                held = null;
+                if (!place) {
+                    return;
+                }
+
+                const kept = place.rows.find(function (entry) { return entry.row.isConnected; });
+                if (!kept) {
+                    return;
+                }
+
+                const moved = kept.row.getBoundingClientRect().top - kept.top;
+                if (Math.abs(moved) >= 1) {
+                    place.scroller.scrollTop += moved;
+                }
+            }
+        };
+    })();
+
+    window.quartzDashboardLogFollow = window.quartzDashboardLogFollow || (function () {
+        const observers = new Map();
+        let lastId = 0;
+
+        // The log's scroller is a column-reverse one: at its newest line its scrollTop is 0, and above it negative.
+        const atNewest = function (element) {
+            return Math.abs(element.scrollTop) < 2;
+        };
+
+        return {
+            /**
+             * Tells a running firing's log dialog (FireInstanceLogDialog.OnFollowingChanged) when the reader scrolls up
+             * off the newest line, and when back onto it; only the changes, never every scroll. Answers the id
+             * unobserve takes; 0 is never one.
+             */
+            observe: function (element, dotNetRef) {
+                if (!element || !dotNetRef) {
+                    return 0;
+                }
+
+                const id = ++lastId;
+                let following = true;
+                const notify = function () {
+                    const now = atNewest(element);
+                    if (now !== following) {
+                        following = now;
+                        dotNetRef.invokeMethodAsync("OnFollowingChanged", now).catch(function () { });
+                    }
+                };
+
+                element.addEventListener("scroll", notify, { passive: true });
+                observers.set(id, { element: element, notify: notify });
+                return id;
+            },
+
+            /** Back to the newest line, which follows again. */
+            toLatest: function (element) {
+                if (element) {
+                    element.scrollTop = 0;
+                }
+            },
+
+            unobserve: function (id) {
+                const observer = observers.get(id);
+                if (!observer) {
+                    return;
+                }
+
+                observer.element.removeEventListener("scroll", observer.notify);
+                observers.delete(id);
+            }
+        };
+    })();
+
     window.quartzDashboardVisibility = window.quartzDashboardVisibility || (function () {
         const observers = new Map();
         let lastId = 0;
@@ -274,6 +492,17 @@ export function afterWebStarted() {
             axisElement.style.transform = "";
             axisElement.classList.remove("qz-timeline-axis-track-panning");
             delete axisElement.__qzTimelineAxisPan;
+        },
+
+        /**
+         * Scrolls the element with this id to the middle of the window, clear of the toasts at its foot, and never
+         * sideways: the row a save just added.
+         */
+        revealById: function (id) {
+            const element = id ? document.getElementById(id) : null;
+            if (element && typeof element.scrollIntoView === "function") {
+                element.scrollIntoView({ block: "center", inline: "nearest" });
+            }
         },
 
         /**

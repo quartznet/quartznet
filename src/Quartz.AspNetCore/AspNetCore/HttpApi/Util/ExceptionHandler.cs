@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -62,12 +63,43 @@ internal sealed class ExceptionHandler
             case ProblemKind.SchedulerFault:
                 logger.SchedulerExceptionHandlingRequest(context.Request.GetDisplayUrl(), exception);
                 break;
+            case ProblemKind.TargetFault:
+                LogTargetFault((TargetFaultException) exception, context);
+                break;
             default:
                 logger.ExceptionHandlingRequest(context.Request.GetDisplayUrl(), exception);
                 break;
         }
 
         return Problem(exception, problem.Detail, (int) problem.Status, nameTheExceptionType: problem.ExceptionType is not null, problem.ExceptionType);
+    }
+
+    /// <summary>
+    /// Logs a target's fault as <c>9010</c>, <c>9011</c>, <c>9012</c> or <c>9014</c>, naming the target and the reason's
+    /// class, and neither the target's address nor the request's.
+    /// </summary>
+    private void LogTargetFault(TargetFaultException fault, HttpContext context)
+    {
+        string operation = context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName ?? "(unknown)";
+        string schedulerKey = context.Request.RouteValues[SchedulerAuthorization.SchedulerNameRouteValue] is string schedulerName
+            ? TargetedRequest.Key(context, schedulerName).Key
+            : fault.Target;
+
+        switch (fault.Kind)
+        {
+            case TargetFault.Unavailable:
+                logger.TargetUnavailable(fault.Target, operation, schedulerKey, fault.Reason);
+                break;
+            case TargetFault.TimedOut:
+                logger.TargetTimedOut(fault.Target, operation, schedulerKey, fault.Reason);
+                break;
+            case TargetFault.Refused:
+                logger.TargetRefused(fault.Target, operation, schedulerKey, fault.Reason);
+                break;
+            default:
+                logger.TargetFailed(fault.Target, operation, schedulerKey, fault.Kind, fault.Reason);
+                break;
+        }
     }
 
     /// <summary>
@@ -82,7 +114,10 @@ internal sealed class ExceptionHandler
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        logger.RequestAbandoned(context.Request.GetDisplayUrl());
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.RequestAbandoned(context.Request.GetDisplayUrl());
+        }
     }
 
     /// <summary>

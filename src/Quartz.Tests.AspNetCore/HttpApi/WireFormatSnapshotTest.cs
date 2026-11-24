@@ -679,6 +679,45 @@ public class WireFormatSnapshotTest : WebApiTest
     }
 
     [Test]
+    public async Task TriggerRunStatusListingBody()
+    {
+        string body = await GetWithHistory(
+            $"{SchedulerUrl}/history/trigger-status?includeTotalCount=true",
+            async history =>
+            {
+                ExecutionHistoryEntry succeeded = new(
+                    SchedulerName: TestData.SchedulerName,
+                    SchedulerInstanceId: "TEST_NON_CLUSTERED",
+                    JobGroup: "billing",
+                    JobName: "release-stale",
+                    TriggerGroup: "billing",
+                    TriggerName: "hourly",
+                    FiredAtUtc: HistoryInstant.AddHours(-1),
+                    Duration: TimeSpan.FromMilliseconds(250),
+                    Succeeded: true,
+                    ExceptionMessage: null)
+                {
+                    EntryId = "7d4f1a9e3f2a0e5b",
+                    Result = JobRunResult.Succeeded,
+                    Summary = "released 3"
+                };
+
+                await history.AddExecution(succeeded);
+                await history.AddExecution(succeeded with
+                {
+                    FiredAtUtc = HistoryInstant,
+                    Succeeded = false,
+                    ExceptionMessage = "the job threw",
+                    EntryId = "0e5b7d4f1a9e3f2a",
+                    Result = JobRunResult.Failed,
+                    Summary = null
+                });
+            });
+
+        await VerifyBody(body);
+    }
+
+    [Test]
     public async Task ExecutionStatisticsBody()
     {
         string firedFrom = Uri.EscapeDataString(HistoryInstant.AddHours(-2).ToString("O"));

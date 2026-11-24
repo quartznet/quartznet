@@ -76,6 +76,10 @@ public sealed class DashboardHistorySeamTest
         await query.Should().ThrowAsync<NotSupportedException>().WithMessage("*IDashboardHistoryStore*no per-job run status*");
         await single.Should().ThrowAsync<NotSupportedException>().WithMessage("*IDashboardHistoryStore*",
             "the adapter declares the single read itself rather than leaving it to the interface's default");
+
+        Func<Task> triggers = async () => await quartzStore.QueryTriggerRunStatuses(new TriggerRunStatusQuery { SchedulerName = "acme" });
+        await triggers.Should().ThrowAsync<NotSupportedException>().WithMessage("*IDashboardHistoryStore*no per-trigger run status*",
+            "nor any per-trigger status, so the Triggers listing leaves its last-run column out");
     }
 
     /// <summary>
@@ -186,6 +190,13 @@ public sealed class DashboardHistorySeamTest
         await one.Should().ThrowAsync<NotSupportedException>().WithMessage("*IDashboardHistoryStore*",
             "the pages leave the panel out on this, rather than saying the job never ran");
         await many.Should().ThrowAsync<NotSupportedException>().WithMessage("*IDashboardHistoryStore*");
+
+        Func<Task> triggers = async () => await client.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = "QuartzScheduler",
+            Triggers = [new TriggerKey("at-midnight", "DummyTriggerGroup")]
+        });
+        await triggers.Should().ThrowAsync<NotSupportedException>().WithMessage("*IDashboardHistoryStore*");
     }
 
     [Test]
@@ -212,6 +223,14 @@ public sealed class DashboardHistorySeamTest
         (await client.GetJobRunStatuses("QuartzScheduler", [new JobKeyDto("reports", "nightly"), new JobKeyDto("reports", "never-ran")]))
             .Should().ContainSingle("a job with no recorded run is absent").Which.Job.Name.Should().Be("nightly");
         (await client.GetJobRunStatuses("QuartzScheduler", [])).Should().BeEmpty("no keys name no job");
+
+        PagedResult<TriggerRunStatus> triggers = await client.QueryTriggerRunStatuses(new TriggerRunStatusQuery
+        {
+            SchedulerName = "QuartzScheduler",
+            Triggers = [new TriggerKey("at-midnight", "DummyTriggerGroup"), new TriggerKey("never-fired", "DummyTriggerGroup")]
+        });
+        triggers.Items.Should().ContainSingle("a trigger with no recorded run is absent")
+            .Which.ConsecutiveFailures.Should().Be(1);
     }
 
     /// <summary>

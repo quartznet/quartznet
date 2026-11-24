@@ -49,7 +49,13 @@ internal sealed class QuartzWeaselMigrationLogger : IMigrationLogger
         this.schedulerName = schedulerName;
     }
 
-    public void SchemaChange(string sql) => logger.SchemaChange(schedulerName, sql.Trim());
+    public void SchemaChange(string sql)
+    {
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.SchemaChange(schedulerName, sql.Trim());
+        }
+    }
 
     public void OnFailure(DbCommand command, Exception ex)
     {

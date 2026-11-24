@@ -25,6 +25,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.AspNetCore;
 using Quartz.HttpApiContract;
 
 namespace Quartz.Dashboard.Host;
@@ -122,6 +123,28 @@ internal sealed class DashboardHostPlan
 
     public bool CanStart => Problems.Count == 0;
 
+    /// <summary>Whether the host maps the scheduler HTTP API.</summary>
+    public bool ServesHttpApi => Settings.HttpApi.Enabled;
+
+    /// <summary>Where the HTTP API is mapped: rooted, without a trailing slash.</summary>
+    public string HttpApiPath { get; private set; } = DefaultHttpApiPath;
+
+    internal const string DefaultHttpApiPath = "/quartz-api";
+
+    /// <summary>Whether the host maps the MCP endpoint.</summary>
+    public bool ServesMcp => Settings.Mcp.Enabled;
+
+    /// <summary>Where the MCP endpoint is mapped: rooted, without a trailing slash.</summary>
+    public string McpPath { get; private set; } = DefaultMcpPath;
+
+    internal const string DefaultMcpPath = "/quartz-mcp";
+
+    /// <summary>
+    /// Whether a surface a script or an agent calls is mapped — the HTTP API, the MCP endpoint — which is what the
+    /// bearer scheme is registered for.
+    /// </summary>
+    public bool ServesBearer => ServesHttpApi || ServesMcp;
+
     /// <summary>
     /// Reads <c>Quartz:Dashboard</c> out of <paramref name="configuration" /> and checks it.
     /// </summary>
@@ -143,6 +166,8 @@ internal sealed class DashboardHostPlan
         plan.Problems.AddRange(bindingProblems);
 
         plan.CheckAuthentication();
+        plan.CheckHttpApi();
+        plan.CheckMcp();
         plan.CheckTargets(configuration);
         plan.CheckAgents();
 
@@ -208,6 +233,113 @@ internal sealed class DashboardHostPlan
         }
 
         CheckOperations();
+    }
+
+    /// <summary>
+    /// The HTTP API's path, the audience its bearer tokens carry in <c>OpenIdConnect</c> mode, and the origins
+    /// a browser may call it from.
+    /// </summary>
+    private void CheckHttpApi()
+    {
+        AuthenticationSettings authentication = Settings.Authentication;
+
+        if (!string.IsNullOrWhiteSpace(authentication.ApiAudience) && Mode is not HostAuthenticationMode.OpenIdConnect)
+        {
+            Problems.Add($"Quartz:Dashboard:Authentication:ApiAudience is set, but Mode is {Mode}: it applies to OpenIdConnect mode only.");
+        }
+
+        foreach (string origin in Settings.AllowedOrigins)
+        {
+            if (QuartzRequestGuard.Problem(origin) is { } problem)
+            {
+                Problems.Add($"Quartz:Dashboard:AllowedOrigins: {problem}");
+            }
+        }
+
+        HttpApiSettings api = Settings.HttpApi;
+        if (!api.Enabled)
+        {
+            return;
+        }
+
+        if (Mode == HostAuthenticationMode.OpenIdConnect && string.IsNullOrWhiteSpace(authentication.ApiAudience))
+        {
+            Problems.Add(
+                "Quartz:Dashboard:HttpApi:Enabled needs Quartz:Dashboard:Authentication:ApiAudience in OpenIdConnect mode: the "
+                + "API takes a bearer token, and one issued for another audience is not one issued for this host.");
+        }
+
+        HttpApiPath = CheckedPath("Quartz:Dashboard:HttpApi:Path", api.Path, DefaultHttpApiPath, "the API") ?? HttpApiPath;
+    }
+
+    /// <summary>
+    /// The MCP endpoint (#4245): the checks the HTTP API's are, since it is the same kind of surface — a bearer-only
+    /// endpoint for the whole fleet, behind the same origin rule — and a path of its own, the API's included.
+    /// </summary>
+    private void CheckMcp()
+    {
+        McpSettings mcp = Settings.Mcp;
+        if (!mcp.Enabled)
+        {
+            return;
+        }
+
+        if (Mode == HostAuthenticationMode.OpenIdConnect && string.IsNullOrWhiteSpace(Settings.Authentication.ApiAudience))
+        {
+            Problems.Add(
+                "Quartz:Dashboard:Mcp:Enabled needs Quartz:Dashboard:Authentication:ApiAudience in OpenIdConnect mode: the "
+                + "MCP endpoint takes a bearer token, and one issued for another audience is not one issued for this host.");
+        }
+
+        string? path = CheckedPath("Quartz:Dashboard:Mcp:Path", mcp.Path, DefaultMcpPath, "the MCP endpoint");
+        if (path is null)
+        {
+            return;
+        }
+
+        if (ServesHttpApi
+            && (string.Equals(path, HttpApiPath, StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith(HttpApiPath + "/", StringComparison.OrdinalIgnoreCase)
+                || HttpApiPath.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase)))
+        {
+            Problems.Add($"Quartz:Dashboard:Mcp:Path is '{path}', which overlaps the HTTP API's {HttpApiPath}: give each a path of its own.");
+            return;
+        }
+
+        McpPath = path;
+    }
+
+    /// <summary>
+    /// <paramref name="configured" /> as a rooted path without a trailing slash, <paramref name="fallback" /> when it is
+    /// unset, or <see langword="null" /> with the problem recorded: a path that is not one, or one the host already serves.
+    /// </summary>
+    private string? CheckedPath(string key, string? configured, string fallback, string what)
+    {
+        string? path = configured?.Trim();
+        if (string.IsNullOrEmpty(path))
+        {
+            return fallback;
+        }
+
+        if (!path.StartsWith('/') || path.Contains('?') || path.Contains('#') || path.Contains('{'))
+        {
+            Problems.Add($"{key} is '{configured}': it must be a path starting with '/', such as {fallback}.");
+            return null;
+        }
+
+        string normalized = "/" + path.Trim('/');
+        string dashboardPath = DashboardHost.DashboardPath(Settings.DashboardPath);
+        foreach (string taken in (string[]) ["/", dashboardPath, HostAuthentication.LoginPath, HostAuthentication.LogoutPath, "/healthz"])
+        {
+            if (string.Equals(normalized, taken, StringComparison.OrdinalIgnoreCase)
+                || (taken != "/" && normalized.StartsWith(taken + "/", StringComparison.OrdinalIgnoreCase)))
+            {
+                Problems.Add($"{key} is '{configured}', which is the host's own {(taken == "/" ? "root" : taken)}: give {what} a path of its own.");
+                return null;
+            }
+        }
+
+        return normalized;
     }
 
     private void CheckTokens(RoleTokenSettings tokens)

@@ -405,5 +405,34 @@ internal sealed class QuartzSchedulerResources
     /// </remarks>
     internal JobExecutionDelegate? JobExecutionPipeline { get; set; }
 
+    /// <summary>
+    /// Whether <see cref="JobExecutionPipeline" /> begins a capture buffer for every firing: whether the
+    /// scheduler calls <c>UseExecutionLogCapture()</c> (#4437).
+    /// </summary>
+    /// <remarks>
+    /// Kept beside the composed chain because the chain alone cannot say it, and a firing's missing buffer
+    /// cannot either: a firing that has not reached the capture middleware yet has none, as a firing of a
+    /// scheduler that captures nothing has none. A running firing's log is read as "not captured" from this.
+    /// </remarks>
+    internal bool CapturesExecutionLog { get; set; }
+
+    /// <summary>
+    /// The execution history this scheduler's recorder writes, or <see langword="null" /> when it has no
+    /// recorder.
+    /// </summary>
+    /// <remarks>
+    /// Set by the recorder to its own store lookup, so a wait for a firing reads exactly the history the
+    /// recorder writes, and reads none while <see cref="ExecutionHistoryOptions.MaxEntriesPerScheduler" /> is
+    /// <c>0</c> (#4414).
+    /// </remarks>
+    internal Func<IExecutionHistoryStore?>? ExecutionHistory { get; set; }
+
     internal ISchedulerRepository SchedulerRepository { get; set; }
+
+    /// <summary>
+    /// The keys this scheduler's declarations name, which its first start prunes the owned groups against
+    /// when <see cref="SchedulingOptions.PruneUndeclaredInGroups" /> lists any, and which say whether the next
+    /// start stores a trigger again; <see langword="null" /> for a scheduler the container did not build.
+    /// </summary>
+    internal Configuration.DeclaredContent? DeclaredContent { get; set; }
 }

@@ -1,0 +1,344 @@
+@using Quartz
+@using Quartz.Dashboard.Services
+
+@* The base of the two schedule editors, Trigger Detail's reschedule and the Add trigger form (#4412): the form they
+   share, and the inputs of one schedule of any of the five kinds, which each renders where it wants them. What each
+   kind is made of, a time and a date input where the value is one, and each field's error beside it, named by its
+   aria-describedby. A base class rather than a component of its own, because a component's parameters are public, and
+   the form is not. *@
+
+@code {
+    /// <summary>The form the inputs write into, or <see langword="null" /> for a trigger the form cannot rebuild.</summary>
+    internal ScheduleForm? Form { get; set; }
+
+    /// <summary>What is wrong, by field, as the form was last built.</summary>
+    internal Dictionary<ScheduleField, string> Errors { get; set; } = [];
+
+    /// <summary>What goes before every input's id: two forms on one page name their inputs apart.</summary>
+    internal virtual string IdPrefix => "schedule";
+
+    /// <summary>Called after every change to the form, to build the trigger and its preview again.</summary>
+    internal virtual void OnScheduleEdited()
+    {
+    }
+
+    /// <summary>
+    /// The inputs of <see cref="Form" />'s kind, with the kind select first when it can be chosen: a new trigger's can,
+    /// a stored one's is what it is.
+    /// </summary>
+    internal RenderFragment ScheduleInputs(bool kindSelectable) => __builder =>
+    {
+        if (Form is not { } form)
+        {
+            return;
+        }
+
+        <div class="qz-live-filter-grid qz-schedule-fields" data-testid="schedule-fields">
+            @if (kindSelectable)
+            {
+                <div class="qz-form-group">
+                    <label class="qz-form-label" for="@Id("kind")">Kind</label>
+                    <select id="@Id("kind")" class="qz-select" @bind="form.Kind" @bind:after="EditedAsync">
+                        @foreach (ScheduleKind kind in ScheduleForm.Kinds)
+                        {
+                            <option value="@kind">@ScheduleForm.Describe(kind)</option>
+                        }
+                    </select>
+                </div>
+            }
+
+            @switch (form.Kind)
+            {
+                case ScheduleKind.Cron:
+                    <div class="qz-form-group qz-schedule-wide">
+                        <label class="qz-form-label" for="@Id("cron-expression")">Cron expression</label>
+                        <input id="@Id("cron-expression")"
+                               class="qz-input qz-input-mono"
+                               placeholder="0 0 7 ? * MON-FRI"
+                               autocomplete="off"
+                               spellcheck="false"
+                               aria-invalid="@Invalid(ScheduleField.CronExpression)"
+                               aria-describedby="@DescribedBy(ScheduleField.CronExpression)"
+                               @bind="form.CronExpression"
+                               @bind:event="oninput"
+                               @bind:after="EditedAsync" />
+                        <FieldError Id="@ErrorId(ScheduleField.CronExpression)" Message="@ErrorOf(ScheduleField.CronExpression)" TestId="schedule-cron-error" />
+                    </div>
+                    break;
+
+                case ScheduleKind.Simple:
+                    <div class="qz-form-group qz-schedule-pair">
+                        <label class="qz-form-label" for="@Id("simple-interval")">Every</label>
+                        <div class="qz-schedule-interval">
+                            <input id="@Id("simple-interval")"
+                                   class="qz-input"
+                                   inputmode="decimal"
+                                   aria-invalid="@Invalid(ScheduleField.SimpleInterval)"
+                                   aria-describedby="@DescribedBy(ScheduleField.SimpleInterval)"
+                                   @bind="form.SimpleInterval"
+                                   @bind:event="oninput"
+                                   @bind:after="EditedAsync" />
+                            <select id="@Id("simple-unit")" class="qz-select" aria-label="Interval unit" @bind="form.SimpleUnit" @bind:after="EditedAsync">
+                                @foreach (IntervalUnit unit in ScheduleForm.SimpleUnits)
+                                {
+                                    <option value="@unit">@UnitName(unit)</option>
+                                }
+                            </select>
+                        </div>
+                        <FieldError Id="@ErrorId(ScheduleField.SimpleInterval)" Message="@ErrorOf(ScheduleField.SimpleInterval)" />
+                    </div>
+                    <div class="qz-form-group">
+                        <span class="qz-form-label">Repeats</span>
+                        <label class="qz-live-filter-item" for="@Id("repeat-forever")">
+                            <input id="@Id("repeat-forever")" type="checkbox" class="qz-check" @bind="form.RepeatForever" @bind:after="EditedAsync" />
+                            <span>Forever</span>
+                        </label>
+                        @if (!form.RepeatForever)
+                        {
+                            <input id="@Id("repeat-count")"
+                                   class="qz-input"
+                                   inputmode="numeric"
+                                   aria-label="Times it repeats after the first fire"
+                                   aria-invalid="@Invalid(ScheduleField.RepeatCount)"
+                                   aria-describedby="@DescribedBy(ScheduleField.RepeatCount)"
+                                   @bind="form.RepeatCount"
+                                   @bind:event="oninput"
+                                   @bind:after="EditedAsync" />
+                        }
+                        <FieldError Id="@ErrorId(ScheduleField.RepeatCount)" Message="@ErrorOf(ScheduleField.RepeatCount)" />
+                    </div>
+                    <div class="qz-form-group">
+                        <label class="qz-live-filter-item"
+                               for="@Id("measure-from-completion")"
+                               title="Measure the interval from the previous run's completion rather than its scheduled time: the trigger never overlaps itself. Every node must be 4.7 or later">
+                            <input id="@Id("measure-from-completion")" type="checkbox" class="qz-check" @bind="form.MeasureIntervalFromCompletion" @bind:after="EditedAsync" />
+                            <span>Interval measured from completion</span>
+                        </label>
+                    </div>
+                    break;
+
+                case ScheduleKind.CalendarInterval:
+                    <div class="qz-form-group qz-schedule-pair">
+                        <label class="qz-form-label" for="@Id("calendar-interval")">Every</label>
+                        <div class="qz-schedule-interval">
+                            <input id="@Id("calendar-interval")"
+                                   class="qz-input"
+                                   inputmode="numeric"
+                                   aria-invalid="@Invalid(ScheduleField.CalendarInterval)"
+                                   aria-describedby="@DescribedBy(ScheduleField.CalendarInterval)"
+                                   @bind="form.CalendarInterval"
+                                   @bind:event="oninput"
+                                   @bind:after="EditedAsync" />
+                            <select id="@Id("calendar-unit")" class="qz-select" aria-label="Interval unit" @bind="form.CalendarUnit" @bind:after="EditedAsync">
+                                @foreach (IntervalUnit unit in ScheduleForm.CalendarUnits)
+                                {
+                                    <option value="@unit">@UnitName(unit)</option>
+                                }
+                            </select>
+                        </div>
+                        <FieldError Id="@ErrorId(ScheduleField.CalendarInterval)" Message="@ErrorOf(ScheduleField.CalendarInterval)" />
+                    </div>
+                    <div class="qz-form-group qz-schedule-wide qz-schedule-checks">
+                        <label class="qz-live-filter-item"
+                               for="@Id("preserve-hour")"
+                               title="For a day or longer: always fire at the start's time of day, whatever daylight saving does">
+                            <input id="@Id("preserve-hour")" type="checkbox" class="qz-check" @bind="form.PreserveHourOfDayAcrossDaylightSavings" @bind:after="EditedAsync" />
+                            <span>Keep the hour of day across daylight saving</span>
+                        </label>
+                        @if (form.PreserveHourOfDayAcrossDaylightSavings)
+                        {
+                            <label class="qz-live-filter-item"
+                                   for="@Id("skip-day")"
+                                   title="When that hour does not exist on a day, skip the day rather than fire an hour off">
+                                <input id="@Id("skip-day")" type="checkbox" class="qz-check" @bind="form.SkipDayIfHourDoesNotExist" @bind:after="EditedAsync" />
+                                <span>Skip a day the hour does not exist on</span>
+                            </label>
+                        }
+                    </div>
+                    break;
+
+                case ScheduleKind.DailyTimeInterval:
+                    <div class="qz-form-group">
+                        <label class="qz-form-label" for="@Id("daily-start")">From</label>
+                        <input id="@Id("daily-start")"
+                               class="qz-input"
+                               type="time"
+                               step="1"
+                               aria-invalid="@Invalid(ScheduleField.DailyStart)"
+                               aria-describedby="@DescribedBy(ScheduleField.DailyStart)"
+                               value="@form.DailyStart"
+                               @onchange="args => SetDailyWindow(start: args.Value?.ToString())" />
+                        <FieldError Id="@ErrorId(ScheduleField.DailyStart)" Message="@ErrorOf(ScheduleField.DailyStart)" />
+                    </div>
+                    <div class="qz-form-group">
+                        <label class="qz-form-label" for="@Id("daily-end")">Until</label>
+                        <input id="@Id("daily-end")"
+                               class="qz-input"
+                               type="time"
+                               step="1"
+                               aria-invalid="@Invalid(ScheduleField.DailyEnd)"
+                               aria-describedby="@DescribedBy(ScheduleField.DailyEnd)"
+                               value="@form.DailyEnd"
+                               @onchange="args => SetDailyWindow(end: args.Value?.ToString())" />
+                        <FieldError Id="@ErrorId(ScheduleField.DailyEnd)" Message="@ErrorOf(ScheduleField.DailyEnd)" />
+                    </div>
+                    <div class="qz-form-group qz-schedule-pair">
+                        <label class="qz-form-label" for="@Id("daily-interval")">Every</label>
+                        <div class="qz-schedule-interval">
+                            <input id="@Id("daily-interval")"
+                                   class="qz-input"
+                                   inputmode="numeric"
+                                   aria-invalid="@Invalid(ScheduleField.DailyInterval)"
+                                   aria-describedby="@DescribedBy(ScheduleField.DailyInterval)"
+                                   @bind="form.DailyInterval"
+                                   @bind:event="oninput"
+                                   @bind:after="EditedAsync" />
+                            <select id="@Id("daily-unit")" class="qz-select" aria-label="Interval unit" @bind="form.DailyUnit" @bind:after="EditedAsync">
+                                @foreach (IntervalUnit unit in ScheduleForm.DailyUnits)
+                                {
+                                    <option value="@unit">@UnitName(unit)</option>
+                                }
+                            </select>
+                        </div>
+                        <FieldError Id="@ErrorId(ScheduleField.DailyInterval)" Message="@ErrorOf(ScheduleField.DailyInterval)" />
+                    </div>
+                    <div class="qz-form-group">
+                        <label class="qz-form-label" for="@Id("daily-repeat-count")">Repeats each day</label>
+                        <input id="@Id("daily-repeat-count")"
+                               class="qz-input"
+                               inputmode="numeric"
+                               placeholder="until the window ends"
+                               aria-invalid="@Invalid(ScheduleField.DailyRepeatCount)"
+                               aria-describedby="@DescribedBy(ScheduleField.DailyRepeatCount)"
+                               @bind="form.DailyRepeatCount"
+                               @bind:event="oninput"
+                               @bind:after="EditedAsync" />
+                        <FieldError Id="@ErrorId(ScheduleField.DailyRepeatCount)" Message="@ErrorOf(ScheduleField.DailyRepeatCount)" />
+                    </div>
+                    <div class="qz-form-group qz-schedule-wide">
+                        <span class="qz-form-label" id="@Id("daily-days-label")">On</span>
+                        <div class="qz-day-group"
+                             role="group"
+                             aria-labelledby="@Id("daily-days-label")"
+                             aria-invalid="@Invalid(ScheduleField.DailyDays)"
+                             aria-describedby="@DescribedBy(ScheduleField.DailyDays)"
+                             data-testid="schedule-daily-days">
+                            <ul class="qz-calendar-days">
+                                @foreach (DayOfWeek day in ScheduleForm.WeekDays)
+                                {
+                                    DayOfWeek weekDay = day;
+                                    <li>
+                                        <label class="qz-live-filter-item">
+                                            <input type="checkbox"
+                                                   class="qz-check"
+                                                   data-day="@weekDay"
+                                                   checked="@form.DailyDays.Contains(weekDay)"
+                                                   @onchange="args => ToggleDay(weekDay, args)" />
+                                            <span>@weekDay.ToString()[..3]</span>
+                                        </label>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                        <FieldError Id="@ErrorId(ScheduleField.DailyDays)" Message="@ErrorOf(ScheduleField.DailyDays)" />
+                    </div>
+                    break;
+
+                default:
+                    <div class="qz-form-group qz-schedule-wide">
+                        <label class="qz-form-label" for="@Id("recurrence-rule")">Recurrence rule (RFC 5545 RRULE)</label>
+                        <input id="@Id("recurrence-rule")"
+                               class="qz-input qz-input-mono"
+                               placeholder="FREQ=WEEKLY;BYDAY=MO,WE;BYHOUR=9;BYMINUTE=0"
+                               autocomplete="off"
+                               spellcheck="false"
+                               aria-invalid="@Invalid(ScheduleField.RecurrenceRule)"
+                               aria-describedby="@DescribedBy(ScheduleField.RecurrenceRule)"
+                               @bind="form.RecurrenceRule"
+                               @bind:event="oninput"
+                               @bind:after="EditedAsync" />
+                        <FieldError Id="@ErrorId(ScheduleField.RecurrenceRule)" Message="@ErrorOf(ScheduleField.RecurrenceRule)" TestId="schedule-recurrence-error" />
+                    </div>
+                    break;
+            }
+
+            @if (form.HasTimeZone)
+            {
+                <div class="qz-form-group">
+                    <label class="qz-form-label" for="@Id("time-zone")">Time zone</label>
+                    <input id="@Id("time-zone")"
+                           class="qz-input qz-input-mono"
+                           list="@Id("time-zones")"
+                           title="The zone the schedule's times are read in, by its system id"
+                           aria-invalid="@Invalid(ScheduleField.TimeZone)"
+                           aria-describedby="@DescribedBy(ScheduleField.TimeZone)"
+                           @bind="form.TimeZoneId"
+                           @bind:event="oninput"
+                           @bind:after="EditedAsync" />
+                    <datalist id="@Id("time-zones")">
+                        @foreach (TimeZoneInfo timeZone in TimeZones)
+                        {
+                            <option value="@timeZone.Id"></option>
+                        }
+                    </datalist>
+                    <FieldError Id="@ErrorId(ScheduleField.TimeZone)" Message="@ErrorOf(ScheduleField.TimeZone)" />
+                </div>
+            }
+        </div>
+    };
+
+    private static IReadOnlyList<TimeZoneInfo> TimeZones { get; } = TimeZoneInfo.GetSystemTimeZones();
+
+    private string Id(string name) => IdPrefix + "-" + name;
+
+    internal string ErrorId(ScheduleField field) => IdPrefix + "-" + field.ToString().ToLowerInvariant() + "-error";
+
+    internal string? ErrorOf(ScheduleField field) => Errors.GetValueOrDefault(field);
+
+    private string? Invalid(ScheduleField field) => Errors.ContainsKey(field) ? "true" : null;
+
+    private string? DescribedBy(ScheduleField field) => Errors.ContainsKey(field) ? ErrorId(field) : null;
+
+    private static string UnitName(IntervalUnit unit) => unit switch
+    {
+        IntervalUnit.Second => "seconds",
+        IntervalUnit.Minute => "minutes",
+        IntervalUnit.Hour => "hours",
+        IntervalUnit.Day => "days",
+        IntervalUnit.Week => "weeks",
+        IntervalUnit.Month => "months",
+        _ => "years",
+    };
+
+    private void EditedAsync() => OnScheduleEdited();
+
+    /// <summary>A time input's change, which binds as a string only through its value: Blazor binds type=time to a time.</summary>
+    private void SetDailyWindow(string? start = null, string? end = null)
+    {
+        if (start is not null)
+        {
+            Form!.DailyStart = start;
+        }
+
+        if (end is not null)
+        {
+            Form!.DailyEnd = end;
+        }
+
+        OnScheduleEdited();
+    }
+
+    private void ToggleDay(DayOfWeek day, ChangeEventArgs args)
+    {
+        if (args.Value is true)
+        {
+            Form!.DailyDays.Add(day);
+        }
+        else
+        {
+            Form!.DailyDays.Remove(day);
+        }
+
+        OnScheduleEdited();
+    }
+}

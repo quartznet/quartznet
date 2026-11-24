@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Net.Http.Headers;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -87,6 +88,30 @@ public static class HttpClientSamples
         IScheduler scheduler = new HttpScheduler("MyScheduler", http);
 
         await scheduler.TriggerJob(new JobKey("nightly-report", "reports"));
+
+        #endregion
+    }
+
+    public static async ValueTask ThroughTheDashboardHost(WebApplicationBuilder builder, HttpClient hostApi)
+    {
+        #region sample_httpclient_gateway_target
+
+        // A scheduler the dashboard host lists as w1/QuartzScheduler, through the host's HTTP API
+        builder.Services.AddHttpClient("quartz-host", client =>
+        {
+            client.BaseAddress = new Uri("https://quartz.example.com/quartz-api/");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "<operator token>");
+        });
+        builder.Services.AddQuartzHttpClient(options =>
+        {
+            options.SchedulerName = "QuartzScheduler";
+            options.GatewayTarget = "w1";       // sent as ?target=w1 on every request
+            options.HttpClientName = "quartz-host";
+        });
+
+        // or directly, by the key the host lists
+        IScheduler scheduler = new HttpScheduler(new SchedulerRef("QuartzScheduler", "w1"), hostApi);
+        await scheduler.PauseJob(new JobKey("nightly-report", "reports"));
 
         #endregion
     }

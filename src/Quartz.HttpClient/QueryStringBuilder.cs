@@ -34,6 +34,8 @@ internal sealed class QueryStringBuilder
 
     public void Add(string name, int value) => parameters.Add($"{name}={value.ToString(CultureInfo.InvariantCulture)}");
 
+    public void Add(string name, long value) => parameters.Add($"{name}={value.ToString(CultureInfo.InvariantCulture)}");
+
     public void Add(string name, bool value) => parameters.Add($"{name}={(value ? "true" : "false")}");
 
     public void AddPaging(PagedQuery query)

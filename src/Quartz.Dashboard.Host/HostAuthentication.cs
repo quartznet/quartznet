@@ -27,6 +27,7 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
@@ -50,6 +51,13 @@ namespace Quartz.Dashboard.Host;
 /// SameSite=Lax instead, because the identity provider sends the browser back from another site and a
 /// strict cookie set on that redirect is not sent on the next request, which challenges again forever.
 /// </para>
+/// <para>
+/// The HTTP API, when the host serves it, signs a caller in by bearer token only and is held to
+/// <see cref="ApiPolicy" />, which never reads the cookie: a script cannot send one, and a cookie the
+/// browser sends on its own is what a cross-site request would borrow. In <c>Token</c> mode the bearer is
+/// a role's token; in <c>OpenIdConnect</c> mode a JWT issued for <c>ApiAudience</c>; <c>Unsecured</c> mode
+/// keeps its one anonymous caller.
+/// </para>
 /// </remarks>
 internal static class HostAuthentication
 {
@@ -60,6 +68,12 @@ internal static class HostAuthentication
     internal const string CookieScheme = "Quartz.Dashboard.Host";
 
     internal const string UnsecuredScheme = "Quartz.Dashboard.Host.Unsecured";
+
+    /// <summary>The scheme the HTTP API signs a caller in with: a bearer token, never the cookie.</summary>
+    internal const string BearerScheme = "Quartz.Dashboard.Host.Bearer";
+
+    /// <summary>The HTTP API's policy: signed in by <see cref="ApiScheme" />, and in at least one role.</summary>
+    internal const string ApiPolicy = "Quartz.Dashboard.Host.Api";
 
     internal const string CookieName = "quartz-dashboard";
 
@@ -81,19 +95,29 @@ internal static class HostAuthentication
         switch (plan.Mode)
         {
             case HostAuthenticationMode.Token:
-                services.AddAuthentication(CookieScheme)
+                AuthenticationBuilder tokens = services.AddAuthentication(CookieScheme)
                     .AddCookie(CookieScheme, cookie => ConfigureCookie(cookie, SameSiteMode.Strict, loginPath: LoginPath));
+                if (plan.ServesBearer)
+                {
+                    tokens.AddScheme<AuthenticationSchemeOptions, TokenBearerHandler>(BearerScheme, _ => { });
+                }
+
                 services.AddSingleton(new TokenRoles(settings.Tokens));
                 break;
 
             case HostAuthenticationMode.OpenIdConnect:
-                services.AddAuthentication(options =>
+                AuthenticationBuilder oidcBuilder = services.AddAuthentication(options =>
                     {
                         options.DefaultScheme = CookieScheme;
                         options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
                     })
                     .AddCookie(CookieScheme, cookie => ConfigureCookie(cookie, SameSiteMode.Lax, loginPath: null))
                     .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, oidc => ConfigureOpenIdConnect(oidc, settings));
+                if (plan.ServesBearer)
+                {
+                    oidcBuilder.AddJwtBearer(BearerScheme, jwt => ConfigureJwtBearer(jwt, settings));
+                }
+
                 break;
 
             case HostAuthenticationMode.Unsecured:
@@ -108,6 +132,13 @@ internal static class HostAuthentication
         services.AddAuthorization(options =>
         {
             options.AddPolicy(VisitorPolicy, policy => policy.RequireAuthenticatedUser().RequireRole(everyRole));
+
+            // The API's own scheme and nothing else: a request carrying only the sign-in cookie is not signed in
+            // here, so a page of another site cannot borrow it, and ?t= is never read.
+            options.AddPolicy(ApiPolicy, policy => policy
+                .AddAuthenticationSchemes(ApiScheme(plan.Mode))
+                .RequireAuthenticatedUser()
+                .RequireRole(everyRole));
             options.AddPolicy(OperationPolicy, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireSchedulerRoles(roles =>
@@ -140,6 +171,56 @@ internal static class HostAuthentication
         }
 
         return ([DashboardHostPlan.ViewerRole], [DashboardHostPlan.OperatorRole], [DashboardHostPlan.AdministratorRole]);
+    }
+
+    /// <summary>
+    /// Refuses every API request whose address carries <c>?t=</c>, with <c>401</c>, whatever else it carries.
+    /// </summary>
+    /// <remarks>
+    /// The API never reads a token from the address, and an address is what a failure is logged with: the
+    /// API's <c>9003</c> and <c>9004</c> write the request's URL, query included, and a caller who sent a valid
+    /// bearer would otherwise get that far with a role token in the query. Refused before the handler, with
+    /// nothing logged, so the value goes nowhere. Applied to the mapping after it is authorized, in every mode.
+    /// </remarks>
+    public static void RefuseTokenInAddress(IEndpointConventionBuilder api)
+    {
+        api.Add(endpointBuilder =>
+        {
+            RequestDelegate next = endpointBuilder.RequestDelegate
+                ?? throw new InvalidOperationException($"Endpoint {endpointBuilder.DisplayName} has null RequestDelegate");
+
+            endpointBuilder.RequestDelegate = context =>
+            {
+                if (!context.Request.Query.ContainsKey(TokenQuery))
+                {
+                    return next(context);
+                }
+
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Headers.WWWAuthenticate = "Bearer";
+                return Task.CompletedTask;
+            };
+        });
+    }
+
+    /// <summary>
+    /// The scheme the HTTP API signs a caller in with: the bearer scheme, or <c>Unsecured</c> mode's anonymous
+    /// caller. Never the cookie.
+    /// </summary>
+    internal static string ApiScheme(HostAuthenticationMode mode) => mode == HostAuthenticationMode.Unsecured ? UnsecuredScheme : BearerScheme;
+
+    /// <summary>
+    /// A JWT bearer for the API, issued by the dashboard's identity provider for <c>ApiAudience</c>, its
+    /// roles read from the same claim as a visitor's.
+    /// </summary>
+    private static void ConfigureJwtBearer(JwtBearerOptions jwt, AuthenticationSettings settings)
+    {
+        jwt.Authority = settings.Authority;
+        jwt.Audience = settings.ApiAudience;
+        jwt.MapInboundClaims = false;
+        jwt.RequireHttpsMetadata = settings.RequireHttpsMetadata ?? true;
+        jwt.TokenValidationParameters.NameClaimType = string.IsNullOrWhiteSpace(settings.NameClaimType) ? "name" : settings.NameClaimType;
+        jwt.TokenValidationParameters.RoleClaimType = string.IsNullOrWhiteSpace(settings.RoleClaimType) ? "roles" : settings.RoleClaimType;
     }
 
     private static void ConfigureCookie(CookieAuthenticationOptions cookie, SameSiteMode sameSite, string? loginPath)
@@ -447,6 +528,62 @@ internal sealed class TokenRoles
         }
 
         return matched;
+    }
+}
+
+/// <summary>
+/// <c>Token</c> mode's bearer for the HTTP API: <c>Authorization: Bearer &lt;role token&gt;</c>, matched by
+/// <see cref="TokenRoles" /> in constant time, signs the caller in at that token's role.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The principal is the one the sign-in cookie carries, plus a <see cref="ClaimTypes.NameIdentifier" /> equal
+/// to the role: everyone holding a token shares it, so the role is the identity, and a library that binds
+/// state to the caller's identifier finds one rather than a <see langword="null" /> every caller shares.
+/// </para>
+/// <para>
+/// Only the header is read. A token in the address is never accepted here, and a refused token is logged as
+/// <c>9410</c> without its value.
+/// </para>
+/// </remarks>
+internal sealed class TokenBearerHandler(
+    IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder,
+    TokenRoles roles)
+    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    private const string Prefix = "Bearer ";
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        string authorization = Request.Headers.Authorization.ToString();
+        if (!authorization.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        string? role = roles.Match(authorization[Prefix.Length..].Trim());
+        if (role is null)
+        {
+            Context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(DashboardHostLog.Category).BearerRefused();
+            return Task.FromResult(AuthenticateResult.Fail("The bearer token matched no role."));
+        }
+
+        ClaimsIdentity identity = new(
+            [new Claim(ClaimTypes.Name, role.ToLowerInvariant()), new Claim(ClaimTypes.Role, role), new Claim(ClaimTypes.NameIdentifier, role)],
+            HostAuthentication.BearerScheme,
+            ClaimTypes.Name,
+            ClaimTypes.Role);
+
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name)));
+    }
+
+    protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+    {
+        Response.StatusCode = StatusCodes.Status401Unauthorized;
+        Response.Headers.WWWAuthenticate = "Bearer";
+        return Task.CompletedTask;
     }
 }
 

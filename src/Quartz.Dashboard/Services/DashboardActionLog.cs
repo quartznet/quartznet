@@ -20,6 +20,8 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Logging;
 
+using Quartz.AspNetCore;
+
 namespace Quartz.Dashboard.Services;
 
 /// <summary>
@@ -166,6 +168,9 @@ internal sealed class DashboardActionLog
 
     /// <inheritdoc cref="DashboardActionLogService.GetLatest(string?, int)" />
     public IReadOnlyList<DashboardActionLogEntry> GetLatest(string? schedulerName, int maxCount) => store.GetLatest(schedulerName, maxCount);
+
+    /// <inheritdoc cref="DashboardActionLogService.GetLatest(string?, OperatorChannel?, int)" />
+    public IReadOnlyList<DashboardActionLogEntry> GetLatest(string? schedulerName, OperatorChannel? via, int maxCount) => store.GetLatest(schedulerName, via, maxCount);
 
     /// <summary>
     /// Who the circuit belongs to, or a placeholder when nothing has said.
