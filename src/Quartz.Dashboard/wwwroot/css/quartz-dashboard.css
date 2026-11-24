@@ -1803,6 +1803,28 @@ body{
     }
 }
 
+/* From a 768px window until the 760px table fits its card, the four action buttons stack in a 120px column instead
+   of two rows of two, so the table fits with every column, the key at 234px or more. Below 768px it scrolls in its
+   card. The upper bound leaves room for a classic scrollbar. */
+@media (min-width: 768px) and (max-width: 939px) {
+    .qz-jobs-table {
+        min-width: 0;
+    }
+
+    .qz-jobs-table th.qz-col-actions,
+    .qz-jobs-table td.qz-col-actions {
+        width: 120px;
+        padding-left: var(--qz-space-sm);
+        padding-right: var(--qz-space-sm);
+    }
+
+    .qz-jobs-table td.qz-col-actions .qz-actions {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+    }
+}
+
 /* The Triggers listing adds a schedule and two fire times to the key, state, execution group and actions.
    The key and the schedule share what the fixed columns leave, and the columns answer to the listing's own
    width, not the window's, so a collapsed sidebar counts. Each step below gives way before the key or the
