@@ -82,6 +82,7 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `UpcomingFireDto` | `Quartz.Dashboard`, `sealed record` `(FireTimeUtc, Trigger, Job, State)`, with `ExecutionGroup`, `ScheduleDescription` and `OnlyTheNext`, `init` |
 | `GET …/triggers/upcoming-fires` | HTTP API route `QueryUpcomingFires`, View: `?from=&to=&take=&groupContains=`. Agent operation `QueryUpcomingFires`, allowed by default. Through a host older than 4.9, `HttpScheduler` computes it from the triggers and calendars the host answers with. See [Upcoming fires between two times](packages/http-api.md#upcoming-fires-between-two-times) |
 | Dashboard: the Agenda, `/quartz/agenda` | Every fire in a window, by hour, with *Pause selected* and *Resume selected*. See [Agenda](packages/dashboard.md#agenda) |
+| `QuartzInstrumentation.Instruments.TriggerDue`, `TriggerDueAge` | `quartz.trigger.due`, an `ObservableGauge<long>` in `{trigger}`, and `quartz.trigger.due.age`, an `ObservableGauge<double>` in `s`: the waiting triggers whose fire time has passed, per execution group, and how long the earliest has been due. From the ADO.NET store only; aggregate across nodes with `max`. The thirteenth and fourteenth instruments. See [The due backlog](packages/opentelemetry-integration.md#the-due-backlog) |
 
 | Changed | What to check |
 |---|---|

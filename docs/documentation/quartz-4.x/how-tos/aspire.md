@@ -445,9 +445,9 @@ firing logs; see [A log scope per firing](../tutorial/job-execution-middleware.m
   on failure, so the failure rate is its count with that attribute. `quartz.fire.instance.id` is not a
   metric attribute (it is unique per firing).
 * `quartz.trigger.misfire`, `quartz.trigger.acquisition.duration`, `quartz.trigger.acquired`,
-  `quartz.jobstore.operation.duration`, and on a clustered persistent store
-  `quartz.cluster.checkin.duration` and `quartz.cluster.recovery.trigger`. All carry `quartz.scheduler.id`,
-  so you can filter to one node.
+  `quartz.jobstore.operation.duration`, on a persistent store the gauges `quartz.trigger.due` and
+  `quartz.trigger.due.age`, and on a clustered persistent store `quartz.cluster.checkin.duration` and
+  `quartz.cluster.recovery.trigger`. All carry `quartz.scheduler.id`, so you can filter to one node.
 
 Full tables: [Observability](../packages/opentelemetry-integration.md).
 

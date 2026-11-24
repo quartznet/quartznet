@@ -236,6 +236,44 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
+    /// The scheduler's <c>WAITING</c> triggers due by <paramref name="now" />, counted per execution group
+    /// with the earliest fire time of each (#4401).
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than a member of <see cref="IDriverDelegate" />, as
+    /// <see cref="CountUnservedMisfiredTriggers" /> is: the store asks it only while something collects the
+    /// due-trigger gauges, and a delegate without it reports nothing. Virtual so a test can count the calls.
+    /// </remarks>
+    /// <param name="conn">The misfire pass's connection.</param>
+    /// <param name="now">The instant a fire time has to have reached to count as due.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    internal virtual async ValueTask<List<DueTriggers>> SelectDueTriggersByExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectDueTriggersByExecutionGroup));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(StoredTriggerState.Waiting));
+        AddCommandParameter(cmd, SqlParameters.NoLaterThan, GetDbDateTimeValue(now));
+
+        List<DueTriggers> due = [];
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            // The count is a NUMBER on Oracle and an Int32 on SQL Server, hence the conversion. A fire
+            // time stored as zero or less reads as none, and is taken as due now.
+            due.Add(new DueTriggers(
+                rs.IsDBNull(0) ? null : rs.GetString(0),
+                Convert.ToInt64(rs.GetValue(1), CultureInfo.InvariantCulture),
+                GetDateTimeFromDbValue(rs.GetValue(2)) ?? now));
+        }
+
+        return due;
+    }
+
+    /// <summary>
     /// Binds the routed groups' parameters — <c>@servedGroup0000…</c> or <c>@refusedGroup0000…</c>, in
     /// the order the clause numbers them — after the statement's own parameters, for providers that bind
     /// positionally. Nothing is bound for a shape with no clause.

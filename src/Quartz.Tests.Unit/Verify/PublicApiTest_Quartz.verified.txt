@@ -2550,6 +2550,8 @@ namespace Quartz.Diagnostics
             public const string JobStoreOperationDuration = "quartz.jobstore.operation.duration";
             public const string TriggerAcquired = "quartz.trigger.acquired";
             public const string TriggerAcquisitionDuration = "quartz.trigger.acquisition.duration";
+            public const string TriggerDue = "quartz.trigger.due";
+            public const string TriggerDueAge = "quartz.trigger.due.age";
             public const string TriggerMisfire = "quartz.trigger.misfire";
             public const string TriggerRetriesExhausted = "quartz.trigger.retries_exhausted";
             public const string TriggerRetry = "quartz.trigger.retry";

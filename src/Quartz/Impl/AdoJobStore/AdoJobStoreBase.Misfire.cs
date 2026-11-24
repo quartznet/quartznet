@@ -21,6 +21,7 @@
 
 using System.Runtime.InteropServices;
 
+using Quartz.Diagnostics;
 using Quartz.Extensibility;
 using Quartz.Impl.Triggers;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -638,6 +639,68 @@ internal abstract partial class AdoJobStoreBase
         }
     }
 
+    /// <summary>
+    /// The backlog the due-trigger gauges read, registered with <see cref="Meters" /> from the
+    /// scheduler's start until its shutdown.
+    /// </summary>
+    private DueTriggerBacklog? dueTriggerBacklog;
+
+    /// <summary>When the backlog was last counted. Only the misfire handler's thread touches it.</summary>
+    private DateTimeOffset dueTriggersLastCountedUtc = DateTimeOffset.MinValue;
+
+    /// <summary>
+    /// Creates the backlog the due-trigger gauges read and registers it, as the misfire handler is
+    /// created, so that <see cref="Shutdown" /> always finds it to unregister: a first count still
+    /// running when shutdown stops waiting for the handler must not register one after.
+    /// </summary>
+    /// <remarks>Internal so a test can drive a store it has not started.</remarks>
+    internal void StartDueTriggerBacklog()
+    {
+        if (dueTriggerBacklog is not null)
+        {
+            return;
+        }
+
+        dueTriggerBacklog = new DueTriggerBacklog(InstanceName, InstanceId, timeProvider, MisfireHandlerFrequency * 2);
+        Meters.RegisterDueTriggers(dueTriggerBacklog);
+    }
+
+    /// <summary>
+    /// Counts the scheduler's due backlog for the due-trigger gauges (#4401), once per misfire pass and
+    /// only while something collects them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The interval check only stops the 50 ms reruns of a pass that left misfires behind. Passes are
+    /// spaced from their start and this runs after the connection opens, so a regular pass can come a
+    /// little sooner than one interval after the last count; checking against half an interval still
+    /// counts it. A count older than two intervals is not reported, so a skipped regular pass would blank
+    /// the gauges.
+    /// </para>
+    /// <para>
+    /// A negative interval is a clock that moved back, and counts at once, as
+    /// <see cref="MisfireHandler.ComputeTimeToSleep" /> refuses to sleep through the jump.
+    /// </para>
+    /// </remarks>
+    private async ValueTask CountDueTriggers(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
+    {
+        if (dueTriggerBacklog is null || !Meters.TriggersDueEnabled || Delegate is not StdAdoDelegate shipped)
+        {
+            return;
+        }
+
+        DateTimeOffset now = timeProvider.GetUtcNow();
+        TimeSpan sinceLastCount = now - dueTriggersLastCountedUtc;
+        if (sinceLastCount >= TimeSpan.Zero && sinceLastCount < MisfireHandlerFrequency / 2)
+        {
+            return;
+        }
+
+        List<DueTriggers> due = await shipped.SelectDueTriggersByExecutionGroup(conn, now, cancellationToken).ConfigureAwait(false);
+        dueTriggersLastCountedUtc = now;
+        dueTriggerBacklog.Publish(now, due);
+    }
+
     internal async ValueTask<RecoverMisfiredJobsResult> RecoverMisfires(
         Guid requestorId,
         CancellationToken cancellationToken = default)
@@ -667,12 +730,16 @@ internal abstract partial class AdoJobStoreBase
                 transOwner = await AcquireLock(requestorId, null, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
                 locked = true;
                 conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
+                await CountDueTriggers(conn, cancellationToken).ConfigureAwait(false);
                 result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                 staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
             }
             else
             {
                 conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
+
+                // Before the lock is taken, so the count never holds up the store's other work.
+                await CountDueTriggers(conn, cancellationToken).ConfigureAwait(false);
 
                 // Before we make the potentially expensive call to acquire the
                 // trigger lock, peek ahead to see if it is likely we would find

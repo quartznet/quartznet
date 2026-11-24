@@ -1463,6 +1463,7 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
             }
         }
 
+        StartDueTriggerBacklog();
         misfireHandler = new MisfireHandler(this, LoggerFactory.CreateLogger<MisfireHandler>());
         misfireHandler.Initialize();
         schedulerRunning = true;
@@ -1500,6 +1501,11 @@ internal abstract partial class AdoJobStoreBase : IJobStore, ISharedExecutionGro
         if (misfireHandler is not null)
         {
             await misfireHandler.Shutdown().ConfigureAwait(false);
+        }
+
+        if (dueTriggerBacklog is not null)
+        {
+            Meters.UnregisterDueTriggers(dueTriggerBacklog);
         }
 
         bool checkInsEnded = true;

@@ -7,6 +7,8 @@ quartz.jobstore.lock.wait.duration  Histogram<double>  s  Elapsed time spent wai
 quartz.jobstore.operation.duration  Histogram<double>  s  Elapsed time spent on a job store operation
 quartz.trigger.acquired  Counter<long>  {trigger}  Number of triggers acquired for firing
 quartz.trigger.acquisition.duration  Histogram<double>  s  Elapsed time spent acquiring the next batch of triggers
+quartz.trigger.due  ObservableGauge<long>  {trigger}  Number of waiting triggers whose fire time has passed
+quartz.trigger.due.age  ObservableGauge<double>  s  Time since the earliest fire time among the waiting triggers that are due
 quartz.trigger.misfire  Counter<long>  {trigger}  Number of trigger misfires the scheduler was notified of
 quartz.trigger.retries_exhausted  Counter<long>  {trigger}  Number of failed occurrences whose retry policy ran out of attempts
 quartz.trigger.retry  Counter<long>  {trigger}  Number of trigger retries the scheduler scheduled after a job failed
