@@ -294,6 +294,8 @@ detail page.
 
 - `?state=` opens the trigger listing filtered, as the overview's histogram links do. Every other filter is a
   query parameter too; see [Filtering the listings](#filtering-the-listings).
+- From 4.9, a listing never cuts a key short. One too long for its column wraps, first after the group's dot, then
+  inside the name, and *Copy* stays beside it.
 - From 4.3, *Pause*, *Pause group* and *Pause all* ask for an optional reason, recorded with the signed-in
   user's name. A paused trigger shows **Paused: reason (by who, when)** on its page and its listing rows, and a
   paused job group shows its record on the Jobs page. See [Pausing with a Reason](../how-tos/pausing-with-a-reason.md).
