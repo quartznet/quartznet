@@ -19,6 +19,9 @@
 
 #endregion
 
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 using AngleSharp.Dom;
 
 using Bunit;
@@ -336,9 +339,11 @@ public sealed class CurrentlyExecutingLogTest
     }
 
     /// <summary>
-    /// 1: keys with no break in them, as TriggerJob names its triggers, never make the table wider than its card. The
-    /// layout is fixed, every column but Job and Trigger is sized, a key wraps inside a run as the last resort, and the
-    /// actions never shrink. bUnit has no layout, so the rules are held here and measured in a browser.
+    /// 1: keys with no break in them, as TriggerJob names its triggers, never make the table wider than its card, and
+    /// never crush Job or Trigger under a floor of 12rem either. The layout is fixed, every column but Job and Trigger is
+    /// sized, a key wraps inside a run as the last resort, the actions never shrink, the table is never narrower than its
+    /// fixed columns and two floors, and each wider step is taken only where both floors still fit after it. bUnit has no
+    /// layout, so the rules are held here by arithmetic on the stylesheet and measured in a browser.
     /// </summary>
     [Test]
     public void LongKeysCannotWidenTheTable()
@@ -374,6 +379,44 @@ public sealed class CurrentlyExecutingLogTest
         css.Should().MatchRegex(@"\.qz-executing-table \.qz-col-actions \{[^}]*white-space: nowrap;", "the actions never shrink");
         css.Should().MatchRegex(@"\.qz-executing-table\.qz-executing-table-interrupt \.qz-col-actions \{[^}]*width: [0-9.]+rem;",
             "two buttons side by side have the width of two");
+
+        // The floor: the narrowest table holds the fixed columns, two keys of 12rem and its two 1px borders.
+        const decimal TwoKeyFloors = 2 * 12m;
+        const decimal Borders = 2 / 16m;
+        decimal group = Rem(css, ".qz-executing-table .qz-col-group");
+        decimal fired = Rem(css, ".qz-executing-table .qz-col-fired");
+        decimal actions = Rem(css, ".qz-executing-table .qz-col-actions");
+        decimal narrowest = Rem(css, ".qz-executing-table .qz-col-node") + fired + Rem(css, ".qz-executing-table .qz-col-runtime")
+                            + Rem(css, ".qz-executing-table .qz-col-progress") + Rem(css, ".qz-executing-table .qz-col-history") + actions;
+        Rem(css, ".qz-executing-table", "min-width").Should().BeGreaterThanOrEqualTo(narrowest + TwoKeyFloors + Borders,
+            "below its fixed columns and two key floors the table scrolls inside its card");
+
+        // Each step that widens a fixed column is taken only where both keys keep their floor after it. The steps measure
+        // the box the table scrolls in, so the sidebar and a page scrollbar change nothing but the keys.
+        table.ParentElement!.ClassList.Should().Contain(["qz-table-scroll", "qz-executing-scroll"]);
+        css.Should().MatchRegex(@"\.qz-executing-scroll \{[^}]*container: qz-executing / inline-size;");
+        (decimal Threshold, string Body)[] steps = Regex.Matches(css, @"@container qz-executing \(min-width: ([0-9.]+)rem\) \{(.*?)\n\}", RegexOptions.Singleline)
+            .Select(m => (decimal.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), m.Groups[2].Value))
+            .ToArray();
+        steps.Should().HaveCount(3, "buttons side by side, the fire time on one line, the execution group's own column");
+
+        decimal sideBySide = narrowest - actions + Rem(steps[0].Body, ".qz-executing-table.qz-executing-table-interrupt .qz-col-actions");
+        steps[0].Threshold.Should().BeGreaterThanOrEqualTo(sideBySide + TwoKeyFloors + Borders, "Show log and Interrupt side by side");
+
+        decimal fireOnOneLine = sideBySide - fired + Rem(steps[1].Body, ".qz-executing-table .qz-col-fired");
+        steps[1].Threshold.Should().BeGreaterThanOrEqualTo(fireOnOneLine + TwoKeyFloors + Borders, "the fire time on one line");
+
+        steps[2].Body.Should().MatchRegex(@"\.qz-executing-table \.qz-col-group \{[^}]*display: table-cell;");
+        steps[2].Threshold.Should().BeGreaterThanOrEqualTo(fireOnOneLine + group + TwoKeyFloors + Borders, "the execution group's own column");
+        steps.Select(s => s.Threshold).Should().BeInAscendingOrder();
+    }
+
+    /// <summary>The first width in rem a rule for exactly this selector declares; a column's narrowest comes first.</summary>
+    private static decimal Rem(string css, string selector, string property = "width")
+    {
+        Match declared = Regex.Match(css, @"(?<![-\w.])" + Regex.Escape(selector) + @" \{[^}]*?(?<![-\w])" + property + @": ([0-9.]+)rem;");
+        declared.Success.Should().BeTrue($"{selector} declares its {property} in rem");
+        return decimal.Parse(declared.Groups[1].Value, CultureInfo.InvariantCulture);
     }
 
     /// <summary>B4: an answer that says the reader is behind is followed at once, at most four more times a tick.</summary>

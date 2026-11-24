@@ -1511,13 +1511,21 @@ body{
     outline-offset: 2px;
 }
 
-/* Currently Executing: never wider than its card, whatever keys run and whether or not the page has a scrollbar. A
-   fixed layout sizes every column but the job's and the trigger's, which take what is left: a key wraps where it breaks,
-   after the group's dot and between words, and inside a run with no break, such as a TriggerJob key's digits, as the
-   last resort. The actions never shrink: as wide as one button, or two side by side when Interrupt is offered. The fire
-   time keeps one line, and two whole ones below 1280 px. */
+/* Currently Executing: a fixed layout, every column sized but Job and Trigger, which take what is left and never less
+   than 12rem each. A key wraps where it breaks, after the group's dot and between words, and inside a run with no break,
+   such as a TriggerJob key's digits, as the last resort. Narrowest first: the fire time on two lines, each whole, and
+   the buttons stacked; the table is then never narrower than its fixed columns and two key floors, and below that it
+   scrolls inside its card rather than crush a key. As the card widens, each step below is taken only where both keys
+   keep their floor after it: the buttons side by side, then the fire time on one line, then the execution group's own
+   column. The card's own width decides, so the sidebar and a page scrollbar move nothing but the keys. */
+.qz-executing-scroll {
+    container: qz-executing / inline-size;
+}
+
+/* 60.125rem: the fixed columns below, 36rem, two key floors of 12rem, and the table's two 1px borders. */
 .qz-executing-table {
     table-layout: fixed;
+    min-width: 60.125rem;
 }
 
 .qz-executing-table th,
@@ -1537,23 +1545,23 @@ body{
 }
 
 .qz-executing-table .qz-col-node {
-    width: 6.5rem;
+    width: 7.5rem;
     overflow-wrap: anywhere;
 }
 
 .qz-executing-table .qz-col-group {
+    display: none;
     width: 7rem;
     white-space: normal;
     overflow-wrap: anywhere;
 }
 
 .qz-executing-table .qz-col-fired {
-    width: 11.5rem;
-    white-space: nowrap;
+    width: 7rem;
 }
 
 .qz-executing-table .qz-col-runtime {
-    width: 5.25rem;
+    width: 4.75rem;
 }
 
 .qz-executing-table td.qz-col-runtime .qz-state-indicator {
@@ -1561,11 +1569,20 @@ body{
 }
 
 .qz-executing-table .qz-col-progress {
-    width: 6rem;
+    width: 5.5rem;
+}
+
+/* The bar takes its cell's width here, rather than the 140px it asks for elsewhere. */
+.qz-executing-table .qz-progress {
+    min-width: 0;
+}
+
+.qz-executing-table .qz-progress-message {
+    overflow-wrap: anywhere;
 }
 
 .qz-executing-table .qz-col-history {
-    width: 5.25rem;
+    width: 4.5rem;
     white-space: nowrap;
 }
 
@@ -1574,12 +1591,8 @@ body{
     white-space: nowrap;
 }
 
-.qz-executing-table.qz-executing-table-interrupt .qz-col-actions {
-    width: 13rem;
-}
-
 .qz-executing-table td.qz-col-actions .qz-actions {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
 }
 
 .qz-executing-table .qz-executing-fired > span {
@@ -1587,37 +1600,40 @@ body{
     white-space: nowrap;
 }
 
-/* The execution group under the node, where its own column has gone. */
+/* The execution group under the node, until it has its own column. */
 .qz-executing-table .qz-executing-group-inline {
-    display: none;
+    display: block;
     font-size: var(--qz-font-size-xs);
     overflow-wrap: anywhere;
 }
 
-/* Below 1600 px the execution group moves under the node, as History lets its node column go there. */
-@media (max-width: 1599px) {
-    .qz-executing-table .qz-col-group {
-        display: none;
-    }
-
-    .qz-executing-table .qz-executing-group-inline {
-        display: block;
-    }
-}
-
-/* Below 1280 px the fire time takes two lines, its date and its time each whole, and the buttons stack. */
-@media (max-width: 1279px) {
-    .qz-executing-table .qz-col-fired {
-        width: 8rem;
-        white-space: normal;
-    }
-
+/* Show log and Interrupt side by side: fixed columns of 42rem, with two key floors and the borders. */
+@container qz-executing (min-width: 66.125rem) {
     .qz-executing-table.qz-executing-table-interrupt .qz-col-actions {
-        width: 6.75rem;
+        width: 12.75rem;
     }
 
     .qz-executing-table td.qz-col-actions .qz-actions {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+    }
+}
+
+/* The fire time on one line: fixed columns of 46.25rem, with two key floors and the borders. */
+@container qz-executing (min-width: 70.375rem) {
+    .qz-executing-table .qz-col-fired {
+        width: 11.25rem;
+        white-space: nowrap;
+    }
+}
+
+/* The execution group in a column of its own: fixed columns of 53.25rem, with two key floors and the borders. */
+@container qz-executing (min-width: 77.375rem) {
+    .qz-executing-table .qz-col-group {
+        display: table-cell;
+    }
+
+    .qz-executing-table .qz-executing-group-inline {
+        display: none;
     }
 }
 
