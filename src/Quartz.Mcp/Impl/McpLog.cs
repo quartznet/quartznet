@@ -62,7 +62,7 @@ internal static partial class McpLog
     public static partial void ConfirmationRefused(this ILogger logger, string user, string tool, string schedulerKey, string reason);
 
     /// <summary>
-    /// A caller reached <c>MaxChangesPerMinute</c>.
+    /// A caller reached <c>MaxChangesPerMinute</c>, with a change or a refused one: logged once per caller per window.
     /// </summary>
     [LoggerMessage(EventId = 9503, Level = LogLevel.Warning, Message = "MCP user {User} was rate limited calling {Tool} on scheduler {SchedulerKey}: retry after {RetryAfterSeconds} s")]
     public static partial void RateLimited(this ILogger logger, string user, string tool, string schedulerKey, int retryAfterSeconds);

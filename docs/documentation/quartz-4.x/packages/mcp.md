@@ -187,9 +187,10 @@ about first.
 
 ## Rate limits
 
-`MaxChangesPerMinute` counts each caller's changes over a sliding minute; reads and previews are not counted. The
-twenty-first change answers `rate_limited` with `retryAfterSeconds`. For a limit on every request, use ASP.NET Core's
-own:
+`MaxChangesPerMinute` counts each caller's changes over a sliding minute, the changes a policy refused included; reads
+and previews are not counted. The twenty-first change answers `rate_limited` with `retryAfterSeconds`. Past the limit,
+a refused change is still refused, and no longer entered in the Action Log or logged as `9501`. `9503` is logged once
+per caller per window. For a limit on every request, use ASP.NET Core's own:
 
 <!-- snippet: sample_mcp_rate_limiting -->
 ```csharp
@@ -232,7 +233,7 @@ never in a message.
 | `9500` | Information | A tool changed something: the user, the client, the tool, the key, the subject |
 | `9501` | Warning | A call was refused before it reached a scheduler |
 | `9502` | Warning | A confirmation was refused, by the class of its reason |
-| `9503` | Warning | A caller was rate limited |
+| `9503` | Warning | A caller reached `MaxChangesPerMinute`, once per window |
 | `9504` | Warning | The request guard refused a request |
 
 A target that did not serve a call is logged with the HTTP API's own `9010` to `9014`. In a process that maps the
