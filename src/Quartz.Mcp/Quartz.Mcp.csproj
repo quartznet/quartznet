@@ -15,7 +15,8 @@
 
       What is proven: Quartz.Trimming.Canary.Wire references this package, is published by ILCompiler as a
       native executable on every pull request, and is run. It maps the MCP endpoint on Kestrel and calls
-      tools/list, list_jobs and pause_trigger by raw JSON-RPC, every argument and answer read and written
+      tools/list, list_jobs and pause_trigger by raw JSON-RPC, then previews a reschedule and confirms it with
+      the Data Protection token the preview answered, every argument, answer and token payload read and written
       through the generated metadata of McpJsonContext, with reflection-based System.Text.Json switched off.
 
       Why it holds: the SDK's attribute tools and AIFunctionFactory reflect over a method's parameters, so
