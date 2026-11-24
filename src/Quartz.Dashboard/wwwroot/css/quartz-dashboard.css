@@ -1880,36 +1880,18 @@ body{
     margin-top: 2px;
 }
 
-/* A listing with a last-run column needs 132px more, which the key would otherwise give, and the key is the one
-   column that cannot wrap. So with it the actions keep two rows until the key still has 280px beside them on one,
-   and Previous fire, whose firing the last run also dates, goes first: from 1340px down the key is as wide as
-   without the column. A scheduler whose history keeps no trigger status lays out as 4.8 did. */
 @container qz-triggers-listing (min-width: 1440px) {
-    .qz-triggers-table:not(.qz-with-last-run) th.qz-col-actions,
-    .qz-triggers-table:not(.qz-with-last-run) td.qz-col-actions {
+    .qz-triggers-table th.qz-col-actions,
+    .qz-triggers-table td.qz-col-actions {
         width: 340px;
     }
 }
 
-@container qz-triggers-listing (min-width: 1704px) {
-    .qz-triggers-table.qz-with-last-run th.qz-col-actions,
-    .qz-triggers-table.qz-with-last-run td.qz-col-actions {
-        width: 340px;
-    }
-}
-
-/* Every column needs 1272px with the key and the schedule at their floors, 1404px with the last run. The trigger's
-   own page shows what each step hides. */
+/* Every column needs 1272px with the key and the schedule at their floors. The trigger's own page shows what each
+   step hides. */
 @container qz-triggers-listing (max-width: 1299px) {
     .qz-triggers-table .qz-col-details,
     .qz-triggers-table .qz-col-execution-group {
-        display: none;
-    }
-}
-
-@container qz-triggers-listing (max-width: 1439px) {
-    .qz-triggers-table.qz-with-last-run .qz-col-details,
-    .qz-triggers-table.qz-with-last-run .qz-col-execution-group {
         display: none;
     }
 }
@@ -1920,9 +1902,49 @@ body{
     }
 }
 
-@container qz-triggers-listing (max-width: 1339px) {
-    .qz-triggers-table.qz-with-last-run .qz-col-previous-fire {
+/* A listing with a last-run column lays out its own way; one whose history keeps no trigger status lays out as 4.8
+   did. The last run dates the trigger's latest firing, as Previous fire did, and the whole row opens the trigger, as
+   Details did, so both go at every width. The width they leave goes to the key, the one column that cannot wrap, and
+   to the actions, which keep one row (300px) down to an 860px listing: the key has 18rem beside them from 1200px, and
+   below that the schedule moves under the key and leaves it the schedule's width as well. */
+.qz-triggers-table.qz-with-last-run .qz-col-details,
+.qz-triggers-table.qz-with-last-run .qz-col-previous-fire {
+    display: none;
+}
+
+@container qz-triggers-listing (min-width: 860px) {
+    .qz-triggers-table.qz-with-last-run th.qz-col-actions,
+    .qz-triggers-table.qz-with-last-run td.qz-col-actions {
+        width: 300px;
+    }
+}
+
+@container qz-triggers-listing (min-width: 1440px) {
+    .qz-triggers-table.qz-with-last-run th.qz-col-actions,
+    .qz-triggers-table.qz-with-last-run td.qz-col-actions {
+        width: 340px;
+    }
+}
+
+@container qz-triggers-listing (min-width: 1200px) and (max-width: 1439px) {
+    .qz-triggers-table.qz-with-last-run th.qz-col-key {
+        width: 18rem;
+    }
+}
+
+@container qz-triggers-listing (max-width: 1439px) {
+    .qz-triggers-table.qz-with-last-run .qz-col-execution-group {
         display: none;
+    }
+}
+
+@container qz-triggers-listing (max-width: 1199px) {
+    .qz-triggers-table.qz-with-last-run .qz-col-schedule {
+        display: none;
+    }
+
+    .qz-triggers-table.qz-with-last-run .qz-schedule-inline {
+        display: block;
     }
 }
 

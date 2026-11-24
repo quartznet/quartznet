@@ -329,16 +329,17 @@ open gives the listing about 1120 px. The trigger's page shows everything a step
 
 | Listing narrower than | Without [*Last run*](#trigger-run-status) | With it |
 |---|---|---|
-| 1704 px | | The actions take two rows |
-| 1440 px | The actions take two rows | Execution group and Details are hidden |
-| 1340 px | | Previous fire is hidden |
+| any width | | Details and Previous fire are hidden: the whole row opens the trigger, and the last run dates its latest firing |
+| 1440 px | The actions take two rows | Execution group is hidden; the trigger's key keeps 18rem |
 | 1300 px | Execution group and Details are hidden | |
+| 1200 px | | The schedule moves under the trigger's key |
 | 1080 px | Previous fire is hidden | *Last run* moves under the state, captioned |
-| 920 px | The schedule moves under the trigger's key; below 748 px the table scrolls inside its card | The same |
+| 920 px | The schedule moves under the trigger's key; below 748 px the table scrolls inside its card | Below 748 px the table scrolls inside its card |
+| 860 px | | The actions take two rows |
 
-*Last run* adds 132 px, which the trigger's key, the one column that cannot wrap, would otherwise give. So with it the
-actions keep two rows longer, and Previous fire, whose firing the last run dates too, goes first. *Last run* never
-goes: it says whether the schedule still works.
+*Last run* adds 132 px, which the trigger's key, the one column that cannot wrap, would otherwise give. So with it
+Details and Previous fire go at every width, and the width they leave keeps the actions on one row and the key at
+18rem or more. *Last run* never goes: it says whether the schedule still works.
 
 ### Upcoming fires
 
@@ -1455,6 +1456,9 @@ From 4.9, the Triggers listing shows each trigger's own last run, from the statu
 - **One read per page and per *Refresh*,** for the page's triggers. Over HTTP it is one `POST …/history/trigger-status/fetch`.
 - **The column is left out** where the source keeps no trigger status: an `IDashboardHistoryStore` of your own, a
   host older than 4.9, a database without `QRTZ_TRIGGER_STATUS`.
+- **A [store-attached](#store-attached-targets) window** that reads the history (`UseExecutionHistory()`) opens over a
+  database without `QRTZ_TRIGGER_STATUS` once `database/migrations/4.9/add_trigger_status_<db>.sql` has run against
+  it: its scheduler refuses to start without the table, as it did without 4.4's `QRTZ_JOB_STATUS`.
 - **During a rolling upgrade** a 4.8 node's firings are not counted, so *Last run* can be older than *Previous fire*,
   and a 4.8 node's success leaves the badge.
 - Trigger Detail and Job Detail's table of triggers do not show it.
