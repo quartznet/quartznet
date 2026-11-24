@@ -88,6 +88,12 @@
     <PackageVersion Include="Marten" Version="9.45.0" />
     <PackageVersion Include="MELT" Version="2.0.0" />
     <!--
+      The MCP client Quartz.Tests.AspNetCore calls Quartz.Mcp with. At the server's floor, and moved with it:
+      ModelContextProtocol.AspNetCore depends on this package at its own version, so a test client ahead of
+      the server would test a pair no consumer has.
+    -->
+    <PackageVersion Include="ModelContextProtocol" Version="2.3.1" />
+    <!--
       Quartz.Dashboard.Host's sign-in through an identity provider, and the bearer token its HTTP API takes
       from the same one (#4218). Current rather than a floor: the host is a tool and a container image,
       which carry these inside them rather than asking a consumer for them.
@@ -260,6 +266,16 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <!--
+      Quartz.Mcp's one dependency: the official C# SDK of the Model Context Protocol, which serves its
+      Streamable HTTP transport. 2.3.1 rather than an earlier 2.x: GHSA-x863-g495-4cjc covers every release
+      from 2.0.0-preview.1 below it, binding a stateful session to a principal by NameIdentifier, sub or upn,
+      so two principals with none of them shared one. Quartz.Mcp is stateless always, and still floors the
+      fixed release. It asks for 10.0.13 of the framework abstractions floored here at 10.0.0 and for
+      Microsoft.Extensions.AI.Abstractions 10.11.0, which is why Quartz.Mcp does not pin transitively. The
+      tests' client, ModelContextProtocol above, moves with this row.
+    -->
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.3.1" />
     <!--
       Named by Quartz.Weasel.MySQL, which talks to MySQL through it: Weasel.MySql 9.39.0 declares
       MySqlConnector 2.4.0, under GHSA-473q-m89c-ghf8, and a direct reference patches a consumer's graph as

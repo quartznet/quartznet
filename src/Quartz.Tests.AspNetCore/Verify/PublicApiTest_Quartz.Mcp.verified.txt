@@ -1,0 +1,23 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public static class QuartzMcpEndpointRouteBuilderExtensions
+    {
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzMcp(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder) { }
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzMcp(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, string pattern) { }
+    }
+    public sealed class QuartzMcpOptions
+    {
+        public QuartzMcpOptions() { }
+        public System.Collections.Generic.List<string> AllowedOrigins { get; }
+        public System.TimeSpan ConfirmationLifetime { get; set; }
+        public int MaxChangesPerMinute { get; set; }
+        public string? OperationAuthorizationPolicy { get; set; }
+        public bool ReadOnly { get; set; }
+        public string? SchedulerAuthorizationPolicy { get; set; }
+    }
+    public static class QuartzMcpServiceCollectionExtensions
+    {
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzMcp(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzMcpOptions>? configure = null) { }
+    }
+}

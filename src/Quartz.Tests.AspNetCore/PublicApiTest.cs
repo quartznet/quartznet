@@ -26,6 +26,8 @@ public class PublicApiTest
         typeof(global::Quartz.QuartzDashboardOptions).Assembly,
         // A tool: its baseline is the statement that it has no public surface at all.
         typeof(global::Quartz.Dashboard.Host.Program).Assembly,
+        // The MCP endpoint (4.9): its options and its two registration classes.
+        typeof(global::Quartz.QuartzMcpOptions).Assembly,
     ];
 
     private static IEnumerable<TestCaseData> Assemblies()

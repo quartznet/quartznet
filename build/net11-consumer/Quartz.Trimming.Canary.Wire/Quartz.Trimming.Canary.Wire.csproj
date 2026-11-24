@@ -47,6 +47,7 @@
     <PackageReference Include="Quartz.AspNetCore" Version="$(QuartzVersion)" />
     <PackageReference Include="Quartz.Dashboard.Agent" Version="$(QuartzVersion)" />
     <PackageReference Include="Quartz.HttpClient" Version="$(QuartzVersion)" />
+    <PackageReference Include="Quartz.Mcp" Version="$(QuartzVersion)" />
   </ItemGroup>
 
 </Project>
