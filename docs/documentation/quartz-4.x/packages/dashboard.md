@@ -668,6 +668,9 @@ this". From 4.4, a pause given a reason carries it in the message as `reason: â€
   and *MCP* for an MCP tool. Every API change and every refusal for a role is entered, with the caller's name and
   the operation's name (`PauseTrigger`). A client that names itself is shown under the badge *as stated*: the
   identity is the user. The **Via** filter above the table reads one surface alone.
+- An API entry's message is what the dashboard's own button would have written: a pause's `reason: â€¦`, a
+  backfill's range and slots, *with job data* on a trigger-now that carried some. An answer of `{ "applied": false }`,
+  an interrupt that found nothing running, is entered as not done, as the dashboard enters one.
 - The store is in-memory and process-wide, holding the last 250 actions across schedulers and surfaces. The page
   shows the most recent 100 of those that target the selected scheduler and pass the filter. A busy script can
   push the dashboard's own entries out of the 250.

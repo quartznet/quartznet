@@ -81,7 +81,12 @@ internal sealed class MutationAudit
             logger.MutationPerformed(user, operation, schedulerKey, context.Request.Path.ToString());
         }
 
-        Notify(new OperatorAction(OperatorChannel.HttpApi, user, schedulerKey, operation, Subject(context, schedulerKey), Succeeded: true));
+        // What the handler said about the change, in the dashboard's words, and whether the answer said nothing
+        // was applied — which the dashboard's own entries record as not done.
+        Notify(new OperatorAction(OperatorChannel.HttpApi, user, schedulerKey, operation, Subject(context, schedulerKey), Succeeded: !AuditNote.WasNotApplied(context))
+        {
+            Message = AuditNote.Read(context)
+        });
     }
 
     /// <summary>

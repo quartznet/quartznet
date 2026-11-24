@@ -241,6 +241,8 @@ public sealed class GatewayTargetOverHttpTest
     [Test]
     public async Task EveryAuditedChangeAndRefusalReachesTheRecordersAndAFailingOneCostsNothing()
     {
+        // The worker says it paused the trigger: an answer of applied: false is entered as not done.
+        A.CallTo(() => workerScheduler.PauseTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(true);
         RecordingRecorder recorder = new();
         HttpClient gateway = await Gateway(
             services =>

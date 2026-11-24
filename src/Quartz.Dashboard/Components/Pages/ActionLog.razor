@@ -9,7 +9,7 @@
 <div class="qz-page">
     <h1>Action Log</h1>
 
-    <div class="qz-live-filters">
+    <div class="qz-live-filters qz-action-log-filters">
         <div class="qz-live-filter-grid">
             <div class="qz-form-group">
                 <label class="qz-form-label" for="action-log-via-filter">Via</label>
@@ -37,74 +37,78 @@
     }
     else
     {
-        <table class="qz-table">
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Via</th>
-                    <th>Scheduler</th>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th>Target</th>
-                    <th>Status</th>
-                    <th>Message</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (DashboardActionLogEntry entry in _entries)
-                {
+        @* Scrolls inside its card rather than pushing the page wider: the Via column takes the table past a
+           narrow viewport, as the dashboard's other wide tables do. *@
+        <div class="qz-table-scroll" data-testid="action-log-scroll">
+            <table class="qz-table">
+                <thead>
                     <tr>
-                        <td>@Scheduler.FormatInSelectedTimeZone(entry.Timestamp, "u")</td>
-                        <td>
-                            @* The client's name is its own claim, so it is shown as stated and never as the
-                               user, who is the identity the action was authorized for. *@
-                            <span class="qz-tag @ViaClass(entry.Via)"
-                                  data-testid="action-log-via"
-                                  title="@(entry.Client is null ? null : $"Client, as stated: {entry.Client}")">@ViaLabel(entry.Via)</span>
-                            @if (entry.Client is { } client)
-                            {
-                                <div class="qz-muted qz-action-log-client" style="font-size: var(--qz-font-size-xs);">@client (as stated)</div>
-                            }
-                        </td>
-                        <td>
-                            @entry.SchedulerName
-
-                            @* Where the scheduler was, as the listing had it when the action was taken.
-                               An action on a remote scheduler ran in another process, which is what
-                               decides where to look for the rest of the story about it. *@
-                            @if (entry.Origin is { } origin)
-                            {
-                                <span class="qz-tag">@origin.ToString()</span>
-                            }
-                        </td>
-                        <td class="qz-action-log-user">@(entry.User ?? "—")</td>
-                        <td>@entry.Action</td>
-                        <td>
-                            @entry.Target
-
-                            @if (entry.Origin is SchedulerOrigin.Remote or SchedulerOrigin.Agent)
-                            {
-                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">in another process</div>
-                            }
-                            else if (entry.Origin is SchedulerOrigin.Cluster)
-                            {
-                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on a cluster, in whichever node's process</div>
-                            }
-
-                            @* Only for an action that landed on one node: pausing a trigger writes the
-                               store and binds the whole cluster, so naming the node that served the click
-                               would suggest the other nodes were unaffected. *@
-                            @if (entry.NodeLocal)
-                            {
-                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on node @(entry.SchedulerInstanceId ?? "(unknown)")</div>
-                            }
-                        </td>
-                        <td><StateIndicator State="@(entry.Refused ? "Refused" : entry.Succeeded ? "Complete" : "Error")" /></td>
-                        <td>@(entry.Message ?? string.Empty)</td>
+                        <th class="qz-action-log-time">Time</th>
+                        <th>Via</th>
+                        <th>Scheduler</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>Message</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (DashboardActionLogEntry entry in _entries)
+                    {
+                        <tr>
+                            <td class="qz-action-log-time">@Scheduler.FormatInSelectedTimeZone(entry.Timestamp, "u")</td>
+                            <td>
+                                @* The client's name is its own claim, so it is shown as stated and never as the
+                                   user, who is the identity the action was authorized for. *@
+                                <span class="qz-tag @ViaClass(entry.Via)"
+                                      data-testid="action-log-via"
+                                      title="@(entry.Client is null ? null : $"Client, as stated: {entry.Client}")">@ViaLabel(entry.Via)</span>
+                                @if (entry.Client is { } client)
+                                {
+                                    <div class="qz-muted qz-action-log-client" style="font-size: var(--qz-font-size-xs);">@client (as stated)</div>
+                                }
+                            </td>
+                            <td>
+                                @entry.SchedulerName
+
+                                @* Where the scheduler was, as the listing had it when the action was taken.
+                                   An action on a remote scheduler ran in another process, which is what
+                                   decides where to look for the rest of the story about it. *@
+                                @if (entry.Origin is { } origin)
+                                {
+                                    <span class="qz-tag">@origin.ToString()</span>
+                                }
+                            </td>
+                            <td class="qz-action-log-user">@(entry.User ?? "—")</td>
+                            <td>@entry.Action</td>
+                            <td>
+                                @entry.Target
+
+                                @if (entry.Origin is SchedulerOrigin.Remote or SchedulerOrigin.Agent)
+                                {
+                                    <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">in another process</div>
+                                }
+                                else if (entry.Origin is SchedulerOrigin.Cluster)
+                                {
+                                    <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on a cluster, in whichever node's process</div>
+                                }
+
+                                @* Only for an action that landed on one node: pausing a trigger writes the
+                                   store and binds the whole cluster, so naming the node that served the click
+                                   would suggest the other nodes were unaffected. *@
+                                @if (entry.NodeLocal)
+                                {
+                                    <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">on node @(entry.SchedulerInstanceId ?? "(unknown)")</div>
+                                }
+                            </td>
+                            <td><StateIndicator State="@(entry.Refused ? "Refused" : entry.Succeeded ? "Complete" : "Error")" /></td>
+                            <td>@(entry.Message ?? string.Empty)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     }
 </div>
 

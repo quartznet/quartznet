@@ -38,6 +38,10 @@
     --qz-color-danger-hover: #b91c1c;
     --qz-color-info: #2563eb;
     --qz-color-info-bg: #dbeafe;
+    /* Text on the Action Log's Via badges, darker than the info and warning colours so 12 px text on their
+       tints passes WCAG AA (>= 4.5:1): #1d4ed8 on #dbeafe is 5.49:1, #854d0e on #fef9c3 is 6.38:1. */
+    --qz-via-api-text: #1d4ed8;
+    --qz-via-mcp-text: #854d0e;
     --qz-color-executing: #7c3aed;
     --qz-color-executing-bg: #ede9fe;
     --qz-color-awaiting: #0d9488;
@@ -135,6 +139,9 @@
         --qz-color-danger-hover: #f87171;
         --qz-color-info: #3b82f6;
         --qz-color-info-bg: #1e3a5f;
+        /* Lighter on the dark tints: #93c5fd on #1e3a5f is 6.38:1, #eab308 on #422006 is 7.60:1. */
+        --qz-via-api-text: #93c5fd;
+        --qz-via-mcp-text: #eab308;
         --qz-color-executing: #a78bfa;
         --qz-color-executing-bg: #3b0764;
         --qz-color-awaiting: #2dd4bf;
@@ -191,6 +198,10 @@ body{
     --qz-color-danger-hover: #b91c1c;
     --qz-color-info: #2563eb;
     --qz-color-info-bg: #dbeafe;
+    /* Text on the Action Log's Via badges, darker than the info and warning colours so 12 px text on their
+       tints passes WCAG AA (>= 4.5:1): #1d4ed8 on #dbeafe is 5.49:1, #854d0e on #fef9c3 is 6.38:1. */
+    --qz-via-api-text: #1d4ed8;
+    --qz-via-mcp-text: #854d0e;
     --qz-color-executing: #7c3aed;
     --qz-color-executing-bg: #ede9fe;
     --qz-color-awaiting: #0d9488;
@@ -241,6 +252,9 @@ body{
     --qz-color-danger-hover: #f87171;
     --qz-color-info: #3b82f6;
     --qz-color-info-bg: #1e3a5f;
+    /* Lighter on the dark tints: #93c5fd on #1e3a5f is 6.38:1, #eab308 on #422006 is 7.60:1. */
+    --qz-via-api-text: #93c5fd;
+    --qz-via-mcp-text: #eab308;
     --qz-color-executing: #a78bfa;
     --qz-color-executing-bg: #3b0764;
     --qz-color-awaiting: #2dd4bf;
@@ -2785,13 +2799,24 @@ body{
 .qz-tag-via-api {
     background-color: var(--qz-color-info-bg);
     border-color: var(--qz-color-info);
-    color: var(--qz-color-info);
+    color: var(--qz-via-api-text);
 }
 
 .qz-tag-via-mcp {
     background-color: var(--qz-color-warning-bg);
     border-color: var(--qz-color-warning);
-    color: var(--qz-color-warning);
+    color: var(--qz-via-mcp-text);
+}
+
+/* The Action Log's one filter sits the page's own gap above the table, not three gaps. */
+.qz-action-log-filters,
+.qz-action-log-filters .qz-form-group {
+    margin-bottom: 0;
+}
+
+/* A timestamp on one line: wrapped, it takes four on a narrow screen. */
+.qz-action-log-time {
+    white-space: nowrap;
 }
 
 /* ==========================================================================

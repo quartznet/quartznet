@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 
 using AngleSharp.Dom;
 
@@ -101,9 +103,121 @@ public class ActionLogViaTest
 
         IElement badge = page.Find("[data-testid=action-log-via]");
         badge.TextContent.Should().Be("MCP");
+        badge.ClassList.Should().Contain("qz-tag-via-mcp", "its text colour is the one ViaBadgeTextPassesAAInEveryTheme holds to 4.5:1");
         badge.GetAttribute("title").Should().Be("Client, as stated: claude-code/2.1");
         page.Find(".qz-action-log-client").TextContent.Should().Be("claude-code/2.1 (as stated)",
             "the identity is the user; the client's name is what the client says it is");
+    }
+
+    /// <summary>
+    /// The table scrolls inside its card rather than pushing the page wider, and a timestamp stays on one line.
+    /// </summary>
+    [Test]
+    public void TheTableScrollsInsideItsCardAndTheTimeStaysOnOneLine()
+    {
+        context.ActionLog.Record(TestData.SchedulerName, "PauseTrigger", "reports.nightly", succeeded: true);
+
+        IRenderedComponent<ActionLog> page = context.Render<ActionLog>();
+
+        page.FindAll(".qz-table-scroll > table.qz-table").Should().ContainSingle();
+        page.FindAll("th.qz-action-log-time").Should().ContainSingle();
+        page.FindAll("td.qz-action-log-time").Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// The Via badges' text is at least 4.5:1 against their tint in every theme: 12 px text is normal text to
+    /// WCAG AA. The info and warning colours themselves are not (4.24:1 and 2.74:1 in light, 3.13:1 for info in
+    /// dark), so each badge has a text colour of its own.
+    /// </summary>
+    [Test]
+    public void ViaBadgeTextPassesAAInEveryTheme()
+    {
+        string css = File.ReadAllText(HistoryPageTest.DashboardStylesheet());
+
+        List<string> themes = [];
+        foreach (Match block in Regex.Matches(css, @"([^{}]+)\{([^{}]*)\}"))
+        {
+            string body = block.Groups[2].Value;
+            // A block that declares the tokens, not a rule that uses them.
+            if (!body.Contains("--qz-via-api-text:", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            string theme = block.Groups[1].Value.Trim();
+            themes.Add(theme);
+            Contrast(Token(body, "--qz-via-api-text"), Token(body, "--qz-color-info-bg")).Should().BeGreaterThanOrEqualTo(4.5,
+                $"the HTTP API badge's text in {theme}");
+            Contrast(Token(body, "--qz-via-mcp-text"), Token(body, "--qz-color-warning-bg")).Should().BeGreaterThanOrEqualTo(4.5,
+                $"the MCP badge's text in {theme}");
+        }
+
+        themes.Should().HaveCount(4, "light, dark by preference, and the two explicit theme overrides each set the tokens");
+        css.Should().Contain("color: var(--qz-via-api-text);").And.Contain("color: var(--qz-via-mcp-text);");
+    }
+
+    /// <summary>
+    /// What an API change says in the Action Log is what the dashboard's own button would have said: a pause's
+    /// reason as <c>reason: …</c>, a backfill's slots, an interrupt that found nothing running entered as not done.
+    /// </summary>
+    [Test]
+    public async Task AnApiChangeSaysWhatTheDashboardsOwnButtonWouldHaveSaid()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddAuthorization();
+        builder.Services.AddQuartzDashboard();
+        builder.Services.AddQuartzHttpApi();
+        await using WebApplication app = builder.Build();
+
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns("orders");
+        A.CallTo(() => scheduler.PauseTriggerWith(A<TriggerKey>._, A<PauseDetails?>._, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => scheduler.InterruptFireInstance(A<string>._, A<CancellationToken>._)).Returns(false);
+        app.Services.GetRequiredService<ISchedulerRepository>().Bind(scheduler);
+
+        app.MapQuartzHttpApi("/quartz-api").AllowAnonymous();
+        app.MapQuartzDashboard().AllowAnonymous();
+        await app.StartAsync();
+
+        using HttpClient client = app.GetTestClient();
+        using HttpResponseMessage paused = await client.PostAsJsonAsync("quartz-api/schedulers/orders/triggers/reports/nightly/pause", new { reason = "api check 4432" });
+        using HttpResponseMessage interrupted = await client.PostAsync("quartz-api/schedulers/orders/jobs/interrupt/fire-1", content: null);
+        paused.StatusCode.Should().Be(HttpStatusCode.OK, await paused.Content.ReadAsStringAsync());
+        interrupted.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        IReadOnlyList<DashboardActionLogEntry> entries = app.Services.GetRequiredService<DashboardActionLogService>().GetLatest();
+        DashboardActionLogEntry pause = entries.Should().ContainSingle(entry => entry.Action == "PauseTrigger").Subject;
+        pause.Message.Should().Be("reason: api check 4432", "the dashboard's own pause writes its reason so, and the API's is the same action");
+        pause.Succeeded.Should().BeTrue();
+
+        DashboardActionLogEntry interrupt = entries.Should().ContainSingle(entry => entry.Action == "InterruptJobInstance").Subject;
+        interrupt.Succeeded.Should().BeFalse("the answer said nothing was interrupted, which the dashboard enters as not done");
+        interrupt.Message.Should().Be("the firing is no longer running");
+        interrupt.Target.Should().Be("fire-1");
+    }
+
+    private static string Token(string body, string name)
+    {
+        return Regex.Match(body, Regex.Escape(name) + @":\s*(#[0-9a-fA-F]{6})").Groups[1].Value;
+    }
+
+    private static double Contrast(string foreground, string background)
+    {
+        double lighter = Math.Max(Luminance(foreground), Luminance(background));
+        double darker = Math.Min(Luminance(foreground), Luminance(background));
+        return (lighter + 0.05) / (darker + 0.05);
+
+        static double Luminance(string hex)
+        {
+            double Channel(int offset)
+            {
+                double value = Convert.ToInt32(hex.Substring(offset, 2), 16) / 255.0;
+                return value <= 0.03928 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+            }
+
+            return 0.2126 * Channel(1) + 0.7152 * Channel(3) + 0.0722 * Channel(5);
+        }
     }
 
     /// <summary>

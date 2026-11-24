@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -629,8 +630,13 @@ internal static class TriggerEndpoints
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, target, httpContext, schedulerRepository, async scheduler =>
         {
             TriggerKey triggerKey = new(triggerName, triggerGroup);
-            return await SchedulerOperations.BackfillTrigger(scheduler, triggerKey, request, cancellationToken).ConfigureAwait(false)
-                   ?? throw NotFoundException.ForTrigger(triggerKey);
+            BackfillResponse result = await SchedulerOperations.BackfillTrigger(scheduler, triggerKey, request, cancellationToken).ConfigureAwait(false)
+                                      ?? throw NotFoundException.ForTrigger(triggerKey);
+
+            // The dashboard's own words for a backfill it ran.
+            AuditNote.Add(httpContext, string.Create(CultureInfo.InvariantCulture,
+                $"{AuditNote.Utc(request.From!.Value)} to {AuditNote.Utc(request.To!.Value)}: {result.SlotsFound} slots, {result.Scheduled} scheduled, {result.AlreadyScheduled} already scheduled"));
+            return result;
         });
     }
 }
