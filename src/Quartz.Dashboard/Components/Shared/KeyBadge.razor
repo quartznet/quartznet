@@ -1,7 +1,16 @@
 @inject Microsoft.JSInterop.IJSRuntime JsRuntime
 
 <span class="qz-key-badge" title="@FullKey">
-    <span class="qz-key-badge-value">@FullKey</span>
+    @* A break opportunity between each two of the key's words, so a listing that wraps a long key breaks it there
+       rather than wherever the line runs out. The text is the key exactly. *@
+    <span class="qz-key-badge-value">@for (int i = 0; i < _segments.Count; i++)
+        {
+            if (i > 0)
+            {
+                <wbr />
+            }
+            @_segments[i]
+        }</span>
     <button type="button"
             class="qz-key-badge-copy"
             aria-label="Copy key"
@@ -14,6 +23,7 @@
 
 @code {
     private bool _copied;
+    private List<string> _segments = [];
 
     [Parameter]
     public string GroupName { get; set; } = string.Empty;
@@ -26,6 +36,7 @@
     protected override void OnParametersSet()
     {
         _copied = false;
+        _segments = DisplayValueHelper.KeyLineSegments(FullKey);
     }
 
     private async Task CopyAsync()

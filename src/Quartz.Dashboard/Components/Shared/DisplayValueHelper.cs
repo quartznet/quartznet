@@ -146,6 +146,41 @@ internal static class DisplayValueHelper
     }
 
     /// <summary>
+    /// A key cut into the pieces a listing may break it between, which together are the key exactly: after a
+    /// separator (<c>.</c>, <c>_</c>, <c>-</c>, <c>/</c> or a space), so it stays on the line it ends; before an
+    /// upper-case letter that follows a lower-case letter or a digit; and before the last capital of an upper-case
+    /// run that a lower-case letter follows, so <c>XMLParserJob</c> is <c>XML</c>, <c>Parser</c>, <c>Job</c>.
+    /// </summary>
+    /// <remarks>
+    /// A word longer than its column still breaks, wherever the line runs out: the stylesheet's
+    /// <c>overflow-wrap: anywhere</c> is the last resort, after these.
+    /// </remarks>
+    public static List<string> KeyLineSegments(string key)
+    {
+        List<string> segments = [];
+        int start = 0;
+        for (int i = 1; i < key.Length; i++)
+        {
+            char previous = key[i - 1];
+            char current = key[i];
+            bool afterSeparator = previous is '.' or '_' or '-' or '/' or ' ';
+            bool wordStart = char.IsUpper(current)
+                             && (char.IsLower(previous)
+                                 || char.IsDigit(previous)
+                                 || (char.IsUpper(previous) && i + 1 < key.Length && char.IsLower(key[i + 1])));
+
+            if (afterSeparator || wordStart)
+            {
+                segments.Add(key[start..i]);
+                start = i;
+            }
+        }
+
+        segments.Add(key[start..]);
+        return segments;
+    }
+
+    /// <summary>
     /// A duration as a clock, <c>hh:mm:ss</c>, with its days in front from a day up:
     /// <c>1.02:00:00</c> for 26 hours.
     /// </summary>
