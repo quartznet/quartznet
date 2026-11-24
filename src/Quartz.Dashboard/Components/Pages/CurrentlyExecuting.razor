@@ -31,17 +31,19 @@
     }
 
     <div class="qz-table-scroll">
-    <table class="qz-table qz-executing-table">
+    @* A fixed layout, every column sized but Job and Trigger, which take the rest: never wider than its card,
+       whatever keys run. The actions column is as wide as its buttons, two of them when Interrupt is offered. *@
+    <table class="qz-table qz-executing-table @(ShowInterrupt ? "qz-executing-table-interrupt" : null)" data-testid="executing-table">
         <thead>
             <tr>
                 <th class="qz-col-key">Job</th>
                 <th class="qz-col-key">Trigger</th>
-                <th>Node</th>
+                <th class="qz-col-node">Node</th>
                 <th class="qz-col-group">Execution Group</th>
-                <th class="qz-col-time">Fire Time</th>
-                <th class="qz-col-time">Run Time</th>
-                <th>Progress</th>
-                <th>History</th>
+                <th class="qz-col-fired">Fire Time</th>
+                <th class="qz-col-runtime">Run Time</th>
+                <th class="qz-col-progress">Progress</th>
+                <th class="qz-col-history">History</th>
                 <th class="qz-col-actions">Actions</th>
             </tr>
         </thead>
@@ -70,7 +72,7 @@
                             }
                         </td>
                         <td class="qz-col-key"><KeyBadge GroupName="@fireInstance.TriggerKey.Group" ItemName="@fireInstance.TriggerKey.Name" /></td>
-                        <td>
+                        <td class="qz-col-node">
                             @fireInstance.SchedulerInstanceId
                             @if (!string.IsNullOrEmpty(fireInstance.ExecutionGroup))
                             {
@@ -78,8 +80,8 @@
                             }
                         </td>
                         <td class="qz-col-group">@(string.IsNullOrEmpty(fireInstance.ExecutionGroup) ? "—" : fireInstance.ExecutionGroup)</td>
-                        <td class="qz-col-time"><span class="qz-executing-fired"><span>@FireDate(fireInstance.FireTimeUtc)</span> <span>@FireTimeOfDay(fireInstance.FireTimeUtc)</span></span></td>
-                        <td class="qz-col-time">
+                        <td class="qz-col-fired"><span class="qz-executing-fired"><span>@FireDate(fireInstance.FireTimeUtc)</span> <span>@FireTimeOfDay(fireInstance.FireTimeUtc)</span></span></td>
+                        <td class="qz-col-runtime">
                             @FormatRunTime(fireInstance.FireTimeUtc)
                             @if (fireInstance.InterruptRequestedUtc is { } requestedAt)
                             {
@@ -94,7 +96,7 @@
                                 </div>
                             }
                         </td>
-                        <td>
+                        <td class="qz-col-progress">
                             @if (fireInstance.Progress is int percent)
                             {
                                 <div class="qz-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent" aria-label="Progress">
@@ -113,7 +115,7 @@
                                 <span class="qz-muted">&#8212;</span>
                             }
                         </td>
-                        <td>
+                        <td class="qz-col-history">
                             @* A firing's own execution page exists once it has finished and the history has a
                                row for it, so what a running row links to is its trigger's finished runs, each
                                of which opens its execution page with the log it captured. *@
