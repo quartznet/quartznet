@@ -99,6 +99,9 @@
         </div>
     }
 
+    @* Where focus goes when the control that had it is gone: the selection bar's buttons and the result's Dismiss
+       remove themselves, and focus must not fall to the page's body. *@
+    <section class="qz-agenda-results" tabindex="-1" aria-label="Fires" data-testid="agenda-results" @ref="_results">
     @if (_isLoading)
     {
         <LoadingSpinner />
@@ -113,7 +116,7 @@
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {
-        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+        <ErrorAlert Message="@_error" OnRetry="() => LoadDataAsync()" />
     }
     else if (_result is { } result)
     {
@@ -145,7 +148,7 @@
         {
             List<AgendaHour> hours = Hours(result);
             bool showOffsets = hours.Select(static hour => hour.Start.Offset).Distinct().Skip(1).Any();
-            <div class="qz-table-scroll" data-testid="agenda-listing">
+            <div class="qz-table-scroll qz-agenda-listing" data-testid="agenda-listing">
                 <table class="qz-table qz-agenda-table">
                     <thead>
                         <tr>
@@ -165,8 +168,11 @@
                     {
                         string hourLabel = HourLabel(hour, showOffsets);
                         <tbody @key="hour.Start.UtcTicks" data-testid="agenda-hour">
+                            @* The heading spans the columns before the schedule, and a cell of its own stands under the schedule's, so
+                               no row spans a column the listing hides when it is narrow: a cell spanning it would keep it in the
+                               layout, empty, taking its share of the width from the keys. *@
                             <tr class="qz-agenda-hour">
-                                <th colspan="@ColumnCount" scope="rowgroup">
+                                <th colspan="@(CanSelect ? 4 : 3)" scope="rowgroup">
                                     @if (CanSelect)
                                     {
                                         <input type="checkbox"
@@ -178,6 +184,8 @@
                                     <span class="qz-agenda-hour-label" data-testid="agenda-hour-label">@hourLabel</span>
                                     <span class="qz-muted qz-agenda-hour-count">@FireCount(hour.Fires.Count)</span>
                                 </th>
+                                <td class="qz-agenda-col-schedule"></td>
+                                <td colspan="2"></td>
                             </tr>
                             @foreach (UpcomingFireDto fire in hour.Fires)
                             {
@@ -196,6 +204,8 @@
                                     <td class="qz-agenda-col-time qz-table-cell-mono">@FormatTime(fire.FireTimeUtc)</td>
                                     <td class="qz-agenda-col-key">
                                         <a href="@TriggerPath(fire.Trigger)"><KeyBadge GroupName="@fire.Trigger.Group" ItemName="@fire.Trigger.Name" /></a>
+                                        @* Shown in place of the Schedule column on a listing too narrow for both. *@
+                                        <div class="qz-agenda-schedule-inline">@(string.IsNullOrEmpty(fire.ScheduleDescription) ? "—" : fire.ScheduleDescription)</div>
                                     </td>
                                     <td class="qz-agenda-col-key">
                                         <a href="@JobPath(fire.Job)"><KeyBadge GroupName="@fire.Job.Group" ItemName="@fire.Job.Name" /></a>
@@ -233,6 +243,7 @@
             </div>
         }
     }
+    </section>
 </div>
 
 <PauseDialog IsOpen="@_showPause"
@@ -272,6 +283,12 @@
     private TriggerSelectionResult? _bulkResult;
     private bool _showPause;
 
+    /// <summary>The region the fires are listed in, which takes focus when the control that had it is gone.</summary>
+    private ElementReference _results;
+
+    /// <summary>Whether the next render moves focus to <see cref="_results" />.</summary>
+    private bool _focusResults;
+
     /// <summary>The window and filter read last, or about to be.</summary>
     private AgendaView? _view;
 
@@ -307,8 +324,6 @@
     /// <summary>Fires can be selected when a bulk action is the visitor's to take; never read-only.</summary>
     private bool CanSelect => !Options.Value.ReadOnly && (CanPause || CanResume);
 
-    private int ColumnCount => CanSelect ? 7 : 6;
-
     private string ZoneLabel
     {
         get
@@ -324,6 +339,15 @@
     private string SelectionSummary => TriggerCount(SelectedTriggers.Count) + " selected (" + FireCount(_selected.Count) + ")";
 
     private string PauseMessage => "Pause " + TriggerCount(SelectedTriggers.Count) + " (" + FireCount(_selected.Count) + ")?";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusResults)
+        {
+            _focusResults = false;
+            await _results.FocusAsync();
+        }
+    }
 
     protected override void OnInitialized()
     {
@@ -381,9 +405,13 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task LoadDataAsync()
+    /// <param name="keepListing">
+    /// Whether the fires on screen stay there until the new ones arrive, as on a refresh: after an action, which
+    /// reads the same window again, rather than after a change of window.
+    /// </param>
+    private async Task LoadDataAsync(bool keepListing = false)
     {
-        _isLoading = !_refreshing || _result is null;
+        _isLoading = _result is null || !(_refreshing || keepListing);
         _error = null;
         _refusal = null;
         _unavailable = null;
@@ -428,7 +456,7 @@
             _result = null;
             _refusal = RefusalText(ex);
         }
-        catch (Exception ex) when (_result is not null && _refreshing)
+        catch (Exception ex) when (_result is not null && (_refreshing || keepListing))
         {
             _staleReason = ex.Message;
         }
@@ -740,14 +768,22 @@
         }
     }
 
+    /// <summary>
+    /// Empties the selection, which removes the bar holding the button that asked: focus moves to the fires.
+    /// </summary>
     private void ClearSelection()
     {
         _selected.Clear();
+        _focusResults = true;
     }
 
+    /// <summary>
+    /// Dismisses the panel holding the button that asked: focus moves to the fires.
+    /// </summary>
     private void DismissBulkResult()
     {
         _bulkResult = null;
+        _focusResults = true;
     }
 
     private void PromptPauseSelection()
@@ -786,8 +822,11 @@
         TriggerSelectionResult result = await action(new TriggerSelectionActions(Api, ActionLog, Toasts), schedulerName, SelectedTriggers);
         _bulkResult = result.Misses.Count == 0 ? null : result;
 
+        // The selection is spent, and the bar that held the button goes with it: focus moves to the fires, which stay
+        // on screen while they are read again with what the action did.
         _selected.Clear();
-        await LoadDataAsync();
+        _focusResults = true;
+        await LoadDataAsync(keepListing: true);
     }
 
     private static string Trim(string? value) => value?.Trim() ?? string.Empty;
