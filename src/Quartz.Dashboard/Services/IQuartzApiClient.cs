@@ -887,6 +887,46 @@ public interface IQuartzApiClient
     }
 
     /// <summary>
+    /// Every fire of every trigger in [<see cref="DashboardUpcomingFiresQuery.From" />,
+    /// <see cref="DashboardUpcomingFiresQuery.To" />), earliest first, computed where the scheduler's triggers are
+    /// stored, with calendars applied. At most <see cref="DashboardUpcomingFiresQuery.Take" /> fires, and a window of
+    /// at most 7 days within the next 30.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What the Agenda page reads, once per load, change or <em>Refresh</em>. Every trigger due before the window
+    /// ends is listed, in any state, so a paused trigger's fires are listed with its state. Each trigger's schedule
+    /// advances from its next fire time, in its own time zone, less what its calendar excludes. A simple trigger that
+    /// measures its interval from completion lists only its next fire. The fires are the schedules' times: no
+    /// misfire handling, blocking, execution-group limit or standby is simulated.
+    /// </para>
+    /// <para>
+    /// A window that does not end after now, is longer than 7 days or ends more than 30 days ahead, a
+    /// <see cref="DashboardUpcomingFiresQuery.Take" /> outside 1 to 1,000, or more than 10,000 triggers due before
+    /// the window ends raises <see cref="ArgumentException" /> with the reason. Over HTTP and through an agent it is
+    /// the <c>…/triggers/upcoming-fires</c> route; a host older than 4.9 has none, and the fires are computed in
+    /// this process from the triggers and calendars it answers with.
+    /// </para>
+    /// <para>
+    /// A default interface member, added in 4.9. The default reports the datum as unavailable with
+    /// <see cref="NotSupportedException" />, and the Agenda says so. It does not compose the answer from
+    /// <see cref="GetTrigger" />, which would be a read per trigger.
+    /// </para>
+    /// </remarks>
+    /// <param name="schedulerName">The scheduler whose triggers to list the fires of.</param>
+    /// <param name="query">The window, the trigger group filter and the most fires to answer.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="ArgumentException">The query is refused; the message says why.</exception>
+    ValueTask<UpcomingFiresDto> QueryUpcomingFires(
+        string schedulerName,
+        DashboardUpcomingFiresQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromException<UpcomingFiresDto>(new NotSupportedException(
+            "This dashboard's data source cannot list what fires between two times: its IQuartzApiClient does not implement QueryUpcomingFires."));
+    }
+
+    /// <summary>
     /// Pauses the job group itself, recording why and who asked, as <see cref="IScheduler.PauseJobGroupsWith" />
     /// does with <see cref="GroupMatcher{TKey}.GroupEquals" />. The pause is the group's: a job added to the
     /// group afterwards is paused too, and <see cref="GetJobGroupPause" /> answers the record.
@@ -1185,6 +1225,93 @@ public sealed record DashboardFireInstanceLogQuery
     /// 64 KB, and carries one entry at least.
     /// </summary>
     public int Take { get; init; } = 500;
+}
+
+/// <summary>
+/// Which fires <see cref="IQuartzApiClient.QueryUpcomingFires" /> lists: those in [<see cref="From" />,
+/// <see cref="To" />) of the triggers whose group contains <see cref="GroupContains" />. Added in 4.9.
+/// </summary>
+public sealed record DashboardUpcomingFiresQuery
+{
+    /// <summary>
+    /// The window's start; the scheduler's now when null, and now when earlier.
+    /// </summary>
+    public DateTimeOffset? From { get; init; }
+
+    /// <summary>
+    /// The window's end, excluded: at most 7 days after the start and 30 days after now.
+    /// </summary>
+    public required DateTimeOffset To { get; init; }
+
+    /// <summary>
+    /// Only triggers whose group contains this, as <see cref="DashboardTriggerQuery.GroupContains" />, or every
+    /// trigger when null.
+    /// </summary>
+    public string? GroupContains { get; init; }
+
+    /// <summary>
+    /// The most fires to answer, from 1 to 1000.
+    /// </summary>
+    public int Take { get; init; } = 1000;
+}
+
+/// <summary>
+/// Every fire of every trigger in a window, earliest first, and where the list stops early. Added in 4.9.
+/// </summary>
+/// <param name="FromUtc">The window's start used: the query's, or the scheduler's now when that was later.</param>
+/// <param name="ToUtc">The window's end, excluded.</param>
+/// <param name="Fires">The fires, earliest first; ties by trigger group, then name.</param>
+public sealed record UpcomingFiresDto(
+    DateTimeOffset FromUtc,
+    DateTimeOffset ToUtc,
+    List<UpcomingFireDto> Fires)
+{
+    /// <summary>
+    /// The list stops early, at the most fires asked for or at the computation's step budget: fires at or after
+    /// <see cref="CutAtUtc" /> may be missing.
+    /// </summary>
+    public bool Cut { get; init; }
+
+    /// <summary>
+    /// With <see cref="Cut" />, the time of the last fire listed, or <see cref="FromUtc" /> when none is.
+    /// </summary>
+    public DateTimeOffset? CutAtUtc { get; init; }
+
+    /// <summary>
+    /// Triggers due in the window whose fires could not be computed: a missing calendar, or a type that cannot be
+    /// advanced. Their fires are not listed.
+    /// </summary>
+    public int TriggersNotComputed { get; init; }
+}
+
+/// <summary>
+/// One fire of one trigger, with what a listing shows of the trigger. Added in 4.9.
+/// </summary>
+/// <param name="FireTimeUtc">When it fires, in UTC.</param>
+/// <param name="Trigger">The trigger.</param>
+/// <param name="Job">The job it fires.</param>
+/// <param name="State">The trigger's state when it was read: a paused trigger's fires are listed too.</param>
+public sealed record UpcomingFireDto(
+    DateTimeOffset FireTimeUtc,
+    TriggerKeyDto Trigger,
+    JobKeyDto Job,
+    TriggerState State)
+{
+    /// <summary>
+    /// The trigger's execution group, if any.
+    /// </summary>
+    public string? ExecutionGroup { get; init; }
+
+    /// <summary>
+    /// The trigger's schedule in words, in its own zone, as <c>DescribeSchedule()</c> says it, or
+    /// <see langword="null" /> for a kind it cannot phrase. For display only.
+    /// </summary>
+    public string? ScheduleDescription { get; init; }
+
+    /// <summary>
+    /// The trigger measures its interval from completion, so only its next fire is known.
+    /// </summary>
+    public bool OnlyTheNext { get; init; }
 }
 
 /// <summary>

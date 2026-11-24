@@ -4152,6 +4152,81 @@ body{
     max-width: 20rem;
 }
 
+/* The Agenda: one table for the whole window, an hour of the header's zone to a row group, so every hour's columns
+   line up. It scrolls inside its card, in .qz-table-scroll, never the page. */
+.qz-agenda-zone,
+.qz-agenda-fidelity {
+    margin: 0 0 var(--qz-space-sm);
+    font-size: var(--qz-font-size-sm);
+}
+
+.qz-agenda-window {
+    margin: 0 0 var(--qz-space-sm);
+    font-weight: var(--qz-font-weight-medium);
+}
+
+.qz-agenda-cut,
+.qz-agenda-not-computed {
+    margin: 0 0 var(--qz-space-md);
+    padding: var(--qz-space-sm) var(--qz-space-md);
+    border: 1px solid var(--qz-color-warning);
+    border-radius: var(--qz-radius-md);
+    background-color: var(--qz-color-warning-bg);
+    color: var(--qz-color-text);
+    font-size: var(--qz-font-size-sm);
+}
+
+/* An hour's heading is a row of the table, not one of the key-value tables' row headers. */
+.qz-agenda-table tbody tr.qz-agenda-hour th {
+    width: auto;
+    min-width: 0;
+    border-right: none;
+    text-transform: none;
+    letter-spacing: normal;
+    vertical-align: middle;
+    font-size: var(--qz-font-size-sm);
+    font-weight: var(--qz-font-weight-semibold);
+    color: var(--qz-color-text);
+}
+
+.qz-agenda-select-hour {
+    margin-right: var(--qz-space-sm);
+    vertical-align: middle;
+}
+
+.qz-agenda-hour-count {
+    margin-left: var(--qz-space-sm);
+    font-weight: var(--qz-font-weight-normal);
+}
+
+.qz-agenda-table .qz-agenda-col-time,
+.qz-agenda-table .qz-agenda-col-state {
+    white-space: nowrap;
+}
+
+.qz-agenda-table td.qz-agenda-col-key {
+    min-width: 12rem;
+}
+
+.qz-agenda-table td.qz-agenda-col-key > a {
+    display: inline-block;
+    max-width: 100%;
+}
+
+/* A key is never cut short: it wraps between its words, and as a link it is underlined, not told apart by colour. */
+.qz-agenda-table td.qz-agenda-col-key .qz-key-badge-value {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    color: var(--qz-color-link);
+    text-decoration: underline;
+}
+
+.qz-agenda-only-next {
+    margin-top: 2px;
+    font-size: var(--qz-font-size-xs);
+}
+
 /* ==========================================================================
    26. RESPONSIVE (1024px+ breakpoint)
    ========================================================================== */

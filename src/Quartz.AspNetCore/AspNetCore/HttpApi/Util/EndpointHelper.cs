@@ -43,6 +43,11 @@ internal sealed class EndpointHelper
     public Func<string, bool>? IsJobTypeAllowed { get; }
 
     /// <summary>
+    /// <see cref="QuartzHttpApiOptions.MaxPageSize" />, which also lowers how many fires an agenda answers.
+    /// </summary>
+    public int MaxPageSize => maxPageSize;
+
+    /// <summary>
     /// The one place the API turns a response into JSON. Generic because every caller already has the
     /// static type in hand: erasing it to <see cref="object" /> binds the overload that has to rediscover
     /// the type at runtime, where this one carries it through to the serializer.

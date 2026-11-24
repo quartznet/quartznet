@@ -311,6 +311,14 @@ namespace Quartz.Dashboard.Services
         public System.DateTimeOffset? NextFireTimeBefore { get; init; }
         public Quartz.TriggerState? State { get; init; }
     }
+    public sealed record DashboardUpcomingFiresQuery : System.IEquatable<Quartz.Dashboard.Services.DashboardUpcomingFiresQuery>
+    {
+        public DashboardUpcomingFiresQuery() { }
+        public System.DateTimeOffset? From { get; init; }
+        public string? GroupContains { get; init; }
+        public int Take { get; init; }
+        public required System.DateTimeOffset To { get; init; }
+    }
     public sealed record ExecutionLimitsDto : System.IEquatable<Quartz.Dashboard.Services.ExecutionLimitsDto>
     {
         public ExecutionLimitsDto(System.Collections.Generic.Dictionary<string, Quartz.Dashboard.Services.DashboardExecutionLimit> Limits, bool UsesTriggerGroupWhenUnset = false, bool CanReport = true) { }
@@ -409,6 +417,7 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.TriggerGroupDto>> QueryTriggerGroups(string schedulerName, Quartz.Dashboard.Services.DashboardGroupQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.TriggerRunStatus>> QueryTriggerRunStatuses(Quartz.TriggerRunStatusQuery query, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.TriggerHeaderDto>> QueryTriggers(string schedulerName, Quartz.Dashboard.Services.DashboardTriggerQuery query, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.UpcomingFiresDto> QueryUpcomingFires(string schedulerName, Quartz.Dashboard.Services.DashboardUpcomingFiresQuery query, System.Threading.CancellationToken cancellationToken = default); // default implementation
         System.Threading.Tasks.ValueTask RescheduleJob(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, Quartz.Dashboard.Services.RescheduleRequest request, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> ResetTriggerFromErrorState(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ResumeAll(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
@@ -526,5 +535,26 @@ namespace Quartz.Dashboard.Services
         public TriggerKeyDto(string Group, string Name) { }
         public string Group { get; init; }
         public string Name { get; init; }
+    }
+    public sealed record UpcomingFireDto : System.IEquatable<Quartz.Dashboard.Services.UpcomingFireDto>
+    {
+        public UpcomingFireDto(System.DateTimeOffset FireTimeUtc, Quartz.Dashboard.Services.TriggerKeyDto Trigger, Quartz.Dashboard.Services.JobKeyDto Job, Quartz.TriggerState State) { }
+        public string? ExecutionGroup { get; init; }
+        public System.DateTimeOffset FireTimeUtc { get; init; }
+        public Quartz.Dashboard.Services.JobKeyDto Job { get; init; }
+        public bool OnlyTheNext { get; init; }
+        public string? ScheduleDescription { get; init; }
+        public Quartz.TriggerState State { get; init; }
+        public Quartz.Dashboard.Services.TriggerKeyDto Trigger { get; init; }
+    }
+    public sealed record UpcomingFiresDto : System.IEquatable<Quartz.Dashboard.Services.UpcomingFiresDto>
+    {
+        public UpcomingFiresDto(System.DateTimeOffset FromUtc, System.DateTimeOffset ToUtc, System.Collections.Generic.List<Quartz.Dashboard.Services.UpcomingFireDto> Fires) { }
+        public bool Cut { get; init; }
+        public System.DateTimeOffset? CutAtUtc { get; init; }
+        public System.Collections.Generic.List<Quartz.Dashboard.Services.UpcomingFireDto> Fires { get; init; }
+        public System.DateTimeOffset FromUtc { get; init; }
+        public System.DateTimeOffset ToUtc { get; init; }
+        public int TriggersNotComputed { get; init; }
     }
 }

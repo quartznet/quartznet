@@ -97,6 +97,32 @@ public sealed class AgentNarrowingTest
             .And.NotContain(["GetTrigger", "GetCalendar"], "the dashboard does not read what it needs to compute the refused answer itself");
     }
 
+    /// <summary>
+    /// The agenda is one operation the worker computes, and a worker that refuses it is not worked around by listing
+    /// and reading its triggers (#4438).
+    /// </summary>
+    [Test]
+    public async Task AWorkerThatRefusesTheAgendaIsNotWorkedAround()
+    {
+        ConcurrentQueue<string> asked = new();
+        await using AgentDashboard dashboard = await AgentDashboard.Start();
+        AgentWorker worker = await dashboard.StartAgent("w1", options => options.IsOperationAllowed = route =>
+        {
+            asked.Enqueue(route);
+            return route != "QueryUpcomingFires";
+        });
+        await ScheduleDaily(worker.Scheduler);
+        asked.Clear();
+        DateTimeOffset from = TimeProvider.System.GetUtcNow().AddMinutes(5);
+
+        Func<Task> read = () => dashboard.Client.QueryUpcomingFires(worker.Key, new DashboardUpcomingFiresQuery { From = from, To = from.AddHours(1) }).AsTask();
+
+        (await read.Should().ThrowAsync<HttpClientException>())
+            .Which.Message.Should().Contain("does not accept QueryUpcomingFires", "the page shows the worker's own words");
+        asked.Should().Contain("QueryUpcomingFires")
+            .And.NotContain(["QueryTriggers", "FetchTriggers", "GetCalendar"], "the dashboard does not compose the refused answer itself");
+    }
+
     private static readonly DateTimeOffset Noon = new(2030, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
     /// <summary>

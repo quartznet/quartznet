@@ -7,6 +7,10 @@
     <ModalDialog Class="qz-pause-dialog" LabelledBy="qz-pause-dialog-title" OnCancel="CancelAsync">
         <h3 id="qz-pause-dialog-title">@Title</h3>
         <p>@Message</p>
+        @if (!string.IsNullOrEmpty(Note))
+        {
+            <p class="qz-pause-dialog-note">@Note</p>
+        }
         <div class="qz-form-group">
             <label class="qz-form-label" for="qz-pause-reason">Reason (optional)</label>
             <input id="qz-pause-reason"
@@ -34,6 +38,12 @@
 
     [Parameter]
     public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// What the pause goes on to mean, said under the question, or nothing.
+    /// </summary>
+    [Parameter]
+    public string? Note { get; set; }
 
     /// <summary>
     /// Raised with the reason typed, trimmed, or <see langword="null" /> when none was.

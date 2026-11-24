@@ -112,6 +112,7 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(TriggerRunStatusDto))]
 [JsonSerializable(typeof(TriggerRunStatusDto[]))]
 [JsonSerializable(typeof(TriggerStateDto))]
+[JsonSerializable(typeof(UpcomingFiresResponse))]
 
 // The dashboard agent's hub payloads, which carry the bodies above as bytes.
 [JsonSerializable(typeof(AgentRegistration))]

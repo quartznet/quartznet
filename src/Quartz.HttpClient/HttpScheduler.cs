@@ -68,7 +68,7 @@ namespace Quartz;
 /// listing reports such a scheduler as <see cref="SchedulerOrigin.Remote" />.
 /// </para>
 /// </remarks>
-public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IFireInstanceLogScheduler
+public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingScheduler, IUpcomingFireTimesScheduler, IUpcomingFiresScheduler, IScheduleDescribingScheduler, IFiringWaitingScheduler, IStartupDeclarationsScheduler, IFireInstanceLogScheduler
 {
     /// <summary>The first version whose schedule routes store a trigger paused.</summary>
     private static readonly Version FirstStoringPausedVersion = new(4, 4);
@@ -878,6 +878,60 @@ public sealed class HttpScheduler : IScheduler, IProxyScheduler, IBackfillingSch
         }
 
         return wire.Read<FireInstanceLogResponse>(response).AsLog();
+    }
+
+    /// <summary>
+    /// Every fire in a window in one request: the host's <c>upcoming-fires</c> route computes them where the
+    /// triggers and their calendars are stored.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The answers are an in-process call's: the host's refusal, with the host's words and decided by the host's
+    /// clock, comes back as the outcome's refusal, which the dashboard raises as an <see cref="ArgumentException" />.
+    /// </para>
+    /// <para>
+    /// A host older than 4.9, or an agent that does not serve the route, answers <c>404</c> without problem details.
+    /// The fires are composed here instead, from the trigger listing, the triggers and the calendars it answers
+    /// with. A host or agent that refuses the route answers <c>403</c>, which is raised rather than worked around.
+    /// </para>
+    /// </remarks>
+    async ValueTask<UpcomingFiresOutcome> IUpcomingFiresScheduler.QueryUpcomingFires(
+        UpcomingFiresQuery query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        QueryStringBuilder parameters = new();
+        if (query.From is { } from)
+        {
+            parameters.Add("from", from.ToString("O", CultureInfo.InvariantCulture));
+        }
+        parameters.Add("to", query.To.ToString("O", CultureInfo.InvariantCulture));
+        parameters.Add("take", query.Take);
+        if (!string.IsNullOrEmpty(query.GroupContains))
+        {
+            parameters.Add("groupContains", query.GroupContains);
+        }
+
+        WireResponse response = await wire.Exchange(
+            At(SchedulerRoutes.QueryUpcomingFires).WithQuery(parameters.ToString()),
+            cancellationToken).ConfigureAwait(false);
+
+        if (wire.TryReadRequestRefusal(response, out string? refusal))
+        {
+            return new UpcomingFiresOutcome(null, refusal);
+        }
+
+        try
+        {
+            wire.EnsureSuccess(response, throwOnNotFound: true);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            return await UpcomingFires.Compose(this, query, cancellationToken).ConfigureAwait(false);
+        }
+
+        return new UpcomingFiresOutcome(wire.Read<UpcomingFiresResponse>(response).AsResult(), null);
     }
 
     /// <inheritdoc />

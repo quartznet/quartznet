@@ -603,6 +603,8 @@ public sealed class WireCarrierEquivalenceTest
         ["GetUpcomingFireTimes(TriggerKey, Int32, CancellationToken)"] = new([SchedulerRoutes.GetTriggerFireTimes], s => ((IUpcomingFireTimesScheduler) s).GetUpcomingFireTimes(names.Trigger, 10).AsTask()),
         ["ReadFireInstanceLog(FireInstanceLogRequest, CancellationToken)"] = new([SchedulerRoutes.GetFireInstanceLog], s => ((IFireInstanceLogScheduler) s).ReadFireInstanceLog(
             new FireInstanceLogRequest(names.FireInstanceId, After: 2, Take: 10, SchedulerInstanceId: "node-b")).AsTask()),
+        ["QueryUpcomingFires(UpcomingFiresQuery, CancellationToken)"] = new([SchedulerRoutes.QueryUpcomingFires], s => ((IUpcomingFiresScheduler) s).QueryUpcomingFires(
+            new UpcomingFiresQuery(null, TimeProvider.System.GetUtcNow().AddHours(1), "group", 10)).AsTask()),
         ["QueryDescribedTriggers(TriggerQuery, CancellationToken)"] = new([SchedulerRoutes.QueryTriggers], s => ((IScheduleDescribingScheduler) s).QueryDescribedTriggers(new TriggerQuery { Job = names.Job }).AsTask()),
         ["ResetTriggerFromErrorState(TriggerKey, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerFromErrorState], s => s.ResetTriggerFromErrorState(names.Trigger).AsTask()),
         ["ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey>, CancellationToken)"] = new([SchedulerRoutes.ResetTriggerKeysFromErrorState], s => s.ResetTriggersFromErrorState([names.Trigger]).AsTask()),
@@ -672,13 +674,13 @@ public sealed class WireCarrierEquivalenceTest
     /// The members <see cref="HttpScheduler" /> implements itself, named as the contract declares them: every
     /// one of <see cref="IScheduler" />'s it does not leave to a default body, and
     /// <see cref="IBackfillingScheduler.Backfill" />, <see cref="IUpcomingFireTimesScheduler.GetUpcomingFireTimes" />,
-    /// <see cref="IScheduleDescribingScheduler.QueryDescribedTriggers" /> and
+    /// <see cref="IUpcomingFiresScheduler.QueryUpcomingFires" />, <see cref="IScheduleDescribingScheduler.QueryDescribedTriggers" /> and
     /// <see cref="IFireInstanceLogScheduler.ReadFireInstanceLog" />, the internal contracts the backfill and fire-times
-    /// extensions, the described trigger listing and a running firing's log send to it.
+    /// extensions, the agenda, the described trigger listing and a running firing's log send to it.
     /// </summary>
     private static IEnumerable<MethodInfo> ImplementedMembers()
     {
-        foreach (Type contract in (Type[]) [typeof(IScheduler), typeof(IBackfillingScheduler), typeof(IUpcomingFireTimesScheduler), typeof(IScheduleDescribingScheduler), typeof(IFireInstanceLogScheduler)])
+        foreach (Type contract in (Type[]) [typeof(IScheduler), typeof(IBackfillingScheduler), typeof(IUpcomingFireTimesScheduler), typeof(IUpcomingFiresScheduler), typeof(IScheduleDescribingScheduler), typeof(IFireInstanceLogScheduler)])
         {
             InterfaceMapping map = typeof(HttpScheduler).GetInterfaceMap(contract);
             for (int i = 0; i < map.TargetMethods.Length; i++)

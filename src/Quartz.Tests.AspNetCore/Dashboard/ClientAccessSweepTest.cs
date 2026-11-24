@@ -133,6 +133,7 @@ public class ClientAccessSweepTest
             "QueryTriggerGroups",
             "QueryTriggerRunStatuses",
             "QueryTriggers",
+            "QueryUpcomingFires",
         ];
 
         HashSet<string> swept = Operations.Select(operation => operation.Member.Split(',')[0]).ToHashSet();
