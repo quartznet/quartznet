@@ -464,8 +464,10 @@ internal abstract partial class AdoJobStoreBase
 
                         // One read for the whole round's candidates. The acquisition statement just named
                         // them; going back per candidate cost a round trip each before a single one was
-                        // marked acquired (#3424).
-                        Dictionary<TriggerKey, IOperableTrigger> candidates = await ReadAcquisitionCandidates(conn, results, round, cancellationToken).ConfigureAwait(false);
+                        // marked acquired (#3424). It leaves out the later candidates of a job that disallows
+                        // concurrent execution, which the loop below refuses on their job alone (#4173).
+                        HashSet<TriggerKey>? leftOut = LaterCandidatesOfSerialJobs(results, acquiredJobKeysForNoConcurrentExec);
+                        Dictionary<TriggerKey, IOperableTrigger> candidates = await ReadAcquisitionCandidates(conn, results, leftOut, round, cancellationToken).ConfigureAwait(false);
 
                         // One read for every job that disallows concurrent execution among the candidates,
                         // asked whether a firing of it is executing anywhere, where the loop below asked it
@@ -482,12 +484,21 @@ internal abstract partial class AdoJobStoreBase
                         HashSet<JobKey>? executingNow = null;
                         if (ShippedDelegate is { } shipped && holdsLock)
                         {
+                            // By the job the candidate row names, which covers a row the read left out, or
+                            // else by the job of the row the read returned.
                             List<JobKey>? serialJobs = null;
                             foreach (TriggerAcquireResult candidate in results)
                             {
-                                if (candidate.ConcurrentExecutionDisallowed == true && candidates.TryGetValue(candidate.TriggerKey, out IOperableTrigger? serialTrigger))
+                                if (candidate.ConcurrentExecutionDisallowed != true)
                                 {
-                                    (serialJobs ??= []).Add(serialTrigger.JobKey);
+                                    continue;
+                                }
+
+                                JobKey? serialJob = candidate.JobKey
+                                                    ?? (candidates.TryGetValue(candidate.TriggerKey, out IOperableTrigger? serialTrigger) ? serialTrigger.JobKey : null);
+                                if (serialJob is not null)
+                                {
+                                    (serialJobs ??= []).Add(serialJob);
                                 }
                             }
 
@@ -519,11 +530,37 @@ internal abstract partial class AdoJobStoreBase
 
                             TriggerKey triggerKey = result.TriggerKey;
 
-                            // If our trigger is no longer available, try a new one.
+                            // A job that disallows concurrent execution takes one trigger a pass. A later
+                            // candidate of one the pass has taken up is refused here, on the job its candidate
+                            // row names, which is why the read could leave its row out; one that names no job
+                            // is refused below, on its row's.
+                            if (result.ConcurrentExecutionDisallowed == true && result.JobKey is { } namedJob && acquiredJobKeysForNoConcurrentExec.Contains(namedJob))
+                            {
+                                skipped++;
+                                if (executingJobs is not null && executingJobs.Contains(namedJob))
+                                {
+                                    blocked++;
+                                }
+
+                                continue; // next trigger
+                            }
+
+                            // If our trigger is no longer available, try a new one. A row the read left out is
+                            // read now, on its own: the candidate of its job ahead of it was not taken up after
+                            // all, its row gone or its type not loading, so this one is decided as any other.
                             if (!candidates.TryGetValue(triggerKey, out IOperableTrigger? nextTrigger))
                             {
-                                raced++;
-                                continue; // next trigger
+                                if (leftOut is not null && leftOut.Contains(triggerKey))
+                                {
+                                    Dictionary<TriggerKey, IOperableTrigger> readNow = await ReadAcquisitionCandidates(conn, [triggerKey], round, cancellationToken).ConfigureAwait(false);
+                                    nextTrigger = readNow.GetValueOrDefault(triggerKey);
+                                }
+
+                                if (nextTrigger is null)
+                                {
+                                    raced++;
+                                    continue; // next trigger
+                                }
                             }
 
                             // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
@@ -864,29 +901,71 @@ internal abstract partial class AdoJobStoreBase
     /// and the claim holds the row until the round commits.
     /// </para>
     /// </remarks>
+    /// <param name="conn">The round's transaction.</param>
+    /// <param name="results">The candidates the acquisition read named.</param>
+    /// <param name="leftOut">The candidates not to read, or <see langword="null" /> to read them all.</param>
+    /// <param name="round">The round, which the read records the stored discriminators on.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     private async ValueTask<Dictionary<TriggerKey, IOperableTrigger>> ReadAcquisitionCandidates(
         ConnectionAndTransactionHolder conn,
         List<TriggerAcquireResult> results,
+        HashSet<TriggerKey>? leftOut,
         FireOnAcquireRound? round,
         CancellationToken cancellationToken)
     {
-        if (results.Count == 0)
-        {
-            return new Dictionary<TriggerKey, IOperableTrigger>();
-        }
-
         List<TriggerKey> keys = new(results.Count);
         foreach (TriggerAcquireResult result in results)
         {
-            keys.Add(result.TriggerKey);
+            if (leftOut is null || !leftOut.Contains(result.TriggerKey))
+            {
+                keys.Add(result.TriggerKey);
+            }
         }
 
         return await ReadAcquisitionCandidates(conn, keys, round, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// <see cref="ReadAcquisitionCandidates(ConnectionAndTransactionHolder, List{TriggerAcquireResult}, FireOnAcquireRound?, CancellationToken)" />
-    /// by key, for a round that fires apart and reads its claimed rows again after its guard (#4117).
+    /// The candidates of a read that are a later candidate of a job that disallows concurrent execution, by
+    /// the job their candidate row names, or <see langword="null" /> when there are none (#4173).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Such a job takes one trigger a pass, so its later candidates are refused whatever their rows hold,
+    /// and the pass reads in full only the first. A job the round took up in an earlier read has all of
+    /// them left out. One serial job with a backlog had ten to sixteen rows read a round, of which one
+    /// could fire.
+    /// </para>
+    /// <para>
+    /// A candidate whose delegate did not read the flag or name the job is read, as before.
+    /// </para>
+    /// </remarks>
+    /// <param name="results">The candidates, in fire-time order.</param>
+    /// <param name="takenUp">The serial jobs the round has taken up so far.</param>
+    private static HashSet<TriggerKey>? LaterCandidatesOfSerialJobs(List<TriggerAcquireResult> results, HashSet<JobKey> takenUp)
+    {
+        HashSet<TriggerKey>? later = null;
+        HashSet<JobKey>? named = null;
+        foreach (TriggerAcquireResult candidate in results)
+        {
+            if (candidate.ConcurrentExecutionDisallowed != true || candidate.JobKey is not { } jobKey)
+            {
+                continue;
+            }
+
+            if (takenUp.Contains(jobKey) || !(named ??= []).Add(jobKey))
+            {
+                (later ??= []).Add(candidate.TriggerKey);
+            }
+        }
+
+        return later;
+    }
+
+    /// <summary>
+    /// <see cref="ReadAcquisitionCandidates(ConnectionAndTransactionHolder, List{TriggerAcquireResult}, HashSet{TriggerKey}?, FireOnAcquireRound?, CancellationToken)" />
+    /// by key: for a round that fires apart and reads its claimed rows again after its guard (#4117), and
+    /// for a candidate that read left out and needs after all (#4173).
     /// </summary>
     private async ValueTask<Dictionary<TriggerKey, IOperableTrigger>> ReadAcquisitionCandidates(
         ConnectionAndTransactionHolder conn,
@@ -894,6 +973,11 @@ internal abstract partial class AdoJobStoreBase
         FireOnAcquireRound? round,
         CancellationToken cancellationToken)
     {
+        if (keys.Count == 0)
+        {
+            return new Dictionary<TriggerKey, IOperableTrigger>();
+        }
+
         if (ShippedDelegate is { } shipped)
         {
             List<StoredTriggerRead> stored = await Guarded(

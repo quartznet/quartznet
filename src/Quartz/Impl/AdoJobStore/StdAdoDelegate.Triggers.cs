@@ -2369,6 +2369,8 @@ public partial class StdAdoDelegate
         int nextFireTimeOrdinal = -1;
         int overlapPolicyOrdinal = -1;
         int fixedDelayOrdinal = -1;
+        int jobNameOrdinal = -1;
+        int jobGroupOrdinal = -1;
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             if (nextTriggers.Count >= maxCount)
@@ -2403,6 +2405,11 @@ public partial class StdAdoDelegate
                 // not project it, and a fixed-delay trigger it claims without the lock rolls its round back
                 // at the fire.
                 fixedDelayOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnFixedDelay);
+
+                // And the job, which a serial job's later candidates are refused on unread (#4173): a statement
+                // written for 4.8 does not project it, and its candidates' rows are all read, as they were.
+                jobNameOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnJobName);
+                jobGroupOrdinal = OptionalOrdinal(rs, AdoConstants.ColumnJobGroup);
             }
 
             string? executionGroup = rs.IsDBNull(execGroupOrdinal)
@@ -2430,6 +2437,9 @@ public partial class StdAdoDelegate
                     ? null
                     : OverlapPolicyColumn.Decode(OverlapPolicyColumn.Read(rs, overlapPolicyOrdinal)).Policy,
                 MeasureIntervalFromCompletion = fixedDelayOrdinal >= 0 && ReadFixedDelay(rs, fixedDelayOrdinal),
+                JobKey = jobNameOrdinal < 0 || jobGroupOrdinal < 0
+                    ? null
+                    : new JobKey(rs.GetString(jobNameOrdinal), rs.GetString(jobGroupOrdinal)),
             });
         }
 
