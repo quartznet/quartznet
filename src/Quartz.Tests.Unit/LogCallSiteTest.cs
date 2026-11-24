@@ -46,6 +46,7 @@ public class LogCallSiteTest
         "src/Quartz.Dashboard.Host",
         "src/Quartz.Extensions.Redis",
         "src/Quartz.HttpClient",
+        "src/Quartz.Mcp",
         "src/Quartz.Jobs",
         "src/Quartz.Plugins",
         "src/Quartz.Plugins.TimeZoneConverter",

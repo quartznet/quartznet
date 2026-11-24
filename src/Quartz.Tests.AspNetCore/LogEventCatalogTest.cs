@@ -32,6 +32,7 @@ public class LogEventCatalogTest
         new("Quartz.AspNetCore", 9000, 9099, "HTTP API"),
         new("Quartz.Dashboard", 9100, 9199, "Dashboard"),
         new("Quartz.Dashboard.Host", 9400, 9499, "Dashboard host"),
+        new("Quartz.Mcp", 9500, 9599, "MCP endpoint"),
     ];
 
     /// <summary>
@@ -42,6 +43,7 @@ public class LogEventCatalogTest
         typeof(global::Quartz.QuartzAspNetCoreConfigurationExtensions).Assembly,
         typeof(global::Quartz.QuartzDashboardServiceCollectionExtensions).Assembly,
         typeof(global::Quartz.Dashboard.Host.Program).Assembly,
+        typeof(global::Quartz.QuartzMcpOptions).Assembly,
     ];
 
     private static IEnumerable<TestCaseData> Assemblies()

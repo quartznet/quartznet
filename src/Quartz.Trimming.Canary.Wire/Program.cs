@@ -90,7 +90,7 @@ internal static class Program
         }
 
         Console.WriteLine(passed
-            ? "Quartz.Trimming.Canary.Wire: a scheduler served by Quartz.AspNetCore under an operation policy is scheduled, read, paused, resumed, triggered, watched and asked for its history through Quartz.HttpClient, which also reads a newer host's names, and refuses a viewer a change; and a second scheduler dials out through Quartz.Dashboard.Agent, registers, heartbeats, is read, scheduled, triggered and watched down the tunnel, refuses what it was told to, and says goodbye."
+            ? "Quartz.Trimming.Canary.Wire: a scheduler served by Quartz.AspNetCore under an operation policy is scheduled, read, paused, resumed, triggered, watched and asked for its history through Quartz.HttpClient, which also reads a newer host's names, and refuses a viewer a change; Quartz.Mcp lists its tools, lists the jobs and pauses a trigger over JSON-RPC; and a second scheduler dials out through Quartz.Dashboard.Agent, registers, heartbeats, is read, scheduled, triggered and watched down the tunnel, refuses what it was told to, and says goodbye."
             : "Quartz.Trimming.Canary.Wire: a step failed.");
 
         return passed ? 0 : 1;
@@ -121,6 +121,9 @@ internal static class Program
 
         // Every request above passed the operation policy as an administrator; these ask as a viewer.
         passed &= await OperatorRoles.Check(apiAddress, cancellationToken).ConfigureAwait(false);
+
+        // The same scheduler through Quartz.Mcp, by raw JSON-RPC.
+        passed &= await McpCheck.Run(host.Services, siteRoot, cancellationToken).ConfigureAwait(false);
 
         // The agent half runs whether or not the HTTP half passed: its failure, if it has one, is a
         // different package's, and a run that stopped at the first would say nothing about the second.
@@ -178,6 +181,13 @@ internal static class Program
             options.OperationAuthorizationPolicy = OperatorRoles.Policy;
         });
 
+        // The MCP endpoint over the same scheduler, writable and held to the same operation policy (#4245).
+        builder.Services.AddQuartzMcp(options =>
+        {
+            options.ReadOnly = false;
+            options.OperationAuthorizationPolicy = OperatorRoles.Policy;
+        });
+
         // The dashboard's half of the agent protocol, as far as the canary speaks it. The hub's payloads are
         // the contract's records, written and read through its generated metadata, which is the one way a
         // SignalR server serializes anything with reflection off - and the same call the dashboard makes.
@@ -193,6 +203,9 @@ internal static class Program
         // The API refuses to start without an authorization decision, and this is one: the only caller is
         // this process, over loopback, and the operation policy holds each route to its role.
         app.MapQuartzHttpApi().AllowAnonymous();
+
+        // The canary's caller is this process, as for the API, and every tool is held to the operation policy.
+        app.MapQuartzMcp(McpCheck.Path).AllowAnonymous();
 
         NewerHost.Map(app);
 

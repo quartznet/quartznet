@@ -100,6 +100,10 @@ updates:
       # the example's Aspire packages move on $(AspireVersion) through the aspire group, and this row does not.
       # PackageDependencyTest records each one's version and reason, and fails a row that differs from it.
       - dependency-name: "Aspire.Hosting"
+      # Quartz.Mcp's floor, 2.3.1, the first release outside GHSA-x863-g495-4cjc. The tests' client,
+      # ModelContextProtocol, is held with it: a client ahead of the server tests a pair no consumer has.
+      - dependency-name: "ModelContextProtocol.AspNetCore"
+      - dependency-name: "ModelContextProtocol"
       - dependency-name: "MySqlConnector"
       - dependency-name: "Newtonsoft.Json"
       - dependency-name: "OpenTelemetry.Extensions.Hosting"
