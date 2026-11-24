@@ -174,14 +174,15 @@ An implementation must follow the interface's two promises to render like the sh
 
 **Members added during 4.x arrive as default interface members**, so your implementation keeps compiling. The
 default body reports the datum as unavailable, like `CannotReport`; override it when your source can answer.
-`GetJobRunStatus`, `GetJobRunStatuses` and `QueryExecutionStatistics` (4.4), and `QueryJobRunStatuses` and
-`QueryTriggerRunStatuses` (4.9), throw `NotSupportedException` by default, and the pages leave out what they would
-show. `GetUpcomingFireTimes` (4.7) computes from `GetTrigger` and `GetCalendar` by default. `GetFireInstanceLog`
-(4.9) throws `NotSupportedException` by default, and Currently Executing's *Show log* says so in its words.
+`GetJobRunStatus`, `GetJobRunStatuses` and `QueryExecutionStatistics` (4.4), and `QueryJobRunStatuses`,
+`QueryTriggerRunStatuses` and `QueryUpcomingFires` (4.9), throw `NotSupportedException` by default, and the pages
+leave out what they would show. `GetUpcomingFireTimes` (4.7) computes from `GetTrigger` and `GetCalendar` by
+default; `QueryUpcomingFires` does not, because that would be a read per trigger. `GetFireInstanceLog` (4.9) throws
+`NotSupportedException` by default, and Currently Executing's *Show log* says so in its words.
 
 ## The pages
 
-All fifteen are under `{DashboardPath}` (`/quartz` by default) and render the scheduler selected in the header's
+All sixteen are under `{DashboardPath}` (`/quartz` by default) and render the scheduler selected in the header's
 picker, so switching schedulers keeps you on the same page.
 
 | Page | Route |
@@ -195,6 +196,7 @@ picker, so switching schedulers keeps you on the same page.
 | Cluster | `/quartz/cluster` |
 | Execution History, and one execution | `/quartz/history`, `/quartz/history/{EntryId}` |
 | Timeline | `/quartz/timeline` |
+| Agenda | `/quartz/agenda` |
 | Live Logs | `/quartz/live` |
 | Action Log | `/quartz/actions` |
 
@@ -210,7 +212,7 @@ A page reads again on a timer or when you ask it to:
 | Cluster, and the Overview's other tiles, execution groups, and *Needs attention*'s failing jobs and overdue count | Every five seconds |
 | The Overview's runs of the last 24 hours | Every 30 seconds |
 | Timeline | On its Jobs and Triggers refresh intervals |
-| Jobs, Triggers, Calendars, Schedulers, and one job, trigger or calendar | When you press **Refresh**, beside *Last updated* |
+| Jobs, Triggers, Calendars, Schedulers, Agenda, and one job, trigger or calendar | When you press **Refresh**, beside *Last updated* |
 
 - A timer stops while the browser tab is hidden. The page reads once when the tab is shown again.
 - **Refresh** also reads the scheduler status in the header. So does the Overview, when the status it read
@@ -794,6 +796,42 @@ another `from=` was set). An execution page without `from=` falls back to Histor
 **Remote scheduler without history.** If the scheduler runs in another process and its HTTP API does not
 serve execution history, the page shows only that message — no trigger headers or upcoming fires.
 
+The Timeline still reads each row's upcoming fires on its own; it does not use the Agenda's one read.
+
+### Agenda
+
+`/quartz/agenda` (4.9) lists every fire of every trigger in a window, earliest first, grouped by hour, and pauses a
+selection of them: *what fires tonight between 02:00 and 04:00, and should I pause it?*
+
+| What | How |
+|---|---|
+| Window | *Next hour*, *Rest of today*, *Next 24 hours* (the default), *Next 7 days*, or **From** and **To**, read in the header's time zone. At most 7 days, ending within the next 30. The end is excluded |
+| Filter | **Trigger group**, contains |
+| Address | `from`, `to` and `group` are in the URL, so a reload or a shared link shows the same window |
+| Reads | On load, on a change and on **Refresh**. Never on a timer: one read computes over every due trigger |
+| Hours | The header's zone, as the header says: *Times in Europe/Helsinki (UTC+02:00)*. A repeated autumn hour is two hours, each labelled with its offset; a skipped spring hour has none |
+| Rows | Time, trigger, job, the schedule in words, state, execution group |
+| States | Every trigger due in the window is listed in any state. A paused, blocked or error trigger's fires are listed and say so |
+| Measured from completion | Only the trigger's next fire, which the row says |
+
+**The fires are computed where the triggers are stored**, with calendars applied: by the local scheduler, a store
+window in this process, the host behind an HTTP target, or an agent, in one read. A cluster of targets asks its
+preferred member. A data source of your own that does not implement `QueryUpcomingFires` gets a message instead.
+
+**Caps.** At most 1,000 fires. When a cap cuts the list, the page says where: *Showing the first 1,000 fires, up to
+Tue 03:14. Later fires in the window are not listed: narrow the window or filter by group.* More than 10,000 triggers
+due in the window is refused, naming the group filter. A trigger whose calendar is missing is left out and counted.
+
+**Pause selected** and **Resume selected**, with Operate, act on the selected fires' triggers, each once: *2 triggers
+selected (3 fires)*. **Select this hour** selects an hour's fires. The pause asks for a reason and says the triggers
+stay paused until resumed: nothing resumes them when the window ends, and on resume each trigger's misfire
+instruction decides what happens to the fires it missed. Both are the Triggers listing's key-set calls, with an
+Action Log entry per trigger. There is no *pause until*.
+
+**What it does not simulate.** The agenda lists the schedules' times. Misfire handling of an overdue trigger,
+`[DisallowConcurrentExecution]`, execution-group limits, standby and which node fires are not taken into account.
+An overdue trigger is listed at its schedule's times after the window starts. The list is as of the read.
+
 ### Live Logs
 
 `/quartz/live` shows the scheduler's events as they happen, from Quartz's event stream.
@@ -1223,6 +1261,7 @@ The window writes no check-in row and is never listed as a node; the Cluster pag
 | Interrupting a job or a firing, from 4.7 | The node's own figures: instance id, running since, jobs executed |
 | Currently Executing, from `QRTZ_FIRED_TRIGGERS` | A running firing's log: *Show log* says no process here runs it |
 | Cluster, from the nodes' check-ins | |
+| Agenda, computed in this process from the shared tables | |
 | Execution History and the misfire tile, when the cluster keeps history in the database | |
 
 - The left column writes the shared tables, and whichever node picks up the work honours it, as in any cluster.
@@ -1287,7 +1326,7 @@ What goes where:
 
 | Operation | Routed to |
 |---|---|
-| Jobs, triggers, calendars, pause, resume, trigger now, reschedule, bulk, delete, cluster nodes | The preferred member: the first, by target, that answered the last round |
+| Jobs, triggers, calendars, pause, resume, trigger now, reschedule, bulk, delete, cluster nodes, Agenda | The preferred member: the first, by target, that answered the last round |
 | `Interrupt` (job) | From 4.7, the preferred member, or the next if it fails, plus every member older than 4.6; `true` if any interrupted or recorded a request. With no member at 4.6, every member |
 | Interrupt a firing | From 4.7, with every member at 4.6, as `Interrupt`. Otherwise the member whose node owns the firing, per the store; every member when none does |
 | A running firing's log | From 4.9, the member fronting the row's node; without one, the node that owns the firing, per the store. `Unreachable` when no member fronts it |
@@ -1718,6 +1757,8 @@ builder.Services.AddQuartzDashboard(options =>
 |---|---|---|
 | Every page, the scheduler picker, the live events | a read | `View` |
 | Show log | `GetFireInstanceLog` | `View` |
+| The Agenda | `QueryUpcomingFires` | `View` |
+| Pause selected, Resume selected, on the Agenda | `PauseTriggerKeys`, `ResumeTriggerKeys` | `Operate` |
 | Start, Standby | `Start`, `Standby` | `Operate` |
 | Pause all, Resume all | `PauseAll`, `ResumeAll` | `Operate` |
 | Pause, Resume, on a job, a trigger, a group or a selection | `PauseJob`, `ResumeJob`, `PauseTrigger`, `ResumeTrigger`, `PauseJobs`, `ResumeJobs`, `PauseTriggers`, `ResumeTriggers`, `PauseJobKeys`, `PauseTriggerKeys`, `ResumeTriggerKeys` | `Operate` |
@@ -1767,9 +1808,9 @@ Unset, every visitor may do everything `ReadOnly` allows, as in earlier releases
 ### Read-only mode
 
 `ReadOnly = true` hides every mutating control: pause, resume, trigger-now, trigger-with-overrides, reschedule,
-edit details, reset-from-error-state, unschedule, interrupt, delete, the listings' selection checkboxes, calendar
-create, edit and replace, and the scheduler's start, stand-by, pause-all, resume-all and shutdown. Every listing, filter,
-detail page and live view remains, Currently Executing's *Show log* among them.
+edit details, reset-from-error-state, unschedule, interrupt, delete, the listings' and the Agenda's selection
+checkboxes, calendar create, edit and replace, and the scheduler's start, stand-by, pause-all, resume-all and shutdown.
+Every listing, filter, detail page and live view remains, Currently Executing's *Show log* and the Agenda among them.
 
 - It is one setting per process, not per scheduler or per visitor. For different powers per visitor, use
   [operator roles](#operator-roles), under which `ReadOnly` is the ceiling. `SchedulerAuthorizationPolicy` limits
@@ -1987,6 +2028,9 @@ shell without `ASPNETCORE_ENVIRONMENT`.
 - **The Timeline reads at most 500 runs, and its name filter at most 500 triggers.** A window with more runs
   shows the latest 500 and says so. The name filter's trigger-name matches stop at 500, so some may be
   missing; its job-name matches are not capped. See [Timeline](#timeline).
+- **The Agenda lists at most 1,000 fires, over a window of at most 7 days and at most 10,000 due triggers**, and
+  says where a cap cuts it. It lists the schedules' times: misfire handling, blocking, execution-group limits,
+  standby and which node fires are not simulated. See [Agenda](#agenda).
 - **History is in-memory and per-process by default**, so a dashboard attached to a cluster shows an empty
   History page. On a persistent store,
   [`UsePersistentStore(store => store.UseExecutionHistory())`](../tutorial/job-stores.md#execution-history-in-the-database)

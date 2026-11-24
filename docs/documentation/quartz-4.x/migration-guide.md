@@ -76,6 +76,12 @@ An application on 4.8 compiles on 4.9 unchanged.
 | `FireInstanceLogDto` | `Quartz.Dashboard`, `sealed record` `(Status, SchedulerInstanceId, Entries, Next)`, with `Missed` and `HasMore`, `init` |
 | `FireInstanceLogStatus` | `Quartz.Dashboard`, enum `Running`, `NotCaptured`, `NotRunning`, `Unreachable`. `Running` is `0` |
 | `GET …/jobs/fire-instances/{fireInstanceId}/log` | HTTP API route `GetFireInstanceLog`, View: `{ status, schedulerInstanceId, entries, next, missed, hasMore }`. Agent operation `GetFireInstanceLog`, allowed by default. See [A running firing's log](packages/http-api.md#a-running-firing-s-log) |
+| `IQuartzApiClient.QueryUpcomingFires(schedulerName, DashboardUpcomingFiresQuery, CancellationToken)` | `Quartz.Dashboard`. Default interface member: every fire of every trigger in a window of at most 7 days, earliest first, computed where the triggers are stored with calendars applied, at most 1,000 (#4438). The default throws `NotSupportedException`, and the Agenda says so. See [Agenda](packages/dashboard.md#agenda) |
+| `DashboardUpcomingFiresQuery` | `Quartz.Dashboard`, `sealed record`: `From` (`DateTimeOffset?`, now), `To` (`required`), `GroupContains`, `Take` (`1000`, from 1 to 1000), all `init` |
+| `UpcomingFiresDto` | `Quartz.Dashboard`, `sealed record` `(FromUtc, ToUtc, Fires)`, with `Cut`, `CutAtUtc` and `TriggersNotComputed`, `init` |
+| `UpcomingFireDto` | `Quartz.Dashboard`, `sealed record` `(FireTimeUtc, Trigger, Job, State)`, with `ExecutionGroup`, `ScheduleDescription` and `OnlyTheNext`, `init` |
+| `GET …/triggers/upcoming-fires` | HTTP API route `QueryUpcomingFires`, View: `?from=&to=&take=&groupContains=`. Agent operation `QueryUpcomingFires`, allowed by default. Through a host older than 4.9, `HttpScheduler` computes it from the triggers and calendars the host answers with. See [Upcoming fires between two times](packages/http-api.md#upcoming-fires-between-two-times) |
+| Dashboard: the Agenda, `/quartz/agenda` | Every fire in a window, by hour, with *Pause selected* and *Resume selected*. See [Agenda](packages/dashboard.md#agenda) |
 
 | Changed | What to check |
 |---|---|

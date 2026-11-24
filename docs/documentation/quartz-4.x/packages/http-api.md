@@ -102,7 +102,7 @@ builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 
 ## Every endpoint
 
-Seventy-five routes in four groups.
+Seventy-six routes in four groups.
 
 - `{ApiPath}` is `/quartz-api` unless changed. `{name}` is the scheduler; every route but the first has one.
 - Every route with `{name}` is subject to [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when set.
@@ -171,7 +171,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `GET` | `…/jobs/groups` | paged job groups; the four `name*` filters, `paused` |
 | `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused, pause }` |
 
-### Triggers — 24
+### Triggers — 25
 
 | Method | Path | Answers |
 |---|---|---|
@@ -191,6 +191,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/keys/resume` | `{ triggers }` |
 | `GET` | `…/triggers/groups` | paged trigger groups; the four `name*` filters, `paused` |
 | `GET` | `…/triggers/groups/{triggerGroup}/paused` | `{ paused, pause }` |
+| `GET` | `…/triggers/upcoming-fires` | Every fire of every trigger in a window, earliest first; `?to=` required; [below](#upcoming-fires-between-two-times). From 4.9 |
 | `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }`; one job and its trigger. A trigger alone may carry `onConflict` (`Throw`, `Replace`, `Keep`, `KeepEarlier`); the answer then adds `outcome` (`Created`, `Replaced`, `Kept`). See [One-off job](../how-tos/one-off-job.md#scheduling-over-a-firing-that-is-already-there). May store it [paused](#a-trigger-can-be-scheduled-paused) |
 | `POST` | `…/triggers/schedule-multiple` | empty; several jobs and their triggers; may store them [paused](#a-trigger-can-be-scheduled-paused) |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/unschedule` | `{ applied }` |
@@ -1202,6 +1203,57 @@ trigger type: in the trigger's own time zone, less what its calendar excludes, u
 `GetUpcomingFireTimes` on an `HttpScheduler` is this one request. A host older than 4.7 answers the route `404`
 without problem details; `HttpScheduler` then reads the trigger and its calendar and computes the times itself.
 
+## Upcoming fires between two times
+
+From 4.9. `GET …/triggers/upcoming-fires?from=&to=&take=&groupContains=` answers every fire of every trigger in
+[`from`, `to`), earliest first, ties by trigger group then name. It is the dashboard's
+[Agenda](dashboard.md#agenda). The host computes it from its store: each trigger's schedule advances from its next
+fire time, in its own time zone, less what its calendar excludes, up to its end time.
+
+| Parameter | Meaning |
+|---|---|
+| `to` | The window's end, excluded. Required |
+| `from` | The window's start. Absent, or before the scheduler's now, it is now; `fromUtc` says which was used |
+| `take` | The most fires to answer: 1 to 1000, `1000` by default. `MaxPageSize`, when lower, lowers both; `all` is that most |
+| `groupContains` | Only triggers whose group contains this |
+
+```json
+{
+  "fromUtc": "2026-11-25T00:00:00+00:00",
+  "toUtc": "2026-11-25T02:00:00+00:00",
+  "fires": [
+    { "fireTimeUtc": "2026-11-25T00:15:00+00:00", "trigger": { "name": "nightly", "group": "reports" },
+      "job": { "name": "export", "group": "reports" }, "state": "Normal", "executionGroup": null,
+      "scheduleDescription": "Every day at 02:15 (Europe/Helsinki)", "onlyTheNext": false }
+  ],
+  "cut": false,
+  "cutAtUtc": null,
+  "triggersNotComputed": 0
+}
+```
+
+| Case | Answer |
+|---|---|
+| A paused, blocked or error trigger | listed, with its `state` |
+| A trigger with no next fire time | not listed |
+| A simple trigger [measured from completion](../tutorial/simpletriggers.md#measured-from-completion) | its next fire only, `onlyTheNext: true` |
+| A trigger whose calendar is missing, or that cannot be advanced | not listed; counted in `triggersNotComputed` |
+| `take` fires listed and more in the window, or the step budget spent | `cut: true`; `cutAtUtc` is the last fire listed, and fires at or after it may be missing |
+| `to` not after now | `400`: *The agenda lists what will fire; History lists what ran* |
+| `to` more than 30 days ahead, or more than 7 days after the start | `400` |
+| `take` outside 1 to 1000, above `MaxPageSize`, or not a number | `400` |
+| More than 10,000 triggers due before `to` | `400`, naming the group filter |
+| `ReadOnly` | served: a read |
+
+- **The cost is bounded.** The host lists the triggers due before `to` a thousand headers at a time. It reads them a
+  hundred at a time, in order of their next fire time, and only while one could still fire before the earliest
+  fire not yet listed. All their walks share a budget of 1,000,000 steps, each a schedule step or a calendar check.
+- **The fires are the schedules' times.** No misfire handling of an overdue trigger, `[DisallowConcurrentExecution]`,
+  execution-group limit, standby or choice of node is simulated. An overdue trigger is listed at its schedule's times
+  after the window starts. The answer is as of the read: a trigger added while it runs may be missing.
+- Through an `HttpScheduler` it is this one request. A host older than 4.9 answers `404` without problem details;
+  `HttpScheduler` then lists, reads and computes over the host's other routes, on its own clock.
+
 ## Overlap policies
 
 From 4.3. A trigger's [overlap policy](../how-tos/overlap-policy.md) travels by name:
@@ -1505,7 +1557,7 @@ POST /quartz-api/schedulers/reporting/triggers/nightly/at-midnight/pause?target=
 
 | Routes | Through `?target=<store>` |
 |---|---|
-| Reads: details, jobs, triggers, groups, states, pauses, calendars, fire times, fire instances, cluster nodes | Served from the shared tables |
+| Reads: details, jobs, triggers, groups, states, pauses, calendars, fire times, upcoming fires, fire instances, cluster nodes | Served from the shared tables |
 | History, misfires, statistics, run statuses | Served when the store was attached with `UseExecutionHistory()`; otherwise `400` saying so |
 | `GET …/events` | `501`: a database carries no event feed |
 | `GET …/jobs/fire-instances/{fireInstanceId}/log` | `Unreachable`: no process here runs the firing |
